@@ -201,6 +201,8 @@ ensogl::def_command_api! { Commands
     remove_all_nodes,
     /// Toggle the visibility of the selected visualisations
     toggle_visualization_visibility,
+     /// TODO Remove
+    set_dummy_data,
 }
 
 
@@ -211,9 +213,10 @@ impl Commands {
             def remove_selected_nodes           = source();
             def remove_all_nodes                = source();
             def toggle_visualization_visibility = source();
+            def set_dummy_data                  = source();
         }
         Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes,
-              toggle_visualization_visibility}
+              toggle_visualization_visibility,set_dummy_data}
     }
 }
 
@@ -237,6 +240,7 @@ pub struct FrpInputs {
     pub set_expression_span_tree : frp::Source<Option<(WeakNode, span_tree::SpanTree)>>,
     // Note[ao]: Here I can send `None` sometimes, because node can lose its pattern.
     pub set_pattern_span_tree    : frp::Source<Option<(WeakNode, span_tree::SpanTree)>>,
+    pub set_visualization_data   : frp::Source<visualization::Data>,
 }
 
 impl FrpInputs {
@@ -251,9 +255,11 @@ impl FrpInputs {
             def remove_connection        = source();
             def set_expression_span_tree = source();
             def set_pattern_span_tree    = source();
+            def set_visualization_data   = source();
         }
         Self {commands,register_node,add_node_at,select_node,translate_selected_nodes,
-            add_connection,remove_connection,set_expression_span_tree,set_pattern_span_tree}
+            add_connection,remove_connection,set_expression_span_tree,set_pattern_span_tree,
+            set_visualization_data}
     }
 
     fn register_node<T: AsRef<Node>>(&self, arg: T) {
@@ -280,6 +286,12 @@ impl FrpInputs {
     pub fn toggle_visualization_visibility(&self) {
         self.toggle_visualization_visibility.emit(());
     }
+    pub fn set_visualization_data<T: AsRef<visualization::Data>>(&self, arg: T) {
+        self.set_visualization_data.emit(arg.as_ref());
+    } pub fn set_dummy_data(&self) {
+        self.set_dummy_data.emit(());
+    }
+
 }
 
 impl application::command::FrpNetworkProvider for GraphEditor {
@@ -398,9 +410,11 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
         vec! [
-        Self::self_shortcut(&[Key::Character("n".into())]     , "add_node_at_cursor")
-      , Self::self_shortcut(&[Key::Backspace]                 , "remove_selected_nodes")
-      , Self::self_shortcut(&[Key::Character(" ".into())] , "toggle_visualization_visibility")
+        Self::self_shortcut(&[Key::Character("n".into())]  , "add_node_at_cursor")
+      , Self::self_shortcut(&[Key::Backspace]              , "remove_selected_nodes")
+      , Self::self_shortcut(&[Key::Character(" ".into())]  , "toggle_visualization_visibility")
+        // TODO move to debug scene
+      , Self::self_shortcut(&[Key::Character("d".into())]  , "set_dummy_data")
         ]
     }
 }
@@ -519,8 +533,18 @@ impl application::View for GraphEditor {
         }));
 
 
-        // === Toggle Visualization Visibility ===
+        // === Vis Dummy ===
+        // TODO[mm] remove
+        let dummy_counter = Rc::new(Cell::new(1));
+        def _update_dummy_data = inputs.set_dummy_data.map(f!((dummy_counter,nodes)(_) {
+            let dc = dummy_counter.get();
+            dummy_counter.set(dc + 1);
+            let dummy_data = visualization::Data::JSON { content : format!("{}", dummy_counter.get()) };
+            nodes.selected.for_each(|node| node.visualization.data.events.update_data.emit(dummy_data.clone()));
+        }));
 
+
+        // === Toggle Visualization Visibility ===
         def _toggle_selected = inputs.toggle_visualization_visibility.map(f!((nodes)(_) {
             nodes.selected.for_each(|node| node.visualization.toggle_visibility());
         }));

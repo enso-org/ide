@@ -9,11 +9,39 @@ use ensogl::display::object::class::ObjectOps;
 use ensogl::display;
 use ensogl::system::web;
 use web::StyleSetter;
+use ensogl::display::object::WeakObjectOps;
 
 
 // ==============================
 // === Types of Visualisation ===
 // ==============================
+
+#[derive(Clone,Debug)]
+pub enum Data {
+    // TODO use proper JSON representation
+    JSON { content : String },
+    Empty,
+}
+
+impl Data {
+    pub fn as_json(&self) -> String {
+        match &self {
+            Data::JSON { content } => content.clone(),
+            Data::Empty => { "{}".to_string() },
+        }
+    }
+}
+
+impl Default for Data{
+    fn default() -> Self {
+        Data::Empty
+    }
+}
+
+// TODO create proper abstraction for the visualisation
+pub struct DummyVis {
+
+}
 
 /// Content that can be used in a visualization.
 #[derive(Clone,CloneRef,Debug)]
@@ -22,6 +50,24 @@ pub enum Content {
     DomSymbol { content : Rc<DomSymbol>  },
     Node      { content : Rc<display::object::Instance> },
     Empty,
+}
+
+impl Content {
+    pub fn set_data(&self, data: Data){
+        match &self {
+            Content::DomSymbol { content } => { ;
+                content.dom().dataset().set("input", &data.as_json());
+                content.dom().set_inner_html(
+                    &format!(r#"
+<svg>
+  <circle style="fill: #69b3a2" stroke="black" cx=50 cy=50 r={}></circle>
+</svg>
+"#, data.as_json()));
+            },
+            Content::Node { .. } => {},
+            Content::Empty => {},
+        }
+    }
 }
 
 impl Default for Content{
@@ -57,18 +103,20 @@ pub struct Events {
     pub hide              : frp::Source,
     pub toggle_visibility : frp::Source,
     pub update_content    : frp::Source<Content>,
+    pub update_data       : frp::Source<Data>,
 }
 
 impl Default for Events {
     fn default() -> Self {
         frp::new_network! { visualization_events
-            def show              = source::<()> ();
-            def hide              = source::<()> ();
-            def toggle_visibility = source::<()> ();
+            def show              = source::<()>      ();
+            def hide              = source::<()>      ();
+            def toggle_visibility = source::<()>      ();
             def update_content    = source::<Content> ();
+            def update_data       = source::<Data>    ();
         };
         let network = visualization_events;
-        Self {network,show,hide,update_content,toggle_visibility}
+        Self {network,show,hide,update_content,toggle_visibility,update_data}
     }
 }
 
@@ -132,12 +180,12 @@ impl Visualization {
         div.set_style_or_panic("height","100px");
         div.set_style_or_panic("overflow","hidden");
 
-
         let content = web::create_element("div");
         content.set_inner_html(
 r#"<svg>
   <circle style="fill: #69b3a2" stroke="black" cx=50 cy=50 r=20></circle>
-</svg>"#);
+</svg>
+"#);
         content.set_attribute("width","100%").unwrap();
         content.set_attribute("height","100%").unwrap();
 
@@ -149,7 +197,10 @@ r#"<svg>
         let color      = iformat!("rgb({r},{g},{b})");
         div.set_style_or_panic("background-color",color);
 
-        DomSymbol::new(&div)
+        let symbol = DomSymbol::new(&div);
+        symbol.dom().set_attribute("id","vis").unwrap();
+        symbol
+
     }
 
     /// Update the content properties with the values from the `VisualizationData`.
@@ -220,6 +271,13 @@ r#"<svg>
                     vis.set_content(content.clone());
                 }
             });
+
+            let weak_vis = self.downgrade();
+            def _f_hide = self.data.events.update_data.map(move |data| {
+                if let Some(vis) = weak_vis.upgrade() {
+                    vis.set_data(data.clone());
+                }
+            });
         }
 
         self
@@ -242,6 +300,10 @@ r#"<svg>
     /// Toggle visibility.
     pub fn toggle_visibility(&self) {
         self.set_visibility(!self.data.visible.get())
+    }
+
+    pub fn set_data(&self, data: Data) {
+        self.data.content.borrow().set_data(data)
     }
 
 }
