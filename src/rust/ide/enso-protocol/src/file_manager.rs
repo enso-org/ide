@@ -28,10 +28,14 @@ pub type Event = json_rpc::handler::Event<Notification>;
 // === Path ===
 // ============
 
-impl Path {
-    pub fn new(root_id:Uuid, segments:Vec<String>) -> Self {
-        Self {root_id,segments}
-    }
+/// A path is a representation of a path relative to a specified content root.
+#[derive(Clone,Debug,Serialize,Deserialize,Hash,PartialEq,Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Path {
+    /// Path's root id.
+    pub root_id : Uuid,
+    /// Path's segments.
+    pub segments : Vec<String>
 }
 
 impl Display for Path {
@@ -44,15 +48,7 @@ impl Display for Path {
     }
 }
 
-/// A path is a representation of a path relative to a specified content root.
-#[derive(Clone,Debug,Serialize,Deserialize,Hash,PartialEq,Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct Path {
-    /// Path's root id.
-    pub root_id : Uuid,
-    /// Path's segments.
-    pub segments : Vec<String>
-}
+
 
 // ====================
 // === Notification ===
@@ -172,63 +168,91 @@ pub struct SymlinkLoop {
     pub target : Path
 }
 
+/// Response of `init_protocol_connection` method.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InitProtocolConnectionResponse {
+    /// List of Root IDs.
+    pub content_roots : Vec<Uuid>
+}
+
+/// Response of `file_read` method.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+pub struct ReadResponse {
+    #[allow(missing_docs)]
+    pub contents : String
+}
+
+/// Response of `file_exists` method.
+#[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
+pub struct FileExistsResponse {
+    #[allow(missing_docs)]
+    pub exists : bool
+}
+
 make_rpc_methods! {
 /// An interface containing all the available file management operations.
 trait API {
-    /// Copies a specified directory to another location.
-    #[MethodInput=CopyDirectoryInput,rpc_name="file/copy",result=copy_directory_result,set_result=set_copy_directory_result]
-    fn copy_directory(&self, from:Path, to:Path) -> ();
+    /// Initialize the connection used to send the textual protocol messages. This initialisation
+    /// is important such that the client identifier can be correlated between the textual and data
+    /// connections.
+    #[MethodInput=InitProtocolInput,rpc_name="session/initProtocolConnection",
+    result=init_protocol_connection_result,set_result=set_init_protocol_connection_result]
+    fn init_protocol_connection(&self, client_id:Uuid) -> InitProtocolConnectionResponse;
 
-    /// Copies a specified file to another location.
-    #[MethodInput=CopyFileInput,rpc_name="file/copy",result=copy_file_result,set_result=set_copy_file_result]
+    /// Copy a specified file system object to another location.
+    #[MethodInput=CopyFileInput,rpc_name="file/copy",result=copy_file_result,
+    set_result=set_copy_file_result]
     fn copy_file(&self, from:Path, to:Path) -> ();
 
-    /// Deletes the specified file.
+    /// Delete the specified file system object.
     #[MethodInput=DeleteFileInput,rpc_name="file/delete",result=delete_file_result,
     set_result=set_delete_file_result]
     fn delete_file(&self, path:Path) -> ();
 
-    /// Check if file exists.
-    #[MethodInput=ExistsInput,rpc_name="file/exists",result=exists_result,
-    set_result=set_exists_result]
-    fn exists(&self, path:Path) -> bool;
+    /// Check if file system object exists.
+    #[MethodInput=FileExistsInput,rpc_name="file/exists",result=file_exists_result,
+    set_result=set_file_exists_result]
+    fn file_exists(&self, path:Path) -> FileExistsResponse;
 
     /// List all file-system objects in the specified path.
-    #[MethodInput=ListInput,rpc_name="file/list",result=list_result,set_result=set_list_result]
-    fn list(&self, path:Path) -> Vec<Path>;
+    #[MethodInput=FileListInput,rpc_name="file/list",result=file_list_result,
+    set_result=set_file_list_result]
+    fn file_list(&self, path:Path) -> Vec<Path>;
 
-    /// Moves directory to another location.
-    #[MethodInput=MoveDirectoryInput,rpc_name="file/move",result=move_directory_result,
-    set_result=set_move_directory_result]
-    fn move_directory(&self, from:Path, to:Path) -> ();
-
-    /// Moves file to another location.
+    /// Move file system object to another location.
     #[MethodInput=MoveFileInput,rpc_name="file/move",result=move_file_result,
     set_result=set_move_file_result]
     fn move_file(&self, from:Path, to:Path) -> ();
 
     /// Reads file's content as a String.
-    #[MethodInput=ReadInput,rpc_name="file/read",result=read_result,set_result=set_read_result]
-    fn read(&self, path:Path) -> String;
+    #[MethodInput=ReadFileInput,rpc_name="file/read",result=file_read_result,
+    set_result=set_file_read_result]
+    fn read_file(&self, path:Path) -> ReadResponse;
 
-    /// Gets file's status.
-    #[MethodInput=StatusInput,rpc_name="file/status",result=status_result,set_result=set_status_result]
-    fn status(&self, path:Path) -> Attributes;
+    /// Gets file system object's status.
+    #[MethodInput=FileStatusInput,rpc_name="file/status",result=file_status_result,
+    set_result=set_file_status_result]
+    fn file_status(&self, path:Path) -> Attributes;
 
     /// Adds a content root to the active project.
-    #[MethodInput=AddRootInput,rpc_name="file/addRoot",result=add_root_result,set_result=set_add_root_result]
+    #[MethodInput=AddRootInput,rpc_name="file/addRoot",result=add_root_result,
+    set_result=set_add_root_result]
     fn add_root(&self, absolute_path:Vec<String>, id:Uuid) -> ();
 
     /// Creates the specified file system object.
-    #[MethodInput=CreateInput,rpc_name="file/create",result=create_result,set_result=set_create_result]
-    fn create(&self, object:FileSystemObject) -> ();
+    #[MethodInput=CreateInput,rpc_name="file/create",result=create_result,
+    set_result=set_create_result]
+    fn create_file(&self, object:FileSystemObject) -> ();
 
     /// Writes String contents to a file in the specified path.
-    #[MethodInput=WriteInput,rpc_name="file/write",result=write_result,set_result=set_write_result]
-    fn write(&self, path:Path, contents:String) -> ();
+    #[MethodInput=FileWriteInput,rpc_name="file/write",result=file_write_result,
+    set_result=set_file_write_result]
+    fn write_file(&self, path:Path, contents:String) -> ();
 
-    /// Watches the specified path.
-    #[MethodInput=CreateWatchInput,rpc_name="file/createWatch",result=create_watch_result,set_result=set_create_watch_result]
+    /// Watch the specified path.
+    #[MethodInput=CreateWatchInput,rpc_name="file/createWatch",result=create_watch_result,
+    set_result=set_create_watch_result]
     fn create_watch(&self, path:Path) -> Uuid;
 
     /// Delete the specified watcher.
