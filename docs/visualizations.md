@@ -27,15 +27,15 @@ Visualizations can be displayed in the following ways:
   Their input and output ports are not visible in this form. They are used only
   to display the result of the attached node. Whenever you move the node, the
   visualization moves as well. The visualization can be shown this way by
-  selecting nodes by clicking the "space" button.
+  selecting nodes by tapping the "space" button.
 
 - **Fullscreen**  
   Similar to the previous mode, but the visualization occupies the full visual
   space. This form can be triggered on a recently selected node (even if many
   nodes are selected, we remember the last selected one) by either pressing
-  space and keeping it pressed for longer than approx 0.5 s, or by clicking
+  space and keeping it pressed for longer than approx 0.5 s, or by tapping
   space twice. In the former case, the visualization stops being fullscreen
-  whenever we release space, in the later, whenever we click space again.
+  whenever we release space, in the later, whenever we tap space again.
 
 - **Detached**  
    This form is used to build dashboards and reports. You can detach a
