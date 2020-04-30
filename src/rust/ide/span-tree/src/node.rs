@@ -150,8 +150,8 @@ impl<'a> Ref<'a> {
     /// Get the reference to child with given index. Returns None if index if out of bounds.
     pub fn child(mut self, index:usize) -> FallibleResult<Ref<'a>> {
         let err = || InvalidCrumb {
-            crumb : index,
-            count : self.node.children.len(),
+            crumb   : index,
+            count   : self.node.children.len(),
             context : self.crumbs.clone()
         }.into();
 
