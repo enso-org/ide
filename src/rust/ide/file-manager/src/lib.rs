@@ -1,15 +1,23 @@
 //! Client library for the JSON-RPC-based File Manager service.
 
+#![warn(missing_docs)]
+#![warn(trivial_casts)]
+#![warn(trivial_numeric_casts)]
+#![warn(unused_import_braces)]
+#![warn(unused_qualifications)]
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
+
 use crate::prelude::*;
 
-use crate::types::UTCDateTime;
-
+pub use enso_prelude as prelude;
 use json_rpc::api::Result;
 use json_rpc::Handler;
-use json_rpc::make_rpc_methods;
 use futures::Stream;
 use serde::Serialize;
 use serde::Deserialize;
+use shapely::shared;
 use std::future::Future;
 use uuid::Uuid;
 
@@ -28,31 +36,20 @@ pub type Event = json_rpc::handler::Event<Notification>;
 // === Path ===
 // ============
 
+/// Path to a file.
+#[derive(Clone,Debug,Display,Eq,Hash,PartialEq,PartialOrd,Ord)]
+#[derive(Serialize, Deserialize)]
+#[derive(Shrinkwrap)]
+pub struct Path(pub String);
+
 impl Path {
-    pub fn new(root_id:Uuid, segments:Vec<String>) -> Self {
-        Self {root_id,segments}
+    /// Wraps a `String`-like entity into a new `Path`.
+    pub fn new(s:impl Str) -> Path {
+        Path(s.into())
     }
 }
 
-impl Display for Path {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let result = write!(f, "{}", self.root_id);
-        for segment in &self.segments {
-            write!(f, "/{}", segment)?
-        }
-        result
-    }
-}
 
-/// A path is a representation of a path relative to a specified content root.
-#[derive(Clone,Debug,Serialize,Deserialize,Hash,PartialEq,Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct Path {
-    /// Path's root id.
-    pub root_id : Uuid,
-    /// Path's segments.
-    pub segments : Vec<String>
-}
 
 // ====================
 // === Notification ===
@@ -80,7 +77,7 @@ pub enum Notification {
 pub struct FilesystemEvent {
     /// Path of the file that the event is about.
     pub path : Path,
-    #[allow(missing_docs)]
+    /// What kind of event is it.
     pub kind : FilesystemEventKind
 }
 
@@ -110,17 +107,20 @@ pub enum FilesystemEventKind {
 #[serde(rename_all = "camelCase")]
 pub struct Attributes{
     /// When the file was created.
-    pub creation_time      : UTCDateTime,
+    pub creation_time      : FileTime,
     /// When the file was last accessed.
-    pub last_access_time   : UTCDateTime,
+    pub last_access_time   : FileTime,
     /// When the file was last modified.
-    pub last_modified_time : UTCDateTime,
+    pub last_modified_time : FileTime,
     /// What kind of file is this.
     pub file_kind          : FileKind,
     /// Size of the file in bytes.
     /// (size of files not being `RegularFile`s is unspecified).
     pub byte_size          : u64
 }
+
+/// A filesystem's timestamp.
+pub type FileTime = chrono::DateTime<chrono::FixedOffset>;
 
 /// What kind of file (regular, directory, symlink) is this.
 #[derive(Clone,Copy,Debug,PartialEq)]
@@ -136,106 +136,121 @@ pub enum FileKind {
     Other
 }
 
-/// A representation of what kind of type a filesystem object can be.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-#[serde(tag = "type")]
-pub enum FileSystemObject {
-    /// Represents a directory.
-    Directory(Object),
-    /// Represents a directory which contents have been truncated
-    DirectoryTruncated(Object),
-    /// Represents a file.
-    File(Object),
-    /// Represents unrecognized object. Example is a broken symbolic link.
-    Other(Object),
-    /// Represents a symbolic link that creates a loop.
-    SymlinkLoop(SymlinkLoop)
+
+
+// ==============
+// === Client ===
+// ==============
+
+shared! { Handle
+
+    /// File Manager client. Contains numerous asynchronous methods for remote calls
+    /// on File Manager server. Also, allows obtaining events stream by calling
+    /// `events`.
+    #[derive(Debug)]
+    pub struct Client {
+        /// JSON-RPC protocol handler.
+        handler : Handler<Notification>,
+    }
+
+    impl {
+        /// Create a new File Manager client that will use given transport.
+        pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
+            let handler = Handler::new(transport);
+            Client { handler }
+        }
+
+        /// Asynchronous event stream with notification and errors.
+        ///
+        /// On a repeated call, previous stream is closed.
+        pub fn events(&mut self) -> impl Stream<Item = Event> {
+            self.handler.handler_event_stream()
+        }
+
+        /// Returns a future that performs any background, asynchronous work needed
+        /// for this Client to correctly work. Should be continually run while the
+        /// `Client` is used. Will end once `Client` is dropped.
+        pub fn runner(&mut self) -> impl Future<Output = ()> {
+            self.handler.runner()
+        }
+    }
+
 }
 
-/// Represents an object.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-pub struct Object {
-    /// Name of the object.
-    pub name : String,
-    /// Path to the object.
-    pub path : Path
+
+
+// ===================
+// === RPC Methods ===
+// ===================
+
+
+// === Helper macro ===
+
+/// Macro that generates a asynchronous method making relevant RPC call to the
+/// server. First three args is the name appropriately in CamelCase,
+/// snake_case, camelCase. Then goes the function signature, in form of
+/// `(arg:Arg) -> Ret`.
+///
+/// Macro generates:
+/// * a method in Client named `snake_case` that takes `(arg:Arg)` and returns
+/// `Future<Ret>`.
+/// * a structure named `CamelCase` that stores function arguments as fields and
+///   its JSON serialization conforms to JSON-RPC (yielding `method` and
+///   `params` fields).
+/// * `snakeCase` is the name of the remote method.
+macro_rules! make_rpc_method {
+    ( $name_typename:ident
+      $name:ident
+      $name_ext:ident
+      ($($arg:ident : $type:ty),* $(,)?) -> $out:ty   ) => {
+    paste::item! {
+        impl Client {
+            /// Remote call to the method on the File Manager Server.
+            pub fn $name
+            (&mut self, $($arg:$type),*) -> impl Future<Output=Result<$out>> {
+                let input = [<$name_typename Input>] { $($arg:$arg),* };
+                self.handler.open_request(input)
+            }
+        }
+
+        impl Handle {
+            /// Remote call to the method on the File Manager Server.
+            pub fn $name
+            (&self, $($arg:$type),*) -> impl Future<Output=Result<$out>> {
+                self.with_borrowed(|client| client.$name  ($($arg),*))
+            }
+        }
+
+        /// Structure transporting method arguments.
+        #[derive(Serialize,Deserialize,Debug,PartialEq)]
+        #[serde(rename_all = "camelCase")]
+        struct [<$name_typename Input>] {
+            $($arg : $type),*
+        }
+
+        impl json_rpc::RemoteMethodCall for [<$name_typename Input>] {
+            const NAME:&'static str = stringify!($name_ext);
+            type Returned = $out;
+        }
+    }}
 }
 
-/// Represents a symbolic link that creates a loop.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-pub struct SymlinkLoop {
-    /// Name of the symlink.
-    pub name : String,
-    /// Path to the symlink.
-    pub path : Path,
-    /// A target of the symlink. Since it is a loop, target is a subpath of the symlink.
-    pub target : Path
-}
 
-make_rpc_methods! {
-/// An interface containing all the available file management operations.
-trait API {
-    /// Copies a specified directory to another location.
-    #[MethodInput=CopyDirectoryInput,rpc_name="file/copy",result=copy_directory_result,set_result=set_copy_directory_result]
-    fn copy_directory(&self, from:Path, to:Path) -> ();
+// === Remote API definition ===
 
-    /// Copies a specified file to another location.
-    #[MethodInput=CopyFileInput,rpc_name="file/copy",result=copy_file_result,set_result=set_copy_file_result]
-    fn copy_file(&self, from:Path, to:Path) -> ();
-
-    /// Deletes the specified file.
-    #[MethodInput=DeleteFileInput,rpc_name="file/delete",result=delete_file_result,
-    set_result=set_delete_file_result]
-    fn delete_file(&self, path:Path) -> ();
-
-    /// Check if file exists.
-    #[MethodInput=ExistsInput,rpc_name="file/exists",result=exists_result,
-    set_result=set_exists_result]
-    fn exists(&self, path:Path) -> bool;
-
-    /// List all file-system objects in the specified path.
-    #[MethodInput=ListInput,rpc_name="file/list",result=list_result,set_result=set_list_result]
-    fn list(&self, path:Path) -> Vec<Path>;
-
-    /// Moves directory to another location.
-    #[MethodInput=MoveDirectoryInput,rpc_name="file/move",result=move_directory_result,
-    set_result=set_move_directory_result]
-    fn move_directory(&self, from:Path, to:Path) -> ();
-
-    /// Moves file to another location.
-    #[MethodInput=MoveFileInput,rpc_name="file/move",result=move_file_result,
-    set_result=set_move_file_result]
-    fn move_file(&self, from:Path, to:Path) -> ();
-
-    /// Reads file's content as a String.
-    #[MethodInput=ReadInput,rpc_name="file/read",result=read_result,set_result=set_read_result]
-    fn read(&self, path:Path) -> String;
-
-    /// Gets file's status.
-    #[MethodInput=StatusInput,rpc_name="file/status",result=status_result,set_result=set_status_result]
-    fn status(&self, path:Path) -> Attributes;
-
-    /// Adds a content root to the active project.
-    #[MethodInput=AddRootInput,rpc_name="file/addRoot",result=add_root_result,set_result=set_add_root_result]
-    fn add_root(&self, absolute_path:Vec<String>, id:Uuid) -> ();
-
-    /// Creates the specified file system object.
-    #[MethodInput=CreateInput,rpc_name="file/create",result=create_result,set_result=set_create_result]
-    fn create(&self, object:FileSystemObject) -> ();
-
-    /// Writes String contents to a file in the specified path.
-    #[MethodInput=WriteInput,rpc_name="file/write",result=write_result,set_result=set_write_result]
-    fn write(&self, path:Path, contents:String) -> ();
-
-    /// Watches the specified path.
-    #[MethodInput=CreateWatchInput,rpc_name="file/createWatch",result=create_watch_result,set_result=set_create_watch_result]
-    fn create_watch(&self, path:Path) -> Uuid;
-
-    /// Delete the specified watcher.
-    #[MethodInput=DeleteWatchInput,rpc_name="file/deleteWatch",result=delete_watch_result,
-    set_result=set_delete_watch_result]
-    fn delete_watch(&self, watch_id:Uuid) -> ();
-}}
+make_rpc_method!(CopyDirectory copy_directory copyDirectory (from:Path, to:Path)         -> ()        );
+make_rpc_method!(CopyFile      copy_file      copyFile      (from:Path, to:Path)         -> ()        );
+make_rpc_method!(DeleteFile    delete_file    deleteFile    (path:Path)                  -> ()        );
+make_rpc_method!(Exists        exists         exists        (path:Path)                  -> bool      );
+make_rpc_method!(List          list           list          (path:Path)                  -> Vec<Path> );
+make_rpc_method!(MoveDirectory move_directory moveDirectory (from:Path, to:Path)         -> ()        );
+make_rpc_method!(MoveFile      move_file      moveFile      (from:Path, to:Path)         -> ()        );
+make_rpc_method!(Read          read           read          (path:Path)                  -> String    );
+make_rpc_method!(Status        status         status        (path:Path)                  -> Attributes);
+make_rpc_method!(Touch         touch          touch         (path:Path)                  -> ()        );
+make_rpc_method!(Write         write          write         (path:Path, contents:String) -> ()        );
+make_rpc_method!(CreateWatch   create_watch   createWatch   (path:Path)                  -> Uuid      );
+make_rpc_method!(DeleteWatch   delete_watch   deleteWatch   (watch_id:Uuid)              -> ()        );
 
 
 
@@ -248,7 +263,6 @@ mod tests {
     use super::*;
     use super::FileKind::RegularFile;
 
-    use futures::task::LocalSpawnExt;
     use json_rpc::messages::Message;
     use json_rpc::messages::RequestMessage;
     use json_rpc::test_util::transport::mock::MockTransport;
@@ -257,6 +271,7 @@ mod tests {
     use std::future::Future;
     use utils::test::poll_future_output;
     use utils::test::poll_stream_output;
+    use futures::task::LocalSpawnExt;
 
     struct Fixture {
         transport : MockTransport,
@@ -264,28 +279,28 @@ mod tests {
         executor  : futures::executor::LocalPool,
     }
 
-    fn setup_file_manager() -> Fixture {
-        let transport = MockTransport::new();
-        let client    = Client::new(transport.clone());
-        let executor  = futures::executor::LocalPool::new();
+    fn setup_fm() -> Fixture {
+        let transport  = MockTransport::new();
+        let mut client = Client::new(transport.clone());
+        let executor   = futures::executor::LocalPool::new();
         executor.spawner().spawn_local(client.runner()).unwrap();
         Fixture {transport,client,executor}
     }
 
     #[test]
     fn test_notification() {
-        let mut fixture = setup_file_manager();
+        let mut fixture = setup_fm();
         let mut events  = Box::pin(fixture.client.events());
         assert!(poll_stream_output(&mut events).is_none());
 
         let expected_notification = FilesystemEvent {
-            path : Path::new("./Main.txt"),
+            path : Path::new("./Main.luna"),
             kind : FilesystemEventKind::Modified,
         };
         let notification_text = r#"{
             "jsonrpc": "2.0",
             "method": "filesystemEvent",
-            "params": {"path" : "./Main.txt", "kind" : "Modified"}
+            "params": {"path" : "./Main.luna", "kind" : "Modified"}
         }"#;
         fixture.transport.mock_peer_message_text(notification_text);
         assert!(poll_stream_output(&mut events).is_none());
@@ -300,12 +315,12 @@ mod tests {
         }
     }
 
-    /// This function tests making a request using file manager. It
-    /// * creates FM client and uses `make_request` to make a request,
-    /// * checks that request is made for `expected_method`,
-    /// * checks that request input is `expected_input`,
-    /// * mocks receiving a response from server with `result` and
-    /// * checks that FM-returned Future yields `expected_output`.
+    /// Tests making a request using file manager:
+    /// * creates FM client and uses `make_request` to make a request
+    /// * checks that request is made for `expected_method`
+    /// * checks that request input is `expected_input`
+    /// * mocks receiving a response from server with `result`
+    /// * checks that FM-returned Future yields `expected_output`
     fn test_request<Fun, Fut, T>
     ( make_request:Fun
     , expected_method:&str
@@ -315,8 +330,8 @@ mod tests {
     where Fun : FnOnce(&mut Client) -> Fut,
           Fut : Future<Output = Result<T>>,
           T   : Debug + PartialEq {
-        let mut fixture        = setup_file_manager();
-        let mut request_future = Box::pin(make_request(&mut fixture.client));
+        let mut fixture = setup_fm();
+        let mut fut     = Box::pin(make_request(&mut fixture.client));
 
         let request = fixture.transport.expect_message::<RequestMessage<Value>>();
         assert_eq!(request.method, expected_method);
@@ -325,70 +340,70 @@ mod tests {
         let response = Message::new_success(request.id, result);
         fixture.transport.mock_peer_message(response);
         fixture.executor.run_until_stalled();
-        let output = poll_future_output(&mut request_future).unwrap().unwrap();
+        let output = poll_future_output(&mut fut).unwrap().unwrap();
         assert_eq!(output, expected_output);
     }
 
     #[test]
     fn test_requests() {
-        let main                = Path::new("./Main.txt");
-        let target              = Path::new("./Target.txt");
-        let path_main           = json!({"path" : "./Main.txt"});
+        let main                = Path::new("./Main.luna");
+        let target              = Path::new("./Target.luna");
+        let path_main           = json!({"path" : "./Main.luna"});
         let from_main_to_target = json!({
-            "from" : "./Main.txt",
-            "to"   : "./Target.txt"
+            "from" : "./Main.luna",
+            "to"   : "./Target.luna"
         });
         let true_json = json!(true);
         let unit_json = json!(null);
 
         test_request(
             |client| client.copy_directory(main.clone(), target.clone()),
-            "file/copy",
+            "copyDirectory",
             from_main_to_target.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.copy_file(main.clone(), target.clone()),
-            "file/copy",
+            "copyFile",
             from_main_to_target.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.delete_file(main.clone()),
-            "file/delete",
+            "deleteFile",
             path_main.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.exists(main.clone()),
-            "file/exists",
+            "exists",
             path_main.clone(),
             true_json,
             true);
 
-        let list_response_json  = json!([          "Bar.txt",           "Foo.txt" ]);
-        let list_response_value = vec!  [Path::new("Bar.txt"),Path::new("Foo.txt")];
+        let list_response_json  = json!([          "Bar.luna",           "Foo.luna" ]);
+        let list_response_value = vec!  [Path::new("Bar.luna"),Path::new("Foo.luna")];
         test_request(
             |client| client.list(main.clone()),
-            "file/list",
+            "list",
             path_main.clone(),
             list_response_json,
             list_response_value);
         test_request(
             |client| client.move_directory(main.clone(), target.clone()),
-            "file/move",
+            "moveDirectory",
             from_main_to_target.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.move_file(main.clone(), target.clone()),
-            "file/move",
+            "moveFile",
             from_main_to_target.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.read(main.clone()),
-            "file/read",
+            "read",
             path_main.clone(),
             json!("Hello world!"),
             "Hello world!".into());
@@ -412,20 +427,20 @@ mod tests {
         });
         test_request(
             |client| client.status(main.clone()),
-            "file/status",
+            "status",
             path_main.clone(),
             sample_attributes_json,
             expected_attributes);
         test_request(
             |client| client.touch(main.clone()),
-            "file/touch",
+            "touch",
             path_main.clone(),
             unit_json.clone(),
             ());
         test_request(
             |client| client.write(main.clone(), "Hello world!".into()),
-            "file/write",
-            json!({"path" : "./Main.txt", "contents" : "Hello world!"}),
+            "write",
+            json!({"path" : "./Main.luna", "contents" : "Hello world!"}),
             unit_json.clone(),
             ());
 
@@ -433,7 +448,7 @@ mod tests {
         let uuid_json  = json!("02723954-fbb0-4641-af53-cec0883f260a");
         test_request(
             |client| client.create_watch(main.clone()),
-            "file/createWatch",
+            "createWatch",
             path_main.clone(),
             uuid_json.clone(),
             uuid_value);
@@ -442,7 +457,7 @@ mod tests {
         });
         test_request(
             |client| client.delete_watch(uuid_value.clone()),
-            "file/deleteWatch",
+            "deleteWatch",
             watch_id.clone(),
             unit_json.clone(),
             ());
