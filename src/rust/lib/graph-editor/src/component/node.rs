@@ -5,7 +5,7 @@ pub mod port;
 use crate::prelude::*;
 
 use crate::component::node::port::Registry;
-use crate::component::visualisation::Visualisation;
+use crate::component::visualisation::Visualization;
 use crate::component::visualisation;
 
 use enso_frp;
@@ -207,7 +207,7 @@ pub struct NodeData {
     pub events        : Events,
     pub view          : component::ShapeView<NodeView>,
     pub ports         : Registry,
-    pub visualisation : Visualisation
+    pub visualisation : Visualization
 }
 
 impl Node {
@@ -224,7 +224,7 @@ impl Node {
         let view          = component::ShapeView::new(&logger);
         let events        = Events {network,select,deselect,set_visualisation};
         let ports         = Registry::default() ;
-        let visualisation = Visualisation::default();
+        let visualisation = Visualization::default();
         let data          = Rc::new(NodeData {logger,label,events,view,ports,visualisation});
         Self {data} . init()
     }

@@ -36,7 +36,7 @@ pub mod prelude {
 use crate::component::cursor::Cursor;
 use crate::component::node::Node;
 use crate::component::node::WeakNode;
-use crate::component::visualisation::Visualisation;
+use crate::component::visualisation::Visualization;
 
 use enso_frp as frp;
 use enso_frp::Position;
@@ -496,7 +496,7 @@ impl application::View for GraphEditor {
 
             display_object.add_child(node);
 
-            let dummy_content = Visualisation::default_content();
+            let dummy_content = Visualization::default_content();
 
             let dom_layer = scene.dom.layers.front.clone_ref();
             dom_layer.manage(&dummy_content);

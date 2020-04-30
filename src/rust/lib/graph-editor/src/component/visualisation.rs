@@ -12,14 +12,14 @@ use web::StyleSetter;
 
 
 // ============================
-// === Visualisation Events ===
+// === Visualization Events ===
 // ============================
 
 /// Content that can be used in a visualisation.
 /// TODO extend to enum over different content types.
 pub type Content = Option<Rc<DomSymbol>>;
 
-/// Visualisation events.
+/// Visualization events.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
@@ -44,26 +44,26 @@ impl Default for Events {
 
 
 // ======================
-// === Visualisations ===
+// === Visualizations ===
 // ======================
 
-/// Visualisation definition.
+/// Visualization definition.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Visualisation {
-    pub data : Rc<VisualisationData>
+pub struct Visualization {
+    pub data : Rc<VisualizationData>
 }
 
-/// Weak version of `Visualisation`.
+/// Weak version of `Visualization`.
 #[derive(Clone,CloneRef,Debug)]
-pub struct WeakVisualisation {
-    data : Weak<VisualisationData>
+pub struct WeakVisualization {
+    data : Weak<VisualizationData>
 }
 
-/// Internal data of a `Visualisation`.
+/// Internal data of a `Visualization`.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
-pub struct VisualisationData {
+pub struct VisualizationData {
     pub logger : Logger,
     pub events : Events,
 
@@ -75,7 +75,7 @@ pub struct VisualisationData {
     content   : RefCell<Content>,
 }
 
-impl Visualisation {
+impl Visualization {
     /// Constructor.
     pub fn new() -> Self {
 
@@ -88,7 +88,7 @@ impl Visualisation {
         let visible  = Cell::new(true);
         let node     = display::object::Instance::new(&logger);
 
-        let data     = VisualisationData{logger,events,content,size,position,visible,node};
+        let data     = VisualizationData{logger,events,content,size,position,visible,node};
         let data     = Rc::new(data);
         Self {data} . init_frp()
     }
@@ -121,7 +121,7 @@ r#"<svg>
         DomSymbol::new(&div)
     }
 
-    /// Update the content properties with the values from the `VisualisationData`.
+    /// Update the content properties with the values from the `VisualizationData`.
     ///
     /// Needs to called when those values change or new content has been set.
     fn set_content_properties(&self) {
@@ -193,27 +193,27 @@ r#"<svg>
     }
 }
 
-impl Default for Visualisation {
+impl Default for Visualization {
     fn default() -> Self {
-        Visualisation::new()
+        Visualization::new()
     }
 }
 
-impl StrongRef for Visualisation {
-    type WeakRef = WeakVisualisation;
-    fn downgrade(&self) -> WeakVisualisation {
-        WeakVisualisation {data:Rc::downgrade(&self.data)}
+impl StrongRef for Visualization {
+    type WeakRef = WeakVisualization;
+    fn downgrade(&self) -> WeakVisualization {
+        WeakVisualization {data:Rc::downgrade(&self.data)}
     }
 }
 
-impl WeakRef for WeakVisualisation{
-    type StrongRef = Visualisation;
-    fn upgrade(&self) -> Option<Visualisation> {
-        self.data.upgrade().map(|data| Visualisation{data})
+impl WeakRef for WeakVisualization{
+    type StrongRef = Visualization;
+    fn upgrade(&self) -> Option<Visualization> {
+        self.data.upgrade().map(|data| Visualization{data})
     }
 }
 
-impl Object for Visualisation {
+impl Object for Visualization {
     fn display_object(&self) -> &display::object::Instance {
         &self.data.node
     }
