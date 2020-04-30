@@ -30,12 +30,12 @@ Visualizations can be displayed in the following ways:
   selecting nodes by tapping the "space" button.
 
 - **Fullscreen**  
-  Similar to the previous mode, but the visualization occupies the full visual
-  space. This form can be triggered on a recently selected node (even if many
-  nodes are selected, we remember the last selected one) by either pressing
-  space and keeping it pressed for longer than approx 0.5 s, or by tapping
-  space twice. In the former case, the visualization stops being fullscreen
-  whenever we release space, in the later, whenever we tap space again.
+  Similar to the previous mode, but the visualization occupies the full IDE
+  visual space. This form can be triggered on a recently selected node (even if
+  many nodes are selected, we remember the last selected one) by either pressing
+  space and keeping it pressed for longer than approx 0.5 s, or by tapping space
+  twice. In the former case, the visualization stops being fullscreen whenever
+  we release space, in the later, whenever we press space again.
 
 - **Detached**  
    This form is used to build dashboards and reports. You can detach a
@@ -75,26 +75,26 @@ active after a user clicks on it. Visualizations are deactivated by clicking in
 the background of the node editor. When a visualization is active, all other
 elements should be slightly dimmed, or the visualization should get a selection
 border (to be decided). Active visualizations capture all keyboard shortcuts,
-but the "space" button presses. Fullscreen visualizations are considered active
-by default.
+but the space bar presses. Fullscreen visualizations are considered active by
+default.
 
 
 ## HTML and Native Visualizations
 There are two main types of visualizations - Html and Native. The later uses the
 BaseGL shape API to draw on the screen. We prefer the later as it integrates
 tightly with our framework and allows for much better performance. However,
-there already exist many visualizations in HTML/JS that we need to provide
-support for them as well. HTML visualizations are required to be displayed in
-dedicated div elements. This has several consequences. Firstly, the browser
-needs to layout them, taking into account the current camera view, etc. It is
-costly. Refreshing CSS3D styles of 100 visualizations can absolutely kill
+there is already many visualizations in HTML/JS and we need to provide support
+for them as well. HTML visualizations are required to be displayed in dedicated
+div elements. This has several consequences. Firstly, the browser needs to
+layout them, taking into account the current camera view, etc. It is costly.
+Refreshing CSS3D styles of 100 visualizations can absolutely kill the
 interactive performance. On the other hand, refreshing the position of 10k
 Native visualizations is almost free. Secondly, they need to be handled by our
-engine in such a way that we can interact with them. For that purpose, the
-current Scene implementation defines three layers - top HTML layer, middle WebGL
-layer, and bottom HTML layer. The HTML visualizations are created and displayed
-on the bottom layer by default. Whenever an HTML visualization gets active, it
-should be moved to the top layer.
+engine in such way that we can interact with them. For that purpose, the current
+Scene implementation defines three layers - top HTML layer, middle WebGL layer,
+and bottom HTML layer. The HTML visualizations are created and displayed on the
+bottom layer by default. Whenever an HTML visualization gets active, it should
+be moved to the top layer.
 
 
 ## Visualization Registry
