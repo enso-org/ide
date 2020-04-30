@@ -305,11 +305,10 @@ pub struct EndpointInfo {
 impl EndpointInfo {
     /// Construct information about endpoint. Ast must be the node's expression or pattern.
     fn new(endpoint:&Endpoint, ast:&Ast) -> FallibleResult<EndpointInfo> {
-        let span_tree = SpanTree::new(ast)?;
         Ok(EndpointInfo {
-            endpoint : endpoint.clone(),
-            ast      : ast.clone(),
-            span_tree
+            endpoint  : endpoint.clone(),
+            ast       : ast.clone(),
+            span_tree : SpanTree::new(ast)?,
         })
     }
 
