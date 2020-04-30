@@ -108,14 +108,17 @@ impl SpanTreeGenerator for Ast {
             match self.shape() {
                 ast::Shape::Prefix(_) =>
                     ast::prefix::Chain::try_new(self).unwrap().generate_node(kind),
-                ast::Shape::Match(ast) =>
+                // Lambdas should fall in _ case, because we don't want to create subports for
+                // them
+                ast::Shape::Match(ast) if ast::macros::as_lambda_match(self).is_none() =>
                     ast.generate_node(kind),
                 ast::Shape::Ambiguous(ast) =>
                     ast.generate_node(kind),
-                _  => Ok(Node {kind,
-                    size     : Size::new(self.len()),
-                    children : default(),
-                }),
+                _  => {
+                    let size     = Size::new(self.len());
+                    let children = default();
+                    Ok(Node {kind,size,children})
+                },
             }
         }
     }
@@ -128,10 +131,12 @@ impl SpanTreeGenerator for ast::opr::Chain {
     fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
         // Removing operands is possible only when chain has at least 3 of them
         // (target and two arguments).
-        let removable       = self.args.len() >= 2;
-        let node_and_offset = match &self.target {
-            Some(target) =>
-                target.arg.generate_node(node::Kind::Target {removable}).map(|n| (n,target.offset)),
+        let is_removable                                 = self.args.len() >= 2;
+        let node_and_offset:FallibleResult<(Node,usize)> = match &self.target {
+            Some(target) => {
+                let node = target.arg.generate_node(node::Kind::Target {is_removable})?;
+                Ok((node,target.offset))
+            },
             None => Ok((Node::new_empty(InsertType::BeforeTarget),0)),
         };
 
@@ -160,7 +165,7 @@ impl SpanTreeGenerator for ast::opr::Chain {
                 let arg_ast    = Located::new(arg_crumbs,operand.arg.clone_ref());
                 gen.spacing(operand.offset);
 
-                gen.generate_ast_node(arg_ast,node::Kind::Argument {removable})?;
+                gen.generate_ast_node(arg_ast,node::Kind::Argument {is_removable})?;
             }
             gen.generate_empty_node(InsertType::Append);
 
@@ -185,14 +190,14 @@ impl SpanTreeGenerator for ast::prefix::Chain {
     fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
         use ast::crumbs::PrefixCrumb::*;
         // Removing arguments is possible if there at least two of them
-        let removable = self.args.len() >= 2;
-        let node      = self.func.generate_node(node::Kind::Operation);
+        let is_removable = self.args.len() >= 2;
+        let node         = self.func.generate_node(node::Kind::Operation);
         self.args.iter().enumerate().fold(node, |node,(i,arg)| {
             let node     = node?;
             let is_first = i == 0;
             let is_last  = i + 1 == self.args.len();
-            let arg_kind = if is_first { node::Kind::Target {removable} }
-                else { node::Kind::Argument {removable} };
+            let arg_kind = if is_first { node::Kind::Target {is_removable} }
+                else { node::Kind::Argument {is_removable} };
 
             let mut gen = ChildGenerator::default();
             gen.add_node(vec![Func.into()],node);
@@ -216,8 +221,8 @@ impl SpanTreeGenerator for ast::prefix::Chain {
 
 impl SpanTreeGenerator for ast::Match<Ast> {
     fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
-        let removable     = false;
-        let children_kind = node::Kind::Argument {removable};
+        let is_removable  = false;
+        let children_kind = node::Kind::Argument {is_removable};
         let mut gen   = ChildGenerator::default();
         if let Some(pat) = &self.pfx {
             for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&pat) {
@@ -242,8 +247,8 @@ impl SpanTreeGenerator for ast::Match<Ast> {
 
 fn generate_children_from_segment
 (gen:&mut ChildGenerator, index:usize, segment:&MacroMatchSegment<Ast>) -> FallibleResult<()> {
-    let removable     = false;
-    let children_kind = node::Kind::Argument {removable};
+    let is_removable  = false;
+    let children_kind = node::Kind::Argument {is_removable};
     gen.spacing(segment.head.len());
     for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&segment.body) {
         gen.spacing(ast.off);
@@ -276,8 +281,8 @@ impl SpanTreeGenerator for ast::Ambiguous<Ast> {
 
 fn generate_children_from_abiguous_segment
 (gen:&mut ChildGenerator, index:usize, segment:&MacroAmbiguousSegment<Ast>) -> FallibleResult<()> {
-    let removable     = false;
-    let children_kind = node::Kind::Argument {removable};
+    let is_removable  = false;
+    let children_kind = node::Kind::Argument {is_removable};
     gen.spacing(segment.head.len());
     if let Some(sast) = &segment.body {
         gen.spacing(sast.off);
@@ -317,29 +322,29 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generating_span_tree() {
-        let parser    = Parser::new_or_panic();
-        let ast       = parser.parse_line("2 + foo bar - 3").unwrap();
-        let tree      = ast.generate_tree().unwrap();
-        let removable = false;
+        let parser       = Parser::new_or_panic();
+        let ast          = parser.parse_line("2 + foo bar - 3").unwrap();
+        let tree         = ast.generate_tree().unwrap();
+        let is_removable = false;
 
         let expected = TreeBuilder::new(15)
             .add_empty_child(0,BeforeTarget)
-            .add_child(0,11,Target{removable},InfixCrumb::LeftOperand)
+            .add_child(0,11,Target{is_removable},InfixCrumb::LeftOperand)
                 .add_empty_child(0,BeforeTarget)
-                .add_leaf (0,1,Target{removable},InfixCrumb::LeftOperand)
+                .add_leaf (0,1,Target{is_removable},InfixCrumb::LeftOperand)
                 .add_empty_child(1,AfterTarget)
                 .add_leaf (2,1,Operation,InfixCrumb::Operator)
-                .add_child(4,7,Argument{removable} ,InfixCrumb::RightOperand)
+                .add_child(4,7,Argument{is_removable} ,InfixCrumb::RightOperand)
                     .add_leaf(0,3,Operation,PrefixCrumb::Func)
                     .add_empty_child(4,BeforeTarget)
-                    .add_leaf(4,3,Target{removable},PrefixCrumb::Arg)
+                    .add_leaf(4,3,Target{is_removable},PrefixCrumb::Arg)
                     .add_empty_child(7,Append)
                     .done()
                 .add_empty_child(11,Append)
                 .done()
             .add_empty_child(11,AfterTarget)
             .add_leaf(12,1,Operation,InfixCrumb::Operator)
-            .add_leaf(14,1,Argument{removable},InfixCrumb::RightOperand)
+            .add_leaf(14,1,Argument{is_removable},InfixCrumb::RightOperand)
             .add_empty_child(15,Append)
             .build();
 
@@ -348,40 +353,40 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generate_span_tree_with_chains() {
-        let parser    = Parser::new_or_panic();
-        let ast       = parser.parse_line("2 + 3 + foo bar baz 13 + 5").unwrap();
-        let tree      = ast.generate_tree().unwrap();
-        let removable = true;
+        let parser       = Parser::new_or_panic();
+        let ast          = parser.parse_line("2 + 3 + foo bar baz 13 + 5").unwrap();
+        let tree         = ast.generate_tree().unwrap();
+        let is_removable = true;
 
         let expected = TreeBuilder::new(26)
             .add_child(0,22,Chained,InfixCrumb::LeftOperand)
                 .add_child(0,5,Chained,InfixCrumb::LeftOperand)
                     .add_empty_child(0,BeforeTarget)
-                    .add_leaf(0,1,Target{removable},InfixCrumb::LeftOperand)
+                    .add_leaf(0,1,Target{is_removable},InfixCrumb::LeftOperand)
                     .add_empty_child(1,AfterTarget)
                     .add_leaf(2,1,Operation,InfixCrumb::Operator)
-                    .add_leaf(4,1,Argument{removable},InfixCrumb::RightOperand)
+                    .add_leaf(4,1,Argument{is_removable},InfixCrumb::RightOperand)
                     .add_empty_child(5,Append)
                     .done()
                 .add_leaf (6,1 ,Operation,InfixCrumb::Operator)
-                .add_child(8,14,Argument{removable},InfixCrumb::RightOperand)
+                .add_child(8,14,Argument{is_removable},InfixCrumb::RightOperand)
                     .add_child(0,11,Chained,PrefixCrumb::Func)
                         .add_child(0,7,Chained,PrefixCrumb::Func)
                             .add_leaf(0,3,Operation,PrefixCrumb::Func)
                             .add_empty_child(4,BeforeTarget)
-                            .add_leaf(4,3,Target{removable},PrefixCrumb::Arg)
+                            .add_leaf(4,3,Target{is_removable},PrefixCrumb::Arg)
                             .add_empty_child(7,Append)
                             .done()
-                        .add_leaf(8,3,Argument{removable},PrefixCrumb::Arg)
+                        .add_leaf(8,3,Argument{is_removable},PrefixCrumb::Arg)
                         .add_empty_child(11,Append)
                         .done()
-                    .add_leaf(12,2,Argument{removable},PrefixCrumb::Arg)
+                    .add_leaf(12,2,Argument{is_removable},PrefixCrumb::Arg)
                     .add_empty_child(14,Append)
                     .done()
                 .add_empty_child(22,Append)
                 .done()
             .add_leaf(23,1,Operation,InfixCrumb::Operator)
-            .add_leaf(25,1,Argument{removable},InfixCrumb::RightOperand)
+            .add_leaf(25,1,Argument{is_removable},InfixCrumb::RightOperand)
             .add_empty_child(26,Append)
             .build();
 
@@ -390,21 +395,21 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generating_span_tree_from_right_assoc_operator() {
-        let parser    = Parser::new_or_panic();
-        let ast       = parser.parse_line("1,2,3").unwrap();
-        let tree      = ast.generate_tree().unwrap();
-        let removable = true;
+        let parser       = Parser::new_or_panic();
+        let ast          = parser.parse_line("1,2,3").unwrap();
+        let tree         = ast.generate_tree().unwrap();
+        let is_removable = true;
 
         let expected = TreeBuilder::new(5)
             .add_empty_child(0,Append)
-            .add_leaf (0,1,Argument{removable},InfixCrumb::LeftOperand)
+            .add_leaf (0,1,Argument{is_removable},InfixCrumb::LeftOperand)
             .add_leaf (1,1,Operation,InfixCrumb::Operator)
             .add_child(2,3,Chained  ,InfixCrumb::RightOperand)
                 .add_empty_child(0,Append)
-                .add_leaf(0,1,Argument{removable},InfixCrumb::LeftOperand)
+                .add_leaf(0,1,Argument{is_removable},InfixCrumb::LeftOperand)
                 .add_leaf(1,1,Operation,InfixCrumb::Operator)
                 .add_empty_child(2,AfterTarget)
-                .add_leaf(2,1,Target{removable},InfixCrumb::RightOperand)
+                .add_leaf(2,1,Target{is_removable},InfixCrumb::RightOperand)
                 .add_empty_child(3,BeforeTarget)
                 .done()
             .build();
@@ -417,9 +422,9 @@ mod test {
         let parser = Parser::new_or_panic();
         // The star makes `SectionSides` ast being one of the parameters of + chain. First + makes
         // SectionRight, and last + makes SectionLeft.
-        let ast       = parser.parse_line("+ * + + 2 +").unwrap();
-        let tree      = ast.generate_tree().unwrap();
-        let removable = true;
+        let ast          = parser.parse_line("+ * + + 2 +").unwrap();
+        let tree         = ast.generate_tree().unwrap();
+        let is_removable = true;
 
         let expected = TreeBuilder::new(11)
             .add_child(0,9,Chained,SectionLeftCrumb::Arg)
@@ -427,7 +432,7 @@ mod test {
                     .add_child(0,3,Chained,SectionLeftCrumb::Arg)
                         .add_empty_child(0,BeforeTarget)
                         .add_leaf (0,1,Operation,SectionRightCrumb::Opr)
-                        .add_child(2,1,Argument{removable},SectionRightCrumb::Arg)
+                        .add_child(2,1,Argument{is_removable},SectionRightCrumb::Arg)
                             .add_empty_child(0,BeforeTarget)
                             .add_leaf(0,1,Operation,SectionSidesCrumb)
                             .add_empty_child(1,Append)
@@ -438,7 +443,7 @@ mod test {
                     .add_empty_child(5,Append)
                     .done()
                 .add_leaf(6,1,Operation,InfixCrumb::Operator)
-                .add_leaf(8,1,Argument{removable},InfixCrumb::RightOperand)
+                .add_leaf(8,1,Argument{is_removable},InfixCrumb::RightOperand)
                 .add_empty_child(9,Append)
                 .done()
             .add_leaf(10,1,Operation,SectionLeftCrumb::Opr)
@@ -450,17 +455,17 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generating_span_tree_from_right_assoc_section() {
-        let parser    = Parser::new_or_panic();
-        let ast       = parser.parse_line(",2,").unwrap();
-        let tree      = ast.generate_tree().unwrap();
-        let removable = true;
+        let parser       = Parser::new_or_panic();
+        let ast          = parser.parse_line(",2,").unwrap();
+        let tree         = ast.generate_tree().unwrap();
+        let is_removable = true;
 
         let expected = TreeBuilder::new(3)
             .add_empty_child(0,Append)
             .add_leaf (0,1,Operation,SectionRightCrumb::Opr)
             .add_child(1,2,Chained  ,SectionRightCrumb::Arg)
                 .add_empty_child(0,Append)
-                .add_leaf(0,1,Argument{removable},SectionLeftCrumb::Arg)
+                .add_leaf(0,1,Argument{is_removable},SectionLeftCrumb::Arg)
                 .add_leaf(1,1,Operation,SectionLeftCrumb::Opr)
                 .add_empty_child(2,BeforeTarget)
                 .done()
@@ -473,10 +478,10 @@ mod test {
     fn generating_span_tree_from_matched_macros() {
         use PatternMatchCrumb::*;
 
-        let parser = Parser::new_or_panic();
-        let ast = parser.parse_line("if foo then (a + b) x else ()").unwrap();
-        let tree = ast.generate_tree().unwrap();
-        let removable = false;
+        let parser       = Parser::new_or_panic();
+        let ast          = parser.parse_line("if foo then (a + b) x else ()").unwrap();
+        let tree         = ast.generate_tree().unwrap();
+        let is_removable = false;
 
         let if_then_else_cr = vec![Seq { right: false }, Or, Build];
         let parens_cr       = vec![Seq { right: false }, Or, Or, Build];
@@ -486,23 +491,23 @@ mod test {
         };
 
         let expected = TreeBuilder::new(29)
-            .add_leaf(3,3,Argument {removable},segment_body_crumbs(0,&if_then_else_cr))
-            .add_child(12,9,Argument {removable},segment_body_crumbs(1,&if_then_else_cr))
+            .add_leaf(3,3,Argument {is_removable},segment_body_crumbs(0,&if_then_else_cr))
+            .add_child(12,9,Argument {is_removable},segment_body_crumbs(1,&if_then_else_cr))
                 .add_child(0,7,Operation,PrefixCrumb::Func)
-                    .add_child(1,5,Argument {removable},segment_body_crumbs(0,&parens_cr))
+                    .add_child(1,5,Argument {is_removable},segment_body_crumbs(0,&parens_cr))
                         .add_empty_child(0,BeforeTarget)
-                        .add_leaf(0,1,Target {removable},InfixCrumb::LeftOperand)
+                        .add_leaf(0,1,Target {is_removable},InfixCrumb::LeftOperand)
                         .add_empty_child(1,AfterTarget)
                         .add_leaf(2,1,Operation,InfixCrumb::Operator)
-                        .add_leaf(4,1,Argument {removable},InfixCrumb::RightOperand)
+                        .add_leaf(4,1,Argument {is_removable},InfixCrumb::RightOperand)
                         .add_empty_child(5,Append)
                         .done()
                     .done()
                 .add_empty_child(8,BeforeTarget)
-                .add_leaf(8,1,Target {removable},PrefixCrumb::Arg)
+                .add_leaf(8,1,Target {is_removable},PrefixCrumb::Arg)
                 .add_empty_child(9,Append)
                 .done()
-            .add_leaf(27,2,Argument {removable},segment_body_crumbs(2,&if_then_else_cr))
+            .add_leaf(27,2,Argument {is_removable},segment_body_crumbs(2,&if_then_else_cr))
             .build();
 
         assert_eq!(expected,tree);
@@ -510,14 +515,31 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generating_span_tree_from_ambiguous_macros() {
-        let parser    = Parser::new_or_panic();
-        let ast       = parser.parse_line("(4").unwrap();
-        let tree      = ast.generate_tree().unwrap();
-        let removable = false;
-        let crumb     = AmbiguousCrumb{index:0, field:AmbiguousSegmentCrumb::Body};
+        let parser       = Parser::new_or_panic();
+        let ast          = parser.parse_line("(4").unwrap();
+        let tree         = ast.generate_tree().unwrap();
+        let is_removable = false;
+        let crumb        = AmbiguousCrumb{index:0, field:AmbiguousSegmentCrumb::Body};
 
         let expected = TreeBuilder::new(2)
-            .add_leaf(1,1,Argument {removable},crumb)
+            .add_leaf(1,1,Argument {is_removable},crumb)
+            .build();
+
+        assert_eq!(expected,tree);
+    }
+
+    #[wasm_bindgen_test]
+    fn generating_span_tree_for_lambda() {
+        let parser       = Parser::new_or_panic();
+        let ast          = parser.parse_line("foo a-> b + c").unwrap();
+        let tree         = ast.generate_tree().unwrap();
+        let is_removable = false;
+
+        let expected = TreeBuilder::new(13)
+            .add_leaf(0,3,Operation,PrefixCrumb::Func)
+            .add_empty_child(4,BeforeTarget)
+            .add_leaf(4,9,Target{is_removable},PrefixCrumb::Arg)
+            .add_empty_child(13,Append)
             .build();
 
         assert_eq!(expected,tree);
