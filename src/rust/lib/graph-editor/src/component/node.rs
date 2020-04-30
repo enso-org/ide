@@ -5,8 +5,8 @@ pub mod port;
 use crate::prelude::*;
 
 use crate::component::node::port::Registry;
-use crate::component::visualisation::Visualization;
-use crate::component::visualisation;
+use crate::component::visualization::Visualization;
+use crate::component::visualization;
 
 use enso_frp;
 use enso_frp as frp;
@@ -207,7 +207,7 @@ pub struct NodeData {
     pub events        : Events,
     pub view          : component::ShapeView<NodeView>,
     pub ports         : Registry,
-    pub visualisation : Visualization
+    pub visualization : Visualization
 }
 
 impl Node {
@@ -217,20 +217,20 @@ impl Node {
             def label    = source::<String> ();
             def select   = source::<()>     ();
             def deselect = source::<()>     ();
-            def set_visualisation = source::<visualisation::Content> ();
+            def set_visualization = source::<visualization::Content> ();
         }
         let network       = node_network;
         let logger        = Logger::new("node");
         let view          = component::ShapeView::new(&logger);
-        let events        = Events {network,select,deselect,set_visualisation};
+        let events        = Events {network,select,deselect,set_visualization};
         let ports         = Registry::default() ;
-        let visualisation = Visualization::default();
-        let data          = Rc::new(NodeData {logger,label,events,view,ports,visualisation});
+        let visualization = Visualization::default();
+        let data          = Rc::new(NodeData {logger,label,events,view,ports,visualization});
         Self {data} . init()
     }
 
     fn init(self) -> Self {
-        self.add_child(&self.data.visualisation);
+        self.add_child(&self.data.visualization);
 
         let network = &self.data.events.network;
 
@@ -264,9 +264,9 @@ impl Node {
             });
 
             let weak_node = self.downgrade();
-            def _f_set_vis = self.events.set_visualisation.map(move |content| {
+            def _f_set_vis = self.events.set_visualization.map(move |content| {
                 if let Some(node) = weak_node.upgrade() {
-                    node.visualisation.data.events.update_content.emit(content)
+                    node.visualization.data.events.update_content.emit(content)
                 }
             });
         }

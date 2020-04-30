@@ -1,4 +1,4 @@
-//! This module defines the visualisation widgets.
+//! This module defines the visualization widgets.
 use crate::prelude::*;
 
 use crate::frp;
@@ -31,12 +31,12 @@ pub struct Events {
 
 impl Default for Events {
     fn default() -> Self {
-        frp::new_network! { visualisation_events
+        frp::new_network! { visualization_events
             def show           = source::<()> ();
             def hide           = source::<()> ();
             def update_content = source::<Content> ();
         };
-        let network = visualisation_events;
+        let network = visualization_events;
         Self {network,show,hide,update_content}
     }
 }
@@ -79,7 +79,7 @@ impl Visualization {
     /// Constructor.
     pub fn new() -> Self {
 
-        let logger   = Logger::new("visualisation");
+        let logger   = Logger::new("visualization");
         let events   = Events::default();
         // TODO replace with actual content;
         let content  = RefCell::new(None);
@@ -134,12 +134,12 @@ r#"<svg>
         };
     }
 
-    /// Get the visualisation content.
+    /// Get the visualization content.
     pub fn content(&self) -> Content {
         self.data.content.borrow().clone()
     }
 
-    /// Set the visualisation content.
+    /// Set the visualization content.
     pub fn set_content(&self, content: Content) {
         if let Some(content) = content.as_ref(){
             self.display_object().add_child(content.as_ref());
