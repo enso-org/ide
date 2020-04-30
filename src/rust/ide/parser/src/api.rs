@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use ast::IdMap;
 use ast::HasRepr;
 use ast::HasIdMap;
 
@@ -11,7 +10,6 @@ pub use ast::Ast;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
-
 
 
 // ================
@@ -28,7 +26,7 @@ impl Metadata for serde_json::Value {}
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Eq)]
 pub struct SourceFile<Metadata> {
     /// Ast representation.
-    pub ast: Ast,
+    pub ast: ast::known::Module,
     /// Raw metadata in json.
     pub metadata: Metadata
 }
@@ -53,28 +51,6 @@ impl<M:Metadata> TryFrom<&SourceFile<M>> for String {
 }
 
 
-// ============
-// == Parser ==
-// ============
-
-/// Entity being able to parse programs into AST.
-pub trait IsParser : Debug {
-    /// Parse program.
-    fn parse(&mut self, program:String, ids:IdMap) -> Result<Ast>;
-
-    /// Parse program into module.
-    fn parse_module(&mut self, program:String, ids:IdMap) -> Result<ast::known::Module> {
-        let ast = self.parse(program,ids)?;
-        ast::known::Module::try_from(ast).map_err(|_| Error::NonModuleRoot)
-    }
-
-    /// Parse contents of the program source file,
-    /// where program code may be followed by idmap and metadata.
-    fn parse_with_metadata<M:Metadata>
-    (&mut self, program:String) -> Result<SourceFile<M>>;
-}
-
-
 
 // ===========
 // == Error ==
@@ -96,6 +72,16 @@ pub enum Error {
     #[fail(display = "Interop error: {}.", _0)]
     InteropError(#[cause] Box<dyn Fail>),
 }
+
+/// When trying to parse a line, not a single line was produced.
+#[derive(Debug,Fail,Clone,Copy)]
+#[fail(display = "Expected a single line, parsed none.")]
+pub struct NoLinesProduced;
+
+/// When trying to parse a single line, more were generated.
+#[derive(Debug,Fail,Clone,Copy)]
+#[fail(display = "Expected just a single line, found more.")]
+pub struct TooManyLinesProduced;
 
 /// Wraps an arbitrary `std::error::Error` as an `InteropError.`
 pub fn interop_error<T>(error:T) -> Error

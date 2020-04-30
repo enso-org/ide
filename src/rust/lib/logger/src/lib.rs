@@ -4,9 +4,10 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
+use enso_prelude::*;
+use shapely::CloneRef;
 use std::fmt::Debug;
 use wasm_bindgen::JsValue;
-use enso_prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use web_sys::console;
@@ -38,15 +39,15 @@ impl<F: Fn() -> S, S:Str> LogMsg for F {
 // === Logger ===
 // ==============
 
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,CloneRef,Debug,Default)]
 pub struct Logger {
-    pub path: String,
+    pub path: Rc<String>,
 }
 
 #[allow(dead_code)]
 impl Logger {
     pub fn new<T:Str>(path:T) -> Self {
-        let path = path.as_ref().to_string();
+        let path = Rc::new(path.into());
         Self {path}
     }
 
@@ -165,7 +166,7 @@ macro_rules! log_template_impl {
 
 #[macro_export]
 macro_rules! with_internal_bug_message { ($f:ident $($args:tt)*) => { $crate::$f! {
-"This is a bug. We will be thankful if you report it and provide us with as much information as \
+"This is a bug. Please report it and and provide us with as much information as \
 possible at https://github.com/luna/enso/issues. Thank you!"
 $($args)*
 }};}
@@ -186,6 +187,12 @@ macro_rules! log_internal_bug_template_impl {
     };
 }
 
+#[macro_export]
+macro_rules! trace {
+    ($($toks:tt)*) => {
+        $crate::log_template! {trace $($toks)*}
+    };
+}
 
 #[macro_export]
 macro_rules! info {
@@ -202,14 +209,15 @@ macro_rules! warning {
 }
 
 #[macro_export]
+macro_rules! error {
+    ($($toks:tt)*) => {
+        $crate::log_template! {error $($toks)*}
+    };
+}
+
+#[macro_export]
 macro_rules! internal_warning {
     ($($toks:tt)*) => {
         $crate::log_internal_bug_template! {warning $($toks)*}
     };
-}
-
-impl Into<Logger> for &Logger {
-    fn into(self) -> Logger {
-        self.clone()
-    }
 }

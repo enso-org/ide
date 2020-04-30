@@ -6,6 +6,7 @@
 
 pub mod closure;
 pub mod resize_observer;
+pub mod platform;
 
 /// Common types that should be visible across the whole crate.
 pub mod prelude {
@@ -33,6 +34,8 @@ pub use web_sys::Node;
 pub use web_sys::Performance;
 pub use web_sys::WebGl2RenderingContext;
 pub use web_sys::Window;
+pub use std::time::Duration;
+pub use std::time::Instant;
 
 
 
@@ -201,7 +204,8 @@ pub fn get_webgl2_context(canvas:&HtmlCanvasElement) -> WebGl2RenderingContext {
     let options = js_sys::Object::new();
     js_sys::Reflect::set(&options, &"antialias".into(), &false.into()).unwrap();
     let context = canvas.get_context_with_context_options("webgl2",&options).unwrap().unwrap();
-    context.dyn_into().unwrap()
+    let context : WebGl2RenderingContext =  context.dyn_into().unwrap();
+    context
 }
 
 pub fn try_request_animation_frame(f:&Closure<dyn FnMut(f64)>) -> Result<i32> {
@@ -480,4 +484,88 @@ pub fn forward_panic_hook_to_console() {
 pub mod traits {
     pub use super::NodeInserter;
     pub use super::NodeRemover;
+}
+
+/// Sleeps for the specified amount of time.
+///
+/// This function might sleep for slightly longer than the specified duration but never less.
+///
+/// This function is an async version of std::thread::sleep, its timer starts just after the
+/// function call.
+#[cfg(target_arch = "wasm32")]
+pub async fn sleep(duration:Duration) {
+    use wasm_bindgen_futures::JsFuture;
+
+    let performance       = performance();
+    let call_milliseconds = performance.now();
+    let future : JsFuture = js_sys::Promise::new(&mut |resolve:Function,_| {
+        let milliseconds_from_call = ((performance.now() - call_milliseconds) * 1000.0) as i32;
+        let duration               = duration.as_millis() as i32;
+        let duration               = (duration - milliseconds_from_call).max(0);
+        let window                 = window();
+        let err                    = "Calling setTimeout failed.";
+        window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve,duration).expect(err);
+    }).into();
+    // We don't expect any error coming from this Promise.
+    future.await.expect("setTimeout's future failed.");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use async_std::task::sleep;
+
+
+
+// ============
+// === Test ===
+// ============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg(target_arch = "wasm32")]
+    mod helpers {
+        type Instant = f64;
+
+        pub fn now() -> Instant {
+            super::performance().now()
+        }
+
+        pub fn elapsed(instant: Instant) -> f64 {
+            super::performance().now() - instant
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    mod helpers {
+        use std::time::Instant;
+
+        pub fn now() -> Instant {
+            Instant::now()
+        }
+
+        pub fn elapsed(instant: Instant) -> f64 {
+            instant.elapsed().as_secs_f64()
+        }
+    }
+
+    #[wasm_bindgen_test(async)]
+    async fn async_sleep() {
+        let instant = helpers::now();
+        sleep(Duration::new(1,0)).await;
+        assert!(helpers::elapsed(instant) >= 1.0);
+        sleep(Duration::new(2,0)).await;
+        assert!(helpers::elapsed(instant) >= 3.0);
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn async_sleep_native() {
+        async_std::task::block_on(async_sleep())
+    }
 }

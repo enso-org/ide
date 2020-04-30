@@ -11,116 +11,76 @@ use crate::display::layout::types::*;
 use crate::display;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
-use crate::display::world::World;
+use crate::display::scene::Scene;
 use crate::system::gpu::types::*;
 
 
 
-// ==============
-// === Sprite ===
-// ==============
+// ===================
+// === SpriteStats ===
+// ===================
 
-shared! { Sprite
-
-/// Sprite is a simple rectangle object. In most cases, sprites always face the camera and can be
-/// freely rotated only by their local z-axis. This implementation, however, implements sprites as
-/// full 3D objects. We may want to fork this implementation in the future to create a specialized
-/// 2d representation as well.
-#[derive(Debug)]
-pub struct SpriteData {
-    symbol           : Symbol,
-    instance_id      : AttributeInstanceIndex,
-    display_object   : display::object::Node,
-    transform        : Attribute<Matrix4<f32>>,
-    bbox             : Attribute<Vector2<f32>>,
-    stats            : Stats,
-    size_when_hidden : Rc<Cell<Vector2<f32>>>,
+/// Wrapper for `Stats` which counts the number of sprites.
+#[derive(Debug,Shrinkwrap)]
+pub struct SpriteStats {
+    stats : Stats
 }
 
-impl {
+impl SpriteStats {
     /// Constructor.
-    pub fn new
-    ( symbol      : &Symbol
-    , instance_id : AttributeInstanceIndex
-    , transform   : Attribute<Matrix4<f32>>
-    , bbox        : Attribute<Vector2<f32>>
-    , stats       : &Stats
-    ) -> Self {
+    pub fn new(stats:&Stats) -> Self {
         stats.inc_sprite_count();
-        let symbol           = symbol.clone_ref();
-        let logger           = Logger::new(iformat!("Sprite{instance_id}"));
-        let display_object   = display::object::Node::new(logger);
-        let stats            = stats.clone_ref();
-        let size_when_hidden = Rc::new(Cell::new(Vector2::new(0.0,0.0)));
-
-        let this = Self {symbol,instance_id,display_object,transform,bbox,stats,size_when_hidden};
-        this.init_display_object();
-        this
-    }
-
-    /// Init display object bindings. In particular defines the behavior of the show and hide
-    /// callbacks.
-    fn init_display_object(&self) {
-        let bbox             = &self.bbox;
-        let transform        = &self.transform;
-        let size_when_hidden = &self.size_when_hidden;
-
-        self.display_object.set_on_updated(enclose!((transform) move |t| {
-            transform.set(t.matrix())
-        }));
-
-        self.display_object.set_on_hide(enclose!((bbox,size_when_hidden) move || {
-            size_when_hidden.set(bbox.get());
-            bbox.set(Vector2::new(0.0,0.0));
-        }));
-
-        self.display_object.set_on_show(enclose!((bbox,size_when_hidden) move || {
-            bbox.set(size_when_hidden.get());
-        }));
-    }
-
-    /// Modifies the position of the sprite.
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.display_object.mod_position(f);
-    }
-
-    /// Sets the position of the sprite.
-    pub fn set_position(&self, value:Vector3<f32>) {
-        self.display_object.set_position(value)
-    }
-
-    /// Position of the sprite.
-    pub fn position(&self) -> Vector3<f32> {
-        self.display_object.position()
-    }
-
-    /// Size accessor.
-    pub fn size(&self) -> Attribute<Vector2<f32>> {
-        self.bbox.clone_ref()
-    }
-
-    /// Id of instance bound to this sprite.
-    pub fn instance_id(&self) -> AttributeInstanceIndex {
-        self.instance_id
-    }
-}}
-
-impl From<&Sprite> for display::object::Node {
-    fn from(t:&Sprite) -> Self {
-        t.rc.borrow().display_object.clone_ref()
+        let stats = stats.clone_ref();
+        Self {stats}
     }
 }
 
-impl Drop for SpriteData {
+impl Drop for SpriteStats {
     fn drop(&mut self) {
         self.stats.dec_sprite_count();
+    }
+}
+
+
+
+// ===================
+// === SpriteGuard ===
+// ===================
+
+/// Lifetime guard for `Sprite`. After sprite is dropped, it is removed from the sprite system.
+/// Note that the removal does not involve many changes to buffers. What really happens is setting
+/// the sprite dimensions to zero and marking it index as a free for future reuse.
+#[derive(Debug)]
+pub struct SpriteGuard {
+    instance_id    : AttributeInstanceIndex,
+    symbol         : Symbol,
+    bbox           : Attribute<Vector2<f32>>,
+    display_object : display::object::Instance,
+}
+
+impl SpriteGuard {
+    fn new
+    ( instance_id    : AttributeInstanceIndex
+    , symbol         : &Symbol
+    , bbox           : &Attribute<Vector2<f32>>
+    , display_object : &display::object::Instance
+    ) -> Self {
+        let symbol         = symbol.clone();
+        let bbox           = bbox.clone();
+        let display_object = display_object.clone();
+        Self {instance_id,symbol,bbox,display_object}
+    }
+}
+
+impl Drop for SpriteGuard {
+    fn drop(&mut self) {
         self.bbox.set(Vector2::new(0.0,0.0));
         self.symbol.surface().instance_scope().dispose(self.instance_id);
         self.display_object.unset_parent();
         // TODO[ao] this is a temporary workaround for problem with dropping and creating sprites
         // in the same frame.
         //
-        // In detail: detaching display::object::Node from parent does not remove it immediately,
+        // In detail: detaching display::object::Instance from parent does not remove it immediately,
         // but parent keeps its reference to the next update, and call "hide" during this update.
         //
         // The Sprites set on its display object Node a callback setting bbox to (0.0,0.0). When
@@ -133,30 +93,110 @@ impl Drop for SpriteData {
 
 
 
+// ==============
+// === Sprite ===
+// ==============
+
+/// Sprite is a simple rectangle object. In most cases, sprites always face the camera and can be
+/// freely rotated only by their local z-axis. This implementation, however, implements sprites as
+/// full 3D objects. We may want to fork this implementation in the future to create a specialized
+/// 2d representation as well.
+#[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
+pub struct Sprite {
+    pub symbol      : Symbol,
+    pub instance_id : AttributeInstanceIndex,
+    display_object  : display::object::Instance,
+    transform       : Attribute<Matrix4<f32>>,
+    bbox            : Attribute<Vector2<f32>>,
+    stats           : Rc<SpriteStats>,
+    size_backup     : Rc<Cell<Vector2<f32>>>,
+    guard           : Rc<SpriteGuard>,
+}
+
+impl Sprite {
+    /// Constructor.
+    pub fn new
+    ( symbol      : &Symbol
+    , instance_id : AttributeInstanceIndex
+    , transform   : Attribute<Matrix4<f32>>
+    , bbox        : Attribute<Vector2<f32>>
+    , stats       : &Stats
+    ) -> Self {
+        let symbol         = symbol.clone_ref();
+        let logger         = Logger::new(iformat!("Sprite{instance_id}"));
+        let display_object = display::object::Instance::new(logger);
+        let stats          = Rc::new(SpriteStats::new(stats));
+        let size_backup    = Rc::new(Cell::new(Vector2::new(0.0, 0.0)));
+        let guard          = Rc::new(SpriteGuard::new(instance_id,&symbol,&bbox,&display_object));
+        Self {symbol,instance_id,display_object,transform,bbox,stats,size_backup,guard}.init()
+    }
+
+    /// Init display object bindings. In particular defines the behavior of the show and hide
+    /// callbacks.
+    fn init(self) -> Self {
+        let bbox        = &self.bbox;
+        let transform   = &self.transform;
+        let size_backup = &self.size_backup;
+
+        self.display_object.set_on_updated(enclose!((transform) move |t| {
+            transform.set(t.matrix())
+        }));
+
+        self.display_object.set_on_hide(enclose!((bbox,size_backup) move || {
+            size_backup.set(bbox.get());
+            bbox.set(Vector2::new(0.0,0.0));
+        }));
+
+        self.display_object.set_on_show(enclose!((bbox,size_backup) move || {
+            bbox.set(size_backup.get());
+        }));
+
+        self
+    }
+
+    /// Get the symbol id.
+    pub fn symbol_id(&self) -> i32 {
+        self.symbol.id
+    }
+
+    /// Size accessor.
+    pub fn size(&self) -> Attribute<Vector2<f32>> {
+        self.bbox.clone_ref()
+    }
+}
+
+impl display::Object for Sprite {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
+
+
 // ====================
 // === SpriteSystem ===
 // ====================
 
-shared! { SpriteSystem
-
 /// Creates a set of sprites. All sprites in the sprite system share the same material. Sprite
 /// system is a very efficient way to display geometry. Sprites are rendered as instances of the
 /// same mesh. Each sprite can be controlled by the instance and global attributes.
-#[derive(Debug)]
-pub struct SpriteSystemData {
-    symbol         : Symbol,
-    transform      : Buffer<Matrix4<f32>>,
-    uv             : Buffer<Vector2<f32>>,
-    size           : Buffer<Vector2<f32>>,
-    alignment      : Uniform<Vector2<f32>>,
-    stats          : Stats,
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct SpriteSystem {
+    pub symbol : Symbol,
+    transform  : Buffer  <Matrix4<f32>>,
+    uv         : Buffer  <Vector2<f32>>,
+    size       : Buffer  <Vector2<f32>>,
+    alignment  : Uniform <Vector2<f32>>,
+    stats      : Stats,
 }
 
-impl {
+impl SpriteSystem {
     /// Constructor.
-    pub fn new(world:&World) -> Self {
-        let scene             = world.scene();
-        let stats             = scene.stats();
+    pub fn new<'t,S>(scene:S) -> Self where S:Into<&'t Scene> {
+        let scene             = scene.into();
+        let stats             = scene.stats.clone_ref();
         let symbol            = scene.new_symbol();
         let mesh              = symbol.surface();
         let point_scope       = mesh.point_scope();
@@ -215,20 +255,20 @@ impl {
     }
 
     /// Sets the geometry material for all sprites in this system.
-    pub fn set_geometry_material<M:Into<Material>>(&mut self, material:M) {
+    pub fn set_geometry_material<M:Into<Material>>(&self, material:M) {
         self.symbol.shader().set_geometry_material(material);
     }
 
     /// Sets the surface material for all sprites in this system.
-    pub fn set_material<M:Into<Material>>(&mut self, material:M) {
+    pub fn set_material<M:Into<Material>>(&self, material:M) {
         self.symbol.shader().set_material(material);
     }
-}}
+}
 
 
 // === Initialization ===
 
-impl SpriteSystemData {
+impl SpriteSystem {
     fn init_attributes(&self) {
         let mesh        = self.symbol.surface();
         let point_scope = mesh.point_scope();
@@ -274,7 +314,7 @@ impl SpriteSystemData {
         // FIXME outputs as the number of attachments to framebuffer. We should manage this more
         // FIXME intelligent. For example, we could allow defining output shader fragments,
         // FIXME which will be enabled only if pass of given attachment type was enabled.
-        material.add_output ("id", Vector4::<u32>::new(0,0,0,0));
+        material.add_output ("id", Vector4::<f32>::new(0.0,0.0,0.0,0.0));
         material.set_main("output_color = vec4(0.0,0.0,0.0,1.0); output_id=uvec4(0,0,0,0);");
         material
     }
@@ -294,14 +334,8 @@ impl SpriteSystemData {
     }
 }
 
-impl From<&SpriteSystemData> for display::object::Node {
-    fn from(t:&SpriteSystemData) -> Self {
-        t.symbol.display_object()
-    }
-}
-
-impl From<&SpriteSystem> for display::object::Node {
-    fn from(t:&SpriteSystem) -> Self {
-        t.rc.borrow().display_object()
+impl display::Object for SpriteSystem {
+    fn display_object(&self) -> &display::object::Instance {
+        self.symbol.display_object()
     }
 }

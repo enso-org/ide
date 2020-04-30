@@ -2,22 +2,30 @@
 //! definitions.
 
 #![warn(missing_docs)]
+#![feature(trait_alias)]
 
-pub use enso_prelude as prelude;
-
-use crate::prelude::*;
-
-use quote::quote;
-use syn;
-use syn::visit::Visit;
 use proc_macro2::TokenStream;
 use proc_macro2::TokenTree;
+use quote::quote;
+use std::iter::FromIterator;
+use syn::visit::Visit;
+use syn::WhereClause;
+use syn::WherePredicate;
+use syn;
 
 
 
-// =========================
+// =====================
+// === Trait Aliases ===
+// =====================
+
+pub trait Str = Into<String> + AsRef<str>;
+
+
+
+// ==========================
 // === Token Stream Utils ===
-// =========================
+// ==========================
 
 /// Maps all the tokens in the stream using a given function.
 pub fn map_tokens<F:Fn(TokenTree) -> TokenTree>
@@ -86,7 +94,7 @@ pub fn fields_list(fields:&syn::Fields) -> Vec<&syn::Field> {
     match fields {
         syn::Fields::Named  (ref f) => f.named  .iter().collect(),
         syn::Fields::Unnamed(ref f) => f.unnamed.iter().collect(),
-        syn::Fields::Unit           => default(),
+        syn::Fields::Unit           => Default::default(),
     }
 }
 
@@ -98,6 +106,42 @@ pub fn field_ident_token(field:&syn::Field, index:syn::Index) -> TokenStream {
         Some(ident) => quote!(#ident),
         None        => quote!(#index),
     }
+}
+
+/// Returns names of the named fields.
+pub fn field_names(fields:&syn::FieldsNamed) -> Vec<&syn::Ident> {
+    fields.named.iter().map(|field| {
+        field.ident.as_ref().expect("Impossible: no name on a named field.")
+    }).collect()
+}
+
+
+
+// ==================
+// === Path Utils ===
+// ==================
+
+/// Checks if a given `Path` consists of a single identifier same as given string.
+pub fn path_matching_ident(path:&syn::Path, str:impl Str) -> bool {
+    path.get_ident().map_or(false, |ident| ident == str.as_ref())
+}
+
+
+
+// ======================
+// === Index Sequence ===
+// ======================
+
+/// For given length, returns a sequence of Literals like `[0,1,2…]`. These are unsuffixed
+/// usize literals, so e.g. can be used to identify the tuple unnamed fields.
+pub fn index_sequence(len:usize) -> Vec<syn::Index> {
+    (0..len).map(syn::Index::from).collect()
+}
+
+/// For given length returns sequence of identifiers like `[field0,field1,…]`.
+pub fn identifier_sequence(len:usize) -> Vec<syn::Ident> {
+    let format_field = |ix| quote::format_ident!("field{}",ix);
+    (0..len).map(format_field).collect()
 }
 
 
@@ -200,6 +244,18 @@ pub fn type_depends_on(ty:&syn::Type, target_param:&syn::GenericParam) -> bool {
 pub fn variant_depends_on
 (var:&syn::Variant, target_param:&syn::GenericParam) -> bool {
     var.fields.iter().any(|field| type_depends_on(&field.ty, target_param))
+}
+
+
+
+// ===================
+// === WhereClause ===
+// ===================
+
+/// Creates a new where clause from provided sequence of where predicates.
+pub fn new_where_clause(predicates:impl IntoIterator<Item=WherePredicate>) -> WhereClause {
+    let predicates = syn::punctuated::Punctuated::from_iter(predicates);
+    WhereClause {where_token:Default::default(),predicates}
 }
 
 

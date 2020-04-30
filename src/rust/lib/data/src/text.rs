@@ -20,7 +20,7 @@ use serde::Deserialize;
 
 /// Strongly typed index into container.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Default,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
+#[derive(Clone,Copy,Debug,Default,Hash,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
 pub struct Index { pub value:usize }
 
 impl Index {
@@ -35,7 +35,7 @@ impl Index {
 
 /// Strongly typed size of container.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Default,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
+#[derive(Clone,Copy,Debug,Default,Hash,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
 pub struct Size { pub value:usize }
 
 impl Size {
@@ -76,19 +76,29 @@ impl SubAssign for Size {
 
 /// Strongly typed span into container with index and size.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Default,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
+#[derive(Clone,Copy,Debug,Default,Hash,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
 pub struct Span { pub index:Index, pub size:Size }
-
-impl From<(usize,usize)> for Span {
-    fn from(val:(usize, usize)) -> Span {
-        Span::new(Index::new(val.0), Size::new(val.1))
-    }
-}
 
 impl Span {
     /// Initializes Span with given values.
     pub fn new(index:Index, size:Size) -> Self {
         Span {index,size}
+    }
+
+    /// Creates a span describing a range between two indices.
+    pub fn from_indices(begin:Index, end:Index) -> Self {
+        if end < begin {
+            Self::from_indices(end,begin)
+        } else {
+            let index = begin;
+            let size  = end - begin;
+            Span {index,size}
+        }
+    }
+
+    /// Creates a span from zero index with given length.
+    pub fn from_beginning(size:Size) -> Self {
+        Span {index:Index::new(0), size}
     }
 
     /// Get the character after last character of this span.
@@ -106,6 +116,27 @@ impl Span {
     /// Check if this span contains the whole another span.
     pub fn contains_span(&self, span:&Span) -> bool {
         self.index <= span.index && self.end() >= span.end()
+    }
+
+    /// Converts span to `Range<usize>`.
+    pub fn range(self) -> Range<usize> {
+        let start = self.index.value;
+        let end   = self.end().value;
+        start .. end
+    }
+}
+
+impls! { From + &From <Range<usize>> for Span { |range|
+    Span::from_indices(Index::new(range.start), Index::new(range.end))
+}}
+
+impls! { Into + &Into <Range<usize>> for Span { |this|
+    this.range()
+}}
+
+impl PartialEq<Range<usize>> for Span {
+    fn eq(&self, other:&Range<usize>) -> bool {
+        &self.range() == other
     }
 }
 

@@ -15,6 +15,7 @@
 #![warn(missing_debug_implementations)]
 
 pub mod api;
+pub mod test_utils;
 mod jsclient;
 mod wsclient;
 
@@ -22,10 +23,15 @@ use crate::prelude::*;
 
 use ast::Ast;
 use ast::IdMap;
-
 use std::panic;
+use utils::fail::FallibleResult;
 
-pub use enso_prelude as prelude;
+#[allow(missing_docs)]
+pub mod prelude {
+    pub use enso_prelude::*;
+    pub use ast::traits::*;
+}
+
 
 
 // ==============
@@ -46,7 +52,7 @@ type Client = jsclient::Client;
 /// Currently this component is implemented as a wrapper over parser written
 /// in Scala. Depending on compilation target (native or wasm) it uses either
 /// implementation provided by `wsclient` or `jsclient`.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct Parser(pub Rc<RefCell<Client>>);
 
@@ -71,17 +77,41 @@ impl Parser {
     pub fn new_or_panic() -> Parser {
         Parser::new().unwrap_or_else(|e| panic!("Failed to create a parser: {:?}", e))
     }
-}
 
-impl api::IsParser for Parser {
-    fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
+    /// Parse program.
+    pub fn parse(&self, program:String, ids:IdMap) -> api::Result<Ast> {
         self.borrow_mut().parse(program,ids)
     }
 
-    fn parse_with_metadata<M:api::Metadata>
-    (&mut self, program:String) -> api::Result<api::SourceFile<M>> {
+    /// Parse contents of the program source file, where program code may be followed by idmap and
+    /// metadata.
+    pub fn parse_with_metadata<M:api::Metadata>
+    (&self, program:String) -> api::Result<api::SourceFile<M>> {
         self.borrow_mut().parse_with_metadata(program)
     }
-}
 
-impl CloneRef for Parser {}
+    /// Parse program into module.
+    pub fn parse_module(&self, program:impl Str, ids:IdMap) -> api::Result<ast::known::Module> {
+        let ast = self.parse(program.into(),ids)?;
+        ast::known::Module::try_from(ast).map_err(|_| api::Error::NonModuleRoot)
+    }
+
+    /// Program is expected to be single non-empty line module. The line's AST is
+    /// returned. Panics otherwise.
+    pub fn parse_line(&self, program:impl Str) -> FallibleResult<Ast> {
+        let module = self.parse_module(program,default())?;
+
+        let mut lines = module.lines.clone().into_iter().filter_map(|line| {
+            line.elem
+        });
+        if let Some(first_non_empty_line) = lines.next() {
+            if lines.next().is_some() {
+                Err(api::TooManyLinesProduced.into())
+            } else {
+                Ok(first_non_empty_line)
+            }
+        } else {
+            Err(api::NoLinesProduced.into())
+        }
+    }
+}

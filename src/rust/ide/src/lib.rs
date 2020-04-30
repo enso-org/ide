@@ -1,9 +1,13 @@
 //! Main library crate for IDE. It includes implementation of
 //! controllers, view logic and code that wraps them all together.
-
+//!
+#![feature(associated_type_bounds)]
 #![feature(bool_to_option)]
+#![feature(cell_update)]
 #![feature(drain_filter)]
+#![feature(option_result_contains)]
 #![feature(trait_alias)]
+#![recursion_limit="256"]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]
@@ -16,6 +20,8 @@
 pub mod controller;
 pub mod double_representation;
 pub mod executor;
+pub mod model;
+pub mod notification;
 pub mod transport;
 pub mod view;
 
@@ -23,12 +29,14 @@ pub mod view;
 pub mod prelude {
     pub use ensogl::prelude::*;
     pub use enso_prelude::*;
+    pub use ast::prelude::*;
     pub use wasm_bindgen::prelude::*;
 
     pub use crate::constants;
     pub use crate::controller;
     pub use crate::double_representation;
     pub use crate::executor;
+    pub use crate::model;
 
     pub use futures::Future;
     pub use futures::FutureExt;
@@ -36,7 +44,14 @@ pub mod prelude {
     pub use futures::StreamExt;
     pub use futures::task::LocalSpawnExt;
 
+    pub use std::ops::Range;
+
     pub use utils::fail::FallibleResult;
+    pub use utils::option::OptionExt;
+    pub use utils::vec::VecExt;
+
+    #[cfg(test)] pub use wasm_bindgen_test::wasm_bindgen_test;
+    #[cfg(test)] pub use wasm_bindgen_test::wasm_bindgen_test_configure;
 }
 
 use crate::prelude::*;
@@ -114,7 +129,7 @@ pub async fn connect_to_file_manager(config:SetupConfig) -> Result<WebSocket,Con
 pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
 -> Result<ProjectView,failure::Error> {
     let fm_transport = connect_to_file_manager(config).await?;
-    let controller   = controller::project::Handle::new_running(fm_transport);
+    let controller   = controller::Project::new_running(fm_transport);
     let project_view = ProjectView::new(logger,controller).await?;
     Ok(project_view)
 }

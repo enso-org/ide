@@ -7,8 +7,11 @@ use crate::display::shape::text::text_field::TextField;
 use crate::display::shape::text::text_field::WeakTextField;
 use crate::system::web::text_input::KeyboardBinding;
 use crate::system::web::text_input::bind_frp_to_js_keyboard_actions;
+use crate::system::web::platform::Platform;
 
-use enso_frp::*;
+use enso_frp as frp;
+use enso_frp::io::Keyboard;
+use enso_frp::io::keyboard;
 
 
 
@@ -19,7 +22,7 @@ use enso_frp::*;
 /// This structure contains all nodes in FRP graph handling keyboards events of one TextField
 /// component.
 ///
-/// The most of TextField actions are covered by providing actions to KeyboardActions for specific
+/// The most of TextField actions are covered by providing actions to Actions for specific
 /// key masks. However, there are special actions which must be done in a lower level:
 ///  * *clipboard operations* - they are performed by reading text input js events directly from
 ///    text area component. See `system::web::text_input` crate.
@@ -31,75 +34,79 @@ pub struct TextFieldKeyboardFrp {
     pub keyboard: Keyboard,
     /// Keyboard actions. Here we define shortcuts for all actions except letters input, copying
     /// and pasting.
-    pub actions: KeyboardActions,
+    pub actions: keyboard::Actions,
+    pub network: frp::Network,
     /// Event sent once cut operation was requested.
-    pub on_cut: Dynamic<()>,
+    pub on_cut: frp::Source,
     /// Event sent once copy operation was requested.
-    pub on_copy: Dynamic<()>,
+    pub on_copy: frp::Source,
     /// Event sent once paste operation was requested.
-    pub on_paste: Dynamic<String>,
+    pub on_paste: frp::Source<String>,
     /// A lambda node performing cut operation. Returns the string which should be copied to
     /// clipboard.
-    pub do_cut: Dynamic<String>,
+    pub do_cut_sampler: frp::Sampler<String>,
     /// A lambda node performing copy operation. Returns the string which should be copied to
     /// clipboard.
-    pub do_copy: Dynamic<String>,
+    pub do_copy_sampler: frp::Sampler<String>,
     /// A lambda node performing paste operation.
-    pub do_paste: Dynamic<()>,
+    pub do_paste: frp::Stream,
     /// A lambda node performing character input operation.
-    pub do_char_input: Dynamic<()>,
+    pub do_char_input: frp::Stream,
 }
 
 impl TextFieldKeyboardFrp {
     /// Create FRP graph operating on given TextField pointer.
     pub fn new(text_field:WeakTextField) -> Self {
         let keyboard    = Keyboard::default();
-        let mut actions = KeyboardActions::new(&keyboard);
-        let cut         = Self::copy_lambda(true, text_field.clone_ref());
-        let copy        = Self::copy_lambda(false, text_field.clone_ref());
+        let mut actions = keyboard::Actions::new(&keyboard);
+        let cut         = Self::copy_lambda(true,text_field.clone_ref());
+        let copy        = Self::copy_lambda(false,text_field.clone_ref());
         let paste       = Self::paste_lambda(text_field.clone_ref());
         let insert_char = Self::char_typed_lambda(text_field.clone_ref());
-        frp! {
-            text_field.on_cut        = source();
-            text_field.on_copy       = source();
-            text_field.on_paste      = source();
-            text_field.do_copy       = on_copy .map(move |()| copy());
-            text_field.do_cut        = on_cut  .map(move |()| cut());
-            text_field.do_paste      = on_paste.map(paste);
-            text_field.do_char_input = keyboard.on_pressed.map2(&keyboard.key_mask,insert_char);
+        frp::new_network! { text_field_network // FIXME name
+            def on_cut          = source();
+            def on_copy         = source();
+            def on_paste        = source();
+            def do_copy         = on_copy .map(move |()| copy());
+            def do_cut          = on_cut  .map(move |()| cut());
+            def do_cut_sampler  = do_cut.sampler();
+            def do_copy_sampler = do_copy.sampler();
+            def do_paste        = on_paste.map(paste);
+            def do_char_input   = keyboard.on_pressed.map2(&keyboard.key_mask,insert_char);
         }
-        Self::initialize_actions_map(&mut actions, text_field);
-        TextFieldKeyboardFrp {keyboard,actions,on_cut,on_copy,on_paste,do_cut,do_copy,do_paste,
-            do_char_input}
+        Self::initialize_actions_map(&mut actions,text_field);
+        let network = text_field_network;
+        TextFieldKeyboardFrp
+            {keyboard,actions,network,on_cut,on_copy,on_paste,do_cut_sampler,do_copy_sampler
+            ,do_paste,do_char_input}
     }
 
     /// Bind this FRP graph to js events.
     ///
     /// Until the returned `KeyboardBinding` structure lives, the js events will emit the proper
     /// source events in this graph.
-    pub fn bind_frp_to_js_text_input_actions(&self) -> KeyboardBinding {
-        let mut binding  = bind_frp_to_js_keyboard_actions(&self.keyboard);
+    pub fn bind_frp_to_js_text_input_actions(&self, binding:&mut KeyboardBinding) {
+        bind_frp_to_js_keyboard_actions(&self.keyboard,binding);
         let copy_handler = enclose!(
-            ( self.on_cut  => on_cut
-            , self.on_copy => on_copy
-            , self.do_cut  => do_cut
-            , self.do_copy => do_copy
+            ( self.on_cut          => on_cut
+            , self.on_copy         => on_copy
+            , self.do_cut_sampler  => do_cut_sampler
+            , self.do_copy_sampler => do_copy_sampler
             ) move |is_cut| {
                 if is_cut {
-                    on_cut.event.emit(());
-                    do_cut.behavior.current_value()
+                    on_cut.emit(());
+                    do_cut_sampler.value()
                 } else {
-                    on_copy.event.emit(());
-                    do_copy.behavior.current_value()
+                    on_copy.emit(());
+                    do_copy_sampler.value()
                 }
             }
         );
         let paste_handler = enclose!((self.on_paste => on_paste) move |text_to_paste| {
-            on_paste.event.emit(text_to_paste);
+            on_paste.emit(text_to_paste);
         });
         binding.set_copy_handler(copy_handler);
         binding.set_paste_handler(paste_handler);
-        binding
     }
 }
 
@@ -126,13 +133,13 @@ impl TextFieldKeyboardFrp {
         }
     }
 
-    fn char_typed_lambda(text_field:WeakTextField) -> impl Fn(&Key,&KeyMask) {
+    fn char_typed_lambda(text_field:WeakTextField) -> impl Fn(&keyboard::Key,&keyboard::KeyMask) {
         move |key,mask| {
             text_field.upgrade().for_each(|text_field| {
-                if let Key::Character(string) = key {
-                    let modifiers = &[Key::Control,Key::Alt];
-                    let is_modifier  = modifiers.iter().any(|k| mask.has_key(k));
-                    let is_alt_graph = mask.has_key(&Key::AltGraph);
+                if let keyboard::Key::Character(string) = key {
+                    let modifiers = &[keyboard::Key::Control,keyboard::Key::Alt];
+                    let is_modifier  = modifiers.iter().any(|key| mask.contains(key));
+                    let is_alt_graph = mask.contains(&keyboard::Key::AltGraph);
                     // On Windows AltGraph is emitted as both AltGraph and Ctrl. Therefore we don't
                     // care about modifiers when AltGraph is pressed.
                     if  !is_modifier || is_alt_graph {
@@ -144,26 +151,77 @@ impl TextFieldKeyboardFrp {
     }
 
     fn initialize_actions_map
-    (actions:&mut KeyboardActions, text_field:WeakTextField) {
-        use Key::*;
+    (actions:&mut keyboard::Actions, text_field:WeakTextField) {
+        use keyboard::Key::*;
         let mut setter = TextFieldActionsSetter{actions,text_field};
         setter.set_navigation_action(&[ArrowLeft],          Step::Left);
         setter.set_navigation_action(&[ArrowRight],         Step::Right);
         setter.set_navigation_action(&[ArrowUp],            Step::Up);
         setter.set_navigation_action(&[ArrowDown],          Step::Down);
-        setter.set_navigation_action(&[Home],               Step::LineBegin);
-        setter.set_navigation_action(&[End],                Step::LineEnd);
-        setter.set_navigation_action(&[Control,Home],       Step::DocBegin);
-        setter.set_navigation_action(&[Control,End],        Step::DocEnd);
-        setter.set_navigation_action(&[Control,ArrowLeft],  Step::LeftWord);
-        setter.set_navigation_action(&[Control,ArrowRight], Step::RightWord);
+        setter.set_navigation_action(&[PageDown],           Step::PageDown);
+        setter.set_navigation_action(&[PageUp],             Step::PageUp);
+        setter.set_navigation_action(&line_begin_keys(), Step::LineBegin);
+        setter.set_navigation_action(&line_end_keys(),   Step::LineEnd);
+        setter.set_navigation_action(&doc_begin_keys(),  Step::DocBegin);
+        setter.set_navigation_action(&doc_end_keys(),    Step::DocEnd);
+        setter.set_navigation_action(&left_word_keys(),  Step::LeftWord);
+        setter.set_navigation_action(&right_word_keys(), Step::RightWord);
         setter.set_action(&[Alt, Character("j".into())], |t| t.select_next_word_occurrence());
         setter.set_action(&[Enter],                      |t| t.write("\n"));
         setter.set_action(&[Delete],                     |t| t.do_delete_operation(Step::Right));
         setter.set_action(&[Backspace],                  |t| t.do_delete_operation(Step::Left));
         setter.set_action(&[Escape],                     |t| t.finish_multicursor_mode());
-        setter.set_action(&[PageDown],                   |t| t.page_down());
-        setter.set_action(&[PageUp],                     |t| t.page_up());
+    }
+}
+
+
+// === Keys combinations ===
+
+fn line_begin_keys() -> Vec<keyboard::Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![keyboard::Key::Meta,keyboard::Key::ArrowLeft]
+    } else {
+        vec![keyboard::Key::Home]
+    }
+}
+
+fn line_end_keys() -> Vec<keyboard::Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![keyboard::Key::Meta,keyboard::Key::ArrowRight]
+    } else {
+        vec![keyboard::Key::End]
+    }
+}
+
+fn doc_begin_keys() -> Vec<keyboard::Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![keyboard::Key::Meta,keyboard::Key::ArrowUp]
+    } else {
+        vec![keyboard::Key::Control,keyboard::Key::Home]
+    }
+}
+
+fn doc_end_keys() -> Vec<keyboard::Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![keyboard::Key::Meta,keyboard::Key::ArrowDown]
+    } else {
+        vec![keyboard::Key::Control,keyboard::Key::End]
+    }
+}
+
+fn left_word_keys() -> Vec<keyboard::Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![keyboard::Key::Alt,keyboard::Key::ArrowLeft]
+    } else {
+        vec![keyboard::Key::Control,keyboard::Key::ArrowLeft]
+    }
+}
+
+fn right_word_keys() -> Vec<keyboard::Key> {
+    if let Platform::MacOS = Platform::query() {
+        vec![keyboard::Key::Alt,keyboard::Key::ArrowRight]
+    } else {
+        vec![keyboard::Key::Control,keyboard::Key::ArrowRight]
     }
 }
 
@@ -174,22 +232,22 @@ impl TextFieldKeyboardFrp {
 /// for its usage.
 struct TextFieldActionsSetter<'a> {
     text_field : WeakTextField,
-    actions    : &'a mut KeyboardActions,
+    actions    : &'a mut keyboard::Actions,
 }
 
 impl<'a> TextFieldActionsSetter<'a> {
-    fn set_action<F>(&mut self, keys:&[Key], action:F)
+    fn set_action<F>(&mut self, keys:&[keyboard::Key], action:F)
     where F : Fn(&TextField) + 'static {
         let ptr = self.text_field.clone_ref();
-        self.actions.set_action(keys.into(), move |_| {
+        self.actions.add_action_for_key_mask(keys.into(), move || {
             if let Some(text_field) = ptr.upgrade() {
                 action(&text_field);
             }
-        });
+        }).forget(); // FIXME remove forget
     }
 
-    fn set_navigation_action(&mut self, base:&[Key], step:Step) {
-        let selecting   = base.iter().cloned().chain(std::iter::once(Key::Shift)).collect_vec();
+    fn set_navigation_action(&mut self, base:&[keyboard::Key], step:Step) {
+        let selecting   = base.iter().cloned().chain(std::iter::once(keyboard::Key::Shift)).collect_vec();
         self.set_action(base, move |t| t.navigate_cursors(step,false));
         self.set_action(selecting.as_ref(), move |t| t.navigate_cursors(step,true));
     }

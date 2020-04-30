@@ -6,6 +6,7 @@ pub mod selection;
 use crate::prelude::*;
 
 use crate::display;
+use crate::display::object::traits::*;
 use crate::display::shape::text::glyph::font::FontHandle;
 use crate::display::shape::text::glyph::system::GlyphSystem;
 use crate::display::shape::text::text_field::content::TextFieldContent;
@@ -20,10 +21,11 @@ use crate::display::shape::primitive::system::ShapeSystem;
 use crate::display::symbol::geometry::compound::sprite::Sprite;
 use crate::display::world::World;
 
-use nalgebra::Vector2;
+use nalgebra::{Vector2, zero};
 use nalgebra::Vector3;
 use crate::math::topology::unit::PixelDistance;
 use crate::display::Glsl;
+
 
 
 // =======================
@@ -61,7 +63,7 @@ pub struct TextFieldSprites {
     /// line height in pixels.
     pub line_height: f32,
     /// Display object of the whole rendered content.
-    pub display_object: display::object::Node,
+    pub display_object: display::object::Instance,
 }
 
 
@@ -79,7 +81,7 @@ impl TextFieldSprites {
         let cursor_system     = Self::create_cursor_system(world,line_height,&color);
         let cursors           = Vec::new();
         let mut glyph_system  = GlyphSystem::new(world,font.clone_ref());
-        let display_object    = display::object::Node::new(Logger::new("RenderedContent"));
+        let display_object    = display::object::Instance::new(Logger::new("RenderedContent"));
         display_object.add_child(&selection_system);
         display_object.add_child(&glyph_system);
         display_object.add_child(&cursor_system);
@@ -137,15 +139,6 @@ impl TextFieldSprites {
 }
 
 
-// === DisplayObject ===
-
-impl From<&TextFieldSprites> for display::object::Node {
-    fn from(rendered_content:&TextFieldSprites) -> Self {
-        rendered_content.display_object.clone_ref()
-    }
-}
-
-
 // === Update ===
 
 impl TextFieldSprites {
@@ -170,13 +163,15 @@ impl TextFieldSprites {
     }
 
     /// Update all displayed cursors with their selections.
-    pub fn update_cursor_sprites(&mut self, cursors:&Cursors, content:&mut TextFieldContent) {
+    pub fn update_cursor_sprites
+    (&mut self, cursors:&Cursors, content:&mut TextFieldContent, focused:bool) {
         let cursor_system = &self.cursor_system;
         self.cursors.resize_with(cursors.cursors.len(),|| Self::new_cursor_sprites(cursor_system));
         for (sprites,cursor) in self.cursors.iter_mut().zip(cursors.cursors.iter()) {
             let position = Cursor::render_position(&cursor.position,content);
             sprites.cursor.set_position(Vector3::new(position.x,position.y,0.0));
-            sprites.cursor.size().set(Vector2::new(2.0,self.line_height));
+            let size = if focused { Vector2::new(2.0,self.line_height) } else { zero() };
+            sprites.cursor.size().set(size);
 
             let selection = cursor.selection_range();
             let line_height   = self.line_height;
@@ -218,5 +213,11 @@ impl TextFieldSprites {
             cursor    : cursor_system.new_instance(),
             selection : Vec::new(),
         }
+    }
+}
+
+impl display::Object for TextFieldSprites {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }

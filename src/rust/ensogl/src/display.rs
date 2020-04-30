@@ -9,6 +9,7 @@ pub mod render;
 pub mod scene;
 pub mod shape;
 pub mod symbol;
+pub mod style;
 pub mod world;
 
 
@@ -31,5 +32,6 @@ pub mod types {
     pub use scene::dom::DomScene;
     pub use super::symbol::*;
     pub use object::Object;
+    pub use object::WeakObject;
 }
 pub use types::*;

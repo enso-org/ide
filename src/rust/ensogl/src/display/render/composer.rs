@@ -12,9 +12,10 @@ use js_sys::Array;
 // === RenderComposer ===
 // ======================
 
+shared! { RenderComposer
 /// Render composer is a render pipeline bound to a specific context.
 #[derive(Debug)]
-pub struct RenderComposer {
+pub struct RenderComposerData {
     passes    : Vec<ComposerPass>,
     variables : UniformScope,
     context   : Context,
@@ -22,7 +23,7 @@ pub struct RenderComposer {
     height    : i32,
 }
 
-impl RenderComposer {
+impl {
     /// Constructor
     pub fn new
     ( pipeline  : &RenderPipeline
@@ -35,12 +36,11 @@ impl RenderComposer {
         let context   = context.clone();
         let variables = variables.clone_ref();
         let mut this  = Self {passes,variables,context,width,height};
-        for pass in pipeline.passes() { this.add(pass); };
+        for pass in pipeline.passes_clone() { this.add(pass); };
         this
     }
 
-    #[allow(clippy::borrowed_box)]
-    fn add(&mut self, pass:&Box<dyn RenderPass>) {
+    fn add(&mut self, pass:Box<dyn RenderPass>) {
         let pass = ComposerPass::new(&self.context,&self.variables,pass,self.width,self.height);
         self.passes.push(pass);
     }
@@ -51,7 +51,7 @@ impl RenderComposer {
             pass.run(&self.context);
         }
     }
-}
+}}
 
 
 
@@ -79,11 +79,10 @@ impl ComposerPass {
     pub fn new
     ( context   : &Context
     , variables : &UniformScope
-    , pass      : &Box<dyn RenderPass>
+    , pass      : Box<dyn RenderPass>
     , width     : i32
     , height    : i32
     ) -> Self {
-        let pass         = <Box<dyn RenderPass> as Clone>::clone(pass);
         let outputs      = default();
         let variables    = variables.clone_ref();
         let context      = context.clone();
@@ -110,7 +109,8 @@ impl ComposerPass {
             let name    = format!("pass_{}",output.name());
             let args    = (self.width,self.height);
             let texture = uniform::get_or_add_gpu_texture_dyn
-                (&self.context,&self.variables,&name,output.internal_format,output.item_type,args);
+                (&self.context,&self.variables,&name,output.internal_format,output.item_type,args,
+                 Some(output.texture_parameters));
             self.add_output(texture);
         }
     }

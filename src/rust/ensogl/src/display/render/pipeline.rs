@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::system::gpu::types::*;
-use crate::system::gpu::texture::*;
+use crate::system::gpu::texture;
 
 
 
@@ -11,31 +11,31 @@ use crate::system::gpu::texture::*;
 // === Render Pipeline ===
 // =======================
 
+shared! { RenderPipeline
 /// The pipeline is a set of subsequent passes which can consume and produce data. Please note that
 /// although passes are run sequentially, their dependency graph (data passing graph) can be DAG.
 #[derive(Debug,Default)]
-pub struct RenderPipeline {
+pub struct RenderPipelineData {
     passes: Vec<Box<dyn RenderPass>>
 }
 
-impl RenderPipeline {
+impl {
     /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
     /// Getter.
-    pub fn passes(&self) -> &Vec<Box<dyn RenderPass>> {
-        &self.passes
+    pub fn passes_clone(&self) -> Vec<Box<dyn RenderPass>> {
+        self.passes.clone()
     }
-}
+}}
 
 impl<Pass:RenderPass> Add<Pass> for RenderPipeline {
     type Output = Self;
-
-    fn add(mut self, pass:Pass) -> Self::Output {
+    fn add(self, pass:Pass) -> Self::Output {
         let pass = Box::new(pass);
-        self.passes.push(pass);
+        self.rc.borrow_mut().passes.push(pass);
         self
     }
 }
@@ -53,19 +53,21 @@ pub struct RenderPassOutput {
     /// Name of the pass.
     pub name : String,
     /// Internal texture format of the pass framebuffer's attachment.
-    pub internal_format : AnyInternalFormat,
+    pub internal_format : texture::AnyInternalFormat,
     /// Item texture type of the pass framebuffer's attachment.
-    pub item_type : AnyItemType,
+    pub item_type : texture::AnyItemType,
+    /// Texture parameters that will be set when binding the texture.
+    pub texture_parameters : texture::Parameters,
 }
 
 impl RenderPassOutput {
     /// Constructor.
-    pub fn new<Name:Str,F:Into<AnyInternalFormat>,T:Into<AnyItemType>>
-    (name:Name, internal_format:F, item_type:T) -> Self {
+    pub fn new<Name:Str,F:Into<texture::AnyInternalFormat>,T:Into<texture::AnyItemType>>
+    (name:Name, internal_format:F, item_type:T, texture_parameters:texture::Parameters) -> Self {
         let name            = name.into();
         let internal_format = internal_format.into();
         let item_type       = item_type.into();
-        Self {name,internal_format,item_type}
+        Self {name,internal_format,item_type,texture_parameters}
     }
 
     /// Getter.

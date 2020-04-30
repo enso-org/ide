@@ -12,12 +12,16 @@ members = [
     "ide/file-manager/mock-server",
     "ide/json-rpc",
     "ide/parser",
+    "ide/span-tree",
     "ide/utils",
 
+    "lib/callback",
     "lib/code-builder",
     "lib/data",
     "lib/debug-scenes",
+    "lib/graph-editor",
     "lib/eval-tt",
+    "lib/flexer",
     "lib/frp",
     "lib/logger",
     "lib/macro-utils",
@@ -46,4 +50,4 @@ debug     = false
 [profile.test]
 opt-level = 0
 lto       = false
-debug     = false
+debug     = true

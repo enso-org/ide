@@ -81,13 +81,12 @@ impl {
         let name         = name.as_ref().to_string();
         let buffer_dirty = self.buffer_dirty.clone();
         let shape_dirty  = self.shape_dirty.clone();
-        let ix           = self.buffers.reserve_ix();
+        let ix           = self.buffers.reserve_index();
         group!(self.logger, "Adding buffer '{name}' at index {ix}.", {
             let on_set     = Box::new(move || { buffer_dirty.set(ix) });
             let on_resize  = Box::new(move || { shape_dirty.set() });
             let logger     = self.logger.sub(&name);
-            let context    = &self.context;
-            let buffer     = Buffer::new(logger,&self.stats,context,on_set,on_resize);
+            let buffer     = Buffer::new(logger,&self.stats,&self.context,on_set,on_resize);
             let buffer_ref = buffer.clone();
             self.buffers.set(ix,AnyBuffer::from(buffer));
             self.buffer_name_map.insert(name,ix.into());
