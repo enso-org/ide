@@ -536,11 +536,12 @@ impl application::View for GraphEditor {
 
         // === Vis Dummy ===
         // TODO[mm] remove
-        let dummy_counter = Rc::new(Cell::new(1));
+        let dummy_counter = Rc::new(Cell::new(1.0_f32));
         def _update_dummy_data = inputs.set_dummy_data.map(f!((dummy_counter,nodes)(_) {
             let dc = dummy_counter.get();
-            dummy_counter.set(dc + 1);
-            let dummy_data = visualization::Data::JSON { content : format!("{}", dummy_counter.get()) };
+            dummy_counter.set(dc + 0.1);
+            let content = format!("{}", 20.0 + 10.0 * dummy_counter.get().sin());
+            let dummy_data = visualization::Data::JSON { content };
             nodes.selected.for_each(|node| node.visualization.data.events.update_data.emit(dummy_data.clone()));
         }));
 
