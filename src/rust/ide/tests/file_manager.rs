@@ -31,12 +31,20 @@ mod tests {
         let name      = "text.txt".into();
         let object    = Object{name,path};
         let object    = FileSystemObject::File(object);
-        client.create_file(object).await.expect("Couldn't create file.");
+        client.create_file(object.clone()).await.expect("Couldn't create file.");
 
         let file_path = Path{root_id, segments:vec!["foo".into(),"text.txt".into()]};
         let contents  = "Hello world!".to_string();
         let result    = client.write_file(file_path.clone(),contents.clone()).await;
         result.expect("Couldn't write file.");
+
+        let response = client.file_info(file_path.clone()).await.expect("Couldn't get status.");
+        assert_eq!(response.attributes.byte_size,12);
+        assert_eq!(response.attributes.kind,object);
+
+        let response = client.file_list(Path{root_id,segments:vec!["foo".into()]}).await;
+        let response = response.expect("Couldn't get file list");
+        assert!(response.paths.iter().any(|file_system_object| object == *file_system_object));
 
         let read = client.read_file(file_path.clone()).await.expect("Couldn't read contents.");
         assert_eq!(contents,read.contents);
@@ -61,7 +69,7 @@ mod tests {
         assert_eq!(contents,read.contents);
     }
 
-    #[wasm_bindgen_test::wasm_bindgen_test(async)]
+    //#[wasm_bindgen_test::wasm_bindgen_test(async)]
     #[allow(dead_code)]
     async fn notifications() {
         let ws         = WebSocket::new_opened("ws://localhost:30616").await;

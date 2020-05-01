@@ -114,35 +114,21 @@ pub enum FilesystemEventKind {
 // ==================
 
 /// Attributes of the file in the filesystem.
-#[derive(Clone,Copy,Debug,PartialEq)]
+#[derive(Clone,Debug,PartialEq,Eq,Hash)]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Attributes{
     /// When the file was created.
-    pub creation_time      : UTCDateTime,
+    pub creation_time : UTCDateTime,
     /// When the file was last accessed.
-    pub last_access_time   : UTCDateTime,
+    pub last_access_time : UTCDateTime,
     /// When the file was last modified.
     pub last_modified_time : UTCDateTime,
     /// What kind of file is this.
-    pub file_kind          : FileKind,
+    pub kind : FileSystemObject,
     /// Size of the file in bytes.
     /// (size of files not being `RegularFile`s is unspecified).
-    pub byte_size          : u64
-}
-
-/// What kind of file (regular, directory, symlink) is this.
-#[derive(Clone,Copy,Debug,PartialEq)]
-#[derive(Serialize, Deserialize)]
-pub enum FileKind {
-    /// File being a directory.
-    Directory,
-    /// File being a symbolic link.
-    SymbolicLink,
-    /// File being a regular file with opaque content.
-    RegularFile,
-    /// File being none of the above, e.g. a physical device or a pipe.
-    Other
+    pub byte_size : u64
 }
 
 /// A representation of what kind of type a filesystem object can be.
@@ -203,6 +189,20 @@ pub struct FileExistsResponse {
     pub exists : bool
 }
 
+/// Response of `file_lst` method.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+pub struct FileListResponse {
+    #[allow(missing_docs)]
+    pub paths : Vec<FileSystemObject>
+}
+
+/// Response of `file_info` method.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+pub struct FileInfoResponse {
+    #[allow(missing_docs)]
+    pub attributes : Attributes
+}
+
 /// `RegisterOptions`' to receive file system tree updates.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 pub struct ReceivesTreeUpdates {
@@ -246,7 +246,7 @@ trait API {
     /// List all file-system objects in the specified path.
     #[MethodInput=FileListInput,rpc_name="file/list",result=file_list_result,
     set_result=set_file_list_result]
-    fn file_list(&self, path:Path) -> Vec<Path>;
+    fn file_list(&self, path:Path) -> FileListResponse;
 
     /// Move file system object to another location.
     #[MethodInput=MoveFileInput,rpc_name="file/move",result=move_file_result,
@@ -258,15 +258,10 @@ trait API {
     set_result=set_file_read_result]
     fn read_file(&self, path:Path) -> ReadResponse;
 
-    /// Gets file system object's status.
-    #[MethodInput=FileStatusInput,rpc_name="file/status",result=file_status_result,
-    set_result=set_file_status_result]
-    fn file_status(&self, path:Path) -> Attributes;
-
-    /// Adds a content root to the active project.
-    #[MethodInput=AddRootInput,rpc_name="file/addRoot",result=add_root_result,
-    set_result=set_add_root_result]
-    fn add_root(&self, absolute_path:Vec<String>, id:Uuid) -> ();
+    /// Gets file system object's attributes information.
+    #[MethodInput=FileInfoInput,rpc_name="file/info",result=file_info_result,
+    set_result=set_file_info_result]
+    fn file_info(&self, path:Path) -> FileInfoResponse;
 
     /// Creates the specified file system object.
     #[MethodInput=CreateInput,rpc_name="file/create",result=create_result,
@@ -293,7 +288,6 @@ trait API {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::FileKind::RegularFile;
 
     use futures::task::LocalSpawnExt;
     use json_rpc::messages::Message;
@@ -389,11 +383,11 @@ mod tests {
 
     #[test]
     fn test_requests() {
-        let root_id             = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
-        let root_id             = root_id.expect("Couldn't parse uuid.");
-        let main                = Path{root_id,segments:vec!["Main.txt".into()]};
-        let target              = Path{root_id,segments:vec!["Target.txt".into()]};
-        let path_main           = json!({"path" : {
+        let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
+        let root_id = root_id.expect("Couldn't parse uuid.");
+        let main = Path { root_id, segments: vec!["Main.txt".into()] };
+        let target = Path { root_id, segments: vec!["Target.txt".into()] };
+        let path_main = json!({"path" : {
                 "rootId"   : "00000000-0000-0000-0000-000000000000",
                 "segments" : ["Main.txt"]
             }
@@ -408,7 +402,7 @@ mod tests {
                 "segments" : ["Target.txt"]
             }
         });
-        let true_json = json!(true);
+        let file_exists_json = json!({"exists":true});
         let unit_json = json!(null);
 
         test_request(
@@ -423,92 +417,155 @@ mod tests {
             path_main.clone(),
             unit_json.clone(),
             ());
-        // test_request(
-        //     |client| client.file_exists(main.clone()),
-        //     "file/exists",
-        //     path_main.clone(),
-        //     true_json,
-        //     true);
-        //
-        // let list_response_json  = json!([          "Bar.txt",           "Foo.txt" ]);
-        // let list_response_value = vec!  [Path::new("Bar.txt"),Path::new("Foo.txt")];
-        // test_request(
-        //     |client| client.list(main.clone()),
-        //     "file/list",
-        //     path_main.clone(),
-        //     list_response_json,
-        //     list_response_value);
-        // test_request(
-        //     |client| client.move_directory(main.clone(), target.clone()),
-        //     "file/move",
-        //     from_main_to_target.clone(),
-        //     unit_json.clone(),
-        //     ());
-        // test_request(
-        //     |client| client.move_file(main.clone(), target.clone()),
-        //     "file/move",
-        //     from_main_to_target.clone(),
-        //     unit_json.clone(),
-        //     ());
-        // test_request(
-        //     |client| client.read(main.clone()),
-        //     "file/read",
-        //     path_main.clone(),
-        //     json!("Hello world!"),
-        //     "Hello world!".into());
-        //
-        // let parse_rfc3339 = |s| {
-        //     chrono::DateTime::parse_from_rfc3339(s).unwrap()
-        // };
-        // let expected_attributes = Attributes {
-        //     creation_time      : parse_rfc3339("2020-01-07T21:25:26Z"),
-        //     last_access_time   : parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
-        //     last_modified_time : parse_rfc3339("2020-01-07T21:25:26Z"),
-        //     file_kind          : RegularFile,
-        //     byte_size          : 125125,
-        // };
-        // let sample_attributes_json = json!({
-        //     "creationTime"      : "2020-01-07T21:25:26Z",
-        //     "lastAccessTime"    : "2020-01-21T22:16:51.123994500+00:00",
-        //     "lastModifiedTime"  : "2020-01-07T21:25:26Z",
-        //     "fileKind"          : "RegularFile",
-        //     "byteSize"          : 125125
-        // });
-        // test_request(
-        //     |client| client.status(main.clone()),
-        //     "file/status",
-        //     path_main.clone(),
-        //     sample_attributes_json,
-        //     expected_attributes);
-        // test_request(
-        //     |client| client.touch(main.clone()),
-        //     "file/touch",
-        //     path_main.clone(),
-        //     unit_json.clone(),
-        //     ());
-        // test_request(
-        //     |client| client.write(main.clone(), "Hello world!".into()),
-        //     "file/write",
-        //     json!({"path" : "./Main.txt", "contents" : "Hello world!"}),
-        //     unit_json.clone(),
-        //     ());
-        //
-        // let uuid_value = uuid::Uuid::parse_str("02723954-fbb0-4641-af53-cec0883f260a").unwrap();
-        // let uuid_json  = json!("02723954-fbb0-4641-af53-cec0883f260a");
-        // test_request(
-        //     |client| client.create_watch(main.clone()),
-        //     "file/createWatch",
-        //     path_main.clone(),
-        //     uuid_json.clone(),
-        //     uuid_value);
-        // let watch_id   = json!({
-        //     "watchId" : "02723954-fbb0-4641-af53-cec0883f260a"
-        // });
-        // test_request(
-        //     |client| client.delete_watch(uuid_value.clone()),
-        //     "file/deleteWatch",
-        //     watch_id.clone(),
-        //     unit_json.clone(),
-        //     ());
+        test_request(
+            |client| client.file_exists(main.clone()),
+            "file/exists",
+            path_main.clone(),
+            file_exists_json,
+            FileExistsResponse { exists: true });
+
+        let list_response_json = json!({
+            "paths" : [
+                {
+                    "type" : "File",
+                    "name" : "foo.txt",
+                    "path" : {
+                        "rootId"   : "00000000-0000-0000-0000-000000000000",
+                        "segments" : []
+                    }
+                },
+                {
+                    "type" : "File",
+                    "name" : "bar.txt",
+                    "path" : {
+                        "rootId"   : "00000000-0000-0000-0000-000000000000",
+                        "segments" : []
+                    }
+                }
+            ]
+        });
+        let list_response_value = FileListResponse {
+            paths: vec![
+                FileSystemObject::File(
+                    Object { name: "foo.txt".into(), path: Path { root_id, segments: default() } }
+                ),
+                FileSystemObject::File(
+                    Object { name: "bar.txt".into(), path: Path { root_id, segments: default() } }
+                )
+            ]
+        };
+        test_request(
+            |client| client.file_list(main.clone()),
+            "file/list",
+            path_main.clone(),
+            list_response_json,
+            list_response_value);
+        test_request(
+            |client| client.move_file(main.clone(), target.clone()),
+            "file/move",
+            from_main_to_target.clone(),
+            unit_json.clone(),
+            ());
+
+        let read_response_json = json!({"contents":"Hello world!"});
+        let read_response = ReadResponse { contents: "Hello world!".into() };
+        test_request(
+            |client| client.read_file(main.clone()),
+            "file/read",
+            path_main.clone(),
+            read_response_json,
+            read_response);
+
+        let parse_rfc3339 = |s| {
+            chrono::DateTime::parse_from_rfc3339(s).unwrap()
+        };
+        let file_system_object = FileSystemObject::File(Object {
+            name: "test.txt".into(),
+            path: Path {
+                root_id,
+                segments: default()
+            }
+        });
+        let file_system_object_json = json!({
+            "type" : "File",
+            "name" : "test.txt",
+            "path" : {
+                "rootId"   : "00000000-0000-0000-0000-000000000000",
+                "segments" : []
+            }
+        });
+        let expected_attributes = FileInfoResponse { attributes : Attributes {
+            creation_time      : parse_rfc3339("2020-01-07T21:25:26Z"),
+            last_access_time   : parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
+            last_modified_time : parse_rfc3339("2020-01-07T21:25:26Z"),
+            kind               : file_system_object.clone(),
+            byte_size          : 125125,
+        }};
+        let sample_attributes_json = json!({ "attributes" : {
+            "creationTime"     : "2020-01-07T21:25:26Z",
+            "lastAccessTime"   : "2020-01-21T22:16:51.123994500+00:00",
+            "lastModifiedTime" : "2020-01-07T21:25:26Z",
+            "kind"             : file_system_object_json,
+            "byteSize" : 125125
+        }});
+        test_request(
+            |client| client.file_info(main.clone()),
+            "file/info",
+            path_main.clone(),
+            sample_attributes_json,
+            expected_attributes);
+        let create_file_json = json!({
+            "object" : file_system_object_json
+        });
+        test_request(
+            |client| client.create_file(file_system_object),
+            "file/create",
+            create_file_json.clone(),
+            unit_json.clone(),
+            ());
+        test_request(
+            |client| client.write_file(main.clone(), "Hello world!".into()),
+            "file/write",
+            json!({
+                "path" : {
+                    "rootId"   : "00000000-0000-0000-0000-000000000000",
+                    "segments" : ["Main.txt"]
+                },
+                "contents" : "Hello world!"
+            }),
+            unit_json.clone(),
+            ());
+        let init_protocol_connection_response = InitProtocolConnectionResponse {
+            content_roots : vec![uuid::Uuid::default()]
+        };
+        test_request(
+            |client| client.init_protocol_connection(uuid::Uuid::default()),
+            "session/initProtocolConnection",
+            json!({
+                "clientId" : "00000000-0000-0000-0000-000000000000"
+            }),
+            json!({
+                "contentRoots" : ["00000000-0000-0000-0000-000000000000"]
+            }),
+            init_protocol_connection_response
+        );
+        let path                  = Path{root_id,segments:default()};
+        let receives_tree_updates = ReceivesTreeUpdates{path};
+        let options               = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+        test_request(
+            |client| client.acquire_capability("receivesTreeUpdates".into(),options),
+            "capability/acquire",
+            json!({
+                "method"          : "receivesTreeUpdates",
+                "registerOptions" : {
+                    "path" : {
+                        "rootId"   : "00000000-0000-0000-0000-000000000000",
+                        "segments" : []
+                    }
+                }
+            }),
+            unit_json,
+            ()
+        );
     }
 }
