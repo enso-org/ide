@@ -138,7 +138,7 @@ pub struct Events {
     pub network                : frp::Network,
     pub select                 : frp::Source,
     pub deselect               : frp::Source,
-    pub set_visualization      : frp::Source<visualization::Visualization>,
+    pub set_visualization      : frp::Source<Option<visualization::Visualization>>,
 }
 
 
@@ -215,7 +215,7 @@ impl Node {
             def label    = source::<String> ();
             def select   = source::<()>     ();
             def deselect = source::<()>     ();
-            def set_visualization = source::<visualization::Visualization> ();
+            def set_visualization = source::<Option<visualization::Visualization>> ();
         }
         let network       = node_network;
         let logger        = Logger::new("node");

@@ -525,7 +525,7 @@ impl application::View for GraphEditor {
             let dom_layer = scene.dom.layers.front.clone_ref();
             dom_layer.manage(&dummy_content);
             let vis : Visualization = dummy_content.into();
-            node.events.set_visualization.emit(vis);
+            node.events.set_visualization.emit(Some(vis));
             // node.visualization.as_ref().unwrap().register_content(node, &dom_layer);
 
             nodes.set.insert(node.clone_ref());

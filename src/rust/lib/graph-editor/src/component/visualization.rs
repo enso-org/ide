@@ -49,45 +49,47 @@ impl Default for Data{
 /// Content that can be used in a visualization.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub enum Visualization {
-    Html   { content : Rc<DomSymbol>                 },
-    Native { content : Rc<display::object::Instance> },
-    Empty,
+pub struct Visualization {
+    content : Rc<DomSymbol>
+}
+
+impl Object for Visualization {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.content.display_object()
+    }
 }
 
 impl Visualization {
     /// Update the visualisation with the given data.
-    pub fn update_data(&self, data:Data){
-        match &self {
-            Visualization::Html { content } => {
-                content.dom().set_inner_html(
+    pub fn set_data(&self, data:Data){
+                self.content.dom().set_inner_html(
                     &format!(r#"
 <svg>
   <circle style="fill: #69b3a2" stroke="black" cx=50 cy=50 r={}></circle>
 </svg>
 "#, data.as_json()));
-            },
-            Visualization::Native { .. } => {},
-            Visualization::Empty => {},
-        }
-    }
-}
+     }
 
-impl Default for Visualization {
-    fn default() -> Self {
-        Visualization::Empty
+    /// Make the visualisation visible in the scene.
+    pub fn show(&self) {
+        self.content.dom().set_style_or_panic("visibility", "visible");
+    }
+
+    /// Hide the visualisation in the scene.
+    pub fn hide(&self) {
+        self.content.dom().set_style_or_panic("visibility", "hidden");
     }
 }
 
 impl From<DomSymbol> for Visualization {
     fn from(symbol: DomSymbol) -> Self {
-        Visualization::Html { content : Rc::new(symbol) }
+        Visualization { content : Rc::new(symbol) }
     }
 }
 
 impl From<Rc<DomSymbol>> for Visualization {
     fn from(symbol: Rc<DomSymbol>) -> Self {
-        Visualization::Html { content : symbol }
+        Visualization { content : symbol }
     }
 }
 
@@ -105,7 +107,7 @@ pub struct Events {
     pub show              : frp::Source,
     pub hide              : frp::Source,
     pub toggle_visibility : frp::Source,
-    pub update_content    : frp::Source<Visualization>,
+    pub update_content    : frp::Source<Option<Visualization>>,
     pub update_data       : frp::Source<Data>,
 }
 
@@ -115,7 +117,7 @@ impl Default for Events {
             def show              = source::<()>            ();
             def hide              = source::<()>            ();
             def toggle_visibility = source::<()>            ();
-            def update_content    = source::<Visualization> ();
+            def update_content    = source::<Option<Visualization>> ();
             def update_data       = source::<Data>          ();
         };
         let network = visualization_events;
@@ -154,7 +156,7 @@ pub struct ContainerData {
     position   : Cell<Vector3<f32>>,
     visible    : Cell<bool>,
 
-    content   : RefCell<Visualization>,
+    content   : RefCell<Option<Visualization>>,
 }
 
 impl Container {
@@ -164,7 +166,7 @@ impl Container {
         let logger   = Logger::new("visualization");
         let events   = Events::default();
         // TODO replace with actual content;
-        let content  = RefCell::new(Visualization::default());
+        let content  = RefCell::new(None);
         let size     = Cell::new(Vector2::new(100.0, 100.0));
         let position = Cell::new(Vector3::new(  0.0,-110.0, 0.0));
         let visible  = Cell::new(true);
@@ -209,38 +211,21 @@ r#"<svg>
     /// Update the content properties with the values from the `VisualizationData`.
     ///
     /// Needs to called when those values change or new content has been set.
-    fn set_content_properties(&self) {
+    fn set_visualisation_properties(&self) {
         let size       = self.data.size.get();
         let position   = self.data.position.get();
 
-        match self.data.content.borrow().deref() {
-            Visualization::Html { content } => {
-                content.set_size(size);
-                content.set_position(position);
-            },
-            Visualization::Native { content  } => {
-                // TODO ensure correct size
-                // content.display_object().rc.set_scale(size);
-                content.display_object().rc.set_position(position);
-            },
-            Visualization::Empty => {},
-        }
-    }
-
-    /// Get the visualization content.
-    pub fn content(&self) -> Visualization {
-        self.data.content.borrow().clone()
+        if let Some(vis) = self.data.content.borrow().as_ref() {
+            vis.content.set_size(size);
+            vis.content.set_position(position);
+        };
     }
 
     /// Set the visualization content.
-    pub fn set_content(&self, content: Visualization) {
-        match &content {
-            Visualization::Html { content } => self.display_object().add_child(content.as_ref()),
-            Visualization::Native { content }      => self.display_object().add_child(content.as_ref()),
-            Visualization::Empty => {},
-        }
-        self.data.content.replace(content);
-        self.set_content_properties();
+    pub fn set_visualisation(&self, visualization: Visualization) {
+        self.display_object().add_child(visualization.display_object());
+        self.data.content.replace(Some(visualization));
+        self.set_visualisation_properties();
     }
 
     fn init_frp(self) -> Self {
@@ -271,7 +256,9 @@ r#"<svg>
             let weak_vis = self.downgrade();
             def _f_hide = self.data.events.update_content.map(move |content| {
                 if let Some(vis) = weak_vis.upgrade() {
-                    vis.set_content(content.clone());
+                    if let Some(content) = content.clone() {
+                        vis.set_visualisation(content);
+                    }
                 }
             });
 
@@ -288,14 +275,13 @@ r#"<svg>
     /// Toggle visibility on or off.
     pub fn set_visibility(&self, visible: bool) {
         self.data.visible.set(visible)  ;
-        match (self.data.content.borrow().deref(),visible)  {
-            (Visualization::Html { content }, true)  => content.dom().set_style_or_panic("visibility", "visible"),
-            (Visualization::Html { content }, false) => content.dom().set_style_or_panic("visibility", "hidden"),
-            // TODO investigate why this is not working.
-            (Visualization::Native { content }, true)  => content.display_object().rc.show(),
-            (Visualization::Native { content }, false) => content.display_object().rc.hide(),
-
-            (&Visualization::Empty,_)   => {}
+        if let Some(vis) = self.data.content.borrow().deref() {
+            // TODO use display object functionality
+            if visible {
+                vis.show();
+            } else {
+                vis.hide();
+            }
         }
     }
 
@@ -306,7 +292,9 @@ r#"<svg>
 
     /// Update the data in the inner visualisation.
     pub fn set_data(&self, data: Data) {
-        self.data.content.borrow().update_data(data)
+        if let Some(vis) = self.data.content.borrow().as_ref() {
+            vis.set_data(data)
+        }
     }
 
 }
