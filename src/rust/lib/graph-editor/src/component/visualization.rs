@@ -181,7 +181,6 @@ impl Container {
         let div = web::create_div();
         div.set_style_or_panic("width","100px");
         div.set_style_or_panic("height","100px");
-        div.set_style_or_panic("overflow","hidden");
 
         let content = web::create_element("div");
         content.set_inner_html(
@@ -202,6 +201,7 @@ r#"<svg>
 
         let symbol = DomSymbol::new(&div);
         symbol.dom().set_attribute("id","vis").unwrap();
+        symbol.dom().style().set_property("overflow","hidden").unwrap();
         symbol
 
     }
