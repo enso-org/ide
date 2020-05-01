@@ -28,6 +28,8 @@ pub type Event = json_rpc::handler::Event<Notification>;
 // === Path ===
 // ============
 
+// FIXME[dg]: We don't want Path with anonymous fields. This needs to be fixed in the File Manager
+// Client task.
 /// Path to a file.
 #[derive(Clone,Debug,Display,Eq,Hash,PartialEq,PartialOrd,Ord)]
 #[derive(Serialize, Deserialize)]

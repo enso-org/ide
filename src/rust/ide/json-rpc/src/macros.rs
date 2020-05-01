@@ -1,5 +1,7 @@
 //! Helper macros to generate RemoteClient and MockClient.
 
+// FIXME[dg]: https://github.com/luna/ide/issues/401 We want to make the generated methods to
+// take references instead of ownership.
 /// This macro reads a `trait API` item and generates asynchronous methods for RPCs. Each method
 /// should be signed with `MethodInput`, `rpc_name`, `result` and `set_result` attributes. e.g.:
 /// ```rust,compile_fail
