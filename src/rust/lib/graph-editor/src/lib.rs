@@ -288,10 +288,10 @@ impl FrpInputs {
     }
     pub fn set_visualization_data<T: AsRef<visualization::Data>>(&self, arg: T) {
         self.set_visualization_data.emit(arg.as_ref());
-    } pub fn set_dummy_data(&self) {
+    }
+    pub fn set_dummy_data(&self) {
         self.set_dummy_data.emit(());
     }
-
 }
 
 impl application::command::FrpNetworkProvider for GraphEditor {
@@ -520,7 +520,7 @@ impl application::View for GraphEditor {
 
             display_object.add_child(node);
 
-            let dummy_content = visualization::Container::default_content();
+            let dummy_content = visualization::default_content();
 
             let dom_layer = scene.dom.layers.front.clone_ref();
             dom_layer.manage(&dummy_content);

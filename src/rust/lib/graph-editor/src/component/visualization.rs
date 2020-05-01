@@ -1,4 +1,11 @@
-//! This module defines the visualization widgets.
+//! This module defines the visualization widgets and related functionality.
+//!
+//! At the core of this functionality is the `Visualisation` that takes in data and renders an
+//! output visualisation which is displayed in a `Container`. The `Container` provides generic UI
+//! elements that facilitate generic interactions, for example, visualisation selection. The
+//! `Container` also provides the FRP API that allows internal interaction with the
+//! `Visualisation`. Data for a visualisation has to be provided wrapped in the `Data` struct.
+//!
 use crate::prelude::*;
 
 use crate::frp;
@@ -46,7 +53,7 @@ impl Default for Data{
 // === Internal Visualisation Representation ===
 // =============================================
 
-/// Content that can be used in a visualization.
+/// Inner representation of a visualisation.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Visualization {
@@ -61,6 +68,7 @@ impl Object for Visualization {
 
 impl Visualization {
     /// Update the visualisation with the given data.
+    // TODO remove dummy functionality and use an actual visualisation
     pub fn set_data(&self, data:Data){
                 self.content.dom().set_inner_html(
                     &format!(r#"
@@ -72,11 +80,13 @@ impl Visualization {
 
     /// Make the visualisation visible in the scene.
     pub fn show(&self) {
+        // TODO investigate how to do this through display_object functionality.
         self.content.dom().set_style_or_panic("visibility", "visible");
     }
 
     /// Hide the visualisation in the scene.
     pub fn hide(&self) {
+        // TODO investigate how to do this through display_object functionality.
         self.content.dom().set_style_or_panic("visibility", "hidden");
     }
 }
@@ -114,11 +124,11 @@ pub struct Events {
 impl Default for Events {
     fn default() -> Self {
         frp::new_network! { visualization_events
-            def show              = source::<()>            ();
-            def hide              = source::<()>            ();
-            def toggle_visibility = source::<()>            ();
+            def show              = source::<()>                    ();
+            def hide              = source::<()>                    ();
+            def toggle_visibility = source::<()>                    ();
             def update_content    = source::<Option<Visualization>> ();
-            def update_data       = source::<Data>          ();
+            def update_data       = source::<Data>                  ();
         };
         let network = visualization_events;
         Self {network,show,hide,update_content,toggle_visibility,update_data}
@@ -131,14 +141,14 @@ impl Default for Events {
 // === Visualizations Container ===
 // ================================
 
-/// Container that wraps a `Visualisation` for rendering and interaction in the gui.
+/// Container that wraps a `Visualisation` for rendering and interaction in the GUI.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Container {
     pub data : Rc<ContainerData>
 }
 
-/// Weak version of `Visualization`.
+/// Weak version of `Container`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakContainer {
     data : Weak<ContainerData>
@@ -151,71 +161,37 @@ pub struct ContainerData {
     pub logger : Logger,
     pub events : Events,
 
-    node       : display::object::Instance,
-    size       : Cell<Vector2<f32>>,
-    position   : Cell<Vector3<f32>>,
-    visible    : Cell<bool>,
-
-    content   : RefCell<Option<Visualization>>,
+    node          : display::object::Instance,
+    size          : Cell<Vector2<f32>>,
+    position      : Cell<Vector3<f32>>,
+    visible       : Cell<bool>,
+    visualization : RefCell<Option<Visualization>>,
 }
 
 impl Container {
     /// Constructor.
     pub fn new() -> Self {
-
         let logger   = Logger::new("visualization");
         let events   = Events::default();
-        // TODO replace with actual content;
         let content  = RefCell::new(None);
         let size     = Cell::new(Vector2::new(100.0, 100.0));
         let position = Cell::new(Vector3::new(  0.0,-110.0, 0.0));
         let visible  = Cell::new(true);
         let node     = display::object::Instance::new(&logger);
 
-        let data     = ContainerData {logger,events,content,size,position,visible,node};
+        let data     = ContainerData {logger,events, visualization: content,size,position,visible,node};
         let data     = Rc::new(data);
         Self {data} . init_frp()
     }
 
-    /// Dummy content for testing.
-    // FIXME remove this when actual content is available.
-    pub fn default_content() -> DomSymbol {
-        let div = web::create_div();
-        div.set_style_or_panic("width","100px");
-        div.set_style_or_panic("height","100px");
-
-        let content = web::create_element("div");
-        content.set_inner_html(
-r#"<svg>
-  <circle style="fill: #69b3a2" stroke="black" cx=50 cy=50 r=20></circle>
-</svg>
-"#);
-        content.set_attribute("width","100%").unwrap();
-        content.set_attribute("height","100%").unwrap();
-
-        div.append_child(&content).unwrap();
-
-        let r          = 102_u8;
-        let g          = 153_u8;
-        let b          = 194_u8;
-        let color      = iformat!("rgb({r},{g},{b})");
-        div.set_style_or_panic("background-color",color);
-
-        let symbol = DomSymbol::new(&div);
-        symbol.dom().set_attribute("id","vis").unwrap();
-        symbol.dom().style().set_property("overflow","hidden").unwrap();
-        symbol
-
-    }
-
-    /// Update the content properties with the values from the `VisualizationData`.
+    /// Update the content properties with the values from the `ContainerData`.
     ///
-    /// Needs to called when those values change or new content has been set.
-    fn set_visualisation_properties(&self) {
+    /// Needs to called when a visualisation has been set.
+    fn update_visualisation_properties(&self) {
         let size       = self.data.size.get();
         let position   = self.data.position.get();
 
-        if let Some(vis) = self.data.content.borrow().as_ref() {
+        if let Some(vis) = self.data.visualization.borrow().as_ref() {
             vis.content.set_size(size);
             vis.content.set_position(position);
         };
@@ -224,8 +200,8 @@ r#"<svg>
     /// Set the visualization content.
     pub fn set_visualisation(&self, visualization: Visualization) {
         self.display_object().add_child(visualization.display_object());
-        self.data.content.replace(Some(visualization));
-        self.set_visualisation_properties();
+        self.data.visualization.replace(Some(visualization));
+        self.update_visualisation_properties();
     }
 
     fn init_frp(self) -> Self {
@@ -275,7 +251,7 @@ r#"<svg>
     /// Toggle visibility on or off.
     pub fn set_visibility(&self, visible: bool) {
         self.data.visible.set(visible)  ;
-        if let Some(vis) = self.data.content.borrow().deref() {
+        if let Some(vis) = self.data.visualization.borrow().deref() {
             // TODO use display object functionality
             if visible {
                 vis.show();
@@ -292,11 +268,10 @@ r#"<svg>
 
     /// Update the data in the inner visualisation.
     pub fn set_data(&self, data: Data) {
-        if let Some(vis) = self.data.content.borrow().as_ref() {
+        if let Some(vis) = self.data.visualization.borrow().as_ref() {
             vis.set_data(data)
         }
     }
-
 }
 
 impl Default for Container {
@@ -323,4 +298,35 @@ impl Object for Container {
     fn display_object(&self) -> &display::object::Instance {
         &self.data.node
     }
+}
+
+/// Dummy content for testing.
+// FIXME remove this when actual content is available.
+pub(crate) fn default_content() -> DomSymbol {
+    let div = web::create_div();
+    div.set_style_or_panic("width","100px");
+    div.set_style_or_panic("height","100px");
+
+    let content = web::create_element("div");
+    content.set_inner_html(
+        r#"<svg>
+  <circle style="fill: #69b3a2" stroke="black" cx=50 cy=50 r=20></circle>
+</svg>
+"#);
+    content.set_attribute("width","100%").unwrap();
+    content.set_attribute("height","100%").unwrap();
+
+    div.append_child(&content).unwrap();
+
+    let r          = 102_u8;
+    let g          = 153_u8;
+    let b          = 194_u8;
+    let color      = iformat!("rgb({r},{g},{b})");
+    div.set_style_or_panic("background-color",color);
+
+    let symbol = DomSymbol::new(&div);
+    symbol.dom().set_attribute("id","vis").unwrap();
+    symbol.dom().style().set_property("overflow","hidden").unwrap();
+    symbol
+
 }
