@@ -33,6 +33,9 @@ pub mod prelude {
     pub use ensogl::prelude::*;
 }
 
+use ensogl::prelude::*;
+use ensogl::traits::*;
+
 use crate::component::cursor::Cursor;
 use crate::component::node::Node;
 use crate::component::node::WeakNode;
@@ -46,10 +49,8 @@ use ensogl::application;
 use ensogl::display::object::Id;
 use ensogl::display::world::*;
 use ensogl::display;
-use ensogl::prelude::*;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
-use ensogl::traits::*;
 
 
 #[derive(Clone,CloneRef,Debug,Default)]

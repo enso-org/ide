@@ -117,7 +117,7 @@ pub struct Events {
     pub show              : frp::Source,
     pub hide              : frp::Source,
     pub toggle_visibility : frp::Source,
-    pub update_content    : frp::Source<Option<Visualization>>,
+    pub update_visualization    : frp::Source<Option<Visualization>>,
     pub update_data       : frp::Source<Data>,
 }
 
@@ -127,11 +127,11 @@ impl Default for Events {
             def show              = source::<()>                    ();
             def hide              = source::<()>                    ();
             def toggle_visibility = source::<()>                    ();
-            def update_content    = source::<Option<Visualization>> ();
+            def update_visualization    = source::<Option<Visualization>> ();
             def update_data       = source::<Data>                  ();
         };
         let network = visualization_events;
-        Self {network,show,hide,update_content,toggle_visibility,update_data}
+        Self {network,show,hide,update_visualization,toggle_visibility,update_data}
     }
 }
 
@@ -230,7 +230,7 @@ impl Container {
             });
 
             let weak_vis = self.downgrade();
-            def _f_hide = self.data.events.update_content.map(move |content| {
+            def _f_hide = self.data.events.update_visualization.map(move |content| {
                 if let Some(vis) = weak_vis.upgrade() {
                     if let Some(content) = content.clone() {
                         vis.set_visualisation(content);
