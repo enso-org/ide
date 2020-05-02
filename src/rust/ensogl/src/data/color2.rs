@@ -5,7 +5,11 @@
 //! on structs which makes the bound appear in places they should not, uses too strict bounds,
 //! and does not provide many useful conversions. Moreover, this library is not so generic, uses
 //! `f32` everywhere and is much simpler.
-
+//!
+//! **WARNING**
+//! Be extra careful when developing color conversion equations. Many equations were re-scaled to
+//! make them more pleasant to work, however, the equations you will fnd will probably work on
+//! different value ranges. Read documentation for each color space very carefully.
 
 use crate::prelude::*;
 use crate::math::algebra::*;
@@ -33,7 +37,7 @@ pub trait AsHList {
     type HList;
 }
 
-pub type HListOf<T> = <T as AsHList>::HList;
+pub type HListFrom<T> = <T as AsHList>::HList;
 
 
 pub struct HNil;
@@ -71,8 +75,8 @@ macro_rules! hlist_ty {
 impl                HasLength for HNil       { const LEN : usize = 0; }
 impl<H,T:HasLength> HasLength for HCons<H,T> { const LEN : usize = 1 + <T as HasLength>::LEN; }
 impl<T>             HasLength for T
-where T:AsHList, HListOf<T>:HasLength {
-    const LEN : usize = <HListOf<T> as HasLength>::LEN;
+where T:AsHList, HListFrom<T>:HasLength {
+    const LEN : usize = <HListFrom<T> as HasLength>::LEN;
 }
 
 
@@ -328,6 +332,11 @@ where T:PushBack<X> {
     }
 }
 
+
+//impl<T> PushBack<X> for T {
+//    type Output =
+//}
+
 impl<H>           HasLast for HCons<H,HNil> { type Last = H; }
 impl<H,T:HasLast> HasLast for HCons<H,T>    { type Last = Last<T>; }
 
@@ -538,11 +547,14 @@ macro_rules! replace {
 }
 
 macro_rules! define_color_repr {
-    ($name:ident $a_name:ident $data_name:ident [$($comp:ident)*]) => {
-        pub type $name   = Color<$data_name>;
+    ($(#[$($meta:tt)*])* $name:ident $a_name:ident $data_name:ident [$($comp:ident)*]) => {
+        $(#[$($meta)*])*
+        pub type $name = Color<$data_name>;
+
+        $(#[$($meta)*])*
         pub type $a_name = Color<Alpha<$data_name>>;
 
-        /// Color structure definition.
+        $(#[$($meta)*])*
         #[derive(Clone,Copy,Debug,PartialEq)]
         #[allow(missing_docs)]
         pub struct $data_name {
@@ -881,6 +893,13 @@ where Color<D1> : Clone + Into<Color<D2>> {
     }
 }
 
+impl<C> From<Color<C>> for Color<Alpha<C>> {
+    fn from(color:Color<C>) -> Self {
+        let data = color.data.into();
+        Self {data}
+    }
+}
+
 
 macro_rules! color_opr {
     ($($name:ident :: $fn:ident),*) => {$(
@@ -983,18 +1002,152 @@ impl<C> Deref for Alpha<C> {
     }
 }
 
+impl<C> From<C> for Alpha<C> {
+    fn from(color:C) -> Self {
+        let alpha = 1.0;
+        Self {alpha,color}
+    }
+}
 
 
-// ===============
-// === Structs ===
-// ===============
 
-define_color_repr!(Rgb       Rgba       RgbData       [red green blue]);
-define_color_repr!(LinearRgb LinearRgba LinearRgbData [red green blue]);
-define_color_repr!(Hsl       Hsla       HslData       [hue saturation luminance]);
-define_color_repr!(Xyz       Xyza       XyzData       [x y z]);
-define_color_repr!(Lab       Laba       LabData       [l a b]);
-define_color_repr!(Lch       Lcha       LchData       [luminance chroma hue]);
+// ====================
+// === Color Spaces ===
+// ====================
+
+define_color_repr! {
+    /// The most common color space, when it comes to computer graphics, and it's defined as an
+    /// additive mixture of red, green and blue light, where gray scale colors are created when
+    /// these three channels are equal in strength.
+    ///
+    /// Many conversions and operations on this color space requires that it's linear, meaning that
+    /// gamma correction is required when converting to and from a displayable `RGB` to `LinearRgb`.
+    ///
+    /// ## Parameters
+    ///
+    /// - `red` [0.0 - 1.0]
+    ///   The amount of red light, where 0.0 is no red light and 1.0 is the highest displayable
+    ///   amount.
+    ///
+    /// - `blue` [0.0 - 1.0]
+    ///   The amount of blue light, where 0.0 is no blue light and 1.0 is the highest displayable
+    ///   amount.
+    ///
+    /// - `green` [0.0 - 1.0]
+    ///   The amount of green light, where 0.0 is no green light and 1.0 is the highest displayable
+    ///   amount.
+    Rgb Rgba RgbData [red green blue]
+}
+
+define_color_repr! {
+    /// Linear sRGBv space. See `Rgb` to learn more.
+    LinearRgb LinearRgba LinearRgbData [red green blue]
+}
+
+define_color_repr! {
+    /// Linear HSL color space.
+    ///
+    /// The HSL color space can be seen as a cylindrical version of RGB, where the hue is the angle
+    /// around the color cylinder, the saturation is the distance from the center, and the lightness
+    /// is the height from the bottom. Its composition makes it especially good for operations like
+    /// changing green to red, making a color more gray, or making it darker.
+    ///
+    /// See `Hsv` for a very similar color space, with brightness instead of lightness.
+    ///
+    /// ## Parameters
+    ///
+    /// - `hue` [0.0 - 1.0]
+    ///   The hue of the color. Decides if it's red, blue, purple, etc. You can use `hue_degrees`
+    ///   or `hue_radians` to gen hue in non-normalized form. Most implementations use value range
+    ///   of [0 .. 360] instead. It was rescaled for convenience.
+    ///
+    /// - `saturation` [0.0 - 1.0]
+    ///   The colorfulness of the color. 0.0 gives gray scale colors and 1.0 will give absolutely
+    ///   clear colors.
+    ///
+    /// - `lightness` [0.0 - 1.0]
+    ///   Decides how light the color will look. 0.0 will be black, 0.5 will give a clear color,
+    ///   and 1.0 will give white.
+    Hsl Hsla HslData [hue saturation lightness]
+}
+
+define_color_repr! {
+    /// The CIE 1931 XYZ color space.
+    ///
+    /// XYZ links the perceived colors to their wavelengths and simply makes it possible to describe
+    /// the way we see colors as numbers. It's often used when converting from one color space to an
+    /// other, and requires a standard illuminant and a standard observer to be defined.
+    ///
+    /// Conversions and operations on this color space depend on the defined white point. This
+    /// implementation uses the `D65` white point by default.
+    ///
+    /// ## Parameters
+    ///
+    /// - `x` [0.0 - 0.95047] for the default `D65` white point.
+    ///   Scale of what can be seen as a response curve for the cone cells in the human eye. Its
+    ///   range depends on the white point.
+    ///
+    /// - `y` [0.0 - 1.0]
+    ///   Luminance of the color, where 0.0 is black and 1.0 is white.
+    ///
+    /// - `z` [0.0 - 1.08883] for the default `D65` white point.
+    ///   Scale of what can be seen as the blue stimulation. Its range depends on the white point.
+    Xyz Xyza XyzData [x y z]
+}
+
+define_color_repr! {
+    /// The CIE L*a*b* (CIELAB) color space.
+    ///
+    /// CIE L*a*b* is a device independent color space which includes all perceivable colors. It's
+    /// sometimes used to convert between other color spaces, because of its ability to represent
+    /// all of their colors, and sometimes in color manipulation, because of its perceptual
+    /// uniformity. This means that the perceptual difference between two colors is equal to their
+    /// numerical difference.
+    ///
+    /// ## Parameters
+    /// The parameters of L*a*b* are quite different, compared to many other color spaces, so
+    /// manipulating them manually may be unintuitive.
+    ///
+    /// - `lightness` [0.0 - 1.0]
+    ///   Lightness of 0.0 gives absolute black and 1.0 gives the brightest white. Most
+    ///   implementations use value range of [0 .. 100] instead. It was rescaled for convenience.
+    ///
+    /// - `a` [-1.0 - 1.0]
+    ///   a* goes from red at -1.0 to green at 1.0. Most implementations use value range of
+    ///   [-128 .. 127] instead. It was rescaled for convenience.
+    ///
+    /// - `b` [-1.0 - 1.0]
+    ///   b* goes from yellow at -1.0 to blue at 1.0. Most implementations use value range of
+    ///   [-128 .. 127] instead. It was rescaled for convenience.
+    Lab Laba LabData [lightness a b]
+}
+
+define_color_repr! {
+    /// CIE L*C*h°, a polar version of CIE L*a*b*.
+    ///
+    /// L*C*h° shares its range and perceptual uniformity with L*a*b*, but it's a cylindrical color
+    /// space, like HSL and HSV. This gives it the same ability to directly change the hue and
+    /// colorfulness of a color, while preserving other visual aspects.
+    ///
+    /// ## Parameters
+    ///
+    /// - `lightness` [0.0 - 1.0]
+    ///   Lightness of 0.0 gives absolute black and 100.0 gives the brightest white. Most
+    ///   implementations use value range of [0 .. 100] instead. It was rescaled for convenience.
+    ///
+    /// - `chroma` [0.0 - 1.32]
+    ///   The colorfulness of the color. It's similar to saturation. 0.0 gives gray scale colors,
+    ///   and numbers around 128-181 gives fully saturated colors. The upper limit of 128 should
+    ///   include the whole L*a*b* space and some more. You can use higher values to target `P3`,
+    ///   `Rec.2020`, or even larger color spaces. Most implementations use value range of
+    ///   [0 .. 132] instead. It was rescaled for convenience.
+    ///
+    /// - `hue` [0.0 - 1.0]
+    ///   The hue of the color. Decides if it's red, blue, purple, etc. You can use `hue_degrees`
+    ///   or `hue_radians` to gen hue in non-normalized form. Most implementations use value range
+    ///   of [0 .. 360] instead. It was rescaled for convenience.
+    Lch Lcha LchData [lightness chroma hue]
+}
 
 
 impl Rgba {
@@ -1008,7 +1161,9 @@ impl LabData {
         if self.a == 0.0 && self.b == 0.0 {
             None
         } else {
-            Some(self.b.atan2(self.a) * 180.0 / std::f32::consts::PI)
+            let mut hue = self.b.atan2(self.a) * 180.0 / std::f32::consts::PI;
+            if hue < 0.0 { hue += 360.0 }
+            Some(hue)
         }
     }
 }
@@ -1090,14 +1245,14 @@ impl From<RgbData> for HslData {
     fn from(color:RgbData) -> Self {
         let min       = color.red.min(color.green).min(color.blue);
         let max       = color.red.max(color.green).max(color.blue);
-        let luminance = (max + min) / 2.0;
+        let lightness = (max + min) / 2.0;
         if(max == min){
             let hue        = 0.0;
             let saturation = 0.0;
-            Self {hue,saturation,luminance}
+            Self {hue,saturation,lightness}
         } else {
             let spread     = max - min;
-            let saturation = if luminance > 0.5 {
+            let saturation = if lightness > 0.5 {
                 spread / (2.0 - max - min)
             } else {
                 spread / (max + min)
@@ -1108,7 +1263,7 @@ impl From<RgbData> for HslData {
                 else if color.green == max { (color.blue  - color.red)   / spread + 2.0 }
                 else                       { (color.red   - color.green) / spread + 4.0 };
             hue = hue / 6.0;
-            Self {hue,saturation,luminance}
+            Self {hue,saturation,lightness}
         }
     }
 }}
@@ -1147,6 +1302,18 @@ impl From<XyzData> for LinearRgbData {
 // === Xyz <-> Lab ===
 // ===================
 
+impl LabData {
+    /// Normalize the a* or b* value from range [-128 .. 127] to [-1 .. 1].
+    fn normalize_a_b(t:f32) -> f32 {
+        (2.0 * (t + 128.0) / 255.0) - 1.0
+    }
+
+    /// Denormalize the a* or b* value from range [-1 .. 1] to [-128 .. 127].
+    fn denormalize_a_b(t:f32) -> f32 {
+        (255.0 * (t + 1.0) / 2.0) - 128.0
+    }
+}
+
 color_conversion! {
 impl From<XyzData> for LabData {
     fn from(xyz:XyzData) -> Self {
@@ -1164,20 +1331,22 @@ impl From<XyzData> for LabData {
         let y = convert(xyz.y);
         let z = convert(xyz.z);
 
-        let l = (y * 116.0) - 16.0;
-        let a = (x - y) * 500.0;
-        let b = (y - z) * 200.0;
+        let lightness = ((y * 116.0) - 16.0)/100.0;
+        let a         = Self::normalize_a_b((x - y) * 500.0);
+        let b         = Self::normalize_a_b((y - z) * 200.0);
 
-        Self {l,a,b}
+        Self {lightness,a,b}
     }
 }}
 
 color_conversion! {
 impl From<LabData> for XyzData {
     fn from(color:LabData) -> Self {
-        let y = (color.l + 16.0) / 116.0;
-        let x = y + (color.a / 500.0);
-        let z = y - (color.b / 200.0);
+        let a = LabData::denormalize_a_b(color.a);
+        let b = LabData::denormalize_a_b(color.b);
+        let y = (color.lightness * 100.0 + 16.0) / 116.0;
+        let x = y + (a / 500.0);
+        let z = y - (b / 200.0);
 
         fn convert(c:f32) -> f32 {
             let epsilon = 6.0   / 29.0;
@@ -1198,21 +1367,23 @@ impl From<LabData> for XyzData {
 color_conversion! {
 impl From<LabData> for LchData {
     fn from(color:LabData) -> Self {
-        let luminance = color.l;
-        let chroma    = (color.a * color.a + color.b * color.b).sqrt();
-        let hue       = color.hue().unwrap_or(0.0);
-        Self {luminance,chroma,hue}
+        let a         = LabData::denormalize_a_b(color.a);
+        let b         = LabData::denormalize_a_b(color.b);
+        let lightness = color.lightness;
+        let chroma    = (a*a + b*b).sqrt();
+        let hue       = color.hue().unwrap_or(0.0) / 360.0;
+        Self {lightness,chroma,hue}
     }
 }}
 
 color_conversion! {
 impl From<LchData> for LabData {
     fn from(color:LchData) -> Self {
-        let l     = color.luminance;
-        let angle = color.hue * std::f32::consts::PI / 180.0;
-        let a     = color.chroma.max(0.0) * angle.cos();
-        let b     = color.chroma.max(0.0) * angle.sin();
-        Self {l,a,b}
+        let lightness = color.lightness;
+        let angle     = color.hue * 2.0 * std::f32::consts::PI;
+        let a         = Self::normalize_a_b(color.chroma.max(0.0) * angle.cos());
+        let b         = Self::normalize_a_b(color.chroma.max(0.0) * angle.sin());
+        Self {lightness,a,b}
     }
 }}
 
