@@ -322,7 +322,7 @@ impl Node {
         let ports   = Registry::default() ;
         let object  = display::object::Instance::new(&logger);
         object.add_child(&view.display_object);
-        // object.add_child(&label_view.display_object);
+        object.add_child(&label_view.display_object);
         let data    = Rc::new(NodeData {object,logger,label,events,view,label_view,ports});
         Self {data} . init()
     }

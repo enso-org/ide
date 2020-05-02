@@ -39,6 +39,8 @@ use web_sys::HtmlElement;
 
 use enso_frp as frp;
 
+use display::style::data::DataMatch;
+use palette::Srgba;
 
 
 pub trait MouseTarget : Debug + 'static {
@@ -715,6 +717,8 @@ pub struct SceneData {
     pub renderer       : Renderer,
     pub views          : Views,
     pub style_sheet    : style::Sheet,
+    pub bg_color_var   : style::Var,
+    pub bg_color_change : callback::Handle,
 }
 
 impl SceneData {
@@ -753,11 +757,20 @@ impl SceneData {
         let on_zoom        = views.main.camera.add_zoom_update_callback(on_zoom_cb);
         let on_resize      = dom.root.on_resize(on_resize_cb);
         let callbacks      = Callbacks {on_zoom,on_resize};
-        let style_sheet    = default();
+        let style_sheet    = style::Sheet::new();
+
+        let bg_color_var = style_sheet.var("application.background.color");
+        let bg_color_change = bg_color_var.on_change(f!((dom)(change){
+            change.color().for_each(|color| {
+                let color = Srgba::from(color);
+                let color = format!("rgba({},{},{},{})",255.0*color.red,255.0*color.green,255.0*color.blue,255.0*color.alpha);
+                dom.root.set_style_or_panic("background-color",color);
+            })
+        }));
 
         uniforms.pixel_ratio.set(dom.shape().pixel_ratio());
         Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables
-             ,stats,uniforms,mouse,callbacks,shapes,style_sheet}
+             ,stats,uniforms,mouse,callbacks,shapes,style_sheet,bg_color_var,bg_color_change}
     }
 
     pub fn on_resize<F:CallbackMut1Fn<web::dom::ShapeData>>(&self, callback:F) -> callback::Handle {

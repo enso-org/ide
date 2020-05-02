@@ -12,7 +12,10 @@ use ensogl::application::Application;
 use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
-
+use ensogl_core_msdf_sys::run_once_initialized;
+use ensogl::display::style::theme;
+use ensogl::data::color;
+use ensogl::data::color2;
 
 
 #[wasm_bindgen]
@@ -21,12 +24,45 @@ pub fn run_example_shapes() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-    let app = Application::new(&web::get_html_element_by_id("root").unwrap());
-    init(&app);
-    mem::forget(app);
+    run_once_initialized(|| {
+        let app = Application::new(&web::get_html_element_by_id("root").unwrap());
+        init(&app);
+        mem::forget(app);
+    });
 }
 
 fn init(app:&Application) {
+
+    let mut dark = theme::Theme::new();
+    dark.insert("application.background.color", color::Hsla::new(0.0,0.0,0.01,1.0));
+    dark.insert("animation.duration", 0.5);
+    dark.insert("graph.node.shadow.color", 5.0);
+    dark.insert("graph.node.shadow.size", 5.0);
+    dark.insert("mouse.pointer.color", color::Srgba::new(0.3,0.3,0.3,1.0));
+
+    app.themes.register("dark",dark);
+    app.themes.set_enabled(&["dark"]);
+
+    let bg = app.display.scene().style_sheet.var("application.background.color");
+
+    println!("{:?}",bg.value());
+    println!("{:?}",app.display.scene().style_sheet.debug_sheet_nodes_count());
+
+    let t1 : color::Hsla = color::Hsla::new(0.0,0.0,0.03,1.0);
+    let t2 : color::Lcha = t1.into();
+    let t4 : color::Srgba = color::Srgba::from(t2);
+    println!("{:?}", t2);
+    println!("{:?}", color::Srgba::from(t1));
+    println!("{:?}", t4);
+    println!("{:?}", color::Hsla::from(color::LinSrgba::new(0.2,0.3,0.4,1.0)));
+
+    let x = color::Hsla::from(color::Srgba::new(0.031,0.031,0.031,1.0));
+    let y = color::Srgba::from(x);
+    println!("{:?}", y);
+
+
+    color2::test();
+
     let world     = &app.display;
     let scene     = world.scene();
     let camera    = scene.camera();
@@ -55,3 +91,4 @@ fn init(app:&Application) {
         was_rendered = true;
     }).forget();
 }
+

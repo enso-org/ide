@@ -5,6 +5,11 @@ use crate::prelude::*;
 pub use palette::rgb;
 pub use palette::rgb::*;
 pub use palette::Lch;
+pub use palette::Hsv;
+pub use palette::Hsl;
+pub use palette::Hsla;
+pub use palette::LinSrgba;
+pub use palette::Hsva;
 pub use palette::encoding;
 pub use palette::Component;
 
