@@ -15,497 +15,30 @@ use crate::prelude::*;
 use crate::math::algebra::*;
 
 
-/// Head element accessor.
-pub trait HasHead { type Head; }
-pub type  Head<T> = <T as HasHead>::Head;
-
-/// Tail accessor.
-pub trait HasTail { type Tail; }
-pub type  Tail<T> = <T as HasTail>::Tail;
-
-/// Last element accessor.
-pub trait HasLast { type Last; }
-pub type  Last<T> = <T as HasLast>::Last;
-
-/// Init elements accessor (all but last).
-pub trait HasInit { type Init; }
-pub type  Init<T> = <T as HasInit>::Init;
+use enso_generics::*;
+use enso_generics as generic;
+use enso_generics as hlist;
 
 
 
-pub trait AsHList {
-    type HList;
-}
-
-pub type HListFrom<T> = <T as AsHList>::HList;
 
 
-pub struct HNil;
-pub struct HCons<Head,Tail>(Head,Tail);
-
-pub trait HasLength {
-    const LEN : usize;
-    fn len() -> usize {
-        Self::LEN
-    }
-}
-
-macro_rules! hlist {
-    ($(,)*) => { HNil };
-    ($t:expr $(,$($ts:expr),*)?) => {
-        HCons($t,hlist!{$($($ts),*)?})
-    }
-}
-
-macro_rules! hlist_pat {
-    ($(,)*) => { HNil };
-    ($t:pat $(,$($ts:pat),*)?) => {
-        HCons($t,hlist_pat!{$($($ts),*)?})
-    }
-}
 
 
-macro_rules! hlist_ty {
-    ($(,)*) => { HNil };
-    ($t:ty $(,$($ts:ty),*)?) => {
-        HCons<$t,hlist_ty!{$($($ts),*)?}>
-    }
-}
-
-impl                HasLength for HNil       { const LEN : usize = 0; }
-impl<H,T:HasLength> HasLength for HCons<H,T> { const LEN : usize = 1 + <T as HasLength>::LEN; }
-impl<T>             HasLength for T
-where T:AsHList, HListFrom<T>:HasLength {
-    const LEN : usize = <HListFrom<T> as HasLength>::LEN;
-}
 
 
-macro_rules! gen_as_hlist_for_tuples {
-    () => {};
-    ($t:ident $(,$($ts:ident),*)?) => {
-        impl <$($($ts),*)?> AsHList for ($($($ts,)*)?) {
-            type HList = hlist_ty! { $($($ts),*)? };
-        }
-        gen_as_hlist_for_tuples! { $($($ts),*)? }
-    }
-}
 
-gen_as_hlist_for_tuples! {T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12}
-
-
-impl From<()>
-for hlist_ty![] {
-    #[inline(always)]
-    fn from(t:()) -> Self {
-        hlist![]
-    }
-}
-
-impl<T0> From<(T0,)>
-for hlist_ty![T0] {
-    #[inline(always)]
-    fn from(t:(T0,)) -> Self {
-        hlist![t.0]
-    }
-}
-
-impl<T0,T1> From<(T0,T1,)>
-for hlist_ty![T0,T1] {
-    #[inline(always)]
-    fn from(t:(T0,T1,)) -> Self {
-        hlist![t.0,t.1]
-    }
-}
-
-impl<T0,T1,T2> From<(T0,T1,T2,)>
-for hlist_ty![T0,T1,T2] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,)) -> Self {
-        hlist![t.0,t.1,t.2]
-    }
-}
-
-impl<T0,T1,T2,T3> From<(T0,T1,T2,T3,)>
-for hlist_ty![T0,T1,T2,T3] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3]
-    }
-}
-
-impl<T0,T1,T2,T3,T4> From<(T0,T1,T2,T3,T4,)>
-for hlist_ty![T0,T1,T2,T3,T4] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,T4,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3,t.4]
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5> From<(T0,T1,T2,T3,T4,T5,)>
-for hlist_ty![T0,T1,T2,T3,T4,T5] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,T4,T5,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3,t.4,t.5]
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6> From<(T0,T1,T2,T3,T4,T5,T6,)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,T4,T5,T6,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3,t.4,t.5,t.6]
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7> From<(T0,T1,T2,T3,T4,T5,T6,T7,)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,T4,T5,T6,T7,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3,t.4,t.5,t.6,t.7]
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7,T8> From<(T0,T1,T2,T3,T4,T5,T6,T7,T8,)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7,T8] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,T4,T5,T6,T7,T8,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3,t.4,t.5,t.6,t.7,t.8]
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9> From<(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7,T8,T9] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3,t.4,t.5,t.6,t.7,t.8,t.9]
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10> From<(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3,t.4,t.5,t.6,t.7,t.8,t.9,t.10]
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11> From<(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11] {
-    #[inline(always)]
-    fn from(t:(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,)) -> Self {
-        hlist![t.0,t.1,t.2,t.3,t.4,t.5,t.6,t.7,t.8,t.9,t.10,t.11]
-    }
-}
-
-impl Into<()>
-for hlist_ty![] {
-    #[inline(always)]
-    fn into(self) -> () {
-        ()
-    }
-}
-
-impl<T0> Into<(T0,)>
-for hlist_ty![T0] {
-    #[inline(always)]
-    fn into(self) -> (T0,) {
-        let hlist_pat![t0] = self;
-        (t0,)
-    }
-}
-
-impl<T0,T1> Into<(T0,T1)>
-for hlist_ty![T0,T1] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1) {
-        let hlist_pat![t0,t1] = self;
-        (t0,t1)
-    }
-}
-
-impl<T0,T1,T2> Into<(T0,T1,T2)>
-for hlist_ty![T0,T1,T2] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2) {
-        let hlist_pat![t0,t1,t2] = self;
-        (t0,t1,t2)
-    }
-}
-
-impl<T0,T1,T2,T3> Into<(T0,T1,T2,T3)>
-for hlist_ty![T0,T1,T2,T3] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3) {
-        let hlist_pat![t0,t1,t2,t3] = self;
-        (t0,t1,t2,t3)
-    }
-}
-
-impl<T0,T1,T2,T3,T4> Into<(T0,T1,T2,T3,T4)>
-for hlist_ty![T0,T1,T2,T3,T4] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3,T4) {
-        let hlist_pat![t0,t1,t2,t3,t4] = self;
-        (t0,t1,t2,t3,t4)
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5> Into<(T0,T1,T2,T3,T4,T5)>
-for hlist_ty![T0,T1,T2,T3,T4,T5] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3,T4,T5) {
-        let hlist_pat![t0,t1,t2,t3,t4,t5] = self;
-        (t0,t1,t2,t3,t4,t5)
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6> Into<(T0,T1,T2,T3,T4,T5,T6)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3,T4,T5,T6) {
-        let hlist_pat![t0,t1,t2,t3,t4,t5,t6] = self;
-        (t0,t1,t2,t3,t4,t5,t6)
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7> Into<(T0,T1,T2,T3,T4,T5,T6,T7)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3,T4,T5,T6,T7) {
-        let hlist_pat![t0,t1,t2,t3,t4,t5,t6,t7] = self;
-        (t0,t1,t2,t3,t4,t5,t6,t7)
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7,T8> Into<(T0,T1,T2,T3,T4,T5,T6,T7,T8)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7,T8] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3,T4,T5,T6,T7,T8) {
-        let hlist_pat![t0,t1,t2,t3,t4,t5,t6,t7,t8] = self;
-        (t0,t1,t2,t3,t4,t5,t6,t7,t8)
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9> Into<(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7,T8,T9] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3,T4,T5,T6,T7,T8,T9) {
-        let hlist_pat![t0,t1,t2,t3,t4,t5,t6,t7,t8,t9] = self;
-        (t0,t1,t2,t3,t4,t5,t6,t7,t8,t9)
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10> Into<(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10) {
-        let hlist_pat![t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10] = self;
-        (t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10)
-    }
-}
-
-impl<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11> Into<(T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11)>
-for hlist_ty![T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11] {
-    #[inline(always)]
-    fn into(self) -> (T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11) {
-        let hlist_pat![t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11] = self;
-        (t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11)
-    }
-}
-
-
-impl<X> PushBack<X> for HNil {
-    type Output = HCons<X,HNil>;
-    #[inline(always)]
-    fn push_back(self,x:X) -> Self::Output {
-        HCons(x,HNil)
-    }
-}
-
-impl<X,H,T> PushBack<X> for HCons<H,T>
-where T:PushBack<X> {
-    type Output = HCons<H,<T as PushBack<X>>::Output>;
-    #[inline(always)]
-    fn push_back(self,x:X) -> Self::Output {
-        let HCons(head,tail) = self;
-        HCons(head,tail.push_back(x))
-    }
-}
-
-
-//impl<T> PushBack<X> for T {
+//
+//impl generic::PushBack<X> for T {
 //    type Output =
 //}
 
-impl<H>           HasLast for HCons<H,HNil> { type Last = H; }
-impl<H,T:HasLast> HasLast for HCons<H,T>    { type Last = Last<T>; }
-
-impl<H>           HasInit for HCons<H,HNil> { type Init = HNil; }
-impl<H,T:HasInit> HasInit for HCons<H,T>    { type Init = HCons<H,Init<T>>; }
-
-pub trait PushBack<T> : Sized {
-    type Output : HasLast<Last=T> + HasInit<Init=Self>;
-    fn push_back(self,t:T) -> Self::Output;
-}
-
-impl<X> PushBack<X> for () {
-    type Output = (X,);
-    fn push_back(self,x:X) -> Self::Output {
-        (x,)
-    }
-}
-
-impl<X,T1> PushBack<X> for (T1,) {
-    type Output = (T1,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,x)
-    }
-}
-
-impl<X,T1,T2> PushBack<X> for (T1,T2) {
-    type Output = (T1,T2,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,self.1,x)
-    }
-}
-
-impl<X,T1,T2,T3> PushBack<X> for (T1,T2,T3) {
-    type Output = (T1,T2,T3,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,self.1,self.2,x)
-    }
-}
-
-impl<X,T1,T2,T3,T4> PushBack<X> for (T1,T2,T3,T4) {
-    type Output = (T1,T2,T3,T4,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,self.1,self.2,self.3,x)
-    }
-}
-
-impl<X,T1,T2,T3,T4,T5> PushBack<X> for (T1,T2,T3,T4,T5) {
-    type Output = (T1,T2,T3,T4,T5,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,self.1,self.2,self.3,self.4,x)
-    }
-}
-
-impl<X,T1,T2,T3,T4,T5,T6> PushBack<X> for (T1,T2,T3,T4,T5,T6) {
-    type Output = (T1,T2,T3,T4,T5,T6,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,self.1,self.2,self.3,self.4,self.5,x)
-    }
-}
-
-impl<X,T1,T2,T3,T4,T5,T6,T7> PushBack<X> for (T1,T2,T3,T4,T5,T6,T7) {
-    type Output = (T1,T2,T3,T4,T5,T6,T7,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,self.1,self.2,self.3,self.4,self.5,self.6,x)
-    }
-}
-
-impl<X,T1,T2,T3,T4,T5,T6,T7,T8> PushBack<X> for (T1,T2,T3,T4,T5,T6,T7,T8) {
-    type Output = (T1,T2,T3,T4,T5,T6,T7,T8,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,self.1,self.2,self.3,self.4,self.5,self.6,self.7,x)
-    }
-}
-
-impl<X,T1,T2,T3,T4,T5,T6,T7,T8,T9> PushBack<X> for (T1,T2,T3,T4,T5,T6,T7,T8,T9) {
-    type Output = (T1,T2,T3,T4,T5,T6,T7,T8,T9,X);
-    fn push_back(self,x:X) -> Self::Output {
-        (self.0,self.1,self.2,self.3,self.4,self.5,self.6,self.7,self.8,x)
-    }
-}
 
 
 
 
 
 
-
-pub trait PopBack : HasLast + HasInit {
-    fn pop_back(self) -> (Self::Last,Self::Init);
-}
-
-macro_rules! gen_has_last {
-    () => {};
-    ($t:ident $(,$($ts:ident),*)?) => {
-        impl<X $(,$($ts),*)?> HasLast for ($($($ts,)*)? X,) { type Last = X; }
-        gen_has_last! { $($($ts),*)? }
-    }
-}
-
-macro_rules! gen_has_init {
-    () => {};
-    ($t:ident $(,$($ts:ident),*)?) => {
-        impl<X $(,$($ts),*)?> HasInit for ($($($ts,)*)? X,) { type Init = ($($($ts,)*)?); }
-        gen_has_init! { $($($ts),*)? }
-    }
-}
-
-gen_has_last!{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
-gen_has_init!{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
-
-impl<T1> PopBack for (T1,) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.0,())
-    }
-}
-
-impl<T1,T2> PopBack for (T1,T2) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.1,(self.0,))
-    }
-}
-
-impl<T1,T2,T3> PopBack for (T1,T2,T3) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.2,(self.0,self.1))
-    }
-}
-
-impl<T1,T2,T3,T4> PopBack for (T1,T2,T3,T4) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.3,(self.0,self.1,self.2))
-    }
-}
-
-impl<T1,T2,T3,T4,T5> PopBack for (T1,T2,T3,T4,T5) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.4,(self.0,self.1,self.2,self.3))
-    }
-}
-
-impl<T1,T2,T3,T4,T5,T6> PopBack for (T1,T2,T3,T4,T5,T6) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.5,(self.0,self.1,self.2,self.3,self.4))
-    }
-}
-
-impl<T1,T2,T3,T4,T5,T6,T7> PopBack for (T1,T2,T3,T4,T5,T6,T7) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.6,(self.0,self.1,self.2,self.3,self.4,self.5))
-    }
-}
-
-impl<T1,T2,T3,T4,T5,T6,T7,T8> PopBack for (T1,T2,T3,T4,T5,T6,T7,T8) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.7,(self.0,self.1,self.2,self.3,self.4,self.5,self.6))
-    }
-}
-
-impl<T1,T2,T3,T4,T5,T6,T7,T8,T9> PopBack for (T1,T2,T3,T4,T5,T6,T7,T8,T9) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.8,(self.0,self.1,self.2,self.3,self.4,self.5,self.6,self.7))
-    }
-}
-
-impl<T1,T2,T3,T4,T5,T6,T7,T8,T9,T10> PopBack for (T1,T2,T3,T4,T5,T6,T7,T8,T9,T10) {
-    fn pop_back(self) -> (Self::Last,Self::Init) {
-        (self.9,(self.0,self.1,self.2,self.3,self.4,self.5,self.6,self.7,self.8))
-    }
-}
 
 
 macro_rules! color_convert_via {
@@ -681,16 +214,16 @@ pub fn from_components<T:FromComponents>(components:ComponentsOf<T>) -> T {
     components.into()
 }
 
-impl<T,X> PushBack<X> for Components<T>
-where T:PushBack<X> {
-    type Output = Components<<T as PushBack<X>>::Output>;
+impl<T,X> generic::PushBack<X> for Components<T>
+where T:generic::PushBack<X> {
+    type Output = Components<<T as generic::PushBack<X>>::Output>;
     fn push_back(self,t:X) -> Self::Output {
         Components(self.0.push_back(t))
     }
 }
 
-impl<T:HasLast> HasLast for Components<T> { type Last = Last<T>; }
-impl<T:HasInit> HasInit for Components<T> { type Init = Components<Init<T>>; }
+impl<T:KnownLast> KnownLast for Components<T> { type Last = Last<T>; }
+impl<T:KnownInit> KnownInit for Components<T> { type Init = Components<Init<T>>; }
 
 
 impl<T> PopBack for Components<T>
@@ -966,20 +499,20 @@ pub struct Alpha<C> {
 
 
 impl<C> HasComponentsRepr for Alpha<C>
-where C:HasComponentsRepr, ComponentsReprOf<C>:PushBack<f32> {
-    type ComponentsRepr = <ComponentsReprOf<C> as PushBack<f32>>::Output;
+where C:HasComponentsRepr, ComponentsReprOf<C>:generic::PushBack<f32> {
+    type ComponentsRepr = <ComponentsReprOf<C> as generic::PushBack<f32>>::Output;
 }
 
 impl<C> From<Alpha<C>> for ComponentsOf<Alpha<C>>
-where C:HasComponents, ComponentsReprOf<C>:PushBack<f32> {
+where C:HasComponents, ComponentsReprOf<C>:generic::PushBack<f32> {
     fn from(t:Alpha<C>) -> Self {
         t.color.into().push_back(t.alpha)
     }
 }
 
 impl<C> From<ComponentsOf<Alpha<C>>> for Alpha<C>
-where C:HasComponents, ComponentsReprOf<C>:PushBack<f32>,
-      <ComponentsReprOf<C> as PushBack<f32>>::Output : PopBack<Last=f32,Init=ComponentsReprOf<C>> {
+where C:HasComponents, ComponentsReprOf<C>:generic::PushBack<f32>,
+      <ComponentsReprOf<C> as generic::PushBack<f32>>::Output : PopBack<Last=f32,Init=ComponentsReprOf<C>> {
     fn from(components:ComponentsOf<Self>) -> Self {
         let (alpha,init) = components.pop_back();
         let color        = from_components(init);

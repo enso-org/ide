@@ -554,6 +554,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "enso-generics"
+version = "0.1.0"
+
+[[package]]
 name = "enso-prelude"
 version = "0.1.0"
 dependencies = [
@@ -588,6 +592,7 @@ dependencies = [
  "data 0.1.0",
  "enso-callback 0.1.0",
  "enso-frp 0.1.0",
+ "enso-generics 0.1.0",
  "enso-prelude 0.1.0",
  "ensogl-core-embedded-fonts 0.1.0",
  "ensogl-core-msdf-sys 0.1.0",
