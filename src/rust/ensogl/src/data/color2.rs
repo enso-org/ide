@@ -59,7 +59,15 @@ impl<T1,T2,T3,T4> PopBack for (T1,T2,T3,T4) {
     fn pop_back(self) -> (Self::Last,Self::Init) { (self.3,(self.0,self.1,self.2)) }
 }
 
-
+macro_rules! convert_via {
+    ($src:ident -> $via:ident -> $tgt:ident) => {
+        impl From<$src> for $tgt {
+            fn from(src:$src) -> Self {
+                $via::from(src).into()
+            }
+        }
+    }
+}
 
 
 macro_rules! replace {
@@ -108,7 +116,95 @@ macro_rules! define_color_repr {
                 Self {$($comp),*}
             }
         }
+
+        impl<T:Component> Div<$data_name<T>> for $data_name<T> {
+            type Output = $data_name<T>;
+            fn div(self, rhs:$data_name<T>) -> Self::Output {
+                $(let $comp = self.$comp / rhs.$comp;)*
+                Self {$($comp),*}
+            }
+        }
+
+        impl<T:Component> Div<&$data_name<T>> for $data_name<T> {
+            type Output = $data_name<T>;
+            fn div(self, rhs:&$data_name<T>) -> Self::Output {
+                self / rhs.clone()
+            }
+        }
+
+        impl<T:Component> Div<$data_name<T>> for &$data_name<T> {
+            type Output = $data_name<T>;
+            fn div(self, rhs:$data_name<T>) -> Self::Output {
+                self.clone() / rhs
+            }
+        }
+
+        impl<T:Component> Div<&$data_name<T>> for &$data_name<T> {
+            type Output = $data_name<T>;
+            fn div(self, rhs:&$data_name<T>) -> Self::Output {
+                self.clone() / rhs.clone()
+            }
+        }
+
+        impl<T:Component> Mul<$data_name<T>> for $data_name<T> {
+            type Output = $data_name<T>;
+            fn mul(self, rhs:$data_name<T>) -> Self::Output {
+                $(let $comp = self.$comp * rhs.$comp;)*
+                Self {$($comp),*}
+            }
+        }
+
+        impl<T:Component> Mul<&$data_name<T>> for $data_name<T> {
+            type Output = $data_name<T>;
+            fn mul(self, rhs:&$data_name<T>) -> Self::Output {
+                self * rhs.clone()
+            }
+        }
+
+        impl<T:Component> Mul<$data_name<T>> for &$data_name<T> {
+            type Output = $data_name<T>;
+            fn mul(self, rhs:$data_name<T>) -> Self::Output {
+                self.clone() * rhs
+            }
+        }
+
+        impl<T:Component> Mul<&$data_name<T>> for &$data_name<T> {
+            type Output = $data_name<T>;
+            fn mul(self, rhs:&$data_name<T>) -> Self::Output {
+                self.clone() * rhs.clone()
+            }
+        }
     };
+}
+
+
+// ==================
+// === WhitePoint ===
+// ==================
+
+/// Xyz color co-ordinates for a given white point.
+///
+/// A white point (often referred to as reference white or target white in technical documents)
+/// is a set of tristimulus values or chromaticity coordinates that serve to define the color
+/// "white" in image capture, encoding, or reproduction.
+///
+/// Custom white points can be easily defined on an empty struct with the tristimulus values
+/// and can be used in place of the ones defined in this library.
+pub trait WhitePoint {
+    ///Get the Xyz chromacity co-ordinates for the white point.
+    fn get_xyz<T:Component>() -> Xyz<T>;
+}
+
+/// CIE D series standard illuminant - D65.
+///
+/// D65 White Point is the natural daylight with a color temperature of 6500K for 2° Standard
+/// Observer.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct D65;
+impl WhitePoint for D65 {
+    fn get_xyz<T:Component>() -> Xyz<T> {
+        from_components((0.95047.into(), 1.0.into(), 1.08883.into()))
+    }
 }
 
 
@@ -209,6 +305,71 @@ where Color<D1> : Clone + Into<Color<D2>> {
     }
 }
 
+impl<D1,D2> Div<Color<D2>> for Color<D1>
+where D1:Div<D2> {
+    type Output = Color<<D1 as Div<D2>>::Output>;
+    fn div(self, rhs:Color<D2>) -> Color<<D1 as Div<D2>>::Output> {
+        Color { data : self.data / rhs.data }
+    }
+}
+
+impl<D1,D2> Div<&Color<D2>> for Color<D1>
+where D1:Div<D2>, D2:Clone {
+    type Output = Color<<D1 as Div<D2>>::Output>;
+    fn div(self, rhs:&Color<D2>) -> Color<<D1 as Div<D2>>::Output> {
+        self / rhs.clone()
+    }
+}
+
+impl<D1,D2> Div<Color<D2>> for &Color<D1>
+where D1:Div<D2>, D1:Clone {
+    type Output = Color<<D1 as Div<D2>>::Output>;
+    fn div(self, rhs:Color<D2>) -> Color<<D1 as Div<D2>>::Output> {
+        self.clone() / rhs
+    }
+}
+
+impl<D1,D2> Div<&Color<D2>> for &Color<D1>
+where D1:Div<D2>, D1:Clone, D2:Clone {
+    type Output = Color<<D1 as Div<D2>>::Output>;
+    fn div(self, rhs:&Color<D2>) -> Color<<D1 as Div<D2>>::Output> {
+        self.clone() / rhs.clone()
+    }
+}
+
+
+
+impl<D1,D2> Mul<Color<D2>> for Color<D1>
+where D1:Mul<D2> {
+    type Output = Color<<D1 as Mul<D2>>::Output>;
+    fn mul(self, rhs:Color<D2>) -> Color<<D1 as Mul<D2>>::Output> {
+        Color { data : self.data * rhs.data }
+    }
+}
+
+impl<D1,D2> Mul<&Color<D2>> for Color<D1>
+where D1:Mul<D2>, D2:Clone {
+    type Output = Color<<D1 as Mul<D2>>::Output>;
+    fn mul(self, rhs:&Color<D2>) -> Color<<D1 as Mul<D2>>::Output> {
+        self * rhs.clone()
+    }
+}
+
+impl<D1,D2> Mul<Color<D2>> for &Color<D1>
+where D1:Mul<D2>, D1:Clone {
+    type Output = Color<<D1 as Mul<D2>>::Output>;
+    fn mul(self, rhs:Color<D2>) -> Color<<D1 as Mul<D2>>::Output> {
+        self.clone() * rhs
+    }
+}
+
+impl<D1,D2> Mul<&Color<D2>> for &Color<D1>
+where D1:Mul<D2>, D1:Clone, D2:Clone {
+    type Output = Color<<D1 as Mul<D2>>::Output>;
+    fn mul(self, rhs:&Color<D2>) -> Color<<D1 as Mul<D2>>::Output> {
+        self.clone() * rhs.clone()
+    }
+}
 
 
 // =============
@@ -275,6 +436,7 @@ define_color_repr!(Rgb       Rgba       RgbData       [red green blue]);
 define_color_repr!(LinearRgb LinearRgba LinearRgbData [red green blue]);
 define_color_repr!(Hsl       Hsla       HslData       [hue saturation luminance]);
 define_color_repr!(Xyz       Xyza       XyzData       [x y z]);
+define_color_repr!(Lab       Laba       LabData       [l a b]);
 define_color_repr!(Lch       Lcha       LchData       [luminance chroma hue]);
 
 
@@ -359,23 +521,79 @@ impl From<LinearRgb> for Xyz {
         let r = rgb.red;
         let g = rgb.green;
         let b = rgb.blue;
-        let x =  0.4124 * r + 0.3576 * g + 0.1805 * b;
-        let y =  0.2126 * r + 0.7152 * g + 0.0722 * b;
-        let z =  0.0193 * r + 0.1192 * g + 0.9505 * b;
+        let x =  0.4124564 * r + 0.3575761 * g + 0.1804375 * b;
+        let y =  0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
+        let z =  0.0193339 * r + 0.1191920 * g + 0.9503041 * b;
         let data = XyzData {x,y,z};
         Self {data}
     }
 }
 
-impl From<Rgb> for Xyz {
-    fn from(rgb:Rgb) -> Self {
-        LinearRgb::from(rgb).into()
+impl From<Xyz> for LinearRgb {
+    fn from(xyz:Xyz) -> Self {
+        let x = xyz.x;
+        let y = xyz.y;
+        let z = xyz.z;
+        let red   =   3.2404542 * x + -1.5371385 * y + -0.4985314 * z;
+        let green =  -0.9692660 * x +  1.8760108 * y +  0.0415560 * z;
+        let blue  =   0.0556434 * x + -0.2040259 * y +  1.0572252 * z;
+        let data  = LinearRgbData {red,green,blue};
+        Self {data}
     }
 }
 
 
 
+convert_via! { Rgb -> LinearRgb -> Xyz }
+convert_via! { Xyz -> LinearRgb -> Rgb }
 
+
+
+// ===================
+// === Xyz <-> Lab ===
+// ===================
+
+impl From<Xyz> for Lab {
+    fn from(xyz:Xyz) -> Self {
+        fn convert(c:f32) -> f32 {
+            let epsilon : f32 = 6.0/29.0;
+            let epsilon = epsilon.powi(3);
+            let kappa   = 841.0/108.0;
+            let delta   = 4.0/29.0;
+            if c > epsilon { c.cbrt() } else { (kappa * c) + delta }
+        }
+
+        let xyz = xyz / D65::get_xyz();
+
+        let x = convert(xyz.x);
+        let y = convert(xyz.y);
+        let z = convert(xyz.z);
+
+        let l = (y * 116.0) - 16.0;
+        let a = (x - y) * 500.0;
+        let b = (y - z) * 200.0;
+
+        let data = LabData {l,a,b};
+        Self {data}
+    }
+}
+
+impl From<Lab> for Xyz {
+    fn from(color:Lab) -> Self {
+        let y = (color.l + 16.0) / 116.0;
+        let x = y + (color.a / 500.0);
+        let z = y - (color.b / 200.0);
+
+        fn convert(c:f32) -> f32 {
+            let epsilon = 6.0 / 29.0;
+            let kappa   = 108.0 / 841.0;
+            let delta   = 4.0 / 29.0;
+            if c > epsilon { c.powi(3) } else { (c - delta) * kappa }
+        }
+
+        Xyz::from_components((convert(x), convert(y), convert(z))) * D65::get_xyz()
+    }
+}
 
 pub fn test() {
     let rgb = Rgb::from_components((0.2,0.4,0.6));
