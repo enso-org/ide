@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use ensogl::control::callback;
-use ensogl::data::color::Srgba;
+use ensogl::data::color;
 use ensogl::display::Buffer;
 use ensogl::display::layout::alignment;
 use ensogl::display::scene::{Scene,ShapeRegistry};
@@ -36,7 +36,7 @@ pub mod shape {
                 .corners_radius(radius)
                 .translate((-&width/2.0, -&height/2.0))
                 .translate(("input_position.x","input_position.y"))
-                .fill(Srgba::new(0.0,0.0,0.0,0.3));
+                .fill(color::Rgba::new(0.0,0.0,0.0,0.3));
             cursor.into()
         }
     }

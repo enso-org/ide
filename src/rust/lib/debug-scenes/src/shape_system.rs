@@ -15,14 +15,14 @@ use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::ShapeSystem;
 use ensogl::display::world::*;
 use ensogl::display::shape::*;
-use ensogl::data::color::Srgb;
+use ensogl::data::color;
 
 
 
 pub fn shape() -> AnyShape {
     let rect = Rect((20.0.px(),20.0.px()));
     let rect = rect.translate_x(1.0.px());
-    let rect = rect.fill(Srgb::new(1.0,0.0,0.0));
+    let rect = rect.fill(color::Rgb::new(1.0,0.0,0.0));
     rect.into()
 }
 

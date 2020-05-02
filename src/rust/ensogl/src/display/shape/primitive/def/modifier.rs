@@ -116,6 +116,6 @@ define_modifiers! {
     Union        union         (child1,child2) ()
     Difference   difference    (child1,child2) ()
     Intersection intersection  (child1,child2) ()
-    Fill         fill          (child)         (color:Srgba)
+    Fill         fill          (child)         (color:Rgba)
     PixelSnap    pixel_snap    (child)         ()
 }

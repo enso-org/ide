@@ -214,6 +214,47 @@ impl Clamp for f32 {
 
 
 
+// =============
+// === Min ===
+// =============
+
+#[allow(missing_docs)]
+pub trait Min {
+    fn min(self, other:Self) -> Self;
+}
+
+
+// === Impls ===
+
+impl Min for f32 {
+    fn min(self, other:Self) -> Self {
+        self.min(other)
+    }
+}
+
+
+
+// =============
+// === Max ===
+// =============
+
+#[allow(missing_docs)]
+pub trait Max {
+    fn max(self, other:Self) -> Self;
+}
+
+
+// === Impls ===
+
+impl Max for f32 {
+    fn max(self, other:Self) -> Self {
+        self.max(other)
+    }
+}
+
+
+
+
 // =================
 // === Normalize ===
 // =================

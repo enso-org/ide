@@ -34,11 +34,11 @@ pub fn run_example_shapes() {
 fn init(app:&Application) {
 
     let mut dark = theme::Theme::new();
-    dark.insert("application.background.color", color::Hsla::new(0.0,0.0,0.01,1.0));
+    dark.insert("application.background.color", color::Rgba::new(1.0,0.0,0.0,1.0));
     dark.insert("animation.duration", 0.5);
     dark.insert("graph.node.shadow.color", 5.0);
     dark.insert("graph.node.shadow.size", 5.0);
-    dark.insert("mouse.pointer.color", color::Srgba::new(0.3,0.3,0.3,1.0));
+    dark.insert("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
 
     app.themes.register("dark",dark);
     app.themes.set_enabled(&["dark"]);
@@ -48,17 +48,17 @@ fn init(app:&Application) {
     println!("{:?}",bg.value());
     println!("{:?}",app.display.scene().style_sheet.debug_sheet_nodes_count());
 
-    let t1 : color::Hsla = color::Hsla::new(0.0,0.0,0.03,1.0);
-    let t2 : color::Lcha = t1.into();
-    let t4 : color::Srgba = color::Srgba::from(t2);
-    println!("{:?}", t2);
-    println!("{:?}", color::Srgba::from(t1));
-    println!("{:?}", t4);
-    println!("{:?}", color::Hsla::from(color::LinSrgba::new(0.2,0.3,0.4,1.0)));
-
-    let x = color::Hsla::from(color::Srgba::new(0.031,0.031,0.031,1.0));
-    let y = color::Srgba::from(x);
-    println!("{:?}", y);
+//    let t1 : color::Hsla = color::Hsla::new(0.0,0.0,0.03,1.0);
+//    let t2 : color::Lcha = t1.into();
+//    let t4 : color::Rgba = color::Rgba::from(t2);
+//    println!("{:?}", t2);
+//    println!("{:?}", color::Rgba::from(t1));
+//    println!("{:?}", t4);
+//    println!("{:?}", color::Hsla::from(color::LinearRgba::new(0.2,0.3,0.4,1.0)));
+//
+//    let x = color::Hsla::from(color::Rgba::new(0.031,0.031,0.031,1.0));
+//    let y = color::Rgba::from(x);
+//    println!("{:?}", y);
 
 
     color2::test();

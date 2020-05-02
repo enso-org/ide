@@ -170,18 +170,18 @@ pub fn test() {
     let theme_manager = Manager::new();
 
     let mut theme1 = Theme::new();
-    theme1.insert("application.background.color", color::Srgba::new(1.0,0.0,0.0,1.0));
+    theme1.insert("application.background.color", color::Rgba::new(1.0,0.0,0.0,1.0));
     theme1.insert("animation.duration", 0.5);
     theme1.insert("graph.node.shadow.color", 5.0);
     theme1.insert("graph.node.shadow.size", 5.0);
-    theme1.insert("mouse.pointer.color", color::Srgba::new(0.3,0.3,0.3,1.0));
+    theme1.insert("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
 
     let mut theme2 = Theme::new();
-    theme2.insert("application.background.color", color::Srgba::new(1.0,0.0,0.0,1.0));
+    theme2.insert("application.background.color", color::Rgba::new(1.0,0.0,0.0,1.0));
     theme2.insert("animation.duration", 0.7);
     theme2.insert("graph.node.shadow.color", 5.0);
     theme2.insert("graph.node.shadow.size", 5.0);
-    theme2.insert("mouse.pointer.color", color::Srgba::new(0.3,0.3,0.3,1.0));
+    theme2.insert("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
 
     theme_manager.register("theme1",theme1);
     theme_manager.register("theme2",theme2);

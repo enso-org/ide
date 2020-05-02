@@ -8,8 +8,7 @@ use crate::component::node::port::Registry;
 
 use enso_frp;
 use enso_frp as frp;
-use ensogl::data::color::*;
-use ensogl::data::color::Srgba;
+use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
@@ -53,9 +52,9 @@ pub mod icons {
         let rect3 = rect3 - rect2.translate_y(&offset);
         let rect2 = rect2 - rect1.translate_y(&offset);
 
-        let rect1 = rect1.fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
-        let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
-        let rect3 = rect3.fill(Srgba::new(0.26, 0.69, 0.99, 0.4));
+        let rect1 = rect1.fill(color::Rgba::new(0.26, 0.69, 0.99, 1.00));
+        let rect2 = rect2.fill(color::Rgba::new(0.26, 0.69, 0.99, 0.6));
+        let rect3 = rect3.fill(color::Rgba::new(0.26, 0.69, 0.99, 0.4));
 
         let icon = (rect3 + rect2 + rect1).translate_y(-persp_diff2/2.0);
         icon.into()
@@ -82,7 +81,7 @@ pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
     let ring    = &outer - &inner;
     let pie     = &ring * &section;
     let out     = &pie + &corner1 + &corner2;
-    let out     = out.fill(Srgba::new(0.9,0.9,0.9,1.0));
+    let out     = out.fill(color::Rgba::new(0.9,0.9,0.9,1.0));
     out.into()
 }
 
@@ -109,17 +108,17 @@ pub mod shape {
             let height = 28.0.px();
             let radius = &height / 2.0;
             let shape  = Rect((&width,&height)).corners_radius(radius);
-            let shape  = shape.fill(Srgb::new(0.97,0.96,0.95));
+            let shape  = shape.fill(color::Rgb::new(0.97,0.96,0.95));
 
             let shadow_size   = 14.px();
             let shadow_width  = &width  + &shadow_size * 2.0;
             let shadow_height = &height + &shadow_size * 2.0;
             let shadow_radius = &shadow_height / 2.0;
             let shadow        = Rect((shadow_width,shadow_height)).corners_radius(shadow_radius);
-            let shadow_color  = LinearGradient::new()
-                .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-                .add(1.0,Srgba::new(0.0,0.0,0.0,0.10).into_linear());
-            let shadow_color  = SdfSampler::new(shadow_color).max_distance(border_size_f).slope(Slope::Exponent(4.0));
+            let shadow_color  = color::LinearGradient::new()
+                .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
+                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.10).into_linear());
+            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(4.0));
             let shadow        = shadow.fill(shadow_color);
 
             let select_size   = 8.px();
@@ -127,7 +126,7 @@ pub mod shape {
             let select_height = &height - 2.px() + &select_size * 2.0 * &selection;
             let select_radius = &select_height / 2.0;
             let select        = Rect((select_width,select_height)).corners_radius(select_radius);
-            let select        = select.fill(Srgba::new(0.22,0.83,0.54,1.0));
+            let select        = select.fill(color::Rgba::new(0.22,0.83,0.54,1.0));
 
             let out = select + shadow + shape;
             out.into()
@@ -208,7 +207,7 @@ pub mod label {
 //        pub fn shape_def(__style_watch__: &ensogl::display::shape::StyleWatch) -> AnyShape {
 //            use ensogl::display::style::data::DataMatch;
 //
-//            Circle(10.px()).fill(Srgb::new(0.97,0.96,0.95)).into()
+//            Circle(10.px()).fill(color::Rgba::new(0.97,0.96,0.95)).into()
 //        }
     }
 }

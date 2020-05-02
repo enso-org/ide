@@ -2,28 +2,21 @@
 
 use crate::prelude::*;
 
-pub use palette::rgb;
-pub use palette::rgb::*;
-pub use palette::Lch;
-pub use palette::Hsv;
-pub use palette::Hsl;
-pub use palette::Hsla;
-pub use palette::LinSrgba;
-pub use palette::Hsva;
-pub use palette::encoding;
-pub use palette::Component;
+//pub use palette::rgb;
+//pub use palette::rgb::*;
+//pub use palette::Lch;
+//pub use palette::Hsv;
+//pub use palette::Hsl;
+//pub use palette::Hsla;
+//pub use palette::LinSrgba;
+//pub use palette::Hsva;
+//pub use palette::encoding;
+//pub use palette::Component;
+
+pub use super::color2::*;
 
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::shader::glsl::traits::*;
-
-
-
-// =============
-// === Types ===
-// =============
-
-/// Alias for `palette::Lcha` with `Wp` type parameter defaulting to `D65` white point.
-pub type Lcha<Wp=palette::white_point::D65, T=f32> = palette::Lcha<Wp,T>;
 
 
 

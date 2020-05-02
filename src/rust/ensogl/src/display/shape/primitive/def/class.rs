@@ -9,7 +9,7 @@ use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::def::var::Var;
 use crate::system::gpu::types::*;
-use crate::data::color::*;
+use crate::data::color;
 
 
 
@@ -141,7 +141,7 @@ pub trait ShapeOps : Sized where for<'t> &'t Self : IntoOwned<Owned=Self> {
     }
 
     /// Fill the shape with the provided color.
-    fn fill<Color:Into<Var<Srgba>>>(&self, color:Color) -> Fill<Self> {
+    fn fill<Color:Into<Var<color::Rgba>>>(&self, color:Color) -> Fill<Self> {
         Fill(self,color)
     }
 

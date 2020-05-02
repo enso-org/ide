@@ -40,7 +40,7 @@ use web_sys::HtmlElement;
 use enso_frp as frp;
 
 use display::style::data::DataMatch;
-use palette::Srgba;
+use crate::data::color;
 
 
 pub trait MouseTarget : Debug + 'static {
@@ -762,7 +762,7 @@ impl SceneData {
         let bg_color_var = style_sheet.var("application.background.color");
         let bg_color_change = bg_color_var.on_change(f!((dom)(change){
             change.color().for_each(|color| {
-                let color = Srgba::from(color);
+                let color = color::Rgba::from(color);
                 let color = format!("rgba({},{},{},{})",255.0*color.red,255.0*color.green,255.0*color.blue,255.0*color.alpha);
                 dom.root.set_style_or_panic("background-color",color);
             })

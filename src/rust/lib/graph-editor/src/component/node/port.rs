@@ -4,7 +4,7 @@ use crate::prelude::*;
 use crate::component::node::Node;
 
 use core::f32::consts::PI;
-use ensogl::data::color::*;
+use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Scene;
@@ -54,9 +54,6 @@ pub struct Specification {
     pub inner_radius: f32,
     /// Location of the port along the inner circle.
     pub position: Angle<Degrees>,
-    /// Fill colour of the port.
-    /// TODO unused in the shape at the moment
-    pub color       : Srgb<f32>,
     /// Indicates whether this port is facing inwards or outwards.
     pub direction   : Direction,
 }
@@ -68,7 +65,6 @@ impl Default for Specification {
             width        : Angle::from(15.0),
             inner_radius : 70.0,
             position     : Angle::from(0.0),
-            color        : Srgb::new(0.26, 0.69, 0.99),
             direction    : Direction::Out,
         }
     }
@@ -175,7 +171,7 @@ mod shape {
         let sculpted_shape = base_shape;
         let sculpted_shape = Intersection(sculpted_shape,circle_outer);
         let sculpted_shape = Difference(sculpted_shape,circle_inner);
-        let sculpted_shape = sculpted_shape.fill(Srgb::new(0.26, 0.69, 0.99));
+        let sculpted_shape = sculpted_shape.fill(color::Rgb::new(0.26, 0.69, 0.99));
 
         // The angle should be centered on (0,0) to make it easier to rotate and minimise the
         // required canvas.
