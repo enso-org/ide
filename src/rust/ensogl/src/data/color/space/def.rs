@@ -254,16 +254,31 @@ define_color_space! {
     /// space, like HSL and HSV. This gives it the same ability to directly change the hue and
     /// colorfulness of a color, while preserving other visual aspects.
     ///
+    /// **WARNING**
+    /// You should be aware that the `CIE L*C*h°` is much wider than sRGB space which most monitors
+    /// are limited to. Many combinations of valid values of the parameters will escape the sRGB
+    /// space and will be clamped to it. Sometimes the value can be as low as 0.3 for chroma,
+    /// which in combination with lightness of 0.6 and hue of 0.57 (blue) escapes sRGB space. It
+    /// does not for other hues though! In most cases, escaping the space does not give us bad
+    /// visual artifacts, but shifting colors would not be perceptual uniform anymore. Moreover,
+    /// there is more and more monitors on the market which are able to display broader color space,
+    /// `P3` or `Rec.2020`. There are combinations of values which escape even these color spaces.
+    /// In order to visually play which values are OK, we suggest using the online tool:
+    /// https://css.land/lch . Please note, however, that this tool gives slightly different values
+    /// than this implementation. Our implementation gives the same values as the following tools:
+    /// - http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+    /// - https://www.easyrgb.com/en/convert.php
+    ///
     /// ## Parameters
     ///
     /// - `lightness` [0.0 - 1.0]
     ///   Lightness of 0.0 gives absolute black and 100.0 gives the brightest white. Most
     ///   implementations use value range of [0 .. 100] instead. It was rescaled for convenience.
     ///
-    /// - `chroma` [0.0 - 1.32]
+    /// - `chroma` [0.0 - 1.0]
     ///   The colorfulness of the color. It's similar to saturation. 0.0 gives gray scale colors,
-    ///   and numbers around 128-181 gives fully saturated colors. The upper limit of 128 should
-    ///   include the whole L*a*b* space and some more. You can use higher values to target `P3`,
+    ///   and numbers around 128-181 gives fully saturated colors. The upper limit should include
+    ///   the whole L*a*b* space and some more. You can use higher values than 1.0 to target `P3`,
     ///   `Rec.2020`, or even larger color spaces. Most implementations use value range of
     ///   [0 .. 132] instead. It was rescaled for convenience.
     ///

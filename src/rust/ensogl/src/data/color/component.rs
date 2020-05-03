@@ -107,17 +107,17 @@ macro_rules! define_operators_for_component_tuple {
 
 macro_rules! define_operator_for_component_tuple {
     ([$($comp:ident)*] [$($num:tt)*] $name:ident $fn:ident) => {
-        impl $name<f32> for Components<(f32,f32,f32)> {
-            type Output = Components<(f32,f32,f32)>;
+        impl $name<f32> for Components<( $($comp),* )> {
+            type Output = Components<( $($comp),* )>;
             fn $fn(self, r:f32) -> Self::Output {
                 let t = self.0;
                 Components((  $((t.$num).$fn(r)),* ))
             }
         }
 
-        impl $name<Components<(f32,f32,f32)>> for Components<(f32,f32,f32)> {
-            type Output = Components<(f32,f32,f32)>;
-            fn $fn(self, r:Components<(f32,f32,f32)>) -> Self::Output {
+        impl $name<Components<( $($comp),* )>> for Components<( $($comp),* )> {
+            type Output = Components<( $($comp),* )>;
+            fn $fn(self, r:Components<( $($comp),* )>) -> Self::Output {
                 let t = self.0;
                 let r = r.0;
                 Components((  $((t.$num).$fn(r.$num)),* ))

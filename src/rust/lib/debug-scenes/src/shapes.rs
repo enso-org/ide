@@ -33,7 +33,7 @@ pub fn run_example_shapes() {
 fn init(app:&Application) {
 
     let mut dark = theme::Theme::new();
-    dark.insert("application.background.color", color::Lcha::new(0.53,104.0,0.11,1.0));
+    dark.insert("application.background.color", color::Lcha::new(0.1337212,1.745557,0.18339975,1.0));
     dark.insert("animation.duration", 0.5);
     dark.insert("graph.node.shadow.color", 5.0);
     dark.insert("graph.node.shadow.size", 5.0);
@@ -61,7 +61,7 @@ fn init(app:&Application) {
     let xyz = color::Xyz::from(color::Rgb::new(0.2,0.4,0.6));
     let lab = color::Lab::from(color::Rgb::new(0.2,0.4,0.6));
     let lch = color::Lch::from(color::Rgb::new(0.2,0.4,0.6));
-    let lch = color::Lch::from(color::Rgb::new(1.0,0.0,0.0));
+    let lch = color::Lch::from(color::Rgb::new(36.0/255.0, 34.0/255.0, 32.0/255.0));
     println!("{:?}", xyz);
     println!("{:?}", lab);
     println!("{:?}", lch);
@@ -71,7 +71,7 @@ fn init(app:&Application) {
     println!("{:?}", color::Rgb::from(lch));
 //    println!("{:?}", color::Lab::from(color::Xyz::new(0.1,0.2,0.3)));
 
-    println!("{:?}", palette::Xyz::from(palette::Srgb::new(0.2,0.4,0.6)));
+//    println!("{:?}", palette::Xyz::from(palette::Srgb::new(0.2,0.4,0.6)));
 //    println!("{:?}", palette::Lab::from(palette::LinSrgb::new(0.2,0.4,0.6)));
 //    println!("{:?}", palette::Lab::from(palette::Xyz::new(0.1,0.2,0.3)));
 

@@ -1,5 +1,11 @@
-//! This module defines conversions between all defined color spaces.
-
+//! This module defines conversions between all defined color spaces. The color conversions
+//! equations base on http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html.
+//!
+//! **WARNING**
+//! Be extra careful when developing color conversion equations. Many equations were re-scaled to
+//! make them more pleasant to work, however, the equations you will fnd will probably work on
+//! different value ranges. Read documentation for each color space very carefully.
+//!
 use super::def::*;
 use super::super::component::*;
 use super::super::data::*;
@@ -247,13 +253,25 @@ impl From<LabData> for XyzData {
 // === Lab <-> Lch ===
 // ===================
 
+impl LchData {
+    /// Normalize the a* or b* value from range [0 .. 132] to [0 .. 1].
+    fn normalize_chroma(t:f32) -> f32 {
+        t / 132.0
+    }
+
+    /// Denormalize the a* or b* value from range [0 .. 1] to [0 .. 132].
+    fn denormalize_chroma(t:f32) -> f32 {
+        t * 132.0
+    }
+}
+
 color_conversion! {
 impl From<LabData> for LchData {
     fn from(color:LabData) -> Self {
         let a         = LabData::denormalize_a_b(color.a);
         let b         = LabData::denormalize_a_b(color.b);
         let lightness = color.lightness;
-        let chroma    = (a*a + b*b).sqrt();
+        let chroma    = LchData::normalize_chroma((a*a + b*b).sqrt());
         let hue       = color.hue().unwrap_or(0.0) / 360.0;
         Self {lightness,chroma,hue}
     }
@@ -264,8 +282,9 @@ impl From<LchData> for LabData {
     fn from(color:LchData) -> Self {
         let lightness = color.lightness;
         let angle     = color.hue * 2.0 * std::f32::consts::PI;
-        let a         = Self::normalize_a_b(color.chroma.max(0.0) * angle.cos());
-        let b         = Self::normalize_a_b(color.chroma.max(0.0) * angle.sin());
+        let chroma    = LchData::denormalize_chroma(color.chroma);
+        let a         = Self::normalize_a_b(chroma.max(0.0) * angle.cos());
+        let b         = Self::normalize_a_b(chroma.max(0.0) * angle.sin());
         Self {lightness,a,b}
     }
 }}
