@@ -167,6 +167,8 @@ impl From<LinearRgbData> for XyzData {
 }}
 
 color_conversion! {
+/// Assumed D65 white point.
+/// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 impl From<XyzData> for LinearRgbData {
     fn from(c:XyzData) -> Self {
         let red   = c.x *  3.2404542 + c.y * -1.5371385 + c.z * -0.4985314;

@@ -2,9 +2,13 @@
 //! `LinearRgb`, `Hsv`, `Hsl`, `Xyz`, `Lab`, `Lch`, and others. Provides conversion utilities and
 //! many helpers. It is inspired by different libraries, including Rust Palette. We are not using
 //! Palette here because it is buggy (https://github.com/Ogeon/palette/issues/187), uses bounds
-//! on structs which makes the bound appear in places they should not, uses too strict bounds,
-//! and does not provide many useful conversions. Moreover, this library is not so generic, uses
-//! `f32` everywhere and is much simpler.
+//! on structs which makes the bound appear in places they should not, uses too strict bounds on
+//! components, does not provide many useful conversions, does not allow for mixing colors in sRGB
+//! space (which should not be allowed in general but web browses do it this way), and is
+//! implemented in a very complex way. This library is not so generic, uses `f32` everywhere and is
+//! much simpler. It also implements all the color spaces, much more conversions, much nicer API
+//! to work with and uses macros to minimize a lot of boilerplate of `Palette` code. Moreover, this
+//! implementation uses `enso-generics` to allow very generic access to color components.
 //!
 //! **WARNING**
 //! Be extra careful when developing color conversion equations. Many equations were re-scaled to

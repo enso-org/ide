@@ -94,18 +94,24 @@ pub fn from_components<T:FromComponents>(components:ComponentsOf<T>) -> T {
 
 macro_rules! define_operators_for_components {
     ($($toks:tt)*) => {
-        define_operators_for_3_component_tuple! { $($toks)* }
-        define_operators_for_4_component_tuple! { $($toks)* }
+        define_operators_for_component_tuple! { [f32 f32 f32]     [0 1 2]   $($toks)* }
+        define_operators_for_component_tuple! { [f32 f32 f32 f32] [0 1 2 3] $($toks)* }
     }
 }
 
-macro_rules! define_operators_for_3_component_tuple {
-    ($($name:ident :: $fn:ident),*) => {$(
+macro_rules! define_operators_for_component_tuple {
+    ($comps:tt $nums:tt $($name:ident :: $fn:ident),*) => {$(
+        define_operator_for_component_tuple! { $comps $nums $name $fn }
+    )*}
+}
+
+macro_rules! define_operator_for_component_tuple {
+    ([$($comp:ident)*] [$($num:tt)*] $name:ident $fn:ident) => {
         impl $name<f32> for Components<(f32,f32,f32)> {
             type Output = Components<(f32,f32,f32)>;
             fn $fn(self, r:f32) -> Self::Output {
                 let t = self.0;
-                Components(((t.0).$fn(r), (t.1).$fn(r), (t.2).$fn(r)))
+                Components((  $((t.$num).$fn(r)),* ))
             }
         }
 
@@ -114,31 +120,10 @@ macro_rules! define_operators_for_3_component_tuple {
             fn $fn(self, r:Components<(f32,f32,f32)>) -> Self::Output {
                 let t = self.0;
                 let r = r.0;
-                Components(((t.0).$fn(r.0), (t.1).$fn(r.1), (t.2).$fn(r.2)))
+                Components((  $((t.$num).$fn(r.$num)),* ))
             }
         }
-    )*}
-}
-
-macro_rules! define_operators_for_4_component_tuple {
-    ($($name:ident :: $fn:ident),*) => {$(
-        impl $name<f32> for Components<(f32,f32,f32,f32)> {
-            type Output = Components<(f32,f32,f32,f32)>;
-            fn $fn(self, r:f32) -> Self::Output {
-                let t = self.0;
-                Components(((t.0).$fn(r), (t.1).$fn(r), (t.2).$fn(r), (t.3).$fn(r)))
-            }
-        }
-
-        impl $name<Components<(f32,f32,f32,f32)>> for Components<(f32,f32,f32,f32)> {
-            type Output = Components<(f32,f32,f32,f32)>;
-            fn $fn(self, r:Components<(f32,f32,f32,f32)>) -> Self::Output {
-                let t = self.0;
-                let r = r.0;
-                Components(((t.0).$fn(r.0), (t.1).$fn(r.1), (t.2).$fn(r.2), (t.3).$fn(r.3)))
-            }
-        }
-    )*}
+    }
 }
 
 macro_rules! define_operators_for_component_refs {
