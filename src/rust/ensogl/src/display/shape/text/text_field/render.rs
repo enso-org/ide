@@ -80,7 +80,7 @@ impl TextFieldSprites {
         let selection_system  = Self::create_selection_system(world);
         let cursor_system     = Self::create_cursor_system(world,line_height,&color);
         let cursors           = Vec::new();
-        let mut glyph_system  = GlyphSystem::new(world,font.clone_ref());
+        let glyph_system      = GlyphSystem::new(world,font.clone_ref());
         let display_object    = display::object::Instance::new(Logger::new("RenderedContent"));
         display_object.add_child(&selection_system);
         display_object.add_child(&glyph_system);

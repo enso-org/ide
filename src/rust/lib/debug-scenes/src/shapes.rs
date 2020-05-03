@@ -15,7 +15,6 @@ use ensogl::display::object::ObjectOps;
 use ensogl_core_msdf_sys::run_once_initialized;
 use ensogl::display::style::theme;
 use ensogl::data::color;
-use ensogl::data::color2;
 
 
 #[wasm_bindgen]
@@ -77,7 +76,7 @@ fn init(app:&Application) {
 //    println!("{:?}", palette::Lab::from(palette::Xyz::new(0.1,0.2,0.3)));
 
 
-//    color2::test();
+//    color::test();
 
     let world     = &app.display;
     let scene     = world.scene();

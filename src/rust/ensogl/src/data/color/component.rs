@@ -1,0 +1,197 @@
+//! This module defines `Components`, a wrapper over generic color component representation.
+
+use crate::prelude::*;
+use enso_generics::*;
+
+
+
+// =================
+// === Component ===
+// =================
+
+/// Wrapper for tuple containing color components. For most components without alpha it is 3 values
+/// tuple. Alpha is always stored as the last component.
+#[derive(Clone,Copy,Debug)]
+pub struct Components<T>(pub T);
+
+/// Component tuple representation associated to the given type.
+#[allow(missing_docs)]
+pub trait HasComponentsRepr {
+    type ComponentsRepr;
+}
+
+/// Type-level accessor of component tuple representation of a type.
+pub type ComponentsReprOf<T> = <T as HasComponentsRepr>::ComponentsRepr;
+
+/// Type-level accessor of `Component` representation of a type.
+pub type ComponentsOf<T> = Components<ComponentsReprOf<T>>;
+
+
+// === Generics ===
+
+impl<T:KnownLast> KnownLast for Components<T> { type Last = Last<T>; }
+impl<T:KnownInit> KnownInit for Components<T> { type Init = Components<Init<T>>; }
+
+impl<T,X> PushBack<X> for Components<T>
+    where T:PushBack<X> {
+    type Output = Components<<T as PushBack<X>>::Output>;
+    fn push_back(self,t:X) -> Self::Output {
+        Components(self.0.push_back(t))
+    }
+}
+
+impl<T> PopBack for Components<T>
+    where T:PopBack {
+    fn pop_back(self) -> (Self::Last,Self::Init) {
+        let (last,init) = self.0.pop_back();
+        let init = Components(init);
+        (last,init)
+    }
+}
+
+
+
+// ====================
+// === ComponentMap ===
+// ====================
+
+/// Allows mapping over `f32` components.
+#[allow(missing_docs)]
+pub trait ComponentMap {
+    fn map<F:Fn(f32)->f32>(&self, f:F) -> Self;
+}
+
+/// Trait for converting a type to its component representation.
+pub trait ToComponents   = Sized + HasComponentsRepr + Into<ComponentsOf<Self>>;
+
+/// Trait for a component representation to the given type.
+pub trait FromComponents = Sized + HasComponentsRepr where ComponentsOf<Self> : Into<Self>;
+
+/// Trait allowing two way conversion of types and their component representations.
+pub trait HasComponents : ToComponents + FromComponents {
+    /// Convert components to the given type.
+    fn from_components(components:ComponentsOf<Self>) -> Self {
+        components.into()
+    }
+
+    /// Convert the type to its component representation.
+    fn into_components(self) -> ComponentsOf<Self> {
+        self.into()
+    }
+}
+impl<T> HasComponents for T where T : ToComponents + FromComponents {}
+
+/// Convert components to the given type.
+pub fn from_components<T:FromComponents>(components:ComponentsOf<T>) -> T {
+    components.into()
+}
+
+
+
+// =================
+// === Operators ===
+// =================
+
+macro_rules! define_operators_for_components {
+    ($($toks:tt)*) => {
+        define_operators_for_3_component_tuple! { $($toks)* }
+        define_operators_for_4_component_tuple! { $($toks)* }
+    }
+}
+
+macro_rules! define_operators_for_3_component_tuple {
+    ($($name:ident :: $fn:ident),*) => {$(
+        impl $name<f32> for Components<(f32,f32,f32)> {
+            type Output = Components<(f32,f32,f32)>;
+            fn $fn(self, r:f32) -> Self::Output {
+                let t = self.0;
+                Components(((t.0).$fn(r), (t.1).$fn(r), (t.2).$fn(r)))
+            }
+        }
+
+        impl $name<Components<(f32,f32,f32)>> for Components<(f32,f32,f32)> {
+            type Output = Components<(f32,f32,f32)>;
+            fn $fn(self, r:Components<(f32,f32,f32)>) -> Self::Output {
+                let t = self.0;
+                let r = r.0;
+                Components(((t.0).$fn(r.0), (t.1).$fn(r.1), (t.2).$fn(r.2)))
+            }
+        }
+    )*}
+}
+
+macro_rules! define_operators_for_4_component_tuple {
+    ($($name:ident :: $fn:ident),*) => {$(
+        impl $name<f32> for Components<(f32,f32,f32,f32)> {
+            type Output = Components<(f32,f32,f32,f32)>;
+            fn $fn(self, r:f32) -> Self::Output {
+                let t = self.0;
+                Components(((t.0).$fn(r), (t.1).$fn(r), (t.2).$fn(r), (t.3).$fn(r)))
+            }
+        }
+
+        impl $name<Components<(f32,f32,f32,f32)>> for Components<(f32,f32,f32,f32)> {
+            type Output = Components<(f32,f32,f32,f32)>;
+            fn $fn(self, r:Components<(f32,f32,f32,f32)>) -> Self::Output {
+                let t = self.0;
+                let r = r.0;
+                Components(((t.0).$fn(r.0), (t.1).$fn(r.1), (t.2).$fn(r.2), (t.3).$fn(r.3)))
+            }
+        }
+    )*}
+}
+
+macro_rules! define_operators_for_component_refs {
+    ($($name:ident :: $fn:ident),*) => {$(
+        impl<T> $name<&f32> for Components<T>
+        where Components<T> : Copy + $name<f32,Output=Components<T>> {
+            type Output = Components<T>;
+            fn $fn(self, r:&f32) -> Self::Output {
+                self.$fn(*r)
+            }
+        }
+
+        impl<T> $name<f32> for &Components<T>
+        where Components<T> : Copy + $name<f32,Output=Components<T>> {
+            type Output = Components<T>;
+            fn $fn(self, r:f32) -> Self::Output {
+                (*self).$fn(r)
+            }
+        }
+
+        impl<T> $name<&f32> for &Components<T>
+        where Components<T> : Copy + $name<f32,Output=Components<T>> {
+           type Output = Components<T>;
+            fn $fn(self, r:&f32) -> Self::Output {
+                (*self).$fn(*r)
+            }
+        }
+
+        impl<T> $name<&Components<T>> for Components<T>
+        where Components<T> : Copy + $name<Components<T>,Output=Components<T>> {
+            type Output = Components<T>;
+            fn $fn(self, r:&Components<T>) -> Self::Output {
+                self.$fn(*r)
+            }
+        }
+
+        impl<T> $name<Components<T>> for &Components<T>
+        where Components<T> : Copy + $name<Components<T>,Output=Components<T>>{
+            type Output = Components<T>;
+            fn $fn(self, r:Components<T>) -> Self::Output {
+                (*self).$fn(r)
+            }
+        }
+
+        impl<T> $name<&Components<T>> for &Components<T>
+        where Components<T> : Copy + $name<Components<T>,Output=Components<T>> {
+            type Output = Components<T>;
+            fn $fn(self, r:&Components<T>) -> Self::Output {
+                (*self).$fn(*r)
+            }
+        }
+    )*}
+}
+
+define_operators_for_components!     { Add::add, Sub::sub, Mul::mul, Div::div }
+define_operators_for_component_refs! { Add::add, Sub::sub, Mul::mul, Div::div }

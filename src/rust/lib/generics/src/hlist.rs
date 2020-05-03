@@ -1,3 +1,7 @@
+//! HList provides many operations to create and manipulate heterogenous lists (HLists) whose length
+//! and element types are known at compile-time. HLists can be used to implement records, variants,
+//! type-indexed products (TIP), type-indexed co-products (TIC), or keyword arguments.
+
 
 
 // =============
@@ -8,9 +12,11 @@
 pub trait HList = HasLength;
 
 /// Empty `HList` value.
+#[derive(Debug,Clone,Copy)]
 pub struct Nil;
 
 /// None empty `HList` with head and tail.
+#[derive(Debug,Clone,Copy)]
 #[allow(missing_docs)]
 pub struct Cons<Head,Tail>(pub Head, pub Tail);
 
@@ -307,9 +313,10 @@ impl<H:Clone,T:GetInitClone> GetInitClone for Cons<H,T> {
 // === PushBack ===
 // ================
 
+/// Add a new element to the back of the list.
+#[allow(missing_docs)]
 pub trait PushBack<T> : Sized {
     type Output : KnownLast<Last=T> + KnownInit<Init=Self>;
-    #[inline(always)]
     fn push_back(self,t:T) -> Self::Output;
 }
 
@@ -337,6 +344,8 @@ impl<X,H,T> PushBack<X> for Cons<H,T>
 // === PopBack ===
 // ===============
 
+/// Remove the last element of the list and return it and the new list.
+#[allow(missing_docs)]
 pub trait PopBack : KnownLast + KnownInit {
     fn pop_back(self) -> (Self::Last,Self::Init);
 }

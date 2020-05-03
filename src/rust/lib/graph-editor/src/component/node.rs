@@ -19,7 +19,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
-use ensogl::math::topology::unit::AngleOps;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 

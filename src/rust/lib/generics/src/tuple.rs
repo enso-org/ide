@@ -1,5 +1,5 @@
+//! This module contains implementations of generic operations on tuples.
 
-use super::generic;
 use crate as hlist;
 
 
@@ -9,6 +9,7 @@ use crate as hlist;
 // ====================
 
 /// All types which have a tuple representation.
+#[allow(missing_docs)]
 pub trait HasTupleRepr {
     type TupleRepr;
 }
@@ -17,6 +18,7 @@ pub trait HasTupleRepr {
 pub type TupleRepr<T> = <T as HasTupleRepr>::TupleRepr;
 
 /// Conversion of the given type to its tuple representation.
+#[allow(missing_docs)]
 pub trait IntoTuple : HasTupleRepr + Into<TupleRepr<Self>> {
     fn into_tuple(self) -> TupleRepr<Self> {
         self.into()
@@ -272,7 +274,7 @@ for (T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11) {
 impl From<()>
 for hlist::ty![] {
     #[inline(always)]
-    fn from(t:()) -> Self {
+    fn from(_:()) -> Self {
         hlist::new![]
     }
 }

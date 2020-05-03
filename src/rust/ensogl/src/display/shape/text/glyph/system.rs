@@ -80,7 +80,7 @@ impl Glyph {
 /// buffer space). Therefore there is a cap for line length. See also `GlyphSystem::new_empty_line`.
 #[derive(Debug)]
 pub struct Line {
-    pub glyphs         : Vec<Glyph>,
+    pub glyphs     : Vec<Glyph>,
     baseline_start : Vector2<f32>,
     base_color     : Vector4<f32>,
     height         : f32,

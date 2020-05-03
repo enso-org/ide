@@ -1,7 +1,6 @@
 //! Root module for generic data containers and modifiers.
 
 pub mod color;
-pub mod color2;
 pub mod container;
 pub mod dirty;
 pub mod function;

@@ -55,7 +55,7 @@ impl Display for Data {
 }
 
 
-macro_rules! define_color_transform {
+macro_rules! _define_color_transform {
     ($($name:ident),*) => {$(
         impl Data {
             /// Transform the color: $name.
@@ -64,7 +64,7 @@ macro_rules! define_color_transform {
                     (Data::Invalid(s) , _)                => Data::Invalid(s.clone()),
                     (_                , Data::Invalid(s)) => Data::Invalid(s.clone()),
                     (Data::Color(t)   , Data::Number(f))  => Data::Color(t.$name(f)),
-                    (this             , t)           => Data::Invalid
+                    (this             , t)                => Data::Invalid
                         (format!(concat!("Cannot apply",stringify!($name),"({}) to {}."),t,this))
                 }
             }
