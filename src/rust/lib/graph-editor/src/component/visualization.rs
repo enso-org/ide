@@ -40,7 +40,7 @@ impl Data {
     }
 }
 
-impl Default for Data{
+impl Default for Data {
     fn default() -> Self {
         Data::Empty
     }
@@ -88,13 +88,13 @@ impl Visualization {
 }
 
 impl From<DomSymbol> for Visualization {
-    fn from(symbol: DomSymbol) -> Self {
+    fn from(symbol:DomSymbol) -> Self {
         Visualization { content : Rc::new(symbol) }
     }
 }
 
 impl From<Rc<DomSymbol>> for Visualization {
-    fn from(symbol: Rc<DomSymbol>) -> Self {
+    fn from(symbol:Rc<DomSymbol>) -> Self {
         Visualization { content : symbol }
     }
 }
@@ -164,12 +164,12 @@ pub struct ContainerData {
 impl Container {
     /// Constructor.
     pub fn new() -> Self {
-        let logger   = Logger::new("visualization");
-        let events   = default();
-        let content  = default();
-        let size     = Cell::new(Vector2::new(100.0, 100.0));
+        let logger      = Logger::new("visualization");
+        let events      = default();
+        let content     = default();
+        let size        = Cell::new(Vector2::new(100.0, 100.0));
         let is_visible  = Cell::new(true);
-        let node     = display::object::Instance::new(&logger);
+        let node        = display::object::Instance::new(&logger);
 
         let data     = ContainerData {logger,events,visualization: content,size,is_visible,node};
         let data     = Rc::new(data);
@@ -190,7 +190,7 @@ impl Container {
     }
 
     /// Set the visualization content.
-    pub fn set_visualisation(&self, visualization: Visualization) {
+    pub fn set_visualisation(&self, visualization:Visualization) {
         self.display_object().add_child(visualization.display_object());
         self.data.visualization.replace(Some(visualization));
         self.update_visualisation_properties();
@@ -253,7 +253,7 @@ impl Container {
     }
 
     /// Update the data in the inner visualisation.
-    pub fn set_data(&self, data: Data) {
+    pub fn set_data(&self, data:Data) {
         if let Some(vis) = self.data.visualization.borrow().as_ref() {
             vis.set_data(data)
         }
