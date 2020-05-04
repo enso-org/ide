@@ -27,7 +27,7 @@ use serde_json;
 #[allow(missing_docs)]
 pub enum Data {
     JSON { content : serde_json::Value },
-    Empty,
+    Binary,
 }
 
 impl Data {
@@ -35,14 +35,8 @@ impl Data {
     pub fn as_json(&self) -> String {
         match &self {
             Data::JSON { content } => content.to_string(),
-            Data::Empty => { "{}".to_string() },
+            _ => { "{}".to_string() },
         }
-    }
-}
-
-impl Default for Data {
-    fn default() -> Self {
-        Data::Empty
     }
 }
 
@@ -113,7 +107,7 @@ pub struct ContainerFrp {
     pub set_visibility    : frp::Source<bool>,
     pub toggle_visibility : frp::Source,
     pub set_visualization : frp::Source<Option<Visualization>>,
-    pub set_data          : frp::Source<Data>,
+    pub set_data          : frp::Source<Option<Data>>,
 }
 
 impl Default for ContainerFrp {
@@ -122,7 +116,7 @@ impl Default for ContainerFrp {
             def set_visibility    = source::<bool>                  ();
             def toggle_visibility = source::<()>                    ();
             def set_visualization = source::<Option<Visualization>> ();
-            def set_data          = source::<Data>                  ();
+            def set_data          = source::<Option<Data>>                  ();
         };
         let network = visualization_events;
         Self {network,set_visibility,set_visualization,toggle_visibility,set_data }
@@ -261,7 +255,10 @@ impl Container {
 
             let vis = Rc::clone(&self.data);
             def _f_hide = frp.set_data.map(move |data| {
-                vis.set_data(data.clone());
+                // TODO[mm] ensure this is cheap
+                if let Some(data) = data.clone() {
+                     vis.set_data(data);
+                }
             });
         }
         self

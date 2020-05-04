@@ -241,7 +241,9 @@ pub struct FrpInputs {
     pub set_expression_span_tree : frp::Source<Option<(WeakNode, span_tree::SpanTree)>>,
     // Note[ao]: Here I can send `None` sometimes, because node can lose its pattern.
     pub set_pattern_span_tree    : frp::Source<Option<(WeakNode, span_tree::SpanTree)>>,
+
     pub set_visualization_data   : frp::Source<visualization::Data>,
+
 }
 
 impl FrpInputs {
@@ -287,7 +289,7 @@ impl FrpInputs {
     pub fn toggle_visualization_visibility(&self) {
         self.toggle_visualization_visibility.emit(());
     }
-    pub fn set_visualization_data<T: AsRef<visualization::Data>>(&self, arg: T) {
+    pub fn set_visualization_data<T: AsRef<Option<visualization::Data>>>(&self, arg: T) {
         self.set_visualization_data.emit(arg.as_ref());
     }
     pub fn set_dummy_data(&self) {
@@ -541,7 +543,7 @@ impl application::View for GraphEditor {
             let dc = dummy_counter.get();
             dummy_counter.set(dc + 0.1);
             let content = json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin()));
-            let dummy_data = visualization::Data::JSON { content };
+            let dummy_data = Some(visualization::Data::JSON { content });
             nodes.selected.for_each(|node| node.visualization.frp.set_data.emit(dummy_data.clone()));
         }));
 
