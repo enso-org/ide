@@ -51,7 +51,7 @@ use ensogl::display::world::*;
 use ensogl::display;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
-
+use serde_json::json;
 
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct NodeSet {
@@ -540,7 +540,7 @@ impl application::View for GraphEditor {
         def _update_dummy_data = inputs.set_dummy_data.map(f!((dummy_counter,nodes)(_) {
             let dc = dummy_counter.get();
             dummy_counter.set(dc + 0.1);
-            let content = format!("{}", 20.0 + 10.0 * dummy_counter.get().sin());
+            let content = json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin()));
             let dummy_data = visualization::Data::JSON { content };
             nodes.selected.for_each(|node| node.visualization.data.events.set_data.emit(dummy_data.clone()));
         }));

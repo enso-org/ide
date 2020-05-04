@@ -15,7 +15,7 @@ use ensogl::display::DomSymbol;
 use ensogl::display;
 use ensogl::system::web;
 use web::StyleSetter;
-
+use serde_json;
 
 // ============================================
 // === Wrapper for Visualisation Input Data ===
@@ -26,7 +26,7 @@ use web::StyleSetter;
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub enum Data {
-    JSON { content : String },
+    JSON { content : serde_json::Value },
     Empty,
 }
 
@@ -34,7 +34,7 @@ impl Data {
     /// Render the data as JSON.
     pub fn as_json(&self) -> String {
         match &self {
-            Data::JSON { content } => content.clone(),
+            Data::JSON { content } => content.to_string(),
             Data::Empty => { "{}".to_string() },
         }
     }
