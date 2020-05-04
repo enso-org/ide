@@ -24,22 +24,25 @@
 #[macro_export]
 macro_rules! make_rpc_methods {
     (
-    $(#[doc = $impl_doc:expr])+
-    trait API {
-        $($(#[doc = $doc:expr])+
-        #[MethodInput=$method_input:ident,rpc_name=$rpc_name:expr,result=$method_result:ident,
-        set_result=$set_result:ident]
-        fn $method:ident(&self $(,$param_name:ident:$param_ty:ty)+) -> $result:ty;
-        )*
-    }) => {
+        $(#[doc = $impl_doc:expr])+
+        trait API {
+            $($(#[doc = $doc:expr])+
+            #[MethodInput=$method_input:ident,rpc_name=$rpc_name:expr,result=$method_result:ident,
+            set_result=$set_result:ident]
+            fn $method:ident(&self $(,$param_name:ident:$param_ty:ty)+) -> $result:ty;
+            )*
+        }
+    ) => {
         // ===========
         // === API ===
         // ===========
 
         $(#[doc = $impl_doc])+
         pub trait API {
-            $($(#[doc = $doc])+
-            fn $method(&self $(,$param_name:$param_ty)+) -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>>;
+            $(
+                $(#[doc = $doc])+
+                fn $method(&self $(,$param_name:$param_ty)+)
+                -> std::pin::Pin<Box<dynFuture<Output=Result<$result>>>>;
             )*
         }
 
@@ -79,7 +82,8 @@ macro_rules! make_rpc_methods {
         }
 
         impl API for Client {
-            $(fn $method(&self, $($param_name:$param_ty),*) -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
+            $(fn $method(&self, $($param_name:$param_ty),*)
+            -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
                 let input = $method_input { $($param_name:$param_name),* };
                 Box::pin(self.handler.borrow().open_request(input))
             })*
@@ -112,7 +116,8 @@ macro_rules! make_rpc_methods {
         }
 
         impl API for MockClient {
-            $(fn $method(&self $(,$param_name:$param_ty)+) -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
+            $(fn $method(&self $(,$param_name:$param_ty)+)
+            -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
                 let mut result = self.$method_result.borrow_mut();
                 let result     = result.remove(&($($param_name),+)).unwrap();
                 Box::pin(async move { result })
@@ -120,10 +125,12 @@ macro_rules! make_rpc_methods {
         }
 
         impl MockClient {
-            $(/// Sets `$method`'s result to be returned when it is called.
-            pub fn $set_result(&self $(,$param_name:$param_ty)+, result:Result<$result>) {
-                self.$method_result.borrow_mut().insert(($($param_name),+),result);
-            })*
+            $(
+                /// Sets `$method`'s result to be returned when it is called.
+                pub fn $set_result(&self $(,$param_name:$param_ty)+, result:Result<$result>) {
+                    self.$method_result.borrow_mut().insert(($($param_name),+),result);
+                }
+            )*
         }
     }
 }
