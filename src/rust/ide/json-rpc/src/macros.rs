@@ -42,7 +42,7 @@ macro_rules! make_rpc_methods {
             $(
                 $(#[doc = $doc])+
                 fn $method(&self $(,$param_name:$param_ty)+)
-                -> std::pin::Pin<Box<dynFuture<Output=Result<$result>>>>;
+                -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>>;
             )*
         }
 
