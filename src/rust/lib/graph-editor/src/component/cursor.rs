@@ -43,7 +43,7 @@ pub mod shape {
 }
 
 /// Shape view for Cursor.
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct CursorView {
     pub scene_view    : scene::View,
@@ -125,9 +125,9 @@ pub struct CursorData {
 
 impl Cursor {
     /// Constructor.
-    pub fn new() -> Self {
+    pub fn new(scene:&Scene) -> Self {
         let logger = Logger::new("cursor");
-        let view   = component::ShapeView::new(&logger);
+        let view   = component::ShapeView::new(&logger,scene);
         let events = Events::default();
         let data   = CursorData {logger,events,view};
         let data   = Rc::new(data);
@@ -138,11 +138,10 @@ impl Cursor {
         let network = &self.data.events.network;
 
         // FIXME: This is needed now because frp leaks memory.
-        let weak_view_data = Rc::downgrade(&self.view.data);
+//        let weak_view_data = Rc::downgrade(&self.view.data);
+        let view_data = self.view.data.clone_ref();
         let press = animation(network,move |value| {
-            weak_view_data.upgrade().for_each(|view_data| {
-                view_data.borrow().as_ref().for_each(|t| t.shape.press.set(value))
-            })
+            view_data.shape.press.set(value)
         });
 
 
@@ -161,22 +160,12 @@ impl Cursor {
 
     /// Position setter.
     pub fn set_position(&self, pos:Vector2<f32>) {
-        self.view.data.borrow().as_ref().for_each(|view| {
-            view.shape.position.set(pos);
-        })
+        self.view.data.shape.position.set(pos);
     }
 
     /// Selection size setter.
     pub fn set_selection_size(&self, pos:Vector2<f32>) {
-        self.view.data.borrow().as_ref().for_each(|view| {
-            view.shape.selection_size.set(pos);
-        })
-    }
-}
-
-impl Default for Cursor {
-    fn default() -> Self {
-        Cursor::new()
+        self.view.data.shape.selection_size.set(pos);
     }
 }
 

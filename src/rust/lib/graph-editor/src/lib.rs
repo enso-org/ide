@@ -49,8 +49,7 @@ use ensogl::display;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
-
-
+use ensogl::display::Scene;
 
 
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -187,7 +186,7 @@ impl Commands {
 pub struct FrpInputs {
     #[shrinkwrap(main_field)]
     commands                     : Commands,
-    register_node                : frp::Source<Node>,
+    register_node                : frp::Source<Option<Node>>,
     pub add_node_at              : frp::Source<Position>,
     pub select_node              : frp::Source<Option<WeakNode>>,
     pub translate_selected_nodes : frp::Source<Position>,
@@ -205,8 +204,8 @@ impl FrpInputs {
         Self {commands,register_node,add_node_at,select_node,translate_selected_nodes}
     }
 
-    fn register_node<T: AsRef<Node>>(&self, arg: T) {
-        self.register_node.emit(arg.as_ref());
+    fn register_node(&self, arg:&Node) {
+        self.register_node.emit(&Some(arg.clone_ref()));
     }
     pub fn add_node_at<T: AsRef<Position>>(&self, arg: T) {
         self.add_node_at.emit(arg.as_ref());
@@ -269,6 +268,7 @@ pub struct GraphEditor {
     pub display_object : display::object::Instance,
     pub nodes          : NodeState,
     pub frp            : GraphEditorFrp,
+    pub scene          : Scene,
 }
 
 #[derive(Debug,CloneRef,Derivative)]
@@ -322,7 +322,7 @@ impl TouchState {
 impl GraphEditor {
 
     pub fn add_node(&self) -> WeakNode {
-        let node = Node::new();
+        let node = Node::new(&self.scene);
         self.frp.inputs.register_node(&node);
         node.downgrade()
     }
@@ -354,7 +354,7 @@ impl application::View for GraphEditor {
     fn new(world:&World) -> Self {
         let logger = Logger::new("GraphEditor");
         let scene  = world.scene();
-        let cursor = Cursor::new();
+        let cursor = Cursor::new(world.scene());
         web::body().set_style_or_panic("cursor","none");
         world.add_child(&cursor);
 
@@ -431,8 +431,9 @@ impl application::View for GraphEditor {
 
         def add_node_at_cursor_pos = inputs.add_node_at_cursor.map2(&mouse.position,|_,p|{*p});
         def add_node               = inputs.add_node_at.merge(&add_node_at_cursor_pos);
-        def _add_new_node          = add_node.map(f!((inputs)(pos) {
-            let node = Node::new();
+        let scene = world.scene();
+        def _add_new_node          = add_node.map(f!((scene,inputs)(pos) {
+            let node = Node::new(&scene);
             inputs.register_node(&node);
             node.mod_position(|t| {
                 t.x = pos.x;
@@ -441,14 +442,16 @@ impl application::View for GraphEditor {
         }));
 
         def _new_node = inputs.register_node.map(f!((network,nodes,touch,display_object)(node) {
-            let weak_node = node.downgrade();
-            frp::new_bridge_network! { [network,node.view.events.network]
-                def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((touch) {
-                    touch.nodes.down.emit(Some(weak_node.clone_ref()))
-                }));
+            if let Some(node) = node {
+                let weak_node = node.downgrade();
+                frp::new_bridge_network! { [network,node.view.events.network]
+                    def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((touch) {
+                        touch.nodes.down.emit(Some(weak_node.clone_ref()))
+                    }));
+                }
+                display_object.add_child(node);
+                nodes.set.insert(node.clone_ref());
             }
-            display_object.add_child(node);
-            nodes.set.insert(node.clone_ref());
         }));
 
 
@@ -498,7 +501,8 @@ impl application::View for GraphEditor {
 
         let frp = GraphEditorFrp {network,inputs,status,node_release};
 
-        Self {logger,frp,nodes,display_object}
+        let scene = scene.clone_ref();
+        Self {logger,frp,nodes,display_object,scene}
     }
 
 

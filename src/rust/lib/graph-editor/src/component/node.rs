@@ -4,7 +4,7 @@ pub mod port;
 
 use crate::prelude::*;
 
-use crate::component::node::port::Registry;
+//use crate::component::node::port::Registry;
 
 use enso_frp;
 use enso_frp as frp;
@@ -22,6 +22,7 @@ use ensogl::gui::component;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
+use port::Port;
 
 
 /// Icons definitions.
@@ -85,6 +86,8 @@ pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
 }
 
 
+const NODE_SHAPE_PADDING : f32 = 20.0;
+
 
 // ============
 // === Node ===
@@ -106,9 +109,11 @@ pub mod shape {
 
             let node = Circle(&node_radius);
 
-            let width  = 200.0.px();
-            let height = 28.0.px();
-            let radius = &height / 2.0;
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
+            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
+            let radius = 14.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
             let shape  = shape.fill(color::Rgba::from(bg_color));
 
@@ -140,7 +145,7 @@ pub mod shape {
 pub mod label {
     use super::*;
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone,CloneRef,Debug)]
     #[allow(missing_docs)]
     pub struct Shape {
         pub line : Rc<RefCell<ensogl::display::shape::text::glyph::system::Line>>,
@@ -183,8 +188,8 @@ pub mod label {
         fn new_instance(&self) -> Self::Shape {
             let line_position = Vector2::new(0.0,0.0);
             let color         = Vector4::new(0.9, 0.9, 0.9, 1.0);
-            let text          = "Follow the white rabbit ...";
-            let height        = 16.0;
+            let text          = "draw_maps size distribution";
+            let height        = 14.0;
             let line          = self.glyph_system.new_line(line_position,height,text,color);
             let obj = display::object::Instance::new(Logger::new("test"));
             for glyph in &line.glyphs {
@@ -274,18 +279,18 @@ impl WeakKey for WeakNode {
 }
 
 /// Shape view for Node.
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,CloneRef,Copy)]
 pub struct NodeView {}
 impl component::ShapeViewDefinition for NodeView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-        shape.sprite.size().set(Vector2::new(400.0,200.0));
+//        shape.sprite.size().set(Vector2::new(400.0,200.0));
         Self {}
     }
 }
 
 /// Shape view for Node.
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,CloneRef,Copy)]
 pub struct LabelView {}
 impl component::ShapeViewDefinition for LabelView {
     type Shape = label::Shape;
@@ -298,33 +303,48 @@ impl component::ShapeViewDefinition for LabelView {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct NodeData {
+    pub scene  : Scene,
     pub object : display::object::Instance,
     pub logger : Logger,
     pub label  : frp::Source<String>,
     pub events : Events,
     pub label_view : component::ShapeView<LabelView>,
     pub view   : component::ShapeView<NodeView>,
-    pub ports  : Registry,
+    pub ports  : Rc<RefCell<Vec<Port>>>,
 }
 
 impl Node {
     /// Constructor.
-    pub fn new() -> Self {
+    pub fn new(scene:&Scene) -> Self {
         frp::new_network! { node_network
             def label    = source::<String> ();
             def select   = source::<()>     ();
             def deselect = source::<()>     ();
         }
+
         let network = node_network;
         let logger  = Logger::new("node");
-        let view    = component::ShapeView::new(&logger);
-        let label_view    = component::ShapeView::new(&logger);
+        let view    = component::ShapeView::<NodeView>::new(&logger,scene);
+        let _port   = Port::new(scene); // FIXME hack for sorting
+        let label_view    = component::ShapeView::<LabelView>::new(&logger,scene);
         let events  = Events {network,select,deselect};
-        let ports   = Registry::default() ;
         let object  = display::object::Instance::new(&logger);
         object.add_child(&view.display_object);
         object.add_child(&label_view.display_object);
-        let data    = Rc::new(NodeData {object,logger,label,events,view,label_view,ports});
+
+        let width = 245.0;
+        let height = 28.0;
+
+        view.data.shape.sprite.size().set(Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0));
+        view.mod_position(|t| t.x += width/2.0);
+        view.mod_position(|t| t.y += height/2.0);
+
+        label_view.mod_position(|t| t.x += 8.0);
+        label_view.mod_position(|t| t.y += 4.0 + 5.0);
+
+        let ports = default();
+        let scene = scene.clone_ref();
+        let data    = Rc::new(NodeData {scene,object,logger,label,events,view,label_view,ports});
         Self {data} . init()
     }
 
@@ -332,21 +352,24 @@ impl Node {
         let network = &self.data.events.network;
 
 
+        let port1 = Port::new(&self.scene);
+        self.add_child(&port1);
+
+        self.data.ports.borrow_mut().push(port1);
+
         // FIXME: This is needed now because frp leaks memory.
-        let weak_view_data = Rc::downgrade(&self.view.data);
+//        let weak_view_data = Rc::downgrade(&self.view.data);
+        let view_data = self.view.data.clone_ref();
         let creation = animation(network, move |value| {
-            weak_view_data.upgrade().for_each(|view_data| {
-                view_data.borrow().as_ref().for_each(|t| t.shape.creation.set(value))
-            })
+            view_data.shape.creation.set(value)
         });
         creation.set_target_position(1.0);
 
         // FIXME: This is needed now because frp leaks memory.
-        let weak_view_data = Rc::downgrade(&self.view.data);
+//        let weak_view_data = Rc::downgrade(&self.view.data);
+        let view_data = self.view.data.clone_ref();
         let selection = animation(network, move |value| {
-            weak_view_data.upgrade().for_each(|view_data| {
-                view_data.borrow().as_ref().for_each(|t| t.shape.selection.set(value))
-            })
+            view_data.shape.selection.set(value)
         });
 
 
@@ -369,12 +392,6 @@ impl Node {
 //        output_port.set_position(270.0_f32.degrees());
 
         self
-    }
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

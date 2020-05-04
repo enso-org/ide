@@ -117,7 +117,7 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
 
 /// Type for every shape with automatic attribute management. The easiest way to define such a
 /// shape is by using the `define_shape_system` macro.
-pub trait Shape : display::Object + Debug + Sized {
+pub trait Shape : display::Object + CloneRef + Debug + Sized {
     /// The shape system instance this shape belongs to.
     type System : ShapeSystemInstance<Shape=Self>;
     /// Accessor for the underlying sprites.
@@ -214,7 +214,7 @@ macro_rules! _define_shape_system {
         // =============
 
         /// Shape definition.
-        #[derive(Clone,Debug)]
+        #[derive(Clone,CloneRef,Debug)]
         #[allow(missing_docs)]
         pub struct Shape {
             pub sprite : Sprite,
