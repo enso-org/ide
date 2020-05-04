@@ -28,7 +28,7 @@ pub fn run_example_shapes() {
     mem::forget(app);
 }
 
-fn set_up_visualization_demo_frp(graph_editor: &GraphEditor) {
+fn set_up_visualization_demo_frp(graph_editor:&GraphEditor) {
     let network       = &graph_editor.frp.network;
     let dummy_counter = Rc::new(Cell::new(1.0_f32));
     frp::extend! { network

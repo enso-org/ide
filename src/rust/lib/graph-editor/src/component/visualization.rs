@@ -5,7 +5,7 @@
 //! elements that facilitate generic interactions, for example, visualisation selection. The
 //! `Container` also provides the FRP API that allows internal interaction with the
 //! `Visualisation`. Data for a visualisation has to be provided wrapped in the `Data` struct.
-//!
+
 use crate::prelude::*;
 use ensogl::display::traits::*;
 
@@ -14,8 +14,10 @@ use crate::frp;
 use ensogl::display::DomSymbol;
 use ensogl::display;
 use ensogl::system::web;
-use web::StyleSetter;
 use serde_json;
+use web::StyleSetter;
+
+
 
 // ============================================
 // === Wrapper for Visualisation Input Data ===
@@ -72,7 +74,7 @@ impl Visualization {
      }
 
     /// Set whether the visualisation should be visible or not.
-    pub fn set_visibility(&self, is_visible:bool) {
+    fn set_visibility(&self, is_visible:bool) {
         if is_visible {
             self.content.dom().set_style_or_panic("visibility", "visible");
         } else {
@@ -116,7 +118,7 @@ impl Default for ContainerFrp {
             def set_visibility    = source::<bool>                  ();
             def toggle_visibility = source::<()>                    ();
             def set_visualization = source::<Option<Visualization>> ();
-            def set_data          = source::<Option<Data>>                  ();
+            def set_data          = source::<Option<Data>>          ();
         };
         let network = visualization_events;
         Self {network,set_visibility,set_visualization,toggle_visibility,set_data }
@@ -209,7 +211,7 @@ impl ContainerData {
         };
     }
 
-    /// Set the visualization content.
+    /// Set the visualization shown in this container..
     pub fn set_visualisation(&self, visualization:Visualization) {
         self.node.add_child(visualization.display_object());
         self.visualization.replace(Some(visualization));
@@ -288,7 +290,7 @@ impl StrongRef for Container {
 impl WeakRef for WeakContainer {
     type StrongRef = Container;
     fn upgrade(&self) -> Option<Container> {
-        match (self.data.upgrade(), self.frp.upgrade()){
+        match (self.data.upgrade(),self.frp.upgrade()){
             (Some(data), Some(frp)) => Some(Container {data,frp}),
             _ => None
         }

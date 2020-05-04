@@ -135,10 +135,10 @@ pub mod shape {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub network                : frp::Network,
-    pub select                 : frp::Source,
-    pub deselect               : frp::Source,
-    pub set_visualization      : frp::Source<Option<visualization::Visualization>>,
+    pub network           : frp::Network,
+    pub select            : frp::Source,
+    pub deselect          : frp::Source,
+    pub set_visualization : frp::Source<Option<visualization::Visualization>>,
 }
 
 
@@ -212,9 +212,9 @@ impl Node {
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { node_network
-            def label             = source::<String> ();
-            def select            = source::<()>     ();
-            def deselect          = source::<()>     ();
+            def label             = source::<String>                               ();
+            def select            = source::<()>                                   ();
+            def deselect          = source::<()>                                   ();
             def set_visualization = source::<Option<visualization::Visualization>> ();
         }
         let network       = node_network;
@@ -223,12 +223,12 @@ impl Node {
         let events        = Events {network,select,deselect,set_visualization};
         let ports         = Registry::default() ;
         let visualization = default();
-        let data          = Rc::new(NodeData {logger,label,events,view,ports,visualization});
+        let data          = Rc::new(NodeData{logger,label,events,view,ports,visualization});
         Self {data} . init()
     }
 
     fn init(self) -> Self {
-        self.data.visualization.set_position(Vector3::new(0.0, -50.0, 0.0));
+        self.data.visualization.set_position(Vector3::new(0.0,-50.0,0.0));
         self.add_child(&self.data.visualization);
 
         let network = &self.data.events.network;
