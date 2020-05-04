@@ -172,8 +172,8 @@ impl Container {
     /// Constructor.
     pub fn new() -> Self {
         let logger   = Logger::new("visualization");
-        let events   = Events::default();
-        let content  = RefCell::new(None);
+        let events   = default();
+        let content  = default();
         let size     = Cell::new(Vector2::new(100.0, 100.0));
         let position = Cell::new(Vector3::new(  0.0,-110.0, 0.0));
         let visible  = Cell::new(true);

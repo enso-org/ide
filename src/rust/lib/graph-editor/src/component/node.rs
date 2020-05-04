@@ -222,7 +222,7 @@ impl Node {
         let view          = component::ShapeView::new(&logger);
         let events        = Events {network,select,deselect,set_visualization};
         let ports         = Registry::default() ;
-        let visualization = visualization::Container::default();
+        let visualization = default();
         let data          = Rc::new(NodeData {logger,label,events,view,ports,visualization});
         Self {data} . init()
     }
