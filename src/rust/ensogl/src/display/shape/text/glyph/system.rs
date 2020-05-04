@@ -27,7 +27,7 @@ use crate::display;
 
 /// A glyph rendered on screen. The displayed character will be stretched to fit the entire bbox of
 /// underlying sprite.
-#[derive(Debug,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Glyph {
     #[shrinkwrap(main_field)]
     sprite          : Sprite,
@@ -56,7 +56,7 @@ impl Glyph {
             texture.storage().height != self.font.msdf_texture_rows() as i32
         });
         if texture_changed {
-            let width   = MsdfTexture::WIDTH  as i32;
+            let width   = MsdfTexture::WIDTH as i32;
             let height  = self.font.msdf_texture_rows() as i32;
             let texture = Texture::<GpuOnly,Rgb,u8>::new(&self.context,(width,height));
             self.font.with_borrowed_msdf_texture_data(|data| {
@@ -64,6 +64,12 @@ impl Glyph {
             });
             self.msdf_uniform.set(texture);
         }
+    }
+}
+
+impl display::Object for Glyph {
+    fn display_object(&self) -> &display::object::Instance {
+        self.sprite.display_object()
     }
 }
 
@@ -104,7 +110,11 @@ impl Line {
         let glyph_count        = self.glyphs.borrow().len();
         if target_glyph_count > glyph_count {
             let new_count  = target_glyph_count - glyph_count;
-            let new_glyphs = (0..new_count).map(|_| self.glyph_system.new_instance());
+            let new_glyphs = (0..new_count).map(|_| {
+                let glyph = self.glyph_system.new_instance();
+                self.add_child(&glyph);
+                glyph
+            });
             self.glyphs.borrow_mut().extend(new_glyphs)
         }
         if glyph_count > target_glyph_count {
@@ -192,11 +202,17 @@ impl Line {
     }
 }
 
+impl display::Object for Line {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
 
 
-/// ===================
-/// === GlyphSystem ===
-/// ===================
+
+// ===================
+// === GlyphSystem ===
+// ===================
 
 /// A system for displaying glyphs.
 #[derive(Clone,CloneRef,Debug)]
