@@ -65,7 +65,7 @@ fn init(app:&Application) {
     let xyz = color::Xyz::from(color::Rgb::new(0.2,0.4,0.6));
     let lab = color::Lab::from(color::Rgb::new(0.2,0.4,0.6));
     let lch = color::Lch::from(color::Rgb::new(0.2,0.4,0.6));
-    let lch = color::Lch::from(color::Rgb::new(223.0/255.0, 168.0/255.0, 72.0/255.0));
+    let lch = color::Lch::from(color::Rgb::new(1.0,0.0,0.0));
     println!("{:?}", xyz);
     println!("{:?}", lab);
     println!("{:?}", lch);

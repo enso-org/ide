@@ -32,9 +32,12 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32, creation:f32) {
-            let port = Circle(30.px());
-            let port = port.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
-            port.into()
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let radius = 8.px();
+            let shape = Rect((&width,&height)).corners_radius(radius);
+            let shape = shape.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
+            shape.into()
         }
     }
 }
@@ -125,10 +128,12 @@ impl Port {
         let object  = display::object::Instance::new(&logger);
         object.add_child(&view.display_object);
 
-        let width = 245.0;
-        let height = 28.0;
+        let width = 41.0;
+        let height = 22.0;
 
-        view.data.shape.sprite.size().set(Vector2::new(100.0,100.0));
+        view.data.shape.sprite.size().set(Vector2::new(width,height));
+        view.mod_position(|t| t.x += width/2.0 + 89.0);
+        view.mod_position(|t| t.y += height/2.0 + 3.0);
         let data    = Rc::new(PortData {object,logger,events,view});
 
         Self {data}

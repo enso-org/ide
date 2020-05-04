@@ -288,3 +288,42 @@ define_color_space! {
     ///   of [0 .. 360] instead. It was rescaled for convenience.
     Lch Lcha LchData [lightness chroma hue]
 }
+
+#[allow(missing_docs)]
+impl Lch {
+    pub fn pink_hue       () -> f32 { 0.0   } // approx.   0.0 degrees
+    pub fn red_hue        () -> f32 { 0.111 } // approx.  40.0 degrees
+    pub fn orange_hue     () -> f32 { 0.18  } // approx.  65.0 degrees
+    pub fn yellow_hue     () -> f32 { 0.236 } // approx.  85.0 degrees
+    pub fn olive_hue      () -> f32 { 0.291 } // approx. 105.0 degrees
+    pub fn green_hue      () -> f32 { 0.378 } // approx. 136.0 degrees
+    pub fn blue_green_hue () -> f32 { 0.6   } // approx. 216.0 degrees
+    pub fn blue_hue       () -> f32 { 0.672 } // approx. 242.0 degrees
+    pub fn violet_hue     () -> f32 { 0.847 } // approx. 305.0 degrees
+}
+
+#[allow(missing_docs)]
+impl Lch {
+    pub fn pink       (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::pink_hue())       }
+    pub fn red        (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::red_hue())        }
+    pub fn orange     (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::orange_hue())     }
+    pub fn yellow     (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::yellow_hue())     }
+    pub fn olive      (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::olive_hue())      }
+    pub fn green      (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::green_hue())      }
+    pub fn blue_green (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::blue_green_hue()) }
+    pub fn blue       (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::blue_hue())       }
+    pub fn violet     (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::violet_hue())     }
+}
+
+#[allow(missing_docs)]
+impl Lcha {
+    pub fn pink       (l:f32, c:f32) -> Lcha { Lch::pink       (l,c) . into() }
+    pub fn red        (l:f32, c:f32) -> Lcha { Lch::red        (l,c) . into() }
+    pub fn orange     (l:f32, c:f32) -> Lcha { Lch::orange     (l,c) . into() }
+    pub fn yellow     (l:f32, c:f32) -> Lcha { Lch::yellow     (l,c) . into() }
+    pub fn olive      (l:f32, c:f32) -> Lcha { Lch::olive      (l,c) . into() }
+    pub fn green      (l:f32, c:f32) -> Lcha { Lch::green      (l,c) . into() }
+    pub fn blue_green (l:f32, c:f32) -> Lcha { Lch::blue_green (l,c) . into() }
+    pub fn blue       (l:f32, c:f32) -> Lcha { Lch::blue       (l,c) . into() }
+    pub fn violet     (l:f32, c:f32) -> Lcha { Lch::violet     (l,c) . into() }
+}

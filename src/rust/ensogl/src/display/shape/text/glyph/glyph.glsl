@@ -15,7 +15,7 @@ highp vec2 get_texture_coord() {
     return offset + get_scaled_uv() * msdf_fragment_size;
 }
 
-highp float opacity_from_msdf() {
+highp float msdf_alpha() {
     highp vec2  tex_coord        = get_texture_coord();
     highp vec2  msdf_unit_tex    = input_msdf_range / vec2(textureSize(input_msdf_texture,0));
     highp vec2  msdf_unit_px     = msdf_unit_tex / fwidth(tex_coord);
@@ -29,10 +29,13 @@ highp float opacity_from_msdf() {
     highp float sig_dist         = median(msdf_sample) - 0.5;
     highp float sig_dist_px      = sig_dist * avg_msdf_unit_px;
     highp float opacity          = 0.5 + sig_dist_px + dpi_dilate * 0.08;
+    opacity += 0.2;
     return clamp(opacity, 0.0, 1.0);
 }
 
 highp vec4 color_from_msdf() {
-    highp float opacity = opacity_from_msdf();
-    return input_color * opacity;
+    highp vec4 color = input_color;
+    color.a *= msdf_alpha();
+    color.rgb *= color.a; // premultiply
+    return color;
 }
