@@ -7,12 +7,11 @@
 //! `Visualisation`. Data for a visualisation has to be provided wrapped in the `Data` struct.
 //!
 use crate::prelude::*;
+use ensogl::display::traits::*;
 
 use crate::frp;
 
 use ensogl::display::DomSymbol;
-use ensogl::display::object::class::Object;
-use ensogl::display::object::class::ObjectOps;
 use ensogl::display;
 use ensogl::system::web;
 use web::StyleSetter;
@@ -60,7 +59,7 @@ pub struct Visualization {
     content : Rc<DomSymbol>
 }
 
-impl Object for Visualization {
+impl display::Object  for Visualization {
     fn display_object(&self) -> &display::object::Instance {
         &self.content.display_object()
     }
@@ -281,7 +280,7 @@ impl WeakRef for WeakContainer {
     }
 }
 
-impl Object for Container {
+impl display::Object for Container {
     fn display_object(&self) -> &display::object::Instance {
         &self.data.node
     }
