@@ -109,23 +109,23 @@ impl From<Rc<DomSymbol>> for Visualization {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub network              : frp::Network,
-    pub set_visibility       : frp::Source<bool>,
-    pub toggle_visibility    : frp::Source,
-    pub update_visualization : frp::Source<Option<Visualization>>,
-    pub update_data          : frp::Source<Data>,
+    pub network           : frp::Network,
+    pub set_visibility    : frp::Source<bool>,
+    pub toggle_visibility : frp::Source,
+    pub set_visualization : frp::Source<Option<Visualization>>,
+    pub set_data          : frp::Source<Data>,
 }
 
 impl Default for Events {
     fn default() -> Self {
         frp::new_network! { visualization_events
-            def set_visibility       = source::<bool>                  ();
-            def toggle_visibility    = source::<()>                    ();
-            def update_visualization = source::<Option<Visualization>> ();
-            def update_data          = source::<Data>                  ();
+            def set_visibility    = source::<bool>                  ();
+            def toggle_visibility = source::<()>                    ();
+            def set_visualization = source::<Option<Visualization>> ();
+            def set_data          = source::<Data>                  ();
         };
         let network = visualization_events;
-        Self {network,set_visibility,update_visualization,toggle_visibility,update_data}
+        Self {network,set_visibility,set_visualization,toggle_visibility,set_data }
     }
 }
 
@@ -215,7 +215,7 @@ impl Container {
             });
 
             let weak_vis = self.downgrade();
-            def _f_hide = self.data.events.update_visualization.map(move |content| {
+            def _f_hide = self.data.events.set_visualization.map(move |content| {
                 if let Some(vis) = weak_vis.upgrade() {
                     if let Some(content) = content.clone() {
                         vis.set_visualisation(content);
@@ -224,7 +224,7 @@ impl Container {
             });
 
             let weak_vis = self.downgrade();
-            def _f_hide = self.data.events.update_data.map(move |data| {
+            def _f_hide = self.data.events.set_data.map(move |data| {
                 if let Some(vis) = weak_vis.upgrade() {
                     vis.set_data(data.clone());
                 }

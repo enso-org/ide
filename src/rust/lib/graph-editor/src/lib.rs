@@ -542,7 +542,7 @@ impl application::View for GraphEditor {
             dummy_counter.set(dc + 0.1);
             let content = format!("{}", 20.0 + 10.0 * dummy_counter.get().sin());
             let dummy_data = visualization::Data::JSON { content };
-            nodes.selected.for_each(|node| node.visualization.data.events.update_data.emit(dummy_data.clone()));
+            nodes.selected.for_each(|node| node.visualization.data.events.set_data.emit(dummy_data.clone()));
         }));
 
 
