@@ -32,27 +32,18 @@ pub struct PenIterator<CharIterator> {
 impl<CharIterator> Iterator for PenIterator<CharIterator>
 where CharIterator : Iterator<Item=char> {
     type Item = (char,Vector2<f32>);
-
     fn next(&mut self) -> Option<Self::Item> {
         self.next_chars.next().map(|ch| self.next_char(ch))
     }
 }
 
-impl<CharIterator> PenIterator<CharIterator>
-where CharIterator : Iterator<Item=char> {
+impl<I> PenIterator<I>
+where I : Iterator<Item=char> {
     /// Create iterator wrapping `chars`, with pen starting from given position.
-    pub fn new
-    ( start_from:Vector2<f32>
-    , line_height:f32
-    , chars:CharIterator
-    , font:FontHandle
-    ) -> Self {
-        Self {font,line_height,
-            position     : start_from,
-            current_char : None,
-            next_chars   : chars,
-            next_advance : 0.0,
-        }
+    pub fn new (position:Vector2<f32>, line_height:f32, next_chars:I, font:FontHandle) -> Self {
+        let current_char = None;
+        let next_advance = 0.0;
+        Self {position,line_height,current_char,next_chars,next_advance,font}
     }
 
     fn next_char(&mut self, ch:char) -> (char,Vector2<f32>) {

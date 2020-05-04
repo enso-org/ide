@@ -192,15 +192,17 @@ pub mod label {
             let obj = display::object::Instance::new(Logger::new("test"));
 
             let text          = "draw_maps      distribution";
-            let line1          = self.glyph_system.new_line(line_position,height,text,color);
-            for glyph in &line1.glyphs {
+            let line1          = self.glyph_system.new_line(height,text);
+            line1.set_color(color);
+            for glyph in &*line1.glyphs.borrow() { // FIXME
                 obj.add_child(glyph.display_object())
             }
 
             let text          = "size";
             let color         = Vector4::new(0.18, 0.173, 0.165, 1.0);
-            let line2          = self.glyph_system.new_line(line_position,height,text,color);
-            for glyph in &line2.glyphs {
+            let line2          = self.glyph_system.new_line(height,text);
+            line2.set_color(color);
+            for glyph in &*line2.glyphs.borrow() { // FIXME
                 glyph.display_object().mod_position(|t| t.x += 78.5);
                 obj.add_child(glyph.display_object())
             }

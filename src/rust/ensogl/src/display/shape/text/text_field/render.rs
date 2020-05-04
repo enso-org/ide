@@ -93,7 +93,10 @@ impl TextFieldSprites {
 
         let indexes     = 0..glyph_lines_count;
         let glyph_lines = indexes.map(|_| {
-            glyph_system.new_empty_line(bsl_start,line_height,length,color)
+            let line = glyph_system.new_empty_line(bsl_start,line_height);
+            line.set_const_glyph_count(length);
+            line.set_color(color);
+            line
         }).collect();
         TextFieldSprites {glyph_system,cursor_system,selection_system,glyph_lines,cursors,
             line_height,display_object,assignment}
@@ -156,7 +159,7 @@ impl TextFieldSprites {
             if is_glyph_line_dirty || is_line_dirty {
                 match assignment {
                     Some(fragment) => Self::update_glyph_line(glyph_line,fragment,content),
-                    None           => glyph_line.replace_text("".chars()),
+                    None           => glyph_line.set_text(""),
                 }
             }
         }
@@ -184,11 +187,12 @@ impl TextFieldSprites {
 
     fn update_glyph_line
     (glyph_line:&mut GlyphLine, fragment:&LineFragment, content:&mut TextFieldContent) {
-        let bsl_start     = Self::baseline_start_for_fragment(fragment,content);
-        let line          = &content.lines()[fragment.line_index];
-        let chars         = &line.chars()[fragment.chars_range.clone()];
+        let bsl_start       = Self::baseline_start_for_fragment(fragment,content);
+        let line            = &content.lines()[fragment.line_index];
+        let chars           = &line.chars()[fragment.chars_range.clone()];
+        let string : String = chars.iter().collect();
         glyph_line.set_baseline_start(bsl_start);
-        glyph_line.replace_text(chars.iter().cloned());
+        glyph_line.set_text(string);
     }
 
     /// The baseline start for given line's fragment.

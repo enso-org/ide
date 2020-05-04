@@ -45,13 +45,13 @@ impl Glyph {
     }
 
     /// Change the displayed character.
-    pub fn set_glyph(&mut self, ch:char) {
+    pub fn set_glyph(&self, ch:char) {
         let glyph_info = self.font.get_glyph_info(ch);
         self.msdf_index_attr.set(glyph_info.msdf_texture_glyph_id as f32);
         self.update_msdf_texture();
     }
 
-    fn update_msdf_texture(&mut self) {
+    fn update_msdf_texture(&self) {
         let texture_changed = self.msdf_uniform.with_content(|texture| {
             texture.storage().height != self.font.msdf_texture_rows() as i32
         });
@@ -80,43 +80,87 @@ impl Glyph {
 /// buffer space). Therefore there is a cap for line length. See also `GlyphSystem::new_empty_line`.
 #[derive(Debug)]
 pub struct Line {
-    pub glyphs     : Vec<Glyph>,
-    baseline_start : Vector2<f32>,
-    base_color     : Vector4<f32>,
-    height         : f32,
-    font           : FontHandle,
+    display_object    : display::object::Instance,
+    glyph_system      : GlyphSystem,
+    content           : Rc<RefCell<String>>,
+    pub glyphs        : Rc<RefCell<Vec<Glyph>>>,
+    baseline_start    : Vector2<f32>,
+    color             : Cell<Vector4<f32>>,
+    height            : f32,
+    font              : FontHandle,
+    const_glyph_count : Cell<Option<usize>>,
 }
 
 impl Line {
     /// Replace currently visible text.
-    ///
-    /// The replacing strings will reuse glyphs which increases performance of rendering text.
-    pub fn replace_text<Chars>(&mut self, chars:Chars)
-    where Chars : Iterator<Item=char> + Clone {
-        let chars_count = chars.clone().count();
-        let font        = self.font.clone_ref();
-        let pen         = PenIterator::new(self.baseline_start,self.height,chars,font);
+    pub fn set_text<S:Into<String>>(&self, content:S) {
+        *self.content.borrow_mut() = content.into();
+        self.redraw();
+    }
 
-        for (glyph,(ch,position)) in self.glyphs.iter_mut().zip(pen) {
-            let glyph_info = self.font.get_glyph_info(ch);
+    fn resize(&self) {
+        let content_len        = self.content.borrow().len();
+        let target_glyph_count = self.const_glyph_count.get().unwrap_or(content_len);
+        let glyph_count        = self.glyphs.borrow().len();
+        if target_glyph_count > glyph_count {
+            let new_count  = target_glyph_count - glyph_count;
+            let new_glyphs = (0..new_count).map(|_| self.glyph_system.new_instance());
+            self.glyphs.borrow_mut().extend(new_glyphs)
+        }
+        if glyph_count > target_glyph_count {
+            self.glyphs.borrow_mut().truncate(target_glyph_count)
+        }
+    }
+
+    fn redraw(&self) {
+        self.resize();
+
+        let content     = self.content.borrow();
+        let font        = self.font.clone_ref();
+        let chars       = content.chars();
+        let pen         = PenIterator::new(self.baseline_start,self.height,chars,font);
+        let content_len = content.len();
+
+        for (glyph,(chr,position)) in self.glyphs.borrow().iter().zip(pen) {
+            let glyph_info = self.font.get_glyph_info(chr);
             let size       = glyph_info.scale.scale(self.height);
             let offset     = glyph_info.offset.scale(self.height);
             let x = position.x + offset.x;
             let y = position.y + offset.y;
             glyph.set_position(Vector3::new(x,y,0.0));
-            glyph.set_glyph(ch);
-            glyph.color().set(self.base_color);
+            glyph.set_glyph(chr);
+            glyph.color().set(self.color.get());
             glyph.size().set(size);
         }
-        for glyph in self.glyphs.iter_mut().skip(chars_count) {
+        for glyph in self.glyphs.borrow().iter().skip(content_len) {
             glyph.size().set(Vector2::new(0.0,0.0));
         }
+    }
+
+    pub fn set_color(&self, color:Vector4<f32>) {
+        self.color.set(color);
+        for glyph in &*self.glyphs.borrow() {
+            glyph.color().set(color);
+        }
+    }
+
+    pub fn set_const_glyph_count_opt(&self, count:Option<usize>) {
+        self.const_glyph_count.set(count);
+        self.resize();
+    }
+
+    pub fn set_const_glyph_count(&self, count:usize) {
+        self.set_const_glyph_count_opt(Some(count));
+    }
+
+    pub fn unset_const_glyph_count(&self) {
+        self.set_const_glyph_count_opt(None);
     }
 
     /// Set the baseline start point for this line.
     pub fn set_baseline_start(&mut self, new_start:Vector2<f32>) {
         let offset = new_start - self.baseline_start;
-        for glyph in self.glyphs.iter_mut() {
+        for glyph in &*self.glyphs.borrow() {
             glyph.mod_position(|pos| *pos += Vector3::new(offset.x,offset.y,0.0));
         }
         self.baseline_start = new_start;
@@ -137,9 +181,9 @@ impl Line {
         self.height
     }
 
-    /// Number of glyphs, giving the maximum length of displayed line.
+    /// Number of glyphs, giving the maximum length of displayed line. // FIXME
     pub fn length(&self) -> usize {
-        self.glyphs.len()
+        self.content.borrow().len()
     }
 
     /// Font used for rendering this line.
@@ -183,15 +227,15 @@ impl GlyphSystem {
         scene.variables.add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables.add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {context,sprite_system,font,
-            msdf_uniform       : symbol.variables().add_or_panic("msdf_texture",texture),
-            color              : mesh.instance_scope().add_buffer("color"),
-            glyph_msdf_index   : mesh.instance_scope().add_buffer("glyph_msdf_index"),
+            msdf_uniform     : symbol.variables().add_or_panic("msdf_texture",texture),
+            color            : mesh.instance_scope().add_buffer("color"),
+            glyph_msdf_index : mesh.instance_scope().add_buffer("glyph_msdf_index"),
         }
     }
 
     /// Create new glyph. In the returned glyph the further parameters (position, bbox, character)
     /// may be set.
-    pub fn new_glyph(&self) -> Glyph {
+    pub fn new_instance(&self) -> Glyph {
         let context         = self.context.clone();
         let sprite          = self.sprite_system.new_instance();
         let instance_id     = sprite.instance_id;
@@ -210,23 +254,28 @@ impl GlyphSystem {
     ///
     /// For details, see also `Line` structure documentation.
     pub fn new_empty_line
-    (&self, baseline_start:Vector2<f32>, height:f32, length:usize, color:Vector4<f32>)
+    (&self, baseline_start:Vector2<f32>, height:f32)
     -> Line {
-        let glyphs     = (0..length).map(|_| self.new_glyph()).collect();
-        let base_color = color;
+        let logger = Logger::new("temp"); // FIXME
+        let display_object = display::object::Instance::new(logger);
+        let glyphs     = default();
         let font       = self.font.clone_ref();
-        Line {glyphs,baseline_start,height,base_color,font}
+        let color      = Cell::new(Vector4::new(0.0,0.0,0.0,1.0));
+        let content    = default();
+        let glyph_system = self.clone_ref();
+        let const_glyph_count = default();
+        Line {display_object,glyph_system,glyphs,baseline_start,height,color,font,content,const_glyph_count}
     }
 
     /// Create a line of glyphs with proper alignment.
     ///
     /// For details, see also `Line` structure documentation.
     pub fn new_line
-    (&self, baseline_start:Vector2<f32>, height:f32, text:&str, color:Vector4<f32>)
+    (&self, height:f32, text:&str)
     -> Line {
-        let length   = text.chars().count();
-        let mut line = self.new_empty_line(baseline_start,height,length,color);
-        line.replace_text(text.chars());
+        let baseline_start = Vector2::new(0.0,0.0);
+        let mut line = self.new_empty_line(baseline_start,height);
+        line.set_text(text);
         line
     }
 

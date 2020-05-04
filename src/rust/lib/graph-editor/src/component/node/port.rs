@@ -128,7 +128,7 @@ impl Port {
         let object  = display::object::Instance::new(&logger);
         object.add_child(&view.display_object);
 
-        let width = 38.0;
+        let width = 38.5;
         let height = 20.0;
 
         view.data.shape.sprite.size().set(Vector2::new(width,height));
