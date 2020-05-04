@@ -158,7 +158,6 @@ pub struct ContainerData {
 
     node          : display::object::Instance,
     size          : Cell<Vector2<f32>>,
-    position      : Cell<Vector3<f32>>,
     is_visible    : Cell<bool>,
     visualization : RefCell<Option<Visualization>>,
 }
@@ -170,11 +169,10 @@ impl Container {
         let events   = default();
         let content  = default();
         let size     = Cell::new(Vector2::new(100.0, 100.0));
-        let position = Cell::new(Vector3::new(  0.0,-110.0, 0.0));
         let is_visible  = Cell::new(true);
         let node     = display::object::Instance::new(&logger);
 
-        let data     = ContainerData {logger,events,visualization: content,size,position,is_visible,node};
+        let data     = ContainerData {logger,events,visualization: content,size,is_visible,node};
         let data     = Rc::new(data);
         Self {data} . init_frp()
     }
@@ -184,7 +182,7 @@ impl Container {
     /// Needs to called when a visualisation has been set.
     fn update_visualisation_properties(&self) {
         let size       = self.data.size.get();
-        let position   = self.data.position.get();
+        let position   = self.data.node.position();
 
         if let Some(vis) = self.data.visualization.borrow().as_ref() {
             vis.content.set_size(size);
