@@ -243,9 +243,14 @@ impl Container {
         }
     }
 
+    /// Indicates whether the visualisation is visible.
+    pub fn is_visible(&self) -> bool {
+        self.data.is_visible.get()
+    }
+
     /// Toggle visibility.
     pub fn toggle_visibility(&self) {
-        self.set_visibility(!self.data.is_visible.get())
+        self.set_visibility(!self.is_visible())
     }
 
     /// Update the data in the inner visualisation.
