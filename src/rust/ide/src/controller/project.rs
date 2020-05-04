@@ -47,7 +47,6 @@ impl Handle {
     /// the global executor.
     pub async fn new_running(file_manager_transport:impl Transport + 'static) -> Self {
         let mut ret = Self::new(file_manager_transport).await;
-        println!("Spawning runner.");
         crate::executor::global::spawn(ret.file_manager.runner());
         ret.initialize_protocol_connection().await;
         ret
@@ -60,9 +59,7 @@ impl Handle {
         //FIXME[dg]: We need to make use of a proper client ID. I am still not sure where it
         // should come from so clarification is needed.
         let client_id = default();
-        println!("Initializing protocol connection.");
         let response  = self.file_manager.init_protocol_connection(client_id).await;
-        println!("Initialized protocol connection.");
         let response  = response.expect("Couldn't get project content roots.");
         //FIXME[dg]: We will make use of the first available `root_id`s, but we should expand this
         // logic to make use of the all available `root_id`s.

@@ -245,7 +245,6 @@ impl<Notification> Handler<Notification> {
         self.insert_ongoing_request(message.payload.id, sender);
 
         let serialized_message = serde_json::to_string(&message).unwrap();
-        println!("Outgoing: {:#?}", serialized_message);
         if self.send_text_message(serialized_message).is_err() {
             // If message cannot be send, future ret must be cancelled.
             self.remove_ongoing_request(id);
@@ -292,7 +291,6 @@ impl<Notification> Handler<Notification> {
     /// `Notification` JSON-serialized format. Otherwise, an error is raised.
     pub fn process_incoming_message(&self, message:String)
     where Notification: DeserializeOwned {
-        println!("Incoming: {}", message);
         match messages::decode_incoming_message(message) {
             Ok(messages::IncomingMessage::Response(response)) =>
                 self.process_response(response),
@@ -338,7 +336,6 @@ impl<Notification> Handler<Notification> {
     /// passed to the main executor.
     pub fn runner(&mut self) -> impl Future<Output = ()>
     where Notification: DeserializeOwned + 'static {
-        println!("Is runner running?");
         let event_receiver  = self.transport_event_stream();
         let weak_data       = Rc::downgrade(&self.rc);
         event_receiver.for_each(move |event:TransportEvent| {
