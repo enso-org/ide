@@ -128,14 +128,19 @@ pub async fn connect_to_file_manager(config:SetupConfig) -> Result<WebSocket,Con
 /// Sets up the project view, including the controller it uses.
 pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
 -> Result<ProjectView,failure::Error> {
+    println!("Connecting to FM.");
     let fm_transport = connect_to_file_manager(config).await?;
-    let controller   = controller::Project::new_running(fm_transport);
+    println!("Create new project controller.");
+    let controller   = controller::Project::new_running(fm_transport).await;
+    println!("Creating new project view.");
     let project_view = ProjectView::new(logger,controller).await?;
+    println!("Got new project view.");
     Ok(project_view)
 }
 
 /// This function is the IDE entry point responsible for setting up all views and controllers.
 pub fn run_ide() {
+    ensogl::system::web::set_stdout();
     let logger          = Logger::new("IDE");
     let global_executor = setup_global_executor();
     // We want global executor to live indefinitely.
@@ -147,6 +152,7 @@ pub fn run_ide() {
         // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
         //      issues to user, such information should be properly passed
         //      in case of setup failure.
+        println!("Setting up project view.");
         let project_view = setup_project_view(&logger,config).await.expect(error_msg);
         logger.info("Setup done.");
         project_view.forget();

@@ -9,7 +9,8 @@ use crate::prelude::*;
 use crate::notification;
 
 use data::text::TextChange;
-use file_manager_client as fmc;
+use enso_protocol::file_manager as fmc;
+use fmc::API;
 use json_rpc::error::RpcError;
 use std::pin::Pin;
 
@@ -32,16 +33,16 @@ type Path = Rc<fmc::Path>;
 ///
 /// This makes distinction between module and plain text files. The module files are handled by
 /// Module Controller, the plain text files are handled directly by File Manager Client.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,Debug)]
 enum FileHandle {
-    PlainText {path:Path, file_manager:fmc::Handle},
+    PlainText {path:Path, file_manager:Rc<fmc::Client>},
     Module    {controller:controller::Module },
 }
 
 /// A Text Controller Handle.
 ///
 /// This struct contains all information and handles to do all module controller operations.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,Debug)]
 pub struct Handle {
     file: FileHandle,
 }
@@ -49,7 +50,7 @@ pub struct Handle {
 impl Handle {
 
     /// Create controller managing plain text file (which is not a module).
-    pub fn new_for_plain_text(path:fmc::Path, file_manager:fmc::Handle) -> Self {
+    pub fn new_for_plain_text(path:fmc::Path, file_manager:Rc<fmc::Client>) -> Self {
         let path = Rc::new(path);
         Self {
             file : FileHandle::PlainText {path,file_manager}
@@ -67,7 +68,7 @@ impl Handle {
     pub fn file_path(&self) -> Path {
         match &self.file {
             FileHandle::PlainText{path,..} => path.clone_ref(),
-            FileHandle::Module{controller} => Path::new(controller.location.to_path()),
+            FileHandle::Module{controller} => Path::new(controller.path.clone()),
         }
     }
 
@@ -75,18 +76,20 @@ impl Handle {
     pub async fn read_content(&self) -> Result<String,RpcError> {
         use FileHandle::*;
         match &self.file {
-            PlainText {path,file_manager} => file_manager.read(path.deref().clone()).await,
+            PlainText {path,file_manager} => {
+                file_manager.read_file(path.deref().clone()).await.map(|response| response.contents)
+            },
             Module    {controller}        => Ok(controller.code())
         }
     }
 
     /// Store the given content to file.
     pub fn store_content(&self, content:String) -> impl Future<Output=FallibleResult<()>> {
-        let file_handle = self.file.clone_ref();
+        let file_handle = self.file.clone();
         async move {
             match file_handle {
                 FileHandle::PlainText {path,file_manager} => {
-                    file_manager.write(path.deref().clone(),content).await?
+                    file_manager.write_file(path.deref().clone(),content).await?
                 },
                 FileHandle::Module {controller} => {
                     controller.check_code_sync(content)?;
@@ -159,9 +162,9 @@ mod test {
         let mut test  = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
             let fm         = fmc::Handle::new(MockTransport::new());
-            let loc        = controller::module::Location::new("test");
+            let path       = fmc::Path{root_id:default(),segments:vec!["test".into()]};;
             let parser     = Parser::new().unwrap();
-            let module_res = controller::Module::new_mock(loc,"main = 2+2",default(),fm,parser);
+            let module_res = controller::Module::new_mock(path,"main = 2+2",default(),fm,parser);
             let module     = module_res.unwrap();
             let controller = Handle::new_for_module(module.clone_ref());
             let mut sub    = controller.subscribe();

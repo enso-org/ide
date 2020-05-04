@@ -13,47 +13,9 @@ use ast;
 use ast::HasIdMap;
 use data::text::*;
 use double_representation as dr;
-use file_manager_client as fmc;
+use enso_protocol::file_manager as fmc;
+use fmc::API;
 use parser::Parser;
-
-
-
-// =======================
-// === Module Location ===
-// =======================
-
-/// Structure uniquely identifying module location in the project.
-/// Mappable to filesystem path.
-#[derive(Clone,CloneRef,Debug,Display,Eq,Hash,PartialEq)]
-pub struct Location(pub Rc<String>);
-
-impl Location {
-    /// Create new location from string.
-    pub fn new(string:impl Str) -> Self {
-        Location(Rc::new(string.into()))
-    }
-
-    /// Get the module location from filesystem path. Returns None if path does not lead to
-    /// module file.
-    pub fn from_path(path:&fmc::Path) -> Option<Self> {
-        // TODO [ao] See function `to_path`
-        let fmc::Path(path_str) = path;
-        let suffix = format!(".{}", constants::LANGUAGE_FILE_EXTENSION);
-        path_str.ends_with(suffix.as_str()).and_option_from(|| {
-            let cut_from = path_str.len() - suffix.len();
-            Some(Self::new(&path_str[..cut_from]))
-        })
-    }
-
-    /// Obtains path (within a project context) to the file with this module.
-    pub fn to_path(&self) -> file_manager_client::Path {
-        // TODO [mwu] Extremely provisional. When multiple files support is
-        //            added, needs to be fixed, if not earlier.
-        let Location(string) = self;
-        let result = format!("./{}.{}", string, constants::LANGUAGE_FILE_EXTENSION);
-        file_manager_client::Path::new(result)
-    }
-}
 
 
 
@@ -64,14 +26,14 @@ impl Location {
 /// A Handle for Module Controller
 ///
 /// This struct contains all information and handles to do all module controller operations.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,Debug)]
 pub struct Handle {
-    /// This module's location.
-    pub location : Location,
+    /// This module's path.
+    pub path : fmc::Path,
     /// The current state of module.
     pub model: Rc<model::Module>,
     /// The File Manager Client handle.
-    pub file_manager : fmc::Handle,
+    pub file_manager : Rc<fmc::Client>,
     /// The Parser handle.
     parser : Parser,
     /// The logger handle.
@@ -83,17 +45,16 @@ impl Handle {
     ///
     /// It may wait for module content, because the module must initialize its state.
     pub fn new
-    (location:Location, model:Rc<model::Module>, file_manager:fmc::Handle, parser:Parser)
+    (path:fmc::Path, model:Rc<model::Module>, file_manager:Rc<fmc::Client>, parser:Parser)
     -> Self {
-        let logger = Logger::new(format!("Module Controller {}", location));
-        Handle {location,model,file_manager,parser,logger}
+        let logger = Logger::new(format!("Module Controller {}", path));
+        Handle {path,model,file_manager,parser,logger}
     }
 
     /// Load or reload module content from file.
     pub async fn load_file(&self) -> FallibleResult<()> {
         self.logger.info(|| "Loading module file");
-        let path    = self.location.to_path();
-        let content = self.file_manager.read(path).await?;
+        let content = self.file_manager.read_file(self.path.clone()).await?.contents;
         self.logger.info(|| "Parsing code");
         // TODO[ao] we should not fail here when metadata are malformed, but discard them and set
         // default instead.
@@ -106,10 +67,10 @@ impl Handle {
 
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
-        let path    = self.location.to_path();
-        let fm      = self.file_manager.clone_ref();
+        let path    = self.path.clone();
+        let fm      = self.file_manager.clone();
         let content = self.model.source_as_string();
-        async move { Ok(fm.write(path,content?).await?) }
+        async move { Ok(fm.write_file(path,content?).await?) }
     }
 
     /// Updates AST after code change.

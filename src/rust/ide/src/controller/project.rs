@@ -5,7 +5,8 @@
 
 use crate::prelude::*;
 
-use file_manager_client as fmc;
+use enso_protocol::file_manager as fmc;
+use fmc::API;
 use json_rpc::Transport;
 use parser::Parser;
 
@@ -15,74 +16,85 @@ use parser::Parser;
 // === Project Controller ===
 // ==========================
 
-type ModuleLocation = controller::module::Location;
 
 
 /// Project controller's state.
 #[derive(Debug)]
 pub struct Handle {
     /// File Manager Client.
-    pub file_manager: fmc::Handle,
+    pub file_manager : Rc<fmc::Client>,
+    /// The project's root ID in file manager.
+    pub root_id : uuid::Uuid,
     /// Cache of module controllers.
-    pub module_registry: Rc<model::module::registry::Registry>,
+    pub module_registry : Rc<model::module::registry::Registry>,
     /// Parser handle.
-    pub parser: Parser,
+    pub parser : Parser,
 }
 
 impl Handle {
     /// Create a new project controller.
     ///
     /// The remote connection should be already established.
-    pub fn new(file_manager_transport:impl Transport + 'static) -> Self {
-        Handle {
-            file_manager    : fmc::Handle::new(file_manager_transport),
-            module_registry : default(),
-            parser          : Parser::new_or_panic(),
-        }
+    pub async fn new(file_manager_transport:impl Transport + 'static) -> Self {
+        let file_manager    = Rc::new(fmc::Client::new(file_manager_transport));
+        let module_registry = default();
+        let parser          = Parser::new_or_panic();
+        let root_id         = default();
+        Handle {root_id,file_manager,module_registry,parser}
     }
 
     /// Creates a new project controller. Schedules all necessary execution with
     /// the global executor.
-    pub fn new_running(file_manager_transport:impl Transport + 'static) -> Self {
-        let ret = Self::new(file_manager_transport);
+    pub async fn new_running(file_manager_transport:impl Transport + 'static) -> Self {
+        let mut ret = Self::new(file_manager_transport).await;
+        println!("Spawning runner.");
         crate::executor::global::spawn(ret.file_manager.runner());
+        ret.initialize_protocol_connection().await;
         ret
+    }
+
+    /// Initialize the connection used to send the textual protocol messages. This initialisation
+    /// is important such that the client identifier can be correlated between the textual and data
+    /// connections.
+    pub async fn initialize_protocol_connection(&mut self) {
+        //FIXME[dg]: We need to make use of a proper client ID. I am still not sure where it
+        // should come from so clarification is needed.
+        let client_id = default();
+        println!("Initializing protocol connection.");
+        let response  = self.file_manager.init_protocol_connection(client_id).await;
+        println!("Initialized protocol connection.");
+        let response  = response.expect("Couldn't get project content roots.");
+        //FIXME[dg]: We will make use of the first available `root_id`s, but we should expand this
+        // logic to make use of the all available `root_id`s.
+        self.root_id  = response.content_roots[0];
     }
 
     /// Returns a text controller for given file path.
     ///
     /// It may be a controller for both modules and plain text files.
     pub async fn text_controller(&self, path:fmc::Path) -> FallibleResult<controller::Text> {
-        match ModuleLocation::from_path(&path) {
-            Some(location) => {
-                let module = self.module_controller(location).await?;
-                Ok(controller::Text::new_for_module(module))
-            },
-            None => {
-                let fm = self.file_manager.clone_ref();
-                Ok(controller::Text::new_for_plain_text(path,fm))
-            }
-        }
+        let module = self.module_controller(path).await?;
+        Ok(controller::Text::new_for_module(module))
     }
 
     /// Returns a module controller which have module opened from file.
     pub async fn module_controller
-    (&self, location:ModuleLocation) -> FallibleResult<controller::Module> {
-        let model_loader = self.load_module(location.clone());
-        let model        = self.module_registry.get_or_load(location.clone(), model_loader).await?;
-        Ok(self.module_controller_with_model(location,model))
+    (&self, path:fmc::Path) -> FallibleResult<controller::Module> {
+        let model_loader = self.load_module(path.clone());
+        let model        = self.module_registry.get_or_load(path.clone(), model_loader).await?;
+        Ok(self.module_controller_with_model(path,model))
     }
 
     fn module_controller_with_model
-    (&self, location:ModuleLocation, model:Rc<model::Module>) -> controller::Module {
-        let fm     = self.file_manager.clone_ref();
+    (&self, path:fmc::Path, model:Rc<model::Module>) -> controller::Module {
+        let fm     = self.file_manager.clone();
         let parser = self.parser.clone_ref();
-        controller::Module::new(location, model, fm, parser)
+        controller::Module::new(path, model, fm, parser)
     }
 
-    async fn load_module(&self, location:ModuleLocation) -> FallibleResult<Rc<model::Module>> {
+    async fn load_module(&self, path:fmc::Path) -> FallibleResult<Rc<model::Module>> {
         let model  = Rc::<model::Module>::default();
-        let module = self.module_controller_with_model(location, model.clone_ref());
+        let module = self.module_controller_with_model(path, model.clone_ref());
         module.load_file().await.map(move |()| model)
     }
 }
@@ -111,7 +123,7 @@ mod test {
         let transport = MockTransport::new();
         let mut test  = TestWithMockedTransport::set_up(&transport);
         test.run_test(async move {
-            let project     = controller::Project::new_running(transport);
+            let project     = controller::Project::new_running(transport).await;
             let location    = ModuleLocation::new("TestLocation");
             let another_loc = ModuleLocation::new("TestLocation2");
 
@@ -132,7 +144,7 @@ mod test {
     fn obtain_plain_text_controller() {
         let transport       = MockTransport::new();
         TestWithLocalPoolExecutor::set_up().run_task(async move {
-            let project_ctrl        = controller::Project::new_running(transport);
+            let project_ctrl        = controller::Project::new_running(transport).await;
             let path                = Path::new("TestPath");
             let another_path        = Path::new("TestPath2");
 

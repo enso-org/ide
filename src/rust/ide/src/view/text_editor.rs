@@ -135,7 +135,7 @@ impl TextEditor {
 
     fn handle_text_field_notification(&self, change:&TextChange) {
         let (logger,controller) = self.with_borrowed(|data|
-            (data.logger.clone(),data.controller.clone_ref()));
+            (data.logger.clone(),data.controller.clone()));
         let result = controller.apply_text_change(change);
         if result.is_err() {
             logger.error(|| "Error while notifying controllers about text change");
@@ -146,7 +146,7 @@ impl TextEditor {
     /// Reload the TextEditor content with data obtained from controller
     fn reload_content(&self) -> impl Future<Output=()> {
         let (logger,controller) = self.with_borrowed(|data|
-            (data.logger.clone(),data.controller.clone_ref()));
+            (data.logger.clone(),data.controller.clone()));
         let weak  = self.downgrade();
         async move {
             if let Ok(content) = controller.read_content().await {

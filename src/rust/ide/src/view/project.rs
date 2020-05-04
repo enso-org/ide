@@ -12,7 +12,8 @@ use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
-use file_manager_client::Path;
+use enso_protocol::file_manager as fmc;
+use fmc::API;
 use nalgebra::Vector2;
 use shapely::shared;
 use ensogl::application::Application;
@@ -70,16 +71,19 @@ impl ProjectView {
     /// Create a new ProjectView.
     pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
-        let path                 = Path::new(INITIAL_FILE_PATH);
-        // This touch is to ensure, that our hardcoded module exists (so we don't require
+        let root_id              = controller.root_id;
+        let path                 = fmc::Path{root_id,segments:vec![]};
+        let file                 = fmc::Object{name:INITIAL_FILE_PATH.into(),path};
+        let file_system_object   = fmc::FileSystemObject::File(file);
+        // This create_file is to ensure, that our hardcoded module exists (so we don't require
         // additional user/tester action to run IDE. It will be removed once we will support opening
         // any module file.
-        controller.file_manager.touch(path.clone()).await?;
-        let location             = controller::module::Location::from_path(&path).unwrap();
-        let text_controller      = controller.text_controller(path).await?;
+        controller.file_manager.create_file(file_system_object).await?;
+        let path                 = fmc::Path{root_id,segments:vec![INITIAL_FILE_PATH.into()]};
+        let text_controller      = controller.text_controller(path.clone()).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
-        let module_controller    = controller.module_controller(location).await?;
+        let module_controller    = controller.module_controller(path).await?;
         let graph_controller     = module_controller.graph_controller_unchecked(graph_id);
         let application          = Application::new(&web::get_html_element_by_id("root").unwrap());
         let _world               = &application.display;
