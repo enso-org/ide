@@ -228,6 +228,7 @@ impl Node {
     }
 
     fn init(self) -> Self {
+        self.data.visualization.set_position(Vector3::new(0.0, -100.0, 0.0));
         self.add_child(&self.data.visualization);
 
         let network = &self.data.events.network;
