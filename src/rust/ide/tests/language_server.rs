@@ -83,7 +83,7 @@ async fn file_operations() {
 #[allow(dead_code)]
 async fn file_events() {
     ensogl::system::web::set_stdout();
-    let ws         = WebSocket::new_opened("ws://localhost:30616").await;
+    let ws         = WebSocket::new_opened(SERVER_ENDPOINT).await;
     let ws         = ws.expect("Couldn't connect to WebSocket server.");
     let client     = Client::new(ws);
     let mut stream = client.events();
