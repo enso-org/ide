@@ -96,7 +96,10 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32, creation:f32) {
-            style.get("node.radius").number().unwrap_or(32.0); // FIXME: this is not used yet
+            let bg_color = style.get("graph_editor.node.background.color").color().unwrap_or(color::Rgba::new(1.0,0.0,0.0,1.0).into());
+            let selection_color = style.get("graph_editor.node.selection.color").color().unwrap_or(color::Rgba::new(1.0,0.0,0.0,1.0).into());
+            let selection_size  = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
+
             let border_size_f = 16.0;
             let node_radius   = 32.0.px() * creation;
             let border_size   = border_size_f.px();
@@ -107,7 +110,7 @@ pub mod shape {
             let height = 28.0.px();
             let radius = &height / 2.0;
             let shape  = Rect((&width,&height)).corners_radius(radius);
-            let shape  = shape.fill(color::Rgb::new(0.97,0.96,0.95));
+            let shape  = shape.fill(color::Rgba::from(bg_color));
 
             let shadow_size   = 14.px();
             let shadow_width  = &width  + &shadow_size * 2.0;
@@ -120,12 +123,12 @@ pub mod shape {
             let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(4.0));
             let shadow        = shadow.fill(shadow_color);
 
-            let select_size   = 8.px();
-            let select_width  = &width  - 2.px() + &select_size * 2.0 * &selection;
-            let select_height = &height - 2.px() + &select_size * 2.0 * &selection;
-            let select_radius = &select_height / 2.0;
-            let select        = Rect((select_width,select_height)).corners_radius(select_radius);
-            let select        = select.fill(color::Rgba::new(0.22,0.83,0.54,1.0));
+            let selection_size = selection_size.px();
+            let select_width   = &width  - 2.px() + &selection_size * 2.0 * &selection;
+            let select_height  = &height - 2.px() + &selection_size * 2.0 * &selection;
+            let select_radius  = &select_height / 2.0;
+            let select         = Rect((select_width,select_height)).corners_radius(select_radius);
+            let select         = select.fill(color::Rgba::from(selection_color));
 
             let out = select + shadow + shape;
             out.into()
@@ -170,7 +173,7 @@ pub mod label {
             let style_manager = ensogl::display::shape::StyleWatch::new(&scene.style_sheet);
 //            let shape_system = ensogl::display::shape::ShapeSystem::new(scene, &Self::shape_def(&style_manager));
             let mut fonts        = FontRegistry::new();
-            let font             = fonts.get_or_load_embedded_font("DejaVuSans").unwrap();
+            let font             = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
             let mut glyph_system = GlyphSystem::new(scene,font);
             let fonts = Rc::new(fonts);
 
@@ -179,9 +182,9 @@ pub mod label {
 
         fn new_instance(&self) -> Self::Shape {
             let line_position = Vector2::new(0.0,0.0);
-            let color         = Vector4::new(0.0, 0.8, 0.0, 1.0);
+            let color         = Vector4::new(0.9, 0.9, 0.9, 1.0);
             let text          = "Follow the white rabbit ...";
-            let height        = 32.0;
+            let height        = 16.0;
             let line          = self.glyph_system.new_line(line_position,height,text,color);
             let obj = display::object::Instance::new(Logger::new("test"));
             for glyph in &line.glyphs {
