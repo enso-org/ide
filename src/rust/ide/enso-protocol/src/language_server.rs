@@ -1,4 +1,10 @@
-//! Client library for the JSON-RPC-based File Manager service.
+//! Client library for the Language Server part of the Enso Protocol.
+//!
+//! Please refer to https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md#protocol-message-specification---language-server
+//! for the full protocol documentation and discussion on the types and terms used here.
+//!
+//! Also, the Enso Protocol specification is source for many names and comments used here.
+//! This file tries to follow the scheme of the protocol specification.
 
 use crate::prelude::*;
 
@@ -19,7 +25,7 @@ use uuid::Uuid;
 // === Event ===
 // =============
 
-/// Event emitted by the File Manager `Client`.
+/// Event emitted by the Language Server `Client`.
 pub type Event = json_rpc::handler::Event<Notification>;
 
 
@@ -33,9 +39,9 @@ pub type Event = json_rpc::handler::Event<Notification>;
 #[serde(rename_all = "camelCase")]
 pub struct Path {
     /// Path's root id.
-    pub root_id : Uuid,
+    pub root_id:Uuid,
     /// Path's segments.
-    pub segments : Vec<String>
+    pub segments:Vec<String>,
 }
 
 impl Display for Path {
@@ -58,50 +64,40 @@ impl Display for Path {
 pub enum Notification {
     /// Filesystem event occurred for a watched path.
     #[serde(rename = "file/event")]
-    FilesystemEvent(FilesystemEvent),
+    FileEvent {
+        /// The `file/event` notification input wrapper.
+        /// The serialization format requires the information to be wrapped into a field named "event".
+        /// This behavior is currently not specified by the specification and the issue has been raised
+        /// to address this: https://github.com/luna/enso/issues/707
+        /// TODO [mwu] Update as the issue is resolved on way or another.
+        event:FileEvent,
+    }
 }
 
 
 
-// =======================
-// === FilesystemEvent ===
-// =======================
+// =================
+// === FileEvent ===
+// =================
 
-/// The `file/event` notification input wrapper.
-#[derive(Clone,Debug,PartialEq)]
-#[derive(Serialize,Deserialize)]
-pub struct FilesystemEvent {
-    #[allow(missing_docs)]
-    // The serialization format requires the information to be wrapped into a field named "event".
-    // This behavior is currently not specified by the specification and the issue has been raised
-    // to address this: https://github.com/luna/enso/issues/707
-    // TODO [mwu] Update this note, as the issue is resolved on way or another.
-    pub event : FilesystemEventInfo
-}
-
-
-
-// ===========================
-// === FilesystemEventInfo ===
-// ===========================
-
-/// The `file/event` notification input.
+/// The `file/event` notification parameters.
 #[derive(Clone,Debug,PartialEq)]
 #[derive(Serialize,Deserialize)]
 #[allow(missing_docs)]
-pub struct FilesystemEventInfo {
+pub struct FileEvent {
     pub path : Path,
-    pub kind : FilesystemEventKind
+    pub kind : FileEventKind,
 }
 
 
 /// Describes kind of filesystem event (was the file created or deleted, etc.)
 #[derive(Clone,Copy,Debug,PartialEq)]
 #[derive(Serialize,Deserialize)]
-pub enum FilesystemEventKind {
+#[allow(missing_docs)]
+pub enum FileEventKind {
     Added,
     Removed,
-    Modified
+    Modified,
 }
 
 
@@ -116,16 +112,16 @@ pub enum FilesystemEventKind {
 #[serde(rename_all = "camelCase")]
 pub struct Attributes{
     /// When the file was created.
-    pub creation_time : UTCDateTime,
+    pub creation_time:UTCDateTime,
     /// When the file was last accessed.
-    pub last_access_time : UTCDateTime,
+    pub last_access_time:UTCDateTime,
     /// When the file was last modified.
-    pub last_modified_time : UTCDateTime,
+    pub last_modified_time:UTCDateTime,
     /// What kind of file is this.
-    pub kind : FileSystemObject,
+    pub kind:FileSystemObject,
     /// Size of the file in bytes.
     /// (size of files not being `RegularFile`s is unspecified).
-    pub byte_size : u64
+    pub byte_size:u64,
 }
 
 /// A representation of what kind of type a filesystem object can be.
@@ -133,78 +129,91 @@ pub struct Attributes{
 #[serde(tag = "type")]
 pub enum FileSystemObject {
     /// Represents a directory.
-    Directory(Object),
+    Directory {
+        /// A name of the directory.
+        name:String,
+        /// A path to the directory.
+        path:Path,
+    },
     /// Represents a directory which contents have been truncated
-    DirectoryTruncated(Object),
+    DirectoryTruncated {
+        /// A name of the directory.
+        name:String,
+        /// A path to the directory.
+        path:Path,
+    },
     /// Represents a file.
-    File(Object),
+    File {
+        /// A name of the file.
+        name:String,
+        /// A path to the file.
+        path:Path,
+    },
     /// Represents unrecognized object. Example is a broken symbolic link.
-    Other(Object),
+    Other {
+        /// A name of the object.
+        name:String,
+        /// A path to the object.
+        path:Path,
+    },
     /// Represents a symbolic link that creates a loop.
-    SymlinkLoop(SymlinkLoop)
+    SymlinkLoop {
+        /// A name of the symlink.
+        name:String,
+        /// A path to the symlink.
+        path:Path,
+        /// A target of the symlink. Since it is a loop, target is a subpath of the symlink.
+        target: Path,
+    }
 }
 
-/// Represents an object.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-pub struct Object {
-    /// Name of the object.
-    pub name : String,
-    /// Path to the object.
-    pub path : Path
-}
 
-/// Represents a symbolic link that creates a loop.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-pub struct SymlinkLoop {
-    /// Name of the symlink.
-    pub name : String,
-    /// Path to the symlink.
-    pub path : Path,
-    /// A target of the symlink. Since it is a loop, target is a subpath of the symlink.
-    pub target : Path
-}
+
+// =================
+// === Responses ===
+// =================
 
 /// Response of `init_protocol_connection` method.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InitProtocolConnectionResponse {
     /// List of Root IDs.
-    pub content_roots : Vec<Uuid>
+    pub content_roots:Vec<Uuid>,
 }
 
 /// Response of `file_read` method.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 pub struct ReadResponse {
     #[allow(missing_docs)]
-    pub contents : String
+    pub contents:String,
 }
 
 /// Response of `file_exists` method.
 #[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
 pub struct FileExistsResponse {
     #[allow(missing_docs)]
-    pub exists : bool
+    pub exists:bool,
 }
 
 /// Response of `file_lst` method.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 pub struct FileListResponse {
     #[allow(missing_docs)]
-    pub paths : Vec<FileSystemObject>
+    pub paths:Vec<FileSystemObject>,
 }
 
 /// Response of `file_info` method.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 pub struct FileInfoResponse {
     #[allow(missing_docs)]
-    pub attributes : Attributes
+    pub attributes:Attributes,
 }
 
 /// `RegisterOptions`' to receive file system tree updates.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 pub struct ReceivesTreeUpdates {
     #[allow(missing_docs)]
-    pub path : Path
+    pub path:Path,
 }
 
 /// `acquire_capability`'s register options.
@@ -214,6 +223,12 @@ pub struct ReceivesTreeUpdates {
 pub enum RegisterOptions {
     ReceivesTreeUpdates(ReceivesTreeUpdates)
 }
+
+
+
+// ====================
+// === API & Client ===
+// ====================
 
 make_rpc_methods! {
 /// An interface containing all the available file management operations.
@@ -302,7 +317,7 @@ mod tests {
         executor  : futures::executor::LocalPool,
     }
 
-    fn setup_file_manager() -> Fixture {
+    fn setup_language_server() -> Fixture {
         let transport = MockTransport::new();
         let client    = Client::new(transport.clone());
         let executor  = futures::executor::LocalPool::new();
@@ -311,18 +326,17 @@ mod tests {
     }
 
     #[test]
-    fn test_notification() {
-        let mut fixture = setup_file_manager();
+    fn test_file_event_notification() {
+        let mut fixture = setup_language_server();
         let mut events  = Box::pin(fixture.client.events());
         assert!(poll_stream_output(&mut events).is_none());
 
         let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
         let root_id = root_id.expect("Couldn't parse uuid.");
-        let event   = FilesystemEventInfo {
+        let expected_event = FileEvent {
             path : Path{root_id,segments:vec!["Main.txt".into()]},
-            kind : FilesystemEventKind::Modified,
+            kind : FileEventKind::Modified,
         };
-        let expected_notification = FilesystemEvent {event};
         let notification_text = r#"{
             "jsonrpc": "2.0",
             "method": "file/event",
@@ -343,7 +357,7 @@ mod tests {
 
         let event = poll_stream_output(&mut events);
         if let Some(Event::Notification(n)) = event {
-            assert_eq!(n, Notification::FilesystemEvent(expected_notification));
+            assert_eq!(n, Notification::FileEvent {event:expected_event});
         } else {
             panic!("expected notification event");
         }
@@ -364,7 +378,7 @@ mod tests {
     where Fun : FnOnce(&mut Client) -> Fut,
           Fut : Future<Output = Result<T>>,
           T   : Debug + PartialEq {
-        let mut fixture        = setup_file_manager();
+        let mut fixture        = setup_language_server();
         let mut request_future = Box::pin(make_request(&mut fixture.client));
 
         let request = fixture.transport.expect_message::<RequestMessage<Value>>();
@@ -379,11 +393,11 @@ mod tests {
     }
 
     #[test]
-    fn test_requests() {
-        let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
-        let root_id = root_id.expect("Couldn't parse uuid.");
-        let main = Path { root_id, segments: vec!["Main.txt".into()] };
-        let target = Path { root_id, segments: vec!["Target.txt".into()] };
+    fn test_file_requests() {
+        let root_id   = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
+        let root_id   = root_id.expect("Couldn't parse uuid.");
+        let main      = Path { root_id, segments: vec!["Main.txt".into()] };
+        let target    = Path { root_id, segments: vec!["Target.txt".into()] };
         let path_main = json!({"path" : {
                 "rootId"   : "00000000-0000-0000-0000-000000000000",
                 "segments" : ["Main.txt"]
@@ -443,12 +457,14 @@ mod tests {
         });
         let list_response_value = FileListResponse {
             paths: vec![
-                FileSystemObject::File(
-                    Object { name: "foo.txt".into(), path: Path { root_id, segments: default() } }
-                ),
-                FileSystemObject::File(
-                    Object { name: "bar.txt".into(), path: Path { root_id, segments: default() } }
-                )
+                FileSystemObject::File {
+                    name : "foo.txt".into(),
+                    path : Path { root_id, segments: default() }
+                },
+                FileSystemObject::File {
+                    name : "bar.txt".into(),
+                    path : Path { root_id, segments: default() }
+                }
             ]
         };
         test_request(
@@ -476,13 +492,13 @@ mod tests {
         let parse_rfc3339 = |s| {
             chrono::DateTime::parse_from_rfc3339(s).unwrap()
         };
-        let file_system_object = FileSystemObject::File(Object {
+        let file_system_object = FileSystemObject::File {
             name: "test.txt".into(),
             path: Path {
                 root_id,
                 segments: default()
             }
-        });
+        };
         let file_system_object_json = json!({
             "type" : "File",
             "name" : "test.txt",
