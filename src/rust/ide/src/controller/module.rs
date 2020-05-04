@@ -124,16 +124,16 @@ impl Handle {
 
     #[cfg(test)]
     pub fn new_mock
-    ( location     : Location
+    ( path     : fmc::Path
     , code         : &str
     , id_map       : ast::IdMap
-    , file_manager : fmc::Handle
+    , file_manager : Rc<fmc::Client>
     , parser       : Parser
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
         let ast    = parser.parse(code.to_string(),id_map.clone())?.try_into()?;
         let model  = Rc::new(model::Module::new(ast, default()));
-        Ok(Handle {location,model,file_manager,parser,logger})
+        Ok(Handle {path,model,file_manager,parser,logger})
     }
 
     #[cfg(test)]
@@ -160,29 +160,19 @@ mod test {
     use ast::BlockLine;
     use ast::Ast;
     use data::text::Span;
-    use file_manager_client::Path;
+    use enso_protocol::file_manager as fmc;
     use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use uuid::Uuid;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    #[test]
-    fn get_location_from_path() {
-        let module     = Path::new(format!("test.{}", constants::LANGUAGE_FILE_EXTENSION));
-        let not_module = Path::new("test.txt");
-
-        let expected_loc = Location::new("test");
-        assert_eq!(Some(expected_loc),Location::from_path(&module    ));
-        assert_eq!(None,              Location::from_path(&not_module));
-    }
-
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let transport    = MockTransport::new();
-            let file_manager = fmc::Handle::new(transport);
+            let file_manager = Rc::new(fmc::Client::new(transport));
             let parser       = Parser::new().unwrap();
-            let location     = Location::new("Test");
+            let location     = fmc::Path{root_id:default(),segments:vec!["Test".into()]};
 
             let uuid1        = Uuid::new_v4();
             let uuid2        = Uuid::new_v4();

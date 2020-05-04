@@ -78,7 +78,8 @@ impl ProjectView {
         // This create_file is to ensure, that our hardcoded module exists (so we don't require
         // additional user/tester action to run IDE. It will be removed once we will support opening
         // any module file.
-        controller.file_manager.create_file(file_system_object).await?;
+        let file_manager    = controller.file_manager.as_ref().expect("Couldn't get File Manager.");
+        file_manager.create_file(file_system_object).await?;
         let path                 = fmc::Path{root_id,segments:vec![INITIAL_FILE_PATH.into()]};
         let text_controller      = controller.text_controller(path.clone()).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);

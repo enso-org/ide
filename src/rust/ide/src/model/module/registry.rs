@@ -169,7 +169,7 @@ mod test {
             let path     = fmc::Path{root_id:default(),segments:vec!["test".into()]};
 
             let loader = async move { Ok(state) };
-            let module = registry.get_or_load(path.clone_ref(),loader).await.unwrap();
+            let module = registry.get_or_load(path.clone(),loader).await.unwrap();
             assert!(Rc::ptr_eq(&expected,&module));
 
             let loader = async move { unreachable!("Should not call loader second time!") };
@@ -187,7 +187,7 @@ mod test {
         let registry1 = Rc::new(Registry::default());
         let registry2 = registry1.clone_ref();
         let path1     = fmc::Path{root_id:default(),segments:vec!["test".into()]};
-        let path2     = path1.clone_ref();
+        let path2     = path1.clone();
 
         let (loaded_send, loaded_recv) = futures::channel::oneshot::channel::<()>();
 

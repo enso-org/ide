@@ -706,6 +706,7 @@ mod tests {
     use ast::crumbs;
     use data::text::Index;
     use data::text::TextChange;
+    use enso_protocol::file_manager as fmc;
     use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use utils::test::ExpectTuple;
@@ -724,10 +725,10 @@ mod tests {
         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             let code     = code.as_ref();
-            let fm       = file_manager_client::Handle::new(MockTransport::new());
-            let loc      = controller::module::Location::new("Main");
+            let fm       = Rc::new(fmc::Client::new(MockTransport::new()));
+            let path     = fmc::Path{root_id:default(),segments:vec!["Main".into()]};
             let parser   = Parser::new_or_panic();
-            let module   = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
+            let module   = controller::Module::new_mock(path, code, default(), fm, parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
             let graph    = module.graph_controller(graph_id).unwrap();
             self.0.run_task(async move {
@@ -739,10 +740,10 @@ mod tests {
             where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
                   Fut  : Future<Output=()> {
             let code   = code.as_ref();
-            let fm     = file_manager_client::Handle::new(MockTransport::new());
-            let loc    = controller::module::Location::new("Main");
+            let fm     = Rc::new(fmc::Client::new(MockTransport::new()));
+            let path   = fmc::Path{root_id:default(),segments:vec!["Main".into()]};
             let parser = Parser::new_or_panic();
-            let module = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
+            let module = controller::Module::new_mock(path,code,default(),fm,parser).unwrap();
             let graph  = module.graph_controller(graph_id).unwrap();
             self.0.run_task(async move {
                 test(module,graph).await

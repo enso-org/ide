@@ -132,10 +132,10 @@ impl Handle {
 #[cfg(test)]
 impl Handle {
     /// Get FileManagerClient handle used by this controller.
-    pub fn file_manager(&self) -> fmc::Handle {
+    pub fn file_manager(&self) -> Rc<fmc::Client> {
         match &self.file {
-            FileHandle::PlainText {file_manager,..} => file_manager.clone_ref(),
-            FileHandle::Module {controller}         => controller.file_manager.clone_ref()
+            FileHandle::PlainText {file_manager,..} => file_manager.clone(),
+            FileHandle::Module {controller}         => controller.file_manager.clone()
         }
     }
 }
@@ -161,12 +161,12 @@ mod test {
     fn passing_notifications_from_module() {
         let mut test  = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let fm         = fmc::Handle::new(MockTransport::new());
-            let path       = fmc::Path{root_id:default(),segments:vec!["test".into()]};;
+            let fm         = Rc::new(fmc::Client::new(MockTransport::new()));
+            let path       = fmc::Path{root_id:default(),segments:vec!["test".into()]};
             let parser     = Parser::new().unwrap();
             let module_res = controller::Module::new_mock(path,"main = 2+2",default(),fm,parser);
             let module     = module_res.unwrap();
-            let controller = Handle::new_for_module(module.clone_ref());
+            let controller = Handle::new_for_module(module.clone());
             let mut sub    = controller.subscribe();
 
             module.apply_code_change(&TextChange::insert(Index::new(8),"2".to_string())).unwrap();

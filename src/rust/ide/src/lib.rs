@@ -82,15 +82,15 @@ pub mod constants {
 // ===================
 
 /// Endpoint used by default by a locally run mock file manager server.
-const MOCK_FILE_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30616";
+const MOCK_PROJECT_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30535";
 
 /// Configuration data necessary to initialize IDE.
 ///
 /// Eventually we expect it to be passed to IDE from an external source.
 #[derive(Clone,Debug)]
 pub struct SetupConfig {
-    /// WebSocket endpoint of the file manager service.
-    pub file_manager_endpoint:String
+    /// WebSocket endpoint of the project manager service.
+    pub project_manager_endpoint:String
 }
 
 impl SetupConfig {
@@ -98,7 +98,7 @@ impl SetupConfig {
     /// deployments (manually run mock file manager server).
     pub fn new_mock() -> SetupConfig {
         SetupConfig {
-            file_manager_endpoint: MOCK_FILE_MANAGER_ENDPOINT.into()
+            project_manager_endpoint: MOCK_PROJECT_MANAGER_ENDPOINT.into()
         }
     }
 }
@@ -121,15 +121,15 @@ pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
 }
 
 /// Establishes connection with file manager server websocket endpoint.
-pub async fn connect_to_file_manager(config:SetupConfig) -> Result<WebSocket,ConnectingError> {
-    WebSocket::new_opened(config.file_manager_endpoint).await
+pub async fn connect_to_project_manager(config:SetupConfig) -> Result<WebSocket,ConnectingError> {
+    WebSocket::new_opened(config.project_manager_endpoint).await
 }
 
 /// Sets up the project view, including the controller it uses.
 pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
 -> Result<ProjectView,failure::Error> {
-    let fm_transport = connect_to_file_manager(config).await?;
-    let controller   = controller::Project::new_running(fm_transport).await;
+    let pm_transport = connect_to_project_manager(config).await?;
+    let controller   = controller::Project::new_running(pm_transport).await;
     let project_view = ProjectView::new(logger,controller).await?;
     Ok(project_view)
 }
