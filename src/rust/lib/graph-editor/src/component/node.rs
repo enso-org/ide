@@ -265,7 +265,7 @@ impl Node {
             let weak_node = self.downgrade();
             def _f_set_vis = self.events.set_visualization.map(move |content| {
                 if let Some(node) = weak_node.upgrade() {
-                    node.visualization.data.events.set_visualization.emit(content)
+                    node.visualization.frp.set_visualization.emit(content)
                 }
             });
         }

@@ -108,7 +108,7 @@ impl From<Rc<DomSymbol>> for Visualization {
 /// Visualization events.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Events {
+pub struct ContainerFrp {
     pub network           : frp::Network,
     pub set_visibility    : frp::Source<bool>,
     pub toggle_visibility : frp::Source,
@@ -116,7 +116,7 @@ pub struct Events {
     pub set_data          : frp::Source<Data>,
 }
 
-impl Default for Events {
+impl Default for ContainerFrp {
     fn default() -> Self {
         frp::new_network! { visualization_events
             def set_visibility    = source::<bool>                  ();
@@ -136,16 +136,19 @@ impl Default for Events {
 // ================================
 
 /// Container that wraps a `Visualisation` for rendering and interaction in the GUI.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Shrinkwrap,Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Container {
-    pub data : Rc<ContainerData>
+    #[shrinkwrap(main_field)]
+    pub data : Rc<ContainerData>,
+    pub frp  : Rc<ContainerFrp>,
 }
 
 /// Weak version of `Container`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakContainer {
-    data : Weak<ContainerData>
+    data : Weak<ContainerData>,
+    frp  : Weak<ContainerFrp>,
 }
 
 /// Internal data of a `Container`.
@@ -153,7 +156,6 @@ pub struct WeakContainer {
 #[allow(missing_docs)]
 pub struct ContainerData {
     pub logger : Logger,
-    pub events : Events,
 
     node          : display::object::Instance,
     size          : Cell<Vector2<f32>>,
@@ -161,86 +163,15 @@ pub struct ContainerData {
     visualization : RefCell<Option<Visualization>>,
 }
 
-impl Container {
-    /// Constructor.
-    pub fn new() -> Self {
-        let logger      = Logger::new("visualization");
-        let events      = default();
-        let content     = default();
-        let size        = Cell::new(Vector2::new(100.0, 100.0));
-        let is_visible  = Cell::new(true);
-        let node        = display::object::Instance::new(&logger);
-
-        let data     = ContainerData {logger,events,visualization: content,size,is_visible,node};
-        let data     = Rc::new(data);
-        Self {data} . init_frp()
-    }
-
-    /// Update the content properties with the values from the `ContainerData`.
-    ///
-    /// Needs to called when a visualisation has been set.
-    fn update_visualisation_properties(&self) {
-        let size       = self.data.size.get();
-        let position   = self.data.node.position();
-
-        if let Some(vis) = self.data.visualization.borrow().as_ref() {
-            vis.content.set_size(size);
-            vis.content.set_position(position);
-        };
-    }
-
-    /// Set the visualization content.
-    pub fn set_visualisation(&self, visualization:Visualization) {
-        self.display_object().add_child(visualization.display_object());
-        self.data.visualization.replace(Some(visualization));
-        self.update_visualisation_properties();
-    }
-
-    fn init_frp(self) -> Self {
-        let network = &self.data.events.network;
-
-        frp::extend! { network
-            let weak_vis = self.downgrade();
-            def _f_hide = self.data.events.set_visibility.map(move |is_visible| {
-                if let Some(vis) = weak_vis.upgrade() {
-                    vis.set_visibility(*is_visible)
-               }
-            });
-
-            let weak_vis = self.downgrade();
-            def _f_toggle = self.data.events.toggle_visibility.map(move |_| {
-                if let Some(vis) = weak_vis.upgrade() {
-                    vis.toggle_visibility()
-               }
-            });
-
-            let weak_vis = self.downgrade();
-            def _f_hide = self.data.events.set_visualization.map(move |content| {
-                if let Some(vis) = weak_vis.upgrade() {
-                    if let Some(content) = content.clone() {
-                        vis.set_visualisation(content);
-                    }
-                }
-            });
-
-            let weak_vis = self.downgrade();
-            def _f_hide = self.data.events.set_data.map(move |data| {
-                if let Some(vis) = weak_vis.upgrade() {
-                    vis.set_data(data.clone());
-                }
-            });
-        }
-        self
-    }
-
+impl ContainerData {
     /// Set whether the visualisation should be visible or not.
     pub fn set_visibility(&self, is_visible:bool) {
-        self.data.is_visible.set(is_visible);
-        if let Some(vis) = self.data.visualization.borrow().as_ref() {
+        self.is_visible.set(is_visible);
+        if let Some(vis) = self.visualization.borrow().as_ref() {
             // FIXME remove the `set_visibility` call when the display_object calls are fixed.
             vis.set_visibility(is_visible);
             if is_visible {
-                vis.display_object().set_parent(self);
+                vis.display_object().set_parent(&self.node);
             } else {
                 vis.display_object()._unset_parent();
             }
@@ -249,7 +180,7 @@ impl Container {
 
     /// Indicates whether the visualisation is visible.
     pub fn is_visible(&self) -> bool {
-        self.data.is_visible.get()
+        self.is_visible.get()
     }
 
     /// Toggle visibility.
@@ -259,9 +190,81 @@ impl Container {
 
     /// Update the data in the inner visualisation.
     pub fn set_data(&self, data:Data) {
-        if let Some(vis) = self.data.visualization.borrow().as_ref() {
+        if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.set_data(data)
         }
+    }
+
+    /// Update the content properties with the values from the `ContainerData`.
+    ///
+    /// Needs to called when a visualisation has been set.
+    fn update_visualisation_properties(&self) {
+        let size       = self.size.get();
+        let position   = self.node.position();
+
+        if let Some(vis) = self.visualization.borrow().as_ref() {
+            vis.content.set_size(size);
+            vis.content.set_position(position);
+        };
+    }
+
+    /// Set the visualization content.
+    pub fn set_visualisation(&self, visualization:Visualization) {
+        self.node.add_child(visualization.display_object());
+        self.visualization.replace(Some(visualization));
+        self.update_visualisation_properties();
+    }
+}
+
+
+impl Container {
+    /// Constructor.
+    pub fn new() -> Self {
+        let logger      = Logger::new("visualization");
+        let content     = default();
+        let size        = Cell::new(Vector2::new(100.0, 100.0));
+        let is_visible  = Cell::new(true);
+        let node        = display::object::Instance::new(&logger);
+
+        let data     = ContainerData {logger,visualization: content,size,is_visible,node};
+        let data     = Rc::new(data);
+
+        let frp = default();
+        let frp = Rc::new(frp);
+
+        Self {data, frp} . init_frp()
+    }
+
+    fn init_frp(self) -> Self {
+        let frp     = &self.frp;
+        let network = &self.frp.network;
+
+        frp::extend! { network
+            let vis = Rc::clone(&self.data);
+            def _f_hide = frp.set_visibility.map(move |is_visible| {
+                vis.set_visibility(*is_visible);
+            });
+
+            let vis = Rc::clone(&self.data);
+            def _f_toggle = frp.toggle_visibility.map(move |_| {
+                vis.toggle_visibility()
+            });
+
+            let vis = Rc::clone(&self.data);
+            def _f_hide = frp.set_visualization.map(move |content| {
+                // TODO[mm] ensure this is cheap and implement clone_ref once content gets properly
+                // implemented.
+                if let Some(content) = content.clone() {
+                    vis.set_visualisation(content);
+                }
+            });
+
+            let vis = Rc::clone(&self.data);
+            def _f_hide = frp.set_data.map(move |data| {
+                vis.set_data(data.clone());
+            });
+        }
+        self
     }
 }
 
@@ -274,14 +277,17 @@ impl Default for Container {
 impl StrongRef for Container {
     type WeakRef = WeakContainer;
     fn downgrade(&self) -> WeakContainer {
-        WeakContainer {data:Rc::downgrade(&self.data)}
+        WeakContainer {data:Rc::downgrade(&self.data),frp:Rc::downgrade(&self.frp)}
     }
 }
 
 impl WeakRef for WeakContainer {
     type StrongRef = Container;
     fn upgrade(&self) -> Option<Container> {
-        self.data.upgrade().map(|data| Container {data})
+        match (self.data.upgrade(), self.frp.upgrade()){
+            (Some(data), Some(frp)) => Some(Container {data,frp}),
+            _ => None
+        }
     }
 }
 
