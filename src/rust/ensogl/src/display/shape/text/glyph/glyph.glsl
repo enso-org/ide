@@ -29,8 +29,10 @@ highp float msdf_alpha() {
     highp float sig_dist         = median(msdf_sample) - 0.5;
     highp float sig_dist_px      = sig_dist * avg_msdf_unit_px;
     highp float opacity          = 0.5 + sig_dist_px + dpi_dilate * 0.08;
-    opacity += 0.2;
-    return clamp(opacity, 0.0, 1.0);
+    opacity += 0.6;                      // FIXME: Widen + sharpen
+    opacity = clamp(opacity, 0.0, 1.0);
+    opacity = pow(opacity,2.0);          // FIXME: sharpen
+    return opacity;
 }
 
 highp vec4 color_from_msdf() {

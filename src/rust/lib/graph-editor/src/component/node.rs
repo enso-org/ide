@@ -148,8 +148,8 @@ pub mod label {
     #[derive(Clone,CloneRef,Debug)]
     #[allow(missing_docs)]
     pub struct Shape {
-        pub line : Rc<RefCell<ensogl::display::shape::text::glyph::system::Line>>,
-        pub obj  : display::object::Instance,
+        pub lines : Rc<RefCell<Vec<ensogl::display::shape::text::glyph::system::Line>>>,
+        pub obj   : display::object::Instance,
 
     }
     impl ensogl::display::shape::system::Shape for Shape {
@@ -188,16 +188,26 @@ pub mod label {
         fn new_instance(&self) -> Self::Shape {
             let line_position = Vector2::new(0.0,0.0);
             let color         = Vector4::new(1.0, 1.0, 1.0, 0.8);
-            let text          = "draw_maps size distribution";
-            let height        = 14.0;
-            let line          = self.glyph_system.new_line(line_position,height,text,color);
+            let height        = 13.0;
             let obj = display::object::Instance::new(Logger::new("test"));
-            for glyph in &line.glyphs {
+
+            let text          = "draw_maps      distribution";
+            let line1          = self.glyph_system.new_line(line_position,height,text,color);
+            for glyph in &line1.glyphs {
                 obj.add_child(glyph.display_object())
             }
-            let line          = Rc::new(RefCell::new(line));
 
-            Shape { line,obj }
+            let text          = "size";
+            let color         = Vector4::new(0.18, 0.173, 0.165, 1.0);
+            let line2          = self.glyph_system.new_line(line_position,height,text,color);
+            for glyph in &line2.glyphs {
+                glyph.display_object().mod_position(|t| t.x += 78.5);
+                obj.add_child(glyph.display_object())
+            }
+
+            let lines          = Rc::new(RefCell::new(vec![line1,line2]));
+
+            Shape { lines,obj }
         }
     }
     impl ShapeSystem {
@@ -332,15 +342,15 @@ impl Node {
         object.add_child(&view.display_object);
         object.add_child(&label_view.display_object);
 
-        let width = 245.0;
+        let width = 232.0;
         let height = 28.0;
 
         view.data.shape.sprite.size().set(Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0));
         view.mod_position(|t| t.x += width/2.0);
         view.mod_position(|t| t.y += height/2.0);
 
-        label_view.mod_position(|t| t.x += 8.0);
-        label_view.mod_position(|t| t.y += 4.0 + 5.0);
+        label_view.mod_position(|t| t.x += 10.0);
+        label_view.mod_position(|t| t.y += 4.0 + 5.5);
 
         let ports = default();
         let scene = scene.clone_ref();
