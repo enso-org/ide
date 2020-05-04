@@ -51,7 +51,6 @@ use ensogl::display::world::*;
 use ensogl::display;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
-use serde_json::json;
 
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct NodeSet {
@@ -202,8 +201,8 @@ ensogl::def_command_api! { Commands
     remove_all_nodes,
     /// Toggle the visibility of the selected visualisations
     toggle_visualization_visibility,
-     /// TODO Remove
-    set_dummy_data,
+    /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
+    set_data_for_selected_node,
 }
 
 
@@ -214,10 +213,10 @@ impl Commands {
             def remove_selected_nodes           = source();
             def remove_all_nodes                = source();
             def toggle_visualization_visibility = source();
-            def set_dummy_data                  = source();
+            def set_data_for_selected_node      = source();
         }
         Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes,
-              toggle_visualization_visibility,set_dummy_data}
+              toggle_visualization_visibility,set_data_for_selected_node}
     }
 }
 
@@ -242,8 +241,10 @@ pub struct FrpInputs {
     // Note[ao]: Here I can send `None` sometimes, because node can lose its pattern.
     pub set_pattern_span_tree    : frp::Source<Option<(WeakNode, span_tree::SpanTree)>>,
 
-    pub set_visualization_data   : frp::Source<visualization::Data>,
-
+    /// This event is emitted when the visualisation data for the given node needs to be set.
+    /// TODO[mm] there is no actual data present at the moment in the system. This needs to be
+    /// revisited once there is.
+    pub set_visualization_data   : frp::Source<Node>,
 }
 
 impl FrpInputs {
@@ -289,11 +290,11 @@ impl FrpInputs {
     pub fn toggle_visualization_visibility(&self) {
         self.toggle_visualization_visibility.emit(());
     }
-    pub fn set_visualization_data<T: AsRef<Option<visualization::Data>>>(&self, arg: T) {
+    pub fn set_visualization_data<T: AsRef<Node>>(&self, arg: T) {
         self.set_visualization_data.emit(arg.as_ref());
     }
-    pub fn set_dummy_data(&self) {
-        self.set_dummy_data.emit(());
+    pub fn set_data_for_selected_node(&self) {
+        self.set_data_for_selected_node.emit(());
     }
 }
 
@@ -417,7 +418,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
       , Self::self_shortcut(&[Key::Backspace]              , "remove_selected_nodes")
       , Self::self_shortcut(&[Key::Character(" ".into())]  , "toggle_visualization_visibility")
         // TODO move to debug scene
-      , Self::self_shortcut(&[Key::Character("d".into())]  , "set_dummy_data")
+      , Self::self_shortcut(&[Key::Character("d".into())]  , "set_data_for_selected_node")
         ]
     }
 }
@@ -536,15 +537,9 @@ impl application::View for GraphEditor {
         }));
 
 
-        // === Vis Dummy ===
-        // TODO[mm] remove
-        let dummy_counter = Rc::new(Cell::new(1.0_f32));
-        def _update_dummy_data = inputs.set_dummy_data.map(f!((dummy_counter,nodes)(_) {
-            let dc = dummy_counter.get();
-            dummy_counter.set(dc + 0.1);
-            let content = json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin()));
-            let dummy_data = Some(visualization::Data::JSON { content });
-            nodes.selected.for_each(|node| node.visualization.frp.set_data.emit(dummy_data.clone()));
+        // === Vis Update Data ===
+        def _update_vis_data = inputs.set_data_for_selected_node.map(f!((inputs,nodes)(_) {
+            nodes.selected.for_each(|node| inputs.set_visualization_data(node));
         }));
 
 
