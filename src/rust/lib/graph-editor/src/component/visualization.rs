@@ -95,9 +95,9 @@ impl From<Rc<DomSymbol>> for Visualization {
 
 
 
-// ============================
-// === Visualization Events ===
-// ============================
+// =========================
+// === Visualization FRP ===
+// =========================
 
 /// Visualization events.
 #[derive(Clone,CloneRef,Debug)]
@@ -129,12 +129,20 @@ impl Default for ContainerFrp {
 // === Visualizations Container ===
 // ================================
 
-/// Container that wraps a `Visualisation` for rendering and interaction in the GUI.
+/// Container that wraps a `Visualization` for rendering and interaction in the GUI.
+///
+/// The API to interact with the visualisation is exposed through the `ContainerFrp`.
 #[derive(Shrinkwrap,Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Container {
+    // The internals are split into wo structs: `ContainerData` and `ContainerFrp`. The
+    // `ContainerData` contains the actual data and logic for the `Container`. The `ContainerFrp`
+    // contains the FRP api and network. This split is required to avoid creating cycles in the FRP
+    // network: the FRP network holds `Rc`s to the `ContainerData` and thus must not live in the
+    // same struct.
+
     #[shrinkwrap(main_field)]
-    pub data : Rc<ContainerData>,
+    data : Rc<ContainerData>,
     pub frp  : Rc<ContainerFrp>,
 }
 
@@ -149,8 +157,7 @@ pub struct WeakContainer {
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct ContainerData {
-    pub logger : Logger,
-
+    logger        : Logger,
     node          : display::object::Instance,
     size          : Cell<Vector2<f32>>,
     is_visible    : Cell<bool>,
@@ -295,7 +302,7 @@ impl display::Object for Container {
 }
 
 /// Dummy content for testing.
-// FIXME remove this when actual content is available.
+// FIXME[mm] remove this when actual content is available.
 pub(crate) fn default_content() -> DomSymbol {
     let div = web::create_div();
     div.set_style_or_panic("width","100px");
