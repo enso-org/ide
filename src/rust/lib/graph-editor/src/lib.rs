@@ -31,6 +31,7 @@ pub mod component;
 /// Common types and functions usable in all modules of this crate.
 pub mod prelude {
     pub use ensogl::prelude::*;
+    pub use ensogl::display::traits::*;
 }
 
 use ensogl::prelude::*;

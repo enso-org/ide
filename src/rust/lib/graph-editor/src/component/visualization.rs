@@ -7,7 +7,6 @@
 //! `Visualisation`. Data for a visualisation has to be provided wrapped in the `Data` struct.
 
 use crate::prelude::*;
-use ensogl::display::traits::*;
 
 use crate::frp;
 
