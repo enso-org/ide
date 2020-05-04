@@ -235,11 +235,15 @@ impl Container {
 
     /// Set whether the visualisation should be visible or not.
     pub fn set_visibility(&self, is_visible:bool) {
-        self.data.is_visible.set(is_visible)  ;
+        self.data.is_visible.set(is_visible);
         if let Some(vis) = self.data.visualization.borrow().as_ref() {
-            // FIXME use `vis.display_object()._unset_parent()` and
-            // `is.display_object().set_parent(self)` to show and hide the visualization.
+            // FIXME remove the `set_visibility` call when the display_object calls are fixed.
             vis.set_visibility(is_visible);
+            if is_visible {
+                vis.display_object().set_parent(self);
+            } else {
+                vis.display_object()._unset_parent();
+            }
         }
     }
 
