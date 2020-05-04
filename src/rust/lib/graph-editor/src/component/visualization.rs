@@ -78,16 +78,13 @@ impl Visualization {
 "#, data.as_json()));
      }
 
-    /// Make the visualisation visible in the scene.
-    pub fn show(&self) {
-        // TODO investigate how to do this through display_object functionality.
-        self.content.dom().set_style_or_panic("visibility", "visible");
-    }
-
-    /// Hide the visualisation in the scene.
-    pub fn hide(&self) {
-        // TODO investigate how to do this through display_object functionality.
-        self.content.dom().set_style_or_panic("visibility", "hidden");
+    /// Set whether the visualisation should be visible or not.
+    pub fn set_visibility(&self, is_visible:bool) {
+        if is_visible {
+            self.content.dom().set_style_or_panic("visibility", "visible");
+        } else {
+            self.content.dom().set_style_or_panic("visibility", "hidden");
+        }
     }
 }
 
@@ -113,25 +110,23 @@ impl From<Rc<DomSymbol>> for Visualization {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Events {
-    pub network           : frp::Network,
-    pub show              : frp::Source,
-    pub hide              : frp::Source,
-    pub toggle_visibility : frp::Source,
-    pub update_visualization    : frp::Source<Option<Visualization>>,
-    pub update_data       : frp::Source<Data>,
+    pub network              : frp::Network,
+    pub set_visibility       : frp::Source<bool>,
+    pub toggle_visibility    : frp::Source,
+    pub update_visualization : frp::Source<Option<Visualization>>,
+    pub update_data          : frp::Source<Data>,
 }
 
 impl Default for Events {
     fn default() -> Self {
         frp::new_network! { visualization_events
-            def show              = source::<()>                    ();
-            def hide              = source::<()>                    ();
-            def toggle_visibility = source::<()>                    ();
-            def update_visualization    = source::<Option<Visualization>> ();
-            def update_data       = source::<Data>                  ();
+            def set_visibility       = source::<bool>                  ();
+            def toggle_visibility    = source::<()>                    ();
+            def update_visualization = source::<Option<Visualization>> ();
+            def update_data          = source::<Data>                  ();
         };
         let network = visualization_events;
-        Self {network,show,hide,update_visualization,toggle_visibility,update_data}
+        Self {network,set_visibility,update_visualization,toggle_visibility,update_data}
     }
 }
 
@@ -164,7 +159,7 @@ pub struct ContainerData {
     node          : display::object::Instance,
     size          : Cell<Vector2<f32>>,
     position      : Cell<Vector3<f32>>,
-    visible       : Cell<bool>,
+    is_visible    : Cell<bool>,
     visualization : RefCell<Option<Visualization>>,
 }
 
@@ -176,10 +171,10 @@ impl Container {
         let content  = default();
         let size     = Cell::new(Vector2::new(100.0, 100.0));
         let position = Cell::new(Vector3::new(  0.0,-110.0, 0.0));
-        let visible  = Cell::new(true);
+        let is_visible  = Cell::new(true);
         let node     = display::object::Instance::new(&logger);
 
-        let data     = ContainerData {logger,events, visualization: content,size,position,visible,node};
+        let data     = ContainerData {logger,events,visualization: content,size,position,is_visible,node};
         let data     = Rc::new(data);
         Self {data} . init_frp()
     }
@@ -209,21 +204,14 @@ impl Container {
 
         frp::extend! { network
             let weak_vis = self.downgrade();
-            def _f_show = self.data.events.show.map(move |_| {
-               if let Some(vis) = weak_vis.upgrade() {
-                    vis.set_visibility(true)
-               }
-            });
-
-            let weak_vis = self.downgrade();
-            def _f_hide = self.data.events.hide.map(move |_| {
+            def _f_hide = self.data.events.set_visibility.map(move |is_visible| {
                 if let Some(vis) = weak_vis.upgrade() {
-                    vis.set_visibility(false)
+                    vis.set_visibility(*is_visible)
                }
             });
 
             let weak_vis = self.downgrade();
-            def _f_toggle = self.data.events.hide.map(move |_| {
+            def _f_toggle = self.data.events.toggle_visibility.map(move |_| {
                 if let Some(vis) = weak_vis.upgrade() {
                     vis.toggle_visibility()
                }
@@ -248,22 +236,18 @@ impl Container {
         self
     }
 
-    /// Toggle visibility on or off.
-    pub fn set_visibility(&self, visible: bool) {
-        self.data.visible.set(visible)  ;
+    /// Set whether the visualisation should be visible or not.
+    pub fn set_visibility(&self, is_visible:bool) {
+        self.data.is_visible.set(is_visible)  ;
         if let Some(vis) = self.data.visualization.borrow().deref() {
             // TODO use display object functionality
-            if visible {
-                vis.show();
-            } else {
-                vis.hide();
-            }
+            vis.set_visibility(is_visible)
         }
     }
 
     /// Toggle visibility.
     pub fn toggle_visibility(&self) {
-        self.set_visibility(!self.data.visible.get())
+        self.set_visibility(!self.data.is_visible.get())
     }
 
     /// Update the data in the inner visualisation.
