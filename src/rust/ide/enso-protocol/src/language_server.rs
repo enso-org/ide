@@ -35,6 +35,7 @@ pub type Event = json_rpc::handler::Event<Notification>;
 // ============
 
 /// A path is a representation of a path relative to a specified content root.
+// FIXME [mwu] Consider rename to something like `FilePath`, see https://github.com/luna/enso/issues/708
 #[derive(Clone,Debug,Serialize,Deserialize,Hash,PartialEq,Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Path {
@@ -89,7 +90,6 @@ pub struct FileEvent {
     pub kind : FileEventKind,
 }
 
-
 /// Describes kind of filesystem event (was the file created or deleted, etc.)
 #[derive(Clone,Copy,Debug,PartialEq)]
 #[derive(Serialize,Deserialize)]
@@ -102,15 +102,15 @@ pub enum FileEventKind {
 
 
 
-// ==================
-// === Attributes ===
-// ==================
+// ======================
+// === FileAttributes ===
+// ======================
 
 /// Attributes of the file in the filesystem.
 #[derive(Clone,Debug,PartialEq,Eq,Hash)]
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Attributes{
+pub struct FileAttributes {
     /// When the file was created.
     pub creation_time:UTCDateTime,
     /// When the file was last accessed.
@@ -129,22 +129,23 @@ pub struct Attributes{
 #[serde(tag = "type")]
 #[allow(missing_docs)]
 pub enum FileSystemObject {
-    /// Represents a directory.
     Directory {
         name:String,
         path:Path,
     },
-    /// Represents a directory which contents have been truncated.
+    /// A directory which contents have been truncated, i.e. with its subtree not listed
+    /// any further due to depth limit being reached.
+    // FIXME: To be clarified in https://github.com/luna/enso/issues/708
     DirectoryTruncated {
         name:String,
         path:Path,
     },
-    /// Represents a file.
     File {
         name:String,
         path:Path,
     },
-    /// Represents unrecognized object. Example is a broken symbolic link.
+    /// Represents other, potenatially unrecognized object. Example is a broken symbolic link.
+    // FIXME: To be clarified in https://github.com/luna/enso/issues/708
     Other {
         name:String,
         path:Path,
@@ -164,40 +165,61 @@ pub enum FileSystemObject {
 // === Responses ===
 // =================
 
-/// Response of `init_protocol_connection` method.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InitProtocolConnectionResponse {
-    /// List of Root IDs.
-    pub content_roots:Vec<Uuid>,
+/// Helper structures wrapping RPC method result types.
+pub mod response {
+    use super::*;
+
+    /// Response of `init_protocol_connection` method.
+    #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct InitProtocolConnection {
+        /// List of Root IDs.
+        pub content_roots:Vec<Uuid>,
+    }
+
+    /// Response of `file_read` method.
+    #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+    pub struct Read {
+        #[allow(missing_docs)]
+        pub contents:String,
+    }
+
+    /// Response of `file_exists` method.
+    #[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
+    pub struct FileExists {
+        #[allow(missing_docs)]
+        pub exists:bool,
+    }
+
+    /// Response of `file_lst` method.
+    #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+    pub struct FileList {
+        #[allow(missing_docs)]
+        pub paths:Vec<FileSystemObject>,
+    }
+
+    /// Response of `file_info` method.
+    #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+    pub struct FileInfo {
+        #[allow(missing_docs)]
+        pub attributes: FileAttributes,
+    }
 }
 
-/// Response of `file_read` method.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-pub struct ReadResponse {
-    #[allow(missing_docs)]
-    pub contents:String,
-}
 
-/// Response of `file_exists` method.
-#[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
-pub struct FileExistsResponse {
-    #[allow(missing_docs)]
-    pub exists:bool,
-}
 
-/// Response of `file_lst` method.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-pub struct FileListResponse {
-    #[allow(missing_docs)]
-    pub paths:Vec<FileSystemObject>,
-}
+// =======================
+// === RegisterOptions ===
+// =======================
 
-/// Response of `file_info` method.
+/// `capability/acquire` takes method and options specific to the method. This type represents the
+/// options. The used variant must match the method. See for details:
+/// https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md#capabilities
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-pub struct FileInfoResponse {
-    #[allow(missing_docs)]
-    pub attributes:Attributes,
+#[serde(untagged)]
+#[allow(missing_docs)]
+pub enum RegisterOptions {
+    ReceivesTreeUpdates(ReceivesTreeUpdates)
 }
 
 /// `RegisterOptions`' to receive file system tree updates.
@@ -205,14 +227,6 @@ pub struct FileInfoResponse {
 pub struct ReceivesTreeUpdates {
     #[allow(missing_docs)]
     pub path:Path,
-}
-
-/// `acquire_capability`'s register options.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-#[serde(untagged)]
-#[allow(missing_docs)]
-pub enum RegisterOptions {
-    ReceivesTreeUpdates(ReceivesTreeUpdates)
 }
 
 
@@ -229,7 +243,7 @@ trait API {
     /// connections.
     #[MethodInput=InitProtocolInput,rpc_name="session/initProtocolConnection",
     result=init_protocol_connection_result,set_result=set_init_protocol_connection_result]
-    fn init_protocol_connection(&self, client_id:Uuid) -> InitProtocolConnectionResponse;
+    fn init_protocol_connection(&self, client_id:Uuid) -> response::InitProtocolConnection;
 
     /// Copy a specified file system object to another location.
     #[MethodInput=CopyFileInput,rpc_name="file/copy",result=copy_file_result,
@@ -244,12 +258,12 @@ trait API {
     /// Check if file system object exists.
     #[MethodInput=FileExistsInput,rpc_name="file/exists",result=file_exists_result,
     set_result=set_file_exists_result]
-    fn file_exists(&self, path:Path) -> FileExistsResponse;
+    fn file_exists(&self, path:Path) -> response::FileExists;
 
     /// List all file-system objects in the specified path.
     #[MethodInput=FileListInput,rpc_name="file/list",result=file_list_result,
     set_result=set_file_list_result]
-    fn file_list(&self, path:Path) -> FileListResponse;
+    fn file_list(&self, path:Path) -> response::FileList;
 
     /// Move file system object to another location.
     #[MethodInput=MoveFileInput,rpc_name="file/move",result=move_file_result,
@@ -259,12 +273,12 @@ trait API {
     /// Reads file's content as a String.
     #[MethodInput=ReadFileInput,rpc_name="file/read",result=file_read_result,
     set_result=set_file_read_result]
-    fn read_file(&self, path:Path) -> ReadResponse;
+    fn read_file(&self, path:Path) -> response::Read;
 
     /// Gets file system object's attributes information.
     #[MethodInput=FileInfoInput,rpc_name="file/info",result=file_info_result,
     set_result=set_file_info_result]
-    fn file_info(&self, path:Path) -> FileInfoResponse;
+    fn file_info(&self, path:Path) -> response::FileInfo;
 
     /// Creates the specified file system object.
     #[MethodInput=CreateInput,rpc_name="file/create",result=create_result,
@@ -424,7 +438,7 @@ mod tests {
             "file/exists",
             path_main.clone(),
             file_exists_json,
-            FileExistsResponse { exists: true });
+            response::FileExists { exists: true });
 
         let list_response_json = json!({
             "paths" : [
@@ -446,7 +460,7 @@ mod tests {
                 }
             ]
         });
-        let list_response_value = FileListResponse {
+        let list_response_value = response::FileList {
             paths: vec![
                 FileSystemObject::File {
                     name : "foo.txt".into(),
@@ -472,7 +486,7 @@ mod tests {
             ());
 
         let read_response_json = json!({"contents":"Hello world!"});
-        let read_response = ReadResponse { contents: "Hello world!".into() };
+        let read_response = response::Read { contents: "Hello world!".into() };
         test_request(
             |client| client.read_file(main.clone()),
             "file/read",
@@ -498,7 +512,7 @@ mod tests {
                 "segments" : []
             }
         });
-        let expected_attributes = FileInfoResponse { attributes : Attributes {
+        let expected_attributes = response::FileInfo { attributes : FileAttributes {
             creation_time      : parse_rfc3339("2020-01-07T21:25:26Z"),
             last_access_time   : parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
             last_modified_time : parse_rfc3339("2020-01-07T21:25:26Z"),
@@ -539,7 +553,7 @@ mod tests {
             }),
             unit_json.clone(),
             ());
-        let init_protocol_connection_response = InitProtocolConnectionResponse {
+        let init_protocol_connection_response = response::InitProtocolConnection {
             content_roots : vec![uuid::Uuid::default()]
         };
         test_request(
