@@ -17,6 +17,8 @@ use ensogl::display::style::theme;
 use ensogl::data::color;
 use enso_frp::Position;
 use enso_frp as frp;
+use graph_editor::component::visualization::sample::*;
+use graph_editor::component::visualization::Visualization;
 
 
 #[wasm_bindgen]

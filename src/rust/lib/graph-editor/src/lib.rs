@@ -56,6 +56,7 @@ use ensogl::display::Scene;
 use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
+use crate::component::visualization::sample::*;
 
 use serde_json::json;
 
@@ -241,20 +242,24 @@ ensogl::def_command_api! { Commands
     toggle_visualization_visibility,
     /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
     debug_set_data_for_selected_node,
+    /// Cycle the visualization for the selected nodes. TODO only has dummy functionality at the moment.
+    cycle_visualisation_for_selected_node,
 }
 
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def add_node                         = source();
-            def add_node_at_cursor               = source();
-            def remove_selected_nodes            = source();
-            def remove_all_nodes                 = source();
-            def toggle_visualization_visibility  = source();
-            def debug_set_data_for_selected_node = source();
+            def add_node                              = source();
+            def add_node_at_cursor                    = source();
+            def remove_selected_nodes                 = source();
+            def remove_all_nodes                      = source();
+            def toggle_visualization_visibility       = source();
+            def debug_set_data_for_selected_node      = source();
+            def cycle_visualisation_for_selected_node = source();
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
-             ,toggle_visualization_visibility,debug_set_data_for_selected_node}
+             ,toggle_visualization_visibility,debug_set_data_for_selected_node
+             ,cycle_visualisation_for_selected_node}
     }
 }
 
@@ -281,6 +286,8 @@ pub struct FrpInputs {
     pub set_node_position              : frp::Source<(NodeId,Position)>,
     pub set_visualization_data         : frp::Source<NodeId>,
     pub translate_selected_nodes       : frp::Source<Position>,
+    pub cycle_visualization            : frp::Source<Node>,
+    pub set_visualization              : frp::Source<(Node,Option<Visualization>)>,
 }
 
 impl FrpInputs {
@@ -299,12 +306,14 @@ impl FrpInputs {
             def set_node_position              = source();
             def set_visualization_data         = source();
             def translate_selected_nodes       = source();
+            def cycle_visualization            = source();
+            def set_visualization              = source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_port,set_visualization_data
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
              ,set_node_position,select_node,translate_selected_nodes,set_node_expression
-             ,connect_nodes,deselect_all_nodes}
+             ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization}
     }
 }
 
@@ -1017,6 +1026,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(&[Key::Backspace]             , "remove_selected_nodes")
              , Self::self_shortcut(&[Key::Character(" ".into())] , "toggle_visualization_visibility")
              , Self::self_shortcut(&[Key::Character("d".into())] , "debug_set_data_for_selected_node")
+             , Self::self_shortcut(&[Key::Character("f".into())]  , "cycle_visualisation_for_selected_node")
         ]
     }
 }
@@ -1200,7 +1210,15 @@ impl application::View for GraphEditor {
             })
         }));
 
+        // === Vis Cycling ===
+         def _cycle_vis= inputs.cycle_visualisation_for_selected_node.map(f!((inputs,nodes)(_) {
+            nodes.selected.for_each(|node| inputs.cycle_visualization.emit(node));
+        }));
 
+        // === Vis Set ===
+        def _update_vis_data = inputs.set_visualization.map(f!(()((node,vis)) {
+            node.visualization.frp.set_visualization.emit(vis)
+        }));
 
         // === Vis Update Data ===
 
