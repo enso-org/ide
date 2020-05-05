@@ -7,6 +7,8 @@ use enso_generics::*;
 
 use super::component::*;
 use super::component::HasComponents;
+use nalgebra::Vector3;
+use nalgebra::Vector4;
 
 
 
@@ -78,16 +80,34 @@ impl<C> From<Color<C>> for Color<Alpha<C>> {
 }
 
 impl<D> From<Color<D>> for ComponentsOf<Color<D>>
-    where D:HasComponents {
+where D:HasComponents {
     fn from(color:Color<D>) -> Self {
         color.data.into()
     }
 }
 
 impl<D> From<ComponentsOf<D>> for Color<D>
-    where D:HasComponentsRepr, ComponentsOf<D>:Into<D> {
+where D:HasComponentsRepr, ComponentsOf<D>:Into<D> {
     fn from(components:ComponentsOf<D>) -> Self {
         Self {data:components.into()}
+    }
+}
+
+impl<D> Into<Vector3<f32>> for Color<D>
+    where Self : HasComponents<ComponentsRepr=(f32,f32,f32)> {
+    fn into(self) -> Vector3<f32> {
+        let tt : Components<(f32,f32,f32)> = self.into_components();
+        let xx : Vector3<f32> = Into::<Vector3<f32>>::into(tt);
+        xx
+    }
+}
+
+impl<D> Into<Vector4<f32>> for Color<D>
+    where Self : HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
+    fn into(self) -> Vector4<f32> {
+        let tt : Components<(f32,f32,f32,f32)> = self.into_components();
+        let xx : Vector4<f32> = Into::<Vector4<f32>>::into(tt);
+        xx
     }
 }
 

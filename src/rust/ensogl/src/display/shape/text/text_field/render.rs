@@ -5,6 +5,7 @@ pub mod selection;
 
 use crate::prelude::*;
 
+use crate::data::color;
 use crate::display;
 use crate::display::object::traits::*;
 use crate::display::shape::text::glyph::font::FontHandle;
@@ -78,7 +79,7 @@ impl TextFieldSprites {
         let window_size       = properties.size;
         let color             = properties.base_color;
         let selection_system  = Self::create_selection_system(world);
-        let cursor_system     = Self::create_cursor_system(world,line_height,&color);
+        let cursor_system     = Self::create_cursor_system(world,line_height,color);
         let cursors           = Vec::new();
         let glyph_system      = GlyphSystem::new(world,font.clone_ref());
         let display_object    = display::object::Instance::new(Logger::new("RenderedContent"));
@@ -91,10 +92,10 @@ impl TextFieldSprites {
         let length            = assignment.max_glyphs_in_line;
         let indexes     = 0..glyph_lines_count;
         let glyph_lines = indexes.map(|_| {
-            let line = glyph_system.new_empty_line();
+            let line = glyph_system.new_line();
             line.set_font_size(line_height);
             line.set_font_color(color);
-            line.set_const_glyph_count(length);
+            line.set_fixed_capacity(length);
             display_object.add_child(&line);
             line
         }).collect();
@@ -102,7 +103,7 @@ impl TextFieldSprites {
             line_height,display_object,assignment}
     }
 
-    fn create_cursor_system(world:&World,line_height:f32,color:&Vector4<f32>) -> ShapeSystem {
+    fn create_cursor_system(world:&World,line_height:f32,color:color::Rgba) -> ShapeSystem {
         const WIDTH:f32         = 2.0;
         const COLOR_HIDDEN:&str = "vec4(0.0,0.0,0.0,0.0)";
         let color_glsl:Glsl     = color.into();

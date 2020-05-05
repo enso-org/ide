@@ -304,6 +304,8 @@ impl Lch {
 
 #[allow(missing_docs)]
 impl Lch {
+    pub fn white      ()             -> Lch { Lch::new(1.0,0.0,0.0) }
+    pub fn black      ()             -> Lch { Lch::new(0.0,0.0,0.0) }
     pub fn pink       (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::pink_hue())       }
     pub fn red        (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::red_hue())        }
     pub fn orange     (l:f32, c:f32) -> Lch { Lch::new(l,c,Lch::orange_hue())     }
@@ -317,6 +319,8 @@ impl Lch {
 
 #[allow(missing_docs)]
 impl Lcha {
+    pub fn white      ()             -> Lcha { Lch::white      ()    . into() }
+    pub fn black      ()             -> Lcha { Lch::black      ()    . into() }
     pub fn pink       (l:f32, c:f32) -> Lcha { Lch::pink       (l,c) . into() }
     pub fn red        (l:f32, c:f32) -> Lcha { Lch::red        (l,c) . into() }
     pub fn orange     (l:f32, c:f32) -> Lcha { Lch::orange     (l,c) . into() }

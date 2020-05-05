@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 use enso_generics::*;
+use nalgebra::Vector3;
+use nalgebra::Vector4;
 
 
 
@@ -46,6 +48,22 @@ impl<T> PopBack for Components<T>
         let (last,init) = self.0.pop_back();
         let init = Components(init);
         (last,init)
+    }
+}
+
+// === Vector Conversions ===
+
+impl<T:nalgebra::Scalar> Into<Vector3<T>> for Components<(T,T,T)> {
+    fn into(self) -> Vector3<T> {
+        let tuple = self.0;
+        Vector3::new(tuple.0,tuple.1,tuple.2)
+    }
+}
+
+impl<T:nalgebra::Scalar> Into<Vector4<T>> for Components<(T,T,T,T)> {
+    fn into(self) -> Vector4<T> {
+        let tuple = self.0;
+        Vector4::new(tuple.0,tuple.1,tuple.2,tuple.3)
     }
 }
 
