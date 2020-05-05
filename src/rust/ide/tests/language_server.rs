@@ -13,6 +13,7 @@
 use ide::prelude::*;
 
 use enso_protocol::language_server::*;
+use enso_protocol::types::*;
 use ide::transport::web::WebSocket;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 
@@ -22,10 +23,9 @@ const SERVER_ENDPOINT:&str = "ws://localhost:30616";
 
 wasm_bindgen_test_configure!(run_in_browser);
 
-//#[wasm_bindgen_test::wasm_bindgen_test(async)]
+#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn file_operations() {
-    ensogl::system::web::set_stdout();
     let ws        = WebSocket::new_opened(SERVER_ENDPOINT).await;
     let ws        = ws.expect("Couldn't connect to WebSocket server.");
     let client    = Client::new(ws);
@@ -75,8 +75,37 @@ async fn file_operations() {
     }
 
     client.move_file(new_path,move_path.clone()).await.expect("Couldn't move file");
-    let read = client.read_file(move_path).await.expect("Couldn't read contents");
+    let read = client.read_file(move_path.clone()).await.expect("Couldn't read contents");
     assert_eq!(contents,read.contents);
+
+    let receives_tree_updates   = ReceivesTreeUpdates{path:move_path.clone()};
+    let register_options        = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+    let method                  = "canEdit".to_string();
+    let capability_registration = CapabilityRegistration {method,register_options};
+    let response = client.open_text_file(move_path.clone()).await;
+    let response = response.expect("Couldn't open text file.");
+    assert_eq!(response.content, "Hello world!");
+    assert_eq!(response.write_capability, Some(capability_registration));
+
+    let start       = Position{line:0,character:5};
+    let end         = Position{line:0,character:5};
+    let range       = TextRange{start,end};
+    let text        = ",".to_string();
+    let text_edit   = TextEdit{range,text};
+    let edits       = vec![text_edit];
+    let old_version = Sha3_224::new(b"Hello world!");
+    let new_version = Sha3_224::new(b"Hello, world!");
+    let path        = move_path.clone();
+    let edit        = FileEdit {path,edits,old_version,new_version:new_version.clone()};
+    client.apply_text_file_edit(edit).await.expect("Couldn't apply edit.");
+
+    let future = client.save_text_file(move_path.clone(),new_version).await;
+    future.expect("Couldn't save file.");
+
+    client.close_text_file(move_path.clone()).await.expect("Couldn't close text file.");
+
+    let read = client.read_file(move_path.clone()).await.expect("Couldn't read contents.");
+    assert_eq!("Hello, world!".to_string(),read.contents);
 }
 
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]

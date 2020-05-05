@@ -9,6 +9,7 @@
 use crate::prelude::*;
 
 use crate::types::UTCDateTime;
+use crate::types::Sha3_224;
 
 use json_rpc::api::Result;
 use json_rpc::Handler;
@@ -204,6 +205,90 @@ pub mod response {
         #[allow(missing_docs)]
         pub attributes: FileAttributes,
     }
+
+    /// Response of `open_text_file` method.
+    #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    #[allow(missing_docs)]
+    pub struct OpenTextFile {
+        pub write_capability : Option<CapabilityRegistration>,
+        pub content          : String,
+        pub current_version  : Sha3_224
+    }
+}
+
+
+
+// ================
+// === Position ===
+// ================
+
+/// A representation of a position in a text file.
+#[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
+#[allow(missing_docs)]
+pub struct Position {
+    pub line      : u32,
+    pub character : u32
+}
+
+
+
+// =================
+// === TextRange ===
+// =================
+
+/// A representation of a range of text in a text file.
+#[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
+#[allow(missing_docs)]
+pub struct TextRange {
+    pub start : Position,
+    pub end   : Position
+}
+
+
+// ================
+// === TextEdit ===
+// ================
+
+/// A representation of a change to a text file at a given position.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct TextEdit {
+    pub range : TextRange,
+    pub text  : String
+}
+
+
+
+// ================
+// === FileEdit ===
+// ================
+
+/// A versioned representation of batch edits to a file.
+
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct FileEdit {
+    pub path        : Path,
+    pub edits       : Vec<TextEdit>,
+    pub old_version : Sha3_224,
+    pub new_version : Sha3_224
+}
+
+
+
+// ==============================
+// === CapabilityRegistration ===
+// ==============================
+
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct CapabilityRegistration {
+    pub method           : String,
+    pub register_options : RegisterOptions
 }
 
 
@@ -294,6 +379,29 @@ trait API {
     #[MethodInput=AcquireCapabilityInput,rpc_name="capability/acquire",
     result=acquire_capability_result,set_result=set_acquire_capability_result]
     fn acquire_capability(&self, method:String, register_options:RegisterOptions) -> ();
+
+    /// Open the specified file. If no user has write lock on the opened file, the write lock
+    /// capability is granted to the caller.
+    #[MethodInput=OpenTextFileInput,rpc_name="text/openFile",result=open_text_file_result,
+    set_result=set_open_text_file_result]
+    fn open_text_file(&self, path:Path) -> response::OpenTextFile;
+
+    /// Informs the language server that a client has closed the specified file.
+    #[MethodInput=CloseTextFileInput,rpc_name="text/closeFile",result=close_text_file_result,
+    set_result=set_close_text_file_result]
+    fn close_text_file(&self, path:Path) -> ();
+
+    /// Save the specified file. It may fail if the user does not have permission to edit that file.
+    #[MethodInput=SaveTextFileInput,rpc_name="text/save",result=save_text_file_result,
+    set_result=set_save_text_file_result]
+    fn save_text_file(&self, path:Path, current_version:Sha3_224) -> ();
+
+    /// Apply edits to the specified text file. This operation may fail if the user does not
+    /// have permission to edit the resources for which edits are sent. This failure may be partial,
+    /// in that some edits are applied and others are not.
+    #[MethodInput=ApplyTextFileEditInput,rpc_name="text/applyEdit",
+    result=apply_text_file_edit_result,set_result=set_apply_text_file_edit_result]
+    fn apply_text_file_edit(&self, edit:FileEdit) -> ();
 }}
 
 
