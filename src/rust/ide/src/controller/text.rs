@@ -9,8 +9,8 @@ use crate::prelude::*;
 use crate::notification;
 
 use data::text::TextChange;
-use enso_protocol::file_manager as fmc;
-use fmc::API;
+use enso_protocol::language_server;
+use enso_protocol::traits::*;
 use json_rpc::error::RpcError;
 use std::pin::Pin;
 
@@ -21,7 +21,7 @@ use std::pin::Pin;
 // ============
 
 /// Path to a file on disc.
-type Path = Rc<fmc::Path>;
+pub type FilePath = language_server::Path;
 
 
 
@@ -33,42 +33,44 @@ type Path = Rc<fmc::Path>;
 ///
 /// This makes distinction between module and plain text files. The module files are handled by
 /// Module Controller, the plain text files are handled directly by File Manager Client.
-#[derive(Clone,Debug)]
-enum FileHandle {
-    PlainText {path:Path, file_manager:Rc<fmc::Client>},
-    Module    {controller:controller::Module },
+#[derive(CloneRef,Debug,Derivative)]
+#[derivative(Clone(bound=""))]
+enum FileHandle<LanguageServerClient=language_server::Client> {
+    PlainText {path:Rc<FilePath>, language_server:Rc<LanguageServerClient>},
+    Module    {controller:controller::Module<LanguageServerClient> },
 }
 
 /// A Text Controller Handle.
 ///
 /// This struct contains all information and handles to do all module controller operations.
-#[derive(Clone,Debug)]
-pub struct Handle {
-    file: FileHandle,
+#[derive(CloneRef,Debug,Derivative)]
+#[derivative(Clone(bound=""))]
+pub struct Handle<LanguageServerClient=language_server::Client> {
+    file: FileHandle<LanguageServerClient>,
 }
 
-impl Handle {
+impl<LanguageServerClient:language_server::API> Handle<LanguageServerClient> {
 
     /// Create controller managing plain text file (which is not a module).
-    pub fn new_for_plain_text(path:fmc::Path, file_manager:Rc<fmc::Client>) -> Self {
+    pub fn new_for_plain_text(path:FilePath, language_server:Rc<LanguageServerClient>) -> Self {
         let path = Rc::new(path);
         Self {
-            file : FileHandle::PlainText {path,file_manager}
+            file : FileHandle::PlainText {path,language_server}
         }
     }
 
     /// Create controller managing Luna module file.
-    pub fn new_for_module(controller:controller::Module) -> Self {
+    pub fn new_for_module(controller:controller::Module<LanguageServerClient>) -> Self {
         Self {
             file : FileHandle::Module {controller}
         }
     }
 
     /// Get clone of file path handled by this controller.
-    pub fn file_path(&self) -> Path {
+    pub fn file_path(&self) -> &FilePath {
         match &self.file {
-            FileHandle::PlainText{path,..} => path.clone_ref(),
-            FileHandle::Module{controller} => Path::new(controller.path.clone()),
+            FileHandle::PlainText{path,..} => &*path,
+            FileHandle::Module{controller} => &*controller.path,
         }
     }
 
@@ -76,10 +78,10 @@ impl Handle {
     pub async fn read_content(&self) -> Result<String,RpcError> {
         use FileHandle::*;
         match &self.file {
-            PlainText {path,file_manager} => {
-                file_manager.read_file(path.deref().clone()).await.map(|response| response.contents)
+            PlainText {path,language_server} => {
+                language_server.read_file(path.deref().clone()).await.map(|response| response.contents)
             },
-            Module    {controller}        => Ok(controller.code())
+            Module{controller} => Ok(controller.code())
         }
     }
 
@@ -88,8 +90,8 @@ impl Handle {
         let file_handle = self.file.clone();
         async move {
             match file_handle {
-                FileHandle::PlainText {path,file_manager} => {
-                    file_manager.write_file(path.deref().clone(),content).await?
+                FileHandle::PlainText {path,language_server} => {
+                    language_server.write_file(path.deref().clone(),content).await?
                 },
                 FileHandle::Module {controller} => {
                     controller.check_code_sync(content)?;
@@ -130,12 +132,12 @@ impl Handle {
 // === Test Utilities ===
 
 #[cfg(test)]
-impl Handle {
-    /// Get FileManagerClient handle used by this controller.
-    pub fn file_manager(&self) -> Rc<fmc::Client> {
+impl<LanguageServerClient> Handle<LanguageServerClient> {
+    /// Get Language Server Client used by this controller.
+    pub fn language_server(&self) -> Rc<LanguageServerClient> {
         match &self.file {
-            FileHandle::PlainText {file_manager,..} => file_manager.clone(),
-            FileHandle::Module {controller}         => controller.file_manager.clone()
+            FileHandle::PlainText {language_server,..} => language_server.clone_ref(),
+            FileHandle::Module {controller}            => controller.language_server.clone_ref()
         }
     }
 }
@@ -161,10 +163,10 @@ mod test {
     fn passing_notifications_from_module() {
         let mut test  = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let fm         = Rc::new(fmc::Client::new(MockTransport::new()));
-            let path       = fmc::Path{root_id:default(),segments:vec!["test".into()]};
+            let ls         = Rc::new(language_server::Client::new(MockTransport::new()));
+            let path       = FilePath{root_id:default(),segments:vec!["test".into()]};
             let parser     = Parser::new().unwrap();
-            let module_res = controller::Module::new_mock(path,"main = 2+2",default(),fm,parser);
+            let module_res = controller::Module::new_mock(path,"main = 2+2",default(),ls,parser);
             let module     = module_res.unwrap();
             let controller = Handle::new_for_module(module.clone());
             let mut sub    = controller.subscribe();

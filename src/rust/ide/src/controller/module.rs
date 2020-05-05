@@ -13,10 +13,18 @@ use ast;
 use ast::HasIdMap;
 use data::text::*;
 use double_representation as dr;
-use enso_protocol::file_manager as fmc;
-use fmc::API;
+use enso_protocol::language_server;
+use enso_protocol::traits::*;
 use parser::Parser;
 
+
+
+// ============
+// === Path ===
+// ============
+
+/// Path to a file on disc.
+pub type Path = language_server::Path;
 
 
 // =========================
@@ -26,35 +34,33 @@ use parser::Parser;
 /// A Handle for Module Controller
 ///
 /// This struct contains all information and handles to do all module controller operations.
-#[derive(Clone,Debug)]
-pub struct Handle {
-    /// This module's path.
-    pub path : fmc::Path,
-    /// The current state of module.
-    pub model: Rc<model::Module>,
-    /// The File Manager Client handle.
-    pub file_manager : Rc<fmc::Client>,
-    /// The Parser handle.
-    parser : Parser,
-    /// The logger handle.
-    pub logger : Logger,
+#[allow(missing_docs)]
+#[derive(CloneRef,Debug,Derivative)]
+#[derivative(Clone(bound=""))]
+pub struct Handle<LanguageServerClient=language_server::Client> {
+    pub path            : Rc<Path>,
+    pub model           : Rc<model::Module>,
+    pub language_server : Rc<LanguageServerClient>,
+    pub parser          : Parser,
+    pub logger          : Logger,
 }
 
-impl Handle {
-    /// Create a module controller for given location.
+impl<LanguageServerClient:language_server::API> Handle<LanguageServerClient> {
+    /// Create a module controller for given path.
     ///
-    /// It may wait for module content, because the module must initialize its state.
+    /// This function won't load module from file - it just get the state in `model` argument.
     pub fn new
-    (path:fmc::Path, model:Rc<model::Module>, file_manager:Rc<fmc::Client>, parser:Parser)
+    (path:Path, model:Rc<model::Module>, language_server:Rc<LanguageServerClient>, parser:Parser)
     -> Self {
         let logger = Logger::new(format!("Module Controller {}", path));
-        Handle {path,model,file_manager,parser,logger}
+        let path   = Rc::new(path);
+        Handle {path,model,language_server,parser,logger}
     }
 
     /// Load or reload module content from file.
     pub async fn load_file(&self) -> FallibleResult<()> {
         self.logger.info(|| "Loading module file");
-        let content = self.file_manager.read_file(self.path.clone()).await?.contents;
+        let content = self.language_server.read_file(self.path.deref().clone()).await?.contents;
         self.logger.info(|| "Parsing code");
         // TODO[ao] we should not fail here when metadata are malformed, but discard them and set
         // default instead.
@@ -67,10 +73,10 @@ impl Handle {
 
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
-        let path    = self.path.clone();
-        let fm      = self.file_manager.clone();
+        let path    = self.path.deref().clone();
+        let ls      = self.language_server.clone();
         let content = self.model.source_as_string();
-        async move { Ok(fm.write_file(path,content?).await?) }
+        async move { Ok(ls.write_file(path,content?).await?) }
     }
 
     /// Updates AST after code change.
@@ -124,16 +130,17 @@ impl Handle {
 
     #[cfg(test)]
     pub fn new_mock
-    ( path     : fmc::Path
-    , code         : &str
-    , id_map       : ast::IdMap
-    , file_manager : Rc<fmc::Client>
-    , parser       : Parser
+    ( path            : Path
+    , code            : &str
+    , id_map          : ast::IdMap
+    , language_server : Rc<LanguageServerClient>
+    , parser          : Parser
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
         let ast    = parser.parse(code.to_string(),id_map.clone())?.try_into()?;
         let model  = Rc::new(model::Module::new(ast, default()));
-        Ok(Handle {path,model,file_manager,parser,logger})
+        let path   = Rc::new(path);
+        Ok(Handle {path,model,language_server,parser,logger})
     }
 
     #[cfg(test)]
@@ -160,7 +167,7 @@ mod test {
     use ast::BlockLine;
     use ast::Ast;
     use data::text::Span;
-    use enso_protocol::file_manager as fmc;
+    use enso_protocol::language_server;
     use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use uuid::Uuid;
@@ -170,9 +177,9 @@ mod test {
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let transport    = MockTransport::new();
-            let file_manager = Rc::new(fmc::Client::new(transport));
+            let file_manager = Rc::new(language_server::Client::new(transport));
             let parser       = Parser::new().unwrap();
-            let location     = fmc::Path{root_id:default(),segments:vec!["Test".into()]};
+            let location     = Path{root_id:default(),segments:vec!["Test".into()]};
 
             let uuid1        = Uuid::new_v4();
             let uuid2        = Uuid::new_v4();

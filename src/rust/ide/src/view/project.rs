@@ -12,8 +12,8 @@ use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
-use enso_protocol::file_manager as fmc;
-use fmc::API;
+use enso_protocol::language_server;
+use enso_protocol::traits::*;
 use nalgebra::Vector2;
 use shapely::shared;
 use ensogl::application::Application;
@@ -31,7 +31,7 @@ use ensogl::application::Application;
 ///      editor and it will be connected with a file under this path.
 ///      To be replaced with better mechanism once we decide how to describe
 ///      default initial layout for the project.
-const INITIAL_FILE_PATH:&str = "Main.enso";
+const INITIAL_FILE_PATH:&str = "src/Main.enso";
 
 /// Name of the main definition.
 ///
@@ -71,16 +71,8 @@ impl ProjectView {
     /// Create a new ProjectView.
     pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
-        let root_id              = controller.root_id;
-        let path                 = fmc::Path{root_id,segments:vec![]};
-        let file                 = fmc::Object{name:INITIAL_FILE_PATH.into(),path};
-        let file_system_object   = fmc::FileSystemObject::File(file);
-        // This create_file is to ensure, that our hardcoded module exists (so we don't require
-        // additional user/tester action to run IDE. It will be removed once we will support opening
-        // any module file.
-        let file_manager    = controller.file_manager.as_ref().expect("Couldn't get File Manager.");
-        file_manager.create_file(file_system_object).await?;
-        let path                 = fmc::Path{root_id,segments:vec![INITIAL_FILE_PATH.into()]};
+        let root_id              = controller.content_roots.first().expect("Project without content roots!").clone();
+        let path                 = controller::module::Path{root_id,segments:INITIAL_FILE_PATH.split("/").map(|s|s.to_string()).collect()};
         let text_controller      = controller.text_controller(path.clone()).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);

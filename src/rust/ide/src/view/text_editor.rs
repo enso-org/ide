@@ -42,11 +42,11 @@ impl {
     /// Saves text editor's content to file.
     pub fn save(&self) {
         let controller = self.controller.clone();
-        let file_path  = controller.file_path();
         let text       = self.text_field.get_content();
         let logger     = self.logger.clone();
         executor::global::spawn(async move {
             if controller.store_content(text).await.is_err() {
+                let file_path  = controller.file_path();
                 let message:&str = &format!("Failed to save file: {}", file_path);
                 logger.error(message);
             } else {
@@ -146,7 +146,7 @@ impl TextEditor {
     /// Reload the TextEditor content with data obtained from controller
     fn reload_content(&self) -> impl Future<Output=()> {
         let (logger,controller) = self.with_borrowed(|data|
-            (data.logger.clone(),data.controller.clone()));
+            (data.logger.clone(),data.controller.clone_ref()));
         let weak  = self.downgrade();
         async move {
             if let Ok(content) = controller.read_content().await {

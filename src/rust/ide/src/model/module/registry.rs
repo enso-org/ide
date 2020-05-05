@@ -3,7 +3,6 @@
 use crate::prelude::*;
 
 use crate::notification::Publisher;
-use enso_protocol::file_manager as fmc;
 
 use flo_stream::Subscriber;
 use flo_stream::MessagePublisher;
@@ -74,6 +73,9 @@ impl<Handle:Debug> Debug for Entry<Handle> {
 // === Registry ===
 // ================
 
+/// A path describing module location, used as key in Registry.
+pub type ModulePath = controller::module::Path;
+
 /// Modules' States Registry
 ///
 /// This is a centralized registry for getting Module's states handles, which ensures that each
@@ -88,7 +90,7 @@ impl<Handle:Debug> Debug for Entry<Handle> {
 /// internal mutability pattern.
 #[derive(Debug,Default)]
 pub struct Registry {
-    registry: RefCell<WeakValueHashMap<fmc::Path,WeakEntry>>
+    registry: RefCell<WeakValueHashMap<ModulePath,WeakEntry>>
 }
 
 impl Registry {
@@ -101,7 +103,7 @@ impl Registry {
     /// awaiting `loader` parameter. There is guarantee, that loader will be not polled in any other
     /// case.
     pub async fn get_or_load<F>
-    (&self, path:fmc::Path, loader:F) -> FallibleResult<Rc<model::Module>>
+    (&self, path:ModulePath, loader:F) -> FallibleResult<Rc<model::Module>>
     where F : Future<Output=FallibleResult<Rc<model::Module>>> {
         match self.get(&path).await? {
             Some(state) => Ok(state),
@@ -109,7 +111,7 @@ impl Registry {
         }
     }
 
-    async fn get(&self, path:&fmc::Path) -> Result<Option<Rc<model::Module>>,LoadingError> {
+    async fn get(&self, path:&ModulePath) -> Result<Option<Rc<model::Module>>,LoadingError> {
         loop {
             let entry = self.registry.borrow_mut().get(&path);
             match entry {
@@ -124,7 +126,7 @@ impl Registry {
 
     }
 
-    async fn load<F,E>(&self, path:fmc::Path, loader:F) -> Result<Rc<model::Module>,E>
+    async fn load<F,E>(&self, path:ModulePath, loader:F) -> Result<Rc<model::Module>,E>
     where F : Future<Output=Result<Rc<model::Module>,E>> {
         let mut publisher = Publisher::default();
         self.registry.borrow_mut().insert(path.clone(), Entry::Loading(publisher.subscribe()));
@@ -166,7 +168,7 @@ mod test {
             let state    = Rc::new(model::Module::new(ast.try_into().unwrap(),default()));
             let registry = Rc::new(Registry::default());
             let expected = state.clone_ref();
-            let path     = fmc::Path{root_id:default(),segments:vec!["test".into()]};
+            let path     = ModulePath{root_id:default(),segments:vec!["test".into()]};
 
             let loader = async move { Ok(state) };
             let module = registry.get_or_load(path.clone(),loader).await.unwrap();
@@ -186,7 +188,7 @@ mod test {
         let state2    = state1.clone_ref();
         let registry1 = Rc::new(Registry::default());
         let registry2 = registry1.clone_ref();
-        let path1     = fmc::Path{root_id:default(),segments:vec!["test".into()]};
+        let path1     = ModulePath{root_id:default(),segments:vec!["test".into()]};
         let path2     = path1.clone();
 
         let (loaded_send, loaded_recv) = futures::channel::oneshot::channel::<()>();

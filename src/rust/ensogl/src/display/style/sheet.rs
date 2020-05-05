@@ -1031,8 +1031,8 @@ mod tests {
     pub fn expr_bindings_1() {
         let mut style = SheetData::new();
 
-        let query_size_             = style.unmanaged_query("size");
-        let query_button_size       = style.unmanaged_query("button.size");
+        let _query_size             = style.unmanaged_query("size");
+        let _query_button_size      = style.unmanaged_query("button.size");
         let query_graph_button_size = style.unmanaged_query("graph.button.size");
 
         assert!(style.query_value(query_graph_button_size).is_none());
