@@ -209,14 +209,15 @@ macro_rules! warning {
 }
 
 #[macro_export]
+macro_rules! error {
+    ($($toks:tt)*) => {
+        $crate::log_template! {error $($toks)*}
+    };
+}
+
+#[macro_export]
 macro_rules! internal_warning {
     ($($toks:tt)*) => {
         $crate::log_internal_bug_template! {warning $($toks)*}
     };
-}
-
-impl Into<Logger> for &Logger {
-    fn into(self) -> Logger {
-        self.clone()
-    }
 }

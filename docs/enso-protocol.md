@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 Enso protocol mainly consists of two main components: Project Picker and File Manager. The protocol
 is described over JSON-RPC 2.0. An up-to-date and complete list of possible operations can be found
 in the [enso protocol specification document](https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md).
+=======
+Enso protocol mainly consists of two services: Project Picker and Language Server. The protocol
+is defined on top of JSON-RPC 2.0. An up-to-date and complete list of possible operations can be
+found in the [enso protocol specification document](https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md).
+>>>>>>> master
 
 # Setup
 Follow the contribution guidelines of [Enso repository](https://github.com/luna/enso/blob/master/CONTRIBUTING.md#hacking-on-enso)

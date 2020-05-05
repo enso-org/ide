@@ -104,11 +104,16 @@ struct MismatchedCrumbType;
 pub trait IntoCrumbs : IntoIterator<Item:Into<Crumb>> + Sized {
     /// Convert to the actual Crumbs structure.
     fn into_crumbs(self) -> Crumbs {
-        self.into_iter().map(|cb| cb.into()).collect()
+        iter_crumbs(self).collect()
     }
 }
 
 impl<T:IntoIterator<Item:Into<Crumb>> + Sized> IntoCrumbs for T {}
+
+/// Converts `IntoCrumbs` value into a `Crumb`-yielding iterator.
+pub fn iter_crumbs(crumbs:impl IntoCrumbs) -> impl Iterator<Item=Crumb> {
+    crumbs.into_iter().map(|crumb| crumb.into())
+}
 
 /// Sequence of `Crumb`s describing traversal path through AST.
 pub type Crumbs = Vec<Crumb>;
@@ -116,8 +121,11 @@ pub type Crumbs = Vec<Crumb>;
 /// Helper macro. Behaves like `vec!` but converts each element into `Crumb`.
 #[macro_export]
 macro_rules! crumbs {
+    ( ) => {
+        Vec::<$crate::crumbs::Crumb>::new()
+    };
     ( $( $x:expr ),* ) => {
-        vec![$(Crumb::from($x)),*]
+        vec![$($crate::crumbs::Crumb::from($x)),*]
     };
 }
 
@@ -316,8 +324,8 @@ pub enum SegmentMatchCrumb {
 #[allow(missing_docs)]
 #[derive(Clone,Debug,PartialEq,Eq,Hash,PartialOrd,Ord)]
 pub struct AmbiguousCrumb {
-    index : usize,
-    field : AmbiguousSegmentCrumb,
+    pub index : usize,
+    pub field : AmbiguousSegmentCrumb,
 }
 
 #[allow(missing_docs)]
@@ -446,6 +454,12 @@ pub trait Crumbable {
             (crumb,child)
         });
         Box::new(iter)
+    }
+
+    /// Returns child Ast subtree while keeping knowledge of its location.
+    fn get_located(&self, crumb:Self::Crumb) -> FallibleResult<Located<&Ast>> {
+        let child = self.get(&crumb)?;
+        Ok(Located::new(crumb,child))
     }
 }
 
@@ -1269,6 +1283,12 @@ impl<T> Located<T> {
         Located::new(self.crumbs, f(self.item))
     }
 
+    /// Descends into a child described from `item` by given function.
+    pub fn entered<U>(&self, f:impl FnOnce(&T) -> Located<U>) -> Located<U> {
+        let child = f(&self.item);
+        self.descendant(child.crumbs,child.item)
+    }
+
     /// Takes crumbs relative to self and item that will be wrapped.
     pub fn descendant<U>(&self, crumbs:impl IntoCrumbs, child:U) -> Located<U> {
         let crumbs_so_far = self.crumbs.iter().cloned();
@@ -1282,6 +1302,14 @@ impl<T> Located<T> {
         let mut ret = self.map(|_| item);
         ret.crumbs.extend(crumbs);
         ret
+    }
+}
+
+impl<T> Located<Option<T>> {
+    /// Propagates Option from the stored value onto self.
+    pub fn into_opt(self) -> Option<Located<T>> {
+        let Located {item,crumbs} = self;
+        item.map(|item| Located {crumbs,item})
     }
 }
 

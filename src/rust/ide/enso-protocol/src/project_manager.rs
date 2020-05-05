@@ -1,5 +1,8 @@
 //! Client library for the JSON-RPC-based Project Manager service.
 
+//FIXME: We need to review the structures' names in Enso Protocol specification
+// https://github.com/luna/enso/issues/708
+
 use crate::prelude::*;
 
 use crate::types::UTCDateTime;
@@ -65,8 +68,7 @@ trait API {
     #[MethodInput=ListSamplesInput,rpc_name="project/listSample",result=list_samples_result,
     set_result=set_list_samples_result]
     fn list_samples(&self, num_projects:u32) -> ProjectListResponse;
-}
-}
+}}
 
 
 
@@ -269,14 +271,14 @@ mod remote_client_tests {
     /// * mocks receiving a response from server with `result`
     /// * checks that FM-returned Future yields `expected_output`
     fn test_request<Fun, Fut, T>
-    ( make_request:Fun
-      , expected_method:&str
-      , expected_input:&Value
-      , result:&Value
-      , expected_output:&T )
-        where Fun : FnOnce(&mut Client) -> Fut,
-              Fut : Future<Output = Result<T>>,
-              T   : Debug + PartialEq {
+    ( make_request    : Fun
+    , expected_method : &str
+    , expected_input  : &Value
+    , result          : &Value
+    , expected_output : &T
+    ) where Fun : FnOnce(&mut Client) -> Fut,
+            Fut : Future<Output = Result<T>>,
+              T : Debug + PartialEq {
         let mut fixture = setup_fm();
         let mut fut     = Box::pin(make_request(&mut fixture.client));
 
@@ -296,7 +298,7 @@ mod remote_client_tests {
         let unit_json               = json!(null);
         let project_id              = Uuid::default();
         let create_project_response = CreateProjectResponse { project_id };
-        let project_id_json   = json!({"projectId":"00000000-0000-0000-0000-000000000000"});
+        let project_id_json         = json!({"projectId":"00000000-0000-0000-0000-000000000000"});
         let language_server_address = IpWithSocket{host:"localhost".to_string(),port:27015};
         let ip_with_address         = OpenProjectResponse { language_server_address };
         let ip_with_address_json    = json!({
