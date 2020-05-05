@@ -97,10 +97,6 @@ impl WeakElement for WeakPort {
 pub struct PortView {}
 impl component::ShapeViewDefinition for PortView {
     type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-//        shape.sprite.size().set(Vector2::new(400.0,200.0));
-        Self {}
-    }
 }
 
 /// Internal data of `Port`

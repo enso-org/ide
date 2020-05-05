@@ -26,16 +26,16 @@ use crate::display;
 // === Glyph ===
 // =============
 
-/// A glyph rendered on screen. The displayed character will be stretched to fit the entire bbox of
+/// A glyph rendered on screen. The displayed character will be stretched to fit the entire size of
 /// underlying sprite.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Glyph {
     #[shrinkwrap(main_field)]
     sprite          : Sprite,
     context         : Context,
-    msdf_index_attr : Attribute<f32>,
-    color_attr      : Attribute<Vector4<f32>>,
     font            : FontHandle,
+    color_attr      : Attribute<Vector4<f32>>,
+    msdf_index_attr : Attribute<f32>,
     msdf_uniform    : Uniform<Texture<GpuOnly,Rgb,u8>>,
 }
 
@@ -103,10 +103,10 @@ impl Line {
         let logger         = logger.sub("line");
         let display_object = display::object::Instance::new(logger);
         let glyph_system   = glyph_system.clone_ref();
-        let content        = default();
-        let glyphs         = default();
         let font_size      = Rc::new(Cell::new(11.0));
         let font_color     = Rc::new(Cell::new(color::Rgba::new(0.0,0.0,0.0,1.0)));
+        let content        = default();
+        let glyphs         = default();
         let fixed_capacity = default();
         Line {display_object,glyph_system,glyphs,font_size,font_color,content,fixed_capacity}
     }
@@ -172,6 +172,8 @@ impl Line {
 // === Internal API ===
 
 impl Line {
+    /// Resizes the line to contain enough glyphs to display the full `content`. In case the
+    /// `fixed_capacity` was set, it will add or remove the glyphs to match it.
     fn resize(&self) {
         let content_len        = self.content.borrow().len();
         let target_glyph_count = self.fixed_capacity.get().unwrap_or(content_len);
@@ -190,6 +192,7 @@ impl Line {
         }
     }
 
+    /// Updates properties of all glyphs, including characters they display, size, and colors.
     fn redraw(&self) {
         self.resize();
 
@@ -199,18 +202,20 @@ impl Line {
         let chars       = content.chars();
         let pen         = PenIterator::new(font_size,chars,font);
         let content_len = content.len();
+        let color       = self.font_color.get().into();
 
         for (glyph,(chr,x_offset)) in self.glyphs.borrow().iter().zip(pen) {
-            let glyph_info = self.glyph_system.font.get_glyph_info(chr);
-            let size       = glyph_info.scale.scale(font_size);
-            let offset     = glyph_info.offset.scale(font_size);
-            let x = x_offset + offset.x;
-            let y = offset.y;
-            glyph.set_position(Vector3::new(x,y,0.0));
+            let glyph_info   = self.glyph_system.font.get_glyph_info(chr);
+            let size         = glyph_info.scale.scale(font_size);
+            let glyph_offset = glyph_info.offset.scale(font_size);
+            let glyph_x      = x_offset + glyph_offset.x;
+            let glyph_y      = glyph_offset.y;
+            glyph.set_position(Vector3::new(glyph_x,glyph_y,0.0));
             glyph.set_glyph(chr);
-            glyph.color().set(self.font_color.get().into());
+            glyph.color().set(color);
             glyph.size().set(size);
         }
+
         for glyph in self.glyphs.borrow().iter().skip(content_len) {
             glyph.size().set(Vector2::new(0.0,0.0));
         }
@@ -269,7 +274,7 @@ impl GlyphSystem {
         }
     }
 
-    /// Create new glyph. In the returned glyph the further parameters (position, bbox, character)
+    /// Create new glyph. In the returned glyph the further parameters (position, size, character)
     /// may be set.
     pub fn new_glyph(&self) -> Glyph {
         let context         = self.context.clone();
@@ -281,7 +286,6 @@ impl GlyphSystem {
         let msdf_uniform    = self.msdf_uniform.clone();
         color_attr.set(Vector4::new(0.0,0.0,0.0,0.0));
         msdf_index_attr.set(0.0);
-
         Glyph {context,sprite,msdf_index_attr,color_attr,font,msdf_uniform}
     }
 
@@ -322,11 +326,11 @@ impl GlyphSystem {
         // FIXME which will be enabled only if pass of given attachment type was enabled.
         material.add_output("id", Vector4::<f32>::new(0.0,0.0,0.0,0.0));
 
-        let code = CodeTemplate::new(BEFORE_MAIN.to_string(),MAIN.to_string(),"".to_string());
+        let code = CodeTemplate::new(FUNCTIONS,MAIN,"");
         material.set_code(code);
         material
     }
 }
 
-const BEFORE_MAIN : &str = include_str!("glyph.glsl");
-const MAIN        : &str = "output_color = color_from_msdf(); output_id=vec4(0.0,0.0,0.0,0.0);";
+const FUNCTIONS : &str = include_str!("glyph.glsl");
+const MAIN      : &str = "output_color = color_from_msdf(); output_id=vec4(0.0,0.0,0.0,0.0);";

@@ -45,29 +45,10 @@ pub mod shape {
 /// Shape view for Cursor.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct CursorView {
-    pub scene_view    : scene::View,
-    pub resize_handle : callback::Handle,
-}
+pub struct CursorView {}
 
 impl component::ShapeViewDefinition for CursorView {
     type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
-        let scene_shape = scene.shape();
-        shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
-
-        let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
-            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
-        }));
-
-        let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
-        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
-
-        let scene_view = scene.views.new();
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene_view.add(&shape_system.shape_system.symbol);
-        Self {scene_view,resize_handle}
-    }
 }
 
 
@@ -121,20 +102,54 @@ pub struct CursorData {
     pub logger : Logger,
     pub events : Events,
     pub view   : component::ShapeView<CursorView>,
+    pub scene_view    : scene::View,
+    pub resize_handle : callback::Handle,
 }
 
 impl Cursor {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
         let logger = Logger::new("cursor");
-        let view   = component::ShapeView::new(&logger,scene);
+        let view   = component::ShapeView::<CursorView>::new(&logger,scene);
         let events = Events::default();
-        let data   = CursorData {logger,events,view};
+
+
+
+
+        let scene_shape = scene.shape();
+        let shape       = &view.data.shape;
+        shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
+
+        let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
+            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
+        }));
+
+        let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
+        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+
+        let scene_view = scene.views.new();
+        scene.views.main.remove(&shape_system.shape_system.symbol);
+        scene_view.add(&shape_system.shape_system.symbol);
+
+
+
+
+
+        let data   = CursorData {logger,events,view,scene_view,resize_handle};
         let data   = Rc::new(data);
-        Cursor {data} . init()
+
+        Cursor {data} . init(scene)
     }
 
-    fn init(self) -> Self {
+    fn init(self, scene:&Scene) -> Self {
+
+
+
+
+
+
+
+
         let network = &self.data.events.network;
 
         // FIXME: This is needed now because frp leaks memory.

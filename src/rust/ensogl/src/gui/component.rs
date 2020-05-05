@@ -67,7 +67,7 @@ pub struct ShapeViewData<T:ShapeViewDefinition> {
     /// In more complex examples, it could contain callback handles. For example, for a cursor
     /// implementation, its `data` contains a callback listening to scene size change in order to
     /// update the `shape` dimensions.
-    pub data : T,
+    pub phantom : PhantomData<T>,
     /// A shape instance. Refer to `Shape` docs to learn more.
     pub shape : T::Shape,
 }
@@ -87,8 +87,9 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
             let instance_id = *sprite.instance_id;
             shape_registry.insert_mouse_target(symbol_id,instance_id,events);
         }
-        let data = T::new(&shape,scene,shape_registry);
-        let data = ShapeViewData {data,shape};
+//        let data = T::new(&shape,scene,shape_registry);
+        let phantom = PhantomData;
+        let data = ShapeViewData {phantom,shape};
 
         Self {display_object,events,data} // . init()
     }
@@ -152,8 +153,7 @@ impl<T:ShapeViewDefinition> display::Object for ShapeView<T> {
 pub trait ShapeViewDefinition : CloneRef + 'static {
     /// Associated shape instance type.
     type Shape : Shape;
-    /// Constructor.
-    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self;
+//    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self;
 }
 
 

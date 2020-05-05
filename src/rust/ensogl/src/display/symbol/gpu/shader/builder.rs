@@ -220,7 +220,11 @@ pub struct CodeTemplate {
 
 impl CodeTemplate {
     /// Constructor.
-    pub fn new(before_main:String, main:String, after_main:String) -> Self {
+    pub fn new<B,M,A>(before_main:B, main:M, after_main:A) -> Self
+    where B:Into<String>, M:Into<String>, A:Into<String> {
+        let before_main = before_main.into();
+        let main        = main.into();
+        let after_main  = after_main.into();
         Self {before_main,main,after_main}
     }
 

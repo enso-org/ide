@@ -193,7 +193,7 @@ pub mod label {
             let line1          = self.glyph_system.new_line();
             line1.set_font_size(13.0);
             line1.set_font_color(color);
-            line1.set_text("draw_maps      distribution");
+            line1.set_text("draw_maps      (distribution normal)");
             obj.add_child(&line1);
 
             let color = color::Rgba::new(0.18, 0.173, 0.165, 1.0);
@@ -292,10 +292,6 @@ impl WeakKey for WeakNode {
 pub struct NodeView {}
 impl component::ShapeViewDefinition for NodeView {
     type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-//        shape.sprite.size().set(Vector2::new(400.0,200.0));
-        Self {}
-    }
 }
 
 /// Shape view for Node.
@@ -303,9 +299,6 @@ impl component::ShapeViewDefinition for NodeView {
 pub struct LabelView {}
 impl component::ShapeViewDefinition for LabelView {
     type Shape = label::Shape;
-    fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-        Self {}
-    }
 }
 
 /// Internal data of `Node`
@@ -341,7 +334,7 @@ impl Node {
         object.add_child(&view.display_object);
         object.add_child(&label_view.display_object);
 
-        let width = 232.0;
+        let width = 300.0;
         let height = 28.0;
 
         view.data.shape.sprite.size().set(Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0));
@@ -361,10 +354,7 @@ impl Node {
         let network = &self.data.events.network;
 
 
-        let port1 = Port::new(&self.scene);
-        self.add_child(&port1);
 
-        self.data.ports.borrow_mut().push(port1);
 
         // FIXME: This is needed now because frp leaks memory.
 //        let weak_view_data = Rc::downgrade(&self.view.data);
@@ -393,6 +383,30 @@ impl Node {
                 selection_ref.set_target_position(0.0);
             });
         }
+
+
+        //////////////////////////////////////////////////////
+
+
+        let port1 = Port::new(&self.scene);
+        self.add_child(&port1);
+
+
+        let port_network = &port1.events.network;
+
+
+        frp::extend! { port_network
+            trace port1.view.events.mouse_down;
+        }
+
+
+
+
+
+        self.data.ports.borrow_mut().push(port1);
+
+
+//        frp::extend! {  }
 
 //        // TODO this is sample functionality. Needs to be replaced with logic creating ports.
 //        let input_port = self.data.ports.input.create(&self);

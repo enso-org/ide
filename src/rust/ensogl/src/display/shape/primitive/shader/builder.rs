@@ -52,7 +52,7 @@ impl Builder {
         let defs = overload::allow_overloading(&defs);
         let code = format!("{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}",redirections,math,color,debug,shape,defs);
 
-        CodeTemplate::new(code,FRAGMENT_RUNNER.to_string(),default())
+        CodeTemplate::new(code,FRAGMENT_RUNNER.to_string(),"")
     }
 }
 
