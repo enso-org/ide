@@ -24,19 +24,18 @@ impl Sha3_224 {
     }
 }
 
-// // =============
-// // === Tests ===
-// // =============
-//
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn sha3_224() {
-//         let digest   = Sha3_224::new(b"abc");
-//         let expected = [230,66,130,76,63,140,242,74,208,146,52,238,125,60,118,111,201,163,165,22,
-//                         141,12,148,173,115,180,111,223];
-//         assert_eq!(digest.data()[..],expected);
-//     }
-// }
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sha3_224() {
+        let digest   = Sha3_224::new(b"abc");
+        let expected = "e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf".to_string();
+        assert_eq!(digest.to_string(),expected);
+    }
+}
