@@ -127,40 +127,31 @@ pub struct Attributes{
 /// A representation of what kind of type a filesystem object can be.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(tag = "type")]
+#[allow(missing_docs)]
 pub enum FileSystemObject {
     /// Represents a directory.
     Directory {
-        /// A name of the directory.
         name:String,
-        /// A path to the directory.
         path:Path,
     },
-    /// Represents a directory which contents have been truncated
+    /// Represents a directory which contents have been truncated.
     DirectoryTruncated {
-        /// A name of the directory.
         name:String,
-        /// A path to the directory.
         path:Path,
     },
     /// Represents a file.
     File {
-        /// A name of the file.
         name:String,
-        /// A path to the file.
         path:Path,
     },
     /// Represents unrecognized object. Example is a broken symbolic link.
     Other {
-        /// A name of the object.
         name:String,
-        /// A path to the object.
         path:Path,
     },
     /// Represents a symbolic link that creates a loop.
     SymlinkLoop {
-        /// A name of the symlink.
         name:String,
-        /// A path to the symlink.
         path:Path,
         /// A target of the symlink. Since it is a loop, target is a subpath of the symlink.
         target: Path,
