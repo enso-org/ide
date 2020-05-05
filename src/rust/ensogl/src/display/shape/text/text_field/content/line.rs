@@ -158,10 +158,10 @@ impl<'a> LineFullInfo<'a> {
         let line           = &mut self.line;
         let chars          = line.chars[from_index..].iter().cloned();
         let to_skip        = if line.char_x_positions.is_empty() {0} else {1};
-        let pen            = PenIterator::new(start_from,self.height,chars,self.font.clone_ref());
+        let pen            = PenIterator::new(self.height,chars,self.font.clone_ref());
 
-        for (_,position) in pen.skip(to_skip).take(to_fill) {
-            line.char_x_positions.push(position.x);
+        for (_,x_offset) in pen.skip(to_skip).take(to_fill) {
+            line.char_x_positions.push(x_position + x_offset);
         }
     }
 

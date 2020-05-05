@@ -29,8 +29,9 @@ fn init(world:&World) {
     let height           = 32.0;
     let color            = Vector4::new(0.0, 0.8, 0.0, 1.0);
     let text             = "Follow the white rabbit ...";
-    let line             = glyph_system.new_line(height,text);
-    line.set_color(color);
+    let line             = glyph_system.new_line(text);
+    line.set_font_size(height);
+    line.set_font_color(color);
 
     world.add_child(glyph_system.sprite_system());
     world.keep_alive_forever();

@@ -89,13 +89,12 @@ impl TextFieldSprites {
         let assignment        = Self::create_assignment_structure(window_size,line_height,font);
         let glyph_lines_count = assignment.glyph_lines_count();
         let length            = assignment.max_glyphs_in_line;
-        let bsl_start         = Vector2::new(0.0, 0.0);
-
         let indexes     = 0..glyph_lines_count;
         let glyph_lines = indexes.map(|_| {
-            let line = glyph_system.new_empty_line(bsl_start,line_height);
+            let line = glyph_system.new_empty_line();
+            line.set_font_size(line_height);
+            line.set_font_color(color);
             line.set_const_glyph_count(length);
-            line.set_color(color);
             line
         }).collect();
         TextFieldSprites {glyph_system,cursor_system,selection_system,glyph_lines,cursors,
@@ -191,7 +190,7 @@ impl TextFieldSprites {
         let line            = &content.lines()[fragment.line_index];
         let chars           = &line.chars()[fragment.chars_range.clone()];
         let string : String = chars.iter().collect();
-        glyph_line.set_baseline_start(bsl_start);
+        glyph_line.set_position(Vector3::new(bsl_start.x,bsl_start.y,0.0));
         glyph_line.set_text(string);
     }
 

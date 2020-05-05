@@ -21,7 +21,7 @@ use nalgebra::Vector2;
 /// for details).
 #[derive(Debug)]
 pub struct PenIterator<CharIterator> {
-    position     : Vector2<f32>,
+    x_offset     : f32,
     line_height  : f32,
     current_char : Option<char>,
     next_chars   : CharIterator,
@@ -31,7 +31,7 @@ pub struct PenIterator<CharIterator> {
 
 impl<CharIterator> Iterator for PenIterator<CharIterator>
 where CharIterator : Iterator<Item=char> {
-    type Item = (char,Vector2<f32>);
+    type Item = (char,f32);
     fn next(&mut self) -> Option<Self::Item> {
         self.next_chars.next().map(|ch| self.next_char(ch))
     }
@@ -40,24 +40,27 @@ where CharIterator : Iterator<Item=char> {
 impl<I> PenIterator<I>
 where I : Iterator<Item=char> {
     /// Create iterator wrapping `chars`, with pen starting from given position.
-    pub fn new (position:Vector2<f32>, line_height:f32, next_chars:I, font:FontHandle) -> Self {
-        let current_char = None;
+    pub fn new (line_height:f32, next_chars:I, font:FontHandle) -> Self {
+        let x_offset     = 0.0;
         let next_advance = 0.0;
-        Self {position,line_height,current_char,next_chars,next_advance,font}
+        let current_char = None;
+        Self {x_offset,line_height,current_char,next_chars,next_advance,font}
     }
 
-    fn next_char(&mut self, ch:char) -> (char,Vector2<f32>) {
+    fn next_char(&mut self, ch:char) -> (char,f32) {
         if let Some(current_ch) = self.current_char {
             self.move_pen(current_ch,ch)
         }
         self.next_advance = self.font.get_glyph_info(ch).advance;
         self.current_char = Some(ch);
-        (ch,self.position)
+        (ch,self.x_offset)
     }
 
     fn move_pen(&mut self, current:char, next:char) {
-        let kerning   = self.font.get_kerning(current,next);
-        self.position.x += (self.next_advance + kerning) * self.line_height;
+        let kerning    = self.font.get_kerning(current,next);
+        let advance    = self.next_advance + kerning;
+        let offset     = advance * self.line_height;
+        self.x_offset += offset;
     }
 }
 

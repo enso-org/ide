@@ -188,17 +188,19 @@ pub mod label {
         fn new_instance(&self) -> Self::Shape {
             let line_position = Vector2::new(0.0,0.0);
             let color         = Vector4::new(1.0, 1.0, 1.0, 0.8);
-            let height        = 13.0;
             let obj = display::object::Instance::new(Logger::new("test"));
 
             let text          = "draw_maps      distribution";
-            let line1          = self.glyph_system.new_line(height,text);
-            line1.set_color(color);
+            let line1          = self.glyph_system.new_line(text);
+            line1.set_font_size(13.0);
+            line1.set_font_color(color);
             obj.add_child(&line1);
 
             let text          = "size";
             let color         = Vector4::new(0.18, 0.173, 0.165, 1.0);
-            let line2          = self.glyph_system.new_line(height,text);
+            let line2          = self.glyph_system.new_line(text);
+            line2.set_font_size(13.0);
+            line2.set_font_color(color);
             obj.add_child(&line2);
             line2.mod_position(|t| t.x += 78.5);
 
