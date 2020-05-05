@@ -270,7 +270,7 @@ mod remote_client_tests {
         Fixture {transport,client,executor}
     }
 
-    /// Tests making a request using file manager:
+    /// Tests making a request using project manager:
     /// * creates PM client and uses `make_request` to make a request
     /// * checks that request is made for `expected_method`
     /// * checks that request input is `expected_input`

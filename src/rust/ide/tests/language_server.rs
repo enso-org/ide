@@ -1,4 +1,4 @@
-//! File Manager integration tests.
+//! Language Server integration tests.
 //!
 //! They are disabled by default, as there is no CI infrastructure to run them with Lanaguage
 //! Server. To run tests manually, uncomment the `#[wasm_bindgen_test::wasm_bindgen_test(async)]`
