@@ -69,7 +69,7 @@ pub enum Notification {
         /// The serialization format requires the information to be wrapped into a field named "event".
         /// This behavior is currently not specified by the specification and the issue has been raised
         /// to address this: https://github.com/luna/enso/issues/707
-        /// TODO [mwu] Update as the issue is resolved on way or another.
+        // TODO [mwu] Update as the issue is resolved on way or another.
         event:FileEvent,
     }
 }
