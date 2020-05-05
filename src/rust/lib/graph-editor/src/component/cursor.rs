@@ -42,14 +42,14 @@ pub mod shape {
     }
 }
 
-/// Shape view for Cursor.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct CursorView {}
-
-impl component::ShapeViewDefinition for CursorView {
-    type Shape = shape::Shape;
-}
+///// Shape view for Cursor.
+//#[derive(Clone,CloneRef,Debug)]
+//#[allow(missing_docs)]
+//pub struct CursorView {}
+//
+//impl component::ShapeViewDefinition for CursorView {
+//    type Shape = shape::Shape;
+//}
 
 
 
@@ -101,7 +101,7 @@ pub struct WeakCursor {
 pub struct CursorData {
     pub logger : Logger,
     pub events : Events,
-    pub view   : component::ShapeView<CursorView>,
+    pub view   : component::ShapeView<shape::Shape>,
     pub scene_view    : scene::View,
     pub resize_handle : callback::Handle,
 }
@@ -110,14 +110,14 @@ impl Cursor {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
         let logger = Logger::new("cursor");
-        let view   = component::ShapeView::<CursorView>::new(&logger,scene);
+        let view   = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let events = Events::default();
 
 
 
 
         let scene_shape = scene.shape();
-        let shape       = &view.data.shape;
+        let shape       = &view.shape;
         shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
 
         let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
@@ -154,9 +154,9 @@ impl Cursor {
 
         // FIXME: This is needed now because frp leaks memory.
 //        let weak_view_data = Rc::downgrade(&self.view.data);
-        let view_data = self.view.data.clone_ref();
+        let view_data = self.view.shape.clone_ref();
         let press = animation(network,move |value| {
-            view_data.shape.press.set(value)
+            view_data.press.set(value)
         });
 
 
@@ -175,12 +175,12 @@ impl Cursor {
 
     /// Position setter.
     pub fn set_position(&self, pos:Vector2<f32>) {
-        self.view.data.shape.position.set(pos);
+        self.view.shape.position.set(pos);
     }
 
     /// Selection size setter.
     pub fn set_selection_size(&self, pos:Vector2<f32>) {
-        self.view.data.shape.selection_size.set(pos);
+        self.view.shape.selection_size.set(pos);
     }
 }
 

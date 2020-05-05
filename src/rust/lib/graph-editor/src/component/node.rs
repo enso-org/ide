@@ -287,19 +287,19 @@ impl WeakKey for WeakNode {
     }
 }
 
-/// Shape view for Node.
-#[derive(Debug,Clone,CloneRef,Copy)]
-pub struct NodeView {}
-impl component::ShapeViewDefinition for NodeView {
-    type Shape = shape::Shape;
-}
-
-/// Shape view for Node.
-#[derive(Debug,Clone,CloneRef,Copy)]
-pub struct LabelView {}
-impl component::ShapeViewDefinition for LabelView {
-    type Shape = label::Shape;
-}
+///// Shape view for Node.
+//#[derive(Debug,Clone,CloneRef,Copy)]
+//pub struct NodeView {}
+//impl component::ShapeViewDefinition for NodeView {
+//    type Shape = shape::Shape;
+//}
+//
+///// Shape view for Node.
+//#[derive(Debug,Clone,CloneRef,Copy)]
+//pub struct LabelView {}
+//impl component::ShapeViewDefinition for LabelView {
+//    type Shape = label::Shape;
+//}
 
 /// Internal data of `Node`
 #[derive(Debug)]
@@ -310,8 +310,8 @@ pub struct NodeData {
     pub logger : Logger,
     pub label  : frp::Source<String>,
     pub events : Events,
-    pub label_view : component::ShapeView<LabelView>,
-    pub view   : component::ShapeView<NodeView>,
+    pub label_view : component::ShapeView<label::Shape>,
+    pub view   : component::ShapeView<shape::Shape>,
     pub ports  : Rc<RefCell<Vec<Port>>>,
 }
 
@@ -326,9 +326,9 @@ impl Node {
 
         let network = node_network;
         let logger  = Logger::new("node");
-        let view    = component::ShapeView::<NodeView>::new(&logger,scene);
+        let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let _port   = Port::new(scene); // FIXME hack for sorting
-        let label_view    = component::ShapeView::<LabelView>::new(&logger,scene);
+        let label_view    = component::ShapeView::<label::Shape>::new(&logger,scene);
         let events  = Events {network,select,deselect};
         let object  = display::object::Instance::new(&logger);
         object.add_child(&view.display_object);
@@ -337,7 +337,7 @@ impl Node {
         let width = 300.0;
         let height = 28.0;
 
-        view.data.shape.sprite.size().set(Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0));
+        view.shape.sprite.size().set(Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0));
         view.mod_position(|t| t.x += width/2.0);
         view.mod_position(|t| t.y += height/2.0);
 
@@ -358,17 +358,17 @@ impl Node {
 
         // FIXME: This is needed now because frp leaks memory.
 //        let weak_view_data = Rc::downgrade(&self.view.data);
-        let view_data = self.view.data.clone_ref();
+        let view_data = self.view.shape.clone_ref();
         let creation = animation(network, move |value| {
-            view_data.shape.creation.set(value)
+            view_data.creation.set(value)
         });
         creation.set_target_position(1.0);
 
         // FIXME: This is needed now because frp leaks memory.
 //        let weak_view_data = Rc::downgrade(&self.view.data);
-        let view_data = self.view.data.clone_ref();
+        let view_data = self.view.shape.clone_ref();
         let selection = animation(network, move |value| {
-            view_data.shape.selection.set(value)
+            view_data.selection.set(value)
         });
 
 

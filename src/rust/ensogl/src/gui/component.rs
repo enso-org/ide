@@ -52,34 +52,35 @@ impl MouseTarget for ShapeViewEvents {
 /// reference to an existing `Shape` as soon as it is placed on the scene and the scene is updated.
 /// As soon as it is removed from the scene, the shape is freed.
 #[derive(Clone,CloneRef,Debug)]
+#[clone_ref(bound="Shape:CloneRef")]
 #[allow(missing_docs)]
-pub struct ShapeView<T:ShapeViewDefinition> {
+pub struct ShapeView<Shape> {
     pub display_object : display::object::Instance,
     pub events         : ShapeViewEvents,
-    pub data           : ShapeViewData<T>,
+    pub shape          : Shape,
 }
 
-/// A structure containing data which is constructed or dropped when the `ShapeView` is added or
-/// removed from the scene.
-#[derive(Clone,CloneRef,Debug)]
-pub struct ShapeViewData<T:ShapeViewDefinition> {
-    /// A data associated with the shape. In simple cases, this data could be just a marker struct.
-    /// In more complex examples, it could contain callback handles. For example, for a cursor
-    /// implementation, its `data` contains a callback listening to scene size change in order to
-    /// update the `shape` dimensions.
-    pub phantom : PhantomData<T>,
-    /// A shape instance. Refer to `Shape` docs to learn more.
-    pub shape : T::Shape,
-}
+///// A structure containing data which is constructed or dropped when the `ShapeView` is added or
+///// removed from the scene.
+//#[derive(Clone,CloneRef,Debug)]
+//pub struct ShapeViewData<T:ShapeViewDefinition> {
+//    /// A data associated with the shape. In simple cases, this data could be just a marker struct.
+//    /// In more complex examples, it could contain callback handles. For example, for a cursor
+//    /// implementation, its `data` contains a callback listening to scene size change in order to
+//    /// update the `shape` dimensions.
+//    pub phantom : PhantomData<T>,
+//    /// A shape instance. Refer to `Shape` docs to learn more.
+//    pub shape : T::Shape,
+//}
 
-impl<T:ShapeViewDefinition> ShapeView<T> {
+impl<S:Shape> ShapeView<S> {
     /// Constructor.
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let display_object = display::object::Instance::new(logger);
         let events         = ShapeViewEvents::default();
 //        let data           = default();
         let shape_registry: &ShapeRegistry = &scene.shapes;
-        let shape = shape_registry.new_instance::<T::Shape>();
+        let shape = shape_registry.new_instance::<S>();
         display_object.add_child(&shape);
         for sprite in shape.sprites() {
             let events      = events.clone_ref();
@@ -88,10 +89,8 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
             shape_registry.insert_mouse_target(symbol_id,instance_id,events);
         }
 //        let data = T::new(&shape,scene,shape_registry);
-        let phantom = PhantomData;
-        let data = ShapeViewData {phantom,shape};
 
-        Self {display_object,events,data} // . init()
+        Self {display_object,events,shape} // . init()
     }
 
 //    fn init(self) -> Self {
@@ -142,19 +141,19 @@ impl<T:ShapeViewDefinition> ShapeView<T> {
 //    }
 }
 
-impl<T:ShapeViewDefinition> display::Object for ShapeView<T> {
+impl<T> display::Object for ShapeView<T> {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
 }
 
-/// Definition of a new shape view. In simple cases this could be a marker struct. To learn more
-/// refer to documentation of `ShapeViewData` and example usages in components.
-pub trait ShapeViewDefinition : CloneRef + 'static {
-    /// Associated shape instance type.
-    type Shape : Shape;
-//    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self;
-}
+///// Definition of a new shape view. In simple cases this could be a marker struct. To learn more
+///// refer to documentation of `ShapeViewData` and example usages in components.
+//pub trait ShapeViewDefinition : CloneRef + 'static {
+//    /// Associated shape instance type.
+//    type Shape : Shape;
+////    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self;
+//}
 
 
 

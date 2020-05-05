@@ -92,12 +92,12 @@ impl WeakElement for WeakPort {
     }
 }
 
-/// Shape view for Port.
-#[derive(Debug,Clone,CloneRef,Copy)]
-pub struct PortView {}
-impl component::ShapeViewDefinition for PortView {
-    type Shape = shape::Shape;
-}
+///// Shape view for Port.
+//#[derive(Debug,Clone,CloneRef,Copy)]
+//pub struct PortView {}
+//impl component::ShapeViewDefinition for PortView {
+//    type Shape = shape::Shape;
+//}
 
 /// Internal data of `Port`
 #[derive(Debug)]
@@ -106,7 +106,7 @@ pub struct PortData {
     pub object : display::object::Instance,
     pub logger : Logger,
     pub events : Events,
-    pub view   : component::ShapeView<PortView>,
+    pub view   : component::ShapeView<shape::Shape>,
 }
 
 impl Port {
@@ -119,7 +119,7 @@ impl Port {
         }
         let network = node_network;
         let logger  = Logger::new("node");
-        let view    = component::ShapeView::<PortView>::new(&logger,scene);
+        let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let events  = Events {network,select,deselect};
         let object  = display::object::Instance::new(&logger);
         object.add_child(&view.display_object);
@@ -127,7 +127,7 @@ impl Port {
         let width = 38.5;
         let height = 20.0;
 
-        view.data.shape.sprite.size().set(Vector2::new(width,height));
+        view.shape.sprite.size().set(Vector2::new(width,height));
         view.mod_position(|t| t.x += width/2.0 + 85.0);
         view.mod_position(|t| t.y += height/2.0 + 4.0);
         let data    = Rc::new(PortData {object,logger,events,view});
