@@ -16,6 +16,7 @@ use wasm_bindgen::JsCast;
 use weak_table::weak_key_hash_map;
 use weak_table::weak_value_hash_map;
 
+use enso_frp as frp;
 use enso_frp::stream::EventEmitter;
 
 
@@ -73,11 +74,11 @@ impl GraphEditorIntegration {
         let node_to_id = default();
         let this = Rc::new(GraphEditorIntegration {editor,controller,id_to_node,node_to_id,logger});
         Self::setup_controller_event_handling(&this);
-        Self::setup_keyboard_event_handling(&this);
-        Self::setup_mouse_event_handling(&this);
-        if let Err(err) = this.invalidate_graph() {
-            error!(this.logger,"Error while initializing graph display: {err}");
-        }
+        Self::setup_ui_event_handling(&this);
+        //TODO
+        // if let Err(err) = this.invalidate_graph() {
+        //     error!(this.logger,"Error while initializing graph display: {err}");
+        // }
         this
     }
 }
@@ -202,6 +203,56 @@ impl GraphEditorIntegration {
 }
 
 
+// === Passing UI Actions To Controllers ===
+
+impl GraphEditorIntegration {
+    ///
+    fn nodes_removed_action(&self, nodes:&Vec<WeakNode>) -> FallibleResult<()> {
+        let nodes     = nodes.iter().filter_map(|weak| weak.upgrade());
+        let nodes_ids = nodes.filter_map(|node| self.node_to_id.borrow().get(&node.id()).cloned());
+        for node_id in nodes_ids {
+            self.controller.remove_node(node_id)?;
+        }
+        Ok(())
+    }
+
+    fn node_moved_action(&self, node:&Option<WeakNode>) -> FallibleResult<()> {
+        if let Some(node) = node.as_ref().and_then(|weak| weak.upgrade()) {
+            if let Some(id) = self.node_to_id.borrow().get(&node.id()).cloned() {
+                self.controller.module.with_node_metadata(id, |md| {
+                    let pos = node.position();
+                    md.position = Some(model::module::Position::new(pos.x, pos.y));
+                })
+            }
+        }
+        Ok(())
+    }
+
+    fn connections_created_action
+    (&self, connections:&Vec<graph_editor::Connection>) -> FallibleResult<()> {
+        let connections = connections.iter().filter_map(|con| self.convert_connection2(con.clone()));
+        for connection in connections {
+            self.displayed_connections.borrow_mut().insert(connection.clone());
+            let dr_connection = connection.into_controller();
+            self.controller.connect(&dr_connection)?;
+        }
+        Ok(())
+    }
+
+    fn connections_removed_action
+    (&self, connections:&Vec<graph_editor::Connection>) -> FallibleResult<()> {
+        let connections = connections.iter().filter_map(|con| self.convert_connection2(con.clone()));
+        for connection in connections {
+            self.displayed_connections.borrow_mut().remove(&connection);
+            let dr_connection = connection.into_controller();
+            self.controller.disconnect(&dr_connection)?;
+        }
+        Ok(())
+    }
+
+}
+
+
 // === Setup ===
 
 impl GraphEditorIntegration {
@@ -221,50 +272,33 @@ impl GraphEditorIntegration {
         executor::global::spawn(handler);
     }
 
-    fn setup_keyboard_event_handling(this:&Rc<Self>) {
-        // TODO [ao] replace with actual keybindings management.
-        let weak = Rc::downgrade(this);
-        let c: Closure<dyn Fn(JsValue)> = Closure::wrap(Box::new(move |val| {
-            if let Some(this) = weak.upgrade() {
-                let val = val.unchecked_into::<web_sys::KeyboardEvent>();
-                let key = val.key();
-                if key == "Backspace" && val.ctrl_key() {
-                    this.editor.nodes.selected.for_each(|node_id| {
-                        let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0
-                        if let Some(id) = id {
-                            if let Err(err) = this.controller.graph.remove_node(id) {
-                                this.logger.error(|| format!("ERR: {:?}", err));
-                            }
-                        }
-                    });
-                    this.editor.frp.remove_selected_nodes.emit(())
-                }
-            }
-        }));
-        web::document().add_event_listener_with_callback("keydown",c.as_ref().unchecked_ref()).unwrap();
-        c.forget();
+    fn setup_ui_event_handling(this:&Rc<Self>) {
+        let frp     = &this.editor.frp;
+        Self::bind_action_to_editor_frp(this,"nodes_removed", &frp.nodes_removed_by_command, Self::nodes_removed_action);
+        Self::bind_action_to_editor_frp(this,"connections_added", &frp.connections_added_by_command, Self::connections_created_action);
+        Self::bind_action_to_editor_frp(this,"connections_removed", &frp.connections_removed_by_command, Self::connections_removed_action);
+        Self::bind_action_to_editor_frp(this,"node_moved", &frp.node_release, Self::node_moved_action);
     }
 
-    fn setup_mouse_event_handling(this:&Rc<Self>) {
-        let weak = Rc::downgrade(this);
-        let editor = this.editor.clone_ref();
-        this.editor.network.map("module_update", &this.editor.frp.node_release, move |node_id| {
-            let node_pos = editor.get_node_position(*node_id);
-            let this = weak.upgrade();
-            if let Some((node_pos,this)) = node_pos.and_then(|n| this.map(|t| (n,t))) {
-                let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0
-                if let Some(id) = id {
-                    this.controller.graph.module.with_node_metadata(id, |md| {
-                        md.position = Some(model::module::Position::new(node_pos.x, node_pos.y));
-                    })
+    fn bind_action_to_editor_frp<Action,Parameter>
+    ( this:&Rc<Self>
+    , label:frp::node::Label
+    , output:&frp::Stream<Parameter>
+    , action:Action
+    ) where Action    : Fn(&Self,&Parameter) -> FallibleResult<()> + 'static,
+            Parameter : Clone + Debug + Default + 'static {
+        let network = &this.editor.frp.network;
+        let logger  = this.logger.clone_ref();
+        let weak    = Rc::downgrade(this);
+        let lambda = move |parameter:&Parameter| {
+            if let Some(this) = weak.upgrade() {
+                let result = action(&*this,parameter);
+                if result.is_err() {
+                    error!(logger,"Error while performing UI action on controllers: {result:?}");
                 }
             }
-        });
-        // this.editor.frp.network.map("connection_created", &this.editor.frp.connections_added_by_command, move |connections| {
-        //     if let Some(this) = weak.upgrade() {
-        //         this.controller.connect()
-        //     }
-        // });
+        };
+        network.map(label,output,lambda);
     }
 
     fn convert_connection
@@ -274,6 +308,17 @@ impl GraphEditorIntegration {
         Some(graph_editor::Connection {
             source      : graph_editor::Endpoint {node:src_node, port:connection.source.port},
             destination : graph_editor::Endpoint {node:dst_node, port:connection.destination.port}
+        })
+    }
+
+    fn convert_connection2
+    (&self, connection:graph_editor::Connection) -> Option<DisplayedConnection> {
+
+        let src_node = connection.source.node.upgrade().and_then(|node|self.node_to_id.borrow().get(&node.id()).cloned())?;
+        let dst_node = connection.destination.node.upgrade().and_then(|node|self.node_to_id.borrow().get(&node.id()).cloned())?;
+        Some(DisplayedConnection {
+            source      : DisplayedEndpoint {node:src_node, port:connection.source.port},
+            destination : DisplayedEndpoint {node:dst_node, port:connection.destination.port}
         })
     }
 }
