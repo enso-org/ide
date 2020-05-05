@@ -95,6 +95,7 @@ impl TextFieldSprites {
             line.set_font_size(line_height);
             line.set_font_color(color);
             line.set_const_glyph_count(length);
+            display_object.add_child(&line);
             line
         }).collect();
         TextFieldSprites {glyph_system,cursor_system,selection_system,glyph_lines,cursors,
