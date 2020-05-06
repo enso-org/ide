@@ -182,7 +182,9 @@ impl DataRenderer for WebglBubbleChart {
         views.iter().zip(data_inner.iter()).for_each(|(view, item)| {
             view.display_object.set_position(Vector3::new(item.x, item.y, 0.0));
             // FIXME there is a bug with the radius ending up on the wrong shape.
-            view.data.borrow().as_ref().map(move |t| t.shape.radius.set(item.z));
+            if let Some(t) = view.data.borrow().as_ref() {
+                t.shape.radius.set(item.z)
+            };
             view.display_object.set_parent(&self.node);
         });
         Ok(data)

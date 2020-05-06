@@ -33,7 +33,7 @@ use web::StyleSetter;
 use ensogl::display::object::traits::*;
 use fmt;
 use std::any;
-
+use serde::Deserialize;
 
 // ============================================
 // === Wrapper for Visualisation Input Data ===
@@ -63,9 +63,18 @@ impl Data {
 
     /// Returns the wrapped data in Rust format. If the data cannot be returned as rust datatype, a
     /// `DataError` is returned instead.
-    fn as_binary<T:'static>(&self) -> Result<Rc<T>, DataError> {
+    fn as_binary<T>(&self) -> Result<Rc<T>, DataError>
+    where for<'de> T:Deserialize<'de> + 'static {
         match &self {
-            Data::JSON { .. } => { Err(DataError::InvalidDataType) },
+            Data::JSON { content } => {
+                // We try to deserialize here. Just in case it works.
+                let value : serde_json::Value = content.as_ref().clone();
+                if let Ok(result) = serde_json::from_value(value) {
+                    Ok(Rc::new(result))
+                } else {
+                    Err(DataError::InvalidDataType)
+                }
+            },
             Data::Binary { content } => { Rc::clone(content).downcast()
                 .or(Err(DataError::InvalidDataType))},
         }

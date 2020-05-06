@@ -14,7 +14,6 @@ use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
-use nalgebra::Vector2;
 
 /// Example of the visualisation JS wrapper API usage
 // TODO remove once we have proper visualizations.
@@ -45,7 +44,6 @@ pub fn make_sample_js_bubble_chart() -> JsVisualizationGeneric {
             bubble.setAttributeNS(null,"cy",data[1]);
             svgElem.appendChild(bubble);
         });
-
     }
     "#;
 
@@ -60,7 +58,6 @@ pub fn make_sample_js_bubble_chart() -> JsVisualizationGeneric {
         svgElem.setAttributeNS(null, "width",   width);
         svgElem.setAttributeNS(null, "height",  height);
     }"#;
-
     JsVisualizationGeneric::new(fn_set_data,fn_set_size).unwrap()
 }
 
@@ -78,10 +75,10 @@ pub enum Error {}
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub struct JsVisualizationGeneric {
-    set_data    : js_sys::Function,
-    set_size    : js_sys::Function,
+    set_data       : js_sys::Function,
+    set_size       : js_sys::Function,
     /// Root node of this visualisation.
-    pub content : Rc<DomSymbol>,
+    pub content    : Rc<DomSymbol>,
 }
 
 impl JsVisualizationGeneric {
@@ -89,25 +86,23 @@ impl JsVisualizationGeneric {
     ///
     /// `fn_set_data` and `fn_set_data` need to be strings that contain valid JavaScript code. This
     /// code will be executed as the function body of the respective functions. Functions arguments
-    /// are available in the body through the `arguments` variable, which is an array of arguments
-    /// passed to the function.
+    /// are available in the body through the `data` variable.
     ///
     /// TODO define exact arguments and API for all functions.
     pub fn new(fn_set_data:&str, fn_set_size:&str) -> Result<Self,Error> {
         let set_data = js_sys::Function::new_with_args(&"data", fn_set_data);
         let set_size = js_sys::Function::new_no_args(fn_set_size);
 
-        let div = web::create_div();
+        let div    = web::create_div();
         let symbol = DomSymbol::new(&div);
         symbol.dom().set_attribute("id","vis").unwrap();
-        symbol.dom().style().set_property("overflow","hidden").unwrap();
 
         let content = Rc::new(symbol);
 
         Ok(JsVisualizationGeneric { set_data,set_size,content })
     }
 
-    /// Hooks the root node int the given scene.
+    /// Hooks the root node into the given scene.
     ///
     /// MUST be called to make this visualisation visible.
     /// TODO[mm] find a better mechanism to ensure this. Probably through the registry later on.
@@ -126,19 +121,27 @@ impl DataRenderer for JsVisualizationGeneric {
 
     fn set_data(&self, data: Data) -> Result<Data,DataError> {
         // TODO proper error handling.
-        let context = JsValue::NULL;
-        // FIXME[mm] this is NOT how this is supposed to work.
-        let data_internal: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
-        let data_json = JsValue::from_serde(&data_internal).unwrap();
-        self.set_data.call1(&context,&data_json).unwrap();
+        let context  = JsValue::NULL;
+        let data_json = data.as_json()?;
+        let data_js =  if let Ok(value) = JsValue::from_serde(&data_json) {
+            value
+        } else {
+            return Err(DataError::InvalidDataType)
+        };
+        if let Err(error) =  self.set_data.call1(&context,&data_js) {
+            // TODO: consider using a logger here
+            println!("Failed to set data in {:?} with error: {:?}", self, error)
+        }
         Ok(data)
     }
 
     fn set_size(&self, size: Vector2<f32>) {
-        // TODO proper error handling.
         let context   = JsValue::NULL;
         let data_json = JsValue::from_serde(&size).unwrap();
-        self.set_size.call1(&context, &data_json).unwrap();
+        if let Err(error) = self.set_size.call1(&context, &data_json) {
+            // TODO: consider using a logger here
+            println!("Failed to set size in {:?} with error: {:?}", self, error)
+        }
     }
 }
 
