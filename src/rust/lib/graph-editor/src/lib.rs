@@ -352,6 +352,7 @@ pub struct FrpInputs {
     pub remove_all_node_output_edges   : frp::Source<NodeId>,
     pub remove_edge                    : frp::Source<EdgeId>,
     pub select_node                    : frp::Source<NodeId>,
+    pub remove_node                    : frp::Source<NodeId>,
     pub set_node_expression            : frp::Source<(NodeId,Expression)>,
     pub set_node_position              : frp::Source<(NodeId,Position)>,
     pub set_visualization_data         : frp::Source<NodeId>,
@@ -374,6 +375,7 @@ impl FrpInputs {
             def remove_all_node_output_edges   = source();
             def remove_edge                    = source();
             def select_node                    = source();
+            def remove_node                    = source();
             def set_node_expression            = source();
             def set_node_position              = source();
             def set_visualization_data         = source();
@@ -385,7 +387,7 @@ impl FrpInputs {
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
              ,remove_all_node_input_edges,remove_all_node_output_edges,set_visualization_data
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
-             ,set_node_position,select_node,translate_selected_nodes,set_node_expression
+             ,set_node_position,select_node,remove_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization}
     }
 }
