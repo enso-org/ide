@@ -88,7 +88,6 @@ In future significant improvements to this process are planned, including:
 * not requiring the engine to be able to start the IDE;
 * providing self-contained Language Server packages.
 
-
 ### Development
 As this is a multi-part project with many complex dependencies, it is equipped with a build script
 which both validates your working environment as well as takes care of providing the most suitable
