@@ -36,13 +36,13 @@ pub fn make_sample_js_bubble_chart() -> JsVisualizationGeneric {
         svgElem.setAttributeNS(null, "height", 100);
         parent.appendChild(svgElem);
 
-        data.forEach(pos => {
+        data.forEach(data => {
             const bubble = document.createElementNS(xmlns,"circle");
             bubble.setAttributeNS(null,"stroke","black");
             bubble.setAttributeNS(null,"fill","red");
-            bubble.setAttributeNS(null,"r",10.0);
-            bubble.setAttributeNS(null,"cx",pos[0]);
-            bubble.setAttributeNS(null,"cy",pos[1]);
+            bubble.setAttributeNS(null,"r", data[2]);
+            bubble.setAttributeNS(null,"cx",data[0]);
+            bubble.setAttributeNS(null,"cy",data[1]);
             svgElem.appendChild(bubble);
         });
 
@@ -98,12 +98,9 @@ impl JsVisualizationGeneric {
         let set_size = js_sys::Function::new_no_args(fn_set_size);
 
         let div = web::create_div();
-        // div.set_style_or_panic("width","100px");
-        // div.set_style_or_panic("height","100px");
-
         let symbol = DomSymbol::new(&div);
         symbol.dom().set_attribute("id","vis").unwrap();
-        // symbol.dom().style().set_property("overflow","hidden").unwrap();
+        symbol.dom().style().set_property("overflow","hidden").unwrap();
 
         let content = Rc::new(symbol);
 
@@ -131,7 +128,7 @@ impl DataRenderer for JsVisualizationGeneric {
         // TODO proper error handling.
         let context = JsValue::NULL;
         // FIXME[mm] this is NOT how this is supposed to work.
-        let data_internal: Rc<Vec<Vector2<f32>>> = data.as_binary()?;
+        let data_internal: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
         let data_json = JsValue::from_serde(&data_internal).unwrap();
         self.set_data.call1(&context,&data_json).unwrap();
         Ok(data)

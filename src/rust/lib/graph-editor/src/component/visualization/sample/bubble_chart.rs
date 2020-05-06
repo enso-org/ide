@@ -121,12 +121,9 @@ pub mod shape {
     use ensogl::display::Attribute;
 
     ensogl::define_shape_system! {
-        (position:Vector2<f32>, radius:f32) {
-
+        (radius:f32) {
             let node = Circle(radius);
-            let node = node.translate(("input_position.x","input_position.y"));
             let node = node.fill(Srgb::new(0.17,0.46,0.15));
-
             node.into()
         }
     }
@@ -142,7 +139,6 @@ impl component::ShapeViewDefinition for BubbleView {
         let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Center,
                                                 alignment::VerticalAlignment::Center);
-        shape.radius.set(10.0);
         Self {}
     }
 }
@@ -177,16 +173,18 @@ impl DataRenderer for WebglBubbleChart {
     }
 
     fn set_data(&self, data:Data) -> Result<Data,DataError> {
-        let data_inner: Rc<Vec<Vector2<f32>>> = data.as_binary()?;
+        let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
 
+        // Avoid re-creating views, if we have already created some before.
         let mut views = self.views.borrow_mut();
-        views.clear();
-        views.extend(data_inner.iter().map(|item| {
-            let view =  component::ShapeView::new(&self.logger);
+        views.resize_with(data_inner.len(), || component::ShapeView::new(&self.logger));
+
+        views.iter().zip(data_inner.iter()).for_each(|(view, item)| {
             view.display_object.set_position(Vector3::new(item.x, item.y, 0.0));
+            // FIXME there is a bug with the radius ending up on the wrong shape.
+            view.data.borrow().as_ref().map(move |t| t.shape.radius.set(item.z));
             view.display_object.set_parent(&self.node);
-            view
-        }));
+        });
         Ok(data)
     }
 
