@@ -1,6 +1,7 @@
 //! Client side implementation of Enso protocol.
 
 #![feature(associated_type_bounds)]
+#![feature(coerce_unsized)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]

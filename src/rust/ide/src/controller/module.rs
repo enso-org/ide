@@ -60,7 +60,7 @@ impl Handle {
     /// Load or reload module content from file.
     pub async fn load_file(&self) -> FallibleResult<()> {
         self.logger.info(|| "Loading module file");
-        let content = self.language_server.read_file(self.path.deref().clone()).await?.contents;
+        let content = self.language_server.client.read_file(self.path.deref().clone()).await?.contents;
         self.logger.info(|| "Parsing code");
         // TODO[ao] we should not fail here when metadata are malformed, but discard them and set
         // default instead.
@@ -76,7 +76,7 @@ impl Handle {
         let path    = self.path.deref().clone();
         let ls      = self.language_server.clone();
         let content = self.model.source_as_string();
-        async move { Ok(ls.write_file(path,content?).await?) }
+        async move { Ok(ls.client.write_file(path,content?).await?) }
     }
 
     /// Updates AST after code change.

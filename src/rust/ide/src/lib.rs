@@ -136,11 +136,12 @@ pub async fn connect_to_project_manager
 /// Connect to language server.
 pub async fn open_project
 (address:project_manager::IpWithSocket) -> FallibleResult<controller::Project> {
-    let endpoint        = format!("ws://{}:{}",address.host,address.port);
-    let transport       = WebSocket::new_opened(endpoint).await?;
-    let language_server = language_server::Client::new(transport);
-    crate::executor::global::spawn(language_server.runner());
-    controller::Project::from_unitialized_client(language_server).await
+    let endpoint   = format!("ws://{}:{}",address.host,address.port);
+    let transport  = WebSocket::new_opened(endpoint).await?;
+    let client     = language_server::Client::new(transport);
+    crate::executor::global::spawn(client.runner());
+    let connection = language_server::Connection::new(client).await?;
+    Ok(controller::Project::new(connection))
 }
 
 /// Open most recent project or create a new project if none exists.
