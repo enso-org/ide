@@ -5,19 +5,16 @@ use crate::prelude::*;
 use crate::notification;
 use crate::controller::graph::NodeTrees;
 
+use enso_frp as frp;
+use enso_frp::stream::EventEmitter;
 use ensogl::display;
 use ensogl::display::traits::*;
-use ensogl::system::web;
 use ensogl::application::Application;
 use graph_editor::GraphEditor;
 use graph_editor::component::node::WeakNode;
-use utils::channel::process_stream_with_handle;
-use wasm_bindgen::JsCast;
-use weak_table::weak_key_hash_map;
 use weak_table::weak_value_hash_map;
+use utils::channel::process_stream_with_handle;
 
-use enso_frp as frp;
-use enso_frp::stream::EventEmitter;
 
 
 // ==============================
