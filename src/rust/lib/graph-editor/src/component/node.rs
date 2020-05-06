@@ -24,6 +24,8 @@ use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
 use port::Port;
 
+use super::connection::Connection;
+
 
 /// Icons definitions.
 pub mod icons {
@@ -313,6 +315,7 @@ pub struct NodeData {
     pub label_view : component::ShapeView<label::Shape>,
     pub view   : component::ShapeView<shape::Shape>,
     pub ports  : Rc<RefCell<Vec<Port>>>,
+    pub connections : Rc<RefCell<Vec<Connection>>>
 }
 
 impl Node {
@@ -345,8 +348,9 @@ impl Node {
         label_view.mod_position(|t| t.y += 4.0 + 5.5);
 
         let ports = default();
+        let connections = default();
         let scene = scene.clone_ref();
-        let data    = Rc::new(NodeData {scene,object,logger,label,events,view,label_view,ports});
+        let data    = Rc::new(NodeData {scene,object,logger,label,events,view,label_view,ports,connections});
         Self {data} . init()
     }
 
@@ -392,18 +396,27 @@ impl Node {
         self.add_child(&port1);
 
 
-        let port_network = &port1.events.network;
+//        let port_network = &port1.events.network;
+
+        let connections = self.connections.clone_ref();
+
+        let connection1 = Connection::new(&self.scene);
+        self.add_child(&connection1);
 
 
-        frp::extend! { port_network
-            trace port1.view.events.mouse_down;
-        }
+//        frp::extend! { port_network
+//            trace port1.view.events.mouse_down;
+//            def _on_click = port1.view.events.mouse_down.map(move |_| {
+//                connections.
+//            });
+//        }
 
 
 
 
 
         self.data.ports.borrow_mut().push(port1);
+        self.data.connections.borrow_mut().push(connection1);
 
 
 //        frp::extend! {  }
