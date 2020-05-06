@@ -27,16 +27,16 @@ pub struct Connection {
     pub client_id:Uuid,
     /// LS client that has already initialized protocol.
     #[derivative(Debug="ignore")]
-    pub client:Rc<dyn API>,
+    pub client:Box<dyn API>,
     /// Content roots obtained during initialization. Guaranteed to be non-empty.
     content_roots:Vec<Uuid>,
 }
 
 impl Connection {
-    /// Takes an uninitialized client. Generates ID for it and initializes the protocol.
+    /// Takes a client, generates ID for it and initializes the protocol.
     pub async fn new(client:impl API + 'static) -> FallibleResult<Self> {
         let client_id     = Uuid::new_v4();
-        let client        = Rc::new(client);
+        let client        = Box::new(client);
         let init_response = client.init_protocol_connection(client_id).await;
         let init_response = init_response.map_err(|e| FailedToInitializeProtocol(e.into()))?;
         let content_roots = init_response.content_roots;
@@ -48,15 +48,16 @@ impl Connection {
     }
 
     /// Creates a connection which wraps a mock client.
-    pub fn new_mock(client:Rc<MockClient>) -> Connection {
-        let client_id = default();
-        let content_roots = vec![default()];
-        Connection {client_id,client,content_roots}
+    pub fn new_mock(client:MockClient) -> Connection {
+        Connection {
+            client        : Box::new(client),
+            client_id     : default(),
+            content_roots : vec![default()],
+        }
     }
 
-    /// Creates a Rc handle to a connection which wraps a default mock client.
-    pub fn new_mock_rc() -> Rc<Connection> {
-        let client = default();
+    /// Creates a Rc handle to a connection which wraps a mock client.
+    pub fn new_mock_rc(client:MockClient) -> Rc<Connection> {
         Rc::new(Self::new_mock(client))
     }
 

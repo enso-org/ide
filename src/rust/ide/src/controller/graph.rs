@@ -725,7 +725,7 @@ mod tests {
         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             let code     = code.as_ref();
-            let ls       = language_server::Connection::new_mock_rc();
+            let ls       = language_server::Connection::new_mock_rc(default());
             let path     = controller::module::Path::new(default(),&["Main"]);
             let parser   = Parser::new_or_panic();
             let module   = controller::Module::new_mock(path,code,default(),ls,parser).unwrap();
@@ -740,7 +740,7 @@ mod tests {
             where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
                   Fut  : Future<Output=()> {
             let code   = code.as_ref();
-            let ls     = language_server::Connection::new_mock_rc();
+            let ls     = language_server::Connection::new_mock_rc(default());
             let path   = controller::module::Path::new(default(),&["Main"]);
             let parser = Parser::new_or_panic();
             let module = controller::Module::new_mock(path, code, default(), ls, parser).unwrap();

@@ -73,11 +73,11 @@ impl Logger {
 
 #[cfg(target_arch = "wasm32")]
 impl Logger {
-    pub fn trace<M: LogMsg>(&self, msg: M) {
+    pub fn trace<M: LogMsg>(&self, _msg: M) {
         //console::trace_1(&self.format(msg));
     }
 
-    pub fn info<M: LogMsg>(&self, msg: M) {
+    pub fn info<M: LogMsg>(&self, _msg: M) {
         //console::info_1(&self.format(msg));
     }
 

@@ -175,7 +175,7 @@ mod test {
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
-            let ls       = language_server::Connection::new_mock_rc();
+            let ls       = language_server::Connection::new_mock_rc(default());
             let parser   = Parser::new().unwrap();
             let location = Path{root_id:default(),segments:vec!["Test".into()]};
 

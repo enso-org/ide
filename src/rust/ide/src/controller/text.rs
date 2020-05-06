@@ -161,7 +161,7 @@ mod test {
     fn passing_notifications_from_module() {
         let mut test  = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let ls         = language_server::Connection::new_mock_rc();
+            let ls         = language_server::Connection::new_mock_rc(default());
             let path       = FilePath{root_id:default(),segments:vec!["test".into()]};
             let parser     = Parser::new().unwrap();
             let module_res = controller::Module::new_mock(path,"main = 2+2",default(),ls,parser);

@@ -120,10 +120,10 @@ mod test {
             let path         = ModulePath{root_id:default(),segments:vec!["TestLocation".into()]};
             let another_path = ModulePath{root_id:default(),segments:vec!["TestLocation2".into()]};
 
-            let client       = language_server::MockClient::default();
+            let client = language_server::MockClient::default();
             client.set_file_read_result(path.clone(),Ok(language_server::response::Read{contents:"2+2".to_string()}));
             client.set_file_read_result(another_path.clone(),Ok(language_server::response::Read{contents:"2 + 2".to_string()}));
-            let connection   = language_server::Connection::new_mock(Rc::new(client));
+            let connection     = language_server::Connection::new_mock(client);
             let project        = controller::Project::new(connection);
             let module         = project.module_controller(path.clone()).await.unwrap();
             let same_module    = project.module_controller(path.clone()).await.unwrap();
@@ -135,43 +135,42 @@ mod test {
         });
     }
 
-    // #[wasm_bindgen_test]
-    // fn obtain_plain_text_controller() {
-    //     let transport       = MockTransport::new();
-    //     TestWithLocalPoolExecutor::set_up().run_task(async move {
-    //         let project_ctrl        = controller::Project::from_unitialized_client(language_server::Client::new(transport)).await.unwrap();
-    //         let root_id             = default();
-    //         let path                = FilePath{root_id,segments:vec!["TestPath".into()]};
-    //         let another_path        = FilePath{root_id,segments:vec!["TestPath2".into()]};
-    //
-    //         let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
-    //         let another_ctrl = project_ctrl.text_controller(another_path.clone()).await.unwrap();
-    //
-    //         let language_server = project_ctrl.language_server_rpc;
-    //
-    //         assert!(Rc::ptr_eq(&language_server,&text_ctrl.language_server()));
-    //         assert!(Rc::ptr_eq(&language_server,&another_ctrl.language_server()));
-    //         assert_eq!(path        , *text_ctrl   .file_path().deref()  );
-    //         assert_eq!(another_path, *another_ctrl.file_path().deref()  );
-    //     });
-    // }
-    //
-    // #[wasm_bindgen_test]
-    // fn obtain_text_controller_for_module() {
-    //     ensogl::system::web::set_stdout();
-    //     println!("Hello moje 1");
-    //     let transport       = MockTransport::new();
-    //     let mut test        = TestWithMockedTransport::set_up(&transport);
-    //     test.run_test(async move {
-    //         let project_ctrl = controller::Project::from_unitialized_client(language_server::Client::new(transport)).await.unwrap();
-    //         let file_name    = format!("test.{}",constants::LANGUAGE_FILE_EXTENSION);
-    //         let path         = ModulePath{root_id:default(),segments:vec![file_name]};
-    //         let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
-    //         let content      = text_ctrl.read_content().await.unwrap();
-    //         assert_eq!("2 + 2", content.as_str());
-    //         println!("Hello moje 2");
-    //     });
-    //     println!("Hello moje 3");
-    //     test.when_stalled_send_response("2 + 2");
-    // }
+    #[wasm_bindgen_test]
+    fn obtain_plain_text_controller() {
+        TestWithLocalPoolExecutor::set_up().run_task(async move {
+            let connection   = language_server::Connection::new_mock(default());
+            let project_ctrl = controller::Project::new(connection);
+            let root_id      = default();
+            let path         = FilePath{root_id,segments:vec!["TestPath".into()]};
+            let another_path = FilePath{root_id,segments:vec!["TestPath2".into()]};
+
+            let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
+            let another_ctrl = project_ctrl.text_controller(another_path.clone()).await.unwrap();
+
+            let language_server = project_ctrl.language_server_rpc;
+
+            assert!(Rc::ptr_eq(&language_server,&text_ctrl.language_server()));
+            assert!(Rc::ptr_eq(&language_server,&another_ctrl.language_server()));
+            assert_eq!(path        , *text_ctrl   .file_path().deref()  );
+            assert_eq!(another_path, *another_ctrl.file_path().deref()  );
+        });
+    }
+
+    #[wasm_bindgen_test]
+    fn obtain_text_controller_for_module() {
+        let mut test = TestWithLocalPoolExecutor::set_up();
+        test.run_task(async move {
+            let file_name    = format!("test.{}",constants::LANGUAGE_FILE_EXTENSION);
+            let path         = ModulePath{root_id:default(),segments:vec![file_name]};
+            let contents     = "2 + 2".to_string();
+
+            let client       = language_server::MockClient::default();
+            client.set_file_read_result(path.clone(), Ok(language_server::response::Read {contents}));
+            let connection   = language_server::Connection::new_mock(client);
+            let project_ctrl = controller::Project::new(connection);
+            let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
+            let content      = text_ctrl.read_content().await.unwrap();
+            assert_eq!("2 + 2", content.as_str());
+        });
+    }
 }
