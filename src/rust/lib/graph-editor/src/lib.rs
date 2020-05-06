@@ -52,6 +52,7 @@ use ensogl::display::world::*;
 use ensogl::display;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
+use serde_json::json;
 
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct NodeSet {
@@ -203,7 +204,7 @@ ensogl::def_command_api! { Commands
     /// Toggle the visibility of the selected visualisations
     toggle_visualization_visibility,
     /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
-    set_data_for_selected_node,
+    debug_set_data_for_selected_node,
 }
 
 
@@ -214,10 +215,10 @@ impl Commands {
             def remove_selected_nodes           = source();
             def remove_all_nodes                = source();
             def toggle_visualization_visibility = source();
-            def set_data_for_selected_node      = source();
+            def debug_set_data_for_selected_node      = source();
         }
         Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes,
-              toggle_visualization_visibility,set_data_for_selected_node}
+              toggle_visualization_visibility,debug_set_data_for_selected_node}
     }
 }
 
@@ -294,8 +295,8 @@ impl FrpInputs {
     pub fn set_visualization_data<T: AsRef<Node>>(&self, arg: T) {
         self.set_visualization_data.emit(arg.as_ref());
     }
-    pub fn set_data_for_selected_node(&self) {
-        self.set_data_for_selected_node.emit(());
+    pub fn debug_set_data_for_selected_node(&self) {
+        self.debug_set_data_for_selected_node.emit(());
     }
 }
 
@@ -419,7 +420,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
       , Self::self_shortcut(&[Key::Backspace]              , "remove_selected_nodes")
       , Self::self_shortcut(&[Key::Character(" ".into())]  , "toggle_visualization_visibility")
         // TODO move to debug scene
-      , Self::self_shortcut(&[Key::Character("d".into())]  , "set_data_for_selected_node")
+      , Self::self_shortcut(&[Key::Character("d".into())]  , "debug_set_data_for_selected_node")
         ]
     }
 }
@@ -539,8 +540,13 @@ impl application::View for GraphEditor {
 
 
         // === Vis Update Data ===
-        def _update_vis_data = inputs.set_data_for_selected_node.map(f!((inputs,nodes)(_) {
-            nodes.selected.for_each(|node| inputs.set_visualization_data(node));
+        let dummy_counter = Rc::new(Cell::new(1.0_f32));
+        def _update_vis_data = inputs.debug_set_data_for_selected_node.map(f!((nodes)(_) {
+            let dc = dummy_counter.get();
+            dummy_counter.set(dc + 0.1);
+            let content = json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin()));
+            let dummy_data = Some(visualization::Data::JSON { content });
+            nodes.selected.for_each(move |node| node.visualization.frp.set_data.emit(&dummy_data));
         }));
 
 

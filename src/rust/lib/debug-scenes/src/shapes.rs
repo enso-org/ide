@@ -6,14 +6,11 @@
 
 use ensogl::prelude::*;
 
-use enso_frp as frp;
 use ensogl::application::Application;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::object::ObjectOps;
 use ensogl::system::web;
 use graph_editor::GraphEditor;
-use graph_editor::component::visualization;
-use serde_json::json;
 use wasm_bindgen::prelude::*;
 
 
@@ -28,20 +25,6 @@ pub fn run_example_shapes() {
     mem::forget(app);
 }
 
-fn set_up_visualization_demo_frp(graph_editor:&GraphEditor) {
-    let network       = &graph_editor.frp.network;
-    let dummy_counter = Rc::new(Cell::new(1.0_f32));
-    frp::extend! { network
-        def _set_dumy_data = graph_editor.frp.inputs.set_visualization_data.map(move |node| {
-            let dc = dummy_counter.get();
-            dummy_counter.set(dc + 0.1);
-            let content = json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin()));
-            let dummy_data = Some(visualization::Data::JSON { content });
-            node.visualization.frp.set_data.emit(dummy_data);
-        });
-    };
-}
-
 fn init(app:&Application) {
     let world     = &app.display;
     let scene     = world.scene();
@@ -51,9 +34,6 @@ fn init(app:&Application) {
     app.views.register::<GraphEditor>();
     let graph_editor = app.views.new::<GraphEditor>();
     world.add_child(&graph_editor);
-
-     // Visualisation data dummy functionality
-    set_up_visualization_demo_frp(&graph_editor);
 
     let mut was_rendered = false;
     let mut loader_hidden = false;
