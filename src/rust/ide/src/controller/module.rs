@@ -23,7 +23,8 @@ use parser::Parser;
 // ============
 
 /// Path to a file on disc.
-pub type Path = Vec<String>;
+pub type Path = language_server::Path;
+
 
 
 // =========================
