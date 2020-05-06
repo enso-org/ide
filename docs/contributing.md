@@ -60,12 +60,33 @@ need the following setup:
 <br/>
 
 ## Working with sources
-Please note that you should not use a code auto-formatter in this codebase. Please read the
+Please note that you should not use a code auto-formatter in this codebase. Please read the 
 following documents to learn more about reasons behind this decision and the recommended code style
 guide. Be sure to carefully read the
 [Rust style guide 1](https://github.com/luna/ide/blob/master/docs/style-guide.md)
 and the [Rust style guide 2](https://github.com/luna/enso/blob/master/doc/rust-style-guide.md)
 before contributing to the codebase.
+
+### Setting up Engine Services
+IDE is by large a client application to the [Enso Language
+Server](https://github.com/luna/enso/tree/master/engine/language-server). Currently to run IDE, it
+is necessary to have a running Language Server on the local machine. Please note though that debug
+scenes do not require Language Server, so it is possible to hack on many parts of the project
+(primarily the display) without following this step.
+
+To run Language Server, it must be first built — please follow Enso Engine [contributing
+guidelines](https://github.com/luna/enso/blob/master/CONTRIBUTING.md) to obtain sources and
+necessary tools. When they are in place, the Language Server can be built and started by issuing the
+following command in the [enso repository](https://github.com/luna/enso) root:
+```
+luna/enso$ `sbt -java-home $JAVA_HOME -J-Xss10M project-manager/run`
+```
+
+Where `$JAVA_HOME` is the path where `graalvm-ce-java8-20.0.0` is located.
+
+In future significant improvements to this process are planned, including:
+* not requiring the engine to be able to start the IDE;
+* providing self-contained Language Server packages.
 
 
 ### Development
