@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::component::visualization::{DataRenderer,DataType,Data,DataError};
+use crate::component::visualization::{DataRenderer, DataType, Data, DataError, VisualisationFrp};
 
 use ensogl::display::{DomSymbol, DomScene};
 use std::rc::Rc;
@@ -12,12 +12,22 @@ use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::scene::Scene;
 use ensogl::display::layout::alignment;
 
-
+/// Sample implementation of a Bubble Chart using `web_sys` to build SVG output.
+/// TODO use JS instead of just string manipulations.
+#[derive(Debug)]
+#[allow(missing_docs)]
 pub struct HtmlBubbleChart {
     pub content: Rc<DomSymbol>
 }
 
 impl DataRenderer for HtmlBubbleChart {
+    fn init(&self, _frp: &VisualisationFrp) {
+        // No interaction possible at the moment.
+    }
+
+    fn valid_input_types(&self) -> Vec<DataType> {
+        unimplemented!()
+    }
 
     fn set_data(&self, data:Data) ->  Result<Data,DataError>{
         let mut svg_inner = String::new();
@@ -40,15 +50,12 @@ impl DataRenderer for HtmlBubbleChart {
     Ok(data)
     }
 
-    fn valid_input_types(&self) -> Vec<DataType> {
-        unimplemented!()
-    }
-
     fn set_size(&self, size:Vector2<f32>) {
         self.content.set_size(size);
     }
 }
 
+#[allow(missing_docs)]
 impl HtmlBubbleChart {
     pub fn new() -> Self {
         let div = web::create_div();
@@ -86,6 +93,7 @@ impl HtmlBubbleChart {
     pub fn set_dom_layer(&self, scene:&DomScene) {
         scene.manage(&self.content);
     }
+
 }
 
 impl Default for HtmlBubbleChart {
@@ -102,7 +110,7 @@ impl display::Object for HtmlBubbleChart {
 
 
 
-/// Canvas node shape definition.
+/// Bubble shape definition.
 pub mod shape {
     use super::*;
     use ensogl::display::shape::*;
@@ -124,7 +132,7 @@ pub mod shape {
     }
 }
 
-/// Shape view for Node.
+/// Shape view for Bubble.
 #[derive(Debug,Clone,Copy)]
 pub struct BubbleView {}
 impl component::ShapeViewDefinition for BubbleView {
@@ -138,12 +146,17 @@ impl component::ShapeViewDefinition for BubbleView {
         Self {}
     }
 }
+
+/// Sample implementation of a Bubble Chart using `WebGl`.
+#[derive(Debug)]
+#[allow(missing_docs)]
 pub struct WebglBubbleChart {
     pub node: display::object::Instance,
     views: RefCell<Vec<component::ShapeView<BubbleView>>>,
     logger        : Logger,
 }
 
+#[allow(missing_docs)]
 impl WebglBubbleChart {
     pub fn new() -> Self {
         let logger      = Logger::new("bubble");
@@ -156,6 +169,14 @@ impl WebglBubbleChart {
 }
 
 impl DataRenderer for WebglBubbleChart {
+    fn init(&self, _frp: &VisualisationFrp) {
+        // No interaction possible at the moment.
+    }
+
+    fn valid_input_types(&self) -> Vec<DataType> {
+        unimplemented!()
+    }
+
     fn set_data(&self, data:Data) -> Result<Data,DataError> {
         let data_inner: Rc<Vec<Vector2<f32>>> = data.as_binary()?;
 
@@ -168,10 +189,6 @@ impl DataRenderer for WebglBubbleChart {
             view
         }));
         Ok(data)
-    }
-
-    fn valid_input_types(&self) -> Vec<DataType> {
-        unimplemented!()
     }
 
     fn set_size(&self, _size:Vector2<f32>) {

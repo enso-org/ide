@@ -1,10 +1,25 @@
 //! This module defines the visualization widgets and related functionality.
 //!
-//! At the core of this functionality is the `Visualisation` that takes in data and renders an
-//! output visualisation which is displayed in a `Container`. The `Container` provides generic UI
-//! elements that facilitate generic interactions, for example, visualisation selection. The
-//! `Container` also provides the FRP API that allows internal interaction with the
-//! `Visualisation`. Data for a visualisation has to be provided wrapped in the `Data` struct.
+//! The overall architecture of visualizations consists of three parts:
+//! (1) the `DataRenderer` is a trait that sits at the core of the visualisation system. A
+//! `DataRenderer` provides the `display::Object` that shows the actual visualization. It is fed
+//! with data and provides updates about its state as well as data output.
+//!
+//! (2) the `Visualization` wraps the `DataRenderer` and implements the generic tasks that are the
+//! same for all visualisations. That is, interfacing with the other UI elements, providing data
+//! updates to the `DataRenderer`, and propagating information about the state changes in the
+//! `DataRenderer`.
+//!
+//! (3) the `Container` sits on top of the Visualisation and provides UI elements that facilitate
+//! generic interactions, for example, selecting a specific visualisation or setting input data for
+//! a `Visualisation`. The `Container` also provides the FRP API that allows internal interaction
+//! with the `Visualisation`.
+//!
+//! In addition this module also contains a `Data` struct that provides a dynamically typed way to
+//! handle data for visualisations. This allows the `Visualisation` struct to be without type
+//! parameters and simplifies the FRP communication and complexity of the node system.
+//!
+//! TODO split this into multiple files.
 pub mod sample;
 
 use crate::prelude::*;
@@ -41,7 +56,7 @@ impl Data {
     pub fn as_json(&self) -> Result<Rc<serde_json::Value>, DataError> {
         match &self {
             Data::JSON { content } => Ok(Rc::clone(content)),
-            _ => { Err(DataError::InvalidDataType)  },
+            _ => { Err(DataError::InvalidDataType{})  },
         }
     }
 
@@ -56,38 +71,80 @@ impl Data {
     }
 }
 
-#[derive(Clone,Debug)]
+
+/// Indicates a problem with the provided data. That is, the data has the wrong format, or maybe
+/// violates some other assumption of the visualization.
+#[derive(Copy,Clone,Debug)]
 pub enum DataError {
+    /// Indicates that that the provided data type does not match the expected data type.
+    /// TODO add expected/received data types as internal members.
     InvalidDataType
 }
 
-// =============================================
-// === Internal Visualisation Representation ===
-// =============================================
 
+
+// ====================
+// === DataRenderer ===
+// ====================
+
+/// At the core of the visualization system sits a `DataRenderer`. The DataRenderer is in charge of
+/// producing a `display::Object` that will be shown in the scene. It will create FRP events to
+/// indicate updates to its output data (e.g., through user interaction).
+///
+/// A DataRenderer can indicate what kind of data it can use to create a visualisation through the
+/// `valid_input_types` method. This serves as a hint, it will also reject invalid input in the
+/// `set_data` method with a `DataError`. The owner of the `DataRenderer` is in charge of producing
+/// UI feedback to indicate a problem with the data.
 pub trait DataRenderer: display::Object {
-    /// Indicate which DataTypes can be rendered by this visualization.
+    /// Will be called to initialise the renderer and provides the parent FRP to set up event
+    /// handling. This is needed so the `DataRenderer` can send events to the outside world,
+    /// without the needs for callbacks.
+    fn init(&self, frp:&VisualisationFrp);
+    /// Indicate which `DataType`s can be rendered by this visualization.
     fn valid_input_types(&self) -> Vec<DataType>;
-
-    /// Set the data that should be rendered. Returns the data as processed by this visualization.
-    /// TODO consider having different input and output types.
+    /// Set the data that should be rendered. If the data is valid, it will return the data as
+    /// processed by this `DataRenderer`, if the data is of an invalid data type, ir violates other
+    /// assumptions of this `DataRenderer`, a `DataError` is returned.
+    /// TODO[mm] reconsider returning the data here. Maybe just have an FRP event.
     fn set_data(&self, data:Data) -> Result<Data, DataError>;
-
-    /// Set the size of the visualization.
+    /// Set the size of viewport of the visualization. The visualisation must not render outside of
+    /// this viewport. TODO[mm] define and ensure consistent origin of viewport.
     fn set_size(&self, size:Vector2<f32>);
 }
 
-/// TODO check what is required here.
+/// TODO[mm] update this with actual required data for `PreprocessId`
 type PreprocessId = String;
+/// TODO consider getting rid of all callbacks in favour of FRP events.
 type StatusCallback = Rc<dyn Fn()>;
 type DataCallback = Rc<dyn Fn(&Data)>;
 type PreprocessorCallback = Rc<dyn Fn(Rc<dyn Fn(PreprocessId)>)>;
+
+/// Events that are emited by the visualisation.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct VisualisationFrp {
+    pub network           : frp::Network,
+    /// Will be emitted if the visualisation state changes (e.g., through UI interaction).
+    pub on_change         : frp::Source<Option<Data>>,
+}
+
+impl Default for VisualisationFrp {
+    fn default() -> Self {
+        frp::new_network! { visualization_events
+            def on_change    = source::<Option<Data>> ();
+        };
+        let network = visualization_events;
+        Self {network,on_change}
+    }
+}
 
 
 /// Inner representation of a visualisation.
 #[derive(Clone)]
 #[allow(missing_docs)]
 pub struct Visualization {
+    frp          : VisualisationFrp,
+    // TODO[mm] consider whether to use a `Box` and be exclusive owner of the DataRenderer.
     renderer     : Rc<dyn DataRenderer>,
     preprocessor : Option<PreprocessId>,
     on_show      : Option<StatusCallback>,
@@ -97,9 +154,9 @@ pub struct Visualization {
 }
 
 impl Debug for Visualization {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // unimplemented!()
-        Ok(())
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // TODO[mm] extend to provide actually useful information.
+        f.write_str("<Visualisation>")
     }
 }
 
@@ -111,13 +168,21 @@ impl display::Object  for Visualization {
 
 impl Visualization {
 
+    /// Create a new `Visualization` with the given `DataRenderer`.
     pub fn new(renderer:Rc<dyn DataRenderer>) -> Self {
         let preprocessor         = None;
         let on_hide              = None;
         let on_show              = None;
         let on_change            = None;
         let on_preprocess_change = None;
-        Visualization { renderer,preprocessor,on_change,on_preprocess_change,on_hide,on_show}
+        let frp                  = VisualisationFrp::default();
+        Visualization { frp,renderer,preprocessor,on_change,on_preprocess_change,on_hide,on_show}
+            .init()
+    }
+
+    fn init(self) -> Self {
+        self.renderer.init(&self.frp);
+        self
     }
 
     /// Update the visualisation with the given data. Returns an error if the data did not match
@@ -130,6 +195,7 @@ impl Visualization {
         Ok(())
      }
 
+    /// Set the viewport size of the visualisation.
     pub fn set_size(&self, size: Vector2<f32>) {
         self.renderer.set_size(size)
     }
@@ -141,7 +207,7 @@ impl Visualization {
 // === Visualization FRP ===
 // =========================
 
-/// Visualization events.
+/// Event system of the `Container`.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ContainerFrp {
