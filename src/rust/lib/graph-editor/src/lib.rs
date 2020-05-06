@@ -5,6 +5,7 @@
 //! be of poor quality. Expect drastic changes.
 
 #![feature(associated_type_defaults)]
+#![feature(clamp)]
 #![feature(drain_filter)]
 #![feature(overlapping_marker_traits)]
 #![feature(specialization)]

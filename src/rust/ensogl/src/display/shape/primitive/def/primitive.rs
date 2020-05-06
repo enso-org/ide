@@ -154,9 +154,20 @@ define_sdf_shapes! {
         return bound_sdf(position.y, bounding_box(0.0,0.0));
     }
 
-    PlaneAngle (angle:Angle<Radians>) {
+    PlaneAngleFast (angle:Angle<Radians>) {
         float v_angle  = value(angle);
-        float distance = abs(position).x*cos(v_angle/2.0) + -position.y*sin(v_angle/2.0) + 0.5;
+        float off      = 0.5; // Fixes artifacts with 0 degrees.
+        float distance = abs(position).x*cos(v_angle/2.0) - position.y*sin(v_angle/2.0) + off;
+        return bound_sdf(distance,bounding_box(0.0,0.0));
+    }
+
+    PlaneAngle (angle:Angle<Radians>) {
+        float pi_2       = 2.0 * PI;
+        float angle_norm = value(angle) / pi_2;
+              angle_norm = abs(mod(angle_norm,2.0)-1.0);
+        float angle_rad  = angle_norm * pi_2;
+        float off        = angle_norm - 0.5; // Fixes artifacts with 0 and 360 degrees.
+        float distance   = abs(position).x*cos(angle_rad/2.0) - position.y*sin(angle_rad/2.0) - off;
         return bound_sdf(distance,bounding_box(0.0,0.0));
     }
 
@@ -239,6 +250,11 @@ impl Plane {
     /// Cuts angle from the plane.
     pub fn cut_angle<T:Into<Var<Angle<Radians>>>>(&self, t:T) -> PlaneAngle {
         PlaneAngle(t)
+    }
+
+    /// Cuts angle from the plane.
+    pub fn cut_angle_fast<T:Into<Var<Angle<Radians>>>>(&self, t:T) -> PlaneAngleFast {
+        PlaneAngleFast(t)
     }
 }
 

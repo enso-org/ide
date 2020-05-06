@@ -38,7 +38,7 @@ pub mod shape {
             let width2 = width / 2.0;
             let ring   = Circle(&radius + &width2) - Circle(radius-width2);
             let rot    = -&angle/2.0 - start_angle;
-            let mask   = Plane().cut_angle(angle).rotate(rot);
+            let mask   = Plane().cut_angle_fast(angle).rotate(rot);
             let shape  = ring * mask;
             let shape  = shape.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
             shape.into()
@@ -98,7 +98,10 @@ impl AsRef<Connection> for Connection {
 }
 
 
-
+fn ease_out_quad(t:f32) -> f32 {
+    let t = t.clamp(0.0,1.0);
+    return 1.0 - (1.0 - t) * (1.0 - t);
+}
 
 
 /// Internal data of `Connection`
@@ -142,27 +145,21 @@ impl Connection {
         let port_width = 38.5;
         let port_height = 20.0;
         let node_height = 28.0;
-        let src_r = 20.0;
-        let src_x = port_x + port_width/2.0 + src_r;
-        let src_y = (node_height - port_height)/2.0 + OVERLAP;
-        let src_pos = Vector2::new(src_x,src_y);
-        src_view.shape.sprite.size().set(Vector2::new(100.0,100.0));
-        src_view.shape.radius.set(src_r);
-        src_view.shape.start_angle.set(std::f32::consts::PI / 2.0);
-        src_view.mod_position(|t| t.x = src_x);
-        src_view.mod_position(|t| t.y = src_y);
+
+        let source = Vector2::new(port_x + port_width/2.0, (node_height - port_height)/2.0 + OVERLAP);
+
+
+
 
 
         line.shape.sprite.size().set(Vector2::new(10.0,100.0));
 
 
 
-        let tgt_r = 30.0;
 
 
         tgt_view.shape.sprite.size().set(Vector2::new(100.0,100.0));
         tgt_view.shape.angle.set(std::f32::consts::PI);
-        tgt_view.shape.start_angle.set(std::f32::consts::PI * 1.5);
 
 
 
@@ -175,32 +172,108 @@ impl Connection {
 
         frp::new_network! { network
             def _tst = scene.mouse.frp.position.map(f!((line,src_view,tgt_view,helper1,helper2,helper3,helper4)(pos) {
-                let tgt_x = pos.x;
-                let tgt_y = -180.0 + pos.y;
-                let tgt_pos = Vector2::new(tgt_x,tgt_y);
+                let test_angle = pos.y / 30.0 - 1.0;
+//                println!("test_angle: {}", test_angle*180.0);
+                let test_angle = test_angle * std::f32::consts::PI;
 
-                tgt_view.shape.radius.set(tgt_r);
-                tgt_view.mod_position(|t| t.x = tgt_x);
-                tgt_view.mod_position(|t| t.y = tgt_y);
+                let target = Vector2::new(pos.x-100.0,pos.y-250.0);
+                helper1.mod_position(|p| {p.x = target.x; p.y = target.y;});
 
 
-                let ps = inner_tangent_lines_touch_points_for_two_circles(src_pos,src_r,tgt_pos,tgt_r);
-                let p1 = ps.0;
-                let p2 = ps.2;
+                let source_min_radius = 20.0;
+                let target_min_radius = 20.0;
+
+                let target_circle_radius = target_min_radius;
+
+
+                let side = target.x - source.x;
+
+
+                let diff  = Vector2::new(target.x - source.x, source.y - target.y - source_min_radius - target_min_radius);
+                let angle = f32::atan2(diff.x,diff.y) / std::f32::consts::PI;
+                let coeff = 1.0 - (angle.abs() * 2.0).clamp(0.0,1.0);
+//
+                let src_circle_radius = source_min_radius ; // + coeff * 120.0;
+                println!(">> {:?}", src_circle_radius );
+
+//                let src_circle_radius = 20.0;
+
+
+                let dir_right = (target.x - source.x) > 0.0;
+
+
+
+                let source_circle_x = if dir_right {
+                    source.x + src_circle_radius
+                } else {
+                    source.x - src_circle_radius
+                };
+
+
+                let source_circle_y = source.y;
+                let source_circle = Vector2::new(source_circle_x,source_circle_y);
+                src_view.shape.sprite.size().set(Vector2::new(400.0,400.0));
+                src_view.shape.radius.set(src_circle_radius);
+                src_view.mod_position(|t| t.x = source_circle_x);
+                src_view.mod_position(|t| t.y = source_circle_y);
+
+
+
+
+
+                let target_circle_x = if dir_right {
+                    target.x - target_circle_radius
+                } else {
+                    target.x + target_circle_radius
+                };
+
+                let target_circle_y = target.y;
+                let target_circle = Vector2::new(target_circle_x,target_circle_y);
+
+                tgt_view.shape.radius.set(target_circle_radius);
+                tgt_view.mod_position(|t| t.x = target_circle_x);
+                tgt_view.mod_position(|t| t.y = target_circle_y);
+
+
+                let ps = inner_tangent_lines_touch_points_for_two_circles(source_circle,src_circle_radius,target_circle,target_circle_radius);
+                let p1 = if dir_right { ps.0 } else { ps.1 };
+                let p2 = if dir_right { ps.2 } else { ps.3 };
 //                helper1.mod_position(|t| { t.x = p2.x; t.y = p2.y; });
 //                helper2.mod_position(|t| { t.x = ps.1.x; t.y = ps.1.y; });
 //                helper3.mod_position(|t| { t.x = ps.2.x; t.y = ps.2.y; });
 //                helper4.mod_position(|t| { t.x = ps.3.x; t.y = ps.3.y; });
 
-                let dy    = p1.y - src_y;
-                let dx    = p1.x - src_x;
-                let angle = std::f32::consts::PI + f32::atan2(dy,dx);
-                src_view.shape.angle.set(angle);
+                if dir_right {
+                    let dy    = p1.y - source_circle_y;
+                    let dx    = p1.x - source_circle_x;
+                    let angle = std::f32::consts::PI + f32::atan2(dy,dx);
+                    src_view.shape.start_angle.set(std::f32::consts::PI / 2.0);
+                    src_view.shape.angle.set(angle);
+//                    println!("angle: {}", angle*180.0 / std::f32::consts::PI);
+                } else {
+                    let dy    = p1.y - source_circle_y;
+                    let dx    = p1.x - source_circle_x;
+                    let angle = -f32::atan2(dy,dx);
+                    src_view.shape.start_angle.set(-angle - std::f32::consts::PI / 2.0);
+                    src_view.shape.angle.set(angle);
+//                    println!("angle: {}", angle*180.0 / std::f32::consts::PI);
+                }
 
-                let dy    = p2.y - tgt_y;
-                let dx    = p2.x - tgt_x;
-                let angle = f32::atan2(dy,dx);
-                tgt_view.shape.angle.set(angle);
+                if dir_right {
+                    let dy    = p2.y - target_circle_y;
+                    let dx    = p2.x - target_circle_x;
+                    let angle = f32::atan2(dy,dx);
+                    tgt_view.shape.start_angle.set(std::f32::consts::PI * 1.5);
+                    tgt_view.shape.angle.set(angle);
+                    // println!("angle: {}", angle*180.0 / std::f32::consts::PI);
+                } else {
+                    let dy    = p2.y - target_circle_y;
+                    let dx    = p2.x - target_circle_x;
+                    let angle = std::f32::consts::PI - f32::atan2(dy,dx);
+                    tgt_view.shape.start_angle.set(std::f32::consts::PI/2.0 - angle);
+                    tgt_view.shape.angle.set(angle);
+                    // println!("angle: {}", angle*180.0 / std::f32::consts::PI);
+                }
 
                 let line_pos = (p1 + p2)/2.0;
                 let line_pos = Vector3::new(line_pos.x, line_pos.y, 0.0);
@@ -211,7 +284,6 @@ impl Connection {
                 line.shape.sprite.size().set(Vector2::new(10.0,dist + 2.0));
                 line.mod_rotation(|r| r.z = angle);
 
-                println!("{}", angle);
             }));
         }
 
