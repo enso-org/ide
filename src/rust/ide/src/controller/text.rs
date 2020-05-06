@@ -10,7 +10,6 @@ use crate::notification;
 
 use data::text::TextChange;
 use enso_protocol::language_server;
-use enso_protocol::traits::*;
 use json_rpc::error::RpcError;
 use std::pin::Pin;
 
@@ -35,9 +34,9 @@ pub type FilePath = language_server::Path;
 /// Module Controller, the plain text files are handled directly by File Manager Client.
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
-enum FileHandle<LanguageServerClient=language_server::Client> {
-    PlainText {path:Rc<FilePath>, language_server:Rc<LanguageServerClient>},
-    Module    {controller:controller::Module<LanguageServerClient> },
+enum FileHandle {
+    PlainText {path:Rc<FilePath>, language_server:Rc<language_server::Connection>},
+    Module    {controller:controller::Module },
 }
 
 /// A Text Controller Handle.
@@ -45,14 +44,14 @@ enum FileHandle<LanguageServerClient=language_server::Client> {
 /// This struct contains all information and handles to do all module controller operations.
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct Handle<LanguageServerClient=language_server::Client> {
-    file: FileHandle<LanguageServerClient>,
+pub struct Handle {
+    file: FileHandle,
 }
 
-impl<LanguageServerClient:language_server::API> Handle<LanguageServerClient> {
+impl Handle {
 
     /// Create controller managing plain text file (which is not a module).
-    pub fn new_for_plain_text(path:FilePath, language_server:Rc<LanguageServerClient>) -> Self {
+    pub fn new_for_plain_text(path:FilePath, language_server:Rc<language_server::Connection>) -> Self {
         let path = Rc::new(path);
         Self {
             file : FileHandle::PlainText {path,language_server}
@@ -60,7 +59,7 @@ impl<LanguageServerClient:language_server::API> Handle<LanguageServerClient> {
     }
 
     /// Create controller managing Luna module file.
-    pub fn new_for_module(controller:controller::Module<LanguageServerClient>) -> Self {
+    pub fn new_for_module(controller:controller::Module) -> Self {
         Self {
             file : FileHandle::Module {controller}
         }
@@ -132,9 +131,9 @@ impl<LanguageServerClient:language_server::API> Handle<LanguageServerClient> {
 // === Test Utilities ===
 
 #[cfg(test)]
-impl<LanguageServerClient> Handle<LanguageServerClient> {
+impl Handle {
     /// Get Language Server Client used by this controller.
-    pub fn language_server(&self) -> Rc<LanguageServerClient> {
+    pub fn language_server(&self) -> Rc<language_server::Connection> {
         match &self.file {
             FileHandle::PlainText {language_server,..} => language_server.clone_ref(),
             FileHandle::Module {controller}            => controller.language_server.clone_ref()
@@ -155,7 +154,6 @@ mod test {
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use data::text::Index;
-    use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -163,7 +161,7 @@ mod test {
     fn passing_notifications_from_module() {
         let mut test  = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let ls         = Rc::new(language_server::Client::new(MockTransport::new()));
+            let ls         = language_server::Connection::new_mock_rc();
             let path       = FilePath{root_id:default(),segments:vec!["test".into()]};
             let parser     = Parser::new().unwrap();
             let module_res = controller::Module::new_mock(path,"main = 2+2",default(),ls,parser);

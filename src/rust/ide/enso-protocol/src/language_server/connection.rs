@@ -1,0 +1,81 @@
+//! Module for utilities regarding establishing and storing the Language Server RPC connection.
+
+use crate::prelude::*;
+
+use crate::language_server::API;
+
+use uuid::Uuid;
+use utils::fail::FallibleResult;
+
+
+#[allow(missing_docs)]
+#[derive(Fail,Debug)]
+#[fail(display="Failed to initialize language server RPC connection: {}.",_0)]
+pub struct FailedToInitializeProtocol(failure::Error);
+
+#[allow(missing_docs)]
+#[derive(Fail,Clone,Copy,Debug)]
+#[fail(display="Language Server provided no content roots.")]
+pub struct NoContentRoots;
+
+/// An established, initialized connection to language server's RPC endpoint.
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct Connection {
+    /// The ID of the client.
+    pub client_id:Uuid,
+    /// LS client that has already initialized protocol.
+    #[derivative(Debug="ignore")]
+    pub client:Box<dyn API>,
+    /// Content roots obtained during initialization. Guaranteed to be non-empty.
+    content_roots:Vec<Uuid>,
+}
+
+impl Connection {
+    /// Takes an unitialized client. Generates ID for it and initializes the protocol.
+    pub async fn new(client:impl API + 'static) -> FallibleResult<Self> {
+        let client_id     = Uuid::new_v4();
+        let client        = Box::new(client);
+        let init_response = client.init_protocol_connection(client_id).await;
+        let init_response = init_response.map_err(|e| FailedToInitializeProtocol(e.into()))?;
+        let content_roots = init_response.content_roots;
+        if content_roots.is_empty() {
+            Err(NoContentRoots.into())
+        } else {
+            Ok(Connection {client_id,client,content_roots})
+        }
+    }
+
+    /// Creates a connection which wraps a mock client.
+    pub fn new_mock() -> Self {
+        let client = crate::language_server::MockClient::default();
+        Connection {
+            client_id     : default(),
+            client        : Box::new(client),
+            content_roots : vec![default()],
+        }
+    }
+
+    /// Creates a Rc handle to a connection which wraps a mock client.
+    pub fn new_mock_rc() -> Rc<Self> {
+        Rc::new(Self::new_mock())
+    }
+
+    /// Returns the first content root.
+    pub fn content_root(&self) -> Uuid {
+        // Guaranteed to be non-empty thanks to check in `new` and implementation of `new_mock`.
+        self.content_roots[0]
+    }
+
+    /// Lists all content roots for this LS connection.
+    pub fn content_roots(&self) -> &Vec<Uuid> {
+        &self.content_roots
+    }
+}
+
+impl Deref for Connection {
+    type Target = dyn API;
+    fn deref(&self) -> &Self::Target {
+        self.client.as_ref()
+    }
+}

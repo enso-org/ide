@@ -12,8 +12,6 @@ use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
-use enso_protocol::language_server;
-use enso_protocol::traits::*;
 use nalgebra::Vector2;
 use shapely::shared;
 use ensogl::application::Application;
@@ -31,7 +29,7 @@ use ensogl::application::Application;
 ///      editor and it will be connected with a file under this path.
 ///      To be replaced with better mechanism once we decide how to describe
 ///      default initial layout for the project.
-const INITIAL_FILE_PATH:&str = "src/Main.enso";
+const INITIAL_FILE_PATH: [&str;2] = ["src","Main.enso"];
 
 /// Name of the main definition.
 ///
@@ -71,8 +69,8 @@ impl ProjectView {
     /// Create a new ProjectView.
     pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
-        let root_id              = controller.content_roots.first().expect("Project without content roots!").clone();
-        let path                 = controller::module::Path{root_id,segments:INITIAL_FILE_PATH.split("/").map(|s|s.to_string()).collect()};
+        let root_id              = controller.language_server_rpc.content_root().clone();
+        let path                 = controller::module::Path::new(root_id,&INITIAL_FILE_PATH);
         let text_controller      = controller.text_controller(path.clone()).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);

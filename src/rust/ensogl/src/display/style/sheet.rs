@@ -896,7 +896,7 @@ mod tests {
 
     #[test]
     pub fn memory_management_for_single_value() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
         sheet.set("size",data(1.0));
         assert_query_sheet_count(&sheet,0,1);
         sheet.unset("size");

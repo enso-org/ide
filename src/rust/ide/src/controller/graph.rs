@@ -400,6 +400,7 @@ impl Handle {
     pub fn new_unchecked(module:Rc<model::Module>, parser:Parser, id:Id) -> Handle {
         let id = Rc::new(id);
         let logger = Logger::new(format!("Graph Controller {}", id));
+        logger.warning(|| "opened");
         Handle {module,parser,id,logger}
     }
 
@@ -590,7 +591,7 @@ impl Handle {
         let ast_so_far     = self.module.ast();
         let definition     = definition::locate(&ast_so_far, &self.id)?;
         let new_definition = f(definition.item)?;
-        trace!(self.logger, "Applying graph changes onto definition");
+        warning!(self.logger, "Applying graph changes onto definition");
         let new_ast    = new_definition.ast.into();
         let new_module = ast_so_far.set_traversing(&definition.crumbs,new_ast)?;
         self.module.update_ast(new_module);
@@ -610,7 +611,7 @@ impl Handle {
 
     /// Adds a new node to the graph and returns information about created node.
     pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
-        trace!(self.logger, "Adding node with expression `{node.expression}`");
+        warning!(self.logger, "Adding node with expression `{node.expression}`");
         let ast           = self.parse_node_expression(&node.expression)?;
         let mut node_info = node::NodeInfo::from_line_ast(&ast).ok_or(FailedToCreateNode)?;
         if let Some(desired_id) = node.id {
@@ -633,7 +634,7 @@ impl Handle {
 
     /// Removes the node with given Id.
     pub fn remove_node(&self, id:ast::Id) -> FallibleResult<()> {
-        trace!(self.logger, "Removing node {id}");
+        warning!(self.logger, "Removing node {id}");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
             graph.remove_node(id)?;
@@ -647,14 +648,14 @@ impl Handle {
 
     /// Sets the given's node expression.
     pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult<()> {
-        //trace!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
+        warning!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
         let new_expression_ast = self.parse_node_expression(expression_text)?;
         self.set_expression_ast(id,new_expression_ast)
     }
 
     /// Sets the given's node expression.
     pub fn set_expression_ast(&self, id:ast::Id, expression:Ast) -> FallibleResult<()> {
-        trace!(self.logger, "Setting node {id} expression to `{expression.repr()}`");
+        warning!(self.logger, "Setting node {id} expression to `{expression.repr()}`");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
             graph.edit_node(id,expression)?;
@@ -672,7 +673,7 @@ impl Handle {
             let mut graph = GraphInfo::from_definition(definition);
             graph.update_node(id,|node| {
                 let new_node = f(node);
-                trace!(self.logger, "Setting node {id} line to `{new_node.repr()}`");
+                warning!(self.logger, "Setting node {id} line to `{new_node.repr()}`");
                 Some(new_node)
             })?;
             Ok(graph.source)
@@ -707,7 +708,6 @@ mod tests {
     use data::text::Index;
     use data::text::TextChange;
     use enso_protocol::language_server;
-    use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -725,8 +725,8 @@ mod tests {
         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             let code     = code.as_ref();
-            let ls       = Rc::new(language_server::Client::new(MockTransport::new()));
-            let path     = controller::module::Path{root_id:default(),segments:vec!["Main".into()]};
+            let ls       = language_server::Connection::new_mock_rc();
+            let path     = controller::module::Path::new(default(),&["Main"]);
             let parser   = Parser::new_or_panic();
             let module   = controller::Module::new_mock(path,code,default(),ls,parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
@@ -740,8 +740,8 @@ mod tests {
             where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
                   Fut  : Future<Output=()> {
             let code   = code.as_ref();
-            let ls     = Rc::new(language_server::Client::new(MockTransport::new()));
-            let path   = controller::module::Path{root_id:default(),segments:vec!["Main".into()]};
+            let ls     = language_server::Connection::new_mock_rc();
+            let path   = controller::module::Path::new(default(),&["Main"]);
             let parser = Parser::new_or_panic();
             let module = controller::Module::new_mock(path, code, default(), ls, parser).unwrap();
             let graph  = module.graph_controller(graph_id).unwrap();

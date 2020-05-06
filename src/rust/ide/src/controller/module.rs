@@ -14,7 +14,6 @@ use ast::HasIdMap;
 use data::text::*;
 use double_representation as dr;
 use enso_protocol::language_server;
-use enso_protocol::traits::*;
 use parser::Parser;
 
 
@@ -24,7 +23,7 @@ use parser::Parser;
 // ============
 
 /// Path to a file on disc.
-pub type Path = language_server::Path;
+pub type Path = Vec<String>;
 
 
 // =========================
@@ -37,20 +36,20 @@ pub type Path = language_server::Path;
 #[allow(missing_docs)]
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct Handle<LanguageServerClient=language_server::Client> {
+pub struct Handle {
     pub path            : Rc<Path>,
     pub model           : Rc<model::Module>,
-    pub language_server : Rc<LanguageServerClient>,
+    pub language_server : Rc<language_server::Connection>,
     pub parser          : Parser,
     pub logger          : Logger,
 }
 
-impl<LanguageServerClient:language_server::API> Handle<LanguageServerClient> {
+impl Handle {
     /// Create a module controller for given path.
     ///
     /// This function won't load module from file - it just get the state in `model` argument.
     pub fn new
-    (path:Path, model:Rc<model::Module>, language_server:Rc<LanguageServerClient>, parser:Parser)
+    (path:Path, model:Rc<model::Module>, language_server:Rc<language_server::Connection>, parser:Parser)
     -> Self {
         let logger = Logger::new(format!("Module Controller {}", path));
         let path   = Rc::new(path);
@@ -133,7 +132,7 @@ impl<LanguageServerClient:language_server::API> Handle<LanguageServerClient> {
     ( path            : Path
     , code            : &str
     , id_map          : ast::IdMap
-    , language_server : Rc<LanguageServerClient>
+    , language_server : Rc<language_server::Connection>
     , parser          : Parser
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
@@ -168,7 +167,6 @@ mod test {
     use ast::Ast;
     use data::text::Span;
     use enso_protocol::language_server;
-    use json_rpc::test_util::transport::mock::MockTransport;
     use parser::Parser;
     use uuid::Uuid;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -176,23 +174,21 @@ mod test {
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
-            let transport    = MockTransport::new();
-            let file_manager = Rc::new(language_server::Client::new(transport));
-            let parser       = Parser::new().unwrap();
-            let location     = Path{root_id:default(),segments:vec!["Test".into()]};
+            let ls       = language_server::Connection::new_mock_rc();
+            let parser   = Parser::new().unwrap();
+            let location = Path{root_id:default(),segments:vec!["Test".into()]};
 
-            let uuid1        = Uuid::new_v4();
-            let uuid2        = Uuid::new_v4();
-            let uuid3        = Uuid::new_v4();
-            let module       = "2+2";
-            let id_map       = ast::IdMap::new(vec!
+            let uuid1    = Uuid::new_v4();
+            let uuid2    = Uuid::new_v4();
+            let uuid3    = Uuid::new_v4();
+            let module   = "2+2";
+            let id_map   = ast::IdMap::new(vec!
                 [ (Span::new(Index::new(0),Size::new(1)),uuid1.clone())
                 , (Span::new(Index::new(2),Size::new(1)),uuid2)
                 , (Span::new(Index::new(0),Size::new(3)),uuid3)
                 ]);
 
-            let controller   = Handle::new_mock
-            (location,module,id_map,file_manager,parser).unwrap();
+            let controller   = Handle::new_mock(location,module,id_map,ls,parser).unwrap();
 
             let mut text_notifications  = controller.model.subscribe_text_notifications();
             let mut graph_notifications = controller.model.subscribe_graph_notifications();

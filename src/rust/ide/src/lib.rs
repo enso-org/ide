@@ -62,7 +62,6 @@ use crate::view::project::ProjectView;
 
 use enso_protocol::language_server;
 use enso_protocol::project_manager;
-use enso_protocol::traits::*;
 
 
 
@@ -141,7 +140,7 @@ pub async fn open_project
     let transport       = WebSocket::new_opened(endpoint).await?;
     let language_server = language_server::Client::new(transport);
     crate::executor::global::spawn(language_server.runner());
-    Ok(controller::Project::new_with_initialized_connections(language_server).await)
+    controller::Project::from_unitialized_client(language_server).await
 }
 
 /// Open most recent project or create a new project if none exists.
@@ -153,7 +152,7 @@ pub async fn open_most_recent_project_or_create_new
     } else {
         project_manager.create_project(DEFAULT_PROJECT_NAME.into()).await?.project_id
     };
-    let address = project_manager.open_project(project_id).await?.language_server_address;
+    let address = project_manager.open_project(project_id).await?.language_server_rpc_address;
     open_project(address).await.into()
 }
 
