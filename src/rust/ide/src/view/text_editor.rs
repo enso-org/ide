@@ -135,7 +135,7 @@ impl TextEditor {
 
     fn handle_text_field_notification(&self, change:&TextChange) {
         let (logger,controller) = self.with_borrowed(|data|
-            (data.logger.clone(),data.controller.clone()));
+            (data.logger.clone_ref(),data.controller.clone_ref()));
         let result = controller.apply_text_change(change);
         if result.is_err() {
             logger.error(|| "Error while notifying controllers about text change");

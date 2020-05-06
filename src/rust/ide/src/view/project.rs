@@ -69,7 +69,7 @@ impl ProjectView {
     /// Create a new ProjectView.
     pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
-        let root_id              = controller.language_server_rpc.content_root().clone();
+        let root_id              = controller.language_server_rpc.content_root();
         let path                 = controller::module::Path::new(root_id,&INITIAL_FILE_PATH);
         let text_controller      = controller.text_controller(path.clone()).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);

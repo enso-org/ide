@@ -154,7 +154,7 @@ pub async fn open_most_recent_project_or_create_new
         project_manager.create_project(DEFAULT_PROJECT_NAME.into()).await?.project_id
     };
     let address = project_manager.open_project(project_id).await?.language_server_rpc_address;
-    open_project(address).await.into()
+    open_project(address).await
 }
 
 /// Sets up the project view, including the controller it uses.

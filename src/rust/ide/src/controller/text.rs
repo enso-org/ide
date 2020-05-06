@@ -32,8 +32,7 @@ pub type FilePath = language_server::Path;
 ///
 /// This makes distinction between module and plain text files. The module files are handled by
 /// Module Controller, the plain text files are handled directly by File Manager Client.
-#[derive(CloneRef,Debug,Derivative)]
-#[derivative(Clone(bound=""))]
+#[derive(Clone,CloneRef,Debug)]
 enum FileHandle {
     PlainText {path:Rc<FilePath>, language_server:Rc<language_server::Connection>},
     Module    {controller:controller::Module },
@@ -42,8 +41,7 @@ enum FileHandle {
 /// A Text Controller Handle.
 ///
 /// This struct contains all information and handles to do all module controller operations.
-#[derive(CloneRef,Debug,Derivative)]
-#[derivative(Clone(bound=""))]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     file: FileHandle,
 }
@@ -51,7 +49,8 @@ pub struct Handle {
 impl Handle {
 
     /// Create controller managing plain text file (which is not a module).
-    pub fn new_for_plain_text(path:FilePath, language_server:Rc<language_server::Connection>) -> Self {
+    pub fn new_for_plain_text
+    (path:FilePath, language_server:Rc<language_server::Connection>) -> Self {
         let path = Rc::new(path);
         Self {
             file : FileHandle::PlainText {path,language_server}
@@ -78,7 +77,8 @@ impl Handle {
         use FileHandle::*;
         match &self.file {
             PlainText {path,language_server} => {
-                language_server.read_file(path.deref().clone()).await.map(|response| response.contents)
+                let response = language_server.read_file(path.deref().clone()).await;
+                response.map(|response| response.contents)
             },
             Module{controller} => Ok(controller.code())
         }

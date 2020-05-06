@@ -17,32 +17,27 @@ use parser::Parser;
 type ModulePath = controller::module::Path;
 
 /// Project controller's state.
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Handle {
-    /// Client of Language Server bound to this project.
-    pub language_server_rpc:Rc<language_server::Connection>,
-    /// Cache of module controllers.
-    pub module_registry:Rc<model::module::registry::Registry>,
-    /// Parser handle.
-    pub parser:Parser,
+    pub language_server_rpc : Rc<language_server::Connection>,
+    pub module_registry     : Rc<model::module::registry::Registry>,
+    pub parser              : Parser,
+    pub logger              : Logger,
 }
 
 impl Handle {
-
-    /// Takes a LS client which has not initialized its connection so far.
-    pub async fn from_uninitialized_client(language_server:impl language_server::API + 'static) -> FallibleResult<Self> {
-        let language_server_client = language_server::Connection::new(language_server).await;
-        language_server_client.map(Self::new)
-    }
 
     /// Create a new project controller.
     ///
     /// The remote connection should be already established.
     pub fn new(language_server_client:language_server::Connection) -> Self {
-        let module_registry     = default();
-        let parser              = Parser::new_or_panic();
-        let language_server_rpc = Rc::new(language_server_client);
-        Handle {language_server_rpc,module_registry,parser}
+        Handle {
+            module_registry     : default(),
+            parser              : Parser::new_or_panic(),
+            language_server_rpc : Rc::new(language_server_client),
+            logger              : Logger::new("Project Controller"),
+        }
     }
 
     /// Returns a text controller for given file path.
@@ -51,12 +46,12 @@ impl Handle {
     pub async fn text_controller
     (&self, path:language_server::Path) -> FallibleResult<controller::Text> {
         if is_path_to_module(&path) {
-            println!("Obtaining controller for module {}", path);
+            trace!(self.logger,"Obtaining controller for module {path}");
             let module = self.module_controller(path).await?;
             Ok(controller::Text::new_for_module(module))
         } else {
             let ls = self.language_server_rpc.clone_ref();
-            println!("Obtaining controller for plain text {}", path);
+            trace!(self.logger,"Obtaining controller for plain text {path}");
             Ok(controller::Text::new_for_plain_text(path,ls))
         }
     }
@@ -64,7 +59,7 @@ impl Handle {
     /// Returns a module controller which have module opened from file.
     pub async fn module_controller
     (&self, path:ModulePath) -> FallibleResult<controller::Module> {
-        println!("Obtaining module controller for {}", path);
+        trace!(self.logger,"Obtaining module controller for {path}");
         let model_loader = self.load_module(path.clone());
         let model        = self.module_registry.get_or_load(path.clone(),model_loader).await?;
         Ok(self.module_controller_with_model(path,model))
@@ -86,8 +81,7 @@ impl Handle {
 }
 
 fn is_path_to_module(path:&language_server::Path) -> bool {
-    let extension = path.extension();
-    extension.contains(&constants::LANGUAGE_FILE_EXTENSION)
+    path.extension() == Some(constants::LANGUAGE_FILE_EXTENSION)
 }
 
 #[cfg(test)]
@@ -97,6 +91,7 @@ mod test {
     use crate::controller::text::FilePath;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
+    use language_server::response;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 
@@ -121,8 +116,10 @@ mod test {
             let another_path = ModulePath{root_id:default(),segments:vec!["TestLocation2".into()]};
 
             let client = language_server::MockClient::default();
-            client.set_file_read_result(path.clone(),Ok(language_server::response::Read{contents:"2+2".to_string()}));
-            client.set_file_read_result(another_path.clone(),Ok(language_server::response::Read{contents:"2 + 2".to_string()}));
+            let contents      = "2+2".to_string();
+            client.set_file_read_result(path.clone(),Ok(response::Read{contents}));
+            let contents      = "2 + 2".to_string();
+            client.set_file_read_result(another_path.clone(),Ok(response::Read{contents}));
             let connection     = language_server::Connection::new_mock(client);
             let project        = controller::Project::new(connection);
             let module         = project.module_controller(path.clone()).await.unwrap();
@@ -165,7 +162,7 @@ mod test {
             let contents     = "2 + 2".to_string();
 
             let client       = language_server::MockClient::default();
-            client.set_file_read_result(path.clone(), Ok(language_server::response::Read {contents}));
+            client.set_file_read_result(path.clone(), Ok(response::Read {contents}));
             let connection   = language_server::Connection::new_mock(client);
             let project_ctrl = controller::Project::new(connection);
             let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();

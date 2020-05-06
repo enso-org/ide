@@ -35,8 +35,7 @@ pub type Path = language_server::Path;
 ///
 /// This struct contains all information and handles to do all module controller operations.
 #[allow(missing_docs)]
-#[derive(CloneRef,Debug,Derivative)]
-#[derivative(Clone(bound=""))]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     pub path            : Rc<Path>,
     pub model           : Rc<model::Module>,
@@ -60,7 +59,8 @@ impl Handle {
     /// Load or reload module content from file.
     pub async fn load_file(&self) -> FallibleResult<()> {
         self.logger.info(|| "Loading module file");
-        let content = self.language_server.client.read_file(self.path.deref().clone()).await?.contents;
+        let path    = self.path.deref().clone();
+        let content = self.language_server.client.read_file(path).await?.contents;
         self.logger.info(|| "Parsing code");
         // TODO[ao] we should not fail here when metadata are malformed, but discard them and set
         // default instead.
