@@ -158,7 +158,7 @@ impl Connection {
 
 
 
-        tgt_view.shape.sprite.size().set(Vector2::new(100.0,100.0));
+        tgt_view.shape.sprite.size().set(Vector2::new(400.0,400.0));
         tgt_view.shape.angle.set(std::f32::consts::PI);
 
 
@@ -177,13 +177,13 @@ impl Connection {
                 let test_angle = test_angle * std::f32::consts::PI;
 
                 let target = Vector2::new(pos.x-100.0,pos.y-250.0);
+                let target = Vector2::new(pos.x-100.0,source.y - 40.0);
                 helper1.mod_position(|p| {p.x = target.x; p.y = target.y;});
 
 
                 let source_min_radius = 20.0;
                 let target_min_radius = 20.0;
 
-                let target_circle_radius = target_min_radius;
 
 
                 let side = target.x - source.x;
@@ -193,7 +193,20 @@ impl Connection {
                 let angle = f32::atan2(diff.x,diff.y) / std::f32::consts::PI;
                 let coeff = 1.0 - (angle.abs() * 2.0).clamp(0.0,1.0);
 //
-                let src_circle_radius = source_min_radius ; // + coeff * 120.0;
+                let coeff2 = ((target.x - source.x).abs() / 20.0).clamp(0.0,std::f32::consts::PI/2.0).sin();
+                let mut src_circle_radius    = source_min_radius * coeff2; // + coeff * 40.0;
+                let mut target_circle_radius = target_min_radius * coeff2; // + coeff * 40.0;
+
+//
+//                let diff_2 = Vector2::new(target.x - source.x, source.y - target.y);
+//                let len = (diff_2.x * diff_2.x + diff_2.y * diff_2.y).sqrt();
+//
+//                if src_circle_radius + target_circle_radius > len {
+//                    src_circle_radius = len / 2.0 - 1.0;
+//                    target_circle_radius = len / 2.0 - 1.0;
+//                }
+
+
                 println!(">> {:?}", src_circle_radius );
 
 //                let src_circle_radius = 20.0;
