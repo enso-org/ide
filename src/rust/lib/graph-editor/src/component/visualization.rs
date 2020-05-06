@@ -21,6 +21,7 @@
 //!
 //! TODO split this into multiple files.
 pub mod sample;
+pub mod js;
 
 use crate::prelude::*;
 

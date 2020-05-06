@@ -151,25 +151,24 @@ impl component::ShapeViewDefinition for BubbleView {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct WebglBubbleChart {
-    pub node: display::object::Instance,
-    views: RefCell<Vec<component::ShapeView<BubbleView>>>,
-    logger        : Logger,
+    pub node : display::object::Instance,
+    views    : RefCell<Vec<component::ShapeView<BubbleView>>>,
+    logger   : Logger,
 }
 
 #[allow(missing_docs)]
 impl WebglBubbleChart {
     pub fn new() -> Self {
-        let logger      = Logger::new("bubble");
-        let node  = display::object::Instance::new(&logger);
-        node.set_position(Vector3::new(-50.0, -50.0, 0.0));
-        let views = RefCell::new(vec![]);
+        let logger = Logger::new("bubble");
+        let node   = display::object::Instance::new(&logger);
+        let views  = RefCell::new(vec![]);
 
         WebglBubbleChart { node,views,logger }
     }
 }
 
 impl DataRenderer for WebglBubbleChart {
-    fn init(&self, _frp: &VisualisationFrp) {
+    fn init(&self, _frp:&VisualisationFrp) {
         // No interaction possible at the moment.
     }
 

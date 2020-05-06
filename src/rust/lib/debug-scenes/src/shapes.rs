@@ -20,6 +20,8 @@ use enso_frp::Position;
 use enso_frp as frp;
 use graph_editor::component::visualization::sample::*;
 use graph_editor::component::visualization::Visualization;
+use ensogl::display::Scene;
+use graph_editor::component::visualization::js::*;
 use graph_editor::component::visualization;
 
 
