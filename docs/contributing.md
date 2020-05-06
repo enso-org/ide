@@ -60,7 +60,7 @@ need the following setup:
 <br/>
 
 ## Working with sources
-Please note that you should not use a code auto-formatter in this codebase. Please read the 
+Please note that you should not use a code auto-formatter in this codebase. Please read the
 following documents to learn more about reasons behind this decision and the recommended code style
 guide. Be sure to carefully read the
 [Rust style guide 1](https://github.com/luna/ide/blob/master/docs/style-guide.md)
