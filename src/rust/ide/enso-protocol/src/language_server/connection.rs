@@ -32,7 +32,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// Takes an unitialized client. Generates ID for it and initializes the protocol.
+    /// Takes an uninitialized client. Generates ID for it and initializes the protocol.
     pub async fn new(client:impl API + 'static) -> FallibleResult<Self> {
         let client_id     = Uuid::new_v4();
         let client        = Box::new(client);
