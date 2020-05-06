@@ -540,10 +540,11 @@ impl application::View for GraphEditor {
 
 
         // === Vis Update Data ===
+        // TODO remove this once real data is available.
         let dummy_counter = Rc::new(Cell::new(1.0_f32));
         def _update_vis_data = inputs.debug_set_data_for_selected_node.map(f!((nodes)(_) {
             let dc = dummy_counter.get();
-            dummy_counter.set(dc + 0.1);
+            dummy_counter.set(dAc + 0.1);
             let content = json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin()));
             let dummy_data = Some(visualization::Data::JSON { content });
             nodes.selected.for_each(move |node| node.visualization.frp.set_data.emit(&dummy_data));
