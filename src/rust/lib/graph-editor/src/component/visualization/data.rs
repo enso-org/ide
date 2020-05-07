@@ -60,10 +60,12 @@ impl Data {
 
 /// Indicates a problem with the provided data. That is, the data has the wrong format, or maybe
 /// violates some other assumption of the visualization.
+/// TODO add more information to errors.
 #[derive(Copy,Clone,Debug)]
 pub enum DataError {
     /// Indicates that that the provided data type does not match the expected data type.
-    /// TODO add expected/received data types as internal members.
-    InvalidDataType
+    InvalidDataType,
+    /// The data caused an error in the computation of the visualisation.
+    InternalComputationError,
 }
 

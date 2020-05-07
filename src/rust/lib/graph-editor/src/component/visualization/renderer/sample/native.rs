@@ -1,24 +1,25 @@
+//! Examples of defining visualisation in Rust using web_sys or ensogl.
 use crate::prelude::*;
 
 use crate::component::visualization::*;
 
-use ensogl::display::DomSymbol;
 use ensogl::display::DomScene;
-use std::rc::Rc;
-use ensogl::display;
-use ensogl::system::web;
-use web::StyleSetter;
-use ensogl::gui::component;
-use ensogl::display::scene::ShapeRegistry;
-use ensogl::display::scene::Scene;
+use ensogl::display::DomSymbol;
 use ensogl::display::layout::alignment;
+use ensogl::display::scene::Scene;
+use ensogl::display::scene::ShapeRegistry;
+use ensogl::display;
+use ensogl::gui::component;
+use ensogl::system::web;
+use std::rc::Rc;
+use web::StyleSetter;
 
 /// Sample implementation of a Bubble Chart using `web_sys` to build SVG output.
 /// TODO use JS instead of just string manipulations.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct HtmlBubbleChart {
-    pub content: Rc<DomSymbol>
+    pub content: DomSymbol
 }
 
 impl DataRenderer for HtmlBubbleChart {
@@ -62,11 +63,7 @@ impl HtmlBubbleChart {
         div.set_style_or_panic("height","100px");
 
         let content = web::create_element("div");
-        content.set_inner_html(
-            r#"<svg>
-<circle style="fill: #69b3a2" stroke="black" cx=50 cy=50 r=20></circle>
-</svg>
-"#);
+        content.set_inner_html("<svg></svg>");
         content.set_attribute("width","100%").unwrap();
         content.set_attribute("height","100%").unwrap();
 
@@ -78,11 +75,9 @@ impl HtmlBubbleChart {
         let color      = iformat!("rgb({r},{g},{b})");
         div.set_style_or_panic("background-color",color);
 
-        let symbol = DomSymbol::new(&div);
-        symbol.dom().set_attribute("id","vis").unwrap();
-        symbol.dom().style().set_property("overflow","hidden").unwrap();
-
-        let content = Rc::new(symbol);
+        let content = DomSymbol::new(&div);
+        content.dom().set_attribute("id","vis").unwrap();
+        content.dom().style().set_property("overflow","hidden").unwrap();
         content.set_size(Vector2::new(100.0, 100.0));
         content.set_position(Vector3::new(0.0, 0.0, 0.0));
 
