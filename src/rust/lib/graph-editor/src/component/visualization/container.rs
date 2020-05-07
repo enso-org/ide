@@ -71,11 +71,10 @@ pub struct WeakContainer {
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct ContainerData {
-    logger        : Logger,
-    display_object: display::object::Instance,
-    size          : Cell<Vector2<f32>>,
-    visualization : RefCell<Option<Visualization>>,
-
+    logger         : Logger,
+    display_object : display::object::Instance,
+    size           : Cell<Vector2<f32>>,
+    visualization  : RefCell<Option<Visualization>>,
 }
 
 impl ContainerData {
@@ -101,30 +100,16 @@ impl ContainerData {
         self.set_visibility(!self.is_visible())
     }
 
-    // /// Update the data in the inner visualisation.
-    // pub fn set_data(&self, data:Data) {
-    //     self.data.set(data.clone_ref());
-    //     if let Some(vis) = self.visualization.borrow().as_ref() {
-    //         // TODO add indicator that data does not match
-    //         vis.set_data(data).unwrap();
-    //     }
-    // }
-
     /// Update the content properties with the values from the `ContainerData`.
     ///
     /// Needs to called when a visualisation has been set.
     fn init_visualisation_properties(&self) {
         let size       = self.size.get();
-        let position   = self.display_object.position();
 
         if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.set_size(size);
-            vis.display_object().set_position(position);
         };
         self.set_visibility(true);
-        // if let Some(data) = self.data.clone().into_inner(){
-        //     self.set_data(data);
-        // }
     }
 
     /// Set the visualization shown in this container..
@@ -143,13 +128,12 @@ impl Container {
         let size           = Cell::new(Vector2::new(100.0, 100.0));
         let display_object = display::object::Instance::new(&logger);
 
-
         let data     = ContainerData {logger,visualization,size,display_object};
         let data     = Rc::new(data);
 
         let frp = default();
 
-        Self {data, frp} . init_frp()
+        Self {data,frp} . init_frp()
     }
 
     fn init_frp(self) -> Self {
@@ -199,9 +183,9 @@ impl StrongRef for Container {
 impl WeakRef for WeakContainer {
     type StrongRef = Container;
     fn upgrade(&self) -> Option<Container> {
-        match (self.data.upgrade(),self.frp.upgrade()){
+        match (self.data.upgrade(),self.frp.upgrade()) {
             (Some(data), Some(frp)) => Some(Container {data,frp}),
-            _ => None
+            _                       => None
         }
     }
 }

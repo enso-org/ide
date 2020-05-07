@@ -6,7 +6,6 @@ use crate::frp;
 use crate::visualization::*;
 
 use ensogl::display;
-use fmt;
 
 
 
@@ -37,10 +36,9 @@ pub struct VisualizationFrp {
     /// Will be emitted if the visualization changes it's preprocessor.
     pub on_preprocess_change : frp::Source<()>,
     /// Will be emitted if the visualization has been provided with invalid data.
-    pub on_invalid_data : frp::Source<()>,
-
+    pub on_invalid_data      : frp::Source<()>,
     /// Can be sent to set the data of the visualization.
-    pub set_data     : frp::Source<Option<Data>>,
+    pub set_data             : frp::Source<Option<Data>>,
 }
 
 impl Default for VisualizationFrp {
@@ -63,21 +61,14 @@ impl Default for VisualizationFrp {
 // =====================
 
 /// Inner representation of a visualization.
-#[derive(Clone,CloneRef)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Visualization {
-    pub frp           : VisualizationFrp,
+    pub frp          : VisualizationFrp,
     // TODO[mm] consider whether to use a `Box` and be exclusive owner of the DataRenderer.
-        renderer      : Rc<dyn DataRenderer>,
-        preprocessor  : Rc<Option<PreprocessId>>,
-        data          : Rc<RefCell<Option<Data>>>,
-}
-
-impl Debug for Visualization {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO[mm] extend to provide actually useful information.
-        f.write_str("<visualization>")
-    }
+        renderer     : Rc<dyn DataRenderer>,
+        preprocessor : Rc<Option<PreprocessId>>,
+        data         : Rc<RefCell<Option<Data>>>,
 }
 
 impl display::Object  for Visualization {
@@ -87,13 +78,12 @@ impl display::Object  for Visualization {
 }
 
 impl Visualization {
-
     /// Create a new `Visualization` with the given `DataRenderer`.
     pub fn new(renderer:Rc<dyn DataRenderer>) -> Self {
         // FIXME use actual pre-processor functionality.
         let preprocessor = default();
         let frp          = VisualizationFrp::default();
-        let data          = default();
+        let data         = default();
         Visualization { frp,renderer,preprocessor,data} . init()
     }
 
@@ -110,7 +100,7 @@ impl Visualization {
             }));
         }
 
-        let renderer_frp = self.renderer.frp();
+        let renderer_frp     = self.renderer.frp();
         let renderer_network = &renderer_frp.network;
 
         frp::new_bridge_network! { [network,renderer_network]
@@ -130,8 +120,7 @@ impl Visualization {
     }
 
     /// Set the viewport size of the visualization.
-    pub fn set_size(&self, size: Vector2<f32>) {
+    pub fn set_size(&self, size:Vector2<f32>) {
         self.renderer.set_size(size)
     }
 }
-

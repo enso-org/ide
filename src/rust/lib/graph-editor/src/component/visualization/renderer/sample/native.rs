@@ -14,21 +14,23 @@ use ensogl::system::web;
 use std::rc::Rc;
 use web::StyleSetter;
 
+
+
+// =======================
+// === HtmlBubbleChart ===
+// =======================
+
 /// Sample implementation of a Bubble Chart using `web_sys` to build SVG output.
-/// TODO use JS instead of just string manipulations.
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub struct HtmlBubbleChart {
-    pub content: DomSymbol
+    pub content : DomSymbol,
+    pub frp     : DataRendererFrp,
 }
 
 impl DataRenderer for HtmlBubbleChart {
 
-    fn valid_input_types(&self) -> Vec<DataType> {
-        unimplemented!()
-    }
-
-    fn set_data(&self, data:Data) ->  Result<Data,DataError>{
+    fn set_data(&self, data:Data) ->  Result<Data,DataError> {
         let mut svg_inner = String::new();
 
         let data_inner: Rc<Vec<Vector2<f32>>> = data.as_binary()?;
@@ -81,7 +83,9 @@ impl HtmlBubbleChart {
         content.set_size(Vector2::new(100.0, 100.0));
         content.set_position(Vector3::new(0.0, 0.0, 0.0));
 
-        HtmlBubbleChart { content }
+        let frp = default();
+
+        HtmlBubbleChart { content,frp }
      }
 
     pub fn set_dom_layer(&self, scene:&DomScene) {
@@ -103,6 +107,9 @@ impl display::Object for HtmlBubbleChart {
 }
 
 
+// ========================
+// === WebglBubbleChart ===
+// ========================
 
 /// Bubble shape definition.
 pub mod shape {
@@ -150,30 +157,26 @@ pub struct WebglBubbleChart {
 #[allow(missing_docs)]
 impl WebglBubbleChart {
     pub fn new() -> Self {
-        let logger = Logger::new("bubble");
-        let node   = display::object::Instance::new(&logger);
-        let views  = RefCell::new(vec![]);
-        let frp    = default();
+        let logger         = Logger::new("bubble");
+        let display_object = display::object::Instance::new(&logger);
+        let views          = RefCell::new(vec![]);
+        let frp            = default();
 
-        WebglBubbleChart { display_object: node,views,logger,frp }
+        WebglBubbleChart { display_object,views,logger,frp }
     }
 }
 
 impl DataRenderer for WebglBubbleChart {
-
-    fn valid_input_types(&self) -> Vec<DataType> {
-        unimplemented!()
-    }
 
     fn set_data(&self, data:Data) -> Result<Data,DataError> {
         let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
 
         // Avoid re-creating views, if we have already created some before.
         let mut views = self.views.borrow_mut();
-        views.resize_with(data_inner.len(), || component::ShapeView::new(&self.logger));
+        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger));
 
-        views.iter().zip(data_inner.iter()).for_each(|(view, item)| {
-            view.display_object.set_position(Vector3::new(item.x, item.y, 0.0));
+        views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
+            view.display_object.set_position(Vector3::new(item.x,item.y,0.0));
             // FIXME there is a bug with the radius ending up on the wrong shape.
             if let Some(t) = view.data.borrow().as_ref() {
                 t.shape.radius.set(item.z)
@@ -184,7 +187,7 @@ impl DataRenderer for WebglBubbleChart {
     }
 
     fn set_size(&self, _size:Vector2<f32>) {
-        // unimplemented!()
+        // TODO if we had some axes definitions, this is where we would scale them.
     }
 
     fn frp(&self) -> &DataRendererFrp {

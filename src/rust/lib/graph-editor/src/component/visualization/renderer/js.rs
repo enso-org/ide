@@ -11,7 +11,6 @@ use crate::component::visualization::DataRendererFrp;
 use crate::component::visualization::Data;
 use crate::component::visualization::DataError;
 use crate::component::visualization::DataRenderer;
-use crate::component::visualization::DataType;
 
 use ensogl::display::DomScene;
 use ensogl::display::DomSymbol;
@@ -66,17 +65,13 @@ impl JsRendererGeneric {
     /// Hooks the root node into the given scene.
     ///
     /// MUST be called to make this visualisation visible.
-    //TODO[mm] find a better mechanism to ensure this. Probably through the registry later on.
+    // TODO[mm] find a better mechanism to ensure this. Probably through the registry later on.
     pub fn set_dom_layer(&self, scene:&DomScene) {
         scene.manage(&self.content);
     }
 }
 
 impl DataRenderer for JsRendererGeneric {
-
-    fn valid_input_types(&self) -> Vec<DataType> {
-        unimplemented!()
-    }
 
     fn set_data(&self, data: Data) -> Result<Data,DataError> {
         let context   = JsValue::NULL;
@@ -94,8 +89,8 @@ impl DataRenderer for JsRendererGeneric {
     }
 
     fn set_size(&self, size: Vector2<f32>) {
-        let context   = JsValue::NULL;
-        let data_json = JsValue::from_serde(&size).unwrap();
+        let context       = JsValue::NULL;
+        let data_json     = JsValue::from_serde(&size).unwrap();
         if let Err(error) = self.set_size.call1(&context, &data_json) {
             self.logger.warning(|| format!("Failed to set size in {:?} with error: {:?}", self, error));
         }

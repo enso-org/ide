@@ -1,4 +1,4 @@
-//! This module defines the `data` trait and related functionality.
+//! This module defines the `Data` struct and related functionality.
 
 use crate::prelude::*;
 
