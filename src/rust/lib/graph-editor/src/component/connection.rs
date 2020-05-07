@@ -133,8 +133,9 @@ impl Connection {
         side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
 
         frp::new_network! { network
-            def _tst = scene.mouse.frp.position.map(f!((side_line,main_line,corner)(pos) {
-
+            def check   = source::<bool>();
+            def trigger = scene.mouse.frp.position.gate(&check);
+            def _tst = trigger.map(f!((side_line,main_line,corner)(pos) {
                 let target = Vector2::new(pos.x-300.0, pos.y-260.0);
                 let radius = 14.0;
                 let width  = 284.0 / 2.0;
@@ -177,9 +178,6 @@ impl Connection {
                     p.x = side * target.x;
                     p.y = (target.y + corner_y) / 2.0;
                 });
-
-
-
             }));
         }
 

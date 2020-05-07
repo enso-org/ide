@@ -22,7 +22,6 @@ pub mod action;
 pub mod generate;
 pub mod iter;
 pub mod node;
-#[cfg(test)]
 pub mod builder;
 
 pub use node::Node;
@@ -31,7 +30,6 @@ pub use node::Node;
 pub mod traits {
     pub use crate::action::Actions;
     pub use crate::generate::SpanTreeGenerator;
-    #[cfg(test)]
     pub use crate::builder::Builder;
 }
 

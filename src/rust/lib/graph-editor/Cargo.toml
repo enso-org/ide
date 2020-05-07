@@ -5,6 +5,8 @@ authors = ["Enso Team <contact@luna-lang.org>"]
 edition = "2018"
 
 [dependencies]
+ast          = { version = "0.1.0"   , path = "../../ide/ast/impl"  }
+span-tree    = { version = "0.1.0"   , path = "../../ide/span-tree"  }
 shapely      = { version = "0.1.0"   , path = "../shapely/impl"  }
 ensogl       = { version = "0.1.0"   , path = "../../ensogl"     }
 enso-prelude = { version = "0.1.0"   , path = "../prelude"       }

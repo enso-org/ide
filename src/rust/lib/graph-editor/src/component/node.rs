@@ -193,18 +193,22 @@ pub mod label {
             let line1 = self.glyph_system.new_line();
             line1.set_font_size(12.0);
             line1.set_font_color(color);
-            line1.set_text("draw_maps      (distribution normal)");
+            line1.set_text("draw_maps size (distribution normal)");
             obj.add_child(&line1);
 
-            let color = color::Rgba::new(0.18, 0.173, 0.165, 1.0);
-            let line2 = self.glyph_system.new_line();
-            line2.set_font_size(12.0);
-            line2.set_font_color(color);
-            line2.set_text("size");
-            obj.add_child(&line2);
-            line2.mod_position(|t| t.x += 72.0);
+            // !!! println!(">>> {:?}", line1.font().get_glyph_info('a').advance * 12.0);
 
-            let lines = Rc::new(RefCell::new(vec![line1,line2]));
+
+//            let color = color::Rgba::new(0.18, 0.173, 0.165, 1.0);
+//            let line2 = self.glyph_system.new_line();
+//            line2.set_font_size(12.0);
+//            line2.set_font_color(color);
+//            line2.set_text("size");
+//            obj.add_child(&line2);
+//            line2.mod_position(|t| t.x += 72.0);
+
+//            let lines = Rc::new(RefCell::new(vec![line1,line2]));
+            let lines = Rc::new(RefCell::new(vec![line1]));
 
             Shape { lines,obj }
         }
@@ -287,19 +291,6 @@ impl WeakKey for WeakNode {
     }
 }
 
-///// Shape view for Node.
-//#[derive(Debug,Clone,CloneRef,Copy)]
-//pub struct NodeView {}
-//impl component::ShapeViewDefinition for NodeView {
-//    type Shape = shape::Shape;
-//}
-//
-///// Shape view for Node.
-//#[derive(Debug,Clone,CloneRef,Copy)]
-//pub struct LabelView {}
-//impl component::ShapeViewDefinition for LabelView {
-//    type Shape = label::Shape;
-//}
 
 /// Internal data of `Node`
 #[derive(Debug)]
@@ -312,12 +303,14 @@ pub struct NodeData {
     pub events : Events,
     pub label_view : component::ShapeView<label::Shape>,
     pub view   : component::ShapeView<shape::Shape>,
-    pub ports  : Rc<RefCell<Vec<Port>>>,
+    pub ports  : port::Manager,
     pub connections : Rc<RefCell<Vec<Connection>>>
 }
 
 const NODE_WIDTH : f32 = 284.0;
 const NODE_HEIGHT : f32 = 28.0;
+
+const TEXT_OFF : f32 = 12.0;
 
 impl Node {
     /// Constructor.
@@ -347,10 +340,10 @@ impl Node {
         view.mod_position(|t| t.x += width/2.0);
         view.mod_position(|t| t.y += height/2.0);
 
-        label_view.mod_position(|t| t.x += 12.0);
+        label_view.mod_position(|t| t.x += TEXT_OFF);
         label_view.mod_position(|t| t.y += 4.0 + 6.0);
 
-        let ports = default();
+        let ports = port::Manager::new(&logger,scene);
         let connections = default();
         let scene = scene.clone_ref();
         let data    = Rc::new(NodeData {scene,object,logger,label,events,view,label_view,ports,connections});
@@ -394,9 +387,13 @@ impl Node {
 
         //////////////////////////////////////////////////////
 
+        self.ports.mod_position(|p| {
+            p.x = TEXT_OFF;
+            p.y = NODE_HEIGHT/2.0;
+        });
+        self.add_child(&self.ports);
 
-        let port1 = Port::new(&self.scene);
-        self.add_child(&port1);
+
 
 
 //        let port_network = &port1.events.network;
@@ -421,7 +418,6 @@ impl Node {
 
 
 
-        self.data.ports.borrow_mut().push(port1);
         self.data.connections.borrow_mut().push(connection1);
 
 
