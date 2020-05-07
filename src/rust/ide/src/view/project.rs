@@ -78,7 +78,7 @@ impl ProjectView {
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
         let module_controller    = controller.module_controller(path).await?;
-        let graph_controller     = module_controller.graph_controller_unchecked(graph_id);
+        let graph_controller     = module_controller.executed_graph_controller(graph_id).await?;
         let application          = Application::new(&web::get_html_element_by_id("root").unwrap());
         let _world               = &application.display;
         // graph::register_shapes(&world);

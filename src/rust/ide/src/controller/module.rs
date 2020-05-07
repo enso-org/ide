@@ -8,6 +8,7 @@
 use crate::prelude::*;
 
 use crate::double_representation::text::apply_code_change_to_id_map;
+use crate::model::execution_context::ExecutionContext;
 
 use ast;
 use ast::HasIdMap;
@@ -15,7 +16,7 @@ use data::text::*;
 use double_representation as dr;
 use enso_protocol::language_server;
 use parser::Parser;
-
+use crate::double_representation::definition::DefinitionName;
 
 
 // ============
@@ -120,6 +121,18 @@ impl Handle {
     /// Returns a graph controller for graph in this module's subtree identified by `id`.
     pub fn graph_controller(&self, id:dr::graph::Id) -> FallibleResult<controller::Graph> {
         controller::Graph::new(self.model.clone_ref(), self.parser.clone_ref(), id)
+    }
+
+    pub async fn executed_graph_controller
+    (&self, id:dr::graph::Id) -> FallibleResult<controller::ExecutedGraph> {
+        // TODO[ao] empty crumbs?
+        let default         = DefinitionName::new_plain("main");
+        let definition_name = id.crumbs.last().cloned().unwrap_or(default);
+        let graph           = self.graph_controller_unchecked(id); // TODO[ao] what is the good approach for errors?
+        let language_server = self.language_server.clone_ref();
+        let path            = self.path.clone_ref();
+        let execution_ctx = ExecutionContext::create(language_server,path,definition_name).await?;
+        Ok(controller::ExecutedGraph::new(graph,execution_ctx))
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id` without

@@ -2,6 +2,7 @@
 //!
 //! This controller provides access to a specific graph. It lives under a module controller, as
 //! each graph belongs to some module.
+pub mod executed;
 
 use crate::prelude::*;
 
@@ -21,7 +22,7 @@ use span_tree::action::Actions;
 use span_tree::action::Action;
 use span_tree::SpanTree;
 use ast::crumbs::InfixCrumb;
-
+use crate::model::execution_context::ExecutionContext;
 
 
 // ==============
@@ -386,27 +387,23 @@ impl EndpointInfo {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     /// Model of the module which this graph belongs to.
-    pub module : Rc<model::Module>,
-    parser     : Parser,
-    id         : Rc<Id>,
-    logger     : Logger,
+    pub module        : Rc<model::Module>,
+    parser            : Parser,
+    id                : Rc<Id>,
+    logger            : Logger,
 }
 
 impl Handle {
 
     /// Creates a new controller. Does not check if id is valid.
-    ///
-    /// Requires global executor to spawn the events relay task.
     pub fn new_unchecked(module:Rc<model::Module>, parser:Parser, id:Id) -> Handle {
-        let id = Rc::new(id);
-        let logger = Logger::new(format!("Graph Controller {}", id));
+        let id            = Rc::new(id);
+        let logger        = Logger::new(format!("Graph Controller {}", id));
         Handle {module,parser,id,logger}
     }
 
     /// Creates a new graph controller. Given ID should uniquely identify a definition in the
     /// module. Fails if ID cannot be resolved.
-    ///
-    /// Requires global executor to spawn the events relay task.
     pub fn new(module:Rc<model::Module>, parser:Parser, id:Id) -> FallibleResult<Handle> {
         let ret = Self::new_unchecked(module,parser,id);
         // Get and discard definition info, we are just making sure it can be obtained.
