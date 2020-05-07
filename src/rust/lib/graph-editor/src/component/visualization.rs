@@ -24,10 +24,10 @@ use web::StyleSetter;
 
 /// Wrapper for data that can be consumed by a visualisation.
 // TODO replace with better typed data wrapper.
-#[derive(Clone,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub enum Data {
-    JSON { content : serde_json::Value },
+    JSON { content : Rc<serde_json::Value> },
     Binary,
 }
 
@@ -246,17 +246,14 @@ impl Container {
             }));
 
             def _f_hide = frp.set_visualization.map(f!((container_data)(visualisation) {
-                // TODO[mm] ensure this is cheap and implement clone_ref once content gets properly
-                // implemented.
-                if let Some(visualisation) = visualisation.clone() {
-                    container_data.set_visualisation(visualisation);
+                if let Some(visualisation) = visualisation.as_ref() {
+                    container_data.set_visualisation(visualisation.clone_ref());
                 }
             }));
 
             def _f_hide = frp.set_data.map(f!((container_data)(data) {
-                // TODO[mm] ensure this is cheap
-                if let Some(data) = data.clone() {
-                     container_data.set_data(data);
+                if let Some(data) = data.as_ref() {
+                     container_data.set_data(data.clone_ref());
                 }
             }));
         }

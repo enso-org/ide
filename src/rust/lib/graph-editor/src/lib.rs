@@ -542,7 +542,7 @@ impl application::View for GraphEditor {
         def _update_vis_data = inputs.debug_set_data_for_selected_node.map(f!((nodes)(_) {
             let dc = dummy_counter.get();
             dummy_counter.set(dc + 0.1);
-            let content = json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin()));
+            let content = Rc::new(json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin())));
             let dummy_data = Some(visualization::Data::JSON { content });
             nodes.selected.for_each(move |node| node.visualization_container.frp.set_data.emit(&dummy_data));
         }));
