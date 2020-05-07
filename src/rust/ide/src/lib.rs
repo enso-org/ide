@@ -100,7 +100,7 @@ impl SetupConfig {
     /// Provisional initial configuration that can be used during local deployments.
     pub fn new_local() -> SetupConfig {
         SetupConfig {
-            project_manager_endpoint: PROJECT_MANAGER_ENDPOINT.into()
+            project_manager_endpoint:PROJECT_MANAGER_ENDPOINT.into()
         }
     }
 }

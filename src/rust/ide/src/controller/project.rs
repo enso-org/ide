@@ -19,7 +19,7 @@ type ModulePath = controller::module::Path;
 /// Project controller's state.
 #[derive(Debug)]
 pub struct Handle {
-    /// Client of Language Server bound to this project.
+    /// Connection to the Language Server bound to this project.
     pub language_server_rpc:Rc<language_server::Connection>,
     /// Cache of module controllers.
     pub module_registry:Rc<model::module::registry::Registry>,
@@ -29,15 +29,14 @@ pub struct Handle {
 
 impl Handle {
 
-    /// Takes a LS client which has not initialized its connection so far.
+    /// Takes a LS client which has not initialized its connection so far. Realizes protocol
+    /// initialization and wraps the client into a new project controller.
     pub async fn from_uninitialized_client(language_server:impl language_server::API + 'static) -> FallibleResult<Self> {
         let language_server_client = language_server::Connection::new(language_server).await;
         language_server_client.map(Self::new)
     }
 
     /// Create a new project controller.
-    ///
-    /// The remote connection should be already established.
     pub fn new(language_server_client:language_server::Connection) -> Self {
         let module_registry     = default();
         let parser              = Parser::new_or_panic();
@@ -45,9 +44,9 @@ impl Handle {
         Handle {language_server_rpc,module_registry,parser}
     }
 
-    /// Returns a text controller for given file path.
+    /// Returns a text controller for a given file path.
     ///
-    /// It may be a controller for both modules and plain text files.
+    /// It supports both modules and plain text files.
     pub async fn text_controller
     (&self, path:language_server::Path) -> FallibleResult<controller::Text> {
         if is_path_to_module(&path) {
@@ -85,6 +84,7 @@ impl Handle {
     }
 }
 
+/// Checks if the given path looks like it is referring to module file.
 fn is_path_to_module(path:&language_server::Path) -> bool {
     let extension = path.extension();
     extension.contains(&constants::LANGUAGE_FILE_EXTENSION)

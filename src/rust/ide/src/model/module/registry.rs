@@ -168,7 +168,7 @@ mod test {
             let state    = Rc::new(model::Module::new(ast.try_into().unwrap(),default()));
             let registry = Rc::new(Registry::default());
             let expected = state.clone_ref();
-            let path     = ModulePath{root_id:default(),segments:vec!["test".into()]};
+            let path     = ModulePath::new(default(),&["test"]);
 
             let loader = async move { Ok(state) };
             let module = registry.get_or_load(path.clone(),loader).await.unwrap();
@@ -188,7 +188,7 @@ mod test {
         let state2    = state1.clone_ref();
         let registry1 = Rc::new(Registry::default());
         let registry2 = registry1.clone_ref();
-        let path1     = ModulePath{root_id:default(),segments:vec!["test".into()]};
+        let path1     = ModulePath::new(default(),&["test"]);
         let path2     = path1.clone();
 
         let (loaded_send, loaded_recv) = futures::channel::oneshot::channel::<()>();
@@ -200,12 +200,12 @@ mod test {
                 loaded_recv.await.unwrap();
                 Ok(state1)
             };
-            let module = registry1.get_or_load(path1, loader).await.unwrap();
+            let module = registry1.get_or_load(path1,loader).await.unwrap();
             assert!(Rc::ptr_eq(&expected,&module));
         });
         test.when_stalled_run_task(async move {
             let loader = async move { unreachable!("Should not call loader second time!"); };
-            let module = registry2.get_or_load(path2, loader).await.unwrap();
+            let module = registry2.get_or_load(path2,loader).await.unwrap();
             assert!(Rc::ptr_eq(&state2,&module));
         });
         test.when_stalled(move || {

@@ -400,10 +400,11 @@ impl Handle {
     pub fn new_unchecked(module:Rc<model::Module>, parser:Parser, id:Id) -> Handle {
         let id = Rc::new(id);
         let logger = Logger::new(format!("Graph Controller {}", id));
-        logger.warning(|| "opened");
+        warning!(logger, "Created");
         Handle {module,parser,id,logger}
     }
 
+    /// Creates a new graph controller. Given ID should uniquely identify a definition in the
     /// module. Fails if ID cannot be resolved.
     ///
     /// Requires global executor to spawn the events relay task.
@@ -616,7 +617,7 @@ impl Handle {
         let ast_so_far     = self.module.ast();
         let definition     = definition::locate(&ast_so_far, &self.id)?;
         let new_definition = f(definition.item)?;
-        warning!(self.logger, "Applying graph changes onto definition");
+        info!(self.logger, "Applying graph changes onto definition");
         let new_ast    = new_definition.ast.into();
         let new_module = ast_so_far.set_traversing(&definition.crumbs,new_ast)?;
         self.module.update_ast(new_module);
@@ -636,7 +637,7 @@ impl Handle {
 
     /// Adds a new node to the graph and returns information about created node.
     pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
-        warning!(self.logger, "Adding node with expression `{node.expression}`");
+        info!(self.logger, "Adding node with expression `{node.expression}`");
         let ast           = self.parse_node_expression(&node.expression)?;
         let mut node_info = node::NodeInfo::from_line_ast(&ast).ok_or(FailedToCreateNode)?;
         if let Some(desired_id) = node.id {
@@ -659,7 +660,7 @@ impl Handle {
 
     /// Removes the node with given Id.
     pub fn remove_node(&self, id:ast::Id) -> FallibleResult<()> {
-        warning!(self.logger, "Removing node {id}");
+        info!(self.logger, "Removing node {id}");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
             graph.remove_node(id)?;
@@ -673,14 +674,14 @@ impl Handle {
 
     /// Sets the given's node expression.
     pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult<()> {
-        warning!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
+        info!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
         let new_expression_ast = self.parse_node_expression(expression_text)?;
         self.set_expression_ast(id,new_expression_ast)
     }
 
     /// Sets the given's node expression.
     pub fn set_expression_ast(&self, id:ast::Id, expression:Ast) -> FallibleResult<()> {
-        warning!(self.logger, "Setting node {id} expression to `{expression.repr()}`");
+        info!(self.logger, "Setting node {id} expression to `{expression.repr()}`");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
             graph.edit_node(id,expression)?;
@@ -698,7 +699,7 @@ impl Handle {
             let mut graph = GraphInfo::from_definition(definition);
             graph.update_node(id,|node| {
                 let new_node = f(node);
-                warning!(self.logger, "Setting node {id} line to `{new_node.repr()}`");
+                info!(self.logger, "Setting node {id} line to `{new_node.repr()}`");
                 Some(new_node)
             })?;
             Ok(graph.source)
@@ -1082,7 +1083,7 @@ main =
     sum = _ + b";
         test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
             assert!(graph.connections().unwrap().connections.is_empty());
-            let (node0,node1,node2) = graph.nodes().unwrap().expect_tuple();
+            let (node0,_node1,node2) = graph.nodes().unwrap().expect_tuple();
             let connection_to_add = Connection {
                 source : Endpoint {
                     node      : node2.info.id(),

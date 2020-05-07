@@ -24,6 +24,9 @@ use ensogl::application::Application;
 
 /// Path of the file that is initially opened in project view.
 ///
+/// Currently this path is hardcoded in the engine services and is populated for each project
+/// created using engine's Project Picker service.
+///
 /// TODO [mwu] Path of the file that will be initially opened in the text editor.
 ///      Provisionally the Project View is hardcoded to open with a single text
 ///      editor and it will be connected with a file under this path.
