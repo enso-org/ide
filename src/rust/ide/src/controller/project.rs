@@ -27,10 +27,7 @@ pub struct Handle {
 }
 
 impl Handle {
-
     /// Create a new project controller.
-    ///
-    /// The remote connection should be already established.
     pub fn new(language_server_client:language_server::Connection) -> Self {
         Handle {
             module_registry     : default(),
@@ -40,9 +37,9 @@ impl Handle {
         }
     }
 
-    /// Returns a text controller for given file path.
+    /// Returns a text controller for a given file path.
     ///
-    /// It may be a controller for both modules and plain text files.
+    /// It supports both modules and plain text files.
     pub async fn text_controller
     (&self, path:language_server::Path) -> FallibleResult<controller::Text> {
         if is_path_to_module(&path) {
@@ -80,6 +77,7 @@ impl Handle {
     }
 }
 
+/// Checks if the given path looks like it is referring to module file.
 fn is_path_to_module(path:&language_server::Path) -> bool {
     path.extension() == Some(constants::LANGUAGE_FILE_EXTENSION)
 }

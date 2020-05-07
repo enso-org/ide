@@ -9,6 +9,11 @@ use uuid::Uuid;
 use utils::fail::FallibleResult;
 
 
+
+// ==============
+// === Errors ===
+// ==============
+
 #[allow(missing_docs)]
 #[derive(Fail,Debug)]
 #[fail(display="Failed to initialize language server RPC connection: {}.",_0)]
@@ -17,7 +22,13 @@ pub struct FailedToInitializeProtocol(failure::Error);
 #[allow(missing_docs)]
 #[derive(Fail,Clone,Copy,Debug)]
 #[fail(display="Language Server provided no content roots.")]
-pub struct NoContentRoots;
+pub struct MissingContentRoots;
+
+
+
+// ==================
+// === Connection ===
+// ==================
 
 /// An established, initialized connection to language server's RPC endpoint.
 #[derive(Derivative)]
@@ -41,7 +52,7 @@ impl Connection {
         let init_response = init_response.map_err(|e| FailedToInitializeProtocol(e.into()))?;
         let content_roots = init_response.content_roots;
         if content_roots.is_empty() {
-            Err(NoContentRoots.into())
+            Err(MissingContentRoots.into())
         } else {
             Ok(Connection {client_id,client,content_roots})
         }

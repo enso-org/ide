@@ -86,7 +86,7 @@ impl Handle {
 
     /// Store the given content to file.
     pub fn store_content(&self, content:String) -> impl Future<Output=FallibleResult<()>> {
-        let file_handle = self.file.clone();
+        let file_handle = self.file.clone_ref();
         async move {
             match file_handle {
                 FileHandle::PlainText {path,language_server} => {
@@ -132,7 +132,7 @@ impl Handle {
 
 #[cfg(test)]
 impl Handle {
-    /// Get Language Server Client used by this controller.
+    /// Get Language Server RPC Client used by this controller.
     pub fn language_server(&self) -> Rc<language_server::Connection> {
         match &self.file {
             FileHandle::PlainText {language_server,..} => language_server.clone_ref(),

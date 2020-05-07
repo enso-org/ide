@@ -22,7 +22,7 @@ use parser::Parser;
 // === Path ===
 // ============
 
-/// Path to a file on disc.
+/// Path identifying module's file in the Language Server.
 pub type Path = language_server::Path;
 
 
@@ -31,7 +31,7 @@ pub type Path = language_server::Path;
 // === Module Controller ===
 // =========================
 
-/// A Handle for Module Controller
+/// A Handle for Module Controller.
 ///
 /// This struct contains all information and handles to do all module controller operations.
 #[allow(missing_docs)]
@@ -62,8 +62,8 @@ impl Handle {
         let path    = self.path.deref().clone();
         let content = self.language_server.client.read_file(path).await?.contents;
         self.logger.info(|| "Parsing code");
-        // TODO[ao] we should not fail here when metadata are malformed, but discard them and set
-        // default instead.
+        // TODO[ao] We should not fail here when metadata are malformed, but discard them and set
+        //  default instead.
         let parsed = self.parser.parse_with_metadata(content)?;
         self.logger.info(|| "Code parsed");
         self.logger.trace(|| format!("The parsed ast is {:?}", parsed.ast));
