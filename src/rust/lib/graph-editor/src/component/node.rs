@@ -212,9 +212,9 @@ impl Node {
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { node_network
-            def label             = source::<String>                               ();
-            def select            = source::<()>                                   ();
-            def deselect          = source::<()>                                   ();
+            def label             = source::<String> ();
+            def select            = source::<()> ();
+            def deselect          = source::<()> ();
             def set_visualization = source::<Option<visualization::Visualization>> ();
         }
         let network       = node_network;
