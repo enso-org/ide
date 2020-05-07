@@ -113,7 +113,13 @@ impl ContainerData {
 
     /// Set the visualization shown in this container..
     pub fn set_visualisation(&self, visualization:Visualization) {
+        let data = self.visualization
+            .borrow()
+            .as_ref()
+            .map(|vis| vis.data())
+            .flatten();
         visualization.display_object().set_parent(&self.display_object);
+        visualization.frp.set_data.emit(&data);
         self.visualization.replace(Some(visualization));
         self.init_visualisation_properties();
     }

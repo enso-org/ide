@@ -60,20 +60,26 @@ impl Default for VisualizationFrp {
 // === Visualization ===
 // =====================
 
+/// Internal data of Visualization.
+#[derive(Clone,CloneRef,Debug)]
+pub struct VisualizationData {
+    // TODO[mm] consider whether to use a `Box` and be exclusive owner of the DataRenderer.
+    pub renderer     : Rc<dyn DataRenderer>,
+    pub preprocessor : Rc<Option<PreprocessId>>,
+    pub data         : Rc<RefCell<Option<Data>>>,
+}
+
 /// Inner representation of a visualization.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Visualization {
-    pub frp          : VisualizationFrp,
-    // TODO[mm] consider whether to use a `Box` and be exclusive owner of the DataRenderer.
-        renderer     : Rc<dyn DataRenderer>,
-        preprocessor : Rc<Option<PreprocessId>>,
-        data         : Rc<RefCell<Option<Data>>>,
+    pub frp  : Rc<VisualizationFrp>,
+    pub data : Rc<VisualizationData>
 }
 
 impl display::Object  for Visualization {
     fn display_object(&self) -> &display::object::Instance {
-        &self.renderer.display_object()
+        &self.data.renderer.display_object()
     }
 }
 
@@ -82,45 +88,44 @@ impl Visualization {
     pub fn new(renderer:Rc<dyn DataRenderer>) -> Self {
         // FIXME use actual pre-processor functionality.
         let preprocessor = default();
-        let frp          = VisualizationFrp::default();
+        let frp          = default();
         let data         = default();
-        Visualization { frp,renderer,preprocessor,data} . init()
+
+        let data = Rc::new(VisualizationData { preprocessor,data,renderer });
+        Visualization { frp,data} . init()
     }
 
     fn init(self) -> Self {
         let network = &self.frp.network;
-        let visualization = &self;
+        let visualization = &self.data;
+        let weak_frp = Rc::downgrade(&self.frp);
         frp::extend! { network
-            def _set_data = visualization.frp.set_data.map(f!((visualization)(data) {
+            def _set_data = self.frp.set_data.map(f!((weak_frp,visualization)(data) {
                 if let Some(data) = data {
-                    if visualization.set_data(data.clone_ref()).is_err() {
-                        visualization.frp.on_invalid_data.emit(())
+                    if visualization.renderer.set_data(data.clone_ref()).is_err() {
+                        weak_frp.upgrade().for_each_ref(|frp| frp.on_invalid_data.emit(()))
                     }
                 }
             }));
         }
 
-        let renderer_frp     = self.renderer.frp();
+        let renderer_frp     = self.data.renderer.frp();
         let renderer_network = &renderer_frp.network;
-
         frp::new_bridge_network! { [network,renderer_network]
-            def _on_changed = renderer_frp.on_change.map(f!((visualization)(data) {
-                visualization.frp.on_change.emit(data)
+            def _on_changed = renderer_frp.on_change.map(f!((weak_frp)(data) {
+                weak_frp.upgrade().for_each_ref(|frp| frp.on_change.emit(data))
             }));
         }
 
         self
     }
 
-    /// Update the visualization with the given data. Returns an error if the data did not match
-    /// the visualization.
-    fn set_data(&self, data:Data) -> Result<(),DataError> {
-        self.renderer.set_data(data)?;
-        Ok(())
-    }
-
     /// Set the viewport size of the visualization.
     pub fn set_size(&self, size:Vector2<f32>) {
-        self.renderer.set_size(size)
+        self.data.renderer.set_size(size)
+    }
+
+    pub fn data(&self) -> Option<Data> {
+        self.data.data.borrow().as_ref().map(|data| data.clone_ref())
     }
 }

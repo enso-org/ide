@@ -7,13 +7,13 @@ use crate::component::visualization::JsRendererGeneric;
 // This implementation is neither efficient nor pretty, but it gets the idea across.
 pub fn sample_js_bubble_chart() -> JsRendererGeneric {
     let fn_set_data = r#"{
-        var xmlns = "http://www.w3.org/2000/svg";
+        const xmlns = "http://www.w3.org/2000/svg";
         const root = arguments[0];
         while (root.firstChild) {
              root.removeChild(root.lastChild);
         }
 
-        var svgElem = document.createElementNS(xmlns, "svg");
+        const svgElem = document.createElementNS(xmlns, "svg");
         svgElem.setAttributeNS(null, "id"     , "vis-svg");
         svgElem.setAttributeNS(null, "viewBox", "0 0 " + 100 + " " + 100);
         svgElem.setAttributeNS(null, "width"  , 100);
@@ -34,12 +34,10 @@ pub fn sample_js_bubble_chart() -> JsRendererGeneric {
     "#;
 
     let fn_set_size = r#"{
-        const svg = document.getElementById("vis-svg");
-        if (svg == null) {
-            return;
-        }
-        const width  = arguments[0];
-        const height = arguments[1];
+        const root    = arguments[0];
+        const width   = arguments[1][0];
+        const height  = arguments[1][1];
+        const svgElem = root.firstChild;
         svgElem.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
         svgElem.setAttributeNS(null, "width"  , width);
         svgElem.setAttributeNS(null, "height" , height);

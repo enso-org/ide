@@ -91,7 +91,7 @@ impl DataRenderer for JsRendererGeneric {
     fn set_size(&self, size: Vector2<f32>) {
         let context       = JsValue::NULL;
         let data_json     = JsValue::from_serde(&size).unwrap();
-        if let Err(error) = self.set_size.call1(&context, &data_json) {
+        if let Err(error) = self.set_size.call2(&context,&self.content.dom(),&data_json) {
             self.logger.warning(|| format!("Failed to set size in {:?} with error: {:?}", self, error));
         }
     }
