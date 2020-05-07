@@ -102,7 +102,7 @@ pub struct CursorData {
     pub logger : Logger,
     pub events : Events,
     pub view   : component::ShapeView<shape::Shape>,
-    pub scene_view    : scene::View,
+//    pub scene_view    : scene::View,
     pub resize_handle : callback::Handle,
 }
 
@@ -127,15 +127,15 @@ impl Cursor {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
 
-        let scene_view = scene.views.new();
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene_view.add(&shape_system.shape_system.symbol);
+//        let scene_view = scene.views.new();
+//        scene.views.main.remove(&shape_system.shape_system.symbol);
+//        scene_view.add(&shape_system.shape_system.symbol);
 
 
 
 
 
-        let data   = CursorData {logger,events,view,scene_view,resize_handle};
+        let data   = CursorData {logger,events,view,resize_handle};
         let data   = Rc::new(data);
 
         Cursor {data} . init(scene)
