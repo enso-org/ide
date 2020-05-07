@@ -158,14 +158,12 @@ pub struct ContainerData {
     logger        : Logger,
     display_object: display::object::Instance,
     size          : Cell<Vector2<f32>>,
-    is_visible    : Cell<bool>,
     visualization : RefCell<Option<Visualization>>,
 }
 
 impl ContainerData {
     /// Set whether the visualisation should be visible or not.
     pub fn set_visibility(&self, is_visible:bool) {
-        self.is_visible.set(is_visible);
         if let Some(vis) = self.visualization.borrow().as_ref() {
             // FIXME remove the `set_visibility` call when the display_object calls are fixed.
             vis.set_visibility(is_visible);
@@ -179,7 +177,7 @@ impl ContainerData {
 
     /// Indicates whether the visualisation is visible.
     pub fn is_visible(&self) -> bool {
-        self.is_visible.get()
+        self.display_object.has_parent()
     }
 
     /// Toggle visibility.
@@ -218,13 +216,12 @@ impl ContainerData {
 impl Container {
     /// Constructor.
     pub fn new() -> Self {
-        let logger      = Logger::new("visualization_container");
-        let visualization     = default();
-        let size        = Cell::new(Vector2::new(100.0, 100.0));
-        let is_visible  = Cell::new(true);
-        let node        = display::object::Instance::new(&logger);
+        let logger       = Logger::new("visualization_container");
+        let visualization  = default();
+        let size           = Cell::new(Vector2::new(100.0, 100.0));
+        let display_object = display::object::Instance::new(&logger);
 
-        let data     = ContainerData {logger,visualization,size,is_visible, display_object: node };
+        let data     = ContainerData {logger,visualization,size,display_object};
         let data     = Rc::new(data);
 
         let frp = default();
