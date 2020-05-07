@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization:: VisualisationFrp;
+use crate::component::visualization::DataRendererFrp;
 use crate::component::visualization::Data;
 use crate::component::visualization::DataError;
 use crate::component::visualization::DataRenderer;
@@ -78,7 +78,8 @@ pub struct JsVisualizationGeneric {
     set_data       : js_sys::Function,
     set_size       : js_sys::Function,
     /// Root node of this visualisation.
-    pub content    : Rc<DomSymbol>,
+    pub content    : DomSymbol,
+        frp        : DataRendererFrp,
 }
 
 impl JsVisualizationGeneric {
@@ -93,13 +94,14 @@ impl JsVisualizationGeneric {
         let set_data = js_sys::Function::new_with_args(&"data", fn_set_data);
         let set_size = js_sys::Function::new_no_args(fn_set_size);
 
-        let div    = web::create_div();
-        let symbol = DomSymbol::new(&div);
-        symbol.dom().set_attribute("id","vis").unwrap();
 
-        let content = Rc::new(symbol);
+        let frp     = default();
+        let div     = web::create_div();
+        let content = DomSymbol::new(&div);
+        content.dom().set_attribute("id","vis").unwrap();
 
-        Ok(JsVisualizationGeneric { set_data,set_size,content })
+
+        Ok(JsVisualizationGeneric { set_data,set_size,content,frp })
     }
 
     /// Hooks the root node into the given scene.
@@ -112,8 +114,6 @@ impl JsVisualizationGeneric {
 }
 
 impl DataRenderer for JsVisualizationGeneric {
-    fn init(&self, _frp:&VisualisationFrp) {
-    }
 
     fn valid_input_types(&self) -> Vec<DataType> {
         unimplemented!()
@@ -142,6 +142,10 @@ impl DataRenderer for JsVisualizationGeneric {
             // TODO: consider using a logger here
             println!("Failed to set size in {:?} with error: {:?}", self, error)
         }
+    }
+
+    fn frp(&self) -> &DataRendererFrp {
+        &self.frp
     }
 }
 

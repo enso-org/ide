@@ -1,8 +1,9 @@
 use crate::prelude::*;
 
-use crate::component::visualization::{DataRenderer, DataType, Data, DataError, VisualisationFrp};
+use crate::component::visualization::*;
 
-use ensogl::display::{DomSymbol, DomScene};
+use ensogl::display::DomSymbol;
+use ensogl::display::DomScene;
 use std::rc::Rc;
 use ensogl::display;
 use ensogl::system::web;
@@ -21,9 +22,6 @@ pub struct HtmlBubbleChart {
 }
 
 impl DataRenderer for HtmlBubbleChart {
-    fn init(&self, _frp: &VisualisationFrp) {
-        // No interaction possible at the moment.
-    }
 
     fn valid_input_types(&self) -> Vec<DataType> {
         unimplemented!()
@@ -42,16 +40,17 @@ impl DataRenderer for HtmlBubbleChart {
             )
         }
         self.content.dom().set_inner_html(
-            &format!(r#"
-<svg>
-{}
-</svg>
-"#, svg_inner));
-    Ok(data)
+            &format!(r#"<svg>{}</svg>"#, svg_inner)
+        );
+        Ok(data)
     }
 
     fn set_size(&self, size:Vector2<f32>) {
         self.content.set_size(size);
+    }
+
+    fn frp(&self) -> &DataRendererFrp {
+        unimplemented!()
     }
 }
 
@@ -147,9 +146,10 @@ impl component::ShapeViewDefinition for BubbleView {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct WebglBubbleChart {
-    pub node : display::object::Instance,
-    views    : RefCell<Vec<component::ShapeView<BubbleView>>>,
-    logger   : Logger,
+    pub display_object : display::object::Instance,
+        frp            : DataRendererFrp,
+        views          : RefCell<Vec<component::ShapeView<BubbleView>>>,
+        logger         : Logger,
 }
 
 #[allow(missing_docs)]
@@ -158,15 +158,13 @@ impl WebglBubbleChart {
         let logger = Logger::new("bubble");
         let node   = display::object::Instance::new(&logger);
         let views  = RefCell::new(vec![]);
+        let frp    = default();
 
-        WebglBubbleChart { node,views,logger }
+        WebglBubbleChart { display_object: node,views,logger,frp }
     }
 }
 
 impl DataRenderer for WebglBubbleChart {
-    fn init(&self, _frp:&VisualisationFrp) {
-        // No interaction possible at the moment.
-    }
 
     fn valid_input_types(&self) -> Vec<DataType> {
         unimplemented!()
@@ -185,7 +183,7 @@ impl DataRenderer for WebglBubbleChart {
             if let Some(t) = view.data.borrow().as_ref() {
                 t.shape.radius.set(item.z)
             };
-            view.display_object.set_parent(&self.node);
+            view.display_object.set_parent(&self.display_object);
         });
         Ok(data)
     }
@@ -193,11 +191,15 @@ impl DataRenderer for WebglBubbleChart {
     fn set_size(&self, _size:Vector2<f32>) {
         // unimplemented!()
     }
+
+    fn frp(&self) -> &DataRendererFrp {
+        &self.frp
+    }
 }
 
 impl display::Object  for WebglBubbleChart {
     fn display_object(&self) -> &display::object::Instance {
-        &self.node.display_object()
+        &self.display_object.display_object()
     }
 }
 
