@@ -51,7 +51,7 @@ impl Data {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Visualization {
-    content : Rc<DomSymbol>
+    content : DomSymbol
 }
 
 impl display::Object  for Visualization {
@@ -81,16 +81,9 @@ impl Visualization {
 
 impl From<DomSymbol> for Visualization {
     fn from(symbol:DomSymbol) -> Self {
-        Visualization { content : Rc::new(symbol) }
-    }
-}
-
-impl From<Rc<DomSymbol>> for Visualization {
-    fn from(symbol:Rc<DomSymbol>) -> Self {
         Visualization { content : symbol }
     }
 }
-
 
 
 // =========================
