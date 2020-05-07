@@ -211,11 +211,11 @@ ensogl::def_command_api! { Commands
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def add_node_at_cursor              = source();
-            def remove_selected_nodes           = source();
-            def remove_all_nodes                = source();
-            def toggle_visualization_visibility = source();
-            def debug_set_data_for_selected_node      = source();
+            def add_node_at_cursor               = source();
+            def remove_selected_nodes            = source();
+            def remove_all_nodes                 = source();
+            def toggle_visualization_visibility  = source();
+            def debug_set_data_for_selected_node = source();
         }
         Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes,
               toggle_visualization_visibility,debug_set_data_for_selected_node}
@@ -419,7 +419,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         Self::self_shortcut(&[Key::Character("n".into())]  , "add_node_at_cursor")
       , Self::self_shortcut(&[Key::Backspace]              , "remove_selected_nodes")
       , Self::self_shortcut(&[Key::Character(" ".into())]  , "toggle_visualization_visibility")
-        // TODO move to debug scene
       , Self::self_shortcut(&[Key::Character("d".into())]  , "debug_set_data_for_selected_node")
         ]
     }
@@ -527,12 +526,11 @@ impl application::View for GraphEditor {
             display_object.add_child(node);
 
             let dummy_content = visualization::default_content();
-
-            let dom_layer = scene.dom.layers.front.clone_ref();
+            let dom_layer    = scene.dom.layers.front.clone_ref();
             dom_layer.manage(&dummy_content);
-            let vis : Visualization = dummy_content.into();
-            node.events.set_visualization.emit(Some(vis));
 
+            let vis:Visualization = dummy_content.into();
+            node.events.set_visualization.emit(Some(vis));
             nodes.set.insert(node.clone_ref());
 
         }));
