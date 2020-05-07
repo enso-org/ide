@@ -126,7 +126,7 @@ pub mod shape {
             let shadow        = Rect((shadow_width,shadow_height)).corners_radius(shadow_radius);
             let shadow_color  = color::LinearGradient::new()
                 .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
-                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.10).into_linear());
+                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
             let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(4.0));
             let shadow        = shadow.fill(shadow_color);
 
@@ -318,6 +318,9 @@ pub struct NodeData {
     pub connections : Rc<RefCell<Vec<Connection>>>
 }
 
+const NODE_WIDTH : f32 = 300.0;
+const NODE_HEIGHT : f32 = 28.0;
+
 impl Node {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
@@ -329,6 +332,8 @@ impl Node {
 
         let network = node_network;
         let logger  = Logger::new("node");
+        let _connection = Connection::new(scene); // FIXME hack for sorting
+
         let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let _port   = Port::new(scene); // FIXME hack for sorting
         let label_view    = component::ShapeView::<label::Shape>::new(&logger,scene);
@@ -337,7 +342,7 @@ impl Node {
         object.add_child(&view.display_object);
         object.add_child(&label_view.display_object);
 
-        let width = 300.0;
+        let width = NODE_WIDTH;
         let height = 28.0;
 
         view.shape.sprite.size().set(Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0));
@@ -402,6 +407,9 @@ impl Node {
 
         let connection1 = Connection::new(&self.scene);
         self.add_child(&connection1);
+
+        connection1.mod_position(|p| p.x = NODE_WIDTH/2.0);
+        connection1.mod_position(|p| p.y = NODE_HEIGHT/2.0);
 
 
 //        frp::extend! { port_network
