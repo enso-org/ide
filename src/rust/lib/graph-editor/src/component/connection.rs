@@ -137,7 +137,7 @@ impl Connection {
 
                 let target = Vector2::new(pos.x-300.0, pos.y-260.0);
                 let radius = 14.0;
-                let width  = 300.0 / 2.0;
+                let width  = 284.0 / 2.0;
 
                 let side_circle_x = width - radius;
                 let side          = target.x.signum();

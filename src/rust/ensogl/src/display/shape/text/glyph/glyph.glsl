@@ -31,7 +31,7 @@ highp float msdf_alpha() {
     highp float opacity          = 0.5 + sig_dist_px + dpi_dilate * 0.08;
     opacity += 0.6;                      // FIXME: Widen + sharpen
     opacity = clamp(opacity, 0.0, 1.0);
-    opacity = pow(opacity,2.0);          // FIXME: sharpen
+    opacity = pow(opacity,3.0);          // FIXME: sharpen
     return opacity;
 }
 

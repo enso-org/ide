@@ -124,12 +124,12 @@ impl Port {
         let object  = display::object::Instance::new(&logger);
         object.add_child(&view.display_object);
 
-        let width = 38.5;
-        let height = 20.0;
+        let width = 34.5;
+        let height = 18.0;
 
         view.shape.sprite.size().set(Vector2::new(width,height));
-        view.mod_position(|t| t.x += width/2.0 + 85.0);
-        view.mod_position(|t| t.y += height/2.0 + 4.0);
+        view.mod_position(|t| t.x += width/2.0 + 81.5);
+        view.mod_position(|t| t.y += height/2.0 + 5.0);
         let data    = Rc::new(PortData {object,logger,events,view});
 
         Self {data}

@@ -188,25 +188,23 @@ pub mod label {
         }
 
         fn new_instance(&self) -> Self::Shape {
-            let line_position = Vector2::new(0.0,0.0);
-            let color         = color::Rgba::new(1.0, 1.0, 1.0, 0.8);
-            let obj = display::object::Instance::new(Logger::new("test"));
-
-            let line1          = self.glyph_system.new_line();
-            line1.set_font_size(13.0);
+            let color = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
+            let obj   = display::object::Instance::new(Logger::new("test"));
+            let line1 = self.glyph_system.new_line();
+            line1.set_font_size(12.0);
             line1.set_font_color(color);
             line1.set_text("draw_maps      (distribution normal)");
             obj.add_child(&line1);
 
             let color = color::Rgba::new(0.18, 0.173, 0.165, 1.0);
             let line2 = self.glyph_system.new_line();
-            line2.set_font_size(13.0);
+            line2.set_font_size(12.0);
             line2.set_font_color(color);
             line2.set_text("size");
             obj.add_child(&line2);
-            line2.mod_position(|t| t.x += 78.5);
+            line2.mod_position(|t| t.x += 72.0);
 
-            let lines          = Rc::new(RefCell::new(vec![line1,line2]));
+            let lines = Rc::new(RefCell::new(vec![line1,line2]));
 
             Shape { lines,obj }
         }
@@ -318,7 +316,7 @@ pub struct NodeData {
     pub connections : Rc<RefCell<Vec<Connection>>>
 }
 
-const NODE_WIDTH : f32 = 300.0;
+const NODE_WIDTH : f32 = 284.0;
 const NODE_HEIGHT : f32 = 28.0;
 
 impl Node {
@@ -349,8 +347,8 @@ impl Node {
         view.mod_position(|t| t.x += width/2.0);
         view.mod_position(|t| t.y += height/2.0);
 
-        label_view.mod_position(|t| t.x += 10.0);
-        label_view.mod_position(|t| t.y += 4.0 + 5.5);
+        label_view.mod_position(|t| t.x += 12.0);
+        label_view.mod_position(|t| t.y += 4.0 + 6.0);
 
         let ports = default();
         let connections = default();
