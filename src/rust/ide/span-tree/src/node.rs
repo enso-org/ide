@@ -39,6 +39,15 @@ pub enum Kind {
     Empty(InsertType),
 }
 
+impl Kind {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Empty(_) => true,
+            _              => false
+        }
+    }
+}
+
 /// A helpful information about how the new AST should be inserted during Set action. See `action`
 /// module.
 #[allow(missing_docs)]
@@ -204,6 +213,13 @@ impl<'a> Ref<'a> {
                 ch.span().contains_span(span).and_option_from(|| ch.find_by_span(&span))
             )
         }
+    }
+}
+
+impl<'a> Deref for Ref<'a> {
+    type Target = Node;
+    fn deref(&self) -> &Self::Target {
+        &self.node
     }
 }
 

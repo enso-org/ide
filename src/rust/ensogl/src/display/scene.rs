@@ -44,7 +44,9 @@ use crate::data::color;
 
 
 pub trait MouseTarget : Debug + 'static {
-    fn mouse_down(&self) -> Option<enso_frp::Source> { None }
+    fn mouse_down (&self) -> &enso_frp::Source;
+    fn mouse_over (&self) -> &enso_frp::Source;
+    fn mouse_out  (&self) -> &enso_frp::Source;
 }
 
 
@@ -101,8 +103,15 @@ impl {
         self.mouse_target_map.remove(&(symbol_id,instance_id));
     }
 
-    pub fn get_mouse_target(&mut self, symbol_id:i32, instance_id:usize) -> Option<Rc<dyn MouseTarget>> {
-        self.mouse_target_map.get(&(symbol_id,instance_id)).map(|t| t.clone_ref())
+    pub fn get_mouse_target(&mut self, target:Target) -> Option<Rc<dyn MouseTarget>> {
+        match target {
+            Target::Background => None,
+            Target::Symbol {symbol_id,instance_id} => {
+                let symbol_id   = symbol_id   as i32;
+                let instance_id = instance_id as usize;
+                self.mouse_target_map.get(&(symbol_id,instance_id)).map(|t| t.clone_ref())
+            }
+        }
     }
 }}
 
@@ -796,18 +805,21 @@ impl SceneData {
     }
 
     fn handle_mouse_events(&self) {
-        let target = Target::from_internal(self.mouse.hover_ids.get());
-        if target != self.mouse.target.get() {
-            self.mouse.target.set(target);
-            match target {
-                Target::Background => {}
-                Target::Symbol {symbol_id,..} => {
-                    let symbol = self.symbols.index(symbol_id as usize);
-                    symbol.dispatch_event(&DynEvent::new(())); // FIXME: currently unused
-                    // println!("{:?}",target);
-                    // TODO: finish events sending, including OnOver and OnOut.
-                }
-            }
+        let new_target     = Target::from_internal(self.mouse.hover_ids.get());
+        let current_target = self.mouse.target.get();
+        if new_target != current_target {
+            self.mouse.target.set(new_target);
+            self.shapes.get_mouse_target(current_target) . for_each(|t| t.mouse_out().emit(()));
+            self.shapes.get_mouse_target(new_target)     . for_each(|t| t.mouse_over().emit(()));
+//            match target {
+//                Target::Background => {}
+//                Target::Symbol {symbol_id,..} => {
+//                    let symbol = self.symbols.index(symbol_id as usize);
+//                    symbol.dispatch_event(&DynEvent::new(())); // FIXME: currently unused
+//                    // println!("{:?}",target);
+//                    // TODO: finish events sending, including OnOver and OnOut.
+//                }
+//            }
         }
     }
 

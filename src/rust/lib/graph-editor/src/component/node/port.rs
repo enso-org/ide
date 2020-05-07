@@ -35,9 +35,9 @@ pub mod shape {
             let width  : Var<Distance<Pixels>> = "input_size.x".into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
             let radius = 6.px();
-            let shape = Rect((&width,&height)).corners_radius(radius);
-            let color : Var<color::Rgba> = "srgba(1.0,0.0,0.0,0.00001 + input_hover)".into();
-            let shape = shape.fill(color);
+            let shape  = Rect((&width,&height)).corners_radius(radius);
+            let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001 + 0.1*input_hover)".into();
+            let shape  = shape.fill(color);
             shape.into()
         }
     }
@@ -206,7 +206,9 @@ impl Manager {
             match to_visit.pop() {
                 None => break,
                 Some(node) => {
-                    println!("{:?}",node.span());
+                    let skip = node.kind.is_empty();
+                    if skip { continue }
+
                     let span   = node.span();
                     let port   = component::ShapeView::<shape::Shape>::new(&self.logger,&self.scene);
                     let unit   = 7.2246094;
@@ -219,11 +221,10 @@ impl Manager {
                     self.add_child(&port);
 
                     let network = &port.events.network;
-                    let hover = &port.shape.hover;
+                    let hover   = &port.shape.hover;
                     frp::extend! { network
-                        def _foo = port.events.mouse_down.map(f_!((hover) {
-                            hover.set(1.0);
-                        }));
+                        def _foo = port.events.mouse_over . map(f_!((hover) { hover.set(1.0); }));
+                        def _foo = port.events.mouse_out  . map(f_!((hover) { hover.set(0.0); }));
                     }
 
                     ports.push(port);
