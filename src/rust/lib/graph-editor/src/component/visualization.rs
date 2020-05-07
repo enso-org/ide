@@ -148,10 +148,10 @@ pub struct WeakContainer {
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct ContainerData {
-    logger        : Logger,
-    display_object: display::object::Instance,
-    size          : Cell<Vector2<f32>>,
-    visualization : RefCell<Option<Visualization>>,
+    logger         : Logger,
+    display_object : display::object::Instance,
+    size           : Cell<Vector2<f32>>,
+    visualization  : RefCell<Option<Visualization>>,
 }
 
 impl ContainerData {
@@ -207,13 +207,13 @@ impl ContainerData {
 impl Container {
     /// Constructor.
     pub fn new() -> Self {
-        let logger       = Logger::new("visualization_container");
+        let logger         = Logger::new("visualization_container");
         let visualization  = default();
         let size           = Cell::new(Vector2::new(100.0, 100.0));
         let display_object = display::object::Instance::new(&logger);
 
-        let data     = ContainerData {logger,visualization,size,display_object};
-        let data     = Rc::new(data);
+        let data = ContainerData {logger,visualization,size,display_object};
+        let data = Rc::new(data);
 
         let frp = default();
 
