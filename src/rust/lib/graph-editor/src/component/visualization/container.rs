@@ -104,8 +104,7 @@ impl ContainerData {
     ///
     /// Needs to called when a visualisation has been set.
     fn init_visualisation_properties(&self) {
-        let size       = self.size.get();
-
+        let size         = self.size.get();
         if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.set_size(size);
         };
