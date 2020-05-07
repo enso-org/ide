@@ -75,7 +75,7 @@ pub struct ContainerData {
     display_object: display::object::Instance,
     size          : Cell<Vector2<f32>>,
     visualization : RefCell<Option<Visualization>>,
-    data          : RefCell<Option<Data>>,
+
 }
 
 impl ContainerData {
@@ -101,14 +101,14 @@ impl ContainerData {
         self.set_visibility(!self.is_visible())
     }
 
-    /// Update the data in the inner visualisation.
-    pub fn set_data(&self, data:Data) {
-        self.data.set(data.clone_ref());
-        if let Some(vis) = self.visualization.borrow().as_ref() {
-            // TODO add indicator that data does not match
-            vis.set_data(data).unwrap();
-        }
-    }
+    // /// Update the data in the inner visualisation.
+    // pub fn set_data(&self, data:Data) {
+    //     self.data.set(data.clone_ref());
+    //     if let Some(vis) = self.visualization.borrow().as_ref() {
+    //         // TODO add indicator that data does not match
+    //         vis.set_data(data).unwrap();
+    //     }
+    // }
 
     /// Update the content properties with the values from the `ContainerData`.
     ///
@@ -122,9 +122,9 @@ impl ContainerData {
             vis.display_object().set_position(position);
         };
         self.set_visibility(true);
-        if let Some(data) = self.data.clone().into_inner(){
-            self.set_data(data);
-        }
+        // if let Some(data) = self.data.clone().into_inner(){
+        //     self.set_data(data);
+        // }
     }
 
     /// Set the visualization shown in this container..
@@ -142,9 +142,9 @@ impl Container {
         let visualization  = default();
         let size           = Cell::new(Vector2::new(100.0, 100.0));
         let display_object = display::object::Instance::new(&logger);
-        let data           = default();
 
-        let data     = ContainerData {logger,visualization,data,size,display_object};
+
+        let data     = ContainerData {logger,visualization,size,display_object};
         let data     = Rc::new(data);
 
         let frp = default();
@@ -175,9 +175,8 @@ impl Container {
             }));
 
             def _f_hide = frp.set_data.map(f!((container_data)(data) {
-                if let Some(data) = data.as_ref() {
-                     container_data.set_data(data.clone_ref());
-                }
+                 container_data.visualization.borrow()
+                    .for_each_ref(|vis| vis.frp.set_data.emit(data));
             }));
         }
         self

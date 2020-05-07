@@ -1,4 +1,4 @@
-//! This module defines the `Visualisation` struct and related functionality.
+//! This module defines the `visualization` struct and related functionality.
 
 use crate::prelude::*;
 
@@ -16,7 +16,6 @@ use fmt;
 
 /// TODO[mm] update this with actual required data for `PreprocessId`
 type PreprocessId = String;
-type PreprocessorCallback = Rc<dyn Fn(Rc<dyn Fn(PreprocessId)>)>;
 
 
 
@@ -24,28 +23,38 @@ type PreprocessorCallback = Rc<dyn Fn(Rc<dyn Fn(PreprocessId)>)>;
 // === Visualization FRP ===
 // =========================
 
-/// Events that are emitted by the visualisation.
+/// Events that are used by the visualization.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct VisualisationFrp {
-    pub network           : frp::Network,
-    /// Will be emitted if the visualisation state changes (e.g., through UI interaction).
+pub struct VisualizationFrp {
+    pub network              : frp::Network,
+    /// Will be emitted if the visualization state changes (e.g., through UI interaction).
     pub on_change            : frp::Source<Option<Data>>,
+    /// Will be emitted if the visualization is shown.
     pub on_show              : frp::Source<()>,
+    /// Will be emitted if the visualization is hidden.
     pub on_hide              : frp::Source<()>,
+    /// Will be emitted if the visualization changes it's preprocessor.
     pub on_preprocess_change : frp::Source<()>,
+    /// Will be emitted if the visualization has been provided with invalid data.
+    pub on_invalid_data : frp::Source<()>,
+
+    /// Can be sent to set the data of the visualization.
+    pub set_data     : frp::Source<Option<Data>>,
 }
 
-impl Default for VisualisationFrp {
+impl Default for VisualizationFrp {
     fn default() -> Self {
         frp::new_network! { visualization_events
             def on_change            = source::<Option<Data>> ();
             def on_preprocess_change = source::<()>           ();
             def on_hide              = source::<()>           ();
             def on_show              = source::<()>           ();
+            def set_data             = source::<Option<Data>> ();
+            def on_invalid_data      = source::<()>           ();
         };
         let network = visualization_events;
-        Self {network,on_change,on_preprocess_change,on_hide,on_show}
+        Self {network,on_change,on_preprocess_change,on_hide,on_show,set_data,on_invalid_data}
     }
 }
 
@@ -53,21 +62,21 @@ impl Default for VisualisationFrp {
 // === Visualization ===
 // =====================
 
-/// Inner representation of a visualisation.
-#[derive(Clone)]
+/// Inner representation of a visualization.
+#[derive(Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct Visualization {
-    pub frp                  : VisualisationFrp,
+    pub frp           : VisualizationFrp,
     // TODO[mm] consider whether to use a `Box` and be exclusive owner of the DataRenderer.
-        renderer             : Rc<dyn DataRenderer>,
-        preprocessor         : Option<PreprocessId>,
-        on_preprocess_change : Option<PreprocessorCallback>,
+        renderer      : Rc<dyn DataRenderer>,
+        preprocessor  : Rc<Option<PreprocessId>>,
+        data          : Rc<RefCell<Option<Data>>>,
 }
 
 impl Debug for Visualization {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO[mm] extend to provide actually useful information.
-        f.write_str("<Visualisation>")
+        f.write_str("<visualization>")
     }
 }
 
@@ -81,27 +90,46 @@ impl Visualization {
 
     /// Create a new `Visualization` with the given `DataRenderer`.
     pub fn new(renderer:Rc<dyn DataRenderer>) -> Self {
-        let preprocessor         = None;
-        let on_preprocess_change = None;
-        let frp                  = VisualisationFrp::default();
-        Visualization { frp,renderer,preprocessor,on_preprocess_change}
-            .init()
+        // FIXME use actual pre-processor functionality.
+        let preprocessor = default();
+        let frp          = VisualizationFrp::default();
+        let data          = default();
+        Visualization { frp,renderer,preprocessor,data} . init()
     }
 
     fn init(self) -> Self {
-        // TODO hook up renderer frp
+        let network = &self.frp.network;
+        let visualization = &self;
+        frp::extend! { network
+            def _set_data = visualization.frp.set_data.map(f!((visualization)(data) {
+                if let Some(data) = data {
+                    if let Err(_) = visualization.set_data(data.clone_ref()) {
+                        visualization.frp.on_invalid_data.emit(())
+                    }
+                }
+            }));
+        }
+
+        let renderer_frp = self.renderer.frp();
+        let renderer_network = &renderer_frp.network;
+
+        frp::new_bridge_network! { [network,renderer_network]
+            def _on_changed = renderer_frp.on_change.map(f!((visualization)(data) {
+                visualization.frp.on_change.emit(data)
+            }));
+        }
+
         self
     }
 
-    /// Update the visualisation with the given data. Returns an error if the data did not match
+    /// Update the visualization with the given data. Returns an error if the data did not match
     /// the visualization.
-    pub fn set_data(&self, data:Data) -> Result<(),DataError> {
-        let output_data = self.renderer.set_data(data)?;
-        self.frp.on_change.emit(&Some(output_data));
+    fn set_data(&self, data:Data) -> Result<(),DataError> {
+        self.renderer.set_data(data)?;
         Ok(())
     }
 
-    /// Set the viewport size of the visualisation.
+    /// Set the viewport size of the visualization.
     pub fn set_size(&self, size: Vector2<f32>) {
         self.renderer.set_size(size)
     }

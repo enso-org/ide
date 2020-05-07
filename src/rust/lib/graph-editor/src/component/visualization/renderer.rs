@@ -18,20 +18,18 @@ use ensogl::display;
 #[allow(missing_docs)]
 pub struct DataRendererFrp {
     pub network   : frp::Network,
+    /// This is emitted if the state of the renderer has been changed bu UI interaction.
+    /// It contains the output data of this visualisation, or `None`.
     pub on_change : frp::Source<Option<Data>>,
-    pub on_show   : frp::Source<()>,
-    pub on_hide   : frp::Source<()>,
 }
 
 impl Default for DataRendererFrp {
     fn default() -> Self {
         frp::new_network! { renderer_events
             def on_change = source::<Option<Data>> ();
-            def on_show   = source::<()>           ();
-            def on_hide   = source::<()>           ();
         };
         let network = renderer_events;
-        Self {network,on_change,on_show,on_hide}
+        Self {network,on_change}
     }
 }
 
