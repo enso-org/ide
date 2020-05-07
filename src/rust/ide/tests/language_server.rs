@@ -26,6 +26,8 @@ wasm_bindgen_test_configure!(run_in_browser);
 #[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn file_operations() {
+    ensogl::system::web::set_stdout();
+
     let ws        = WebSocket::new_opened(SERVER_ENDPOINT).await;
     let ws        = ws.expect("Couldn't connect to WebSocket server.");
     let client    = Client::new(ws);
@@ -33,10 +35,52 @@ async fn file_operations() {
 
     executor::global::spawn(client.runner());
 
-    let client_id = uuid::Uuid::default();
+    let client_id = uuid::Uuid::new_v4();
     let session   = client.init_protocol_connection(client_id).await;
     let session   = session.expect("Couldn't initialize session.");
     let root_id   = session.content_roots[0];
+
+    let execution_context    = client.create_execution_context().await;
+    let execution_context    = execution_context.expect("Couldn't create execution context.");
+    let execution_context_id = match execution_context.can_modify.register_options {
+        RegisterOptions::ExecutionContextId{context_id} => Some(context_id),
+        _                                               => None
+    }.expect("Couldn't get context ID.");
+
+    // TODO[dg]:Implement integration tests for `executionContext/*` methods when these questions
+    // are clarified:
+    // 1. Where can we get the expression_id from?
+    // 2.
+    // let expression_id = uuid::Uuid::new_v4();
+    // let local_call    = LocalCall {expression_id};
+    // let stack_item    = StackItem::LocalCall(local_call);
+    // let response      = client.push_execution_context(execution_context_id,stack_item).await;
+    // response.expect("Couldn't push execution context.");
+    //
+    // let response = client.pop_execution_context(execution_context_id).await;
+    // response.expect("Couldn't pop execution context.");
+
+    // let visualisation_id     = uuid::Uuid::new_v4();
+    // let expression_id        = uuid::Uuid::new_v4();
+    // let expression           = "1 + 1".to_string();
+    // let visualisation_module = "[Foo.Bar.Baz]".to_string();
+    // let visualisation_config = VisualisationConfiguration
+    //     {execution_context_id,expression,visualisation_module};
+    // let response = client.attach_visualisation(visualisation_id,expression_id,visualisation_config);
+    // response.await.expect("Couldn't attach visualisation.");
+    //
+    // let expression           = "1 + 1".to_string();
+    // let visualisation_module = "[Foo.Bar.Baz]".to_string();
+    // let visualisation_config = VisualisationConfiguration
+    // {execution_context_id,expression,visualisation_module};
+    // let response = client.modify_visualisation(visualisation_id,visualisation_config).await;
+    // response.expect("Couldn't modify visualisation.");
+    //
+    // let response = client.detach_visualisation(execution_context_id,visualisation_id).await;
+    // response.expect("Couldn't detach visualisation.");
+
+    let response = client.destroy_execution_context(execution_context_id).await;
+    response.expect("Couldn't destroy execution context.");
 
     let path      = Path{root_id, segments:vec!["foo".into()]};
     let name      = "text.txt".into();
@@ -80,7 +124,7 @@ async fn file_operations() {
 
     let receives_tree_updates   = ReceivesTreeUpdates{path:move_path.clone()};
     let register_options        = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
-    let method                  = "canEdit".to_string();
+    let method                  = "text/canEdit".to_string();
     let capability_registration = CapabilityRegistration {method,register_options};
     let response = client.open_text_file(move_path.clone()).await;
     let response = response.expect("Couldn't open text file.");

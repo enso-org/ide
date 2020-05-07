@@ -6,6 +6,8 @@
 //! Also, the Enso Protocol specification is source for many names and comments used here.
 //! This file tries to follow the scheme of the protocol specification.
 
+//TODO[dg]: Ask clarification about missing docs to Engine team.
+
 use crate::prelude::*;
 
 use crate::types::UTCDateTime;
@@ -215,6 +217,15 @@ pub mod response {
         pub content          : String,
         pub current_version  : Sha3_224
     }
+
+    /// Response of `create_execution_context` method.
+    #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    #[allow(missing_docs)]
+    pub struct CreateExecutionContext {
+        pub can_modify       : CapabilityRegistration,
+        pub receives_updates : CapabilityRegistration
+    }
 }
 
 
@@ -279,6 +290,57 @@ pub struct FileEdit {
 
 
 
+// ========================
+// === ExecutionContext ===
+// ========================
+
+/// Execution context ID.
+pub type ContextId = Uuid;
+
+/// Execution context expression ID.
+pub type ExpressionId = Uuid;
+
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VisualisationConfiguration {
+    pub execution_context_id : Uuid,
+    pub visualisation_module : String,
+    pub expression           : String
+}
+
+#[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct LocalCall {
+    pub expression_id : ExpressionId
+}
+
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct MethodPointer {
+    pub file            : Path,
+    pub defined_on_type : String,
+    pub name            : String
+}
+
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct ExplicitCall {
+    pub method_pointer                  : MethodPointer,
+    pub this_argument_expression        : Option<String>,
+    pub positional_arguments_expression : Vec<String>
+}
+
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[allow(missing_docs)]
+pub enum StackItem {
+    ExplicitCall(ExplicitCall),
+    LocalCall(LocalCall)
+}
+
+
 // ==============================
 // === CapabilityRegistration ===
 // ==============================
@@ -301,17 +363,20 @@ pub struct CapabilityRegistration {
 /// options. The used variant must match the method. See for details:
 /// https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md#capabilities
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-#[serde(untagged)]
+#[serde(untagged, rename_all = "camelCase")]
 #[allow(missing_docs)]
+
 pub enum RegisterOptions {
-    ReceivesTreeUpdates(ReceivesTreeUpdates)
+    ReceivesTreeUpdates(ReceivesTreeUpdates),
+    #[serde(rename_all = "camelCase")]
+    ExecutionContextId{context_id:ContextId}
 }
 
 /// `RegisterOptions`' to receive file system tree updates.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[allow(missing_docs)]
 pub struct ReceivesTreeUpdates {
-    #[allow(missing_docs)]
-    pub path:Path,
+    pub path : Path
 }
 
 
@@ -402,6 +467,48 @@ trait API {
     #[MethodInput=ApplyTextFileEditInput,rpc_name="text/applyEdit",
     result=apply_text_file_edit_result,set_result=set_apply_text_file_edit_result]
     fn apply_text_file_edit(&self, edit:FileEdit) -> ();
+
+    /// Create a new execution context. Return capabilities executionContext/canModify and
+    /// executionContext/receivesUpdates containing freshly created ContextId
+    #[MethodInput=CreateExecutionContextInput,rpc_name="executionContext/create",
+    result=create_execution_context_result,set_result=set_create_execution_context_result]
+    fn create_execution_context(&self) -> response::CreateExecutionContext;
+
+    /// Destroy an execution context and free its resources.
+    #[MethodInput=DestroyExecutionContextInput,rpc_name="executionContext/destroy",
+    result=destroy_execution_context_result,set_result=set_destroy_execution_context_result]
+    fn destroy_execution_context(&self, context_id:ContextId) -> ();
+
+    /// Move the execution context to a new location deeper down the stack.
+    #[MethodInput=PushExecutionContextInput,rpc_name="executionContext/push",
+    result=push_execution_context_result,set_result=set_push_execution_context_result]
+    fn push_execution_context(&self, context_id:ContextId, stack_item:StackItem) -> ();
+
+    /// Move the execution context up the stack.
+    #[MethodInput=PopExecutionContextInput,rpc_name="executionContext/pop",
+    result=pop_execution_context_result,set_result=set_pop_execution_context_result]
+    fn pop_execution_context(&self, context_id:ContextId) -> ();
+
+    /// Attach a visualisation, potentially preprocessed by some arbitrary Enso code, to a given
+    /// node in the program.
+    #[MethodInput=AttachVisualisationInput,rpc_name="executionContext/attachVisualisation",
+    result=attach_visualisation_result,set_result=set_attach_visualisation_result]
+    fn attach_visualisation
+    ( &self
+    , visualisation_id     : Uuid
+    , expression_id        : Uuid
+    , visualisation_config : VisualisationConfiguration) -> ();
+
+    /// Detach a visualisation from the executing code.
+    #[MethodInput=DetachVisualisationInput,rpc_name="executionContext/detachVisualisation",
+    result=detach_visualisation_result,set_result=set_detach_visualisation_result]
+    fn detach_visualisation(&self, execution_context_id:Uuid, visualisation_id:Uuid) -> ();
+
+    /// Modify the configuration for an existing visualisation.
+    #[MethodInput=ModifyVisualisationInput,rpc_name="executionContext/modifyVisualisation",
+    result=modify_visualisation_result,set_result=set_modify_visualisation_result]
+    fn modify_visualisation
+    (&self, visualisation_id:Uuid, visualisation_config:VisualisationConfiguration) -> ();
 }}
 
 
@@ -688,6 +795,215 @@ mod tests {
                         "rootId"   : "00000000-0000-0000-0000-000000000000",
                         "segments" : []
                     }
+                }
+            }),
+            unit_json.clone(),
+            ()
+        );
+        let context_id       = uuid::Uuid::default();
+        let method           = "executionContext/canModify".to_string();
+        let register_options = RegisterOptions::ExecutionContextId{context_id};
+        let can_modify       = CapabilityRegistration{method,register_options};
+        let register_options = RegisterOptions::ExecutionContextId{context_id};
+        let method           = "executionContext/receivesUpdates".to_string();
+        let receives_updates = CapabilityRegistration{method,register_options};
+        let create_execution_context_response = response::CreateExecutionContext
+            {can_modify,receives_updates};
+        test_request(
+            |client| client.create_execution_context(),
+            "executionContext/create",
+            json!({}),
+            json!({
+                "canModify" : {
+                    "method"          : "executionContext/canModify",
+                    "registerOptions" : {
+                        "contextId" : "00000000-0000-0000-0000-000000000000"
+                    }
+                },
+                "receivesUpdates" : {
+                    "method"          : "executionContext/receivesUpdates",
+                    "registerOptions" : {
+                        "contextId" : "00000000-0000-0000-0000-000000000000"
+                    }
+                }
+            }),
+            create_execution_context_response
+        );
+        test_request(
+            |client| client.destroy_execution_context(context_id),
+            "executionContext/destroy",
+            json!({"contextId":"00000000-0000-0000-0000-000000000000"}),
+            unit_json.clone(),
+            ()
+        );
+        let expression_id = uuid::Uuid::default();
+        let local_call    = LocalCall {expression_id};
+        let stack_item    = StackItem::LocalCall(local_call);
+        test_request(
+            |client| client.push_execution_context(context_id,stack_item),
+            "executionContext/push",
+            json!({
+                "contextId" : "00000000-0000-0000-0000-000000000000",
+                "stackItem" : {
+                    "LocalCall" : {
+                        "expressionId" : "00000000-0000-0000-0000-000000000000"
+                    }
+                }
+            }),
+            unit_json.clone(),
+            ()
+        );
+        test_request(
+            |client| client.pop_execution_context(context_id),
+            "executionContext/pop",
+            json!({"contextId":"00000000-0000-0000-0000-000000000000"}),
+            unit_json.clone(),
+            ()
+        );
+        let visualisation_id     = uuid::Uuid::default();
+        let expression_id        = uuid::Uuid::default();
+        let expression           = "1 + 1".to_string();
+        let visualisation_module = "[Foo.Bar.Baz]".to_string();
+        let visualisation_config = VisualisationConfiguration
+            {execution_context_id:context_id,expression,visualisation_module};
+        test_request(
+            |client|
+                client.attach_visualisation(visualisation_id,expression_id,visualisation_config),
+            "executionContext/attachVisualisation",
+            json!({
+                "visualisationId"     : "00000000-0000-0000-0000-000000000000",
+                "expressionId"        : "00000000-0000-0000-0000-000000000000",
+                "visualisationConfig" : {
+                    "executionContextId"  : "00000000-0000-0000-0000-000000000000",
+                    "visualisationModule" : "[Foo.Bar.Baz]",
+                    "expression"          : "1 + 1"
+                }
+            }),
+            unit_json.clone(),
+            ()
+        );
+        test_request(
+            |client| client.detach_visualisation(context_id,visualisation_id),
+            "executionContext/detachVisualisation",
+            json!({
+                "executionContextId" : "00000000-0000-0000-0000-000000000000",
+                "visualisationId"    : "00000000-0000-0000-0000-000000000000"
+            }),
+            unit_json.clone(),
+            ()
+        );
+        let expression           = "1 + 1".to_string();
+        let visualisation_module = "[Foo.Bar.Baz]".to_string();
+        let visualisation_config = VisualisationConfiguration
+        {execution_context_id:context_id,expression,visualisation_module};
+        test_request(
+            |client| client.modify_visualisation(visualisation_id,visualisation_config),
+            "executionContext/modifyVisualisation",
+            json!({
+                "visualisationId"     : "00000000-0000-0000-0000-000000000000",
+                "visualisationConfig" : {
+                    "executionContextId"  : "00000000-0000-0000-0000-000000000000",
+                    "visualisationModule" : "[Foo.Bar.Baz]",
+                    "expression"          : "1 + 1"
+                }
+            }),
+            unit_json.clone(),
+            ()
+        );
+        let content               = b"Hello World!";
+        let current_version       = Sha3_224::new(content);
+        let content               = String::from_utf8_lossy(content).to_string();
+        let method                = "text/canEdit".to_string();
+        let receives_tree_updates = ReceivesTreeUpdates{path:main.clone()};
+        let register_options      = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+        let write_capability      = Some(CapabilityRegistration{method,register_options});
+        let open_text_file_response = response::OpenTextFile
+            {content,current_version:current_version.clone(),write_capability};
+        test_request(
+            |client| client.open_text_file(main.clone()),
+            "text/openFile",
+            json!({
+                "path" : {
+                    "rootId"   : "00000000-0000-0000-0000-000000000000",
+                    "segments" : ["Main.txt"]
+                }
+            }),
+            json!({
+                "writeCapability" : {
+                    "method"         : "text/canEdit",
+                    "registerOptions": {
+                        "path" : {
+                            "rootId"   : "00000000-0000-0000-0000-000000000000",
+                            "segments" : ["Main.txt"]
+                        }
+                    }
+                },
+                "content"        : "Hello World!",
+                "currentVersion" : "716596afadfa17cd1cb35133829a02b03e4eed398ce029ce78a2161d"
+            }),
+            open_text_file_response
+        );
+        let start       = Position{line:0,character:5};
+        let end         = Position{line:0,character:5};
+        let range       = TextRange{start,end};
+        let text        = ",".to_string();
+        let text_edit   = TextEdit{range,text};
+        let edits       = vec![text_edit];
+        let old_version = Sha3_224::new(b"Hello world!");
+        let new_version = Sha3_224::new(b"Hello, world!");
+        let path        = main.clone();
+        let edit        = FileEdit {path,edits,old_version,new_version:new_version.clone()};
+        test_request(
+            |client| client.apply_text_file_edit(edit),
+            "text/applyEdit",
+            json!({
+                "edit" : {
+                    "path" : {
+                        "rootId"   : "00000000-0000-0000-0000-000000000000",
+                        "segments" : ["Main.txt"]
+                    },
+                    "edits" : [
+                        {
+                            "range" : {
+                                "start" : {
+                                    "line"      : 0,
+                                    "character" : 5
+                                },
+                                "end" : {
+                                    "line"      : 0,
+                                    "character" : 5
+                                }
+                            },
+                            "text" : ","
+                        }
+                    ],
+                    "oldVersion" : "d3ee9b1ba1990fecfd794d2f30e0207aaa7be5d37d463073096d86f8",
+                    "newVersion" : "6a33e22f20f16642697e8bd549ff7b759252ad56c05a1b0acc31dc69"
+                }
+            }),
+            unit_json.clone(),
+            ()
+        );
+        test_request(
+            |client| client.save_text_file(main.clone(),current_version),
+            "text/save",
+            json!({
+                "path" : {
+                    "rootId"   : "00000000-0000-0000-0000-000000000000",
+                    "segments" : ["Main.txt"]
+                },
+                "currentVersion" : "716596afadfa17cd1cb35133829a02b03e4eed398ce029ce78a2161d"
+            }),
+            unit_json.clone(),
+            ()
+        );
+        test_request(
+            |client| client.close_text_file(main),
+            "text/closeFile",
+            json!({
+                "path" : {
+                    "rootId"   : "00000000-0000-0000-0000-000000000000",
+                    "segments" : ["Main.txt"]
                 }
             }),
             unit_json,
