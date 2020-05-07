@@ -200,12 +200,12 @@ impl component::ShapeViewDefinition for NodeView {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct NodeData {
-    pub logger        : Logger,
-    pub label         : frp::Source<String>,
-    pub events        : Events,
-    pub view          : component::ShapeView<NodeView>,
-    pub ports         : Registry,
-    pub visualization : visualization::Container
+    pub logger                  : Logger,
+    pub label                   : frp::Source<String>,
+    pub events                  : Events,
+    pub view                    : component::ShapeView<NodeView>,
+    pub ports                   : Registry,
+    pub visualization_container : visualization::Container
 }
 
 impl Node {
@@ -223,13 +223,13 @@ impl Node {
         let events        = Events {network,select,deselect,set_visualization};
         let ports         = Registry::default() ;
         let visualization = default();
-        let data          = Rc::new(NodeData{logger,label,events,view,ports,visualization});
+        let data          = Rc::new(NodeData{logger,label,events,view,ports, visualization_container: visualization });
         Self {data} . init()
     }
 
     fn init(self) -> Self {
-        self.data.visualization.set_position(Vector3::new(0.0,-50.0,0.0));
-        self.add_child(&self.data.visualization);
+        self.data.visualization_container.set_position(Vector3::new(0.0, -50.0, 0.0));
+        self.add_child(&self.data.visualization_container);
 
         let network = &self.data.events.network;
 
@@ -265,7 +265,7 @@ impl Node {
             let weak_node = self.downgrade();
             def _f_set_vis = self.events.set_visualization.map(move |content| {
                 if let Some(node) = weak_node.upgrade() {
-                    node.visualization.frp.set_visualization.emit(content)
+                    node.visualization_container.frp.set_visualization.emit(content)
                 }
             });
         }

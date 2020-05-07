@@ -532,7 +532,6 @@ impl application::View for GraphEditor {
             dom_layer.manage(&dummy_content);
             let vis : Visualization = dummy_content.into();
             node.events.set_visualization.emit(Some(vis));
-            // node.visualization.as_ref().unwrap().register_content(node, &dom_layer);
 
             nodes.set.insert(node.clone_ref());
 
@@ -547,13 +546,13 @@ impl application::View for GraphEditor {
             dummy_counter.set(dc + 0.1);
             let content = json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin()));
             let dummy_data = Some(visualization::Data::JSON { content });
-            nodes.selected.for_each(move |node| node.visualization.frp.set_data.emit(&dummy_data));
+            nodes.selected.for_each(move |node| node.visualization_container.frp.set_data.emit(&dummy_data));
         }));
 
 
         // === Toggle Visualization Visibility ===
         def _toggle_selected = inputs.toggle_visualization_visibility.map(f!((nodes)(_) {
-            nodes.selected.for_each(|node| node.visualization.toggle_visibility());
+            nodes.selected.for_each(|node| node.visualization_container.toggle_visibility());
         }));
 
 
