@@ -187,9 +187,7 @@ impl ContainerData {
 
     /// Update the data in the inner visualisation.
     pub fn set_data(&self, data:Data) {
-        if let Some(vis) = self.visualization.borrow().as_ref() {
-            vis.set_data(data)
-        }
+        self.visualization.borrow().for_each_ref(|vis| vis.set_data(data));
     }
 
     /// Update the content properties with the values from the `ContainerData`.
@@ -198,10 +196,10 @@ impl ContainerData {
     fn update_visualisation_properties(&self) {
         let size     = self.size.get();
         let position = self.display_object.position();
-        if let Some(vis) = self.visualization.borrow().as_ref() {
+        self.visualization.borrow().for_each_ref(|vis| {
             vis.content.set_size(size);
             vis.content.set_position(position);
-        };
+        });
     }
 
     /// Set the visualization shown in this container..
