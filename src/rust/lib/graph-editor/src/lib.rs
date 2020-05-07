@@ -57,6 +57,7 @@ use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
 use crate::component::visualization::sample::*;
+use crate::component::visualization::js::make_sample_js_bubble_chart;
 
 use serde_json::json;
 

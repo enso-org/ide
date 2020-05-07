@@ -18,8 +18,6 @@
 //! In addition this module also contains a `Data` struct that provides a dynamically typed way to
 //! handle data for visualisations. This allows the `Visualisation` struct to be without type
 //! parameters and simplifies the FRP communication and complexity of the node system.
-pub mod sample;
-pub mod js;
 pub mod class;
 pub mod container;
 pub mod renderer;
