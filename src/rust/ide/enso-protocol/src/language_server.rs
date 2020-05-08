@@ -277,10 +277,8 @@ pub struct TextEdit {
 // ================
 
 /// A versioned representation of batch edits to a file.
-
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(missing_docs)]
 pub struct FileEdit {
     pub path        : Path,
     pub edits       : Vec<TextEdit>,
@@ -310,14 +308,12 @@ pub struct VisualisationConfiguration {
 
 #[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(missing_docs)]
 pub struct LocalCall {
     pub expression_id : ExpressionId
 }
 
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(missing_docs)]
 pub struct MethodPointer {
     pub file            : Path,
     pub defined_on_type : String,
@@ -326,15 +322,14 @@ pub struct MethodPointer {
 
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(missing_docs)]
 pub struct ExplicitCall {
-    pub method_pointer                  : MethodPointer,
-    pub this_argument_expression        : Option<String>,
-    pub positional_arguments_expression : Vec<String>
+    pub method_pointer                   : MethodPointer,
+    pub this_argument_expression         : Option<String>,
+    pub positional_arguments_expressions : Vec<String>
 }
 
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-#[allow(missing_docs)]
+#[serde(tag="type")]
 pub enum StackItem {
     ExplicitCall(ExplicitCall),
     LocalCall(LocalCall)
@@ -347,7 +342,6 @@ pub enum StackItem {
 
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(missing_docs)]
 pub struct CapabilityRegistration {
     pub method           : String,
     pub register_options : RegisterOptions
