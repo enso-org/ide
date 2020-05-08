@@ -8,6 +8,7 @@ use crate::prelude::*;
 
 use inflector::Inflector;
 
+use crate::display::shape::primitive::def::class::AnyShape;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas;
@@ -102,6 +103,18 @@ macro_rules! _define_sdf_shape_immutable_part {
         }
 
         impl AsOwned for $name { type Owned = $name; }
+
+        impl From<$name> for AnyShape {
+            fn from(t:$name) -> Self {
+                Self::new(t)
+            }
+        }
+
+        impl From<&$name> for AnyShape {
+            fn from(t:&$name) -> Self {
+                Self::new(t.clone())
+            }
+        }
 
         impl $name {$(
             /// Field accessor.

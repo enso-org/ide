@@ -16,7 +16,11 @@
 #![warn(unsafe_code)]
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
+
+#![feature(vec_remove_item)] // FIXME - remove
+
 #[allow(clippy::option_map_unit_fn)]
+
 
 pub mod dom_symbols;
 pub mod easing_animator;

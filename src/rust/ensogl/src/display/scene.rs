@@ -602,7 +602,9 @@ pub struct WeakView {
 pub struct ViewData {
     logger  : Logger,
     pub camera  : Camera2d,
-    symbols : RefCell<Vec<SymbolId>>,
+    label_layer   : RefCell<Vec<SymbolId>>,
+    cursor_layer : RefCell<Vec<SymbolId>>,
+    normal_layer : RefCell<Vec<SymbolId>>,
 }
 
 impl AsRef<ViewData> for View {
@@ -639,12 +641,29 @@ impl View {
         WeakView {data}
     }
 
-    pub fn add(&self, symbol:&Symbol) {
-        self.symbols.borrow_mut().push(symbol.id as usize); // TODO strange conversion
+    pub fn add_to_cursor_layer(&self, symbol:&Symbol) {
+        self.cursor_layer.borrow_mut().push(symbol.id as usize); // TODO strange conversion
     }
 
-    pub fn remove(&self, symbol:&Symbol) {
-        self.symbols.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
+    pub fn add_to_label_layer(&self, symbol:&Symbol) {
+        self.label_layer.borrow_mut().push(symbol.id as usize); // TODO strange conversion
+    }
+
+    pub fn add_to_normal_layer(&self, symbol:&Symbol) {
+        self.normal_layer.borrow_mut().push(symbol.id as usize); // TODO strange conversion
+    }
+
+
+    pub fn remove_from_cursor_layer(&self, symbol:&Symbol) {
+        self.cursor_layer.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
+    }
+
+    pub fn remove_from_label_layer(&self, symbol:&Symbol) {
+        self.label_layer.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
+    }
+
+    pub fn remove_from_normal_layer(&self, symbol:&Symbol) {
+        self.normal_layer.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
     }
 }
 
@@ -656,14 +675,20 @@ impl WeakView {
 
 impl ViewData {
     pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger  = logger.sub("view");
-        let camera  = Camera2d::new(&logger,width,height);
-        let symbols = default();
-        Self {logger,camera,symbols}
+        let logger       = logger.sub("view");
+        let camera       = Camera2d::new(&logger,width,height);
+        let label_layer  = default();
+        let cursor_layer = default();
+        let normal_layer = default();
+        Self {logger,camera,label_layer,cursor_layer,normal_layer}
     }
 
-    pub fn symbols(&self) -> Ref<Vec<SymbolId>> {
-        self.symbols.borrow()
+    pub fn symbols(&self) -> Vec<SymbolId> {
+        let mut symbols = vec![];
+        symbols.extend(self.normal_layer.borrow().iter());
+        symbols.extend(self.cursor_layer.borrow().iter());
+        symbols.extend(self.label_layer.borrow().iter());
+        symbols
     }
 }
 
@@ -796,7 +821,7 @@ impl SceneData {
 
     pub fn new_symbol(&self) -> Symbol {
         let symbol = self.symbols.new();
-        self.views.main.add(&symbol);
+        self.views.main.add_to_normal_layer(&symbol);
         symbol
     }
 

@@ -34,18 +34,23 @@ use crate::system::gpu::data::buffer::item::Storable;
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct ShapeSystem {
     #[shrinkwrap(main_field)]
-    pub sprite_system : SpriteSystem,
-    pub material      : Rc<RefCell<Material>>,
+    pub sprite_system  : SpriteSystem,
+    pub shape          : Rc<RefCell<def::AnyShape>>,
+    pub material       : Rc<RefCell<Material>>,
+    pub pointer_events : Rc<Cell<bool>>,
 }
 
 impl ShapeSystem {
     /// Constructor.
-    pub fn new<'t,S,Sh:def::Shape>(scene:S, shape:&Sh) -> Self
-    where S : Into<&'t Scene> {
-        let sprite_system = SpriteSystem::new(scene);
-        let material      = Rc::new(RefCell::new(Self::surface_material()));
-        let this          = Self {sprite_system,material};
-        this.set_shape(shape);
+    pub fn new<'t,S,Sh>(scene:S, shape:Sh) -> Self
+    where S:Into<&'t Scene>, Sh:Into<def::AnyShape> {
+        let shape          = shape.into();
+        let sprite_system  = SpriteSystem::new(scene);
+        let material       = Rc::new(RefCell::new(Self::surface_material()));
+        let pointer_events = Rc::new(Cell::new(true));
+        let shape          = Rc::new(RefCell::new(shape));
+        let this           = Self {sprite_system,material,pointer_events,shape};
+        this.reload_shape();
         this
     }
 
@@ -64,9 +69,21 @@ impl ShapeSystem {
         material
     }
 
+    pub fn set_pointer_events(&self, val:bool) {
+        self.pointer_events.set(val);
+        self.reload_shape();
+    }
+
     /// Replaces the shape definition.
-    pub fn set_shape<S:def::Shape>(&self, shape:&S) {
-        let code = shader::builder::Builder::run(shape);
+    pub fn set_shape<S:Into<def::AnyShape>>(&self, shape:S) {
+        let shape = shape.into();
+        *self.shape.borrow_mut() = shape;
+        self.reload_shape();
+    }
+
+    /// Replaces the shape definition.
+    pub fn reload_shape(&self) {
+        let code = shader::builder::Builder::run(&*self.shape.borrow(),self.pointer_events.get());
         self.material.borrow_mut().set_code(code);
         self.reload_material();
     }

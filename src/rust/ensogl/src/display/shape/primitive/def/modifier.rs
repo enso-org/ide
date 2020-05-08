@@ -93,6 +93,12 @@ macro_rules! _define_modifier {
             }
         }
 
+        impl<$($shape_field:'static+canvas::Draw),*> From<&$name<$($shape_field),*>> for AnyShape {
+            fn from(t:&$name<$($shape_field),*>) -> Self {
+                Self::new(t.clone())
+            }
+        }
+
         impl<$($shape_field:canvas::Draw),*> canvas::Draw for $name<$($shape_field),*> {
             fn draw(&self, canvas:&mut Canvas) -> canvas::Shape {
                 $(let $shape_field = self.$shape_field.draw(canvas);)*

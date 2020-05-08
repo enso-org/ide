@@ -22,7 +22,7 @@ pub trait Shape = 'static + canvas::Draw;
 
 /// Generic 2d shape representation. You can convert any specific shape type to this type and use it
 /// as a generic shape type.
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct AnyShape {
     rc: Rc<dyn canvas::Draw>
 }
@@ -43,8 +43,6 @@ impl canvas::Draw for AnyShape {
         self.rc.draw(canvas)
     }
 }
-
-impls! { From<&AnyShape> for AnyShape { |t| t.clone() }}
 
 
 

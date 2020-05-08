@@ -36,7 +36,8 @@ pub mod shape {
                 .corners_radius(radius)
                 .translate((-&width/2.0, -&height/2.0))
                 .translate(("input_position.x","input_position.y"))
-                .fill(color::Rgba::new(1.0,1.0,1.0,0.3));
+//                .fill(color::Rgba::new(1.0,1.0,1.0,0.3));
+                .fill(color::Rgba::new(1.0,0.0,0.0,1.0));
             cursor.into()
         }
     }
@@ -126,7 +127,10 @@ impl Cursor {
 
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+        shape_system.shape_system.set_pointer_events(false);
 
+        scene.views.main.remove_from_normal_layer(&shape_system.shape_system.symbol);
+        scene.views.main.add_to_cursor_layer(&shape_system.shape_system.symbol);
 //        let scene_view = scene.views.new();
 //        scene.views.main.remove(&shape_system.shape_system.symbol);
 //        scene_view.add(&shape_system.shape_system.symbol);

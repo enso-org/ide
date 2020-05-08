@@ -206,28 +206,29 @@ impl Manager {
             match to_visit.pop() {
                 None => break,
                 Some(node) => {
-                    let skip = node.kind.is_empty();
-                    if skip { continue }
+                    let span          = node.span();
+                    let contains_root = span.index.value == 0;
+                    let skip          = node.kind.is_empty() || contains_root;
+                    if !skip {
+                        let port   = component::ShapeView::<shape::Shape>::new(&self.logger,&self.scene);
+                        let unit   = 7.2246094;
+                        let width  = unit * span.size.value as f32;
+                        let width2  = width + 4.0;
+                        let height = 18.0;
+                        port.shape.sprite.size().set(Vector2::new(width2,height));
+                        port.mod_position(|t| t.x = width/2.0 + unit * span.index.value as f32);
+                        port.mod_position(|t| t.y = off);
+                        self.add_child(&port);
 
-                    let span   = node.span();
-                    let port   = component::ShapeView::<shape::Shape>::new(&self.logger,&self.scene);
-                    let unit   = 7.2246094;
-                    let width  = unit * span.size.value as f32;
-                    let width2  = width + 4.0;
-                    let height = 18.0;
-                    port.shape.sprite.size().set(Vector2::new(width2,height));
-                    port.mod_position(|t| t.x = width/2.0 + unit * span.index.value as f32);
-                    port.mod_position(|t| t.y = off);
-                    self.add_child(&port);
-
-                    let network = &port.events.network;
-                    let hover   = &port.shape.hover;
-                    frp::extend! { network
-                        def _foo = port.events.mouse_over . map(f_!((hover) { hover.set(1.0); }));
-                        def _foo = port.events.mouse_out  . map(f_!((hover) { hover.set(0.0); }));
+                        let network = &port.events.network;
+                        let hover   = &port.shape.hover;
+                        frp::extend! { network
+                            def _foo = port.events.mouse_over . map(f_!((hover) { hover.set(1.0); }));
+                            def _foo = port.events.mouse_out  . map(f_!((hover) { hover.set(0.0); }));
+                        }
+                        ports.push(port);
                     }
 
-                    ports.push(port);
                     to_visit.extend(node.children_iter());
 //                    off -= 3.0;
 

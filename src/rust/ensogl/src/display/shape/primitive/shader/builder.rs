@@ -33,7 +33,7 @@ pub struct Builder {}
 
 impl Builder {
     /// Returns the final GLSL code.
-    pub fn run<S:canvas::Draw>(shape:&S) -> CodeTemplate {
+    pub fn run<S:canvas::Draw>(shape:&S, pointer_events_enabled:bool) -> CodeTemplate {
         let sdf_defs     = primitive::all_shapes_glsl_definitions();
         let mut canvas   = Canvas::default();
         let shape_ref    = shape.draw(&mut canvas);
@@ -51,8 +51,9 @@ impl Builder {
 
         let defs = overload::allow_overloading(&defs);
         let code = format!("{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}",redirections,math,color,debug,shape,defs);
+        let main = format!("bool pointer_events_enabled = {};\n{}",pointer_events_enabled,FRAGMENT_RUNNER.to_string());
 
-        CodeTemplate::new(code,FRAGMENT_RUNNER.to_string(),"")
+        CodeTemplate::new(code,main,"")
     }
 }
 
