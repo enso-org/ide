@@ -35,4 +35,13 @@ impl TestWithMockedTransport {
             transport.mock_peer_message(result)
         );
     }
+
+    pub fn when_stalled_send_error(&mut self, code:i64, message:impl Into<String>) {
+        let mut transport = self.transport.clone_ref();
+        let id            = self.next_response_id.generate();
+        let result        = json_rpc::messages::Message::<()>::new_error(id,code,message.into(),None);
+        self.with_executor_fixture.when_stalled(move ||
+            transport.mock_peer_message(result)
+        );
+    }
 }
