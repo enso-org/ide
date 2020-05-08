@@ -13,7 +13,7 @@ pub type UTCDateTime = chrono::DateTime<chrono::FixedOffset>;
 pub struct Sha3_224(String);
 
 impl Sha3_224 {
-    /// Create new SHA3-224 digest from `data`.
+    /// Create new SHA3-224 digest from any arbitrary `data`.
     pub fn new(data:&[u8]) -> Self {
         use sha3::Digest;
         let mut hasher = sha3::Sha3_224::new();
