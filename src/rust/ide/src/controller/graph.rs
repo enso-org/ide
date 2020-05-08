@@ -387,9 +387,9 @@ impl EndpointInfo {
 pub struct Handle {
     /// Model of the module which this graph belongs to.
     pub module : Rc<model::Module>,
-    parser : Parser,
-    id     : Rc<Id>,
-    logger : Logger,
+    parser     : Parser,
+    id         : Rc<Id>,
+    logger     : Logger,
 }
 
 impl Handle {
@@ -403,6 +403,7 @@ impl Handle {
         Handle {module,parser,id,logger}
     }
 
+    /// Creates a new graph controller. Given ID should uniquely identify a definition in the
     /// module. Fails if ID cannot be resolved.
     ///
     /// Requires global executor to spawn the events relay task.
@@ -550,6 +551,25 @@ impl Handle {
         }
     }
 
+    /// Reorders lines so the former node is placed after the latter.
+    /// Does nothing, if the latter node is already placed after former.
+    pub fn place_node_line_after
+    (&self, node_to_be_before:node::Id, node_to_be_after:node::Id) -> FallibleResult<()> {
+        let definition = self.graph_definition_info()?;
+        let mut lines  = definition.block_lines()?;
+
+        let before_node_position = node::index_in_lines(&lines,node_to_be_before)?;
+        let after_node_position  = node::index_in_lines(&lines,node_to_be_after)?;
+        if before_node_position > after_node_position {
+            lines[after_node_position..=before_node_position].rotate_left(1);
+            self.update_definition_ast(|mut def| {
+                def.set_block_lines(lines)?;
+                Ok(def)
+            })?;
+        }
+        Ok(())
+    }
+
     /// Create connection in graph.
     pub fn connect(&self, connection:&Connection) -> FallibleResult<()> {
         if connection.source.port.is_empty() {
@@ -562,7 +582,13 @@ impl Handle {
         let destination_info         = self.destination_info(connection)?;
         let source_identifier        = source_info.target_ast()?.clone();
         let updated_target_node_expr = destination_info.set(source_identifier)?;
-        self.set_expression_ast(connection.destination.node, updated_target_node_expr)
+        self.set_expression_ast(connection.destination.node,updated_target_node_expr)?;
+
+        // Reorder node lines, so the connection target is after connection source.
+        // Actually this is needed only in some order-dependant context. Once we have better
+        // information about the graph's underlying monadic context, we might want to constrain
+        // this operation.
+        self.place_node_line_after(connection.source.node,connection.destination.node)
     }
 
     /// Remove the connections from the graph.
@@ -590,7 +616,7 @@ impl Handle {
         let ast_so_far     = self.module.ast();
         let definition     = definition::locate(&ast_so_far, &self.id)?;
         let new_definition = f(definition.item)?;
-        trace!(self.logger, "Applying graph changes onto definition");
+        info!(self.logger, "Applying graph changes onto definition");
         let new_ast    = new_definition.ast.into();
         let new_module = ast_so_far.set_traversing(&definition.crumbs,new_ast)?;
         self.module.update_ast(new_module);
@@ -610,7 +636,7 @@ impl Handle {
 
     /// Adds a new node to the graph and returns information about created node.
     pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
-        trace!(self.logger, "Adding node with expression `{node.expression}`");
+        info!(self.logger, "Adding node with expression `{node.expression}`");
         let ast           = self.parse_node_expression(&node.expression)?;
         let mut node_info = node::NodeInfo::from_line_ast(&ast).ok_or(FailedToCreateNode)?;
         if let Some(desired_id) = node.id {
@@ -633,7 +659,7 @@ impl Handle {
 
     /// Removes the node with given Id.
     pub fn remove_node(&self, id:ast::Id) -> FallibleResult<()> {
-        trace!(self.logger, "Removing node {id}");
+        info!(self.logger, "Removing node {id}");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
             graph.remove_node(id)?;
@@ -647,14 +673,14 @@ impl Handle {
 
     /// Sets the given's node expression.
     pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult<()> {
-        //trace!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
+        info!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
         let new_expression_ast = self.parse_node_expression(expression_text)?;
         self.set_expression_ast(id,new_expression_ast)
     }
 
     /// Sets the given's node expression.
     pub fn set_expression_ast(&self, id:ast::Id, expression:Ast) -> FallibleResult<()> {
-        trace!(self.logger, "Setting node {id} expression to `{expression.repr()}`");
+        info!(self.logger, "Setting node {id} expression to `{expression.repr()}`");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
             graph.edit_node(id,expression)?;
@@ -672,7 +698,7 @@ impl Handle {
             let mut graph = GraphInfo::from_definition(definition);
             graph.update_node(id,|node| {
                 let new_node = f(node);
-                trace!(self.logger, "Setting node {id} line to `{new_node.repr()}`");
+                info!(self.logger, "Setting node {id} line to `{new_node.repr()}`");
                 Some(new_node)
             })?;
             Ok(graph.source)
@@ -706,7 +732,7 @@ mod tests {
     use ast::crumbs;
     use data::text::Index;
     use data::text::TextChange;
-    use json_rpc::test_util::transport::mock::MockTransport;
+    use enso_protocol::language_server;
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -724,10 +750,10 @@ mod tests {
         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
             let code     = code.as_ref();
-            let fm       = file_manager_client::Handle::new(MockTransport::new());
-            let loc      = controller::module::Location::new("Main");
+            let ls       = language_server::Connection::new_mock_rc(default());
+            let path     = controller::module::Path::new(default(),&["Main"]);
             let parser   = Parser::new_or_panic();
-            let module   = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
+            let module   = controller::Module::new_mock(path,code,default(),ls,parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
             let graph    = module.graph_controller(graph_id).unwrap();
             self.0.run_task(async move {
@@ -739,10 +765,10 @@ mod tests {
             where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
                   Fut  : Future<Output=()> {
             let code   = code.as_ref();
-            let fm     = file_manager_client::Handle::new(MockTransport::new());
-            let loc    = controller::module::Location::new("Main");
+            let ls     = language_server::Connection::new_mock_rc(default());
+            let path   = controller::module::Path::new(default(),&["Main"]);
             let parser = Parser::new_or_panic();
-            let module = controller::Module::new_mock(loc,code,default(),fm,parser).unwrap();
+            let module = controller::Module::new_mock(path, code, default(), ls, parser).unwrap();
             let graph  = module.graph_controller(graph_id).unwrap();
             self.0.run_task(async move {
                 test(module,graph).await
@@ -1043,6 +1069,37 @@ main =
         }
     }
 
+    #[wasm_bindgen_test]
+    fn graph_controller_create_connection_reordering() {
+        let mut test  = GraphControllerFixture::set_up();
+        const PROGRAM:&str = r"main =
+    sum = _ + _
+    a = 1
+    b = 3";
+        const EXPECTED:&str = r"main =
+    a = 1
+    b = 3
+    sum = _ + b";
+        test.run_graph_for_main(PROGRAM, "main", |_, graph| async move {
+            assert!(graph.connections().unwrap().connections.is_empty());
+            let (node0,_node1,node2) = graph.nodes().unwrap().expect_tuple();
+            let connection_to_add = Connection {
+                source : Endpoint {
+                    node      : node2.info.id(),
+                    port      : vec![],
+                    var_crumbs: vec![]
+                },
+                destination : Endpoint {
+                    node      : node0.info.id(),
+                    port      : vec![4], // `_` in `print _`
+                    var_crumbs: vec![]
+                }
+            };
+            graph.connect(&connection_to_add).unwrap();
+            let new_main = graph.graph_definition_info().unwrap().ast.repr();
+            assert_eq!(new_main,EXPECTED);
+        })
+    }
 
     #[wasm_bindgen_test]
     fn graph_controller_create_connection_introducing_var() {

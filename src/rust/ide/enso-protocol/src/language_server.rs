@@ -6,12 +6,14 @@
 //! Also, the Enso Protocol specification is source for many names and comments used here.
 //! This file tries to follow the scheme of the protocol specification.
 
+pub mod connection;
 pub mod response;
 #[cfg(test)]
 mod tests;
 mod types;
 
 pub use types::*;
+pub use connection::Connection;
 
 use crate::prelude::*;
 
