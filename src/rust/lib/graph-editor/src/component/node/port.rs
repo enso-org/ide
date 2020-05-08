@@ -20,6 +20,7 @@ use ensogl::gui::component;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
+use crate::component::cursor;
 
 
 // ============
@@ -36,7 +37,8 @@ pub mod shape {
             let height : Var<Distance<Pixels>> = "input_size.y".into();
             let radius = 6.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
-            let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001 + 0.1*input_hover)".into();
+            // let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001 + 0.1*input_hover)".into();
+            let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001)".into();
             let shape  = shape.fill(color);
             shape.into()
         }
@@ -44,124 +46,136 @@ pub mod shape {
 }
 
 
-
-// ==============
-// === Events ===
-// ==============
-
-/// Port events.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct Events {
-    pub network    : frp::Network,
-    pub select     : frp::Source,
-    pub deselect   : frp::Source,
-}
-
-
-
-// ============
-// === Port ===
-// ============
-
-/// Port definition.
-#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
-pub struct Port {
-    data : Rc<PortData>,
-}
-
-impl AsRef<Port> for Port {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
-/// Weak version of `Port`.
-#[derive(Clone,CloneRef,Debug)]
-pub struct WeakPort {
-    data : Weak<PortData>
-}
-
-impl WeakElement for WeakPort {
-    type Strong = Port;
-
-    fn new(view: &Self::Strong) -> Self {
-        view.downgrade()
-    }
-
-    fn view(&self) -> Option<Self::Strong> {
-        self.upgrade()
-    }
-}
-
-///// Shape view for Port.
-//#[derive(Debug,Clone,CloneRef,Copy)]
-//pub struct PortView {}
-//impl component::ShapeViewDefinition for PortView {
-//    type Shape = shape::Shape;
+//
+//// ==============
+//// === Events ===
+//// ==============
+//
+///// Port events.
+//#[derive(Clone,CloneRef,Debug)]
+//#[allow(missing_docs)]
+//pub struct Events {
+//    pub network    : frp::Network,
+//    pub select     : frp::Source,
+//    pub deselect   : frp::Source,
+//}
+//
+//
+//
+//// ============
+//// === Port ===
+//// ============
+//
+///// Port definition.
+//#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
+//pub struct Port {
+//    data : Rc<PortData>,
+//}
+//
+//impl AsRef<Port> for Port {
+//    fn as_ref(&self) -> &Self {
+//        self
+//    }
+//}
+//
+///// Weak version of `Port`.
+//#[derive(Clone,CloneRef,Debug)]
+//pub struct WeakPort {
+//    data : Weak<PortData>
+//}
+//
+//impl WeakElement for WeakPort {
+//    type Strong = Port;
+//
+//    fn new(view: &Self::Strong) -> Self {
+//        view.downgrade()
+//    }
+//
+//    fn view(&self) -> Option<Self::Strong> {
+//        self.upgrade()
+//    }
+//}
+//
+/////// Shape view for Port.
+////#[derive(Debug,Clone,CloneRef,Copy)]
+////pub struct PortView {}
+////impl component::ShapeViewDefinition for PortView {
+////    type Shape = shape::Shape;
+////}
+//
+///// Internal data of `Port`
+//#[derive(Debug)]
+//#[allow(missing_docs)]
+//pub struct PortData {
+//    pub object : display::object::Instance,
+//    pub logger : Logger,
+//    pub events : Events,
+//    pub view   : component::ShapeView<shape::Shape>,
+//}
+//
+//impl Port {
+//    /// Constructor.
+//    pub fn new(scene:&Scene) -> Self {
+//        frp::new_network! { node_network
+//            def label    = source::<String> ();
+//            def select   = source::<()>     ();
+//            def deselect = source::<()>     ();
+//        }
+//        let network = node_network;
+//        let logger  = Logger::new("node");
+//        let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
+//        let events  = Events {network,select,deselect};
+//        let object  = display::object::Instance::new(&logger);
+//        object.add_child(&view.display_object);
+//
+//        let width = 34.5;
+//        let height = 18.0;
+//
+//        view.shape.sprite.size().set(Vector2::new(width,height));
+//        view.mod_position(|t| t.x += width/2.0 + 81.5);
+//        view.mod_position(|t| t.y += height/2.0 + 5.0);
+//        let data    = Rc::new(PortData {object,logger,events,view});
+//
+//        Self {data}
+//    }
+//}
+//
+//impl StrongRef for Port {
+//    type WeakRef = WeakPort;
+//    fn downgrade(&self) -> WeakPort {
+//        WeakPort {data:Rc::downgrade(&self.data)}
+//    }
+//}
+//
+//impl WeakRef for WeakPort {
+//    type StrongRef = Port;
+//    fn upgrade(&self) -> Option<Port> {
+//        self.data.upgrade().map(|data| Port{data})
+//    }
+//}
+//
+//impl display::Object for Port {
+//    fn display_object(&self) -> &display::object::Instance {
+//        &self.object
+//    }
+//}
+//
+//impl display::WeakObject for WeakPort {
+//    fn try_display_object(&self) -> Option<display::object::Instance> {
+//        self.upgrade().map(|ref t| t.display_object().clone_ref())
+//    }
 //}
 
-/// Internal data of `Port`
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct PortData {
-    pub object : display::object::Instance,
-    pub logger : Logger,
-    pub events : Events,
-    pub view   : component::ShapeView<shape::Shape>,
+pub fn sort_hack(scene:&Scene) {
+    let logger = Logger::new("hack");
+    component::ShapeView::<shape::Shape>::new(&logger,scene);
 }
 
-impl Port {
-    /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
-        frp::new_network! { node_network
-            def label    = source::<String> ();
-            def select   = source::<()>     ();
-            def deselect = source::<()>     ();
-        }
-        let network = node_network;
-        let logger  = Logger::new("node");
-        let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
-        let events  = Events {network,select,deselect};
-        let object  = display::object::Instance::new(&logger);
-        object.add_child(&view.display_object);
 
-        let width = 34.5;
-        let height = 18.0;
-
-        view.shape.sprite.size().set(Vector2::new(width,height));
-        view.mod_position(|t| t.x += width/2.0 + 81.5);
-        view.mod_position(|t| t.y += height/2.0 + 5.0);
-        let data    = Rc::new(PortData {object,logger,events,view});
-
-        Self {data}
-    }
-}
-
-impl StrongRef for Port {
-    type WeakRef = WeakPort;
-    fn downgrade(&self) -> WeakPort {
-        WeakPort {data:Rc::downgrade(&self.data)}
-    }
-}
-
-impl WeakRef for WeakPort {
-    type StrongRef = Port;
-    fn upgrade(&self) -> Option<Port> {
-        self.data.upgrade().map(|data| Port{data})
-    }
-}
-
-impl display::Object for Port {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.object
-    }
-}
-
-impl display::WeakObject for WeakPort {
-    fn try_display_object(&self) -> Option<display::object::Instance> {
-        self.upgrade().map(|ref t| t.display_object().clone_ref())
-    }
+#[derive(Debug,Clone,CloneRef)]
+pub struct Events {
+    pub network     : frp::Network,
+    pub cursor_mode : frp::Stream<cursor::Mode>,
 }
 
 
@@ -174,26 +188,21 @@ impl display::WeakObject for WeakPort {
 pub struct Manager {
     logger         : Logger,
     display_object : display::object::Instance,
+    pub events         : Events,
     scene          : Scene,
-    ports          : Rc<RefCell<Vec<Port>>>,
-    ports2         : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
+    ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
 }
 
 impl Manager {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = logger.sub("port_manager");
         let display_object = display::object::Instance::new(&logger);
-        let ports          = default();
-        let ports2         = default();
         let scene          = scene.clone_ref();
-        Self {logger,display_object,ports,ports2,scene} . init()
-    }
 
-    fn init(self) -> Self {
-//        let port1 = Port::new(&self.scene);
-//        self.add_child(&port1);
-//        self.ports.borrow_mut().push(port1);
 
+        frp::new_network! { network
+            def cursor_mode = gather::<cursor::Mode>();
+        }
 
 
         let span_tree = span_tree_mock();
@@ -210,21 +219,28 @@ impl Manager {
                     let contains_root = span.index.value == 0;
                     let skip          = node.kind.is_empty() || contains_root;
                     if !skip {
-                        let port   = component::ShapeView::<shape::Shape>::new(&self.logger,&self.scene);
+                        let port   = component::ShapeView::<shape::Shape>::new(&logger,&scene);
                         let unit   = 7.2246094;
                         let width  = unit * span.size.value as f32;
                         let width2  = width + 4.0;
+                        let node_height = 28.0;
                         let height = 18.0;
-                        port.shape.sprite.size().set(Vector2::new(width2,height));
-                        port.mod_position(|t| t.x = width/2.0 + unit * span.index.value as f32);
+                        port.shape.sprite.size().set(Vector2::new(width2,node_height));
+                        let x = width/2.0 + unit * span.index.value as f32;
+                        port.mod_position(|t| t.x = x);
                         port.mod_position(|t| t.y = off);
-                        self.add_child(&port);
+                        display_object.add_child(&port);
 
-                        let network = &port.events.network;
+//                        let network = &port.events.network;
                         let hover   = &port.shape.hover;
                         frp::extend! { network
                             def _foo = port.events.mouse_over . map(f_!((hover) { hover.set(1.0); }));
                             def _foo = port.events.mouse_out  . map(f_!((hover) { hover.set(0.0); }));
+
+                            def out  = port.events.mouse_out.constant(cursor::Mode::Normal);
+                            def over = port.events.mouse_over.constant(cursor::Mode::highlight(&port,Vector2::new(x,0.0),Vector2::new(width2,height)));
+                            cursor_mode.attach(&over);
+                            cursor_mode.attach(&out);
                         }
                         ports.push(port);
                     }
@@ -236,15 +252,13 @@ impl Manager {
             }
         }
 
-        *self.ports2.borrow_mut() = ports;
 
-        let node = span_tree.root_ref();
+        let ports = Rc::new(RefCell::new(ports));
 
+        let cursor_mode = cursor_mode.into();
+        let events = Events {network,cursor_mode};
 
-
-
-
-        self
+        Self {logger,display_object,events,ports,scene}
     }
 }
 

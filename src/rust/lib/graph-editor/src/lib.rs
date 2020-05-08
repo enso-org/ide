@@ -391,9 +391,9 @@ impl application::View for GraphEditor {
             cursor.events.release.emit(());
         }));
 
-        def _cursor_position = mouse.position.map(f!((cursor)(p) {
-            cursor.set_position(Vector2::new(p.x,p.y));
-        }));
+//        def _cursor_position = mouse.position.map(f!((cursor)(p) {
+//            cursor.set_position(Vector2::new(p.x,p.y));
+//        }));
 
 
         // === Generic Selection ===
@@ -430,9 +430,9 @@ impl application::View for GraphEditor {
 
         // === Add Node ===
 
+        let scene                  = world.scene();
         def add_node_at_cursor_pos = inputs.add_node_at_cursor.map2(&mouse.position,|_,p|{*p});
         def add_node               = inputs.add_node_at.merge(&add_node_at_cursor_pos);
-        let scene = world.scene();
         def _add_new_node          = add_node.map(f!((scene,inputs)(pos) {
             let node = Node::new(&scene);
             inputs.register_node(&node);
@@ -448,6 +448,9 @@ impl application::View for GraphEditor {
                 frp::new_bridge_network! { [network,node.view.events.network]
                     def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((touch) {
                         touch.nodes.down.emit(Some(weak_node.clone_ref()))
+                    }));
+                    def cursor_mode = node.ports.events.cursor_mode.map(f!((cursor)(mode) {
+                        cursor.events.set_mode.emit(mode);
                     }));
                 }
                 display_object.add_child(node);

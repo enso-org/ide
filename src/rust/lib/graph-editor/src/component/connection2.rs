@@ -146,7 +146,7 @@ impl Connection {
         let port_height = 20.0;
         let node_height = 28.0;
 
-        let source = Vector2::new(port_x + port_width/2.0, (node_height - port_height)/2.0 + OVERLAP);
+        let source = Vector2::new(port_x + port_width/2.0, (node_height - port_height)/2.0 + OVERLAP - 10.0);
 
 
 
@@ -177,7 +177,7 @@ impl Connection {
                 let test_angle = test_angle * std::f32::consts::PI;
 
                 let target = Vector2::new(pos.x-100.0,pos.y-250.0);
-                let target = Vector2::new(pos.x-100.0,source.y - 40.0);
+//                let target = Vector2::new(pos.x-100.0,source.y - 40.0);
                 helper1.mod_position(|p| {p.x = target.x; p.y = target.y;});
 
 

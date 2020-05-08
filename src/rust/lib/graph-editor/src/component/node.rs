@@ -22,8 +22,6 @@ use ensogl::gui::component;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
-use port::Port;
-
 use super::connection::Connection;
 
 
@@ -330,9 +328,8 @@ impl Node {
         let _connection = Connection::new(scene); // FIXME hack for sorting
 
         let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
-        let _port   = Port::new(scene); // FIXME hack for sorting
+        let _port   = port::sort_hack(scene); // FIXME hack for sorting
         let label_view    = component::ShapeView::<label::Shape>::new(&logger,scene);
-        let events  = Events {network,select,deselect};
         let object  = display::object::Instance::new(&logger);
         object.add_child(&view.display_object);
         object.add_child(&label_view.display_object);
@@ -350,6 +347,9 @@ impl Node {
         let ports = port::Manager::new(&logger,scene);
         let connections = default();
         let scene = scene.clone_ref();
+
+        let events  = Events {network,select,deselect};
+
         let data    = Rc::new(NodeData {scene,object,logger,label,events,view,label_view,ports,connections});
         Self {data} . init()
     }
