@@ -55,12 +55,13 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (position:Vector2<f32>, width:f32, height:f32, selection_size:Vector2<f32>, press:f32, radius:f32) {
-            let radius = 1.px() * radius - 2.px() * &press;
+            let press_diff = 2.px() * &press;
+            let radius = 1.px() * radius - &press_diff;
             let side   = &radius * 2.0;
             let selection_width  = 1.px() * &selection_size.x() * &press;
             let selection_height = 1.px() * &selection_size.y() * &press;
-            let width            = 1.px() * &width + selection_width.abs();
-            let height           = 1.px() * &height + selection_height.abs();
+            let width            = (1.px() * &width  - &press_diff * 2.0) + selection_width.abs();
+            let height           = (1.px() * &height - &press_diff * 2.0) + selection_height.abs();
             let cursor = Rect((width,height))
                 .corners_radius(radius)
                 .translate((-&selection_width/2.0, -&selection_height/2.0))
@@ -218,8 +219,7 @@ impl Cursor {
 
         frp::extend! { network
 
-            def anim_position_xy   = anim_pos_x.zip(&anim_pos_y);
-            def anim_position      = anim_position_xy.map(|t| frp::Position::new(t.0,t.1));
+            def anim_position      = anim_pos_x.zip_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
 
             def _t_press = input.press.map(enclose!((press) move |_| {
                 press.set_target_position(1.0);
@@ -248,7 +248,7 @@ impl Cursor {
             def uses_mouse_position = fixed_position.map(|p| p.is_none());
             def mouse_position = mouse.position.gate(&uses_mouse_position);
 
-            def position = mouse.position.apply3(&anim_position,&anim_use_fixed_pos, |p,ap,au| {
+            def position = mouse.position.zip_with3(&anim_position,&anim_use_fixed_pos, |p,ap,au| {
                 let x = ap.x * au + p.x * (1.0 - au);
                 let y = ap.y * au + p.y * (1.0 - au);
                 frp::Position::new(x,y)

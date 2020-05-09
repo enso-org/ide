@@ -189,13 +189,13 @@ impl Network {
     /// On every input event sample all input streams and run the provided function on all gathered
     /// values. If you want to run the function only on event on the first input, use the `map`
     /// function family instead.
-    pub fn apply2<T1,T2,F,T>(&self, label:Label, t1:&T1, t2:&T2, f:F) -> Stream<T>
+    pub fn zip_with<T1,T2,F,T>(&self, label:Label, t1:&T1, t2:&T2, f:F) -> Stream<T>
     where T1:EventOutput, T2:EventOutput, T:Data, F:'static+Fn(&Output<T1>,&Output<T2>)->T {
         self.register(OwnedApply2::new(label,t1,t2,f))
     }
 
     /// Specialized version `apply`.
-    pub fn apply3<T1,T2,T3,F,T>
+    pub fn zip_with3<T1,T2,T3,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> Stream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>)->T {
@@ -203,7 +203,7 @@ impl Network {
     }
 
     /// Specialized version `apply`.
-    pub fn apply4<T1,T2,T3,T4,F,T>
+    pub fn zip_with4<T1,T2,T3,T4,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> Stream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T:Data,
           F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>)->T {
