@@ -167,6 +167,10 @@ define_sdf_shapes! {
         return bound_sdf(position.y, bounding_box(0.0,0.0));
     }
 
+    BottomHalfPlane () {
+        return bound_sdf(-position.y, bounding_box(0.0,0.0));
+    }
+
     PlaneAngleFast (angle:Angle<Radians>) {
         float v_angle  = value(angle);
         float off      = 0.5; // Fixes artifacts with 0 degrees.

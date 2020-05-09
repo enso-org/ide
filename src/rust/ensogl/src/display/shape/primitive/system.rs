@@ -208,6 +208,10 @@ impl StyleWatch {
 /// the required buffer handlers.
 #[macro_export]
 macro_rules! define_shape_system {
+    ( ($style:ident : Style $(,)?) {$($body:tt)*} ) => {
+        $crate::_define_shape_system! { [$style] (){$($body)*} }
+    };
+
     ( ($style:ident : Style, $($gpu_param : ident : $gpu_param_type : ty),* $(,)?) {$($body:tt)*} ) => {
         $crate::_define_shape_system! { [$style] ($($gpu_param : $gpu_param_type),*){$($body)*} }
     };

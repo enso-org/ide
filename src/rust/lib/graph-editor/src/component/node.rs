@@ -18,9 +18,11 @@ use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::animation;
+use ensogl::gui::component::animation2;
 use ensogl::gui::component;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
+use ensogl::math::topology::unit::AngleOps;
 
 use super::connection::Connection;
 
@@ -86,7 +88,7 @@ pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
 }
 
 
-const NODE_SHAPE_PADDING : f32 = 20.0;
+const NODE_SHAPE_PADDING : f32 = 40.0;
 
 
 // ============
@@ -98,16 +100,14 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, selection:f32, creation:f32) {
+        (style:Style, selection:f32) {
             let bg_color = style.get("graph_editor.node.background.color").color().unwrap_or(color::Rgba::new(1.0,0.0,0.0,1.0).into());
             let selection_color = style.get("graph_editor.node.selection.color").color().unwrap_or(color::Rgba::new(1.0,0.0,0.0,1.0).into());
             let selection_size  = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
 
             let border_size_f = 16.0;
-            let node_radius   = 32.0.px() * creation;
             let border_size   = border_size_f.px();
 
-            let node = Circle(&node_radius);
 
             let width  : Var<Distance<Pixels>> = "input_size.x".into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
@@ -116,6 +116,9 @@ pub mod shape {
             let radius = 14.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
             let shape  = shape.fill(color::Rgba::from(bg_color));
+
+
+            // === Shadow ===
 
             let shadow_size   = 14.px();
             let shadow_width  = &width  + &shadow_size * 2.0;
@@ -128,6 +131,9 @@ pub mod shape {
             let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(4.0));
             let shadow        = shadow.fill(shadow_color);
 
+
+            // === Selection ===
+
             let selection_size = selection_size.px();
             let select_width   = &width  - 2.px() + &selection_size * 2.0 * &selection;
             let select_height  = &height - 2.px() + &selection_size * 2.0 * &selection;
@@ -136,6 +142,49 @@ pub mod shape {
             let select         = select.fill(color::Rgba::from(selection_color));
 
             let out = select + shadow + shape;
+            out.into()
+        }
+    }
+}
+
+/// Canvas node shape definition.
+pub mod output_area {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (style:Style, grow:f32) {
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
+            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
+
+            let hover_area_size   = 20.0.px();
+            let hover_area_width  = &width  + &hover_area_size * 2.0;
+            let hover_area_height = &height + &hover_area_size;
+            let hover_area        = Rect((&hover_area_width,&hover_area_height));
+            let hover_area        = hover_area.translate_y(-hover_area_size/2.0);
+            let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000001));
+
+            let shrink           = 1.px() - 1.px() * &grow;
+            let radius           = 14.px();
+            let port_area_size   = 4.0.px() * &grow;
+            let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
+            let port_area_height = &height + (&port_area_size - &shrink) * 2.0;
+            let bottom_radius    = &radius + &port_area_size;
+            let port_area        = Rect((&port_area_width,&port_area_height));
+//            let port_area        = port_area.corners_radiuses(0.px(),0.px(),&bottom_radius,&bottom_radius);
+            let port_area        = port_area.corners_radius(&bottom_radius);
+            let port_area        = port_area - BottomHalfPlane();
+//            let port_area        = port_area.translate_y(-port_area_size / 2.0);
+            let corner_radius    = &port_area_size / 2.0;
+            let corner_offset    = &port_area_width / 2.0 - &corner_radius;
+            let corner           = Circle(&corner_radius);
+            let left_corner      = corner.translate_x(-&corner_offset);
+            let right_corner     = corner.translate_x(&corner_offset);
+            let port_area        = port_area + left_corner + right_corner;
+            let port_area        = port_area.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
+
+            let out = port_area + hover_area;
             out.into()
         }
     }
@@ -303,9 +352,10 @@ pub struct NodeData {
     pub logger : Logger,
     pub label  : frp::Source<String>,
     pub events : Events,
-    pub label_view : component::ShapeView<label::Shape>,
-    pub view   : component::ShapeView<shape::Shape>,
-    pub ports  : port::Manager,
+    pub label_view  : component::ShapeView<label::Shape>,
+    pub view        : component::ShapeView<shape::Shape>,
+    pub output_view : component::ShapeView<output_area::Shape>,
+    pub ports       : port::Manager,
     pub connections : Rc<RefCell<Vec<Connection>>>
 }
 
@@ -327,19 +377,29 @@ impl Node {
         let logger  = Logger::new("node");
         let _connection = Connection::new(scene); // FIXME hack for sorting
 
+        let output_view = component::ShapeView::<output_area::Shape>::new(&logger,scene);
         let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let _port   = port::sort_hack(scene); // FIXME hack for sorting
         let label_view    = component::ShapeView::<label::Shape>::new(&logger,scene);
         let object  = display::object::Instance::new(&logger);
-        object.add_child(&view.display_object);
-        object.add_child(&label_view.display_object);
+        object.add_child(&output_view);
+        object.add_child(&view);
+        object.add_child(&label_view);
+
+        // FIXME: maybe we can expose shape system from shape?
+        let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
+        shape_system.shape_system.set_pointer_events(false);
 
         let width = NODE_WIDTH;
         let height = 28.0;
 
-        view.shape.sprite.size().set(Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0));
+        let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
+        view.shape.sprite.size().set(size);
+        output_view.shape.sprite.size().set(size);
         view.mod_position(|t| t.x += width/2.0);
         view.mod_position(|t| t.y += height/2.0);
+        output_view.mod_position(|t| t.x += width/2.0);
+        output_view.mod_position(|t| t.y += height/2.0);
 
         label_view.mod_position(|t| t.x += TEXT_OFF);
         label_view.mod_position(|t| t.y += 4.0 + 6.0);
@@ -350,7 +410,7 @@ impl Node {
 
         let events  = Events {network,select,deselect};
 
-        let data    = Rc::new(NodeData {scene,object,logger,label,events,view,label_view,ports,connections});
+        let data    = Rc::new(NodeData {scene,object,logger,label,events,view,output_view,label_view,ports,connections});
         Self {data} . init()
     }
 
@@ -359,21 +419,12 @@ impl Node {
 
 
 
-
-        // FIXME: This is needed now because frp leaks memory.
-//        let weak_view_data = Rc::downgrade(&self.view.data);
-        let view_data = self.view.shape.clone_ref();
-        let creation = animation(network, move |value| {
-            view_data.creation.set(value)
-        });
-        creation.set_target_position(1.0);
-
-        // FIXME: This is needed now because frp leaks memory.
-//        let weak_view_data = Rc::downgrade(&self.view.data);
         let view_data = self.view.shape.clone_ref();
         let selection = animation(network, move |value| {
             view_data.selection.set(value)
         });
+
+        let (output_area_size_setter, output_area_size) = animation2(network);
 
 
         frp::extend! { network
@@ -386,6 +437,21 @@ impl Node {
             def _f_deselect = self.events.deselect.map(move |_| {
                 selection_ref.set_target_position(0.0);
             });
+
+            let output_view = &self.output_view;
+            def foo = output_area_size.map(f!((output_view)(size) {
+                output_view.shape.grow.set(*size);
+            }));
+
+            def foo = output_view.events.mouse_over.map(f_!((output_area_size_setter) {
+                output_area_size_setter.set_target_position(1.0);
+            }));
+
+            def foo = output_view.events.mouse_out.map(f_!((output_area_size_setter) {
+                output_area_size_setter.set_target_position(0.0);
+            }));
+
+
         }
 
 
