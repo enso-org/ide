@@ -348,7 +348,7 @@ impl WeakKey for WeakNode {
 #[allow(missing_docs)]
 pub struct NodeData {
     pub scene  : Scene,
-    pub object : display::object::Instance,
+    pub display_object : display::object::Instance,
     pub logger : Logger,
     pub label  : frp::Source<String>,
     pub events : Events,
@@ -381,10 +381,10 @@ impl Node {
         let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let _port   = port::sort_hack(scene); // FIXME hack for sorting
         let label_view    = component::ShapeView::<label::Shape>::new(&logger,scene);
-        let object  = display::object::Instance::new(&logger);
-        object.add_child(&output_view);
-        object.add_child(&view);
-        object.add_child(&label_view);
+        let display_object  = display::object::Instance::new(&logger);
+        display_object.add_child(&output_view);
+        display_object.add_child(&view);
+        display_object.add_child(&label_view);
 
         // FIXME: maybe we can expose shape system from shape?
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
@@ -410,7 +410,7 @@ impl Node {
 
         let events  = Events {network,select,deselect};
 
-        let data    = Rc::new(NodeData {scene,object,logger,label,events,view,output_view,label_view,ports,connections});
+        let data    = Rc::new(NodeData {scene,display_object,logger,label,events,view,output_view,label_view,ports,connections});
         Self {data} . init()
     }
 
@@ -426,6 +426,9 @@ impl Node {
 
         let (output_area_size_setter, output_area_size) = animation2(network);
 
+        let display_object = &self.display_object;
+        let scene = &self.scene;
+        let connections = &self.connections;
 
         frp::extend! { network
             let selection_ref = selection.clone_ref();
@@ -443,13 +446,26 @@ impl Node {
                 output_view.shape.grow.set(*size);
             }));
 
-            def foo = output_view.events.mouse_over.map(f_!((output_area_size_setter) {
+            def _output_show = output_view.events.mouse_over.map(f_!((output_area_size_setter) {
                 output_area_size_setter.set_target_position(1.0);
             }));
 
-            def foo = output_view.events.mouse_out.map(f_!((output_area_size_setter) {
+            def _output_hide = output_view.events.mouse_out.map(f_!((output_area_size_setter) {
                 output_area_size_setter.set_target_position(0.0);
             }));
+
+
+//            def _add_connection = output_view.events.mouse_down.map(
+//                f_!((scene,display_object,connections) {
+//                    let connection = Connection::new(&scene);
+//                    display_object.add_child(&connection);
+//
+//                    connection.mod_position(|p| p.x = NODE_WIDTH/2.0);
+//                    connection.mod_position(|p| p.y = NODE_HEIGHT/2.0);
+//
+//                    connections.borrow_mut().push(connection);
+//                })
+//            );
 
 
         }
@@ -468,27 +484,7 @@ impl Node {
 
 //        let port_network = &port1.events.network;
 
-        let connections = self.connections.clone_ref();
 
-        let connection1 = Connection::new(&self.scene);
-        self.add_child(&connection1);
-
-        connection1.mod_position(|p| p.x = NODE_WIDTH/2.0);
-        connection1.mod_position(|p| p.y = NODE_HEIGHT/2.0);
-
-
-//        frp::extend! { port_network
-//            trace port1.view.events.mouse_down;
-//            def _on_click = port1.view.events.mouse_down.map(move |_| {
-//                connections.
-//            });
-//        }
-
-
-
-
-
-        self.data.connections.borrow_mut().push(connection1);
 
 
 //        frp::extend! {  }
@@ -519,7 +515,7 @@ impl WeakRef for WeakNode {
 
 impl display::Object for Node {
     fn display_object(&self) -> &display::object::Instance {
-        &self.object
+        &self.display_object
     }
 }
 

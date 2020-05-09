@@ -106,13 +106,29 @@ fn ease_out_quad(t:f32) -> f32 {
 }
 
 
+#[derive(Clone,CloneRef,Debug)]
+pub struct InputEvents {
+    pub network         : frp::Network,
+    pub target_position : frp::Source<frp::Position>,
+}
+
+impl InputEvents {
+    pub fn new() -> Self {
+        frp::new_network! { network
+            def target_position = source();
+        }
+        Self {network,target_position}
+    }
+}
+
+
 /// Internal data of `Connection`
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ConnectionData {
     pub object    : display::object::Instance,
     pub logger    : Logger,
-    pub network   : frp::Network,
+    pub events    : InputEvents,
     pub corner    : component::ShapeView<shape::Shape>,
     pub side_line : component::ShapeView<line::Shape>,
     pub main_line : component::ShapeView<line::Shape>,
@@ -132,11 +148,11 @@ impl Connection {
         object.add_child(&main_line);
         side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
 
-        frp::new_network! { network
-            def check   = source::<bool>();
-            def trigger = scene.mouse.frp.position.gate(&check);
-            def _tst = trigger.map(f!((side_line,main_line,corner)(pos) {
-                let target = Vector2::new(pos.x-300.0, pos.y-260.0);
+        let input = InputEvents::new();
+        let network = &input.network;
+
+        frp::extend! { network
+            def _tst = input.target_position.map(f!((side_line,main_line,corner)(target) {
                 let radius = 14.0;
                 let width  = 284.0 / 2.0;
 
@@ -181,7 +197,8 @@ impl Connection {
             }));
         }
 
-        let data = Rc::new(ConnectionData {object,logger,network,corner,side_line,main_line});
+        let events = input;
+        let data = Rc::new(ConnectionData {object,logger,events,corner,side_line,main_line});
         Self {data}
     }
 }
