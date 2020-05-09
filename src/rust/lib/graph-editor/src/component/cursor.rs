@@ -83,20 +83,20 @@ pub mod shape {
 
 
 // ==============
-// === Events ===
+// === InputEvents ===
 // ==============
 
 /// Cursor events.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Events {
+pub struct InputEvents {
     pub network  : frp::Network,
     pub set_mode : frp::Source<Mode>,
     pub press    : frp::Source,
     pub release  : frp::Source,
 }
 
-impl Default for Events {
+impl Default for InputEvents {
     fn default() -> Self {
         frp::new_network! { cursor_events
             def set_mode = source();
@@ -105,6 +105,21 @@ impl Default for Events {
         }
         let network = cursor_events;
         Self {network,set_mode,press,release}
+    }
+}
+
+/// Cursor events.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct Events {
+    pub input    : InputEvents,
+//    pub position : frp::Stream<frp::Position>,
+}
+
+impl Deref for Events {
+    type Target = InputEvents;
+    fn deref(&self) -> &Self::Target {
+        &self.input
     }
 }
 
@@ -131,7 +146,7 @@ pub struct WeakCursor {
 #[allow(missing_docs)]
 pub struct CursorData {
     pub logger : Logger,
-    pub events : Events,
+    pub frp    : Events,
     pub view   : component::ShapeView<shape::Shape>,
 //    pub scene_view    : scene::View,
     pub resize_handle : callback::Handle,
@@ -142,7 +157,7 @@ impl Cursor {
     pub fn new(scene:&Scene) -> Self {
         let logger = Logger::new("cursor");
         let view   = component::ShapeView::<shape::Shape>::new(&logger,scene);
-        let events = Events::default();
+        let input = InputEvents::default();
 
 
 
@@ -168,38 +183,30 @@ impl Cursor {
 
 
 
+        let network = &input.network;
 
-        let data   = CursorData {logger,events,view,resize_handle};
-        let data   = Rc::new(data);
-
-        Cursor {data} . init(scene)
-    }
-
-    fn init(self, scene:&Scene) -> Self {
-
-        let network = &self.data.events.network;
-
-        let view_data = self.view.shape.clone_ref();
+        let view_data = view.shape.clone_ref();
         let press = animation(network,move |value| {
             view_data.press.set(value)
         });
 
-        let view_data = self.view.shape.clone_ref();
+        let view_data = view.shape.clone_ref();
         let radius = animation(network,move |value| {
             view_data.radius.set(value)
         });
 
-        let view_data = self.view.shape.clone_ref();
+        let view_data = view.shape.clone_ref();
         let width = animation(network,move |value| {
             view_data.width.set(value)
         });
 
-        let view_data = self.view.shape.clone_ref();
+        let view_data = view.shape.clone_ref();
         let height = animation(network,move |value| {
             view_data.height.set(value)
         });
 
 
+        let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(network);
         let (anim_pos_x_setter,anim_pos_x) = animation2(network);
         let (anim_pos_y_setter,anim_pos_y) = animation2(network);
 
@@ -208,46 +215,55 @@ impl Cursor {
 
 
 
-        let view = &self.view;
 
         frp::extend! { network
 
-            def anim_pos_xy = anim_pos_x.zip(&anim_pos_y);
+            def anim_position_xy   = anim_pos_x.zip(&anim_pos_y);
+            def anim_position      = anim_position_xy.map(|t| frp::Position::new(t.0,t.1));
 
-            def _t_press = self.events.press.map(enclose!((press) move |_| {
+            def _t_press = input.press.map(enclose!((press) move |_| {
                 press.set_target_position(1.0);
             }));
 
-            def _t_release = self.events.release.map(enclose!((press) move |_| {
+            def _t_release = input.release.map(enclose!((press) move |_| {
                 press.set_target_position(0.0);
             }));
 
-            def fixed_position = self.events.set_mode.map(enclose!((anim_pos_x_setter,anim_pos_y_setter) move |m| {
+            def fixed_position = input.set_mode.map(enclose!((anim_pos_x_setter,anim_pos_y_setter) move |m| {
                 match m {
                     Mode::Highlight {host,position,..} => {
                         let p = host.global_position();
                         anim_pos_x_setter.set_target_position(p.x);
                         anim_pos_y_setter.set_target_position(p.y);
+                        anim_use_fixed_pos_setter.set_target_position(1.0);
                         Some(p)
                     }
-                    _ => None
+                    _ => {
+                        anim_use_fixed_pos_setter.set_target_position(0.0);
+                        None
+                    }
                 }
             }));
 
             def uses_mouse_position = fixed_position.map(|p| p.is_none());
             def mouse_position = mouse.position.gate(&uses_mouse_position);
 
-            def _position = anim_pos_xy.map(f!((view)(p) {
-                view.shape.position.set(Vector2::new(p.0,p.1));
+            def position = mouse.position.apply3(&anim_position,&anim_use_fixed_pos, |p,ap,au| {
+                let x = ap.x * au + p.x * (1.0 - au);
+                let y = ap.y * au + p.y * (1.0 - au);
+                frp::Position::new(x,y)
+            });
+
+            def _position = position.map(f!((view)(p) {
+                view.shape.position.set(Vector2::new(p.x,p.y));
             }));
 
             def _position = mouse_position.map(f!((anim_pos_x_setter,anim_pos_y_setter)(p) {
                 anim_pos_x_setter.set_target_position(p.x);
                 anim_pos_y_setter.set_target_position(p.y);
-//                view.shape.position.set(Vector2::new(p.x,p.y));
             }));
 
-            def _t_mode = self.events.set_mode.map(enclose!((radius,width,height) move |m| {
+            def _t_mode = input.set_mode.map(enclose!((radius,width,height) move |m| {
                 let mm = match m {
                     Mode::Normal => {
                         radius.set_target_position(8.0);
@@ -268,9 +284,15 @@ impl Cursor {
         width.set_target_position(16.0);
         height.set_target_position(16.0);
 
-        self.events.set_mode.emit(Mode::Normal);
+        input.set_mode.emit(Mode::Normal);
 
-        self
+
+        let frp    = Events {input};
+        let data   = CursorData {logger,frp,view,resize_handle};
+        let data   = Rc::new(data);
+
+        Cursor {data}
+
     }
 
 //    /// Position setter.

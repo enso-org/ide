@@ -384,11 +384,11 @@ impl application::View for GraphEditor {
         }));
 
         def _cursor_press = mouse.press.map(f!((cursor)(_) {
-            cursor.events.press.emit(());
+            cursor.frp.press.emit(());
         }));
 
         def _cursor_release = mouse.release.map(f!((cursor)(_) {
-            cursor.events.release.emit(());
+            cursor.frp.release.emit(());
         }));
 
 //        def _cursor_position = mouse.position.map(f!((cursor)(p) {
@@ -442,7 +442,7 @@ impl application::View for GraphEditor {
             });
         }));
 
-        def _new_node = inputs.register_node.map(f!((network,nodes,touch,display_object)(node) {
+        def _new_node = inputs.register_node.map(f!((cursor,network,nodes,touch,display_object)(node) {
             if let Some(node) = node {
                 let weak_node = node.downgrade();
                 frp::new_bridge_network! { [network,node.view.events.network]
@@ -450,7 +450,7 @@ impl application::View for GraphEditor {
                         touch.nodes.down.emit(Some(weak_node.clone_ref()))
                     }));
                     def cursor_mode = node.ports.events.cursor_mode.map(f!((cursor)(mode) {
-                        cursor.events.set_mode.emit(mode);
+                        cursor.frp.set_mode.emit(mode);
                     }));
                 }
                 display_object.add_child(node);
