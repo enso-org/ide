@@ -617,11 +617,9 @@ pub struct WeakView {
 
 #[derive(Debug,Clone)]
 pub struct ViewData {
-    logger  : Logger,
-    pub camera  : Camera2d,
-    label_layer   : RefCell<Vec<SymbolId>>,
-    cursor_layer : RefCell<Vec<SymbolId>>,
-    normal_layer : RefCell<Vec<SymbolId>>,
+    logger     : Logger,
+    pub camera : Camera2d,
+    symbols    : RefCell<Vec<SymbolId>>,
 }
 
 impl AsRef<ViewData> for View {
@@ -653,34 +651,23 @@ impl View {
         Self {data}
     }
 
+    pub fn new_with_camera(logger:&Logger, camera:&Camera2d) -> Self {
+        let data = ViewData::new_with_camera(logger,camera);
+        let data = Rc::new(data);
+        Self {data}
+    }
+
     pub fn downgrade(&self) -> WeakView {
         let data = Rc::downgrade(&self.data);
         WeakView {data}
     }
 
-    pub fn add_to_cursor_layer(&self, symbol:&Symbol) {
-        self.cursor_layer.borrow_mut().push(symbol.id as usize); // TODO strange conversion
+    pub fn add(&self, symbol:&Symbol) {
+        self.symbols.borrow_mut().push(symbol.id as usize); // TODO strange conversion
     }
 
-    pub fn add_to_label_layer(&self, symbol:&Symbol) {
-        self.label_layer.borrow_mut().push(symbol.id as usize); // TODO strange conversion
-    }
-
-    pub fn add_to_normal_layer(&self, symbol:&Symbol) {
-        self.normal_layer.borrow_mut().push(symbol.id as usize); // TODO strange conversion
-    }
-
-
-    pub fn remove_from_cursor_layer(&self, symbol:&Symbol) {
-        self.cursor_layer.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
-    }
-
-    pub fn remove_from_label_layer(&self, symbol:&Symbol) {
-        self.label_layer.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
-    }
-
-    pub fn remove_from_normal_layer(&self, symbol:&Symbol) {
-        self.normal_layer.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
+    pub fn remove(&self, symbol:&Symbol) {
+        self.symbols.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
     }
 }
 
@@ -692,20 +679,21 @@ impl WeakView {
 
 impl ViewData {
     pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger       = logger.sub("view");
-        let camera       = Camera2d::new(&logger,width,height);
-        let label_layer  = default();
-        let cursor_layer = default();
-        let normal_layer = default();
-        Self {logger,camera,label_layer,cursor_layer,normal_layer}
+        let logger  = logger.sub("view");
+        let camera  = Camera2d::new(&logger,width,height);
+        let symbols = default();
+        Self {logger,camera,symbols}
+    }
+
+    pub fn new_with_camera(logger:&Logger, camera:&Camera2d) -> Self {
+        let logger  = logger.sub("view");
+        let camera  = camera.clone_ref();
+        let symbols = default();
+        Self {logger,camera,symbols}
     }
 
     pub fn symbols(&self) -> Vec<SymbolId> {
-        let mut symbols = vec![];
-        symbols.extend(self.normal_layer.borrow().iter());
-        symbols.extend(self.cursor_layer.borrow().iter());
-        symbols.extend(self.label_layer.borrow().iter());
-        symbols
+        self.symbols.borrow().clone()
     }
 }
 
@@ -715,6 +703,7 @@ impl ViewData {
 // === Views ===
 // =============
 
+// FIXME: Describe hacks
 #[derive(Clone,CloneRef,Debug)]
 pub struct Views {
     logger     : Logger,
@@ -731,8 +720,9 @@ impl Views {
         let logger = logger.sub("views");
         let main   = View::new(&logger,width,height);
         let cursor = View::new(&logger,width,height);
-        let label  = View::new(&logger,width,height);
-        let all    = Rc::new(RefCell::new(vec![main.downgrade()]));
+        let label  = View::new_with_camera(&logger,&main.camera);
+        let all    = vec![main.downgrade(),cursor.downgrade(),label.downgrade()];
+        let all    = Rc::new(RefCell::new(all));
         Self {logger,main,cursor,label,all,width,height}
     }
 
@@ -842,7 +832,7 @@ impl SceneData {
 
     pub fn new_symbol(&self) -> Symbol {
         let symbol = self.symbols.new();
-        self.views.main.add_to_normal_layer(&symbol);
+        self.views.main.add(&symbol);
         symbol
     }
 

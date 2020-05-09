@@ -48,6 +48,12 @@ impl RenderPass for SymbolsRenderPass {
         context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
         self.target.set_camera(&self.views.main.camera);
         self.target.render_by_ids(&self.views.main.symbols());
+
+        self.target.set_camera(&self.views.cursor.camera);
+        self.target.render_by_ids(&self.views.cursor.symbols());
+
+        self.target.set_camera(&self.views.label.camera);
+        self.target.render_by_ids(&self.views.label.symbols());
     }
 }
 

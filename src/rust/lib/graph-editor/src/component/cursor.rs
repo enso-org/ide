@@ -175,8 +175,8 @@ impl Cursor {
         shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
         shape_system.shape_system.set_pointer_events(false);
 
-        scene.views.main.remove_from_normal_layer(&shape_system.shape_system.symbol);
-        scene.views.main.add_to_cursor_layer(&shape_system.shape_system.symbol);
+        scene.views.main.remove(&shape_system.shape_system.symbol);
+        scene.views.cursor.add(&shape_system.shape_system.symbol);
 //        let scene_view = scene.views.new();
 //        scene.views.main.remove(&shape_system.shape_system.symbol);
 //        scene_view.add(&shape_system.shape_system.symbol);

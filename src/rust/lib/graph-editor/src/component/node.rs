@@ -183,8 +183,8 @@ pub mod label {
             let fonts = Rc::new(fonts);
 
             let symbol = &glyph_system.sprite_system().symbol;
-            scene.views.main.remove_from_normal_layer(symbol);
-            scene.views.main.add_to_label_layer(symbol);
+            scene.views.main.remove(symbol);
+            scene.views.label.add(symbol);
 
             Self { fonts, glyph_system, style_manager } // .init_refresh_on_style_change()
         }
