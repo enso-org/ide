@@ -56,6 +56,7 @@ pub struct PixelReadPass<T:JsTypedArrayItem> {
     to_next_read : usize,
     #[derivative(Debug="ignore")]
     callback : Option<Rc<dyn Fn(Vec<T>)>>,
+    last_pos : Rc<Cell<Vector2<i32>>>,
 }
 
 impl<T:JsTypedArrayItem> PixelReadPass<T> {
@@ -67,7 +68,8 @@ impl<T:JsTypedArrayItem> PixelReadPass<T> {
         let callback     = default();
         let threshold    = 0;
         let to_next_read = 0;
-        Self {data,sync,position,threshold,to_next_read,callback}
+        let last_pos = Rc::new(Cell::new(Vector2::new(0,0)));
+        Self {data,sync,position,threshold,to_next_read,callback,last_pos}
     }
 
     /// Sets a callback which will be evaluated after a successful pixel read action. Please note
@@ -122,6 +124,10 @@ impl<T:JsTypedArrayItem> PixelReadPass<T> {
         let format   = data.format.to::<GlEnum>().into();
         let typ      = data.item_type.to::<GlEnum>().into();
         let offset   = 0;
+        if position != self.last_pos.get() {
+            println!("POS CHANGED : {:?}", position);
+            self.last_pos.set(position);
+        }
         context.bind_framebuffer(Context::FRAMEBUFFER,Some(&data.framebuffer));
         context.bind_buffer(Context::PIXEL_PACK_BUFFER,Some(&data.buffer));
         context.read_pixels_with_i32(position.x,position.y,width,height,format,typ,offset).unwrap();

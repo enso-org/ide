@@ -77,6 +77,7 @@ impl Default for Mouse {
             def prev_position = position.previous();
             def translation   = position.map2(&prev_position,|t,s| t - s);
             def distance      = translation.map(|t:&Position| t.length());
+            trace position;
         };
         let network = mouse;
         Self {network,release,press,leave,wheel,down,up,position,prev_position,translation,distance}

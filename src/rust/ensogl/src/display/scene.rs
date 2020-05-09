@@ -296,99 +296,116 @@ fn mouse_event_closure<F:MouseEventFn>(f:F) -> MouseEventClosure {
 }
 
 #[derive(Clone,CloneRef,Debug)]
-pub struct Mouse {
-    pub mouse_manager   : MouseManager,
-    pub position        : Uniform<Vector2<i32>>,
-    pub hover_ids       : Uniform<Vector4<u32>>,
+pub struct MouseButtonState {
     pub button0_pressed : Uniform<bool>,
     pub button1_pressed : Uniform<bool>,
     pub button2_pressed : Uniform<bool>,
     pub button3_pressed : Uniform<bool>,
     pub button4_pressed : Uniform<bool>,
-    pub target          : Rc<Cell<Target>>,
-    pub handles         : Rc<Vec<callback::Handle>>,
-    pub frp             : enso_frp::io::Mouse,
-    pub logger          : Logger
 }
 
-impl Mouse {
-    pub fn new(shape:&web::dom::Shape, variables:&UniformScope, logger:Logger) -> Self {
-
-        let target          = Target::default();
-        let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
-        let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal(&logger));
+impl MouseButtonState {
+    pub fn new(variables:&UniformScope) -> Self {
         let button0_pressed = variables.add_or_panic("mouse_button0_pressed",false);
         let button1_pressed = variables.add_or_panic("mouse_button1_pressed",false);
         let button2_pressed = variables.add_or_panic("mouse_button2_pressed",false);
         let button3_pressed = variables.add_or_panic("mouse_button3_pressed",false);
         let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
+        Self {button0_pressed,button1_pressed,button2_pressed,button3_pressed,button4_pressed}
+    }
+}
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Mouse {
+    pub mouse_manager : MouseManager,
+    pub last_position : Rc<Cell<Vector2<i32>>>,
+    pub position      : Uniform<Vector2<i32>>,
+    pub hover_ids     : Uniform<Vector4<u32>>,
+    pub button_state  : MouseButtonState,
+    pub target        : Rc<Cell<Target>>,
+    pub handles       : Rc<Vec<callback::Handle>>,
+    pub frp           : enso_frp::io::Mouse,
+    pub logger        : Logger
+}
+
+impl Mouse {
+    pub fn new(shape:&web::dom::Shape, variables:&UniformScope, logger:Logger) -> Self {
+        let target          = Target::default();
+        let last_position   = Rc::new(Cell::new(Vector2::new(0,0)));
+        let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
+        let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal(&logger));
+        let button_state    = MouseButtonState::new(variables);
         let target          = Rc::new(Cell::new(target));
         let document        = web::dom::WithKnownShape::new(&web::document().body().unwrap());
         let mouse_manager   = MouseManager::new(&document.into());
+        let frp             = frp::io::Mouse::new();
 
-        let shape_ref       = shape.clone_ref();
-        let position_ref    = position.clone_ref();
-        let on_move_handle  = mouse_manager.on_move.add(move |event:&mouse::event::OnMove| {
-            let pixel_ratio = shape_ref.pixel_ratio() as i32;
-            let screen_x    = event.offset_x();
-            let screen_y    = event.offset_y();
-            let canvas_x    = pixel_ratio * screen_x;
-            let canvas_y    = pixel_ratio * screen_y;
-            position_ref.set(Vector2::new(canvas_x,canvas_y))
-        });
+        let on_move = mouse_manager.on_move.add(f!((frp,shape,position,last_position)(event:&mouse::OnMove) {
+            let pixel_ratio  = shape.pixel_ratio() as i32;
+            let screen_x     = event.offset_x();
+            let screen_y     = event.offset_y();
 
-        let button0_pressed_ref = button0_pressed.clone_ref();
-        let button1_pressed_ref = button1_pressed.clone_ref();
-        let button2_pressed_ref = button2_pressed.clone_ref();
-        let button3_pressed_ref = button3_pressed.clone_ref();
-        let button4_pressed_ref = button4_pressed.clone_ref();
-        let on_down_handle      = mouse_manager.on_down.add(move |event:&mouse::event::OnDown| {
-            match event.button() {
-                mouse::Button0 => button0_pressed_ref.set(true),
-                mouse::Button1 => button1_pressed_ref.set(true),
-                mouse::Button2 => button2_pressed_ref.set(true),
-                mouse::Button3 => button3_pressed_ref.set(true),
-                mouse::Button4 => button4_pressed_ref.set(true),
+            let new_position = Vector2::new(screen_x,screen_y);
+            let pos_changed  = new_position != last_position.get();
+            if pos_changed {
+                last_position.set(new_position);
+                let new_canvas_position = new_position * pixel_ratio;
+                position.set(new_canvas_position);
+                let position = enso_frp::Position::new(new_position.x as f32,new_position.y as f32);
+                frp.position.emit(position);
             }
-        });
+        }));
 
-        let button0_pressed_ref = button0_pressed.clone_ref();
-        let button1_pressed_ref = button1_pressed.clone_ref();
-        let button2_pressed_ref = button2_pressed.clone_ref();
-        let button3_pressed_ref = button3_pressed.clone_ref();
-        let button4_pressed_ref = button4_pressed.clone_ref();
-        let on_up_handle        = mouse_manager.on_up.add(move |event:&mouse::event::OnUp| {
+        let on_down = mouse_manager.on_down.add(f!((frp,button_state)(event:&mouse::OnDown) {
             match event.button() {
-                mouse::Button0 => button0_pressed_ref.set(false),
-                mouse::Button1 => button1_pressed_ref.set(false),
-                mouse::Button2 => button2_pressed_ref.set(false),
-                mouse::Button3 => button3_pressed_ref.set(false),
-                mouse::Button4 => button4_pressed_ref.set(false),
+                mouse::Button0 => button_state.button0_pressed.set(true),
+                mouse::Button1 => button_state.button1_pressed.set(true),
+                mouse::Button2 => button_state.button2_pressed.set(true),
+                mouse::Button3 => button_state.button3_pressed.set(true),
+                mouse::Button4 => button_state.button4_pressed.set(true),
             }
-        });
+            frp.press.emit(());
+        }));
 
-        let handles = Rc::new(vec![on_move_handle,on_down_handle,on_up_handle]);
+        let on_up = mouse_manager.on_up.add(f!((frp,button_state)(event:&mouse::OnUp) {
+            match event.button() {
+                mouse::Button0 => button_state.button0_pressed.set(false),
+                mouse::Button1 => button_state.button1_pressed.set(false),
+                mouse::Button2 => button_state.button2_pressed.set(false),
+                mouse::Button3 => button_state.button3_pressed.set(false),
+                mouse::Button4 => button_state.button4_pressed.set(false),
+            }
+            frp.release.emit(());
+        }));
 
-        let frp = frp::io::Mouse::new();
+        let handles = Rc::new(vec![on_move,on_down,on_up]);
+        Self {mouse_manager,last_position,position,hover_ids,button_state,target,handles,frp,logger}
+    }
 
-        let event = frp.position.clone_ref();
-        mouse_manager.on_move.add(move |e:&mouse::OnMove| {
-            let position = enso_frp::Position::new(e.client_x() as f32,e.client_y() as f32);
-            event.emit(position);
-        }).forget();
-
-        let event = frp.press.clone_ref();
-        mouse_manager.on_down.add(move |_:&mouse::OnDown| {
-            event.emit(());
-        }).forget();
-
-        let event = frp.release.clone_ref();
-        mouse_manager.on_up.add(move |_:&mouse::OnUp| {
-            event.emit(());
-        }).forget();
-
-        Self {mouse_manager,position,hover_ids,button0_pressed,button1_pressed,button2_pressed
-             ,button3_pressed,button4_pressed,target,handles,frp,logger}
+    /// Reemits FRP mouse changed position event with the last mouse position value.
+    ///
+    /// The immediate question that appears is why it is even needed. The reason is tightly coupled
+    /// with how the rendering engine works and it is important to understand it properly. When
+    /// moving a mouse the following events happen:
+    /// - `MouseManager` gets notification and fires callbacks.
+    /// - Callback above is run. The value of `screen_position` uniform changes and FRP events are
+    ///   emitted.
+    /// - FRP events propagate trough the whole system.
+    /// - The rendering engine renders a frame and waits for the pixel read pass to report symbol
+    ///   ID under the cursor. This is normally done the next frame but sometimes could take even
+    ///   few frames.
+    /// - When the new ID are received, we emit `over` and `out` FRP events for appropriate
+    ///   elements.
+    /// - After emitting `over` and `out `events, the `position` event is reemitted.
+    ///
+    /// The idea is that if your FRP network listens on both `position` and `over` or `out` events,
+    /// then you do not need to think about the whole asynchronous mechanisms going under the hood,
+    /// and you can assume that it is synchronous. Whenever mouse moves, it is discovered what
+    /// element it hovers, and its position change event is emitted as well.
+    pub fn reemit_position_event(&self) {
+        let position = self.last_position.get();
+        let position = enso_frp::Position::new(position.x as f32,position.y as f32);
+        self.frp.position.emit(position);
     }
 }
 
@@ -836,6 +853,7 @@ impl SceneData {
             self.mouse.target.set(new_target);
             self.shapes.get_mouse_target(current_target) . for_each(|t| t.mouse_out().emit(()));
             self.shapes.get_mouse_target(new_target)     . for_each(|t| t.mouse_over().emit(()));
+            self.mouse.reemit_position_event(); // See docs to learn why.
 //            match target {
 //                Target::Background => {}
 //                Target::Symbol {symbol_id,..} => {

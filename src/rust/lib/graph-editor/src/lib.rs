@@ -501,7 +501,7 @@ impl application::View for GraphEditor {
 
         let node_release = touch.nodes.up;
 
-        inputs.add_node_at.emit(Position::new(200.0,250.0));
+        inputs.add_node_at.emit(Position::new(200.0,50.0));
 
         let frp = GraphEditorFrp {network,inputs,status,node_release};
 

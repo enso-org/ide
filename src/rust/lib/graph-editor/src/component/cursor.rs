@@ -236,8 +236,11 @@ impl Cursor {
             }));
 
             def uses_mouse_position = fixed_position.map(|p| p.is_none());
+            trace uses_mouse_position;
 
             def mouse_position = mouse.position.gate(&uses_mouse_position);
+            trace mouse.position;
+            trace mouse_position;
 
             def _position = anim_pos_xy.map(f!((view)(p) {
                 view.shape.position.set(Vector2::new(p.0,p.1));
