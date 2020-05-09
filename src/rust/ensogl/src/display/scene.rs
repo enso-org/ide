@@ -717,19 +717,23 @@ impl ViewData {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Views {
-    logger   : Logger,
-    pub main : View,
-    all      : Rc<RefCell<Vec<WeakView>>>,
-    width    : f32,
-    height   : f32,
+    logger     : Logger,
+    pub main   : View,
+    pub cursor : View,
+    pub label  : View,
+    all        : Rc<RefCell<Vec<WeakView>>>,
+    width      : f32,
+    height     : f32,
 }
 
 impl Views {
     pub fn mk(logger:&Logger, width:f32, height:f32) -> Self {
         let logger = logger.sub("views");
         let main   = View::new(&logger,width,height);
+        let cursor = View::new(&logger,width,height);
+        let label  = View::new(&logger,width,height);
         let all    = Rc::new(RefCell::new(vec![main.downgrade()]));
-        Self {logger,main,all,width,height}
+        Self {logger,main,cursor,label,all,width,height}
     }
 
     /// Creates a new view for this scene.
