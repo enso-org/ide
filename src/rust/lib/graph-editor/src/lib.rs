@@ -42,7 +42,7 @@ use crate::component::cursor::Cursor;
 use crate::component::node;
 use crate::component::node::Node;
 use crate::component::node::WeakNode;
-use crate::component::connection::Connection;
+use crate::component::connection::Connection as ConnectionView;
 use enso_frp as frp;
 use enso_frp::io::keyboard;
 use enso_frp::Position;
@@ -265,9 +265,30 @@ pub struct NodeState {
     pub selected : WeakNodeSelectionSet,
 }
 
+
+#[derive(Debug)]
+pub struct Connection {
+    pub view   : ConnectionView,
+    pub source : Option<Id>,
+    pub target : Option<Id>,
+}
+
+impl Connection {
+    pub fn new_with_source(view:ConnectionView, source:Id) -> Self {
+        let source = Some(source);
+        let target = default();
+        Self {view,source,target}
+    }
+
+    pub fn id(&self) -> Id {
+        self.view.id()
+    }
+}
+
 #[derive(Debug,Clone,CloneRef,Default)]
-pub struct ConnectionState {
-    pub list : Rc<RefCell<Vec<Connection>>>
+pub struct Connections {
+    pub map      : Rc<RefCell<HashMap<Id,Connection>>>,
+    pub detached : Rc<RefCell<HashSet<Id>>>,
 }
 
 
@@ -276,7 +297,7 @@ pub struct GraphEditor {
     pub logger         : Logger,
     pub display_object : display::object::Instance,
     pub nodes          : NodeState,
-    pub connections    : ConnectionState,
+    pub connections    : Connections,
     pub frp            : GraphEditorFrp,
     pub scene          : Scene,
 }
@@ -374,7 +395,7 @@ impl application::View for GraphEditor {
         let network        = frp::Network::new();
         let inputs         = FrpInputs::new(&network);
         let nodes          = NodeState::default();
-        let connections    = ConnectionState::default();
+        let connections    = Connections::default();
         let touch          = TouchState::new(&network,mouse);
 
 
@@ -464,12 +485,14 @@ impl application::View for GraphEditor {
                     }));
                     def _add_connection = node.events.output_ports.mouse_down.map(f_!((weak_node,connections,display_object,scene) {
                         if let Some(node) = weak_node.upgrade() {
-                            let connection = Connection::new(&scene);
-                            display_object.add_child(&connection);
-
-                            connection.mod_position(|p| p.x = node.position().x + node::NODE_WIDTH/2.0);
-                            connection.mod_position(|p| p.y = node.position().y + node::NODE_HEIGHT/2.0);
-                            connections.list.borrow_mut().push(connection);
+                            let view = ConnectionView::new(&scene);
+                            view.mod_position(|p| p.x = node.position().x + node::NODE_WIDTH/2.0);
+                            view.mod_position(|p| p.y = node.position().y + node::NODE_HEIGHT/2.0);
+                            display_object.add_child(&view);
+                            let connection = Connection::new_with_source(view,node.id());
+                            let id = connection.id();
+                            connections.map.borrow_mut().insert(id,connection);
+                            connections.detached.borrow_mut().insert(id);
                         }
                     }));
                 }
@@ -503,6 +526,21 @@ impl application::View for GraphEditor {
             })
         }));
 
+
+        // === Move Connections ===
+//        #[derive(Debug,Clone,CloneRef,Default)]
+//pub struct Connections {
+//    pub map      : Rc<RefCell<HashMap<Id,Connection>>>,
+//    pub detached : Rc<RefCell<HashSet<Id>>>,
+//}
+
+        def _move_connections = cursor.frp.position.map(f!((connections)(position) {
+            for id in &*connections.detached.borrow() {
+                if let Some(connection) = connections.map.borrow().get(id) {
+                    connection.view.events.target_position.emit(position);
+                }
+            }
+        }));
 
         // === Status ===
 

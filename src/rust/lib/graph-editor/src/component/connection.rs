@@ -153,7 +153,8 @@ impl Connection {
 
         frp::extend! { network
             // input.target_position
-            def _tst = scene.mouse.frp.position.map(f!((object,side_line,main_line,corner)(target) {
+            // scene.mouse.frp.position
+            def _tst = input.target_position.map(f!((object,side_line,main_line,corner)(target) {
                 let target = Vector2::new(target.x - object.position().x, target.y - object.position().y);
                 let radius = 14.0;
                 let width  = 284.0 / 2.0;
@@ -191,7 +192,6 @@ impl Connection {
                 side_line.shape.sprite.size().set(Vector2::new(10.0,corner_x - width + line_overlap));
                 side_line.mod_position(|p| p.x = side*(width + corner_x)/2.0);
 
-                println!("{}",corner_y - target.y + line_overlap);
                 main_line.shape.sprite.size().set(Vector2::new(10.0,corner_y - target.y + line_overlap));
                 main_line.mod_position(|p| {
                     p.x = side * target.x;

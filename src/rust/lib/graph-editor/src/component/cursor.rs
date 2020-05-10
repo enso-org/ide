@@ -114,7 +114,7 @@ impl Default for InputEvents {
 #[allow(missing_docs)]
 pub struct Events {
     pub input    : InputEvents,
-//    pub position : frp::Stream<frp::Position>,
+    pub position : frp::Stream<frp::Position>,
 }
 
 impl Deref for Events {
@@ -287,7 +287,7 @@ impl Cursor {
         input.set_mode.emit(Mode::Normal);
 
 
-        let frp    = Events {input};
+        let frp    = Events {input,position};
         let data   = CursorData {logger,frp,view,resize_handle};
         let data   = Rc::new(data);
 
