@@ -160,9 +160,9 @@ pub mod output_area {
 
             let hover_area_size   = 20.0.px();
             let hover_area_width  = &width  + &hover_area_size * 2.0;
-            let hover_area_height = &height + &hover_area_size;
+            let hover_area_height = &height / 2.0 + &hover_area_size;
             let hover_area        = Rect((&hover_area_width,&hover_area_height));
-            let hover_area        = hover_area.translate_y(-hover_area_size/2.0);
+            let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
             let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000001));
 
             let shrink           = 1.px() - 1.px() * &grow;
@@ -172,10 +172,8 @@ pub mod output_area {
             let port_area_height = &height + (&port_area_size - &shrink) * 2.0;
             let bottom_radius    = &radius + &port_area_size;
             let port_area        = Rect((&port_area_width,&port_area_height));
-//            let port_area        = port_area.corners_radiuses(0.px(),0.px(),&bottom_radius,&bottom_radius);
             let port_area        = port_area.corners_radius(&bottom_radius);
             let port_area        = port_area - BottomHalfPlane();
-//            let port_area        = port_area.translate_y(-port_area_size / 2.0);
             let corner_radius    = &port_area_size / 2.0;
             let corner_offset    = &port_area_width / 2.0 - &corner_radius;
             let corner           = Circle(&corner_radius);
@@ -184,7 +182,28 @@ pub mod output_area {
             let port_area        = port_area + left_corner + right_corner;
             let port_area        = port_area.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
 
-            let out = port_area + hover_area;
+            let out = hover_area + port_area;
+            out.into()
+        }
+    }
+}
+
+
+/// Canvas node shape definition.
+pub mod drag_area {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (style:Style) {
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
+            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
+            let radius = 14.px();
+            let shape  = Rect((&width,&height)).corners_radius(radius);
+            let shape  = shape.fill(color::Rgba::new(0.0,0.0,0.0,0.000001));
+
+            let out = shape;
             out.into()
         }
     }
@@ -385,6 +404,7 @@ pub struct NodeData {
     pub frp : Events,
     pub label_view  : component::ShapeView<label::Shape>,
     pub view        : component::ShapeView<shape::Shape>,
+    pub drag_view   : component::ShapeView<drag_area::Shape>,
     pub output_view : component::ShapeView<output_area::Shape>,
     pub ports       : port::Manager,
 }
@@ -403,9 +423,11 @@ impl Node {
 
         let output_view = component::ShapeView::<output_area::Shape>::new(&logger,scene);
         let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
+        let drag_view   = component::ShapeView::<drag_area::Shape>::new(&logger,scene);
         let _port   = port::sort_hack(scene); // FIXME hack for sorting
         let label_view    = component::ShapeView::<label::Shape>::new(&logger,scene);
         let display_object  = display::object::Instance::new(&logger);
+        display_object.add_child(&drag_view);
         display_object.add_child(&output_view);
         display_object.add_child(&view);
         display_object.add_child(&label_view);
@@ -419,9 +441,12 @@ impl Node {
 
         let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
         view.shape.sprite.size().set(size);
+        drag_view.shape.sprite.size().set(size);
         output_view.shape.sprite.size().set(size);
         view.mod_position(|t| t.x += width/2.0);
         view.mod_position(|t| t.y += height/2.0);
+        drag_view.mod_position(|t| t.x += width/2.0);
+        drag_view.mod_position(|t| t.y += height/2.0);
         output_view.mod_position(|t| t.x += width/2.0);
         output_view.mod_position(|t| t.y += height/2.0);
 
@@ -516,7 +541,7 @@ impl Node {
 
         let frp = Events{input,output_ports};
 
-        let data    = Rc::new(NodeData {scene,display_object,logger,frp,view,output_view,label_view,ports});
+        let data    = Rc::new(NodeData {scene,display_object,logger,frp,view,drag_view,output_view,label_view,ports});
         Self {data}
     }
 }

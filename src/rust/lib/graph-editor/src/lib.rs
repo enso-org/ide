@@ -510,7 +510,7 @@ impl application::View for GraphEditor {
             if let Some(node) = node {
                 let weak_node = node.downgrade();
                 frp::new_bridge_network! { [network,node.view.events.network]
-                    def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((weak_node,touch) {
+                    def _node_on_down_tagged = node.drag_view.events.mouse_down.map(f_!((weak_node,touch) {
                         touch.nodes.down.emit(Some(weak_node.clone_ref()))
                     }));
                     def cursor_mode = node.ports.frp.cursor_mode.map(f!((cursor)(mode) {
