@@ -135,7 +135,7 @@ pub struct WeakNodeSelectionSet {
 
 impl WeakNodeSelectionSet {
     pub fn clear(&self) {
-        self.for_each_taken(|node| node.events.deselect.emit(()));
+        self.for_each_taken(|node| node.frp.deselect.emit(()));
     }
 }
 
@@ -267,16 +267,31 @@ pub struct NodeState {
 
 
 #[derive(Debug)]
+pub struct EdgeTarget {
+    node_id    : Id,
+    port_crumb : span_tree::Crumbs,
+}
+
+impl EdgeTarget {
+    pub fn new(node_id:Id, port_crumb:span_tree::Crumbs) -> Self {
+        Self {node_id,port_crumb}
+    }
+}
+
+
+#[derive(Debug)]
 pub struct Connection {
     pub view   : ConnectionView,
-    pub source : Option<Id>,
-    pub target : Option<Id>,
+    pub source : Option<EdgeTarget>,
+    pub target : Option<EdgeTarget>,
 }
 
 impl Connection {
-    pub fn new_with_source(view:ConnectionView, source:Id) -> Self {
-        let source = Some(source);
-        let target = default();
+    pub fn new_with_source(view:ConnectionView, node_id:Id) -> Self {
+        let port_crumb = default();
+        let source     = EdgeTarget {node_id,port_crumb};
+        let source     = Some(source);
+        let target     = default();
         Self {view,source,target}
     }
 
@@ -452,10 +467,27 @@ impl application::View for GraphEditor {
             opt_node.for_each_ref(|weak_node| {
                 weak_node.upgrade().map(|node| {
                     nodes.selected.clear();
-                    node.events.select.emit(());
+                    node.frp.select.emit(());
                     nodes.selected.insert(&node);
                 })
             })
+        }));
+
+        // === Connect ===
+
+        def node_port_press = source::<Option<(WeakNode,span_tree::Crumbs)>>();
+        def _foo = node_port_press.map(f!((connections)(t) {
+            if let Some((node,crumbs)) = t {
+                if let Some(node) = node.upgrade() {
+                    let node_id = node.id();
+                    for edge_id in mem::take(&mut *connections.detached.borrow_mut()) {
+                        if let Some(edge) = connections.map.borrow_mut().get_mut(&edge_id) {
+                            edge.target = Some(EdgeTarget::new(node_id,crumbs.clone()));
+                            println!("DONE {:?}", edge.target);
+                        }
+                    }
+                }
+            }
         }));
 
 
@@ -473,17 +505,18 @@ impl application::View for GraphEditor {
             });
         }));
 
-        def _new_node = inputs.register_node.map(f!((cursor,network,nodes,connections,touch,display_object,scene)(node) {
+
+        def _new_node = inputs.register_node.map(f!((cursor,network,nodes,connections,touch,display_object,scene,node_port_press)(node) {
             if let Some(node) = node {
                 let weak_node = node.downgrade();
                 frp::new_bridge_network! { [network,node.view.events.network]
                     def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((weak_node,touch) {
                         touch.nodes.down.emit(Some(weak_node.clone_ref()))
                     }));
-                    def cursor_mode = node.ports.events.cursor_mode.map(f!((cursor)(mode) {
+                    def cursor_mode = node.ports.frp.cursor_mode.map(f!((cursor)(mode) {
                         cursor.frp.set_mode.emit(mode);
                     }));
-                    def _add_connection = node.events.output_ports.mouse_down.map(f_!((weak_node,connections,display_object,scene) {
+                    def _add_connection = node.frp.output_ports.mouse_down.map(f_!((weak_node,connections,display_object,scene) {
                         if let Some(node) = weak_node.upgrade() {
                             let view = ConnectionView::new(&scene);
                             view.mod_position(|p| p.x = node.position().x + node::NODE_WIDTH/2.0);
@@ -494,6 +527,10 @@ impl application::View for GraphEditor {
                             connections.map.borrow_mut().insert(id,connection);
                             connections.detached.borrow_mut().insert(id);
                         }
+                    }));
+
+                    def _foo = node.ports.frp.press.map(f!((node_port_press,weak_node)(crumbs){
+                        node_port_press.emit(&Some((weak_node.clone_ref(),crumbs.clone())));
                     }));
                 }
                 display_object.add_child(node);
@@ -541,6 +578,7 @@ impl application::View for GraphEditor {
                 }
             }
         }));
+
 
         // === Status ===
 

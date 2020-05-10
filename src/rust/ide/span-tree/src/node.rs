@@ -113,6 +113,8 @@ pub struct Child {
 
 // === Node Reference ===
 
+pub type Crumbs = Vec<Crumb>;
+
 /// A reference to node inside some specific tree.
 #[derive(Clone,Debug)]
 pub struct Ref<'a> {

@@ -382,7 +382,7 @@ pub struct NodeData {
     pub scene  : Scene,
     pub display_object : display::object::Instance,
     pub logger : Logger,
-    pub events : Events,
+    pub frp : Events,
     pub label_view  : component::ShapeView<label::Shape>,
     pub view        : component::ShapeView<shape::Shape>,
     pub output_view : component::ShapeView<output_area::Shape>,
@@ -514,9 +514,9 @@ impl Node {
 
         let output_ports = OutputPortsEvents { shape_view_events:output_view.events.clone_ref() };
 
-        let events = Events{input,output_ports};
+        let frp = Events{input,output_ports};
 
-        let data    = Rc::new(NodeData {scene,display_object,logger,events,view,output_view,label_view,ports});
+        let data    = Rc::new(NodeData {scene,display_object,logger,frp,view,output_view,label_view,ports});
         Self {data}
     }
 }

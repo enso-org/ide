@@ -25,6 +25,7 @@ pub mod node;
 pub mod builder;
 
 pub use node::Node;
+pub use node::Crumbs;
 
 /// Module gathering all commonly used traits for massive importing.
 pub mod traits {

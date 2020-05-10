@@ -176,6 +176,7 @@ pub fn sort_hack(scene:&Scene) {
 pub struct Events {
     pub network     : frp::Network,
     pub cursor_mode : frp::Stream<cursor::Mode>,
+    pub press  : frp::Stream<span_tree::Crumbs>,
 }
 
 
@@ -188,7 +189,7 @@ pub struct Events {
 pub struct Manager {
     logger         : Logger,
     display_object : display::object::Instance,
-    pub events         : Events,
+    pub frp         : Events,
     scene          : Scene,
     ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
 }
@@ -202,6 +203,7 @@ impl Manager {
 
         frp::new_network! { network
             def cursor_mode = gather::<cursor::Mode>();
+            def press  = source::<span_tree::Crumbs>();
         }
 
 
@@ -233,6 +235,7 @@ impl Manager {
 
 //                        let network = &port.events.network;
                         let hover   = &port.shape.hover;
+                        let crumbs  = node.crumbs.clone();
                         frp::extend! { network
                             def _foo = port.events.mouse_over . map(f_!((hover) { hover.set(1.0); }));
                             def _foo = port.events.mouse_out  . map(f_!((hover) { hover.set(0.0); }));
@@ -241,6 +244,10 @@ impl Manager {
                             def over = port.events.mouse_over.constant(cursor::Mode::highlight(&port,Vector2::new(x,0.0),Vector2::new(width2,height)));
                             cursor_mode.attach(&over);
                             cursor_mode.attach(&out);
+
+                            def _press = port.events.mouse_down.map(f_!((press) {
+                                press.emit(&crumbs);
+                            }));
                         }
                         ports.push(port);
                     }
@@ -256,9 +263,10 @@ impl Manager {
         let ports = Rc::new(RefCell::new(ports));
 
         let cursor_mode = cursor_mode.into();
-        let events = Events {network,cursor_mode};
+        let press  = press.into();
+        let frp = Events {network,cursor_mode,press};
 
-        Self {logger,display_object,events,ports,scene}
+        Self {logger,display_object,frp,ports,scene}
     }
 }
 
