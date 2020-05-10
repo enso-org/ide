@@ -39,8 +39,10 @@ use ensogl::prelude::*;
 use ensogl::traits::*;
 
 use crate::component::cursor::Cursor;
+use crate::component::node;
 use crate::component::node::Node;
 use crate::component::node::WeakNode;
+use crate::component::connection::Connection;
 use enso_frp as frp;
 use enso_frp::io::keyboard;
 use enso_frp::Position;
@@ -263,11 +265,18 @@ pub struct NodeState {
     pub selected : WeakNodeSelectionSet,
 }
 
+#[derive(Debug,Clone,CloneRef,Default)]
+pub struct ConnectionState {
+    pub list : Rc<RefCell<Vec<Connection>>>
+}
+
+
 #[derive(Debug,Clone,CloneRef)]
 pub struct GraphEditor {
     pub logger         : Logger,
     pub display_object : display::object::Instance,
     pub nodes          : NodeState,
+    pub connections    : ConnectionState,
     pub frp            : GraphEditorFrp,
     pub scene          : Scene,
 }
@@ -365,6 +374,7 @@ impl application::View for GraphEditor {
         let network        = frp::Network::new();
         let inputs         = FrpInputs::new(&network);
         let nodes          = NodeState::default();
+        let connections    = ConnectionState::default();
         let touch          = TouchState::new(&network,mouse);
 
 
@@ -442,15 +452,25 @@ impl application::View for GraphEditor {
             });
         }));
 
-        def _new_node = inputs.register_node.map(f!((cursor,network,nodes,touch,display_object)(node) {
+        def _new_node = inputs.register_node.map(f!((cursor,network,nodes,connections,touch,display_object,scene)(node) {
             if let Some(node) = node {
                 let weak_node = node.downgrade();
                 frp::new_bridge_network! { [network,node.view.events.network]
-                    def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((touch) {
+                    def _node_on_down_tagged = node.view.events.mouse_down.map(f_!((weak_node,touch) {
                         touch.nodes.down.emit(Some(weak_node.clone_ref()))
                     }));
                     def cursor_mode = node.ports.events.cursor_mode.map(f!((cursor)(mode) {
                         cursor.frp.set_mode.emit(mode);
+                    }));
+                    def _add_connection = node.events.output_ports.mouse_down.map(f_!((weak_node,connections,display_object,scene) {
+                        if let Some(node) = weak_node.upgrade() {
+                            let connection = Connection::new(&scene);
+                            display_object.add_child(&connection);
+
+                            connection.mod_position(|p| p.x = node.position().x + node::NODE_WIDTH/2.0);
+                            connection.mod_position(|p| p.y = node.position().y + node::NODE_HEIGHT/2.0);
+                            connections.list.borrow_mut().push(connection);
+                        }
                     }));
                 }
                 display_object.add_child(node);
@@ -507,7 +527,7 @@ impl application::View for GraphEditor {
         let frp = GraphEditorFrp {network,inputs,status,node_release};
 
         let scene = scene.clone_ref();
-        Self {logger,frp,nodes,display_object,scene}
+        Self {logger,frp,nodes,connections,display_object,scene}
     }
 
 

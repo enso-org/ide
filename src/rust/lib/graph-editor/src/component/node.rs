@@ -292,10 +292,42 @@ pub mod label {
 /// Node events.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
+pub struct InputEvents {
+    pub network  : frp::Network,
+    pub select   : frp::Source,
+    pub deselect : frp::Source,
+}
+
+impl InputEvents {
+    pub fn new() -> Self {
+        frp::new_network! { network
+            def select   = source::<()>     ();
+            def deselect = source::<()>     ();
+        }
+        Self {network,select,deselect}
+    }
+}
+
+
+#[derive(Clone,CloneRef,Debug,Deref)]
+#[allow(missing_docs)]
+pub struct OutputPortsEvents {
+    pub shape_view_events : component::ShapeViewEvents,
+}
+
+
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct Events {
-    pub network    : frp::Network,
-    pub select     : frp::Source,
-    pub deselect   : frp::Source,
+    pub input        : InputEvents,
+    pub output_ports : OutputPortsEvents
+}
+
+impl Deref for Events {
+    type Target = InputEvents;
+    fn deref(&self) -> &Self::Target {
+        &self.input
+    }
 }
 
 
@@ -350,30 +382,22 @@ pub struct NodeData {
     pub scene  : Scene,
     pub display_object : display::object::Instance,
     pub logger : Logger,
-    pub label  : frp::Source<String>,
     pub events : Events,
     pub label_view  : component::ShapeView<label::Shape>,
     pub view        : component::ShapeView<shape::Shape>,
     pub output_view : component::ShapeView<output_area::Shape>,
     pub ports       : port::Manager,
-    pub connections : Rc<RefCell<Vec<Connection>>>
 }
 
-const NODE_WIDTH : f32 = 284.0;
-const NODE_HEIGHT : f32 = 28.0;
-
-const TEXT_OFF : f32 = 12.0;
+pub const NODE_WIDTH : f32 = 284.0;
+pub const NODE_HEIGHT : f32 = 28.0;
+pub const TEXT_OFF : f32 = 12.0;
 
 impl Node {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        frp::new_network! { node_network
-            def label    = source::<String> ();
-            def select   = source::<()>     ();
-            def deselect = source::<()>     ();
-        }
 
-        let network = node_network;
+
         let logger  = Logger::new("node");
         let _connection = Connection::new(scene); // FIXME hack for sorting
 
@@ -405,43 +429,35 @@ impl Node {
         label_view.mod_position(|t| t.y += 4.0 + 6.0);
 
         let ports = port::Manager::new(&logger,scene);
-        let connections = default();
         let scene = scene.clone_ref();
 
-        let events  = Events {network,select,deselect};
-
-        let data    = Rc::new(NodeData {scene,display_object,logger,label,events,view,output_view,label_view,ports,connections});
-        Self {data} . init()
-    }
-
-    fn init(self) -> Self {
-        let network = &self.data.events.network;
+        let input = InputEvents::new();
 
 
 
-        let view_data = self.view.shape.clone_ref();
+        let network = &input.network;
+
+
+
+        let view_data = view.shape.clone_ref();
         let selection = animation(network, move |value| {
             view_data.selection.set(value)
         });
 
         let (output_area_size_setter, output_area_size) = animation2(network);
 
-        let display_object = &self.display_object;
-        let scene = &self.scene;
-        let connections = &self.connections;
 
         frp::extend! { network
             let selection_ref = selection.clone_ref();
-            def _f_select = self.events.select.map(move |_| {
+            def _f_select = input.select.map(move |_| {
                 selection_ref.set_target_position(1.0);
             });
 
             let selection_ref = selection.clone_ref();
-            def _f_deselect = self.events.deselect.map(move |_| {
+            def _f_deselect = input.deselect.map(move |_| {
                 selection_ref.set_target_position(0.0);
             });
 
-            let output_view = &self.output_view;
             def foo = output_area_size.map(f!((output_view)(size) {
                 output_view.shape.grow.set(*size);
             }));
@@ -468,16 +484,17 @@ impl Node {
 //            );
 
 
+
         }
 
 
         //////////////////////////////////////////////////////
 
-        self.ports.mod_position(|p| {
+        ports.mod_position(|p| {
             p.x = TEXT_OFF;
             p.y = NODE_HEIGHT/2.0;
         });
-        self.add_child(&self.ports);
+        display_object.add_child(&ports);
 
 
 
@@ -495,7 +512,12 @@ impl Node {
 //        let output_port = self.data.ports.output.create(&self);
 //        output_port.set_position(270.0_f32.degrees());
 
-        self
+        let output_ports = OutputPortsEvents { shape_view_events:output_view.events.clone_ref() };
+
+        let events = Events{input,output_ports};
+
+        let data    = Rc::new(NodeData {scene,display_object,logger,events,view,output_view,label_view,ports});
+        Self {data}
     }
 }
 
