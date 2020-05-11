@@ -93,8 +93,8 @@ fn init(app:&Application) {
     world.add_child(&graph_editor);
 
 
-    let node1_id = graph_editor.add_node2();
-    let node2_id = graph_editor.add_node2();
+    let node1_id = graph_editor.add_node();
+    let node2_id = graph_editor.add_node();
 
     graph_editor.frp.set_node_position.emit((node1_id,Position::new(100.0 , 250.0)));
     graph_editor.frp.set_node_position.emit((node2_id,Position::new(200.0 ,  50.0)));

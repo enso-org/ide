@@ -60,7 +60,7 @@ impl GraphEditorIntegration {
                     entry.get().set_position(Self::pos_to_vec3(pos));
                 },
                 Vacant(entry)   => {
-                    let node = self.editor.add_node().upgrade().unwrap();
+                    let node = self.editor.deprecated_add_node().upgrade().unwrap();
                     node.set_position(position.map_or_else(default_pos,Self::pos_to_vec3));
                     entry.insert(node.clone_ref());
                     self.node_to_id.borrow_mut().insert(node,id);
@@ -113,7 +113,7 @@ impl GraphEditorIntegration {
             let node = editor.get_node(node_id);
             let this = weak.upgrade();
             if let Some((node,this)) = node.and_then(|n| this.map(|t| (n,t))) {
-                let id = this.node_to_id.borrow().get(node_id).cloned();
+                let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0
                 if let Some(id) = id {
                     this.controller.module.with_node_metadata(id, |md| {
                         let pos = node.view.position();
@@ -128,7 +128,7 @@ impl GraphEditorIntegration {
     fn retain_ids(&self, ids:&HashSet<ast::Id>) {
         for (id,node) in self.id_to_node.borrow().iter() {
             if !ids.contains(id) {
-                self.editor.remove_node(node.downgrade())
+                self.editor.deprecated_remove_node(node.downgrade())
             }
         }
     }
