@@ -85,5 +85,5 @@ pub fn object_sample_js_bubble_chart() -> JsRenderer {
          return obj;
     })()
     "#;
-    JsObjectRenderer::from_source(fn_prototype).unwrap()
+    JsRenderer::from_source(fn_prototype).unwrap()
 }
