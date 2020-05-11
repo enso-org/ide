@@ -107,21 +107,21 @@ impl GraphEditorIntegration {
     }
 
     fn setup_mouse_event_handling(this:&Rc<Self>) {
-        let weak = Rc::downgrade(this);
-        let editor = this.editor.clone_ref();
-        this.editor.frp.network.map("module_update", &this.editor.frp.node_release, move |node_id| {
-            let node = editor.get_node(node_id);
-            let this = weak.upgrade();
-            if let Some((node,this)) = node.and_then(|n| this.map(|t| (n,t))) {
-                let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0
-                if let Some(id) = id {
-                    this.controller.module.with_node_metadata(id, |md| {
-                        let pos = node.view.position();
-                        md.position = Some(model::module::Position::new(pos.x, pos.y));
-                    })
-                }
-            }
-        });
+//        let weak = Rc::downgrade(this);
+//        let editor = this.editor.clone_ref();
+//        this.editor.frp.network.map("module_update", &this.editor.frp.node_release, move |node_id| {
+//            let node = editor.get_node(node_id);
+//            let this = weak.upgrade();
+//            if let Some((node,this)) = node.and_then(|n| this.map(|t| (n,t))) {
+//                let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0
+//                if let Some(id) = id {
+//                    this.controller.module.with_node_metadata(id, |md| {
+//                        let pos = node.view.position();
+//                        md.position = Some(model::module::Position::new(pos.x, pos.y));
+//                    })
+//                }
+//            }
+//        });
     }
 
     /// Retain only given ids in displayed graph.
