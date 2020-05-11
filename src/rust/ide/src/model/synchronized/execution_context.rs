@@ -67,7 +67,7 @@ impl ExecutionContext {
         let call = language_server::ExplicitCall {method_pointer,this_argument_expression,
             positional_arguments_expressions};
         let frame = language_server::StackItem::ExplicitCall(call);
-        self.language_server.push_execution_context(self.id,frame).await?;
+        self.language_server.execution_context_push(self.id,frame).await?;
         Ok(())
     }
 
@@ -77,14 +77,14 @@ impl ExecutionContext {
         let call          = language_server::LocalCall{expression_id};
         let frame         = language_server::StackItem::LocalCall(call);
         self.model.push(stack_item);
-        self.language_server.push_execution_context(self.id,frame)
+        self.language_server.execution_context_push(self.id,frame)
     }
 
     /// Pop the last stack item from this context. It returns error when only root call
     /// remains.
     pub async fn pop(&self) -> FallibleResult<()> {
         self.model.pop()?;
-        self.language_server.pop_execution_context(self.id).await?;
+        self.language_server.execution_context_pop(self.id).await?;
         Ok(())
     }
 
@@ -153,7 +153,7 @@ mod test {
             positional_arguments_expressions : vec![]
         };
         let expected_stack_item = language_server::StackItem::ExplicitCall(expected_root_frame);
-        ls_client.set_push_execution_context_result(context_id,expected_stack_item,Ok(()));
+        ls_client.set_execution_context_push_result(context_id,expected_stack_item,Ok(()));
         ls_client.set_destroy_execution_context_result(context_id,Ok(()));
         ls_client.expect_all_calls();
         let connection = language_server::Connection::new_mock_rc(ls_client);
@@ -188,7 +188,7 @@ mod test {
         let expected_call_frame = language_server::LocalCall{expression_id};
         let expected_stack_item = language_server::StackItem::LocalCall(expected_call_frame);
         
-        ls.set_push_execution_context_result(id,expected_stack_item,Ok(()));
+        ls.set_execution_context_push_result(id,expected_stack_item,Ok(()));
         ls.set_destroy_execution_context_result(id,Ok(()));
         let context  = ExecutionContext::new_mock(id,path.clone(),model,ls);
 
@@ -214,7 +214,7 @@ mod test {
         let root_def      = DefinitionName::new_plain("main");
         let ls            = language_server::MockClient::default();
         let model         = model::ExecutionContext::new(root_def);
-        ls.set_pop_execution_context_result(id,Ok(()));
+        ls.set_execution_context_pop_result(id,Ok(()));
         ls.set_destroy_execution_context_result(id,Ok(()));
         model.push(item);
         let context  = ExecutionContext::new_mock(id,path.clone(),model,ls);

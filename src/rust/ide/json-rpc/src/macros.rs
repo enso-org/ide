@@ -145,7 +145,8 @@ macro_rules! make_rpc_methods {
         impl Drop for MockClient {
             fn drop(&mut self) {
                 if self.expect_all_calls.get() {
-                    $(assert!(self.$method_result.borrow().is_empty(), "Didn't make expected call {} with parameters {:?}",$rpc_name,self.$method_result.borrow().keys());)*
+                    $(assert!(self.$method_result.borrow().is_empty(), "Didn't make expected call \
+                    {} with parameters {:?}",$rpc_name,self.$method_result.borrow().keys());)*
                 }
             }
         }
