@@ -194,6 +194,7 @@ pub struct FrpInputs {
     pub add_node_at              : frp::Source<Position>,
     pub set_node_position        : frp::Source<(Id,Position)>,
     pub set_node_expression      : frp::Source<(Id,Expression)>,
+    pub connect_nodes            : frp::Source<(EdgeTarget,EdgeTarget)>,
     pub select_node              : frp::Source<Id>,
     pub translate_selected_nodes : frp::Source<Position>,
 }
@@ -208,8 +209,9 @@ impl FrpInputs {
             def select_node              = source();
             def translate_selected_nodes = source();
             def set_node_expression      = source();
+            def connect_nodes            = source();
         }
-        Self {commands,register_node,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression}
+        Self {commands,register_node,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression,connect_nodes}
     }
 
     fn register_node(&self, arg:&Node) {
@@ -276,6 +278,12 @@ impl NodeModel {
     }
 }
 
+impl display::Object for NodeModel {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.view.display_object()
+    }
+}
+
 
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct Nodes {
@@ -284,7 +292,7 @@ pub struct Nodes {
 }
 
 
-#[derive(Debug)]
+#[derive(Clone,Debug,Default)]
 pub struct EdgeTarget {
     node_id    : Id,
     port_crumb : span_tree::Crumbs,
@@ -500,21 +508,35 @@ impl application::View for GraphEditor {
             }
         }));
 
-        // === Connect ===
+        // === Connect Nodes ===
 
-        def node_port_press = source::<Option<(Id,span_tree::Crumbs)>>();
-        def _foo = node_port_press.map(f!((nodes,edges)(t) {
-            if let Some((node_id,crumbs)) = t {
-                if let Some(node) = nodes.set.get(node_id) {
-//                    let node_id = node.id();
-                    for edge_id in mem::take(&mut *edges.detached.borrow_mut()) {
-                        if let Some(edge) = edges.map.borrow_mut().get_mut(&edge_id) {
-                            edge.target = Some(EdgeTarget::new(*node_id,crumbs.clone()));
-                            node.in_edges.borrow_mut().insert(edge_id);
-                        }
+        def node_port_press = source::<(Id,span_tree::Crumbs)>();
+        def connect_nodes_on_port_press = node_port_press.map(f!((nodes,edges)((node_id,crumbs)) {
+            if let Some(node) = nodes.set.get(node_id) {
+                for edge_id in mem::take(&mut *edges.detached.borrow_mut()) {
+                    if let Some(edge) = edges.map.borrow_mut().get_mut(&edge_id) {
+                        println!("{:?}", crumbs);
+                        edge.target = Some(EdgeTarget::new(*node_id,crumbs.clone()));
+                        node.in_edges.borrow_mut().insert(edge_id);
                     }
                 }
             }
+        }));
+
+        def _foo = inputs.connect_nodes.map(f!((scene,display_object,nodes,edges)((source,target)){
+            let source_node = nodes.set.get(&source.node_id).unwrap();
+            let target_node = nodes.set.get(&target.node_id).unwrap();
+            let view = Edge::new(&scene);
+            view.mod_position(|p| p.x = source_node.position().x + node::NODE_WIDTH/2.0);
+            view.mod_position(|p| p.y = source_node.position().y + node::NODE_HEIGHT/2.0);
+            display_object.add_child(&view);
+            let mut edge = EdgeModel::new_with_source(view,source.node_id);
+            let edge_id = edge.id();
+            edge.target = Some(target.clone());
+            edges.map.borrow_mut().insert(edge_id,edge);
+            target_node.in_edges.borrow_mut().insert(edge_id);
+
+//            edges.detached.borrow_mut().insert(edge_id);
         }));
 
 
@@ -558,7 +580,7 @@ impl application::View for GraphEditor {
                     }));
 
                     def _foo = node.ports.frp.press.map(f!((node_port_press)(crumbs){
-                        node_port_press.emit(&Some((node_id,crumbs.clone())));
+                        node_port_press.emit((node_id,crumbs.clone()));
                     }));
                 }
                 display_object.add_child(node);
@@ -626,11 +648,6 @@ impl application::View for GraphEditor {
 
 
         // === Move Edges ===
-//        #[derive(Debug,Clone,CloneRef,Default)]
-//pub struct Edges {
-//    pub map      : Rc<RefCell<HashMap<Id,EdgeModel>>>,
-//    pub detached : Rc<RefCell<HashSet<Id>>>,
-//}
 
         def _move_connections = cursor.frp.position.map(f!((edges)(position) {
             for id in &*edges.detached.borrow() {

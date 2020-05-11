@@ -9,7 +9,7 @@ use ensogl::prelude::*;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::system::web;
 use ensogl::application::Application;
-use graph_editor::GraphEditor;
+use graph_editor::{GraphEditor, EdgeTarget};
 use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
 use ensogl_core_msdf_sys::run_once_initialized;
@@ -101,6 +101,8 @@ fn init(app:&Application) {
 
     graph_editor.frp.set_node_expression.emit((node1_id,expression_mock()));
     graph_editor.frp.set_node_expression.emit((node2_id,expression_mock()));
+
+    graph_editor.frp.connect_nodes.emit((EdgeTarget::new(node1_id,default()),EdgeTarget::new(node2_id,vec![1,0,2])));
 
     let mut was_rendered = false;
     let mut loader_hidden = false;
