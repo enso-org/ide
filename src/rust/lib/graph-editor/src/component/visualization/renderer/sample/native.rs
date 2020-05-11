@@ -154,6 +154,7 @@ pub struct WebglBubbleChart {
         frp            : DataRendererFrp,
         views          : RefCell<Vec<component::ShapeView<BubbleView>>>,
         logger         : Logger,
+        size           : Cell<Vector2<f32>>,
 }
 
 #[allow(missing_docs)]
@@ -163,8 +164,9 @@ impl WebglBubbleChart {
         let display_object = display::object::Instance::new(&logger);
         let views          = RefCell::new(vec![]);
         let frp            = default();
+        let size           = Cell::new(Vector2::zero());
 
-        WebglBubbleChart { display_object,views,logger,frp }
+        WebglBubbleChart { display_object,views,logger,frp,size }
     }
 }
 
@@ -180,6 +182,7 @@ impl DataRenderer for WebglBubbleChart {
         views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
             view.display_object.set_parent(&self.display_object);
             if let Some(t) = view.data.borrow().as_ref() {
+                t.shape.sprite.size().set(self.size.get());
                 t.shape.radius.set(item.z);
                 t.shape.position.set(Vector2::new(item.x,item.y));
             };
@@ -187,8 +190,8 @@ impl DataRenderer for WebglBubbleChart {
         Ok(data)
     }
 
-    fn set_size(&self, _size:Vector2<f32>) {
-        // TODO if we had some axes definitions, this is where we would scale them.
+    fn set_size(&self, size:Vector2<f32>) {
+        self.size.set(size);
     }
 
     fn frp(&self) -> &DataRendererFrp {
