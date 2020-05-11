@@ -1,3 +1,5 @@
+//! This module contains language server types.
+
 use super::*;
 
 // =============
@@ -224,7 +226,7 @@ pub type ContextId = Uuid;
 pub type ExpressionId = Uuid;
 
 /// A configuration object for properties of the visualisation.
-#[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct VisualisationConfiguration {

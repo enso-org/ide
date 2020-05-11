@@ -10,6 +10,12 @@ use std::future::Future;
 use utils::test::poll_future_output;
 use utils::test::poll_stream_output;
 
+
+
+// ===============
+// === Fixture ===
+// ===============
+
 struct Fixture {
     transport : MockTransport,
     client    : Client,
@@ -23,6 +29,12 @@ fn setup_language_server() -> Fixture {
     executor.spawner().spawn_local(client.runner()).unwrap();
     Fixture {transport,client,executor}
 }
+
+
+
+// =============
+// === Tests ===
+// =============
 
 #[test]
 fn test_file_event_notification() {
@@ -70,13 +82,13 @@ fn test_file_event_notification() {
 /// * checks that FM-returned Future yields `expected_output`.
 fn test_request<Fun, Fut, T>
 ( make_request:Fun
-    , expected_method:&str
-    , expected_input:Value
-    , result:Value
-    , expected_output:T )
-    where Fun : FnOnce(&mut Client) -> Fut,
-          Fut : Future<Output = Result<T>>,
-          T   : Debug + PartialEq {
+, expected_method:&str
+, expected_input:Value
+, result:Value
+, expected_output:T )
+where Fun : FnOnce(&mut Client) -> Fut,
+      Fut : Future<Output = Result<T>>,
+      T   : Debug + PartialEq {
     let mut fixture        = setup_language_server();
     let mut request_future = Box::pin(make_request(&mut fixture.client));
 
@@ -93,25 +105,25 @@ fn test_request<Fun, Fut, T>
 
 #[test]
 fn test_file_requests() {
-    let root_id   = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
-    let root_id   = root_id.expect("Couldn't parse uuid.");
-    let main      = Path { root_id, segments: vec!["Main.txt".into()] };
-    let target    = Path { root_id, segments: vec!["Target.txt".into()] };
+    let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
+    let root_id = root_id.expect("Couldn't parse uuid.");
+    let main = Path { root_id, segments: vec!["Main.txt".into()] };
+    let target = Path { root_id, segments: vec!["Target.txt".into()] };
     let path_main = json!({"path" : {
-                "rootId"   : "00000000-0000-0000-0000-000000000000",
-                "segments" : ["Main.txt"]
-            }
-        });
+            "rootId"   : "00000000-0000-0000-0000-000000000000",
+            "segments" : ["Main.txt"]
+        }
+    });
     let from_main_to_target = json!({
-            "from" : {
-                "rootId"   : "00000000-0000-0000-0000-000000000000",
-                "segments" : ["Main.txt"]
-            },
-            "to" : {
-                "rootId"   : "00000000-0000-0000-0000-000000000000",
-                "segments" : ["Target.txt"]
-            }
-        });
+        "from" : {
+            "rootId"   : "00000000-0000-0000-0000-000000000000",
+            "segments" : ["Main.txt"]
+        },
+        "to" : {
+            "rootId"   : "00000000-0000-0000-0000-000000000000",
+            "segments" : ["Target.txt"]
+        }
+    });
     let file_exists_json = json!({"exists":true});
     let unit_json = json!(null);
 
@@ -135,34 +147,34 @@ fn test_file_requests() {
         response::FileExists { exists: true });
 
     let list_response_json = json!({
-            "paths" : [
-                {
-                    "type" : "File",
-                    "name" : "foo.txt",
-                    "path" : {
-                        "rootId"   : "00000000-0000-0000-0000-000000000000",
-                        "segments" : []
-                    }
-                },
-                {
-                    "type" : "File",
-                    "name" : "bar.txt",
-                    "path" : {
-                        "rootId"   : "00000000-0000-0000-0000-000000000000",
-                        "segments" : []
-                    }
+        "paths" : [
+            {
+                "type" : "File",
+                "name" : "foo.txt",
+                "path" : {
+                    "rootId"   : "00000000-0000-0000-0000-000000000000",
+                    "segments" : []
                 }
-            ]
-        });
+            },
+            {
+                "type" : "File",
+                "name" : "bar.txt",
+                "path" : {
+                    "rootId"   : "00000000-0000-0000-0000-000000000000",
+                    "segments" : []
+                }
+            }
+        ]
+    });
     let list_response_value = response::FileList {
         paths: vec![
             FileSystemObject::File {
-                name : "foo.txt".into(),
-                path : Path { root_id, segments: default() }
+                name: "foo.txt".into(),
+                path: Path { root_id, segments: default() }
             },
             FileSystemObject::File {
-                name : "bar.txt".into(),
-                path : Path { root_id, segments: default() }
+                name: "bar.txt".into(),
+                path: Path { root_id, segments: default() }
             }
         ]
     };
@@ -199,27 +211,29 @@ fn test_file_requests() {
         }
     };
     let file_system_object_json = json!({
-            "type" : "File",
-            "name" : "test.txt",
-            "path" : {
-                "rootId"   : "00000000-0000-0000-0000-000000000000",
-                "segments" : []
-            }
-        });
-    let expected_attributes = response::FileInfo { attributes : FileAttributes {
-        creation_time      : parse_rfc3339("2020-01-07T21:25:26Z"),
-        last_access_time   : parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
-        last_modified_time : parse_rfc3339("2020-01-07T21:25:26Z"),
-        kind               : file_system_object.clone(),
-        byte_size          : 125125,
-    }};
+        "type" : "File",
+        "name" : "test.txt",
+        "path" : {
+            "rootId"   : "00000000-0000-0000-0000-000000000000",
+            "segments" : []
+        }
+    });
+    let expected_attributes = response::FileInfo {
+        attributes: FileAttributes {
+            creation_time: parse_rfc3339("2020-01-07T21:25:26Z"),
+            last_access_time: parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
+            last_modified_time: parse_rfc3339("2020-01-07T21:25:26Z"),
+            kind: file_system_object.clone(),
+            byte_size: 125125,
+        }
+    };
     let sample_attributes_json = json!({ "attributes" : {
-            "creationTime"     : "2020-01-07T21:25:26Z",
-            "lastAccessTime"   : "2020-01-21T22:16:51.123994500+00:00",
-            "lastModifiedTime" : "2020-01-07T21:25:26Z",
-            "kind"             : file_system_object_json,
-            "byteSize" : 125125
-        }});
+        "creationTime"     : "2020-01-07T21:25:26Z",
+        "lastAccessTime"   : "2020-01-21T22:16:51.123994500+00:00",
+        "lastModifiedTime" : "2020-01-07T21:25:26Z",
+        "kind"             : file_system_object_json,
+        "byteSize" : 125125
+    }});
     test_request(
         |client| client.file_info(main.clone()),
         "file/info",
@@ -239,46 +253,67 @@ fn test_file_requests() {
         |client| client.write_file(main.clone(), "Hello world!".into()),
         "file/write",
         json!({
-                "path" : {
-                    "rootId"   : "00000000-0000-0000-0000-000000000000",
-                    "segments" : ["Main.txt"]
-                },
-                "contents" : "Hello world!"
-            }),
+            "path" : {
+                "rootId"   : "00000000-0000-0000-0000-000000000000",
+                "segments" : ["Main.txt"]
+            },
+            "contents" : "Hello world!"
+        }),
         unit_json.clone(),
         ());
+}
+
+#[test]
+fn test_protocol_connection() {
     let init_protocol_connection_response = response::InitProtocolConnection {
-        content_roots : vec![uuid::Uuid::default()]
+        content_roots: vec![uuid::Uuid::default()]
     };
     test_request(
         |client| client.init_protocol_connection(uuid::Uuid::default()),
         "session/initProtocolConnection",
         json!({
-                "clientId" : "00000000-0000-0000-0000-000000000000"
-            }),
+            "clientId" : "00000000-0000-0000-0000-000000000000"
+        }),
         json!({
-                "contentRoots" : ["00000000-0000-0000-0000-000000000000"]
-            }),
+            "contentRoots" : ["00000000-0000-0000-0000-000000000000"]
+        }),
         init_protocol_connection_response
     );
-    let path                  = Path{root_id,segments:default()};
-    let receives_tree_updates = ReceivesTreeUpdates{path};
-    let options               = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+}
+
+#[test]
+fn test_acquire_capability() {
+    let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
+    let root_id = root_id.expect("Couldn't parse uuid.");
+    let unit_json = json!(null);
+
+    let path = Path { root_id, segments: default() };
+    let receives_tree_updates = ReceivesTreeUpdates { path };
+    let options = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
     test_request(
-        |client| client.acquire_capability("receivesTreeUpdates".into(),options),
+        |client| client.acquire_capability("receivesTreeUpdates".into(), options),
         "capability/acquire",
         json!({
-                "method"          : "receivesTreeUpdates",
-                "registerOptions" : {
-                    "path" : {
-                        "rootId"   : "00000000-0000-0000-0000-000000000000",
-                        "segments" : []
-                    }
+            "method"          : "receivesTreeUpdates",
+            "registerOptions" : {
+                "path" : {
+                    "rootId"   : "00000000-0000-0000-0000-000000000000",
+                    "segments" : []
                 }
-            }),
+            }
+        }),
         unit_json.clone(),
         ()
     );
+}
+
+#[test]
+fn test_execution_context() {
+    let root_id   = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
+    let root_id   = root_id.expect("Couldn't parse uuid.");
+    let main      = Path { root_id, segments: vec!["Main.txt".into()] };
+    let unit_json = json!(null);
+
     let context_id       = uuid::Uuid::default();
     let method           = "executionContext/canModify".to_string();
     let register_options = RegisterOptions::ExecutionContextId{context_id};
@@ -293,19 +328,19 @@ fn test_file_requests() {
         "executionContext/create",
         json!({}),
         json!({
-                "canModify" : {
-                    "method"          : "executionContext/canModify",
-                    "registerOptions" : {
-                        "contextId" : "00000000-0000-0000-0000-000000000000"
-                    }
-                },
-                "receivesUpdates" : {
-                    "method"          : "executionContext/receivesUpdates",
-                    "registerOptions" : {
-                        "contextId" : "00000000-0000-0000-0000-000000000000"
-                    }
+            "canModify" : {
+                "method"          : "executionContext/canModify",
+                "registerOptions" : {
+                    "contextId" : "00000000-0000-0000-0000-000000000000"
                 }
-            }),
+            },
+            "receivesUpdates" : {
+                "method"          : "executionContext/receivesUpdates",
+                "registerOptions" : {
+                    "contextId" : "00000000-0000-0000-0000-000000000000"
+                }
+            }
+        }),
         create_execution_context_response
     );
     test_request(
@@ -322,12 +357,12 @@ fn test_file_requests() {
         |client| client.push_execution_context(context_id,stack_item),
         "executionContext/push",
         json!({
-                "contextId" : "00000000-0000-0000-0000-000000000000",
-                "stackItem" : {
-                    "type"         : "LocalCall",
-                    "expressionId" : "00000000-0000-0000-0000-000000000000"
-                }
-            }),
+            "contextId" : "00000000-0000-0000-0000-000000000000",
+            "stackItem" : {
+                "type"         : "LocalCall",
+                "expressionId" : "00000000-0000-0000-0000-000000000000"
+            }
+        }),
         unit_json.clone(),
         ()
     );
@@ -349,14 +384,14 @@ fn test_file_requests() {
             client.attach_visualisation(visualisation_id,expression_id,visualisation_config),
         "executionContext/attachVisualisation",
         json!({
-                "visualisationId"     : "00000000-0000-0000-0000-000000000000",
-                "expressionId"        : "00000000-0000-0000-0000-000000000000",
-                "visualisationConfig" : {
-                    "executionContextId"  : "00000000-0000-0000-0000-000000000000",
-                    "visualisationModule" : "[Foo.Bar.Baz]",
-                    "expression"          : "1 + 1"
-                }
-            }),
+            "visualisationId"     : "00000000-0000-0000-0000-000000000000",
+            "expressionId"        : "00000000-0000-0000-0000-000000000000",
+            "visualisationConfig" : {
+                "executionContextId"  : "00000000-0000-0000-0000-000000000000",
+                "visualisationModule" : "[Foo.Bar.Baz]",
+                "expression"          : "1 + 1"
+            }
+        }),
         unit_json.clone(),
         ()
     );
@@ -364,9 +399,9 @@ fn test_file_requests() {
         |client| client.detach_visualisation(context_id,visualisation_id),
         "executionContext/detachVisualisation",
         json!({
-                "executionContextId" : "00000000-0000-0000-0000-000000000000",
-                "visualisationId"    : "00000000-0000-0000-0000-000000000000"
-            }),
+            "executionContextId" : "00000000-0000-0000-0000-000000000000",
+            "visualisationId"    : "00000000-0000-0000-0000-000000000000"
+        }),
         unit_json.clone(),
         ()
     );
@@ -378,13 +413,13 @@ fn test_file_requests() {
         |client| client.modify_visualisation(visualisation_id,visualisation_config),
         "executionContext/modifyVisualisation",
         json!({
-                "visualisationId"     : "00000000-0000-0000-0000-000000000000",
-                "visualisationConfig" : {
-                    "executionContextId"  : "00000000-0000-0000-0000-000000000000",
-                    "visualisationModule" : "[Foo.Bar.Baz]",
-                    "expression"          : "1 + 1"
-                }
-            }),
+            "visualisationId"     : "00000000-0000-0000-0000-000000000000",
+            "visualisationConfig" : {
+                "executionContextId"  : "00000000-0000-0000-0000-000000000000",
+                "visualisationModule" : "[Foo.Bar.Baz]",
+                "expression"          : "1 + 1"
+            }
+        }),
         unit_json.clone(),
         ()
     );
@@ -401,24 +436,24 @@ fn test_file_requests() {
         |client| client.open_text_file(main.clone()),
         "text/openFile",
         json!({
-                "path" : {
-                    "rootId"   : "00000000-0000-0000-0000-000000000000",
-                    "segments" : ["Main.txt"]
-                }
-            }),
+            "path" : {
+                "rootId"   : "00000000-0000-0000-0000-000000000000",
+                "segments" : ["Main.txt"]
+            }
+        }),
         json!({
-                "writeCapability" : {
-                    "method"         : "text/canEdit",
-                    "registerOptions": {
-                        "path" : {
-                            "rootId"   : "00000000-0000-0000-0000-000000000000",
-                            "segments" : ["Main.txt"]
-                        }
+            "writeCapability" : {
+                "method"         : "text/canEdit",
+                "registerOptions": {
+                    "path" : {
+                        "rootId"   : "00000000-0000-0000-0000-000000000000",
+                        "segments" : ["Main.txt"]
                     }
-                },
-                "content"        : "Hello World!",
-                "currentVersion" : "716596afadfa17cd1cb35133829a02b03e4eed398ce029ce78a2161d"
-            }),
+                }
+            },
+            "content"        : "Hello World!",
+            "currentVersion" : "716596afadfa17cd1cb35133829a02b03e4eed398ce029ce78a2161d"
+        }),
         open_text_file_response
     );
     let start       = Position{line:0,character:5};
@@ -435,30 +470,30 @@ fn test_file_requests() {
         |client| client.apply_text_file_edit(edit),
         "text/applyEdit",
         json!({
-                "edit" : {
-                    "path" : {
-                        "rootId"   : "00000000-0000-0000-0000-000000000000",
-                        "segments" : ["Main.txt"]
-                    },
-                    "edits" : [
-                        {
-                            "range" : {
-                                "start" : {
-                                    "line"      : 0,
-                                    "character" : 5
-                                },
-                                "end" : {
-                                    "line"      : 0,
-                                    "character" : 5
-                                }
+            "edit" : {
+                "path" : {
+                    "rootId"   : "00000000-0000-0000-0000-000000000000",
+                    "segments" : ["Main.txt"]
+                },
+                "edits" : [
+                    {
+                        "range" : {
+                            "start" : {
+                                "line"      : 0,
+                                "character" : 5
                             },
-                            "text" : ","
-                        }
-                    ],
-                    "oldVersion" : "d3ee9b1ba1990fecfd794d2f30e0207aaa7be5d37d463073096d86f8",
-                    "newVersion" : "6a33e22f20f16642697e8bd549ff7b759252ad56c05a1b0acc31dc69"
-                }
-            }),
+                            "end" : {
+                                "line"      : 0,
+                                "character" : 5
+                            }
+                        },
+                        "text" : ","
+                    }
+                ],
+                "oldVersion" : "d3ee9b1ba1990fecfd794d2f30e0207aaa7be5d37d463073096d86f8",
+                "newVersion" : "6a33e22f20f16642697e8bd549ff7b759252ad56c05a1b0acc31dc69"
+            }
+        }),
         unit_json.clone(),
         ()
     );
@@ -466,12 +501,12 @@ fn test_file_requests() {
         |client| client.save_text_file(main.clone(),current_version),
         "text/save",
         json!({
-                "path" : {
-                    "rootId"   : "00000000-0000-0000-0000-000000000000",
-                    "segments" : ["Main.txt"]
-                },
-                "currentVersion" : "716596afadfa17cd1cb35133829a02b03e4eed398ce029ce78a2161d"
-            }),
+            "path" : {
+                "rootId"   : "00000000-0000-0000-0000-000000000000",
+                "segments" : ["Main.txt"]
+            },
+            "currentVersion" : "716596afadfa17cd1cb35133829a02b03e4eed398ce029ce78a2161d"
+        }),
         unit_json.clone(),
         ()
     );
@@ -479,11 +514,11 @@ fn test_file_requests() {
         |client| client.close_text_file(main),
         "text/closeFile",
         json!({
-                "path" : {
-                    "rootId"   : "00000000-0000-0000-0000-000000000000",
-                    "segments" : ["Main.txt"]
-                }
-            }),
+            "path" : {
+                "rootId"   : "00000000-0000-0000-0000-000000000000",
+                "segments" : ["Main.txt"]
+            }
+        }),
         unit_json,
         ()
     );

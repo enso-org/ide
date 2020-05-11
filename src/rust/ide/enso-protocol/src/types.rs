@@ -5,15 +5,27 @@ use crate::prelude::*;
 use serde::Serialize;
 use serde::Deserialize;
 
+
+
+// ===================
+// === UTCDateTime ===
+// ===================
+
 /// Time in UTC time zone.
 pub type UTCDateTime = chrono::DateTime<chrono::FixedOffset>;
+
+
+
+// ================
+// === Sha3_224 ===
+// ================
 
 /// SHA3-224 hash digest.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize,Shrinkwrap)]
 pub struct Sha3_224(String);
 
 impl Sha3_224 {
-    /// Create new SHA3-224 digest from any arbitrary `data`.
+    /// Create new SHA3-224 digest of any arbitrary `data`.
     pub fn new(data:&[u8]) -> Self {
         use sha3::Digest;
         let mut hasher = sha3::Sha3_224::new();
@@ -23,6 +35,8 @@ impl Sha3_224 {
         Self(digest)
     }
 }
+
+
 
 // =============
 // === Tests ===

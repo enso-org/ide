@@ -10,7 +10,7 @@ pub mod connection;
 pub mod response;
 #[cfg(test)]
 mod tests;
-mod types;
+pub mod types;
 
 pub use types::*;
 pub use connection::Connection;
