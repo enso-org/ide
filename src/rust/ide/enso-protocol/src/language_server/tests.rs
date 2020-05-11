@@ -42,8 +42,8 @@ fn test_file_event_notification() {
     let mut events  = Box::pin(fixture.client.events());
     assert!(poll_stream_output(&mut events).is_none());
 
-    let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
-    let root_id = root_id.expect("Couldn't parse uuid.");
+    let root_id        = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
+    let root_id        = root_id.expect("Couldn't parse uuid.");
     let expected_event = FileEvent {
         path : Path{root_id,segments:vec!["Main.txt".into()]},
         kind : FileEventKind::Modified,
@@ -105,10 +105,10 @@ where Fun : FnOnce(&mut Client) -> Fut,
 
 #[test]
 fn test_file_requests() {
-    let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
-    let root_id = root_id.expect("Couldn't parse uuid.");
-    let main = Path { root_id, segments: vec!["Main.txt".into()] };
-    let target = Path { root_id, segments: vec!["Target.txt".into()] };
+    let root_id   = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
+    let root_id   = root_id.expect("Couldn't parse uuid.");
+    let main      = Path { root_id, segments: vec!["Main.txt".into()] };
+    let target    = Path { root_id, segments: vec!["Target.txt".into()] };
     let path_main = json!({"path" : {
             "rootId"   : "00000000-0000-0000-0000-000000000000",
             "segments" : ["Main.txt"]
@@ -192,7 +192,7 @@ fn test_file_requests() {
         ());
 
     let read_response_json = json!({"contents":"Hello world!"});
-    let read_response = response::Read { contents: "Hello world!".into() };
+    let read_response      = response::Read { contents: "Hello world!".into() };
     test_request(
         |client| client.read_file(main.clone()),
         "file/read",
@@ -283,13 +283,13 @@ fn test_protocol_connection() {
 
 #[test]
 fn test_acquire_capability() {
-    let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
-    let root_id = root_id.expect("Couldn't parse uuid.");
+    let root_id   = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
+    let root_id   = root_id.expect("Couldn't parse uuid.");
     let unit_json = json!(null);
 
-    let path = Path { root_id, segments: default() };
+    let path                  = Path { root_id, segments: default() };
     let receives_tree_updates = ReceivesTreeUpdates { path };
-    let options = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+    let options               = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
     test_request(
         |client| client.acquire_capability("receivesTreeUpdates".into(), options),
         "capability/acquire",
