@@ -143,10 +143,10 @@ pub struct Notification<Call>(pub Call);
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Response<Res> {
     /// Identifier, matching the value given in `Request` when call was made.
-    pub id: Id,
+    pub id:Id,
     /// Call result.
     #[serde(flatten)]
-    pub result: Result<Res>
+    pub result:Result<Res>
 }
 
 /// Result of the remote call — either a returned value or en error.
@@ -157,7 +157,7 @@ pub enum Result<Res> {
     /// Returned value of a successful call.
     Success(Success<Res>),
     /// Error value from a called that failed on the remote side.
-    Error{error : Error},
+    Error {error:Error},
 }
 
 impl<Res> Result<Res> {

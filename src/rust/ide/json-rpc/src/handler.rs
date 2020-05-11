@@ -38,7 +38,7 @@ pub fn decode_result<Ret:DeserializeOwned>
     match result {
         messages::Result::Success(ret) =>
             Ok(serde_json::from_value::<Ret>(ret.result)?),
-        messages::Result::Error{error} =>
+        messages::Result::Error {error} =>
             Err(RpcError::RemoteError(error)),
     }
 }
@@ -304,7 +304,6 @@ impl<Notification> Handler<Notification> {
     /// With with a handling error. Uses `on_error` callback to notify the
     /// owner.
     pub fn error_occurred(&self, error: HandlingError) {
-        println!("error occurred: {:?}", error);
         self.emit_event(Event::Error(error))
     }
 
@@ -313,7 +312,6 @@ impl<Notification> Handler<Notification> {
     /// Each event either completes a requests or is translated into `Event`.
     pub fn process_event(&self, event:TransportEvent)
     where Notification: DeserializeOwned {
-        println!("processing event {:?}", event);
         match event {
             TransportEvent::TextMessage(msg) =>
                 self.process_incoming_message(msg),
