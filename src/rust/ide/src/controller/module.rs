@@ -8,7 +8,7 @@
 use crate::prelude::*;
 
 use crate::double_representation::text::apply_code_change_to_id_map;
-use crate::model::execution_context::ExecutionContext;
+use crate::model::synchronized::ExecutionContext;
 
 use ast;
 use ast::HasIdMap;
@@ -19,12 +19,20 @@ use parser::Parser;
 use crate::double_representation::definition::DefinitionName;
 
 
+
 // ============
 // === Path ===
 // ============
 
 /// Path identifying module's file in the Language Server.
 pub type Path = language_server::Path;
+
+/// Gets the module name from its path.
+pub fn obtain_module_name_from_path(path:&Path) -> Option<&str> {
+    let segment     = path.segments.last()?;
+    let name_length = segment.rfind('.').unwrap_or(segment.len());
+    Some(&segment[..name_length])
+}
 
 
 
@@ -123,15 +131,18 @@ impl Handle {
         controller::Graph::new(self.model.clone_ref(), self.parser.clone_ref(), id)
     }
 
-    pub async fn executed_graph_controller
+    /// Returns a executed graph controller for graph in this module's subtree identified by id.
+    /// The execution context will be rooted at definition of this graph.
+    ///
+    /// This function wont check if the definition under id exists.
+    pub async fn executed_graph_controller_unchecked
     (&self, id:dr::graph::Id) -> FallibleResult<controller::ExecutedGraph> {
-        // TODO[ao] empty crumbs?
         let default         = DefinitionName::new_plain("main");
         let definition_name = id.crumbs.last().cloned().unwrap_or(default);
-        let graph           = self.graph_controller_unchecked(id); // TODO[ao] what is the good approach for errors?
+        let graph           = self.graph_controller_unchecked(id);
         let language_server = self.language_server.clone_ref();
         let path            = self.path.clone_ref();
-        let execution_ctx = ExecutionContext::create(language_server,path,definition_name).await?;
+        let execution_ctx   = ExecutionContext::create(language_server,path,definition_name).await?;
         Ok(controller::ExecutedGraph::new(graph,execution_ctx))
     }
 

@@ -78,7 +78,8 @@ impl ProjectView {
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
         let module_controller    = controller.module_controller(path).await?;
-        let graph_controller     = module_controller.executed_graph_controller(graph_id).await?;
+        let graph_controller     = module_controller.executed_graph_controller_unchecked(graph_id);
+        let graph_controller     = graph_controller.await?;
         let application          = Application::new(&web::get_html_element_by_id("root").unwrap());
         let _world               = &application.display;
         // graph::register_shapes(&world);
@@ -88,10 +89,10 @@ impl ProjectView {
         let mut keyboard_actions = keyboard::Actions::new(&keyboard);
         let resize_callback      = None;
         let mut fonts            = FontRegistry::new();
-        let layout               = ViewLayout::new
-            (&logger,&mut keyboard_actions,&application,text_controller,graph_controller,&mut fonts);
-        let data = ProjectViewData
-            {application,layout,resize_callback,controller,keyboard,keyboard_bindings,keyboard_actions};
+        let layout               = ViewLayout::new(&logger,&mut keyboard_actions,&application,
+            text_controller,graph_controller,&mut fonts);
+        let data = ProjectViewData {application,layout,resize_callback,controller,keyboard,
+            keyboard_bindings,keyboard_actions};
         Ok(Self::new_from_data(data).init())
     }
 

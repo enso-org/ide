@@ -322,12 +322,13 @@ fn test_execution_context() {
     let method           = "executionContext/receivesUpdates".to_string();
     let receives_updates = CapabilityRegistration{method,register_options};
     let create_execution_context_response = response::CreateExecutionContext
-    {can_modify,receives_updates};
+    {context_id,can_modify,receives_updates};
     test_request(
         |client| client.create_execution_context(),
         "executionContext/create",
         json!({}),
         json!({
+            "contextId" : "00000000-0000-0000-0000-000000000000",
             "canModify" : {
                 "method"          : "executionContext/canModify",
                 "registerOptions" : {

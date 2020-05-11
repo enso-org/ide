@@ -22,7 +22,6 @@ use span_tree::action::Actions;
 use span_tree::action::Action;
 use span_tree::SpanTree;
 use ast::crumbs::InfixCrumb;
-use crate::model::execution_context::ExecutionContext;
 
 
 // ==============
