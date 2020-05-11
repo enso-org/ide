@@ -62,6 +62,7 @@ impl Default for VisualizationFrp {
 
 /// Internal data of Visualization.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct VisualizationData {
     // TODO[mm] consider whether to use a `Box` and be exclusive owner of the DataRenderer.
     pub renderer     : Rc<dyn DataRenderer>,
@@ -125,6 +126,7 @@ impl Visualization {
         self.data.renderer.set_size(size)
     }
 
+    /// Returns the data that has been set for this visualization.
     pub fn data(&self) -> Option<Data> {
         self.data.data.borrow().as_ref().map(|data| data.clone_ref())
     }
