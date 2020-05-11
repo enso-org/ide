@@ -57,6 +57,7 @@ use crate::component::node::port::Expression;
 
 
 
+
 // =====================
 // === SharedHashSet ===
 // =====================
@@ -234,15 +235,18 @@ impl Commands {
 #[derive(Debug,Clone,CloneRef,Shrinkwrap)]
 pub struct FrpInputs {
     #[shrinkwrap(main_field)]
-    commands                     : Commands,
-    pub network                  : frp::Network,
-    pub add_node_at              : frp::Source<Position>,
-    pub set_node_position        : frp::Source<(NodeId,Position)>,
-    pub set_node_expression      : frp::Source<(NodeId,Expression)>,
-    pub connect_nodes            : frp::Source<(EdgeTarget,EdgeTarget)>,
-    pub select_node              : frp::Source<NodeId>,
-    pub deselect_all_nodes       : frp::Source,
-    pub translate_selected_nodes : frp::Source<Position>,
+    commands                           : Commands,
+    pub network                        : frp::Network,
+
+    // === Public ===
+    pub add_node_at                    : frp::Source<Position>,
+    pub connect_detached_edges_to_node : frp::Source<EdgeTarget>,
+    pub connect_nodes                  : frp::Source<(EdgeTarget,EdgeTarget)>,
+    pub deselect_all_nodes             : frp::Source,
+    pub select_node                    : frp::Source<NodeId>,
+    pub set_node_expression            : frp::Source<(NodeId,Expression)>,
+    pub set_node_position              : frp::Source<(NodeId,Position)>,
+    pub translate_selected_nodes       : frp::Source<Position>,
 
     // === Private ===
     register_node : frp::Source<Option<Node>>,
@@ -251,17 +255,18 @@ pub struct FrpInputs {
 impl FrpInputs {
     pub fn new() -> Self {
         frp::new_network! { network
-            def register_node            = source();
-            def add_node_at              = source();
-            def set_node_position        = source();
-            def select_node              = source();
-            def deselect_all_nodes       = source();
-            def translate_selected_nodes = source();
-            def set_node_expression      = source();
-            def connect_nodes            = source();
+            def add_node_at                    = source();
+            def connect_detached_edges_to_node = source();
+            def connect_nodes                  = source();
+            def deselect_all_nodes             = source();
+            def register_node                  = source();
+            def select_node                    = source();
+            def set_node_expression            = source();
+            def set_node_position              = source();
+            def translate_selected_nodes       = source();
         }
         let commands = Commands::new(&network);
-        Self {commands,network,register_node,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression,connect_nodes,deselect_all_nodes}
+        Self {commands,network,connect_detached_edges_to_node,register_node,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression,connect_nodes,deselect_all_nodes}
     }
 
     fn register_node(&self, arg:&Node) {
@@ -379,8 +384,8 @@ impl Edge {
     }
 
     pub fn new_with_source(view:EdgeView, node_id:NodeId) -> Self {
-        let port_crumb = default();
-        let source     = EdgeTarget {node_id,port_crumb};
+        let port = default();
+        let source     = EdgeTarget {node_id,port};
         let source     = Some(source);
         let target     = default();
         Self {view,source,target}
@@ -399,13 +404,13 @@ impl Edge {
 
 #[derive(Clone,Debug,Default)]
 pub struct EdgeTarget {
-    node_id    : NodeId,
-    port_crumb : span_tree::Crumbs,
+    node_id : NodeId,
+    port    : span_tree::Crumbs,
 }
 
 impl EdgeTarget {
-    pub fn new(node_id:NodeId, port_crumb:span_tree::Crumbs) -> Self {
-        Self {node_id,port_crumb}
+    pub fn new(node_id:NodeId, port:span_tree::Crumbs) -> Self {
+        Self {node_id,port}
     }
 }
 
@@ -419,8 +424,9 @@ impl EdgeTarget {
 // === Nodes ===
 // =============
 
-#[derive(Debug,Clone,CloneRef,Default)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct Nodes {
+    pub logger   : Logger,
     pub all      : SharedHashMap<NodeId,Node>,
     pub selected : SharedHashSet<NodeId>,
 }
@@ -432,6 +438,22 @@ impl Deref for Nodes {
     }
 }
 
+impl Nodes {
+    pub fn new(logger:&Logger) -> Self {
+        let logger   = logger.sub("nodes");
+        let all      = default();
+        let selected = default();
+        Self {logger,all,selected}
+    }
+
+    pub fn with<F>(&self, id:&NodeId, f:F)
+    where F:Fn(Node) {
+        match self.all.get(id) {
+            Some(t) => f(t),
+            None    => warning!(self.logger, "Skipping invalid node id request ({id}).")
+        }
+    }
+}
 
 
 
@@ -517,7 +539,7 @@ impl GraphEditorModel {
         let scene          = scene.into();
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(logger.clone());
-        let nodes          = default();
+        let nodes          = Nodes::new(&logger);
         let edges          = default();
         let frp            = default();
         Self {logger,display_object,scene,nodes,edges,frp}
@@ -651,26 +673,28 @@ impl application::View for GraphEditor {
         def _deselect_all_nodes = deselect_all_nodes.map(f_!((nodes) nodes.selected.clear()));
         def select_node         = inputs.select_node.merge(&touch.nodes.selected);
         def _select_node        = select_node.map(f!((nodes)(node_id) {
-            if let Some(node) = nodes.get(node_id) {
+            nodes.with(node_id,|node|{
                 nodes.selected.clear();
-                node.view.frp.select.emit(());
                 nodes.selected.insert(node.id());
-            }
+                node.view.frp.select.emit(());
+            })
         }));
+
 
         // === Connect Nodes ===
 
-        def node_port_press = source::<(NodeId,span_tree::Crumbs)>();
-        def connect_nodes_on_port_press = node_port_press.map(f!((nodes,edges)((node_id,crumbs)) {
-            if let Some(node) = nodes.get(node_id) {
+        def node_port_press   = source::<(NodeId,span_tree::Crumbs)>();
+        def edge_target_press = node_port_press.map(|(id,port)| EdgeTarget::new(*id,port.clone()));
+        def edge_target       = edge_target_press.merge(&inputs.connect_detached_edges_to_node);
+        def _connect_detached = edge_target.map(f!((nodes,edges)(target) {
+            nodes.with(&target.node_id,|node|{
                 for edge_id in mem::take(&mut *edges.detached.borrow_mut()) {
                     if let Some(edge) = edges.map.borrow_mut().get_mut(&edge_id) {
-                        println!("{:?}", crumbs);
-                        edge.target = Some(EdgeTarget::new(*node_id,crumbs.clone()));
+                        edge.target = Some(EdgeTarget::new(target.node_id,target.port.clone()));
                         node.in_edges.borrow_mut().insert(edge_id);
                     }
                 }
-            }
+            })
         }));
 
         def _foo = inputs.connect_nodes.map(f!((scene,display_object,nodes,edges)((source,target)){
@@ -771,7 +795,7 @@ impl application::View for GraphEditor {
                 for edge_id in &*node.in_edges.borrow() {
                     if let Some(edge) = edges.map.borrow().get(edge_id) {
                         if let Some(edge_target) = &edge.target {
-                            let offset = node.view.ports.get_port_offset(&edge_target.port_crumb).unwrap_or(Vector2::new(0.0,0.0));
+                            let offset = node.view.ports.get_port_offset(&edge_target.port).unwrap_or(Vector2::new(0.0,0.0));
                             let node_position = node.view.position();
                             let position = frp::Position::new(node_position.x + offset.x, node_position.y + offset.y);
                             edge.view.events.target_position.emit(position);
