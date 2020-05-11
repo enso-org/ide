@@ -156,7 +156,7 @@ where K:Eq+Hash, S:std::hash::BuildHasher {
         self.raw.borrow_mut().insert(k,v)
     }
 
-    pub fn get(&self, k:&K) -> Option<V>
+    pub fn get_cloned(&self, k:&K) -> Option<V>
     where V:Clone {
         self.raw.borrow().get(k).cloned()
     }
@@ -391,8 +391,8 @@ impl Edge {
         Self {view,source,target}
     }
 
-    pub fn id(&self) -> Id {
-        self.view.id()
+    pub fn id(&self) -> EdgeId {
+        self.view.id().into()
     }
 }
 
@@ -446,8 +446,8 @@ impl Nodes {
         Self {logger,all,selected}
     }
 
-    pub fn with_borrow_mut<F,T>(&self, id:&NodeId, f:F) -> Option<T>
-    where F:Fn(&mut Node)->T {
+    pub fn with_borrow_mut<F,T>(&self, id:&NodeId, mut f:F) -> Option<T>
+    where F:FnMut(&mut Node)->T {
         match self.all.raw.borrow_mut().get_mut(id) {
             Some(t) => Some(f(t)),
             None    => {
@@ -455,6 +455,21 @@ impl Nodes {
                 None
             }
         }
+    }
+
+    pub fn with_borrow<F,T>(&self, id:&NodeId, f:F) -> Option<T>
+        where F:Fn(&Node)->T {
+        match self.all.raw.borrow().get(id) {
+            Some(t) => Some(f(t)),
+            None    => {
+                warning!(self.logger, "Skipping invalid node id request ({id}).");
+                None
+            }
+        }
+    }
+
+    pub fn get_view(&self, id:&NodeId) -> Option<NodeView> {
+        self.with_borrow(id, |t| t.view.clone_ref())
     }
 }
 
@@ -464,8 +479,55 @@ impl Nodes {
 
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct Edges {
-    pub map      : Rc<RefCell<HashMap<EdgeId,Edge>>>,
+    pub logger   : Logger,
+    pub all      : SharedHashMap<EdgeId,Edge>,
     pub detached : SharedHashSet<EdgeId>,
+}
+
+impl Deref for Edges {
+    type Target = SharedHashMap<EdgeId,Edge>;
+    fn deref(&self) -> &Self::Target {
+        &self.all
+    }
+}
+
+impl Edges {
+    pub fn new(logger:&Logger) -> Self {
+        let logger   = logger.sub("edges");
+        let all      = default();
+        let detached = default();
+        Self {logger,all,detached}
+    }
+
+    pub fn with_borrow_mut<F,T>(&self, id:&EdgeId, mut f:F) -> Option<T>
+        where F:FnMut(&mut Edge)->T {
+        match self.all.raw.borrow_mut().get_mut(id) {
+            Some(t) => Some(f(t)),
+            None    => {
+                warning!(self.logger, "Skipping invalid edge id request ({id}).");
+                None
+            }
+        }
+    }
+
+    pub fn with_borrow<F,T>(&self, id:&EdgeId, f:F) -> Option<T>
+        where F:Fn(&Edge)->T {
+        match self.all.raw.borrow().get(id) {
+            Some(t) => Some(f(t)),
+            None    => {
+                warning!(self.logger, "Skipping invalid edge id request ({id}).");
+                None
+            }
+        }
+    }
+
+    pub fn get_view(&self, id:&EdgeId) -> Option<EdgeView> {
+        self.with_borrow(id, |t| t.view.clone_ref())
+    }
+
+    pub fn insert(&self, edge:Edge) {
+        self.all.insert(edge.id(),edge);
+    }
 }
 
 
@@ -532,20 +594,21 @@ pub struct GraphEditorModel {
     pub logger         : Logger,
     pub display_object : display::object::Instance,
     pub scene          : Scene,
+    pub cursor         : Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
     frp                : FrpInputs,
 }
 
 impl GraphEditorModel {
-    pub fn new<S:Into<Scene>>(scene:S) -> Self {
+    pub fn new<S:Into<Scene>>(scene:S, cursor:Cursor) -> Self {
         let scene          = scene.into();
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(logger.clone());
         let nodes          = Nodes::new(&logger);
         let edges          = default();
         let frp            = default();
-        Self {logger,display_object,scene,nodes,edges,frp}
+        Self {logger,display_object,scene,cursor,nodes,edges,frp}
     }
 
     pub fn add_node(&self) -> NodeId {
@@ -560,6 +623,20 @@ impl GraphEditorModel {
 //    pub fn get_node(&self, id:&NodeId) -> Option<Node> {
 //        self.nodes.get(id)
 //    }
+
+    pub fn refresh_edge_target_position(&self, edge_id:&EdgeId) {
+        let info = self.edges.raw.borrow().get(edge_id).and_then(|edge| {
+            edge.target.as_ref().and_then(|edge_target| {
+                self.nodes.with_borrow(&edge_target.node_id, |node| {
+                    let offset = node.view.ports.get_port_offset(&edge_target.port).unwrap_or(Vector2::new(0.0,0.0));
+                    let node_position = node.view.position();
+                    let pos = frp::Position::new(node_position.x + offset.x, node_position.y + offset.y);
+                    (edge.view.clone_ref(),pos)
+                })
+            })
+        });
+        if let Some((view,pos)) = info { view.events.target_position.emit(pos) }
+    }
 
     #[deprecated(note="Use add_node instead.")]
     pub fn deprecated_add_node(&self) -> WeakNodeView {
@@ -580,6 +657,11 @@ impl GraphEditorModel {
     }
 }
 
+impl display::Object for GraphEditorModel {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
 
 
 // ===================
@@ -625,7 +707,7 @@ impl application::View for GraphEditor {
         web::body().set_style_or_panic("cursor","none");
         world.add_child(&cursor);
 
-        let model          = GraphEditorModel::new(scene);
+        let model          = GraphEditorModel::new(scene,cursor.clone_ref());
         let display_object = &model.display_object;
         let nodes          = &model.nodes;
         let edges          = &model.edges;
@@ -636,7 +718,23 @@ impl application::View for GraphEditor {
 
         frp::extend! { network
 
-        // === Cursor ===
+
+        // === Selection Target Redirection ===
+
+        def mouse_down_target  = mouse.press.map(f_!((model) model.scene.mouse.target.get()));
+        def _perform_selection = mouse_down_target.map(f!((touch,model)(target) {
+            match target {
+                display::scene::Target::Background  => touch.background.down.emit(()),
+                display::scene::Target::Symbol {..} => {
+                    if let Some(target) = model.scene.shapes.get_mouse_target(*target) {
+                        target.mouse_down().emit(());
+                    }
+                }
+            }
+        }));
+
+
+        // === Cursor Selection ===
 
         def mouse_on_down_position = mouse.position.sample(&mouse.press);
         def selection_zero         = source::<Position>();
@@ -658,32 +756,15 @@ impl application::View for GraphEditor {
         }));
 
 
-        // === Selection Target ===
-
-        def mouse_down_target  = mouse.press.map(f_!((scene) scene.mouse.target.get()));
-        def _perform_selection = mouse_down_target.map(f!((touch,scene)(target) {
-            match target {
-                display::scene::Target::Background  => touch.background.down.emit(()),
-                display::scene::Target::Symbol {..} => {
-                    if let Some(target) = scene.shapes.get_mouse_target(*target) {
-                        target.mouse_down().emit(());
-                    }
-                }
-            }
-        }));
-
-
         // === Selection ===
 
         def deselect_all_nodes  = inputs.deselect_all_nodes.merge(&touch.background.selected);
-        def _deselect_all_nodes = deselect_all_nodes.map(f_!((nodes) nodes.selected.clear()));
+        def _deselect_all_nodes = deselect_all_nodes.map(f_!((model) model.nodes.selected.clear()));
         def select_node         = inputs.select_node.merge(&touch.nodes.selected);
-        def _select_node        = select_node.map(f!((nodes)(node_id) {
-            nodes.with_borrow_mut(node_id,|node| {
-                nodes.selected.clear();
-                nodes.selected.insert(node.id());
-                node.view.clone_ref()
-            }).for_each(|view| view.frp.select.emit(()))
+        def _select_node        = select_node.map(f!((model)(node_id) {
+            model.nodes.selected.clear();
+            model.nodes.selected.insert(*node_id);
+            model.nodes.get_view(node_id).for_each(|view| view.frp.select.emit(()));
         }));
 
 
@@ -692,35 +773,33 @@ impl application::View for GraphEditor {
         def node_port_press   = source::<(NodeId,span_tree::Crumbs)>();
         def edge_target_press = node_port_press.map(|(id,port)| EdgeTarget::new(*id,port.clone()));
         def edge_target       = edge_target_press.merge(&inputs.connect_detached_edges_to_node);
-        def _connect_detached = edge_target.map(f!((nodes,edges)(target) {
-            nodes.with_borrow_mut(&target.node_id,|node| {
-                for edge_id in edges.detached.mem_take() {
-                    if let Some(edge) = edges.map.borrow_mut().get_mut(&edge_id) {
+        def _connect_detached = edge_target.map(f!((model)(target) {
+            model.nodes.with_borrow_mut(&target.node_id,|node| {
+                for edge_id in model.edges.detached.mem_take() {
+                    model.edges.with_borrow_mut(&edge_id, |edge| {
                         edge.target = Some(EdgeTarget::new(target.node_id,target.port.clone()));
-                        node.in_edges.insert(edge_id);
-                    }
+                        node.in_edges.insert(edge_id); 
+                    });
                 }
             })
         }));
 
-        def _foo = inputs.connect_nodes.map(f!((scene,display_object,nodes,edges)((source,target)){
-            let view = EdgeView::new(&scene);
-            if let Some(source_node) = nodes.all.raw.borrow().get(&source.node_id) {
+        def _foo = inputs.connect_nodes.map(f!((model)((source,target)){
+            let view = EdgeView::new(&model.scene);
+            if let Some(source_node) = model.nodes.all.raw.borrow().get(&source.node_id) {
                 view.mod_position(|p| p.x = source_node.position().x + node::NODE_WIDTH/2.0);
                 view.mod_position(|p| p.y = source_node.position().y + node::NODE_HEIGHT/2.0);
             }
-            display_object.add_child(&view);
+            model.add_child(&view);
             let mut edge = Edge::new_with_source(view,source.node_id);
             let edge_id = edge.id().into();
             edge.target = Some(target.clone());
-            edges.map.borrow_mut().insert(edge_id,edge);
 
-            if let Some(target_node) = nodes.all.raw.borrow_mut().get_mut(&target.node_id) {
+            model.edges.insert(edge);
+
+            if let Some(target_node) = model.nodes.all.raw.borrow_mut().get_mut(&target.node_id) {
                 target_node.in_edges.insert(edge_id);
             }
-
-
-//            edges.detached.borrow_mut().insert(edge_id);
         }));
 
 
@@ -734,14 +813,13 @@ impl application::View for GraphEditor {
         }));
 
 
-        def _new_node = inputs.register_node.map(f!((cursor,network,nodes,edges,touch,display_object,scene,node_port_press)(node_id) {
+        def _new_node = inputs.register_node.map(f!((cursor,network,nodes,edges,touch,display_object,scene,node_port_press,model)(node_id) {
             let node_view = {
-                let borrow = nodes.all.raw.borrow();
+                let borrow = model.nodes.all.raw.borrow();
                 let node = borrow.get(node_id).unwrap();
                 display_object.add_child(node);
                 node.view.clone_ref()
             };
-//            self.nodes.with_borrow_mut(node_id,|node| {
                 frp::new_bridge_network! { [network,node_view.main_area.events.network]
                     let node_id = node_id.clone(); // FIXME: why?
                     def _node_on_down_tagged = node_view.drag_area.events.mouse_down.map(f_!((touch) {
@@ -750,16 +828,16 @@ impl application::View for GraphEditor {
                     def cursor_mode = node_view.ports.frp.cursor_mode.map(f!((cursor)(mode) {
                         cursor.frp.set_mode.emit(mode);
                     }));
-                    def _add_connection = node_view.frp.output_ports.mouse_down.map(f_!((nodes,edges,display_object,scene) {
-                        let node_view = nodes.all.raw.borrow().get(&node_id).unwrap().view.clone_ref();
-                            let view = EdgeView::new(&scene);
+                    def _add_connection = node_view.frp.output_ports.mouse_down.map(f_!((model) {
+                        let node_view = model.nodes.all.raw.borrow().get(&node_id).unwrap().view.clone_ref();
+                            let view = EdgeView::new(&model.scene);
                             view.mod_position(|p| p.x = node_view.position().x + node::NODE_WIDTH/2.0);
                             view.mod_position(|p| p.y = node_view.position().y + node::NODE_HEIGHT/2.0);
-                            display_object.add_child(&view);
+                            model.add_child(&view);
                             let edge = Edge::new_with_source(view,node_id);
-                            let id = edge.id().into();
-                            edges.map.borrow_mut().insert(id,edge);
-                            edges.detached.insert(id);
+                            let id = edge.id();
+                            model.edges.insert(edge);
+                            model.edges.detached.insert(id);
 
                     }));
 
@@ -804,29 +882,18 @@ impl application::View for GraphEditor {
         // === Move Nodes ===
 
         def mouse_tx_if_node_pressed = mouse.translation.gate(&touch.nodes.is_down);
-        def _move_node_with_mouse    = mouse_tx_if_node_pressed.map2(&touch.nodes.down,f!((nodes,edges)(tx,node_id) {
-//            let node_id : Id = node.id();
-//            let nodes_ref = nodes.all.raw.borrow();
-//            let edges_ref = edges.map.borrow();
-
-            if let Some(node) = nodes.all.raw.borrow().get(&node_id).cloned() {
+        def _move_node_with_mouse    = mouse_tx_if_node_pressed.map2(&touch.nodes.down,f!((model,nodes,edges)(tx,node_id) {
+            if let Some(node) = nodes.get_cloned(&node_id) {
                 node.view.mod_position(|p| { p.x += tx.x; p.y += tx.y; });
-                for edge_id in node.in_edges {
-                    if let Some(edge) = edges.map.borrow().get(&edge_id).cloned() {
-                        if let Some(edge_target) = edge.target {
-                            let offset = node.view.ports.get_port_offset(&edge_target.port).unwrap_or(Vector2::new(0.0,0.0));
-                            let node_position = node.view.position();
-                            let position = frp::Position::new(node_position.x + offset.x, node_position.y + offset.y);
-                            edge.view.events.target_position.emit(position);
-                        }
-                    }
+                for edge_id in &node.in_edges {
+                    model.refresh_edge_target_position(edge_id);
                 }
             }
         }));
 
         def _move_selected_nodes = inputs.translate_selected_nodes.map(f!((nodes)(t) {
             for node_id in &*nodes.selected.raw.borrow() {
-                if let Some(node) = nodes.get(node_id) {
+                if let Some(node) = nodes.get_cloned(node_id) {
                     node.mod_position(|p| {
                         p.x += t.x;
                         p.y += t.y;
@@ -840,9 +907,7 @@ impl application::View for GraphEditor {
 
         def _move_connections = cursor.frp.position.map(f!((edges)(position) {
             edges.detached.for_each(|id| {
-                if let Some(connection) = edges.map.borrow().get(id) {
-                    connection.view.events.target_position.emit(position);
-                }
+                edges.get_view(id).for_each(|view| view.events.target_position.emit(position))
             })
         }));
 
