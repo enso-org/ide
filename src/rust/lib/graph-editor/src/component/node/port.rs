@@ -21,6 +21,7 @@ use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
 use crate::component::cursor;
+use super::super::node;
 
 
 // ============
@@ -45,126 +46,6 @@ pub mod shape {
     }
 }
 
-
-//
-//// ==============
-//// === Events ===
-//// ==============
-//
-///// Port events.
-//#[derive(Clone,CloneRef,Debug)]
-//#[allow(missing_docs)]
-//pub struct Events {
-//    pub network    : frp::Network,
-//    pub select     : frp::Source,
-//    pub deselect   : frp::Source,
-//}
-//
-//
-//
-//// ============
-//// === Port ===
-//// ============
-//
-///// Port definition.
-//#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
-//pub struct Port {
-//    data : Rc<PortData>,
-//}
-//
-//impl AsRef<Port> for Port {
-//    fn as_ref(&self) -> &Self {
-//        self
-//    }
-//}
-//
-///// Weak version of `Port`.
-//#[derive(Clone,CloneRef,Debug)]
-//pub struct WeakPort {
-//    data : Weak<PortData>
-//}
-//
-//impl WeakElement for WeakPort {
-//    type Strong = Port;
-//
-//    fn new(view: &Self::Strong) -> Self {
-//        view.downgrade()
-//    }
-//
-//    fn view(&self) -> Option<Self::Strong> {
-//        self.upgrade()
-//    }
-//}
-//
-/////// Shape view for Port.
-////#[derive(Debug,Clone,CloneRef,Copy)]
-////pub struct PortView {}
-////impl component::ShapeViewDefinition for PortView {
-////    type Shape = shape::Shape;
-////}
-//
-///// Internal data of `Port`
-//#[derive(Debug)]
-//#[allow(missing_docs)]
-//pub struct PortData {
-//    pub object : display::object::Instance,
-//    pub logger : Logger,
-//    pub events : Events,
-//    pub view   : component::ShapeView<shape::Shape>,
-//}
-//
-//impl Port {
-//    /// Constructor.
-//    pub fn new(scene:&Scene) -> Self {
-//        frp::new_network! { node_network
-//            def label    = source::<String> ();
-//            def select   = source::<()>     ();
-//            def deselect = source::<()>     ();
-//        }
-//        let network = node_network;
-//        let logger  = Logger::new("node");
-//        let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
-//        let events  = Events {network,select,deselect};
-//        let object  = display::object::Instance::new(&logger);
-//        object.add_child(&view.display_object);
-//
-//        let width = 34.5;
-//        let height = 18.0;
-//
-//        view.shape.sprite.size().set(Vector2::new(width,height));
-//        view.mod_position(|t| t.x += width/2.0 + 81.5);
-//        view.mod_position(|t| t.y += height/2.0 + 5.0);
-//        let data    = Rc::new(PortData {object,logger,events,view});
-//
-//        Self {data}
-//    }
-//}
-//
-//impl StrongRef for Port {
-//    type WeakRef = WeakPort;
-//    fn downgrade(&self) -> WeakPort {
-//        WeakPort {data:Rc::downgrade(&self.data)}
-//    }
-//}
-//
-//impl WeakRef for WeakPort {
-//    type StrongRef = Port;
-//    fn upgrade(&self) -> Option<Port> {
-//        self.data.upgrade().map(|data| Port{data})
-//    }
-//}
-//
-//impl display::Object for Port {
-//    fn display_object(&self) -> &display::object::Instance {
-//        &self.object
-//    }
-//}
-//
-//impl display::WeakObject for WeakPort {
-//    fn try_display_object(&self) -> Option<display::object::Instance> {
-//        self.upgrade().map(|ref t| t.display_object().clone_ref())
-//    }
-//}
 
 pub fn sort_hack(scene:&Scene) {
     let logger = Logger::new("hack");
@@ -267,6 +148,18 @@ impl Manager {
         let frp = Events {network,cursor_mode,press};
 
         Self {logger,display_object,frp,ports,scene}
+    }
+
+
+    pub fn get_port_offset(&self, crumbs:&span_tree::Crumbs) -> Option<Vector2<f32>> {
+        let span_tree = span_tree_mock();
+        span_tree.root_ref().get_descendant(crumbs.clone()).map(|node|{
+            let span = node.span();
+            let unit   = 7.2246094;
+            let width  = unit * span.size.value as f32;
+            let x      = width/2.0 + unit * span.index.value as f32;
+            Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0) // FIXME
+        })
     }
 }
 

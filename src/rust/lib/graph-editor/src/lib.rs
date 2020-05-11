@@ -566,10 +566,20 @@ impl application::View for GraphEditor {
         // === Move Nodes ===
 
         def mouse_tx_if_node_pressed = mouse.translation.gate(&touch.nodes.is_down);
-        def _move_node_with_mouse    = mouse_tx_if_node_pressed.map2(&touch.nodes.down,f!((nodes)(tx,node_id) {
+        def _move_node_with_mouse    = mouse_tx_if_node_pressed.map2(&touch.nodes.down,f!((nodes,edges)(tx,node_id) {
 //            let node_id : Id = node.id();
             if let Some(node) = nodes.set.get(&node_id) {
                 node.view.mod_position(|p| { p.x += tx.x; p.y += tx.y; });
+                for edge_id in &*node.in_edges.borrow() {
+                    if let Some(edge) = edges.map.borrow().get(edge_id) {
+                        if let Some(edge_target) = &edge.target {
+                            let offset = node.view.ports.get_port_offset(&edge_target.port_crumb).unwrap_or(Vector2::new(0.0,0.0));
+                            let node_position = node.view.position();
+                            let position = frp::Position::new(node_position.x + offset.x, node_position.y + offset.y);
+                            edge.view.events.target_position.emit(position);
+                        }
+                    }
+                }
             }
         }));
 

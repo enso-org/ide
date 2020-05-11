@@ -231,7 +231,7 @@ impl Cursor {
 
             def fixed_position = input.set_mode.map(enclose!((anim_pos_x_setter,anim_pos_y_setter) move |m| {
                 match m {
-                    Mode::Highlight {host,position,..} => {
+                    Mode::Highlight {host,..} => {
                         let p = host.global_position();
                         anim_pos_x_setter.set_target_position(p.x);
                         anim_pos_y_setter.set_target_position(p.y);
