@@ -42,7 +42,7 @@ impl<T> KnownAst<T> {
     }
 
     /// Gets AST id.
-    pub fn id(&self) -> Option<crate::Id> { self.ast.id }
+    pub fn id(&self) -> crate::Id { self.ast.id }
 
     /// Returns a reference to the stored `Ast` with `Shape` of `T`.
     pub fn ast(&self) -> &Ast { &self.ast }

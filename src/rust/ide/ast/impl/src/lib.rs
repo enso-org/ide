@@ -234,13 +234,14 @@ impl Ast {
     /// Wraps given shape with an optional ID into Ast.
     /// Length will ba automatically calculated based on Shape.
     pub fn new<S:Into<Shape<Ast>>>(shape:S, id:Option<Id>) -> Ast {
-        let shape: Shape<Ast> = shape.into();
+        let shape  = shape.into();
         let length = shape.len();
+        let id     = id.unwrap_or_else(|| Uuid::new_v4());
         Ast::new_with_length(shape,id,length)
     }
 
     /// Just wraps shape, id and len into Ast node.
-    pub fn from_ast_id_len(shape:Shape<Ast>, id:Option<Id>, len:usize) -> Ast {
+    pub fn from_ast_id_len(shape:Shape<Ast>, id:Id, len:usize) -> Ast {
         let with_length = WithLength { wrapped:shape      , len };
         let with_id     = WithID     { wrapped:with_length, id  };
         Ast { wrapped: Rc::new(with_id) }
@@ -248,7 +249,7 @@ impl Ast {
 
     /// As `new` but sets given declared length for the shape.
     pub fn new_with_length<S:Into<Shape<Ast>>>
-    (shape:S, id:Option<Id>, len:usize) -> Ast {
+    (shape:S, id:Id, len:usize) -> Ast {
         let shape = shape.into();
         Self::from_ast_id_len(shape,id,len)
     }
@@ -260,7 +261,7 @@ impl Ast {
 
     /// Returns this AST node with ID set to given value.
     pub fn with_id(&self, id:Id) -> Ast {
-        Ast::from_ast_id_len(self.shape().clone(), Some(id), self.len())
+        Ast::from_ast_id_len(self.shape().clone(), id, self.len())
     }
 
     /// Returns this AST node with a newly generated unique ID.
@@ -270,12 +271,7 @@ impl Ast {
 
     /// Returns this AST node with shape set to given value.
     pub fn with_shape<S:Into<Shape<Ast>>>(&self, shape:S) -> Ast {
-        Ast::new(shape.into(),self.id)
-    }
-
-    /// Returns this AST node with removed ID.
-    pub fn without_id(&self) -> Ast {
-        Ast::from_ast_id_len(self.shape().clone(), None, self.len())
+        Ast::new(shape.into(),Some(self.id))
     }
 }
 
@@ -307,9 +303,7 @@ impl Serialize for Ast {
         use ast_schema::*;
         let mut state = serializer.serialize_struct(STRUCT_NAME, COUNT)?;
         state.serialize_field(SHAPE, &self.shape())?;
-        if self.id.is_some() {
-            state.serialize_field(ID, &self.id)?;
-        }
+        state.serialize_field(ID, &self.id)?;
         state.serialize_field(LENGTH, &self.len)?;
         state.end()
     }
@@ -333,7 +327,7 @@ impl<'de> Visitor<'de> for AstDeserializationVisitor {
         use ast_schema::*;
 
         let mut shape: Option<Shape<Ast>> = None;
-        let mut id:    Option<Option<Id>> = None;
+        let mut id:    Option<Id>         = None;
         let mut len:   Option<usize>      = None;
 
         while let Some(key) = map.next_key()? {
@@ -346,7 +340,7 @@ impl<'de> Visitor<'de> for AstDeserializationVisitor {
         }
 
         let shape = shape.ok_or_else(|| serde::de::Error::missing_field(SHAPE))?;
-        let id    = id.unwrap_or(None); // allow missing `id` field
+        let id    = id.ok_or_else(|| serde::de::Error::missing_field(ID))?;
         let len   = len.ok_or_else(|| serde::de::Error::missing_field(LENGTH))?;
         Ok(Ast::new_with_length(shape,id,len))
     }
@@ -830,10 +824,8 @@ impl TokenConsumer for IdMapBuilder {
             Token::Ast(val) => {
                 let begin = self.offset;
                 val.shape().feed_to(self);
-                if let Some(id) = val.id {
-                    let span = Span::from_indices(Index::new(begin), Index::new(self.offset));
-                    self.id_map.insert(span, id);
-                }
+                let span = Span::from_indices(Index::new(begin), Index::new(self.offset));
+                self.id_map.insert(span, val.id);
             }
         }
     }
@@ -923,7 +915,7 @@ impl<T:HasTokens> HasRepr for T {
 pub type Id = Uuid;
 
 pub trait HasID {
-    fn id(&self) -> Option<Id>;
+    fn id(&self) -> Id;
 }
 
 #[derive(Eq, PartialEq, Debug, Shrinkwrap, Serialize, Deserialize)]
@@ -932,12 +924,12 @@ pub struct WithID<T> {
     #[shrinkwrap(main_field)]
     #[serde(flatten)]
     pub wrapped: T,
-    pub id: Option<Id>
+    pub id: Id,
 }
 
 impl<T> HasID for WithID<T>
     where T: HasID {
-    fn id(&self) -> Option<Id> {
+    fn id(&self) -> Id {
         self.id
     }
 }
@@ -945,7 +937,7 @@ impl<T> HasID for WithID<T>
 impl<T, S:Layer<T>>
 Layer<T> for WithID<S> {
     fn layered(t: T) -> Self {
-        WithID { wrapped: Layer::layered(t), id: None }
+        WithID { wrapped: Layer::layered(t), id: Uuid::new_v4() }
     }
 }
 
@@ -1029,7 +1021,7 @@ where T: HasLength + Into<S> {
 
 impl<T> HasID for WithLength<T>
     where T: HasID {
-    fn id(&self) -> Option<Id> {
+    fn id(&self) -> Id {
         self.deref().id()
     }
 }
