@@ -68,12 +68,12 @@ impl JsRenderer {
     /// --------
     ///
     /// ```no_run
-    /// use graph_editor::component::visualization::JsObjectRenderer;
+    /// use graph_editor::component::visualization::JsRenderer;
     ///
-    /// let renderer = JsObjectRenderer::from_source("function() {
+    /// let renderer = JsRenderer::from_object("function() {
     ///   obj = new Object();
-    ///   obj.prototype.set_data = function(root, data) {};
-    ///   obj.prototype.set_size = function(root, data) {};
+    ///   obj.set_data = function(root, data) {};
+    ///   obj.set_size = function(root, data) {};
     ///   }()").unwrap();
     ///
     /// ```
@@ -89,7 +89,7 @@ impl JsRenderer {
         let set_data: js_sys::Function = set_data.into();
         let set_size: js_sys::Function = set_size.into();
 
-        let logger  = Logger::new("JsRendererGeneric");
+        let logger  = Logger::new("JsRenderer");
         let frp     = default();
         let div     = web::create_div();
         let content = DomSymbol::new(&div);
