@@ -26,7 +26,7 @@ use js_sys;
 /// TODO add hooks for status messages form the JS side to the FRP system,
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct JsRendererGeneric {
+pub struct JsRenderer {
     set_data    : js_sys::Function,
     set_size    : js_sys::Function,
     /// Root node of this visualisation.
@@ -35,8 +35,8 @@ pub struct JsRendererGeneric {
     pub logger  : Logger,
 }
 
-impl JsRendererGeneric {
-    /// Constructor.
+impl JsRenderer {
+    /// Constructor from single functions.
     ///
     /// `fn_set_data` and `fn_set_size` need to be strings that contain valid JavaScript code. This
     /// code will be executed as the function body of the respective functions. Functions arguments
@@ -49,7 +49,7 @@ impl JsRendererGeneric {
     /// `fn_set_size` will be called with a tuple of floating point values indicating the desired
     /// width and height. This can be used by the visualisation to ensure proper scaling.
     ///
-    pub fn new(fn_set_data:&str, fn_set_size:&str) -> Self {
+    pub fn from_functions(fn_set_data:&str, fn_set_size:&str) -> Self {
         let set_data = js_sys::Function::new_no_args(fn_set_data);
         let set_size = js_sys::Function::new_no_args(fn_set_size);
 
@@ -59,7 +59,43 @@ impl JsRendererGeneric {
         let content = DomSymbol::new(&div);
         content.dom().set_attribute("id","vis").unwrap();
 
-        JsRendererGeneric { set_data,set_size,content,frp,logger }
+        JsRenderer { set_data,set_size,content,frp,logger }
+    }
+
+    /// Constructor from an object with specific methods.
+    ///
+    /// Example:
+    /// --------
+    ///
+    /// ```no_run
+    /// use graph_editor::component::visualization::JsObjectRenderer;
+    ///
+    /// let renderer = JsObjectRenderer::from_source("function() {
+    ///   obj = new Object();
+    ///   obj.prototype.set_data = function(root, data) {};
+    ///   obj.prototype.set_size = function(root, data) {};
+    ///   }()").unwrap();
+    ///
+    /// ```
+    pub fn from_object(source: &str) -> Result<JsRenderer, Box<dyn std::error::Error>> {
+        let object                = js_sys::eval(source).unwrap(); // TODO error handling
+        assert!(object.is_object());                               // TODO error handling
+        let object:js_sys::Object = object.into();
+
+        let set_data = js_sys::Reflect::get(&object,&"set_data".into()).unwrap(); // TODO error handling
+        let set_size = js_sys::Reflect::get(&object,&"set_size".into()).unwrap(); // TODO error handling
+        assert!(set_data.is_function());  // TODO error handling
+        assert!(set_size.is_function());  // TODO error handling
+        let set_data: js_sys::Function = set_data.into();
+        let set_size: js_sys::Function = set_size.into();
+
+        let logger  = Logger::new("JsRendererGeneric");
+        let frp     = default();
+        let div     = web::create_div();
+        let content = DomSymbol::new(&div);
+        content.dom().set_attribute("id","vis").unwrap();
+
+        Ok(JsRenderer { set_data,set_size,content,frp,logger })
     }
 
     /// Hooks the root node into the given scene.
@@ -71,7 +107,7 @@ impl JsRendererGeneric {
     }
 }
 
-impl DataRenderer for JsRendererGeneric {
+impl DataRenderer for JsRenderer {
 
     fn set_data(&self, data: Data) -> Result<(),DataError> {
         let context   = JsValue::NULL;
@@ -101,7 +137,7 @@ impl DataRenderer for JsRendererGeneric {
     }
 }
 
-impl display::Object for JsRendererGeneric {
+impl display::Object for JsRenderer {
     fn display_object(&self) -> &display::object::Instance {
         &self.content.display_object()
     }

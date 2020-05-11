@@ -1241,7 +1241,7 @@ impl application::View for GraphEditor {
             let vis = if dc {
                 Visualization::new(Rc::new(WebglBubbleChart::new()))
             } else {
-                let chart     = sample_js_bubble_chart();
+                let chart     = object_sample_js_bubble_chart();
                 let dom_layer = scene.dom.layers.front.clone_ref();
                 chart.set_dom_layer(&dom_layer);
                 Visualization::new(Rc::new(chart))
