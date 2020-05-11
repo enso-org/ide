@@ -30,7 +30,7 @@ pub type Path = language_server::Path;
 /// Gets the module name from its path.
 pub fn obtain_module_name_from_path(path:&Path) -> Option<&str> {
     let segment     = path.segments.last()?;
-    let name_length = segment.rfind('.').unwrap_or(segment.len());
+    let name_length = segment.rfind('.').unwrap_or_else(|| segment.len());
     Some(&segment[..name_length])
 }
 
