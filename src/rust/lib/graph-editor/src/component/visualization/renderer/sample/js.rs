@@ -1,10 +1,11 @@
 //! Example of the visualisation JS wrapper API usage
+// TODO remove once we have proper visualizations or replace with a nice d3 example.
+// These implementations are neither efficient nor pretty, but get the idea across.
 
 use crate::component::visualization::JsRenderer;
 
-/// Returns a simple bubble chart implemented in vanilla JS.
-// TODO remove once we have proper visualizations or replace with a nice d3 example.
-// This implementation is neither efficient nor pretty, but it gets the idea across.
+/// Returns a simple bubble chart implemented in vanilla JS. uses single functions to implement the
+/// visualization.
 pub fn sample_js_bubble_chart() -> JsRenderer {
     let fn_set_data = r#"{
         const xmlns = "http://www.w3.org/2000/svg";
@@ -45,6 +46,8 @@ pub fn sample_js_bubble_chart() -> JsRenderer {
     JsRenderer::from_functions(fn_set_data, fn_set_size)
 }
 
+/// Returns a simple bubble chart implemented in vanilla JS. Uses an object to implement the
+/// visualization logic.
 pub fn object_sample_js_bubble_chart() -> JsRenderer {
     let fn_prototype = r#"
     (() => {
@@ -85,5 +88,5 @@ pub fn object_sample_js_bubble_chart() -> JsRenderer {
          return obj;
     })()
     "#;
-    JsRenderer::from_source(fn_prototype).unwrap()
+    JsRenderer::from_object(fn_prototype).unwrap()
 }
