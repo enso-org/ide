@@ -98,6 +98,15 @@ impl Node {
     }
 }
 
+impl Default for Node {
+    fn default() -> Self {
+        let kind     = Kind::Empty(InsertType::Append);
+        let size     = default();
+        let children = default();
+        Self {kind,size,children}
+    }
+}
+
 /// A structure which contains `Node` being a child of some parent. It contains some additional
 /// data regarding this relation
 #[derive(Clone,Debug,Eq,PartialEq)]

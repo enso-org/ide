@@ -15,6 +15,7 @@ use ensogl::display::object::ObjectOps;
 use ensogl_core_msdf_sys::run_once_initialized;
 use ensogl::display::style::theme;
 use ensogl::data::color;
+use enso_frp::Position;
 
 
 #[wasm_bindgen]
@@ -91,6 +92,16 @@ fn init(app:&Application) {
     let graph_editor = app.views.new::<GraphEditor>();
     world.add_child(&graph_editor);
 
+
+    let node1_id = graph_editor.add_node2();
+    let node2_id = graph_editor.add_node2();
+
+    graph_editor.frp.set_node_position.emit((node1_id,Position::new(100.0 , 250.0)));
+    graph_editor.frp.set_node_position.emit((node2_id,Position::new(200.0 ,  50.0)));
+
+    graph_editor.frp.set_node_expression.emit((node1_id,expression_mock()));
+    graph_editor.frp.set_node_expression.emit((node2_id,expression_mock()));
+
     let mut was_rendered = false;
     let mut loader_hidden = false;
     world.on_frame(move |_| {
@@ -112,6 +123,42 @@ fn init(app:&Application) {
 }
 
 
+
+// =============
+// === Mocks ===
+// =============
+
+use ast::crumbs::PatternMatchCrumb::*;
+use ast::crumbs::*;
+use span_tree::traits::*;
+use graph_editor::component::node::port::Expression;
+
+
+pub fn expression_mock() -> Expression {
+    let pattern_cr       = vec![Seq { right: false }, Or, Or, Build];
+    let val              = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_cr};
+    let parens_cr        = ast::crumbs::MatchCrumb::Segs {val,index:0};
+    let code             = "draw_maps size (distribution normal)".into();
+    let output_span_tree = default();
+    let input_span_tree  = span_tree::builder::TreeBuilder::new(36)
+        .add_child(0,14,span_tree::node::Kind::Chained,PrefixCrumb::Func)
+        .add_leaf(0,9,span_tree::node::Kind::Operation,PrefixCrumb::Func)
+        .add_empty_child(10,span_tree::node::InsertType::BeforeTarget)
+        .add_leaf(10,4,span_tree::node::Kind::Target {removable:true},PrefixCrumb::Arg)
+        .add_empty_child(14,span_tree::node::InsertType::Append)
+        .done()
+        .add_child(15,21,span_tree::node::Kind::Argument {removable:true},PrefixCrumb::Arg)
+        .add_child(1,19,span_tree::node::Kind::Argument {removable:false},parens_cr)
+        .add_leaf(0,12,span_tree::node::Kind::Operation,PrefixCrumb::Func)
+        .add_empty_child(13,span_tree::node::InsertType::BeforeTarget)
+        .add_leaf(13,6,span_tree::node::Kind::Target {removable:false},PrefixCrumb::Arg)
+        .add_empty_child(19,span_tree::node::InsertType::Append)
+        .done()
+        .done()
+        .add_empty_child(36,span_tree::node::InsertType::Append)
+        .build();
+    Expression {code,input_span_tree,output_span_tree}
+}
 
 
 

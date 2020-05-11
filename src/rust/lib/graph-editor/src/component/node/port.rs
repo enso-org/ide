@@ -22,6 +22,9 @@ use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
 use crate::component::cursor;
 use super::super::node;
+use span_tree::SpanTree;
+
+
 
 
 // ============
@@ -55,9 +58,29 @@ pub fn sort_hack(scene:&Scene) {
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct Events {
-    pub network     : frp::Network,
-    pub cursor_mode : frp::Stream<cursor::Mode>,
-    pub press  : frp::Stream<span_tree::Crumbs>,
+    pub network        : frp::Network,
+    pub cursor_mode    : frp::Stream<cursor::Mode>,
+    pub press          : frp::Stream<span_tree::Crumbs>,
+    press_source       : frp::Source<span_tree::Crumbs>,
+    cursor_mode_source : frp::Merge<cursor::Mode>,
+}
+
+
+// ==================
+// === Expression ===
+// ==================
+
+#[derive(Clone,Debug,Default)]
+pub struct Expression {
+    pub code             : String,
+    pub input_span_tree  : SpanTree,
+    pub output_span_tree : SpanTree,
+}
+
+impl From<&Expression> for Expression {
+    fn from(t:&Expression) -> Self {
+        t.clone()
+    }
 }
 
 
@@ -70,30 +93,38 @@ pub struct Events {
 pub struct Manager {
     logger         : Logger,
     display_object : display::object::Instance,
-    pub frp         : Events,
+    pub frp        : Events,
     scene          : Scene,
+    expression     : Rc<RefCell<Expression>>,
     ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
+    port_networks  : Rc<RefCell<Vec<frp::Network>>>,
 }
 
 impl Manager {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
+        frp::new_network! { network
+            def cursor_mode_source = gather::<cursor::Mode>();
+            def press_source       = source::<span_tree::Crumbs>();
+        }
+
         let logger         = logger.sub("port_manager");
         let display_object = display::object::Instance::new(&logger);
         let scene          = scene.clone_ref();
+        let expression     = default();
+        let port_networks  = default();
+        let ports          = default();
+        let cursor_mode    = (&cursor_mode_source).into();
+        let press          = (&press_source).into();
+        let frp            = Events {network,cursor_mode,press,cursor_mode_source,press_source};
+        Self {logger,display_object,frp,ports,scene,expression,port_networks}
+    }
 
+    pub fn set_expression<E:Into<Expression>>(&self, expression:E) {
+        let     expression    = expression.into();
+        let mut to_visit      = vec![expression.input_span_tree.root_ref()];
+        let mut ports         = vec![];
+        let mut port_networks = vec![];
 
-        frp::new_network! { network
-            def cursor_mode = gather::<cursor::Mode>();
-            def press  = source::<span_tree::Crumbs>();
-        }
-
-
-        let span_tree = span_tree_mock();
-
-        let mut to_visit = vec![span_tree.root_ref()];
-        let mut ports    = vec![];
-
-        let mut off = 0.0;
         loop {
             match to_visit.pop() {
                 None => break,
@@ -102,7 +133,7 @@ impl Manager {
                     let contains_root = span.index.value == 0;
                     let skip          = node.kind.is_empty() || contains_root;
                     if !skip {
-                        let port   = component::ShapeView::<shape::Shape>::new(&logger,&scene);
+                        let port   = component::ShapeView::<shape::Shape>::new(&self.logger,&self.scene);
                         let unit   = 7.2246094;
                         let width  = unit * span.size.value as f32;
                         let width2  = width + 4.0;
@@ -111,53 +142,46 @@ impl Manager {
                         port.shape.sprite.size().set(Vector2::new(width2,node_height));
                         let x = width/2.0 + unit * span.index.value as f32;
                         port.mod_position(|t| t.x = x);
-                        port.mod_position(|t| t.y = off);
-                        display_object.add_child(&port);
+                        self.add_child(&port);
 
 //                        let network = &port.events.network;
                         let hover   = &port.shape.hover;
                         let crumbs  = node.crumbs.clone();
-                        frp::extend! { network
+                        frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!((hover) { hover.set(1.0); }));
                             def _foo = port.events.mouse_out  . map(f_!((hover) { hover.set(0.0); }));
 
                             def out  = port.events.mouse_out.constant(cursor::Mode::Normal);
                             def over = port.events.mouse_over.constant(cursor::Mode::highlight(&port,Vector2::new(x,0.0),Vector2::new(width2,height)));
-                            cursor_mode.attach(&over);
-                            cursor_mode.attach(&out);
+                            self.frp.cursor_mode_source.attach(&over); // FIXME: It leaks memory in the current FRP implementation
+                            self.frp.cursor_mode_source.attach(&out);
 
-                            def _press = port.events.mouse_down.map(f_!((press) {
-                                press.emit(&crumbs);
+                            let press_source = &self.frp.press_source;
+                            def _press = port.events.mouse_down.map(f_!((press_source) {
+                                press_source.emit(&crumbs);
                             }));
                         }
                         ports.push(port);
+                        port_networks.push(port_network);
                     }
 
                     to_visit.extend(node.children_iter());
-//                    off -= 3.0;
-
                 }
             }
         }
 
-
-        let ports = Rc::new(RefCell::new(ports));
-
-        let cursor_mode = cursor_mode.into();
-        let press  = press.into();
-        let frp = Events {network,cursor_mode,press};
-
-        Self {logger,display_object,frp,ports,scene}
+        *self.expression.borrow_mut()    = expression;
+        *self.ports.borrow_mut()         = ports;
+        *self.port_networks.borrow_mut() = port_networks;
     }
 
-
     pub fn get_port_offset(&self, crumbs:&span_tree::Crumbs) -> Option<Vector2<f32>> {
-        let span_tree = span_tree_mock();
+        let span_tree = &self.expression.borrow().input_span_tree;
         span_tree.root_ref().get_descendant(crumbs.clone()).map(|node|{
-            let span = node.span();
-            let unit   = 7.2246094;
-            let width  = unit * span.size.value as f32;
-            let x      = width/2.0 + unit * span.index.value as f32;
+            let span  = node.span();
+            let unit  = 7.2246094;
+            let width = unit * span.size.value as f32;
+            let x     = width/2.0 + unit * span.index.value as f32;
             Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0) // FIXME
         })
     }
@@ -167,38 +191,4 @@ impl display::Object for Manager {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
-}
-
-
-
-// =============
-// === Mocks ===
-// =============
-
-use ast::crumbs::PatternMatchCrumb::*;
-use ast::crumbs::*;
-use span_tree::traits::*;
-
-
-pub fn span_tree_mock() -> span_tree::SpanTree {
-    let pattern_cr = vec![Seq { right: false }, Or, Or, Build];
-    let val        = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_cr};
-    let parens_cr  = ast::crumbs::MatchCrumb::Segs {val,index:0};
-    span_tree::builder::TreeBuilder::new(36)
-        .add_child(0,14,span_tree::node::Kind::Chained,PrefixCrumb::Func)
-        .add_leaf(0,9,span_tree::node::Kind::Operation,PrefixCrumb::Func)
-        .add_empty_child(10,span_tree::node::InsertType::BeforeTarget)
-        .add_leaf(10,4,span_tree::node::Kind::Target {removable:true},PrefixCrumb::Arg)
-        .add_empty_child(14,span_tree::node::InsertType::Append)
-        .done()
-        .add_child(15,21,span_tree::node::Kind::Argument {removable:true},PrefixCrumb::Arg)
-        .add_child(1,19,span_tree::node::Kind::Argument {removable:false},parens_cr)
-        .add_leaf(0,12,span_tree::node::Kind::Operation,PrefixCrumb::Func)
-        .add_empty_child(13,span_tree::node::InsertType::BeforeTarget)
-        .add_leaf(13,6,span_tree::node::Kind::Target {removable:false},PrefixCrumb::Arg)
-        .add_empty_child(19,span_tree::node::InsertType::Append)
-        .done()
-        .done()
-        .add_empty_child(36,span_tree::node::InsertType::Append)
-        .build()
 }

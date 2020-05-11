@@ -53,6 +53,7 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
 use ensogl::display::Scene;
+use crate::component::node::port::Expression;
 
 
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -191,6 +192,8 @@ pub struct FrpInputs {
     commands                     : Commands,
     register_node                : frp::Source<Option<Node>>,
     pub add_node_at              : frp::Source<Position>,
+    pub set_node_position        : frp::Source<(Id,Position)>,
+    pub set_node_expression      : frp::Source<(Id,Expression)>,
     pub select_node              : frp::Source<Id>,
     pub translate_selected_nodes : frp::Source<Position>,
 }
@@ -201,10 +204,12 @@ impl FrpInputs {
         frp::extend! { network
             def register_node            = source();
             def add_node_at              = source();
+            def set_node_position        = source();
             def select_node              = source();
             def translate_selected_nodes = source();
+            def set_node_expression      = source();
         }
-        Self {commands,register_node,add_node_at,select_node,translate_selected_nodes}
+        Self {commands,register_node,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression}
     }
 
     fn register_node(&self, arg:&Node) {
@@ -386,6 +391,13 @@ impl GraphEditor {
         node.downgrade()
     }
 
+    pub fn add_node2(&self) -> Id {
+        let node = Node::new(&self.scene);
+        let id   = node.id();
+        self.frp.inputs.register_node(&node);
+        id
+    }
+
     pub fn remove_node(&self, node:WeakNode) {
         if let Some(node) = node.upgrade() {
             self.nodes.set.remove(&node.id());
@@ -554,12 +566,32 @@ impl application::View for GraphEditor {
             }
         }));
 
+        // === Set Node Position ===
+
+        def _set_node_position = inputs.set_node_position.map(f!((nodes)((node_id,position)){
+            if let Some(node) = nodes.set.get(node_id) {
+                node.view.mod_position(|t| {
+                    t.x = position.x;
+                    t.y = position.y;
+                })
+            }
+        }));
+
 
         // === Remove Node ===
 
         def _remove_all      = inputs.remove_all_nodes.map(f!((nodes)(()) nodes.set.clear()));
         def _remove_selected = inputs.remove_selected_nodes.map(f!((nodes,nodes)(_) {
             nodes.selected.for_each_taken(|node| nodes.set.remove(&node.id()))
+        }));
+
+
+        // === Set Node Expression ===
+
+        def _set_node_expr = inputs.set_node_expression.map(f!((nodes)((node_id,expression)){
+            if let Some(node) = nodes.set.get(node_id) {
+                node.view.ports.set_expression(expression);
+            }
         }));
 
 
@@ -626,8 +658,7 @@ impl application::View for GraphEditor {
 
         let node_release = touch.nodes.up;
 
-        inputs.add_node_at.emit(Position::new(200.0,50.0));
-        inputs.add_node_at.emit(Position::new(100.0,250.0));
+
 
         let frp = GraphEditorFrp {network,inputs,status,node_release};
 

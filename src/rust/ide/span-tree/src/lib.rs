@@ -54,7 +54,7 @@ use prelude::*;
 ///
 /// This structure is used to have some specific node marked as root node, to avoid confusion
 /// regarding SpanTree crumbs and AST crumbs.
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Default,Eq,PartialEq)]
 pub struct SpanTree {
     /// A root node of the tree.
     pub root : Node
