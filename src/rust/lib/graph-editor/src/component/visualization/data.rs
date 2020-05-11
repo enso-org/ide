@@ -93,10 +93,10 @@ impl SampleDataGenerator3D {
        vec![
             Vector3::new(25.0,75.0,25.0 + delta1),
             Vector3::new(25.0,25.0, 25.0 + delta2),
-            Vector3::new(75.0 - 12.5,75.0 + delta1,12.5),
-            Vector3::new(75.0 + 12.5,75.0 + delta2,12.5),
-            Vector3::new(75.0 - 12.5 + delta1,25.0 + delta2,12.5),
-            Vector3::new(75.0 + 12.5 + delta2,25.0 + delta1,12.5),
+            Vector3::new(75.0 - 12.5,75.0 + delta1,5.0),
+            Vector3::new(75.0 + 12.5,75.0 + delta2,15.0),
+            Vector3::new(75.0 - 12.5 + delta1,25.0 + delta2,5.0),
+            Vector3::new(75.0 + 12.5 + delta2,25.0 + delta1,15.0),
         ]
     }
 }

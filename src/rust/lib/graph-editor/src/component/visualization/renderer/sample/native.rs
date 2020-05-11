@@ -122,24 +122,26 @@ pub mod shape {
     use ensogl::display::Attribute;
 
     ensogl::define_shape_system! {
-        (radius:f32) {
+        (position:Vector2<f32>,radius:f32) {
             let node = Circle(radius);
             let node = node.fill(Srgb::new(0.17,0.46,0.15));
+            let node = node.translate(("input_position.x","input_position.y"));
             node.into()
         }
     }
 }
 
 /// Shape view for Bubble.
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone)]
+#[allow(missing_copy_implementations)]
 pub struct BubbleView {}
 impl component::ShapeViewDefinition for BubbleView {
     type Shape = shape::Shape;
     fn new(shape:&Self::Shape, _scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
         shape.sprite.size().set(Vector2::new(100.0,100.0));
         let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
-        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Center,
-                                                alignment::VerticalAlignment::Center);
+        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left,
+                                                alignment::VerticalAlignment::Bottom);
         Self {}
     }
 }
@@ -176,12 +178,11 @@ impl DataRenderer for WebglBubbleChart {
         views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger));
 
         views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
-            view.display_object.set_position(Vector3::new(item.x,item.y,0.0));
-            // FIXME there is a bug with the radius ending up on the wrong shape.
-            if let Some(t) = view.data.borrow().as_ref() {
-                t.shape.radius.set(item.z)
-            };
             view.display_object.set_parent(&self.display_object);
+            if let Some(t) = view.data.borrow().as_ref() {
+                t.shape.radius.set(item.z);
+                t.shape.position.set(Vector2::new(item.x,item.y));
+            };
         });
         Ok(data)
     }
