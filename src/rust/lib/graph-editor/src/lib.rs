@@ -462,7 +462,7 @@ impl Nodes {
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct Edges {
     pub map      : Rc<RefCell<HashMap<EdgeId,Edge>>>,
-    pub detached : Rc<RefCell<HashSet<EdgeId>>>,
+    pub detached : SharedHashSet<EdgeId>,
 }
 
 
@@ -688,7 +688,7 @@ impl application::View for GraphEditor {
         def edge_target       = edge_target_press.merge(&inputs.connect_detached_edges_to_node);
         def _connect_detached = edge_target.map(f!((nodes,edges)(target) {
             nodes.with(&target.node_id,|node|{
-                for edge_id in mem::take(&mut *edges.detached.borrow_mut()) {
+                for edge_id in edges.detached.mem_take() {
                     if let Some(edge) = edges.map.borrow_mut().get_mut(&edge_id) {
                         edge.target = Some(EdgeTarget::new(target.node_id,target.port.clone()));
                         node.in_edges.borrow_mut().insert(edge_id);
@@ -743,7 +743,7 @@ impl application::View for GraphEditor {
                             let edge = Edge::new_with_source(view,node.id().into());
                             let id = edge.id().into();
                             edges.map.borrow_mut().insert(id,edge);
-                            edges.detached.borrow_mut().insert(id);
+                            edges.detached.insert(id);
                         }
                     }));
 
@@ -820,11 +820,11 @@ impl application::View for GraphEditor {
         // === Move Edges ===
 
         def _move_connections = cursor.frp.position.map(f!((edges)(position) {
-            for id in &*edges.detached.borrow() {
+            edges.detached.for_each(|id| {
                 if let Some(connection) = edges.map.borrow().get(id) {
                     connection.view.events.target_position.emit(position);
                 }
-            }
+            })
         }));
 
 
