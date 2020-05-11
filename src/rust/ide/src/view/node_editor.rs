@@ -90,8 +90,8 @@ impl GraphEditorIntegration {
                 let val = val.unchecked_into::<web_sys::KeyboardEvent>();
                 let key = val.key();
                 if key == "Backspace" && val.ctrl_key() {
-                    this.editor.nodes.selected.for_each(|node| {
-                        let id = this.node_to_id.borrow().get(&node.id()).cloned();
+                    this.editor.nodes.selected.for_each(|node_id| {
+                        let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0
                         if let Some(id) = id {
                             if let Err(err) = this.controller.remove_node(id) {
                                 this.logger.error(|| format!("ERR: {:?}", err));

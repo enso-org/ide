@@ -56,100 +56,141 @@ use ensogl::display::Scene;
 use crate::component::node::port::Expression;
 
 
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct NodeSet {
-    data : Rc<RefCell<HashMap<NodeId,Node>>>
+
+// =====================
+// === SharedHashSet ===
+// =====================
+
+#[derive(Derivative,CloneRef)]
+#[derivative(Debug(bound="T:Eq+Hash+Debug, S:std::hash::BuildHasher"))]
+pub struct SharedHashSet<T,S=std::collections::hash_map::RandomState> {
+    pub raw : Rc<RefCell<HashSet<T,S>>>
 }
 
-impl NodeSet {
-//    pub fn borrow(&self) -> Ref<HashMap<NodeId,NodeView>> {
-//        self.data.borrow()
-//    }
-//
-//    pub fn take(&self) -> HashMap<NodeId,NodeView> {
-//        mem::take(&mut *self.data.borrow_mut())
-//    }
-//
-    pub fn insert(&self, id:NodeId, node_model:Node) {
-        self.data.borrow_mut().insert(id,node_model);
+impl<T,S> Clone for SharedHashSet<T,S> {
+    fn clone(&self) -> Self {
+        let raw = self.raw.clone();
+        Self {raw}
+    }
+}
+
+impl<T,S> Default for SharedHashSet<T,S>
+    where T:Eq+Hash, S:Default+std::hash::BuildHasher {
+    fn default() -> Self {
+        let raw = default();
+        Self {raw}
+    }
+}
+
+impl<T,S> SharedHashSet<T,S>
+    where T:Eq+Hash, S:Default+std::hash::BuildHasher {
+    pub fn new() -> Self {
+        default()
     }
 
-    pub fn remove(&self, id:&NodeId) {
-        self.data.borrow_mut().remove(id);
+    pub fn mem_take(&self) -> HashSet<T,S> {
+        mem::take(&mut *self.raw.borrow_mut())
     }
-//
-//    pub fn contains(&self, node:&NodeView) -> bool {
-//        self.get(node.id()).is_some()
-//    }
-//
-    pub fn get(&self, id:&NodeId) -> Option<Node> {
-        self.data.borrow().get(id).map(|t| t.clone_ref())
+}
+
+impl<T,S> SharedHashSet<T,S>
+    where T:Eq+Hash, S:std::hash::BuildHasher {
+    pub fn insert(&self, t:T) -> bool {
+        self.raw.borrow_mut().insert(t)
     }
-//
+}
+
+impl<T,S> SharedHashSet<T,S> {
     pub fn clear(&self) {
-        self.data.borrow_mut().clear();
+        self.raw.borrow_mut().clear()
+    }
+
+    pub fn for_each<F>(&self, f:F)
+        where F:FnMut(&T) {
+        self.raw.borrow_mut().iter().for_each(f)
     }
 }
 
 
 
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct WeakNodeSet {
-    data : Rc<RefCell<HashMap<Id,WeakNodeView>>>
+// =====================
+// === SharedHashMap ===
+// =====================
+
+#[derive(Derivative,CloneRef)]
+#[derivative(Debug(bound="K:Eq+Hash+Debug, V:Debug, S:std::hash::BuildHasher"))]
+pub struct SharedHashMap<K,V,S=std::collections::hash_map::RandomState> {
+    pub raw : Rc<RefCell<HashMap<K,V,S>>>
 }
 
-impl WeakNodeSet {
-    pub fn borrow(&self) -> Ref<HashMap<Id,WeakNodeView>> {
-        self.data.borrow()
-    }
-
-    pub fn take(&self) -> HashMap<Id,WeakNodeView> {
-        mem::take(&mut *self.data.borrow_mut())
-    }
-
-    pub fn for_each_taken<F:Fn(NodeView)>(&self,f:F) {
-        self.take().into_iter().for_each(|(_,node)| { node.upgrade().for_each(|n| f(n)) })
-    }
-
-    pub fn for_each<F:Fn(NodeView)>(&self,f:F) {
-        self.data.borrow().iter().for_each(|(_,node)| { node.upgrade().for_each(|n| f(n)) })
-    }
-
-    pub fn insert(&self, node:&NodeView) {
-        self.data.borrow_mut().insert(node.id(),node.downgrade());
-    }
-
-    pub fn contains(&self, node:&NodeView) -> bool {
-        self.get(node.id()).is_some()
-    }
-
-    pub fn get(&self, id:Id) -> Option<NodeView> {
-        self.data.borrow().get(&id).and_then(|t| t.upgrade())
+impl<K,V,S> Clone for SharedHashMap<K,V,S> {
+    fn clone(&self) -> Self {
+        let raw = self.raw.clone();
+        Self {raw}
     }
 }
 
-
-#[derive(Clone,CloneRef,Debug,Default,Shrinkwrap)]
-pub struct WeakNodeSelectionSet {
-    data : WeakNodeSet
+impl<K,V,S> Default for SharedHashMap<K,V,S>
+where K:Eq+Hash, S:Default+std::hash::BuildHasher {
+    fn default() -> Self {
+        let raw = default();
+        Self {raw}
+    }
 }
 
-impl WeakNodeSelectionSet {
+impl<K,V,S> SharedHashMap<K,V,S>
+where K:Eq+Hash, S:Default+std::hash::BuildHasher {
+    pub fn new() -> Self {
+        default()
+    }
+
+    pub fn mem_take(&self) -> HashMap<K,V,S> {
+        mem::take(&mut *self.raw.borrow_mut())
+    }
+}
+
+impl<K,V,S> SharedHashMap<K,V,S>
+where K:Eq+Hash, S:std::hash::BuildHasher {
+    pub fn insert(&self, k:K, v:V) -> Option<V> {
+        self.raw.borrow_mut().insert(k,v)
+    }
+
+    pub fn get(&self, k:&K) -> Option<V>
+    where V:Clone {
+        self.raw.borrow().get(k).cloned()
+    }
+
+    pub fn remove(&self, k:&K) -> Option<V> {
+        self.raw.borrow_mut().remove(k)
+    }
+}
+
+impl<K,V,S> SharedHashMap<K,V,S> {
     pub fn clear(&self) {
-        self.for_each_taken(|node| node.frp.deselect.emit(()));
+        self.raw.borrow_mut().clear()
+    }
+
+    pub fn for_each<F>(&self, f:F)
+    where F:FnMut((&K,&V)) {
+        self.raw.borrow_mut().iter().for_each(f)
     }
 }
+
+
+
+
+
 
 
 
 #[derive(Debug,Clone,CloneRef)]
-pub struct GraphEditorFrp {
+pub struct Frp {
     pub inputs  : FrpInputs,
     pub status  : FrpStatus,
     pub node_release : frp::Stream<NodeId>
 }
 
-impl Deref for GraphEditorFrp {
+impl Deref for Frp {
     type Target = FrpInputs;
     fn deref(&self) -> &FrpInputs {
         &self.inputs
@@ -200,8 +241,10 @@ pub struct FrpInputs {
     pub set_node_expression      : frp::Source<(NodeId,Expression)>,
     pub connect_nodes            : frp::Source<(EdgeTarget,EdgeTarget)>,
     pub select_node              : frp::Source<NodeId>,
+    pub deselect_all_nodes       : frp::Source,
     pub translate_selected_nodes : frp::Source<Position>,
 
+    // === Private ===
     register_node : frp::Source<Option<Node>>,
 }
 
@@ -212,12 +255,13 @@ impl FrpInputs {
             def add_node_at              = source();
             def set_node_position        = source();
             def select_node              = source();
+            def deselect_all_nodes       = source();
             def translate_selected_nodes = source();
             def set_node_expression      = source();
             def connect_nodes            = source();
         }
         let commands = Commands::new(&network);
-        Self {commands,network,register_node,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression,connect_nodes}
+        Self {commands,network,register_node,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression,connect_nodes,deselect_all_nodes}
     }
 
     fn register_node(&self, arg:&Node) {
@@ -370,12 +414,23 @@ impl EdgeTarget {
 
 
 
+
+// =============
+// === Nodes ===
+// =============
+
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct Nodes {
-    pub set      : NodeSet,
-    pub selected : WeakNodeSelectionSet,
+    pub all      : SharedHashMap<NodeId,Node>,
+    pub selected : SharedHashSet<NodeId>,
 }
 
+impl Deref for Nodes {
+    type Target = SharedHashMap<NodeId,Node>;
+    fn deref(&self) -> &Self::Target {
+        &self.all
+    }
+}
 
 
 
@@ -429,14 +484,14 @@ impl<T:frp::Data> TouchNetwork<T> {
 #[derive(Debug,Clone,CloneRef)]
 pub struct TouchState {
     pub nodes : TouchNetwork::<NodeId>,
-    pub bg    : TouchNetwork::<()>,
+    pub background    : TouchNetwork::<()>,
 }
 
 impl TouchState {
     pub fn new(network:&frp::Network, mouse:&frp::io::Mouse) -> Self {
         let nodes = TouchNetwork::<NodeId>::new(&network,mouse);
-        let bg    = TouchNetwork::<()>::new(&network,mouse);
-        Self {nodes,bg}
+        let background    = TouchNetwork::<()>::new(&network,mouse);
+        Self {nodes,background}
     }
 }
 
@@ -477,7 +532,7 @@ impl GraphEditorModel {
     }
 
     pub fn get_node(&self, id:&NodeId) -> Option<Node> {
-        self.nodes.set.get(id)
+        self.nodes.get(id)
     }
 
     #[deprecated(note="Use add_node instead.")]
@@ -492,7 +547,7 @@ impl GraphEditorModel {
     #[deprecated(note="Use FRP remove_node instead.")]
     pub fn deprecated_remove_node(&self, node:WeakNodeView) {
         if let Some(node) = node.upgrade() {
-            self.nodes.set.remove(&node.id().into());
+            self.nodes.remove(&node.id().into());
         }
     }
 }
@@ -506,7 +561,7 @@ impl GraphEditorModel {
 #[derive(Debug,Clone,CloneRef)]
 pub struct GraphEditor {
     pub model : GraphEditorModel,
-    pub frp   : GraphEditorFrp,
+    pub frp   : Frp,
 }
 
 impl Deref for GraphEditor {
@@ -537,7 +592,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
 impl application::View for GraphEditor {
 
     fn new(world:&World) -> Self {
-
         let scene  = world.scene();
         let cursor = Cursor::new(world.scene());
         web::body().set_style_or_panic("cursor","none");
@@ -559,7 +613,7 @@ impl application::View for GraphEditor {
         def mouse_on_down_position = mouse.position.sample(&mouse.press);
         def selection_zero         = source::<Position>();
         def selection_size_down    = mouse.position.map2(&mouse_on_down_position,|m,n|{m-n});
-        def selection_size_if_down = selection_size_down.gate(&touch.bg.is_down);
+        def selection_size_if_down = selection_size_down.gate(&touch.background.is_down);
         def selection_size_on_down = selection_zero.sample(&mouse.press);
         def selection_size         = selection_size_if_down.merge(&selection_size_on_down);
 
@@ -575,23 +629,17 @@ impl application::View for GraphEditor {
             cursor.frp.release.emit(());
         }));
 
-//        def _cursor_position = mouse.position.map(f!((cursor)(p) {
-//            cursor.set_position(Vector2::new(p.x,p.y));
-//        }));
 
-
-        // === Generic Selection ===
+        // === Selection Target ===
 
         def mouse_down_target  = mouse.press.map(f_!((scene) scene.mouse.target.get()));
-        def _mouse_down_target = mouse_down_target.map(f!((touch,scene)(target) {
+        def _perform_selection = mouse_down_target.map(f!((touch,scene)(target) {
             match target {
-                display::scene::Target::Background => {
-                    touch.bg.down.emit(());
-                }
+                display::scene::Target::Background  => touch.background.down.emit(()),
                 display::scene::Target::Symbol {..} => {
-                    scene.shapes.get_mouse_target(*target).for_each(|target| {
+                    if let Some(target) = scene.shapes.get_mouse_target(*target) {
                         target.mouse_down().emit(());
-                    })
+                    }
                 }
             }
         }));
@@ -599,13 +647,14 @@ impl application::View for GraphEditor {
 
         // === Selection ===
 
-        def _deselect_all_on_bg_press = touch.bg.selected.map(f_!((nodes) nodes.selected.clear()));
-        def select_unified            = inputs.select_node.merge(&touch.nodes.selected);
-        def _select_pressed           = select_unified.map(f!((nodes)(node_id) {
-            if let Some(node) = nodes.set.get(node_id) {
+        def deselect_all_nodes  = inputs.deselect_all_nodes.merge(&touch.background.selected);
+        def _deselect_all_nodes = deselect_all_nodes.map(f_!((nodes) nodes.selected.clear()));
+        def select_node         = inputs.select_node.merge(&touch.nodes.selected);
+        def _select_node        = select_node.map(f!((nodes)(node_id) {
+            if let Some(node) = nodes.get(node_id) {
                 nodes.selected.clear();
                 node.view.frp.select.emit(());
-                nodes.selected.insert(&node.view);
+                nodes.selected.insert(node.id());
             }
         }));
 
@@ -613,7 +662,7 @@ impl application::View for GraphEditor {
 
         def node_port_press = source::<(NodeId,span_tree::Crumbs)>();
         def connect_nodes_on_port_press = node_port_press.map(f!((nodes,edges)((node_id,crumbs)) {
-            if let Some(node) = nodes.set.get(node_id) {
+            if let Some(node) = nodes.get(node_id) {
                 for edge_id in mem::take(&mut *edges.detached.borrow_mut()) {
                     if let Some(edge) = edges.map.borrow_mut().get_mut(&edge_id) {
                         println!("{:?}", crumbs);
@@ -625,8 +674,8 @@ impl application::View for GraphEditor {
         }));
 
         def _foo = inputs.connect_nodes.map(f!((scene,display_object,nodes,edges)((source,target)){
-            let source_node = nodes.set.get(&source.node_id).unwrap();
-            let target_node = nodes.set.get(&target.node_id).unwrap();
+            let source_node = nodes.get(&source.node_id).unwrap();
+            let target_node = nodes.get(&target.node_id).unwrap();
             let view = EdgeView::new(&scene);
             view.mod_position(|p| p.x = source_node.position().x + node::NODE_WIDTH/2.0);
             view.mod_position(|p| p.y = source_node.position().y + node::NODE_HEIGHT/2.0);
@@ -643,10 +692,9 @@ impl application::View for GraphEditor {
 
         // === Add NodeView ===
 
-        let scene                  = world.scene();
         def add_node_at_cursor_pos = inputs.add_node_at_cursor.map2(&mouse.position,|_,p|{*p});
-        def add_node               = inputs.add_node_at.merge(&add_node_at_cursor_pos);
-        def _add_new_node          = add_node.map(f!((model)(pos) {
+        def add_node_at            = inputs.add_node_at.merge(&add_node_at_cursor_pos);
+        def _add_new_node_at       = add_node_at.map(f!((model)(pos) {
             let node_id = model.add_node();
             model.frp.set_node_position.emit((node_id,*pos));
         }));
@@ -655,15 +703,15 @@ impl application::View for GraphEditor {
         def _new_node = inputs.register_node.map(f!((cursor,network,nodes,edges,touch,display_object,scene,node_port_press)(node) {
             if let Some(node) = node {
                 let node_id : NodeId  = node.id().into();
-                frp::new_bridge_network! { [network,node.view.view.events.network]
-                    def _node_on_down_tagged = node.view.drag_view.events.mouse_down.map(f_!((touch) {
+                frp::new_bridge_network! { [network,node.view.main_area.events.network]
+                    def _node_on_down_tagged = node.view.drag_area.events.mouse_down.map(f_!((touch) {
                         touch.nodes.down.emit(node_id)
                     }));
                     def cursor_mode = node.view.ports.frp.cursor_mode.map(f!((cursor)(mode) {
                         cursor.frp.set_mode.emit(mode);
                     }));
                     def _add_connection = node.view.frp.output_ports.mouse_down.map(f_!((nodes,edges,display_object,scene) {
-                        if let Some(node) = nodes.set.get(&node_id) {
+                        if let Some(node) = nodes.get(&node_id) {
                             let view = EdgeView::new(&scene);
                             view.mod_position(|p| p.x = node.position().x + node::NODE_WIDTH/2.0);
                             view.mod_position(|p| p.y = node.position().y + node::NODE_HEIGHT/2.0);
@@ -680,14 +728,14 @@ impl application::View for GraphEditor {
                     }));
                 }
                 display_object.add_child(node);
-                nodes.set.insert(node.id().into(),node.clone_ref());
+                nodes.insert(node.id().into(),node.clone_ref());
             }
         }));
 
         // === Set Node Position ===
 
         def _set_node_position = inputs.set_node_position.map(f!((nodes)((node_id,position)){
-            if let Some(node) = nodes.set.get(node_id) {
+            if let Some(node) = nodes.get(node_id) {
                 node.view.mod_position(|t| {
                     t.x = position.x;
                     t.y = position.y;
@@ -698,16 +746,16 @@ impl application::View for GraphEditor {
 
         // === Remove Node ===
 
-        def _remove_all      = inputs.remove_all_nodes.map(f!((nodes)(()) nodes.set.clear()));
+        def _remove_all      = inputs.remove_all_nodes.map(f!((nodes)(()) nodes.clear()));
         def _remove_selected = inputs.remove_selected_nodes.map(f!((nodes,nodes)(_) {
-            nodes.selected.for_each_taken(|node| nodes.set.remove(&node.id().into()))
+            nodes.selected.mem_take().into_iter().for_each(|node_id| {nodes.remove(&node_id);})
         }));
 
 
         // === Set NodeView Expression ===
 
         def _set_node_expr = inputs.set_node_expression.map(f!((nodes)((node_id,expression)){
-            if let Some(node) = nodes.set.get(node_id) {
+            if let Some(node) = nodes.get(node_id) {
                 node.view.ports.set_expression(expression);
             }
         }));
@@ -718,7 +766,7 @@ impl application::View for GraphEditor {
         def mouse_tx_if_node_pressed = mouse.translation.gate(&touch.nodes.is_down);
         def _move_node_with_mouse    = mouse_tx_if_node_pressed.map2(&touch.nodes.down,f!((nodes,edges)(tx,node_id) {
 //            let node_id : Id = node.id();
-            if let Some(node) = nodes.set.get(&node_id) {
+            if let Some(node) = nodes.get(&node_id) {
                 node.view.mod_position(|p| { p.x += tx.x; p.y += tx.y; });
                 for edge_id in &*node.in_edges.borrow() {
                     if let Some(edge) = edges.map.borrow().get(edge_id) {
@@ -734,12 +782,14 @@ impl application::View for GraphEditor {
         }));
 
         def _move_selected_nodes = inputs.translate_selected_nodes.map(f!((nodes)(t) {
-            nodes.selected.for_each(|node| {
-                node.mod_position(|p| {
-                    p.x += t.x;
-                    p.y += t.y;
-                })
-            })
+            for node_id in &*nodes.selected.raw.borrow() {
+                if let Some(node) = nodes.get(node_id) {
+                    node.mod_position(|p| {
+                        p.x += t.x;
+                        p.y += t.y;
+                    })
+                }
+            }
         }));
 
 
@@ -774,7 +824,7 @@ impl application::View for GraphEditor {
 
 
         let inputs = inputs.clone_ref();
-        let frp = GraphEditorFrp {inputs,status,node_release};
+        let frp = Frp {inputs,status,node_release};
 
         Self {model,frp}
     }

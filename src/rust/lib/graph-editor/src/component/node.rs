@@ -402,10 +402,10 @@ pub struct NodeData {
     pub display_object : display::object::Instance,
     pub logger : Logger,
     pub frp : Events,
-    pub label_view  : component::ShapeView<label::Shape>,
-    pub view        : component::ShapeView<shape::Shape>,
-    pub drag_view   : component::ShapeView<drag_area::Shape>,
-    pub output_view : component::ShapeView<output_area::Shape>,
+    pub label_area  : component::ShapeView<label::Shape>,
+    pub main_area        : component::ShapeView<shape::Shape>,
+    pub drag_area   : component::ShapeView<drag_area::Shape>,
+    pub output_area : component::ShapeView<output_area::Shape>,
     pub ports       : port::Manager,
 }
 
@@ -421,16 +421,16 @@ impl Node {
         let logger  = Logger::new("node");
         let _connection = Connection::new(scene); // FIXME hack for sorting
 
-        let output_view = component::ShapeView::<output_area::Shape>::new(&logger,scene);
-        let view    = component::ShapeView::<shape::Shape>::new(&logger,scene);
-        let drag_view   = component::ShapeView::<drag_area::Shape>::new(&logger,scene);
+        let output_area = component::ShapeView::<output_area::Shape>::new(&logger,scene);
+        let main_area    = component::ShapeView::<shape::Shape>::new(&logger,scene);
+        let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger,scene);
         let _port   = port::sort_hack(scene); // FIXME hack for sorting
-        let label_view    = component::ShapeView::<label::Shape>::new(&logger,scene);
+        let label_area    = component::ShapeView::<label::Shape>::new(&logger,scene);
         let display_object  = display::object::Instance::new(&logger);
-        display_object.add_child(&drag_view);
-        display_object.add_child(&output_view);
-        display_object.add_child(&view);
-        display_object.add_child(&label_view);
+        display_object.add_child(&drag_area);
+        display_object.add_child(&output_area);
+        display_object.add_child(&main_area);
+        display_object.add_child(&label_area);
 
         // FIXME: maybe we can expose shape system from shape?
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
@@ -440,18 +440,18 @@ impl Node {
         let height = 28.0;
 
         let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
-        view.shape.sprite.size().set(size);
-        drag_view.shape.sprite.size().set(size);
-        output_view.shape.sprite.size().set(size);
-        view.mod_position(|t| t.x += width/2.0);
-        view.mod_position(|t| t.y += height/2.0);
-        drag_view.mod_position(|t| t.x += width/2.0);
-        drag_view.mod_position(|t| t.y += height/2.0);
-        output_view.mod_position(|t| t.x += width/2.0);
-        output_view.mod_position(|t| t.y += height/2.0);
+        main_area.shape.sprite.size().set(size);
+        drag_area.shape.sprite.size().set(size);
+        output_area.shape.sprite.size().set(size);
+        main_area.mod_position(|t| t.x += width/2.0);
+        main_area.mod_position(|t| t.y += height/2.0);
+        drag_area.mod_position(|t| t.x += width/2.0);
+        drag_area.mod_position(|t| t.y += height/2.0);
+        output_area.mod_position(|t| t.x += width/2.0);
+        output_area.mod_position(|t| t.y += height/2.0);
 
-        label_view.mod_position(|t| t.x += TEXT_OFF);
-        label_view.mod_position(|t| t.y += 4.0 + 6.0);
+        label_area.mod_position(|t| t.x += TEXT_OFF);
+        label_area.mod_position(|t| t.y += 4.0 + 6.0);
 
         let ports = port::Manager::new(&logger,scene);
         let scene = scene.clone_ref();
@@ -464,7 +464,7 @@ impl Node {
 
 
 
-        let view_data = view.shape.clone_ref();
+        let view_data = main_area.shape.clone_ref();
         let selection = animation(network, move |value| {
             view_data.selection.set(value)
         });
@@ -483,20 +483,20 @@ impl Node {
                 selection_ref.set_target_position(0.0);
             });
 
-            def foo = output_area_size.map(f!((output_view)(size) {
-                output_view.shape.grow.set(*size);
+            def foo = output_area_size.map(f!((output_area)(size) {
+                output_area.shape.grow.set(*size);
             }));
 
-            def _output_show = output_view.events.mouse_over.map(f_!((output_area_size_setter) {
+            def _output_show = output_area.events.mouse_over.map(f_!((output_area_size_setter) {
                 output_area_size_setter.set_target_position(1.0);
             }));
 
-            def _output_hide = output_view.events.mouse_out.map(f_!((output_area_size_setter) {
+            def _output_hide = output_area.events.mouse_out.map(f_!((output_area_size_setter) {
                 output_area_size_setter.set_target_position(0.0);
             }));
 
 
-//            def _add_connection = output_view.events.mouse_down.map(
+//            def _add_connection = output_area.events.mouse_down.map(
 //                f_!((scene,display_object,connections) {
 //                    let connection = Connection::new(&scene);
 //                    display_object.add_child(&connection);
@@ -537,11 +537,11 @@ impl Node {
 //        let output_port = self.data.ports.output.create(&self);
 //        output_port.set_position(270.0_f32.degrees());
 
-        let output_ports = OutputPortsEvents { shape_view_events:output_view.events.clone_ref() };
+        let output_ports = OutputPortsEvents { shape_view_events:output_area.events.clone_ref() };
 
         let frp = Events{input,output_ports};
 
-        let data    = Rc::new(NodeData {scene,display_object,logger,frp,view,drag_view,output_view,label_view,ports});
+        let data    = Rc::new(NodeData {scene,display_object,logger,frp,main_area,drag_area,output_area,label_area,ports});
         Self {data}
     }
 }

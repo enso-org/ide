@@ -66,7 +66,7 @@ pub mod shape {
                 .corners_radius(radius)
                 .translate((-&selection_width/2.0, -&selection_height/2.0))
                 .translate(("input_position.x","input_position.y"))
-                .fill(color::Rgba::new(1.0,1.0,1.0,0.3));
+                .fill(color::Rgba::new(1.0,1.0,1.0,0.2));
             cursor.into()
         }
     }
