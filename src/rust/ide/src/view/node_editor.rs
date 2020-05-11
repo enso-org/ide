@@ -43,6 +43,9 @@ impl GraphEditorIntegration {
         Self::setup_controller_event_handling(&this);
         Self::setup_keyboard_event_handling(&this);
         Self::setup_mouse_event_handling(&this);
+        if let Err(err) = this.invalidate_graph() {
+            error!(this.logger,"Error while initializing graph display: {err}");
+        }
         this
     }
 
