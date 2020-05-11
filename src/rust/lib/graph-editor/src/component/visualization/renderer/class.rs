@@ -56,8 +56,7 @@ pub trait DataRenderer: display::Object + Debug {
     /// Set the data that should be rendered. If the data is valid, it will return the data as
     /// processed by this `DataRenderer`, if the data is of an invalid data type, ir violates other
     /// assumptions of this `DataRenderer`, a `DataError` is returned.
-    /// TODO[mm] reconsider returning the data here. Maybe just have an FRP event.
-    fn set_data(&self, data:Data) -> Result<Data, DataError>;
+    fn set_data(&self, data:Data) -> Result<(), DataError>;
     /// Set the size of viewport of the visualization. The visualisation must not render outside of
     /// this viewport. TODO[mm] define and ensure consistent origin of viewport.
     fn set_size(&self, size:Vector2<f32>);

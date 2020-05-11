@@ -73,7 +73,7 @@ impl JsRendererGeneric {
 
 impl DataRenderer for JsRendererGeneric {
 
-    fn set_data(&self, data: Data) -> Result<Data,DataError> {
+    fn set_data(&self, data: Data) -> Result<(),DataError> {
         let context   = JsValue::NULL;
         let data_json = data.as_json()?;
         let data_js   =  if let Ok(value) = JsValue::from_serde(&data_json) {
@@ -85,7 +85,7 @@ impl DataRenderer for JsRendererGeneric {
             self.logger.warning(|| format!("Failed to set data in {:?} with error: {:?}", self, error));
             return Err(DataError::InternalComputationError)
         }
-        Ok(data)
+        Ok(())
     }
 
     fn set_size(&self, size: Vector2<f32>) {

@@ -64,7 +64,6 @@ impl Default for VisualizationFrp {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct VisualizationData {
-    // TODO[mm] consider whether to use a `Box` and be exclusive owner of the DataRenderer.
     pub renderer     : Rc<dyn DataRenderer>,
     pub preprocessor : Rc<Option<PreprocessId>>,
     pub data         : Rc<RefCell<Option<Data>>>,

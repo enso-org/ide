@@ -30,7 +30,7 @@ pub struct HtmlBubbleChart {
 
 impl DataRenderer for HtmlBubbleChart {
 
-    fn set_data(&self, data:Data) ->  Result<Data,DataError> {
+    fn set_data(&self, data:Data) ->  Result<(),DataError> {
         let mut svg_inner = String::new();
 
         let data_inner: Rc<Vec<Vector2<f32>>> = data.as_binary()?;
@@ -45,7 +45,7 @@ impl DataRenderer for HtmlBubbleChart {
         self.content.dom().set_inner_html(
             &format!(r#"<svg>{}</svg>"#, svg_inner)
         );
-        Ok(data)
+        Ok(())
     }
 
     fn set_size(&self, size:Vector2<f32>) {
@@ -172,7 +172,7 @@ impl WebglBubbleChart {
 
 impl DataRenderer for WebglBubbleChart {
 
-    fn set_data(&self, data:Data) -> Result<Data,DataError> {
+    fn set_data(&self, data:Data) -> Result<(),DataError> {
         let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
 
         // Avoid re-creating views, if we have already created some before.
@@ -187,7 +187,7 @@ impl DataRenderer for WebglBubbleChart {
                 t.shape.position.set(Vector2::new(item.x,item.y));
             };
         });
-        Ok(data)
+        Ok(())
     }
 
     fn set_size(&self, size:Vector2<f32>) {
