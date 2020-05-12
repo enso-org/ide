@@ -65,8 +65,8 @@ impl Visualization {
     /// Update the visualisation with the given data.
     // TODO remove dummy functionality and use an actual visualisation
     pub fn set_data(&self, data:Data){
-                self.content.dom().set_inner_html(
-                    &format!(r#"
+        self.content.dom().set_inner_html(
+            &format!(r#"
 <svg>
   <circle style="fill: #69b3a2" stroke="black" cx=50 cy=50 r={}></circle>
 </svg>
@@ -77,6 +77,7 @@ impl Visualization {
     fn set_visibility(&self, is_visible:bool) {
         let visible = if is_visible {"visible" } else { "hidden" };
         self.content.dom().set_style_or_panic("visibility", visible);
+        println!("??? {:?}", self.content.dom());
     }
 }
 
@@ -157,11 +158,12 @@ pub struct ContainerData {
 
 impl ContainerData {
     /// Set whether the visualisation should be visible or not.
-    pub fn set_visibility(&self, is_visible:bool) {
+    pub fn set_visibility(&self, visibility:bool) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
             // FIXME remove the `set_visibility` call when the display_object calls are fixed.
-            vis.set_visibility(is_visible);
-            if is_visible {
+//            vis.set_visibility(visibility);
+            println!("IS VISIBLE: {}", vis.has_parent());
+            if visibility {
                 vis.display_object().set_parent(&self.display_object);
             } else {
                 vis.display_object().unset_parent();
@@ -171,11 +173,12 @@ impl ContainerData {
 
     /// Indicates whether the visualisation is visible.
     pub fn is_visible(&self) -> bool {
-        self.display_object.has_parent()
+        self.visualization.borrow().as_ref().map(|t| t.has_parent()).unwrap_or(false)
     }
 
     /// Toggle visibility.
     pub fn toggle_visibility(&self) {
+        println!("TOGGLE");
         self.set_visibility(!self.is_visible())
     }
 
@@ -198,6 +201,7 @@ impl ContainerData {
 
     /// Set the visualization shown in this container..
     pub fn set_visualisation(&self, visualization:Visualization) {
+        println!("SET");
         self.display_object.add_child(&visualization);
         self.visualization.replace(Some(visualization));
         self.update_visualisation_properties();
@@ -212,12 +216,9 @@ impl Container {
         let visualization  = default();
         let size           = Cell::new(Vector2::new(100.0, 100.0));
         let display_object = display::object::Instance::new(&logger);
-
-        let data = ContainerData {logger,visualization,size,display_object};
-        let data = Rc::new(data);
-
-        let frp = default();
-
+        let data           = ContainerData {logger,visualization,size,display_object};
+        let data           = Rc::new(data);
+        let frp            = default();
         Self {data, frp} . init_frp()
     }
 

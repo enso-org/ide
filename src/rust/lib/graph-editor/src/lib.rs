@@ -54,7 +54,10 @@ use ensogl::system::web;
 use nalgebra::Vector2;
 use ensogl::display::Scene;
 use crate::component::node::port::Expression;
+use crate::component::visualization::Visualization;
+use crate::component::visualization;
 
+use serde_json::json;
 
 
 
@@ -231,19 +234,26 @@ ensogl::def_command_api! { Commands
     remove_selected_nodes,
     /// Remove all nodes from the graph.
     remove_all_nodes,
+    /// Toggle the visibility of the selected visualisations
+    toggle_visualization_visibility,
+    /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
+    debug_set_data_for_selected_node,
 }
-
 
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def add_node_at_cursor    = source();
-            def remove_selected_nodes = source();
-            def remove_all_nodes      = source();
+            def add_node_at_cursor               = source();
+            def remove_selected_nodes            = source();
+            def remove_all_nodes                 = source();
+            def toggle_visualization_visibility  = source();
+            def debug_set_data_for_selected_node = source();
         }
-        Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes}
+        Self {add_node_at_cursor,remove_selected_nodes,remove_all_nodes
+             ,toggle_visualization_visibility,debug_set_data_for_selected_node}
     }
 }
+
 
 
 // =================
@@ -266,6 +276,7 @@ pub struct FrpInputs {
     pub select_node                    : frp::Source<NodeId>,
     pub set_node_expression            : frp::Source<(NodeId,Expression)>,
     pub set_node_position              : frp::Source<(NodeId,Position)>,
+    pub set_visualization_data         : frp::Source<NodeId>,
     pub translate_selected_nodes       : frp::Source<Position>,
 }
 
@@ -283,10 +294,14 @@ impl FrpInputs {
             def select_node                    = source();
             def set_node_expression            = source();
             def set_node_position              = source();
+            def set_visualization_data         = source();
             def translate_selected_nodes       = source();
         }
         let commands = Commands::new(&network);
-        Self {commands,remove_edge,press_node_port,connect_detached_edges_to_node,connect_edge_source,connect_edge_target,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression,connect_nodes,deselect_all_nodes}
+        Self {commands,remove_edge,press_node_port,set_visualization_data
+             ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target,add_node_at
+             ,set_node_position,select_node,translate_selected_nodes,set_node_expression
+             ,connect_nodes,deselect_all_nodes}
     }
 }
 
@@ -664,7 +679,18 @@ impl GraphEditorModelWithNetwork {
         }
 
 
+
+
+        let dummy_content = visualization::default_content();
+        let dom_layer    = model.scene.dom.layers.front.clone_ref();
+        dom_layer.manage(&dummy_content);
+
+        let vis:Visualization = dummy_content.into();
+        node.view.frp.set_visualization.emit(Some(vis));
+
+
         self.nodes.insert(node_id,node);
+
 
         node_id
     }
@@ -955,6 +981,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         use keyboard::Key;
         vec! [ Self::self_shortcut(&[Key::Character("n".into())] , "add_node_at_cursor")
              , Self::self_shortcut(&[Key::Backspace]             , "remove_selected_nodes")
+             , Self::self_shortcut(&[Key::Character(" ".into())] , "toggle_visualization_visibility")
+             , Self::self_shortcut(&[Key::Character("d".into())] , "debug_set_data_for_selected_node")
         ]
     }
 }
@@ -1114,6 +1142,38 @@ impl application::View for GraphEditor {
                 edges.with(id,|edge| edge.view.events.target_position.emit(position))
             })
         }));
+
+
+
+        // === Vis Update Data ===
+
+        // TODO remove this once real data is available.
+        let dummy_counter = Rc::new(Cell::new(1.0_f32));
+        def _update_vis_data = inputs.debug_set_data_for_selected_node.map(f!((nodes)(_) {
+            let dc = dummy_counter.get();
+            dummy_counter.set(dc + 0.1);
+            let content = Rc::new(json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin())));
+            let dummy_data = Some(visualization::Data::JSON { content });
+            nodes.selected.for_each(|node_id| {
+                if let Some(node) = nodes.get_cloned_ref(node_id) {
+                    node.view.visualization_container.frp.set_data.emit(&dummy_data);
+                }
+            })
+        }));
+
+
+        // === Toggle Visualization Visibility ===
+
+        def _toggle_selected = inputs.toggle_visualization_visibility.map(f!((nodes)(_) {
+            println!("-----------");
+            nodes.selected.for_each(|node_id| {
+                println!(">> {}", node_id);
+                if let Some(node) = nodes.get_cloned_ref(node_id) {
+                    node.view.visualization_container.toggle_visibility();
+                }
+            });
+        }));
+
 
 
         // === Status ===

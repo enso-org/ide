@@ -25,6 +25,7 @@ use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::math::topology::unit::AngleOps;
 
 use super::connection::Connection;
+use crate::component::visualization;
 
 
 /// Icons definitions.
@@ -312,18 +313,20 @@ pub mod label {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct InputEvents {
-    pub network  : frp::Network,
-    pub select   : frp::Source,
-    pub deselect : frp::Source,
+    pub network           : frp::Network,
+    pub select            : frp::Source,
+    pub deselect          : frp::Source,
+    pub set_visualization : frp::Source<Option<visualization::Visualization>>,
 }
 
 impl InputEvents {
     pub fn new() -> Self {
         frp::new_network! { network
-            def select   = source::<()>     ();
-            def deselect = source::<()>     ();
+            def select            = source();
+            def deselect          = source();
+            def set_visualization = source();
         }
-        Self {network,select,deselect}
+        Self {network,select,deselect,set_visualization}
     }
 }
 
@@ -398,15 +401,16 @@ impl WeakKey for WeakNode {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct NodeData {
-    pub scene  : Scene,
-    pub display_object : display::object::Instance,
-    pub logger : Logger,
-    pub frp : Events,
-    pub label_area  : component::ShapeView<label::Shape>,
-    pub main_area        : component::ShapeView<shape::Shape>,
-    pub drag_area   : component::ShapeView<drag_area::Shape>,
-    pub output_area : component::ShapeView<output_area::Shape>,
-    pub ports       : port::Manager,
+    pub scene                   : Scene,
+    pub display_object          : display::object::Instance,
+    pub logger                  : Logger,
+    pub frp                     : Events,
+    pub label_area              : component::ShapeView<label::Shape>,
+    pub main_area               : component::ShapeView<shape::Shape>,
+    pub drag_area               : component::ShapeView<drag_area::Shape>,
+    pub output_area             : component::ShapeView<output_area::Shape>,
+    pub ports                   : port::Manager,
+    pub visualization_container : visualization::Container,
 }
 
 pub const NODE_WIDTH : f32 = 284.0;
@@ -463,6 +467,8 @@ impl Node {
         let network = &input.network;
 
 
+        let visualization_container = visualization::Container::new();
+        display_object.add_child(&visualization_container);
 
         let view_data = main_area.shape.clone_ref();
         let selection = animation(network, move |value| {
@@ -495,21 +501,9 @@ impl Node {
                 output_area_size_setter.set_target_position(0.0);
             }));
 
-
-//            def _add_connection = output_area.events.mouse_down.map(
-//                f_!((scene,display_object,connections) {
-//                    let connection = Connection::new(&scene);
-//                    display_object.add_child(&connection);
-//
-//                    connection.mod_position(|p| p.x = NODE_WIDTH/2.0);
-//                    connection.mod_position(|p| p.y = NODE_HEIGHT/2.0);
-//
-//                    connections.borrow_mut().push(connection);
-//                })
-//            );
-
-
-
+            def _f_set_vis = input.set_visualization.map(f!((visualization_container)(content) {
+                visualization_container.frp.set_visualization.emit(content)
+            }));
         }
 
 
@@ -522,26 +516,13 @@ impl Node {
         display_object.add_child(&ports);
 
 
-
-
-//        let port_network = &port1.events.network;
-
-
-
-
-//        frp::extend! {  }
-
-//        // TODO this is sample functionality. Needs to be replaced with logic creating ports.
-//        let input_port = self.data.ports.input.create(&self);
-//        input_port.set_position(90.0_f32.degrees());
-//        let output_port = self.data.ports.output.create(&self);
-//        output_port.set_position(270.0_f32.degrees());
-
         let output_ports = OutputPortsEvents { shape_view_events:output_area.events.clone_ref() };
 
         let frp = Events{input,output_ports};
 
-        let data    = Rc::new(NodeData {scene,display_object,logger,frp,main_area,drag_area,output_area,label_area,ports});
+
+
+        let data    = Rc::new(NodeData {scene,display_object,logger,frp,main_area,drag_area,output_area,label_area,ports,visualization_container});
         Self {data}
     }
 }

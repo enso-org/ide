@@ -170,6 +170,7 @@ impl DomScene {
 
     /// Creates a new instance of DomSymbol and adds it to parent.
     pub fn manage(&self, object:&DomSymbol) {
+        println!("MANAGE {:?}", self.data.view_projection_dom);
         self.data.view_projection_dom.append_or_panic(&object.dom());
     }
 
