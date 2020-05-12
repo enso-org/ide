@@ -386,18 +386,18 @@ impl EndpointInfo {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     /// Model of the module which this graph belongs to.
-    pub module        : Rc<model::Module>,
-    parser            : Parser,
-    id                : Rc<Id>,
-    logger            : Logger,
+    pub module : Rc<model::Module>,
+    parser     : Parser,
+    id         : Rc<Id>,
+    logger     : Logger,
 }
 
 impl Handle {
 
     /// Creates a new controller. Does not check if id is valid.
     pub fn new_unchecked(module:Rc<model::Module>, parser:Parser, id:Id) -> Handle {
-        let id            = Rc::new(id);
-        let logger        = Logger::new(format!("Graph Controller {}", id));
+        let id     = Rc::new(id);
+        let logger = Logger::new(format!("Graph Controller {}", id));
         Handle {module,parser,id,logger}
     }
 
