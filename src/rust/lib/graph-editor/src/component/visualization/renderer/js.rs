@@ -98,6 +98,45 @@ impl JsRenderer {
         Ok(JsRenderer { set_data,set_size,content,frp,logger })
     }
 
+    /// Constructor from an object with specific methods.
+    ///
+    /// Example:
+    /// --------
+    ///
+    /// ```no_run
+    /// use graph_editor::component::visualization::JsRenderer;
+    ///
+    /// let renderer = JsRenderer::from_object("
+    ///   obj = new Object();
+    ///   obj.set_data = function(root, data) {};
+    ///   obj.set_size = function(root, data) {};
+    ///   return obj;
+    ///   ").unwrap();
+    ///
+    /// ```
+    pub fn from_constructor(source: &str) -> Result<JsRenderer, Box<dyn std::error::Error>> {
+        let context     = JsValue::NULL;
+        let constructor = js_sys::Function::new_no_args(source);
+        let object                = constructor.call0(&context).unwrap(); // TODO error handling
+        assert!(object.is_object());                                       // TODO error handling
+        let object:js_sys::Object = object.into();
+
+        let set_data = js_sys::Reflect::get(&object,&"set_data".into()).unwrap(); // TODO error handling
+        let set_size = js_sys::Reflect::get(&object,&"set_size".into()).unwrap(); // TODO error handling
+        assert!(set_data.is_function());  // TODO error handling
+        assert!(set_size.is_function());  // TODO error handling
+        let set_data: js_sys::Function = set_data.into();
+        let set_size: js_sys::Function = set_size.into();
+
+        let logger  = Logger::new("JsRenderer");
+        let frp     = default();
+        let div     = web::create_div();
+        let content = DomSymbol::new(&div);
+        content.dom().set_attribute("id","vis").unwrap();
+
+        Ok(JsRenderer { set_data,set_size,content,frp,logger })
+    }
+
     /// Hooks the root node into the given scene.
     ///
     /// MUST be called to make this visualisation visible.

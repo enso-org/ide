@@ -56,7 +56,7 @@ use ensogl::display::Scene;
 use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
-use crate::component::visualization::sample::js::object_sample_js_bubble_chart;
+use crate::component::visualization::sample::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::SampleDataGenerator3D;
 use crate::component::visualization::sample::native::WebglBubbleChart;
 
@@ -729,7 +729,7 @@ impl GraphEditorModelWithNetwork {
             }));
         }
 
-        let chart = object_sample_js_bubble_chart();
+        let chart = constructor_sample_js_bubble_chart();
         let dom_layer    = model.scene.dom.layers.front.clone_ref();
         chart.set_dom_layer(&dom_layer);
 
@@ -1240,7 +1240,7 @@ impl application::View for GraphEditor {
             let vis = if dc {
                 Visualization::new(Rc::new(WebglBubbleChart::new(&scene)))
             } else {
-                let chart     = object_sample_js_bubble_chart();
+                let chart     = constructor_sample_js_bubble_chart();
                 let dom_layer = scene.dom.layers.front.clone_ref();
                 chart.set_dom_layer(&dom_layer);
                 Visualization::new(Rc::new(chart))
