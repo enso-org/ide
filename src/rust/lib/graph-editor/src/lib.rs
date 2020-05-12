@@ -254,9 +254,7 @@ impl Commands {
 pub struct FrpInputs {
     #[shrinkwrap(main_field)]
     commands                           : Commands,
-    pub network                        : frp::Network,
 
-    // === Public ===
     pub add_node_at                    : frp::Source<Position>,
     pub connect_detached_edges_to_node : frp::Source<EdgeTarget>,
     pub connect_edge_source            : frp::Source<(EdgeId,EdgeTarget)>,
@@ -272,8 +270,8 @@ pub struct FrpInputs {
 }
 
 impl FrpInputs {
-    pub fn new() -> Self {
-        frp::new_network! { network
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
             def add_node_at                    = source();
             def connect_detached_edges_to_node = source();
             def connect_edge_source            = source();
@@ -288,21 +286,13 @@ impl FrpInputs {
             def translate_selected_nodes       = source();
         }
         let commands = Commands::new(&network);
-        Self {commands,network,remove_edge,press_node_port,connect_detached_edges_to_node,connect_edge_source,connect_edge_target,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression,connect_nodes,deselect_all_nodes}
+        Self {commands,remove_edge,press_node_port,connect_detached_edges_to_node,connect_edge_source,connect_edge_target,add_node_at,set_node_position,select_node,translate_selected_nodes,set_node_expression,connect_nodes,deselect_all_nodes}
     }
 }
-
-impl Default for FrpInputs {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-
 
 impl application::command::FrpNetworkProvider for GraphEditor {
     fn network(&self) -> &frp::Network {
-        &self.frp.network
+        &self.model.network
     }
 }
 
@@ -612,34 +602,28 @@ pub fn crumbs_overlap(src:&span_tree::Crumbs, tgt:&span_tree::Crumbs) -> bool {
 
 
 
-// ========================
-// === GraphEditorModel ===
-// ========================
+// ===================================
+// === GraphEditorModelWithNetwork ===
+// ===================================
 
 #[derive(Debug,Clone,CloneRef)]
-pub struct GraphEditorModel {
-    pub logger         : Logger,
-    pub display_object : display::object::Instance,
-    pub scene          : Scene,
-    pub cursor         : Cursor,
-    pub nodes          : Nodes,
-    pub edges          : Edges,
-    touch_state        : TouchState,
-    frp                : FrpInputs,
+pub struct GraphEditorModelWithNetwork {
+    pub model   : GraphEditorModel,
+    pub network : frp::Network,
 }
 
-// === Public ===
+impl Deref for GraphEditorModelWithNetwork {
+    type Target = GraphEditorModel;
+    fn deref(&self) -> &Self::Target {
+        &self.model
+    }
+}
 
-impl GraphEditorModel {
-    pub fn new<S: Into<Scene>>(scene: S, cursor: Cursor) -> Self {
-        let scene          = scene.into();
-        let logger         = Logger::new("GraphEditor");
-        let display_object = display::object::Instance::new(logger.clone());
-        let nodes          = Nodes::new(&logger);
-        let edges          = default();
-        let frp            = FrpInputs::default();
-        let touch_state    = TouchState::new(&frp.network,&scene.mouse.frp);
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp }
+impl GraphEditorModelWithNetwork {
+    pub fn new<S:Into<Scene>>(scene:S, cursor:Cursor) -> Self {
+        let network = frp::Network::new();
+        let model   = GraphEditorModel::new(scene,cursor,&network);
+        Self {model,network}
     }
 
     pub fn add_node(&self) -> NodeId {
@@ -651,9 +635,9 @@ impl GraphEditorModel {
 
         let cursor = &self.cursor;
         let touch  = &self.touch_state;
-        let model  = self; // FIXME : cyclic dep. Remove network out of model.
+        let model  = &self.model;
 
-        frp::new_bridge_network! { [self.frp.network, node.view.main_area.events.network]
+        frp::new_bridge_network! { [self.network, node.view.main_area.events.network]
             def _node_on_down_tagged = node.view.drag_area.events.mouse_down.map(f_!((touch) {
                 touch.nodes.down.emit(node_id)
             }));
@@ -704,6 +688,39 @@ impl GraphEditorModel {
         if let Some(node) = node.upgrade() {
             self.nodes.remove(&node.id().into());
         }
+    }
+}
+
+
+
+// ========================
+// === GraphEditorModel ===
+// ========================
+
+#[derive(Debug,Clone,CloneRef)]
+pub struct GraphEditorModel {
+    pub logger         : Logger,
+    pub display_object : display::object::Instance,
+    pub scene          : Scene,
+    pub cursor         : Cursor,
+    pub nodes          : Nodes,
+    pub edges          : Edges,
+    touch_state        : TouchState,
+    frp                : FrpInputs,
+}
+
+// === Public ===
+
+impl GraphEditorModel {
+    pub fn new<S:Into<Scene>>(scene:S, cursor:Cursor, network:&frp::Network) -> Self {
+        let scene          = scene.into();
+        let logger         = Logger::new("GraphEditor");
+        let display_object = display::object::Instance::new(logger.clone());
+        let nodes          = Nodes::new(&logger);
+        let edges          = default();
+        let frp            = FrpInputs::new(network);
+        let touch_state    = TouchState::new(network,&scene.mouse.frp);
+        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp }
     }
 }
 
@@ -889,7 +906,7 @@ impl GraphEditorModel {
         if let Some(edge) = self.edges.get_cloned_ref(edge_id) {
             if let Some(edge_target) = edge.target() {
                 self.nodes.with(&edge_target.node_id(), |node| {
-                    let offset = node.view.ports.get_port_offset(&edge_target.port.borrow()).unwrap_or(Vector2::new(0.0,0.0));
+                    let offset = node.view.ports.get_port_offset(&edge_target.port()).unwrap_or(Vector2::new(0.0,0.0));
                     let node_position = node.view.position();
                     let pos = frp::Position::new(node_position.x + offset.x, node_position.y + offset.y);
                     edge.view.events.target_position.emit(pos);
@@ -906,25 +923,26 @@ impl display::Object for GraphEditorModel {
 }
 
 
+
+
+
+
 // ===================
 // === GraphEditor ===
 // ===================
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct GraphEditor {
-    pub model : GraphEditorModel,
+    pub model : GraphEditorModelWithNetwork,
     pub frp   : Frp,
 }
 
 impl Deref for GraphEditor {
-    type Target = GraphEditorModel;
+    type Target = GraphEditorModelWithNetwork;
     fn deref(&self) -> &Self::Target {
         &self.model
     }
 }
-
-
-
 
 impl application::command::Provider for GraphEditor {
     fn label() -> &'static str {
@@ -959,13 +977,13 @@ impl application::View for GraphEditor {
         web::body().set_style_or_panic("cursor","none");
         world.add_child(&cursor);
 
-        let model          = GraphEditorModel::new(scene,cursor.clone_ref());
+        let model          = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
+        let network        = &model.network;
         let display_object = &model.display_object;
         let nodes          = &model.nodes;
         let edges          = &model.edges;
         let inputs         = &model.frp;
         let mouse          = &scene.mouse.frp;
-        let network        = &inputs.network;
         let touch          = &model.touch_state;
 
         frp::extend! { network
