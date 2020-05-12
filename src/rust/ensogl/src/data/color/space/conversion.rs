@@ -5,7 +5,10 @@
 //! Be extra careful when developing color conversion equations. Many equations were re-scaled to
 //! make them more pleasant to work, however, the equations you will fnd will probably work on
 //! different value ranges. Read documentation for each color space very carefully.
-//!
+
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::excessive_precision)]
+
 use super::def::*;
 use super::super::component::*;
 use super::super::data::*;
@@ -109,14 +112,14 @@ fn from_linear(x:f32) -> f32 {
 color_conversion! {
 impl From<RgbData> for LinearRgbData {
     fn from(rgb:RgbData) -> Self {
-        from_components(rgb.map(|t| into_linear(t)).into())
+        from_components(rgb.map(into_linear).into())
     }
 }}
 
 color_conversion! {
 impl From<LinearRgbData> for RgbData {
     fn from(rgb:LinearRgbData) -> Self {
-        from_components(rgb.map(|t| from_linear(t)).into())
+        from_components(rgb.map(from_linear).into())
     }
 }}
 
@@ -132,7 +135,7 @@ impl From<RgbData> for HslData {
         let min       = color.red.min(color.green).min(color.blue);
         let max       = color.red.max(color.green).max(color.blue);
         let lightness = (max + min) / 2.0;
-        if max == min {
+        if (max - min).abs() < std::f32::EPSILON {
             let hue        = 0.0;
             let saturation = 0.0;
             Self {hue,saturation,lightness}
@@ -145,10 +148,14 @@ impl From<RgbData> for HslData {
             };
             let red_dist = if color.green < color.blue { 6.0 } else { 0.0 };
             let mut hue  =
-                if      color.red   == max { (color.green - color.blue)  / spread + red_dist }
-                else if color.green == max { (color.blue  - color.red)   / spread + 2.0 }
-                else                       { (color.red   - color.green) / spread + 4.0 };
-            hue = hue / 6.0;
+                if (max - color.red).abs() < std::f32::EPSILON {
+                    (color.green - color.blue) / spread + red_dist
+                } else if (max - color.green).abs() < std::f32::EPSILON {
+                    (color.blue - color.red) / spread + 2.0
+                } else {
+                    (color.red - color.green) / spread + 4.0
+                };
+            hue /= 6.0;
             Self {hue,saturation,lightness}
         }
     }

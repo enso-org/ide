@@ -385,9 +385,7 @@ for hlist::ty![T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11] {
 impl Into<()>
 for hlist::ty![] {
     #[inline(always)]
-    fn into(self) -> () {
-        ()
-    }
+    fn into(self) {}
 }
 
 impl<T0> Into<(T0,)>

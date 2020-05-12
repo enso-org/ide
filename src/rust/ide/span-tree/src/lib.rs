@@ -25,6 +25,7 @@ pub mod node;
 pub mod builder;
 
 pub use node::Node;
+pub use node::Crumb;
 pub use node::Crumbs;
 
 /// Module gathering all commonly used traits for massive importing.
@@ -78,7 +79,7 @@ impl SpanTree {
 
     /// Get the node (root, child, or further descendant) identified by `crumbs`.
     pub fn get_node<'a>
-    (&self, crumbs:impl IntoIterator<Item=&'a node::Crumb>) -> FallibleResult<node::Ref> {
+    (&self, crumbs:impl IntoIterator<Item=&'a Crumb>) -> FallibleResult<node::Ref> {
         self.root_ref().get_descendant(crumbs)
     }
 }

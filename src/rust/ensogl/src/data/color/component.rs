@@ -80,7 +80,7 @@ pub trait ComponentMap {
 }
 
 /// Trait for converting a type to its component representation.
-pub trait ToComponents   = Sized + HasComponentsRepr + Into<ComponentsOf<Self>>;
+pub trait ToComponents = Sized + HasComponentsRepr + Into<ComponentsOf<Self>>;
 
 /// Trait for a component representation to the given type.
 pub trait FromComponents = Sized + HasComponentsRepr where ComponentsOf<Self> : Into<Self>;

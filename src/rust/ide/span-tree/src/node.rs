@@ -41,7 +41,7 @@ pub enum Kind {
 
 impl Kind {
     /// Match the value with `Kind::Empty{..}`.
-    pub fn is_empty(&self) -> bool {
+    pub fn is_empty(self) -> bool {
         match self {
             Self::Empty(_) => true,
             _              => false

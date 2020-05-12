@@ -499,14 +499,6 @@ impl Nodes {
         let selected = default();
         Self {logger,all,selected}
     }
-
-    pub fn with<F>(&self, id:&NodeId, f:F)
-    where F:Fn(Node) {
-        match self.all.get_cloned_ref(id) {
-            Some(t) => f(t),
-            None    => warning!(self.logger, "Skipping invalid node id request ({id})."),
-        }
-    }
 }
 
 
@@ -533,14 +525,6 @@ impl Edges {
         let all      = default();
         let detached = default();
         Self {logger,all,detached}
-    }
-
-    pub fn with<F>(&self, id:&EdgeId, f:F)
-    where F:Fn(Edge) {
-        match self.all.get_cloned_ref(id) {
-            Some(t) => f(t),
-            None    => warning!(self.logger, "Skipping invalid node id request ({id})."),
-        }
     }
 
     pub fn insert(&self, edge:Edge) {
@@ -602,15 +586,15 @@ impl TouchState {
 
 
 
-pub fn is_sub_crumb_of(src:&span_tree::Crumbs, tgt:&span_tree::Crumbs) -> bool {
+pub fn is_sub_crumb_of(src:&[span_tree::Crumb], tgt:&[span_tree::Crumb]) -> bool {
     if src.len() < tgt.len() { return false }
     for (s,t) in src.iter().zip(tgt.iter()) {
         if s != t { return false }
     }
-    return true
+    true
 }
 
-pub fn crumbs_overlap(src:&span_tree::Crumbs, tgt:&span_tree::Crumbs) -> bool {
+pub fn crumbs_overlap(src:&[span_tree::Crumb], tgt:&[span_tree::Crumb]) -> bool {
     is_sub_crumb_of(src,tgt) || is_sub_crumb_of(tgt,src)
 }
 
@@ -660,7 +644,7 @@ impl GraphEditorModelWithNetwork {
                 cursor.frp.set_mode.emit(mode);
             }));
             def _add_connection = node.view.frp.output_ports.mouse_down.map(f_!((model) {
-                model.nodes.with(&node_id, |node| {
+                if let Some(node) = model.nodes.get_cloned_ref(&node_id) {
                     let view = EdgeView::new(&model.scene);
                     view.mod_position(|p| p.x = node.view.position().x + node::NODE_WIDTH/2.0);
                     view.mod_position(|p| p.y = node.view.position().y + node::NODE_HEIGHT/2.0);
@@ -670,7 +654,7 @@ impl GraphEditorModelWithNetwork {
                     model.edges.insert(edge);
                     model.edges.detached.insert(edge_id);
                     node.out_edges.insert(edge_id);
-                })
+                }
             }));
 
             def _press_node_port = node.view.ports.frp.press.map(f!((model)(crumbs){
@@ -709,8 +693,7 @@ impl GraphEditorModelWithNetwork {
     pub fn deprecated_add_node(&self) -> WeakNodeView {
         let node_id = self.add_node();
         let node    = self.nodes.get_cloned_ref(&node_id).unwrap();
-        let weak    = node.view.downgrade();
-        weak
+        node.view.downgrade()
     }
 
     // FIXME: remove
@@ -920,12 +903,12 @@ impl GraphEditorModel {
     pub fn refresh_edge_source_position(&self, edge_id:&EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(edge_id) {
             if let Some(edge_source) = edge.source() {
-                self.nodes.with(&edge_source.node_id(), |node| {
+                if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id()) {
                     edge.mod_position(|p| {
                         p.x = node.position().x + node::NODE_WIDTH/2.0;
                         p.y = node.position().y + node::NODE_HEIGHT/2.0;
                     });
-                })
+                }
             }
         };
     }
@@ -933,12 +916,12 @@ impl GraphEditorModel {
     pub fn refresh_edge_target_position(&self, edge_id:&EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(edge_id) {
             if let Some(edge_target) = edge.target() {
-                self.nodes.with(&edge_target.node_id(), |node| {
+                if let Some(node) = self.nodes.get_cloned_ref(&edge_target.node_id()) {
                     let offset = node.view.ports.get_port_offset(&edge_target.port()).unwrap_or(Vector2::new(0.0,0.0));
                     let node_position = node.view.position();
                     let pos = frp::Position::new(node_position.x + offset.x, node_position.y + offset.y);
                     edge.view.events.target_position.emit(pos);
-                })
+                }
             }
         };
     }
@@ -1141,7 +1124,9 @@ impl application::View for GraphEditor {
 
         def _move_connections = cursor.frp.position.map(f!((edges)(position) {
             edges.detached.for_each(|id| {
-                edges.with(id,|edge| edge.view.events.target_position.emit(position))
+                if let Some(edge) = edges.get_cloned_ref(id) {
+                    edge.view.events.target_position.emit(position)
+                }
             })
         }));
 

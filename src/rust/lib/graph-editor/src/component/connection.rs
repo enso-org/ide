@@ -111,6 +111,12 @@ impl InputEvents {
     }
 }
 
+impl Default for InputEvents {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 /// Internal data of `Connection`
 #[derive(Debug)]

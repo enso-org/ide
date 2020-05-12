@@ -130,7 +130,7 @@ impl Manager {
                     let skip          = node.kind.is_empty() || contains_root;
                     if !skip {
                         let port   = component::ShapeView::<shape::Shape>::new(&self.logger,&self.scene);
-                        let unit   = 7.2246094;
+                        let unit   = 7.224_609_4;
                         let width  = unit * span.size.value as f32;
                         let width2  = width + 4.0;
                         let node_height = 28.0;
@@ -171,11 +171,11 @@ impl Manager {
         *self.port_networks.borrow_mut() = port_networks;
     }
 
-    pub fn get_port_offset(&self, crumbs:&span_tree::Crumbs) -> Option<Vector2<f32>> {
+    pub fn get_port_offset(&self, crumbs:&[span_tree::Crumb]) -> Option<Vector2<f32>> {
         let span_tree = &self.expression.borrow().input_span_tree;
         span_tree.root_ref().get_descendant(crumbs).map(|node|{
             let span  = node.span();
-            let unit  = 7.2246094;
+            let unit  = 7.224_609_4;
             let width = unit * span.size.value as f32;
             let x     = width/2.0 + unit * span.index.value as f32;
             Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0) // FIXME

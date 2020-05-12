@@ -103,8 +103,8 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32) {
-            let bg_color = style.get("graph_editor.node.background.color").color().unwrap_or(color::Rgba::new(1.0,0.0,0.0,1.0).into());
-            let selection_color = style.get("graph_editor.node.selection.color").color().unwrap_or(color::Rgba::new(1.0,0.0,0.0,1.0).into());
+            let bg_color = style.get("graph_editor.node.background.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
+            let selection_color = style.get("graph_editor.node.selection.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
             let selection_size  = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
 
             let border_size_f = 16.0;
@@ -163,7 +163,7 @@ pub mod output_area {
             let hover_area_height = &height / 2.0 + &hover_area_size;
             let hover_area        = Rect((&hover_area_width,&hover_area_height));
             let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
-            let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000001));
+            let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
             let shrink           = 1.px() - 1.px() * &grow;
             let radius           = 14.px();
@@ -201,7 +201,7 @@ pub mod drag_area {
             let height = height - NODE_SHAPE_PADDING.px() * 2.0;
             let radius = 14.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
-            let shape  = shape.fill(color::Rgba::new(0.0,0.0,0.0,0.000001));
+            let shape  = shape.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
             let out = shape;
             out.into()
@@ -328,6 +328,12 @@ impl InputEvents {
     }
 }
 
+impl Default for InputEvents {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 #[derive(Clone,CloneRef,Debug,Deref)]
 #[allow(missing_docs)]
@@ -426,7 +432,7 @@ impl Node {
         let output_area = component::ShapeView::<output_area::Shape>::new(&logger,scene);
         let main_area    = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger,scene);
-        let _port   = port::sort_hack(scene); // FIXME hack for sorting
+        port::sort_hack(scene); // FIXME hack for sorting
         let label_area    = component::ShapeView::<label::Shape>::new(&logger,scene);
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
