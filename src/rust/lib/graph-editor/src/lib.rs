@@ -56,11 +56,9 @@ use ensogl::display::Scene;
 use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
-use crate::component::visualization::sample::*;
-use crate::component::visualization::js::make_sample_js_bubble_chart;
-
-use serde_json::json;
-
+use crate::component::visualization::sample::js::object_sample_js_bubble_chart;
+use crate::component::visualization::SampleDataGenerator3D;
+use crate::component::visualization::sample::native::WebglBubbleChart;
 
 
 // =====================
@@ -250,12 +248,12 @@ ensogl::def_command_api! { Commands
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def add_node                              = source();
-            def add_node_at_cursor                    = source();
-            def remove_selected_nodes                 = source();
-            def remove_all_nodes                      = source();
-            def toggle_visualization_visibility       = source();
-            def debug_set_data_for_selected_node      = source();
+            def add_node                                    = source();
+            def add_node_at_cursor                          = source();
+            def remove_selected_nodes                       = source();
+            def remove_all_nodes                            = source();
+            def toggle_visualization_visibility             = source();
+            def debug_set_data_for_selected_node            = source();
             def debug_cycle_visualisation_for_selected_node = source();
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
@@ -287,8 +285,8 @@ pub struct FrpInputs {
     pub set_node_position              : frp::Source<(NodeId,Position)>,
     pub set_visualization_data         : frp::Source<NodeId>,
     pub translate_selected_nodes       : frp::Source<Position>,
-    pub cycle_visualization            : frp::Source<Node>,
-    pub set_visualization              : frp::Source<(Node,Option<Visualization>)>,
+    pub cycle_visualization            : frp::Source<NodeId>,
+    pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
 }
 
 impl FrpInputs {
@@ -731,14 +729,11 @@ impl GraphEditorModelWithNetwork {
             }));
         }
 
-
-
-
-        let dummy_content = visualization::default_content();
+        let chart = object_sample_js_bubble_chart();
         let dom_layer    = model.scene.dom.layers.front.clone_ref();
-        dom_layer.manage(&dummy_content);
+        chart.set_dom_layer(&dom_layer);
 
-        let vis:Visualization = dummy_content.into();
+        let vis = Visualization::new(Rc::new(chart));
         node.view.frp.set_visualization.emit(Some(vis));
 
 
@@ -1027,7 +1022,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(&[Key::Backspace]             , "remove_selected_nodes")
              , Self::self_shortcut(&[Key::Character(" ".into())] , "toggle_visualization_visibility")
              , Self::self_shortcut(&[Key::Character("d".into())] , "debug_set_data_for_selected_node")
-             , Self::self_shortcut(&[Key::Character("f".into())]  , "cycle_visualisation_for_selected_node")
+             , Self::self_shortcut(&[Key::Character("f".into())]  , "debug_cycle_visualisation_for_selected_node")
         ]
     }
 }
@@ -1217,8 +1212,10 @@ impl application::View for GraphEditor {
         }));
 
         // === Vis Set ===
-        def _update_vis_data = inputs.set_visualization.map(f!(()((node,vis)) {
-            node.visualization.frp.set_visualization.emit(vis)
+        def _update_vis_data = inputs.set_visualization.map(f!((nodes)((node_id,vis)) {
+            if let Some(node) = nodes.get_cloned_ref(node_id) {
+                node.view.visualization_container.frp.set_visualization.emit(vis)
+            }
         }));
 
         // === Vis Update Data ===
@@ -1227,26 +1224,30 @@ impl application::View for GraphEditor {
         let dummy_switch  = Rc::new(Cell::new(false));
         let sample_data_generator = SampleDataGenerator3D::default();
         def _set_dumy_data = inputs.debug_set_data_for_selected_node.map(f!((nodes)(_) {
-            nodes.selected.for_each(|node| {
+            nodes.selected.for_each(|node_id| {
                 let data : Rc<Vec<Vector3<f32>>> = Rc::new(sample_data_generator.generate_data());
                 let content = Rc::new(serde_json::to_value(data).unwrap());
                 let data = visualization::Data::JSON{ content };
-                    node.visualization_container.frp.set_data.emit(Some(data));
+                if let Some(node) = nodes.get_cloned(node_id) {
+                    node.view.visualization_container.frp.set_data.emit(Some(data));
+                }
                 })
         }));
 
-         def _set_dumy_data = inputs.cycle_visualization.map(f!((scene)(node) {
+         def _set_dumy_data = inputs.cycle_visualization.map(f!((scene,nodes)(node_id) {
             let dc = dummy_switch.get();
             dummy_switch.set(!dc);
             let vis = if dc {
-                Visualization::new(Rc::new(WebglBubbleChart::new()))
+                Visualization::new(Rc::new(WebglBubbleChart::new(&scene)))
             } else {
                 let chart     = object_sample_js_bubble_chart();
                 let dom_layer = scene.dom.layers.front.clone_ref();
                 chart.set_dom_layer(&dom_layer);
                 Visualization::new(Rc::new(chart))
             };
-            node.visualization_container.frp.set_visualization.emit(Some(vis));
+            if let Some(node) = nodes.get_cloned_ref(node_id) {
+                node.view.visualization_container.frp.set_visualization.emit(Some(vis));
+            }
         }));
 
 

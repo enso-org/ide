@@ -5,6 +5,7 @@ use crate::prelude::*;
 use crate::frp;
 use crate::visualization::*;
 
+use ensogl::display::traits::*;
 use ensogl::display;
 
 

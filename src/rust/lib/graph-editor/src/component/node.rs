@@ -365,7 +365,7 @@ impl Deref for Events {
 /// Node definition.
 #[derive(AsRef,Clone,CloneRef,Debug,Deref)]
 pub struct Node {
-    data : Rc<NodeData>,
+    pub(crate) data : Rc<NodeData>,
 }
 
 impl AsRef<Node> for Node {

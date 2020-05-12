@@ -5,7 +5,6 @@
 //! be of poor quality. Expect drastic changes.
 
 use ensogl::prelude::*;
-use wasm_bindgen::prelude::*;
 
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::system::web;
@@ -18,11 +17,6 @@ use ensogl::display::style::theme;
 use ensogl::data::color;
 use enso_frp::Position;
 use enso_frp as frp;
-use graph_editor::component::visualization::sample::*;
-use graph_editor::component::visualization::Visualization;
-use ensogl::display::Scene;
-use graph_editor::component::visualization::js::*;
-use graph_editor::component::visualization;
 
 
 #[wasm_bindgen]

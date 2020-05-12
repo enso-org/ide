@@ -3,17 +3,17 @@ use crate::prelude::*;
 
 use crate::component::visualization::*;
 
+use ensogl::data::color::Rgba;
 use ensogl::display::DomScene;
 use ensogl::display::DomSymbol;
 use ensogl::display::layout::alignment;
 use ensogl::display::scene::Scene;
-use ensogl::display::scene::ShapeRegistry;
+use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl::system::web;
 use std::rc::Rc;
 use web::StyleSetter;
-
 
 
 // =======================
@@ -116,7 +116,6 @@ pub mod shape {
     use super::*;
     use ensogl::display::shape::*;
     use ensogl::display::scene::Scene;
-    use ensogl::data::color::*;
     use ensogl::display::Sprite;
     use ensogl::display::Buffer;
     use ensogl::display::Attribute;
@@ -124,49 +123,51 @@ pub mod shape {
     ensogl::define_shape_system! {
         (position:Vector2<f32>,radius:f32) {
             let node = Circle(radius);
-            let node = node.fill(Srgb::new(0.17,0.46,0.15));
+            let node = node.fill(Rgba::new(0.17,0.46,0.15,1.0));
             let node = node.translate(("input_position.x","input_position.y"));
             node.into()
         }
     }
 }
 
-/// Shape view for Bubble.
-#[derive(Debug,Clone)]
-#[allow(missing_copy_implementations)]
-pub struct BubbleView {}
-impl component::ShapeViewDefinition for BubbleView {
-    type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, _scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
-        shape.sprite.size().set(Vector2::new(100.0,100.0));
-        let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
-        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left,
-                                                alignment::VerticalAlignment::Bottom);
-        Self {}
-    }
-}
+// /// Shape view for Bubble.
+// #[derive(Debug,Clone)]
+// #[allow(missing_copy_implementations)]
+// pub struct BubbleView {}
+// impl component::ShapeViewDefinition for BubbleView {
+//     type Shape = shape::Shape;
+//     fn new(shape:&Self::Shape, _scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
+//         shape.sprite.size().set(Vector2::new(100.0,100.0));
+//         let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
+//         shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left,
+//                                                 alignment::VerticalAlignment::Bottom);
+//         Self {}
+//     }
+// }
 
 /// Sample implementation of a Bubble Chart using `WebGl`.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct WebglBubbleChart {
     pub display_object : display::object::Instance,
+    pub scene          : Scene,
         frp            : DataRendererFrp,
-        views          : RefCell<Vec<component::ShapeView<BubbleView>>>,
+        views          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
         logger         : Logger,
         size           : Cell<Vector2<f32>>,
 }
 
 #[allow(missing_docs)]
 impl WebglBubbleChart {
-    pub fn new() -> Self {
+    pub fn new(scene:&Scene) -> Self {
         let logger         = Logger::new("bubble");
         let display_object = display::object::Instance::new(&logger);
         let views          = RefCell::new(vec![]);
         let frp            = default();
         let size           = Cell::new(Vector2::zero());
+        let scene          = scene.clone_ref();
 
-        WebglBubbleChart { display_object,views,logger,frp,size }
+        WebglBubbleChart { display_object,views,logger,frp,size,scene }
     }
 }
 
@@ -177,15 +178,18 @@ impl DataRenderer for WebglBubbleChart {
 
         // Avoid re-creating views, if we have already created some before.
         let mut views = self.views.borrow_mut();
-        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger));
+        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
 
         views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
+
+            let shape_system = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
+            shape_system.shape_system.set_alignment(
+                alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+
             view.display_object.set_parent(&self.display_object);
-            if let Some(t) = view.data.borrow().as_ref() {
-                t.shape.sprite.size().set(self.size.get());
-                t.shape.radius.set(item.z);
-                t.shape.position.set(Vector2::new(item.x,item.y));
-            };
+            view.shape.sprite.size().set(self.size.get());
+            view.shape.radius.set(item.z);
+            view.shape.position.set(Vector2::new(item.x,item.y));
         });
         Ok(())
     }
@@ -202,11 +206,5 @@ impl DataRenderer for WebglBubbleChart {
 impl display::Object  for WebglBubbleChart {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object.display_object()
-    }
-}
-
-impl Default for WebglBubbleChart {
-    fn default() -> Self {
-        Self::new()
     }
 }
