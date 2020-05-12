@@ -4,5 +4,5 @@ pub mod execution_context;
 pub mod module;
 pub mod synchronized;
 
-pub use module::Module;
 pub use execution_context::ExecutionContext;
+pub use module::Module;

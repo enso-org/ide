@@ -7,6 +7,7 @@
 
 use crate::prelude::*;
 
+use crate::controller::FilePath;
 use crate::double_representation::text::apply_code_change_to_id_map;
 use crate::model::synchronized::ExecutionContext;
 
@@ -16,7 +17,23 @@ use data::text::*;
 use double_representation as dr;
 use enso_protocol::language_server;
 use parser::Parser;
-use crate::double_representation::definition::DefinitionName;
+use failure::_core::fmt::Formatter;
+
+
+
+// ==============
+// === Errors ===
+// ==============
+
+/// Error returned when module path is invalid, i.e. cannot obtain module name from it.
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="Invalid module path.")]
+pub struct InvalidModulePath {}
+
+/// Error returned when module path is invalid, i.e. cannot obtain module name from it.
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Invalid graph id: {:?}.",_0)]
+pub struct InvalidGraphId(controller::graph::Id);
 
 
 
@@ -25,13 +42,56 @@ use crate::double_representation::definition::DefinitionName;
 // ============
 
 /// Path identifying module's file in the Language Server.
-pub type Path = language_server::Path;
+#[derive(Clone,Debug,Eq,Hash,PartialEq)]
+pub struct Path {
+    file_path : FilePath,
+}
 
-/// Gets the module name from its path.
-pub fn obtain_module_name_from_path(path:&Path) -> Option<&str> {
-    let segment     = path.segments.last()?;
-    let name_length = segment.rfind('.').unwrap_or_else(|| segment.len());
-    Some(&segment[..name_length])
+impl Path {
+    /// Create a path from the file path. Returns None if given path is not a valid module file.
+    pub fn from_file_path(file_path:FilePath) -> Option<Self> {
+        let has_proper_ext   = file_path.extension() == Some(constants::LANGUAGE_FILE_EXTENSION);
+        let first_char       = file_path.file_name().and_then(|name| name.chars().next());
+        let capitalized_name = first_char.map_or(false, |ch| ch.is_uppercase());
+        let is_module        = has_proper_ext && capitalized_name;
+        is_module.and_option_from(|| Some(Path{file_path}))
+    }
+
+    /// Get the file path.
+    pub fn file_path(&self) -> &FilePath {
+        &self.file_path
+    }
+
+    /// Get the module name from path.
+    ///
+    /// The module name is a filename without extension.
+    pub fn module_name(&self) -> &str {
+        // The file stem existence should be checked during construction.
+        self.file_path.file_stem().unwrap()
+    }
+
+    /// Create a simple module path basing on module name. Used as test utility.
+    #[cfg(test)]
+    pub fn from_module_name(name:impl Str) -> Self {
+        let name:String = name.into();
+        let file_name   = format!("{}.{}",name,constants::LANGUAGE_FILE_EXTENSION);
+        let file_path   = FilePath::new(default(),&[file_name]);
+        Self::from_file_path(file_path).unwrap()
+    }
+}
+
+impl TryFrom<FilePath> for Path {
+    type Error = InvalidModulePath;
+
+    fn try_from(value:FilePath) -> Result<Self, Self::Error> {
+        Path::from_file_path(value).ok_or(InvalidModulePath{})
+    }
+}
+
+impl Display for Path {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.file_path, f)
+    }
 }
 
 
@@ -68,7 +128,7 @@ impl Handle {
     /// Load or reload module content from file.
     pub async fn load_file(&self) -> FallibleResult<()> {
         self.logger.info(|| "Loading module file");
-        let path    = self.path.deref().clone();
+        let path    = self.path.file_path().clone();
         let content = self.language_server.client.read_file(path).await?.contents;
         self.logger.info(|| "Parsing code");
         // TODO[ao] We should not fail here when metadata are malformed, but discard them and set
@@ -82,7 +142,7 @@ impl Handle {
 
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
-        let path    = self.path.deref().clone();
+        let path    = self.path.file_path().clone();
         let ls      = self.language_server.clone();
         let content = self.model.source_as_string();
         async move { Ok(ls.client.write_file(path,content?).await?) }
@@ -137,8 +197,7 @@ impl Handle {
     /// This function wont check if the definition under id exists.
     pub async fn executed_graph_controller_unchecked
     (&self, id:dr::graph::Id) -> FallibleResult<controller::ExecutedGraph> {
-        let default         = DefinitionName::new_plain("main");
-        let definition_name = id.crumbs.last().cloned().unwrap_or(default);
+        let definition_name = id.crumbs.last().cloned().ok_or_else(|| InvalidGraphId(id.clone()))?;
         let graph           = self.graph_controller_unchecked(id);
         let language_server = self.language_server.clone_ref();
         let path            = self.path.clone_ref();
@@ -191,17 +250,28 @@ mod test {
     use ast::BlockLine;
     use ast::Ast;
     use data::text::Span;
-    use enso_protocol::language_server;
     use parser::Parser;
     use uuid::Uuid;
     use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[test]
+    fn module_path_conversion() {
+        let path = FilePath::new(default(), &["src","Main.enso"]);
+        assert!(Path::from_file_path(path).is_some());
+
+        let path = FilePath::new(default(), &["src","Main.txt"]);
+        assert!(Path::from_file_path(path).is_none());
+
+        let path = FilePath::new(default(), &["src","main.txt"]);
+        assert!(Path::from_file_path(path).is_none());
+    }
 
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let ls       = language_server::Connection::new_mock_rc(default());
             let parser   = Parser::new().unwrap();
-            let location = Path{root_id:default(),segments:vec!["Test".into()]};
+            let location = Path::from_module_name("Test");
 
             let uuid1    = Uuid::new_v4();
             let uuid2    = Uuid::new_v4();

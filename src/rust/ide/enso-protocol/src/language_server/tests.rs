@@ -355,7 +355,7 @@ fn test_execution_context() {
     let local_call    = LocalCall {expression_id};
     let stack_item    = StackItem::LocalCall(local_call);
     test_request(
-        |client| client.execution_context_push(context_id,stack_item),
+        |client| client.push_to_execution_context(context_id,stack_item),
         "executionContext/push",
         json!({
             "contextId" : "00000000-0000-0000-0000-000000000000",
@@ -368,7 +368,7 @@ fn test_execution_context() {
         ()
     );
     test_request(
-        |client| client.execution_context_pop(context_id),
+        |client| client.pop_from_execution_context(context_id),
         "executionContext/pop",
         json!({"contextId":"00000000-0000-0000-0000-000000000000"}),
         unit_json.clone(),

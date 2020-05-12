@@ -113,7 +113,7 @@ macro_rules! make_rpc_methods {
         #[derive(Debug,Default)]
         pub struct MockClient {
             expect_all_calls : Cell<bool>,
-            $($method_result : RefCell<HashMap<($($param_ty),*),Result<$result>>>,)*
+            $($method_result : RefCell<HashMap<($($param_ty),*),Vec<Result<$result>>>>,)*
         }
 
         impl API for MockClient {
@@ -121,9 +121,9 @@ macro_rules! make_rpc_methods {
             -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
                 let mut results = self.$method_result.borrow_mut();
                 let params      = ($($param_name),*);
-                let result      = results.remove(&params);
-                assert!(result.is_some(), "Unrecognized call {} with params {:?}",$rpc_name,params);
-                Box::pin(futures::future::ready(result.unwrap()))
+                let result      = results.get_mut(&params).and_then(|res| res.pop());
+                let err         = format!("Unrecognized call {} with params {:?}",$rpc_name,params);
+                Box::pin(futures::future::ready(result.expect(err.as_str())))
             })*
         }
 
@@ -131,7 +131,9 @@ macro_rules! make_rpc_methods {
             $(
                 /// Sets `$method`'s result to be returned when it is called.
                 pub fn $set_result(&self $(,$param_name:$param_ty)*, result:Result<$result>) {
-                    self.$method_result.borrow_mut().insert(($($param_name),*),result);
+                    let mut results = self.$method_result.borrow_mut();
+                    let mut entry   = results.entry(($($param_name),*));
+                    entry.or_default().push(result);
                 }
             )*
 
@@ -145,8 +147,12 @@ macro_rules! make_rpc_methods {
         impl Drop for MockClient {
             fn drop(&mut self) {
                 if self.expect_all_calls.get() {
-                    $(assert!(self.$method_result.borrow().is_empty(), "Didn't make expected call \
-                    {} with parameters {:?}",$rpc_name,self.$method_result.borrow().keys());)*
+                    $(
+                        for (params,results) in self.$method_result.borrow().iter() {
+                            assert!(results.is_empty(), "Didn't make expected call {} with \
+                            parameters {:?}",$rpc_name,params);
+                        }
+                    )*
                 }
             }
         }

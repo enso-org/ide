@@ -747,7 +747,7 @@ mod tests {
               Fut  : Future<Output=()> {
             let code     = code.as_ref();
             let ls       = language_server::Connection::new_mock_rc(default());
-            let path     = controller::module::Path::new(default(),&["Main"]);
+            let path     = controller::module::Path::from_module_name("Main");
             let parser   = Parser::new_or_panic();
             let module   = controller::Module::new_mock(path,code,default(),ls,parser).unwrap();
             let graph_id = Id::new_single_crumb(DefinitionName::new_plain(function_name.into()));
@@ -762,7 +762,7 @@ mod tests {
                   Fut  : Future<Output=()> {
             let code   = code.as_ref();
             let ls     = language_server::Connection::new_mock_rc(default());
-            let path   = controller::module::Path::new(default(),&["Main"]);
+            let path   = controller::module::Path::from_module_name("Main");
             let parser = Parser::new_or_panic();
             let module = controller::Module::new_mock(path, code, default(), ls, parser).unwrap();
             let graph  = module.graph_controller(graph_id).unwrap();

@@ -130,14 +130,14 @@ trait API {
     fn destroy_execution_context(&self, context_id:ContextId) -> ();
 
     /// Move the execution context to a new location deeper down the stack.
-    #[MethodInput=ExecutionContextPushInput,rpc_name="executionContext/push",
-    result=execution_context_push_result,set_result=set_execution_context_push_result]
-    fn execution_context_push(&self, context_id:ContextId, stack_item:StackItem) -> ();
+    #[MethodInput=PushToExecutionContextInput,rpc_name="executionContext/push",
+    result=push_to_execution_context_result,set_result=set_push_to_execution_context_result]
+    fn push_to_execution_context(&self, context_id:ContextId, stack_item:StackItem) -> ();
 
     /// Move the execution context up the stack.
-    #[MethodInput=ExecutionContextPopInput,rpc_name="executionContext/pop",
-    result=execution_context_pop_result,set_result=set_execution_context_pop_result]
-    fn execution_context_pop(&self, context_id:ContextId) -> ();
+    #[MethodInput=PopFromExecutionContextInput,rpc_name="executionContext/pop",
+    result=pop_from_execution_context_result,set_result=set_pop_from_execution_context_result]
+    fn pop_from_execution_context(&self, context_id:ContextId) -> ();
 
     /// Attach a visualisation, potentially preprocessed by some arbitrary Enso code, to a given
     /// node in the program.

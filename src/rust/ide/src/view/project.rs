@@ -73,11 +73,11 @@ impl ProjectView {
     pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
         let root_id              = controller.language_server_rpc.content_root();
-        let path                 = controller::module::Path::new(root_id,&INITIAL_FILE_PATH);
+        let path                 = controller::FilePath::new(root_id,&INITIAL_FILE_PATH);
         let text_controller      = controller.text_controller(path.clone()).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
-        let module_controller    = controller.module_controller(path).await?;
+        let module_controller    = controller.module_controller(path.try_into()?).await?;
         let graph_controller     = module_controller.executed_graph_controller_unchecked(graph_id);
         let graph_controller     = graph_controller.await?;
         let application          = Application::new(&web::get_html_element_by_id("root").unwrap());
