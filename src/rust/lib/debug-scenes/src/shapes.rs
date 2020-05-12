@@ -170,7 +170,8 @@ pub fn expression_mock() -> Expression {
 
 // Extract and make use in scene depth sorting.
 
-pub fn depth_sort(ids:&Vec<usize>, elem_above_elems:&HashMap<usize,Vec<usize>>) -> Vec<usize> {
+#[allow(clippy::implicit_hasher)]
+pub fn depth_sort(ids:&[usize], elem_above_elems:&HashMap<usize,Vec<usize>>) -> Vec<usize> {
 
     // === Remove from `elem_above_elems` all ids which are not present in `ids` ===
 

@@ -2,7 +2,7 @@
 //!
 //! Datatype-generic programming, also frequently just called generic programming or generics, is a
 //! form of abstraction that allows defining functions that can operate on a large class of
-//! datatypes. For a more in-depth introduction to generic programming in general, have a look at
+//! data types. For a more in-depth introduction to generic programming in general, have a look at
 //! [Datatype-Generic Programming](http://www.cs.ox.ac.uk/jeremy.gibbons/publications/dgp.pdf), or
 //! the [Libraries for Generic Programming](http://dreixel.net/research/pdf/lgph.pdf) paper.
 

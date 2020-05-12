@@ -107,7 +107,7 @@ impl TextFieldSprites {
         const WIDTH:f32         = 2.0;
         const COLOR_HIDDEN:&str = "vec4(0.0,0.0,0.0,0.0)";
         let color_glsl:Glsl     = color.into();
-        let color_function      = format!("fract(input_time / 1000.0) < 0.5 ? {} : {}",
+        let color_function      = format!("fract(input_time / 1000.0) < 0.5 ? {}.raw : {}",
             color_glsl,COLOR_HIDDEN);
         let cursor_definition     = Rect(Vector2::new(WIDTH.px(),line_height.px()));
         let cursor_definition     = cursor_definition.fill(color_function);

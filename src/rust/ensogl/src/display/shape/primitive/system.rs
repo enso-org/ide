@@ -70,8 +70,8 @@ impl ShapeSystem {
     }
 
     /// Enables or disables pointer events on this shape system. All shapes of a shape system which
-    /// has pointer events disabled would not be completely transparent for the mouse (they would
-    /// pass trough all mouse events).
+    /// has pointer events disabled would be completely transparent for the mouse (they would pass
+    /// through all mouse events).
     pub fn set_pointer_events(&self, val:bool) {
         self.pointer_events.set(val);
         self.reload_shape();
@@ -84,8 +84,9 @@ impl ShapeSystem {
         self.reload_shape();
     }
 
-    /// Replaces the shape definition.
-    pub fn reload_shape(&self) {
+    /// Generates the shape again. It is used after some parameters are changed, like setting new
+    /// `pointer_events` value.
+    fn reload_shape(&self) {
         let code = shader::builder::Builder::run(&*self.shape.borrow(),self.pointer_events.get());
         self.material.borrow_mut().set_code(code);
         self.reload_material();

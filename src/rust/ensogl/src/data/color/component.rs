@@ -37,7 +37,7 @@ impl<T:KnownInit> KnownInit for Components<T> { type Init = Components<Init<T>>;
 impl<T,X> PushBack<X> for Components<T>
     where T:PushBack<X> {
     type Output = Components<<T as PushBack<X>>::Output>;
-    fn push_back(self,t:X) -> Self::Output {
+    fn push_back(self, t:X) -> Self::Output {
         Components(self.0.push_back(t))
     }
 }
@@ -50,6 +50,7 @@ impl<T> PopBack for Components<T>
         (last,init)
     }
 }
+
 
 // === Vector Conversions ===
 

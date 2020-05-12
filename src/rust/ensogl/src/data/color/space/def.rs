@@ -9,10 +9,6 @@ use super::super::component::*;
 // === Macros ===
 // ==============
 
-macro_rules! replace {
-    ($a:tt,$b:tt) => {$b}
-}
-
 macro_rules! define_color_space {
     ($(#[$($meta:tt)*])* $name:ident $a_name:ident $data_name:ident [$($comp:ident)*]) => {
         $(#[$($meta)*])*
@@ -53,7 +49,7 @@ macro_rules! define_color_space {
         }
 
         impl HasComponentsRepr for $data_name{
-            type ComponentsRepr = ($(replace!($comp,f32)),*,);
+            type ComponentsRepr = ($(shapely::replace!($comp,f32)),*,);
         }
 
         impl From<$data_name> for ComponentsOf<$data_name> {

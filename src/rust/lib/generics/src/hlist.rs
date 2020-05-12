@@ -15,7 +15,7 @@ pub trait HList = HasLength;
 #[derive(Debug,Clone,Copy)]
 pub struct Nil;
 
-/// None empty `HList` with head and tail.
+/// Non-empty `HList` with head and tail.
 #[derive(Debug,Clone,Copy)]
 #[allow(missing_docs)]
 pub struct Cons<Head,Tail>(pub Head, pub Tail);
@@ -313,6 +313,8 @@ impl<H:Clone,T:GetInitClone> GetInitClone for Cons<H,T> {
 // === PushBack ===
 // ================
 
+// TODO: Consider implementing PushBack for everything that converts to and from HList.
+
 /// Add a new element to the back of the list.
 #[allow(missing_docs)]
 pub trait PushBack<T> : Sized {
@@ -343,6 +345,8 @@ impl<X,H,T> PushBack<X> for Cons<H,T>
 // ===============
 // === PopBack ===
 // ===============
+
+// TODO: Consider implementing PopBack for everything that converts to and from HList.
 
 /// Remove the last element of the list and return it and the new list.
 #[allow(missing_docs)]

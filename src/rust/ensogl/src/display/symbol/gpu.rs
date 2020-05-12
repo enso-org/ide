@@ -348,6 +348,11 @@ impl Symbol {
                 let count          = self.surface.point_scope().size()    as i32;
                 let instance_count = self.surface.instance_scope().size() as i32;
 
+                // FIXME: we should uncomment the following code in some pedantic debug mode. It
+                //        introduces severe performance overhead (0.8ms -> 3ms per frame) because
+                //        it requires GPU to sync. However, we should maintain a "pedantic mode" in
+                //        case something goes horribly wrong and we would like to discover what.
+
                 // // Check if we are ready to render. If we don't assert here we wil only get a warning
                 // // that won't tell us where things went wrong.
                 // {

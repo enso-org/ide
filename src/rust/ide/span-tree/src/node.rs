@@ -107,19 +107,7 @@ impl Node {
 
     /// Is this node empty?
     pub fn is_empty(&self) -> bool {
-        match self.kind {
-            Kind::Empty(_) => true,
-            _              => false,
-        }
-    }
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        let kind     = Kind::Empty(InsertType::Append);
-        let size     = default();
-        let children = default();
-        Self {kind,size,children}
+        self.kind.is_empty()
     }
 }
 

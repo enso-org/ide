@@ -32,7 +32,8 @@ const FRAGMENT_RUNNER :&str = include_str!("../glsl/fragment_runner.glsl");
 pub struct Builder {}
 
 impl Builder {
-    /// Returns the final GLSL code.
+    /// Returns the final GLSL code. If `pointer_events_enabled` is set to false, the generated
+    /// shape will be transparent for pointer events and will pass them trough.
     pub fn run<S:canvas::Draw>(shape:&S, pointer_events_enabled:bool) -> CodeTemplate {
         let sdf_defs     = primitive::all_shapes_glsl_definitions();
         let mut canvas   = Canvas::default();

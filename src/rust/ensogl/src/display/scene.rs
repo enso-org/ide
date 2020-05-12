@@ -11,6 +11,7 @@ use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback;
 use crate::control::io::mouse::MouseManager;
 use crate::control::io::mouse;
+use crate::data::color;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
@@ -29,16 +30,14 @@ use crate::system::gpu::types::*;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web;
-use std::any::TypeId;
-
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::JsValue;
-use web_sys::HtmlElement;
-
-use enso_frp as frp;
 
 use display::style::data::DataMatch;
-use crate::data::color;
+use enso_frp as frp;
+use std::any::TypeId;
+use wasm_bindgen::JsValue;
+use wasm_bindgen::prelude::Closure;
+use web_sys::HtmlElement;
+
 
 
 pub trait MouseTarget : Debug + 'static {
@@ -701,7 +700,9 @@ impl ViewData {
 // === Views ===
 // =============
 
-// FIXME: Describe hacks
+/// Please note that currently the `Views` structure is implemented in a hacky way. It assumes the
+/// existence of `main`, `cursor`, and `label` views, which are needed for the GUI to display shapes
+/// properly. This should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Views {
     logger     : Logger,
@@ -846,6 +847,7 @@ impl SceneData {
             self.shapes.get_mouse_target(current_target) . for_each(|t| t.mouse_out().emit(()));
             self.shapes.get_mouse_target(new_target)     . for_each(|t| t.mouse_over().emit(()));
             self.mouse.reemit_position_event(); // See docs to learn why.
+            // TODO: Inspect the code below and clean the related codebase accordingly.
 //            match target {
 //                Target::Background => {}
 //                Target::Symbol {symbol_id,..} => {

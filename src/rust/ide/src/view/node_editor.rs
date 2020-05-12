@@ -114,7 +114,7 @@ impl GraphEditorIntegration {
         let weak = Rc::downgrade(this);
         let editor = this.editor.clone_ref();
         this.editor.network.map("module_update", &this.editor.frp.node_release, move |node_id| {
-            let node_pos = editor.get_node_position(node_id);
+            let node_pos = editor.get_node_position(*node_id);
             let this = weak.upgrade();
             if let Some((node_pos,this)) = node_pos.and_then(|n| this.map(|t| (n,t))) {
                 let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0

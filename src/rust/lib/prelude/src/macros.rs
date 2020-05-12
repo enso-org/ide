@@ -105,15 +105,6 @@ macro_rules! alias {
     )*};
 }
 
-#[macro_export]
-macro_rules! alias2 {
-    ($(#$meta:tt)* $name:ident = $($tok:tt)*) => {
-        $(#$meta)*
-        pub trait $name: $($tok)* {}
-        impl<T:$($tok)*> $name for T {}
-    };
-}
-
 
 
 // ==============

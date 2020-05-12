@@ -55,6 +55,8 @@ impl Display for Data {
 }
 
 
+// FIXME: Make use of this macro and allow themes to modify colors, including:
+// lighten,darken,saturate,desaturate,with_hue,shift_hue, etc.
 macro_rules! _define_color_transform {
     ($($name:ident),*) => {$(
         impl Data {

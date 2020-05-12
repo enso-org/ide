@@ -39,6 +39,12 @@ impl Sub<&Position> for &Position {
     }
 }
 
+impl From<&Position> for Position {
+    fn from(t:&Position) -> Self {
+        *t
+    }
+}
+
 
 
 // =============

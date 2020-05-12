@@ -55,10 +55,20 @@ use prelude::*;
 ///
 /// This structure is used to have some specific node marked as root node, to avoid confusion
 /// regarding SpanTree crumbs and AST crumbs.
-#[derive(Clone,Debug,Default,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub struct SpanTree {
     /// A root node of the tree.
     pub root : Node
+}
+
+impl Default for SpanTree {
+    fn default() -> Self {
+        let kind     = node::Kind::Empty(node::InsertType::Append);
+        let size     = default();
+        let children = default();
+        let root     = Node {kind,size,children};
+        Self {root}
+    }
 }
 
 impl SpanTree {

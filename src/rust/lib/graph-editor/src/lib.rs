@@ -347,6 +347,10 @@ pub struct Node {
 #[derive(Clone,Copy,Debug,Default,Display,Eq,From,Hash,Into,PartialEq)]
 pub struct NodeId(pub Id);
 
+impl From<&NodeId> for NodeId {
+    fn from(t:&NodeId) -> Self { *t }
+}
+
 impl Node {
     pub fn new(view:NodeView) -> Self {
         let in_edges  = default();
@@ -380,6 +384,10 @@ pub struct Edge {
 
 #[derive(Clone,Copy,Debug,Default,Display,Eq,From,Hash,Into,PartialEq)]
 pub struct EdgeId(pub Id);
+
+impl From<&EdgeId> for EdgeId {
+    fn from(t:&EdgeId) -> Self { *t }
+}
 
 impl Edge {
     pub fn new(view:EdgeView) -> Self {
@@ -679,14 +687,14 @@ impl GraphEditorModelWithNetwork {
         node_id
     }
 
-    pub fn add_node_at(&self, position:&Position) -> NodeId {
+    pub fn add_node_at(&self, position:Position) -> NodeId {
         let node_id = self.add_node();
-        self.set_node_position(&node_id,position);
+        self.set_node_position(node_id,position);
         node_id
     }
 
-    pub fn get_node_position(&self, node_id:&NodeId) -> Option<Vector3<f32>> {
-        self.nodes.get_cloned_ref(node_id).map(|node| node.position())
+    pub fn get_node_position(&self, node_id:NodeId) -> Option<Vector3<f32>> {
+        self.nodes.get_cloned_ref(&node_id).map(|node| node.position())
     }
 
     // FIXME: remove
@@ -755,10 +763,10 @@ impl GraphEditorModel {
 // === Selection ===
 
 impl GraphEditorModel {
-    fn select_node(&self, node_id:&NodeId) {
+    fn select_node(&self, node_id:NodeId) {
         self.deselect_all_nodes();
-        if let Some(node) = self.nodes.get_cloned_ref(node_id) {
-            self.nodes.selected.insert(*node_id);
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            self.nodes.selected.insert(node_id);
             node.view.frp.select.emit(());
         }
     }
@@ -776,38 +784,38 @@ impl GraphEditorModel {
 // === Remove ===
 
 impl GraphEditorModel {
-    fn remove_edge(&self, edge_id:&EdgeId) {
-        if let Some(edge) = self.edges.remove(edge_id) {
+    fn remove_edge(&self, edge_id:EdgeId) {
+        if let Some(edge) = self.edges.remove(&edge_id) {
             if let Some(source) = edge.take_source() {
                 if let Some(source_node) = self.nodes.get_cloned_ref(&source.node_id()) {
-                    source_node.out_edges.remove(edge_id);
+                    source_node.out_edges.remove(&edge_id);
                 }
             }
 
             if let Some(target) = edge.take_target() {
                 if let Some(target_node) = self.nodes.get_cloned_ref(&target.node_id()) {
-                    target_node.in_edges.remove(edge_id);
+                    target_node.in_edges.remove(&edge_id);
                 }
             }
         }
     }
 
-    fn remove_node(&self, node_id:&NodeId) {
-        if let Some(node) = self.nodes.remove(node_id) {
-            for edge_id in node.in_edges  . mem_take() { self.remove_edge(&edge_id); }
-            for edge_id in node.out_edges . mem_take() { self.remove_edge(&edge_id); }
+    fn remove_node(&self, node_id:NodeId) {
+        if let Some(node) = self.nodes.remove(&node_id) {
+            for edge_id in node.in_edges  . mem_take() { self.remove_edge(edge_id); }
+            for edge_id in node.out_edges . mem_take() { self.remove_edge(edge_id); }
         }
     }
 
     fn remove_all_nodes(&self) {
-        for node_id in &self.nodes.keys() {
+        for node_id in self.nodes.keys() {
             self.remove_node(node_id)
         }
     }
 
     fn remove_selected_nodes(&self) {
         for node_id in self.nodes.selected.mem_take() {
-            self.remove_node(&node_id);
+            self.remove_node(node_id);
         }
     }
 }
@@ -818,32 +826,32 @@ impl GraphEditorModel {
 impl GraphEditorModel {
     fn connect_detached_edges_to_node(&self, target:&EdgeTarget) {
         for edge_id in self.edges.detached.mem_take() {
-            self.connect_edge_target(&edge_id,target);
+            self.connect_edge_target(edge_id,target);
         }
     }
 
-    fn connect_edge_source(&self, edge_id:&EdgeId, target:&EdgeTarget) {
-        if let Some(edge) = self.edges.get_cloned_ref(edge_id) {
+    fn connect_edge_source(&self, edge_id:EdgeId, target:&EdgeTarget) {
+        if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(old_source) = edge.take_source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&old_source.node_id()) {
-                    node.out_edges.remove(edge_id);
+                    node.out_edges.remove(&edge_id);
                 }
             }
 
             if let Some(node) = self.nodes.get_cloned_ref(&target.node_id()) {
-                node.out_edges.insert(*edge_id);
+                node.out_edges.insert(edge_id);
             }
 
             edge.set_source(target.deep_clone());
-            self.refresh_edge_position(&edge_id);
+            self.refresh_edge_position(edge_id);
         }
     }
 
-    fn connect_edge_target(&self, edge_id:&EdgeId, target:&EdgeTarget) {
-        if let Some(edge) = self.edges.get_cloned_ref(edge_id) {
+    fn connect_edge_target(&self, edge_id:EdgeId, target:&EdgeTarget) {
+        if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(old_target) = edge.take_target() {
                 if let Some(node) = self.nodes.get_cloned_ref(&old_target.node_id()) {
-                    node.in_edges.remove(edge_id);
+                    node.in_edges.remove(&edge_id);
                 }
             }
 
@@ -860,13 +868,13 @@ impl GraphEditorModel {
                     }
                 }
                 for edge_id in &overlapping {
-                    self.remove_edge(edge_id)
+                    self.remove_edge(*edge_id)
                 }
-                node.in_edges.insert(*edge_id);
+                node.in_edges.insert(edge_id);
             };
 
             edge.set_target(target.deep_clone());
-            self.refresh_edge_position(&edge_id);
+            self.refresh_edge_position(edge_id);
         }
     }
 
@@ -876,8 +884,8 @@ impl GraphEditorModel {
         self.edges.insert(edge.clone_ref());
 
         let edge_id = edge.id();
-        self.connect_edge_source(&edge_id,source);
-        self.connect_edge_target(&edge_id,target);
+        self.connect_edge_source(edge_id,source);
+        self.connect_edge_target(edge_id,target);
     }
 
 }
@@ -886,8 +894,8 @@ impl GraphEditorModel {
 // === Position ===
 
 impl GraphEditorModel {
-    pub fn set_node_position(&self, node_id:&NodeId, position:&Position) {
-        if let Some(node) = self.nodes.get_cloned_ref(node_id) {
+    pub fn set_node_position(&self, node_id:NodeId, position:Position) {
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.view.mod_position(|t| {
                 t.x = position.x;
                 t.y = position.y;
@@ -895,13 +903,13 @@ impl GraphEditorModel {
         }
     }
 
-    pub fn refresh_edge_position(&self, edge_id:&EdgeId) {
+    pub fn refresh_edge_position(&self, edge_id:EdgeId) {
         self.refresh_edge_source_position(edge_id);
         self.refresh_edge_target_position(edge_id);
     }
 
-    pub fn refresh_edge_source_position(&self, edge_id:&EdgeId) {
-        if let Some(edge) = self.edges.get_cloned_ref(edge_id) {
+    pub fn refresh_edge_source_position(&self, edge_id:EdgeId) {
+        if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_source) = edge.source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id()) {
                     edge.mod_position(|p| {
@@ -913,11 +921,11 @@ impl GraphEditorModel {
         };
     }
 
-    pub fn refresh_edge_target_position(&self, edge_id:&EdgeId) {
-        if let Some(edge) = self.edges.get_cloned_ref(edge_id) {
+    pub fn refresh_edge_target_position(&self, edge_id:EdgeId) {
+        if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_target) = edge.target() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_target.node_id()) {
-                    let offset = node.view.ports.get_port_offset(&edge_target.port()).unwrap_or(Vector2::new(0.0,0.0));
+                    let offset = node.view.ports.get_port_offset(&edge_target.port()).unwrap_or_else(|| Vector2::new(0.0,0.0));
                     let node_position = node.view.position();
                     let pos = frp::Position::new(node_position.x + offset.x, node_position.y + offset.y);
                     edge.view.events.target_position.emit(pos);
@@ -976,7 +984,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
 macro_rules! model_bind {
     ($network:ident $model:ident . $name:ident($($arg:ident),*)) => {
         frp::extend! { $network
-            def _eval = $name.map(f!(($model)(($($arg),*)) $model.$name($($arg),*)));
+            def _eval = $name.map(f!(($model)(($($arg),*)) $model.$name($($arg.into()),*)));
         }
     };
 }
@@ -1100,10 +1108,10 @@ impl application::View for GraphEditor {
             if let Some(node) = nodes.get_cloned_ref(&node_id) {
                 node.view.mod_position(|p| { p.x += tx.x; p.y += tx.y; });
                 for edge_id in &node.in_edges.raw.borrow().clone() {
-                    model.refresh_edge_target_position(edge_id);
+                    model.refresh_edge_target_position(*edge_id);
                 }
                 for edge_id in &node.out_edges.raw.borrow().clone() {
-                    model.refresh_edge_position(edge_id);
+                    model.refresh_edge_position(*edge_id);
                 }
             }
         }));

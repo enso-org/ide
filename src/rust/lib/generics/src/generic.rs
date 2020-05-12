@@ -1,4 +1,4 @@
-//! Generic representation of data types.
+//! Generic representation of data types. Refer to the crate documentation to learn more.
 
 use super::hlist;
 

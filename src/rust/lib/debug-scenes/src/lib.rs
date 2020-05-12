@@ -7,6 +7,7 @@
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
 #![feature(unboxed_closures)]
+#![feature(vec_remove_item)]
 #![feature(weak_into_raw)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
@@ -16,8 +17,6 @@
 #![warn(unsafe_code)]
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
-
-#![feature(vec_remove_item)] // FIXME - remove
 
 #[allow(clippy::option_map_unit_fn)]
 
