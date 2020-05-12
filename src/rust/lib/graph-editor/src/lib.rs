@@ -1165,9 +1165,7 @@ impl application::View for GraphEditor {
         // === Toggle Visualization Visibility ===
 
         def _toggle_selected = inputs.toggle_visualization_visibility.map(f!((nodes)(_) {
-            println!("-----------");
             nodes.selected.for_each(|node_id| {
-                println!(">> {}", node_id);
                 if let Some(node) = nodes.get_cloned_ref(node_id) {
                     node.view.visualization_container.toggle_visibility();
                 }

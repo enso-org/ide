@@ -468,6 +468,11 @@ impl Node {
 
 
         let visualization_container = visualization::Container::new();
+        visualization_container.mod_position(|t| {
+            t.x = 60.0;
+            t.y = -60.0;
+        });
+
         display_object.add_child(&visualization_container);
 
         let view_data = main_area.shape.clone_ref();
@@ -522,7 +527,8 @@ impl Node {
 
 
 
-        let data    = Rc::new(NodeData {scene,display_object,logger,frp,main_area,drag_area,output_area,label_area,ports,visualization_container});
+        let data = Rc::new(NodeData {scene,display_object,logger,frp,main_area,drag_area
+            ,output_area,label_area,ports,visualization_container});
         Self {data}
     }
 }
