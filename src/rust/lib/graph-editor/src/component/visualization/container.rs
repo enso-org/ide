@@ -120,9 +120,9 @@ impl ContainerData {
             .map(|vis| vis.data())
             .flatten();
         visualization.display_object().set_parent(&self.display_object);
-        visualization.frp.set_data.emit(&data);
         self.visualization.replace(Some(visualization));
         self.init_visualisation_properties();
+        self.visualization.borrow().for_each_ref(|vis| vis.frp.set_data.emit(&data));
     }
 }
 
@@ -158,13 +158,13 @@ impl Container {
                 container_data.toggle_visibility()
             }));
 
-            def _f_hide = frp.set_visualization.map(f!((container_data)(visualisation) {
+            def _f_set_vis = frp.set_visualization.map(f!((container_data)(visualisation) {
                 if let Some(visualisation) = visualisation.as_ref() {
                     container_data.set_visualisation(visualisation.clone());
                 }
             }));
 
-            def _f_hide = frp.set_data.map(f!((container_data)(data) {
+            def _f_set_data = frp.set_data.map(f!((container_data)(data) {
                  container_data.visualization.borrow()
                     .for_each_ref(|vis| vis.frp.set_data.emit(data));
             }));

@@ -96,12 +96,14 @@ impl Visualization {
     }
 
     fn init(self) -> Self {
-        let network = &self.frp.network;
+        let network       = &self.frp.network;
         let visualization = &self.data;
-        let weak_frp = Rc::downgrade(&self.frp);
+        let weak_frp      = Rc::downgrade(&self.frp);
         frp::extend! { network
             def _set_data = self.frp.set_data.map(f!((weak_frp,visualization)(data) {
+                visualization.data.clear();
                 if let Some(data) = data {
+                    visualization.data.set(data.clone_ref());
                     if visualization.renderer.set_data(data.clone_ref()).is_err() {
                         weak_frp.upgrade().for_each_ref(|frp| frp.on_invalid_data.emit(()))
                     }
