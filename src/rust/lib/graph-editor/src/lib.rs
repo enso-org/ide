@@ -58,7 +58,7 @@ use crate::component::visualization::Visualization;
 use crate::component::visualization;
 use crate::component::visualization::sample::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::SampleDataGenerator3D;
-use crate::component::visualization::sample::native::WebglBubbleChart;
+use crate::component::visualization::sample::native;
 
 
 // =====================
@@ -1235,10 +1235,11 @@ impl application::View for GraphEditor {
         }));
 
          def _set_dumy_data = inputs.cycle_visualization.map(f!((scene,nodes)(node_id) {
+            // TODO remove dummy cycling once we have the visualization registry.
             let dc = dummy_switch.get();
             dummy_switch.set(!dc);
             let vis = if dc {
-                Visualization::new(Rc::new(WebglBubbleChart::new(&scene)))
+                Visualization::new(Rc::new(native::BubbleChart::new(&scene)))
             } else {
                 let chart     = constructor_sample_js_bubble_chart();
                 let dom_layer = scene.dom.layers.front.clone_ref();

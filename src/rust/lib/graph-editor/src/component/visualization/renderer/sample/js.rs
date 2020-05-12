@@ -6,7 +6,7 @@ use crate::component::visualization::JsRenderer;
 
 /// Returns a simple bubble chart implemented in vanilla JS. uses single functions to implement the
 /// visualization.
-pub fn sample_js_bubble_chart() -> JsRenderer {
+pub fn function_sample_js_bubble_chart() -> JsRenderer {
     let fn_set_data = r#"{
         const xmlns = "http://www.w3.org/2000/svg";
         const root = arguments[0];

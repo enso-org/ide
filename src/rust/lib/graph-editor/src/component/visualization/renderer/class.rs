@@ -18,8 +18,8 @@ use ensogl::display;
 #[allow(missing_docs)]
 pub struct DataRendererFrp {
     pub network   : frp::Network,
-    /// This is emitted if the state of the renderer has been changed bu UI interaction.
-    /// It contains the output data of this visualisation, or `None`.
+    /// This is emitted if the state of the renderer has been changed by UI interaction.
+    /// It contains the output data of this visualisation if there is some.
     pub on_change : frp::Source<Option<Data>>,
 }
 
@@ -58,7 +58,7 @@ pub trait DataRenderer: display::Object + Debug {
     /// assumptions of this `DataRenderer`, a `DataError` is returned.
     fn set_data(&self, data:Data) -> Result<(), DataError>;
     /// Set the size of viewport of the visualization. The visualisation must not render outside of
-    /// this viewport. TODO[mm] define and ensure consistent origin of viewport.
+    /// this viewport.
     fn set_size(&self, size:Vector2<f32>);
 
     /// Return a ref to the internal FRP network. This replaces a potential callback mechanism.

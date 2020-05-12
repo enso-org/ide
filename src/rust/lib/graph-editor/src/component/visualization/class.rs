@@ -77,7 +77,7 @@ pub struct Visualization {
     pub data : Rc<VisualizationData>
 }
 
-impl display::Object  for Visualization {
+impl display::Object for Visualization {
     fn display_object(&self) -> &display::object::Instance {
         &self.data.renderer.display_object()
     }

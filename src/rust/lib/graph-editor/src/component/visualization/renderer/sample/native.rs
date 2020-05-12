@@ -4,107 +4,11 @@ use crate::prelude::*;
 use crate::component::visualization::*;
 
 use ensogl::data::color::Rgba;
-use ensogl::display::DomScene;
-use ensogl::display::DomSymbol;
 use ensogl::display::layout::alignment;
 use ensogl::display::scene::Scene;
-use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
-use ensogl::system::web;
-use std::rc::Rc;
-use web::StyleSetter;
 
-
-// =======================
-// === HtmlBubbleChart ===
-// =======================
-
-/// Sample implementation of a Bubble Chart using `web_sys` to build SVG output.
-#[derive(Clone,Debug)]
-#[allow(missing_docs)]
-pub struct HtmlBubbleChart {
-    pub content : DomSymbol,
-    pub frp     : DataRendererFrp,
-}
-
-impl DataRenderer for HtmlBubbleChart {
-
-    fn set_data(&self, data:Data) ->  Result<(),DataError> {
-        let mut svg_inner = String::new();
-
-        let data_inner: Rc<Vec<Vector2<f32>>> = data.as_binary()?;
-        for pos in data_inner.iter() {
-            svg_inner.push_str(
-                &format!(
-                    r#"<circle style="fill: #69b3a2" stroke="black" cx={} cy={} r=10.0></circle>"#,
-                    pos.x, pos.y
-                )
-            )
-        }
-        self.content.dom().set_inner_html(
-            &format!(r#"<svg>{}</svg>"#, svg_inner)
-        );
-        Ok(())
-    }
-
-    fn set_size(&self, size:Vector2<f32>) {
-        self.content.set_size(size);
-    }
-
-    fn frp(&self) -> &DataRendererFrp {
-        unimplemented!()
-    }
-}
-
-#[allow(missing_docs)]
-impl HtmlBubbleChart {
-    pub fn new() -> Self {
-        let div = web::create_div();
-        div.set_style_or_panic("width","100px");
-        div.set_style_or_panic("height","100px");
-
-        let content = web::create_element("div");
-        content.set_inner_html("<svg></svg>");
-        content.set_attribute("width","100%").unwrap();
-        content.set_attribute("height","100%").unwrap();
-
-        div.append_child(&content).unwrap();
-
-        let r          = 102_u8;
-        let g          = 153_u8;
-        let b          = 194_u8;
-        let color      = iformat!("rgb({r},{g},{b})");
-        div.set_style_or_panic("background-color",color);
-
-        let content = DomSymbol::new(&div);
-        content.dom().set_attribute("id","vis").unwrap();
-        content.dom().style().set_property("overflow","hidden").unwrap();
-        content.set_size(Vector2::new(100.0, 100.0));
-        content.set_position(Vector3::new(0.0, 0.0, 0.0));
-
-        let frp = default();
-
-        HtmlBubbleChart { content,frp }
-     }
-
-    pub fn set_dom_layer(&self, scene:&DomScene) {
-        scene.manage(&self.content);
-    }
-
-}
-
-impl Default for HtmlBubbleChart {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl display::Object for HtmlBubbleChart {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.content.display_object()
-    }
-}
 
 
 // ========================
@@ -130,25 +34,10 @@ pub mod shape {
     }
 }
 
-// /// Shape view for Bubble.
-// #[derive(Debug,Clone)]
-// #[allow(missing_copy_implementations)]
-// pub struct BubbleView {}
-// impl component::ShapeViewDefinition for BubbleView {
-//     type Shape = shape::Shape;
-//     fn new(shape:&Self::Shape, _scene:&Scene, shape_registry:&ShapeRegistry) -> Self {
-//         shape.sprite.size().set(Vector2::new(100.0,100.0));
-//         let shape_system = shape_registry.shape_system(PhantomData::<shape::Shape>);
-//         shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left,
-//                                                 alignment::VerticalAlignment::Bottom);
-//         Self {}
-//     }
-// }
-
-/// Sample implementation of a Bubble Chart using `WebGl`.
+/// Sample implementation of a Bubble Chart using the ensogl shape system.
 #[derive(Debug)]
 #[allow(missing_docs)]
-pub struct WebglBubbleChart {
+pub struct BubbleChart {
     pub display_object : display::object::Instance,
     pub scene          : Scene,
         frp            : DataRendererFrp,
@@ -158,7 +47,7 @@ pub struct WebglBubbleChart {
 }
 
 #[allow(missing_docs)]
-impl WebglBubbleChart {
+impl BubbleChart {
     pub fn new(scene:&Scene) -> Self {
         let logger         = Logger::new("bubble");
         let display_object = display::object::Instance::new(&logger);
@@ -167,11 +56,11 @@ impl WebglBubbleChart {
         let size           = Cell::new(Vector2::zero());
         let scene          = scene.clone_ref();
 
-        WebglBubbleChart { display_object,views,logger,frp,size,scene }
+        BubbleChart { display_object,views,logger,frp,size,scene }
     }
 }
 
-impl DataRenderer for WebglBubbleChart {
+impl DataRenderer for BubbleChart {
 
     fn set_data(&self, data:Data) -> Result<(),DataError> {
         let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
@@ -180,6 +69,9 @@ impl DataRenderer for WebglBubbleChart {
         let mut views = self.views.borrow_mut();
         views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
 
+        // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
+        // But this ensures that we can get a cropped view area and avoids an issue with the data
+        // and position not matching up.
         views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
 
             let shape_system = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
@@ -203,7 +95,7 @@ impl DataRenderer for WebglBubbleChart {
     }
 }
 
-impl display::Object  for WebglBubbleChart {
+impl display::Object  for BubbleChart {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object.display_object()
     }
