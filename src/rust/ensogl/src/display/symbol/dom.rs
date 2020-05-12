@@ -73,7 +73,7 @@ impl Guard {
     }
 }
 
-impl Drop for DomSymbol {
+impl Drop for Guard {
     fn drop(&mut self) {
         self.dom.remove();
         self.display_object.unset_parent();
