@@ -396,11 +396,12 @@ fn test_execution_context() {
         ()
     );
     test_request(
-        |client| client.detach_visualisation(context_id,visualisation_id),
+        |client| client.detach_visualisation(context_id,visualisation_id,expression_id),
         "executionContext/detachVisualisation",
         json!({
-            "executionContextId" : "00000000-0000-0000-0000-000000000000",
-            "visualisationId"    : "00000000-0000-0000-0000-000000000000"
+            "contextId"       : "00000000-0000-0000-0000-000000000000",
+            "visualisationId" : "00000000-0000-0000-0000-000000000000",
+            "expressionId"    : "00000000-0000-0000-0000-000000000000"
         }),
         unit_json.clone(),
         ()

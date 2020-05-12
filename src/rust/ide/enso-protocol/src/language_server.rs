@@ -152,7 +152,8 @@ trait API {
     /// Detach a visualisation from the executing code.
     #[MethodInput=DetachVisualisationInput,rpc_name="executionContext/detachVisualisation",
     result=detach_visualisation_result,set_result=set_detach_visualisation_result]
-    fn detach_visualisation(&self, execution_context_id:Uuid, visualisation_id:Uuid) -> ();
+    fn detach_visualisation
+    (&self, context_id:Uuid, visualisation_id:Uuid, expression_id:Uuid) -> ();
 
     /// Modify the configuration for an existing visualisation.
     #[MethodInput=ModifyVisualisationInput,rpc_name="executionContext/modifyVisualisation",
