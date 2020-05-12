@@ -74,12 +74,11 @@ impl Logger {
 #[cfg(target_arch = "wasm32")]
 impl Logger {
     pub fn trace<M: LogMsg>(&self, _msg: M) {
-//        console::debug_1(&self.format(msg));
+        //console::trace_1(&self.format(msg));
     }
 
     pub fn info<M: LogMsg>(&self, _msg: M) {
-//        console::group_1(&self.format(msg));
-//        console::group_end();
+        //console::info_1(&self.format(msg));
     }
 
     pub fn warning<M: LogMsg>(&self, msg: M) {
@@ -205,6 +204,13 @@ macro_rules! info {
 macro_rules! warning {
     ($($toks:tt)*) => {
         $crate::log_template! {warning $($toks)*}
+    };
+}
+
+#[macro_export]
+macro_rules! error {
+    ($($toks:tt)*) => {
+        $crate::log_template! {error $($toks)*}
     };
 }
 

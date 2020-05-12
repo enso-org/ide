@@ -177,13 +177,13 @@ impl Manager {
 
     pub fn get_port_offset(&self, crumbs:&span_tree::Crumbs) -> Option<Vector2<f32>> {
         let span_tree = &self.expression.borrow().input_span_tree;
-        span_tree.root_ref().get_descendant(crumbs.clone()).map(|node|{
+        span_tree.root_ref().get_descendant(crumbs).map(|node|{
             let span  = node.span();
             let unit  = 7.2246094;
             let width = unit * span.size.value as f32;
             let x     = width/2.0 + unit * span.index.value as f32;
             Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0) // FIXME
-        })
+        }).ok()
     }
 }
 

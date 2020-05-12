@@ -16,6 +16,8 @@ pub mod internal;
 #[warn(missing_docs)]
 pub mod known;
 #[warn(missing_docs)]
+pub mod macros;
+#[warn(missing_docs)]
 pub mod opr;
 #[warn(missing_docs)]
 pub mod prefix;
@@ -90,7 +92,7 @@ pub struct WrongEnum {pub expected_con:String}
 // === Tree ===
 // ============
 
-/// A tree structure where each node may store value of `K` and has arbitrary
+/// A tree structure where each node may store value of `V` and has arbitrary
 /// number of children nodes, each marked with a single `K`.
 ///
 /// It is used to describe ambiguous macro match.
