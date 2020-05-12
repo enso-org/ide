@@ -1225,13 +1225,13 @@ impl application::View for GraphEditor {
         let sample_data_generator = MockDataGenerator3D::default();
         def _set_dumy_data = inputs.debug_set_data_for_selected_node.map(f!((nodes)(_) {
             nodes.selected.for_each(|node_id| {
-                let data : Rc<Vec<Vector3<f32>>> = Rc::new(sample_data_generator.generate_data());
-                let content = Rc::new(serde_json::to_value(data).unwrap());
-                let data = visualization::Data::JSON{ content };
+                let data          = Rc::new(sample_data_generator.generate_data());
+                let content       = Rc::new(serde_json::to_value(data).unwrap());
+                let data          = visualization::Data::JSON{ content };
                 if let Some(node) = nodes.get_cloned(node_id) {
                     node.view.visualization_container.frp.set_data.emit(Some(data));
                 }
-                })
+            })
         }));
 
          def _set_dumy_data = inputs.cycle_visualization.map(f!((scene,nodes)(node_id) {
