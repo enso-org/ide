@@ -114,6 +114,10 @@ impl<T,S> SharedHashSet<T,S> {
     where F:FnMut(&T) {
         self.raw.borrow_mut().iter().for_each(f)
     }
+
+    pub fn replace_with(&self, t:HashSet<T,S>) {
+        *self.raw.borrow_mut() = t;
+    }
 }
 
 
@@ -399,12 +403,12 @@ impl Edge {
         self.source.borrow().as_ref().map(|t| t.clone_ref())
     }
 
-    pub fn set_source<T:Into<EdgeTarget>>(&self, source:T) {
-        *self.source.borrow_mut() = Some(source.into())
+    pub fn set_source(&self, source:EdgeTarget) {
+        *self.source.borrow_mut() = Some(source)
     }
 
-    pub fn set_target<T:Into<EdgeTarget>>(&self, target:T) {
-        *self.target.borrow_mut() = Some(target.into())
+    pub fn set_target(&self, target:EdgeTarget) {
+        *self.target.borrow_mut() = Some(target)
     }
 
     pub fn take_source(&self) -> Option<EdgeTarget> {
@@ -593,6 +597,19 @@ impl TouchState {
 
 
 
+pub fn is_sub_crumb_of(src:&span_tree::Crumbs, tgt:&span_tree::Crumbs) -> bool {
+    if src.len() < tgt.len() { return false }
+    for (s,t) in src.iter().zip(tgt.iter()) {
+        if s != t { return false }
+    }
+    return true
+}
+
+pub fn crumbs_overlap(src:&span_tree::Crumbs, tgt:&span_tree::Crumbs) -> bool {
+    is_sub_crumb_of(src,tgt) || is_sub_crumb_of(tgt,src)
+}
+
+
 
 
 // ========================
@@ -772,10 +789,7 @@ impl GraphEditorModel {
     fn connect_detached_edges_to_node(&self, target:&EdgeTarget) {
         if let Some(node) = self.nodes.get_cloned_ref(&target.node_id()) {
             for edge_id in self.edges.detached.mem_take() {
-                if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
-                    edge.set_target(target.deep_clone());
-                    node.in_edges.insert(edge_id);
-                }
+                self.connect_edge_target(&edge_id,target);
             }
         }
     }
@@ -792,7 +806,7 @@ impl GraphEditorModel {
                 node.out_edges.insert(*edge_id);
             }
 
-            edge.set_source(target);
+            edge.set_source(target.deep_clone());
             self.refresh_edge_position(&edge_id);
         }
     }
@@ -805,11 +819,25 @@ impl GraphEditorModel {
                 }
             }
 
+            let target_port = target.port();
             if let Some(node) = self.nodes.get_cloned_ref(&target.node_id()) {
+                let mut overlapping = vec![];
+                for edge_id in node.in_edges.raw.borrow().clone().into_iter() {
+                    if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
+                        if let Some(edge_target) = edge.target() {
+                            if crumbs_overlap(&edge_target.port(),&target_port) {
+                                overlapping.push(edge_id);
+                            }
+                        }
+                    }
+                }
+                for edge_id in &overlapping {
+                    self.remove_edge(edge_id)
+                }
                 node.in_edges.insert(*edge_id);
             };
 
-            edge.set_target(target);
+            edge.set_target(target.deep_clone());
             self.refresh_edge_position(&edge_id);
         }
     }
