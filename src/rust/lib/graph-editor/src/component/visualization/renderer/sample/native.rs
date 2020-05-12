@@ -11,9 +11,9 @@ use ensogl::gui::component;
 
 
 
-// ========================
-// === WebglBubbleChart ===
-// ========================
+// ==========================
+// === Native BubbleChart ===
+// ==========================
 
 /// Bubble shape definition.
 pub mod shape {
@@ -95,7 +95,7 @@ impl DataRenderer for BubbleChart {
     }
 }
 
-impl display::Object  for BubbleChart {
+impl display::Object for BubbleChart {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object.display_object()
     }

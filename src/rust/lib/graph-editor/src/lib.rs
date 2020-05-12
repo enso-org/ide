@@ -57,7 +57,7 @@ use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
 use crate::component::visualization::sample::js::constructor_sample_js_bubble_chart;
-use crate::component::visualization::SampleDataGenerator3D;
+use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization::sample::native;
 
 
@@ -1222,7 +1222,7 @@ impl application::View for GraphEditor {
 
         // TODO remove this once real data is available.
         let dummy_switch  = Rc::new(Cell::new(false));
-        let sample_data_generator = SampleDataGenerator3D::default();
+        let sample_data_generator = MockDataGenerator3D::default();
         def _set_dumy_data = inputs.debug_set_data_for_selected_node.map(f!((nodes)(_) {
             nodes.selected.for_each(|node_id| {
                 let data : Rc<Vec<Vector3<f32>>> = Rc::new(sample_data_generator.generate_data());

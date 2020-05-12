@@ -148,7 +148,7 @@ impl JsRenderer {
     /// For a full example see
     /// `crate::component::visualization::renderer::sample::object_sample_js_bubble_chart`
     pub fn from_object(source: &str) -> Result<JsRenderer,JsVisualisationError> {
-        let object                = js_sys::eval(source)?;
+        let object = js_sys::eval(source)?;
         if !object.is_object() {
             return Err(JsVisualisationError::NotAnObject { inner:object } )
         }
@@ -197,13 +197,13 @@ impl DataRenderer for JsRenderer {
     fn set_data(&self, data:Data) -> Result<(),DataError> {
         let context   = JsValue::NULL;
         let data_json = data.as_json()?;
-        let data_js   = if let Ok(value) = JsValue::from_serde(&data_json) {
-            value
-        } else {
-            return Err(DataError::InvalidDataType)
+        let data_js   = match JsValue::from_serde(&data_json) {
+            Ok(value) => value,
+            Err(_)    => return Err(DataError::InvalidDataType),
         };
         if let Err(error) = self.set_data.call2(&context,&self.root_node.dom(),&data_js) {
-            self.logger.warning(|| format!("Failed to set data in {:?} with error: {:?}",self,error));
+            self.logger.warning(
+                || format!("Failed to set data in {:?} with error: {:?}",self,error));
             return Err(DataError::InternalComputationError)
         }
         Ok(())
@@ -213,7 +213,8 @@ impl DataRenderer for JsRenderer {
         let context       = JsValue::NULL;
         let data_json     = JsValue::from_serde(&size).unwrap();
         if let Err(error) = self.set_size.call2(&context, &self.root_node.dom(), &data_json) {
-            self.logger.warning(|| format!("Failed to set size in {:?} with error: {:?}", self, error));
+            self.logger.warning(
+                || format!("Failed to set size in {:?} with error: {:?}", self, error));
         }
     }
 

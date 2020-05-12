@@ -39,6 +39,8 @@ impl Data {
         match &self {
             Data::JSON { content } => {
                 // We try to deserialize here. Just in case it works.
+                // This is useful for simple data types where we don't want to care to much about
+                // representation, e.g., a list of numbers.
                 let value : serde_json::Value = content.as_ref().clone();
                 if let Ok(result) = serde_json::from_value(value) {
                     Ok(Rc::new(result))
@@ -76,11 +78,11 @@ pub enum DataError {
 // TODO this will go away once we have real data
 
 #[derive(Clone,CloneRef,Debug,Default)]
-pub(crate) struct SampleDataGenerator3D {
+pub(crate) struct MockDataGenerator3D {
     counter: Rc<Cell<f32>>
 }
 
-impl SampleDataGenerator3D {
+impl MockDataGenerator3D {
 
     pub fn generate_data(&self) -> Vec<Vector3<f32>> {
 
@@ -91,12 +93,12 @@ impl SampleDataGenerator3D {
         let delta2 = current_value.cos() * 10.0;
 
        vec![
-            Vector3::new(25.0,75.0,25.0 + delta1),
-            Vector3::new(25.0,25.0, 25.0 + delta2),
-            Vector3::new(75.0 - 12.5,75.0 + delta1,5.0),
-            Vector3::new(75.0 + 12.5,75.0 + delta2,15.0),
-            Vector3::new(75.0 - 12.5 + delta1,25.0 + delta2,5.0),
-            Vector3::new(75.0 + 12.5 + delta2,25.0 + delta1,15.0),
+            Vector3::new(25.0,                 75.0,          25.0 + delta1),
+            Vector3::new(25.0,                 25.0,          25.0 + delta2),
+            Vector3::new(75.0 - 12.5,          75.0 + delta1, 5.0          ),
+            Vector3::new(75.0 + 12.5,          75.0 + delta2, 15.0         ),
+            Vector3::new(75.0 - 12.5 + delta1, 25.0 + delta2, 5.0          ),
+            Vector3::new(75.0 + 12.5 + delta2, 25.0 + delta1, 15.0         ),
         ]
     }
 }
