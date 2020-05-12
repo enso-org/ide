@@ -1,5 +1,8 @@
 //! Definition of the Cursor (known as well as mouse pointer) component.
 
+#![allow(missing_docs)]
+// WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
+
 use crate::prelude::*;
 
 use enso_frp as frp;
@@ -7,8 +10,7 @@ use ensogl::control::callback;
 use ensogl::data::color;
 use ensogl::display::Buffer;
 use ensogl::display::layout::alignment;
-use ensogl::display::scene::{Scene,ShapeRegistry};
-use ensogl::display::scene;
+use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::{Sprite, Attribute};
 use ensogl::display;
@@ -55,9 +57,8 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (position:Vector2<f32>, width:f32, height:f32, selection_size:Vector2<f32>, press:f32, radius:f32) {
-            let press_diff = 2.px() * &press;
-            let radius = 1.px() * radius - &press_diff;
-            let side   = &radius * 2.0;
+            let press_diff       = 2.px() * &press;
+            let radius           = 1.px() * radius - &press_diff;
             let selection_width  = 1.px() * &selection_size.x() * &press;
             let selection_height = 1.px() * &selection_size.y() * &press;
             let width            = (1.px() * &width  - &press_diff * 2.0) + selection_width.abs();
@@ -264,7 +265,7 @@ impl Cursor {
             }));
 
             def _t_mode = input.set_mode.map(enclose!((radius,width,height) move |m| {
-                let mm = match m {
+                match m {
                     Mode::Normal => {
                         radius.set_target_position(8.0);
                         width.set_target_position(16.0);

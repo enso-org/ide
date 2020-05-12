@@ -1,5 +1,10 @@
 //! Definition of the Connection component.
 
+#![allow(unused_variables)]
+#![allow(missing_docs)]
+
+// WARNING
+// UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES
 
 use crate::prelude::*;
 
@@ -12,15 +17,11 @@ use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
-use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::animation;
 use ensogl::gui::component;
-use ensogl::display::shape::text::glyph::font::FontRegistry;
-use ensogl::display::shape::text::glyph::system::GlyphSystem;
-use ensogl::math::topology::unit::AngleOps;
+
 
 
 // ==================
@@ -95,12 +96,6 @@ impl AsRef<Connection> for Connection {
     fn as_ref(&self) -> &Self {
         self
     }
-}
-
-
-fn ease_out_quad(t:f32) -> f32 {
-    let t = t.clamp(0.0,1.0);
-    return 1.0 - (1.0 - t) * (1.0 - t);
 }
 
 
@@ -194,8 +189,8 @@ impl Connection {
                 let coeff = 1.0 - (angle.abs() * 2.0).clamp(0.0,1.0);
 //
                 let coeff2 = ((target.x - source.x).abs() / 20.0).clamp(0.0,std::f32::consts::PI/2.0).sin();
-                let mut src_circle_radius    = source_min_radius * coeff2; // + coeff * 40.0;
-                let mut target_circle_radius = target_min_radius * coeff2; // + coeff * 40.0;
+                let src_circle_radius    = source_min_radius * coeff2; // + coeff * 40.0;
+                let target_circle_radius = target_min_radius * coeff2; // + coeff * 40.0;
 
 //
 //                let diff_2 = Vector2::new(target.x - source.x, source.y - target.y);
@@ -207,7 +202,7 @@ impl Connection {
 //                }
 
 
-                println!(">> {:?}", src_circle_radius );
+                // println!(">> {:?}", src_circle_radius );
 
 //                let src_circle_radius = 20.0;
 
@@ -328,7 +323,7 @@ fn inner_tangent_lines_touch_points_for_two_circles
         let r1_2 = radius * radius;
 
         let q   = (cross_center_2.x + cross_center_2.y - r1_2).sqrt();
-        let div = (cross_center_2.x + cross_center_2.y);
+        let div = cross_center_2.x + cross_center_2.y;
 
         let x = (r1_2 * cross_center.x + side * radius * cross_center.y * q) / div + center.x;
         let y = (r1_2 * cross_center.y - side * radius * cross_center.x * q) / div + center.y;

@@ -8,7 +8,6 @@ use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::display::world::*;
 use ensogl::system::web;
 use ensogl_core_msdf_sys::run_once_initialized;
-use nalgebra::Vector4;
 use wasm_bindgen::prelude::*;
 
 

@@ -6,8 +6,6 @@ use crate::prelude::*;
 
 use crate::display::shape::text::glyph::font::FontHandle;
 
-use nalgebra::Vector2;
-
 
 
 // ===================

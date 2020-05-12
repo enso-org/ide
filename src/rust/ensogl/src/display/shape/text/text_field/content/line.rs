@@ -152,9 +152,7 @@ impl<'a> LineFullInfo<'a> {
         let new_len        = index + 1;
         let from_index     = self.char_x_positions.len().saturating_sub(1);
         let to_fill        = new_len.saturating_sub(self.char_x_positions.len());
-        let y_position     = baseline_start.y;
         let x_position     = self.char_x_positions.last().cloned().unwrap_or(baseline_start.x);
-        let start_from     = Vector2::new(x_position,y_position);
         let line           = &mut self.line;
         let chars          = line.chars[from_index..].iter().cloned();
         let to_skip        = if line.char_x_positions.is_empty() {0} else {1};

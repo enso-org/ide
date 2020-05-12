@@ -69,6 +69,9 @@ impl ShapeSystem {
         material
     }
 
+    /// Enables or disables pointer events on this shape system. All shapes of a shape system which
+    /// has pointer events disabled would not be completely transparent for the mouse (they would
+    /// pass trough all mouse events).
     pub fn set_pointer_events(&self, val:bool) {
         self.pointer_events.set(val);
         self.reload_shape();

@@ -47,10 +47,10 @@ fn init(app:&Application) {
     app.themes.register("dark",dark);
     app.themes.set_enabled(&["dark"]);
 
-    let bg = app.display.scene().style_sheet.var("application.background.color");
+    let _bg = app.display.scene().style_sheet.var("application.background.color");
 
-    println!("{:?}",bg.value());
-    println!("{:?}",app.display.scene().style_sheet.debug_sheet_nodes_count());
+//    println!("{:?}",bg.value());
+//    println!("{:?}",app.display.scene().style_sheet.debug_sheet_nodes_count());
 
 //    let t1 : color::Hsla = color::Hsla::new(0.0,0.0,0.03,1.0);
 //    let t2 : color::Lcha = t1.into();
@@ -63,17 +63,17 @@ fn init(app:&Application) {
 //    let x = color::Hsla::from(color::Rgba::new(0.031,0.031,0.031,1.0));
 //    let y = color::Rgba::from(x);
 //    println!("{:?}", y);
-    let xyz = color::Xyz::from(color::Rgb::new(0.2,0.4,0.6));
-    let lab = color::Lab::from(color::Rgb::new(0.2,0.4,0.6));
-    let lch = color::Lch::from(color::Rgb::new(0.2,0.4,0.6));
-    let lch = color::Lch::from(color::Rgb::new(1.0,0.0,0.0));
-    println!("{:?}", xyz);
-    println!("{:?}", lab);
-    println!("{:?}", lch);
-    println!("-----------");
-    println!("{:?}", color::Rgb::from(xyz));
-    println!("{:?}", color::Rgb::from(lab));
-    println!("{:?}", color::Rgb::from(lch));
+//    let xyz = color::Xyz::from(color::Rgb::new(0.2,0.4,0.6));
+//    let lab = color::Lab::from(color::Rgb::new(0.2,0.4,0.6));
+//    let lch = color::Lch::from(color::Rgb::new(0.2,0.4,0.6));
+//    let lch = color::Lch::from(color::Rgb::new(1.0,0.0,0.0));
+//    println!("{:?}", xyz);
+//    println!("{:?}", lab);
+//    println!("{:?}", lch);
+//    println!("-----------");
+//    println!("{:?}", color::Rgb::from(xyz));
+//    println!("{:?}", color::Rgb::from(lab));
+//    println!("{:?}", color::Rgb::from(lch));
 //    println!("{:?}", color::Lab::from(color::Xyz::new(0.1,0.2,0.3)));
 
 //    println!("{:?}", palette::Xyz::from(palette::Srgb::new(0.2,0.4,0.6)));

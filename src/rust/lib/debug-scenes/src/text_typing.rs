@@ -11,7 +11,6 @@ use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::world::*;
 use ensogl::system::web;
 use nalgebra::Vector2;
-use nalgebra::Vector4;
 
 
 #[wasm_bindgen]

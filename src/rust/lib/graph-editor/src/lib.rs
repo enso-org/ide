@@ -656,7 +656,7 @@ impl GraphEditorModelWithNetwork {
             def _node_on_down_tagged = node.view.drag_area.events.mouse_down.map(f_!((touch) {
                 touch.nodes.down.emit(node_id)
             }));
-            def cursor_mode = node.view.ports.frp.cursor_mode.map(f!((cursor)(mode) {
+            def _cursor_mode = node.view.ports.frp.cursor_mode.map(f!((cursor)(mode) {
                 cursor.frp.set_mode.emit(mode);
             }));
             def _add_connection = node.view.frp.output_ports.mouse_down.map(f_!((model) {
@@ -701,7 +701,11 @@ impl GraphEditorModelWithNetwork {
         node_id
     }
 
-    #[deprecated(note="Use add_node instead.")]
+    pub fn get_node_position(&self, node_id:&NodeId) -> Option<Vector3<f32>> {
+        self.nodes.get_cloned_ref(node_id).map(|node| node.position())
+    }
+
+    // FIXME: remove
     pub fn deprecated_add_node(&self) -> WeakNodeView {
         let node_id = self.add_node();
         let node    = self.nodes.get_cloned_ref(&node_id).unwrap();
@@ -709,7 +713,7 @@ impl GraphEditorModelWithNetwork {
         weak
     }
 
-    #[deprecated(note="Use FRP remove_node instead.")]
+    // FIXME: remove
     pub fn deprecated_remove_node(&self, node:WeakNodeView) {
         if let Some(node) = node.upgrade() {
             self.nodes.remove(&node.id().into());
@@ -753,16 +757,16 @@ impl GraphEditorModel {
 
 // === Construction ===
 
-impl GraphEditorModel {
-    fn add_edge(&self) -> EdgeId {
-        let view = EdgeView::new(&self.scene);
-        let edge = Edge::new(view);
-        let id   = edge.id();
-        self.edges.insert(edge);
-        // self.frp.register_edge.emit(id);
-        id
-    }
-}
+//impl GraphEditorModel {
+//    fn add_edge(&self) -> EdgeId {
+//        let view = EdgeView::new(&self.scene);
+//        let edge = Edge::new(view);
+//        let id   = edge.id();
+//        self.edges.insert(edge);
+//        // self.frp.register_edge.emit(id);
+//        id
+//    }
+//}
 
 
 // === Selection ===
@@ -830,10 +834,8 @@ impl GraphEditorModel {
 
 impl GraphEditorModel {
     fn connect_detached_edges_to_node(&self, target:&EdgeTarget) {
-        if let Some(node) = self.nodes.get_cloned_ref(&target.node_id()) {
-            for edge_id in self.edges.detached.mem_take() {
-                self.connect_edge_target(&edge_id,target);
-            }
+        for edge_id in self.edges.detached.mem_take() {
+            self.connect_edge_target(&edge_id,target);
         }
     }
 
@@ -999,20 +1001,20 @@ macro_rules! model_bind {
 
 impl application::View for GraphEditor {
 
+    #[allow(unused_parens)]
     fn new(world:&World) -> Self {
         let scene  = world.scene();
         let cursor = Cursor::new(world.scene());
         web::body().set_style_or_panic("cursor","none");
         world.add_child(&cursor);
 
-        let model          = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
-        let network        = &model.network;
-        let display_object = &model.display_object;
-        let nodes          = &model.nodes;
-        let edges          = &model.edges;
-        let inputs         = &model.frp;
-        let mouse          = &scene.mouse.frp;
-        let touch          = &model.touch_state;
+        let model   = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
+        let network = &model.network;
+        let nodes   = &model.nodes;
+        let edges   = &model.edges;
+        let inputs  = &model.frp;
+        let mouse   = &scene.mouse.frp;
+        let touch   = &model.touch_state;
 
         frp::extend! { network
 
@@ -1111,7 +1113,7 @@ impl application::View for GraphEditor {
         // === Move Nodes ===
 
         def mouse_tx_if_node_pressed = mouse.translation.gate(&touch.nodes.is_down);
-        def _move_node_with_mouse    = mouse_tx_if_node_pressed.map2(&touch.nodes.down,f!((model,nodes,edges)(tx,node_id) {
+        def _move_node_with_mouse    = mouse_tx_if_node_pressed.map2(&touch.nodes.down,f!((model,nodes)(tx,node_id) {
             if let Some(node) = nodes.get_cloned_ref(&node_id) {
                 node.view.mod_position(|p| { p.x += tx.x; p.y += tx.y; });
                 for edge_id in &node.in_edges.raw.borrow().clone() {

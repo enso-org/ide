@@ -11,14 +11,10 @@ use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
-use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::animation;
 use ensogl::gui::component;
-use ensogl::display::shape::text::glyph::font::FontRegistry;
-use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
 use crate::component::cursor;
 use super::super::node;

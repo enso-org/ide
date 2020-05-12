@@ -1,5 +1,8 @@
 //! Definition of the Node component.
 
+#![allow(missing_docs)]
+// WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
+
 pub mod port;
 
 use crate::prelude::*;
@@ -13,7 +16,6 @@ use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
-use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
@@ -22,7 +24,6 @@ use ensogl::gui::component::animation2;
 use ensogl::gui::component;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
-use ensogl::math::topology::unit::AngleOps;
 
 use super::connection::Connection;
 use crate::component::visualization;
@@ -107,8 +108,6 @@ pub mod shape {
             let selection_size  = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
 
             let border_size_f = 16.0;
-            let border_size   = border_size_f.px();
-
 
             let width  : Var<Distance<Pixels>> = "input_size.x".into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
@@ -237,19 +236,18 @@ pub mod label {
     pub struct ShapeSystem {
         pub fonts : Rc<FontRegistry>,
         pub glyph_system: GlyphSystem,
-        style_manager: ensogl::display::shape::StyleWatch,
+        style_manager: StyleWatch,
 
     }
-    impl ensogl::display::shape::ShapeSystemInstance for ShapeSystem {
+    impl ShapeSystemInstance for ShapeSystem {
         type Shape = Shape;
 
         fn new(scene: &Scene) -> Self {
-            let style_manager = ensogl::display::shape::StyleWatch::new(&scene.style_sheet);
-//            let shape_system = ensogl::display::shape::ShapeSystem::new(scene, &Self::shape_def(&style_manager));
-            let mut fonts        = FontRegistry::new();
-            let font             = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
-            let mut glyph_system = GlyphSystem::new(scene,font);
-            let fonts = Rc::new(fonts);
+            let style_manager = StyleWatch::new(&scene.style_sheet);
+            let mut fonts     = FontRegistry::new();
+            let font          = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
+            let glyph_system  = GlyphSystem::new(scene,font);
+            let fonts         = Rc::new(fonts);
 
             let symbol = &glyph_system.sprite_system().symbol;
             scene.views.main.remove(symbol);
@@ -295,7 +293,7 @@ pub mod label {
 //        }
 
 
-//        pub fn shape_def(__style_watch__: &ensogl::display::shape::StyleWatch) -> AnyShape {
+//        pub fn shape_def(__style_watch__: &StyleWatch) -> AnyShape {
 //            use ensogl::display::style::data::DataMatch;
 //
 //            Circle(10.px()).fill(color::Rgba::new(0.97,0.96,0.95)).into()
@@ -485,16 +483,16 @@ impl Node {
 
         frp::extend! { network
             let selection_ref = selection.clone_ref();
-            def _f_select = input.select.map(move |_| {
+            def _select = input.select.map(move |_| {
                 selection_ref.set_target_position(1.0);
             });
 
             let selection_ref = selection.clone_ref();
-            def _f_deselect = input.deselect.map(move |_| {
+            def _deselect = input.deselect.map(move |_| {
                 selection_ref.set_target_position(0.0);
             });
 
-            def foo = output_area_size.map(f!((output_area)(size) {
+            def _output_area_size = output_area_size.map(f!((output_area)(size) {
                 output_area.shape.grow.set(*size);
             }));
 

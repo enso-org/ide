@@ -8,8 +8,6 @@ use ensogl::prelude::*;
 
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::system::web;
-use ensogl::application::Application;
-use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::ShapeSystem;
@@ -41,15 +39,12 @@ pub fn run_example_shape_system() {
     let sprite1       = sprite_system.new_instance();
     sprite1.size().set(Vector2::new(100.0, 100.0));
     sprite1.mod_position(|t| *t = Vector3::new(50.0, 50.0, 0.0));
-//    sprite1.mod_position(|t| *t = Vector3::new(51.0, 51.0, 0.0));
 
     world.add_child(&sprite_system);
     world.keep_alive_forever();
 
-    let mut iter:i32 = 0;
-    world.on_frame(move |time| {
+    world.on_frame(move |_time| {
         let _keep_alive = &sprite1;
         let _keep_alive = &navigator;
-        //on_frame(&camera,time,&mut iter,&sprite1,&mut sprites,&sprite_system)
     }).forget();
 }

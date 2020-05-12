@@ -40,6 +40,7 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// Match the value with `Kind::Empty{..}`.
     pub fn is_empty(&self) -> bool {
         match self {
             Self::Empty(_) => true,
@@ -137,6 +138,7 @@ pub struct Child {
 
 // === Node Reference ===
 
+/// Crumbs specifying this node position related to root.
 pub type Crumbs = Vec<Crumb>;
 
 /// A reference to node inside some specific tree.
@@ -146,7 +148,7 @@ pub struct Ref<'a> {
     pub node       : &'a Node,
     /// Span begin being an index counted from the root expression.
     pub span_begin : Index,
-    /// Crumbs specifying this node position related to root. See `Crumbs` docs.
+    /// Crumbs specifying this node position related to root.
     pub crumbs     : Vec<Crumb>,
     /// Ast crumbs locating associated AST node, related to the root's AST node.
     pub ast_crumbs : ast::Crumbs,

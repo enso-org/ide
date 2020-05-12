@@ -6,10 +6,8 @@ pub mod dom;
 pub use crate::display::symbol::registry::SymbolId;
 
 use crate::prelude::*;
-use crate::display::traits::*;
 
 use crate::control::callback::CallbackMut1Fn;
-use crate::control::callback::DynEvent;
 use crate::control::callback;
 use crate::control::io::mouse::MouseManager;
 use crate::control::io::mouse;

@@ -177,6 +177,7 @@ where F : Fn(f32) + 'static {
     DynSimulator::<f32>::new(Box::new(move |t| target.emit(t)))
 }
 
+/// Define a new animation FRP network. // FIXME: refactor
 pub fn animation2(network:&frp::Network) -> (DynSimulator<f32>, frp::Stream<f32>) {
     frp::extend! { network
         def target = source::<f32> ();

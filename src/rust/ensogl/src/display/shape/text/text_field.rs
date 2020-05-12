@@ -33,7 +33,6 @@ use data::text::TextChange;
 use data::text::TextLocation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
-use nalgebra::Vector4;
 
 
 

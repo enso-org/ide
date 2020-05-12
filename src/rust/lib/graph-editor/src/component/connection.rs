@@ -1,9 +1,9 @@
 //! Definition of the Connection component.
 
+#![allow(missing_docs)]
+// WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
 
 use crate::prelude::*;
-
-//use crate::component::node::port::Registry;
 
 use enso_frp;
 use enso_frp as frp;
@@ -12,15 +12,11 @@ use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
-use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::animation;
 use ensogl::gui::component;
-use ensogl::display::shape::text::glyph::font::FontRegistry;
-use ensogl::display::shape::text::glyph::system::GlyphSystem;
-use ensogl::math::topology::unit::AngleOps;
+
 
 
 // ==================
@@ -97,12 +93,6 @@ impl AsRef<Connection> for Connection {
     fn as_ref(&self) -> &Self {
         self
     }
-}
-
-
-fn ease_out_quad(t:f32) -> f32 {
-    let t = t.clamp(0.0,1.0);
-    return 1.0 - (1.0 - t) * (1.0 - t);
 }
 
 
@@ -210,36 +200,4 @@ impl display::Object for Connection {
     fn display_object(&self) -> &display::object::Instance {
         &self.object
     }
-}
-
-
-
-//fn inner_tangent_lines_intersection_point_for_two_circles
-fn inner_tangent_lines_touch_points_for_two_circles
-(center1:Vector2<f32>,radius1:f32,center2:Vector2<f32>,radius2:f32)
--> (Vector2<f32>,Vector2<f32>,Vector2<f32>,Vector2<f32>) {
-    let radius_sum = radius1 + radius2;
-    let cross_x    = (center2.x*radius1 + center1.x*radius2) / radius_sum;
-    let cross_y    = (center2.y*radius1 + center1.y*radius2) / radius_sum;
-    let cross      = Vector2::new(cross_x,cross_y);
-
-    let go = |side:f32, center:Vector2<f32>, radius:f32| {
-        let cross_center = cross - center;
-        let cross_center_2 = cross_center.component_mul(&cross_center);
-        let r1_2 = radius * radius;
-
-        let q   = (cross_center_2.x + cross_center_2.y - r1_2).sqrt();
-        let div = (cross_center_2.x + cross_center_2.y);
-
-        let x = (r1_2 * cross_center.x + side * radius * cross_center.y * q) / div + center.x;
-        let y = (r1_2 * cross_center.y - side * radius * cross_center.x * q) / div + center.y;
-        Vector2::new(x,y)
-    };
-
-    let point1_1 = go( 1.0,center1,radius1);
-    let point1_2 = go(-1.0,center1,radius1);
-    let point2_1 = go( 1.0,center2,radius2);
-    let point2_2 = go(-1.0,center2,radius2);
-
-    (point1_1,point1_2,point2_1,point2_2)
 }
