@@ -18,12 +18,12 @@ const ZIP_NAME:&str = "fbs-schema.zip";
 /// The directory structure inside downloaded engine interface folder.
 const ZIP_CONTENT:&str = "fbs-upload/fbs-schema/";
 
-/// Commit from `enso` repository that will be used to obtain artefacts from.
-/// If you change this commit manually, you must have `flatc` installed to regenrate inteface files.
-/// If you are contributor, you are obligated to also run `cargo build` before creating a commit
-/// with such change!
-/// Hint: You can install flatc with `conda -c conda-forge install flatbuffers=1.12.0`
-const COMMIT:&str = "29190f83392e5da04172c36ea432c5410770da0f";
+/// Commit from `enso` repository that will be used to obtain artifacts from.
+/// If you change this commit manually, you must have `flatc` installed to regenerate interface
+/// files. Run `cargo build` to do so, before creating a commit.
+///
+/// Follow to `contribution.md` for more guidance about setting up the development environment.
+const COMMIT:&str = "7d82b1abee0f20b87b578c9ddd1a7f11330b9738";
 
 /// An URL pointing to engine interface files.
 pub fn interface_description_url() -> reqwest::Url {
@@ -38,20 +38,20 @@ pub fn interface_description_url() -> reqwest::Url {
 // == Download Engine Api Artefacts ==
 // ===================================
 
-/// Struct for downloading engine artefacts.
+/// Struct for downloading engine artifacts.
 struct ApiProvider {
-    /// The path where downloaded artefacts will be stored.
+    /// The path where downloaded artifacts will be stored.
     out_dir: PathBuf,
 }
 
 impl ApiProvider {
-    /// Creates a provider that can download engine artefacts.
+    /// Creates a provider that can download engine artifacts.
     pub fn new() -> ApiProvider {
         let out_dir_str = env::var("OUT_DIR").expect("OUT_DIR isn't environment variable");
         ApiProvider{out_dir:out_dir_str.into()}
     }
 
-    /// Downloads api artefacts into memory.
+    /// Downloads api artifacts into memory.
     pub async fn download(&self) -> bytes::Bytes {
         let url            = interface_description_url();
         let get_error      = format!("Failed to get response from {}",    &url);
@@ -60,8 +60,8 @@ impl ApiProvider {
         response.bytes().await.expect(&download_error)
     }
 
-    /// Saves unzipped artefacts into file.
-    pub fn unzip(&self, artefacts:bytes::Bytes) {
+    /// Saves unzipped artifacts into file.
+    pub fn unzip(&self, artifacts:bytes::Bytes) {
         let zip_path     = self.out_dir.join(ZIP_NAME);
         let display_path = zip_path.display();
         let open_error   = format!("Failed to open {}", display_path);
@@ -70,7 +70,7 @@ impl ApiProvider {
         let unzip_error  = format!("Failed to unzip {}",display_path);
 
         let mut file = File::create(&zip_path).expect(&open_error);
-        file.write_all(&artefacts).expect(&write_error);
+        file.write_all(&artifacts).expect(&write_error);
         file.flush().expect(&flush_error);
 
         let file        = File::open(&zip_path).expect(&open_error);
@@ -86,7 +86,7 @@ impl ApiProvider {
             let path = entry.expect("Invalid content of dir").path();
             let result = flatc_rust::run(flatc_rust::Args {
                 inputs  : &[&path],
-                out_dir : &PathBuf::from("./src"),
+                out_dir : &PathBuf::from("./src/generated"),
                 ..Default::default()
             });
             if result.is_err() {
@@ -96,7 +96,7 @@ impl ApiProvider {
         }
     }
 
-    /// Places required artefacts in the target location.
+    /// Places required artifacts in the target location.
     pub async fn run(&self) {
         let fingerprint = self.out_dir.join("egine.api.fingerprint");
         let unchanged   = match fs::read_to_string(&fingerprint) {
@@ -105,11 +105,11 @@ impl ApiProvider {
         };
         if unchanged {return}
 
-        println!("cargo:info=Engine API artefacts version changed. Rebuilding.");
-        let artefacts = self.download().await;
-        self.unzip(artefacts);
+        println!("cargo:info=Engine API artifacts version changed. Rebuilding.");
+        let artifacts = self.download().await;
+        self.unzip(artifacts);
         self.generate_files();
-        fs::write(&fingerprint,COMMIT).expect("Unable to write artefacts fingerprint.");
+        fs::write(&fingerprint,COMMIT).expect("Unable to write artifacts fingerprint.");
     }
 }
 

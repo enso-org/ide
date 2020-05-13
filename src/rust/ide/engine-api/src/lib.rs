@@ -1,10 +1,8 @@
-#[allow(dead_code, unused_imports)]
-
 //! Crate containing the engine interface files.
 
+#[allow(dead_code, unused_imports)]
 use flatbuffers;
 
-pub mod envelope_generated;
-pub mod execution_context_generated;
-pub mod session_generated;
-pub mod util_generated;
+pub mod generated;
+
+pub use generated::binary_protocol_generated as binary_protocol;
