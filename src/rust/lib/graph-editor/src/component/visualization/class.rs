@@ -35,17 +35,19 @@ pub struct  EnsoType {
 #[allow(missing_docs)]
 pub struct Frp {
     /// Can be sent to set the data of the visualization.
-    pub set_data          : frp::Source<Option<Data>>,
-        change            : frp::Source<Option<EnsoCode>>,
-        preprocess_change : frp::Source<Option<EnsoCode>>,
-        invalid_data      : frp::Source<()>,
-
+    pub set_data             : frp::Source<Option<Data>>,
     /// Will be emitted if the visualization state changes (e.g., through UI interaction).
     pub on_change            : frp::Stream<Option<EnsoCode>>,
     /// Will be emitted if the visualization changes it's preprocessor.
     pub on_preprocess_change : frp::Stream<Option<EnsoCode>>,
     /// Will be emitted if the visualization has been provided with invalid data.
     pub on_invalid_data      : frp::Stream<()>,
+
+    // Internal sources that feed the public streams.
+    change            : frp::Source<Option<EnsoCode>>,
+    preprocess_change : frp::Source<Option<EnsoCode>>,
+    invalid_data      : frp::Source<()>,
+
 }
 
 impl Frp {
@@ -56,9 +58,9 @@ impl Frp {
             def invalid_data      = source();
             def set_data          = source();
 
-            def on_change            = change.map(|code:&Option<EnsoCode>| code.as_ref().map(|c|c.clone_ref()));
-            def on_preprocess_change = preprocess_change.map(|code:&Option<EnsoCode>| code.as_ref().map(|c|c.clone_ref()));
-            def on_invalid_data      = invalid_data.map(|_|{});
+            let on_change            = change.clone_ref().into();
+            let on_preprocess_change = preprocess_change.clone_ref().into();
+            let on_invalid_data      = invalid_data.clone_ref().into();
         };
         Self { on_change,on_preprocess_change,set_data,on_invalid_data,change
               ,preprocess_change,invalid_data}
