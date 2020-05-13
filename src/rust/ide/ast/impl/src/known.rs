@@ -98,6 +98,14 @@ impl<T:Into<Shape<Ast>>> KnownAst<T> {
     }
 }
 
+impl KnownAst<crate::Module<Ast>> {
+    /// Creates a new `KnownAst<Module>` from `shape`.
+    pub fn module(shape:crate::Module<Ast>) -> KnownAst<crate::Module<Ast>> {
+        let ast = Ast::module(shape);
+        Self::new_unchecked(ast)
+    }
+}
+
 impl<T,E> Deref for KnownAst<T>
 where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E>,
       E                      : Debug, {
