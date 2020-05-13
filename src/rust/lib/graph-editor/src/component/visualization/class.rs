@@ -14,9 +14,8 @@ use ensogl::display;
 // ====================
 
 /// TODO[mm] update this with actual required data for `PreprocessId`
-type PreprocessId = String;
-
-
+pub(crate) type EnsoCode = String;
+type EnsoType = String;
 
 // =========================
 // === Visualization FRP ===
@@ -28,7 +27,7 @@ type PreprocessId = String;
 pub struct VisualizationFrp {
     pub network              : frp::Network,
     /// Will be emitted if the visualization state changes (e.g., through UI interaction).
-    pub on_change            : frp::Source<Option<Data>>,
+    pub on_change            : frp::Source<Option<EnsoCode>>,
     /// Will be emitted if the visualization is shown.
     pub on_show              : frp::Source<()>,
     /// Will be emitted if the visualization is hidden.
@@ -44,12 +43,12 @@ pub struct VisualizationFrp {
 impl Default for VisualizationFrp {
     fn default() -> Self {
         frp::new_network! { visualization_events
-            def on_change            = source::<Option<Data>> ();
-            def on_preprocess_change = source::<()>           ();
-            def on_hide              = source::<()>           ();
-            def on_show              = source::<()>           ();
-            def set_data             = source::<Option<Data>> ();
-            def on_invalid_data      = source::<()>           ();
+            def on_change            = source();
+            def on_preprocess_change = source();
+            def on_hide              = source();
+            def on_show              = source();
+            def set_data             = source();
+            def on_invalid_data      = source();
         };
         let network = visualization_events;
         Self {network,on_change,on_preprocess_change,on_hide,on_show,set_data,on_invalid_data}
@@ -65,7 +64,7 @@ impl Default for VisualizationFrp {
 #[allow(missing_docs)]
 pub struct VisualizationData {
     pub renderer     : Rc<dyn DataRenderer>,
-    pub preprocessor : Rc<Option<PreprocessId>>,
+    pub preprocessor : Rc<Option<EnsoCode>>,
 }
 
 /// Inner representation of a visualization.
