@@ -25,6 +25,7 @@ pub struct  EnsoType {
 }
 
 
+
 // =========================
 // === Visualization FRP ===
 // =========================
@@ -45,7 +46,6 @@ pub struct Frp {
     pub on_preprocess_change : frp::Stream<Option<EnsoCode>>,
     /// Will be emitted if the visualization has been provided with invalid data.
     pub on_invalid_data      : frp::Stream<()>,
-
 }
 
 impl Frp {

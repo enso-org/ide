@@ -23,7 +23,6 @@ pub struct DataRendererFrp {
     pub on_change            : frp::Source<Option<EnsoCode>>,
     /// Will be emitted if the visualization changes it's preprocessor.
     pub on_preprocess_change : frp::Source<Option<EnsoCode>>,
-
 }
 
 impl Default for DataRendererFrp {
