@@ -35,20 +35,20 @@ pub fn interface_description_url() -> reqwest::Url {
 
 
 // ===================================
-// == Download Engine Api Artefacts ==
+// == Download Engine Api Artifacts ==
 // ===================================
 
 /// Struct for downloading engine artifacts.
 struct ApiProvider {
     /// The path where downloaded artifacts will be stored.
-    out_dir: PathBuf,
+    out_dir:PathBuf,
 }
 
 impl ApiProvider {
     /// Creates a provider that can download engine artifacts.
     pub fn new() -> ApiProvider {
-        let out_dir_str = env::var("OUT_DIR").expect("OUT_DIR isn't environment variable");
-        ApiProvider{out_dir:out_dir_str.into()}
+        let out_dir = env::var("OUT_DIR").expect("OUT_DIR isn't environment variable").into();
+        ApiProvider {out_dir}
     }
 
     /// Downloads api artifacts into memory.
@@ -79,18 +79,19 @@ impl ApiProvider {
     }
 
 
-    /// Generates rust files from flatbuffers schemas.
+    /// Generates rust files from FlatBuffers schemas.
     pub fn generate_files(&self) {
         let fbs_dir = self.out_dir.join(ZIP_CONTENT);
         for entry in fs::read_dir(&fbs_dir).expect("Could not read content of dir") {
-            let path = entry.expect("Invalid content of dir").path();
+            let path   = entry.expect("Invalid content of dir").path();
             let result = flatc_rust::run(flatc_rust::Args {
                 inputs  : &[&path],
                 out_dir : &PathBuf::from("./src/generated"),
                 ..Default::default()
             });
             if result.is_err() {
-                println!("cargo:info=Engine API files were not regenerated because `flatc` isn't installed");
+                println!("cargo:info=Engine API files were not regenerated because `flatc` isn't \
+                         installed.");
                 break;
             }
         }
@@ -98,12 +99,14 @@ impl ApiProvider {
 
     /// Places required artifacts in the target location.
     pub async fn run(&self) {
-        let fingerprint = self.out_dir.join("egine.api.fingerprint");
+        let fingerprint = self.out_dir.join("engine.api.fingerprint");
         let unchanged   = match fs::read_to_string(&fingerprint) {
             Ok(commit) => commit == COMMIT,
             Err(_)     => false,
         };
-        if unchanged {return}
+        if unchanged {
+            return
+        }
 
         println!("cargo:info=Engine API artifacts version changed. Rebuilding.");
         let artifacts = self.download().await;
