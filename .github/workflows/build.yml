@@ -20,14 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Setup conda
-        uses: s-weigand/setup-conda@v1
-        with:
-          update-conda: true
-          conda-channels: anaconda, conda-forge
-      - name: Install FlatBuffers Compiler
-        run: conda install flatbuffers=1.12.0
-
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
