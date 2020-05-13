@@ -377,7 +377,7 @@ mod tests {
                 }
             }
         }"#;
-        fixture.transport.mock_peer_message_text(notification_text);
+        fixture.transport.mock_peer_text_message(notification_text);
         assert!(poll_stream_output(&mut events).is_none());
 
         fixture.executor.run_until_stalled();
@@ -408,12 +408,12 @@ mod tests {
         let mut fixture        = setup_language_server();
         let mut request_future = Box::pin(make_request(&mut fixture.client));
 
-        let request = fixture.transport.expect_message::<RequestMessage<Value>>();
+        let request = fixture.transport.expect_json_message::<RequestMessage<Value>>();
         assert_eq!(request.method, expected_method);
         assert_eq!(request.params, expected_input);
 
         let response = Message::new_success(request.id, result);
-        fixture.transport.mock_peer_message(response);
+        fixture.transport.mock_peer_json_message(response);
         fixture.executor.run_until_stalled();
         let output = poll_future_output(&mut request_future).unwrap().unwrap();
         assert_eq!(output, expected_output);

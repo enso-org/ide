@@ -32,7 +32,7 @@ impl TestWithMockedTransport {
         let id            = self.next_response_id.generate();
         let result        = json_rpc::messages::Message::new_success(id,result);
         self.with_executor_fixture.when_stalled(move ||
-            transport.mock_peer_message(result)
+            transport.mock_peer_json_message(result)
         );
     }
 }
