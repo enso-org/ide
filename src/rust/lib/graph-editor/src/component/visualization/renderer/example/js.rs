@@ -97,41 +97,42 @@ pub fn object_sample_js_bubble_chart() -> JsRenderer {
 /// visualization.
 pub fn constructor_sample_js_bubble_chart() -> JsRenderer {
     let fn_constructor = r#"
-        const obj = new Object();
-        obj.set_data = (root, data) => {
-            const xmlns = "http://www.w3.org/2000/svg";
-            while (root.firstChild) {
-                root.removeChild(root.lastChild);
+        class BubbleVisualisation {
+            set_data(root, data) {
+                const xmlns = "http://www.w3.org/2000/svg";
+                while (root.firstChild) {
+                    root.removeChild(root.lastChild);
+                }
+
+                const svgElem = document.createElementNS(xmlns, "svg");
+                svgElem.setAttributeNS(null, "id"     , "vis-svg");
+                svgElem.setAttributeNS(null, "viewBox", "0 0 " + 100 + " " + 100);
+                svgElem.setAttributeNS(null, "width"  , 100);
+                svgElem.setAttributeNS(null, "height" , 100);
+                root.appendChild(svgElem);
+
+                data.forEach(data => {
+                    const bubble = document.createElementNS(xmlns,"circle");
+                    bubble.setAttributeNS(null,"stroke", "black");
+                    bubble.setAttributeNS(null,"fill"  , "red");
+                    bubble.setAttributeNS(null,"r"     , data[2]);
+                    bubble.setAttributeNS(null,"cx"    , data[0]);
+                    bubble.setAttributeNS(null,"cy"    , data[1]);
+                    svgElem.appendChild(bubble);
+                });
             }
 
-            const svgElem = document.createElementNS(xmlns, "svg");
-            svgElem.setAttributeNS(null, "id"     , "vis-svg");
-            svgElem.setAttributeNS(null, "viewBox", "0 0 " + 100 + " " + 100);
-            svgElem.setAttributeNS(null, "width"  , 100);
-            svgElem.setAttributeNS(null, "height" , 100);
-            root.appendChild(svgElem);
+            set_size(root, size) {
+                const width   = size[0];
+                const height  = size[1];
+                const svgElem = root.firstChild;
+                svgElem.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
+                svgElem.setAttributeNS(null, "width"  , width);
+                svgElem.setAttributeNS(null, "height" , height);
+            }
+        }
 
-            data.forEach(data => {
-                const bubble = document.createElementNS(xmlns,"circle");
-                bubble.setAttributeNS(null,"stroke", "black");
-                bubble.setAttributeNS(null,"fill"  , "red");
-                bubble.setAttributeNS(null,"r"     , data[2]);
-                bubble.setAttributeNS(null,"cx"    , data[0]);
-                bubble.setAttributeNS(null,"cy"    , data[1]);
-                svgElem.appendChild(bubble);
-            });
-        };
-
-        obj.set_size = (root, size) => {
-            const width   = size[0];
-            const height  = size[1];
-            const svgElem = root.firstChild;
-            svgElem.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
-            svgElem.setAttributeNS(null, "width"  , width);
-            svgElem.setAttributeNS(null, "height" , height);
-        };
-
-        return obj;
+        return new BubbleVisualisation();
     "#;
     JsRenderer::from_constructor(fn_constructor).unwrap()
 }
