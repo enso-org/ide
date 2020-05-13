@@ -1,4 +1,4 @@
-//! This module defines the `visualization` struct and related functionality.
+//! This module defines the `Visualization` struct and related functionality.
 
 use crate::prelude::*;
 
@@ -58,19 +58,25 @@ impl Frp {
 
 
 
-// =====================
-// === Visualization ===
-// =====================
+// ===============================
+// === Visualization Internals ===
+// ===============================
 
 /// Internal data of Visualization.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Internal {
     pub renderer     : Rc<dyn DataRenderer>,
-    pub preprocessor : Rc<Option<EnsoCode>>,
+    pub preprocessor : Rc<RefCell<Option<EnsoCode>>>,
 }
 
-/// Inner representation of a visualization.
+impl display::Object for Internal {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.renderer.display_object()
+    }
+}
+
+/// A visualization that can be rendered and interacted with. Provides an frp API.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Visualization {
@@ -81,14 +87,13 @@ pub struct Visualization {
 
 impl display::Object for Visualization {
     fn display_object(&self) -> &display::object::Instance {
-        &self.internal.renderer.display_object()
+        &self.internal.display_object()
     }
 }
 
 impl Visualization {
     /// Create a new `Visualization` with the given `DataRenderer`.
     pub fn new<T: DataRenderer + 'static>(renderer:Rc<T>) -> Self {
-        // FIXME use actual pre-processor functionality.
         let preprocessor = default();
         let network      = default();
         let frp          = Rc::new(Frp::new(&network));

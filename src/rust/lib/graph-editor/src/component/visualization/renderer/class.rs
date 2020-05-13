@@ -54,7 +54,7 @@ pub trait DataRenderer: display::Object + Debug {
         unimplemented!()
     }
     /// Set the data that should be rendered. If the data is valid, it will return the data as
-    /// processed by this `DataRenderer`, if the data is of an invalid data type, ir violates other
+    /// processed by this `DataRenderer`, if the data is of an invalid data type, it violates other
     /// assumptions of this `DataRenderer`, a `DataError` is returned.
     fn set_data(&self, data:Data) -> Result<(), DataError>;
     /// Set the size of viewport of the visualization. The visualisation must not render outside of
