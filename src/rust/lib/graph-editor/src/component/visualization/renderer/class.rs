@@ -20,16 +20,20 @@ pub struct DataRendererFrp {
     pub network   : frp::Network,
     /// This is emitted if the state of the renderer has been changed by UI interaction.
     /// It contains the output data of this visualisation if there is some.
-    pub on_change : frp::Source<Option<EnsoCode>>,
+    pub on_change            : frp::Source<Option<EnsoCode>>,
+    /// Will be emitted if the visualization changes it's preprocessor.
+    pub on_preprocess_change : frp::Source<Option<EnsoCode>>,
+
 }
 
 impl Default for DataRendererFrp {
     fn default() -> Self {
         frp::new_network! { renderer_events
-            def on_change = source();
+            def on_change            = source();
+            def on_preprocess_change = source();
         };
         let network = renderer_events;
-        Self {network,on_change}
+        Self {network,on_change,on_preprocess_change}
     }
 }
 

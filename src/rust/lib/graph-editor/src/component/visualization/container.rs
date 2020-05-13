@@ -77,16 +77,19 @@ impl ContainerData {
         if let Some(vis) = self.visualization.borrow().as_ref() {
             if is_visible {
                 vis.display_object().set_parent(&self.display_object);
-                vis.frp.on_show.emit(())
             } else {
-                vis.frp.on_hide.emit(())
+                vis.display_object().unset_parent();
             }
         }
     }
 
     /// Indicates whether the visualisation is visible.
     fn is_visible(&self) -> bool {
-        self.display_object.has_parent()
+        if let Some(vis) = self.visualization.borrow().as_ref() {
+            vis.display_object().has_parent()
+        } else {
+            false
+        }
     }
 
     /// Toggle visibility.
