@@ -176,7 +176,8 @@ impl MockTransport {
             if data.is_closed {
                 Err(SendError::TransportClosed.into())
             } else {
-                Ok(f(data))
+                f(data);
+                Ok(())
             }
         })
     }
