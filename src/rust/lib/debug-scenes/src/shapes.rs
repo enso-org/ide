@@ -178,7 +178,6 @@ use ast::crumbs::PatternMatchCrumb::*;
 use ast::crumbs::*;
 use span_tree::traits::*;
 use graph_editor::component::node::port::Expression;
-use enso_frp::stream::ValueProvider;
 
 
 pub fn expression_mock() -> Expression {

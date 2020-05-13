@@ -348,6 +348,7 @@ pub struct UnsealedFrpOutputs {
     pub node_position : frp::Merge<(NodeId,Position)>,
 }
 
+#[allow(clippy::new_without_default)]
 impl UnsealedFrpOutputs {
     pub fn new() -> Self {
         frp::new_network! { TRACE_ALL network
@@ -1105,7 +1106,6 @@ impl application::View for GraphEditor {
 
         let connect_edge_source = inputs.connect_edge_source.clone_ref();
         let connect_edge_target = inputs.connect_edge_target.clone_ref();
-        let connect_nodes       = inputs.connect_nodes.clone_ref();
         model_bind!(network model.connect_edge_source(edge_id,target));
         model_bind!(network model.connect_edge_target(edge_id,target));
 
