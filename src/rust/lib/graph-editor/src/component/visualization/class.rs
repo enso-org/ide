@@ -28,7 +28,6 @@ pub type EnsoType = String;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub network              : frp::Network,
     /// Will be emitted if the visualization state changes (e.g., through UI interaction).
     pub on_change            : frp::Source<Option<EnsoCode>>,
     /// Will be emitted if the visualization is shown.
@@ -43,9 +42,9 @@ pub struct Frp {
     pub set_data             : frp::Source<Option<Data>>,
 }
 
-impl Default for Frp {
-    fn default() -> Self {
-        frp::new_network! { visualization_events
+impl Frp {
+    fn new(network: &frp::Network) -> Self {
+        frp::extend! { network
             def on_change            = source();
             def on_preprocess_change = source();
             def on_hide              = source();
@@ -53,8 +52,7 @@ impl Default for Frp {
             def set_data             = source();
             def on_invalid_data      = source();
         };
-        let network = visualization_events;
-        Self {network,on_change,on_preprocess_change,on_hide,on_show,set_data,on_invalid_data}
+        Self {on_change,on_preprocess_change,on_hide,on_show,set_data,on_invalid_data}
     }
 }
 
@@ -76,6 +74,7 @@ pub struct Internal {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Visualization {
+    pub network  : frp::Network,
     pub frp      : Rc<Frp>,
     pub internal : Rc<Internal>
 }
@@ -91,21 +90,22 @@ impl Visualization {
     pub fn new<T: DataRenderer + 'static>(renderer:Rc<T>) -> Self {
         // FIXME use actual pre-processor functionality.
         let preprocessor = default();
-        let frp          = default();
+        let network      = default();
+        let frp          = Rc::new(Frp::new(&network));
 
         let internal = Rc::new(Internal{preprocessor,renderer});
-        Visualization{frp,internal}.init()
+        Visualization{frp,internal,network}.init()
     }
 
     fn init(self) -> Self {
-        let network       = &self.frp.network;
+        let network       = &self.network;
         let visualization = &self.internal;
-        let weak_frp      = Rc::downgrade(&self.frp);
+        let frp           = &self.frp;
         frp::extend! { network
-            def _set_data = self.frp.set_data.map(f!((weak_frp,visualization)(data) {
+            def _set_data = self.frp.set_data.map(f!((frp,visualization)(data) {
                 if let Some(data) = data {
                     if visualization.renderer.set_data(data.clone_ref()).is_err() {
-                        weak_frp.upgrade().for_each_ref(|frp| frp.on_invalid_data.emit(()))
+                        frp.on_invalid_data.emit(())
                     }
                 }
             }));
@@ -114,8 +114,8 @@ impl Visualization {
         let renderer_frp     = self.internal.renderer.frp();
         let renderer_network = &renderer_frp.network;
         frp::new_bridge_network! { [network,renderer_network]
-            def _on_changed = renderer_frp.on_change.map(f!((weak_frp)(data) {
-                weak_frp.upgrade().for_each_ref(|frp| frp.on_change.emit(data))
+            def _on_changed = renderer_frp.on_change.map(f!((frp)(data) {
+                frp.on_change.emit(data)
             }));
         }
 
