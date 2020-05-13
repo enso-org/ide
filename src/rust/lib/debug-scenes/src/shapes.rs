@@ -16,6 +16,7 @@ use ensogl_core_msdf_sys::run_once_initialized;
 use ensogl::display::style::theme;
 use ensogl::data::color;
 use enso_frp::Position;
+use enso_frp as frp;
 
 
 #[wasm_bindgen]
@@ -30,6 +31,34 @@ pub fn run_example_shapes() {
         mem::forget(app);
     });
 }
+
+
+fn fence<T,Out>(network:&frp::Network, trigger:T) -> (frp::Stream,frp::Stream<bool>)
+where T:frp::HasOutput<Output=Out>, T:Into<frp::Stream<Out>>, Out:frp::Data {
+    let trigger = trigger.into();
+    frp::extend! { network
+        def trigger_ = trigger.constant(());
+        def runner   = source::<()>();
+        def switch   = gather();
+        switch.attach(&trigger_);
+        def triggered = trigger.map(f_!((runner) runner.emit(())));
+        switch.attach(&triggered);
+        def condition = switch.toggle_true();
+    }
+    let runner = runner.into();
+    (runner,condition)
+}
+
+//fn fenced_gate<F,T,X>(network:&frp::Network, target:&frp::Stream<X>, f:F) -> frp::Stream<X>
+//where F:'static+Fn()->T, X:frp::Data {
+//    let target = target.clone_ref();
+//    frp::extend! { network
+//        let (trigger,runner,condition) = fence(&network);
+//        def _eval = runner.map(move |_| {f();});
+//        def out   = target.gate(&condition);
+//    }
+//    out
+//}
 
 fn init(app:&Application) {
 
@@ -102,13 +131,28 @@ fn init(app:&Application) {
     graph_editor.frp.set_node_expression.emit((node1_id,expression_mock()));
     graph_editor.frp.set_node_expression.emit((node2_id,expression_mock()));
 
-    graph_editor.frp.connect_nodes.emit((EdgeTarget::new(node1_id,default()),EdgeTarget::new(node2_id,vec![1,0,2])));
+    frp::new_network! { network
+        def trigger = source::<()>();
+        let (runner,condition) = fence(&network,&trigger);
+        def _eval = runner.map(f_!((graph_editor) {
+            graph_editor.frp.connect_nodes.emit((EdgeTarget::new(node1_id,default()),EdgeTarget::new(node2_id,vec![1,0,2])));
+        }));
+        def _debug = graph_editor.frp.outputs.edge_added.map2(&condition, |id,cond| {
+            let owner = if *cond { "GUI" } else { "ME" };
+            println!("Edge [{}] added by {}!",id,owner)
+        });
+
+    }
+
+    trigger.emit(());
+
 
     let mut was_rendered = false;
     let mut loader_hidden = false;
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
         let _keep_alive = &graph_editor;
+        let _keep_alive = &network;
 
         // Temporary code removing the web-loader instance.
         // To be changed in the future.
@@ -134,6 +178,7 @@ use ast::crumbs::PatternMatchCrumb::*;
 use ast::crumbs::*;
 use span_tree::traits::*;
 use graph_editor::component::node::port::Expression;
+use enso_frp::stream::ValueProvider;
 
 
 pub fn expression_mock() -> Expression {

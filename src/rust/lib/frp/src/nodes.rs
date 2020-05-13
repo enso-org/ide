@@ -50,6 +50,12 @@ impl Network {
         self.register(OwnedToggle::new(label,source))
     }
 
+    /// Emits `true`, `false`, `true`, `false`, ... on every incoming event. Initialized with true
+    /// value.
+    pub fn toggle_true<T:EventOutput>(&self, label:Label, source:&T) -> Stream<bool> {
+        self.register(OwnedToggle::new_with(label,source,true))
+    }
+
     /// Count the incoming events.
     pub fn count<T:EventOutput>(&self, label:Label, source:&T) -> Stream<usize> {
         self.register(OwnedCount::new(label,source))
@@ -457,14 +463,14 @@ impl<Out:Data> OwnedSampler<Out> {
 }
 
 impl<Out:Data> OwnedSampler<Out> {
-    /// OwnedSample the value.
+    /// Sample the value.
     pub fn value(&self) -> Out {
         self.value.borrow().clone()
     }
 }
 
 impl<Out:Data> Sampler<Out> {
-    /// OwnedSample the value.
+    /// Sample the value.
     pub fn value(&self) -> Out {
         self.upgrade().map(|t| t.value.borrow().clone()).unwrap_or_default()
     }
