@@ -15,12 +15,12 @@ use ensogl::display;
 
 /// Type alias for a string containing enso code.
 #[derive(Clone,CloneRef,Debug)]
-pub struct  EnsoCode {
+pub struct EnsoCode {
     content: Rc<String>
 }
 /// Type alias for a string representing an enso type.
 #[derive(Clone,CloneRef,Debug)]
-pub struct  EnsoType {
+pub struct EnsoType {
     content: Rc<String>
 }
 
@@ -133,7 +133,7 @@ impl Visualization {
             def _on_changed = renderer_frp.on_change.map(f!((frp)(data) {
                 frp.change.emit(data)
             }));
-           def _on_changed = renderer_frp.on_preprocess_change.map(f!((frp)(data) {
+           def _on_preprocess_change = renderer_frp.on_preprocess_change.map(f!((frp)(data) {
                 frp.preprocess_change.emit(data.as_ref().map(|code|code.clone_ref()))
             }));
         }
