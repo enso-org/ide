@@ -112,6 +112,7 @@ impl DomSymbol {
             transform.iter_mut().for_each(|a| *a = eps(*a));
             set_object_transform(&dom,&transform);
         }));
+
         Self {display_object,dom,size,guard}
     }
 
