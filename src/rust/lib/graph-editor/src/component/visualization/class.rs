@@ -36,9 +36,10 @@ pub struct EnsoType {
 pub struct Frp {
     /// Can be sent to set the data of the visualization.
     pub set_data             : frp::Source<Option<Data>>,
-    /// Will be emitted if the visualization state changes (e.g., through UI interaction).
+    /// Will be emitted if the visualization has new data (e.g., through UI interaction).
+    /// Data is provides encoded as EnsoCode.
     pub on_change            : frp::Stream<Option<EnsoCode>>,
-    /// Will be emitted if the visualization changes it's preprocessor.
+    /// Will be emitted if the visualization changes it's preprocessor code.
     pub on_preprocess_change : frp::Stream<Option<EnsoCode>>,
     /// Will be emitted if the visualization has been provided with invalid data.
     pub on_invalid_data      : frp::Stream<()>,

@@ -21,7 +21,8 @@ pub struct DataRendererFrp {
     /// This is emitted if the state of the renderer has been changed by UI interaction.
     /// It contains the output data of this visualisation if there is some.
     pub on_change            : frp::Stream<Option<EnsoCode>>,
-    /// Will be emitted if the visualization changes it's preprocessor.
+    /// Will be emitted if the visualization changes it's preprocessor. Transmits the new
+    /// preprocessor code.
     pub on_preprocess_change : frp::Stream<Option<EnsoCode>>,
 
     // Internal sources that feed the public streams.
