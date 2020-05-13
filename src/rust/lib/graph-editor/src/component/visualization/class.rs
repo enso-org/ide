@@ -81,7 +81,7 @@ impl display::Object for Internal {
 #[allow(missing_docs)]
 pub struct Visualization {
     pub network  : frp::Network,
-    pub frp      : Rc<Frp>,
+    pub frp      : Frp,
     pub internal : Rc<Internal>
 }
 
@@ -96,7 +96,7 @@ impl Visualization {
     pub fn new<T: DataRenderer + 'static>(renderer:Rc<T>) -> Self {
         let preprocessor = default();
         let network      = default();
-        let frp          = Rc::new(Frp::new(&network));
+        let frp          = Frp::new(&network);
 
         let internal = Rc::new(Internal{preprocessor,renderer});
         Visualization{frp,internal,network}.init()

@@ -58,7 +58,7 @@ pub struct Container {
 
     #[shrinkwrap(main_field)]
         data : Rc<ContainerData>,
-    pub frp  : Rc<ContainerFrp>,
+    pub frp  : ContainerFrp,
 }
 
 /// Internal data of a `Container`.
