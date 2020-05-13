@@ -66,7 +66,6 @@ impl Default for VisualizationFrp {
 pub struct VisualizationData {
     pub renderer     : Rc<dyn DataRenderer>,
     pub preprocessor : Rc<Option<PreprocessId>>,
-    pub data         : Rc<RefCell<Option<Data>>>,
 }
 
 /// Inner representation of a visualization.
@@ -89,9 +88,8 @@ impl Visualization {
         // FIXME use actual pre-processor functionality.
         let preprocessor = default();
         let frp          = default();
-        let data         = default();
 
-        let data = Rc::new(VisualizationData { preprocessor,data,renderer });
+        let data = Rc::new(VisualizationData { preprocessor,renderer });
         Visualization { frp,data} . init()
     }
 
@@ -101,9 +99,7 @@ impl Visualization {
         let weak_frp      = Rc::downgrade(&self.frp);
         frp::extend! { network
             def _set_data = self.frp.set_data.map(f!((weak_frp,visualization)(data) {
-                visualization.data.clear();
                 if let Some(data) = data {
-                    visualization.data.set(data.clone_ref());
                     if visualization.renderer.set_data(data.clone_ref()).is_err() {
                         weak_frp.upgrade().for_each_ref(|frp| frp.on_invalid_data.emit(()))
                     }
@@ -127,8 +123,4 @@ impl Visualization {
         self.data.renderer.set_size(size)
     }
 
-    /// Returns the data that has been set for this visualization.
-    pub fn data(&self) -> Option<Data> {
-        self.data.data.borrow().as_ref().map(|data| data.clone_ref())
-    }
 }
