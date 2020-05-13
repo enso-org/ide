@@ -169,9 +169,12 @@ impl MockTransport {
         })
     }
 
-    /// Common code for sending messages. Returns early error if the socket is already closed.
-    pub fn send_helper<F>(&mut self, f:F) -> Result<(), Error>
-        where F : FnOnce(&mut MockTransportData) {
+    /// Executes a given function with a mutable reference to the transport data.
+    /// The function should realize "sending" (well, mocked) the message through the transport.
+    ///
+    /// Fails if the transport is not open.
+    pub fn send_helper<F>(&mut self, f:F) -> Result<(),Error>
+    where F : FnOnce(&mut MockTransportData) {
         self.with_mut_data(|data| {
             if data.is_closed {
                 Err(SendError::TransportClosed.into())

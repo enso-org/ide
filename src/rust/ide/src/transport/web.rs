@@ -208,12 +208,13 @@ impl WebSocket {
         self.ws.set_onopen(None);
     }
 
-    /// Handles common code paths for sending messages.
+    /// Executes a given function with a mutable reference to the socket.
+    /// The function should attempt sending the message through the websocket.
     ///
-    /// Executes preliminary checks and handle errors.
-    /// The given function should do actual sending.
-    pub fn send_message_helper<F,R>(&mut self, f:F) -> Result<R, Error>
-        where F : FnOnce(&mut web_sys::WebSocket) -> Result<R, JsValue> {
+    /// Fails if the socket is not opened or if the sending function failed.
+    /// The error from `F` shall be translated into `SendingError`.
+    pub fn send_with_open_socket<F,R>(&mut self, f:F) -> Result<R,Error>
+    where F : FnOnce(&mut web_sys::WebSocket) -> Result<R,JsValue> {
         // Sending through the closed WebSocket can return Ok() with error only
         // appearing in the log. We explicitly check for this to get failure as
         // early as possible.
@@ -232,7 +233,7 @@ impl WebSocket {
 
 impl Transport for WebSocket {
     fn send_text(&mut self, message:&str) -> Result<(), Error> {
-        self.send_message_helper(|ws| ws.send_with_str(message))
+        self.send_with_open_socket(|ws| ws.send_with_str(message))
     }
 
     fn send_binary(&mut self, message:&[u8]) -> Result<(), Error> {
@@ -244,7 +245,7 @@ impl Transport for WebSocket {
         //   When fixed, we should pass `message` directly, without intermediate copy.
         let mut owned_copy = Vec::from(message);
         let mut_slice      = owned_copy.as_mut();
-        self.send_message_helper(|ws| ws.send_with_u8_array(mut_slice))
+        self.send_with_open_socket(|ws| ws.send_with_u8_array(mut_slice))
     }
 
     fn set_event_transmitter(&mut self, transmitter:mpsc::UnboundedSender<TransportEvent>) {
