@@ -82,14 +82,13 @@ mod tests {
         font.mock_kerning_info('A', 'W', -0.16);
         font.mock_kerning_info('W', 'A', 0.0);
 
-        let initial_position = Vector2::new(0.0,0.0);
-        let chars            = "AWA".chars();
-        let iter             = PenIterator::new(initial_position,1.0,chars,font);
-        let result           = iter.collect_vec();
+        let chars    = "AWA".chars();
+        let iter     = PenIterator::new(1.0,chars,font);
+        let result   = iter.collect_vec();
         let expected = vec!
-            [ ('A', Vector2::new(0.0, 0.0))
-            , ('W', Vector2::new(0.4, 0.0))
-            , ('A', Vector2::new(1.1, 0.0))
+            [ ('A', 0.0)
+            , ('W', 0.4)
+            , ('A', 1.1)
             ];
         assert_eq!(expected,result);
     }
