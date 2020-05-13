@@ -30,7 +30,7 @@ use failure::_core::fmt::Formatter;
 #[fail(display="Invalid module path.")]
 pub struct InvalidModulePath {}
 
-/// Error returned when module path is invalid, i.e. cannot obtain module name from it.
+/// Error returned when graph id invalid.
 #[derive(Clone,Debug,Fail)]
 #[fail(display="Invalid graph id: {:?}.",_0)]
 pub struct InvalidGraphId(controller::graph::Id);
@@ -51,8 +51,7 @@ impl Path {
     /// Create a path from the file path. Returns None if given path is not a valid module file.
     pub fn from_file_path(file_path:FilePath) -> Option<Self> {
         let has_proper_ext   = file_path.extension() == Some(constants::LANGUAGE_FILE_EXTENSION);
-        let first_char       = file_path.file_name().and_then(|name| name.chars().next());
-        let capitalized_name = first_char.map_or(false, |ch| ch.is_uppercase());
+        let capitalized_name = file_path.file_name()?.chars().next()?.is_uppercase();
         let is_module        = has_proper_ext && capitalized_name;
         is_module.and_option_from(|| Some(Path{file_path}))
     }
@@ -69,8 +68,7 @@ impl Path {
         // The file stem existence should be checked during construction.
         self.file_path.file_stem().unwrap()
     }
-
-    /// Create a simple module path basing on module name. Used as test utility.
+    /// Create a module path consisting of a single segment, based on a given module name.
     #[cfg(test)]
     pub fn from_module_name(name:impl Str) -> Self {
         let name:String = name.into();

@@ -65,9 +65,9 @@ pub struct ExecutionContext {
 
 impl ExecutionContext {
     /// Create new execution context
-    pub fn new(root_definition:DefinitionName) -> Self {
+    pub fn new(entry_point:DefinitionName) -> Self {
         let stack = default();
-        Self { entry_point: root_definition,stack}
+        Self {entry_point,stack}
     }
 
     /// Push a new stack item to execution context.
