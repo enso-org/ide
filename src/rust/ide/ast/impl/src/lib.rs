@@ -235,9 +235,9 @@ impl Ast {
     /// Length will ba automatically calculated based on Shape.
     pub fn new<S:Into<Shape<Ast>>>(shape:S, id:Option<Id>) -> Ast {
         let shape  = shape.into();
-        let id     = Some(Id::new_v4());
+        let id     = id.unwrap_or_else(Id::new_v4);
         let length = shape.len();
-        Ast::from_ast_id_len(shape,id,length)
+        Ast::from_ast_id_len(shape,Some(id),length)
     }
 
     pub fn module(shape:Module<Ast>) -> Ast {
