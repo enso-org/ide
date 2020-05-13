@@ -1,4 +1,4 @@
-//! Crate containing the engine interface files.
+//! Crate containing the Engine Services binary protocol interface.
 
 #[allow(dead_code, unused_imports)]
 use flatbuffers;
