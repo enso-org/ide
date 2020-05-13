@@ -70,7 +70,7 @@ pub struct GraphEditorIntegration {
 
 impl GraphEditorIntegration {
     /// Constructor. It creates GraphEditor panel and connect it with given controller handle.
-    pub fn new(logger:Logger, app:&Application, controller:controller::Graph) -> Rc<Self> {
+    pub fn new(logger:Logger, app:&Application, controller:controller::ExecutedGraph) -> Rc<Self> {
         let editor                = app.views.new::<GraphEditor>();
         let displayed_nodes       = default();
         let displayed_connections = default();
@@ -78,17 +78,16 @@ impl GraphEditorIntegration {
         let this = Rc::new(GraphEditorIntegration {editor,controller,displayed_nodes,
             displayed_expressions,displayed_connections,logger});
 
+        if let Err(err) = this.invalidate_graph() {
+            error!(this.logger,"Error while initializing graph display: {err}");
+        }
         let updating = Self::setup_controller_event_handling(&this);
         Self::setup_ui_event_handling(&this,updating);
-        //TODO
-        // if let Err(err) = this.invalidate_graph() {
-        //     error!(this.logger,"Error while initializing graph display: {err}");
-        // }
         this
     }
 
     fn setup_controller_event_handling(this:&Rc<Self>) -> enso_frp::Stream<bool> {
-        let stream  = this.controller.subscribe();
+        let stream  = this.controller.graph.subscribe();
         let weak    = Rc::downgrade(this);
         let network = &this.editor.network;
         enso_frp::extend! {network
@@ -161,7 +160,7 @@ impl GraphEditorIntegration {
 
     fn invalidate_nodes
     (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>) -> FallibleResult<()> {
-        let nodes = self.controller.nodes()?;
+        let nodes = self.controller.graph.nodes()?;
         let ids   = nodes.iter().map(|node| node.info.id() ).collect();
         self.retain_ids(&ids);
         for (i,node_info) in nodes.iter().enumerate() {
@@ -260,7 +259,7 @@ impl GraphEditorIntegration {
     fn node_removed_action(&self, node:&graph_editor::NodeId) -> FallibleResult<()> {
         let id = self.displayed_nodes.borrow().get_rev(&node).cloned();
         if let Some(id) = id {
-            self.controller.remove_node(id)?;
+            self.controller.graph.remove_node(id)?;
             self.displayed_nodes.borrow_mut().remove_fwd(&id);
         }
         Ok(())
@@ -270,7 +269,7 @@ impl GraphEditorIntegration {
     (&self, node_and_position:&(graph_editor::NodeId,enso_frp::Position)) -> FallibleResult<()> {
         let (node,position) = node_and_position;
         if let Some(id) = self.displayed_nodes.borrow().get_rev(&node).cloned() {
-            self.controller.module.with_node_metadata(id, |md| {
+            self.controller.graph.module.with_node_metadata(id, |md| {
                 md.position = Some(model::module::Position::new(position.x,position.y));
             });
         }
@@ -281,7 +280,7 @@ impl GraphEditorIntegration {
     (&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
         if let Some(edge) = self.editor.edges.get_cloned(&edge_id) {
             if let Some(connection) = self.from_graph_editor_edge(&edge) {
-                self.controller.connect(&connection)?;
+                self.controller.graph.connect(&connection)?;
             }
         }
         Ok(())
@@ -291,7 +290,7 @@ impl GraphEditorIntegration {
     (&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
         let connection = self.displayed_connections.borrow().get_rev(edge_id).cloned();
         if let Some(connection) = connection {
-            self.controller.disconnect(&connection)?;
+            self.controller.graph.disconnect(&connection)?;
             self.displayed_connections.borrow_mut().remove_fwd(&connection);
         }
         Ok(())
