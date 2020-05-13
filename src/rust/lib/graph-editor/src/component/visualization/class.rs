@@ -109,7 +109,7 @@ impl Visualization {
         frp::extend! { network
             def _set_data = self.frp.set_data.map(f!((frp,visualization)(data) {
                 if let Some(data) = data {
-                    if visualization.renderer.set_data(data.clone_ref()).is_err() {
+                    if visualization.renderer.receive_data(data.clone_ref()).is_err() {
                         frp.on_invalid_data.emit(())
                     }
                 }

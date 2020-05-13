@@ -63,7 +63,7 @@ impl BubbleChart {
 
 impl DataRenderer for BubbleChart {
 
-    fn set_data(&self, data:Data) -> Result<(),DataError> {
+    fn receive_data(&self, data:Data) -> Result<(),DataError> {
         let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
 
         // Avoid re-creating views, if we have already created some before.

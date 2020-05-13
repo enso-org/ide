@@ -53,10 +53,10 @@ pub trait DataRenderer: display::Object + Debug {
         // TODO this will need to be implemented by each Renderer once we get to the registry.
         unimplemented!()
     }
-    /// Set the data that should be rendered. If the data is valid, it will return the data as
+    /// Receive the data that should be rendered. If the data is valid, it will return the data as
     /// processed by this `DataRenderer`, if the data is of an invalid data type, it violates other
     /// assumptions of this `DataRenderer`, a `DataError` is returned.
-    fn set_data(&self, data:Data) -> Result<(), DataError>;
+    fn receive_data(&self, data:Data) -> Result<(), DataError>;
     /// Set the size of viewport of the visualization. The visualisation must not render outside of
     /// this viewport.
     fn set_size(&self, size:Vector2<f32>);
