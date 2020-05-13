@@ -18,6 +18,7 @@
 //!    as well as the intended size.
 //!
 //! TODO: refine spec and add functions as needed, e.g., init, callback hooks or type indicators.
+
 use crate::prelude::*;
 
 use crate::component::visualization::Data;
@@ -33,6 +34,7 @@ use ensogl::system::web;
 use js_sys;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -41,22 +43,15 @@ use js_sys;
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub enum JsVisualisationError {
-    /// The supplied JS value is not an object.
-    NotAnObject {
-        inner : JsValue,
-    } ,
-    /// The supplied JS value is not a function.
-    NotAFunction {
-        inner : JsValue,
-    },
+    NotAnObject  { inner:JsValue },
+    NotAFunction { inner:JsValue },
     /// An unknown error occurred on the JS side. Inspect the content for more information. .
-    Unknown {
-        inner : JsValue,
-    }
+    Unknown      { inner:JsValue }
 }
 
 impl From<JsValue> for JsVisualisationError {
     fn from(value:JsValue) -> Self {
+        // TODO add differentiation if we encounter specific errors and return new variants.
         JsVisualisationError::Unknown {inner:value}
     }
 }
@@ -93,7 +88,7 @@ impl JsRenderer {
     /// width and height. This can be used by the visualisation to ensure proper scaling.
     ///
     /// For a full example see
-    /// `crate::component::visualization::renderer::sample::function_sample_js_bubble_chart`
+    /// `crate::component::visualization::renderer::example::function_sample_js_bubble_chart`
     pub fn from_functions(fn_set_data:&str, fn_set_size:&str) -> Self {
         let set_data = js_sys::Function::new_no_args(fn_set_data);
         let set_size = js_sys::Function::new_no_args(fn_set_size);
@@ -146,7 +141,7 @@ impl JsRenderer {
     /// ```
     ///
     /// For a full example see
-    /// `crate::component::visualization::renderer::sample::object_sample_js_bubble_chart`
+    /// `crate::component::visualization::renderer::example::object_sample_js_bubble_chart`
     pub fn from_object(source: &str) -> Result<JsRenderer,JsVisualisationError> {
         let object = js_sys::eval(source)?;
         if !object.is_object() {
@@ -172,7 +167,7 @@ impl JsRenderer {
     ///
     /// ```
     /// For a full example see
-    /// `crate::component::visualization::renderer::sample::constructor_sample_js_bubble_chart`
+    /// `crate::component::visualization::renderer::example::constructor_sample_js_bubble_chart`
     pub fn from_constructor(source:&str) -> Result<JsRenderer,JsVisualisationError> {
         let context     = JsValue::NULL;
         let constructor = js_sys::Function::new_no_args(source);

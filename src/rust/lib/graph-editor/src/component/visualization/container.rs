@@ -61,13 +61,6 @@ pub struct Container {
     pub frp  : Rc<ContainerFrp>,
 }
 
-/// Weak version of `Container`.
-#[derive(Clone,CloneRef,Debug)]
-pub struct WeakContainer {
-    data : Weak<ContainerData>,
-    frp  : Weak<ContainerFrp>,
-}
-
 /// Internal data of a `Container`.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
@@ -92,12 +85,12 @@ impl ContainerData {
     }
 
     /// Indicates whether the visualisation is visible.
-    pub fn is_visible(&self) -> bool {
+    fn is_visible(&self) -> bool {
         self.display_object.has_parent()
     }
 
     /// Toggle visibility.
-    pub fn toggle_visibility(&self) {
+    fn toggle_visibility(&self) {
         self.set_visibility(!self.is_visible())
     }
 
@@ -113,7 +106,7 @@ impl ContainerData {
     }
 
     /// Set the visualization shown in this container..
-    pub fn set_visualisation(&self, visualization:Visualization) {
+    fn set_visualisation(&self, visualization:Visualization) {
         visualization.display_object().set_parent(&self.display_object);
         self.visualization.replace(Some(visualization));
         self.init_visualisation_properties();
@@ -127,11 +120,9 @@ impl Container {
         let visualization  = default();
         let size           = Cell::new(Vector2::new(100.0, 100.0));
         let display_object = display::object::Instance::new(&logger);
-
-        let data     = ContainerData {logger,visualization,size,display_object};
-        let data     = Rc::new(data);
-
-        let frp = default();
+        let data           = ContainerData {logger,visualization,size,display_object};
+        let data           = Rc::new(data);
+        let frp            = default();
 
         Self {data,frp} . init_frp()
     }
@@ -170,23 +161,6 @@ impl Container {
 impl Default for Container {
     fn default() -> Self {
         Container::new()
-    }
-}
-
-impl StrongRef for Container {
-    type WeakRef = WeakContainer;
-    fn downgrade(&self) -> WeakContainer {
-        WeakContainer {data:Rc::downgrade(&self.data),frp:Rc::downgrade(&self.frp)}
-    }
-}
-
-impl WeakRef for WeakContainer {
-    type StrongRef = Container;
-    fn upgrade(&self) -> Option<Container> {
-        match (self.data.upgrade(),self.frp.upgrade()) {
-            (Some(data), Some(frp)) => Some(Container {data,frp}),
-            _                       => None
-        }
     }
 }
 

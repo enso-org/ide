@@ -3,7 +3,7 @@
 
 mod class;
 mod js;
-pub mod sample;
+pub mod example;
 
 pub use class::*;
 pub use js::*;

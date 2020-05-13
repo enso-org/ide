@@ -56,9 +56,9 @@ use ensogl::display::Scene;
 use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
-use crate::component::visualization::sample::js::constructor_sample_js_bubble_chart;
+use crate::component::visualization::example::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::MockDataGenerator3D;
-use crate::component::visualization::sample::native;
+use crate::component::visualization::example::native;
 
 
 // =====================
@@ -1257,7 +1257,7 @@ impl application::View for GraphEditor {
         def _toggle_selected = inputs.toggle_visualization_visibility.map(f!((nodes)(_) {
             nodes.selected.for_each(|node_id| {
                 if let Some(node) = nodes.get_cloned_ref(node_id) {
-                    node.view.visualization_container.toggle_visibility();
+                    node.view.visualization_container.frp.toggle_visibility.emit(());
                 }
             });
         }));

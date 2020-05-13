@@ -2,16 +2,18 @@
 
 use crate::prelude::*;
 
-use std::any;
+use crate::component::visualization::EnsoType;
+
 use serde::Deserialize;
+
+
 
 // ======================================
 // === Wrapper for Visualisation Data ===
 // =======================================
 
 /// Type indicator
-/// TODO[mm] use enso types?
-pub type DataType = any::TypeId;
+pub type DataType = EnsoType;
 
 /// Wrapper for data that can be consumed by a visualisation.
 /// TODO[mm] consider static versus dynamic typing for visualizations and data!
@@ -70,6 +72,7 @@ pub enum DataError {
     /// The data caused an error in the computation of the visualisation.
     InternalComputationError,
 }
+
 
 
 // =============================
