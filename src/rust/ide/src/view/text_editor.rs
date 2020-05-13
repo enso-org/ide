@@ -6,14 +6,15 @@ use crate::notification;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
-use ensogl::display;
+use data::text::TextChange;
+use enso_frp::io::keyboard::KeyMask;
+use enso_frp::io::keyboard;
+use ensogl::data::color;
 use ensogl::display::shape::text::glyph::font::FontRegistry;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::world::*;
-use data::text::TextChange;
-use enso_frp::io::keyboard;
-use enso_frp::io::keyboard::KeyMask;
+use ensogl::display;
 use nalgebra::Vector2;
 use nalgebra::zero;
 use utils::channel::process_stream_with_handle;
@@ -42,11 +43,11 @@ impl {
     /// Saves text editor's content to file.
     pub fn save(&self) {
         let controller = self.controller.clone();
-        let file_path  = controller.file_path();
         let text       = self.text_field.get_content();
         let logger     = self.logger.clone();
         executor::global::spawn(async move {
             if controller.store_content(text).await.is_err() {
+                let file_path  = controller.file_path();
                 let message:&str = &format!("Failed to save file: {}", file_path);
                 logger.error(message);
             } else {
@@ -78,7 +79,7 @@ impl TextEditor {
         let padding    = default();
         let position   = zero();
         let size       = Vector2::new(screen.width, screen.height / 2.0);
-        let black      = Vector4::new(0.0,0.0,0.0,1.0);
+        let black      = color::Rgba::new(0.0,0.0,0.0,1.0);
         let base_color = black;
         let text_size  = 16.0;
         let properties = TextFieldProperties {font,text_size,base_color,size};
@@ -135,7 +136,7 @@ impl TextEditor {
 
     fn handle_text_field_notification(&self, change:&TextChange) {
         let (logger,controller) = self.with_borrowed(|data|
-            (data.logger.clone(),data.controller.clone_ref()));
+            (data.logger.clone_ref(),data.controller.clone_ref()));
         let result = controller.apply_text_change(change);
         if result.is_err() {
             logger.error(|| "Error while notifying controllers about text change");

@@ -27,7 +27,7 @@ use weak_table::weak_value_hash_map::Entry::{Occupied, Vacant};
 pub struct GraphEditorIntegration {
     pub logger     : Logger,
     pub editor     : GraphEditor,
-    pub controller : controller::Graph,
+    pub controller : controller::ExecutedGraph,
     id_to_node     : RefCell<WeakValueHashMap<ast::Id,WeakNode>>,
     node_to_id     : RefCell<WeakKeyHashMap<WeakNode,ast::Id>>,
 
@@ -35,7 +35,7 @@ pub struct GraphEditorIntegration {
 
 impl GraphEditorIntegration {
     /// Constructor. It creates GraphEditor panel and connect it with given controller handle.
-    pub fn new(logger:Logger, app:&Application, controller:controller::Graph) -> Rc<Self> {
+    pub fn new(logger:Logger, app:&Application, controller:controller::ExecutedGraph) -> Rc<Self> {
         let editor     = app.views.new::<GraphEditor>();
         let id_to_node = default();
         let node_to_id = default();
@@ -43,12 +43,15 @@ impl GraphEditorIntegration {
         Self::setup_controller_event_handling(&this);
         Self::setup_keyboard_event_handling(&this);
         Self::setup_mouse_event_handling(&this);
+        if let Err(err) = this.invalidate_graph() {
+            error!(this.logger,"Error while initializing graph display: {err}");
+        }
         this
     }
 
     /// Reloads whole displayed content to be up to date with module state.
     pub fn invalidate_graph(&self) -> FallibleResult<()> {
-        let nodes = self.controller.nodes()?;
+        let nodes = self.controller.graph.nodes()?;
         let ids   = nodes.iter().map(|node| node.info.id() ).collect();
         self.retain_ids(&ids);
         for (i,node_info) in nodes.iter().enumerate() {
@@ -60,7 +63,7 @@ impl GraphEditorIntegration {
                     entry.get().set_position(Self::pos_to_vec3(pos));
                 },
                 Vacant(entry)   => {
-                    let node = self.editor.add_node().upgrade().unwrap();
+                    let node = self.editor.deprecated_add_node().upgrade().unwrap();
                     node.set_position(position.map_or_else(default_pos,Self::pos_to_vec3));
                     entry.insert(node.clone_ref());
                     self.node_to_id.borrow_mut().insert(node,id);
@@ -71,7 +74,7 @@ impl GraphEditorIntegration {
     }
 
     fn setup_controller_event_handling(this:&Rc<Self>) {
-        let stream  = this.controller.subscribe();
+        let stream  = this.controller.graph.subscribe();
         let weak    = Rc::downgrade(this);
         let handler = process_stream_with_handle(stream,weak,move |notification,this| {
             let result = match notification {
@@ -94,10 +97,10 @@ impl GraphEditorIntegration {
                 let val = val.unchecked_into::<web_sys::KeyboardEvent>();
                 let key = val.key();
                 if key == "Backspace" && val.ctrl_key() {
-                    this.editor.nodes.selected.for_each(|node| {
-                        let id = this.node_to_id.borrow().get(&node.id()).cloned();
+                    this.editor.nodes.selected.for_each(|node_id| {
+                        let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0
                         if let Some(id) = id {
-                            if let Err(err) = this.controller.remove_node(id) {
+                            if let Err(err) = this.controller.graph.remove_node(id) {
                                 this.logger.error(|| format!("ERR: {:?}", err));
                             }
                         }
@@ -112,15 +115,15 @@ impl GraphEditorIntegration {
 
     fn setup_mouse_event_handling(this:&Rc<Self>) {
         let weak = Rc::downgrade(this);
-        this.editor.frp.network.map("module_update", &this.editor.frp.node_release, move |node| {
-            let node = node.as_ref().and_then(|n| n.upgrade());
+        let editor = this.editor.clone_ref();
+        this.editor.network.map("module_update", &this.editor.frp.node_release, move |node_id| {
+            let node_pos = editor.get_node_position(*node_id);
             let this = weak.upgrade();
-            if let Some((node,this)) = node.and_then(|n| this.map(|t| (n,t))) {
-                let id = this.node_to_id.borrow().get(&node.id()).cloned();
+            if let Some((node_pos,this)) = node_pos.and_then(|n| this.map(|t| (n,t))) {
+                let id = this.node_to_id.borrow().get(&node_id.0).cloned(); // FIXME .0
                 if let Some(id) = id {
-                    this.controller.module.with_node_metadata(id, |md| {
-                        let pos = node.position();
-                        md.position = Some(model::module::Position::new(pos.x, pos.y));
+                    this.controller.graph.module.with_node_metadata(id, |md| {
+                        md.position = Some(model::module::Position::new(node_pos.x, node_pos.y));
                     })
                 }
             }
@@ -131,7 +134,7 @@ impl GraphEditorIntegration {
     fn retain_ids(&self, ids:&HashSet<ast::Id>) {
         for (id,node) in self.id_to_node.borrow().iter() {
             if !ids.contains(id) {
-                self.editor.remove_node(node.downgrade())
+                self.editor.deprecated_remove_node(node.downgrade())
             }
         }
     }
@@ -153,12 +156,12 @@ impl GraphEditorIntegration {
 pub struct NodeEditor {
     display_object : display::object::Instance,
     graph          : Rc<GraphEditorIntegration>,
-    controller     : controller::graph::Handle,
+    controller     : controller::ExecutedGraph,
 }
 
 impl NodeEditor {
     /// Create Node Editor Panel.
-    pub fn new(logger:&Logger, app:&Application, controller:controller::graph::Handle) -> Self {
+    pub fn new(logger:&Logger, app:&Application, controller:controller::ExecutedGraph) -> Self {
         let logger         = logger.sub("NodeEditor");
         let graph          = GraphEditorIntegration::new(logger,app,controller.clone_ref());
         let display_object = display::object::Instance::new(&graph.logger);

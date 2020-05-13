@@ -713,13 +713,10 @@ pub struct Var {
 /// Internal state of `Var`.
 #[derive(Debug)]
 pub struct VarData {
-    sheet    : Sheet,
-    query_index  : Index<Query>,
-    callbacks : CallbackRegistry,
+    sheet       : Sheet,
+    query_index : Index<Query>,
+    callbacks   : CallbackRegistry,
 }
-
-/// Type of callback used to notify about `Var` value change.
-pub trait VarChangeCallback = 'static + FnMut(&Option<Data>);
 
 impl VarData {
     /// Constructor.
@@ -732,7 +729,8 @@ impl VarData {
 
     /// Adds a new callback used when value changes. Returns handle to the callback. As soon as the
     /// handle is dropped, the callback is removed.
-    pub fn on_change<F:VarChangeCallback>(&self, callback:F) -> callback::Handle {
+    pub fn on_change<F>(&self, callback:F) -> callback::Handle
+    where F:'static+FnMut(&Option<Data>) {
         self.callbacks.add(callback)
     }
 
@@ -896,7 +894,7 @@ mod tests {
 
     #[test]
     pub fn memory_management_for_single_value() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
         sheet.set("size",data(1.0));
         assert_query_sheet_count(&sheet,0,1);
         sheet.unset("size");
@@ -905,7 +903,7 @@ mod tests {
 
     #[test]
     pub fn memory_management_for_multiple_values() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
         sheet.set("size",data(1.0));
         sheet.set("button.size",data(2.0));
         sheet.set("circle.radius",data(3.0));
@@ -920,7 +918,7 @@ mod tests {
 
     #[test]
     pub fn memory_management_for_single_expression() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
         sheet.set("button.size",data(1.0));
         assert_query_sheet_count(&sheet,0,2);
         sheet.set("circle.radius",Expression::new(&["button.size"], |args| args[0] + &data(10.0)));
@@ -942,8 +940,8 @@ mod tests {
 
     #[test]
     pub fn single_variable() {
-        let mut sheet = Sheet::new();
-        let mut val   = Rc::new(RefCell::new(None));
+        let sheet     = Sheet::new();
+        let val       = Rc::new(RefCell::new(None));
         let var       = sheet.var("button.size");
         let handle    = var.on_change(f!((val)(v:&Option<Data>) *val.borrow_mut() = v.clone()));
         assert_query_sheet_count(&sheet,1,2);
@@ -973,10 +971,10 @@ mod tests {
 
     #[test]
     pub fn variable_unbind() {
-        let mut sheet = Sheet::new();
-        let mut val   = Rc::new(RefCell::new(None));
-        let var       = sheet.var("button.size");
-        let handle    = var.on_change(f!((val)(v:&Option<Data>) *val.borrow_mut() = v.clone()));
+        let sheet   = Sheet::new();
+        let val     = Rc::new(RefCell::new(None));
+        let var     = sheet.var("button.size");
+        let _handle = var.on_change(f!((val)(v:&Option<Data>) *val.borrow_mut() = v.clone()));
         assert_query_sheet_count(&sheet,1,2);
         assert_eq!(var.value(),None);
         sheet.set("size",data(1.0));
@@ -1031,8 +1029,8 @@ mod tests {
     pub fn expr_bindings_1() {
         let mut style = SheetData::new();
 
-        let query_size              = style.unmanaged_query("size");
-        let query_button_size       = style.unmanaged_query("button.size");
+        let _query_size             = style.unmanaged_query("size");
+        let _query_button_size      = style.unmanaged_query("button.size");
         let query_graph_button_size = style.unmanaged_query("graph.button.size");
 
         assert!(style.query_value(query_graph_button_size).is_none());

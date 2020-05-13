@@ -492,7 +492,7 @@ impl Debug for Instance {
 // === Id ===
 // ==========
 
-#[derive(Clone,Copy,Debug,Display,Eq,From,Hash,Into,PartialEq)]
+#[derive(Clone,Copy,Debug,Default,Display,Eq,From,Hash,Into,PartialEq)]
 pub struct Id(usize);
 
 
@@ -576,6 +576,11 @@ impl Instance {
         self.child_index(child).is_some()
     }
 
+    /// Checks if the object has a parent.
+    pub fn _has_parent(&self) -> bool {
+        self.rc.parent_bind().is_some()
+    }
+
     /// Returns the index of the provided object if it was a child of the current one.
     pub fn child_index<T:Object>(&self, child:&T) -> Option<usize> {
         let child = child.display_object();
@@ -636,11 +641,12 @@ impl Object for Instance {
     }
 }
 
-//impl<T> Object for T where for<'t> &'t T:Into<&'t Instance> {
-//    fn display_object(&self) -> &Instance {
-//        self.into()
-//    }
-//}
+impl<T:Object> Object for &T {
+    fn display_object(&self) -> &Instance {
+        let t : &T = *self;
+        t.display_object()
+    }
+}
 
 
 
@@ -669,12 +675,20 @@ pub trait ObjectOps : Object {
         self.display_object()._unset_parent();
     }
 
+    fn has_parent(&self) -> bool {
+        self.display_object()._has_parent()
+    }
+
     fn dispatch_event(&self, event:&DynEvent) {
         self.display_object().rc.dispatch_event(event)
     }
 
     fn transform_matrix(&self) -> Matrix4<f32> {
         self.display_object().rc.matrix()
+    }
+
+    fn global_position(&self) -> Vector3<f32> {
+        self.display_object().rc.global_position()
     }
 
     fn position(&self) -> Vector3<f32> {
