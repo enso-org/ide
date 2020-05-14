@@ -12,9 +12,9 @@
 //!     provided. The returned object needs to fulfill the same specification as in (2).
 //!
 //! Right now the only functions required on the wrapped object are
-//!  * `set_data(root, data)`, which receives the html element that the visualisation should be
+//!  * `onDataReceived(root, data)`, which receives the html element that the visualisation should be
 //!     appended on, as well as the data that should be rendered.
-//!  * `set_size(root, size)`, which receives the node that the visualisation should be appended on,
+//!  * `setSize(root, size)`, which receives the node that the visualisation should be appended on,
 //!    as well as the intended size.
 //!
 //! TODO: refine spec and add functions as needed, e.g., init, callback hooks or type indicators.
@@ -67,11 +67,11 @@ impl From<JsValue> for JsVisualisationError {
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub struct JsRenderer {
-    pub root_node : DomSymbol,
-    pub logger    : Logger,
-        set_data  : js_sys::Function,
-        set_size  : js_sys::Function,
-        frp       : DataRendererFrp,
+    pub root_node        : DomSymbol,
+    pub logger           : Logger,
+        on_data_received : js_sys::Function,
+        set_size         : js_sys::Function,
+        frp              : DataRendererFrp,
 }
 
 impl JsRenderer {
@@ -99,13 +99,13 @@ impl JsRenderer {
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis").unwrap();
 
-        JsRenderer { set_data,set_size,root_node,frp,logger }
+        JsRenderer { on_data_received: set_data,set_size,root_node,frp,logger }
     }
 
     /// Internal helper that tries to convert a JS object into a `JsRenderer`.
     fn from_object_js(object:js_sys::Object) -> Result<JsRenderer,JsVisualisationError> {
-        let set_data = js_sys::Reflect::get(&object,&"set_data".into())?;
-        let set_size = js_sys::Reflect::get(&object,&"set_size".into())?;
+        let set_data = js_sys::Reflect::get(&object,&"onDataReceived".into())?;
+        let set_size = js_sys::Reflect::get(&object,&"setSize".into())?;
         if !set_data.is_function() {
             return Err(JsVisualisationError::NotAFunction { inner:set_data })
         }
@@ -121,7 +121,7 @@ impl JsRenderer {
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")?;
 
-        Ok(JsRenderer { set_data,set_size,root_node,frp,logger })
+        Ok(JsRenderer { on_data_received: set_data,set_size,root_node,frp,logger })
     }
 
     /// Constructor from a source that evaluates to an object with specific methods.
@@ -133,10 +133,12 @@ impl JsRenderer {
     /// use graph_editor::component::visualization::JsRenderer;
     ///
     /// let renderer = JsRenderer::from_object("function() {
-    ///   obj = new Object();
-    ///   obj.set_data = function(root, data) {};
-    ///   obj.set_size = function(root, size) {};
-    ///   }()").unwrap();
+    ///   class Visualization {
+    ///       onDataReceived(root, data) {};
+    ///       setSize(root, size) {};
+    ///   }
+    ///   return new Visualisation();
+    /// }()").unwrap();
     ///
     /// ```
     ///
@@ -158,11 +160,12 @@ impl JsRenderer {
     /// ```no_run
     /// use graph_editor::component::visualization::JsRenderer;
     ///
-    /// let renderer = JsRenderer::from_object("
-    ///   obj = new Object();
-    ///   obj.set_data = function(root, data) {};
-    ///   obj.set_size = function(root, data) {};
-    ///   return obj;
+    /// let renderer = JsRenderer::from_constructor("
+    ///   class Visualization {
+    ///       onDataReceived(root, data) {};
+    ///       setSize(root, size) {};
+    ///   }
+    ///   return new Visualisation();
     ///   ").unwrap();
     ///
     /// ```
@@ -196,7 +199,7 @@ impl DataRenderer for JsRenderer {
             Ok(value) => value,
             Err(_)    => return Err(DataError::InvalidDataType),
         };
-        if let Err(error) = self.set_data.call2(&context,&self.root_node.dom(),&data_js) {
+        if let Err(error) = self.on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
             self.logger.warning(
                 || format!("Failed to set data in {:?} with error: {:?}",self,error));
             return Err(DataError::InternalComputationError)

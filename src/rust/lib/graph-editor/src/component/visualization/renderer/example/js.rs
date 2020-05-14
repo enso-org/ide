@@ -51,54 +51,8 @@ pub fn function_sample_js_bubble_chart() -> JsRenderer {
 pub fn object_sample_js_bubble_chart() -> JsRenderer {
     let fn_prototype = r#"
     (() => {
-        const obj = new Object();
-        obj.set_data = (root, data) => {
-            const xmlns = "http://www.w3.org/2000/svg";
-            while (root.firstChild) {
-                root.removeChild(root.lastChild);
-            }
-
-            const svgElem = document.createElementNS(xmlns, "svg");
-            svgElem.setAttributeNS(null, "id"     , "vis-svg");
-            svgElem.setAttributeNS(null, "viewBox", "0 0 " + 100 + " " + 100);
-            svgElem.setAttributeNS(null, "width"  , 100);
-            svgElem.setAttributeNS(null, "height" , 100);
-            root.appendChild(svgElem);
-
-            data.forEach(data => {
-                const bubble = document.createElementNS(xmlns,"circle");
-                bubble.setAttributeNS(null,"stroke", "black");
-                bubble.setAttributeNS(null,"fill"  , "red");
-                bubble.setAttributeNS(null,"r"     , data[2]);
-                bubble.setAttributeNS(null,"cx"    , data[0]);
-                bubble.setAttributeNS(null,"cy"    , data[1]);
-                svgElem.appendChild(bubble);
-            });
-        };
-
-        obj.set_size = (root, size) => {
-            const width   = size[0];
-            const height  = size[1];
-            const svgElem = root.firstChild;
-            svgElem.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
-            svgElem.setAttributeNS(null, "width"  , width);
-            svgElem.setAttributeNS(null, "height" , height);
-        };
-
-         return obj;
-    })()
-    "#;
-    JsRenderer::from_object(fn_prototype).unwrap()
-}
-
-
-
-/// Returns a simple bubble chart implemented in vanilla JS. uses single functions to implement the
-/// visualization.
-pub fn constructor_sample_js_bubble_chart() -> JsRenderer {
-    let fn_constructor = r#"
         class BubbleVisualisation {
-            set_data(root, data) {
+            onDataReceived(root, data) {
                 const xmlns = "http://www.w3.org/2000/svg";
                 while (root.firstChild) {
                     root.removeChild(root.lastChild);
@@ -122,7 +76,54 @@ pub fn constructor_sample_js_bubble_chart() -> JsRenderer {
                 });
             }
 
-            set_size(root, size) {
+            setSize(root, size) {
+                const width   = size[0];
+                const height  = size[1];
+                const svgElem = root.firstChild;
+                svgElem.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
+                svgElem.setAttributeNS(null, "width"  , width);
+                svgElem.setAttributeNS(null, "height" , height);
+            }
+        }
+
+        return new BubbleVisualisation();
+    })()
+    "#;
+    JsRenderer::from_object(fn_prototype).unwrap()
+}
+
+
+
+/// Returns a simple bubble chart implemented in vanilla JS. uses single functions to implement the
+/// visualization.
+pub fn constructor_sample_js_bubble_chart() -> JsRenderer {
+    let fn_constructor = r#"
+        class BubbleVisualisation {
+            onDataReceived(root, data) {
+                const xmlns = "http://www.w3.org/2000/svg";
+                while (root.firstChild) {
+                    root.removeChild(root.lastChild);
+                }
+
+                const svgElem = document.createElementNS(xmlns, "svg");
+                svgElem.setAttributeNS(null, "id"     , "vis-svg");
+                svgElem.setAttributeNS(null, "viewBox", "0 0 " + 100 + " " + 100);
+                svgElem.setAttributeNS(null, "width"  , 100);
+                svgElem.setAttributeNS(null, "height" , 100);
+                root.appendChild(svgElem);
+
+                data.forEach(data => {
+                    const bubble = document.createElementNS(xmlns,"circle");
+                    bubble.setAttributeNS(null,"stroke", "black");
+                    bubble.setAttributeNS(null,"fill"  , "red");
+                    bubble.setAttributeNS(null,"r"     , data[2]);
+                    bubble.setAttributeNS(null,"cx"    , data[0]);
+                    bubble.setAttributeNS(null,"cy"    , data[1]);
+                    svgElem.appendChild(bubble);
+                });
+            }
+
+            setSize(root, size) {
                 const width   = size[0];
                 const height  = size[1];
                 const svgElem = root.firstChild;
