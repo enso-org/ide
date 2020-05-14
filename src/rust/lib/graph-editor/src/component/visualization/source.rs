@@ -39,9 +39,20 @@ impl Source {
         Source::Native { info,constructor }
     }
 
-    /// Create a visualisation source from piece of JS source code.
+    /// Create a visualisation source from piece of JS source code and some metadata.
     pub fn from_js_source(info:Metadata, source:CowString) -> Self {
         let info   = Rc::new(info);
+        let source = Rc::new(source);
+        Source::JS { info,source }
+    }
+
+    /// Create a visualisation source from piece of JS source code. Metadata needs to be inferred.
+    pub fn from_js_source_raw(source:CowString) -> Self {
+        // TODO specify a way to provide this information fom raw source files.
+        let info   = Rc::new(Metadata{
+            name: "Unknown".to_string(),
+            input_types: vec![]
+        });
         let source = Rc::new(source);
         Source::JS { info,source }
     }
