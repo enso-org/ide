@@ -733,7 +733,7 @@ impl GraphEditorModelWithNetwork {
         let dom_layer    = model.scene.dom.layers.front.clone_ref();
         chart.set_dom_layer(&dom_layer);
 
-        let vis = Visualization::new(Rc::new(chart));
+        let vis = Visualization::new(chart);
         node.view.frp.set_visualization.emit(Some(vis));
 
 
@@ -1239,12 +1239,12 @@ impl application::View for GraphEditor {
             let dc = dummy_switch.get();
             dummy_switch.set(!dc);
             let vis = if dc {
-                Visualization::new(Rc::new(native::BubbleChart::new(&scene)))
+                Visualization::new(native::BubbleChart::new(&scene))
             } else {
                 let chart     = constructor_sample_js_bubble_chart();
                 let dom_layer = scene.dom.layers.front.clone_ref();
                 chart.set_dom_layer(&dom_layer);
-                Visualization::new(Rc::new(chart))
+                Visualization::new(chart)
             };
             if let Some(node) = nodes.get_cloned_ref(node_id) {
                 node.view.visualization_container.frp.set_visualization.emit(Some(vis));

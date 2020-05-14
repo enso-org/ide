@@ -112,7 +112,7 @@ impl display::Object for Visualization {
 
 impl Visualization {
     /// Create a new `Visualization` with the given `DataRenderer`.
-    pub fn new<T: DataRenderer>(renderer:T) -> Self {
+    pub fn new<T: DataRenderer + 'static>(renderer:T) -> Self {
         let preprocessor = default();
         let network      = default();
         let frp          = Frp::new(&network);
