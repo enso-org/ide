@@ -58,7 +58,6 @@ use crate::component::visualization::Visualization;
 use crate::component::visualization;
 use crate::component::visualization::example::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::MockDataGenerator3D;
-use crate::component::visualization::example::native;
 
 
 
@@ -1201,13 +1200,15 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     web::body().set_style_or_panic("cursor","none");
     world.add_child(&cursor);
 
-    let model   = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
-    let network = &model.network;
-    let nodes   = &model.nodes;
-    let edges   = &model.edges;
-    let inputs  = &model.frp;
-    let mouse   = &scene.mouse.frp;
-    let touch   = &model.touch_state;
+    let model                  = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
+    let network                = &model.network;
+    let nodes                  = &model.nodes;
+    let edges                  = &model.edges;
+    let inputs                 = &model.frp;
+    let mouse                  = &scene.mouse.frp;
+    let touch                  = &model.touch_state;
+    let visualization_registry = visualization::Registry::with_default_visualisations();
+
 
     let outputs = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
@@ -1432,8 +1433,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         }
     }));
 
+    // === Vis Update Data ===
+
     // TODO remove this once real data is available.
-    let dummy_switch  = Rc::new(Cell::new(false));
     let sample_data_generator = MockDataGenerator3D::default();
     def _set_dumy_data = inputs.debug_set_data_for_selected_node.map(f!([nodes](_) {
         nodes.selected.for_each(|node_id| {
@@ -1446,21 +1448,21 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         })
     }));
 
-     def _set_dumy_data = inputs.cycle_visualization.map(f!([scene,nodes](node_id) {
-        // TODO remove dummy cycling once we have the visualization registry.
-        let dc = dummy_switch.get();
-        dummy_switch.set(!dc);
-        let vis = if dc {
-            Visualization::new(native::BubbleChart::new(&scene))
-        } else {
-            let chart     = constructor_sample_js_bubble_chart();
-            let dom_layer = scene.dom.layers.front.clone_ref();
-            chart.set_dom_layer(&dom_layer);
-            Visualization::new(chart)
+     let cycle_count = Rc::new(Cell::new(0));
+     def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes](node_id) {
+        let visualisations = visualization_registry.valid_sources(&"[[float;3]]".into());
+        cycle_count.set(cycle_count.get() % visualisations.len());
+        let vis  = &visualisations[cycle_count.get()];
+        let vis  = vis.instantiate(&scene);
+        let node = nodes.get_cloned_ref(node_id);
+        match (vis, node) {
+            (Ok(vis), Some(node))  => {
+                    node.view.visualization_container.frp.set_visualization.emit(Some(vis));
+            },
+            (Err(e), _) => println!("{:?}", e),
+            _           => {}
         };
-        if let Some(node) = nodes.get_cloned_ref(node_id) {
-            node.view.visualization_container.frp.set_visualization.emit(Some(vis));
-        }
+        cycle_count.set(cycle_count.get() + 1);
     }));
 
     def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes](_) {

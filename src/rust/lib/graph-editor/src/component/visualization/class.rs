@@ -20,9 +20,27 @@ pub struct EnsoCode {
 }
 
 /// Type alias for a string representing an enso type.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Debug,PartialEq,Eq)]
 pub struct EnsoType {
     content: Rc<String>
+}
+
+impl From<String> for EnsoType {
+    fn from(source: String) -> Self {
+        EnsoType { content:Rc::new(source) }
+    }
+}
+
+impl From<&str> for EnsoType {
+    fn from(source: &str) -> Self {
+        EnsoType { content:Rc::new(source.to_string()) }
+    }
+}
+
+/// Contains general information about a visualisation.
+pub struct Metadata {
+    pub name       : String,
+    pub input_type : EnsoType,
 }
 
 

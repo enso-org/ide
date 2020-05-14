@@ -32,7 +32,7 @@ use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
-
+use wasm_bindgen::__rt::core::fmt::Formatter;
 
 
 // ==============
@@ -47,6 +47,26 @@ pub enum JsVisualisationError {
     NotAFunction { inner:JsValue },
     /// An unknown error occurred on the JS side. Inspect the content for more information. .
     Unknown      { inner:JsValue }
+}
+
+impl Display for JsVisualisationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            JsVisualisationError::NotAnObject { inner }  => {
+                f.write_fmt(format_args!("NotAnObject:{:?}",inner))
+            },
+            JsVisualisationError::NotAFunction { inner } => {
+                f.write_fmt(format_args!("NotAFunction:{:?}",inner))
+            },
+            JsVisualisationError::Unknown { inner }      => {
+                f.write_fmt(format_args!("Unknown:{:?}",inner))
+            },
+        }
+    }
+}
+
+impl std::error::Error for JsVisualisationError {
+
 }
 
 impl From<JsValue> for JsVisualisationError {
