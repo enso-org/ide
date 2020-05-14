@@ -37,6 +37,7 @@ macro_rules! make_rpc_methods {
         // ===========
 
         $(#[doc = $impl_doc])+
+        #[allow(clippy::ptr_arg)]
         pub trait API {
             $(
                 $(#[doc = $doc])+

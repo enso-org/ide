@@ -254,7 +254,7 @@ impl<Notification> Handler<Notification> {
     pub fn open_request_with_json<Returned:DeserializeOwned>
     (&self, method_name:&str, input:&serde_json::Value) -> impl Future<Output = Result<Returned>> {
         let id      = self.generate_new_id();
-        let message = crate::messages::Message::new_request(id,method_name,input); //api::into_request_message(input,id);
+        let message = crate::messages::Message::new_request(id,method_name,input);
         let serialized_message = serde_json::to_string(&message).unwrap();
         self.open_request_with_message(id,&serialized_message)
     }
@@ -263,7 +263,7 @@ impl<Notification> Handler<Notification> {
     ///
     /// Helper common \code for `open_request` and `open_request_with_json`. See
     /// `open_request_with_json` docstring for more information.
-    pub fn open_request_with_message<'a, Returned:DeserializeOwned>
+    pub fn open_request_with_message<Returned:DeserializeOwned>
     (&self, id:Id, message_json:&str) -> impl Future<Output = Result<Returned>> {
         let (sender, receiver) = oneshot::channel::<ReplyMessage>();
         let ret                = receiver.map(|result_or_cancel| {
