@@ -254,7 +254,7 @@ mod dynamic_mode_tests {
     }
 
     #[test]
-    #[ignored] // Issue #427
+    #[ignore] // Issue #427
     fn test_toggle_true() {
         frp::new_network! { network
             def toggle_src = source::<()>();

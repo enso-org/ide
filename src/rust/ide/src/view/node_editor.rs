@@ -21,15 +21,15 @@ use utils::channel::process_stream_with_handle;
 // ==============
 
 #[derive(Copy,Clone,Debug,Fail)]
-enum InvalidState {
-    #[fail(display="Node Editor discrepancy: displayed node {:?} is not bound to any actual \
-        node", _0)]
-    MissingNode(graph_editor::NodeId),
+enum MissingData {
+    #[fail(display="Node Editor discrepancy: displayed node {:?} is not bound to any actual node",
+        _0)]
+    Node(graph_editor::NodeId),
     #[fail(display="Node Editor discrepancy: Node {:?} is not displayed", _0)]
-    MissingDisplayedNode(ast::Id),
+    DisplayedNode(ast::Id),
     #[fail(display="Node Editor discrepancy: displayed connection {:?} is not bound to any actual \
         connection", _0)]
-    MissingConnection(graph_editor::EdgeId),
+    Connection(graph_editor::EdgeId),
 }
 
 #[derive(Copy,Clone,Debug,Fail)]
@@ -128,21 +128,21 @@ impl GraphEditorIntegration {
         let network = &this.network;
         let editor_outs = &this.editor.frp.outputs;
         let weak    = Rc::downgrade(this);
-        let node_removed        = Self::define_action(this,Self::node_removed_action);
-        let connections_created = Self::define_action(this,Self::connection_created_action);
-        let connections_removed = Self::define_action(this,Self::connection_removed_action);
-        let node_moved          = Self::define_action(this,Self::node_moved_action);
+        let node_removed       = Self::define_action(this,Self::node_removed_action);
+        let connection_created = Self::define_action(this,Self::connection_created_action);
+        let connection_removed = Self::define_action(this,Self::connection_removed_action);
+        let node_moved         = Self::define_action(this,Self::node_moved_action);
         frp::extend! {network
             // Notifications from controller
             def handle_notification = source::<Option<notification::Graph>>();
             let (runner,is_action)  = fence(&network,&handle_notification);
             def _notification       = runner.map(f!((weak)(notification) {
-                weak.upgrade().for_each(|this| this.handle_controller_notification(notification));
+                weak.upgrade().for_each(|this| this.handle_controller_notification(*notification));
             }));
             // Changes in Graph Editor
             def _action = editor_outs.node_removed      .map2(&is_action,node_removed);
-            def _action = editor_outs.nodes_connected   .map2(&is_action,connections_created);
-            def _action = editor_outs.nodes_disconnected.map2(&is_action,connections_removed);
+            def _action = editor_outs.nodes_connected   .map2(&is_action,connection_created);
+            def _action = editor_outs.nodes_disconnected.map2(&is_action,connection_removed);
             def _action = this.editor.frp.node_release  .map2(&is_action,node_moved);
         }
         Self::connect_frp_to_controller_notifications(this,handle_notification);
@@ -183,7 +183,7 @@ impl GraphEditorIntegration {
 
 impl GraphEditorIntegration {
     /// Handles notification received from controller.
-    pub fn handle_controller_notification(&self, notification:&Option<notification::Graph>) {
+    pub fn handle_controller_notification(&self, notification:Option<notification::Graph>) {
         let result = match notification {
             Some(notification::Graph::Invalidate) => self.invalidate_graph(),
             other => {
@@ -214,12 +214,12 @@ impl GraphEditorIntegration {
         self.retain_ids(&ids);
         for (i,node_info) in nodes.iter().enumerate() {
             let id          = node_info.info.id();
-            let node_trees  = trees.remove(&id).unwrap_or_else(|| default());
+            let node_trees  = trees.remove(&id).unwrap_or_else(default);
             let default_pos = enso_frp::Position::new(0.0, i as f32 * 77.0);
             let displayed   = self.displayed_nodes.borrow_mut().get_fwd(&id).cloned();
             match displayed {
                 Some(displayed) => self.update_displayed_node(displayed,node_info,node_trees),
-                None            => self.create_displayed_node(node_info,node_trees,&default_pos),
+                None            => self.create_displayed_node(node_info,node_trees,default_pos),
             }
         }
         Ok(())
@@ -239,13 +239,13 @@ impl GraphEditorIntegration {
     }
 
     fn create_displayed_node
-    (&self, info:&controller::graph::Node, trees:NodeTrees, default_pos:&enso_frp::Position) {
+    (&self, info:&controller::graph::Node, trees:NodeTrees, default_pos:frp::Position) {
         let id           = info.info.id();
         let displayed_id = self.editor.add_node();
         self.update_displayed_node(displayed_id,info,trees);
         // If position wasn't present in metadata, we must initialize it.
         if info.metadata.and_then(|md| md.position).is_none() {
-            self.editor.frp.inputs.set_node_position.emit_event(&(displayed_id,*default_pos));
+            self.editor.frp.inputs.set_node_position.emit_event(&(displayed_id,default_pos));
         }
         self.displayed_nodes.borrow_mut().insert(id,displayed_id);
     }
@@ -254,7 +254,7 @@ impl GraphEditorIntegration {
     (&self, node:graph_editor::NodeId, info:&controller::graph::Node, trees:NodeTrees) {
         let position = info.metadata.and_then(|md| md.position);
         if let Some(pos) = position {
-            let pos = enso_frp::Position::new(pos.vector.x,pos.vector.y);
+            let pos = frp::Position::new(pos.vector.x,pos.vector.y);
             self.editor.frp.inputs.set_node_position.emit_event(&(node,pos));
         }
         let expression = info.info.expression().repr();
@@ -262,7 +262,7 @@ impl GraphEditorIntegration {
             let code_and_trees = graph_editor::component::node::port::Expression {
                 code             : expression.clone(),
                 input_span_tree  : trees.inputs,
-                output_span_tree : trees.outputs.unwrap_or_else(|| default())
+                output_span_tree : trees.outputs.unwrap_or_else(default)
             };
             self.editor.frp.inputs.set_node_expression.emit_event(&(node,code_and_trees));
             self.displayed_expressions.borrow_mut().insert(node,expression);
@@ -283,7 +283,7 @@ impl GraphEditorIntegration {
         Ok(())
     }
 
-    fn retain_connections(&self, connections:&Vec<controller::graph::Connection>) {
+    fn retain_connections(&self, connections:&[controller::graph::Connection]) {
         let to_remove = {
             let borrowed = self.displayed_connections.borrow();
             let filtered = borrowed.iter().filter(|(con,_)| !connections.contains(con));
@@ -299,8 +299,11 @@ impl GraphEditorIntegration {
 
 // === Passing UI Actions To Controllers ===
 
+// These functions are called with FRP event values as arguments. The FRP values are always provided
+// by reference, even those "trivally-copy" types, To keep code cleaner we take all parameters
+// by reference as well.
+#[allow(clippy::trivially_copy_pass_by_ref)]
 impl GraphEditorIntegration {
-
     fn node_removed_action(&self, node:&graph_editor::NodeId) -> FallibleResult<()> {
         let id = self.get_controller_node_id(*node)?;
         self.controller.graph.remove_node(id)?;
@@ -308,8 +311,7 @@ impl GraphEditorIntegration {
         Ok(())
     }
 
-    fn node_moved_action
-    (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult<()> {
+    fn node_moved_action(&self, displayed_id:&graph_editor::NodeId) -> FallibleResult<()> {
         let id   = self.get_controller_node_id(*displayed_id)?;
         let node = self.editor.nodes.get_cloned_ref(&displayed_id).ok_or(GraphEditorDiscrepancy{})?;
         let pos  = node.position();
@@ -340,21 +342,21 @@ impl GraphEditorIntegration {
 
 impl GraphEditorIntegration {
     fn get_controller_node_id
-    (&self, displayed_id:graph_editor::NodeId) -> Result<ast::Id,InvalidState> {
-        let err = InvalidState::MissingNode(displayed_id);
+    (&self, displayed_id:graph_editor::NodeId) -> Result<ast::Id, MissingData> {
+        let err = MissingData::Node(displayed_id);
         self.displayed_nodes.borrow().get_rev(&displayed_id).cloned().ok_or(err)
     }
 
     fn get_displayed_node_id
-    (&self, node_id:ast::Id) -> Result<graph_editor::NodeId,InvalidState> {
-        let err = InvalidState::MissingDisplayedNode(node_id);
+    (&self, node_id:ast::Id) -> Result<graph_editor::NodeId, MissingData> {
+        let err = MissingData::DisplayedNode(node_id);
         self.displayed_nodes.borrow().get_fwd(&node_id).cloned().ok_or(err)
     }
 
     fn get_controller_connection
     (&self, displayed_id:graph_editor::EdgeId)
-    -> Result<controller::graph::Connection,InvalidState> {
-        let err = InvalidState::MissingConnection(displayed_id);
+    -> Result<controller::graph::Connection, MissingData> {
+        let err = MissingData::Connection(displayed_id);
         self.displayed_connections.borrow().get_rev(&displayed_id).cloned().ok_or(err)
     }
 
