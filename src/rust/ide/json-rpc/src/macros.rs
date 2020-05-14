@@ -8,7 +8,7 @@
 ///     trait API {
 ///         #[MethodInput=CallMePleaseInput,camelCase=callMePlease,result=call_me_please_result,
 ///         set_result=set_call_me_please_result]
-///         fn call_me_please(&self, my_number_is:String) -> ();
+///         fn call_me_please<'a>(&'a self, my_number_is:&'a String) -> ();
 ///     }
 /// }
 /// ```
