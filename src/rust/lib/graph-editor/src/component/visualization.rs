@@ -203,21 +203,21 @@ impl Container {
 
             let container_data = &self.data;
 
-            def _set_visibility = frp.set_visibility.map(f!((container_data)(is_visible) {
-                container_data.set_visibility(*is_visible);
-            }));
+            def _set_visibility = frp.set_visibility.map(f!((is_visible)
+                container_data.set_visibility(*is_visible)
+            ));
 
-            def _toggle_visibility = frp.toggle_visibility.map(f!((container_data)(_) {
+            def _toggle_visibility = frp.toggle_visibility.map(f_!(
                 container_data.toggle_visibility()
-            }));
+            ));
 
-            def _set_visualization = frp.set_visualization.map(f!((container_data)(visualisation) {
+            def _set_visualization = frp.set_visualization.map(f!([container_data](visualisation) {
                 if let Some(visualisation) = visualisation.as_ref() {
                     container_data.set_visualisation(visualisation.clone_ref());
                 }
             }));
 
-            def _set_data = frp.set_data.map(f!((container_data)(data) {
+            def _set_data = frp.set_data.map(f!([container_data](data) {
                 if let Some(data) = data.as_ref() {
                      container_data.set_data(data.clone_ref());
                 }
