@@ -37,15 +37,15 @@ impl Registry {
         // TODO fix types
         registry.register_source(visualization::Source::from_constructor(
             Metadata {
-                name       : "Bubble Visualisation (native)".to_string(),
-                input_type : "[[float;3]]".to_string().into(),
+                name        : "Bubble Visualisation (native)".to_string(),
+                input_types : vec!["[[float;3]]".to_string().into()],
             },
             Rc::new(|scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene))))
         ));
         registry.register_source(visualization::Source::from_constructor(
             Metadata {
-                name       : "Bubble Visualisation (JS)".to_string(),
-                input_type : "[[float;3]]".to_string().into(),
+                name        : "Bubble Visualisation (JS)".to_string(),
+                input_types : vec!["[[float;3]]".to_string().into()],
             },
             Rc::new(|scene:&Scene| {
                 let renderer = constructor_sample_js_bubble_chart();
@@ -64,7 +64,11 @@ impl Registry {
 
     /// Return all `VisualizationSource`s that can render the given datatype.
     pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<visualization::Source>>{
-        self.entries.borrow().iter().filter(|entry| &entry.metadata().input_type == dtype).cloned().collect()
+        // TODO: this is not super efficient. Consider building a HashMap from type to vis.
+        let entries       = self.entries.borrow();
+        let entries       = entries.iter();
+        let valid_entries = entries.filter(|entry| entry.metadata().input_types.contains(dtype));
+        valid_entries.cloned().collect()
     }
 
 }
