@@ -28,10 +28,10 @@ pub struct ContainerFrp {
 impl Default for ContainerFrp {
     fn default() -> Self {
         frp::new_network! { visualization_events
-            def set_visibility    = source::<bool>                  ();
-            def toggle_visibility = source::<()>                    ();
-            def set_visualization = source::<Option<Visualization>> ();
-            def set_data          = source::<Option<Data>>          ();
+            def set_visibility    = source();
+            def toggle_visibility = source();
+            def set_visualization = source();
+            def set_data          = source();
         };
         let network = visualization_events;
         Self {network,set_visibility,set_visualization,toggle_visibility,set_data }
@@ -86,7 +86,7 @@ impl ContainerData {
     /// Indicates whether the visualisation is visible.
     fn is_visible(&self) -> bool {
         if let Some(vis) = self.visualization.borrow().as_ref() {
-            vis.display_object().has_parent()
+            vis.has_parent()
         } else {
             false
         }
@@ -126,7 +126,6 @@ impl Container {
         let data           = ContainerData {logger,visualization,size,display_object};
         let data           = Rc::new(data);
         let frp            = default();
-
         Self {data,frp} . init_frp()
     }
 

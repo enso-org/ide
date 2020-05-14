@@ -4,11 +4,11 @@
 //! JS code and the visualisation system.
 //!
 //! There are at the moment three way to generate a `JsRenderer`:
-//! (1) `JsRenderer::from_functions` where the bodies of the required functions are provided as
-//!     source code.
-//! (2) `JsRenderer::from_object` where the a piece of JS code is provided that must evaluate to an
-//!      object that has the required methods that will be called at runtime.
-//! (3) `JsRenderer::from_constructor`where the body of a constructor function needs to be
+//! 1. `JsRenderer::from_functions` where the bodies of the required functions are provided as
+//!    source code.
+//! 2. `JsRenderer::from_object` where the a piece of JS code is provided that must evaluate to an
+//!     object that has the required methods that will be called at runtime.
+//! 3. `JsRenderer::from_constructor`where the body of a constructor function needs to be
 //!     provided. The returned object needs to fulfill the same specification as in (2).
 //!
 //! Right now the only functions required on the wrapped object are

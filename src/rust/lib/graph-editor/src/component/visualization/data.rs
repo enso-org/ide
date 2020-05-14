@@ -21,6 +21,7 @@ pub type DataType = EnsoType;
 #[allow(missing_docs)]
 pub enum Data {
     JSON   { content : Rc<serde_json::Value> },
+    // TODO replace with actual binary data stream.
     Binary { content : Rc<dyn Any>           },
 }
 

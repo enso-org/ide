@@ -18,6 +18,7 @@ use ensogl::display;
 pub struct EnsoCode {
     content: Rc<String>
 }
+
 /// Type alias for a string representing an enso type.
 #[derive(Clone,CloneRef,Debug)]
 pub struct EnsoType {
@@ -70,23 +71,29 @@ impl Frp {
 
 
 
-// ===============================
-// === Visualization Internals ===
-// ===============================
+// ===========================
+// === Visualization Model ===
+// ===========================
 
 /// Internal data of Visualization.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Internal {
+pub struct State {
     pub renderer     : Rc<dyn DataRenderer>,
     pub preprocessor : Rc<RefCell<Option<EnsoCode>>>,
 }
 
-impl display::Object for Internal {
+impl display::Object for State {
     fn display_object(&self) -> &display::object::Instance {
         &self.renderer.display_object()
     }
 }
+
+
+
+// =====================
+// === Visualization ===
+// =====================
 
 /// A visualization that can be rendered and interacted with. Provides an frp API.
 #[derive(Clone,CloneRef,Debug)]
@@ -94,7 +101,7 @@ impl display::Object for Internal {
 pub struct Visualization {
     pub network  : frp::Network,
     pub frp      : Frp,
-        internal : Rc<Internal>
+        internal : State
 }
 
 impl display::Object for Visualization {
@@ -110,7 +117,7 @@ impl Visualization {
         let network      = default();
         let frp          = Frp::new(&network);
 
-        let internal = Rc::new(Internal{preprocessor,renderer});
+        let internal = State {preprocessor,renderer};
         Visualization{frp,internal,network}.init()
     }
 
@@ -146,5 +153,4 @@ impl Visualization {
     pub fn set_size(&self, size:Vector2<f32>) {
         self.internal.renderer.set_size(size)
     }
-
 }

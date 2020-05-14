@@ -24,10 +24,9 @@ pub struct DataRendererFrp {
     /// Will be emitted if the visualization changes it's preprocessor. Transmits the new
     /// preprocessor code.
     pub on_preprocess_change : frp::Stream<Option<EnsoCode>>,
-
-    // Internal sources that feed the public streams.
-    change            : frp::Source<Option<EnsoCode>>,
-    preprocess_change : frp::Source<Option<EnsoCode>>,
+        // Internal sources that feed the public streams.
+        change                : frp::Source<Option<EnsoCode>>,
+        preprocess_change     : frp::Source<Option<EnsoCode>>,
 }
 
 impl Default for DataRendererFrp {
@@ -37,7 +36,7 @@ impl Default for DataRendererFrp {
             def preprocess_change = source();
 
             let on_change            = change.clone_ref().into();
-            let on_preprocess_change = preprocess_change.clone_ref.into();
+            let on_preprocess_change = preprocess_change.clone_ref().into();
         };
         let network = renderer_events;
         Self {network,on_change,on_preprocess_change,change,preprocess_change}
