@@ -344,21 +344,25 @@ impl application::command::StatusApi for GraphEditor {
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct UnsealedFrpOutputs {
-    network           : frp::Network,
-    pub node_added    : frp::Merge<NodeId>,
-    pub edge_added    : frp::Merge<EdgeId>,
-    pub node_position : frp::Merge<(NodeId,Position)>,
+    network             : frp::Network,
+    pub node_added      : frp::Merge<NodeId>,
+    pub edge_added      : frp::Merge<EdgeId>,
+    pub node_position   : frp::Merge<(NodeId,Position)>,
+    pub edge_source_set : frp::Merge<(EdgeId,EdgeTarget)>,
+    pub edge_target_set : frp::Merge<(EdgeId,EdgeTarget)>,
 }
 
 #[allow(clippy::new_without_default)]
 impl UnsealedFrpOutputs {
     pub fn new() -> Self {
         frp::new_network! { TRACE_ALL network
-            def node_added    = gather();
-            def edge_added    = gather();
-            def node_position = gather();
+            def node_added      = gather();
+            def edge_added      = gather();
+            def node_position   = gather();
+            def edge_source_set = gather();
+            def edge_target_set = gather();
         }
-        Self {network,node_added,edge_added,node_position}
+        Self {network,node_added,edge_added,node_position,edge_source_set,edge_target_set}
     }
 
     pub fn seal(&self) -> FrpOutputs {
@@ -368,17 +372,21 @@ impl UnsealedFrpOutputs {
             def edge_added = self.edge_added.sampler();
         }
         let node_position = self.node_position.clone_ref().into();
-        FrpOutputs {network,node_added,edge_added,node_position}
+        let edge_source_set = self.edge_source_set.clone_ref().into();
+        let edge_target_set = self.edge_target_set.clone_ref().into();
+        FrpOutputs {network,node_added,edge_added,node_position,edge_source_set,edge_target_set}
     }
 }
 
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct FrpOutputs {
-    network           : frp::Network,
-    pub node_added    : frp::Sampler<NodeId>,
-    pub edge_added    : frp::Sampler<EdgeId>,
-    pub node_position : frp::Stream<(NodeId,Position)>,
+    network             : frp::Network,
+    pub node_added      : frp::Sampler<NodeId>,
+    pub edge_added      : frp::Sampler<EdgeId>,
+    pub node_position   : frp::Stream<(NodeId,Position)>,
+    pub edge_source_set : frp::Stream<(EdgeId,EdgeTarget)>,
+    pub edge_target_set : frp::Stream<(EdgeId,EdgeTarget)>,
 }
 
 
@@ -1114,22 +1122,30 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         );
     model_bind!(network model.connect_detached_edges_to_node(target));
 
-    let connect_edge_source = inputs.connect_edge_source.clone_ref();
-    let connect_edge_target = inputs.connect_edge_target.clone_ref();
-    model_bind!(network model.connect_edge_source(edge_id,target));
-    model_bind!(network model.connect_edge_target(edge_id,target));
-
-
-    def node_connect__new_edge = inputs.connect_nodes.map(f_!(model.new_edge()));
-    def node_connect__source   = inputs.connect_nodes.map(first);
-    def node_connect__target   = inputs.connect_nodes.map(second);
+    def new_edge = inputs.connect_nodes.map(f_!(model.new_edge()));
+    def source   = new_edge.map2(&inputs.connect_nodes, |edge_id,t| (*edge_id,t.0.clone()));
+    def target   = new_edge.map2(&inputs.connect_nodes, |edge_id,t| (*edge_id,t.1.clone()));
 
     def edge_added = inputs.connect_nodes.map(f!(((source,target))
         model.connect_nodes(source,target)
     ));
 
-    let connect_edge_source =
+    def connect_edge_source = merge2
+        ( &inputs.connect_edge_source
+        , &source
+        );
 
+    def connect_edge_target = merge2
+        ( &inputs.connect_edge_target
+        , &target
+        );
+
+    model_bind!(network model.connect_edge_source(edge_id,target));
+    model_bind!(network model.connect_edge_target(edge_id,target));
+
+
+    outputs.edge_source_set.attach(&connect_edge_source);
+    outputs.edge_target_set.attach(&connect_edge_target);
     outputs.edge_added.attach(&edge_added);
 
 
