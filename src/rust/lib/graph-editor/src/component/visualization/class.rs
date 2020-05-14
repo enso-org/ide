@@ -99,31 +99,31 @@ impl display::Object for State {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Visualization {
-    pub network  : frp::Network,
-    pub frp      : Frp,
-        internal : State
+    pub network : frp::Network,
+    pub frp     : Frp,
+        state   : State
 }
 
 impl display::Object for Visualization {
     fn display_object(&self) -> &display::object::Instance {
-        &self.internal.display_object()
+        &self.state.display_object()
     }
 }
 
 impl Visualization {
     /// Create a new `Visualization` with the given `DataRenderer`.
-    pub fn new<T: DataRenderer + 'static>(renderer:Rc<T>) -> Self {
+    pub fn new<T: DataRenderer>(renderer:T) -> Self {
         let preprocessor = default();
         let network      = default();
         let frp          = Frp::new(&network);
-
-        let internal = State {preprocessor,renderer};
-        Visualization{frp,internal,network}.init()
+        let renderer     = Rc::new(renderer);
+        let internal     = State {preprocessor,renderer};
+        Visualization{frp, state: internal,network}.init()
     }
 
     fn init(self) -> Self {
         let network       = &self.network;
-        let visualization = &self.internal;
+        let visualization = &self.state;
         let frp           = &self.frp;
         frp::extend! { network
             def _set_data = self.frp.set_data.map(f!((frp,visualization)(data) {
@@ -135,7 +135,7 @@ impl Visualization {
             }));
         }
 
-        let renderer_frp     = self.internal.renderer.frp();
+        let renderer_frp     = self.state.renderer.frp();
         let renderer_network = &renderer_frp.network;
         frp::new_bridge_network! { [network,renderer_network]
             def _on_changed = renderer_frp.on_change.map(f!((frp)(data) {
@@ -151,6 +151,6 @@ impl Visualization {
 
     /// Set the viewport size of the visualization.
     pub fn set_size(&self, size:Vector2<f32>) {
-        self.internal.renderer.set_size(size)
+        self.state.renderer.set_size(size)
     }
 }
