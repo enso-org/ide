@@ -7,13 +7,14 @@ use crate::component::visualization::Metadata;
 
 use ensogl::display::scene::Scene;
 
+
+
 // ============================
 // === Visualization Source ===
 // ============================
 
 /// Type alias for a function that can create a `Visualisation`.
 pub type VisualisationConstructor = dyn Fn(&Scene) -> Result<Visualization, Box<dyn std::error::Error>>;
-
 
 /// A visualisation source can be used to create visualisations.
 #[derive(CloneRef,Clone,Derivative)]
@@ -78,4 +79,3 @@ impl Source {
         }
     }
 }
-
