@@ -286,6 +286,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes       : frp::Source<Position>,
     pub cycle_visualization            : frp::Source<NodeId>,
     pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
+    pub register_visualisation_source  : frp::Source<Option<visualization::Source>>,
 }
 
 impl FrpInputs {
@@ -306,12 +307,14 @@ impl FrpInputs {
             def translate_selected_nodes       = source();
             def cycle_visualization            = source();
             def set_visualization              = source();
+            def register_visualisation_source  = source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_port,set_visualization_data
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
              ,set_node_position,select_node,translate_selected_nodes,set_node_expression
-             ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization}
+             ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
+             ,register_visualisation_source}
     }
 }
 
@@ -1207,7 +1210,7 @@ impl application::View for GraphEditor {
         }));
 
          // === Vis Cycling ===
-         def _cycle_vis= inputs.debug_cycle_visualisation_for_selected_node.map(f!((inputs,nodes)(_) {
+         def _cycle_vis = inputs.debug_cycle_visualisation_for_selected_node.map(f!((inputs,nodes)(_) {
             nodes.selected.for_each(|node| inputs.cycle_visualization.emit(node));
         }));
 
@@ -1234,7 +1237,7 @@ impl application::View for GraphEditor {
         }));
 
          let cycle_count = Rc::new(Cell::new(0));
-         def _cycle_visualization = inputs.cycle_visualization.map(f!((scene,nodes)(node_id) {
+         def _cycle_visualization = inputs.cycle_visualization.map(f!((scene,nodes,visualization_registry)(node_id) {
             let visualisations = visualization_registry.valid_sources(&"[[float;3]]".into());
             cycle_count.set(cycle_count.get() % visualisations.len());
             let vis  = &visualisations[cycle_count.get()];
@@ -1261,6 +1264,14 @@ impl application::View for GraphEditor {
             });
         }));
 
+
+        // === Register Visualization ===
+
+        def _register_visualization = inputs.register_visualisation_source.map(f!((visualization_registry)(source) {
+            if let Some(source) = source {
+                visualization_registry.register_source(source.clone_ref());
+            }
+        }));
 
 
         // === Status ===
