@@ -32,7 +32,7 @@ use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
-use wasm_bindgen::__rt::core::fmt::Formatter;
+use std::fmt::Formatter;
 
 
 // ==============
@@ -65,9 +65,7 @@ impl Display for JsVisualisationError {
     }
 }
 
-impl std::error::Error for JsVisualisationError {
-
-}
+impl std::error::Error for JsVisualisationError {}
 
 impl From<JsValue> for JsVisualisationError {
     fn from(value:JsValue) -> Self {

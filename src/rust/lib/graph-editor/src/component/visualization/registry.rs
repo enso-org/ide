@@ -70,5 +70,4 @@ impl Registry {
         let valid_entries = entries.filter(|entry| entry.metadata().input_types.contains(dtype));
         valid_entries.cloned().collect()
     }
-
 }
