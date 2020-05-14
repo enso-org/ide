@@ -38,6 +38,8 @@ impl From<&str> for EnsoType {
 }
 
 /// Contains general information about a visualisation.
+#[derive(Clone,Debug)]
+#[allow(missing_docs)]
 pub struct Metadata {
     pub name       : String,
     pub input_type : EnsoType,
