@@ -20,10 +20,12 @@
 
 pub mod class;
 pub mod container;
-pub mod renderer;
 pub mod data;
+pub mod registry;
+pub mod renderer;
 
 pub use class::*;
-pub use data::*;
 pub use container::*;
+pub use data::*;
+pub use registry::*;
 pub use renderer::*;
