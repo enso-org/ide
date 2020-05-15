@@ -125,15 +125,15 @@ impl Handle {
 
     /// Load or reload module content from file.
     pub async fn load_file(&self) -> FallibleResult<()> {
-        self.logger.info(|| "Loading module file");
+        info!(self.logger,"Loading module file");
         let path    = self.path.file_path().clone();
         let content = self.language_server.client.read_file(&path).await?.contents;
-        self.logger.info(|| "Parsing code");
+        info!(self.logger,"Parsing code");
         // TODO[ao] We should not fail here when metadata are malformed, but discard them and set
         //  default instead.
         let parsed = self.parser.parse_with_metadata(content)?;
-        self.logger.info(|| "Code parsed");
-        self.logger.trace(|| format!("The parsed ast is {:?}", parsed.ast));
+        info!(self.logger,"Code parsed");
+        trace!(self.logger,"The parsed ast is {parsed.ast:?}");
         self.model.update_whole(parsed);
         Ok(())
     }
@@ -160,7 +160,7 @@ impl Handle {
         code.replace_range(replaced_indices,&change.inserted);
         apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
         let ast = self.parser.parse(code, id_map)?.try_into()?;
-        self.logger.trace(|| format!("Applied change; Ast is now {:?}", ast));
+        trace!(self.logger,"Applied change; Ast is now {ast:?}");
         self.model.update_ast(ast);
 
         Ok(())
@@ -176,8 +176,8 @@ impl Handle {
     pub fn check_code_sync(&self, code:String) -> FallibleResult<()> {
         let my_code = self.code();
         if code != my_code {
-            self.logger.error(|| format!("The module controller ast was not synchronized with \
-                text editor content!\n >>> Module: {:?}\n >>> Editor: {:?}",my_code,code));
+            error!(self.logger,"The module controller ast was not synchronized with text editor \
+                content!\n >>> Module: {my_code}\n >>> Editor: {code}");
             let actual_ast = self.parser.parse(code,default())?.try_into()?;
             self.model.update_ast(actual_ast);
         }

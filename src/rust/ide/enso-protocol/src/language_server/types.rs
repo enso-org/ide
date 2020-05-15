@@ -2,6 +2,8 @@
 
 use super::*;
 
+
+
 // =============
 // === Event ===
 // =============
@@ -180,8 +182,26 @@ pub enum FileSystemObject {
 #[derive(Hash, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(missing_docs)]
 pub struct Position {
-    pub line: u32,
-    pub character: u32
+    pub line      : usize,
+    pub character : usize
+}
+
+impl From<data::text::TextLocation> for Position {
+    fn from(location: data::text::TextLocation) -> Self {
+        Position {
+            line      : location.line,
+            character : location.column,
+        }
+    }
+}
+
+impl Into<data::text::TextLocation> for Position {
+    fn into(self) -> data::text::TextLocation {
+        data::text::TextLocation {
+            line   : self.line,
+            column : self.character,
+        }
+    }
 }
 
 
@@ -196,6 +216,22 @@ pub struct TextRange {
     pub start: Position,
     pub end: Position
 }
+
+impl From<Range<data::text::TextLocation>> for TextRange {
+    fn from(range:Range<data::text::TextLocation>) -> Self {
+        TextRange {
+            start : range.start.into(),
+            end   : range.end.into(),
+        }
+    }
+}
+
+impl Into<Range<data::text::TextLocation>> for TextRange {
+    fn into(self) -> Range<data::text::TextLocation> {
+        self.start.into()..self.end.into()
+    }
+}
+
 
 
 // ================

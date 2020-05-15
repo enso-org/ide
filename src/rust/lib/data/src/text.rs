@@ -190,7 +190,7 @@ pub struct TextLocation {
 
 impl TextLocation {
     /// Create location at begin of given line.
-    pub fn at_line_begin(line_index:usize) -> TextLocation {
+    pub fn at_line_begin(line_index:usize) -> Self {
         TextLocation {
             line   : line_index,
             column : 0,
@@ -198,10 +198,42 @@ impl TextLocation {
     }
 
     /// Create location at begin of the whole document.
-    pub fn at_document_begin() -> TextLocation {
+    pub fn at_document_begin() -> Self {
         TextLocation {
             line   : 0,
             column : 0,
+        }
+    }
+
+    /// Create location at and of the whole document. It iterates over all the content.
+    pub fn at_document_end(content:impl Str) -> Self {
+        Self::after_chars(content.as_ref().chars())
+    }
+
+    /// Convert from index of document with `content`. It iterates over all characters before
+    /// `index`.
+    pub fn from_index(content:impl Str, index:Index) -> Self {
+        let before = content.as_ref().chars().take(index.value);
+        Self::after_chars(before)
+    }
+
+    /// Converts a range of indices into a range of TextLocation. It iterates over all characters
+    /// before range's end.
+    pub fn convert_range(content:impl Str, range:&Range<Index>) -> Range<Self> {
+        let content = content.as_ref();
+        Self::from_index(content,range.start)..Self::from_index(content,range.end)
+    }
+
+    fn after_chars<CharsIter,IntoCharsIter>(chars:IntoCharsIter) -> Self
+    where CharsIter     : Iterator<Item=char> + Clone,
+          IntoCharsIter : IntoIterator<Item=char, IntoIter=CharsIter> {
+        let iter             = chars.into_iter();
+        let len              = iter.clone().into_iter().count();
+        let newlines         = iter.enumerate().filter(|(_,c)| *c == '\n');
+        let newlines_indices = newlines.map(|(i,_)| i);
+        TextLocation {
+            line   : newlines_indices.clone().count(),
+            column : len - newlines_indices.last().unwrap_or(0),
         }
     }
 }
