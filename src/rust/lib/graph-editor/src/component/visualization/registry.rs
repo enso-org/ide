@@ -36,14 +36,14 @@ impl Registry {
     pub fn with_default_visualisations() -> Self {
         let registry = Self::empty();
         // TODO fix types
-        registry.register_factory(NativeConstructorFactory::from_constructor(
+        registry.register_factory(NativeConstructorFactory::new(
             Metadata {
                 name        : "Bubble Visualisation (native)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
             Rc::new(|scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene))))
         ));
-        registry.register_factory(NativeConstructorFactory::from_constructor(
+        registry.register_factory(NativeConstructorFactory::new(
             Metadata {
                 name        : "Bubble Visualisation (JS)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
@@ -58,17 +58,17 @@ impl Registry {
         registry
     }
 
-    /// Register a new visualisation source with the registry.
+    /// Register a new visualisation factory with the registry.
     pub fn register_factory<T:Factory + 'static>(&self, factory:T) {
         self.entries.borrow_mut().push(Rc::new(factory));
     }
 
-    /// Register a new visualisation source with the registry.
+    /// Register a new visualisation factory that's pre-wrapped in an `Rc` with the registry.
     pub fn register_factory_rc(&self, factory:Rc<dyn Factory>) {
         self.entries.borrow_mut().push(factory);
     }
 
-    /// Return all `VisualizationSource`s that can render the given datatype.
+    /// Return all `Factory`s that can create a visualisation for the given datatype.
     pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<dyn Factory>>{
         // TODO: this is not super efficient. Consider building a HashMap from type to vis.
         let entries       = self.entries.borrow();

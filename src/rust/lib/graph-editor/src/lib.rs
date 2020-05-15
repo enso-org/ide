@@ -1458,10 +1458,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             (Ok(vis), Some(node))  => {
                     node.view.visualization_container.frp.set_visualization.emit(Some(vis));
             },
-            (Err(e), _) => println!("{:?}", e),
-            _           => {}
-        };
-        cycle_count.set(cycle_count.get() + 1);
+            // TODO better error handling. Maybe use a logger?
+                (Err(e), _) => println!("{:?}", e),
+                _           => {}
+            };
+            cycle_count.set(cycle_count.get() + 1);
     }));
 
     def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes](_) {

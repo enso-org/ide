@@ -8,6 +8,7 @@
 //! instantiate `JsRenderer`, and the fairly generic `NativeConstructorFactory`, that only requires
 //! a function that can create a InstantiationResult. The later can be used as a thin wrapper around
 //! the constructor methods of native visualizations.
+
 use crate::prelude::*;
 use crate::visualization::*;
 
@@ -15,12 +16,13 @@ use ensogl::display::Scene;
 use std::error::Error;
 
 
+
 // ============================
 // === Visualisation Factory ===
 // ============================
 
 /// Result of the attempt to instantiate a `Visualisation` from a `Factory`.
-pub type InstantiationResult = Result<Visualization, Box<dyn Error>>;
+pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 
 /// Allows the creation of a specific `DataRenderer`.
 pub trait Factory: Debug {
@@ -39,8 +41,7 @@ pub trait Factory: Debug {
 // === JS Source Factory ===
 // =========================
 
-#[derive(CloneRef,Clone,Derivative)]
-#[derivative(Debug)]
+#[derive(CloneRef,Clone,Debug)]
 #[allow(missing_docs)]
 pub struct JsSourceFactory {
     info   : Rc<Metadata>,
@@ -100,7 +101,7 @@ pub struct NativeConstructorFactory {
 
 impl NativeConstructorFactory {
     /// Create a visualisation source from a closure that returns a `Visualisation`.
-    pub fn from_constructor(info:Metadata, constructor:Rc<VisualisationConstructor>) -> Self {
+    pub fn new(info:Metadata, constructor:Rc<VisualisationConstructor>) -> Self {
         let info = Rc::new(info);
         NativeConstructorFactory { info,constructor }
     }
