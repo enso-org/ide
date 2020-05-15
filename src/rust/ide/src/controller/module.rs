@@ -142,7 +142,7 @@ impl Handle {
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
         let path    = self.path.file_path().clone();
         let ls      = self.language_server.clone();
-        let content = self.model.source_as_string();
+        let content = self.model.serialized_content().map(|content| content.string);
         async move { Ok(ls.client.write_file(&path,&content?).await?) }
     }
 
@@ -241,7 +241,6 @@ impl Handle {
 mod test {
     use super::*;
 
-    use crate::notification;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use ast;

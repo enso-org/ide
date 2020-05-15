@@ -18,14 +18,20 @@ use serde::Serialize;
 // == SourceFile ==
 // ================
 
+
+// === Metadata ===
+
 /// Things that are metadata.
 pub trait Metadata:Serialize+DeserializeOwned {}
 
 /// Raw metadata.
 impl Metadata for serde_json::Value {}
 
+
+// === Source File ===
+
 /// Parsed file / module with metadata.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Eq)]
+#[derive(Clone,Debug,Deserialize,Eq,PartialEq)]
 pub struct SourceFile<Metadata> {
     /// Ast representation.
     pub ast: ast::known::Module,
@@ -33,13 +39,43 @@ pub struct SourceFile<Metadata> {
     pub metadata: Metadata
 }
 
+impl<M:Metadata> TryFrom<&SourceFile<M>> for String {
+    type Error = serde_json::Error;
+    fn try_from(val:&SourceFile<M>) -> std::result::Result<String,Self::Error> {
+        Ok(val.serialize()?.string)
+    }
+}
 
+
+// === Serialized Source File ===
+
+/// Serialized Source File to string with information about module section placement.
+#[allow(missing_docs)]
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub struct SerializedSourceFile {
     pub string   : String,
     pub code     : Range<Index>,
     pub id_map   : Range<Index>,
     pub metadata : Range<Index>,
 }
+
+impl SerializedSourceFile {
+    /// Get fragment of serialized string with code.
+    pub fn code_slice(&self) -> &str { &self.slice(&self.code    ) }
+
+    /// Get fragment of serialized string with id map.
+    pub fn id_map_slice  (&self) -> &str { &self.slice(&self.id_map  ) }
+
+    /// Get fragment of serialized string with metadata.
+    pub fn metadata_slice(&self) -> &str { &self.slice(&self.metadata) }
+
+    fn slice(&self, range:&Range<Index>) -> &str {
+        &self.string[range.start.value..range.end.value]
+    }
+}
+
+
+// === Source File Serialization ===
 
 const METADATA_TAG:&str = "\n\n\n#### METADATA ####\n";
 
@@ -50,7 +86,9 @@ fn to_json_single_line(val:&impl Serialize) -> std::result::Result<String,serde_
 }
 
 impl<M:Metadata> SourceFile<M> {
-    pub fn serialize_(&self) -> std::result::Result<SerializedSourceFile,serde_json::Error> {
+    /// Serialize SourceFile to string with information about code, id_map and metadata section
+    /// placement in it.
+    pub fn serialize(&self) -> std::result::Result<SerializedSourceFile,serde_json::Error> {
         let code                  = self.ast.repr();
         let id_map                = to_json_single_line(&self.ast.id_map())?;
         let metadata              = to_json_single_line(&self.metadata)?;
@@ -66,12 +104,6 @@ impl<M:Metadata> SourceFile<M> {
     }
 }
 
-impl<M:Metadata> TryFrom<&SourceFile<M>> for String {
-    type Error = serde_json::Error;
-    fn try_from(val:&SourceFile<M>) -> std::result::Result<String,Self::Error> {
-        Ok(val.serialize_()?.string)
-    }
-}
 
 
 
@@ -118,6 +150,7 @@ pub fn interop_error<T>(error:T) -> Error
 // === Tests ===
 // =============
 
+#[cfg(test)]
 mod test {
     use super::*;
 
@@ -142,7 +175,7 @@ mod test {
         let metadata = Metadata{foo:321};
         let source   = SourceFile {ast,metadata};
 
-        let serialized = source.serialize_().unwrap();
+        let serialized = source.serialize().unwrap();
         let expected   = r#"main = 2 + 2
 
 
@@ -153,5 +186,10 @@ mod test {
         assert_eq!(serialized.code    , Index::new(0)  ..Index::new(12));
         assert_eq!(serialized.id_map  , Index::new(34) ..Index::new(117));
         assert_eq!(serialized.metadata, Index::new(118)..Index::new(129));
+
+        assert_eq!(serialized.code_slice(), "main = 2 + 2");
+        assert_eq!(serialized.id_map_slice(),
+            r#"[[{"index":{"value":7},"size":{"value":5}},"89f29e9f-cd21-4d35-93ce-d6df9333e2cd"]]"#);
+        assert_eq!(serialized.metadata_slice(), r#"{"foo":321}"#)
     }
 }

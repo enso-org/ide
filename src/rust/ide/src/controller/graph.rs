@@ -15,7 +15,6 @@ pub use crate::double_representation::graph::LocationHint;
 use crate::double_representation::node;
 use crate::double_representation::node::NodeInfo;
 use crate::model::module::NodeMetadata;
-use crate::notification;
 
 use parser::Parser;
 use span_tree::action::Actions;
@@ -722,7 +721,7 @@ impl Handle {
         module_sub.map(|notification| {
             match notification {
                 model::module::Notification::Invalidate      |
-                model::module::Notification::CodeChanged(_)  |
+                model::module::Notification::CodeChanged{..} |
                 model::module::Notification::MetadataChanged => Notification::Invalidate,
             }
         })
@@ -737,7 +736,6 @@ mod tests {
     use crate::double_representation::definition::DefinitionName;
     use crate::double_representation::node::NodeInfo;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::notification;
 
     use ast::HasRepr;
     use ast::crumbs;

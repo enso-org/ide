@@ -7,7 +7,6 @@
 use crate::prelude::*;
 
 use crate::controller::FilePath;
-use crate::notification;
 
 use data::text::TextChange;
 use enso_protocol::language_server;
@@ -134,7 +133,7 @@ impl Handle {
     (notification:model::module::Notification) -> Option<Notification> {
         match notification {
             model::module::Notification::Invalidate      |
-            model::module::Notification::CodeChanged(_)  => Some(Notification::Invalidate),
+            model::module::Notification::CodeChanged{..} => Some(Notification::Invalidate),
             model::module::Notification::MetadataChanged => None,
         }
     }

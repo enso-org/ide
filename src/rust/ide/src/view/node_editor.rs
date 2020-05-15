@@ -2,8 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::notification;
-
 use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::system::web;

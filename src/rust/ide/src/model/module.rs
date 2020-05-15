@@ -9,10 +9,11 @@ use crate::double_representation::definition::DefinitionInfo;
 
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
-use parser::api::SourceFile;
+use parser::api::{SourceFile, SerializedSourceFile};
 use serde::Serialize;
 use serde::Deserialize;
 use data::text::TextChange;
+use data::text::TextLocation;
 
 
 
@@ -31,9 +32,19 @@ pub struct NodeMetadataNotFound(pub ast::Id);
 // === Notification ===
 // ====================
 
+/// Notification about change in module content.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Notification {
-    Invalidate, CodeChanged(TextChange), MetadataChanged
+    /// The whole content is invalidated.
+    Invalidate,
+    /// The code has been edited. That involves also a change in module's id_map.
+    CodeChanged{
+        /// The code change description.
+        change:TextChange,
+        /// Information about line:col position of replaced fragment.
+        replaced_location:Range<TextLocation>},
+    /// The metadata (e.g. some node's position) has been changed.
+    MetadataChanged,
 }
 
 
@@ -128,8 +139,8 @@ impl Module {
     }
 
     /// Get module sources as a string, which contains both code and metadata.
-    pub fn source_as_string(&self) -> FallibleResult<String> {
-        Ok(String::try_from(&*self.content.borrow())?)
+    pub fn serialized_content(&self) -> FallibleResult<SerializedSourceFile> {
+        self.content.borrow().serialize().map_err(|e| e.into())
     }
 
     /// Get module's ast.

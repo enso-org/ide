@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::notification;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
