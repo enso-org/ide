@@ -9,7 +9,20 @@ build   = "build.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+failure = "0.1.8"
 flatbuffers = "0.5"
+futures = "0.3.5"
+ensogl-system-web        = { version = "0.1.0"  , path = "../../lib/system/web"    }
+json-rpc      = { version = "0.1.0"  , path = "../json-rpc"            }
+enso-protocol = { version = "0.1.0"  , path = "../enso-protocol"       }
+enso-prelude  = { version = "0.1.0"  , path = "../../lib/prelude"      }
+shapely       = { version = "0.1.0"  , path = "../../lib/shapely/impl" }
+uuid          = { version  = "0.8.1", features = ["v4","wasm-bindgen"] }
+utils         = { version = "0.1.0"  , path = "../utils"                }
+
+
+[dev-dependencies]
+wasm-bindgen-test = { version = "0.3.8" }
 
 [build-dependencies]
 ensogl-build-utilities = { version = "0.1.0"  , path = "../../build"  }
