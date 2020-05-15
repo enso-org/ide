@@ -286,7 +286,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes       : frp::Source<Position>,
     pub cycle_visualization            : frp::Source<NodeId>,
     pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
-    pub register_visualisation_source  : frp::Source<Option<visualization::Source>>,
+    pub register_visualisation_source  : frp::Source<Option<Rc<dyn visualization::Factory>>>,
 }
 
 impl FrpInputs {
@@ -1269,7 +1269,7 @@ impl application::View for GraphEditor {
 
         def _register_visualization = inputs.register_visualisation_source.map(f!((visualization_registry)(source) {
             if let Some(source) = source {
-                visualization_registry.register_source(source.clone_ref());
+                visualization_registry.register_factory_rc(source.clone_ref());
             }
         }));
 
