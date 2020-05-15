@@ -1,6 +1,29 @@
-//! The `Registry` provides a mechanism to store all available visualization, as well as select
-//! visualizations based in their input type.
-
+//! The `Registry` provides a mechanism to store `Factory`s for all available visualizations. It
+//! provides functionality to register new factories, as well as get suitable factories for
+//! a specific data type.
+//!
+//! Example
+//! --------
+//! ```
+//! use graph_editor::component::visualization::Registry;
+//! use graph_editor::component::visualization::EnsoType;
+//! use graph_editor::component::visualization::JsSourceFactory;
+//!
+//! // Instantiate a pre-populated registry.
+//! let registry = Registry::with_default_visualisations();
+//! // Add a new factory that creates visualisations defined in JS.
+//! registry.register_factory(JsSourceFactory::from_js_source_raw(r#"
+//! class BubbleVisualisation {
+//!     onDataReceived(root, data) {}
+//!     setSize(root, size) {}
+//! }
+//! return new BubbleVisualisation();
+//! "#.into()));
+//!
+//! // Get all factories that can render  visualisation for the type `[[float;3]]`.
+//! let target_type:EnsoType = "[[float;3]]".to_string().into();
+//! assert!(registry.valid_sources(&target_type).len() > 0);
+//! ```
 use crate::prelude::*;
 
 use crate::component::visualization::EnsoType;
@@ -19,6 +42,7 @@ use ensogl::display::scene::Scene;
 // === Visualization Registry ===
 // ==============================
 
+/// The registry struct. For more information see the module description.
 #[derive(Clone,CloneRef,Default,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {

@@ -8,6 +8,36 @@
 //! instantiate `JsRenderer`, and the fairly generic `NativeConstructorFactory`, that only requires
 //! a function that can create a InstantiationResult. The later can be used as a thin wrapper around
 //! the constructor methods of native visualizations.
+//!
+//! Example
+//! --------
+//! ```
+//! use graph_editor::component::visualization::JsSourceFactory;
+//! use graph_editor::component::visualization::NativeConstructorFactory;
+//! use graph_editor::component::visualization::Metadata;
+//! use graph_editor::component::visualization::Visualization;
+//! use graph_editor::component::visualization::renderer::example::native::BubbleChart;
+//! use ensogl::display::Scene;
+//! use std::rc::Rc;
+//!
+//! // Create a factory from a JS source code snippet.
+//! let js_source_factory = JsSourceFactory::from_js_source_raw(r#"
+//! class BubbleVisualisation {
+//!     onDataReceived(root, data) {}
+//!     setSize(root, size) {}
+//! }
+//! return new BubbleVisualisation();
+//! "#.into());
+//!
+//! // Create a factory that instantiates a `BubbleChart`.
+//! let native_bubble_vis_factory = NativeConstructorFactory::new(
+//!     Metadata {
+//!         name        : "Bubble Visualisation (native)".to_string(),
+//!         input_types : vec!["[[float;3]]".to_string().into()],
+//!     },
+//!     Rc::new(|scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene))))
+//! );
+//! ```
 
 use crate::prelude::*;
 use crate::visualization::*;
