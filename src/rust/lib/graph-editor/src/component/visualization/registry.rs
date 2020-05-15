@@ -4,11 +4,12 @@
 use crate::prelude::*;
 
 use crate::component::visualization::EnsoType;
+use crate::component::visualization::Factory;
+use crate::component::visualization::Metadata;
+use crate::component::visualization::NativeConstructorFactory;
 use crate::component::visualization::Visualization;
 use crate::component::visualization::renderer::example::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::renderer::example::native::BubbleChart;
-use crate::component::visualization::Metadata;
-use crate::component::visualization;
 
 use ensogl::display::scene::Scene;
 
@@ -21,7 +22,7 @@ use ensogl::display::scene::Scene;
 #[derive(Clone,CloneRef,Default,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
-    entries : Rc<RefCell<Vec<Rc<visualization::Source>>>>
+    entries : Rc<RefCell<Vec<Rc<dyn Factory>>>>
 }
 
 impl Registry {
@@ -35,14 +36,14 @@ impl Registry {
     pub fn with_default_visualisations() -> Self {
         let registry = Self::empty();
         // TODO fix types
-        registry.register_source(visualization::Source::from_constructor(
+        registry.register_factory(NativeConstructorFactory::from_constructor(
             Metadata {
                 name        : "Bubble Visualisation (native)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
             Rc::new(|scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene))))
         ));
-        registry.register_source(visualization::Source::from_constructor(
+        registry.register_factory(NativeConstructorFactory::from_constructor(
             Metadata {
                 name        : "Bubble Visualisation (JS)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
@@ -58,12 +59,17 @@ impl Registry {
     }
 
     /// Register a new visualisation source with the registry.
-    pub fn register_source(&self, source: visualization::Source) {
-        self.entries.borrow_mut().push(Rc::new(source));
+    pub fn register_factory<T:Factory + 'static>(&self, factory:T) {
+        self.entries.borrow_mut().push(Rc::new(factory));
+    }
+
+    /// Register a new visualisation source with the registry.
+    pub fn register_factory_rc(&self, factory:Rc<dyn Factory>) {
+        self.entries.borrow_mut().push(factory);
     }
 
     /// Return all `VisualizationSource`s that can render the given datatype.
-    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<visualization::Source>>{
+    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<dyn Factory>>{
         // TODO: this is not super efficient. Consider building a HashMap from type to vis.
         let entries       = self.entries.borrow();
         let entries       = entries.iter();

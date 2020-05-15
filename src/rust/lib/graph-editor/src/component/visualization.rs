@@ -23,11 +23,11 @@ pub mod container;
 pub mod data;
 pub mod registry;
 pub mod renderer;
-pub mod source;
+pub mod factory;
 
 pub use class::*;
 pub use container::*;
 pub use data::*;
 pub use registry::*;
 pub use renderer::*;
-pub use source::*;
+pub use factory::*;
