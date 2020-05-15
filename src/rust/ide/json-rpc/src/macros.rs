@@ -100,7 +100,7 @@ macro_rules! make_rpc_methods {
             #[serde(rename_all = "camelCase")]
             struct $method_input<'a> {
                 #[serde(skip)]
-                phantom : std::marker::PhantomData<&'a u8>,
+                phantom : std::marker::PhantomData<&'a()>,
                 $($param_name : &'a $param_ty),*
             }
 
