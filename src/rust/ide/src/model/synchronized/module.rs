@@ -7,21 +7,25 @@ use parser::api::SerializedSourceFile;
 use data::text;
 use parser::Parser;
 use enso_protocol::language_server::TextEdit;
+use flo_stream::Subscriber;
+use crate::notification;
 
 struct ContentSummary {
     digest          : Sha3_224,
     code            : Range<TextLocation>,
     id_map          : Range<TextLocation>,
     metadata        : Range<TextLocation>,
+    end_of_file     : TextLocation,
 }
 
 impl ContentSummary {
     fn from_source(source:&SerializedSourceFile) -> Self {
         ContentSummary {
-            digest   : Sha3_224::new(source.string.as_bytes()),
-            code     : TextLocation::convert_range(&source.string,&source.code),
-            id_map   : TextLocation::convert_range(&source.string,&source.id_map),
-            metadata : TextLocation::convert_range(&source.string,&source.metadata),
+            digest      : Sha3_224::new(source.string.as_bytes()),
+            code        : TextLocation::convert_range(&source.string,&source.code),
+            id_map      : TextLocation::convert_range(&source.string,&source.id_map),
+            metadata    : TextLocation::convert_range(&source.string,&source.metadata),
+            end_of_file : TextLocation::at_document_end(&source.string),
         }
     }
 }
@@ -65,6 +69,8 @@ impl Module {
         let model      = model::Module::new(source.ast,source.metadata);
         Ok(Module {path,model,language_server,parser,ls_content,logger})
     }
+
+
 }
 
 impl Drop for Module {

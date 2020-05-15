@@ -233,7 +233,7 @@ impl TextLocation {
         let newlines_indices = newlines.map(|(i,_)| i);
         TextLocation {
             line   : newlines_indices.clone().count(),
-            column : len - newlines_indices.last().unwrap_or(0),
+            column : len - newlines_indices.last().map_or(0, |i| i + 1),
         }
     }
 }
@@ -310,5 +310,45 @@ fn cut_cr_at_end_of_line(from:&str) -> &str {
         &from[..from.len()-1]
     } else {
         from
+    }
+}
+
+
+
+// ============
+// === Text ===
+// ============
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use super::Index;
+
+    #[test]
+    fn converting_index_to_location() {
+        let str = "first\nsecond\nthird";
+        assert_eq!(TextLocation::from_index(str,Index::new(0)),  TextLocation {line:0, column:0});
+        assert_eq!(TextLocation::from_index(str,Index::new(5)),  TextLocation {line:0, column:5});
+        assert_eq!(TextLocation::from_index(str,Index::new(6)),  TextLocation {line:1, column:0});
+        assert_eq!(TextLocation::from_index(str,Index::new(9)),  TextLocation {line:1, column:3});
+        assert_eq!(TextLocation::from_index(str,Index::new(12)), TextLocation {line:1, column:6});
+        assert_eq!(TextLocation::from_index(str,Index::new(13)), TextLocation {line:2, column:0});
+        assert_eq!(TextLocation::from_index(str,Index::new(18)), TextLocation {line:2, column:5});
+
+        let str = "";
+        assert_eq!(TextLocation {line:0, column:0}, TextLocation::from_index(str,Index::new(0)));
+
+        let str= "\n";
+        assert_eq!(TextLocation {line:0, column:0}, TextLocation::from_index(str,Index::new(0)));
+        assert_eq!(TextLocation {line:1, column:0}, TextLocation::from_index(str,Index::new(1)));
+    }
+
+    #[test]
+    fn text_location_at_end() {
+        let str = "first\nsecond\nthird";
+        assert_eq!(TextLocation::at_document_end(str) , TextLocation {line:2, column:5});
+        assert_eq!(TextLocation::at_document_end("")  , TextLocation {line:0, column:0});
+        assert_eq!(TextLocation::at_document_end("\n"), TextLocation {line:1, column:0});
     }
 }
