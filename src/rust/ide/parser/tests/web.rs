@@ -1,6 +1,7 @@
 use enso_prelude::*;
 
-use ast::{Ast, HasRepr};
+use ast::Ast;
+use ast::HasRepr;
 use ast::IdMap;
 use data::text::*;
 use parser::Parser;
@@ -13,8 +14,6 @@ use wasm_bindgen_test::wasm_bindgen_test;
 
 
 wasm_bindgen_test_configure!(run_in_browser);
-
-type Metadata = serde_json::Value;
 
 #[wasm_bindgen_test]
 fn web_test() {

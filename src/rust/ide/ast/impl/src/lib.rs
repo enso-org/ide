@@ -247,7 +247,6 @@ impl Ast {
 
     /// Just wraps shape, id and len into Ast node.
     pub fn from_ast_id_len(shape:Shape<Ast>, id:Option<Id>, len:usize) -> Ast {
-        let id          = id;
         let with_length = WithLength { wrapped:shape      , len };
         let with_id     = WithID     { wrapped:with_length, id  };
         Ast { wrapped: Rc::new(with_id) }
