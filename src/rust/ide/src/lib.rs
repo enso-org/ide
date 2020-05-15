@@ -153,7 +153,8 @@ pub async fn open_project
 /// Open most recent project or create a new project if none exists.
 pub async fn open_most_recent_project_or_create_new
 (project_manager:&impl project_manager::API) -> FallibleResult<controller::Project> {
-    let mut response = project_manager.list_recent_projects(&1).await?;
+    let projects_to_list = 1;
+    let mut response     = project_manager.list_recent_projects(&projects_to_list).await?;
     let project_id = if let Some(project) = response.projects.pop() {
         project.id
     } else {
