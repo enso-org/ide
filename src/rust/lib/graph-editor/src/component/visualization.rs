@@ -21,13 +21,13 @@
 pub mod class;
 pub mod container;
 pub mod data;
+pub mod factory;
 pub mod registry;
 pub mod renderer;
-pub mod factory;
 
 pub use class::*;
 pub use container::*;
 pub use data::*;
+pub use factory::*;
 pub use registry::*;
 pub use renderer::*;
-pub use factory::*;

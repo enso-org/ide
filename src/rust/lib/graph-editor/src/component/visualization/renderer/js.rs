@@ -45,12 +45,13 @@ use std::fmt::Formatter;
 pub enum JsVisualisationError {
     NotAnObject  { inner:JsValue },
     NotAFunction { inner:JsValue },
-    /// An unknown error occurred on the JS side. Inspect the content for more information. .
+    /// An unknown error occurred on the JS side. Inspect the content for more information.
     Unknown      { inner:JsValue }
 }
 
 impl Display for JsVisualisationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // TODO find a nice way to circumvent the fact that `JsValue` does not implement `Display`.
         match self {
             JsVisualisationError::NotAnObject { inner }  => {
                 f.write_fmt(format_args!("NotAnObject:{:?}",inner))
@@ -133,9 +134,9 @@ impl JsRenderer {
         let set_data:js_sys::Function = set_data.into();
         let set_size:js_sys::Function = set_size.into();
 
-        let logger  = Logger::new("JsRenderer");
-        let frp     = default();
-        let div     = web::create_div();
+        let logger    = Logger::new("JsRenderer");
+        let frp       = default();
+        let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")?;
 

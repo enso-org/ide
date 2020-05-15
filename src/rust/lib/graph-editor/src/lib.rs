@@ -1247,6 +1247,7 @@ impl application::View for GraphEditor {
                 (Ok(vis), Some(node))  => {
                         node.view.visualization_container.frp.set_visualization.emit(Some(vis));
                 },
+                // TODO better error handling. Maybe use a logger?
                 (Err(e), _) => println!("{:?}", e),
                 _           => {}
             };
