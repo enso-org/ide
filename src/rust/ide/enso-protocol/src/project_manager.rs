@@ -318,11 +318,11 @@ mod remote_client_tests {
             language_server_binary_address
         };
         let ip_with_address_json = json!({
-            "languageServerRpcAddress" : {
+            "languageServerJsonAddress" : {
                 "host" : "localhost",
                 "port" : 27015
             },
-            "languageServerDataAddress" : {
+            "languageServerBinaryAddress" : {
                 "host" : "localhost",
                 "port" : 27016
             }
