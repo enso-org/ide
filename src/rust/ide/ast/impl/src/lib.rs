@@ -1361,7 +1361,7 @@ mod tests {
     fn ast_updating_id() {
         let var = Var {name:"foo".into()};
         let ast = Ast::new(var, None);
-        assert!(ast.id.is_none());
+        assert!(ast.id.is_some());
 
         let id  = Id::default();
         let ast = ast.with_id(id);
@@ -1409,7 +1409,7 @@ mod tests {
         let ident = "foo".to_string();
         let v     = Var{ name: ident.clone() };
         let ast   = Ast::from(v);
-        assert_eq!(ast.wrapped.id, None);
+        assert!(ast.wrapped.id.is_some());
         assert_eq!(ast.wrapped.wrapped.len, ident.len());
     }
 
