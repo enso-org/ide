@@ -33,6 +33,7 @@ pub struct SourceFile<Metadata> {
     pub metadata: Metadata
 }
 
+
 pub struct SerializedSourceFile {
     pub string   : String,
     pub code     : Range<Index>,

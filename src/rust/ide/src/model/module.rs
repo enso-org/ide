@@ -12,6 +12,7 @@ use flo_stream::Subscriber;
 use parser::api::SourceFile;
 use serde::Serialize;
 use serde::Deserialize;
+use data::text::TextChange;
 
 
 
@@ -23,6 +24,17 @@ use serde::Deserialize;
 #[derive(Debug,Clone,Copy,Fail)]
 #[fail(display="Node with ID {} was not found in metadata.", _0)]
 pub struct NodeMetadataNotFound(pub ast::Id);
+
+
+
+// ====================
+// === Notification ===
+// ====================
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum Notification {
+    Invalidate, CodeChanged(TextChange), MetadataChanged
+}
 
 
 
@@ -59,7 +71,7 @@ pub struct NodeMetadata {
 }
 
 /// Used for storing node position.
-#[derive(Clone,Copy,Debug,PartialEq,Serialize,Deserialize)]
+#[derive(Copy,Clone,Debug,PartialEq,Serialize,Deserialize)]
 pub struct Position {
     /// Vector storing coordinates of the visual position.
     pub vector:Vector2<f32>
@@ -89,9 +101,8 @@ pub type Content = SourceFile<Metadata>;
 /// (text and graph).
 #[derive(Debug)]
 pub struct Module {
-    content             : RefCell<Content>,
-    text_notifications  : RefCell<notification::Publisher<notification::Text>>,
-    graph_notifications : RefCell<notification::Publisher<notification::Graphs>>,
+    content       : RefCell<Content>,
+    notifications : RefCell<notification::Publisher<Notification>>,
 }
 
 impl Default for Module {
@@ -105,16 +116,15 @@ impl Module {
     /// Create state with given content.
     pub fn new(ast:ast::known::Module, metadata:Metadata) -> Self {
         Module {
-            content             : RefCell::new(SourceFile{ast,metadata}),
-            text_notifications  : default(),
-            graph_notifications : default(),
+            content       : RefCell::new(SourceFile{ast,metadata}),
+            notifications : default(),
         }
     }
 
     /// Update whole content of the module.
     pub fn update_whole(&self, content:Content) {
         *self.content.borrow_mut() = content;
-        self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
+        self.notify(Notification::Invalidate);
     }
 
     /// Get module sources as a string, which contains both code and metadata.
@@ -130,7 +140,7 @@ impl Module {
     /// Update ast in module controller.
     pub fn update_ast(&self, ast:ast::known::Module) {
         self.content.borrow_mut().ast  = ast;
-        self.notify(notification::Text::Invalidate,notification::Graphs::Invalidate);
+        self.notify(Notification::Invalidate);
     }
 
     /// Obtains definition information for given graph id.
@@ -149,14 +159,14 @@ impl Module {
     /// Sets metadata for given node.
     pub fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) {
         self.content.borrow_mut().metadata.ide.node.insert(id, data);
-        self.notify_graph(notification::Graphs::Invalidate);
+        self.notify(Notification::MetadataChanged);
     }
 
     /// Removes metadata of given node and returns them.
     pub fn remove_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
         let lookup = self.content.borrow_mut().metadata.ide.node.remove(&id);
         let data   = lookup.ok_or_else(|| NodeMetadataNotFound(id))?;
-        self.notify_graph(notification::Graphs::Invalidate);
+        self.notify(Notification::MetadataChanged);
         Ok(data)
     }
 
@@ -170,28 +180,17 @@ impl Module {
         let mut data = lookup.unwrap_or_default();
         fun(&mut data);
         self.content.borrow_mut().metadata.ide.node.insert(id, data);
-        self.notify_graph(notification::Graphs::Invalidate);
+        self.notify(Notification::MetadataChanged);
     }
 
     /// Subscribe for notifications about text representation changes.
-    pub fn subscribe_text_notifications(&self) -> Subscriber<notification::Text> {
-        self.text_notifications.borrow_mut().subscribe()
+    pub fn subscribe(&self) -> Subscriber<Notification> {
+        self.notifications.borrow_mut().subscribe()
     }
 
-    /// Subscribe for notifications about graph representation changes.
-    pub fn subscribe_graph_notifications(&self) -> Subscriber<notification::Graphs> {
-        self.graph_notifications.borrow_mut().subscribe()
-    }
-
-    fn notify(&self, text_change:notification::Text, graph_change:notification::Graphs) {
-        let code_notify  = self.text_notifications.borrow_mut().publish(text_change);
-        let graph_notify = self.graph_notifications.borrow_mut().publish(graph_change);
-        executor::global::spawn(async move { futures::join!(code_notify,graph_notify); });
-    }
-
-    fn notify_graph(&self, graph_change:notification::Graphs) {
-        let graph_notify = self.graph_notifications.borrow_mut().publish(graph_change);
-        executor::global::spawn(graph_notify);
+    fn notify(&self, notification:Notification) {
+        let notify  = self.notifications.borrow_mut().publish(notification);
+        executor::global::spawn(notify);
     }
 
     /// Create module state from given code, id_map and metadata.
@@ -222,38 +221,35 @@ mod test {
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async {
             let module                 = Module::default();
-            let mut text_subscription  = module.subscribe_text_notifications();
-            let mut graph_subscription = module.subscribe_graph_notifications();
+            let mut subscription       = module.subscribe();
 
             // Ast update
             let new_line       = Ast::infix_var("a","+","b");
             let new_module_ast = Ast::one_line_module(new_line);
             let new_module_ast = ast::known::Module::try_new(new_module_ast).unwrap();
             module.update_ast(new_module_ast.clone_ref());
-            assert_eq!(Some(notification::Text::Invalidate),   text_subscription.next().await);
-            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+            assert_eq!(Some(Notification::Invalidate), subscription.next().await);
 
             // Metadata update
             let id            = Uuid::new_v4();
             let node_metadata = NodeMetadata {position:Some(Position::new(1.0, 2.0))};
             module.set_node_metadata(id.clone(),node_metadata.clone());
-            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+            assert_eq!(Some(Notification::MetadataChanged), subscription.next().await);
             module.remove_node_metadata(id.clone()).unwrap();
-            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+            assert_eq!(Some(Notification::MetadataChanged), subscription.next().await);
             module.with_node_metadata(id.clone(),|md| *md = node_metadata.clone());
-            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+            assert_eq!(Some(Notification::MetadataChanged), subscription.next().await);
 
             // Whole update
             let mut metadata = Metadata::default();
             metadata.ide.node.insert(id,node_metadata);
             module.update_whole(SourceFile{ast:new_module_ast, metadata});
-            assert_eq!(Some(notification::Text::Invalidate),   text_subscription.next().await);
-            assert_eq!(Some(notification::Graphs::Invalidate), graph_subscription.next().await);
+            assert_eq!(Some(Notification::Invalidate), subscription.next().await);
+            assert_eq!(Some(Notification::Invalidate), subscription.next().await);
 
             // No more notifications emitted
             drop(module);
-            assert_eq!(None, text_subscription.next().await);
-            assert_eq!(None, graph_subscription.next().await);
+            assert_eq!(None, subscription.next().await);
         });
     }
 

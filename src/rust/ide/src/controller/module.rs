@@ -283,8 +283,7 @@ mod test {
 
             let controller   = Handle::new_mock(location,module,id_map,ls,parser).unwrap();
 
-            let mut text_notifications  = controller.model.subscribe_text_notifications();
-            let mut graph_notifications = controller.model.subscribe_graph_notifications();
+            let mut subscription  = controller.model.subscribe();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(1),"2".to_string());
@@ -304,8 +303,7 @@ mod test {
             assert_eq!(expected_ast, controller.model.ast().into());
 
             // Check emitted notifications
-            assert_eq!(Some(notification::Text::Invalidate ), text_notifications.next().await );
-            assert_eq!(Some(notification::Graphs::Invalidate), graph_notifications.next().await);
+            assert_eq!(Some(model::module::Notification::Invalidate ), subscription.next().await);
         });
     }
 }

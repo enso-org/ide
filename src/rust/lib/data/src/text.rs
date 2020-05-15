@@ -249,12 +249,12 @@ impl TextLocation {
 /// This is a generalized template, because we use different representation for both index
 /// (e.g. `Index` or `TextLocation`) and inserted content (it may be just String, but also e.g.
 /// Vec<char>, or Vec<Vec<char>> split by newlines).
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Eq,Hash,PartialEq)]
 pub struct TextChangeTemplate<Index,Content> {
     /// Text fragment to be replaced. If we don't mean to remove any text, this should be an empty
     /// range with start set at position there `lines` will be inserted
     /// (see `TextChangeTemplate::insert` definition).
-    pub replaced : Range<Index>,
+    pub replaced: Range<Index>,
     /// Text which replaces fragment described in `replaced` field.
     pub inserted: Content,
 }

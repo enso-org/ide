@@ -78,7 +78,7 @@ impl GraphEditorIntegration {
         let weak    = Rc::downgrade(this);
         let handler = process_stream_with_handle(stream,weak,move |notification,this| {
             let result = match notification {
-                notification::Graph::Invalidate => this.invalidate_graph(),
+                controller::graph::Notification::Invalidate => this.invalidate_graph(),
             };
             if let Err(err) = result {
                 error!(this.logger,"Error while updating graph after receiving {notification:?} \

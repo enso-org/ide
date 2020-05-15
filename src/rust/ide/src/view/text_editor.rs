@@ -127,10 +127,10 @@ impl TextEditor {
         }));
     }
 
-    fn handle_controller_notification(&self, notification:notification::Text)
+    fn handle_controller_notification(&self, notification:controller::text::Notification)
     -> impl Future<Output=()> {
         match notification {
-            notification::Text::Invalidate => self.reload_content()
+            controller::text::Notification::Invalidate => self.reload_content()
         }
     }
 

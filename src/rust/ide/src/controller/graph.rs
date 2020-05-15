@@ -51,6 +51,20 @@ pub struct NoPatternOnNode {
 }
 
 
+
+// ====================
+// === Notification ===
+// ====================
+
+/// A notification about changes of a specific graph in a module.
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+pub enum Notification {
+    /// The content should be fully reloaded.
+    Invalidate,
+}
+
+
+
 // ============
 // === Node ===
 // ============
@@ -703,12 +717,13 @@ impl Handle {
     }
 
     /// Subscribe to updates about changes in this graph.
-    pub fn subscribe(&self) -> impl Stream<Item=notification::Graph> {
-        use notification::*;
-        let module_sub = self.module.subscribe_graph_notifications();
+    pub fn subscribe(&self) -> impl Stream<Item=Notification> {
+        let module_sub = self.module.subscribe();
         module_sub.map(|notification| {
             match notification {
-                Graphs::Invalidate => Graph::Invalidate
+                model::module::Notification::Invalidate      |
+                model::module::Notification::CodeChanged(_)  |
+                model::module::Notification::MetadataChanged => Notification::Invalidate,
             }
         })
     }
@@ -808,7 +823,7 @@ mod tests {
 
             let mut sub = graph.subscribe();
             module.apply_code_change(&TextChange::insert(Index::new(1),"2".to_string())).unwrap();
-            assert_eq!(Some(notification::Graph::Invalidate), sub.next().await);
+            assert_eq!(Some(Notification::Invalidate), sub.next().await);
         })
     }
 

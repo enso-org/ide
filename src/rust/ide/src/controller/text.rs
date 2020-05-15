@@ -15,6 +15,18 @@ use json_rpc::error::RpcError;
 use std::pin::Pin;
 
 
+// ====================
+// === Notification ===
+// ====================
+
+/// A notification about changes of file content.
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+pub enum Notification {
+    /// The content should be fully reloaded.
+    Invalidate,
+}
+
+
 
 // =======================
 // === Text Controller ===
@@ -107,13 +119,23 @@ impl Handle {
     }
 
     /// Get a stream of text changes notifications.
-    pub fn subscribe(&self) -> Pin<Box<dyn Stream<Item=notification::Text>>> {
+    pub fn subscribe(&self) -> Pin<Box<dyn Stream<Item=Notification>>> {
         match &self.file {
             FileHandle::PlainText{..}       => StreamExt::boxed(futures::stream::empty()),
             FileHandle::Module {controller} => {
-                let subscriber = controller.model.subscribe_text_notifications();
-                StreamExt::boxed(subscriber)
+                let subscriber = controller.model.subscribe();
+                let mapped     = subscriber.filter_map(Self::map_model_notification);
+                StreamExt::boxed(mapped)
             }
+        }
+    }
+
+    async fn map_model_notification
+    (notification:model::module::Notification) -> Option<Notification> {
+        match notification {
+            model::module::Notification::Invalidate      |
+            model::module::Notification::CodeChanged(_)  => Some(Notification::Invalidate),
+            model::module::Notification::MetadataChanged => None,
         }
     }
 }
@@ -162,7 +184,7 @@ mod test {
             let mut sub    = controller.subscribe();
 
             module.apply_code_change(&TextChange::insert(Index::new(8),"2".to_string())).unwrap();
-            assert_eq!(Some(notification::Text::Invalidate), sub.next().await);
+            assert_eq!(Some(Notification::Invalidate), sub.next().await);
         })
     }
 }
