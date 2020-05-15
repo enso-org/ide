@@ -11,6 +11,8 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
+pub mod binary;
+pub mod generated;
 pub mod types;
 pub mod language_server;
 pub mod project_manager;
@@ -22,3 +24,4 @@ pub mod traits {
     pub use crate::language_server::API as TRAIT_LanguageServerAPI;
     pub use crate::project_manager::API as TRAIT_ProjectManagerAPI;
 }
+

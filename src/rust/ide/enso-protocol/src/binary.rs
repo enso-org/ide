@@ -13,13 +13,10 @@ use futures::channel::mpsc::UnboundedSender;
 use futures::channel::oneshot;
 use uuid::Uuid;
 
-pub mod generated;
-
-pub use generated::binary_protocol_generated as binary_protocol;
+pub use crate::generated::binary_protocol_generated as binary_protocol;
 use json_rpc::{Transport, TransportEvent};
 use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary::EnsoUUID;
-
-use enso_protocol::language_server::Path as LSPath;
+use crate::language_server::Path as LSPath;
 
 trait Handler {
     type Notification;
@@ -125,8 +122,8 @@ use utils::fail::FallibleResult;
 
 pub fn inbound_message
 (builder:&mut flatbuffers::FlatBufferBuilder
-, payload_type:InboundPayload
-, payload:flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>) -> EnsoUUID {
+ , payload_type:InboundPayload
+ , payload:flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>) -> EnsoUUID {
     let message_id = EnsoUUID::new_v4();
     let message = InboundMessage::create(builder, &InboundMessageArgs {
         correlationId : None,
@@ -142,8 +139,8 @@ type Payload = flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>;
 
 pub fn with_new_message
 ( payload_type:InboundPayload
-, make_payload: impl FnOnce(&mut FlatBufferBuilder) -> Payload
-, consumer:impl FnOnce(&[u8])
+  , make_payload: impl FnOnce(&mut FlatBufferBuilder) -> Payload
+  , consumer:impl FnOnce(&[u8])
 ) -> EnsoUUID {
     let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
     let payload = Some(make_payload(&mut builder));
@@ -378,12 +375,12 @@ pub struct NoSuchRequest<Id : Sync + Send + Debug + Display + 'static>(Id);
 
 #[derive(Debug,Default)]
 struct RequestHandler<Id,Reply>
-where Id:Hash+Eq {
+    where Id:Hash+Eq {
     ongoing_calls : Rc<RefCell<HashMap<Id,oneshot::Sender<Reply>>>>,
 }
 
 impl<Id,Reply> RequestHandler<Id,Reply>
-where Id:Hash+Eq {
+    where Id:Hash+Eq {
     pub fn new() -> RequestHandler<Id,Reply> {
         RequestHandler {
             ongoing_calls : Rc::new(RefCell::new(default()))
@@ -405,7 +402,7 @@ where Id:Hash+Eq {
     }
 
     pub fn complete_request(&self, id:Id, reply:Reply) -> FallibleResult<()>
-    where Id : Display + Debug + Send + Sync + 'static {
+        where Id : Display + Debug + Send + Sync + 'static {
         if let Some(mut request) = self.remove_request(&id) {
             // Explicitly ignore error. Can happen only if the other side already dropped future
             // with the call result. In such case no one needs to be notified and we are fine.
@@ -418,10 +415,10 @@ where Id:Hash+Eq {
 }
 
 fn open_request<SendReq,H,F,R>(handler:H, id:Id, f:F, send_request:SendReq) -> impl Future<Output = FallibleResult<R>>
-where
-    H : HandlerLike,
-    F : FnOnce(H::Reply) -> FallibleResult<R>,
-    SendReq : FnOnce() -> FallibleResult<()> {
+    where
+        H : HandlerLike,
+        F : FnOnce(H::Reply) -> FallibleResult<R>,
+        SendReq : FnOnce() -> FallibleResult<()> {
     let (sender, receiver) = oneshot::channel::<H::Reply>();
     let ret                = receiver.map(|result_or_cancel| {
         let result = result_or_cancel?;
@@ -550,6 +547,9 @@ mod tests {
     #[allow(dead_code)]
     async fn first_real_test() {
         ensogl_system_web::set_stdout();
+
+
+
         assert!(false);
     }
 }

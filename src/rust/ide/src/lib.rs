@@ -224,4 +224,25 @@ mod tests {
         }));
         fixture.when_stalled_send_error(1,"Service error");
     }
+
+
+    #[wasm_bindgen_test::wasm_bindgen_test(async)]
+    #[allow(dead_code)]
+    async fn first_real_test() {
+        ensogl_system_web::set_stdout();
+        let _guard = setup_global_executor();
+
+        let logger = Logger::new("Test");
+        info!(logger, "moje");
+
+        println!("Connected!");
+        let ws = WebSocket::new_opened(PROJECT_MANAGER_ENDPOINT).await.unwrap();
+        println!("Connected!");
+        let pm = setup_project_manager(ws);
+        println!("PM established!");
+        let project = open_most_recent_project_or_create_new(&pm).await;
+        println!("Got project: {:?}", project);
+
+        assert!(false);
+    }
 }
