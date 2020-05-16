@@ -139,7 +139,7 @@ fn init(app:&Application) {
         }));
         def _debug = graph_editor.frp.outputs.edge_added.map2(&condition, |id,cond| {
             let owner = if *cond { "GUI" } else { "ME" };
-            println!("Edge [{}] added by {}!",id,owner)
+            println!("Edge {:?} added by {}!",id,owner)
         });
 
     }

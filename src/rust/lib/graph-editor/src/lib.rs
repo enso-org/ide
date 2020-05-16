@@ -23,7 +23,7 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-#![recursion_limit="512"]
+#![recursion_limit="1024"]
 
 
 #[warn(missing_docs)]
@@ -58,7 +58,7 @@ use crate::component::visualization::Visualization;
 use crate::component::visualization;
 
 use serde_json::json;
-
+use enso_frp::stream::ValueProvider;
 
 
 fn first  <T0:Clone,T1>(t:&(T0,T1)) -> T0 { t.0.clone() }
@@ -278,7 +278,7 @@ pub struct FrpInputs {
     pub connect_nodes                  : frp::Source<(EdgeTarget,EdgeTarget)>,
     pub deselect_all_nodes             : frp::Source,
     pub press_node_port                : frp::Source<EdgeTarget>,
-    pub remove_edges                   : frp::Source<Vec<EdgeId>>,
+    pub remove_edge                    : frp::Source<EdgeId>,
     pub select_node                    : frp::Source<NodeId>,
     pub set_node_expression            : frp::Source<(NodeId,Expression)>,
     pub set_node_position              : frp::Source<(NodeId,Position)>,
@@ -295,7 +295,7 @@ impl FrpInputs {
             def connect_nodes                  = source();
             def deselect_all_nodes             = source();
             def press_node_port                = source();
-            def remove_edges                   = source();
+            def remove_edge                    = source();
             def select_node                    = source();
             def set_node_expression            = source();
             def set_node_position              = source();
@@ -303,7 +303,7 @@ impl FrpInputs {
             def translate_selected_nodes       = source();
         }
         let commands = Commands::new(&network);
-        Self {commands,remove_edges,press_node_port,set_visualization_data
+        Self {commands,remove_edge,press_node_port,set_visualization_data
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
              ,set_node_position,select_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes}
@@ -342,52 +342,50 @@ impl application::command::StatusApi for GraphEditor {
 // === FrpOutputs ===
 // ==================
 
-#[derive(Debug,Clone,CloneRef)]
-pub struct UnsealedFrpOutputs {
-    network             : frp::Network,
-    pub node_added      : frp::Merge<NodeId>,
-    pub edge_added      : frp::Merge<EdgeId>,
-    pub node_position   : frp::Merge<(NodeId,Position)>,
-    pub edge_source_set : frp::Merge<(EdgeId,EdgeTarget)>,
-    pub edge_target_set : frp::Merge<(EdgeId,EdgeTarget)>,
-}
-
-#[allow(clippy::new_without_default)]
-impl UnsealedFrpOutputs {
-    pub fn new() -> Self {
-        frp::new_network! { TRACE_ALL network
-            def node_added      = gather();
-            def edge_added      = gather();
-            def node_position   = gather();
-            def edge_source_set = gather();
-            def edge_target_set = gather();
+macro_rules! generate_frp_outputs {
+    ($( $field:ident : $field_ty:ty ),* $(,)?) => {
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct UnsealedFrpOutputs {
+            network : frp::Network,
+            $($field : frp::Merge<$field_ty>),*
         }
-        Self {network,node_added,edge_added,node_position,edge_source_set,edge_target_set}
-    }
 
-    pub fn seal(&self) -> FrpOutputs {
-        let network = self.network.clone_ref();
-        frp::extend! { network
-            def node_added = self.node_added.sampler();
-            def edge_added = self.edge_added.sampler();
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct FrpOutputs {
+            network : frp::Network,
+            $(pub $field : frp::Sampler<$field_ty>),*
         }
-        let node_position = self.node_position.clone_ref().into();
-        let edge_source_set = self.edge_source_set.clone_ref().into();
-        let edge_target_set = self.edge_target_set.clone_ref().into();
-        FrpOutputs {network,node_added,edge_added,node_position,edge_source_set,edge_target_set}
-    }
+
+        #[allow(clippy::new_without_default)]
+        impl UnsealedFrpOutputs {
+            pub fn new() -> Self {
+                frp::new_network! { network
+                    $(def $field = gather();)*
+                }
+                Self {network, $($field),*}
+            }
+
+            pub fn seal(&self) -> FrpOutputs {
+                let network = self.network.clone_ref();
+                frp::extend! { TRACE_ALL network
+                    $(def $field = self.$field.sampler();)*
+                }
+                FrpOutputs {network, $($field),*}
+            }
+        }
+    };
 }
 
 
-#[derive(Debug,Clone,CloneRef)]
-pub struct FrpOutputs {
-    network             : frp::Network,
-    pub node_added      : frp::Sampler<NodeId>,
-    pub edge_added      : frp::Sampler<EdgeId>,
-    pub node_position   : frp::Stream<(NodeId,Position)>,
-    pub edge_source_set : frp::Stream<(EdgeId,EdgeTarget)>,
-    pub edge_target_set : frp::Stream<(EdgeId,EdgeTarget)>,
+generate_frp_outputs! {
+    node_added        : NodeId,
+    edge_added        : EdgeId,
+    edge_removed      : EdgeId,
+    node_position_set : (NodeId,Position),
+    edge_source_set   : (EdgeId,EdgeTarget),
+    edge_target_set   : (EdgeId,EdgeTarget),
 }
+
 
 
 
@@ -1097,17 +1095,17 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Selection ===
 
-    def select_node        = inputs.select_node.merge(&touch.nodes.selected);
-    def deselect_all_nodes = inputs.deselect_all_nodes.merge(&touch.background.selected);
+    def select_node        = merge(&inputs.select_node,&touch.nodes.selected);
+    def deselect_all_nodes = merge(&inputs.deselect_all_nodes,&touch.background.selected);
     model_bind!(network model.select_node(node_id));
     model_bind!(network model.deselect_all_nodes());
 
 
     // === Connect Nodes ===
 
-    def new_edge = inputs.connect_nodes.map(f_!(model.new_edge()));
-    def source   = new_edge.map2(&inputs.connect_nodes, |edge_id,t| (*edge_id,t.0.clone()));
-    def target   = new_edge.map2(&inputs.connect_nodes, |edge_id,t| (*edge_id,t.1.clone()));
+    def new_edge  = inputs.connect_nodes.map(f_!(model.new_edge()));
+    def source    = new_edge.map2(&inputs.connect_nodes, |edge_id,t| (*edge_id,t.0.clone()));
+    def target    = new_edge.map2(&inputs.connect_nodes, |edge_id,t| (*edge_id,t.1.clone()));
 
     def connect_edge_source = merge2
         ( &inputs.connect_edge_source
@@ -1125,14 +1123,13 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         );
 
 
-    def overlaps      = connect_edge_target.map(f!(((_,target)) model.overlapping_edges(target)));
-    def _del_overlaps = overlaps.map(f!((edges) model.remove_edges(edges)));
+    def overlaps = connect_edge_target._1().map(f!((t) model.overlapping_edges(t))).iter();
 
     model_bind!(network model.connect_edge_source(edge_id,target));
     model_bind!(network model.connect_edge_target(edge_id,target));
     model_bind!(network model.connect_detached_edges_to_node(target));
 
-
+    outputs.edge_removed.attach(&overlaps);
     outputs.edge_source_set.attach(&connect_edge_source);
     outputs.edge_target_set.attach(&connect_edge_target);
     outputs.edge_added.attach(&new_edge);
@@ -1145,7 +1142,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     def add_node_at_cursor_ = inputs.add_node_at_cursor.map(|_|());
     def add_node            = inputs.add_node.merge(&add_node_at_cursor_);
 
-    def node_added = add_node.map(f_!([model,outputs] model.add_node_internal(&outputs)));
+    def node_added  = add_node.map(f_!([model,outputs] model.add_node_internal(&outputs)));
     outputs.node_added.attach(&node_added);
 
 
@@ -1154,10 +1151,14 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     let remove_all_nodes      = inputs.remove_all_nodes.clone_ref();
     let remove_selected_nodes = inputs.remove_selected_nodes.clone_ref();
-    let remove_edges          = inputs.remove_edges.clone_ref();
     model_bind!(network model.remove_all_nodes());
     model_bind!(network model.remove_selected_nodes());
-    model_bind2!(network model.remove_edges(edge_id));
+
+
+    outputs.edge_removed.attach(&inputs.remove_edge);
+
+
+
 
 
     // === Set NodeView Expression ===
@@ -1204,11 +1205,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Set Node Position ===
 
-    def set_node_position_at_cursor = inputs.add_node_at_cursor.map3(&outputs.node_added,&mouse.position,|_,node_id,position| (*node_id,*position) );
+    def set_node_position_at_cursor = inputs.add_node_at_cursor.map3(&node_added,&mouse.position,|_,node_id,position| (*node_id,*position) );
 
     def set_node_position = inputs.set_node_position.merge(&set_node_position_at_cursor);
-    outputs.node_position.attach(&set_node_position);
-    outputs.node_position.attach(&node_dragged);
+    outputs.node_position_set.attach(&set_node_position);
+    outputs.node_position_set.attach(&node_dragged);
     model_bind!(network model.set_node_position(node_id,position));
 
 
@@ -1255,6 +1256,16 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     ));
 
 
+    // === OUTPUTS REBIND ===
+
+
+
+
+    let outputs = outputs.seal();
+
+    def _del_edges = outputs.edge_removed.map(f!((id) model.remove_edge(id)));
+
+
 
     // === Status ===
 
@@ -1275,7 +1286,6 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
 
     let inputs = inputs.clone_ref();
-    let outputs = outputs.seal();
     let frp = Frp {inputs,outputs,status,node_release};
 
     GraphEditor {model,frp}

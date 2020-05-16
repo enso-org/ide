@@ -10,7 +10,7 @@ use crate::prelude::*;
 use crate::data::watch;
 use crate::network::*;
 use crate::node::*;
-use crate::stream::EventOutput;
+use crate::stream::{EventOutput, EventEmitter};
 use crate::stream::Stream;
 use crate::stream::OwnedStream;
 use crate::stream;
@@ -82,6 +82,26 @@ impl Network {
     pub fn gate<T1,T2>(&self, label:Label, event:&T1, behavior:&T2) -> Stream<Output<T1>>
     where T1:EventOutput, T2:EventOutput<Output=bool> {
         self.register(OwnedGate::new(label,event,behavior))
+    }
+
+    pub fn iter<T1,X>(&self, label:Label, event:&T1) -> Stream<X>
+        where T1:EventOutput, for<'t> &'t T1::Output:IntoIterator<Item=&'t X>, X:Data {
+        self.register(OwnedIter::new(label,event))
+    }
+
+    pub fn _0<T1>(&self, label:Label, event:&T1) -> Stream<Elem0<Output<T1>>>
+        where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+        self.register(OwnedGet0::new(label,event))
+    }
+
+    pub fn _1<T1>(&self, label:Label, event:&T1) -> Stream<Elem1<Output<T1>>>
+        where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+        self.register(OwnedGet1::new(label,event))
+    }
+
+    pub fn _2<T1>(&self, label:Label, event:&T1) -> Stream<Elem2<Output<T1>>>
+        where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+        self.register(OwnedGet2::new(label,event))
     }
 
 
@@ -278,6 +298,26 @@ impl DynamicNetwork {
     pub fn gate<T1,T2>(self, label:Label, event:&T1, behavior:&T2) -> OwnedStream<Output<T1>>
     where T1:EventOutput, T2:EventOutput<Output=bool> {
         OwnedGate::new(label,event,behavior).into()
+    }
+
+    pub fn iter<T1,X>(self, label:Label, event:&T1) -> OwnedStream<X>
+    where T1:EventOutput, for<'t> &'t T1::Output:IntoIterator<Item=&'t X>, X:Data {
+        OwnedIter::new(label,event).into()
+    }
+
+    pub fn _0<T1>(self, label:Label, event:&T1) -> OwnedStream<Elem0<Output<T1>>>
+    where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+        OwnedGet0::new(label,event).into()
+    }
+
+    pub fn _1<T1>(self, label:Label, event:&T1) -> OwnedStream<Elem1<Output<T1>>>
+    where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+        OwnedGet1::new(label,event).into()
+    }
+
+    pub fn _2<T1>(self, label:Label, event:&T1) -> OwnedStream<Elem2<Output<T1>>>
+    where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+        OwnedGet2::new(label,event).into()
     }
 
 
@@ -815,6 +855,200 @@ impl<Out:Data> stream::EventConsumer<Out> for OwnedMerge<Out> {
 }
 
 
+// ============
+// === Get0 ===
+// ============
+
+pub trait Has0 { type Elem0; }
+pub trait Has1 { type Elem1; }
+pub trait Has2 { type Elem2; }
+pub trait Has3 { type Elem3; }
+pub trait Has4 { type Elem4; }
+
+pub type Elem0<T> = <T as Has0>::Elem0;
+pub type Elem1<T> = <T as Has1>::Elem1;
+pub type Elem2<T> = <T as Has2>::Elem2;
+pub type Elem3<T> = <T as Has3>::Elem3;
+pub type Elem4<T> = <T as Has4>::Elem4;
+
+pub trait T_Get0 : Has0 { fn _0(&self) -> &Elem0<Self>; }
+pub trait T_Get1 : Has1 { fn _1(&self) -> &Elem1<Self>; }
+pub trait T_Get2 : Has2 { fn _2(&self) -> &Elem2<Self>; }
+pub trait T_Get3 : Has3 { fn _3(&self) -> &Elem3<Self>; }
+pub trait T_Get4 : Has4 { fn _4(&self) -> &Elem4<Self>; }
+
+impl<T0>       Has0 for (T0,)      { type Elem0=T0; }
+impl<T0,T1>    Has0 for (T0,T1)    { type Elem0=T0; }
+impl<T0,T1,T2> Has0 for (T0,T1,T2) { type Elem0=T0; }
+
+impl<T0,T1>    Has1 for (T0,T1)    { type Elem1=T1; }
+impl<T0,T1,T2> Has1 for (T0,T1,T2) { type Elem1=T1; }
+
+impl<T0,T1,T2> Has2 for (T0,T1,T2) { type Elem2=T2; }
+
+impl<T0>       T_Get0 for (T0,)      { fn _0(&self) -> &T0 { &self.0 } }
+impl<T0,T1>    T_Get0 for (T0,T1)    { fn _0(&self) -> &T0 { &self.0 } }
+impl<T0,T1,T2> T_Get0 for (T0,T1,T2) { fn _0(&self) -> &T0 { &self.0 } }
+
+impl<T0,T1>    T_Get1 for (T0,T1)    { fn _1(&self) -> &T1 { &self.1 } }
+impl<T0,T1,T2> T_Get1 for (T0,T1,T2) { fn _1(&self) -> &T1 { &self.1 } }
+
+impl<T0,T1,T2> T_Get2 for (T0,T1,T2) { fn _2(&self) -> &T2 { &self.2 } }
+
+
+
+#[derive(Debug)]
+pub struct Get0Data  <T1> { event:T1 }
+pub type   OwnedGet0 <T1> = stream::Node     <Get0Data<T1>>;
+pub type   Get0      <T1> = stream::WeakNode <Get0Data<T1>>;
+
+impl<T1> HasOutput for Get0Data<T1>
+where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+    type Output = Elem0<T1::Output>;
+}
+
+impl<T1> OwnedGet0<T1>
+where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+    /// Constructor.
+    pub fn new(label:Label, src:&T1) -> Self {
+        let event      = src.clone_ref();
+        let definition = Get0Data {event};
+        Self::construct_and_connect(label,src,definition)
+    }
+}
+
+impl<T1> stream::EventConsumer<Output<T1>> for OwnedGet0<T1>
+where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+    fn on_event(&self, event:&Output<T1>) {
+        self.emit_event((*event)._0())
+    }
+}
+
+impl<T1> stream::InputBehaviors for Get0Data<T1> {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![]
+    }
+}
+
+
+
+// ============
+// === Get1 ===
+// ============
+
+#[derive(Debug)]
+pub struct Get1Data  <T1> { event:T1 }
+pub type   OwnedGet1 <T1> = stream::Node     <Get1Data<T1>>;
+pub type   Get1      <T1> = stream::WeakNode <Get1Data<T1>>;
+
+impl<T1> HasOutput for Get1Data<T1>
+    where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+    type Output = Elem1<T1::Output>;
+}
+
+impl<T1> OwnedGet1<T1>
+    where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+    /// Constructor.
+    pub fn new(label:Label, src:&T1) -> Self {
+        let event      = src.clone_ref();
+        let definition = Get1Data {event};
+        Self::construct_and_connect(label,src,definition)
+    }
+}
+
+impl<T1> stream::EventConsumer<Output<T1>> for OwnedGet1<T1>
+    where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+    fn on_event(&self, event:&Output<T1>) {
+        self.emit_event((*event)._1())
+    }
+}
+
+impl<T1> stream::InputBehaviors for Get1Data<T1> {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![]
+    }
+}
+
+
+// ============
+// === Get2 ===
+// ============
+
+#[derive(Debug)]
+pub struct Get2Data  <T1> { event:T1 }
+pub type   OwnedGet2 <T1> = stream::Node     <Get2Data<T1>>;
+pub type   Get2      <T1> = stream::WeakNode <Get2Data<T1>>;
+
+impl<T1> HasOutput for Get2Data<T1>
+    where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+    type Output = Elem2<T1::Output>;
+}
+
+impl<T1> OwnedGet2<T1>
+    where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+    /// Constructor.
+    pub fn new(label:Label, src:&T1) -> Self {
+        let event      = src.clone_ref();
+        let definition = Get2Data {event};
+        Self::construct_and_connect(label,src,definition)
+    }
+}
+
+impl<T1> stream::EventConsumer<Output<T1>> for OwnedGet2<T1>
+    where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+    fn on_event(&self, event:&Output<T1>) {
+        self.emit_event((*event)._2())
+    }
+}
+
+impl<T1> stream::InputBehaviors for Get2Data<T1> {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![]
+    }
+}
+
+
+
+// ============
+// === Iter ===
+// ============
+
+#[derive(Debug)]
+pub struct IterData  <T1> { event:T1 }
+pub type   OwnedIter <T1> = stream::Node     <IterData<T1>>;
+pub type   Iter      <T1> = stream::WeakNode <IterData<T1>>;
+
+impl<T1,X> HasOutput for IterData<T1>
+where T1:EventOutput, X:Data, for<'t> &'t T1::Output:IntoIterator<Item=&'t X> {
+    type Output = X;
+}
+
+impl<T1,X> OwnedIter<T1>
+where T1:EventOutput, X:Data, for<'t> &'t T1::Output:IntoIterator<Item=&'t X> {
+    /// Constructor.
+    pub fn new(label:Label, src:&T1) -> Self {
+        let event      = src.clone_ref();
+        let definition = IterData {event};
+        Self::construct_and_connect(label,src,definition)
+    }
+}
+
+impl<T1,X> stream::EventConsumer<Output<T1>> for OwnedIter<T1>
+where T1:EventOutput, X:Data, for<'t> &'t T1::Output:IntoIterator<Item=&'t X> {
+    fn on_event(&self, event:&Output<T1>) {
+        for val in event {
+            self.emit_event(val)
+        }
+    }
+}
+
+impl<T1> stream::InputBehaviors for IterData<T1> {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![]
+    }
+}
+
+
 
 // ============
 // === Zip2 ===
@@ -826,12 +1060,12 @@ pub type   OwnedZip2 <T1,T2> = stream::Node     <Zip2Data<T1,T2>>;
 pub type   Zip2      <T1,T2> = stream::WeakNode <Zip2Data<T1,T2>>;
 
 impl<T1,T2> HasOutput for Zip2Data<T1,T2>
-    where T1:EventOutput, T2:EventOutput {
+where T1:EventOutput, T2:EventOutput {
     type Output = (Output<T1>,Output<T2>);
 }
 
 impl<T1,T2> OwnedZip2<T1,T2>
-    where T1:EventOutput, T2:EventOutput {
+where T1:EventOutput, T2:EventOutput {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2) -> Self {
         let source1 = watch_stream(t1);
@@ -846,7 +1080,7 @@ impl<T1,T2> OwnedZip2<T1,T2>
 }
 
 impl<T1,T2,Out> stream::EventConsumer<Out> for OwnedZip2<T1,T2>
-    where T1:EventOutput, T2:EventOutput {
+where T1:EventOutput, T2:EventOutput {
     fn on_event(&self, _:&Out) {
         let value1 = self.source1.value();
         let value2 = self.source2.value();
@@ -855,7 +1089,7 @@ impl<T1,T2,Out> stream::EventConsumer<Out> for OwnedZip2<T1,T2>
 }
 
 impl<T1,T2> stream::InputBehaviors for Zip2Data<T1,T2>
-    where T1:EventOutput, T2:EventOutput {
+where T1:EventOutput, T2:EventOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::mixed(&self.source1), Link::mixed(&self.source2)]
     }
@@ -874,12 +1108,12 @@ pub type   OwnedZip3 <T1,T2,T3> = stream::Node     <Zip3Data<T1,T2,T3>>;
 pub type   Zip3      <T1,T2,T3> = stream::WeakNode <Zip3Data<T1,T2,T3>>;
 
 impl<T1,T2,T3> HasOutput for Zip3Data<T1,T2,T3>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput {
+where T1:EventOutput, T2:EventOutput, T3:EventOutput {
     type Output = (Output<T1>,Output<T2>,Output<T3>);
 }
 
 impl<T1,T2,T3> OwnedZip3<T1,T2,T3>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput {
+where T1:EventOutput, T2:EventOutput, T3:EventOutput {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3) -> Self {
         let source1 = watch_stream(t1);
@@ -896,7 +1130,7 @@ impl<T1,T2,T3> OwnedZip3<T1,T2,T3>
 }
 
 impl<T1,T2,T3,Out> stream::EventConsumer<Out> for OwnedZip3<T1,T2,T3>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput {
+where T1:EventOutput, T2:EventOutput, T3:EventOutput {
     fn on_event(&self, _:&Out) {
         let value1 = self.source1.value();
         let value2 = self.source2.value();
@@ -906,7 +1140,7 @@ impl<T1,T2,T3,Out> stream::EventConsumer<Out> for OwnedZip3<T1,T2,T3>
 }
 
 impl<T1,T2,T3> stream::InputBehaviors for Zip3Data<T1,T2,T3>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput {
+where T1:EventOutput, T2:EventOutput, T3:EventOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::mixed(&self.source1), Link::mixed(&self.source2), Link::mixed(&self.source3)]
     }
@@ -925,12 +1159,12 @@ pub type   OwnedZip4 <T1,T2,T3,T4> = stream::Node     <Zip4Data<T1,T2,T3,T4>>;
 pub type   WeakZip4  <T1,T2,T3,T4> = stream::WeakNode <Zip4Data<T1,T2,T3,T4>>;
 
 impl<T1,T2,T3,T4> HasOutput for Zip4Data<T1,T2,T3,T4>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
+where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
     type Output = (Output<T1>,Output<T2>,Output<T3>,Output<T4>);
 }
 
 impl<T1,T2,T3,T4> OwnedZip4<T1,T2,T3,T4>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
+where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
     /// Constructor.
     pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Self {
         let source1 = watch_stream(t1);
@@ -949,7 +1183,7 @@ impl<T1,T2,T3,T4> OwnedZip4<T1,T2,T3,T4>
 }
 
 impl<T1,T2,T3,T4,Out> stream::EventConsumer<Out> for OwnedZip4<T1,T2,T3,T4>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
+where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
     fn on_event(&self, _:&Out) {
         let value1 = self.source1.value();
         let value2 = self.source2.value();
@@ -960,7 +1194,7 @@ impl<T1,T2,T3,T4,Out> stream::EventConsumer<Out> for OwnedZip4<T1,T2,T3,T4>
 }
 
 impl<T1,T2,T3,T4> stream::InputBehaviors for Zip4Data<T1,T2,T3,T4>
-    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
+where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![ Link::mixed(&self.source1)
             , Link::mixed(&self.source2)
