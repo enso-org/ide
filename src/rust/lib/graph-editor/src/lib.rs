@@ -277,7 +277,7 @@ pub struct FrpInputs {
     pub connect_edge_target            : frp::Source<(EdgeId,EdgeTarget)>,
     pub connect_nodes                  : frp::Source<(EdgeTarget,EdgeTarget)>,
     pub deselect_all_nodes             : frp::Source,
-    pub press_node_port                : frp::Source<EdgeTarget>,
+    pub press_node_input               : frp::Source<EdgeTarget>,
     pub remove_edge                    : frp::Source<EdgeId>,
     pub select_node                    : frp::Source<NodeId>,
     pub set_node_expression            : frp::Source<(NodeId,Expression)>,
@@ -294,7 +294,7 @@ impl FrpInputs {
             def connect_edge_target            = source();
             def connect_nodes                  = source();
             def deselect_all_nodes             = source();
-            def press_node_port                = source();
+            def press_node_input               = source();
             def remove_edge                    = source();
             def select_node                    = source();
             def set_node_expression            = source();
@@ -303,7 +303,7 @@ impl FrpInputs {
             def translate_selected_nodes       = source();
         }
         let commands = Commands::new(&network);
-        Self {commands,remove_edge,press_node_port,set_visualization_data
+        Self {commands,remove_edge,press_node_input,set_visualization_data
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
              ,set_node_position,select_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes}
@@ -442,14 +442,6 @@ pub struct EdgeId(pub Id);
 impl Edge {
     pub fn new(view:EdgeView) -> Self {
         let source = default();
-        let target = default();
-        Self {view,source,target}
-    }
-
-    pub fn new_with_source(view:EdgeView, node_id:NodeId) -> Self {
-        let port   = default();
-        let source = EdgeTarget::new(node_id,port);
-        let source = Rc::new(RefCell::new(Some(source)));
         let target = default();
         Self {view,source,target}
     }
@@ -680,13 +672,13 @@ impl GraphEditorModelWithNetwork {
             def _cursor_mode = node.view.ports.frp.cursor_mode.map(f!((mode)
                 cursor.frp.set_mode.emit(mode)
             ));
-            def edge_added = node.view.frp.output_ports.mouse_down.map(f_!([model] {
+            def edge_id = node.view.frp.output_ports.mouse_down.map(f_!([model] {
                 if let Some(node) = model.nodes.get_cloned_ref(&node_id) {
                     let view = EdgeView::new(&model.scene);
-                    view.mod_position(|p| p.x = node.view.position().x + node::NODE_WIDTH/2.0);
-                    view.mod_position(|p| p.y = node.view.position().y + node::NODE_HEIGHT/2.0);
+//                    view.mod_position(|p| p.x = node.view.position().x + node::NODE_WIDTH/2.0);
+//                    view.mod_position(|p| p.y = node.view.position().y + node::NODE_HEIGHT/2.0);
                     model.add_child(&view);
-                    let edge = Edge::new_with_source(view,node_id);
+                    let edge = Edge::new(view);
                     let edge_id = edge.id();
                     model.edges.insert(edge);
                     model.edges.detached_target.insert(edge_id);
@@ -694,11 +686,14 @@ impl GraphEditorModelWithNetwork {
                     edge_id
                 } else { default() }
             }));
-            outputs.edge_added.attach(&edge_added);
+
+            outputs.edge_added.attach(&edge_id);
+            def new_edge_source = edge_id.map(move |id| (*id,EdgeTarget::new(node_id,default())));
+            outputs.edge_source_set.attach(&new_edge_source);
 
 
-            def _press_node_port = node.view.ports.frp.press.map(f!((crumbs)
-                model.frp.press_node_port.emit(EdgeTarget::new(node_id,crumbs.clone()))
+            def _press_node_input = node.view.ports.frp.press.map(f!((crumbs)
+                model.frp.press_node_input.emit(EdgeTarget::new(node_id,crumbs.clone()))
             ));
         }
 
@@ -1105,12 +1100,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Node Select ===
 
-    def select_node = merge(&inputs.select_node,&touch.nodes.selected);
-    outputs.node_selected.attach(&select_node);
-
-
-    // === Node Deselect ===
-
+    def select_node        = merge(&inputs.select_node,&touch.nodes.selected);
     def deselect_all_nodes = merge3_
         ( &select_node
         , &inputs.deselect_all_nodes
@@ -1119,6 +1109,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     def deselect_node = deselect_all_nodes.map(f_!(model.nodes.selected.mem_take())).iter();
     outputs.node_deselected.attach(&deselect_node);
+    outputs.node_selected.attach(&select_node);
 
 
     // === Node Connect ===
@@ -1126,19 +1117,18 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.edge_source_set <+ inputs.connect_edge_source;
     outputs.edge_target_set <+ inputs.connect_edge_target;
 
-    new_edge                <- inputs.connect_nodes . map(f_!(model.new_edge()));
-    source_node_output      <- inputs.connect_nodes . _0();
-    target_node_input       <- inputs.connect_nodes . _1();
-    connection_source       <- source_node_output . map2(&new_edge, |t,id| (*id,t.clone()));
-    connection_target       <- target_node_input  . map2(&new_edge, |t,id| (*id,t.clone()));
-    outputs.edge_added      <+ new_edge;
-    outputs.edge_source_set <+ connection_source;
-    outputs.edge_target_set <+ connection_target;
+    let endpoints            = inputs.connect_nodes.clone_ref();
+    edge                    <- endpoints . map(f_!(model.new_edge()));
+    new_edge_source         <- endpoints . _0() . map2(&edge, |t,id| (*id,t.clone()));
+    new_edge_target         <- endpoints . _1() . map2(&edge, |t,id| (*id,t.clone()));
+    outputs.edge_added      <+ edge;
+    outputs.edge_source_set <+ new_edge_source;
+    outputs.edge_target_set <+ new_edge_target;
 
-    new_node_input          <- [inputs.press_node_port, inputs.connect_detached_edges_to_node];
+    new_node_input          <- [inputs.press_node_input, inputs.connect_detached_edges_to_node];
     detached_targets        <= new_node_input.map(f_!(model.edges.detached_target.mem_take()));
-    connection_target       <- new_node_input.map2(&detached_targets, |t,id| (*id,t.clone()));
-    outputs.edge_target_set <+ connection_target;
+    new_edge_target         <- new_node_input.map2(&detached_targets, |t,id| (*id,t.clone()));
+    outputs.edge_target_set <+ new_edge_target;
 
     overlapping_edges       <= outputs.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
     outputs.edge_removed    <+ overlapping_edges;
