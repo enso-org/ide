@@ -931,7 +931,9 @@ impl GraphEditorModel {
 // === Position ===
 
 impl GraphEditorModel {
-    pub fn set_node_position(&self, node_id:NodeId, position:Position) {
+    pub fn set_node_position(&self, node_id:impl Into<NodeId>, position:impl Into<Position>) {
+        let node_id  = node_id.into();
+        let position = position.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.view.mod_position(|t| {
                 t.x = position.x;
@@ -1100,16 +1102,16 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Node Select ===
 
-    def select_node        = merge(&inputs.select_node,&touch.nodes.selected);
-    def deselect_all_nodes = merge3_
-        ( &select_node
-        , &inputs.deselect_all_nodes
-        , &touch.background.selected
-        );
+    def deselect_all_nodes = gather_();
 
-    def deselect_node = deselect_all_nodes.map(f_!(model.nodes.selected.mem_take())).iter();
-    outputs.node_deselected.attach(&deselect_node);
-    outputs.node_selected.attach(&select_node);
+    select_node             <- [inputs.select_node, touch.nodes.selected];
+    deselect_all_nodes      <+ select_node;
+    outputs.node_selected   <+ select_node;
+
+    deselect_all_nodes      <+ inputs.deselect_all_nodes;
+    deselect_all_nodes      <+ touch.background.selected;
+    selected_nodes          <- deselect_all_nodes.map(f_!(model.nodes.selected.mem_take())).iter();
+    outputs.node_deselected <+ selected_nodes;
 
 
     // === Node Connect ===
@@ -1136,12 +1138,13 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Add Node ===
 
-    def add_node_at_cursor_ = inputs.add_node_at_cursor.map(|_|());
-    def add_node            = inputs.add_node.merge(&add_node_at_cursor_);
+    let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
+    add_node           <- [inputs.add_node, add_node_at_cursor];
+    new_node           <- add_node.map(f_!([model,outputs] model.add_node_internal(&outputs)));
+    outputs.node_added <+ new_node;
 
-    def node_added  = add_node.map(f_!([model,outputs] model.add_node_internal(&outputs)));
-    outputs.node_added.attach(&node_added);
-
+    node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
+    outputs.node_position_set <+ node_with_position;
 
 
     // === Remove Node ===
@@ -1202,12 +1205,14 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Set Node Position ===
 
-    def set_node_position_at_cursor = inputs.add_node_at_cursor.map3(&node_added,&mouse.position,|_,node_id,position| (*node_id,*position) );
 
-    def set_node_position = inputs.set_node_position.merge(&set_node_position_at_cursor);
-    outputs.node_position_set.attach(&set_node_position);
-    outputs.node_position_set.attach(&node_dragged);
-    model_bind!(network model.set_node_position(node_id,position));
+    outputs.node_position_set <+ inputs.set_node_position;
+
+
+    outputs.node_position_set <+ node_dragged;
+
+
+    eval outputs.node_position_set (((id,pos)) model.set_node_position(id,pos));
 
 
 
