@@ -86,7 +86,7 @@ macro_rules! new_bridge_network {
 #[macro_export]
 macro_rules! _extend {
     ($trace:ident $network:ident $($ts:tt)*) => {
-        $crate::divide_on_terminator! { [[$crate::extend_lines] [$trace $network]] $($ts)* }
+        $crate::divide_on_terminator2! { [[$crate::extend_lines] [$trace $network]] $($ts)* }
     };
 }
 
@@ -103,7 +103,7 @@ macro_rules! extend_lines {
 macro_rules! extend_line1 {
     (TRACE $network:ident def $name:ident $($toks:tt)*) => {
         $crate::extend_line2! { [] $network def $name $($toks)* }
-        $crate::extend_line2! { [] $network trace $name; }
+        $crate::extend_line2! { [] $network trace $name }
     };
     ($trace:ident $($toks:tt)*) => {
         $crate::extend_line2! { [] $($toks)* }
@@ -113,15 +113,42 @@ macro_rules! extend_line1 {
 /// Internal helper for `extend` macro.
 #[macro_export]
 macro_rules! extend_line2 {
-    ([$($lines:tt)*] $network:ident def $name:ident = $name2:ident;) => { $($lines)* };
-    ([$($lines:tt)*] $network:ident def $name:ident $(:$ty:ty)? =                                                                       $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $network.$base$(::<$param>)?(concat!(stringify!($network),".",stringify!($name)),$($arg)*)                                ;] $network def $name = $name $($ts)* } };
-    ([$($lines:tt)*] $network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident                                                         . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $network.$base$(::<$param>)?(concat!(stringify!($network),".",stringify!($name)),&$tgt1,$($arg)*)                         ;] $network def $name = $name $($ts)* } };
-    ([$($lines:tt)*] $network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident                                           . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $network.$base$(::<$param>)?(concat!(stringify!($network),".",stringify!($name)),&$tgt1.$tgt2,$($arg)*)                   ;] $network def $name = $name $($ts)* } };
-    ([$($lines:tt)*] $network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident . $tgt3:ident                             . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $network.$base$(::<$param>)?(concat!(stringify!($network),".",stringify!($name)),&$tgt1.$tgt2.$tgt3,$($arg)*)             ;] $network def $name = $name $($ts)* } };
-    ([$($lines:tt)*] $network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident . $tgt3:ident . $tgt4:ident               . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $network.$base$(::<$param>)?(concat!(stringify!($network),".",stringify!($name)),&$tgt1.$tgt2.$tgt3.$tgt4,$($arg)*)       ;] $network def $name = $name $($ts)* } };
-    ([$($lines:tt)*] $network:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident . $tgt3:ident . $tgt4:ident . $tgt5:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $network.$base$(::<$param>)?(concat!(stringify!($network),".",stringify!($name)),&$tgt1.$tgt2.$tgt3.$tgt4.$tgt5,$($arg)*) ;] $network def $name = $name $($ts)* } };
-    ([] $network:ident trace $($path:ident).* ;) => { $network.trace(stringify!($($path).*),&$($path).*); };
-    ([] $network:ident $($ts:tt)*) => { $($ts)* }
+    ([$($lines:tt)*] $net:ident def $name:ident = $name2:ident) => { $($lines)* };
+    ([$($lines:tt)*] $net:ident def $name:ident $(:$ty:ty)? =                                                                       $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $net.$base$(::<$param>)?(concat!(stringify!($net),".",stringify!($name)),$($arg)*)                                ;] $net def $name = $name $($ts)* } };
+    ([$($lines:tt)*] $net:ident def $name:ident $(:$ty:ty)? = $tgt1:ident                                                         . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $net.$base$(::<$param>)?(concat!(stringify!($net),".",stringify!($name)),&$tgt1,$($arg)*)                         ;] $net def $name = $name $($ts)* } };
+    ([$($lines:tt)*] $net:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident                                           . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $net.$base$(::<$param>)?(concat!(stringify!($net),".",stringify!($name)),&$tgt1.$tgt2,$($arg)*)                   ;] $net def $name = $name $($ts)* } };
+    ([$($lines:tt)*] $net:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident . $tgt3:ident                             . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $net.$base$(::<$param>)?(concat!(stringify!($net),".",stringify!($name)),&$tgt1.$tgt2.$tgt3,$($arg)*)             ;] $net def $name = $name $($ts)* } };
+    ([$($lines:tt)*] $net:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident . $tgt3:ident . $tgt4:ident               . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $net.$base$(::<$param>)?(concat!(stringify!($net),".",stringify!($name)),&$tgt1.$tgt2.$tgt3.$tgt4,$($arg)*)       ;] $net def $name = $name $($ts)* } };
+    ([$($lines:tt)*] $net:ident def $name:ident $(:$ty:ty)? = $tgt1:ident . $tgt2:ident . $tgt3:ident . $tgt4:ident . $tgt5:ident . $base:ident$(::<$param:ty>)?($($arg:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [$($lines)* let $name $(:$ty)? = $net.$base$(::<$param>)?(concat!(stringify!($net),".",stringify!($name)),&$tgt1.$tgt2.$tgt3.$tgt4.$tgt5,$($arg)*) ;] $net def $name = $name $($ts)* } };
+
+    ([] $net:ident $name:ident <- [ $($arg1:ident).+ ] )                                                          => { let $name = $($arg1).+.clone_ref(); };
+    ([] $net:ident $name:ident <- [ $($arg1:ident).+ , $($arg2:ident).+ ] )                                       => {$crate::extend_line2! { [] $net def $name = merge2(&$($arg1).+,&$($arg2).+) } };
+    ([] $net:ident $name:ident <- [ $($arg1:ident).+ , $($arg2:ident).+ , $($arg3:ident).+ ] )                    => {$crate::extend_line2! { [] $net def $name = merge3(&$($arg1).+,&$($arg2).+,&$($arg3).+) } };
+    ([] $net:ident $name:ident <- [ $($arg1:ident).+ , $($arg2:ident).+ , $($arg3:ident).+ , $($arg4:ident).+ ] ) => {$crate::extend_line2! { [] $net def $name = merge4(&$($arg1).+,&$($arg2).+,&$($arg3).+,&$($arg4).+) } };
+
+    ([] $net:ident $name:ident <_ [ $($arg1:ident).+ ] )                                                          => { let $name = $($arg1).+.constant(()); };
+    ([] $net:ident $name:ident <_ [ $($arg1:ident).+ , $($arg2:ident).+ ] )                                       => {$crate::extend_line2! { [] $net def $name = merge2_(&$($arg1).+,&$($arg2).+) } };
+    ([] $net:ident $name:ident <_ [ $($arg1:ident).+ , $($arg2:ident).+ , $($arg3:ident).+ ] )                    => {$crate::extend_line2! { [] $net def $name = merge3_(&$($arg1).+,&$($arg2).+,&$($arg3).+) } };
+    ([] $net:ident $name:ident <_ [ $($arg1:ident).+ , $($arg2:ident).+ , $($arg3:ident).+ , $($arg4:ident).+ ] ) => {$crate::extend_line2! { [] $net def $name = merge4_(&$($arg1).+,&$($arg2).+,&$($arg3).+,&$($arg4).+) } };
+
+    ([] $net:ident $name:ident <= $($toks:tt)*) => {$crate::extend_line2! { [] $net def $name = $($toks)* . iter()} };
+    ([] $net:ident $name:ident <- $($toks:tt)*) => {$crate::extend_line2! { [] $net def $name = $($toks)* } };
+    ([] $net:ident $($tgt:ident).+ <+ $($src:ident).+) => { $($tgt).+.attach(&$($src).+); };
+
+    ([] $net:ident eval $tgt1:ident                                                         ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1                                 . map (f!($($args)*)) $($ts)* } };
+    ([] $net:ident eval $tgt1:ident . $tgt2:ident                                           ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1 . $tgt2                         . map (f!($($args)*)) $($ts)* } };
+    ([] $net:ident eval $tgt1:ident . $tgt2:ident . $tgt3:ident                             ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1 . $tgt2 . $tgt3                 . map (f!($($args)*)) $($ts)* } };
+    ([] $net:ident eval $tgt1:ident . $tgt2:ident . $tgt3:ident . $tgt4:ident               ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1 . $tgt2 . $tgt3 . $tgt4         . map (f!($($args)*)) $($ts)* } };
+    ([] $net:ident eval $tgt1:ident . $tgt2:ident . $tgt3:ident . $tgt4:ident . $tgt5:ident ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1 . $tgt2 . $tgt3 . $tgt4 . $tgt5 . map (f!($($args)*)) $($ts)* } };
+
+    ([] $net:ident eval_ $tgt1:ident                                                         ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1                                 . map (f_!($($args)*)) $($ts)* } };
+    ([] $net:ident eval_ $tgt1:ident . $tgt2:ident                                           ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1 . $tgt2                         . map (f_!($($args)*)) $($ts)* } };
+    ([] $net:ident eval_ $tgt1:ident . $tgt2:ident . $tgt3:ident                             ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1 . $tgt2 . $tgt3                 . map (f_!($($args)*)) $($ts)* } };
+    ([] $net:ident eval_ $tgt1:ident . $tgt2:ident . $tgt3:ident . $tgt4:ident               ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1 . $tgt2 . $tgt3 . $tgt4         . map (f_!($($args)*)) $($ts)* } };
+    ([] $net:ident eval_ $tgt1:ident . $tgt2:ident . $tgt3:ident . $tgt4:ident . $tgt5:ident ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1 . $tgt2 . $tgt3 . $tgt4 . $tgt5 . map (f_!($($args)*)) $($ts)* } };
+
+    ([] $net:ident trace $($path:ident).*) => { $net.trace(stringify!($($path).*),&$($path).*); };
+    ([] $net:ident $($ts:tt)*) => { $($ts)*; }
 }
 
 
@@ -129,7 +156,7 @@ macro_rules! extend_line2 {
 
 /// Internal helper for `extend` macro.
 #[macro_export]
-macro_rules! divide_on_terminator {
+macro_rules! divide_on_terminator2 {
     ($f:tt $($ts:tt)*) => { $crate::_divide_on_terminator! { $f [] [] $($ts)* } };
 }
 
@@ -138,6 +165,6 @@ macro_rules! divide_on_terminator {
 macro_rules! _divide_on_terminator {
     ([[$($f:tt)*] $args:tt] $lines:tt       [])                              => { $($f)*! {$args $lines} };
     ([[$($f:tt)*] $args:tt] [$($lines:tt)*] $line:tt)                        => { MISSING_SEMICOLON };
-    ($f:tt                  [$($lines:tt)*] [$($line:tt)*] ;     $($ts:tt)*) => { $crate::_divide_on_terminator! {$f               [$($lines)* [$($line)*;]] []             $($ts)*} };
-    ($f:tt                  $lines:tt       [$($line:tt)*] $t:tt $($ts:tt)*) => { $crate::_divide_on_terminator! {$f               $lines                    [$($line)* $t] $($ts)*} };
+    ($f:tt                  [$($lines:tt)*] [$($line:tt)*] ;     $($ts:tt)*) => { $crate::_divide_on_terminator! {$f               [$($lines)* [$($line)*]] []             $($ts)*} };
+    ($f:tt                  $lines:tt       [$($line:tt)*] $t:tt $($ts:tt)*) => { $crate::_divide_on_terminator! {$f               $lines                   [$($line)* $t] $($ts)*} };
 }

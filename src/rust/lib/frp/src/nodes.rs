@@ -146,6 +146,39 @@ impl Network {
     }
 
 
+    // === Merge_ ===
+
+    /// Like `gather` but drops the incoming data. You can attach streams of different types.
+    pub fn gather_(&self, label:Label) -> Merge_ {
+        self.register_raw(OwnedMerge_::new(label))
+    }
+
+    /// Like `merge` but drops the incoming data. You can attach streams of different types.
+    pub fn merge_<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<()>
+    where T1:EventOutput, T2:EventOutput {
+        self.register(OwnedMerge_::new2(label,t1,t2))
+    }
+
+    /// Specialized version of `merge_`.
+    pub fn merge2_<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<()>
+    where T1:EventOutput, T2:EventOutput {
+        self.register(OwnedMerge_::new2(label,t1,t2))
+    }
+
+    /// Specialized version of `merge_`.
+    pub fn merge3_<T1,T2,T3>(&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> Stream<()>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput {
+        self.register(OwnedMerge_::new3(label,t1,t2,t3))
+    }
+
+    /// Specialized version of `merge_`.
+    pub fn merge4_<T1,T2,T3,T4>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Stream<()>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
+        self.register(OwnedMerge_::new4(label,t1,t2,t3,t4))
+    }
+
+
     // === Zip ===
 
     /// Merges input streams into a stream containing values from all of them. On event from any of
@@ -349,6 +382,34 @@ impl DynamicNetwork {
               T3:EventOutput<Output=T>,
               T4:EventOutput<Output=T> {
         OwnedMerge::new4(label,t1,t2,t3,t4).into()
+    }
+
+
+    // === Merge_ ===
+
+    pub fn gather_(self, label:Label) -> OwnedMerge_ {
+        OwnedMerge_::new(label)
+    }
+
+    pub fn merge_<T1,T2>(self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<()>
+    where T1:EventOutput, T2:EventOutput {
+        OwnedMerge_::new2(label,t1,t2).into()
+    }
+
+    pub fn merge2_<T1,T2>(self, label:Label, t1:&T1, t2:&T2) -> OwnedStream<()>
+    where T1:EventOutput, T2:EventOutput {
+        OwnedMerge_::new2(label,t1,t2).into()
+    }
+
+    pub fn merge3_<T1,T2,T3>(self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> OwnedStream<()>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput {
+        OwnedMerge_::new3(label,t1,t2,t3).into()
+    }
+
+    pub fn merge4_<T1,T2,T3,T4>
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> OwnedStream<()>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
+        OwnedMerge_::new4(label,t1,t2,t3,t4).into()
     }
 
 
@@ -773,8 +834,7 @@ where T2:EventOutput {
 // =============
 
 #[derive(Debug)]
-pub struct MergeData  <Out=()>
-    { sources:Rc<RefCell<Vec<Box<dyn Any>>>>, phantom:PhantomData<Out>, during_call:Cell<bool> }
+pub struct MergeData  <Out=()> { sources:Rc<RefCell<Vec<Box<dyn Any>>>>, phantom:PhantomData<Out> }
 pub type   OwnedMerge <Out=()> = stream::Node     <MergeData<Out>>;
 pub type   Merge      <Out=()> = stream::WeakNode <MergeData<Out>>;
 
@@ -787,14 +847,13 @@ impl<Out:Data> OwnedMerge<Out> {
     pub fn new(label:Label) -> Self {
         let sources     = default();
         let phantom     = default();
-        let during_call = default();
-        let def         = MergeData {sources,phantom,during_call};
+        let def         = MergeData {sources,phantom};
         Self::construct(label,def)
     }
 
     /// Takes ownership of self and returns it with a new stream attached.
     pub fn with<T>(self, source:&T) -> Self
-        where T:EventOutput<Output=Out> {
+    where T:EventOutput<Output=Out> {
         source.register_target(self.downgrade().into());
         self.sources.borrow_mut().push(Box::new(source.clone_ref()));
         self
@@ -853,6 +912,86 @@ impl<Out:Data> stream::EventConsumer<Out> for OwnedMerge<Out> {
         self.emit_event(event);
     }
 }
+
+
+
+// =============
+// === Merge ===
+// =============
+
+#[derive(Debug)]
+pub struct MergeData_ { sources:Rc<RefCell<Vec<Box<dyn Any>>>> }
+pub type OwnedMerge_ = stream::Node     <MergeData_>;
+pub type Merge_      = stream::WeakNode <MergeData_>;
+
+impl HasOutput for MergeData_ {
+    type Output = ();
+}
+
+impl OwnedMerge_ {
+    /// Constructor.
+    pub fn new(label:Label) -> Self {
+        let sources = default();
+        let def     = MergeData_ {sources};
+        Self::construct(label,def)
+    }
+
+    /// Takes ownership of self and returns it with a new stream attached.
+    pub fn with<T>(self, source:&T) -> Self
+    where T:EventOutput {
+        source.register_target(self.downgrade().into());
+        self.sources.borrow_mut().push(Box::new(source.clone_ref()));
+        self
+    }
+
+    /// Constructor for 1 input stream.
+    pub fn new1<T1>(label:Label, t1:&T1) -> Self
+        where T1:EventOutput {
+        Self::new(label).with(t1)
+    }
+
+    /// Constructor for 2 input streams.
+    pub fn new2<T1,T2>(label:Label, t1:&T1, t2:&T2) -> Self
+        where T1:EventOutput, T2:EventOutput {
+        Self::new(label).with(t1).with(t2)
+    }
+
+    /// Constructor for 3 input streams.
+    pub fn new3<T1,T2,T3>(label:Label, t1:&T1, t2:&T2, t3:&T3) -> Self
+        where T1:EventOutput, T2:EventOutput, T3:EventOutput {
+        Self::new(label).with(t1).with(t2).with(t3)
+    }
+
+    /// Constructor for 4 input streams.
+    pub fn new4<T1,T2,T3,T4>(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Self
+        where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
+        Self::new(label).with(t1).with(t2).with(t3).with(t4)
+    }
+}
+
+impl Merge_ {
+    /// Takes ownership of self and returns it with a new stream attached.
+    pub fn with<T1>(self, source:&T1) -> Self
+    where T1:EventOutput {
+        source.register_target(self.clone_ref().into());
+        self.upgrade().for_each(|t| t.sources.borrow_mut().push(Box::new(source.clone_ref())));
+        self
+    }
+
+    /// Attach new source to this node.
+    pub fn attach<T1>(&self, source:&T1)
+    where T1:EventOutput {
+        source.register_target(self.into());
+        self.upgrade().for_each(|t| t.sources.borrow_mut().push(Box::new(source.clone_ref())));
+    }
+}
+
+impl<T> stream::EventConsumer<T> for OwnedMerge_ {
+    fn on_event(&self, _:&T) {
+        self.emit_event(&());
+    }
+}
+
 
 
 // ============
