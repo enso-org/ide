@@ -641,7 +641,7 @@ impl<T:EventOutput> OwnedToggle<T> {
         let source = src.clone_ref();
         let value  = Cell::new(init);
         let def    = ToggleData {source,value};
-        Self::construct_and_connect(label,src,def)
+        Self::construct_and_connect_with_init_value(label,src,def,init)
     }
 }
 
