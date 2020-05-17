@@ -13,6 +13,7 @@ ensogl               = { version = "0.1.0"  , path = "../../ensogl"          }
 ensogl-core-msdf-sys = { version = "0.1.0"  , path = "../../ensogl/msdf-sys" }
 ensogl-system-web    = { version = "0.1.0"  , path = "../system/web"         }
 enso-frp             = { version = "0.1.0"  , path = "../frp"                }
+enso-frp-3           = { version = "0.3.0"  , path = "../frp3"               }
 graph-editor         = { version = "0.1.0"  , path = "../graph-editor"       }
 ide                  = { version = "0.1.0"  , path = "../../ide"             }
 span-tree            = { version = "0.1.0"  , path = "../../ide/span-tree"   }

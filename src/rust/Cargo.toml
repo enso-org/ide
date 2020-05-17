@@ -22,6 +22,7 @@ members = [
     "lib/eval-tt",
     "lib/flexer",
     "lib/frp",
+    "lib/frp3",
     "lib/generics",
     "lib/logger",
     "lib/macro-utils",

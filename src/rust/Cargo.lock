@@ -554,6 +554,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "enso-frp-3"
+version = "0.3.0"
+dependencies = [
+ "enso-prelude 0.1.0",
+]
+
+[[package]]
 name = "enso-generics"
 version = "0.1.0"
 
@@ -947,6 +954,7 @@ version = "0.1.0"
 dependencies = [
  "ast 0.1.0",
  "enso-frp 0.1.0",
+ "enso-frp-3 0.3.0",
  "enso-prelude 0.1.0",
  "ensogl 0.1.0",
  "ensogl-core-msdf-sys 0.1.0",

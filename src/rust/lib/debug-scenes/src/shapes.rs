@@ -17,6 +17,7 @@ use ensogl::display::style::theme;
 use ensogl::data::color;
 use enso_frp::Position;
 use enso_frp as frp;
+use enso_frp_3 as frp3;
 
 
 #[wasm_bindgen]
@@ -145,6 +146,8 @@ fn init(app:&Application) {
     }
 
     trigger.emit(());
+
+    frp3::test();
 
 
     let mut was_rendered = false;
