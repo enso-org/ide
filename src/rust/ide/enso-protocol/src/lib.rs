@@ -16,6 +16,7 @@
 #![warn(missing_debug_implementations)]
 
 pub mod binary;
+pub mod common;
 pub mod generated;
 pub mod types;
 pub mod language_server;
@@ -24,10 +25,13 @@ pub mod new_handler;
 
 pub mod prelude {
     pub use json_rpc::prelude::*;
+    pub use utils::fail::FallibleResult;
     pub use uuid::Uuid;
 
     pub use crate::traits::*;
+    pub use logger::*;
 
+    pub use std::future::Future;
     pub use futures::FutureExt;
     pub use futures::StreamExt;
 }
@@ -37,5 +41,6 @@ pub mod traits {
     pub use crate::language_server::API as TRAIT_LanguageServerAPI;
     pub use crate::project_manager::API as TRAIT_ProjectManagerAPI;
     pub use crate::binary::uuid::UuidExt;
+    pub use crate::binary::API;
 }
 

@@ -241,6 +241,8 @@ mod tests {
     #[wasm_bindgen_test::wasm_bindgen_test(async)]
     #[allow(dead_code)]
     async fn binary_protocol_test() {
+        use enso_protocol::traits::*;
+
         ensogl_system_web::set_stdout();
         let _guard = setup_global_executor();
 

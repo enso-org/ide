@@ -1,0 +1,71 @@
+//! Module for utilities regarding establishing and storing the Language Server RPC connection.
+
+use crate::prelude::*;
+
+//use crate::language_server::MockClient;
+use crate::binary::{API, Client};
+
+use uuid::Uuid;
+use utils::fail::FallibleResult;
+use json_rpc::Transport;
+use futures::task::LocalSpawn;
+use futures::task::LocalSpawnExt;
+
+
+// ==============
+// === Errors ===
+// ==============
+
+#[allow(missing_docs)]
+#[derive(Fail,Debug)]
+#[fail(display="Failed to initialize language server binary connection: {}.",_0)]
+pub struct FailedToInitializeProtocol(failure::Error);
+
+
+
+// ==================
+// === Connection ===
+// ==================
+
+/// An established, initialized connection to language server's RPC endpoint.
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct Connection {
+    /// The ID of the client.
+    pub client_id:Uuid,
+    /// LS client that has already initialized protocol.
+    #[derivative(Debug="ignore")]
+    pub client:Box<dyn API>,
+}
+
+impl Connection {
+    /// Takes a client, generates ID for it and initializes the protocol.
+    pub async fn new(client:impl API + 'static, client_id:Uuid) -> FallibleResult<Self> {
+        let client        = Box::new(client);
+        let init_response = client.init(client_id).await;
+        init_response.map_err(|e| FailedToInitializeProtocol(e.into()))?;
+        Ok (Connection {client_id,client})
+    }
+
+    //
+    // /// Creates a connection which wraps a mock client.
+    // pub fn new_mock(client:MockClient) -> Connection {
+    //     Connection {
+    //         client        : Box::new(client),
+    //         client_id     : default(),
+    //         content_roots : vec![default()],
+    //     }
+    // }
+    //
+    // /// Creates a Rc handle to a connection which wraps a mock client.
+    // pub fn new_mock_rc(client:MockClient) -> Rc<Connection> {
+    //     Rc::new(Self::new_mock(client))
+    // }
+}
+
+impl Deref for Connection {
+    type Target = dyn API;
+    fn deref(&self) -> &Self::Target {
+        self.client.as_ref()
+    }
+}

@@ -2,6 +2,7 @@
 
 pub mod connection;
 pub mod message;
+pub mod payload;
 pub mod uuid;
 
 #[allow(dead_code, unused_imports)]
@@ -15,7 +16,7 @@ use futures::Stream;
 use futures::channel::mpsc::unbounded;
 use futures::channel::mpsc::UnboundedSender;
 use futures::channel::oneshot;
-use futures::future::BoxFuture;
+use futures::future::LocalBoxFuture;
 use logger::*;
 
 pub use crate::generated::binary_protocol_generated as binary_protocol;
@@ -31,176 +32,22 @@ use json_rpc::error::{RpcError, HandlingError};
 use futures::channel::oneshot::Canceled;
 use std::pin::Pin;
 use crate::new_handler::{HandlerHandle, Disposition};
-use crate::binary::message::Message;
+use crate::binary::message::{Message, MessageFromServerOwned};
+use crate::binary::payload::{FromServerOwned, ToServerPayload};
 
-#[derive(Clone,Debug)]
-pub struct VisualisationContext {
-    pub visualization_id : Uuid,
-    pub context_id       : Uuid,
-    pub expression_id    : Uuid,
-}
+use payload::VisualisationContext;
+use crate::common::error::{UnexpectedTextMessage, UnexpectedMessage};
 
-pub fn serialize_path<'a>(path:&LSPath, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Path<'a>> {
-    let root_id      = path.root_id.into();
-    let segment_refs = path.segments.iter().map(|s| s.as_str()).collect_vec();
-    let segments     = builder.create_vector_of_strings(&segment_refs);
-    Path::create(builder, &PathArgs {
-        rootId   : Some(&root_id),
-        segments : Some(segments),
-    })
-}
-
-#[derive(Clone,Debug)]
-pub enum FromServerOwned {
-    Error {code:i32, message:String},
-    Success {},
-    VisualizationUpdate {context:VisualisationContext, data:Vec<u8>},
-    FileContentsReply   {contents:Vec<u8>},
-}
-
-impl FromServerOwned {
-    pub fn deserialize<'a>(message:&OutboundMessage<'a>) -> Self {
-        match message.payload_type() {
-            OutboundPayload::ERROR => {
-                let payload = message.payload_as_error().unwrap();
-                FromServerOwned::Error {
-                    code: payload.code(),
-                    message: payload.message().unwrap_or_default().to_string(),
-                }
-            }
-            OutboundPayload::FILE_CONTENTS_REPLY => {
-                let payload = message.payload_as_file_contents_reply().unwrap();
-                FromServerOwned::FileContentsReply {
-                    contents: Vec::from(payload.contents().unwrap_or_default())
-                }
-            }
-            OutboundPayload::SUCCESS => FromServerOwned::Success {},
-            OutboundPayload::VISUALISATION_UPDATE => {
-                let payload = message.payload_as_visualisation_update().unwrap();
-                let context = payload.visualisationContext();
-                FromServerOwned::VisualizationUpdate {
-                    data: Vec::from(payload.data()),
-                    context: VisualisationContext {
-                        context_id: context.contextId().into(),
-                        expression_id: context.expressionId().into(),
-                        visualization_id: context.visualisationId().into(),
-                    }
-                }
-            }
-            _ => todo!()
-        }
-    }
-}
-
-#[derive(Clone,Debug)]
-pub enum FromServer<'a> {
-    Error {code:i32, message:&'a str},
-    Success {},
-    VisualizationUpdate {context:VisualisationContext, data:&'a [u8]},
-    FileContentsReply {contents:&'a [u8]},
-}
-
-#[derive(Clone,Debug)]
-pub enum ToServerPayload<'a> {
-    InitSession {client_id:Uuid},
-    WriteFile   {path:&'a LSPath, contents:&'a[u8]},
-    ReadFile    {path:&'a LSPath}
-}
-
-type MessageFromServerOwned = Message<FromServerOwned>;
-
-type MessageToServer<'a> = Message<ToServerPayload<'a>>;
-
-impl<'a> super::new_handler::MessageToServer for MessageToServer<'a> {
-    type Id = Uuid;
-
-    fn send(&self, transport:&mut dyn Transport) -> FallibleResult<()> {
-        self.with_serialized(|data| transport.send_binary(data))
-    }
-
-    fn id(&self) -> Self::Id {
-        self.message_id
-    }
-}
-
-pub trait IsPayloadToServer {
-    type PayloadType;
-
-    fn write_message(&self, builder:&mut FlatBufferBuilder, message_id:Uuid, correlation_id:Option<Uuid>);
-    fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
-    fn payload_type(&self) -> Self::PayloadType;
-}
-
-impl<'a> IsPayloadToServer for ToServerPayload<'a> {
-    type PayloadType = InboundPayload;
-
-    fn write_message(&self, builder:&mut FlatBufferBuilder, message_id:Uuid, correlation_id:Option<Uuid>) {
-        let payload_type   = self.payload_type();
-        let payload        = Some(self.write_payload(builder));
-        let correlation_id2 = correlation_id.map(EnsoUUID::from);
-        println!("Sending message id: {:?}, generated from {}", EnsoUUID::from(message_id), message_id);
-        let message        = InboundMessage::create(builder, &InboundMessageArgs {
-            correlationId : correlation_id2.as_ref(),
-            messageId     : Some(&message_id.into()),
-            payload_type,
-            payload,
-        });
-        builder.finish(message,None);
-    }
-
-    fn write_payload(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
-        match self {
-            ToServerPayload::InitSession {client_id} => {
-                InitSessionCommand::create(builder, &InitSessionCommandArgs {
-                    identifier : Some(&client_id.into())
-                }).as_union_value()
-            }
-            ToServerPayload::WriteFile {path,contents} => {
-                let path     = serialize_path(path,builder);
-                let contents = builder.create_vector(contents);
-                WriteFileCommand::create(builder, &WriteFileCommandArgs {
-                    path : Some(path),
-                    contents : Some(contents),
-                }).as_union_value()
-            }
-            ToServerPayload::ReadFile {path} => {
-                let path = serialize_path(path,builder);
-                ReadFileCommand::create(builder, &ReadFileCommandArgs {
-                    path : Some(path)
-                }).as_union_value()
-            }
-        }
-    }
-
-    fn payload_type(&self) -> InboundPayload {
-        match self {
-            ToServerPayload::InitSession {..} => InboundPayload::INIT_SESSION_CMD,
-            ToServerPayload::WriteFile   {..} => InboundPayload::WRITE_FILE_CMD,
-            ToServerPayload::ReadFile    {..} => InboundPayload::READ_FILE_CMD,
-        }
-    }
-}
-
-/// When trying to parse a line, not a single line was produced.
-#[derive(Debug,Fail,Clone,Copy)]
-#[fail(display = "No active request by id {}", _0)]
-pub struct NoSuchRequest<Id : Sync + Send + Debug + Display + 'static>(pub Id);
-
-
-/// Event emitted by the `Handler<N>`.
-#[derive(Debug)]
-pub enum Event<N> {
-    /// Transport has been closed.
-    Closed,
-    /// Error occurred.
-    Error(failure::Error),
-    /// Notification received.
-    Notification(N),
-}
 
 #[derive(Clone,Debug)]
 pub enum Notification {
     VisualizationUpdate {context:VisualisationContext, data:Vec<u8>},
+}
+
+pub trait API {
+    fn init(&self, client_id:Uuid) -> LocalBoxFuture<FallibleResult<()>>;
+    fn write_file(&self, path:&LSPath, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>>;
+    fn read_file(&self, path:&LSPath) -> LocalBoxFuture<FallibleResult<Vec<u8>>>;
 }
 
 #[derive(Clone,Derivative)]
@@ -217,28 +64,32 @@ pub fn expect_success(result:FromServerOwned) -> FallibleResult<()> {
     }
 }
 
+
 impl Client {
     pub fn processor(logger:Logger) -> impl FnMut(TransportEvent) -> Disposition<Uuid,FromServerOwned,Notification> + 'static {
         move |event:TransportEvent| {
-            if let TransportEvent::BinaryMessage(data) = event {
-                let message = MessageFromServerOwned::deserialize_owned(&data);
-                info!(logger, "Received binary message {message:?}");
-                match message.payload {
-                    FromServerOwned::VisualizationUpdate { context, data } =>
-                        Disposition::notify(Notification::VisualizationUpdate { data, context }),
-                    _ => {
-                        if let Some(id) = message.correlation_id {
-                            let reply = message.payload;
-                            Disposition::HandleReply {id,reply}
-                        } else {
-                            // Not a known notification and yet not a response to our request.
-                            Disposition::Ignore
-                        }
+            let binary_data = match event {
+                TransportEvent::BinaryMessage(data) => data,
+                _ =>
+                    return Disposition::error(UnexpectedTextMessage),
+            };
+            let message = match MessageFromServerOwned::deserialize_owned(&binary_data) {
+                Ok(message) => message,
+                Err(e)      => return Disposition::error(e),
+            };
+            info!(logger, "Received binary message {message:?}");
+            match message.payload {
+                FromServerOwned::VisualizationUpdate {context,data} =>
+                    Disposition::notify(Notification::VisualizationUpdate {data,context}),
+                _ => {
+                    if let Some(id) = message.correlation_id {
+                        let reply = message.payload;
+                        Disposition::HandleReply {id,reply}
+                    } else {
+                        // Not a known notification and yet not a response to our request.
+                        Disposition::error(UnexpectedMessage)
                     }
                 }
-            } else {
-                // Not the kind of events we are interested in.
-                Disposition::Ignore
             }
         }
     }
@@ -253,7 +104,7 @@ impl Client {
     }
 
 
-    pub fn open<'a,F,R>(&self, payload:ToServerPayload<'a>, f:F) -> Pin<Box<dyn Future<Output=FallibleResult<R>> + 'static>>
+    pub fn open<F,R>(&self, payload:ToServerPayload, f:F) -> LocalBoxFuture<FallibleResult<R>>
     where F : FnOnce(FromServerOwned) -> FallibleResult<R>,
           R : 'static,
           F : 'static, {
@@ -262,7 +113,7 @@ impl Client {
 
         let logger = self.logger.clone_ref();
         let completer = move |reply| {
-            info!(logger,"Processing reply to request {id}: {reply:?}");
+            info!(logger,"Completing request {id} with a reply: {reply:?}");
             if let FromServerOwned::Error {code,message} = reply {
                 let error = RpcError::new_remote_error(code.into(), message);
                 Err(error.into())
@@ -271,23 +122,29 @@ impl Client {
             }
         };
 
-        let fut = self.handler.open(&message,completer);
+        let fut = self.handler.make_request(&message, completer);
         Box::pin(fut)
     }
 
-    pub fn init(&self, client_id:Uuid) -> impl Future<Output = FallibleResult<()>> {
+    pub fn runner(&self) -> impl Future<Output = ()> {
+        self.handler.runner()
+    }
+}
+
+impl API for Client {
+    fn init(&self, client_id:Uuid) -> LocalBoxFuture<FallibleResult<()>> {
         info!(self.logger,"Initializing binary connection as {client_id}");
         let payload = ToServerPayload::InitSession {client_id};
         self.open(payload,expect_success)
     }
 
-    pub fn write_file(&self, path:&LSPath, contents:&[u8]) -> impl Future<Output = FallibleResult<()>> {
+    fn write_file(&self, path:&LSPath, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>> {
         info!(self.logger,"Writing file {path} with {contents:?}");
         let payload = ToServerPayload::WriteFile {path,contents};
         self.open(payload,expect_success)
     }
 
-    pub fn read_file(&self, path:&LSPath) -> impl Future<Output = FallibleResult<Vec<u8>>> {
+    fn read_file(&self, path:&LSPath) -> LocalBoxFuture<FallibleResult<Vec<u8>>> {
         info!(self.logger,"Reading file {path}");
         let payload = ToServerPayload::ReadFile {path};
         self.open(payload, move |result| {
@@ -298,10 +155,6 @@ impl Client {
                     Err(RpcError::MismatchedResponseType.into()),
             }
         })
-    }
-
-    pub fn runner(&self) -> impl Future<Output = ()> {
-        self.handler.runner()
     }
 }
 
