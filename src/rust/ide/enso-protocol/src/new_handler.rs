@@ -31,7 +31,7 @@ pub struct RequestHandler<Id,Reply> where Id:Hash+Eq {
 
 impl<Id,Reply> RequestHandler<Id,Reply>
 where Id:Copy + Debug + Display + Hash + Eq + Send + Sync + 'static {
-    pub fn new(parent_logger:Logger) -> RequestHandler<Id,Reply> {
+    pub fn new(parent_logger:&Logger) -> RequestHandler<Id,Reply> {
         RequestHandler {
             logger : parent_logger.sub("ongoing_calls"),
             ongoing_calls : HashMap::new(),
@@ -73,25 +73,43 @@ where Id:Copy + Debug + Display + Hash + Eq + Send + Sync + 'static {
 }
 
 pub enum Disposition<Id,Reply,Notification> {
+    Ignore,
     HandleReply {id:Id, reply:Reply},
     EmitEvent {event:Event<Notification>},
 }
 
+impl<Id,Reply,Notification> Disposition<Id,Reply,Notification> {
+    pub fn notify(notification:Notification) -> Self {
+        Disposition::EmitEvent {event:Event::Notification(notification)}
+    }
+
+    pub fn error(error:impl Into<failure::Error> + Debug) -> Self {
+        Disposition::EmitEvent {event:Event::Error(error.into())}
+    }
+}
+
 pub trait MessageProcessor<Id,Reply,Notification> = FnMut(TransportEvent) -> Disposition<Id,Reply,Notification>;
 
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
 struct HandlerState<Id,Reply,Notification>
-where Id:Eq+Hash {
+where Id:Eq+Hash+Debug,
+      Notification:Debug,
+      Reply:Debug, {
+    #[derivative(Debug="ignore")]
     transport     : Box<dyn Transport>,
     logger        : Logger,
     sender        : Option<UnboundedSender<Event<Notification>>>,
     ongoing_calls : RequestHandler<Id,Reply>,
+    #[derivative(Debug="ignore")]
     processor     : Box<dyn FnMut(TransportEvent) -> Disposition<Id,Reply,Notification>>,
 }
 
 impl <Id,Reply,Notification> HandlerState<Id,Reply,Notification>
     where Id: Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
-          Notification:Debug {
-    fn new<T,P>(transport:T, logger:Logger, processor:P) -> HandlerState<Id,Reply,Notification>
+          Notification:Debug,
+          Reply:Debug, {
+    fn new<T,P>(transport:T, logger:&Logger, processor:P) -> HandlerState<Id,Reply,Notification>
     where T : Transport + 'static,
           P : FnMut(TransportEvent) -> Disposition<Id,Reply,Notification> + 'static {
         HandlerState {
@@ -138,12 +156,17 @@ impl <Id,Reply,Notification> HandlerState<Id,Reply,Notification>
         match (self.processor)(event) {
             Disposition::HandleReply {id,reply} => self.process_reply(id,reply),
             Disposition::EmitEvent {event} => self.emit_event(event),
+            Disposition::Ignore => {}
         }
     }
 }
 
-struct HandlerHandle<Id,Reply,Notification>
-where Id : Eq+Hash{
+#[derive(CloneRef,Debug,Derivative)]
+#[derivative(Clone(bound=""))]
+pub struct HandlerHandle<Id,Reply,Notification:Debug>
+where Id : Eq+Hash+Debug,
+      Notification:Debug,
+      Reply:Debug, {
     logger : Logger,
     state  : Rc<RefCell<HandlerState<Id,Reply,Notification>>>,
 }
@@ -162,15 +185,23 @@ where Id: Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
       Notification:Debug,
       Reply : Debug {
 
-    fn with_transport<R>(&self, f:impl FnOnce(&mut dyn Transport) -> R) -> R {
+    pub fn new<T,P>(transport:T, logger:Logger, processor:P) -> Self
+        where T : Transport + 'static,
+              P : FnMut(TransportEvent) -> Disposition<Id,Reply,Notification> + 'static {
+        let state = Rc::new(RefCell::new(HandlerState::new(transport,&logger,processor)));
+        HandlerHandle {logger,state}
+    }
+
+    pub fn with_transport<R>(&self, f:impl FnOnce(&mut dyn Transport) -> R) -> R {
         f(self.state.borrow_mut().transport.deref_mut())
     }
-    fn store_request(&self, id:Id, completer:oneshot::Sender<Reply>) {
+    pub fn store_request(&self, id:Id, completer:oneshot::Sender<Reply>) {
         self.state.borrow_mut().open_request(id,completer)
     }
 
-    pub fn open<F,R>(&self, message:impl MessageToServer<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
-    where F: FnOnce(Reply) -> FallibleResult<R> {
+    pub fn open<F,R>(&self, message:&dyn MessageToServer<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>> + 'static
+    where F: FnOnce(Reply) -> FallibleResult<R> + 'static,
+          Reply: 'static {
         let id = message.id();
 
         info!(self.logger,"Sending message {message:?}");
@@ -186,7 +217,6 @@ where Id: Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
 
         info!(self.logger,"Opening request: {id}");
         self.store_request(id,sender);
-
         ret
     }
 

@@ -149,8 +149,6 @@ pub async fn new_opened_ws
 pub async fn open_project
 (json_endpoint:project_manager::IpWithSocket, binary_endpoint:project_manager::IpWithSocket)
 -> FallibleResult<controller::Project> {
-    use enso_protocol::binary::HandlerLike;
-
     let json_ws = new_opened_ws(json_endpoint).await?;
     let binary_ws = new_opened_ws(binary_endpoint).await?;
     let client_id = Uuid::new_v4();
