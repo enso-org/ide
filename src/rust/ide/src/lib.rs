@@ -60,6 +60,7 @@ use crate::transport::web::ConnectingError;
 use crate::transport::web::WebSocket;
 use crate::view::project::ProjectView;
 
+use enso_protocol::binary;
 use enso_protocol::language_server;
 use enso_protocol::project_manager;
 use uuid::Uuid;
@@ -152,12 +153,13 @@ pub async fn open_project
     let json_ws = new_opened_ws(json_endpoint).await?;
     let binary_ws = new_opened_ws(binary_endpoint).await?;
     let client_id = Uuid::new_v4();
-    let client = language_server::Client::new(json_ws);
-    let client_binary = enso_protocol::binary::Client::new(binary_ws);
-    crate::executor::global::spawn(client.runner());
+    let client_json = language_server::Client::new(json_ws);
+    let client_binary = binary::Client::new(binary_ws);
+    crate::executor::global::spawn(client_json.runner());
     crate::executor::global::spawn(client_binary.runner());
-    let connection = language_server::Connection::new(client,client_id).await?;
-    Ok(controller::Project::new(connection, client_binary))
+    let connection_json = language_server::Connection::new(client_json,client_id).await?;
+    let connection_binary = binary::Connection::new(client_binary,client_id).await?;
+    Ok(controller::Project::new(connection_json,connection_binary))
 }
 
 /// Open most recent project or create a new project if none exists.

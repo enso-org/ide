@@ -1,14 +1,14 @@
 use crate::prelude::*;
 use json_rpc::{Transport, TransportEvent};
 use futures::channel::mpsc::UnboundedSender;
-use futures::channel::oneshot;
-use futures::channel::oneshot::Canceled;
-use futures::SinkExt;
+//use futures::channel::oneshot;
+//use futures::channel::oneshot::Canceled;
+//use futures::SinkExt;
 
 use logger::*;
 use std::future::Future;
 use utils::fail::FallibleResult;
-use json_rpc::error::RpcError;
+//use json_rpc::error::RpcError;
 use crate::common::ongoing_calls::OngoingCalls;
 use crate::common::event::Event;
 
@@ -75,7 +75,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     }
 
     fn emit_event(&mut self, event:Event<Notification>) {
-        if let Some(mut sender) = self.sender.as_ref() {
+        if let Some(sender) = self.sender.as_ref() {
             // Error can happen if there is no listener. But we don't mind this.
             let _ = sender.unbounded_send(event);
         }
@@ -86,12 +86,6 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
         if let Err(error) = self.ongoing_calls.complete_request(id,reply) {
             self.emit_error(error);
         }
-    }
-
-    fn emit_notification(&mut self, notification:Notification) {
-        info!(self.logger,"Emitting notification: {notification:?}");
-        let event = Event::Notification(notification);
-        self.emit_event(event);
     }
 
     fn emit_error(&mut self, error:impl Into<failure::Error> + Debug) {
@@ -158,17 +152,20 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     pub fn new<T,P>(transport:T, logger:Logger, processor:P) -> Self
     where T : Transport + 'static,
           P : FnMut(TransportEvent) -> Disposition<Id,Reply,Notification> + 'static {
-        let state = Rc::new(RefCell::new(HandlerData::new(transport, &logger, processor)));
+        let state = Rc::new(RefCell::new(HandlerData::new(transport,&logger,processor)));
         HandlerHandle {logger,state}
     }
 
+    /// Starts a new request described by a given message.
+    ///
+    /// The request shall be sent to the server and then await the reply.
     pub fn make_request<F,R>
     (&self, message:&dyn Request<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {
-        self.state.borrow_mut().make_request(message, f)
+        self.state.borrow_mut().make_request(message,f)
     }
 
-    /// Obtains the runner.
+    /// See the `runner` on the `Client`.
     pub fn runner(&self) -> impl Future<Output = ()> {
         let event_receiver = self.state.borrow_mut().transport.establish_event_stream();
         let state = Rc::downgrade(&self.state);

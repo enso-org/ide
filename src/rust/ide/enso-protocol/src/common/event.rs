@@ -1,11 +1,12 @@
+//! Module defines type for event emitted by the RPC handler.
 
-/// Event emitted by the `Handler<N>`.
+/// Event emitted by the RPC handler.
 #[derive(Debug)]
 pub enum Event<N> {
-    /// Transport has been closed.
+    /// The handler's transport has been closed.
     Closed,
-    /// Error occurred.
+    /// An error has occurred.
     Error(failure::Error),
-    /// Notification received.
+    /// A notification has been received.
     Notification(N),
 }

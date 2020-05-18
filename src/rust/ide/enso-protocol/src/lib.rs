@@ -23,6 +23,7 @@ pub mod language_server;
 pub mod project_manager;
 pub mod new_handler;
 
+#[allow(missing_docs)]
 pub mod prelude {
     pub use json_rpc::prelude::*;
     pub use utils::fail::FallibleResult;
@@ -32,6 +33,7 @@ pub mod prelude {
     pub use logger::*;
 
     pub use std::future::Future;
+    pub use futures::future::LocalBoxFuture;
     pub use futures::FutureExt;
     pub use futures::StreamExt;
 }
@@ -41,6 +43,6 @@ pub mod traits {
     pub use crate::language_server::API as TRAIT_LanguageServerAPI;
     pub use crate::project_manager::API as TRAIT_ProjectManagerAPI;
     pub use crate::binary::uuid::UuidExt;
-    pub use crate::binary::API;
+    pub use crate::binary::client::API;
 }
 

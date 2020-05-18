@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::binary::API;
+use crate::binary::MockClient;
 
 
 
@@ -40,6 +41,19 @@ impl Connection {
         let client = Box::new(client);
         Ok (Connection {client_id,client})
     }
+
+    /// Creates a connection which wraps a mock client.
+    pub fn new_mock(client:MockClient) -> Connection {
+        Connection {
+            client        : Box::new(client),
+            client_id     : default(),
+        }
+    }
+
+    /// Creates a Rc handle to a connection which wraps a mock client.
+    pub fn new_mock_rc(client:MockClient) -> Rc<Connection> {
+        Rc::new(Self::new_mock(client))
+    }
 }
 
 impl Deref for Connection {
@@ -59,10 +73,10 @@ impl Deref for Connection {
 mod tests {
     use super::*;
 
-    use crate::binary::MockClient;
+    use crate::binary::client::MockClient;
     use mockall::predicate::*;
     use json_rpc::error::RpcError;
-    use futures::task::LocalSpawn;
+    //use futures::task::LocalSpawn;
     use futures::task::LocalSpawnExt;
 
     #[test]

@@ -4,7 +4,7 @@ use crate::generated::binary_protocol_generated::org::enso::languageserver::prot
 use generated::Path;
 use generated::PathArgs;
 use generated::OutboundMessage;
-use generated::OutboundMessageArgs;
+//use generated::OutboundMessageArgs;
 use generated::InboundPayload;
 use generated::OutboundPayload;
 use generated::InboundMessage;
@@ -23,30 +23,7 @@ use flatbuffers::FlatBufferBuilder;
 use flatbuffers::UnionWIPOffset;
 use flatbuffers::WIPOffset;
 use crate::common::error::DeserializationError;
-
-
-pub trait IsPayloadToServer {
-    type PayloadType;
-
-    fn write_message(&self, builder:&mut FlatBufferBuilder, message_id:Uuid, correlation_id:Option<Uuid>);
-    fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
-    fn payload_type(&self) -> Self::PayloadType;
-}
-
-pub trait IsOwnedPayloadFromServer {
-    type PayloadType;
-
-    fn read_message(&self, builder:&mut FlatBufferBuilder, message_id:Uuid, correlation_id:Option<Uuid>);
-    fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
-    fn payload_type(&self) -> Self::PayloadType;
-}
-
-#[derive(Clone,Debug,Copy)]
-pub struct VisualisationContext {
-    pub visualization_id : Uuid,
-    pub context_id       : Uuid,
-    pub expression_id    : Uuid,
-}
+use crate::binary::client::VisualisationContext;
 
 pub fn serialize_path<'a>(path:&LSPath, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Path<'a>> {
     let root_id      = path.root_id.into();
@@ -58,6 +35,30 @@ pub fn serialize_path<'a>(path:&LSPath, builder:&mut FlatBufferBuilder<'a>) -> W
     })
 }
 
+/// Payloads that can be serialized and sent as a message to server.
+pub trait SerializableToServer {
+    /// Writes the message into a buffer and finishes it.
+    fn write_message(&self, builder:&mut FlatBufferBuilder, message_id:Uuid, correlation_id:Option<Uuid>) {
+        let payload_type   = self.payload_type();
+        let payload        = Some(self.write_payload(builder));
+        let correlation_id2 = correlation_id.map(EnsoUUID::from);
+        println!("Sending message id: {:?}, generated from {}", EnsoUUID::from(message_id), message_id);
+        let message        = InboundMessage::create(builder, &InboundMessageArgs {
+            correlationId : correlation_id2.as_ref(),
+            messageId     : Some(&message_id.into()),
+            payload_type,
+            payload,
+        });
+        builder.finish(message,None);
+    }
+
+    /// Writes just the payload into the buffer.
+    fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
+
+    /// Returns enumeration describing variant of this payload.
+    fn payload_type(&self) -> InboundPayload;
+}
+
 #[derive(Clone,Debug)]
 pub enum FromServerOwned {
     Error {code:i32, message:String},
@@ -67,7 +68,7 @@ pub enum FromServerOwned {
 }
 
 impl FromServerOwned {
-    pub fn deserialize_owned<'a>(message:&OutboundMessage<'a>) -> Result<Self,DeserializationError> {
+    pub fn deserialize_owned(message:&OutboundMessage) -> Result<Self,DeserializationError> {
         match message.payload_type() {
             OutboundPayload::ERROR => {
                 let payload = message.payload_as_error().unwrap();
@@ -155,23 +156,7 @@ pub enum ToServerPayload<'a> {
     ReadFile    {path:&'a LSPath}
 }
 
-impl<'a> IsPayloadToServer for ToServerPayload<'a> {
-    type PayloadType = InboundPayload;
-
-    fn write_message(&self, builder:&mut FlatBufferBuilder, message_id:Uuid, correlation_id:Option<Uuid>) {
-        let payload_type   = self.payload_type();
-        let payload        = Some(self.write_payload(builder));
-        let correlation_id2 = correlation_id.map(EnsoUUID::from);
-        println!("Sending message id: {:?}, generated from {}", EnsoUUID::from(message_id), message_id);
-        let message        = InboundMessage::create(builder, &InboundMessageArgs {
-            correlationId : correlation_id2.as_ref(),
-            messageId     : Some(&message_id.into()),
-            payload_type,
-            payload,
-        });
-        builder.finish(message,None);
-    }
-
+impl<'a> SerializableToServer for ToServerPayload<'a> {
     fn write_payload(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
         match self {
             ToServerPayload::InitSession {client_id} => {
@@ -204,3 +189,5 @@ impl<'a> IsPayloadToServer for ToServerPayload<'a> {
         }
     }
 }
+
+

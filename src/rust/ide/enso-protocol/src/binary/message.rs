@@ -1,8 +1,9 @@
+//! Module defining types representing messages being sent between client and server.
 
 use crate::prelude::*;
 
 use crate::binary::payload::FromServerOwned;
-use crate::binary::payload::IsPayloadToServer;
+use crate::binary::payload::SerializableToServer;
 use crate::binary::payload::ToServerPayload;
 use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary::OutboundMessage;
 
@@ -91,7 +92,7 @@ pub trait Serialize {
     }
 }
 
-impl<T: IsPayloadToServer> Serialize for Message<T> {
+impl<T:SerializableToServer> Serialize for Message<T> {
     fn write(&self, builder:&mut FlatBufferBuilder) {
         self.payload.write_message(builder,self.message_id,self.correlation_id)
     }
