@@ -8,6 +8,7 @@ use crate::prelude::*;
 use crate::controller::FilePath;
 
 use enso_protocol::language_server;
+use enso_protocol::binary;
 use parser::Parser;
 
 
@@ -23,6 +24,7 @@ type ModulePath = controller::module::Path;
 #[derive(Debug)]
 pub struct Handle {
     pub language_server_rpc : Rc<language_server::Connection>,
+    pub language_server_bin : Rc<binary::Client>,
     pub module_registry     : Rc<model::module::registry::Registry>,
     pub parser              : Parser,
     pub logger              : Logger,
@@ -30,11 +32,15 @@ pub struct Handle {
 
 impl Handle {
     /// Create a new project controller.
-    pub fn new(language_server_client:language_server::Connection) -> Self {
+    pub fn new
+    ( language_server_client : language_server::Connection
+    , language_server_binary : binary::Client
+    ) -> Self {
         Handle {
             module_registry     : default(),
             parser              : Parser::new_or_panic(),
             language_server_rpc : Rc::new(language_server_client),
+            language_server_bin : Rc::new(language_server_binary),
             logger              : Logger::new("Project Controller"),
         }
     }
@@ -112,7 +118,7 @@ mod test {
             let contents  = "2 + 2".to_string();
             client.set_file_read_result(file_path,Ok(response::Read{contents}));
             let connection     = language_server::Connection::new_mock(client);
-            let project        = controller::Project::new(connection);
+            let project        = controller::Project::new(connection,todo!());
             let module         = project.module_controller(path.clone()).await.unwrap();
             let same_module    = project.module_controller(path.clone()).await.unwrap();
             let another_module = project.module_controller(another_path.clone()).await.unwrap();
@@ -127,7 +133,7 @@ mod test {
     fn obtain_plain_text_controller() {
         TestWithLocalPoolExecutor::set_up().run_task(async move {
             let connection   = language_server::Connection::new_mock(default());
-            let project_ctrl = controller::Project::new(connection);
+            let project_ctrl = controller::Project::new(connection,todo!());
             let root_id      = default();
             let path         = FilePath::new(root_id,&["TestPath"]);
             let another_path = FilePath::new(root_id,&["TestPath2"]);
@@ -155,7 +161,7 @@ mod test {
             let client       = language_server::MockClient::default();
             client.set_file_read_result(path.clone(), Ok(response::Read {contents}));
             let connection   = language_server::Connection::new_mock(client);
-            let project_ctrl = controller::Project::new(connection);
+            let project_ctrl = controller::Project::new(connection,todo!());
             let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
             let content      = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());

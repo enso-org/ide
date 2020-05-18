@@ -1,6 +1,10 @@
 //! Client side implementation of Enso protocol.
 
+#![feature(type_alias_impl_trait)]
+#![feature(trait_alias)]
+//#![feature(async_closure)]
 #![feature(associated_type_bounds)]
+#![feature(associated_type_defaults)]
 #![feature(coerce_unsized)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
@@ -16,12 +20,22 @@ pub mod generated;
 pub mod types;
 pub mod language_server;
 pub mod project_manager;
+pub mod new_handler;
 
-pub use enso_prelude as prelude;
+pub mod prelude {
+    pub use json_rpc::prelude::*;
+    pub use uuid::Uuid;
+
+    pub use crate::traits::*;
+
+    pub use futures::FutureExt;
+    pub use futures::StreamExt;
+}
 
 /// Module gathering all traits which may be used by crate's users.
 pub mod traits {
     pub use crate::language_server::API as TRAIT_LanguageServerAPI;
     pub use crate::project_manager::API as TRAIT_ProjectManagerAPI;
+    pub use crate::binary::uuid::UuidExt;
 }
 

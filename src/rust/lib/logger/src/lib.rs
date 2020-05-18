@@ -77,8 +77,8 @@ impl Logger {
         //console::trace_1(&self.format(msg));
     }
 
-    pub fn info<M: LogMsg>(&self, _msg: M) {
-        //console::info_1(&self.format(msg));
+    pub fn info<M: LogMsg>(&self, msg: M) {
+        console::info_1(&self.format(msg));
     }
 
     pub fn warning<M: LogMsg>(&self, msg: M) {

@@ -253,9 +253,12 @@ impl Transport for WebSocket {
     }
 
     fn set_event_transmitter(&mut self, transmitter:mpsc::UnboundedSender<TransportEvent>) {
+        info!(self.logger,"Setting event transmitter.");
         let transmitter_copy = transmitter.clone();
         let logger_copy = self.logger.clone_ref();
         self.set_on_message(move |e| {
+            info!(logger_copy,"Message received1..");
+            println!("Message received2..");
             let data = e.data();
             if let Some(text) = data.as_string() {
                 info!(logger_copy,"received text: {text}");

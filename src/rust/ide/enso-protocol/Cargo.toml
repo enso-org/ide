@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 json-rpc     = { version = "0.1.0"  , path = "../json-rpc"            }
 enso-prelude = { version = "0.1.0"  , path = "../../lib/prelude"      }
 shapely      = { version = "0.1.0"  , path = "../../lib/shapely/impl" }
+logger       = { version = "0.1.0"  , path = "../../lib/logger"       }
 utils        = { version = "0.1.0"  , path = "../utils"               }
 
 chrono      = { version = "0.4"  , features = ["serde"]                       }

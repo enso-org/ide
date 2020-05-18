@@ -139,15 +139,26 @@ pub fn setup_project_manager
     project_manager
 }
 
+pub async fn new_opened_ws
+(address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
+    let endpoint   = format!("ws://{}:{}", address.host, address.port);
+    WebSocket::new_opened(endpoint).await
+}
+
 /// Connect to language server.
 pub async fn open_project
-(address:project_manager::IpWithSocket) -> FallibleResult<controller::Project> {
-    let endpoint   = format!("ws://{}:{}",address.host,address.port);
-    let transport  = WebSocket::new_opened(endpoint).await?;
-    let client     = language_server::Client::new(transport);
+(json_endpoint:project_manager::IpWithSocket, binary_endpoint:project_manager::IpWithSocket)
+-> FallibleResult<controller::Project> {
+    use enso_protocol::binary::HandlerLike;
+
+    let json_ws = new_opened_ws(json_endpoint).await?;
+    let binary_ws = new_opened_ws(binary_endpoint).await?;
+    let client = language_server::Client::new(json_ws);
+    let client_binary = enso_protocol::binary::Client::new(binary_ws);
     crate::executor::global::spawn(client.runner());
+    crate::executor::global::spawn(client_binary.runner());
     let connection = language_server::Connection::new(client).await?;
-    Ok(controller::Project::new(connection))
+    Ok(controller::Project::new(connection, client_binary))
 }
 
 /// Open most recent project or create a new project if none exists.
@@ -160,8 +171,8 @@ pub async fn open_most_recent_project_or_create_new
     } else {
         project_manager.create_project(&DEFAULT_PROJECT_NAME.to_string()).await?.project_id
     };
-    let address = project_manager.open_project(&project_id).await?.language_server_json_address;
-    open_project(address).await
+    let endpoints = project_manager.open_project(&project_id).await?;
+    open_project(endpoints.language_server_json_address,endpoints.language_server_binary_address).await
 }
 
 /// Sets up the project view, including the controller it uses.
@@ -203,6 +214,8 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::wasm_bindgen_test;
     use serde_json::json;
+    use enso_protocol::language_server::Path;
+    use uuid::Uuid;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -228,7 +241,7 @@ mod tests {
 
     #[wasm_bindgen_test::wasm_bindgen_test(async)]
     #[allow(dead_code)]
-    async fn first_real_test() {
+    async fn binary_protocol_test() {
         ensogl_system_web::set_stdout();
         let _guard = setup_global_executor();
 
@@ -240,8 +253,17 @@ mod tests {
         println!("Connected!");
         let pm = setup_project_manager(ws);
         println!("PM established!");
-        let project = open_most_recent_project_or_create_new(&pm).await;
+        let project = open_most_recent_project_or_create_new(&pm).await.unwrap();
         println!("Got project: {:?}", project);
+        let init_fut = project.language_server_bin.init(Uuid::new_v4());
+        println!("Waiting for init");
+        println!("Init result: {:?}", init_fut.await);
+
+        let path = Path::new(project.language_server_rpc.content_root(), &["moje.txt"]);
+        let contents = "Hello moje".as_bytes();
+        println!("Writing file {}", path);
+        println!("Written: {:?}", project.language_server_bin.write_file(&path,contents).await.unwrap());
+        println!("Read back: {:?}", project.language_server_bin.read_file(&path).await.unwrap());
 
         assert!(false);
     }
