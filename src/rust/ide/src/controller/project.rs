@@ -91,6 +91,7 @@ mod test {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
+    use json_rpc::expect_call;
     use language_server::response;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -108,10 +109,10 @@ mod test {
             let client    = language_server::MockClient::default();
             let contents  = "2+2".to_string();
             let file_path = path.file_path().clone();
-            client.set_file_read_result(file_path,Ok(response::Read{contents}));
+            expect_call!(client.read_file(file_path) => Ok(response::Read{contents}));
             let file_path = another_path.file_path().clone();
             let contents  = "2 + 2".to_string();
-            client.set_file_read_result(file_path,Ok(response::Read{contents}));
+            expect_call!(client.read_file(file_path) => Ok(response::Read{contents}));
             let connection     = language_server::Connection::new_mock(client);
             let project        = controller::Project::new(connection);
             let module         = project.module_controller(path.clone()).await.unwrap();
@@ -154,7 +155,7 @@ mod test {
             let contents     = "2 + 2".to_string();
 
             let client       = language_server::MockClient::default();
-            client.set_file_read_result(path.clone(), Ok(response::Read {contents}));
+            expect_call!(client.read_file(path=path.clone()) => Ok(response::Read {contents}));
             let connection   = language_server::Connection::new_mock(client);
             let project_ctrl = controller::Project::new(connection);
             let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();

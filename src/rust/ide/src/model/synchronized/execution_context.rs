@@ -118,6 +118,7 @@ mod test {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
+    use json_rpc::expect_call;
     use language_server::response;
     use utils::test::ExpectTuple;
 
@@ -129,25 +130,25 @@ mod test {
         let context_id = model::execution_context::Id::new_v4();
         let root_def   = DefinitionName::new_plain("main");
         let ls_client  = language_server::MockClient::default();
-        ls_client.set_create_execution_context_result(Ok(response::CreateExecutionContext {
+        ls_client.expect.create_execution_context(move || Ok(response::CreateExecutionContext {
             context_id,
             can_modify       : create_capability("executionContext/canModify",context_id),
             receives_updates : create_capability("executionContext/receivesUpdates",context_id),
         }));
-        let expected_method = language_server::MethodPointer {
+        let method = language_server::MethodPointer {
             file            : path.file_path().clone(),
             defined_on_type : "Test".to_string(),
             name            : "main".to_string(),
         };
-        let expected_root_frame = language_server::ExplicitCall {
-            method_pointer                   : expected_method,
+        let root_frame = language_server::ExplicitCall {
+            method_pointer                   : method,
             this_argument_expression         : None,
             positional_arguments_expressions : vec![]
         };
-        let expected_stack_item = language_server::StackItem::ExplicitCall(expected_root_frame);
-        ls_client.set_push_to_execution_context_result(context_id,expected_stack_item,Ok(()));
-        ls_client.set_destroy_execution_context_result(context_id,Ok(()));
-        ls_client.expect_all_calls();
+        let stack_item = language_server::StackItem::ExplicitCall(root_frame);
+        expect_call!(ls_client.push_to_execution_context(context_id,stack_item) => Ok(()));
+        expect_call!(ls_client.destroy_execution_context(context_id) => Ok(()));
+        ls_client.require_all_calls();
         let connection = language_server::Connection::new_mock_rc(ls_client);
 
         let mut test = TestWithLocalPoolExecutor::set_up();
@@ -180,8 +181,8 @@ mod test {
         let expected_call_frame = language_server::LocalCall{expression_id};
         let expected_stack_item = language_server::StackItem::LocalCall(expected_call_frame);
         
-        ls.set_push_to_execution_context_result(id,expected_stack_item,Ok(()));
-        ls.set_destroy_execution_context_result(id,Ok(()));
+        expect_call!(ls.push_to_execution_context(id,expected_stack_item) => Ok(()));
+        expect_call!(ls.destroy_execution_context(id) => Ok(()));
         let context  = ExecutionContext::new_mock(id,path.clone(),model,ls);
 
         let mut test = TestWithLocalPoolExecutor::set_up();
@@ -206,8 +207,8 @@ mod test {
         let root_def      = DefinitionName::new_plain("main");
         let ls            = language_server::MockClient::default();
         let model         = model::ExecutionContext::new(root_def);
-        ls.set_pop_from_execution_context_result(id,Ok(()));
-        ls.set_destroy_execution_context_result(id,Ok(()));
+        expect_call!(ls.pop_from_execution_context(id) => Ok(()));
+        expect_call!(ls.destroy_execution_context(id) => Ok(()));
         model.push(item);
         let context  = ExecutionContext::new_mock(id,path.clone(),model,ls);
 

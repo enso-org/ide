@@ -109,16 +109,16 @@ impl Module {
         let logger        = Logger::new(iformat!("Module {path}"));
         let file_path     = path.file_path().clone();
         info!(logger, "Opening module {file_path}");
-        let opened = language_server.client.open_text_file(file_path).await?;
+        let opened = language_server.client.open_text_file(&file_path).await?;
         trace!(logger, "Read content of module {path}, digest is {opened.current_version:?}");
         let end_of_file = TextLocation::at_document_end(&opened.content);
         // TODO[ao] We should not fail here when metadata are malformed, but discard them and set
         //  default instead.
-        let source      = parser.parse_with_metadata(opened.content)?;
-        let digest      = opened.current_version;
-        let summary     = ContentSummary {digest,end_of_file};
-        let model       = model::Module::new(source.ast,source.metadata);
-        let this        = Rc::new(Module {path,model,language_server,logger});
+        let source  = parser.parse_with_metadata(opened.content)?;
+        let digest  = opened.current_version;
+        let summary = ContentSummary {digest,end_of_file};
+        let model   = model::Module::new(source.ast,source.metadata);
+        let this    = Rc::new(Module {path,model,language_server,logger});
         executor::global::spawn(Self::runner(this.clone_ref(),summary));
         Ok(this)
     }
@@ -131,7 +131,6 @@ impl Module {
         let language_server = language_server::Connection::new_mock_rc(default());
         Rc::new(Module{path,model,language_server,logger})
     }
-
 }
 
 
@@ -231,7 +230,7 @@ impl Module {
             old_version : ls_content.digest.clone(),
             new_version : summary.digest.clone()
         };
-        self.language_server.client.apply_text_file_edit(edit).await?;
+        self.language_server.client.apply_text_file_edit(&edit).await?;
         Ok(summary)
     }
 }
@@ -242,7 +241,7 @@ impl Drop for Module {
         let language_server = self.language_server.clone_ref();
         let logger          = self.logger.clone_ref();
         executor::global::spawn(async move {
-            let result = language_server.client.close_text_file(file_path.clone()).await;
+            let result = language_server.client.close_text_file(&file_path).await;
             if let Err(err) = result {
                 error!(logger,"Error when closing module file {file_path}: {err}");
             }
@@ -255,5 +254,25 @@ impl Deref for Module {
 
     fn deref(&self) -> &Self::Target {
         &self.model
+    }
+}
+
+
+
+// ============
+// === Test ===
+// ============
+
+#[cfg(test)]
+mod test {
+    pub use wasm_bindgen_test::wasm_bindgen_test;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
+    #[wasm_bindgen_test]
+    fn open_module_and_listen_for_notifications() {
+        let mut test = TestWithLocalPoolExecutor::set_up();
+        test.run_task(async {
+
+        })
     }
 }
