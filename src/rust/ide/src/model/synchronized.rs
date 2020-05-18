@@ -6,3 +6,4 @@ pub mod execution_context;
 pub mod module;
 
 pub use execution_context::ExecutionContext;
+pub use module::Module;

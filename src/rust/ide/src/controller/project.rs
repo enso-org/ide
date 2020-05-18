@@ -23,7 +23,7 @@ type ModulePath = controller::module::Path;
 #[derive(Debug)]
 pub struct Handle {
     pub language_server_rpc : Rc<language_server::Connection>,
-    pub module_registry     : Rc<model::module::registry::Registry>,
+    pub module_registry     : Rc<model::registry::Registry<ModulePath,model::synchronized::Module>>,
     pub parser              : Parser,
     pub logger              : Logger,
 }
@@ -64,17 +64,18 @@ impl Handle {
     }
 
     fn module_controller_with_model
-    (&self, path:ModulePath, model:Rc<model::Module>)
+    (&self, path:ModulePath, model:Rc<model::synchronized::Module>)
     -> controller::Module {
         let ls     = self.language_server_rpc.clone_ref();
         let parser = self.parser.clone_ref();
         controller::Module::new(path,model,ls,parser)
     }
 
-    async fn load_module(&self, path:ModulePath) -> FallibleResult<Rc<model::Module>> {
-        let model  = Rc::<model::Module>::default();
-        let module = self.module_controller_with_model(path,model.clone_ref());
-        module.load_file().await.map(move |()| model)
+    fn load_module(&self, path:ModulePath)
+    -> impl Future<Output=FallibleResult<Rc<model::synchronized::Module>>> {
+        let language_server = self.language_server_rpc.clone_ref();
+        let parser          = self.parser.clone_ref();
+        model::synchronized::Module::open(path,language_server,parser)
     }
 }
 

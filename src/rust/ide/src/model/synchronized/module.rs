@@ -1,4 +1,8 @@
+//! A Wrapper for module which synchronizes opening/closing and all changes with Language Server.
+
 use crate::prelude::*;
+
+use crate::model::module::Notification;
 
 use enso_protocol::types::Sha3_224;
 use enso_protocol::language_server;
@@ -6,19 +10,24 @@ use data::text::TextLocation;
 use parser::api::SerializedSourceFile;
 use parser::Parser;
 use enso_protocol::language_server::TextEdit;
-use crate::model::module::Notification;
+
 
 
 // =======================
 // === Content Summary ===
 // =======================
 
+/// The minimal information about module's content, required to do properly invalidation of opened
+/// module in Language Server.
 #[derive(Clone,Debug)]
 struct ContentSummary {
     digest      : Sha3_224,
     end_of_file : TextLocation,
 }
 
+/// The information about module's content, which was parsed at least once. In addition to minimal
+/// summery defined in `ContentSummary` it adds information about sections, what enables efficient
+/// updates after code and metadata changes.
 #[derive(Clone,Debug,Shrinkwrap)]
 struct ParsedContentSummary {
     #[shrinkwrap(main_field)]
@@ -29,6 +38,7 @@ struct ParsedContentSummary {
 }
 
 impl ParsedContentSummary {
+    /// Get summary from `SerializedSourceFile`.
     fn from_source(source:&SerializedSourceFile) -> Self {
         let summary = ContentSummary {
             digest      : Sha3_224::new(source.string.as_bytes()),
@@ -43,9 +53,13 @@ impl ParsedContentSummary {
     }
 }
 
+/// The information about state of the module currently held in LanguageServer.
 #[derive(Clone,Debug)]
 enum LanguageServerContent {
+    /// The content is synchronized with our module state after last fully handled notification.
     Synchronized(ParsedContentSummary),
+    /// The content is not synchronized with our module state after last fully handled notificaiton,
+    /// probably due to connection error when sending update.
     Desynchronized(ContentSummary)
 }
 
@@ -63,15 +77,30 @@ impl LanguageServerContent {
 // === Synchronized Module ===
 // ===========================
 
+/// A Module which state is synchronized with Language Server using its textual API.
+///
+/// This struct owns  `model::Module`, load the state during creation and updates LS about all
+/// changes done to it. On drop the module is closed in Language Server.
+///
+/// See also (enso protocol documentation)
+/// [https://github.com/luna/enso/blob/master/docs/language-server/protocol-language-server.md].
 #[derive(Debug)]
 pub struct Module {
     path            : controller::module::Path,
+    /// The module handle.
     pub model       : model::Module,
     language_server : Rc<language_server::Connection>,
     logger          : Logger,
 }
 
+
+// === Public API ===
+
 impl Module {
+    /// Open the module.
+    ///
+    /// This function will open the module in Language Server and schedule task which will send
+    /// updates about module's change to Language Server.
     pub async fn open
     ( path            : controller::module::Path
     , language_server : Rc<language_server::Connection>
@@ -83,6 +112,8 @@ impl Module {
         let opened = language_server.client.open_text_file(file_path).await?;
         trace!(logger, "Read content of module {path}, digest is {opened.current_version:?}");
         let end_of_file = TextLocation::at_document_end(&opened.content);
+        // TODO[ao] We should not fail here when metadata are malformed, but discard them and set
+        //  default instead.
         let source      = parser.parse_with_metadata(opened.content)?;
         let digest      = opened.current_version;
         let summary     = ContentSummary {digest,end_of_file};
@@ -92,6 +123,23 @@ impl Module {
         Ok(this)
     }
 
+    /// Create a module mock, which will not call any method of language server.
+    #[cfg(test)]
+    pub fn mock(path:controller::module::Path, model:model::Module) -> Rc<Self> {
+        let logger = Logger::new(iformat!("Mocked Module {path}"));
+        // We don't take client as arg, because it should not be called at all.
+        let language_server = language_server::Connection::new_mock_rc(default());
+        Rc::new(Module{path,model,language_server,logger})
+    }
+
+}
+
+
+// === Synchronizing Language Server ===
+
+impl Module {
+    /// The asynchronous task scheduled during struct creation which listens for all module changes
+    /// and send proper updates to Language Server.
     async fn runner(this:Rc<Self>, initial_ls_content: ContentSummary) {
         let first_invalidation = this.full_invalidation(&initial_ls_content).await;
         let mut ls_content     = this.new_ls_content_info(initial_ls_content, first_invalidation);
@@ -112,6 +160,10 @@ impl Module {
         }
     }
 
+    /// Get the updated Language Server content summary basing on result of some updating function
+    /// (`handle_notification` or `full_invalidation`. If the result is Error, then we assume that
+    /// any change was not applied to Language Server state, and mark the state as `Desynchronized`,
+    /// so any new update attempt should perform full invalidation.
     fn new_ls_content_info
     (&self, old_content:ContentSummary, new_content:FallibleResult<ParsedContentSummary>)
     -> LanguageServerContent {
@@ -124,7 +176,10 @@ impl Module {
         }
     }
 
-    async fn handle_notification(&self, content:&LanguageServerContent, notification:Notification) -> FallibleResult<ParsedContentSummary> {
+    /// Handle received notification. Returns the new content summery of Language Server state.
+    async fn handle_notification
+    (&self, content:&LanguageServerContent, notification:Notification)
+    -> FallibleResult<ParsedContentSummary> {
         match content {
             LanguageServerContent::Desynchronized(summary) => self.full_invalidation(summary).await,
             LanguageServerContent::Synchronized(summary)   => match notification {
@@ -150,7 +205,10 @@ impl Module {
         }
     }
 
-    async fn full_invalidation(&self, ls_content:&ContentSummary) -> FallibleResult<ParsedContentSummary> {
+    /// Send update to Language Server with the entire file content. Returns the new content summary
+    /// of Language Server state.
+    async fn full_invalidation
+    (&self, ls_content:&ContentSummary) -> FallibleResult<ParsedContentSummary> {
         let range = TextLocation::at_document_begin()..ls_content.end_of_file;
         self.notify_language_server(ls_content,|content| vec![TextEdit {
             range : range.into(),
@@ -158,6 +216,8 @@ impl Module {
         }]).await
     }
 
+    /// This is a helper function with all common logic regarding sending the update to
+    /// Language Server. Returns the new summary of Language Server state.
     async fn notify_language_server
     ( &self
     , ls_content        : &ContentSummary

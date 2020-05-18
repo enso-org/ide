@@ -18,7 +18,7 @@ use double_representation as dr;
 use enso_protocol::language_server;
 use parser::Parser;
 use failure::_core::fmt::Formatter;
-
+use enso_protocol::types::Sha3_224;
 
 
 // ==============
@@ -105,7 +105,7 @@ impl Display for Path {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     pub path            : Rc<Path>,
-    pub model           : Rc<model::Module>,
+    pub model           : Rc<model::synchronized::Module>,
     pub language_server : Rc<language_server::Connection>,
     pub parser          : Parser,
     pub logger          : Logger,
@@ -116,34 +116,26 @@ impl Handle {
     ///
     /// This function won't load module from file - it just get the state in `model` argument.
     pub fn new
-    (path:Path, model:Rc<model::Module>, language_server:Rc<language_server::Connection>, parser:Parser)
-    -> Self {
+    ( path            : Path
+    , model           : Rc<model::synchronized::Module>
+    , language_server : Rc<language_server::Connection>
+    , parser          : Parser
+    ) -> Self {
         let logger = Logger::new(format!("Module Controller {}", path));
         let path   = Rc::new(path);
         Handle {path,model,language_server,parser,logger}
     }
 
-    /// Load or reload module content from file.
-    pub async fn load_file(&self) -> FallibleResult<()> {
-        info!(self.logger,"Loading module file");
-        let path    = self.path.file_path().clone();
-        let content = self.language_server.client.read_file(&path).await?.contents;
-        info!(self.logger,"Parsing code");
-        // TODO[ao] We should not fail here when metadata are malformed, but discard them and set
-        //  default instead.
-        let parsed = self.parser.parse_with_metadata(content)?;
-        info!(self.logger,"Code parsed");
-        trace!(self.logger,"The parsed ast is {parsed.ast:?}");
-        self.model.update_whole(parsed);
-        Ok(())
-    }
 
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
-        let path    = self.path.file_path().clone();
+        let content = self.model.serialized_content();
+        let path    = self.path.clone_ref();
         let ls      = self.language_server.clone();
-        let content = self.model.serialized_content().map(|content| content.string);
-        async move { Ok(ls.client.write_file(&path,&content?).await?) }
+        async move {
+            let version = Sha3_224::new(content?.string.as_bytes());
+            Ok(ls.client.save_text_file(path.file_path(),&version).await?)
+        }
     }
 
     /// Updates AST after code change.
@@ -219,7 +211,8 @@ impl Handle {
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
         let ast    = parser.parse(code.to_string(),id_map.clone())?.try_into()?;
-        let model  = Rc::new(model::Module::new(ast, default()));
+        let model  = model::Module::new(ast, default());
+        let model  = model::synchronized::Module::mock(path.clone(),model);
         let path   = Rc::new(path);
         Ok(Handle {path,model,language_server,parser,logger})
     }

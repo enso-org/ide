@@ -399,7 +399,7 @@ impl EndpointInfo {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     /// Model of the module which this graph belongs to.
-    pub module : Rc<model::Module>,
+    pub module : Rc<model::synchronized::Module>,
     parser     : Parser,
     id         : Rc<Id>,
     logger     : Logger,
@@ -408,7 +408,7 @@ pub struct Handle {
 impl Handle {
 
     /// Creates a new controller. Does not check if id is valid.
-    pub fn new_unchecked(module:Rc<model::Module>, parser:Parser, id:Id) -> Handle {
+    pub fn new_unchecked(module:Rc<model::synchronized::Module>, parser:Parser, id:Id) -> Handle {
         let id     = Rc::new(id);
         let logger = Logger::new(format!("Graph Controller {}", id));
         Handle {module,parser,id,logger}
@@ -416,7 +416,8 @@ impl Handle {
 
     /// Creates a new graph controller. Given ID should uniquely identify a definition in the
     /// module. Fails if ID cannot be resolved.
-    pub fn new(module:Rc<model::Module>, parser:Parser, id:Id) -> FallibleResult<Handle> {
+    pub fn new
+    (module:Rc<model::synchronized::Module>, parser:Parser, id:Id) -> FallibleResult<Handle> {
         let ret = Self::new_unchecked(module,parser,id);
         // Get and discard definition info, we are just making sure it can be obtained.
         let _ = ret.graph_definition_info()?;
@@ -798,7 +799,9 @@ mod tests {
     fn node_operations() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let code   = "main = Hello World";
-            let module = model::Module::from_code_or_panic(code,default(),default());
+            let path   = controller::module::Path::from_module_name("Test");
+            let model  = model::Module::from_code_or_panic(code,default(),default());
+            let module = model::synchronized::Module::mock(path,model);
             let parser = Parser::new().unwrap();
             let pos    = model::module::Position {vector:Vector2::new(0.0,0.0)};
             let crumbs = vec![DefinitionName::new_plain("main")];

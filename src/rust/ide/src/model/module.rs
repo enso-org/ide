@@ -1,7 +1,4 @@
 //! This module contains all structures which describes Module state (code, ast, metadata).
-
-pub mod registry;
-
 use crate::prelude::*;
 
 use crate::notification;
@@ -9,7 +6,8 @@ use crate::double_representation::definition::DefinitionInfo;
 
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
-use parser::api::{SourceFile, SerializedSourceFile};
+use parser::api::SourceFile;
+use parser::api::SerializedSourceFile;
 use serde::Serialize;
 use serde::Deserialize;
 use data::text::TextChange;
@@ -207,10 +205,10 @@ impl Module {
     /// Create module state from given code, id_map and metadata.
     #[cfg(test)]
     pub fn from_code_or_panic<S:ToString>
-    (code:S, id_map:ast::IdMap, metadata:Metadata) -> Rc<Self> {
+    (code:S, id_map:ast::IdMap, metadata:Metadata) -> Self {
         let parser = parser::Parser::new_or_panic();
         let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
-        Rc::new(Self::new(ast,metadata))
+        Self::new(ast,metadata)
     }
 }
 
