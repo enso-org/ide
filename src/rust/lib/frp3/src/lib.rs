@@ -176,8 +176,15 @@ pub type Gate<Out> = Node<GateData,Out>;
 pub type AnyGate = NodeModel<GateData>;
 
 #[derive(Debug)]
-pub struct GateData { source:AnyNodeRef, condition:AnyNodeRef }
+pub struct GateData {source:AnyNodeRef, condition:AnyNodeRef}
 
+impl GateData {
+    pub fn new(source:impl Into<AnyNodeRef>, condition:impl Into<AnyNodeRef>) -> Self {
+        let source    = source.into();
+        let condition = condition.into();
+        Self {source,condition}
+    }
+}
 
 impl AnyGate {
     pub fn update(&mut self, network:&mut NetworkModel) -> bool {
@@ -266,6 +273,20 @@ impl Network {
         let any_node_ref = self.model.borrow_mut().insert(any_node);
         let node_ref     = TypedAnyNodeRef::unchecked_new(any_node_ref);
         Source::new(network,node_ref)
+    }
+
+    fn gate<S,C,Out:Default+'static>
+    (&self, source:Node<S,Out>, condition:Node<C,bool>) -> Gate<Out> {
+        let source       = source.generalize();
+        let condition    = condition.generalize();
+        let data:Out     = default();
+        let network      = self.downgrade();
+        let node_data    = GateData::new(source.node_ref.node_ref,condition.node_ref.node_ref);
+        let node_model   = NodeModel::new(node_data,data);
+        let any_node     = AnyNode::Gate(node_model);
+        let any_node_ref = self.model.borrow_mut().insert(any_node);
+        let node_ref     = TypedAnyNodeRef::unchecked_new(any_node_ref);
+        Gate::new(network,node_ref)
     }
 }
 
@@ -385,8 +406,11 @@ pub fn test () {
 
     let network = Network::default();
     let src1  : Source<usize> = network.source();
-    let src1_ : Stream<usize> = src1.into();
+    let src1_ : Stream<usize> = (&src1).into();
+    let cond  : Source<bool>  = network.source();
+    let gate  : Gate<usize>   = network.gate(src1,cond);
     println!("network: {:#?}", network);
+    // TODO: How to propagate initial value?
 }
 
 pub trait Adder {
