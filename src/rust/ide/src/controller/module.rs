@@ -199,7 +199,7 @@ mod test {
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(1),"2".to_string());
             controller.apply_code_change(&change).unwrap();
-            let expected_ast = Ast::module(ast::Module {
+            let expected_ast = Ast::new_no_id(ast::Module {
                 lines: vec![BlockLine {
                     elem: Some(Ast::new(ast::Infix {
                         larg : Ast::new(ast::Number{base:None, int:"22".to_string()}, Some(uuid1)),

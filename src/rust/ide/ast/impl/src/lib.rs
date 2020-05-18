@@ -240,13 +240,19 @@ impl Ast {
         Ast::from_ast_id_len(shape,Some(id),length)
     }
 
-    pub fn module(shape:Module<Ast>) -> Ast {
+    /// Wraps given shape with ID into Ast with random ID if id=None.
+    /// Length will ba automatically calculated based on Shape.
+    /// Should be only used on nodes that can't have ID because of scala AST design.
+    /// Example: Module, Section.opr, MacroMatchSegment.head
+    /// Tracking issue: https://github.com/luna/ide/issues/434
+    pub fn new_no_id<S:Into<Shape<Ast>>>(shape:S) -> Ast {
+        let shape  = shape.into();
         let length = shape.len();
-        Ast::from_ast_id_len(shape.into(),None,length)
+        Ast::from_ast_id_len(shape,None,length)
     }
 
     /// Just wraps shape, id and len into Ast node.
-    pub fn from_ast_id_len(shape:Shape<Ast>, id:Option<Id>, len:usize) -> Ast {
+    fn from_ast_id_len(shape:Shape<Ast>, id:Option<Id>, len:usize) -> Ast {
         let with_length = WithLength { wrapped:shape      , len };
         let with_id     = WithID     { wrapped:with_length, id  };
         Ast { wrapped: Rc::new(with_id) }
