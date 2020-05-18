@@ -80,8 +80,14 @@ impl Network {
 
     /// Passes the incoming event of the fisr stream only if the value of the second stream is true.
     pub fn gate<T1,T2>(&self, label:Label, event:&T1, behavior:&T2) -> Stream<Output<T1>>
-    where T1:EventOutput, T2:EventOutput<Output=bool> {
+        where T1:EventOutput, T2:EventOutput<Output=bool> {
         self.register(OwnedGate::new(label,event,behavior))
+    }
+
+    /// Like `gate` but passes the value when the condition is `false`.
+    pub fn gate_not<T1,T2>(&self, label:Label, event:&T1, behavior:&T2) -> Stream<Output<T1>>
+        where T1:EventOutput, T2:EventOutput<Output=bool> {
+        self.register(OwnedGateNot::new(label,event,behavior))
     }
 
     pub fn iter<T1,X>(&self, label:Label, event:&T1) -> Stream<X>
@@ -331,6 +337,11 @@ impl DynamicNetwork {
     pub fn gate<T1,T2>(self, label:Label, event:&T1, behavior:&T2) -> OwnedStream<Output<T1>>
     where T1:EventOutput, T2:EventOutput<Output=bool> {
         OwnedGate::new(label,event,behavior).into()
+    }
+
+    pub fn gate_not<T1,T2>(self, label:Label, event:&T1, behavior:&T2) -> OwnedStream<Output<T1>>
+    where T1:EventOutput, T2:EventOutput<Output=bool> {
+        OwnedGateNot::new(label,event,behavior).into()
     }
 
     pub fn iter<T1,X>(self, label:Label, event:&T1) -> OwnedStream<X>
@@ -822,6 +833,48 @@ where T1:EventOutput, T2:EventOutput<Output=bool> {
 
 impl<T1,T2> stream::InputBehaviors for GateData<T1,T2>
 where T2:EventOutput {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![Link::behavior(&self.behavior)]
+    }
+}
+
+
+
+// ===============
+// === GateNot ===
+// ===============
+
+#[derive(Debug)]
+pub struct GateNotData  <T1,T2> { event:T1, behavior:watch::Ref<T2> }
+pub type   OwnedGateNot <T1,T2> = stream::Node     <GateNotData<T1,T2>>;
+pub type   GateNot      <T1,T2> = stream::WeakNode <GateNotData<T1,T2>>;
+
+impl<T1:EventOutput,T2> HasOutput for GateNotData<T1,T2> {
+    type Output = Output<T1>;
+}
+
+impl<T1,T2> OwnedGateNot<T1,T2>
+    where T1:EventOutput,T2:EventOutput<Output=bool> {
+    /// Constructor.
+    pub fn new(label:Label, src:&T1, behavior:&T2) -> Self {
+        let event      = src.clone_ref();
+        let behavior   = watch_stream(behavior);
+        let definition = GateNotData {event,behavior};
+        Self::construct_and_connect(label,src,definition)
+    }
+}
+
+impl<T1,T2> stream::EventConsumer<Output<T1>> for OwnedGateNot<T1,T2>
+    where T1:EventOutput, T2:EventOutput<Output=bool> {
+    fn on_event(&self, event:&Output<T1>) {
+        if !self.behavior.value() {
+            self.emit_event(event)
+        }
+    }
+}
+
+impl<T1,T2> stream::InputBehaviors for GateNotData<T1,T2>
+    where T2:EventOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.behavior)]
     }

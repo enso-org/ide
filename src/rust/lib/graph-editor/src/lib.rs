@@ -111,6 +111,10 @@ where T:Eq+Hash, S:std::hash::BuildHasher {
     pub fn remove(&self, t:&T) -> bool {
         self.raw.borrow_mut().remove(t)
     }
+
+    pub fn contains(&self, value:&T) -> bool {
+        self.raw.borrow().contains(value)
+    }
 }
 
 impl<T,S> SharedHashSet<T,S> {
@@ -253,27 +257,35 @@ ensogl::def_command_api! { Commands
     debug_set_data_for_selected_node,
 
 
-    /// Enables nodes merge selection mode.
+    /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
+    enable_node_multi_select,
+    /// Disable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
+    disable_node_multi_select,
+    /// Toggle nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
+    toggle_node_multi_select,
+
+
+    /// Enable nodes merge selection mode.
     enable_node_merge_select,
-    /// Disables nodes merge selection mode.
+    /// Disable nodes merge selection mode.
     disable_node_merge_select,
     /// Toggles nodes merge selection mode.
     toggle_node_merge_select,
 
 
-    /// Enables nodes subtract selection mode.
+    /// Enable nodes subtract selection mode.
     enable_node_subtract_select,
-    /// Disables nodes subtract selection mode.
+    /// Disable nodes subtract selection mode.
     disable_node_subtract_select,
-    /// Toggles nodes subtract selection mode.
+    /// Toggle nodes subtract selection mode.
     toggle_node_subtract_select,
 
 
-    /// Enables nodes inverse selection mode.
+    /// Enable nodes inverse selection mode.
     enable_node_inverse_select,
-    /// Disables nodes inverse selection mode.
+    /// Disable nodes inverse selection mode.
     disable_node_inverse_select,
-    /// Toggles nodes inverse selection mode.
+    /// Toggle nodes inverse selection mode.
     toggle_node_inverse_select,
 }
 
@@ -286,6 +298,10 @@ impl Commands {
             def remove_all_nodes                 = source();
             def toggle_visualization_visibility  = source();
             def debug_set_data_for_selected_node = source();
+
+            def enable_node_multi_select         = source();
+            def disable_node_multi_select        = source();
+            def toggle_node_multi_select         = source();
 
             def enable_node_merge_select         = source();
             def disable_node_merge_select        = source();
@@ -301,6 +317,7 @@ impl Commands {
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
              ,toggle_visualization_visibility,debug_set_data_for_selected_node
+             ,enable_node_multi_select,disable_node_multi_select,toggle_node_multi_select
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
              ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select}
@@ -1062,10 +1079,16 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::Character("n".into())]) , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace])             , "remove_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character(" ".into())]) , "toggle_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Meta])                  , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Meta])                  , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control])               , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Control])               , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift])                 , "toggle_node_merge_select")
              , Self::self_shortcut(shortcut::Action::release (&[Key::Shift])                 , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control])               , "enable_node_merge_select")
-//             , Self::self_shortcut(shortcut::Action::release (&[Key::Control])               , "disable_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Alt])                   , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Alt])                   , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_node")
         ]
     }
@@ -1095,6 +1118,57 @@ impl application::View for GraphEditor {
     }
 }
 
+fn enable_disable_toggle
+(network:&frp::Network, enable:&frp::Source, disable:&frp::Source, toggle:&frp::Source)
+-> frp::Stream<bool> {
+    // FIXME: the clone_refs bellow should not be needed.
+    let enable  = enable.clone_ref();
+    let disable = disable.clone_ref();
+    let toggle  = toggle.clone_ref();
+    frp::extend! { network
+        out        <- gather();
+        on_toggle  <- toggle.map2(&out,|_,t| !t);
+        on_enable  <- enable.constant(true);
+        on_disable <- disable.constant(false);
+        out        <+ on_toggle;
+        out        <+ on_enable;
+        out        <+ on_disable;
+    }
+    out.into()
+}
+
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+pub enum SelectionMode {
+    Normal,Multi,Merge,Subtract,Inverse
+}
+
+impl SelectionMode {
+    pub fn single_should_select(&self, was_selected:bool) -> bool {
+        match self {
+            Self::Normal  => true,
+            Self::Merge   => true,
+            Self::Multi   => !was_selected,
+            Self::Inverse => !was_selected,
+            _             => false
+        }
+    }
+
+    pub fn single_should_deselect(&self, was_selected:bool) -> bool {
+        match self {
+            Self::Subtract => true,
+            Self::Multi    => was_selected,
+            Self::Inverse  => was_selected,
+            _              => false
+        }
+    }
+}
+
+impl Default for SelectionMode {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
 #[allow(unused_parens)]
 fn new_graph_editor(world:&World) -> GraphEditor {
     let scene  = world.scene();
@@ -1113,10 +1187,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let outputs = UnsealedFrpOutputs::new();
 
 
-    frp::extend! { network
-
     // === Selection Target Redirection ===
-
+    frp::extend! { network
     def mouse_down_target  = mouse.press.map(f_!(model.scene.mouse.target.get()));
     eval mouse_down_target([touch,model](target) {
         match target {
@@ -1128,9 +1200,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             }
         }
     });
+    }
 
 
     // === Cursor Selection ===
+    frp::extend! { network
 
     def mouse_on_down_position = mouse.position.sample(&mouse.press);
     def selection_zero         = source::<Position>();
@@ -1143,38 +1217,87 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     eval_ mouse.press   (cursor.frp.press.emit(()));
     eval_ mouse.release (cursor.frp.release.emit(()));
+    }
 
 
     // === Node Select ===
+    frp::extend! { network
 
     def deselect_all_nodes = gather_();
 
-    select_node             <- [inputs.select_node, touch.nodes.selected];
-
-    merge_select         <- gather();
-    toggle_merge_select  <- inputs.toggle_node_merge_select.map2(&merge_select,|_,t| !t);
-    enable_merge_select  <- inputs.enable_node_merge_select.constant(true);
-    disable_merge_select <- inputs.disable_node_merge_select.constant(false);
-    merge_select         <+ toggle_merge_select;
-    merge_select         <+ enable_merge_select;
-    merge_select         <+ disable_merge_select;
-
-    // FIXME: DEFAULT VALUE!!!
-    normal_select           <- merge_select.map(|t| !t);
+//    select_node <- [inputs.select_node, touch.nodes.selected];
 
 
-    deselect_on_select      <- select_node.gate(&normal_select);
+    let multi_select_flag = enable_disable_toggle
+        ( network
+        , &inputs.enable_node_multi_select
+        , &inputs.disable_node_multi_select
+        , &inputs.toggle_node_multi_select
+        );
+
+    let merge_select_flag = enable_disable_toggle
+        ( network
+        , &inputs.enable_node_merge_select
+        , &inputs.disable_node_merge_select
+        , &inputs.toggle_node_merge_select
+        );
+
+    let subtract_select_flag = enable_disable_toggle
+        ( network
+        , &inputs.enable_node_subtract_select
+        , &inputs.disable_node_subtract_select
+        , &inputs.toggle_node_subtract_select
+        );
+
+    let inverse_select_flag = enable_disable_toggle
+        ( network
+        , &inputs.enable_node_inverse_select
+        , &inputs.disable_node_inverse_select
+        , &inputs.toggle_node_inverse_select
+        );
+
+    selection_mode <- zip_with4
+        (&multi_select_flag,&merge_select_flag,&subtract_select_flag,&inverse_select_flag,
+        |multi,merge,subtract,inverse| {
+            if      *multi    { SelectionMode::Multi }
+            else if *merge    { SelectionMode::Merge }
+            else if *subtract { SelectionMode::Subtract }
+            else if *inverse  { SelectionMode::Inverse }
+            else              { SelectionMode::Normal }
+        }
+    );
+
+    let node_pressed = touch.nodes.selected.clone_ref();
+
+    node_was_selected <- node_pressed.map(f!((id) model.nodes.selected.contains(id)));
+
+    should_select <- node_pressed.map3(&selection_mode,&node_was_selected,
+        |_,mode,was_selected| mode.single_should_select(*was_selected)
+    );
+
+    should_deselect <- node_pressed.map3(&selection_mode,&node_was_selected,
+        |_,mode,was_selected| mode.single_should_deselect(*was_selected)
+    );
+
+    keep_selection          <- selection_mode.map(|t| *t != SelectionMode::Normal);
+    deselect_on_select      <- node_pressed.gate_not(&keep_selection);
     deselect_all_nodes      <+ deselect_on_select;
-    outputs.node_selected   <+ select_node;
     deselect_all_nodes      <+ inputs.deselect_all_nodes;
 
-    deselect_on_bg_press    <- touch.background.selected.gate(&normal_select);
+    deselect_on_bg_press    <- touch.background.selected.gate_not(&keep_selection);
     deselect_all_nodes      <+ deselect_on_bg_press;
-    selected_nodes          <- deselect_all_nodes.map(f_!(model.nodes.selected.mem_take())).iter();
-    outputs.node_deselected <+ selected_nodes;
+    all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.nodes.selected.mem_take()));
+    outputs.node_deselected <+ all_nodes_to_deselect;
+
+    node_selected           <- node_pressed.gate(&should_select);
+    node_deselected         <- node_pressed.gate(&should_deselect);
+    outputs.node_selected   <+ node_selected;
+    outputs.node_deselected <+ node_deselected;
+    }
 
 
     // === Node Connect ===
+    frp::extend! { network
 
     outputs.edge_source_set <+ inputs.connect_edge_source;
     outputs.edge_target_set <+ inputs.connect_edge_target;
@@ -1194,9 +1317,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     overlapping_edges       <= outputs.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
     outputs.edge_removed    <+ overlapping_edges;
+    }
 
 
     // === Add Node ===
+    frp::extend! { network
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
     add_node           <- [inputs.add_node, add_node_at_cursor];
@@ -1205,9 +1330,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
     outputs.node_position_set <+ node_with_position;
+    }
 
 
     // === Remove Node ===
+    frp::extend! { network
 
     all_nodes       <= inputs.remove_all_nodes      . map(f_!(model.all_nodes()));
     selected_nodes  <= inputs.remove_selected_nodes . map(f_!(model.selected_nodes()));
@@ -1215,10 +1342,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval nodes_to_remove ((node_id) inputs.remove_all_node_edges.emit(node_id));
 
     outputs.node_removed <+ nodes_to_remove;
-
+    }
 
 
     // === Remove Edge ===
+    frp::extend! { network
 
     rm_input_edges       <- [inputs.remove_all_node_edges, inputs.remove_all_node_input_edges];
     rm_output_edges      <- [inputs.remove_all_node_edges, inputs.remove_all_node_output_edges];
@@ -1226,11 +1354,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     output_edges_to_rm   <= rm_output_edges . map(f!((node_id) model.node_out_edges(node_id)));
     edges_to_rm          <- [inputs.remove_edge, input_edges_to_rm, output_edges_to_rm];
     outputs.edge_removed <+ edges_to_rm;
-
-
+    }
 
 
     // === Set NodeView Expression ===
+    frp::extend! { network
 
     eval inputs.set_node_expression(((node_id,expr)) model.set_node_expression(node_id,expr));
 
