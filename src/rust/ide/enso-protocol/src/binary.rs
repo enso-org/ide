@@ -1,5 +1,6 @@
 //! Crate containing the Engine Services binary protocol interface.
 
+pub mod connection;
 pub mod uuid;
 
 #[allow(dead_code, unused_imports)]
