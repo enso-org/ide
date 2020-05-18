@@ -61,7 +61,7 @@ fn test_file_event_notification() {
                 }
             }
         }"#;
-    fixture.transport.mock_peer_message_text(notification_text);
+    fixture.transport.mock_peer_text_message(notification_text);
     assert!(poll_stream_output(&mut events).is_none());
 
     fixture.executor.run_until_stalled();
@@ -92,12 +92,12 @@ where Fun : FnOnce(&mut Client) -> Fut,
     let mut fixture        = setup_language_server();
     let mut request_future = Box::pin(make_request(&mut fixture.client));
 
-    let request = fixture.transport.expect_message::<RequestMessage<Value>>();
+    let request = fixture.transport.expect_json_message::<RequestMessage<Value>>();
     assert_eq!(request.method, expected_method);
     assert_eq!(request.params, expected_input);
 
     let response = Message::new_success(request.id, result);
-    fixture.transport.mock_peer_message(response);
+    fixture.transport.mock_peer_json_message(response);
     fixture.executor.run_until_stalled();
     let output = poll_future_output(&mut request_future).unwrap().unwrap();
     assert_eq!(output, expected_output);
@@ -128,19 +128,19 @@ fn test_file_requests() {
     let unit_json = json!(null);
 
     test_request(
-        |client| client.copy_file(main.clone(), target.clone()),
+        |client| client.copy_file(&main, &target),
         "file/copy",
         from_main_to_target.clone(),
         unit_json.clone(),
         ());
     test_request(
-        |client| client.delete_file(main.clone()),
+        |client| client.delete_file(&main),
         "file/delete",
         path_main.clone(),
         unit_json.clone(),
         ());
     test_request(
-        |client| client.file_exists(main.clone()),
+        |client| client.file_exists(&main),
         "file/exists",
         path_main.clone(),
         file_exists_json,
@@ -179,13 +179,13 @@ fn test_file_requests() {
         ]
     };
     test_request(
-        |client| client.file_list(main.clone()),
+        |client| client.file_list(&main),
         "file/list",
         path_main.clone(),
         list_response_json,
         list_response_value);
     test_request(
-        |client| client.move_file(main.clone(), target.clone()),
+        |client| client.move_file(&main, &target),
         "file/move",
         from_main_to_target.clone(),
         unit_json.clone(),
@@ -194,7 +194,7 @@ fn test_file_requests() {
     let read_response_json = json!({"contents":"Hello world!"});
     let read_response      = response::Read { contents: "Hello world!".into() };
     test_request(
-        |client| client.read_file(main.clone()),
+        |client| client.read_file(&main),
         "file/read",
         path_main.clone(),
         read_response_json,
@@ -235,7 +235,7 @@ fn test_file_requests() {
         "byteSize" : 125125
     }});
     test_request(
-        |client| client.file_info(main.clone()),
+        |client| client.file_info(&main),
         "file/info",
         path_main.clone(),
         sample_attributes_json,
@@ -244,13 +244,13 @@ fn test_file_requests() {
             "object" : file_system_object_json
         });
     test_request(
-        |client| client.create_file(file_system_object),
+        |client| client.create_file(&file_system_object),
         "file/create",
         create_file_json.clone(),
         unit_json.clone(),
         ());
     test_request(
-        |client| client.write_file(main.clone(), "Hello world!".into()),
+        |client| client.write_file(&main, &"Hello world!".to_string()),
         "file/write",
         json!({
             "path" : {
@@ -269,7 +269,7 @@ fn test_protocol_connection() {
         content_roots: vec![uuid::Uuid::default()]
     };
     test_request(
-        |client| client.init_protocol_connection(uuid::Uuid::default()),
+        |client| client.init_protocol_connection(&uuid::Uuid::default()),
         "session/initProtocolConnection",
         json!({
             "clientId" : "00000000-0000-0000-0000-000000000000"
@@ -291,7 +291,7 @@ fn test_acquire_capability() {
     let receives_tree_updates = ReceivesTreeUpdates { path };
     let options               = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
     test_request(
-        |client| client.acquire_capability("receivesTreeUpdates".into(), options),
+        |client| client.acquire_capability(&"receivesTreeUpdates".to_string(), &options),
         "capability/acquire",
         json!({
             "method"          : "receivesTreeUpdates",
@@ -322,12 +322,13 @@ fn test_execution_context() {
     let method           = "executionContext/receivesUpdates".to_string();
     let receives_updates = CapabilityRegistration{method,register_options};
     let create_execution_context_response = response::CreateExecutionContext
-    {can_modify,receives_updates};
+    {context_id,can_modify,receives_updates};
     test_request(
         |client| client.create_execution_context(),
         "executionContext/create",
         json!({}),
         json!({
+            "contextId" : "00000000-0000-0000-0000-000000000000",
             "canModify" : {
                 "method"          : "executionContext/canModify",
                 "registerOptions" : {
@@ -344,7 +345,7 @@ fn test_execution_context() {
         create_execution_context_response
     );
     test_request(
-        |client| client.destroy_execution_context(context_id),
+        |client| client.destroy_execution_context(&context_id),
         "executionContext/destroy",
         json!({"contextId":"00000000-0000-0000-0000-000000000000"}),
         unit_json.clone(),
@@ -354,7 +355,7 @@ fn test_execution_context() {
     let local_call    = LocalCall {expression_id};
     let stack_item    = StackItem::LocalCall(local_call);
     test_request(
-        |client| client.push_execution_context(context_id,stack_item),
+        |client| client.push_to_execution_context(&context_id,&stack_item),
         "executionContext/push",
         json!({
             "contextId" : "00000000-0000-0000-0000-000000000000",
@@ -367,7 +368,7 @@ fn test_execution_context() {
         ()
     );
     test_request(
-        |client| client.pop_execution_context(context_id),
+        |client| client.pop_from_execution_context(&context_id),
         "executionContext/pop",
         json!({"contextId":"00000000-0000-0000-0000-000000000000"}),
         unit_json.clone(),
@@ -381,7 +382,7 @@ fn test_execution_context() {
     {execution_context_id:context_id,expression,visualisation_module};
     test_request(
         |client|
-            client.attach_visualisation(visualisation_id,expression_id,visualisation_config),
+            client.attach_visualisation(&visualisation_id,&expression_id,&visualisation_config),
         "executionContext/attachVisualisation",
         json!({
             "visualisationId"     : "00000000-0000-0000-0000-000000000000",
@@ -396,7 +397,7 @@ fn test_execution_context() {
         ()
     );
     test_request(
-        |client| client.detach_visualisation(context_id,visualisation_id,expression_id),
+        |client| client.detach_visualisation(&context_id,&visualisation_id,&expression_id),
         "executionContext/detachVisualisation",
         json!({
             "contextId"       : "00000000-0000-0000-0000-000000000000",
@@ -411,7 +412,7 @@ fn test_execution_context() {
     let visualisation_config = VisualisationConfiguration
     {execution_context_id:context_id,expression,visualisation_module};
     test_request(
-        |client| client.modify_visualisation(visualisation_id,visualisation_config),
+        |client| client.modify_visualisation(&visualisation_id,&visualisation_config),
         "executionContext/modifyVisualisation",
         json!({
             "visualisationId"     : "00000000-0000-0000-0000-000000000000",
@@ -434,7 +435,7 @@ fn test_execution_context() {
     let open_text_file_response = response::OpenTextFile
     {content,current_version:current_version.clone(),write_capability};
     test_request(
-        |client| client.open_text_file(main.clone()),
+        |client| client.open_text_file(&main),
         "text/openFile",
         json!({
             "path" : {
@@ -468,7 +469,7 @@ fn test_execution_context() {
     let path        = main.clone();
     let edit        = FileEdit {path,edits,old_version,new_version:new_version.clone()};
     test_request(
-        |client| client.apply_text_file_edit(edit),
+        |client| client.apply_text_file_edit(&edit),
         "text/applyEdit",
         json!({
             "edit" : {
@@ -499,7 +500,7 @@ fn test_execution_context() {
         ()
     );
     test_request(
-        |client| client.save_text_file(main.clone(),current_version),
+        |client| client.save_text_file(&main,&current_version),
         "text/save",
         json!({
             "path" : {
@@ -512,7 +513,7 @@ fn test_execution_context() {
         ()
     );
     test_request(
-        |client| client.close_text_file(main),
+        |client| client.close_text_file(&main),
         "text/closeFile",
         json!({
             "path" : {
