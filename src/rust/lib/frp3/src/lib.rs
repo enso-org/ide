@@ -1,41 +1,93 @@
 #![feature(test)]
+#![feature(trait_alias)]
 
 extern crate test;
 
 
+use enso_prelude::*;
+
 use std::os::raw::c_void;
+
+
+pub trait Data = Clone;
+
+pub trait HasOutput {
+    type Output;
+}
+
+pub type Output<T> = <T as HasOutput>::Output;
+
 
 
 pub trait EventConsumer<T> {
     fn on_event(&self, data:&T);
 }
 
-pub struct Node<Def> {
+pub type Node<Def> = NodeTemplate<Def,Output<Def>>;
+
+pub struct NodeTemplate<Def,Out> {
     pub definition : Def,
     pub targets    : Vec<usize>,
     pub watchers   : Vec<usize>,
+    pub value      : Out,
+    pub active     : bool,
+}
+
+impl<Def,Out> Deref for NodeTemplate<Def,Out> {
+    type Target = Def;
+    fn deref(&self) -> &Self::Target {
+        &self.definition
+    }
+}
+
+impl<Def,Out> HasOutput for NodeTemplate<Def,Out> {
+    type Output = Out;
+}
+
+impl<Def,Out> ValueProvider for NodeTemplate<Def,Out> {
+    fn value(&self) -> &Self::Output {
+        &self.value
+    }
 }
 
 
-pub enum AnyDef {
-
+pub trait ValueProvider : HasOutput {
+    fn value(&self) -> &Self::Output;
 }
 
+pub trait OutputData = HasOutput where Output<Self>:Data;
+
+pub trait Foo               : ValueProvider + OutputData {}
+impl<T>   Foo for T where T : ValueProvider + OutputData {}
 
 
-pub struct Inc {}
 
-impl EventConsumer<usize> for Inc {
-    fn on_event(&self, data:&usize) {}
+// ============
+// === Gate ===
+// ============
+
+pub struct GateData<T1,T2> { source:T1, condition:T2 }
+pub type Gate<T1,T2> = Node<GateData<T1,T2>>;
+
+impl<T1,T2> HasOutput for GateData<T1,T2>
+where T1:HasOutput {
+    type Output = Output<T1>;
 }
 
-
-
-
-
-pub struct Network {
-    nodes: Vec<Node<AnyDef>>,
+impl<T1,T2> Gate<T1,T2>
+where T1:Foo, T2:Foo<Output=bool> {
+    pub fn update(&mut self) -> bool {
+        let condition = *self.condition.value();
+        if  condition { self.value = self.source.value().clone() }
+        condition
+    }
 }
+
+//
+//
+//pub struct Network {
+//    nodes: Vec<Node<AnyDef>>,
+//}
 
 
 pub fn add(i:usize) -> usize {
