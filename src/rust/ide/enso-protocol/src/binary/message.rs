@@ -10,18 +10,36 @@ use flatbuffers::FlatBufferBuilder;
 use json_rpc::Transport;
 
 
+
+// ===============
+// === Aliases ===
+// ===============
+
+pub type MessageFromServerOwned = Message<FromServerOwned>;
+
+pub type MessageToServerRef<'a> = Message<ToServerPayload<'a>>;
+
+
+
+// ===============
+// === Message ===
+// ===============
+
 /// Common message envelope for binary protocol.
 ///
 /// `T` should represent the payload.
 #[derive(Clone,Debug)]
 pub struct Message<T> {
+    /// Each message bears unique id.
     pub message_id     : Uuid,
+    /// When sending reply, server sets this to the request's `message_id`.
     pub correlation_id : Option<Uuid>,
     pub payload        : T,
 }
 
 impl<T> Message<T> {
-    pub fn new(payload:T) -> Message<T> {
+    /// Wraps the given payload into a message envelope. Generates a unique ID for the message.
+    pub fn new_to_server(payload:T) -> Message<T> {
         Message {
             message_id     : Uuid::new_v4(),
             correlation_id : None,
@@ -30,30 +48,7 @@ impl<T> Message<T> {
     }
 }
 
-/// When payload supports serialization, we can serialize the whole message.
-impl<T: IsPayloadToServer> Message<T> {
-    pub fn write_message(&self, builder:&mut FlatBufferBuilder) {
-        self.payload.write_message(builder,self.message_id,self.correlation_id)
-    }
-
-    pub fn build_buffer(&self) -> FlatBufferBuilder {
-        let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
-        self.write_message(&mut builder);
-        builder
-    }
-
-    pub fn with_serialized<R>(&self, f:impl FnOnce(&[u8]) -> R) -> R {
-        let buffer = self.build_buffer();
-        let data = buffer.finished_data();
-        f(data)
-    }
-}
-
-pub type MessageFromServerOwned = Message<FromServerOwned>;
-
-pub type MessageToServer<'a> = Message<ToServerPayload<'a>>;
-
-impl<'a> crate::new_handler::MessageToServer for MessageToServer<'a> {
+impl<'a> crate::new_handler::Request for MessageToServerRef<'a> {
     type Id = Uuid;
 
     fn send(&self, transport:&mut dyn Transport) -> FallibleResult<()> {

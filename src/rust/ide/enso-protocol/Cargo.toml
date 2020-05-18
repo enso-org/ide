@@ -18,6 +18,7 @@ chrono      = { version = "0.4"  , features = ["serde"]                       }
 failure     = { version = "0.1.8"                                             }
 flatbuffers = { version = "0.5"                                               }
 futures     = { version = "0.3.1"                                             }
+mockall = { version = "0.7.1", features = ["nightly"] }
 hex         = { version = "0.4.2"                                             }
 serde       = { version = "1.0"  , features = ["derive"]                      }
 serde_json  = { version = "1.0"                                               }

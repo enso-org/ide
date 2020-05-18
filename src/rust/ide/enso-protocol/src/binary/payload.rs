@@ -41,7 +41,7 @@ pub trait IsOwnedPayloadFromServer {
     fn payload_type(&self) -> Self::PayloadType;
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Copy)]
 pub struct VisualisationContext {
     pub visualization_id : Uuid,
     pub context_id       : Uuid,

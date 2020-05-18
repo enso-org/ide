@@ -7,7 +7,6 @@ use crate::messages::Error;
 use crate::messages::Response;
 
 use futures::channel::oneshot::Canceled;
-use crate::error::RpcError::RemoteError;
 
 
 
@@ -36,8 +35,9 @@ pub enum RpcError {
 }
 
 impl RpcError {
+    /// Wraps provided by the remote peer code and message into a `RpcError`.
     pub fn new_remote_error(code:i64, message:impl Str) -> RpcError {
-        RemoteError(Error {
+        RpcError::RemoteError(Error {
             code,
             message : message.into(),
             data    : None,

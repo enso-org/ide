@@ -50,6 +50,28 @@ pub trait API {
     fn read_file(&self, path:&LSPath) -> LocalBoxFuture<FallibleResult<Vec<u8>>>;
 }
 
+use mockall::mock;
+
+mock!{
+    Client {
+        fn init_ready(&self, client_id:Uuid) -> FallibleResult<()>;
+        fn write_file_ready(&self, path:&LSPath, contents:&[u8]) -> FallibleResult<()>;
+        fn read_file_ready(&self, path:&LSPath) -> FallibleResult<Vec<u8>>;
+    }
+}
+
+impl API for MockClient {
+    fn init(&self, client_id:Uuid) -> LocalBoxFuture<FallibleResult<()>> {
+        futures::future::ready(self.init_ready(client_id)).boxed_local()
+    }
+    fn write_file(&self, path:&LSPath, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>> {
+        futures::future::ready(self.write_file_ready(path,contents)).boxed_local()
+    }
+    fn read_file(&self, path:&LSPath) -> LocalBoxFuture<FallibleResult<Vec<u8>>>{
+        futures::future::ready(self.read_file_ready(path)).boxed_local()
+    }
+}
+
 #[derive(Clone,Derivative)]
 #[derivative(Debug)]
 pub struct Client {
@@ -108,7 +130,7 @@ impl Client {
     where F : FnOnce(FromServerOwned) -> FallibleResult<R>,
           R : 'static,
           F : 'static, {
-        let message = Message::new(payload);
+        let message = Message::new_to_server(payload);
         let id = message.message_id;
 
         let logger = self.logger.clone_ref();
@@ -164,25 +186,6 @@ mod tests {
 
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     wasm_bindgen_test_configure!(run_in_browser);
-
-
-    #[test]
-    fn uuid_round_trips() {
-        //let uuid = Uuid::new_v4();
-        let uuid = Uuid::parse_str("6de39f7b-df3a-4a3c-84eb-5eaf96ddbac2").unwrap();
-        println!("uuid bytes: {:?}", uuid.as_bytes());
-        println!("initial uuid: {:?}", uuid);
-        let enso = EnsoUUID::from(uuid);
-        println!("enso-uuid: {:?}", enso);
-
-        let uuid2 = Uuid::from(enso);
-        println!("restored uuid: {:?}", uuid2);
-
-        let enso_uuid = EnsoUUID::from(uuid);
-        println!("uuid bytes: {:?}", enso_uuid.leastSigBits().to_le_bytes());
-
-        assert_eq!(uuid,Uuid::from(EnsoUUID::from(uuid)));
-    }
 
 
     #[wasm_bindgen_test::wasm_bindgen_test(async)]

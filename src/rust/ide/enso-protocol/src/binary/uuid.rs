@@ -1,10 +1,12 @@
-
+//! Utilities related to UUID: extensions to the `uuid::Uuid`, the binary protocol's `EnsoUUID`
+//! and conversions between them.
 
 use crate::prelude::*;
 
 use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary::EnsoUUID;
 
 impl EnsoUUID {
+    /// Creates a new random EnsoUUID.
     pub fn new_v4() -> EnsoUUID {
         Uuid::new_v4().into()
     }
@@ -70,3 +72,19 @@ impls! { From + &From <EnsoUUID> for Uuid {
         Uuid::from_bytes(bytes)
     }
 }}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f32::consts::PI;
+
+    #[test]
+    fn uuid_round_trips() {
+        //let uuid = Uuid::new_v4();
+        let uuid = Uuid::parse_str("6de39f7b-df3a-4a3c-84eb-5eaf96ddbac2").unwrap();
+        let enso = EnsoUUID::from(uuid);
+        let uuid2 = Uuid::from(enso);
+        assert_eq!(uuid,uuid2);
+    }
+}
+

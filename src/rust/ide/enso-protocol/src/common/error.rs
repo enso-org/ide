@@ -13,7 +13,7 @@ pub struct UnexpectedTextMessage;
 #[fail(display = "Failed to deserialize the received message. {}", _0)]
 pub struct DeserializationError(pub String);
 
-#[derive(Debug,Fail,Clone)]
+#[derive(Debug,Fail,Clone,Copy)]
 #[fail(display = "Received a message that is neither a response nor a notification")]
 pub struct UnexpectedMessage;
 

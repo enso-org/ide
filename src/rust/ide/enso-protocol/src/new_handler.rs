@@ -13,7 +13,9 @@ use crate::common::ongoing_calls::OngoingCalls;
 use crate::common::event::Event;
 
 /// Describes how the given server's message should be dealt with.
-pub enum Disposition<Id,Reply,Notification> {
+#[derive(Debug)]
+pub enum Disposition<Id,Reply,Notification>
+where Id:Debug, Reply:Debug, Notification:Debug {
     /// Ignore the message.
     Ignore,
     /// Treat as a reply to an open request.
@@ -30,7 +32,8 @@ pub enum Disposition<Id,Reply,Notification> {
     },
 }
 
-impl<Id,Reply,Notification> Disposition<Id,Reply,Notification> {
+impl<Id,Reply,Notification> Disposition<Id,Reply,Notification>
+where Id:Debug, Reply:Debug, Notification:Debug {
     pub fn notify(notification:Notification) -> Self {
         Disposition::EmitEvent {event:Event::Notification(notification)}
     }
@@ -73,7 +76,8 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
 
     fn emit_event(&mut self, event:Event<Notification>) {
         if let Some(mut sender) = self.sender.as_ref() {
-            sender.send(event);
+            // Error can happen if there is no listener. But we don't mind this.
+            let _ = sender.unbounded_send(event);
         }
     }
 
@@ -106,7 +110,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     }
 
     pub fn make_request<F,R>
-    (&mut self, message:&dyn MessageToServer<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
+    (&mut self, message:&dyn Request<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {
         let id  = message.id();
         let ret = self.ongoing_calls.open_new_request(id,f);
@@ -131,14 +135,17 @@ where Id           : Eq+Hash+Debug,
     state  : Rc<RefCell<HandlerData<Id,Reply,Notification>>>,
 }
 
-
-pub trait MessageToServer : Debug {
+/// A value that can be used to represent a request to remote RPC server.
+pub trait Request : Debug {
+    /// Request ID.
     type Id : Copy;
+
+    /// Send the message to the peer using the provided transport.
     fn send(&self, transport:&mut dyn Transport) -> FallibleResult<()>;
+
+    /// Request ID, that will be used later to associate peer's response.
     fn id(&self) -> Self::Id;
 }
-
-pub trait Decoder<Reply,R> = FnOnce(Reply) -> FallibleResult<R>;
 
 impl <Id,Reply,Notification> HandlerHandle<Id,Reply,Notification>
 where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
@@ -156,7 +163,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     }
 
     pub fn make_request<F,R>
-    (&self, message:&dyn MessageToServer<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
+    (&self, message:&dyn Request<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {
         self.state.borrow_mut().make_request(message, f)
     }
