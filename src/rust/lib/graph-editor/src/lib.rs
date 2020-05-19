@@ -443,15 +443,19 @@ macro_rules! generate_frp_outputs {
 
 
 generate_frp_outputs! {
-    node_added        : NodeId,
-    edge_added        : EdgeId,
-    node_removed      : NodeId,
-    edge_removed      : EdgeId,
-    node_selected     : NodeId,
-    node_deselected   : NodeId,
-    node_position_set : (NodeId,Position),
-    edge_source_set   : (EdgeId,EdgeTarget),
-    edge_target_set   : (EdgeId,EdgeTarget),
+    node_added         : NodeId,
+    node_removed       : NodeId,
+    node_selected      : NodeId,
+    node_deselected    : NodeId,
+    node_position_set  : (NodeId,Position),
+
+    edge_added         : EdgeId,
+    edge_removed       : EdgeId,
+    edge_source_set    : (EdgeId,EdgeTarget),
+    edge_target_set    : (EdgeId,EdgeTarget),
+
+    connection_added   : EdgeId,
+    connection_removed : EdgeId,
 }
 
 
@@ -522,6 +526,14 @@ impl Edge {
 
     pub fn source(&self) -> Option<EdgeTarget> {
         self.source.borrow().as_ref().map(|t| t.clone_ref())
+    }
+
+    pub fn has_source(&self) -> bool {
+        self.source.borrow().is_some()
+    }
+
+    pub fn has_target(&self) -> bool {
+        self.target.borrow().is_some()
     }
 
     pub fn set_source(&self, source:EdgeTarget) {
@@ -920,6 +932,14 @@ impl GraphEditorModel {
             node.view.ports.set_expression(expr);
         }
     }
+
+    fn is_connection(&self, edge_id:impl Into<EdgeId>) -> bool {
+        let edge_id = edge_id.into();
+        match self.edges.get_cloned_ref(&edge_id) {
+            None    => false,
+            Some(e) => e.has_source() && e.has_target()
+        }
+    }
 }
 
 
@@ -1162,6 +1182,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let touch   = &model.touch_state;
 
     let outputs = UnsealedFrpOutputs::new();
+    let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
 
     // === Selection Target Redirection ===
@@ -1406,18 +1427,22 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === OUTPUTS REBIND ===
 
-
-
-
-    let outputs = outputs.seal();
-
-
     eval outputs.edge_source_set (((id,tgt)) model.connect_edge_source(*id,tgt));
     eval outputs.edge_target_set (((id,tgt)) model.connect_edge_target(*id,tgt));
     eval outputs.node_selected   ((id) model.select_node(id));
     eval outputs.node_deselected ((id) model.deselect_node(id));
     eval outputs.edge_removed    ((id) model.remove_edge(id));
     eval outputs.node_removed    ((id) model.remove_node(id));
+
+
+
+    // === Connection discovery ===
+
+    edge_endpoint_set          <- [outputs.edge_source_set,outputs.edge_target_set]._0();
+    both_endpoints_set         <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
+    new_connection             <- edge_endpoint_set.gate(&both_endpoints_set);
+    outputs.connection_added   <+ new_connection;
+    outputs.connection_removed <+ outputs.edge_removed;
 
 
 
@@ -1440,6 +1465,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
 
     let inputs = inputs.clone_ref();
+    let outputs = sealed_outputs;
     let frp = Frp {inputs,outputs,status,node_release};
 
     GraphEditor {model,frp}
