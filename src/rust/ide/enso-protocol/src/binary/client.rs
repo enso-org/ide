@@ -2,12 +2,12 @@
 //! `MockClient`.
 
 use crate::prelude::*;
-use crate::new_handler::{HandlerHandle, Disposition};
-use crate::binary::payload::{FromServerOwned, ToServerPayload};
+use crate::new_handler::{Handler, Disposition};
+use crate::binary::message::{FromServerOwned, ToServerPayload};
 use json_rpc::error::RpcError;
 use json_rpc::{TransportEvent, Transport};
 use crate::common::error::{UnexpectedTextMessage, UnexpectedMessage};
-use crate::binary::message::{MessageFromServerOwned, Message};
+use crate::binary::message::{MessageFromServerOwned, Message, VisualisationContext};
 
 use crate::language_server::types as ls;
 
@@ -17,14 +17,6 @@ use mockall::mock;
 /// lifetime of the client, which is not the desired behavior.
 type LocalBoxFuture<T> = futures::future::LocalBoxFuture<'static, T>;
 
-/// Identifies the visualization.
-#[allow(missing_docs)]
-#[derive(Clone,Debug,Copy)]
-pub struct VisualisationContext {
-    pub visualization_id : Uuid,
-    pub context_id       : Uuid,
-    pub expression_id    : Uuid,
-}
 
 /// The notifications that binary protocol client may receive.
 #[derive(Clone,Debug)]
@@ -58,7 +50,7 @@ pub trait API {
 #[derive(Clone,Derivative)]
 #[derivative(Debug)]
 pub struct Client {
-    handler : HandlerHandle<Uuid,FromServerOwned,Notification>,
+    handler : Handler<Uuid,FromServerOwned,Notification>,
     logger  : Logger,
 }
 
@@ -113,7 +105,7 @@ impl Client {
         let processor = Self::processor(logger.clone_ref());
         Client {
             logger  : logger.clone_ref(),
-            handler : HandlerHandle::new(transport,logger,processor),
+            handler : Handler::new(transport, logger, processor),
         }
     }
 
@@ -213,7 +205,7 @@ mod tests {
     use json_rpc::test_util::transport::mock::MockTransport;
     use futures::task::LocalSpawnExt;
     use chrono::format::Item::Fixed;
-    use crate::binary::payload::ToServerPayloadOwned;
+    use crate::binary::message::ToServerPayloadOwned;
     use crate::binary::payload::DeserializableToServer;
 
 
@@ -257,6 +249,8 @@ mod tests {
         assert_eq!(generated_message.payload,expected_payload);
 
         let mock_reply = Message::new(FromServerOwned::Success {});
+        //mock_reply.with_serialized(|_| {});
+
 
 
         println!("payload verified");

@@ -81,6 +81,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
         }
     }
 
+    /// Feeds the reply to complete the corresponding open request.
     fn process_reply(&mut self, id:Id, reply:Reply) {
         info!(self.logger,"Processing reply to request {id}: {reply:?}");
         if let Err(error) = self.ongoing_calls.complete_request(id,reply) {
@@ -88,12 +89,18 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
         }
     }
 
+    /// Helper that wraps error into an appropriate event value and emits it.
     fn emit_error(&mut self, error:impl Into<failure::Error> + Debug) {
         info!(self.logger,"Emitting error: {error:?}");
         let event = Event::Error(error.into());
         self.emit_event(event);
     }
 
+    /// Handles incoming transport event. The `processor` is used to decide the further processing
+    /// path.
+    ///
+    /// Main entry point for input data while running. Should be connected to the `Transport`s
+    /// output event stream.
     pub fn process_event(&mut self, event:TransportEvent) {
         info!(self.logger, "Transport event received: {event:?}");
         match (self.processor)(event) {
@@ -121,7 +128,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
 
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct HandlerHandle<Id,Reply,Notification:Debug>
+pub struct Handler<Id,Reply,Notification:Debug>
 where Id           : Eq+Hash+Debug,
       Notification : Debug,
       Reply        : Debug, {
@@ -141,7 +148,7 @@ pub trait Request : Debug {
     fn id(&self) -> Self::Id;
 }
 
-impl <Id,Reply,Notification> HandlerHandle<Id,Reply,Notification>
+impl <Id,Reply,Notification> Handler<Id,Reply,Notification>
 where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
       Notification : Debug,
       Reply        : Debug {
@@ -153,7 +160,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     where T : Transport + 'static,
           P : FnMut(TransportEvent) -> Disposition<Id,Reply,Notification> + 'static {
         let state = Rc::new(RefCell::new(HandlerData::new(transport,&logger,processor)));
-        HandlerHandle {logger,state}
+        Handler {logger,state}
     }
 
     /// Starts a new request described by a given message.

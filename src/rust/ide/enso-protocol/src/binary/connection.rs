@@ -76,7 +76,6 @@ mod tests {
     use crate::binary::client::MockClient;
     use mockall::predicate::*;
     use json_rpc::error::RpcError;
-    //use futures::task::LocalSpawn;
     use futures::task::LocalSpawnExt;
 
     #[test]
@@ -85,7 +84,10 @@ mod tests {
             let client_id = Uuid::from_u128(159);
             let mock_returning = |ret: FallibleResult<()>| {
                 let mut mock = MockClient::new();
-                mock.expect_init_ready().with(eq(client_id)).times(1).return_once(|_| ret);
+                mock.expect_init_ready()
+                    .with(eq(client_id))
+                    .times(1)
+                    .return_once(|_| ret);
                 mock
             };
 

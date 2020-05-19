@@ -4,7 +4,6 @@ use crate::generated::binary_protocol_generated::org::enso::languageserver::prot
 use generated::Path;
 use generated::PathArgs;
 use generated::OutboundMessage;
-//use generated::OutboundMessageArgs;
 use generated::InboundPayload;
 use generated::OutboundPayload;
 use generated::InboundMessage;
@@ -23,47 +22,104 @@ use flatbuffers::FlatBufferBuilder;
 use flatbuffers::UnionWIPOffset;
 use flatbuffers::WIPOffset;
 use crate::common::error::DeserializationError;
-use crate::binary::client::VisualisationContext;
-use crate::binary::message::Message;
+use crate::binary::message::{Message, FromServerOwned, FromServerRef, VisualisationContext, ToServerPayload, ToServerPayloadOwned};
+use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary::{OutboundMessageArgs, Success, SuccessArgs, Error, ErrorArgs, FileContentsReply, FileContentsReplyArgs, VisualisationUpdate, VisualisationUpdateArgs, VisualisationContextArgs};
 
-pub fn serialize_path<'a>(path:&LSPath, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Path<'a>> {
-    let root_id      = path.root_id.into();
-    let segment_refs = path.segments.iter().map(|s| s.as_str()).collect_vec();
-    let segments     = builder.create_vector_of_strings(&segment_refs);
-    Path::create(builder, &PathArgs {
-        rootId   : Some(&root_id),
-        segments : Some(segments),
-    })
+use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary as geneerated;
+
+trait MessageBearer<'a> {
+    type FbsMessage;
+    type PayloadType;
 }
 
-pub fn deserialize_path<'a>(path:&Path<'a>) -> Result<LSPath,DeserializationError> {
-    let missing_root_id = || DeserializationError("Missing root ID".to_string());
-    let root_id         = Uuid::from(path.rootId().ok_or_else(missing_root_id)?);
-    let segments        = match path.segments() {
-        Some(segments) => {
-            (0..segments.len()).map(|ix| segments.get(ix).to_string()).collect_vec()
-        }
-        None => Vec::new(),
-    };
-    Ok(LSPath {root_id,segments})
+trait SerializableTable<'a> : Sized {
+    type Out : Sized;
+    fn serialize_table(&self, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Self::Out>;
+    fn deserialize_table(fbs:Self::Out) -> Result<Self,DeserializationError>;
+    fn deserialize_opt_require(fbs:Option<Self::Out>) -> Result<Self, DeserializationError>{
+        let missing_expected = || DeserializationError("Missing expected field".to_string());
+        Self::deserialize_table(fbs.ok_or_else(missing_expected)?)
+    }
 }
 
-pub fn deserialize_required_path<'a>(path:&Option<Path<'a>>) -> Result<LSPath,DeserializationError> {
-    let missing_required_field = || DeserializationError("Missing a required field".to_string());
-    deserialize_path(&path.ok_or_else(missing_required_field)?)
+impl<'a> SerializableTable<'a> for Vec<String> {
+    type Out = flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>;
+
+    fn serialize_table(&self, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Self::Out> {
+        let strs = self.iter().map(|s| s.as_str()).collect_vec();
+        builder.create_vector_of_strings(&strs)
+    }
+
+    fn deserialize_table(fbs: Self::Out) -> Result<Self, DeserializationError> {
+        let indices = 0..fbs.len();
+        Ok(indices.map(|ix| fbs.get(ix).to_string()).collect())
+    }
+}
+
+impl<'a> SerializableTable<'a> for VisualisationContext {
+    type Out = generated::VisualisationContext<'a>;
+    fn serialize_table(&self, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Self::Out> {
+        generated::VisualisationContext::create(builder, &VisualisationContextArgs {
+            visualisationId : Some(&self.visualization_id.into()),
+            expressionId    : Some(&self.expression_id.into()),
+            contextId       : Some(&self.context_id.into()),
+        })
+    }
+
+    fn deserialize_table(fbs:Self::Out) -> Result<Self,DeserializationError> {
+        Ok(VisualisationContext {
+            context_id       : fbs.contextId().into(),
+            visualization_id : fbs.visualisationId().into(),
+            expression_id    : fbs.expressionId().into(),
+        })
+    }
+}
+
+impl<'a> SerializableTable<'a> for LSPath {
+    type Out = generated::Path<'a>;
+    fn serialize_table(&self, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Self::Out> {
+        let root_id      = self.root_id.into();
+        let segments     = Vec::serialize_table(&self.segments,builder);
+        Path::create(builder, &PathArgs {
+            rootId   : Some(&root_id),
+            segments : Some(segments),
+        })
+    }
+
+    fn deserialize_table(fbs:Self::Out) -> Result<Self,DeserializationError> {
+        let missing_root_id = || DeserializationError("Missing root ID".to_string());
+        let root_id         = Uuid::from(fbs.rootId().ok_or_else(missing_root_id)?);
+        let segments        = Vec::deserialize_opt_require(fbs.segments())?;
+        Ok(LSPath {root_id,segments})
+    }
+}
+
+/// Payload that can be serialized.
+pub trait Serializable {
+    fn write_message(&self, builder:&mut FlatBufferBuilder, correlation_id:Option<Uuid>, message_id:Uuid);
+}
+
+impl<T> Serializable for T where T:SerializableToServer {
+    fn write_message(&self, builder:&mut FlatBufferBuilder, correlation_id:Option<Uuid>, message_id:Uuid) {
+        let correlation_id = correlation_id.map(EnsoUUID::from);
+        let message_id     = Some(message_id.into());
+        self.write_message_fbs(builder, correlation_id.as_ref(), message_id.as_ref())
+    }
 }
 
 /// Payloads that can be serialized and sent as a message to server.
 pub trait SerializableToServer {
     /// Writes the message into a buffer and finishes it.
-    fn write_message(&self, builder:&mut FlatBufferBuilder, message_id:Uuid, correlation_id:Option<Uuid>) {
+    fn write_message_fbs
+    (&self
+    , builder:&mut FlatBufferBuilder
+    , correlationId:Option<&EnsoUUID>
+    , messageId:Option<&EnsoUUID>) {
         let payload_type   = self.payload_type();
         let payload        = Some(self.write_payload(builder));
-        let correlation_id2 = correlation_id.map(EnsoUUID::from);
-        println!("Sending message id: {:?}, generated from {}", EnsoUUID::from(message_id), message_id);
         let message        = InboundMessage::create(builder, &InboundMessageArgs {
-            correlationId : correlation_id2.as_ref(),
-            messageId     : Some(&message_id.into()),
+            correlationId,
+            messageId,
             payload_type,
             payload,
         });
@@ -77,13 +133,32 @@ pub trait SerializableToServer {
     fn payload_type(&self) -> InboundPayload;
 }
 
-#[derive(Clone,Debug)]
-pub enum FromServerOwned {
-    Error {code:i32, message:String},
-    Success {},
-    VisualizationUpdate {context:VisualisationContext, data:Vec<u8>},
-    FileContentsReply   {contents:Vec<u8>},
+/// Payloads that can be serialized and sent as a message to server.
+pub trait SerializableFromServer  {
+    /// Writes the message into a buffer and finishes it.
+    fn write_message_fbs
+    (&self
+     , builder:&mut FlatBufferBuilder
+     , correlationId:Option<&EnsoUUID>
+     , messageId:Option<&EnsoUUID>) {
+        let payload_type   = self.payload_type();
+        let payload        = Some(self.write_payload(builder));
+        let message        = OutboundMessage::create(builder, &OutboundMessageArgs {
+            correlationId,
+            messageId,
+            payload_type,
+            payload,
+        });
+        builder.finish(message,None);
+    }
+
+    /// Writes just the payload into the buffer.
+    fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
+
+    /// Returns enumeration describing variant of this payload.
+    fn payload_type(&self) -> OutboundPayload;
 }
+
 
 impl FromServerOwned {
     pub fn deserialize_owned(message:&OutboundMessage) -> Result<Self,DeserializationError> {
@@ -121,46 +196,44 @@ impl FromServerOwned {
     }
 }
 
-impl<'a> SerializableToServer for ToServerPayload<'a> {
+impl SerializableFromServer for FromServerOwned {
     fn write_payload(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
         match self {
-            ToServerPayload::InitSession {client_id} => {
-                InitSessionCommand::create(builder, &InitSessionCommandArgs {
-                    identifier : Some(&client_id.into())
+            FromServerOwned::Success {} => {
+                Success::create(builder, &SuccessArgs {}).as_union_value()
+            }
+            FromServerOwned::Error {code,message} => {
+                let message  = builder.create_string(&message);
+                Error::create(builder, &ErrorArgs {
+                    code : *code,
+                    message : Some(message),
                 }).as_union_value()
             }
-            ToServerPayload::WriteFile {path,contents} => {
-                let path     = serialize_path(path,builder);
-                let contents = builder.create_vector(contents);
-                WriteFileCommand::create(builder, &WriteFileCommandArgs {
-                    path : Some(path),
-                    contents : Some(contents),
+            FromServerOwned::FileContentsReply {contents} => {
+                let contents = builder.create_vector(&contents);
+                FileContentsReply::create(builder, &FileContentsReplyArgs {
+                    contents : Some(contents)
                 }).as_union_value()
             }
-            ToServerPayload::ReadFile {path} => {
-                let path = serialize_path(path,builder);
-                ReadFileCommand::create(builder, &ReadFileCommandArgs {
-                    path : Some(path)
+            FromServerOwned::VisualizationUpdate {data,context} => {
+                let data = builder.create_vector(&data);
+                let context = context.serialize_table(builder);
+                VisualisationUpdate::create(builder, &VisualisationUpdateArgs {
+                    data : Some(data),
+                    visualisationContext : Some(context),
                 }).as_union_value()
             }
         }
     }
 
-    fn payload_type(&self) -> InboundPayload {
+    fn payload_type(&self) -> OutboundPayload {
         match self {
-            ToServerPayload::InitSession {..} => InboundPayload::INIT_SESSION_CMD,
-            ToServerPayload::WriteFile   {..} => InboundPayload::WRITE_FILE_CMD,
-            ToServerPayload::ReadFile    {..} => InboundPayload::READ_FILE_CMD,
+            FromServerOwned::Error {..}               => OutboundPayload::ERROR,
+            FromServerOwned::Success {..}             => OutboundPayload::SUCCESS,
+            FromServerOwned::FileContentsReply {..}   => OutboundPayload::FILE_CONTENTS_REPLY,
+            FromServerOwned::VisualizationUpdate {..} => OutboundPayload::VISUALISATION_UPDATE,
         }
     }
-}
-
-#[derive(Clone,Debug)]
-pub enum FromServerRef<'a> {
-    Error {code:i32, message:&'a str},
-    Success {},
-    VisualizationUpdate {context:VisualisationContext, data:&'a [u8]},
-    FileContentsReply {contents:&'a [u8]},
 }
 
 
@@ -218,13 +291,6 @@ pub trait DeserializableToServer : Sized {
 
 
 
-#[derive(Clone,Debug)]
-pub enum ToServerPayload<'a> {
-    InitSession {client_id:Uuid},
-    WriteFile   {path:&'a LSPath, contents:&'a[u8]},
-    ReadFile    {path:&'a LSPath}
-}
-
 impl<'a> SerializableToServer for ToServerPayload<'a> {
     fn write_payload(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
         match self {
@@ -234,7 +300,7 @@ impl<'a> SerializableToServer for ToServerPayload<'a> {
                 }).as_union_value()
             }
             ToServerPayload::WriteFile {path,contents} => {
-                let path     = serialize_path(path,builder);
+                let path     = path.serialize_table(builder); //serialize_path(path,builder);
                 let contents = builder.create_vector(contents);
                 WriteFileCommand::create(builder, &WriteFileCommandArgs {
                     path : Some(path),
@@ -242,7 +308,7 @@ impl<'a> SerializableToServer for ToServerPayload<'a> {
                 }).as_union_value()
             }
             ToServerPayload::ReadFile {path} => {
-                let path = serialize_path(path,builder);
+                let path = path.serialize_table(builder);//serialize_path(path,builder);
                 ReadFileCommand::create(builder, &ReadFileCommandArgs {
                     path : Some(path)
                 }).as_union_value()
@@ -259,13 +325,6 @@ impl<'a> SerializableToServer for ToServerPayload<'a> {
     }
 }
 
-#[derive(Clone,Debug,PartialEq)]
-pub enum ToServerPayloadOwned {
-    InitSession {client_id:Uuid},
-    WriteFile   {path:LSPath, contents:Vec<u8>},
-    ReadFile    {path:LSPath}
-}
-
 impl DeserializableToServer for ToServerPayloadOwned {
     fn from_message(message: &InboundMessage) -> Result<Self,DeserializationError> {
         let missing_required_field = DeserializationError("missing a required field".into());
@@ -278,15 +337,16 @@ impl DeserializableToServer for ToServerPayloadOwned {
             }
             InboundPayload::WRITE_FILE_CMD => {
                 let payload = message.payload_as_write_file_cmd().unwrap();
+
                 Ok(ToServerPayloadOwned::WriteFile {
-                    path: deserialize_path(&payload.path().ok_or(missing_required_field)?)?,
+                    path: LSPath::deserialize_opt_require(payload.path())?,
                     contents: Vec::from(payload.contents().unwrap_or_default())
                 })
             }
             InboundPayload::READ_FILE_CMD => {
                 let payload = message.payload_as_write_file_cmd().unwrap();
                 Ok(ToServerPayloadOwned::ReadFile {
-                    path: deserialize_path(&payload.path().ok_or(missing_required_field)?)?,
+                    path: LSPath::deserialize_opt_require(payload.path())?,
                 })
             }
             InboundPayload::NONE =>

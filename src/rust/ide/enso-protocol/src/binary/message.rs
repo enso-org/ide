@@ -2,14 +2,14 @@
 
 use crate::prelude::*;
 
-use crate::binary::payload::FromServerOwned;
 use crate::binary::payload::SerializableToServer;
-use crate::binary::payload::ToServerPayload;
 use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary::OutboundMessage;
 
 use flatbuffers::FlatBufferBuilder;
 use json_rpc::Transport;
+use crate::binary::payload;
 
+use crate::language_server::Path as LSPath;
 
 
 // ===============
@@ -19,6 +19,57 @@ use json_rpc::Transport;
 pub type MessageFromServerOwned = Message<FromServerOwned>;
 
 pub type MessageToServerRef<'a> = Message<ToServerPayload<'a>>;
+
+
+
+// =============
+// === Types ===
+// =============
+
+/// Identifies the visualization.
+#[allow(missing_docs)]
+#[derive(Clone,Debug,Copy)]
+pub struct VisualisationContext {
+    pub visualization_id : Uuid,
+    pub context_id       : Uuid,
+    pub expression_id    : Uuid,
+}
+
+
+
+// ================
+// === Payloads ===
+// ================
+
+#[derive(Clone,Debug,PartialEq)]
+pub enum ToServerPayloadOwned {
+    InitSession {client_id:Uuid},
+    WriteFile   {path:LSPath, contents:Vec<u8>},
+    ReadFile    {path:LSPath}
+}
+
+#[derive(Clone,Debug)]
+pub enum FromServerOwned {
+    Error {code:i32, message:String},
+    Success {},
+    VisualizationUpdate {context:VisualisationContext, data:Vec<u8>},
+    FileContentsReply   {contents:Vec<u8>},
+}
+
+#[derive(Clone,Debug)]
+pub enum ToServerPayload<'a> {
+    InitSession {client_id:Uuid},
+    WriteFile   {path:&'a LSPath, contents:&'a[u8]},
+    ReadFile    {path:&'a LSPath}
+}
+
+#[derive(Clone,Debug)]
+pub enum FromServerRef<'a> {
+    Error {code:i32, message:&'a str},
+    Success {},
+    VisualizationUpdate {context:VisualisationContext, data:&'a [u8]},
+    FileContentsReply {contents:&'a [u8]},
+}
 
 
 
@@ -92,8 +143,8 @@ pub trait Serialize {
     }
 }
 
-impl<T:SerializableToServer> Serialize for Message<T> {
+impl<T:payload::Serializable> Serialize for Message<T> {
     fn write(&self, builder:&mut FlatBufferBuilder) {
-        self.payload.write_message(builder,self.message_id,self.correlation_id)
+        self.payload.write_message(builder,self.correlation_id,self.message_id)
     }
 }
