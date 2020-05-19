@@ -15,7 +15,7 @@ use crate::frp;
 // === Registry ===
 // ================
 
-type RuleMap  = HashMap<KeyMask,Vec<WeakHandle>>;
+type RuleMap   = HashMap<KeyMask,Vec<WeakHandle>>;
 type ActionMap = HashMap<ActionType,RuleMap>;
 
 /// Keyboard shortcut registry. You can add new shortcuts by using the `add` method and get a
