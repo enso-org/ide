@@ -218,7 +218,7 @@ impl Action {
 // === Shortcut ===
 // ================
 
-/// A keyboard shortcut, a `KeyMask` associated with a `Rule`.
+/// A keyboard shortcut, an `Action` associated with a `Rule`.
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct Shortcut {
     #[shrinkwrap(main_field)]
