@@ -1,27 +1,112 @@
 //! This module defines common macros for FRP netwrok definition.
 
+/// # Overview
+///
 /// Utility for an easy definition of a new FRP network. In order to keep the network easy to debug
 /// and reason about, each node constructor consumes a label. Providing labels manually is time
 /// consuming and error prone. This utility infers the name from the assignment shape and provides
 /// it automatically to the FRP node constructor.
 ///
-/// The syntax exposed by this macro is very similar to standard Rust syntax. There is are two new
-/// keywords - `def` and `trace`. The former defines new FRP nodes while the later provides handy
-/// debugging utility. Every line which does not start with the keywords is interpreted just as a
-/// regular Rust code. Moreover, there is a special flag `TRACE_ALL` which you can use as the first
-/// text inside of macro, which will automatically enable each definition to be traced.
 ///
-/// A simple counter network which prints the current count on every number and prints "hello world"
-/// on creation is presented below.
+/// # FRP Embedded Domain Specific Language (EDSL)
 ///
-/// ```compile_fail
-/// frp::new_network! { network1
-///     def source = source();
-///     def count  = source.count();
-///     trace count;
-///     println!("Hello world!");
-/// }
-/// ```
+/// The macro exposes an EDSL for FRP network description. The syntax is very similar to standard
+/// Rust syntax. There are a few new keywords - `def`, `trace`, and `eval` and a bunch of operators.
+/// Every line which does not start with a keyword and does not use the new operators is interpreted
+/// just as a regular Rust code. Moreover, there is a special flag `TRACE_ALL` which you can use as
+/// the first text inside of macro, which will automatically enable each definition to be traced.
+///
+/// The following elements are available:
+///
+/// - Variable definition.
+///   ```compile_fail
+///   def src = source::<()>();
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   let src = network.source::<()>("src")();
+///   ```
+///
+///
+/// - Value trace.
+///   ```compile_fail
+///   trace my_var;
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   network.trace("my_var")(&my_var);
+///   ```
+///
+/// - Eval. You should use it to indicate that the line is meant to be the end of the FRP network.
+///   Currently, it is a simple sugar, but might become something more complex in FRP 3.0.
+///   ```compile_fail
+///   eval node_selected ((id) model.select(id));
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   def _eval = node_selected.map(f!((id) model.select(id));
+///   ```
+///
+///
+/// - Chained operations.
+///   ```compile_fail
+///   amount <- source.count().inc();
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   def amount = source.count();
+///   def amount = amount.inc();
+///   ```
+///
+///
+/// - Variable definition.
+///   ```compile_fail
+///   amount <- source.count();
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   def amount = source.count();
+///   ```
+///
+///
+/// - Stream merge.
+///   ```compile_fail
+///   all_nodes <- [selected_nodes,non_selected_nodes];
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   def all_nodes = merge2(&selected_nodes,non_selected_nodes);
+///   ```
+///
+///
+/// - Stream merge dropping input values.
+///   ```compile_fail
+///   all_nodes <-_ [selected_nodes,non_selected_nodes];
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   def all_nodes = merge2_(&selected_nodes,non_selected_nodes);
+///   ```
+///
+///
+/// - Stream dynamic merge.
+///   ```compile_fail
+///   each_node <+ some_nodes;
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   each_node.attach(&some_nodes);
+///   ```
+///
+///
+/// - Stream iteration.
+///   ```compile_fail
+///   each_node <= all_nodes;
+///   ```
+///   Desugars to:
+///   ```compile_fail
+///   def each_node = all_nodes.iter();
+///   ```
 #[macro_export]
 macro_rules! new_network {
     (TRACE_ALL $($ts:tt)*) => { $crate::_new_network! { TRACE    $($ts)* } };
