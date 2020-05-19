@@ -42,7 +42,6 @@ use ensogl::application::shortcut;
 use crate::component::cursor::Cursor;
 use crate::component::node;
 use crate::component::node::Node as NodeView;
-use crate::component::node::WeakNode as WeakNodeView;
 use crate::component::connection::Connection as EdgeView;
 use enso_frp as frp;
 use enso_frp::io::keyboard;
@@ -808,16 +807,6 @@ impl GraphEditorModelWithNetwork {
     pub fn get_node_position(&self, node_id:NodeId) -> Option<Vector3<f32>> {
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position())
     }
-
-    // FIXME: remove
-    pub fn deprecated_add_node(&self) -> WeakNodeView {
-        todo!()
-    }
-
-    // FIXME: remove
-    pub fn deprecated_remove_node(&self, _node:WeakNodeView) {
-        todo!()
-    }
 }
 
 
@@ -1486,6 +1475,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     def is_empty_src  = source::<bool>();
     def is_active = is_active_src.sampler();
     def is_empty  = is_empty_src.sampler();
+
+    // === Remove implementation ===
+    outputs.node_removed <+ inputs.remove_node;
 
     }
 

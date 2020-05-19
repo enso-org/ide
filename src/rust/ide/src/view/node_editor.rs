@@ -15,7 +15,6 @@ use graph_editor::EdgeTarget;
 use utils::channel::process_stream_with_handle;
 
 
-
 // ==============
 // === Errors ===
 // ==============
@@ -135,15 +134,15 @@ impl GraphEditorIntegration {
         frp::extend! {network
             // Notifications from controller
             def handle_notification = source::<Option<notification::Graph>>();
-            let (runner,is_action)  = fence(&network,&handle_notification);
-            def _notification       = runner.map(f!((weak)(notification) {
+            let (runner,is_action) = fence(&network,&handle_notification);
+            def _notification       = runner.map(f!([weak](notification) {
                 weak.upgrade().for_each(|this| this.handle_controller_notification(*notification));
             }));
             // Changes in Graph Editor
             def _action = editor_outs.node_removed      .map2(&is_action,node_removed);
-            def _action = editor_outs.nodes_connected   .map2(&is_action,connection_created);
-            def _action = editor_outs.nodes_disconnected.map2(&is_action,connection_removed);
-            def _action = this.editor.frp.node_release  .map2(&is_action,node_moved);
+            def _action = editor_outs.connection_added  .map2(&is_action,connection_created);
+            def _action = editor_outs.connection_removed.map2(&is_action,connection_removed);
+            def _action = editor_outs.node_position_set .map2(&is_action,node_moved);
         }
         Self::connect_frp_to_controller_notifications(this,handle_notification);
     }
@@ -165,12 +164,13 @@ impl GraphEditorIntegration {
         let logger  = this.logger.clone_ref();
         let weak    = Rc::downgrade(this);
         move |parameter,is_action| {
-            warning!(logger, "ACTION {is_action}");
             if *is_action {
                 if let Some(this) = weak.upgrade() {
                     let result = action(&*this,parameter);
                     if let Err(err) = result {
                         error!(logger,"Error while performing UI action on controllers: {err}");
+                        info!(logger,"Invlidating displayed graph");
+
                     }
                 }
             }
@@ -211,7 +211,7 @@ impl GraphEditorIntegration {
     (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>) -> FallibleResult<()> {
         let nodes = self.controller.graph.nodes()?;
         let ids   = nodes.iter().map(|node| node.info.id() ).collect();
-        self.retain_ids(&ids);
+        self.retain_nodes(&ids);
         for (i,node_info) in nodes.iter().enumerate() {
             let id          = node_info.info.id();
             let node_trees  = trees.remove(&id).unwrap_or_else(default);
@@ -225,8 +225,8 @@ impl GraphEditorIntegration {
         Ok(())
     }
 
-    /// Retain only given ids in displayed graph.
-    fn retain_ids(&self, ids:&HashSet<ast::Id>) {
+    /// Retain only given nodes in displayed graph.
+    fn retain_nodes(&self, ids:&HashSet<ast::Id>) {
         let to_remove = {
             let borrowed = self.displayed_nodes.borrow();
             let filtered = borrowed.iter().filter(|(id,_)| !ids.contains(id));
@@ -283,6 +283,7 @@ impl GraphEditorIntegration {
         Ok(())
     }
 
+    /// Retain only given connections in displayed graph.
     fn retain_connections(&self, connections:&[controller::graph::Connection]) {
         let to_remove = {
             let borrowed = self.displayed_connections.borrow();
@@ -306,15 +307,14 @@ impl GraphEditorIntegration {
 impl GraphEditorIntegration {
     fn node_removed_action(&self, node:&graph_editor::NodeId) -> FallibleResult<()> {
         let id = self.get_controller_node_id(*node)?;
-        self.controller.graph.remove_node(id)?;
         self.displayed_nodes.borrow_mut().remove_fwd(&id);
+        self.controller.graph.remove_node(id)?;
         Ok(())
     }
 
-    fn node_moved_action(&self, displayed_id:&graph_editor::NodeId) -> FallibleResult<()> {
-        let id   = self.get_controller_node_id(*displayed_id)?;
-        let node = self.editor.nodes.get_cloned_ref(&displayed_id).ok_or(GraphEditorDiscrepancy{})?;
-        let pos  = node.position();
+    fn node_moved_action(&self, param:&(graph_editor::NodeId,frp::Position)) -> FallibleResult<()> {
+        let (displayed_id,pos) = param;
+        let id                 = self.get_controller_node_id(*displayed_id)?;
         self.controller.graph.module.with_node_metadata(id, |md| {
             md.position = Some(model::module::Position::new(pos.x,pos.y));
         });
@@ -324,17 +324,17 @@ impl GraphEditorIntegration {
     fn connection_created_action(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
         let edge = self.editor.edges.get_cloned(&edge_id).ok_or(GraphEditorDiscrepancy)?;
         let connection = self.from_graph_editor_edge(&edge)?;
+        self.displayed_connections.borrow_mut().insert(connection.clone(),*edge_id);
         self.controller.graph.connect(&connection)?;
         Ok(())
     }
 
     fn connection_removed_action(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
         let connection = self.get_controller_connection(*edge_id)?;
-        self.controller.graph.disconnect(&connection)?;
         self.displayed_connections.borrow_mut().remove_fwd(&connection);
+        self.controller.graph.disconnect(&connection)?;
         Ok(())
     }
-
 }
 
 
@@ -373,11 +373,11 @@ impl GraphEditorIntegration {
     (&self, connection:&graph_editor::Edge) -> FallibleResult<controller::graph::Connection> {
         let src      = connection.source().ok_or(GraphEditorDiscrepancy{})?;
         let dst      = connection.target().ok_or(GraphEditorDiscrepancy{})?;
-        let src_node = self.get_controller_node_id(src.node_id())?;
-        let dst_node = self.get_controller_node_id(dst.node_id())?;
+        let src_node = self.get_controller_node_id(src.node_id)?;
+        let dst_node = self.get_controller_node_id(dst.node_id)?;
         Ok(controller::graph::Connection {
-            source      : controller::graph::Endpoint::new(src_node,src.port()),
-            destination : controller::graph::Endpoint::new(dst_node,dst.port()),
+            source      : controller::graph::Endpoint::new(src_node,src.port.deref().clone()),
+            destination : controller::graph::Endpoint::new(dst_node,dst.port.deref().clone()),
         })
     }
 }
