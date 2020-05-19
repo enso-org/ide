@@ -66,7 +66,7 @@ impl Handle {
         let root_id    = self.language_server_rpc.content_root();
         let vis_path   = language_server::Path{root_id,segments:vec!["visualisation".into()]};
         let file_list  = self.language_server_rpc.file_list(vis_path).await?;
-        let result     = self.embedded_visualisers.keys().into_iter();
+        let result     = self.embedded_visualisers.keys();
         let result     = result.map(|identifier| VisualiserIdentifier::Embedded(identifier.clone()));
         let mut result = result.collect::<Vec<VisualiserIdentifier>>();
         result.extend(file_list.paths.iter().filter_map(|object| {
@@ -93,7 +93,7 @@ impl Handle {
                 let error  = || {
                     failure::Error::from(VisualiserError::NotFound{identifier:visualiser.clone()})
                 };
-                result.map(|result| result.clone()).ok_or_else(error)
+                result.cloned().ok_or_else(error)
             },
             VisualiserIdentifier::File(path) =>
                 Ok(self.language_server_rpc.read_file(path.clone()).await?.contents)
