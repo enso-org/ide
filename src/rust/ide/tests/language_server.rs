@@ -57,8 +57,6 @@ wasm_bindgen_test_configure!(run_in_browser);
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn file_operations() {
-    ensogl::system::web::set_stdout();
-
     let ws        = WebSocket::new_opened(SERVER_ENDPOINT).await;
     let ws        = ws.expect("Couldn't connect to WebSocket server.");
     let client    = Client::new(ws);
