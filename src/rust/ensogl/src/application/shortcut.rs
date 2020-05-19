@@ -15,7 +15,7 @@ use crate::frp;
 // === Registry ===
 // ================
 
-type RuleMap  = HashMap<KeyMask,Vec<WeakHandle>>;
+type RuleMap   = HashMap<KeyMask,Vec<WeakHandle>>;
 type ActionMap = HashMap<ActionType,RuleMap>;
 
 /// Keyboard shortcut registry. You can add new shortcuts by using the `add` method and get a
@@ -221,7 +221,7 @@ impl Action {
 // === Shortcut ===
 // ================
 
-/// A keyboard shortcut, a `KeyMask` associated with a `Rule`.
+/// A keyboard shortcut, an `Action` associated with a `Rule`.
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct Shortcut {
     #[shrinkwrap(main_field)]
