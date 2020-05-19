@@ -13,6 +13,10 @@ use crate::language_server::types as ls;
 
 use mockall::mock;
 
+/// We want all our futures in the API to be static. Otherwise, the would automatically inherit
+/// lifetime of the client, which is not the desired behavior.
+type LocalBoxFuture<T> = futures::future::LocalBoxFuture<'static, T>;
+
 /// Identifies the visualization.
 #[allow(missing_docs)]
 #[derive(Clone,Debug,Copy)]
@@ -119,7 +123,7 @@ impl Client {
         where F : FnOnce(FromServerOwned) -> FallibleResult<R>,
               R : 'static,
               F : 'static, {
-        let message = Message::new_to_server(payload);
+        let message = Message::new(payload);
         let id = message.message_id;
 
         let logger = self.logger.clone_ref();
@@ -209,6 +213,8 @@ mod tests {
     use json_rpc::test_util::transport::mock::MockTransport;
     use futures::task::LocalSpawnExt;
     use chrono::format::Item::Fixed;
+    use crate::binary::payload::ToServerPayloadOwned;
+    use crate::binary::payload::DeserializableToServer;
 
 
 
@@ -238,12 +244,22 @@ mod tests {
 
         let client_id = Uuid::new_v4();
 
-        //let init_fut = fixture.client.init(client_id);
-        // fixture.executor.spawner().spawn_local(async move {
-        //     assert!(init_fut.await.is_ok());
-        // });
+        let init_fut : LocalBoxFuture<FallibleResult<()>> = fixture.client.init(client_id);
+        fixture.executor.spawner().spawn_local(async move {
+            assert!(init_fut.await.is_ok());
+        });
 
-        println!("got msg {:?}", fixture.transport.expect_binary_message());
+        let generated_message = fixture.transport.expect_binary_message();
+        println!("got msg {:?}",generated_message);
+
+        let generated_message = ToServerPayloadOwned::read_message(&generated_message).unwrap();
+        let expected_payload = ToServerPayloadOwned::InitSession {client_id};
+        assert_eq!(generated_message.payload,expected_payload);
+
+        let mock_reply = Message::new(FromServerOwned::Success {});
+
+
+        println!("payload verified");
 
 
     }

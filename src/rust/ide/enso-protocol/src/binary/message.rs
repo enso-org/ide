@@ -40,7 +40,7 @@ pub struct Message<T> {
 
 impl<T> Message<T> {
     /// Wraps the given payload into a message envelope. Generates a unique ID for the message.
-    pub fn new_to_server(payload:T) -> Message<T> {
+    pub fn new(payload:T) -> Message<T> {
         Message {
             message_id     : Uuid::new_v4(),
             correlation_id : None,

@@ -24,6 +24,7 @@ use flatbuffers::UnionWIPOffset;
 use flatbuffers::WIPOffset;
 use crate::common::error::DeserializationError;
 use crate::binary::client::VisualisationContext;
+use crate::binary::message::Message;
 
 pub fn serialize_path<'a>(path:&LSPath, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Path<'a>> {
     let root_id      = path.root_id.into();
@@ -33,6 +34,23 @@ pub fn serialize_path<'a>(path:&LSPath, builder:&mut FlatBufferBuilder<'a>) -> W
         rootId   : Some(&root_id),
         segments : Some(segments),
     })
+}
+
+pub fn deserialize_path<'a>(path:&Path<'a>) -> Result<LSPath,DeserializationError> {
+    let missing_root_id = || DeserializationError("Missing root ID".to_string());
+    let root_id         = Uuid::from(path.rootId().ok_or_else(missing_root_id)?);
+    let segments        = match path.segments() {
+        Some(segments) => {
+            (0..segments.len()).map(|ix| segments.get(ix).to_string()).collect_vec()
+        }
+        None => Vec::new(),
+    };
+    Ok(LSPath {root_id,segments})
+}
+
+pub fn deserialize_required_path<'a>(path:&Option<Path<'a>>) -> Result<LSPath,DeserializationError> {
+    let missing_required_field = || DeserializationError("Missing a required field".to_string());
+    deserialize_path(&path.ok_or_else(missing_required_field)?)
 }
 
 /// Payloads that can be serialized and sent as a message to server.
@@ -103,6 +121,40 @@ impl FromServerOwned {
     }
 }
 
+impl<'a> SerializableToServer for ToServerPayload<'a> {
+    fn write_payload(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
+        match self {
+            ToServerPayload::InitSession {client_id} => {
+                InitSessionCommand::create(builder, &InitSessionCommandArgs {
+                    identifier : Some(&client_id.into())
+                }).as_union_value()
+            }
+            ToServerPayload::WriteFile {path,contents} => {
+                let path     = serialize_path(path,builder);
+                let contents = builder.create_vector(contents);
+                WriteFileCommand::create(builder, &WriteFileCommandArgs {
+                    path : Some(path),
+                    contents : Some(contents),
+                }).as_union_value()
+            }
+            ToServerPayload::ReadFile {path} => {
+                let path = serialize_path(path,builder);
+                ReadFileCommand::create(builder, &ReadFileCommandArgs {
+                    path : Some(path)
+                }).as_union_value()
+            }
+        }
+    }
+
+    fn payload_type(&self) -> InboundPayload {
+        match self {
+            ToServerPayload::InitSession {..} => InboundPayload::INIT_SESSION_CMD,
+            ToServerPayload::WriteFile   {..} => InboundPayload::WRITE_FILE_CMD,
+            ToServerPayload::ReadFile    {..} => InboundPayload::READ_FILE_CMD,
+        }
+    }
+}
+
 #[derive(Clone,Debug)]
 pub enum FromServerRef<'a> {
     Error {code:i32, message:&'a str},
@@ -148,6 +200,23 @@ impl<'a> FromServerRef<'a> {
     }
 }
 
+/// Payloads that can be serialized and sent as a message to server.
+pub trait DeserializableToServer : Sized {
+    /// Writes the message into a buffer and finishes it.
+    fn read_message(data:&[u8]) -> Result<Message<Self>,DeserializationError> {
+        let message = flatbuffers::get_root::<InboundMessage>(data);
+        let payload = Self::from_message(&message)?;
+        Ok(Message {
+            message_id : message.messageId().into(),
+            correlation_id : message.correlationId().map(|id| id.into()),
+            payload
+        })
+    }
+
+    fn from_message(message:&InboundMessage) -> Result<Self,DeserializationError>;
+}
+
+
 
 #[derive(Clone,Debug)]
 pub enum ToServerPayload<'a> {
@@ -186,6 +255,43 @@ impl<'a> SerializableToServer for ToServerPayload<'a> {
             ToServerPayload::InitSession {..} => InboundPayload::INIT_SESSION_CMD,
             ToServerPayload::WriteFile   {..} => InboundPayload::WRITE_FILE_CMD,
             ToServerPayload::ReadFile    {..} => InboundPayload::READ_FILE_CMD,
+        }
+    }
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub enum ToServerPayloadOwned {
+    InitSession {client_id:Uuid},
+    WriteFile   {path:LSPath, contents:Vec<u8>},
+    ReadFile    {path:LSPath}
+}
+
+impl DeserializableToServer for ToServerPayloadOwned {
+    fn from_message(message: &InboundMessage) -> Result<Self,DeserializationError> {
+        let missing_required_field = DeserializationError("missing a required field".into());
+        match message.payload_type() {
+            InboundPayload::INIT_SESSION_CMD => {
+                let payload = message.payload_as_init_session_cmd().unwrap();
+                Ok(ToServerPayloadOwned::InitSession {
+                    client_id: payload.identifier().into()
+                })
+            }
+            InboundPayload::WRITE_FILE_CMD => {
+                let payload = message.payload_as_write_file_cmd().unwrap();
+                Ok(ToServerPayloadOwned::WriteFile {
+                    path: deserialize_path(&payload.path().ok_or(missing_required_field)?)?,
+                    contents: Vec::from(payload.contents().unwrap_or_default())
+                })
+            }
+            InboundPayload::READ_FILE_CMD => {
+                let payload = message.payload_as_write_file_cmd().unwrap();
+                Ok(ToServerPayloadOwned::ReadFile {
+                    path: deserialize_path(&payload.path().ok_or(missing_required_field)?)?,
+                })
+            }
+            InboundPayload::NONE =>
+                Err(DeserializationError("Received a message without payload. This is not allowed, \
+                                         according to the spec.".into()))
         }
     }
 }
