@@ -7,7 +7,6 @@ use super::command;
 use crate::control::io::keyboard::listener::KeyboardFrpBindings;
 use crate::frp::io::keyboard::Keyboard;
 use crate::frp::io::keyboard::KeyMask;
-use crate::frp::io::keyboard;
 use crate::frp;
 
 
@@ -16,9 +15,8 @@ use crate::frp;
 // === Registry ===
 // ================
 
-pub type RuleMap = HashMap<KeyMask,Vec<Instance>>;
-pub type ActionMap = HashMap<ActionType,RuleMap>;
-
+type RuleMap  = HashMap<KeyMask,Vec<WeakHandle>>;
+type ActionMap = HashMap<ActionType,RuleMap>;
 
 /// Keyboard shortcut registry. You can add new shortcuts by using the `add` method and get a
 /// `Handle` back. When `Handle` is dropped, the shortcut will be lazily removed. This is useful
@@ -30,7 +28,7 @@ pub type ActionMap = HashMap<ActionType,RuleMap>;
 /// shortcut manager which will own and manage the handles.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Registry {
-    model    : RegistryModel,
+    model   : RegistryModel,
     network : frp::Network,
 }
 
@@ -65,11 +63,12 @@ impl RegistryModel {
 }
 
 impl Registry {
+    /// Constructor.
     pub fn new(logger:&Logger, command_registry:&command::Registry) -> Self {
         let model = RegistryModel::new(logger,command_registry);
         frp::new_network! { network
-            eval model.keyboard.key_mask ((mask) model.process_action(ActionType::Press,mask));
-            eval model.keyboard.previous_key_mask ((mask) model.process_action(ActionType::Release,mask));
+            eval model.keyboard.key_mask          ((m) model.process_action(ActionType::Press,m));
+            eval model.keyboard.previous_key_mask ((m) model.process_action(ActionType::Release,m));
         }
         Self {model,network}
     }
@@ -85,7 +84,7 @@ impl RegistryModel {
         }
     }
 
-    fn process_rules(&self, rules:&mut Vec<Instance>) {
+    fn process_rules(&self, rules:&mut Vec<WeakHandle>) {
         let mut targets = Vec::new();
         {
             let borrowed_command_map = self.command_registry.instances.borrow();
@@ -155,18 +154,19 @@ impl Handle {
         Self {rule}
     }
 
-    fn downgrade(&self) -> Instance {
+    fn downgrade(&self) -> WeakHandle {
         let rule = Rc::downgrade(&self.rule);
-        Instance {rule}
+        WeakHandle {rule}
     }
 }
 
+/// Weak version of the `Handle`.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Instance {
+pub struct WeakHandle {
     rule : Weak<Rule>
 }
 
-impl Instance {
+impl WeakHandle {
     fn upgrade(&self) -> Option<Handle> {
         self.rule.upgrade().map(|rule| Handle {rule})
     }
@@ -178,28 +178,35 @@ impl Instance {
 // === Action ===
 // ==============
 
+/// A type of a keyboard action.
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub enum ActionType {
     Press, Release
 }
 
-#[derive(Clone,Debug)]
+/// Keyboard action defined as `ActionType` and `KeyMask`, like "release key 'n'".
+#[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
 pub struct Action {
     pub tp       : ActionType,
     pub key_mask : KeyMask,
 }
 
 impl Action {
+    /// Constructor.
     pub fn new(tp:impl Into<ActionType>, key_mask:impl Into<KeyMask>) -> Self {
         let tp       = tp.into();
         let key_mask = key_mask.into();
         Self {tp,key_mask}
     }
 
+    /// Smart constructor for the `Press` action.
     pub fn press(key_mask:impl Into<KeyMask>) -> Self {
         Self::new(ActionType::Press,key_mask)
     }
 
+    /// Smart constructor for the `Release` action.
     pub fn release(key_mask:impl Into<KeyMask>) -> Self {
         Self::new(ActionType::Release,key_mask)
     }

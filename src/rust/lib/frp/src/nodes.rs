@@ -10,10 +10,12 @@ use crate::prelude::*;
 use crate::data::watch;
 use crate::network::*;
 use crate::node::*;
-use crate::stream::{EventOutput, EventEmitter};
+use crate::stream::EventOutput;
 use crate::stream::Stream;
 use crate::stream::OwnedStream;
 use crate::stream;
+use enso_generics as generics;
+use enso_generics::traits::*;
 
 
 
@@ -95,18 +97,18 @@ impl Network {
         self.register(OwnedIter::new(label,event))
     }
 
-    pub fn _0<T1>(&self, label:Label, event:&T1) -> Stream<Elem0<Output<T1>>>
-        where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+    pub fn _0<T1>(&self, label:Label, event:&T1) -> Stream<generics::ItemAt0<Output<T1>>>
+        where T1:EventOutput, T1::Output:generics::GetItemAt0, generics::ItemAt0<T1::Output>:Data {
         self.register(OwnedGet0::new(label,event))
     }
 
-    pub fn _1<T1>(&self, label:Label, event:&T1) -> Stream<Elem1<Output<T1>>>
-        where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+    pub fn _1<T1>(&self, label:Label, event:&T1) -> Stream<generics::ItemAt1<Output<T1>>>
+        where T1:EventOutput, T1::Output:generics::GetItemAt1, generics::ItemAt1<T1::Output>:Data {
         self.register(OwnedGet1::new(label,event))
     }
 
-    pub fn _2<T1>(&self, label:Label, event:&T1) -> Stream<Elem2<Output<T1>>>
-        where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+    pub fn _2<T1>(&self, label:Label, event:&T1) -> Stream<generics::ItemAt2<Output<T1>>>
+        where T1:EventOutput, T1::Output:generics::GetItemAt2, generics::ItemAt2<T1::Output>:Data {
         self.register(OwnedGet2::new(label,event))
     }
 
@@ -349,18 +351,18 @@ impl DynamicNetwork {
         OwnedIter::new(label,event).into()
     }
 
-    pub fn _0<T1>(self, label:Label, event:&T1) -> OwnedStream<Elem0<Output<T1>>>
-    where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+    pub fn _0<T1>(self, label:Label, event:&T1) -> OwnedStream<generics::ItemAt0<Output<T1>>>
+    where T1:EventOutput, T1::Output:generics::GetItemAt0, generics::ItemAt0<T1::Output>:Data {
         OwnedGet0::new(label,event).into()
     }
 
-    pub fn _1<T1>(self, label:Label, event:&T1) -> OwnedStream<Elem1<Output<T1>>>
-    where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+    pub fn _1<T1>(self, label:Label, event:&T1) -> OwnedStream<generics::ItemAt1<Output<T1>>>
+    where T1:EventOutput, T1::Output:generics::GetItemAt1, generics::ItemAt1<T1::Output>:Data {
         OwnedGet1::new(label,event).into()
     }
 
-    pub fn _2<T1>(self, label:Label, event:&T1) -> OwnedStream<Elem2<Output<T1>>>
-    where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+    pub fn _2<T1>(self, label:Label, event:&T1) -> OwnedStream<generics::ItemAt2<Output<T1>>>
+    where T1:EventOutput, T1::Output:generics::GetItemAt2, generics::ItemAt2<T1::Output>:Data {
         OwnedGet2::new(label,event).into()
     }
 
@@ -1051,56 +1053,18 @@ impl<T> stream::EventConsumer<T> for OwnedMerge_ {
 // === Get0 ===
 // ============
 
-pub trait Has0 { type Elem0; }
-pub trait Has1 { type Elem1; }
-pub trait Has2 { type Elem2; }
-pub trait Has3 { type Elem3; }
-pub trait Has4 { type Elem4; }
-
-pub type Elem0<T> = <T as Has0>::Elem0;
-pub type Elem1<T> = <T as Has1>::Elem1;
-pub type Elem2<T> = <T as Has2>::Elem2;
-pub type Elem3<T> = <T as Has3>::Elem3;
-pub type Elem4<T> = <T as Has4>::Elem4;
-
-pub trait T_Get0 : Has0 { fn _0(&self) -> &Elem0<Self>; }
-pub trait T_Get1 : Has1 { fn _1(&self) -> &Elem1<Self>; }
-pub trait T_Get2 : Has2 { fn _2(&self) -> &Elem2<Self>; }
-pub trait T_Get3 : Has3 { fn _3(&self) -> &Elem3<Self>; }
-pub trait T_Get4 : Has4 { fn _4(&self) -> &Elem4<Self>; }
-
-impl<T0>       Has0 for (T0,)      { type Elem0=T0; }
-impl<T0,T1>    Has0 for (T0,T1)    { type Elem0=T0; }
-impl<T0,T1,T2> Has0 for (T0,T1,T2) { type Elem0=T0; }
-
-impl<T0,T1>    Has1 for (T0,T1)    { type Elem1=T1; }
-impl<T0,T1,T2> Has1 for (T0,T1,T2) { type Elem1=T1; }
-
-impl<T0,T1,T2> Has2 for (T0,T1,T2) { type Elem2=T2; }
-
-impl<T0>       T_Get0 for (T0,)      { fn _0(&self) -> &T0 { &self.0 } }
-impl<T0,T1>    T_Get0 for (T0,T1)    { fn _0(&self) -> &T0 { &self.0 } }
-impl<T0,T1,T2> T_Get0 for (T0,T1,T2) { fn _0(&self) -> &T0 { &self.0 } }
-
-impl<T0,T1>    T_Get1 for (T0,T1)    { fn _1(&self) -> &T1 { &self.1 } }
-impl<T0,T1,T2> T_Get1 for (T0,T1,T2) { fn _1(&self) -> &T1 { &self.1 } }
-
-impl<T0,T1,T2> T_Get2 for (T0,T1,T2) { fn _2(&self) -> &T2 { &self.2 } }
-
-
-
 #[derive(Debug)]
 pub struct Get0Data  <T1> { event:T1 }
 pub type   OwnedGet0 <T1> = stream::Node     <Get0Data<T1>>;
 pub type   Get0      <T1> = stream::WeakNode <Get0Data<T1>>;
 
 impl<T1> HasOutput for Get0Data<T1>
-where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
-    type Output = Elem0<T1::Output>;
+where T1:EventOutput, T1::Output:generics::GetItemAt0, generics::ItemAt0<T1::Output>:Data {
+    type Output = generics::ItemAt0<T1::Output>;
 }
 
 impl<T1> OwnedGet0<T1>
-where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+where T1:EventOutput, T1::Output:generics::GetItemAt0, generics::ItemAt0<T1::Output>:Data {
     /// Constructor.
     pub fn new(label:Label, src:&T1) -> Self {
         let event      = src.clone_ref();
@@ -1110,7 +1074,7 @@ where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
 }
 
 impl<T1> stream::EventConsumer<Output<T1>> for OwnedGet0<T1>
-where T1:EventOutput, T1::Output:T_Get0, Elem0<T1::Output>:Data {
+where T1:EventOutput, T1::Output:generics::GetItemAt0, generics::ItemAt0<T1::Output>:Data {
     fn on_event(&self, event:&Output<T1>) {
         self.emit_event((*event)._0())
     }
@@ -1134,12 +1098,12 @@ pub type   OwnedGet1 <T1> = stream::Node     <Get1Data<T1>>;
 pub type   Get1      <T1> = stream::WeakNode <Get1Data<T1>>;
 
 impl<T1> HasOutput for Get1Data<T1>
-    where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
-    type Output = Elem1<T1::Output>;
+    where T1:EventOutput, T1::Output:generics::GetItemAt1, generics::ItemAt1<T1::Output>:Data {
+    type Output = generics::ItemAt1<T1::Output>;
 }
 
 impl<T1> OwnedGet1<T1>
-    where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+    where T1:EventOutput, T1::Output:generics::GetItemAt1, generics::ItemAt1<T1::Output>:Data {
     /// Constructor.
     pub fn new(label:Label, src:&T1) -> Self {
         let event      = src.clone_ref();
@@ -1149,7 +1113,7 @@ impl<T1> OwnedGet1<T1>
 }
 
 impl<T1> stream::EventConsumer<Output<T1>> for OwnedGet1<T1>
-    where T1:EventOutput, T1::Output:T_Get1, Elem1<T1::Output>:Data {
+    where T1:EventOutput, T1::Output:generics::GetItemAt1, generics::ItemAt1<T1::Output>:Data {
     fn on_event(&self, event:&Output<T1>) {
         self.emit_event((*event)._1())
     }
@@ -1172,12 +1136,12 @@ pub type   OwnedGet2 <T1> = stream::Node     <Get2Data<T1>>;
 pub type   Get2      <T1> = stream::WeakNode <Get2Data<T1>>;
 
 impl<T1> HasOutput for Get2Data<T1>
-    where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
-    type Output = Elem2<T1::Output>;
+    where T1:EventOutput, T1::Output:generics::GetItemAt2, generics::ItemAt2<T1::Output>:Data {
+    type Output = generics::ItemAt2<T1::Output>;
 }
 
 impl<T1> OwnedGet2<T1>
-    where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+    where T1:EventOutput, T1::Output:generics::GetItemAt2, generics::ItemAt2<T1::Output>:Data {
     /// Constructor.
     pub fn new(label:Label, src:&T1) -> Self {
         let event      = src.clone_ref();
@@ -1187,7 +1151,7 @@ impl<T1> OwnedGet2<T1>
 }
 
 impl<T1> stream::EventConsumer<Output<T1>> for OwnedGet2<T1>
-    where T1:EventOutput, T1::Output:T_Get2, Elem2<T1::Output>:Data {
+    where T1:EventOutput, T1::Output:generics::GetItemAt2, generics::ItemAt2<T1::Output>:Data {
     fn on_event(&self, event:&Output<T1>) {
         self.emit_event((*event)._2())
     }

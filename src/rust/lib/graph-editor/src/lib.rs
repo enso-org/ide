@@ -59,11 +59,7 @@ use crate::component::visualization::Visualization;
 use crate::component::visualization;
 
 use serde_json::json;
-use enso_frp::stream::ValueProvider;
 
-
-fn first  <T0:Clone,T1>(t:&(T0,T1)) -> T0 { t.0.clone() }
-fn second <T0,T1:Clone>(t:&(T0,T1)) -> T1 { t.1.clone() }
 
 
 // =====================
@@ -793,7 +789,7 @@ impl GraphEditorModelWithNetwork {
     }
 
     // FIXME: remove
-    pub fn deprecated_remove_node(&self, node:WeakNodeView) {
+    pub fn deprecated_remove_node(&self, _node:WeakNodeView) {
         todo!()
     }
 }
@@ -892,9 +888,8 @@ impl GraphEditorModel {
     /// implementation.
     fn remove_node(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
-        if let Some(node) = self.nodes.remove(&node_id) {
-            self.nodes.selected.remove(&node_id);
-        }
+        self.nodes.remove(&node_id);
+        self.nodes.selected.remove(&node_id);
     }
 
     fn node_in_edges(&self, node_id:impl Into<NodeId>) -> Vec<EdgeId> {
@@ -1093,24 +1088,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         ]
     }
 }
-
-
-macro_rules! model_bind {
-    ($network:ident $model:ident . $name:ident($($arg:ident),*)) => {
-        frp::extend! { $network
-            def _eval = $name.map(f!([$model](($($arg),*)) $model.$name($($arg.into()),*)));
-        }
-    };
-}
-
-macro_rules! model_bind2 {
-    ($network:ident $model:ident . $name:ident($($arg:ident),*)) => {
-        frp::extend! { $network
-            def _eval = $name.map(f!([$model](($($arg),*)) $model.$name($($arg),*)));
-        }
-    };
-}
-
 
 impl application::View for GraphEditor {
     fn new(world: &World) -> Self {
@@ -1365,9 +1342,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Move Nodes ===
 
-    node_drag     <- mouse.translation.gate(&touch.nodes.is_down);
-    node_drag_pos <- node_drag.map2(&touch.nodes.down,f!((tx,id) model.node_pos_mod(id,tx)));
-
+    node_drag      <- mouse.translation.gate(&touch.nodes.is_down);
     tx_sel_nodes   <- [node_drag, inputs.translate_selected_nodes];
     selected_nodes <= tx_sel_nodes.map(f_!(model.nodes.selected.keys()));
     new_node_pos   <- selected_nodes.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
