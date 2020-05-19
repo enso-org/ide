@@ -57,9 +57,9 @@ use ensogl::display::Scene;
 use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
-
-use serde_json::json;
-
+use crate::component::visualization::example::js::constructor_sample_js_bubble_chart;
+use crate::component::visualization::MockDataGenerator3D;
+use crate::component::visualization::example::native;
 
 
 // =====================
@@ -249,8 +249,6 @@ ensogl::def_command_api! { Commands
     remove_all_nodes,
     /// Toggle the visibility of the selected visualisations
     toggle_visualization_visibility,
-    /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
-    debug_set_data_for_selected_node,
 
 
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
@@ -283,6 +281,14 @@ ensogl::def_command_api! { Commands
     disable_node_inverse_select,
     /// Toggle nodes inverse selection mode.
     toggle_node_inverse_select,
+
+
+
+    /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
+    debug_set_data_for_selected_node,
+
+    /// Cycle the visualization for the selected nodes. TODO only has dummy functionality at the moment.
+    debug_cycle_visualisation_for_selected_node,
 }
 
 impl Commands {
@@ -293,11 +299,11 @@ impl Commands {
             def remove_selected_nodes            = source();
             def remove_all_nodes                 = source();
             def toggle_visualization_visibility  = source();
-            def debug_set_data_for_selected_node = source();
 
             def enable_node_multi_select         = source();
             def disable_node_multi_select        = source();
             def toggle_node_multi_select         = source();
+
 
             def enable_node_merge_select         = source();
             def disable_node_merge_select        = source();
@@ -310,13 +316,18 @@ impl Commands {
             def enable_node_inverse_select       = source();
             def disable_node_inverse_select      = source();
             def toggle_node_inverse_select       = source();
+
+            def debug_set_data_for_selected_node            = source();
+            def debug_cycle_visualisation_for_selected_node = source();
+
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
-             ,toggle_visualization_visibility,debug_set_data_for_selected_node
+             ,toggle_visualization_visibility
              ,enable_node_multi_select,disable_node_multi_select,toggle_node_multi_select
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
-             ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select}
+             ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
+             ,debug_set_data_for_selected_node,debug_cycle_visualisation_for_selected_node}
     }
 }
 
@@ -345,6 +356,8 @@ pub struct FrpInputs {
     pub set_node_position              : frp::Source<(NodeId,Position)>,
     pub set_visualization_data         : frp::Source<NodeId>,
     pub translate_selected_nodes       : frp::Source<Position>,
+    pub cycle_visualization            : frp::Source<NodeId>,
+    pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
 }
 
 impl FrpInputs {
@@ -365,13 +378,15 @@ impl FrpInputs {
             def set_node_position              = source();
             def set_visualization_data         = source();
             def translate_selected_nodes       = source();
+            def cycle_visualization            = source();
+            def set_visualization              = source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
              ,remove_all_node_input_edges,remove_all_node_output_edges,set_visualization_data
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
              ,set_node_position,select_node,translate_selected_nodes,set_node_expression
-             ,connect_nodes,deselect_all_nodes}
+             ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization}
     }
 }
 
@@ -432,7 +447,7 @@ macro_rules! generate_frp_outputs {
 
             pub fn seal(&self) -> FrpOutputs {
                 let network = self.network.clone_ref();
-                frp::extend! { TRACE_ALL network
+                frp::extend! { network
                     $(def $field = self.$field.sampler();)*
                 }
                 FrpOutputs {network, $($field),*}
@@ -773,14 +788,11 @@ impl GraphEditorModelWithNetwork {
             ));
         }
 
-
-
-
-        let dummy_content = visualization::default_content();
+        let chart = constructor_sample_js_bubble_chart();
         let dom_layer    = model.scene.dom.layers.front.clone_ref();
-        dom_layer.manage(&dummy_content);
+        chart.set_dom_layer(&dom_layer);
 
-        let vis:Visualization = dummy_content.into();
+        let vis = Visualization::new(chart);
         node.view.frp.set_visualization.emit(Some(vis));
 
 
@@ -1104,6 +1116,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualisation_for_selected_node")
         ]
     }
 }
@@ -1221,9 +1234,6 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     frp::extend! { network
 
     def deselect_all_nodes = gather_();
-
-//    select_node <- [inputs.select_node, touch.nodes.selected];
-
 
     let multi_select_flag = enable_disable_toggle
         ( network
@@ -1362,26 +1372,20 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Move Nodes ===
 
-    node_drag      <- mouse.translation.gate(&touch.nodes.is_down);
-    tx_sel_nodes   <- [node_drag, inputs.translate_selected_nodes];
-    selected_nodes <= tx_sel_nodes.map(f_!(model.nodes.selected.keys()));
-    new_node_pos   <- selected_nodes.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
-
-    outputs.node_position_set <+ new_node_pos;
+    node_drag         <- mouse.translation.gate(&touch.nodes.is_down);
+    was_selected      <- touch.nodes.down.map(f!((id) model.nodes.selected.contains(id)));
+    tx_sel_nodes      <- [node_drag, inputs.translate_selected_nodes];
+    non_selected_drag <- tx_sel_nodes.map2(&touch.nodes.down,|_,id|*id).gate_not(&was_selected);
+    selected_drag     <= tx_sel_nodes.map(f_!(model.nodes.selected.keys())).gate(&was_selected);
+    nodes_to_drag     <- [non_selected_drag,selected_drag];
+    nodes_new_pos     <- nodes_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
+    outputs.node_position_set <+ nodes_new_pos;
 
 
     // === Set Node Position ===
 
-
     outputs.node_position_set <+ inputs.set_node_position;
-
-
-
-
     eval outputs.node_position_set (((id,pos)) model.set_node_position(id,pos));
-
-
-
 
 
     // === Move Edges ===
@@ -1396,32 +1400,61 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
 
 
-    // === Vis Update Data ===
+
+    // === Vis Cycling ===
+
+    def _cycle_vis= inputs.debug_cycle_visualisation_for_selected_node.map(f!([inputs,nodes](_) {
+        nodes.selected.for_each(|node| inputs.cycle_visualization.emit(node));
+    }));
+
+
+    // === Vis Set ===
+
+    def _update_vis_data = inputs.set_visualization.map(f!([nodes]((node_id,vis)) {
+        if let Some(node) = nodes.get_cloned_ref(node_id) {
+            node.view.visualization_container.frp.set_visualization.emit(vis)
+        }
+    }));
 
     // TODO remove this once real data is available.
-    let dummy_counter = Rc::new(Cell::new(1.0_f32));
-    def _update_vis_data = inputs.debug_set_data_for_selected_node.map(f_!([nodes] {
-        let dc = dummy_counter.get();
-        dummy_counter.set(dc + 0.1);
-        let content = Rc::new(json!(format!("{}", 20.0 + 10.0 * dummy_counter.get().sin())));
-        let dummy_data = Some(visualization::Data::JSON { content });
+    let dummy_switch  = Rc::new(Cell::new(false));
+    let sample_data_generator = MockDataGenerator3D::default();
+    def _set_dumy_data = inputs.debug_set_data_for_selected_node.map(f!([nodes](_) {
         nodes.selected.for_each(|node_id| {
-            if let Some(node) = nodes.get_cloned_ref(node_id) {
-                node.view.visualization_container.frp.set_data.emit(&dummy_data);
+            let data          = Rc::new(sample_data_generator.generate_data());
+            let content       = Rc::new(serde_json::to_value(data).unwrap());
+            let data          = visualization::Data::JSON{ content };
+            if let Some(node) = nodes.get_cloned(node_id) {
+                node.view.visualization_container.frp.set_data.emit(Some(data));
             }
         })
     }));
 
+     def _set_dumy_data = inputs.cycle_visualization.map(f!([scene,nodes](node_id) {
+        // TODO remove dummy cycling once we have the visualization registry.
+        let dc = dummy_switch.get();
+        dummy_switch.set(!dc);
+        let vis = if dc {
+            Visualization::new(native::BubbleChart::new(&scene))
+        } else {
+            let chart     = constructor_sample_js_bubble_chart();
+            let dom_layer = scene.dom.layers.front.clone_ref();
+            chart.set_dom_layer(&dom_layer);
+            Visualization::new(chart)
+        };
+        if let Some(node) = nodes.get_cloned_ref(node_id) {
+            node.view.visualization_container.frp.set_visualization.emit(Some(vis));
+        }
+    }));
 
-    // === Toggle Visualization Visibility ===
-
-    def _toggle_selected = inputs.toggle_visualization_visibility.map(f_!(
+    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes](_) {
         nodes.selected.for_each(|node_id| {
             if let Some(node) = nodes.get_cloned_ref(node_id) {
-                node.view.visualization_container.toggle_visibility();
+                node.view.visualization_container.frp.toggle_visibility.emit(());
             }
         });
-    ));
+    }));
+
 
 
     // === OUTPUTS REBIND ===
