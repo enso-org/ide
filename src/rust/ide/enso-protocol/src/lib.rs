@@ -21,7 +21,7 @@ pub mod generated;
 pub mod types;
 pub mod language_server;
 pub mod project_manager;
-pub mod new_handler;
+pub mod handler;
 
 #[allow(missing_docs)]
 pub mod prelude {
@@ -33,8 +33,16 @@ pub mod prelude {
     pub use logger::*;
 
     pub use std::future::Future;
-    pub use futures::future::LocalBoxFuture;
+
+    /// We want all our futures to be static. Otherwise, the would automatically inherit
+    /// lifetime of the client, which is not the desired behavior.
+    pub type LocalBoxFuture<T> = futures::future::LocalBoxFuture<'static,T>;
+
+    /// We want all our streams to be static. Otherwise, the would automatically inherit
+    /// lifetime of the client, which is not the desired behavior.
+    pub type LocalBoxStream<T> = futures::stream::LocalBoxStream<'static,T>;
     pub use futures::FutureExt;
+    pub use futures::Stream;
     pub use futures::StreamExt;
 }
 

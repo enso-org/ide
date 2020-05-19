@@ -1,16 +1,22 @@
-use crate::prelude::*;
-use json_rpc::{Transport, TransportEvent};
-use futures::channel::mpsc::UnboundedSender;
-//use futures::channel::oneshot;
-//use futures::channel::oneshot::Canceled;
-//use futures::SinkExt;
+//! Module with the Enso Procol RPC handler.
 
+use crate::prelude::*;
+
+use crate::common::ongoing_calls::OngoingCalls;
+use crate::common::event::Event;
+
+use futures::channel::mpsc::UnboundedSender;
+use json_rpc::Transport;
+use json_rpc::TransportEvent;
 use logger::*;
 use std::future::Future;
 use utils::fail::FallibleResult;
-//use json_rpc::error::RpcError;
-use crate::common::ongoing_calls::OngoingCalls;
-use crate::common::event::Event;
+
+
+
+// ===================
+// === Disposition ===
+// ===================
 
 /// Describes how the given server's message should be dealt with.
 #[derive(Debug)]
@@ -34,14 +40,22 @@ where Id:Debug, Reply:Debug, Notification:Debug {
 
 impl<Id,Reply,Notification> Disposition<Id,Reply,Notification>
 where Id:Debug, Reply:Debug, Notification:Debug {
+    /// Creates a notification event disposition.
     pub fn notify(notification:Notification) -> Self {
         Disposition::EmitEvent {event:Event::Notification(notification)}
     }
 
+    /// Creates an error event disposition.
     pub fn error(error:impl Into<failure::Error> + Debug) -> Self {
         Disposition::EmitEvent {event:Event::Error(error.into())}
     }
 }
+
+
+
+// ===================
+// === HandlerData ===
+// ===================
 
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
@@ -111,7 +125,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     }
 
     pub fn make_request<F,R>
-    (&mut self, message:&dyn Request<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
+    (&mut self, message:&dyn IsRequest<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {
         let id  = message.id();
         let ret = self.ongoing_calls.open_new_request(id,f);
@@ -124,8 +138,45 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
         }
         ret
     }
+
+    /// Creates a new stream with events from this handler.
+    ///
+    /// If such stream was already existing, it will be finished (and
+    /// continuations should be able to process any remaining events).
+    pub fn event_stream(&mut self) -> impl Stream<Item = Event<Notification>> {
+        let (transmitter,receiver) = futures::channel::mpsc::unbounded();
+        self.sender = Some(transmitter);
+        receiver
+    }
+
+    /// See the `runner` on the `Client`.
+    pub fn runner(this:&Rc<RefCell<Self>>) -> impl Future<Output = ()> {
+        let event_receiver = this.borrow_mut().transport.establish_event_stream();
+        let weak_this = Rc::downgrade(this);
+        event_receiver.for_each(move |event: TransportEvent| {
+            if let Some(state) = weak_this.upgrade() {
+                state.borrow_mut().process_event(event);
+            }
+            futures::future::ready(())
+        })
+    }
 }
 
+
+
+// ===============
+// === Handler ===
+// ===============
+
+/// Handler is a main provider of RPC protocol. Given a transport capable of transporting messages,
+/// it manages whole communication with a peer. Works both with binary and text protocols.
+///
+/// It allows making request, where each request gets a unique `Id` and its future result is
+/// represented using `Future`.
+/// `Reply` represents peer's reply to a request.
+/// `Notification` represents a notification received from a peer.
+///
+/// Notifications and internal messages are emitted using the `event_stream` stream.
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
 pub struct Handler<Id,Reply,Notification:Debug>
@@ -137,7 +188,7 @@ where Id           : Eq+Hash+Debug,
 }
 
 /// A value that can be used to represent a request to remote RPC server.
-pub trait Request : Debug {
+pub trait IsRequest:Debug {
     /// Request ID.
     type Id : Copy;
 
@@ -167,20 +218,21 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     ///
     /// The request shall be sent to the server and then await the reply.
     pub fn make_request<F,R>
-    (&self, message:&dyn Request<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
+    (&self, message:&dyn IsRequest<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {
         self.state.borrow_mut().make_request(message,f)
     }
 
     /// See the `runner` on the `Client`.
     pub fn runner(&self) -> impl Future<Output = ()> {
-        let event_receiver = self.state.borrow_mut().transport.establish_event_stream();
-        let state = Rc::downgrade(&self.state);
-        event_receiver.for_each(move |event: TransportEvent| {
-            if let Some(state) = state.upgrade() {
-                state.borrow_mut().process_event(event);
-            }
-            futures::future::ready(())
-        })
+        HandlerData::runner(&self.state)
+    }
+
+    /// Creates a new stream with events from this handler.
+    ///
+    /// If such stream was already existing, it will be finished (and
+    /// continuations should be able to process any remaining events).
+    pub fn event_stream(&mut self) -> impl Stream<Item = Event<Notification>> {
+        self.state.borrow_mut().event_stream()
     }
 }

@@ -73,10 +73,14 @@ impl Deref for Connection {
 mod tests {
     use super::*;
 
-    use crate::binary::client::MockClient;
+    use crate::binary::MockClient;
     use mockall::predicate::*;
     use json_rpc::error::RpcError;
     use futures::task::LocalSpawnExt;
+
+    fn ready<T:'static>(t:impl Into<T>) -> LocalBoxFuture<T> {
+        futures::future::ready(t.into()).boxed_local()
+    }
 
     #[test]
     fn test_connection() {
@@ -84,10 +88,10 @@ mod tests {
             let client_id = Uuid::from_u128(159);
             let mock_returning = |ret: FallibleResult<()>| {
                 let mut mock = MockClient::new();
-                mock.expect_init_ready()
+                mock.expect_init()
                     .with(eq(client_id))
                     .times(1)
-                    .return_once(|_| ret);
+                    .return_once(|_| ready(ret));
                 mock
             };
 

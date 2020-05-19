@@ -86,7 +86,7 @@ pub mod constants {
 // ===================
 
 /// Endpoint used by default by a locally run Project Manager.
-const PROJECT_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30535";
+pub const PROJECT_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30535";
 
 /// Configuration data necessary to initialize IDE.
 ///
@@ -140,6 +140,7 @@ pub fn setup_project_manager
     project_manager
 }
 
+/// Creates a new websocket transport and waits until the connection is properly opened.
 pub async fn new_opened_ws
 (address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
     let endpoint   = format!("ws://{}:{}", address.host, address.port);
@@ -215,8 +216,6 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::wasm_bindgen_test;
     use serde_json::json;
-    use enso_protocol::language_server::Path;
-    use uuid::Uuid;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -237,37 +236,5 @@ mod tests {
             }]
         }));
         fixture.when_stalled_send_error(1,"Service error");
-    }
-
-
-    #[wasm_bindgen_test::wasm_bindgen_test(async)]
-    #[allow(dead_code)]
-    async fn binary_protocol_test() {
-        use enso_protocol::traits::*;
-
-        ensogl_system_web::set_stdout();
-        let _guard = setup_global_executor();
-
-        let logger = Logger::new("Test");
-        info!(logger, "moje");
-
-        println!("Connected!");
-        let ws = WebSocket::new_opened(PROJECT_MANAGER_ENDPOINT).await.unwrap();
-        println!("Connected!");
-        let pm = setup_project_manager(ws);
-        println!("PM established!");
-        let project = open_most_recent_project_or_create_new(&pm).await.unwrap();
-        println!("Got project: {:?}", project);
-        let init_fut = project.language_server_bin.init(Uuid::new_v4());
-        println!("Waiting for init");
-        println!("Init result: {:?}", init_fut.await);
-
-        let path = Path::new(project.language_server_rpc.content_root(), &["moje.txt"]);
-        let contents = "Hello moje".as_bytes();
-        println!("Writing file {}", path);
-        println!("Written: {:?}", project.language_server_bin.write_file(&path,contents).await.unwrap());
-        println!("Read back: {:?}", project.language_server_bin.read_file(&path).await.unwrap());
-
-        assert!(false);
     }
 }

@@ -8,11 +8,6 @@ use crate::prelude::*;
 pub struct NoSuchRequest<Id:Sync + Send + Debug + Display + 'static>(pub Id);
 
 #[allow(missing_docs)]
-#[derive(Debug,Fail,Clone,Copy)]
-#[fail(display = "Received text message when expecting only binary ones.")]
-pub struct UnexpectedTextMessage;
-
-#[allow(missing_docs)]
 #[derive(Debug,Fail,Clone)]
 #[fail(display = "Failed to deserialize the received message. {}", _0)]
 pub struct DeserializationError(pub String);

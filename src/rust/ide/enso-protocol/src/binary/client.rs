@@ -2,24 +2,41 @@
 //! `MockClient`.
 
 use crate::prelude::*;
-use crate::new_handler::{Handler, Disposition};
-use crate::binary::message::{FromServerOwned, ToServerPayload};
+
+use crate::handler::Handler;
+use crate::handler::Disposition;
+use crate::binary::message::FromServerPayloadOwned;
+use crate::binary::message::ToServerPayload;
+use crate::common::error::UnexpectedMessage;
+use crate::binary::message::MessageFromServerOwned;
+use crate::binary::message::Message;
+use crate::binary::message::VisualisationContext;
+use crate::language_server::types::Path;
+
 use json_rpc::error::RpcError;
-use json_rpc::{TransportEvent, Transport};
-use crate::common::error::{UnexpectedTextMessage, UnexpectedMessage};
-use crate::binary::message::{MessageFromServerOwned, Message, VisualisationContext};
+use json_rpc::TransportEvent;
+use json_rpc::Transport;
+use mockall::automock;
 
-use crate::language_server::types as ls;
 
-use mockall::mock;
 
-/// We want all our futures in the API to be static. Otherwise, the would automatically inherit
-/// lifetime of the client, which is not the desired behavior.
-type LocalBoxFuture<T> = futures::future::LocalBoxFuture<'static, T>;
+// ==============
+// === Errors ===
+// ==============
 
+#[allow(missing_docs)]
+#[derive(Debug,Fail,Clone,Copy)]
+#[fail(display = "Received text message when expecting only binary ones.")]
+pub struct UnexpectedTextMessage;
+
+
+
+// ====================
+// === Notification ===
+// ====================
 
 /// The notifications that binary protocol client may receive.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum Notification {
     /// A new data has been sent for a visualization.
     VisualizationUpdate {
@@ -30,14 +47,31 @@ pub enum Notification {
     },
 }
 
+/// Events emitted by the LS binary protocol client.
+pub type Event = crate::common::event::Event<Notification>;
+
+
+
+// ===========
+// === API ===
+// ===========
+
 /// The Engine Services Language Server Binary Protocol Client API.
+#[automock]
 pub trait API {
     /// Initializes the protocol. Must be called exactly once before making any other calls.
     fn init(&self, client_id:Uuid) -> LocalBoxFuture<FallibleResult<()>>;
+
     /// Writes binary data to the file.
-    fn write_file(&self, path:&ls::Path, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>>;
+    fn write_file(&self, path:&Path, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>>;
+
     /// Retrieves the file contents as a binary data.
-    fn read_file(&self, path:&ls::Path) -> LocalBoxFuture<FallibleResult<Vec<u8>>>;
+    fn read_file(&self, path:&Path) -> LocalBoxFuture<FallibleResult<Vec<u8>>>;
+
+    /// Asynchronous event stream with notification and errors.
+    ///
+    /// On a repeated call, previous stream is closed.
+    fn event_stream(&mut self) -> LocalBoxStream<Event>;
 }
 
 
@@ -50,14 +84,14 @@ pub trait API {
 #[derive(Clone,Derivative)]
 #[derivative(Debug)]
 pub struct Client {
-    handler : Handler<Uuid,FromServerOwned,Notification>,
+    handler : Handler<Uuid, FromServerPayloadOwned,Notification>,
     logger  : Logger,
 }
 
 impl Client {
     /// Helper function that fails if the received message represents a remote error.
-    fn expect_success(result:FromServerOwned) -> FallibleResult<()> {
-        if let FromServerOwned::Success {} = result {
+    fn expect_success(result: FromServerPayloadOwned) -> FallibleResult<()> {
+        if let FromServerPayloadOwned::Success {} = result {
             Ok(())
         } else {
             Err(RpcError::MismatchedResponseType.into())
@@ -66,7 +100,9 @@ impl Client {
 
     /// Helper function that does early processing of the peer's message and decides how it shall
     /// be handled.
-    fn processor(logger:Logger) -> impl FnMut(TransportEvent) -> Disposition<Uuid,FromServerOwned,Notification> + 'static {
+    fn processor
+    (logger:Logger)
+    -> impl FnMut(TransportEvent) -> Disposition<Uuid, FromServerPayloadOwned,Notification> + 'static {
         move |event:TransportEvent| {
             let binary_data = match event {
                 TransportEvent::BinaryMessage(data) =>
@@ -80,7 +116,7 @@ impl Client {
             };
             info!(logger, "Received binary message {message:?}");
             match message.payload {
-                FromServerOwned::VisualizationUpdate {context,data} =>
+                FromServerPayloadOwned::VisualizationUpdate {context,data} =>
                     Disposition::notify(Notification::VisualizationUpdate {data,context}),
                 _ => {
                     if let Some(id) = message.correlation_id {
@@ -112,7 +148,7 @@ impl Client {
     /// Starts a new request, described by the given payload.
     /// Function `f`
     pub fn open<F,R>(&self, payload:ToServerPayload, f:F) -> LocalBoxFuture<FallibleResult<R>>
-        where F : FnOnce(FromServerOwned) -> FallibleResult<R>,
+        where F : FnOnce(FromServerPayloadOwned) -> FallibleResult<R>,
               R : 'static,
               F : 'static, {
         let message = Message::new(payload);
@@ -121,7 +157,7 @@ impl Client {
         let logger = self.logger.clone_ref();
         let completer = move |reply| {
             info!(logger,"Completing request {id} with a reply: {reply:?}");
-            if let FromServerOwned::Error {code,message} = reply {
+            if let FromServerPayloadOwned::Error {code,message} = reply {
                 let error = RpcError::new_remote_error(code.into(), message);
                 Err(error.into())
             } else {
@@ -147,48 +183,26 @@ impl API for Client {
         self.open(payload,Self::expect_success)
     }
 
-    fn write_file(&self, path:&ls::Path, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>> {
+    fn write_file(&self, path:&Path, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>> {
         info!(self.logger,"Writing file {path} with {contents:?}");
         let payload = ToServerPayload::WriteFile {path,contents};
         self.open(payload,Self::expect_success)
     }
 
-    fn read_file(&self, path:&ls::Path) -> LocalBoxFuture<FallibleResult<Vec<u8>>> {
+    fn read_file(&self, path:&Path) -> LocalBoxFuture<FallibleResult<Vec<u8>>> {
         info!(self.logger,"Reading file {path}");
         let payload = ToServerPayload::ReadFile {path};
         self.open(payload, move |result| {
-            if let FromServerOwned::FileContentsReply {contents} = result {
+            if let FromServerPayloadOwned::FileContentsReply {contents} = result {
                 Ok(contents)
             } else {
                 Err(RpcError::MismatchedResponseType.into())
             }
         })
     }
-}
 
-
-
-// ==================
-// === MockClient ===
-// ==================
-
-mock!{
-    pub Client {
-        fn init_ready(&self, client_id:Uuid) -> FallibleResult<()>;
-        fn write_file_ready(&self, path:&ls::Path, contents:&[u8]) -> FallibleResult<()>;
-        fn read_file_ready(&self, path:&ls::Path) -> FallibleResult<Vec<u8>>;
-    }
-}
-
-impl API for MockClient {
-    fn init(&self, client_id:Uuid) -> LocalBoxFuture<FallibleResult<()>> {
-        futures::future::ready(self.init_ready(client_id)).boxed_local()
-    }
-    fn write_file(&self, path:&ls::Path, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>> {
-        futures::future::ready(self.write_file_ready(path,contents)).boxed_local()
-    }
-    fn read_file(&self, path:&ls::Path) -> LocalBoxFuture<FallibleResult<Vec<u8>>>{
-        futures::future::ready(self.read_file_ready(path)).boxed_local()
+    fn event_stream(&mut self) -> LocalBoxStream<Event> {
+        self.handler.event_stream().boxed_local()
     }
 }
 
@@ -202,11 +216,16 @@ impl API for MockClient {
 mod tests {
     use super::*;
 
-    use json_rpc::test_util::transport::mock::MockTransport;
-    use futures::task::LocalSpawnExt;
-    use chrono::format::Item::Fixed;
     use crate::binary::message::ToServerPayloadOwned;
-    use crate::binary::payload::DeserializableToServer;
+    use crate::binary::serialization::DeserializableToServer;
+    use crate::binary::message::Serialize;
+
+    use futures::task::LocalSpawnExt;
+    use json_rpc::test_util::transport::mock::MockTransport;
+    use utils::test::expect_err;
+    use utils::test::expect_not_ready;
+    use utils::test::expect_ok;
+    use utils::test::expect_ready;
 
 
 
@@ -230,33 +249,123 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_init() {
+
+
+    // ========================
+    // === Testing Requests ===
+    // ========================
+
+    fn test_request<R>
+    ( make_request     : impl Fn(&Client) -> LocalBoxFuture<FallibleResult<R>>
+    , expected_result  : R
+    , expected_request : ToServerPayloadOwned
+    , mock_reply       : FromServerPayloadOwned
+    )
+    where R : Debug+PartialEq+Sized {
         let mut fixture = ClientFixture::new();
 
-        let client_id = Uuid::new_v4();
-
-        let init_fut : LocalBoxFuture<FallibleResult<()>> = fixture.client.init(client_id);
-        fixture.executor.spawner().spawn_local(async move {
-            assert!(init_fut.await.is_ok());
-        });
+        let mut fut = make_request(&fixture.client);
 
         let generated_message = fixture.transport.expect_binary_message();
-        println!("got msg {:?}",generated_message);
-
         let generated_message = ToServerPayloadOwned::read_message(&generated_message).unwrap();
-        let expected_payload = ToServerPayloadOwned::InitSession {client_id};
-        assert_eq!(generated_message.payload,expected_payload);
+        assert_eq!(generated_message.payload,expected_request);
+        expect_not_ready(&mut fut);
 
-        let mock_reply = Message::new(FromServerOwned::Success {});
-        //mock_reply.with_serialized(|_| {});
+        let mut mock_reply = Message::new(mock_reply);
+        mock_reply.correlation_id = Some(generated_message.message_id);
+        mock_reply.with_serialized(|data| fixture.transport.mock_peer_binary_message(data));
+        fixture.executor.run_until_stalled();
+        assert_eq!(expect_ok(&mut fut),expected_result);
+
+        // Repeat request but now answer with error.
+        let mut fut = make_request(&fixture.client);
+        let generated_message = fixture.transport.expect_binary_message();
+        let generated_message = ToServerPayloadOwned::read_message(&generated_message).unwrap();
+
+        let mock_error_code = 444;
+        let mock_error_message = "This is error".to_string();
+        let mut mock_reply = Message::new(FromServerPayloadOwned::Error {
+            code : mock_error_code,
+            message : mock_error_message.clone(),
+        });
+        mock_reply.correlation_id = Some(generated_message.message_id);
+        mock_reply.with_serialized(|data| fixture.transport.mock_peer_binary_message(data));
+        fixture.executor.run_until_stalled();
+        expect_err(&mut fut);
+    }
+
+    #[test]
+    fn test_init() {
+        let client_id = Uuid::new_v4();
+        test_request(
+            |client| client.init(client_id),
+            (),
+            ToServerPayloadOwned::InitSession { client_id },
+            FromServerPayloadOwned::Success {}
+        );
+    }
+
+    #[test]
+    fn test_write_file() {
+        let root_id = Uuid::new_v4();
+        let path = Path::new(root_id, &["Main.enso"]);
+        let data = Vec::from("hello".as_bytes());
+        test_request(
+            |client| client.write_file(&path,&data),
+            (),
+            ToServerPayloadOwned::WriteFile {contents:data.clone(), path:path.clone()},
+            FromServerPayloadOwned::Success {}
+        );
+    }
+
+    #[test]
+    fn test_read_file() {
+        let root_id = Uuid::new_v4();
+        let path = Path::new(root_id, &["Main.enso"]);
+        let data = Vec::from("hello".as_bytes());
+        test_request(
+            |client| client.read_file(&path),
+            data.clone(),
+            ToServerPayloadOwned::ReadFile {path:path.clone()},
+            FromServerPayloadOwned::FileContentsReply {contents:data.clone()}
+        );
+    }
 
 
 
-        println!("payload verified");
+    // =============================
+    // === Testing Notifications ===
+    // =============================
+
+    #[test]
+    fn test_visualization_update() {
+        let mut fixture = ClientFixture::new();
+
+        let mut event_fut = fixture.client.event_stream().into_future().boxed_local();
+        fixture.executor.run_until_stalled();
+        expect_not_ready(&mut event_fut);
+
+        let context = VisualisationContext {
+            visualization_id : Uuid::new_v4(),
+            expression_id    : Uuid::new_v4(),
+            context_id       : Uuid::new_v4(),
+        };
+        let data = Vec::from("Hello".as_bytes());
+        let message = Message::new(FromServerPayloadOwned::VisualizationUpdate {
+            data    : data.clone(),
+            context : context.clone()
+        });
 
 
+        message.with_serialized(|data| fixture.transport.mock_peer_binary_message(data));
+        fixture.executor.run_until_stalled();
+
+        let expected_notification = Notification::VisualizationUpdate {context,data};
+        let (event, tail) = expect_ready(&mut event_fut);
+        match event.expect("Expected some notification.") {
+            Event::Notification(notification) => assert_eq!(notification,expected_notification),
+            event => panic!("Expected notification event, got: {:?}",event),
+        }
+        expect_not_ready(&mut tail.into_future().boxed_local());
     }
 }
-
-

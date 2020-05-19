@@ -12,6 +12,7 @@ impl EnsoUUID {
     }
 }
 
+/// Utilities extending the Uuid class.
 pub trait UuidExt {
     /// The most significant 64 bits of this UUID's 128 bit value.
     ///
@@ -25,9 +26,9 @@ pub trait UuidExt {
 
     /// Constructs a new UUID using the specified data.
     ///
-    /// `most_significant_bits` is used for the most significant 64 bits of the UUID and
-    /// `least_significant_bits` becomes the least significant 64 bits of the UUID.
-    fn from_i64_pair(least_significant_bits:i64, most_significant_bits:i64) -> Self;
+    /// `most_significant` is used for the most significant 64 bits of the UUID and
+    /// `least_significant` becomes the least significant 64 bits of the UUID.
+    fn from_bytes_split(least_significant:&[u8;8], most_significant:&[u8;8]) -> Self;
 }
 
 impl UuidExt for Uuid {
@@ -39,10 +40,10 @@ impl UuidExt for Uuid {
         i64::from_be_bytes(self.as_bytes()[8..].try_into().unwrap())
     }
 
-    fn from_i64_pair(least_significant_bits:i64, most_significant_bits:i64) -> Self {
-        let most_significant_bytes  = most_significant_bits.to_le_bytes();
-        let least_significant_bytes = least_significant_bits.to_le_bytes();
-        let all_bytes = least_significant_bytes.iter().chain(most_significant_bytes.iter()).rev();
+    fn from_bytes_split(least_significant:&[u8;8], most_significant:&[u8;8]) -> Self {
+        // let most_significant_bytes  = most_significant_bits.to_le_bytes();
+        // let least_significant_bytes = least_significant_bits.to_le_bytes();
+        let all_bytes = least_significant.iter().chain(most_significant.iter()).rev();
 
         let mut bytes : [u8;16] = [default();16];
         for (dst,src) in bytes.iter_mut().zip(all_bytes) {
@@ -60,29 +61,32 @@ impls! { From + &From <Uuid> for EnsoUUID {
 
 impls! { From + &From <EnsoUUID> for Uuid {
     |enso_uuid| {
-        let most_significant_bytes  = enso_uuid.mostSigBits().to_le_bytes();
-        let least_significant_bytes = enso_uuid.leastSigBits().to_le_bytes();
-        let all_bytes = least_significant_bytes.iter().chain(most_significant_bytes.iter()).rev();
-
-        let mut bytes : [u8;16] = [default();16];
-        for (dst,src) in bytes.iter_mut().zip(all_bytes) {
-            *dst = *src;
-        }
-
-        Uuid::from_bytes(bytes)
+        let least_significant = enso_uuid.leastSigBits().to_le_bytes();
+        let most_significant  = enso_uuid.mostSigBits().to_le_bytes();
+        Uuid::from_bytes_split(&least_significant,&most_significant)
     }
 }}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    //use std::f32::consts::PI;
+
+    #[test]
+    fn least_significant_bits() {
+        let uuid  = Uuid::parse_str("38400000-8cf0-11bd-b23e-10b96e4ef00d").unwrap();
+        assert_eq!(uuid.least_significant_bits(),-5603022497796657139);
+    }
+
+    #[test]
+    fn most_significant_bits() {
+        let uuid  = Uuid::parse_str("38400000-8cf0-11bd-b23e-10b96e4ef00d").unwrap();
+        assert_eq!(uuid.most_significant_bits(),4053239666997989821);
+    }
 
     #[test]
     fn uuid_round_trips() {
-        //let uuid = Uuid::new_v4();
-        let uuid = Uuid::parse_str("6de39f7b-df3a-4a3c-84eb-5eaf96ddbac2").unwrap();
-        let enso = EnsoUUID::from(uuid);
+        let uuid  = Uuid::parse_str("6de39f7b-df3a-4a3c-84eb-5eaf96ddbac2").unwrap();
+        let enso  = EnsoUUID::from(uuid);
         let uuid2 = Uuid::from(enso);
         assert_eq!(uuid,uuid2);
     }

@@ -15,6 +15,7 @@ use ide::prelude::*;
 use enso_protocol::language_server::*;
 use enso_protocol::types::*;
 use ide::transport::web::WebSocket;
+use uuid::Uuid;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 
 /// The endpoint at which the Language Server should be accepting WS connections.
@@ -252,4 +253,30 @@ async fn file_events() {
     } else {
         panic!("Incoming event isn't a notification.");
     }
+}
+
+//#[wasm_bindgen_test::wasm_bindgen_test(async)]
+#[allow(dead_code)]
+async fn binary_protocol_test() {
+    ensogl_system_web::set_stdout();
+    let _guard = ide::setup_global_executor();
+
+    let ws = WebSocket::new_opened(ide::PROJECT_MANAGER_ENDPOINT).await.unwrap();
+    println!("Connected!");
+    let pm = ide::setup_project_manager(ws);
+    println!("PM established!");
+    let project = ide::open_most_recent_project_or_create_new(&pm).await.unwrap();
+    println!("Got project: {:?}", project);
+    let init_fut = project.language_server_bin.init(Uuid::new_v4());
+    println!("Waiting for init");
+    println!("Init result: {:?}", init_fut.await);
+
+    let path = Path::new(project.language_server_rpc.content_root(), &["moje.txt"]);
+    let contents = "Hello moje".as_bytes();
+    println!("Writing file {}", path);
+    println!("Written: {:?}", project.language_server_bin.write_file(&path,contents).await.unwrap());
+    let read_back = project.language_server_bin.read_file(&path).await.unwrap();
+    println!("Read back: {:?}", read_back);
+    assert_eq!(contents, read_back.as_slice());
+    assert!(false);
 }

@@ -2,22 +2,24 @@
 
 use crate::prelude::*;
 
-use crate::binary::payload::SerializableToServer;
 use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary::OutboundMessage;
 
 use flatbuffers::FlatBufferBuilder;
 use json_rpc::Transport;
-use crate::binary::payload;
+use crate::binary::serialization;
 
 use crate::language_server::Path as LSPath;
+
 
 
 // ===============
 // === Aliases ===
 // ===============
 
-pub type MessageFromServerOwned = Message<FromServerOwned>;
+/// An owning representation of the message received from a server.
+pub type MessageFromServerOwned = Message<FromServerPayloadOwned>;
 
+/// An non-owning representation of the message to be sent to the server.
 pub type MessageToServerRef<'a> = Message<ToServerPayload<'a>>;
 
 
@@ -28,7 +30,7 @@ pub type MessageToServerRef<'a> = Message<ToServerPayload<'a>>;
 
 /// Identifies the visualization.
 #[allow(missing_docs)]
-#[derive(Clone,Debug,Copy)]
+#[derive(Clone,Debug,Copy,PartialEq)]
 pub struct VisualisationContext {
     pub visualization_id : Uuid,
     pub context_id       : Uuid,
@@ -41,6 +43,7 @@ pub struct VisualisationContext {
 // === Payloads ===
 // ================
 
+#[allow(missing_docs)]
 #[derive(Clone,Debug,PartialEq)]
 pub enum ToServerPayloadOwned {
     InitSession {client_id:Uuid},
@@ -48,14 +51,16 @@ pub enum ToServerPayloadOwned {
     ReadFile    {path:LSPath}
 }
 
+#[allow(missing_docs)]
 #[derive(Clone,Debug)]
-pub enum FromServerOwned {
+pub enum FromServerPayloadOwned {
     Error {code:i32, message:String},
     Success {},
     VisualizationUpdate {context:VisualisationContext, data:Vec<u8>},
     FileContentsReply   {contents:Vec<u8>},
 }
 
+#[allow(missing_docs)]
 #[derive(Clone,Debug)]
 pub enum ToServerPayload<'a> {
     InitSession {client_id:Uuid},
@@ -63,8 +68,9 @@ pub enum ToServerPayload<'a> {
     ReadFile    {path:&'a LSPath}
 }
 
+#[allow(missing_docs)]
 #[derive(Clone,Debug)]
-pub enum FromServerRef<'a> {
+pub enum FromServerPayload<'a> {
     Error {code:i32, message:&'a str},
     Success {},
     VisualizationUpdate {context:VisualisationContext, data:&'a [u8]},
@@ -86,6 +92,7 @@ pub struct Message<T> {
     pub message_id     : Uuid,
     /// When sending reply, server sets this to the request's `message_id`.
     pub correlation_id : Option<Uuid>,
+    #[allow(missing_docs)]
     pub payload        : T,
 }
 
@@ -100,7 +107,7 @@ impl<T> Message<T> {
     }
 }
 
-impl<'a> crate::new_handler::Request for MessageToServerRef<'a> {
+impl<'a> crate::handler::IsRequest for MessageToServerRef<'a> {
     type Id = Uuid;
 
     fn send(&self, transport:&mut dyn Transport) -> FallibleResult<()> {
@@ -112,10 +119,11 @@ impl<'a> crate::new_handler::Request for MessageToServerRef<'a> {
     }
 }
 
-impl Message<FromServerOwned> {
+impl Message<FromServerPayloadOwned> {
+    /// Deserializes a message from server from a binary blob.
     pub fn deserialize_owned(data:&[u8]) -> FallibleResult<Self> {
         let message = flatbuffers::get_root::<OutboundMessage>(data);
-        let payload = FromServerOwned::deserialize_owned(&message)?;
+        let payload = FromServerPayloadOwned::deserialize_owned(&message)?;
 
         let enso = message.correlationId();
         let uuid = enso.map(Uuid::from);
@@ -128,22 +136,26 @@ impl Message<FromServerOwned> {
     }
 }
 
+/// Entity that can be serialized into a binary blob using our FlatBuffer schema.
 pub trait Serialize {
+    /// Stores the entity into the builder and calls `finish` on it.
     fn write(&self, builder:&mut FlatBufferBuilder);
 
+    /// Returns `finish`ed builder with the serialized entity.
     fn serialize(&self) -> FlatBufferBuilder {
         let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
         self.write(&mut builder);
         builder
     }
 
+    /// Calls the given function with the binary blob with the serialized entity.
     fn with_serialized<R>(&self, f:impl FnOnce(&[u8]) -> R) -> R {
         let buffer = self.serialize();
         f(buffer.finished_data())
     }
 }
 
-impl<T:payload::Serializable> Serialize for Message<T> {
+impl<T: serialization::Serializable> Serialize for Message<T> {
     fn write(&self, builder:&mut FlatBufferBuilder) {
         self.payload.write_message(builder,self.correlation_id,self.message_id)
     }

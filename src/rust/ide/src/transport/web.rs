@@ -104,6 +104,7 @@ impl State {
 /// Wrapper over JS `WebSocket` object and callbacks to its signals.
 #[derive(Debug)]
 pub struct WebSocket {
+    #[allow(missing_docs)]
     pub logger     : Logger,
     /// Handle to the JS `WebSocket` object.
     pub ws         : web_sys::WebSocket,
