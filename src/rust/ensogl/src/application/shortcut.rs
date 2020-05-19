@@ -185,7 +185,10 @@ pub enum ActionType {
     Press, Release
 }
 
-/// Keyboard action defined as `ActionType` and `KeyMask`, like "release key 'n'".
+/// Keyboard action defined as `ActionType` and `KeyMask`, like "release key 'n'". Please note that
+/// the release action happens as soon as the key mask is no longer valid. So for example, after
+/// pressing key "n", and then pressing key "a" (while holding "n"), the release event of the key
+/// "n" will be emitted.
 #[derive(Clone,Copy,Debug)]
 #[allow(missing_docs)]
 pub struct Action {

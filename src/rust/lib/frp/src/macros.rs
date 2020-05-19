@@ -171,7 +171,7 @@ macro_rules! new_bridge_network {
 #[macro_export]
 macro_rules! _extend {
     ($trace:ident $network:ident $($ts:tt)*) => {
-        $crate::divide_on_terminator2! { [[$crate::extend_lines] [$trace $network]] $($ts)* }
+        $crate::divide_on_terminator! { [[$crate::extend_lines] [$trace $network]] $($ts)* }
     };
 }
 
@@ -241,7 +241,7 @@ macro_rules! extend_line2 {
 
 /// Internal helper for `extend` macro.
 #[macro_export]
-macro_rules! divide_on_terminator2 {
+macro_rules! divide_on_terminator {
     ($f:tt $($ts:tt)*) => { $crate::_divide_on_terminator! { $f [] [] $($ts)* } };
 }
 
