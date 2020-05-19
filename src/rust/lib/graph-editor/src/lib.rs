@@ -1007,8 +1007,7 @@ impl GraphEditorModel {
         let pos_diff     = pos_diff.into();
         let new_position = if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             let node_pos = node.position();
-            let position = frp::Position::new(node_pos.x + pos_diff.x, node_pos.y + pos_diff.y);
-            position
+            frp::Position::new(node_pos.x + pos_diff.x, node_pos.y + pos_diff.y)
         } else {
             default()
         };
@@ -1140,7 +1139,7 @@ pub enum SelectionMode {
 }
 
 impl SelectionMode {
-    pub fn single_should_select(&self, was_selected:bool) -> bool {
+    pub fn single_should_select(self, was_selected:bool) -> bool {
         match self {
             Self::Normal  => true,
             Self::Merge   => true,
@@ -1150,7 +1149,7 @@ impl SelectionMode {
         }
     }
 
-    pub fn single_should_deselect(&self, was_selected:bool) -> bool {
+    pub fn single_should_deselect(self, was_selected:bool) -> bool {
         match self {
             Self::Subtract => true,
             Self::Multi    => was_selected,
@@ -1477,5 +1476,21 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 impl display::Object for GraphEditor {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
+    }
+}
+
+
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_1() {
+        assert_eq!(1,0);
     }
 }
