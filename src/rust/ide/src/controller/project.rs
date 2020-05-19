@@ -33,11 +33,13 @@ pub struct Handle {
 impl Handle {
     /// Create a new project controller.
     pub fn new(language_server_client:language_server::Connection) -> Self {
-        let language_server_rpc = Rc::new(language_server_client);
-        let visualisation       = visualisation::Handle::new(language_server_rpc.clone());
-        let module_registry     = default();
-        let parser              = Parser::new_or_panic();
-        let logger              = Logger::new("Project Controller");
+        let language_server_rpc  = Rc::new(language_server_client);
+        let module_registry      = default();
+        let parser               = Parser::new_or_panic();
+        let logger               = Logger::new("Project Controller");
+        let embedded_visualisers = default();
+        let visualisation =
+            visualisation::Handle::new(language_server_rpc.clone(),embedded_visualisers);
         Handle {module_registry,parser,language_server_rpc,logger,visualisation}
     }
 
