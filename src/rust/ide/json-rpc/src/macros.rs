@@ -138,9 +138,10 @@ macro_rules! make_rpc_methods {
                 $(fn $method<'a>(&'a self $(,$param_name:&'a $param_ty)*)
                 -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>> {
                     let mut handlers = self.expect.$method.borrow_mut();
-                    let result       = handlers.pop().map(|handler| handler($($param_name),*));
-                    let err          = format!("Unexpected call {}",$rpc_name);
-                    Box::pin(futures::future::ready(result.expect(err.as_str())))
+                    assert!(!handlers.is_empty(),"Unexpected call {}",$rpc_name);
+                    let handler      = handlers.remove(0);
+                    let result       = handler($($param_name),*);
+                    Box::pin(futures::future::ready(result))
                 })*
             }
 
@@ -173,7 +174,7 @@ macro_rules! make_rpc_methods {
                     /// called once and removed. The handlers will be called in the same order as
                     /// set by this function.
                     pub fn $method(&self, handler:impl FnOnce($(&$param_ty),*) -> Result<$result> + 'static) {
-                        self.$method.borrow_mut().insert(0,Box::new(handler));
+                        self.$method.borrow_mut().push(Box::new(handler));
                     }
                 )*
             }
@@ -194,19 +195,9 @@ macro_rules! make_rpc_methods {
 /// expect_call!(client.method(param1=value1,param2=value2) => Ok(result));
 /// ```
 #[macro_export]
-// TODO deduplicate
 macro_rules! expect_call {
     ($mock:ident.$method:ident($($param:ident),*) => $result:expr) => {
-        let result          = $result;
-        let expected_params = ($($param,)*);
-        $mock.expect.$method(move |$($param),*| {
-            let expected_params_refs = {
-                let ($($param,)*) = &expected_params;
-                ($($param,)*)
-            };
-            assert_eq!(($($param,)*),expected_params_refs);
-            result
-        })
+        expect_call!($mock.$method($($param=$param),*) => $result)
     };
     ($mock:ident.$method:ident($($param:ident=$value:expr),*) => $result:expr) => {
         let result          = $result;

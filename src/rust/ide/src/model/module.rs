@@ -254,7 +254,6 @@ mod test {
             metadata.ide.node.insert(id,node_metadata);
             module.update_whole(SourceFile{ast:new_module_ast, metadata});
             assert_eq!(Some(Notification::Invalidate), subscription.next().await);
-            assert_eq!(Some(Notification::Invalidate), subscription.next().await);
 
             // No more notifications emitted
             drop(module);

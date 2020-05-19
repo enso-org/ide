@@ -123,12 +123,14 @@ impl Module {
         Ok(this)
     }
 
-    /// Create a module mock, which will not call any method of language server.
+    /// Create a module mock.
     #[cfg(test)]
     pub fn mock(path:controller::module::Path, model:model::Module) -> Rc<Self> {
         let logger = Logger::new(iformat!("Mocked Module {path}"));
-        // We don't take client as arg, because it should not be called at all.
-        let language_server = language_server::Connection::new_mock_rc(default());
+        let client = language_server::MockClient::default();
+        client.expect.close_text_file(|_| Ok(()));
+        // We don't expect any other call, because we don't execute `runner()`.
+        let language_server = language_server::Connection::new_mock_rc(client);
         Rc::new(Module{path,model,language_server,logger})
     }
 }
@@ -265,14 +267,115 @@ impl Deref for Module {
 
 #[cfg(test)]
 mod test {
-    pub use wasm_bindgen_test::wasm_bindgen_test;
+    use super::*;
+
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
-    #[wasm_bindgen_test]
-    fn open_module_and_listen_for_notifications() {
-        let mut test = TestWithLocalPoolExecutor::set_up();
-        test.run_task(async {
+    use json_rpc::expect_call;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use utils::test::ExpectTuple;
 
-        })
+    struct LsClientSetup {
+        file_path          : language_server::Path,
+        current_ls_code    : Rc<CloneCell<String>>,
+        current_ls_version : Rc<CloneCell<Sha3_224>>,
+        client             : language_server::MockClient,
     }
+
+    impl LsClientSetup {
+        fn new(file_path:language_server::Path, initial_content:impl Str) -> Self {
+            let initial_content = initial_content.into();
+            let initial_version = Sha3_224::new(initial_content.as_bytes());
+            let this = LsClientSetup {
+                file_path,
+                current_ls_code    : Rc::new(CloneCell::new(initial_content)),
+                current_ls_version : Rc::new(CloneCell::new(initial_version)),
+                client             : default(),
+            };
+            this.expect_open_and_initial_update();
+            this
+        }
+
+        fn expect_open_and_initial_update(&self) {
+            let open_response = language_server::response::OpenTextFile {
+                write_capability : self.create_can_edit_capability(),
+                content          : self.current_ls_code.get(),
+                current_version  : self.current_ls_version.get(),
+            };
+            let client = &self.client;
+            expect_call!(client.open_text_file(path=self.file_path.clone()) => Ok(open_response));
+
+            let old_code = self.current_ls_code.get();
+            self.expect_invalidate(move |new_code| {
+                let code_end = old_code.find("#### METADATA ####").unwrap_or(old_code.len());
+                assert_eq!(old_code[..code_end], new_code[..code_end]);
+            });
+        }
+
+        fn expect_invalidate<CodeChecker>(&self, code_checker:CodeChecker)
+        where CodeChecker : FnOnce(&str) + 'static {
+            let path       = self.file_path.clone();
+            let ls_version = self.current_ls_version.clone_ref();
+            let ls_code    = self.current_ls_code.clone_ref();
+            self.client.expect.apply_text_file_edit(move |edit| {
+                assert_eq!(edit.path       , path);
+                assert_eq!(edit.old_version, ls_version.get());
+                let end_of_file  = TextLocation::at_document_end(ls_code.get());
+                let (text_edit,) = edit.edits.iter().expect_tuple();
+                let expected_range = language_server::types::TextRange {
+                    start : language_server::types::Position { line:0,character:0  },
+                    end   : end_of_file.into(),
+                };
+                assert_eq!(text_edit.range, expected_range);
+                assert_eq!(edit.new_version, Sha3_224::new(text_edit.text.as_bytes()));
+                code_checker(text_edit.text.as_str());
+                ls_code.set(text_edit.text.clone());
+                ls_version.set(edit.new_version.clone());
+                Ok(())
+            });
+        }
+
+        fn create_can_edit_capability
+        (&self) -> Option<language_server::types::CapabilityRegistration> {
+            use language_server::types::*;
+            let method           = "text/canEdit".to_string();
+            let path             = self.file_path.clone();
+            let register_options = RegisterOptions::ReceivesTreeUpdates(ReceivesTreeUpdates {path});
+            Some(CapabilityRegistration {method,register_options})
+        }
+
+        fn finish(self) -> Rc<language_server::Connection> {
+            let client = self.client;
+            expect_call!(client.close_text_file(path=self.file_path) => Ok(()));
+            language_server::Connection::new_mock_rc(client)
+        }
+    }
+
+    #[wasm_bindgen_test]
+    fn handling_notifications_in_runner() {
+        let path            = controller::module::Path::from_module_name("TestModule");
+        let parser          = Parser::new_or_panic();
+        let initial_content = "main =\n    println \"Hello World!\"";
+        let new_content     = "main =\n    println \"Test\"".to_string();
+        let new_ast         = parser.parse_module(new_content.clone(),default()).unwrap();
+        let setup           = LsClientSetup::new(path.file_path().clone(),initial_content);
+        setup.expect_invalidate(move |code| { assert!(code.starts_with(new_content.as_str())) });
+        let connection                             = setup.finish();
+        let (barrier_snd,barrier_rcv)              = futures::channel::oneshot::channel::<()>();
+        let mut test                               = TestWithLocalPoolExecutor::set_up();
+        let module:Rc<RefCell<Option<Rc<Module>>>> = default();
+        let module_ref                             = module.clone();
+        test.run_task(async move {
+            let module = Module::open(path,connection,Parser::new_or_panic()).await.unwrap();
+            barrier_rcv.await.unwrap();
+            module.model.update_ast(new_ast);
+            *module_ref.borrow_mut() = Some(module); // Keep the module after this task.
+        });
+        test.when_stalled(move || barrier_snd.send(()).unwrap());
+        test.when_stalled(move || *module.borrow_mut() = None);
+    }
+
+
+
+
 }
