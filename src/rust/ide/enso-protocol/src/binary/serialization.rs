@@ -48,18 +48,32 @@ use flatbuffers::WIPOffset;
 // === SerializableObject ===
 // ==========================
 
+
+// === Trait ===
+
 /// All entities that can be serialized to the FlatBuffers and represented as offsets.
 ///
 /// Supports both serialization and deserialization.
 trait SerializableObject<'a> : Sized {
+    /// The FlatBuffer's generated type for this type representation.
     type Out : Sized;
+
+    /// Writes this table to the buffer and returns its handle.
     fn serialize(&self, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Self::Out>;
+
+    /// Instantiates Self and reads the data from the FlatBuffers representation.
     fn deserialize(fbs:Self::Out) -> Result<Self,DeserializationError>;
+
+    /// Instantiates Self and reads the data from the optional FlatBuffers representation.
+    /// Will fail always if the representation is not present.
     fn deserialize_required_opt(fbs:Option<Self::Out>) -> Result<Self, DeserializationError>{
         let missing_expected = || DeserializationError("Missing expected field".to_string());
         Self::deserialize(fbs.ok_or_else(missing_expected)?)
     }
 }
+
+
+// === impl Vec<String> ===
 
 impl<'a> SerializableObject<'a> for Vec<String> {
     type Out = flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>;
@@ -74,6 +88,9 @@ impl<'a> SerializableObject<'a> for Vec<String> {
         Ok(indices.map(|ix| fbs.get(ix).to_string()).collect())
     }
 }
+
+
+// === impl VisualisationContext ===
 
 impl<'a> SerializableObject<'a> for VisualisationContext {
     type Out = generated::VisualisationContext<'a>;
@@ -93,6 +110,9 @@ impl<'a> SerializableObject<'a> for VisualisationContext {
         })
     }
 }
+
+
+// === impl language server's Path ===
 
 impl<'a> SerializableObject<'a> for LSPath {
     type Out = Path<'a>;
@@ -114,19 +134,19 @@ impl<'a> SerializableObject<'a> for LSPath {
 }
 
 
-//
-// // =========================
-// // === SerializableUnion ===
-// // =========================
-//
-// pub trait SerializableUnionMember<'a, ParentType:'a> {
-//     type EnumType;
-//
-//     fn serialize(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
-//     fn active_variant(&self) -> Self::EnumType;
-//
-//     fn deserialize(parent:ParentType) -> ();
-// }
+
+// =========================
+// === SerializableUnion ===
+// =========================
+
+pub trait SerializableUnionMember<'a, ParentType:'a> : Sized {
+    type EnumType;
+
+    fn serialize(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
+    fn active_variant(&self) -> Self::EnumType;
+
+    fn deserialize(parent:ParentType) -> Self;
+}
 
 
 // impl<'a> SerializablePayloadToServer for ToServerPayload<'a> {
