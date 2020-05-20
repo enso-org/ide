@@ -8,8 +8,7 @@ use crate::visualization::*;
 use ensogl::display::Scene;
 use ensogl::display;
 use std::error::Error;
-
-
+use enso_prelude::CloneRef;
 
 
 // ====================
@@ -238,6 +237,21 @@ pub trait Class: Debug {
     // TODO consider not allowing failing here and require the checking on instantiation of the `Class`.
     fn instantiate(&self, scene:&Scene) -> InstantiationResult;
 }
+
+#[derive(Clone,Debug)]
+#[allow(missing_docs)]
+struct ClassHandle {
+    class : Option<Rc<dyn Class>>
+}
+
+impl ClassHandle {
+    pub fn new<T: Class + 'static>(class: T) -> ClassHandle {
+        let wrapped = Rc::new(class);
+        ClassHandle{class:Some(wrapped)}
+    }
+}
+
+impl CloneRef for ClassHandle {}
 
 
 
