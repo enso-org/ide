@@ -11,11 +11,14 @@
 //! 3. `JsRenderer::from_constructor`where the body of a constructor function needs to be
 //!     provided. The returned object needs to fulfill the same specification as in (2).
 //!
-//! Right now the only functions required on the wrapped object are
+//! Right now the only functions supported on the wrapped object are
 //!  * `onDataReceived(root, data)`, which receives the html element that the visualisation should be
 //!     appended on, as well as the data that should be rendered.
 //!  * `setSize(root, size)`, which receives the node that the visualisation should be appended on,
 //!    as well as the intended size.
+//!
+//! All functions on the class are optional, and methods that are not present, will be handled as
+//! no-op by the  `JsRenderer`.
 //!
 //! TODO: refine spec and add functions as needed, e.g., init, callback hooks or type indicators.
 
