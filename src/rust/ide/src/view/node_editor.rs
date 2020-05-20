@@ -13,12 +13,15 @@ use ensogl::application::Application;
 use graph_editor::GraphEditor;
 use graph_editor::EdgeTarget;
 use utils::channel::process_stream_with_handle;
+use bidirectional_map::Bimap;
 
 
 // ==============
 // === Errors ===
 // ==============
 
+/// Error returned by various function inside GraphIntegration, when our mappings from controller
+/// items (node or connections) to displayed items are missing some information.
 #[derive(Copy,Clone,Debug,Fail)]
 enum MissingData {
     #[fail(display="Node Editor discrepancy: displayed node {:?} is not bound to any actual node",
@@ -31,54 +34,39 @@ enum MissingData {
     Connection(graph_editor::EdgeId),
 }
 
+/// Error raised when reached some fatal inconsistency in data provided by GraphEditor.
 #[derive(Copy,Clone,Debug,Fail)]
 #[fail(display="Discrepancy in a GraphEditor component")]
 struct GraphEditorDiscrepancy;
 
 
 
-// =================================
-// === Bidirectional Map Wrapper ===
-// =================================
+// ====================
+// === FencedAction ===
+// ====================
 
-#[derive(Clone,Default,Shrinkwrap)]
-#[shrinkwrap(mutable)]
-struct Bimap<K:Clone+Eq+Hash,V:Clone+Eq+Hash>(pub bidirectional_map::Bimap<K,V>);
-
-impl<K,V> Debug for Bimap<K,V>
-where K : Clone + Debug + Eq + Hash,
-      V : Clone + Debug + Eq + Hash {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(bimap) = self;
-        Debug::fmt(&bimap.iter(),f)
-    }
+/// An utility to FRP network. It is wrapped closure in a set of FRP nodes. The closure is called
+/// on `trigger`, and `is_running` contains information if we are still inside closure call. It
+/// allows us to block some execution path to avoid infinite loops.
+struct FencedAction<Parameter:frp::Data> {
+    trigger    : frp::Source<Parameter>,
+    is_running : frp::Stream<bool>,
 }
 
-
-
-// =============
-// === Fence ===
-// =============
-
-fn fence<T,Out>(network:&frp::Network, trigger:T) -> (frp::Stream<Out>,frp::Stream<bool>)
-where T:frp::HasOutput<Output=Out>, T:Into<frp::Stream<Out>>, Out:frp::Data {
-    let trigger = trigger.into();
-    frp::extend! { network
-        def trigger_ = trigger.constant(());
-        def runner   = source::<Out>();
-        def switch   = gather();
-        switch.attach(&trigger_);
-        def triggered = trigger.map(enclose!((runner) move |val| runner.emit_event(val)));
-        switch.attach(&triggered);
-        def condition    = switch.toggle();
-        //FIXME[ao] this is to work around bug #427
-        def manual = source::<()>();
-        switch.attach(&manual);
-        def _force_cache = manual.map2(&condition, |(),val| assert_eq!(*val,true));
+impl<Parameter:frp::Data> FencedAction<Parameter> {
+    /// Wrap the `action` in `FencedAction`.
+    fn fence(network:&frp::Network, action:impl Fn(&Parameter) + 'static) -> Self {
+        frp::extend! { network
+            def trigger   = source::<Parameter>();
+            def triggered = trigger.constant(());
+            def switch    = gather();
+            switch.attach(&triggered);
+            def performed = trigger.map(move |param| action(param));
+            switch.attach(&performed);
+            def is_running = switch.toggle();
+        }
+        Self {trigger,is_running}
     }
-    manual.emit(());
-    let runner = runner.into();
-    (runner,condition)
 }
 
 
@@ -89,15 +77,18 @@ where T:frp::HasOutput<Output=Out>, T:Into<frp::Stream<Out>>, Out:frp::Data {
 
 /// A structure integration controller and view. All changes made by user in view are reflected
 /// in controller, and all controller notifications update view accordingly.
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct GraphEditorIntegration {
     pub logger            : Logger,
     pub editor            : GraphEditor,
     pub controller        : controller::ExecutedGraph,
     network               : frp::Network,
+    #[derivative(Debug="ignore")]
     displayed_nodes       : RefCell<Bimap<ast::Id,graph_editor::NodeId>>,
     displayed_expressions : RefCell<HashMap<graph_editor::NodeId,String>>,
+    #[derivative(Debug="ignore")]
     displayed_connections : RefCell<Bimap<controller::graph::Connection,graph_editor::EdgeId>>,
 }
 
@@ -127,24 +118,34 @@ impl GraphEditorIntegration {
         let network = &this.network;
         let editor_outs = &this.editor.frp.outputs;
         let weak    = Rc::downgrade(this);
-        let node_removed       = Self::define_action(this,Self::node_removed_action);
-        let connection_created = Self::define_action(this,Self::connection_created_action);
-        let connection_removed = Self::define_action(this,Self::connection_removed_action);
-        let node_moved         = Self::define_action(this,Self::node_moved_action);
+        frp::extend! {network
+            let invalidate = FencedAction::fence(&network,f!([weak](()) {
+                weak.upgrade().for_each(|this| {
+                    let result = this.invalidate_graph();
+                    if let Err(err) = result {
+                        error!(this.logger,"Error while invalidating graph: {err}");
+                    }
+                });
+            }));
+        }
+        let node_removed       = Self::define_action(this,Self::node_removed_action      ,&invalidate.trigger);
+        let connection_created = Self::define_action(this,Self::connection_created_action,&invalidate.trigger);
+        let connection_removed = Self::define_action(this,Self::connection_removed_action,&invalidate.trigger);
+        let node_moved         = Self::define_action(this,Self::node_moved_action        ,&invalidate.trigger);
         frp::extend! {network
             // Notifications from controller
-            def handle_notification = source::<Option<notification::Graph>>();
-            let (runner,is_action) = fence(&network,&handle_notification);
-            def _notification       = runner.map(f!([weak](notification) {
+            let handle_notification = FencedAction::<Option<notification::Graph>>::fence(&network, f!([weak](notification) {
                 weak.upgrade().for_each(|this| this.handle_controller_notification(*notification));
             }));
+
             // Changes in Graph Editor
-            def _action = editor_outs.node_removed      .map2(&is_action,node_removed);
-            def _action = editor_outs.connection_added  .map2(&is_action,connection_created);
-            def _action = editor_outs.connection_removed.map2(&is_action,connection_removed);
-            def _action = editor_outs.node_position_set .map2(&is_action,node_moved);
+            def is_hold = handle_notification.is_running.zip_with(&invalidate.is_running, |l,r| *l || *r);
+            def _action = editor_outs.node_removed      .map2(&is_hold,node_removed);
+            def _action = editor_outs.connection_added  .map2(&is_hold,connection_created);
+            def _action = editor_outs.connection_removed.map2(&is_hold,connection_removed);
+            def _action = editor_outs.node_position_set .map2(&is_hold,node_moved);
         }
-        Self::connect_frp_to_controller_notifications(this,handle_notification);
+        Self::connect_frp_to_controller_notifications(this,handle_notification.trigger);
     }
 
     fn connect_frp_to_controller_notifications
@@ -159,18 +160,19 @@ impl GraphEditorIntegration {
     }
 
     fn define_action<Action,Parameter>
-    (this:&Rc<Self>, action:Action) -> impl Fn(&Parameter,&bool)
+    (this:&Rc<Self>, action:Action, invalidate:&frp::Source<()>) -> impl Fn(&Parameter,&bool)
     where Action : Fn(&Self,&Parameter) -> FallibleResult<()> + 'static {
-        let logger  = this.logger.clone_ref();
-        let weak    = Rc::downgrade(this);
-        move |parameter,is_action| {
-            if *is_action {
+        let logger     = this.logger.clone_ref();
+        let weak       = Rc::downgrade(this);
+        let invalidate = invalidate.clone_ref();
+        move |parameter,is_hold| {
+            if !*is_hold {
                 if let Some(this) = weak.upgrade() {
                     let result = action(&*this,parameter);
                     if let Err(err) = result {
                         error!(logger,"Error while performing UI action on controllers: {err}");
-                        info!(logger,"Invlidating displayed graph");
-
+                        info!(logger,"Invalidating displayed graph");
+                        invalidate.emit(());
                     }
                 }
             }
@@ -215,7 +217,7 @@ impl GraphEditorIntegration {
         for (i,node_info) in nodes.iter().enumerate() {
             let id          = node_info.info.id();
             let node_trees  = trees.remove(&id).unwrap_or_else(default);
-            let default_pos = enso_frp::Position::new(0.0, i as f32 * 77.0);
+            let default_pos = enso_frp::Position::new(0.0, i as f32 * -77.0);
             let displayed   = self.displayed_nodes.borrow_mut().get_fwd(&id).cloned();
             match displayed {
                 Some(displayed) => self.update_displayed_node(displayed,node_info,node_trees),
