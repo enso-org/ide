@@ -234,12 +234,18 @@ impl RenderInfo {
 
 
 
-// ===================
-// === LoadedFonts ===
-// ===================
+// ==============
+// === Handle ===
+// ==============
 
 /// A handle for fonts loaded into memory.
 pub type Handle = Rc<RenderInfo>;
+
+
+
+// ================
+// === Registry ===
+// ================
 
 /// Structure keeping all fonts loaded from different sources.
 #[derive(Debug)]
@@ -286,6 +292,33 @@ impl Default for Registry {
 }
 
 
+
+// ======================
+// === SharedRegistry ===
+// ======================
+
+/// Shared version of `Registry`.
+#[derive(Clone,CloneRef,Debug)]
+pub struct SharedRegistry {
+    model : Rc<RefCell<Registry>>
+}
+
+impl SharedRegistry {
+    pub fn new() -> SharedRegistry {
+        let model = Rc::new(RefCell::new(Registry::new()));
+        Self {model}
+    }
+
+    pub fn get_or_load_embedded_font(&self, name:&str) -> Option<Handle> {
+        self.model.borrow_mut().get_or_load_embedded_font(name)
+    }
+}
+
+
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod tests {

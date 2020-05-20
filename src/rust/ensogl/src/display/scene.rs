@@ -764,7 +764,7 @@ pub struct SceneData {
     pub style_sheet     : style::Sheet,
     pub bg_color_var    : style::Var,
     pub bg_color_change : callback::Handle,
-    pub fonts           : Rc<RefCell<font::Registry>>,
+    pub fonts           : font::SharedRegistry,
 }
 
 impl SceneData {
@@ -804,7 +804,7 @@ impl SceneData {
         let on_resize      = dom.root.on_resize(on_resize_cb);
         let callbacks      = Callbacks {on_zoom,on_resize};
         let style_sheet    = style::Sheet::new();
-        let fonts          = Rc::new(RefCell::new(font::Registry::new()));
+        let fonts          = font::SharedRegistry::new();
 
         let bg_color_var = style_sheet.var("application.background.color");
         let bg_color_change = bg_color_var.on_change(f!([dom](change){

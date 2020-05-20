@@ -232,7 +232,6 @@ pub mod label {
     #[derive(Clone, CloneRef, Debug)]
     #[allow(missing_docs)]
     pub struct ShapeSystem {
-        pub fonts : Rc<font::Registry>,
         pub glyph_system: GlyphSystem,
         style_manager: StyleWatch,
 
@@ -240,18 +239,16 @@ pub mod label {
     impl ShapeSystemInstance for ShapeSystem {
         type Shape = Shape;
 
-        fn new(scene: &Scene) -> Self {
+        fn new(scene:&Scene) -> Self {
             let style_manager = StyleWatch::new(&scene.style_sheet);
-            let mut fonts     = font::Registry::new();
-            let font          = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
+            let font          = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
             let glyph_system  = GlyphSystem::new(scene,font);
-            let fonts         = Rc::new(fonts);
 
             let symbol = &glyph_system.sprite_system().symbol;
             scene.views.main.remove(symbol);
             scene.views.label.add(symbol);
 
-            Self {fonts,glyph_system,style_manager} // .init_refresh_on_style_change()
+            Self {glyph_system,style_manager} // .init_refresh_on_style_change()
         }
 
         fn new_instance(&self) -> Self::Shape {
