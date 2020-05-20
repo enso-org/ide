@@ -13,7 +13,7 @@ use ensogl::application::Application;
 use graph_editor::GraphEditor;
 use graph_editor::EdgeTarget;
 use utils::channel::process_stream_with_handle;
-use bidirectional_map::Bimap;
+use bimap::BiMap;
 
 
 
@@ -77,19 +77,16 @@ impl<Parameter:frp::Data> FencedAction<Parameter> {
 /// A structure which handles integration between controller and graph_editor EnsoGl control.
 /// All changes made by user in view are reflected in controller, and all controller notifications
 /// update view accordingly.
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 #[allow(missing_docs)]
 pub struct GraphEditorIntegration {
     pub logger            : Logger,
     pub editor            : GraphEditor,
     pub controller        : controller::ExecutedGraph,
     network               : frp::Network,
-    #[derivative(Debug="ignore")]
-    displayed_nodes       : RefCell<Bimap<ast::Id,graph_editor::NodeId>>,
+    displayed_nodes       : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     displayed_expressions : RefCell<HashMap<graph_editor::NodeId,String>>,
-    #[derivative(Debug="ignore")]
-    displayed_connections : RefCell<Bimap<controller::graph::Connection,graph_editor::EdgeId>>,
+    displayed_connections : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
 }
 
 
@@ -219,7 +216,7 @@ impl GraphEditorIntegration {
             let id          = node_info.info.id();
             let node_trees  = trees.remove(&id).unwrap_or_else(default);
             let default_pos = enso_frp::Position::new(0.0, i as f32 * -77.0);
-            let displayed   = self.displayed_nodes.borrow_mut().get_fwd(&id).cloned();
+            let displayed   = self.displayed_nodes.borrow_mut().get_by_left(&id).cloned();
             match displayed {
                 Some(displayed) => self.update_displayed_node(displayed,node_info,node_trees),
                 None            => self.create_displayed_node(node_info,node_trees,default_pos),
@@ -237,7 +234,7 @@ impl GraphEditorIntegration {
         };
         for (id,displayed_id) in to_remove {
             self.editor.frp.inputs.remove_node.emit_event(&displayed_id);
-            self.displayed_nodes.borrow_mut().remove_fwd(&id);
+            self.displayed_nodes.borrow_mut().remove_by_left(&id);
         }
     }
 
@@ -276,7 +273,7 @@ impl GraphEditorIntegration {
     (&self, connections:Vec<controller::graph::Connection>) -> FallibleResult<()> {
         self.retain_connections(&connections);
         for con in connections {
-            if !self.displayed_connections.borrow().contains_fwd(&con) {
+            if !self.displayed_connections.borrow().contains_left(&con) {
                 let targets = self.edge_targets_from_controller_connection(con.clone())?;
                 self.editor.frp.inputs.connect_nodes.emit_event(&targets);
                 let edge_id = self.editor.frp.outputs.edge_added.value();
@@ -304,7 +301,7 @@ impl GraphEditorIntegration {
         };
         for edge_id in to_remove {
             self.editor.frp.inputs.remove_edge.emit_event(&edge_id);
-            self.displayed_connections.borrow_mut().remove_rev(&edge_id);
+            self.displayed_connections.borrow_mut().remove_by_right(&edge_id);
         }
     }
 }
@@ -319,7 +316,7 @@ impl GraphEditorIntegration {
 impl GraphEditorIntegration {
     fn node_removed_action(&self, node:&graph_editor::NodeId) -> FallibleResult<()> {
         let id = self.get_controller_node_id(*node)?;
-        self.displayed_nodes.borrow_mut().remove_fwd(&id);
+        self.displayed_nodes.borrow_mut().remove_by_left(&id);
         self.controller.graph.remove_node(id)?;
         Ok(())
     }
@@ -334,16 +331,20 @@ impl GraphEditorIntegration {
     }
 
     fn connection_created_action(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
-        let displayed  = self.editor.edges.get_cloned(&edge_id).ok_or(GraphEditorDiscrepancy)?;
-        let connection = self.controller_connection_from_displayed(&displayed)?;
-        self.displayed_connections.borrow_mut().insert(connection.clone(),*edge_id);
-        self.controller.graph.connect(&connection)?;
+        let displayed = self.editor.edges.get_cloned(&edge_id).ok_or(GraphEditorDiscrepancy)?;
+        let con       = self.controller_connection_from_displayed(&displayed)?;
+        let inserting = self.displayed_connections.borrow_mut().insert(con.clone(),*edge_id);
+        if inserting.did_overwrite() {
+            internal_warning!(self.logger,"Created connection {edge_id} overwrite some old \
+                mappings in GraphEditorIntegration.")
+        }
+        self.controller.graph.connect(&con)?;
         Ok(())
     }
 
     fn connection_removed_action(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
         let connection = self.get_controller_connection(*edge_id)?;
-        self.displayed_connections.borrow_mut().remove_fwd(&connection);
+        self.displayed_connections.borrow_mut().remove_by_left(&connection);
         self.controller.graph.disconnect(&connection)?;
         Ok(())
     }
@@ -356,20 +357,20 @@ impl GraphEditorIntegration {
     fn get_controller_node_id
     (&self, displayed_id:graph_editor::NodeId) -> Result<ast::Id,MissingMapping> {
         let err = MissingMapping::ForDisplayedNode(displayed_id);
-        self.displayed_nodes.borrow().get_rev(&displayed_id).cloned().ok_or(err)
+        self.displayed_nodes.borrow().get_by_right(&displayed_id).cloned().ok_or(err)
     }
 
     fn get_displayed_node_id
     (&self, node_id:ast::Id) -> Result<graph_editor::NodeId,MissingMapping> {
         let err = MissingMapping::ForControllerNode(node_id);
-        self.displayed_nodes.borrow().get_fwd(&node_id).cloned().ok_or(err)
+        self.displayed_nodes.borrow().get_by_left(&node_id).cloned().ok_or(err)
     }
 
     fn get_controller_connection
     (&self, displayed_id:graph_editor::EdgeId)
     -> Result<controller::graph::Connection,MissingMapping> {
         let err = MissingMapping::ForDisplayedConnection(displayed_id);
-        self.displayed_connections.borrow().get_rev(&displayed_id).cloned().ok_or(err)
+        self.displayed_connections.borrow().get_by_right(&displayed_id).cloned().ok_or(err)
     }
 
     fn controller_connection_from_displayed
