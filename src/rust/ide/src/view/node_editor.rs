@@ -74,6 +74,10 @@ impl<Parameter:frp::Data> FencedAction<Parameter> {
 // === GraphEditorIntegration ===
 // ==============================
 
+/// The gap between nodes in pixels on default node layout (when user did not set any position of
+/// node - possible when node was added by editing text).
+const DEFAULT_GAP_BETWEEN_NODES:f32 = 44.0;
+
 /// A structure which handles integration between controller and graph_editor EnsoGl control.
 /// All changes made by user in view are reflected in controller, and all controller notifications
 /// update view accordingly.
@@ -141,7 +145,7 @@ impl GraphEditorIntegration {
             ));
 
             // Changes in Graph Editor
-            let is_handling_notification = &handle_notification.is_running;
+            let is_handling_notification = handle_notification.is_running;
             def is_hold = is_handling_notification.zip_with(&invalidate.is_running, |l,r| *l || *r);
             def _action = editor_outs.node_removed      .map2(&is_hold,node_removed);
             def _action = editor_outs.connection_added  .map2(&is_hold,connection_created);
@@ -220,7 +224,7 @@ impl GraphEditorIntegration {
         for (i,node_info) in nodes.iter().enumerate() {
             let id          = node_info.info.id();
             let node_trees  = trees.remove(&id).unwrap_or_else(default);
-            let default_pos = enso_frp::Position::new(0.0, i as f32 * -77.0);
+            let default_pos = enso_frp::Position::new(0.0, i as f32 * -DEFAULT_GAP_BETWEEN_NODES);
             let displayed   = self.displayed_nodes.borrow_mut().get_by_left(&id).cloned();
             match displayed {
                 Some(displayed) => self.update_displayed_node(displayed,node_info,node_trees),
