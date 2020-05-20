@@ -43,7 +43,7 @@ impl From<&str> for EnsoType {
 /// Contains general information about a visualisation.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct Metadata {
+pub struct ClassData {
     pub name        : String,
     pub input_types : Vec<EnsoType>,
 }
@@ -221,7 +221,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 ///
 /// // Create a `visualisation::Class` that instantiates a `BubbleChart`.
 /// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
-///     visualization::Metadata {
+///     visualization::ClassData {
 ///         name        : "Bubble Visualisation (native)".to_string(),
 ///         input_types : vec!["[[float;3]]".to_string().into()],
 ///     },
@@ -230,7 +230,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 /// ```
 pub trait Class: Debug {
     /// Indicate which `DataType`s can be rendered by this visualization.
-    fn metadata(&self) -> &Metadata;
+    fn metadata(&self) -> &ClassData;
     /// Create new visualisation, that is initialised for the given scene. This can fail if the
     /// `visualisation::Class` contains invalid data, for example, JS code that fails to execute, of if the
     /// scene is in an invalid state.
@@ -247,13 +247,13 @@ pub trait Class: Debug {
 #[derive(CloneRef,Clone,Debug)]
 #[allow(missing_docs)]
 pub struct JsSourceClass {
-    info   : Rc<Metadata>,
+    info   : Rc<ClassData>,
     source : Rc<CowString>,
 }
 
 impl JsSourceClass {
     /// Create a visualisation source from piece of JS source code and some metadata.
-    pub fn from_js_source(info:Metadata, source:CowString) -> Self {
+    pub fn from_js_source(info: ClassData, source:CowString) -> Self {
         let info   = Rc::new(info);
         let source = Rc::new(source);
         JsSourceClass {info,source}
@@ -262,7 +262,7 @@ impl JsSourceClass {
     /// Create a visualisation source from piece of JS source code. Metadata needs to be inferred.
     pub fn from_js_source_raw(source:CowString) -> Self {
         // TODO specify a way to provide this information fom raw source files.
-        let info  = Rc::new(Metadata {
+        let info  = Rc::new(ClassData {
             name: "Unknown".to_string(),
             input_types: vec![]
         });
@@ -272,7 +272,7 @@ impl JsSourceClass {
 }
 
 impl Class for JsSourceClass {
-    fn metadata(&self) -> &Metadata {
+    fn metadata(&self) -> &ClassData {
         &self.info
     }
 
@@ -296,14 +296,14 @@ pub type VisualisationConstructor = dyn Fn(&Scene) -> InstantiationResult;
 #[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct NativeConstructorClass {
-    info        : Rc<Metadata>,
+    info        : Rc<ClassData>,
     #[derivative(Debug="ignore")]
     constructor : Rc<VisualisationConstructor>,
 }
 
 impl NativeConstructorClass {
     /// Create a visualisation source from a closure that returns a `Visualisation`.
-    pub fn new(info:Metadata, constructor:Rc<VisualisationConstructor>) -> Self {
+    pub fn new(info: ClassData, constructor:Rc<VisualisationConstructor>) -> Self {
         let info = Rc::new(info);
         NativeConstructorClass { info,constructor }
     }
@@ -311,7 +311,7 @@ impl NativeConstructorClass {
 
 
 impl Class for NativeConstructorClass {
-    fn metadata(&self) -> &Metadata {
+    fn metadata(&self) -> &ClassData {
         &self.info
     }
 

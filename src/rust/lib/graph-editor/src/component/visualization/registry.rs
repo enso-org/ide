@@ -29,7 +29,7 @@ use crate::prelude::*;
 
 use crate::component::visualization::EnsoType;
 use crate::component::visualization::Class;
-use crate::component::visualization::Metadata;
+use crate::component::visualization::ClassData;
 use crate::component::visualization::NativeConstructorClass;
 use crate::component::visualization::Visualization;
 use crate::component::visualization::renderer::example::js::constructor_sample_js_bubble_chart;
@@ -65,14 +65,14 @@ impl Registry {
         let registry = Self::empty();
         // FIXME use proper enso types here.
         registry.register_class(NativeConstructorClass::new(
-            Metadata {
+            ClassData {
                 name        : "Bubble Visualisation (native)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
             Rc::new(|scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene))))
         ));
         registry.register_class(NativeConstructorClass::new(
-            Metadata {
+            ClassData {
                 name        : "Bubble Visualisation (JS)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
