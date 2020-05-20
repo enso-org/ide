@@ -230,7 +230,7 @@ pub struct InputEvents {
     pub network           : frp::Network,
     pub select            : frp::Source,
     pub deselect          : frp::Source,
-    pub set_expression    : frp::Source<String>,
+    pub set_expression    : frp::Source<Expression>,
     pub set_visualization : frp::Source<Option<visualization::Visualization>>,
 }
 
@@ -405,7 +405,7 @@ impl Node {
             eval_ input.select   (selection.set_target_position(1.0));
             eval_ input.deselect (selection.set_target_position(0.0));
 
-//            eval input.set_expression ((s) label.shape.label.set_text(s));
+            eval input.set_expression ((expr) ports.set_expression(expr));
 
             eval output_area_size ((size) output_area.shape.grow.set(*size));
 

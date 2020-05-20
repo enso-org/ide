@@ -156,6 +156,7 @@ pub struct Manager {
     expression     : Rc<RefCell<Expression>>,
     label          : component::ShapeView<label::Shape>,
     ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
+    width          : Rc<Cell<f32>>,
     port_networks  : Rc<RefCell<Vec<frp::Network>>>,
 }
 
@@ -173,6 +174,7 @@ impl Manager {
         let port_networks  = default();
         let label          = component::ShapeView::<label::Shape>::new(&logger,&scene);
         let ports          = default();
+        let width          = default();
         let cursor_mode    = (&cursor_mode_source).into();
         let press          = (&press_source).into();
         let frp            = Events {network,cursor_mode,press,cursor_mode_source,press_source};
@@ -181,7 +183,7 @@ impl Manager {
 
         display_object.add_child(&label);
 
-        Self {logger,display_object,frp,label,ports,scene,expression,port_networks}
+        Self {logger,display_object,frp,label,ports,width,scene,expression,port_networks}
     }
 
     pub fn set_expression(&self, expression:impl Into<Expression>) {
@@ -190,6 +192,9 @@ impl Manager {
 
         self.label.shape.label.set_text(&expression.code);
 
+        let glyph_width = 7.224_609_4;
+        let width       = expression.code.len() as f32 * glyph_width;
+        self.width.set(width);
 
 
         let mut to_visit      = vec![expression.input_span_tree.root_ref()];

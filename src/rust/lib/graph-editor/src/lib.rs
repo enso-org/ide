@@ -942,7 +942,7 @@ impl GraphEditorModel {
         let node_id = node_id.into();
         let expr    = expr.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.view.ports.set_expression(expr);
+            node.view.frp.set_expression.emit(expr);
         }
     }
 
