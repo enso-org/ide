@@ -57,13 +57,13 @@ impl Display for JsVisualisationError {
         // TODO find a nice way to circumvent the fact that `JsValue` does not implement `Display`.
         match self {
             JsVisualisationError::NotAnObject { inner }  => {
-                f.write_fmt(format_args!("NotAnObject:{:?}",inner))
+                f.write_fmt(format_args!("Not an object: {:?}",inner))
             },
             JsVisualisationError::NotAFunction { inner } => {
-                f.write_fmt(format_args!("NotAFunction:{:?}",inner))
+                f.write_fmt(format_args!("Not a function: {:?}",inner))
             },
             JsVisualisationError::Unknown { inner }      => {
-                f.write_fmt(format_args!("Unknown:{:?}",inner))
+                f.write_fmt(format_args!("Unknown: {:?}",inner))
             },
         }
     }
