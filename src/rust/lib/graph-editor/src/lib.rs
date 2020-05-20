@@ -439,7 +439,7 @@ macro_rules! generate_frp_outputs {
         #[allow(clippy::new_without_default)]
         impl UnsealedFrpOutputs {
             pub fn new() -> Self {
-                frp::new_network! { network
+                frp::new_network! { TRACE_ALL network
                     $(def $field = gather();)*
                 }
                 Self {network, $($field),*}
@@ -458,19 +458,20 @@ macro_rules! generate_frp_outputs {
 
 
 generate_frp_outputs! {
-    node_added         : NodeId,
-    node_removed       : NodeId,
-    node_selected      : NodeId,
-    node_deselected    : NodeId,
-    node_position_set  : (NodeId,Position),
+    node_added          : NodeId,
+    node_removed        : NodeId,
+    node_selected       : NodeId,
+    node_deselected     : NodeId,
+    node_position_set   : (NodeId,Position),
+    node_expression_set : (NodeId,node::Expression),
 
-    edge_added         : EdgeId,
-    edge_removed       : EdgeId,
-    edge_source_set    : (EdgeId,EdgeTarget),
-    edge_target_set    : (EdgeId,EdgeTarget),
+    edge_added          : EdgeId,
+    edge_removed        : EdgeId,
+    edge_source_set     : (EdgeId,EdgeTarget),
+    edge_target_set     : (EdgeId,EdgeTarget),
 
-    connection_added   : EdgeId,
-    connection_removed : EdgeId,
+    connection_added    : EdgeId,
+    connection_removed  : EdgeId,
 }
 
 
@@ -1367,7 +1368,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Set NodeView Expression ===
     frp::extend! { network
 
-    eval inputs.set_node_expression(((node_id,expr)) model.set_node_expression(node_id,expr));
+    outputs.node_expression_set <+ inputs.set_node_expression;
 
 
     // === Move Nodes ===
@@ -1459,12 +1460,13 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === OUTPUTS REBIND ===
 
-    eval outputs.edge_source_set (((id,tgt)) model.connect_edge_source(*id,tgt));
-    eval outputs.edge_target_set (((id,tgt)) model.connect_edge_target(*id,tgt));
-    eval outputs.node_selected   ((id) model.select_node(id));
-    eval outputs.node_deselected ((id) model.deselect_node(id));
-    eval outputs.edge_removed    ((id) model.remove_edge(id));
-    eval outputs.node_removed    ((id) model.remove_node(id));
+    eval outputs.edge_source_set     (((id,tgt)) model.connect_edge_source(*id,tgt));
+    eval outputs.edge_target_set     (((id,tgt)) model.connect_edge_target(*id,tgt));
+    eval outputs.node_selected       ((id) model.select_node(id));
+    eval outputs.node_deselected     ((id) model.deselect_node(id));
+    eval outputs.edge_removed        ((id) model.remove_edge(id));
+    eval outputs.node_removed        ((id) model.remove_node(id));
+    eval outputs.node_expression_set (((id,expr)) model.set_node_expression(id,expr));
 
 
 

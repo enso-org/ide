@@ -215,59 +215,7 @@ pub mod drag_area {
 }
 
 
-pub mod label {
-    use super::*;
 
-    #[derive(Clone,CloneRef,Debug)]
-    #[allow(missing_docs)]
-    pub struct Shape {
-        pub label : ensogl::display::shape::text::glyph::system::Line,
-        pub obj   : display::object::Instance,
-
-    }
-    impl ensogl::display::shape::system::Shape for Shape {
-        type System = ShapeSystem;
-        fn sprites(&self) -> Vec<&Sprite> {
-            vec![]
-        }
-    }
-    impl display::Object for Shape {
-        fn display_object(&self) -> &display::object::Instance {
-            &self.obj
-        }
-    }
-    #[derive(Clone, CloneRef, Debug)]
-    #[allow(missing_docs)]
-    pub struct ShapeSystem {
-        pub glyph_system: GlyphSystem,
-        style_manager: StyleWatch,
-
-    }
-    impl ShapeSystemInstance for ShapeSystem {
-        type Shape = Shape;
-
-        fn new(scene:&Scene) -> Self {
-            let style_manager = StyleWatch::new(&scene.style_sheet);
-            let font          = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
-            let glyph_system  = GlyphSystem::new(scene,font);
-            let symbol        = &glyph_system.sprite_system().symbol;
-            scene.views.main.remove(symbol);
-            scene.views.label.add(symbol);
-            Self {glyph_system,style_manager} // .init_refresh_on_style_change()
-        }
-
-        fn new_instance(&self) -> Self::Shape {
-            let color = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
-            let obj   = display::object::Instance::new(Logger::new("test"));
-            let label = self.glyph_system.new_line();
-            label.set_font_size(12.0);
-            label.set_font_color(color);
-            label.set_text("draw_maps size (distribution normal)");
-            obj.add_child(&label);
-            Shape {label,obj}
-        }
-    }
-}
 
 
 
@@ -379,7 +327,6 @@ pub struct NodeData {
     pub display_object          : display::object::Instance,
     pub logger                  : Logger,
     pub frp                     : Frp,
-    pub label                   : component::ShapeView<label::Shape>,
     pub main_area               : component::ShapeView<shape::Shape>,
     pub drag_area               : component::ShapeView<drag_area::Shape>,
     pub output_area             : component::ShapeView<output_area::Shape>,
@@ -403,12 +350,11 @@ impl Node {
         let main_area   = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger,scene);
         port::sort_hack(scene); // FIXME hack for sorting
-        let label    = component::ShapeView::<label::Shape>::new(&logger,scene);
+
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
         display_object.add_child(&output_area);
         display_object.add_child(&main_area);
-        display_object.add_child(&label);
 
         // FIXME: maybe we can expose shape system from shape?
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
@@ -428,8 +374,7 @@ impl Node {
         output_area.mod_position(|t| t.x += width/2.0);
         output_area.mod_position(|t| t.y += height/2.0);
 
-        label.mod_position(|t| t.x += TEXT_OFF);
-        label.mod_position(|t| t.y += 4.0 + 6.0);
+
 
         let ports = port::Manager::new(&logger,scene);
         let scene = scene.clone_ref();
@@ -460,7 +405,7 @@ impl Node {
             eval_ input.select   (selection.set_target_position(1.0));
             eval_ input.deselect (selection.set_target_position(0.0));
 
-            eval input.set_expression ((s) label.shape.label.set_text(s));
+//            eval input.set_expression ((s) label.shape.label.set_text(s));
 
             eval output_area_size ((size) output_area.shape.grow.set(*size));
 
@@ -489,7 +434,7 @@ impl Node {
 
 
         let data = Rc::new(NodeData {scene,display_object,logger,frp,main_area,drag_area
-            ,output_area,label,ports,visualization_container});
+            ,output_area,ports,visualization_container});
         Self {data}
     }
 }

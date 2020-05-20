@@ -79,6 +79,7 @@ impl DirtyLines {
 }
 
 
+
 // ==============
 // === Change ===
 // ==============
@@ -149,9 +150,9 @@ impl Change {
 
 
 
-// ============================
+// ========================
 // === TextFieldContent ===
-// ============================
+// ========================
 
 /// The content of text component - namely lines of text.
 #[derive(Debug)]
