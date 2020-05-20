@@ -192,7 +192,7 @@ impl Manager {
 
         self.label.shape.label.set_text(&expression.code);
 
-        let glyph_width = 7.224_609_4;
+        let glyph_width = 7.224_609_4; // FIXME hardcoded literal
         let width       = expression.code.len() as f32 * glyph_width;
         self.width.set(width);
 
@@ -258,6 +258,10 @@ impl Manager {
             let x     = width/2.0 + unit * span.index.value as f32;
             Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0) // FIXME
         }).ok()
+    }
+
+    pub fn width(&self) -> f32 {
+        self.width.get()
     }
 }
 

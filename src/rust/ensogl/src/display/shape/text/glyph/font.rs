@@ -304,11 +304,14 @@ pub struct SharedRegistry {
 }
 
 impl SharedRegistry {
+    /// Constructor.
     pub fn new() -> SharedRegistry {
         let model = Rc::new(RefCell::new(Registry::new()));
         Self {model}
     }
 
+    /// Get render font info from loaded fonts, and if it does not exists, load data from one of
+    /// embedded fonts. Returns None if the name is missing in both loaded and embedded font list.
     pub fn get_or_load_embedded_font(&self, name:&str) -> Option<Handle> {
         self.model.borrow_mut().get_or_load_embedded_font(name)
     }

@@ -184,7 +184,7 @@ pub fn expression_mock() -> Expression {
     let pattern_cr       = vec![Seq { right: false }, Or, Or, Build];
     let val              = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_cr};
     let parens_cr        = ast::crumbs::MatchCrumb::Segs {val,index:0};
-    let code             = "draw_maps size (distribution uniform)".into();
+    let code             = "open \"data.csv\"".into();
     let output_span_tree = default();
     let input_span_tree  = span_tree::builder::TreeBuilder::new(37)
         .add_child(0,14,span_tree::node::Kind::Chained,PrefixCrumb::Func)

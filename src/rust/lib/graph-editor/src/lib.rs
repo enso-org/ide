@@ -439,7 +439,7 @@ macro_rules! generate_frp_outputs {
         #[allow(clippy::new_without_default)]
         impl UnsealedFrpOutputs {
             pub fn new() -> Self {
-                frp::new_network! { TRACE_ALL network
+                frp::new_network! { network
                     $(def $field = gather();)*
                 }
                 Self {network, $($field),*}
@@ -944,6 +944,9 @@ impl GraphEditorModel {
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.view.frp.set_expression.emit(expr);
         }
+        for edge_id in self.node_out_edges(node_id) {
+            self.refresh_edge_source_width(edge_id);
+        }
     }
 
     fn is_connection(&self, edge_id:impl Into<EdgeId>) -> bool {
@@ -964,7 +967,9 @@ impl GraphEditorModel {
             if let Some(node) = self.nodes.get_cloned_ref(&target.node_id) {
                 node.out_edges.insert(edge_id);
                 edge.set_source(target.clone());
+                // FIXME: both lines require edge to refresh. Let's make it more efficient.
                 self.refresh_edge_position(edge_id);
+                self.refresh_edge_source_width(edge_id);
             }
         }
     }
@@ -1032,12 +1037,22 @@ impl GraphEditorModel {
         self.refresh_edge_target_position(edge_id);
     }
 
+    pub fn refresh_edge_source_width(&self, edge_id:EdgeId) {
+        if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
+            if let Some(edge_source) = edge.source() {
+                if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
+                    edge.view.events.source_width.emit(node.view.width());
+                }
+            }
+        };
+    }
+
     pub fn refresh_edge_source_position(&self, edge_id:EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_source) = edge.source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
                     edge.mod_position(|p| {
-                        p.x = node.position().x + node::NODE_WIDTH/2.0;
+                        p.x = node.position().x + node.view.width()/2.0;
                         p.y = node.position().y + node::NODE_HEIGHT/2.0;
                     });
                 }

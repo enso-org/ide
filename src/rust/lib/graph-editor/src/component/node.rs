@@ -22,8 +22,6 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component::animation2;
 use ensogl::gui::component;
-use ensogl::display::shape::text::glyph::font;
-use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
 use super::connection::Connection;
 use crate::component::visualization;
@@ -227,7 +225,6 @@ pub mod drag_area {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct InputEvents {
-    pub network           : frp::Network,
     pub select            : frp::Source,
     pub deselect          : frp::Source,
     pub set_expression    : frp::Source<Expression>,
@@ -235,20 +232,14 @@ pub struct InputEvents {
 }
 
 impl InputEvents {
-    pub fn new() -> Self {
-        frp::new_network! { network
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
             def select            = source();
             def deselect          = source();
             def set_expression    = source();
             def set_visualization = source();
         }
-        Self {network,select,deselect,set_expression,set_visualization}
-    }
-}
-
-impl Default for InputEvents {
-    fn default() -> Self {
-        Self::new()
+        Self {select,deselect,set_expression,set_visualization}
     }
 }
 
@@ -280,10 +271,12 @@ impl Deref for Frp {
 // === Node ===
 // ============
 
+// FIXME: Remove all Weak nodes - no needed anymore
+
 /// Node definition.
 #[derive(AsRef,Clone,CloneRef,Debug,Deref)]
 pub struct Node {
-    data : Rc<NodeData>,
+    data : Rc<NodeModelWithNetwork>,
 }
 
 impl AsRef<Node> for Node {
@@ -295,7 +288,7 @@ impl AsRef<Node> for Node {
 /// Weak version of `Node`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakNode {
-    data : Weak<NodeData>
+    data : Weak<NodeModelWithNetwork>
 }
 
 impl WeakElement for WeakNode {
@@ -320,9 +313,24 @@ impl WeakKey for WeakNode {
 
 
 /// Internal data of `Node`
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct NodeData {
+pub struct NodeModelWithNetwork {
+    pub model       : Rc<NodeModel>,
+    pub frp_network : frp::Network,
+}
+
+impl Deref for NodeModelWithNetwork {
+    type Target = NodeModel;
+    fn deref(&self) -> &Self::Target {
+        &self.model
+    }
+}
+
+/// Internal data of `Node`
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct NodeModel {
     pub scene                   : Scene,
     pub display_object          : display::object::Instance,
     pub logger                  : Logger,
@@ -334,14 +342,21 @@ pub struct NodeData {
     pub visualization_container : visualization::Container,
 }
 
-pub const NODE_WIDTH : f32 = 284.0;
+//pub const NODE_WIDTH : f32 = 284.0;
 pub const NODE_HEIGHT : f32 = 28.0;
 pub const TEXT_OFF : f32 = 12.0;
 
 impl Node {
-    /// Constructor.
     pub fn new(scene:&Scene) -> Self {
+        let data = Rc::new(NodeModelWithNetwork::new(scene));
+        Self {data}
+    }
+}
 
+
+impl NodeModel {
+    /// Constructor.
+    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
 
         let logger  = Logger::new("node");
         let _connection = Connection::new(scene); // FIXME hack for sorting
@@ -360,30 +375,27 @@ impl Node {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-        let width = NODE_WIDTH;
-        let height = 28.0;
-
-        let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
-        main_area.shape.sprite.size().set(size);
-        drag_area.shape.sprite.size().set(size);
-        output_area.shape.sprite.size().set(size);
-        main_area.mod_position(|t| t.x += width/2.0);
-        main_area.mod_position(|t| t.y += height/2.0);
-        drag_area.mod_position(|t| t.x += width/2.0);
-        drag_area.mod_position(|t| t.y += height/2.0);
-        output_area.mod_position(|t| t.x += width/2.0);
-        output_area.mod_position(|t| t.y += height/2.0);
+//        let width = NODE_WIDTH;
+//        let height = 28.0;
+//
+//        let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
+//        main_area.shape.sprite.size().set(size);
+//        drag_area.shape.sprite.size().set(size);
+//        output_area.shape.sprite.size().set(size);
+//        main_area.mod_position(|t| t.x += width/2.0);
+//        main_area.mod_position(|t| t.y += height/2.0);
+//        drag_area.mod_position(|t| t.x += width/2.0);
+//        drag_area.mod_position(|t| t.y += height/2.0);
+//        output_area.mod_position(|t| t.x += width/2.0);
+//        output_area.mod_position(|t| t.y += height/2.0);
 
 
 
         let ports = port::Manager::new(&logger,scene);
         let scene = scene.clone_ref();
 
-        let input = InputEvents::new();
+        let input = InputEvents::new(&network);
 
-
-
-        let network = &input.network;
 
 
         let visualization_container = visualization::Container::new();
@@ -393,32 +405,6 @@ impl Node {
         });
 
         display_object.add_child(&visualization_container);
-
-        let view_data = main_area.shape.clone_ref();
-        let selection = animation(network, move |value| {
-            view_data.selection.set(value)
-        });
-
-        let (output_area_size_setter, output_area_size) = animation2(network);
-
-        frp::extend! { network
-            eval_ input.select   (selection.set_target_position(1.0));
-            eval_ input.deselect (selection.set_target_position(0.0));
-
-            eval input.set_expression ((expr) ports.set_expression(expr));
-
-            eval output_area_size ((size) output_area.shape.grow.set(*size));
-
-            eval_ output_area.events.mouse_over (output_area_size_setter.set_target_position(1.0));
-            eval_ output_area.events.mouse_out  (output_area_size_setter.set_target_position(0.0));
-
-            eval input.set_visualization ((content)
-                visualization_container.frp.set_visualization.emit(content)
-            );
-        }
-
-
-        //////////////////////////////////////////////////////
 
         ports.mod_position(|p| {
             p.x = TEXT_OFF;
@@ -433,11 +419,73 @@ impl Node {
 
 
 
-        let data = Rc::new(NodeData {scene,display_object,logger,frp,main_area,drag_area
-            ,output_area,ports,visualization_container});
-        Self {data}
+        Self {scene,display_object,logger,frp,main_area,drag_area,output_area,ports
+             ,visualization_container}
+    }
+
+    pub fn width(&self) -> f32 {
+        self.ports.width() + TEXT_OFF * 2.0
+    }
+
+    fn set_expression(&self, expr:impl Into<Expression>) {
+        let expr = expr.into();
+        self.ports.set_expression(expr);
+
+        let width = self.width();
+        let height = 28.0;
+
+        let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
+        self.main_area.shape.sprite.size().set(size);
+        self.drag_area.shape.sprite.size().set(size);
+        self.output_area.shape.sprite.size().set(size);
+        self.main_area.mod_position(|t| t.x = width/2.0);
+        self.main_area.mod_position(|t| t.y = height/2.0);
+        self.drag_area.mod_position(|t| t.x = width/2.0);
+        self.drag_area.mod_position(|t| t.y = height/2.0);
+        self.output_area.mod_position(|t| t.x = width/2.0);
+        self.output_area.mod_position(|t| t.y = height/2.0);
     }
 }
+
+
+
+impl NodeModelWithNetwork {
+    pub fn new(scene:&Scene) -> Self {
+        let frp_network = frp::Network::new();
+        let model       = Rc::new(NodeModel::new(scene,&frp_network));
+
+        let inputs = &model.frp.input;
+
+
+        let view_data = model.main_area.shape.clone_ref();
+        let selection = animation(&frp_network, move |value| {
+            view_data.selection.set(value)
+        });
+
+        let (output_area_size_setter, output_area_size) = animation2(&frp_network);
+
+        frp::extend! { frp_network
+            eval_ inputs.select   (selection.set_target_position(1.0));
+            eval_ inputs.deselect (selection.set_target_position(0.0));
+
+            eval inputs.set_expression ((expr) model.set_expression(expr));
+
+            eval output_area_size ((size) model.output_area.shape.grow.set(*size));
+
+            eval_ model.output_area.events.mouse_over (output_area_size_setter.set_target_position(1.0));
+            eval_ model.output_area.events.mouse_out  (output_area_size_setter.set_target_position(0.0));
+
+            eval inputs.set_visualization ((content)
+                model.visualization_container.frp.set_visualization.emit(content)
+            );
+        }
+
+
+        Self {frp_network,model}
+    }
+}
+
+
 
 impl StrongRef for Node {
     type WeakRef = WeakNode;
