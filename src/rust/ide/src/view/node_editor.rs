@@ -24,13 +24,13 @@ use bimap::BiMap;
 /// Error returned by various function inside GraphIntegration, when our mappings from controller
 /// items (node or connections) to displayed items are missing some information.
 #[derive(Copy,Clone,Debug,Fail)]
-enum MissingMapping {
+enum MissingMappingFor {
     #[fail(display="Displayed node {:?} is not bound to any controller node.",_0)]
-    ForDisplayedNode(graph_editor::NodeId),
+    DisplayedNode(graph_editor::NodeId),
     #[fail(display="Controller node {:?} is not bound to any displayed node", _0)]
-    ForControllerNode(ast::Id),
+    ControllerNode(ast::Id),
     #[fail(display="Displayed connection {:?} is not bound to any controller connection", _0)]
-    ForDisplayedConnection(graph_editor::EdgeId),
+    DisplayedConnection(graph_editor::EdgeId),
 }
 
 /// Error raised when reached some fatal inconsistency in data provided by GraphEditor.
@@ -355,21 +355,21 @@ impl GraphEditorIntegration {
 
 impl GraphEditorIntegration {
     fn get_controller_node_id
-    (&self, displayed_id:graph_editor::NodeId) -> Result<ast::Id,MissingMapping> {
-        let err = MissingMapping::ForDisplayedNode(displayed_id);
+    (&self, displayed_id:graph_editor::NodeId) -> Result<ast::Id, MissingMappingFor> {
+        let err = MissingMappingFor::DisplayedNode(displayed_id);
         self.displayed_nodes.borrow().get_by_right(&displayed_id).cloned().ok_or(err)
     }
 
     fn get_displayed_node_id
-    (&self, node_id:ast::Id) -> Result<graph_editor::NodeId,MissingMapping> {
-        let err = MissingMapping::ForControllerNode(node_id);
+    (&self, node_id:ast::Id) -> Result<graph_editor::NodeId, MissingMappingFor> {
+        let err = MissingMappingFor::ControllerNode(node_id);
         self.displayed_nodes.borrow().get_by_left(&node_id).cloned().ok_or(err)
     }
 
     fn get_controller_connection
     (&self, displayed_id:graph_editor::EdgeId)
-    -> Result<controller::graph::Connection,MissingMapping> {
-        let err = MissingMapping::ForDisplayedConnection(displayed_id);
+    -> Result<controller::graph::Connection, MissingMappingFor> {
+        let err = MissingMappingFor::DisplayedConnection(displayed_id);
         self.displayed_connections.borrow().get_by_right(&displayed_id).cloned().ok_or(err)
     }
 
