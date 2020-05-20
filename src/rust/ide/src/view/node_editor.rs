@@ -16,6 +16,7 @@ use utils::channel::process_stream_with_handle;
 use bidirectional_map::Bimap;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -23,15 +24,13 @@ use bidirectional_map::Bimap;
 /// Error returned by various function inside GraphIntegration, when our mappings from controller
 /// items (node or connections) to displayed items are missing some information.
 #[derive(Copy,Clone,Debug,Fail)]
-enum MissingData {
-    #[fail(display="Node Editor discrepancy: displayed node {:?} is not bound to any actual node",
-        _0)]
-    Node(graph_editor::NodeId),
-    #[fail(display="Node Editor discrepancy: Node {:?} is not displayed", _0)]
-    DisplayedNode(ast::Id),
-    #[fail(display="Node Editor discrepancy: displayed connection {:?} is not bound to any actual \
-        connection", _0)]
-    Connection(graph_editor::EdgeId),
+enum MissingMapping {
+    #[fail(display="Displayed node {:?} is not bound to any controller node.",_0)]
+    ForDisplayedNode(graph_editor::NodeId),
+    #[fail(display="Controller node {:?} is not bound to any displayed node", _0)]
+    ForControllerNode(ast::Id),
+    #[fail(display="Displayed connection {:?} is not bound to any controller connection", _0)]
+    ForDisplayedConnection(graph_editor::EdgeId),
 }
 
 /// Error raised when reached some fatal inconsistency in data provided by GraphEditor.
@@ -75,8 +74,9 @@ impl<Parameter:frp::Data> FencedAction<Parameter> {
 // === GraphEditorIntegration ===
 // ==============================
 
-/// A structure integration controller and view. All changes made by user in view are reflected
-/// in controller, and all controller notifications update view accordingly.
+/// A structure which handles integration between controller and graph_editor EnsoGl control.
+/// All changes made by user in view are reflected in controller, and all controller notifications
+/// update view accordingly.
 #[derive(Derivative)]
 #[derivative(Debug)]
 #[allow(missing_docs)]
@@ -128,10 +128,11 @@ impl GraphEditorIntegration {
                 });
             }));
         }
-        let node_removed       = Self::define_action(this,Self::node_removed_action      ,&invalidate.trigger);
-        let connection_created = Self::define_action(this,Self::connection_created_action,&invalidate.trigger);
-        let connection_removed = Self::define_action(this,Self::connection_removed_action,&invalidate.trigger);
-        let node_moved         = Self::define_action(this,Self::node_moved_action        ,&invalidate.trigger);
+        let inv = &invalidate.trigger;
+        let node_removed       = Self::define_action(this,Self::node_removed_action      ,inv);
+        let connection_created = Self::define_action(this,Self::connection_created_action,inv);
+        let connection_removed = Self::define_action(this,Self::connection_removed_action,inv);
+        let node_moved         = Self::define_action(this,Self::node_moved_action        ,inv);
         frp::extend! {network
             // Notifications from controller
             let handle_notification = FencedAction::<Option<notification::Graph>>::fence(&network, f!([weak](notification) {
@@ -276,13 +277,22 @@ impl GraphEditorIntegration {
         self.retain_connections(&connections);
         for con in connections {
             if !self.displayed_connections.borrow().contains_fwd(&con) {
-                let graph_con = self.to_graph_editor_edge(con.clone())?;
-                self.editor.frp.inputs.connect_nodes.emit_event(&(graph_con));
+                let targets = self.edge_targets_from_controller_connection(con.clone())?;
+                self.editor.frp.inputs.connect_nodes.emit_event(&targets);
                 let edge_id = self.editor.frp.outputs.edge_added.value();
                 self.displayed_connections.borrow_mut().insert(con,edge_id);
             }
         }
         Ok(())
+    }
+
+    fn edge_targets_from_controller_connection
+    (&self, connection:controller::graph::Connection) -> FallibleResult<(EdgeTarget,EdgeTarget)> {
+        let src_node = self.get_displayed_node_id(connection.source.node)?;
+        let dst_node = self.get_displayed_node_id(connection.destination.node)?;
+        let src      = EdgeTarget::new(src_node,connection.source.port);
+        let data     = EdgeTarget::new(dst_node,connection.destination.port);
+        Ok((src,data))
     }
 
     /// Retain only given connections in displayed graph.
@@ -324,8 +334,8 @@ impl GraphEditorIntegration {
     }
 
     fn connection_created_action(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
-        let edge = self.editor.edges.get_cloned(&edge_id).ok_or(GraphEditorDiscrepancy)?;
-        let connection = self.from_graph_editor_edge(&edge)?;
+        let displayed  = self.editor.edges.get_cloned(&edge_id).ok_or(GraphEditorDiscrepancy)?;
+        let connection = self.controller_connection_from_displayed(&displayed)?;
         self.displayed_connections.borrow_mut().insert(connection.clone(),*edge_id);
         self.controller.graph.connect(&connection)?;
         Ok(())
@@ -344,34 +354,25 @@ impl GraphEditorIntegration {
 
 impl GraphEditorIntegration {
     fn get_controller_node_id
-    (&self, displayed_id:graph_editor::NodeId) -> Result<ast::Id, MissingData> {
-        let err = MissingData::Node(displayed_id);
+    (&self, displayed_id:graph_editor::NodeId) -> Result<ast::Id,MissingMapping> {
+        let err = MissingMapping::ForDisplayedNode(displayed_id);
         self.displayed_nodes.borrow().get_rev(&displayed_id).cloned().ok_or(err)
     }
 
     fn get_displayed_node_id
-    (&self, node_id:ast::Id) -> Result<graph_editor::NodeId, MissingData> {
-        let err = MissingData::DisplayedNode(node_id);
+    (&self, node_id:ast::Id) -> Result<graph_editor::NodeId,MissingMapping> {
+        let err = MissingMapping::ForControllerNode(node_id);
         self.displayed_nodes.borrow().get_fwd(&node_id).cloned().ok_or(err)
     }
 
     fn get_controller_connection
     (&self, displayed_id:graph_editor::EdgeId)
-    -> Result<controller::graph::Connection, MissingData> {
-        let err = MissingData::Connection(displayed_id);
+    -> Result<controller::graph::Connection,MissingMapping> {
+        let err = MissingMapping::ForDisplayedConnection(displayed_id);
         self.displayed_connections.borrow().get_rev(&displayed_id).cloned().ok_or(err)
     }
 
-    fn to_graph_editor_edge
-    (&self, connection:controller::graph::Connection) -> FallibleResult<(EdgeTarget,EdgeTarget)> {
-        let src_node = self.get_displayed_node_id(connection.source.node)?;
-        let dst_node = self.get_displayed_node_id(connection.destination.node)?;
-        let src      = EdgeTarget::new(src_node,connection.source.port);
-        let data     = EdgeTarget::new(dst_node,connection.destination.port);
-        Ok((src,data))
-    }
-
-    fn from_graph_editor_edge
+    fn controller_connection_from_displayed
     (&self, connection:&graph_editor::Edge) -> FallibleResult<controller::graph::Connection> {
         let src      = connection.source().ok_or(GraphEditorDiscrepancy{})?;
         let dst      = connection.target().ok_or(GraphEditorDiscrepancy{})?;
