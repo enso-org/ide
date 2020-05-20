@@ -1463,8 +1463,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
                 node.view.visualization_container.frp.toggle_visibility.emit(());
             }
         });
-    }));
 
+    }));
 
     // === Register Visualization ===
 
