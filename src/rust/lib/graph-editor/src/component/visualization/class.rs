@@ -234,8 +234,8 @@ pub trait Class: Debug {
     /// rendered by the instantiated visualization.
     fn attributes(&self) -> &ClassAttributes;
     /// Create new visualisation, that is initialised for the given scene. This can fail if the
-    /// `visualisation::Class` contains invalid data, for example, JS code that fails to execute, of if the
-    /// scene is in an invalid state.
+    /// `visualisation::Class` contains invalid data, for example, JS code that fails to execute,
+    /// or if the scene is in an invalid state.
     // TODO consider not allowing failing here and require the checking on instantiation of the `Class`.
     // TODO consider not providing the scene here, but hooking the the shapes/dom elements into the
     // scene externally.
