@@ -29,13 +29,13 @@ pub struct EnsoType {
 }
 
 impl From<String> for EnsoType {
-    fn from(source: String) -> Self {
+    fn from(source:String) -> Self {
         EnsoType { content:Rc::new(source) }
     }
 }
 
 impl From<&str> for EnsoType {
-    fn from(source: &str) -> Self {
+    fn from(source:&str) -> Self {
         EnsoType { content:Rc::new(source.to_string()) }
     }
 }
@@ -168,7 +168,6 @@ impl Visualization {
                 frp.preprocess_change.emit(data.as_ref().map(|code|code.clone_ref()))
             }));
         }
-
         self
     }
 
