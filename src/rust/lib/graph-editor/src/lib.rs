@@ -357,7 +357,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes       : frp::Source<Position>,
     pub cycle_visualization            : frp::Source<NodeId>,
     pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
-    pub register_visualisation_source  : frp::Source<Option<Rc<dyn visualization::Class>>>,
+    pub register_visualisation_class: frp::Source<Option<Rc<visualization::ClassHandle>>>,
 }
 
 impl FrpInputs {
@@ -380,7 +380,7 @@ impl FrpInputs {
             def translate_selected_nodes       = source();
             def cycle_visualization            = source();
             def set_visualization              = source();
-            def register_visualisation_source  = source();
+            def register_visualisation_class  = source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -388,7 +388,9 @@ impl FrpInputs {
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
              ,set_node_position,select_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
-             ,register_visualisation_source}
+             ,
+            register_visualisation_class
+        }
     }
 }
 
@@ -1476,9 +1478,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
         // === Register Visualization ===
 
-        def _register_visualization = inputs.register_visualisation_source.map(f!((visualization_registry)(source) {
+        def _register_visualization = inputs.register_visualisation_class.map(f!((visualization_registry)(source) {
             if let Some(source) = source {
-                visualization_registry.register_class_rc(source.clone_ref());
+                if let Some(class) = source.get_class() {
+                    visualization_registry.register_class_rc(class.clone_ref());
+                }
             }
         }));
 

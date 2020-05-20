@@ -238,16 +238,22 @@ pub trait Class: Debug {
     fn instantiate(&self, scene:&Scene) -> InstantiationResult;
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Default)]
 #[allow(missing_docs)]
-struct ClassHandle {
+pub struct ClassHandle {
     class : Option<Rc<dyn Class>>
 }
 
 impl ClassHandle {
+    /// Constructor.
     pub fn new<T: Class + 'static>(class: T) -> ClassHandle {
         let wrapped = Rc::new(class);
         ClassHandle{class:Some(wrapped)}
+    }
+
+    /// Return the inner class.
+    pub fn get_class(&self) -> Option<Rc<dyn Class>> {
+        self.class.clone()
     }
 }
 
