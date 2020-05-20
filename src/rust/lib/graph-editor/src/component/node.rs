@@ -7,8 +7,6 @@ pub mod port;
 
 use crate::prelude::*;
 
-//use crate::component::node::port::Registry;
-
 use enso_frp;
 use enso_frp as frp;
 use ensogl::data::color;
@@ -22,7 +20,7 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component::animation2;
 use ensogl::gui::component;
-use ensogl::display::shape::text::glyph::font::FontRegistry;
+use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 
 use super::connection::Connection;
@@ -234,7 +232,7 @@ pub mod label {
     #[derive(Clone, CloneRef, Debug)]
     #[allow(missing_docs)]
     pub struct ShapeSystem {
-        pub fonts : Rc<FontRegistry>,
+        pub fonts : Rc<font::Registry>,
         pub glyph_system: GlyphSystem,
         style_manager: StyleWatch,
 
@@ -244,7 +242,7 @@ pub mod label {
 
         fn new(scene: &Scene) -> Self {
             let style_manager = StyleWatch::new(&scene.style_sheet);
-            let mut fonts     = FontRegistry::new();
+            let mut fonts     = font::Registry::new();
             let font          = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
             let glyph_system  = GlyphSystem::new(scene,font);
             let fonts         = Rc::new(fonts);
@@ -253,7 +251,7 @@ pub mod label {
             scene.views.main.remove(symbol);
             scene.views.label.add(symbol);
 
-            Self { fonts, glyph_system, style_manager } // .init_refresh_on_style_change()
+            Self {fonts,glyph_system,style_manager} // .init_refresh_on_style_change()
         }
 
         fn new_instance(&self) -> Self::Shape {
@@ -264,40 +262,9 @@ pub mod label {
             line1.set_font_color(color);
             line1.set_text("draw_maps size (distribution normal)");
             obj.add_child(&line1);
-
-            // !!! println!(">>> {:?}", line1.font().get_glyph_info('a').advance * 12.0);
-
-
-//            let color = color::Rgba::new(0.18, 0.173, 0.165, 1.0);
-//            let line2 = self.glyph_system.new_line();
-//            line2.set_font_size(12.0);
-//            line2.set_font_color(color);
-//            line2.set_text("size");
-//            obj.add_child(&line2);
-//            line2.mod_position(|t| t.x += 72.0);
-
-//            let lines = Rc::new(RefCell::new(vec![line1,line2]));
             let lines = Rc::new(RefCell::new(vec![line1]));
-
-            Shape { lines,obj }
+            Shape {lines,obj}
         }
-    }
-    impl ShapeSystem {
-//        fn init_refresh_on_style_change(self) -> Self {
-//            let shape_system = self.shape_system.clone_ref();
-//            let style_manager = self.style_manager.clone_ref();
-//            self.style_manager.set_on_style_change(move || {
-//                shape_system.set_shape(&Self::shape_def(&style_manager));
-//            });
-//            self
-//        }
-
-
-//        pub fn shape_def(__style_watch__: &StyleWatch) -> AnyShape {
-//            use ensogl::display::style::data::DataMatch;
-//
-//            Circle(10.px()).fill(color::Rgba::new(0.97,0.96,0.95)).into()
-//        }
     }
 }
 
