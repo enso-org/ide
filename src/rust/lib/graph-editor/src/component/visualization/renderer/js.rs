@@ -80,7 +80,7 @@ impl From<JsValue> for JsVisualisationError {
 }
 
 /// Helper type to propagate results that can fail due to `JsVisualisationError`s.
-pub(crate) type JsResult<T> = Result<T, JsVisualisationError>;
+pub type JsResult<T> = Result<T, JsVisualisationError>;
 
 
 
