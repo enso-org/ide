@@ -1412,7 +1412,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }));
 
      // === Vis Cycling ===
-     def _cycle_vis = inputs.debug_cycle_visualisation_for_selected_node.map(f!((inputs,nodes)(_) {
+     def _cycle_vis = inputs.debug_cycle_visualisation_for_selected_node.map(f!([inputs,nodes](_) {
         nodes.selected.for_each(|node| inputs.cycle_visualization.emit(node));
     }));
 
@@ -1440,21 +1440,21 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         })
     }));
 
-         let cycle_count = Rc::new(Cell::new(0));
-         def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
-            let visualisations = visualization_registry.valid_sources(&"[[float;3]]".into());
-            cycle_count.set(cycle_count.get() % visualisations.len());
-            let vis  = &visualisations[cycle_count.get()];
-            let vis  = vis.instantiate(&scene);
-            let node = nodes.get_cloned_ref(node_id);
-            match (vis, node) {
-                (Ok(vis), Some(node))  => {
-                        node.view.visualization_container.frp.set_visualization.emit(Some(vis));
-                },
-                (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {}", e)),
-                _           => {}
-            };
-            cycle_count.set(cycle_count.get() + 1);
+     let cycle_count = Rc::new(Cell::new(0));
+     def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
+        let visualisations = visualization_registry.valid_sources(&"[[float;3]]".into());
+        cycle_count.set(cycle_count.get() % visualisations.len());
+        let vis  = &visualisations[cycle_count.get()];
+        let vis  = vis.instantiate(&scene);
+        let node = nodes.get_cloned_ref(node_id);
+        match (vis, node) {
+            (Ok(vis), Some(node))  => {
+                    node.view.visualization_container.frp.set_visualization.emit(Some(vis));
+            },
+            (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {}", e)),
+            _           => {}
+        };
+        cycle_count.set(cycle_count.get() + 1);
     }));
 
     def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes](_) {
@@ -1466,15 +1466,15 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }));
 
 
-        // === Register Visualization ===
+    // === Register Visualization ===
 
-        def _register_visualization = inputs.register_visualisation_class.map(f!((visualization_registry)(source) {
-            if let Some(source) = source {
-                if let Some(class) = source.get_class() {
-                    visualization_registry.register_class_rc(class.clone_ref());
-                }
+    def _register_visualization = inputs.register_visualisation_class.map(f!([visualization_registry](source) {
+        if let Some(source) = source {
+            if let Some(class) = source.get_class() {
+                visualization_registry.register_class_rc(class.clone_ref());
             }
-        }));
+        }
+    }));
 
 
     // === OUTPUTS REBIND ===
