@@ -68,7 +68,7 @@ where I : Iterator<Item=char> {
 mod tests {
     use super::*;
 
-    use crate::display::shape::text::glyph::font::FontRenderInfo;
+    use crate::display::shape::text::glyph::font;
     use crate::display::shape::text::glyph::font::GlyphRenderInfo;
 
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -76,7 +76,7 @@ mod tests {
     #[wasm_bindgen_test(async)]
     async fn moving_pen(){
         ensogl_core_msdf_sys::initialized().await;
-        let font = font::Handle::new(FontRenderInfo::mock_font("Test font".to_string()));
+        let font = font::Handle::new(font::RenderInfo::mock_font("Test font".to_string()));
         mock_a_glyph_info(font.clone_ref());
         mock_w_glyph_info(font.clone_ref());
         font.mock_kerning_info('A', 'W', -0.16);

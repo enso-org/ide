@@ -391,7 +391,7 @@ pub(crate) mod test {
     use super::*;
 
     use crate::data::color;
-    use crate::display::shape::text::glyph::font::FontRenderInfo;
+    use crate::display::shape::text::glyph::font;
 
     use ensogl_core_msdf_sys as msdf_sys;
     use nalgebra::Vector2;
@@ -594,7 +594,7 @@ pub(crate) mod test {
 
     pub(crate) fn mock_properties()->  TextFieldProperties {
         TextFieldProperties {
-            font       : font::Handle::new(FontRenderInfo::mock_font("Test font".to_string())),
+            font       : font::Handle::new(font::RenderInfo::mock_font("Test font".to_string())),
             text_size  : 0.0,
             base_color : color::Rgba::new(1.0, 1.0, 1.0, 1.0),
             size       : Vector2::new(1.0, 1.0)

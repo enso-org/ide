@@ -185,7 +185,7 @@ impl<'a> LineFullInfo<'a> {
 mod test {
     use super::*;
 
-    use crate::display::shape::text::glyph::font::FontRenderInfo;
+    use crate::display::shape::text::glyph::font;
 
     use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -282,7 +282,7 @@ mod test {
     }
 
     fn prepare_font_with_ab() -> font::Handle {
-        let font   = FontRenderInfo::mock_font("Test font".to_string());
+        let font   = font::RenderInfo::mock_font("Test font".to_string());
         let scale  = Vector2::new(1.0, 1.0);
         let offset = Vector2::new(0.0, 0.0);
         font.mock_char_info('A',scale,offset,1.0);
