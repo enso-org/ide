@@ -5,6 +5,8 @@
 
 pub mod port;
 
+pub use port::Expression;
+
 use crate::prelude::*;
 
 use enso_frp;
@@ -26,6 +28,11 @@ use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use super::connection::Connection;
 use crate::component::visualization;
 
+
+
+// =============
+// === Icons ===
+// =============
 
 /// Icons definitions.
 pub mod icons {
@@ -214,7 +221,7 @@ pub mod label {
     #[derive(Clone,CloneRef,Debug)]
     #[allow(missing_docs)]
     pub struct Shape {
-        pub lines : Rc<RefCell<Vec<ensogl::display::shape::text::glyph::system::Line>>>,
+        pub label : ensogl::display::shape::text::glyph::system::Line,
         pub obj   : display::object::Instance,
 
     }
@@ -243,33 +250,30 @@ pub mod label {
             let style_manager = StyleWatch::new(&scene.style_sheet);
             let font          = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
             let glyph_system  = GlyphSystem::new(scene,font);
-
-            let symbol = &glyph_system.sprite_system().symbol;
+            let symbol        = &glyph_system.sprite_system().symbol;
             scene.views.main.remove(symbol);
             scene.views.label.add(symbol);
-
             Self {glyph_system,style_manager} // .init_refresh_on_style_change()
         }
 
         fn new_instance(&self) -> Self::Shape {
             let color = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
             let obj   = display::object::Instance::new(Logger::new("test"));
-            let line1 = self.glyph_system.new_line();
-            line1.set_font_size(12.0);
-            line1.set_font_color(color);
-            line1.set_text("draw_maps size (distribution normal)");
-            obj.add_child(&line1);
-            let lines = Rc::new(RefCell::new(vec![line1]));
-            Shape {lines,obj}
+            let label = self.glyph_system.new_line();
+            label.set_font_size(12.0);
+            label.set_font_color(color);
+            label.set_text("draw_maps size (distribution normal)");
+            obj.add_child(&label);
+            Shape {label,obj}
         }
     }
 }
 
 
 
-// ==============
-// === Events ===
-// ==============
+// ===========
+// === Frp ===
+// ===========
 
 /// Node events.
 #[derive(Clone,CloneRef,Debug)]
@@ -278,6 +282,7 @@ pub struct InputEvents {
     pub network           : frp::Network,
     pub select            : frp::Source,
     pub deselect          : frp::Source,
+    pub set_expression    : frp::Source<String>,
     pub set_visualization : frp::Source<Option<visualization::Visualization>>,
 }
 
@@ -286,9 +291,10 @@ impl InputEvents {
         frp::new_network! { network
             def select            = source();
             def deselect          = source();
+            def set_expression    = source();
             def set_visualization = source();
         }
-        Self {network,select,deselect,set_visualization}
+        Self {network,select,deselect,set_expression,set_visualization}
     }
 }
 
@@ -308,12 +314,12 @@ pub struct OutputPortsEvents {
 
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Events {
+pub struct Frp {
     pub input        : InputEvents,
     pub output_ports : OutputPortsEvents
 }
 
-impl Deref for Events {
+impl Deref for Frp {
     type Target = InputEvents;
     fn deref(&self) -> &Self::Target {
         &self.input
@@ -372,8 +378,8 @@ pub struct NodeData {
     pub scene                   : Scene,
     pub display_object          : display::object::Instance,
     pub logger                  : Logger,
-    pub frp                     : Events,
-    pub label_area              : component::ShapeView<label::Shape>,
+    pub frp                     : Frp,
+    pub label                   : component::ShapeView<label::Shape>,
     pub main_area               : component::ShapeView<shape::Shape>,
     pub drag_area               : component::ShapeView<drag_area::Shape>,
     pub output_area             : component::ShapeView<output_area::Shape>,
@@ -394,15 +400,15 @@ impl Node {
         let _connection = Connection::new(scene); // FIXME hack for sorting
 
         let output_area = component::ShapeView::<output_area::Shape>::new(&logger,scene);
-        let main_area    = component::ShapeView::<shape::Shape>::new(&logger,scene);
+        let main_area   = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger,scene);
         port::sort_hack(scene); // FIXME hack for sorting
-        let label_area    = component::ShapeView::<label::Shape>::new(&logger,scene);
+        let label    = component::ShapeView::<label::Shape>::new(&logger,scene);
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
         display_object.add_child(&output_area);
         display_object.add_child(&main_area);
-        display_object.add_child(&label_area);
+        display_object.add_child(&label);
 
         // FIXME: maybe we can expose shape system from shape?
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
@@ -422,8 +428,8 @@ impl Node {
         output_area.mod_position(|t| t.x += width/2.0);
         output_area.mod_position(|t| t.y += height/2.0);
 
-        label_area.mod_position(|t| t.x += TEXT_OFF);
-        label_area.mod_position(|t| t.y += 4.0 + 6.0);
+        label.mod_position(|t| t.x += TEXT_OFF);
+        label.mod_position(|t| t.y += 4.0 + 6.0);
 
         let ports = port::Manager::new(&logger,scene);
         let scene = scene.clone_ref();
@@ -450,33 +456,20 @@ impl Node {
 
         let (output_area_size_setter, output_area_size) = animation2(network);
 
-
         frp::extend! { network
-            let selection_ref = selection.clone_ref();
-            def _select = input.select.map(move |_| {
-                selection_ref.set_target_position(1.0);
-            });
+            eval_ input.select   (selection.set_target_position(1.0));
+            eval_ input.deselect (selection.set_target_position(0.0));
 
-            let selection_ref = selection.clone_ref();
-            def _deselect = input.deselect.map(move |_| {
-                selection_ref.set_target_position(0.0);
-            });
+            eval input.set_expression ((s) label.shape.label.set_text(s));
 
-            def _output_area_size = output_area_size.map(f!((size)
-                output_area.shape.grow.set(*size)
-            ));
+            eval output_area_size ((size) output_area.shape.grow.set(*size));
 
-            def _output_show = output_area.events.mouse_over.map(f_!(
-                output_area_size_setter.set_target_position(1.0)
-            ));
+            eval_ output_area.events.mouse_over (output_area_size_setter.set_target_position(1.0));
+            eval_ output_area.events.mouse_out  (output_area_size_setter.set_target_position(0.0));
 
-            def _output_hide = output_area.events.mouse_out.map(f_!(
-                output_area_size_setter.set_target_position(0.0)
-            ));
-
-            def _f_set_vis = input.set_visualization.map(f!((content)
+            eval input.set_visualization ((content)
                 visualization_container.frp.set_visualization.emit(content)
-            ));
+            );
         }
 
 
@@ -491,12 +484,12 @@ impl Node {
 
         let output_ports = OutputPortsEvents { shape_view_events:output_area.events.clone_ref() };
 
-        let frp = Events{input,output_ports};
+        let frp = Frp{input,output_ports};
 
 
 
         let data = Rc::new(NodeData {scene,display_object,logger,frp,main_area,drag_area
-            ,output_area,label_area,ports,visualization_container});
+            ,output_area,label,ports,visualization_container});
         Self {data}
     }
 }

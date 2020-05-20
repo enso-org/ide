@@ -54,12 +54,12 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
 use ensogl::display::Scene;
-use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
 use crate::component::visualization::example::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization::example::native;
+
 
 
 // =====================
@@ -352,7 +352,7 @@ pub struct FrpInputs {
     pub remove_all_node_output_edges   : frp::Source<NodeId>,
     pub remove_edge                    : frp::Source<EdgeId>,
     pub select_node                    : frp::Source<NodeId>,
-    pub set_node_expression            : frp::Source<(NodeId,Expression)>,
+    pub set_node_expression            : frp::Source<(NodeId,node::Expression)>,
     pub set_node_position              : frp::Source<(NodeId,Position)>,
     pub set_visualization_data         : frp::Source<NodeId>,
     pub translate_selected_nodes       : frp::Source<Position>,
@@ -937,7 +937,7 @@ impl GraphEditorModel {
         edges
     }
 
-    fn set_node_expression(&self, node_id:impl Into<NodeId>, expr:impl Into<Expression>) {
+    fn set_node_expression(&self, node_id:impl Into<NodeId>, expr:impl Into<node::Expression>) {
         let node_id = node_id.into();
         let expr    = expr.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {

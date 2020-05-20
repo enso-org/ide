@@ -22,7 +22,6 @@ use span_tree::SpanTree;
 
 
 
-
 // ============
 // === Port ===
 // ============
@@ -60,6 +59,7 @@ pub struct Events {
     press_source       : frp::Source<span_tree::Crumbs>,
     cursor_mode_source : frp::Merge<cursor::Mode>,
 }
+
 
 
 // ==================
