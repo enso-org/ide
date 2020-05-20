@@ -4,6 +4,8 @@ use crate::prelude::*;
 
 use crate::double_representation::definition::DefinitionName;
 use crate::model::execution_context::LocalCall;
+use crate::model::execution_context::Visualisation;
+use crate::model::execution_context::VisualisationId;
 
 use enso_protocol::language_server;
 use json_rpc::error::RpcError;
@@ -75,6 +77,22 @@ impl ExecutionContext {
         self.model.pop()?;
         self.language_server.pop_from_execution_context(&self.id).await?;
         Ok(())
+    }
+
+    /// Attaches a new visualisation for current execution context.
+    pub async fn attach_visualisation(&self, vis:Visualisation) -> FallibleResult<VisualisationId> {
+        let node_id = vis.node_id;
+        let config  = vis.config(self.id,self.module_path.module_name().to_string());
+        let vis_id  = self.model.attach_visualisation(vis);
+        self.language_server.attach_visualisation(&vis_id,&node_id,&config).await?;
+        Ok(vis_id)
+    }
+
+    /// Detaches visualisation from current execution context.
+    pub async fn detach_visualisation(&self, id:&VisualisationId) -> FallibleResult<Visualisation> {
+        let vis = self.model.detach_visualisation(id)?;
+        self.language_server.detach_visualisation(&self.id,id,&vis.node_id).await?;
+        Ok(vis)
     }
 
     /// Create a mock which does no call on `language_server` during construction.

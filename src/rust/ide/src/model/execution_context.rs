@@ -5,7 +5,10 @@ use crate::prelude::*;
 use crate::double_representation::definition::DefinitionName;
 
 use enso_protocol::language_server;
+use enso_protocol::language_server::VisualisationConfiguration;
 
+use std::collections::HashMap;
+use uuid::Uuid;
 
 
 // ==============
@@ -16,6 +19,11 @@ use enso_protocol::language_server;
 #[derive(Clone,Copy,Debug,Fail)]
 #[fail(display="Tried to pop an entry point")]
 pub struct PopOnEmptyStack {}
+
+/// Error when using an Id that does not correspond to any known visualisation.
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="Tried to use incorrect visualisation Id")]
+pub struct InvalidVisualisationId {}
 
 
 
@@ -39,6 +47,24 @@ pub struct LocalCall {
     pub definition : DefinitionId,
 }
 
+pub type VisualisationId = Uuid;
+
+#[derive(Clone,Debug)]
+pub struct Visualisation {
+    /// Node that is to be visualized.
+    pub node_id: Uuid,
+    /// An enso lambda that will transform the data into expected format, i.e. `a -> a.json`.
+    pub expression: String,
+}
+
+impl Visualisation {
+    pub fn config
+    (&self, execution_context_id:Uuid, visualisation_module:String) -> VisualisationConfiguration {
+        let expression = self.expression.clone();
+        VisualisationConfiguration{execution_context_id,visualisation_module,expression}
+    }
+}
+
 /// An identifier of ExecutionContext.
 pub type Id  = language_server::ContextId;
 
@@ -58,16 +84,20 @@ pub type Id  = language_server::ContextId;
 #[derive(Debug)]
 pub struct ExecutionContext {
     /// A name of definition which is a root call of this context.
-    pub entry_point : DefinitionName,
-    stack           : RefCell<Vec<LocalCall>>,
+    pub entry_point: DefinitionName,
+    /// Local call stack.
+    stack: RefCell<Vec<LocalCall>>,
+    /// Set of active visualisations.
+    visualisations: RefCell<HashMap<VisualisationId,Visualisation>>,
     //TODO[ao] I think we can put here info about visualisation set as well.
 }
 
 impl ExecutionContext {
     /// Create new execution context
     pub fn new(entry_point:DefinitionName) -> Self {
-        let stack = default();
-        Self {entry_point,stack}
+        let stack          = default();
+        let visualisations = default();
+        Self {entry_point,stack,visualisations}
     }
 
     /// Push a new stack item to execution context.
@@ -80,6 +110,18 @@ impl ExecutionContext {
     pub fn pop(&self) -> FallibleResult<()> {
         self.stack.borrow_mut().pop().ok_or(PopOnEmptyStack{})?;
         Ok(())
+    }
+
+    /// Attaches a new visualisation for current execution context.
+    pub fn attach_visualisation(&self, vis:Visualisation) -> VisualisationId {
+        let id = VisualisationId::new_v4();
+        self.visualisations.borrow_mut().insert(id,vis);
+        id
+    }
+
+    /// Detaches visualisation from current execution context.
+    pub fn detach_visualisation(&self, id:&VisualisationId) -> FallibleResult<Visualisation> {
+        Ok(self.visualisations.borrow_mut().remove(id).ok_or(InvalidVisualisationId{})?)
     }
 
     /// Get an iterator over stack items.
