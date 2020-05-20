@@ -24,6 +24,7 @@
 //! let target_type:EnsoType = "[[float;3]]".to_string().into();
 //! assert!(registry.valid_sources(&target_type).len() > 0);
 //! ```
+
 use crate::prelude::*;
 
 use crate::component::visualization::EnsoType;
@@ -50,7 +51,6 @@ pub struct Registry {
 }
 
 impl Registry {
-
     /// Return an empty `Registry`.
     pub fn empty() -> Self {
         Self::default()

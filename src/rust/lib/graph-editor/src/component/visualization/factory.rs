@@ -1,4 +1,4 @@
-//! Contains functionality related to creating `Visualisations` from different sources..
+//! Contains functionality related to creating `Visualisations` from different sources.
 //!
 //! The `Factory` provides a way to implement structs that allow the instantiation of specific
 //! visualisations, while already providing general information that doesn't require an
@@ -12,26 +12,26 @@
 //! Example
 //! --------
 //! ```
-//! use graph_editor::component::visualization::JsSourceFactory;
-//! use graph_editor::component::visualization::NativeConstructorFactory;
-//! use graph_editor::component::visualization::Metadata;
+//! use graph_editor::component::visualization;
 //! use graph_editor::component::visualization::Visualization;
 //! use graph_editor::component::visualization::renderer::example::native::BubbleChart;
 //! use ensogl::display::Scene;
 //! use std::rc::Rc;
 //!
 //! // Create a factory from a JS source code snippet.
-//! let js_source_factory = JsSourceFactory::from_js_source_raw(r#"
-//! class BubbleVisualisation {
-//!     onDataReceived(root, data) {}
-//!     setSize(root, size) {}
-//! }
-//! return new BubbleVisualisation();
+//! let js_source_factory = visualization::JsSourceFactory::from_js_source_raw(r#"
+//!
+//!    class BubbleVisualisation {
+//!         onDataReceived(root, data) {}
+//!         setSize(root, size) {}
+//!     }
+//!
+//!     return new BubbleVisualisation();
 //! "#.into());
 //!
 //! // Create a factory that instantiates a `BubbleChart`.
-//! let native_bubble_vis_factory = NativeConstructorFactory::new(
-//!     Metadata {
+//! let native_bubble_vis_factory = visualization::NativeConstructorFactory::new(
+//!     visualization::Metadata {
 //!         name        : "Bubble Visualisation (native)".to_string(),
 //!         input_types : vec!["[[float;3]]".to_string().into()],
 //!     },
@@ -47,9 +47,9 @@ use std::error::Error;
 
 
 
-// ============================
+// =============================
 // === Visualisation Factory ===
-// ============================
+// =============================
 
 /// Result of the attempt to instantiate a `Visualisation` from a `Factory`.
 pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
@@ -83,7 +83,7 @@ impl JsSourceFactory {
     pub fn from_js_source(info:Metadata, source:CowString) -> Self {
         let info   = Rc::new(info);
         let source = Rc::new(source);
-        JsSourceFactory{ info,source }
+        JsSourceFactory{info,source}
     }
 
     /// Create a visualisation source from piece of JS source code. Metadata needs to be inferred.
@@ -94,12 +94,11 @@ impl JsSourceFactory {
             input_types: vec![]
         });
         let source = Rc::new(source);
-        JsSourceFactory { info,source }
+        JsSourceFactory{info,source}
     }
 }
 
 impl Factory for JsSourceFactory {
-
     fn metadata(&self) -> &Metadata {
        &self.info
     }
