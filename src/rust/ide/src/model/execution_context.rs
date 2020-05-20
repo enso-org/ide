@@ -47,17 +47,22 @@ pub struct LocalCall {
     pub definition : DefinitionId,
 }
 
+/// Unique Id for visualisatioin.
 pub type VisualisationId = Uuid;
 
+/// Visualisation marker for specific Ast node with preprocessing function.
 #[derive(Clone,Debug)]
 pub struct Visualisation {
+    /// Unique identifier of this visualisation.
+    pub id: VisualisationId,
     /// Node that is to be visualized.
-    pub node_id: Uuid,
+    pub node_id: ExpressionId,
     /// An enso lambda that will transform the data into expected format, i.e. `a -> a.json`.
     pub expression: String,
 }
 
 impl Visualisation {
+    /// Creates a `VisualisationConfiguration` that is used in communication with language server.
     pub fn config
     (&self, execution_context_id:Uuid, visualisation_module:String) -> VisualisationConfiguration {
         let expression = self.expression.clone();
@@ -77,7 +82,8 @@ pub type Id  = language_server::ContextId;
 /// Execution Context Model.
 ///
 /// The execution context consists of the root call (which is a direct call of some function
-/// definition) and stack of function calls (see `StackItem` definition and docs).
+/// definition), stack of function calls (see `StackItem` definition and docs) and a list of
+/// active visualisations.
 ///
 /// It implements internal mutability pattern, so the state may be shared between different
 /// controllers.
@@ -89,7 +95,6 @@ pub struct ExecutionContext {
     stack: RefCell<Vec<LocalCall>>,
     /// Set of active visualisations.
     visualisations: RefCell<HashMap<VisualisationId,Visualisation>>,
-    //TODO[ao] I think we can put here info about visualisation set as well.
 }
 
 impl ExecutionContext {
@@ -113,10 +118,8 @@ impl ExecutionContext {
     }
 
     /// Attaches a new visualisation for current execution context.
-    pub fn attach_visualisation(&self, vis:Visualisation) -> VisualisationId {
-        let id = VisualisationId::new_v4();
-        self.visualisations.borrow_mut().insert(id,vis);
-        id
+    pub fn attach_visualisation(&self, vis:Visualisation) {
+        self.visualisations.borrow_mut().insert(vis.id,vis);
     }
 
     /// Detaches visualisation from current execution context.

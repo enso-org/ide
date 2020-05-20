@@ -80,18 +80,27 @@ impl ExecutionContext {
     }
 
     /// Attaches a new visualisation for current execution context.
-    pub async fn attach_visualisation(&self, vis:Visualisation) -> FallibleResult<VisualisationId> {
-        let node_id = vis.node_id;
-        let config  = vis.config(self.id,self.module_path.module_name().to_string());
-        let vis_id  = self.model.attach_visualisation(vis);
-        self.language_server.attach_visualisation(&vis_id,&node_id,&config).await?;
-        Ok(vis_id)
+    pub async fn attach_visualisation(&self, vis:Visualisation) -> FallibleResult<()> {
+        let config = vis.config(self.id,self.module_path.module_name().to_string());
+        self.language_server.attach_visualisation(&vis.id,&vis.node_id,&config).await?;
+        self.model.attach_visualisation(vis);
+        Ok(())
     }
 
     /// Detaches visualisation from current execution context.
     pub async fn detach_visualisation(&self, id:&VisualisationId) -> FallibleResult<Visualisation> {
-        let vis = self.model.detach_visualisation(id)?;
-        self.language_server.detach_visualisation(&self.id,id,&vis.node_id).await?;
+        let vis    = self.model.detach_visualisation(id)?;
+        let vis_id = id.copy();
+        let exe_id = self.id;
+        let ast_id = vis.node_id;
+        let ls     = self.language_server.clone_ref();
+        let logger = self.logger.clone_ref();
+        executor::global::spawn(async move {
+            let result = ls.detach_visualisation(&exe_id,&vis_id,&ast_id).await;
+            if result.is_err() {
+                error!(logger,"Error when detaching node: {result:?}.");
+            }
+        });
         Ok(vis)
     }
 
@@ -200,7 +209,7 @@ mod test {
         
         ls.set_push_to_execution_context_result(id,expected_stack_item,Ok(()));
         ls.set_destroy_execution_context_result(id,Ok(()));
-        let context  = ExecutionContext::new_mock(id,path.clone(),model,ls);
+        let context  = ExecutionContext::new_mock(id,path,model,ls);
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
@@ -227,7 +236,7 @@ mod test {
         ls.set_pop_from_execution_context_result(id,Ok(()));
         ls.set_destroy_execution_context_result(id,Ok(()));
         model.push(item);
-        let context  = ExecutionContext::new_mock(id,path.clone(),model,ls);
+        let context  = ExecutionContext::new_mock(id,path,model,ls);
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
@@ -235,6 +244,36 @@ mod test {
             assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
             // Pop on empty stack.
             assert!(context.pop().await.is_err());
+        })
+    }
+
+    #[test]
+    fn attaching_visualisations() {
+        let exe_id   = model::execution_context::Id::new_v4();
+        let path     = controller::module::Path::from_module_name("Test");
+        let root_def = DefinitionName::new_plain("main");
+        let model    = model::ExecutionContext::new(root_def);
+        let ls       = language_server::MockClient::default();
+        let vis      = Visualisation {
+            id: model::execution_context::VisualisationId::new_v4(),
+            node_id: model::execution_context::ExpressionId::new_v4(),
+            expression: "".to_string(),
+        };
+        let config = vis.config(exe_id, path.module_name().to_string());
+
+        ls.set_attach_visualisation_result(vis.id,vis.node_id,config,Ok(()));
+        ls.set_detach_visualisation_result(exe_id,vis.id,vis.node_id,Ok(()));
+        ls.set_destroy_execution_context_result(exe_id,Ok(()));
+
+        let context = ExecutionContext::new_mock(exe_id,path,model,ls);
+
+        let mut test = TestWithLocalPoolExecutor::set_up();
+        test.run_task(async move {
+            let wrong_id = model::execution_context::VisualisationId::new_v4();
+            assert!(context.attach_visualisation(vis.clone()).await.is_ok());
+            assert!(context.detach_visualisation(&wrong_id).await.is_err());
+            assert!(context.detach_visualisation(&vis.id).await.is_ok());
+            assert!(context.detach_visualisation(&vis.id).await.is_err());
         })
     }
 }
