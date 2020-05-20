@@ -29,11 +29,6 @@ use generated::VisualisationUpdate;
 use generated::VisualisationUpdateArgs;
 use generated::WriteFileCommand;
 use generated::WriteFileCommandArgs;
-use crate::language_server::types::Path as LSPath;
-
-use flatbuffers::FlatBufferBuilder;
-use flatbuffers::UnionWIPOffset;
-use flatbuffers::WIPOffset;
 use crate::common::error::DeserializationError;
 use crate::binary::message::Message;
 use crate::binary::message::FromServerPayloadOwned;
@@ -41,7 +36,11 @@ use crate::binary::message::FromServerPayload;
 use crate::binary::message::VisualisationContext;
 use crate::binary::message::ToServerPayload;
 use crate::binary::message::ToServerPayloadOwned;
+use crate::language_server::types::Path as LSPath;
 
+use flatbuffers::FlatBufferBuilder;
+use flatbuffers::UnionWIPOffset;
+use flatbuffers::WIPOffset;
 
 
 trait Serializable2<'a> : Sized {

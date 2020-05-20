@@ -2,13 +2,13 @@
 
 use crate::prelude::*;
 
-use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary::OutboundMessage;
+use crate::binary::serialization;
+use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol;
+use protocol::binary::OutboundMessage;
+use crate::language_server::Path as LSPath;
 
 use flatbuffers::FlatBufferBuilder;
 use json_rpc::Transport;
-use crate::binary::serialization;
-
-use crate::language_server::Path as LSPath;
 
 
 
@@ -127,7 +127,6 @@ impl Message<FromServerPayloadOwned> {
 
         let enso = message.correlationId();
         let uuid = enso.map(Uuid::from);
-        println!("From {:?} we got {:?}", enso, uuid);
         Ok(Message {
             message_id     : message.messageId().into(),
             correlation_id : message.correlationId().map(|id| id.into()),
