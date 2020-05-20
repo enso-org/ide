@@ -56,7 +56,6 @@ use nalgebra::Vector2;
 use ensogl::display::Scene;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
-use crate::component::visualization::example::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::MockDataGenerator3D;
 
 
@@ -793,16 +792,7 @@ impl GraphEditorModelWithNetwork {
             ));
         }
 
-        let chart = constructor_sample_js_bubble_chart();
-        let dom_layer    = model.scene.dom.layers.front.clone_ref();
-        chart.set_dom_layer(&dom_layer);
-
-        let vis = Visualization::new(chart);
-        node.view.frp.set_visualization.emit(Some(vis));
-
-
         self.nodes.insert(node_id,node);
-
 
         node_id
     }

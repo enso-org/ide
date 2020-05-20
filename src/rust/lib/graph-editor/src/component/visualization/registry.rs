@@ -4,7 +4,7 @@
 //!
 //! Example
 //! --------
-//! ```
+//! ```no_run
 //! use graph_editor::component::visualization::Registry;
 //! use graph_editor::component::visualization::EnsoType;
 //! use graph_editor::component::visualization::JsSourceClass;
@@ -13,12 +13,13 @@
 //! let registry = Registry::with_default_visualisations();
 //! // Add a new class that creates visualisations defined in JS.
 //! registry.register_class(JsSourceClass::from_js_source_raw(r#"
-//! class BubbleVisualisation {
-//!     onDataReceived(root, data) {}
-//!     setSize(root, size) {}
-//! }
-//! return new BubbleVisualisation();
-//! "#.into()));
+//!     class BubbleVisualisation {
+//!         onDataReceived(root, data) {}
+//!         setSize(root, size) {}
+//!         getInputTypes() { return ["[float]"] };
+//!     }
+//!     return BubbleVisualisation;
+//! "#.into()).unwrap());
 //!
 //! // Get all factories that can render  visualisation for the type `[[float;3]]`.
 //! let target_type:EnsoType = "[[float;3]]".to_string().into();
@@ -28,7 +29,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::visualization::renderer::example::js::constructor_sample_js_bubble_chart;
+use crate::component::visualization::renderer::example::js::get_bubble_vis_class;
 use crate::component::visualization::renderer::example::native::BubbleChart;
 
 use ensogl::display::scene::Scene;
@@ -67,17 +68,7 @@ impl Registry {
             },
             |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));
-        registry.register_class(NativeConstructorClass::new(
-            ClassAttributes {
-                name        : "Bubble Visualisation (JS)".to_string(),
-                input_types : vec!["[[float;3]]".to_string().into()],
-            },
-            |scene:&Scene| {
-                let renderer = constructor_sample_js_bubble_chart();
-                renderer.set_dom_layer(&scene.dom.layers.front);
-                Ok(Visualization::new(renderer))
-            }
-        ));
+        registry.register_class(get_bubble_vis_class());
 
         registry
     }

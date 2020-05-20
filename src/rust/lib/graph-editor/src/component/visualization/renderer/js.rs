@@ -38,6 +38,7 @@ use js_sys;
 use std::fmt::Formatter;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -77,6 +78,9 @@ impl From<JsValue> for JsVisualisationError {
         JsVisualisationError::Unknown {inner:value}
     }
 }
+
+/// Helper type to propagate results that can fail due to `JsVisualisationError`s.
+pub(crate) type JsResult<T> = Result<T, JsVisualisationError>;
 
 
 
@@ -154,20 +158,28 @@ impl JsRenderer {
     /// ```no_run
     /// use graph_editor::component::visualization::JsRenderer;
     ///
-    /// let renderer = JsRenderer::from_object("function() {
+    /// let renderer = JsRenderer::from_object_source(r#"function() {
     ///   class Visualization {
     ///       onDataReceived(root, data) {};
     ///       setSize(root, size) {};
+    ///       getInputTypes() { return ["[[float;3]"] };
     ///   }
-    ///   return new Visualisation();
-    /// }()").unwrap();
+    ///   return Visualisation;
+    /// }()"#).unwrap();
     ///
     /// ```
     ///
     /// For a full example see
     /// `crate::component::visualization::renderer::example::object_sample_js_bubble_chart`
-    pub fn from_object(source: &str) -> Result<JsRenderer,JsVisualisationError> {
+    pub fn from_object_source(source: &str) -> Result<JsRenderer,JsVisualisationError> {
         let object = js_sys::eval(source)?;
+        if !object.is_object() {
+            return Err(JsVisualisationError::NotAnObject { inner:object } )
+        }
+        Self::from_object_js(object.into())
+    }
+
+    pub(crate) fn from_object(object:JsValue) -> Result<JsRenderer,JsVisualisationError> {
         if !object.is_object() {
             return Err(JsVisualisationError::NotAnObject { inner:object } )
         }
@@ -187,7 +199,7 @@ impl JsRenderer {
     ///       onDataReceived(root, data) {};
     ///       setSize(root, size) {};
     ///   }
-    ///   return new Visualisation();
+    ///   return Visualisation;
     ///   ").unwrap();
     ///
     /// ```
@@ -206,7 +218,6 @@ impl JsRenderer {
     /// Hooks the root node into the given scene.
     ///
     /// MUST be called to make this visualisation visible.
-    // TODO[mm] find a better mechanism to ensure this. Probably through the registry later on.
     pub fn set_dom_layer(&self, scene:&DomScene) {
         scene.manage(&self.root_node);
     }

@@ -200,7 +200,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 ///
 /// Example
 /// --------
-/// ```
+/// ```no_run
 /// use graph_editor::component::visualization;
 /// use graph_editor::component::visualization::Visualization;
 /// use graph_editor::component::visualization::renderer::example::native::BubbleChart;
@@ -213,9 +213,11 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 ///    class BubbleVisualisation {
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
+///         getInputTypes() { return ["[[float;3]]"] };
 ///     }
 ///
-///     return new BubbleVisualisation();
+///     return BubbleVisualisation;
+///
 /// "#.into());
 ///
 /// // Create a `visualisation::Class` that instantiates a `BubbleChart`.
@@ -224,7 +226,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 ///         name        : "Bubble Visualisation (native)".to_string(),
 ///         input_types : vec!["[[float;3]]".to_string().into()],
 ///     },
-///     Rc::new(|scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene))))
+///     |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
 /// );
 /// ```
 pub trait Class: Debug {
@@ -258,52 +260,6 @@ impl ClassHandle {
 }
 
 impl CloneRef for ClassHandle {}
-
-
-
-// =======================
-// === JS Source Class ===
-// =======================
-
-#[derive(CloneRef,Clone,Debug)]
-#[allow(missing_docs)]
-pub struct JsSourceClass {
-    attributes : Rc<ClassAttributes>,
-    source     : Rc<CowString>,
-}
-
-impl JsSourceClass {
-    /// Create a visualisation source from piece of JS source code and some attributes.
-    pub fn from_js_source(info: ClassAttributes, source:CowString) -> Self {
-        let info   = Rc::new(info);
-        let source = Rc::new(source);
-        JsSourceClass { attributes: info,source}
-    }
-
-    /// Create a visualisation source from piece of JS source code. Attributes needs to be inferred.
-    pub fn from_js_source_raw(source:CowString) -> Self {
-        // TODO specify a way to provide this information fom raw source files.
-        let info  = Rc::new(ClassAttributes {
-            name: "Unknown".to_string(),
-            input_types: vec![]
-        });
-        let source = Rc::new(source);
-        JsSourceClass { attributes: info,source}
-    }
-}
-
-impl Class for JsSourceClass {
-    fn attributes(&self) -> &ClassAttributes {
-        &self.attributes
-    }
-
-    fn instantiate(&self, scene:&Scene) -> InstantiationResult {
-        let renderer = JsRenderer::from_constructor(&self.source)?;
-        renderer.set_dom_layer(&scene.dom.layers.front);
-        Ok(Visualization::new(renderer))
-    }
-}
-
 
 
 // ================================
