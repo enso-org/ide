@@ -440,7 +440,7 @@ macro_rules! generate_frp_outputs {
         #[allow(clippy::new_without_default)]
         impl UnsealedFrpOutputs {
             pub fn new() -> Self {
-                frp::new_network! { TRACE_ALL network
+                frp::new_network! { network
                     $(def $field = gather();)*
                 }
                 Self {network, $($field),*}
