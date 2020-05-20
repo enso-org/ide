@@ -207,7 +207,8 @@ impl Connection {
         }
 
         let events = input;
-        let data = Rc::new(ConnectionData {object,logger,events,corner,side_line,main_line,source_width,target_position});
+        let data = Rc::new(ConnectionData {object,logger,events,corner,side_line,main_line
+                                          ,source_width,target_position});
         Self {data}
     }
 }

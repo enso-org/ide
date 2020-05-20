@@ -375,28 +375,9 @@ impl NodeModel {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-//        let width = NODE_WIDTH;
-//        let height = 28.0;
-//
-//        let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
-//        main_area.shape.sprite.size().set(size);
-//        drag_area.shape.sprite.size().set(size);
-//        output_area.shape.sprite.size().set(size);
-//        main_area.mod_position(|t| t.x += width/2.0);
-//        main_area.mod_position(|t| t.y += height/2.0);
-//        drag_area.mod_position(|t| t.x += width/2.0);
-//        drag_area.mod_position(|t| t.y += height/2.0);
-//        output_area.mod_position(|t| t.x += width/2.0);
-//        output_area.mod_position(|t| t.y += height/2.0);
-
-
-
         let ports = port::Manager::new(&logger,scene);
         let scene = scene.clone_ref();
-
         let input = InputEvents::new(&network);
-
-
 
         let visualization_container = visualization::Container::new();
         visualization_container.mod_position(|t| {
@@ -453,12 +434,9 @@ impl NodeModelWithNetwork {
     pub fn new(scene:&Scene) -> Self {
         let frp_network = frp::Network::new();
         let model       = Rc::new(NodeModel::new(scene,&frp_network));
-
-        let inputs = &model.frp.input;
-
-
-        let view_data = model.main_area.shape.clone_ref();
-        let selection = animation(&frp_network, move |value| {
+        let inputs      = &model.frp.input;
+        let view_data   = model.main_area.shape.clone_ref();
+        let selection   = animation(&frp_network, move |value| {
             view_data.selection.set(value)
         });
 
@@ -479,7 +457,6 @@ impl NodeModelWithNetwork {
                 model.visualization_container.frp.set_visualization.emit(content)
             );
         }
-
 
         Self {frp_network,model}
     }
