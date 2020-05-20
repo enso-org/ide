@@ -311,7 +311,7 @@ impl Class for JsSourceClass {
 // ================================
 
 /// Type alias for a function that can create a `Visualisation`.
-pub type VisualisationConstructor = dyn Fn(&Scene) -> InstantiationResult;
+pub trait VisualisationConstructor = Fn(&Scene) -> InstantiationResult;
 
 #[derive(CloneRef,Clone,Derivative)]
 #[derivative(Debug)]
@@ -319,13 +319,15 @@ pub type VisualisationConstructor = dyn Fn(&Scene) -> InstantiationResult;
 pub struct NativeConstructorClass {
     info        : Rc<ClassAttributes>,
     #[derivative(Debug="ignore")]
-    constructor : Rc<VisualisationConstructor>,
+    constructor : Rc<dyn VisualisationConstructor>,
 }
 
 impl NativeConstructorClass {
     /// Create a visualisation source from a closure that returns a `Visualisation`.
-    pub fn new(info: ClassAttributes, constructor:Rc<VisualisationConstructor>) -> Self {
+    pub fn new<T>(info: ClassAttributes, constructor:T) -> Self
+    where T: VisualisationConstructor + 'static {
         let info = Rc::new(info);
+        let constructor = Rc::new(constructor);
         NativeConstructorClass { info,constructor }
     }
 }

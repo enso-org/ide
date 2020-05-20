@@ -65,18 +65,18 @@ impl Registry {
                 name        : "Bubble Visualisation (native)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
-            Rc::new(|scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene))))
+            |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));
         registry.register_class(NativeConstructorClass::new(
             ClassAttributes {
                 name        : "Bubble Visualisation (JS)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
-            Rc::new(|scene:&Scene| {
+            |scene:&Scene| {
                 let renderer = constructor_sample_js_bubble_chart();
                 renderer.set_dom_layer(&scene.dom.layers.front);
                 Ok(Visualization::new(renderer))
-            })
+            }
         ));
 
         registry
