@@ -9,7 +9,7 @@ use crate::view::layout::ViewLayout;
 use ensogl::control::callback;
 use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
 use ensogl::data::color;
-use ensogl::display::shape::text::glyph::font::FontRegistry;
+use ensogl::display::shape::text::glyph::font;
 use ensogl::display::style::theme;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
@@ -92,7 +92,7 @@ impl ProjectView {
         let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
         let mut keyboard_actions = keyboard::Actions::new(&keyboard);
         let resize_callback      = None;
-        let mut fonts            = FontRegistry::new();
+        let mut fonts            = font::Registry::new();
         let layout               = ViewLayout::new(&logger,&mut keyboard_actions,&application,
             text_controller,graph_controller,&mut fonts);
         let data = ProjectViewData {application,layout,resize_callback,controller,keyboard,
