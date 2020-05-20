@@ -305,6 +305,7 @@ pub struct SharedRegistry {
 
 impl SharedRegistry {
     /// Constructor.
+    #[allow(clippy::new_without_default)] // FIXME rename new to something more explicit
     pub fn new() -> SharedRegistry {
         let model = Rc::new(RefCell::new(Registry::new()));
         Self {model}
