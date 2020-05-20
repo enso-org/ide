@@ -20,10 +20,10 @@ use uuid::Uuid;
 #[fail(display="Tried to pop an entry point")]
 pub struct PopOnEmptyStack {}
 
-/// Error when using an Id that does not correspond to any known visualisation.
+/// Error when using an Id that does not correspond to any known visualization.
 #[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="Tried to use incorrect visualisation Id")]
-pub struct InvalidVisualisationId {}
+#[fail(display="Tried to use incorrect visualization Id")]
+pub struct InvalidVisualizationId {}
 
 
 
@@ -47,21 +47,21 @@ pub struct LocalCall {
     pub definition : DefinitionId,
 }
 
-/// Unique Id for visualisatioin.
-pub type VisualisationId = Uuid;
+/// Unique Id for visualization.
+pub type VisualizationId = Uuid;
 
-/// Visualisation marker for specific Ast node with preprocessing function.
+/// Visualization marker for specific Ast node with preprocessing function.
 #[derive(Clone,Debug)]
-pub struct Visualisation {
-    /// Unique identifier of this visualisation.
-    pub id: VisualisationId,
+pub struct Visualization {
+    /// Unique identifier of this visualization.
+    pub id: VisualizationId,
     /// Node that is to be visualized.
     pub node_id: ExpressionId,
     /// An enso lambda that will transform the data into expected format, i.e. `a -> a.json`.
     pub expression: String,
 }
 
-impl Visualisation {
+impl Visualization {
     /// Creates a `VisualisationConfiguration` that is used in communication with language server.
     pub fn config
     (&self, execution_context_id:Uuid, visualisation_module:String) -> VisualisationConfiguration {
@@ -83,7 +83,7 @@ pub type Id  = language_server::ContextId;
 ///
 /// The execution context consists of the root call (which is a direct call of some function
 /// definition), stack of function calls (see `StackItem` definition and docs) and a list of
-/// active visualisations.
+/// active visualizations.
 ///
 /// It implements internal mutability pattern, so the state may be shared between different
 /// controllers.
@@ -93,16 +93,16 @@ pub struct ExecutionContext {
     pub entry_point: DefinitionName,
     /// Local call stack.
     stack: RefCell<Vec<LocalCall>>,
-    /// Set of active visualisations.
-    visualisations: RefCell<HashMap<VisualisationId,Visualisation>>,
+    /// Set of active visualizations.
+    visualizations: RefCell<HashMap<VisualizationId, Visualization>>,
 }
 
 impl ExecutionContext {
     /// Create new execution context
     pub fn new(entry_point:DefinitionName) -> Self {
         let stack          = default();
-        let visualisations = default();
-        Self {entry_point,stack,visualisations}
+        let visualizations = default();
+        Self {entry_point,stack,visualizations}
     }
 
     /// Push a new stack item to execution context.
@@ -117,14 +117,14 @@ impl ExecutionContext {
         Ok(())
     }
 
-    /// Attaches a new visualisation for current execution context.
-    pub fn attach_visualisation(&self, vis:Visualisation) {
-        self.visualisations.borrow_mut().insert(vis.id,vis);
+    /// Attaches a new visualization for current execution context.
+    pub fn attach_visualization(&self, vis: Visualization) {
+        self.visualizations.borrow_mut().insert(vis.id,vis);
     }
 
-    /// Detaches visualisation from current execution context.
-    pub fn detach_visualisation(&self, id:&VisualisationId) -> FallibleResult<Visualisation> {
-        Ok(self.visualisations.borrow_mut().remove(id).ok_or(InvalidVisualisationId{})?)
+    /// Detaches visualization from current execution context.
+    pub fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
+        Ok(self.visualizations.borrow_mut().remove(id).ok_or(InvalidVisualizationId{})?)
     }
 
     /// Get an iterator over stack items.

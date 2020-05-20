@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 use crate::double_representation::definition::DefinitionName;
 use crate::model::execution_context::LocalCall;
-use crate::model::execution_context::Visualisation;
-use crate::model::execution_context::VisualisationId;
+use crate::model::execution_context::Visualization;
+use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
 use json_rpc::error::RpcError;
@@ -79,18 +79,18 @@ impl ExecutionContext {
         Ok(())
     }
 
-    /// Attaches a new visualisation for current execution context.
-    pub async fn attach_visualisation(&self, vis:Visualisation) -> FallibleResult<()> {
+    /// Attaches a new visualization for current execution context.
+    pub async fn attach_visualization(&self, vis: Visualization) -> FallibleResult<()> {
         let config = vis.config(self.id,self.module_path.module_name().to_string());
         self.language_server.attach_visualisation(&vis.id,&vis.node_id,&config).await?;
-        self.model.attach_visualisation(vis);
+        self.model.attach_visualization(vis);
         Ok(())
     }
 
-    /// Detaches visualisation from current execution context.
-    pub async fn detach_visualisation(&self, id:&VisualisationId) -> FallibleResult<Visualisation> {
-        let vis    = self.model.detach_visualisation(id)?;
-        let vis_id = id.copy();
+    /// Detaches visualization from current execution context.
+    pub async fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
+        let vis    = self.model.detach_visualization(id)?;
+        let vis_id = *id;
         let exe_id = self.id;
         let ast_id = vis.node_id;
         let ls     = self.language_server.clone_ref();
@@ -248,14 +248,14 @@ mod test {
     }
 
     #[test]
-    fn attaching_visualisations() {
+    fn attaching_visualizations() {
         let exe_id   = model::execution_context::Id::new_v4();
         let path     = controller::module::Path::from_module_name("Test");
         let root_def = DefinitionName::new_plain("main");
         let model    = model::ExecutionContext::new(root_def);
         let ls       = language_server::MockClient::default();
-        let vis      = Visualisation {
-            id: model::execution_context::VisualisationId::new_v4(),
+        let vis      = Visualization {
+            id: model::execution_context::VisualizationId::new_v4(),
             node_id: model::execution_context::ExpressionId::new_v4(),
             expression: "".to_string(),
         };
@@ -269,11 +269,11 @@ mod test {
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let wrong_id = model::execution_context::VisualisationId::new_v4();
-            assert!(context.attach_visualisation(vis.clone()).await.is_ok());
-            assert!(context.detach_visualisation(&wrong_id).await.is_err());
-            assert!(context.detach_visualisation(&vis.id).await.is_ok());
-            assert!(context.detach_visualisation(&vis.id).await.is_err());
+            let wrong_id = model::execution_context::VisualizationId::new_v4();
+            assert!(context.attach_visualization(vis.clone()).await.is_ok());
+            assert!(context.detach_visualization(&wrong_id).await.is_err());
+            assert!(context.detach_visualization(&vis.id).await.is_ok());
+            assert!(context.detach_visualization(&vis.id).await.is_err());
         })
     }
 }
