@@ -237,6 +237,8 @@ pub trait Class: Debug {
     /// `visualisation::Class` contains invalid data, for example, JS code that fails to execute, of if the
     /// scene is in an invalid state.
     // TODO consider not allowing failing here and require the checking on instantiation of the `Class`.
+    // TODO consider not providing the scene here, but hooking the the shapes/dom elements into the
+    // scene externally.
     fn instantiate(&self, scene:&Scene) -> InstantiationResult;
 }
 
