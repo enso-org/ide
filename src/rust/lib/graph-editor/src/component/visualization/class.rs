@@ -11,6 +11,7 @@ use std::error::Error;
 use enso_prelude::CloneRef;
 
 
+
 // ====================
 // === Helper Types ===
 // ====================
@@ -46,6 +47,7 @@ pub struct ClassAttributes {
     pub name        : String,
     pub input_types : Vec<EnsoType>,
 }
+
 
 
 // =========================
@@ -178,14 +180,12 @@ impl Visualization {
 
 
 
-
-// =============================
+// ===========================
 // === Visualisation Class ===
-// =============================
+// ===========================
 
 /// Result of the attempt to instantiate a `Visualisation` from a `Class`.
 pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
-
 
 /// Specifies a trait that allows the instantiation of `Visualisations`.
 ///
@@ -264,6 +264,7 @@ impl ClassHandle {
 impl CloneRef for ClassHandle {}
 
 
+
 // ================================
 // === Native Constructor Class ===
 // ================================
@@ -289,7 +290,6 @@ impl NativeConstructorClass {
         NativeConstructorClass { info,constructor }
     }
 }
-
 
 impl Class for NativeConstructorClass {
     fn attributes(&self) -> &ClassAttributes {

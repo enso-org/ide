@@ -80,7 +80,6 @@ impl VisualizationClassWrapper {
 // === Js Source Class  ===
 // ========================
 
-
 /// Implements the `visualisation::Class` for a JS source string.
 ///
 /// Example
