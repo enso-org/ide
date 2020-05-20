@@ -26,6 +26,7 @@ pub use graph::executed::Handle as ExecutedGraph;
 pub use module::Handle          as Module;
 pub use project::Handle         as Project;
 pub use text::Handle            as Text;
+pub use visualisation::Handle   as Visualisation;
 
 
 

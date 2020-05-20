@@ -6,7 +6,7 @@
 use crate::prelude::*;
 
 use crate::controller::FilePath;
-use crate::controller::visualisation;
+use crate::controller::Visualisation;
 
 use enso_protocol::language_server;
 use parser::Parser;
@@ -24,7 +24,7 @@ type ModulePath = controller::module::Path;
 #[derive(Debug)]
 pub struct Handle {
     pub language_server_rpc : Rc<language_server::Connection>,
-    pub visualisation       : visualisation::Handle,
+    pub visualisation       : Visualisation,
     pub module_registry     : Rc<model::module::registry::Registry>,
     pub parser              : Parser,
     pub logger              : Logger,
@@ -38,8 +38,7 @@ impl Handle {
         let parser               = Parser::new_or_panic();
         let logger               = Logger::new("Project Controller");
         let embedded_visualisers = default();
-        let visualisation =
-            visualisation::Handle::new(language_server_rpc.clone(),embedded_visualisers);
+        let visualisation = Visualisation::new(language_server_rpc.clone(),embedded_visualisers);
         Handle {module_registry,parser,language_server_rpc,logger,visualisation}
     }
 

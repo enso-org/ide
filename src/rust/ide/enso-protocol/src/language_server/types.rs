@@ -2,6 +2,8 @@
 
 use super::*;
 
+
+
 // =============
 // === Event ===
 // =============
@@ -170,6 +172,44 @@ pub enum FileSystemObject {
         target: Path,
     }
 }
+
+impl FileSystemObject {
+    fn split_path_into_name_and_segments(mut path:Path) -> (String,Path) {
+        let name = path.segments.pop().unwrap_or_default();
+        (name,path)
+    }
+
+    /// Creates a new Directory variant.
+    pub fn new_directory(path:Path) -> Self {
+        let (name,path) = Self::split_path_into_name_and_segments(path);
+        Self::Directory {name,path}
+    }
+
+    /// Creates a new DirectoryTruncated variant.
+    pub fn new_directory_truncated(path:Path) -> Self {
+        let (name,path) = Self::split_path_into_name_and_segments(path);
+        Self::DirectoryTruncated {name,path}
+    }
+
+    /// Creates a new File variant.
+    pub fn new_file(path:Path) -> Self {
+        let (name,path) = Self::split_path_into_name_and_segments(path);
+        Self::File {name,path}
+    }
+
+    /// Creates a new Other variant.
+    pub fn new_other(path:Path) -> Self {
+        let (name,path) = Self::split_path_into_name_and_segments(path);
+        Self::Other {name,path}
+    }
+
+    /// Creates a new SymlinkLoop variant.
+    pub fn new_symlink_loop(path:Path,target:Path) -> Self {
+        let (name,path) = Self::split_path_into_name_and_segments(path);
+        Self::SymlinkLoop {name,path,target}
+    }
+}
+
 
 
 // ================
