@@ -124,9 +124,6 @@ impl Message<FromServerPayloadOwned> {
     pub fn deserialize_owned(data:&[u8]) -> FallibleResult<Self> {
         let message = flatbuffers::get_root::<OutboundMessage>(data);
         let payload = FromServerPayloadOwned::deserialize_owned(&message)?;
-
-        let enso = message.correlationId();
-        let uuid = enso.map(Uuid::from);
         Ok(Message {
             message_id     : message.messageId().into(),
             correlation_id : message.correlationId().map(|id| id.into()),
