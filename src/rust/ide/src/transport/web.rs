@@ -120,10 +120,10 @@ pub struct WebSocket {
 
 impl WebSocket {
     /// Wraps given WebSocket object.
-    pub fn new(ws:web_sys::WebSocket, name:impl Str) -> WebSocket {
+    pub fn new(ws:web_sys::WebSocket, parent:Logger, name:impl Str) -> WebSocket {
         ws.set_binary_type(BinaryType::Arraybuffer);
         WebSocket {
-            logger     : Logger::new(name),
+            logger     : parent.sub(name),
             ws,
             on_message : default(),
             on_close   : default(),
@@ -134,11 +134,11 @@ impl WebSocket {
 
     /// Establish connection with endpoint defined by the given URL and wrap it.
     /// Asynchronous, because it waits until connection is established.
-    pub async fn new_opened(url:impl Str) -> Result<WebSocket,ConnectingError> {
+    pub async fn new_opened(parent:Logger, url:impl Str) -> Result<WebSocket,ConnectingError> {
         let ws = web_sys::WebSocket::new(url.as_ref()).map_err(|e| {
             ConnectingError::ConstructionError(js_to_string(e))
         })?;
-        let mut wst = WebSocket::new(ws,url);
+        let mut wst = WebSocket::new(ws,parent,url);
         wst.wait_until_open().await?;
         Ok(wst)
     }

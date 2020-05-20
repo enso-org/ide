@@ -33,7 +33,8 @@ pub struct Handle {
 impl Handle {
     /// Create a new project controller.
     pub fn new
-    ( language_server_client : language_server::Connection
+    ( parent                 : Logger
+    , language_server_client : language_server::Connection
     , language_server_binary : binary::Connection
     ) -> Self {
         Handle {
@@ -41,7 +42,7 @@ impl Handle {
             parser              : Parser::new_or_panic(),
             language_server_rpc : Rc::new(language_server_client),
             language_server_bin : Rc::new(language_server_binary),
-            logger              : Logger::new("Project Controller"),
+            logger              : parent.sub("Project Controller"),
         }
     }
 
@@ -50,12 +51,12 @@ impl Handle {
     /// It supports both modules and plain text files.
     pub async fn text_controller(&self, path:FilePath) -> FallibleResult<controller::Text> {
         if let Some(path) = controller::module::Path::from_file_path(path.clone()) {
-            trace!(self.logger,"Obtaining controller for module {path}");
+            info!(self.logger,"Obtaining controller for module {path}");
             let module = self.module_controller(path).await?;
             Ok(controller::Text::new_for_module(module))
         } else {
             let ls = self.language_server_rpc.clone_ref();
-            trace!(self.logger,"Obtaining controller for plain text {path}");
+            info!(self.logger,"Obtaining controller for plain text {path}");
             Ok(controller::Text::new_for_plain_text(path,ls))
         }
     }
@@ -63,7 +64,7 @@ impl Handle {
     /// Returns a module controller which have module opened from file.
     pub async fn module_controller
     (&self, path:ModulePath) -> FallibleResult<controller::Module> {
-        trace!(self.logger,"Obtaining module controller for {path}");
+        info!(self.logger,"Obtaining module controller for {path}");
         let model_loader = self.load_module(path.clone());
         let model        = self.module_registry.get_or_load(path.clone(),model_loader).await?;
         Ok(self.module_controller_with_model(path,model))
@@ -74,7 +75,7 @@ impl Handle {
     -> controller::Module {
         let ls     = self.language_server_rpc.clone_ref();
         let parser = self.parser.clone_ref();
-        controller::Module::new(path,model,ls,parser)
+        controller::Module::new(self.logger.clone_ref(),path,model,ls,parser)
     }
 
     async fn load_module(&self, path:ModulePath) -> FallibleResult<Rc<model::Module>> {
@@ -119,7 +120,8 @@ mod test {
             json_client.set_file_read_result(file_path, Ok(response::Read{contents}));
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(default());
-            let project           = controller::Project::new(json_connection,binary_connection);
+            let project           = controller::Project::new(default(),json_connection,
+                                                             binary_connection);
             let module            = project.module_controller(path.clone()).await.unwrap();
             let same_module       = project.module_controller(path.clone()).await.unwrap();
             let another_module    = project.module_controller(another_path.clone()).await.unwrap();
@@ -135,7 +137,8 @@ mod test {
         TestWithLocalPoolExecutor::set_up().run_task(async move {
             let json_connection   = language_server::Connection::new_mock(default());
             let binary_connection = binary::Connection::new_mock(default());
-            let project_ctrl      = controller::Project::new(json_connection,binary_connection);
+            let project_ctrl      = controller::Project::new(default(),json_connection,
+                                                             binary_connection);
             let root_id           = default();
             let path              = FilePath::new(root_id,&["TestPath"]);
             let another_path      = FilePath::new(root_id,&["TestPath2"]);
@@ -163,7 +166,8 @@ mod test {
             json_client.set_file_read_result(path.clone(), Ok(response::Read {contents}));
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(default());
-            let project_ctrl      = controller::Project::new(json_connection,binary_connection);
+            let project_ctrl      = controller::Project::new(default(),json_connection,
+                                                             binary_connection);
             let text_ctrl         = project_ctrl.text_controller(path.clone()).await.unwrap();
             let content           = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());

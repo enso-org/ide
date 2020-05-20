@@ -135,8 +135,8 @@ impl Client {
     /// Before client is functional:
     /// * `runner` must be scheduled for execution;
     /// * `init` must be called or it needs to be wrapped into `Connection`.
-    pub fn new(transport:impl Transport + 'static) -> Client {
-        let logger = Logger::new("binary-protocol");
+    pub fn new(parent:Logger, transport:impl Transport + 'static) -> Client {
+        let logger    = parent.sub("binary-protocol-client");
         let processor = Self::processor(logger.clone_ref());
         Client {
             logger  : logger.clone_ref(),
@@ -239,7 +239,7 @@ mod tests {
     impl ClientFixture {
         fn new() -> ClientFixture {
             let transport = MockTransport::new();
-            let client    = Client::new(transport.clone());
+            let client    = Client::new(default(),transport.clone());
             let executor  = futures::executor::LocalPool::new();
             executor.spawner().spawn_local(client.runner()).unwrap();
             ClientFixture {transport,client,executor}

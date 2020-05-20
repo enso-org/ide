@@ -127,8 +127,8 @@ pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
 
 /// Establishes transport to the file manager server websocket endpoint.
 pub async fn connect_to_project_manager
-(config:SetupConfig) -> Result<WebSocket,ConnectingError> {
-    WebSocket::new_opened(config.project_manager_endpoint).await
+(logger:Logger, config:SetupConfig) -> Result<WebSocket,ConnectingError> {
+    WebSocket::new_opened(logger,config.project_manager_endpoint).await
 }
 
 /// Wraps the transport to the project manager server into the client type and registers it within
@@ -142,30 +142,33 @@ pub fn setup_project_manager
 
 /// Creates a new websocket transport and waits until the connection is properly opened.
 pub async fn new_opened_ws
-(address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
+(logger:Logger, address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
     let endpoint   = format!("ws://{}:{}", address.host, address.port);
-    WebSocket::new_opened(endpoint).await
+    WebSocket::new_opened(logger,endpoint).await
 }
 
 /// Connect to language server.
 pub async fn open_project
-(json_endpoint:project_manager::IpWithSocket, binary_endpoint:project_manager::IpWithSocket)
--> FallibleResult<controller::Project> {
-    let json_ws = new_opened_ws(json_endpoint).await?;
-    let binary_ws = new_opened_ws(binary_endpoint).await?;
-    let client_id = Uuid::new_v4();
-    let client_json = language_server::Client::new(json_ws);
-    let client_binary = binary::Client::new(binary_ws);
+( logger:Logger
+, json_endpoint:project_manager::IpWithSocket
+, binary_endpoint:project_manager::IpWithSocket
+) -> FallibleResult<controller::Project> {
+    info!(logger, "Establishing Language Server connections.");
+    let client_id     = Uuid::new_v4();
+    let json_ws       = new_opened_ws(logger.clone_ref(), json_endpoint).await?;
+    let binary_ws     = new_opened_ws(logger.clone_ref(), binary_endpoint).await?;
+    let client_json   = language_server::Client::new(json_ws);
+    let client_binary = binary::Client::new(logger.clone_ref(),binary_ws);
     crate::executor::global::spawn(client_json.runner());
     crate::executor::global::spawn(client_binary.runner());
-    let connection_json = language_server::Connection::new(client_json,client_id).await?;
+    let connection_json   = language_server::Connection::new(client_json,client_id).await?;
     let connection_binary = binary::Connection::new(client_binary,client_id).await?;
-    Ok(controller::Project::new(connection_json,connection_binary))
+    Ok(controller::Project::new(logger,connection_json,connection_binary))
 }
 
 /// Open most recent project or create a new project if none exists.
 pub async fn open_most_recent_project_or_create_new
-(project_manager:&impl project_manager::API) -> FallibleResult<controller::Project> {
+(logger:Logger, project_manager:&impl project_manager::API) -> FallibleResult<controller::Project> {
     let projects_to_list = 1;
     let mut response     = project_manager.list_recent_projects(&projects_to_list).await?;
     let project_id = if let Some(project) = response.projects.pop() {
@@ -174,15 +177,16 @@ pub async fn open_most_recent_project_or_create_new
         project_manager.create_project(&DEFAULT_PROJECT_NAME.to_string()).await?.project_id
     };
     let endpoints = project_manager.open_project(&project_id).await?;
-    open_project(endpoints.language_server_json_address,endpoints.language_server_binary_address).await
+    open_project(logger,endpoints.language_server_json_address,
+                 endpoints.language_server_binary_address).await
 }
 
 /// Sets up the project view, including the controller it uses.
 pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
 -> Result<ProjectView,failure::Error> {
-    let transport    = connect_to_project_manager(config).await?;
+    let transport    = connect_to_project_manager(logger.clone_ref(),config).await?;
     let pm           = setup_project_manager(transport);
-    let project      = open_most_recent_project_or_create_new(&pm).await?;
+    let project      = open_most_recent_project_or_create_new(logger.clone_ref(),&pm).await?;
     let project_view = ProjectView::new(logger,project).await?;
     Ok(project_view)
 }
@@ -195,6 +199,7 @@ pub fn run_ide() {
     std::mem::forget(global_executor);
 
     let config = SetupConfig::new_local();
+    info!(logger, "Starting IDE with the following config: {config:?}");
     executor::global::spawn(async move {
         let error_msg = "Failed to setup initial project view.";
         // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
@@ -225,7 +230,7 @@ mod tests {
         let mut fixture = TestWithMockedTransport::set_up(&transport);
         fixture.run_test(async move {
             let client  = setup_project_manager(transport);
-            let project = open_most_recent_project_or_create_new(&client).await;
+            let project = open_most_recent_project_or_create_new(default(),&client).await;
             project.expect_err("error should have been reported");
         });
         fixture.when_stalled_send_response(json!({

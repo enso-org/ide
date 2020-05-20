@@ -59,7 +59,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 async fn file_operations() {
     ensogl::system::web::set_stdout();
 
-    let ws        = WebSocket::new_opened(SERVER_ENDPOINT).await;
+    let ws        = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
     let ws        = ws.expect("Couldn't connect to WebSocket server.");
     let client    = Client::new(ws);
     let _executor = ide::setup_global_executor();
@@ -206,7 +206,7 @@ async fn file_operations() {
 #[allow(dead_code)]
 async fn file_events() {
     ensogl::system::web::set_stdout();
-    let ws         = WebSocket::new_opened(SERVER_ENDPOINT).await;
+    let ws         = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
     let ws         = ws.expect("Couldn't connect to WebSocket server.");
     let client     = Client::new(ws);
     let mut stream = client.events();
@@ -258,20 +258,21 @@ async fn file_events() {
 #[allow(dead_code)]
 async fn binary_protocol_test() {
     ensogl_system_web::set_stdout();
-    let _guard = ide::setup_global_executor();
-
-    let ws = WebSocket::new_opened(ide::PROJECT_MANAGER_ENDPOINT).await.unwrap();
-    println!("Connected!");
-    let pm = ide::setup_project_manager(ws);
-    println!("PM established!");
-    let project = ide::open_most_recent_project_or_create_new(&pm).await.unwrap();
+    let _guard   = ide::setup_global_executor();
+    let logger   = Logger::new("Test");
+    let endpoint = ide::PROJECT_MANAGER_ENDPOINT;
+    let ws       = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
+    let pm       = ide::setup_project_manager(ws);
+    let project  = ide::open_most_recent_project_or_create_new(logger, &pm).await.unwrap();
     println!("Got project: {:?}", project);
-    let path = Path::new(project.language_server_rpc.content_root(), &["moje.txt"]);
+    let path     = Path::new(project.language_server_rpc.content_root(), &["moje.txt"]);
     let contents = "Hello moje".as_bytes();
-    println!("Writing file {}", path);
-    println!("Written: {:?}", project.language_server_bin.write_file(&path,contents).await.unwrap());
+    let written  = project.language_server_bin.write_file(&path,contents).await.unwrap();
+    println!("Written: {:?}", written);
     let read_back = project.language_server_bin.read_file(&path).await.unwrap();
     println!("Read back: {:?}", read_back);
     assert_eq!(contents, read_back.as_slice());
-    assert!(false);
+
+    // TODO [mwu]
+    //  In future it would be nice to have here also a test for receiving a visualization update.
 }

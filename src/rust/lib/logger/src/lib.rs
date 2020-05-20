@@ -52,7 +52,11 @@ impl Logger {
     }
 
     pub fn sub<T:Str>(&self, path: T) -> Self {
-        Self::new(format!("{}.{}", self.path, path.as_ref()))
+        if self.path.is_empty() {
+            Self::new(path)
+        } else {
+            Self::new(format!("{}.{}", self.path, path.as_ref()))
+        }
     }
 
     pub fn group<M: LogMsg, T, F: FnOnce() -> T>(&self, msg: M, f: F) -> T {
@@ -74,7 +78,7 @@ impl Logger {
 #[cfg(target_arch = "wasm32")]
 impl Logger {
     pub fn trace<M: LogMsg>(&self, msg: M) {
-        console::trace_1(&self.format(msg));
+        //console::trace_1(&self.format(msg));
     }
 
     pub fn debug<M: LogMsg>(&self, msg: M) {
@@ -82,7 +86,7 @@ impl Logger {
     }
 
     pub fn info<M: LogMsg>(&self, msg: M) {
-        console::info_1(&self.format(msg));
+        //console::info_1(&self.format(msg));
     }
 
     pub fn warning<M: LogMsg>(&self, msg: M) {
@@ -94,7 +98,7 @@ impl Logger {
     }
 
     pub fn group_begin<M: LogMsg>(&self, msg: M) {
-        console::group_1(&self.format(msg));
+        //console::group_1(&self.format(msg));
     }
 
     pub fn group_end(&self) {
