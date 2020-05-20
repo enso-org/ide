@@ -20,7 +20,7 @@ pub struct EnsoCode {
 }
 
 /// Type alias for a string representing an enso type.
-#[derive(Clone,CloneRef,Debug,PartialEq,Eq)]
+#[derive(Clone,CloneRef,Debug,PartialEq,Eq,Hash)]
 pub struct EnsoType {
     content: Rc<String>
 }
