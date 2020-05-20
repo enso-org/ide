@@ -114,7 +114,7 @@ impl Client {
                 Ok(message) => message,
                 Err(e)      => return Disposition::error(e),
             };
-            info!(logger, "Received binary message {message:?}");
+            debug!(logger, "Deserialized incoming binary message: {message:?}");
             match message.payload {
                 FromServerPayloadOwned::VisualizationUpdate {context,data} =>
                     Disposition::notify(Notification::VisualizationUpdate {data,context}),
@@ -178,19 +178,19 @@ impl Client {
 
 impl API for Client {
     fn init(&self, client_id:Uuid) -> LocalBoxFuture<FallibleResult<()>> {
-        info!(self.logger,"Initializing binary connection as {client_id}");
+        info!(self.logger,"Initializing binary connection as client with id {client_id}.");
         let payload = ToServerPayload::InitSession {client_id};
         self.open(payload,Self::expect_success)
     }
 
     fn write_file(&self, path:&Path, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>> {
-        info!(self.logger,"Writing file {path} with {contents:?}");
+        info!(self.logger,"Writing file {path} with {contents.len()} bytes.");
         let payload = ToServerPayload::WriteFile {path,contents};
         self.open(payload,Self::expect_success)
     }
 
     fn read_file(&self, path:&Path) -> LocalBoxFuture<FallibleResult<Vec<u8>>> {
-        info!(self.logger,"Reading file {path}");
+        info!(self.logger,"Reading file {path}.");
         let payload = ToServerPayload::ReadFile {path};
         self.open(payload, move |result| {
             if let FromServerPayloadOwned::FileContentsReply {contents} = result {

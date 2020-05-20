@@ -151,7 +151,7 @@ pub trait Serialize {
     }
 }
 
-impl<T: serialization::Serializable> Serialize for Message<T> {
+impl<T: serialization::SerializableInMessage> Serialize for Message<T> {
     fn write(&self, builder:&mut FlatBufferBuilder) {
         self.payload.write_message(builder,self.correlation_id,self.message_id)
     }

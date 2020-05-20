@@ -236,12 +236,14 @@ impl WebSocket {
 
 impl Transport for WebSocket {
     fn send_text(&mut self, message:&str) -> Result<(), Error> {
-        info!(self.logger, "sending text: {message}");
+        info!(self.logger, "Sending text message of length {message.len()}");
+        debug!(self.logger, "Message contents: {message}");
         self.send_with_open_socket(|ws| ws.send_with_str(message))
     }
 
     fn send_binary(&mut self, message:&[u8]) -> Result<(), Error> {
-        info!(self.logger, "sending binary: {message:?}");
+        info!(self.logger, "Sending binary message of length {message.len()}");
+        self.logger.debug(|| format!("Message contents: {:x?}", message));
         // TODO [mwu]
         //   Here we workaround issue from wasm-bindgen 0.2.58:
         //   https://github.com/rustwasm/wasm-bindgen/issues/2014
@@ -258,31 +260,31 @@ impl Transport for WebSocket {
         let transmitter_copy = transmitter.clone();
         let logger_copy = self.logger.clone_ref();
         self.set_on_message(move |e| {
-            info!(logger_copy,"Message received1..");
-            println!("Message received2..");
             let data = e.data();
             if let Some(text) = data.as_string() {
-                info!(logger_copy,"received text: {text}");
+                debug!(logger_copy, "Received a text message: {text}");
                 channel::emit(&transmitter_copy,TransportEvent::TextMessage(text));
             } else if let Ok(array_buffer) = data.dyn_into::<js_sys::ArrayBuffer>() {
                 let array       = js_sys::Uint8Array::new(&array_buffer);
                 let binary_data = array.to_vec();
-                info!(logger_copy,"received binary: {binary_data:?}");
+                logger_copy.debug(|| format!("Received a binary message: {:x?}", binary_data));
                 let event       = TransportEvent::BinaryMessage(binary_data);
                 channel::emit(&transmitter_copy,event);
+            } else {
+                info!(logger_copy,"Received other kind of message: {js_to_string(e.data())}.");
             }
         });
 
         let transmitter_copy = transmitter.clone();
         let logger_copy = self.logger.clone_ref();
         self.set_on_close(move |_e| {
-            info!(logger_copy,"Connection closed.");
+            info!(logger_copy,"Connection has been closed.");
             channel::emit(&transmitter_copy,TransportEvent::Closed);
         });
 
         let logger_copy = self.logger.clone_ref();
         self.set_on_open(move |_e| {
-            info!(logger_copy,"Connection Opened.");
+            info!(logger_copy,"Connection has been opened.");
             channel::emit(&transmitter, TransportEvent::Opened);
         });
     }

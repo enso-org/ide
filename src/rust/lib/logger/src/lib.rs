@@ -73,8 +73,12 @@ impl Logger {
 
 #[cfg(target_arch = "wasm32")]
 impl Logger {
-    pub fn trace<M: LogMsg>(&self, _msg: M) {
-        //console::trace_1(&self.format(msg));
+    pub fn trace<M: LogMsg>(&self, msg: M) {
+        console::trace_1(&self.format(msg));
+    }
+
+    pub fn debug<M: LogMsg>(&self, msg: M) {
+        console::debug_1(&self.format(msg));
     }
 
     pub fn info<M: LogMsg>(&self, msg: M) {
@@ -89,18 +93,21 @@ impl Logger {
         console::error_1(&self.format(msg));
     }
 
-    pub fn group_begin<M: LogMsg>(&self, _msg: M) {
-//        console::group_1(&self.format(msg));
+    pub fn group_begin<M: LogMsg>(&self, msg: M) {
+        console::group_1(&self.format(msg));
     }
 
     pub fn group_end(&self) {
-//        console::group_end();
+        console::group_end();
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Logger {
     pub fn trace<M: LogMsg>(&self, msg:M) {
+        println!("{}",self.format2(msg));
+    }
+    pub fn debug<M: LogMsg>(&self, msg:M) {
         println!("{}",self.format2(msg));
     }
     pub fn info<M: LogMsg>(&self, msg: M) {
@@ -190,6 +197,13 @@ macro_rules! log_internal_bug_template_impl {
 macro_rules! trace {
     ($($toks:tt)*) => {
         $crate::log_template! {trace $($toks)*}
+    };
+}
+
+#[macro_export]
+macro_rules! debug {
+    ($($toks:tt)*) => {
+        $crate::log_template! {debug $($toks)*}
     };
 }
 

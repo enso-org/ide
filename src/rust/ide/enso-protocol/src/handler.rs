@@ -88,6 +88,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
         }
     }
 
+    /// Emits event. Clients can consume them through `event_stream`.
     fn emit_event(&mut self, event:Event<Notification>) {
         if let Some(sender) = self.sender.as_ref() {
             // Error can happen if there is no listener. But we don't mind this.
@@ -116,27 +117,33 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     /// Main entry point for input data while running. Should be connected to the `Transport`s
     /// output event stream.
     pub fn process_event(&mut self, event:TransportEvent) {
-        info!(self.logger, "Transport event received: {event:?}");
-        match (self.processor)(event) {
-            Disposition::HandleReply {id,reply} => self.process_reply(id,reply),
-            Disposition::EmitEvent {event} => self.emit_event(event),
-            Disposition::Ignore => {}
-        }
+        group!(self.logger, "Processing incoming transport event", {
+            debug!(self.logger, "Transport event contents: {event:?}.");
+            let disposition = (self.processor)(event);
+            debug!(self.logger, "Disposition: {disposition:?}");
+            match disposition {
+                Disposition::HandleReply {id,reply} => self.process_reply(id,reply),
+                Disposition::EmitEvent {event} => self.emit_event(event),
+                Disposition::Ignore => {}
+            }
+        });
     }
 
     pub fn make_request<F,R>
     (&mut self, message:&dyn IsRequest<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {
-        let id  = message.id();
-        let ret = self.ongoing_calls.open_new_request(id,f);
-        info!(self.logger,"Sending message {message:?}");
-        let sending_result = message.send(self.transport.as_mut());
-        if sending_result.is_err() {
-            // If we failed to send the request, it should be immediately removed.
-            // This will result in the returned future immediately yielding error.
-            self.ongoing_calls.remove_request(&id);
-        }
-        ret
+        group!(self.logger, "Making a new RPC call", {
+            let id  = message.id();
+            let ret = self.ongoing_calls.open_new_request(id,f);
+            debug!(self.logger,"Sending message {message:?}");
+            let sending_result = message.send(self.transport.as_mut());
+            if sending_result.is_err() {
+                // If we failed to send the request, it should be immediately removed.
+                // This will result in the returned future immediately yielding error.
+                self.ongoing_calls.remove_request(&id);
+            }
+            ret
+        })
     }
 
     /// Creates a new stream with events from this handler.
@@ -210,7 +217,8 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     pub fn new<T,P>(transport:T, logger:Logger, processor:P) -> Self
     where T : Transport + 'static,
           P : FnMut(TransportEvent) -> Disposition<Id,Reply,Notification> + 'static {
-        let state = Rc::new(RefCell::new(HandlerData::new(transport,&logger,processor)));
+        let state  = Rc::new(RefCell::new(HandlerData::new(transport,&logger,processor)));
+        let logger = logger.sub("handler");
         Handler {logger,state}
     }
 
