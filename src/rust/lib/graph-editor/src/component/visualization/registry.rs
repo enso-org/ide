@@ -52,13 +52,13 @@ pub struct Registry {
 
 impl Registry {
     /// Return an empty `Registry`.
-    pub fn empty() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 
     /// Return a `Registry` prepopulated with default visualizations.
     pub fn with_default_visualisations() -> Self {
-        let registry = Self::empty();
+        let registry = Self::new();
         // FIXME use proper enso types here.
         registry.register_class(NativeConstructorClass::new(
             ClassAttributes {
