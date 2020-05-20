@@ -1213,6 +1213,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let mouse                  = &scene.mouse.frp;
     let touch                  = &model.touch_state;
     let visualization_registry = visualization::Registry::with_default_visualisations();
+    let logger                 = &model.logger;
 
 
     let outputs = UnsealedFrpOutputs::new();
@@ -1449,19 +1450,18 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         })
     }));
 
-     let cycle_count = Rc::new(Cell::new(0));
-     def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry](node_id) {
-        let visualisations = visualization_registry.valid_sources(&"[[float;3]]".into());
-        cycle_count.set(cycle_count.get() % visualisations.len());
-        let vis  = &visualisations[cycle_count.get()];
-        let vis  = vis.instantiate(&scene);
-        let node = nodes.get_cloned_ref(node_id);
-        match (vis, node) {
-            (Ok(vis), Some(node))  => {
-                    node.view.visualization_container.frp.set_visualization.emit(Some(vis));
-            },
-            // TODO better error handling. Maybe use a logger?
-                (Err(e), _) => println!("{:?}", e),
+         let cycle_count = Rc::new(Cell::new(0));
+         def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
+            let visualisations = visualization_registry.valid_sources(&"[[float;3]]".into());
+            cycle_count.set(cycle_count.get() % visualisations.len());
+            let vis  = &visualisations[cycle_count.get()];
+            let vis  = vis.instantiate(&scene);
+            let node = nodes.get_cloned_ref(node_id);
+            match (vis, node) {
+                (Ok(vis), Some(node))  => {
+                        node.view.visualization_container.frp.set_visualization.emit(Some(vis));
+                },
+                (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {}", e)),
                 _           => {}
             };
             cycle_count.set(cycle_count.get() + 1);
