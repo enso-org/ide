@@ -3,37 +3,15 @@
 
 use crate::prelude::*;
 
-use crate::generated::binary_protocol_generated as generated_root;
-use generated_root::org::enso::languageserver::protocol::binary as generated;
-use generated::EnsoUUID;
-use generated::Error;
-use generated::ErrorArgs;
-use generated::FileContentsReply;
-use generated::FileContentsReplyArgs;
-use generated::InboundPayload;
-use generated::InboundMessage;
-use generated::InboundMessageArgs;
-use generated::InitSessionCommand;
-use generated::InitSessionCommandArgs;
-use generated::OutboundMessage;
-use generated::OutboundMessageArgs;
-use generated::OutboundPayload;
-use generated::Path;
-use generated::PathArgs;
-use generated::ReadFileCommand;
-use generated::ReadFileCommandArgs;
-use generated::Success;
-use generated::SuccessArgs;
-use generated::VisualisationContextArgs;
-use generated::VisualisationUpdate;
-use generated::VisualisationUpdateArgs;
-use generated::WriteFileCommand;
-use generated::WriteFileCommandArgs;
+use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol::binary::*;
+
 use crate::common::error::DeserializationError;
+use crate::binary::message;
 use crate::binary::message::Message;
+use crate::binary::message::MessageToServer;
+use crate::binary::message::MessageFromServer;
 use crate::binary::message::FromServerPayloadOwned;
 use crate::binary::message::FromServerPayload;
-use crate::binary::message::VisualisationContext;
 use crate::binary::message::ToServerPayload;
 use crate::binary::message::ToServerPayloadOwned;
 use crate::language_server::types::Path as LSPath;
@@ -48,13 +26,13 @@ use flatbuffers::WIPOffset;
 // === SerializableObject ===
 // ==========================
 
-
 // === Trait ===
 
 /// All entities that can be serialized to the FlatBuffers and represented as offsets.
+/// That includes tables and vectors, but not primitives, structs nor unions.
 ///
 /// Supports both serialization and deserialization.
-trait SerializableObject<'a> : Sized {
+trait SerializableDeserializableObject<'a> : Sized {
     /// The FlatBuffer's generated type for this type representation.
     type Out : Sized;
 
@@ -75,7 +53,7 @@ trait SerializableObject<'a> : Sized {
 
 // === impl Vec<String> ===
 
-impl<'a> SerializableObject<'a> for Vec<String> {
+impl<'a> SerializableDeserializableObject<'a> for Vec<String> {
     type Out = flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>;
 
     fn serialize(&self, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Self::Out> {
@@ -92,10 +70,10 @@ impl<'a> SerializableObject<'a> for Vec<String> {
 
 // === impl VisualisationContext ===
 
-impl<'a> SerializableObject<'a> for VisualisationContext {
-    type Out = generated::VisualisationContext<'a>;
+impl<'a> SerializableDeserializableObject<'a> for message::VisualisationContext {
+    type Out = VisualisationContext<'a>;
     fn serialize(&self, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Self::Out> {
-        generated::VisualisationContext::create(builder, &VisualisationContextArgs {
+        VisualisationContext::create(builder, &VisualisationContextArgs {
             visualisationId : Some(&self.visualization_id.into()),
             expressionId    : Some(&self.expression_id.into()),
             contextId       : Some(&self.context_id.into()),
@@ -103,7 +81,7 @@ impl<'a> SerializableObject<'a> for VisualisationContext {
     }
 
     fn deserialize(fbs:Self::Out) -> Result<Self,DeserializationError> {
-        Ok(VisualisationContext {
+        Ok(message::VisualisationContext {
             context_id       : fbs.contextId().into(),
             visualization_id : fbs.visualisationId().into(),
             expression_id    : fbs.expressionId().into(),
@@ -114,7 +92,7 @@ impl<'a> SerializableObject<'a> for VisualisationContext {
 
 // === impl language server's Path ===
 
-impl<'a> SerializableObject<'a> for LSPath {
+impl<'a> SerializableDeserializableObject<'a> for LSPath {
     type Out = Path<'a>;
     fn serialize(&self, builder:&mut FlatBufferBuilder<'a>) -> WIPOffset<Self::Out> {
         let root_id      = self.root_id.into();
@@ -139,160 +117,92 @@ impl<'a> SerializableObject<'a> for LSPath {
 // === SerializableUnion ===
 // =========================
 
-pub trait SerializableUnionMember<'a, ParentType:'a> : Sized {
+/// Traits for serialization of our types that flatbuffers schema represents as unions.
+pub trait SerializableUnion : Sized {
+    /// Type of the FlatBuffers-generated enumeration with the variant index.
     type EnumType;
 
+    /// Write the enumeration to the builder and return the handle.
     fn serialize(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
+
+    /// Obtain the index of the active variant.
     fn active_variant(&self) -> Self::EnumType;
-
-    fn deserialize(parent:ParentType) -> Self;
 }
 
-
-// impl<'a> SerializablePayloadToServer for ToServerPayload<'a> {
-//     fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
-//         match self {
-//             ToServerPayload::InitSession {client_id} => {
-//                 InitSessionCommand::create(builder, &InitSessionCommandArgs {
-//                     identifier : Some(&client_id.into())
-//                 }).as_union_value()
-//             }
-//             ToServerPayload::WriteFile {path,contents} => {
-//                 let path     = path.serialize(builder); //serialize_path(path,builder);
-//                 let contents = builder.create_vector(contents);
-//                 WriteFileCommand::create(builder, &WriteFileCommandArgs {
-//                     path : Some(path),
-//                     contents : Some(contents),
-//                 }).as_union_value()
-//             }
-//             ToServerPayload::ReadFile {path} => {
-//                 let path = path.serialize(builder);//serialize_path(path,builder);
-//                 ReadFileCommand::create(builder, &ReadFileCommandArgs {
-//                     path : Some(path)
-//                 }).as_union_value()
-//             }
-//         }
-//     }
-//
-//     fn payload_type(&self) -> InboundPayload {
-//         match self {
-//             ToServerPayload::InitSession {..} => InboundPayload::INIT_SESSION_CMD,
-//             ToServerPayload::WriteFile   {..} => InboundPayload::WRITE_FILE_CMD,
-//             ToServerPayload::ReadFile    {..} => InboundPayload::READ_FILE_CMD,
-//         }
-//     }
-// }
-
-
-
-// ==========================
-// === SerializableObject ===
-// ==========================
-
-/// Payload that can be serialized as a message part.
-pub trait SerializableInMessage {
-    /// Serializes the message with this payload to the builder and calls `finish` on it.
-    fn write_message(&self, builder:&mut FlatBufferBuilder, correlation_id:Option<Uuid>, message_id:Uuid);
-}
-
-/// Payloads that can be serialized and sent as a message to server.
-///
-/// Abstracts over `ToServerPayloadOwned` ``
-pub trait SerializablePayloadToServer {
-    /// Writes the message into a buffer and finishes it.
-    fn write_message_fbs
-    (&self
-    , builder:&mut FlatBufferBuilder
-    , correlation_id:Option<Uuid>
-    , message_id:Uuid) {
-        let correlation_id = correlation_id.map(EnsoUUID::from);
-        let message_id     = message_id.into();
-        let payload_type   = self.payload_type();
-        let payload        = Some(self.write_payload(builder));
-        let message        = InboundMessage::create(builder, &InboundMessageArgs {
-            correlationId : correlation_id.as_ref(),
-            messageId     : Some(&message_id),
-            payload_type,
-            payload,
-        });
-        builder.finish(message,None);
+impl<'a> SerializableUnion for ToServerPayload<'a> {
+    type EnumType = InboundPayload;
+    fn serialize(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
+        match self {
+            ToServerPayload::InitSession {client_id} => {
+                InitSessionCommand::create(builder, &InitSessionCommandArgs {
+                    identifier : Some(&client_id.into())
+                }).as_union_value()
+            }
+            ToServerPayload::WriteFile {path,contents} => {
+                let path     = path.serialize(builder); //serialize_path(path,builder);
+                let contents = builder.create_vector(contents);
+                WriteFileCommand::create(builder, &WriteFileCommandArgs {
+                    path : Some(path),
+                    contents : Some(contents),
+                }).as_union_value()
+            }
+            ToServerPayload::ReadFile {path} => {
+                let path = path.serialize(builder);//serialize_path(path,builder);
+                ReadFileCommand::create(builder, &ReadFileCommandArgs {
+                    path : Some(path)
+                }).as_union_value()
+            }
+        }
     }
 
-    /// Writes just the payload into the buffer.
-    fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
-
-    /// Returns enumeration describing variant of this payload.
-    fn payload_type(&self) -> InboundPayload;
-}
-
-/// Payloads that can be serialized and sent as a message to server.
-pub trait SerializableFromServer  {
-    /// Writes the message into a buffer and finishes it.
-    fn write_message_fbs
-    ( &self
-    , builder:&mut FlatBufferBuilder
-    , correlation_id:Option<Uuid>
-    , message_id:Uuid) {
-        let correlation_id = correlation_id.map(EnsoUUID::from);
-        let message_id     = message_id.into();
-        let payload_type   = self.payload_type();
-        let payload        = Some(self.write_payload(builder));
-        let message        = OutboundMessage::create(builder, &OutboundMessageArgs {
-            correlationId : correlation_id.as_ref(),
-            messageId     : Some(&message_id),
-            payload_type,
-            payload,
-        });
-        builder.finish(message,None);
-    }
-
-    /// Writes just the payload into the buffer.
-    fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset>;
-
-    /// Returns enumeration describing variant of this payload.
-    fn payload_type(&self) -> OutboundPayload;
-}
-
-
-impl FromServerPayloadOwned {
-    /// Deserializes this payload from FlatBuffer's message from server representation.
-    pub fn deserialize_owned(message:&OutboundMessage) -> Result<Self,DeserializationError> {
-        match message.payload_type() {
-            OutboundPayload::ERROR => {
-                let payload = message.payload_as_error().unwrap();
-                Ok(FromServerPayloadOwned::Error {
-                    code: payload.code(),
-                    message: payload.message().unwrap_or_default().to_string(),
-                })
-            }
-            OutboundPayload::FILE_CONTENTS_REPLY => {
-                let payload = message.payload_as_file_contents_reply().unwrap();
-                Ok(FromServerPayloadOwned::FileContentsReply {
-                    contents: Vec::from(payload.contents().unwrap_or_default())
-                })
-            }
-            OutboundPayload::SUCCESS => Ok(FromServerPayloadOwned::Success {}),
-            OutboundPayload::VISUALISATION_UPDATE => {
-                let payload = message.payload_as_visualisation_update().unwrap();
-                let context = payload.visualisationContext();
-                Ok(FromServerPayloadOwned::VisualizationUpdate {
-                    data: Vec::from(payload.data()),
-                    context: VisualisationContext {
-                        context_id: context.contextId().into(),
-                        expression_id: context.expressionId().into(),
-                        visualization_id: context.visualisationId().into(),
-                    }
-                })
-            }
-            OutboundPayload::NONE =>
-                Err(DeserializationError("Received a message without payload. This is not allowed, \
-                                         according to the spec.".into()))
+    fn active_variant(&self) -> Self::EnumType {
+        match self {
+            ToServerPayload::InitSession {..} => InboundPayload::INIT_SESSION_CMD,
+            ToServerPayload::WriteFile   {..} => InboundPayload::WRITE_FILE_CMD,
+            ToServerPayload::ReadFile    {..} => InboundPayload::READ_FILE_CMD,
         }
     }
 }
 
-impl SerializableFromServer for FromServerPayloadOwned {
-    fn write_payload(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
+impl SerializableUnion for ToServerPayloadOwned {
+    type EnumType = InboundPayload;
+    fn serialize(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
+        match self {
+            ToServerPayloadOwned::InitSession {client_id} => {
+                InitSessionCommand::create(builder, &InitSessionCommandArgs {
+                    identifier : Some(&client_id.into())
+                }).as_union_value()
+            }
+            ToServerPayloadOwned::WriteFile {path,contents} => {
+                let path     = path.serialize(builder); //serialize_path(path,builder);
+                let contents = builder.create_vector(contents);
+                WriteFileCommand::create(builder, &WriteFileCommandArgs {
+                    path : Some(path),
+                    contents : Some(contents),
+                }).as_union_value()
+            }
+            ToServerPayloadOwned::ReadFile {path} => {
+                let path = path.serialize(builder);//serialize_path(path,builder);
+                ReadFileCommand::create(builder, &ReadFileCommandArgs {
+                    path : Some(path)
+                }).as_union_value()
+            }
+        }
+    }
+
+    fn active_variant(&self) -> Self::EnumType {
+        match self {
+            ToServerPayloadOwned::InitSession {..} => InboundPayload::INIT_SESSION_CMD,
+            ToServerPayloadOwned::WriteFile   {..} => InboundPayload::WRITE_FILE_CMD,
+            ToServerPayloadOwned::ReadFile    {..} => InboundPayload::READ_FILE_CMD,
+        }
+    }
+}
+
+impl SerializableUnion for FromServerPayloadOwned {
+    type EnumType = OutboundPayload;
+
+    fn serialize(&self, builder: &mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
         match self {
             FromServerPayloadOwned::Success {} => {
                 Success::create(builder, &SuccessArgs {}).as_union_value()
@@ -321,7 +231,7 @@ impl SerializableFromServer for FromServerPayloadOwned {
         }
     }
 
-    fn payload_type(&self) -> OutboundPayload {
+    fn active_variant(&self) -> Self::EnumType {
         match self {
             FromServerPayloadOwned::Error {..}               => OutboundPayload::ERROR,
             FromServerPayloadOwned::Success {..}             => OutboundPayload::SUCCESS,
@@ -331,15 +241,23 @@ impl SerializableFromServer for FromServerPayloadOwned {
     }
 }
 
-impl<'a> SerializableInMessage for FromServerPayloadOwned {
-    fn write_message(&self, builder:&mut FlatBufferBuilder, correlation_id:Option<Uuid>, message_id:Uuid) {
-        self.write_message_fbs(builder,correlation_id,message_id)
-    }
+
+
+// ================================
+// === DeserializableUnionField ===
+// ================================
+
+/// Unfortunately the FlatBuffers generated code includes union accessors in the parent type, so
+/// we cannot generalize union field deserialization apart from the parent type.
+///
+/// `ParentType` should be a FlatBuffer-generated type that contains this union field.
+pub trait DeserializableUnionField<'a, ParentType:'a> : Sized {
+    /// Constructs deserialized representation from the value containing this union field.
+    fn deserialize(owner:ParentType) -> Result<Self,DeserializationError>;
 }
 
-impl<'a> FromServerPayload<'a> {
-    /// Deserializes this payload from FlatBuffer's message from server representation.
-    pub fn deserialize(message:&OutboundMessage<'a>) -> Result<Self,DeserializationError> {
+impl<'a> DeserializableUnionField<'a, OutboundMessage<'a>> for FromServerPayload<'a> {
+    fn deserialize(message:OutboundMessage<'a>) -> Result<Self, DeserializationError> {
         match message.payload_type() {
             OutboundPayload::ERROR => {
                 let payload = message.payload_as_error().unwrap();
@@ -360,11 +278,7 @@ impl<'a> FromServerPayload<'a> {
                 let context = payload.visualisationContext();
                 Ok(FromServerPayload::VisualizationUpdate {
                     data: payload.data(),
-                    context: VisualisationContext {
-                        context_id: context.contextId().into(),
-                        expression_id: context.expressionId().into(),
-                        visualization_id: context.visualisationId().into(),
-                    }
+                    context: message::VisualisationContext::deserialize(context)?,
                 })
             }
             OutboundPayload::NONE =>
@@ -374,65 +288,8 @@ impl<'a> FromServerPayload<'a> {
     }
 }
 
-/// Payloads that can be deserialized from the data received from server.
-pub trait DeserializableToServer : Sized {
-    /// Deserializes the message (with Self payload type) from the binary data.
-    fn read_message(data:&[u8]) -> Result<Message<Self>,DeserializationError> {
-        let message = flatbuffers::get_root::<InboundMessage>(data);
-        let payload = Self::from_message(&message)?;
-        Ok(Message {
-            message_id : message.messageId().into(),
-            correlation_id : message.correlationId().map(|id| id.into()),
-            payload
-        })
-    }
-
-    /// Retrieves the payload data from the FlatBuffer representation of the message.
-    fn from_message(message:&InboundMessage) -> Result<Self,DeserializationError>;
-}
-
-impl<'a> SerializablePayloadToServer for ToServerPayload<'a> {
-    fn write_payload(&self, builder:&mut FlatBufferBuilder) -> WIPOffset<UnionWIPOffset> {
-        match self {
-            ToServerPayload::InitSession {client_id} => {
-                InitSessionCommand::create(builder, &InitSessionCommandArgs {
-                    identifier : Some(&client_id.into())
-                }).as_union_value()
-            }
-            ToServerPayload::WriteFile {path,contents} => {
-                let path     = path.serialize(builder); //serialize_path(path,builder);
-                let contents = builder.create_vector(contents);
-                WriteFileCommand::create(builder, &WriteFileCommandArgs {
-                    path : Some(path),
-                    contents : Some(contents),
-                }).as_union_value()
-            }
-            ToServerPayload::ReadFile {path} => {
-                let path = path.serialize(builder);//serialize_path(path,builder);
-                ReadFileCommand::create(builder, &ReadFileCommandArgs {
-                    path : Some(path)
-                }).as_union_value()
-            }
-        }
-    }
-
-    fn payload_type(&self) -> InboundPayload {
-        match self {
-            ToServerPayload::InitSession {..} => InboundPayload::INIT_SESSION_CMD,
-            ToServerPayload::WriteFile   {..} => InboundPayload::WRITE_FILE_CMD,
-            ToServerPayload::ReadFile    {..} => InboundPayload::READ_FILE_CMD,
-        }
-    }
-}
-
-impl<'a> SerializableInMessage for ToServerPayload<'a> {
-    fn write_message(&self, builder:&mut FlatBufferBuilder, correlation_id:Option<Uuid>, message_id:Uuid) {
-        self.write_message_fbs(builder,correlation_id,message_id)
-    }
-}
-
-impl DeserializableToServer for ToServerPayloadOwned {
-    fn from_message(message: &InboundMessage) -> Result<Self,DeserializationError> {
+impl<'a> DeserializableUnionField<'a, InboundMessage<'a>> for ToServerPayloadOwned {
+    fn deserialize(message:InboundMessage<'a>) -> Result<Self, DeserializationError> {
         match message.payload_type() {
             InboundPayload::INIT_SESSION_CMD => {
                 let payload = message.payload_as_init_session_cmd().unwrap();
@@ -458,5 +315,134 @@ impl DeserializableToServer for ToServerPayloadOwned {
                 Err(DeserializationError("Received a message without payload. This is not allowed, \
                                          according to the spec.".into()))
         }
+    }
+}
+
+impl<'a> DeserializableUnionField<'a, OutboundMessage<'a>> for FromServerPayloadOwned {
+    fn deserialize(message: OutboundMessage<'a>) -> Result<Self, DeserializationError> {
+        match message.payload_type() {
+            OutboundPayload::ERROR => {
+                let payload = message.payload_as_error().unwrap();
+                Ok(FromServerPayloadOwned::Error {
+                    code: payload.code(),
+                    message: payload.message().unwrap_or_default().to_string(),
+                })
+            }
+            OutboundPayload::FILE_CONTENTS_REPLY => {
+                let payload = message.payload_as_file_contents_reply().unwrap();
+                Ok(FromServerPayloadOwned::FileContentsReply {
+                    contents: Vec::from(payload.contents().unwrap_or_default())
+                })
+            }
+            OutboundPayload::SUCCESS => Ok(FromServerPayloadOwned::Success {}),
+            OutboundPayload::VISUALISATION_UPDATE => {
+                let payload = message.payload_as_visualisation_update().unwrap();
+                let context = payload.visualisationContext();
+                Ok(FromServerPayloadOwned::VisualizationUpdate {
+                    data: Vec::from(payload.data()),
+                    context: message::VisualisationContext::deserialize(context)?,
+                })
+            }
+            OutboundPayload::NONE =>
+                Err(DeserializationError("Received a message without payload. This is not allowed, \
+                                         according to the spec.".into()))
+        }
+    }
+}
+
+
+
+// ========================
+// === SerializableRoot ===
+// ========================
+
+/// Representation of the value that can be written to FlatBuffer-serialized binary blob.
+pub trait SerializableRoot {
+    /// Stores the entity into the builder and calls `finish` on it.
+    fn write(&self, builder:&mut FlatBufferBuilder);
+
+    /// Returns `finish`ed builder with the serialized entity.
+    fn serialize(&self) -> FlatBufferBuilder {
+        let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+        self.write(&mut builder);
+        builder
+    }
+
+    /// Calls the given function with the binary blob with the serialized entity.
+    fn with_serialized<R>(&self, f:impl FnOnce(&[u8]) -> R) -> R {
+        let buffer = self.serialize();
+        f(buffer.finished_data())
+    }
+}
+
+impl<T> SerializableRoot for MessageToServer<T>
+where T:SerializableUnion<EnumType=InboundPayload> {
+    fn write(&self, builder:&mut FlatBufferBuilder) {
+        let correlation_id = self.correlation_id.map(EnsoUUID::from);
+        let message_id     = self.message_id.into();
+        let payload_type   = self.payload.active_variant();
+        let payload        = Some(self.payload.serialize(builder));
+        let message        = InboundMessage::create(builder, &InboundMessageArgs {
+            correlationId : correlation_id.as_ref(),
+            messageId     : Some(&message_id),
+            payload_type,
+            payload,
+        });
+        builder.finish(message,None);
+    }
+}
+
+impl<T> SerializableRoot for MessageFromServer<T>
+where T : SerializableUnion<EnumType=OutboundPayload> {
+    fn write(&self, builder:&mut FlatBufferBuilder) {
+        let correlation_id = self.correlation_id.map(EnsoUUID::from);
+        let message_id     = self.message_id.into();
+        let payload_type   = self.payload.active_variant();
+        let payload        = Some(self.payload.serialize(builder));
+        let message        = OutboundMessage::create(builder, &OutboundMessageArgs {
+            correlationId : correlation_id.as_ref(),
+            messageId     : Some(&message_id),
+            payload_type,
+            payload,
+        });
+        builder.finish(message,None);
+    }
+}
+
+
+
+// ==========================
+// === DeserializableRoot ===
+// ==========================
+
+/// Representation of the value that can be read from FlatBuffer-serialized binary blob.
+pub trait DeserializableRoot<'a> : Sized {
+    /// Construct representation of the value from a binary blob in FlatBuffer format.
+    fn deserialize(data:&'a [u8]) -> Result<Self,DeserializationError>;
+}
+
+impl<'a,T> DeserializableRoot<'a> for MessageToServer<T>
+where T: DeserializableUnionField<'a,InboundMessage<'a>> {
+    fn deserialize(data: &'a [u8]) -> Result<Self, DeserializationError> {
+        let message = flatbuffers::get_root::<InboundMessage>(data);
+        let payload = T::deserialize(message)?;
+        Ok(MessageToServer(Message {
+            message_id     : message.messageId().into(),
+            correlation_id : message.correlationId().map(|id| id.into()),
+            payload
+        }))
+    }
+}
+
+impl<'a,T> DeserializableRoot<'a> for MessageFromServer<T>
+where T: DeserializableUnionField<'a,OutboundMessage<'a>> {
+    fn deserialize(data: &'a [u8]) -> Result<Self, DeserializationError> {
+        let message = flatbuffers::get_root::<OutboundMessage>(data);
+        let payload = T::deserialize(message)?;
+        Ok(MessageFromServer(Message {
+            message_id     : message.messageId().into(),
+            correlation_id : message.correlationId().map(|id| id.into()),
+            payload
+        }))
     }
 }

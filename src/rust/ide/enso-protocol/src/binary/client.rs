@@ -5,11 +5,10 @@ use crate::prelude::*;
 
 use crate::handler::Handler;
 use crate::handler::Disposition;
-use crate::binary::message::FromServerPayloadOwned;
+use crate::binary::message::{FromServerPayloadOwned, MessageToServerRef};
 use crate::binary::message::ToServerPayload;
 use crate::common::error::UnexpectedMessage;
 use crate::binary::message::MessageFromServerOwned;
-use crate::binary::message::Message;
 use crate::binary::message::VisualisationContext;
 use crate::language_server::types::Path;
 
@@ -26,7 +25,7 @@ use mockall::automock;
 
 #[allow(missing_docs)]
 #[derive(Debug,Fail,Clone,Copy)]
-#[fail(display = "Received text message when expecting only binary ones.")]
+#[fail(display = "Received a text message when expecting only the binary ones.")]
 pub struct UnexpectedTextMessage;
 
 
@@ -110,18 +109,18 @@ impl Client {
                 _ =>
                     return Disposition::error(UnexpectedTextMessage),
             };
-            let message = match MessageFromServerOwned::deserialize_owned(&binary_data) {
+            let message = match MessageFromServerOwned::deserialize(&binary_data) {
                 Ok(message) => message,
                 Err(e)      => return Disposition::error(e),
             };
             debug!(logger, "Deserialized incoming binary message: {message:?}");
-            match message.payload {
+            let correlation_id = message.correlation_id;
+            match message.0.payload {
                 FromServerPayloadOwned::VisualizationUpdate {context,data} =>
                     Disposition::notify(Notification::VisualizationUpdate {data,context}),
-                _ => {
-                    if let Some(id) = message.correlation_id {
-                        let reply = message.payload;
-                        Disposition::HandleReply {id,reply}
+                payload => {
+                    if let Some(id) = correlation_id {
+                        Disposition::HandleReply {id,reply:payload}
                     } else {
                         // Not a known notification and yet not a response to our request.
                         Disposition::error(UnexpectedMessage)
@@ -151,7 +150,7 @@ impl Client {
         where F : FnOnce(FromServerPayloadOwned) -> FallibleResult<R>,
               R : 'static,
               F : 'static, {
-        let message = Message::new(payload);
+        let message = MessageToServerRef::new(payload);
         let id = message.message_id;
 
         let logger = self.logger.clone_ref();
@@ -216,9 +215,7 @@ impl API for Client {
 mod tests {
     use super::*;
 
-    use crate::binary::message::ToServerPayloadOwned;
-    use crate::binary::serialization::DeserializableToServer;
-    use crate::binary::message::Serialize;
+    use crate::binary::message::{ToServerPayloadOwned, MessageToServerOwned, MessageFromServer};
 
     use futures::task::LocalSpawnExt;
     use json_rpc::test_util::transport::mock::MockTransport;
@@ -267,11 +264,11 @@ mod tests {
         let mut fut = make_request(&fixture.client);
 
         let generated_message = fixture.transport.expect_binary_message();
-        let generated_message = ToServerPayloadOwned::read_message(&generated_message).unwrap();
+        let generated_message = MessageToServerOwned::deserialize(&generated_message).unwrap();
         assert_eq!(generated_message.payload,expected_request);
         expect_not_ready(&mut fut);
 
-        let mut mock_reply = Message::new(mock_reply);
+        let mut mock_reply = MessageFromServer::new(mock_reply);
         mock_reply.correlation_id = Some(generated_message.message_id);
         mock_reply.with_serialized(|data| fixture.transport.mock_peer_binary_message(data));
         fixture.executor.run_until_stalled();
@@ -280,11 +277,11 @@ mod tests {
         // Repeat request but now answer with error.
         let mut fut = make_request(&fixture.client);
         let generated_message = fixture.transport.expect_binary_message();
-        let generated_message = ToServerPayloadOwned::read_message(&generated_message).unwrap();
+        let generated_message = MessageToServerOwned::deserialize(&generated_message).unwrap();
 
         let mock_error_code = 444;
         let mock_error_message = "This is error".to_string();
-        let mut mock_reply = Message::new(FromServerPayloadOwned::Error {
+        let mut mock_reply = MessageFromServer::new(FromServerPayloadOwned::Error {
             code : mock_error_code,
             message : mock_error_message.clone(),
         });
@@ -351,7 +348,7 @@ mod tests {
             context_id       : Uuid::new_v4(),
         };
         let data = Vec::from("Hello".as_bytes());
-        let message = Message::new(FromServerPayloadOwned::VisualizationUpdate {
+        let message = MessageFromServer::new(FromServerPayloadOwned::VisualizationUpdate {
             data    : data.clone(),
             context : context.clone()
         });

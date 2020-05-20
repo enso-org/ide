@@ -48,9 +48,14 @@ pub mod prelude {
 
 /// Module gathering all traits which may be used by crate's users.
 pub mod traits {
-    pub use crate::language_server::API as TRAIT_LanguageServerAPI;
-    pub use crate::project_manager::API as TRAIT_ProjectManagerAPI;
     pub use crate::binary::uuid::UuidExt;
     pub use crate::binary::client::API;
+    pub use crate::binary::serialization::DeserializableUnionField;
+    pub use crate::binary::serialization::DeserializableRoot;
+    pub use crate::binary::serialization::SerializableRoot;
+    pub use crate::binary::serialization::SerializableUnion;
+
+    pub use crate::language_server::API as TRAIT_LanguageServerAPI;
+    pub use crate::project_manager::API as TRAIT_ProjectManagerAPI;
 }
 

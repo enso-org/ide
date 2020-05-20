@@ -2,12 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::binary::serialization;
-use crate::generated::binary_protocol_generated::org::enso::languageserver::protocol;
-use protocol::binary::OutboundMessage;
 use crate::language_server::Path as LSPath;
 
-use flatbuffers::FlatBufferBuilder;
 use json_rpc::Transport;
 
 
@@ -17,10 +13,43 @@ use json_rpc::Transport;
 // ===============
 
 /// An owning representation of the message received from a server.
-pub type MessageFromServerOwned = Message<FromServerPayloadOwned>;
+pub type MessageFromServerOwned = MessageFromServer<FromServerPayloadOwned>;
+
+/// An owning representation of the message received from a server.
+pub type MessageToServerOwned = MessageToServer<ToServerPayloadOwned>;
 
 /// An non-owning representation of the message to be sent to the server.
-pub type MessageToServerRef<'a> = Message<ToServerPayload<'a>>;
+pub type MessageToServerRef<'a> = MessageToServer<ToServerPayload<'a>>;
+
+
+
+// ================
+// === Newtypes ===
+// ================
+
+/// A message sent from client to server (`InboundMessage` in the spec).
+#[derive(Clone,Debug,Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct MessageToServer<T>(pub Message<T>);
+
+impl<T> MessageToServer<T> {
+    /// Wraps the given payload into a message envelope. Generates a unique ID for the message.
+    pub fn new(payload:T) -> Self {
+        Self(Message::new(payload))
+    }
+}
+
+/// A message sent from server to client (`OutboundMessage` in the spec).
+#[derive(Clone,Debug,Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct MessageFromServer<T>(pub Message<T>);
+
+impl<T> MessageFromServer<T> {
+    /// Wraps the given payload into a message envelope. Generates a unique ID for the message.
+    pub fn new(payload:T) -> Self {
+        Self(Message::new(payload))
+    }
+}
 
 
 
@@ -28,7 +57,7 @@ pub type MessageToServerRef<'a> = Message<ToServerPayload<'a>>;
 // === Types ===
 // =============
 
-/// Identifies the visualization.
+/// Identifies the visualization in the update message.
 #[allow(missing_docs)]
 #[derive(Clone,Debug,Copy,PartialEq)]
 pub struct VisualisationContext {
@@ -98,7 +127,8 @@ pub struct Message<T> {
 
 impl<T> Message<T> {
     /// Wraps the given payload into a message envelope. Generates a unique ID for the message.
-    pub fn new(payload:T) -> Message<T> {
+    /// Private, as users should use either `MessageToServer::new` or `MessageFromServer::new`.
+    fn new(payload:T) -> Message<T> {
         Message {
             message_id     : Uuid::new_v4(),
             correlation_id : None,
@@ -116,43 +146,5 @@ impl<'a> crate::handler::IsRequest for MessageToServerRef<'a> {
 
     fn id(&self) -> Self::Id {
         self.message_id
-    }
-}
-
-impl Message<FromServerPayloadOwned> {
-    /// Deserializes a message from server from a binary blob.
-    pub fn deserialize_owned(data:&[u8]) -> FallibleResult<Self> {
-        let message = flatbuffers::get_root::<OutboundMessage>(data);
-        let payload = FromServerPayloadOwned::deserialize_owned(&message)?;
-        Ok(Message {
-            message_id     : message.messageId().into(),
-            correlation_id : message.correlationId().map(|id| id.into()),
-            payload
-        })
-    }
-}
-
-/// Entity that can be serialized into a binary blob using our FlatBuffer schema.
-pub trait Serialize {
-    /// Stores the entity into the builder and calls `finish` on it.
-    fn write(&self, builder:&mut FlatBufferBuilder);
-
-    /// Returns `finish`ed builder with the serialized entity.
-    fn serialize(&self) -> FlatBufferBuilder {
-        let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
-        self.write(&mut builder);
-        builder
-    }
-
-    /// Calls the given function with the binary blob with the serialized entity.
-    fn with_serialized<R>(&self, f:impl FnOnce(&[u8]) -> R) -> R {
-        let buffer = self.serialize();
-        f(buffer.finished_data())
-    }
-}
-
-impl<T: serialization::SerializableInMessage> Serialize for Message<T> {
-    fn write(&self, builder:&mut FlatBufferBuilder) {
-        self.payload.write_message(builder,self.correlation_id,self.message_id)
     }
 }
