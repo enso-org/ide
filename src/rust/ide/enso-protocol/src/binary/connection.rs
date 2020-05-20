@@ -37,7 +37,7 @@ impl Connection {
     /// Takes a client, generates ID for it and initializes the protocol.
     pub async fn new(client:impl API + 'static, client_id:Uuid) -> FallibleResult<Self> {
         let init_response = client.init(client_id).await;
-        init_response.map_err(|e| FailedToInitializeProtocol(e.into()))?;
+        init_response.map_err(FailedToInitializeProtocol)?;
         let client = Box::new(client);
         Ok (Connection {client_id,client})
     }

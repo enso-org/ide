@@ -28,7 +28,7 @@ pub trait UuidExt {
     ///
     /// `most_significant` is used for the most significant 64 bits of the UUID and
     /// `least_significant` becomes the least significant 64 bits of the UUID.
-    fn from_bytes_split(least_significant:&[u8;8], most_significant:&[u8;8]) -> Self;
+    fn from_bytes_split(least_significant:[u8;8], most_significant:[u8;8]) -> Self;
 }
 
 impl UuidExt for Uuid {
@@ -40,7 +40,7 @@ impl UuidExt for Uuid {
         i64::from_be_bytes(self.as_bytes()[8..].try_into().unwrap())
     }
 
-    fn from_bytes_split(least_significant:&[u8;8], most_significant:&[u8;8]) -> Self {
+    fn from_bytes_split(least_significant:[u8;8], most_significant:[u8;8]) -> Self {
         // let most_significant_bytes  = most_significant_bits.to_le_bytes();
         // let least_significant_bytes = least_significant_bits.to_le_bytes();
         let all_bytes = least_significant.iter().chain(most_significant.iter()).rev();
@@ -63,7 +63,7 @@ impls! { From + &From <EnsoUUID> for Uuid {
     |enso_uuid| {
         let least_significant = enso_uuid.leastSigBits().to_le_bytes();
         let most_significant  = enso_uuid.mostSigBits().to_le_bytes();
-        Uuid::from_bytes_split(&least_significant,&most_significant)
+        Uuid::from_bytes_split(least_significant,most_significant)
     }
 }}
 
