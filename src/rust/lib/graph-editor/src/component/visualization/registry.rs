@@ -27,11 +27,7 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::EnsoType;
-use crate::component::visualization::Class;
-use crate::component::visualization::ClassAttributes;
-use crate::component::visualization::NativeConstructorClass;
-use crate::component::visualization::Visualization;
+use crate::component::visualization::*;
 use crate::component::visualization::renderer::example::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::renderer::example::native::BubbleChart;
 
