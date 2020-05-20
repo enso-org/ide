@@ -27,7 +27,7 @@ use bimap::BiMap;
 enum MissingMappingFor {
     #[fail(display="Displayed node {:?} is not bound to any controller node.",_0)]
     DisplayedNode(graph_editor::NodeId),
-    #[fail(display="Controller node {:?} is not bound to any displayed node", _0)]
+    #[fail(display="Controller node {:?} is not bound to any displayed node",_0)]
     ControllerNode(ast::Id),
     #[fail(display="Displayed connection {:?} is not bound to any controller connection", _0)]
     DisplayedConnection(graph_editor::EdgeId),
@@ -132,12 +132,17 @@ impl GraphEditorIntegration {
         let node_moved         = Self::define_action(this,Self::node_moved_action        ,inv);
         frp::extend! {network
             // Notifications from controller
-            let handle_notification = FencedAction::<Option<notification::Graph>>::fence(&network, f!([weak](notification) {
-                weak.upgrade().for_each(|this| this.handle_controller_notification(*notification));
-            }));
+            let handle_notification = FencedAction::fence(&network,
+                f!([weak](notification:&Option<notification::Graph>) {
+                    if let Some(this) = weak.upgrade() {
+                        this.handle_controller_notification(*notification);
+                    }
+                }
+            ));
 
             // Changes in Graph Editor
-            def is_hold = handle_notification.is_running.zip_with(&invalidate.is_running, |l,r| *l || *r);
+            let is_handling_notification = &handle_notification.is_running;
+            def is_hold = is_handling_notification.zip_with(&invalidate.is_running, |l,r| *l || *r);
             def _action = editor_outs.node_removed      .map2(&is_hold,node_removed);
             def _action = editor_outs.connection_added  .map2(&is_hold,connection_created);
             def _action = editor_outs.connection_removed.map2(&is_hold,connection_removed);
