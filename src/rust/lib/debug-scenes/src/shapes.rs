@@ -49,16 +49,6 @@ where T:frp::HasOutput<Output=Out>, T:Into<frp::Stream<Out>>, Out:frp::Data {
     (runner,condition)
 }
 
-//fn fenced_gate<F,T,X>(network:&frp::Network, target:&frp::Stream<X>, f:F) -> frp::Stream<X>
-//where F:'static+Fn()->T, X:frp::Data {
-//    let target = target.clone_ref();
-//    frp::extend! { network
-//        let (trigger,runner,condition) = fence(&network);
-//        def _eval = runner.map(move |_| {f();});
-//        def out   = target.gate(&condition);
-//    }
-//    out
-//}
 
 fn init(app:&Application) {
 
@@ -67,7 +57,6 @@ fn init(app:&Application) {
     dark.insert("graph_editor.node.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
     dark.insert("graph_editor.node.selection.color", color::Lcha::new(0.72,0.5,0.22,1.0));
     dark.insert("graph_editor.node.selection.size", 7.0);
-//    dark.insert("graph_editor.node.selection.color", color::Lcha::new(0.7,0.59,0.18,1.0));
     dark.insert("animation.duration", 0.5);
     dark.insert("graph.node.shadow.color", 5.0);
     dark.insert("graph.node.shadow.size", 5.0);
@@ -78,39 +67,7 @@ fn init(app:&Application) {
 
     let _bg = app.display.scene().style_sheet.var("application.background.color");
 
-//    println!("{:?}",bg.value());
-//    println!("{:?}",app.display.scene().style_sheet.debug_sheet_nodes_count());
 
-//    let t1 : color::Hsla = color::Hsla::new(0.0,0.0,0.03,1.0);
-//    let t2 : color::Lcha = t1.into();
-//    let t4 : color::Rgba = color::Rgba::from(t2);
-//    println!("{:?}", t2);
-//    println!("{:?}", color::Rgba::from(t1));
-//    println!("{:?}", t4);
-//    println!("{:?}", color::Hsla::from(color::LinearRgba::new(0.2,0.3,0.4,1.0)));
-//
-//    let x = color::Hsla::from(color::Rgba::new(0.031,0.031,0.031,1.0));
-//    let y = color::Rgba::from(x);
-//    println!("{:?}", y);
-//    let xyz = color::Xyz::from(color::Rgb::new(0.2,0.4,0.6));
-//    let lab = color::Lab::from(color::Rgb::new(0.2,0.4,0.6));
-//    let lch = color::Lch::from(color::Rgb::new(0.2,0.4,0.6));
-//    let lch = color::Lch::from(color::Rgb::new(1.0,0.0,0.0));
-//    println!("{:?}", xyz);
-//    println!("{:?}", lab);
-//    println!("{:?}", lch);
-//    println!("-----------");
-//    println!("{:?}", color::Rgb::from(xyz));
-//    println!("{:?}", color::Rgb::from(lab));
-//    println!("{:?}", color::Rgb::from(lch));
-//    println!("{:?}", color::Lab::from(color::Xyz::new(0.1,0.2,0.3)));
-
-//    println!("{:?}", palette::Xyz::from(palette::Srgb::new(0.2,0.4,0.6)));
-//    println!("{:?}", palette::Lab::from(palette::LinSrgb::new(0.2,0.4,0.6)));
-//    println!("{:?}", palette::Lab::from(palette::Xyz::new(0.1,0.2,0.3)));
-
-
-//    color::test();
 
     let world     = &app.display;
     let scene     = world.scene();
@@ -181,8 +138,6 @@ use graph_editor::component::node::port::Expression;
 
 
 pub fn expression_mock() -> Expression {
-    let pattern_cr       = vec![Seq { right: false }, Or, Or, Build];
-    let val              = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_cr};
     let code             = "open \"data.csv\"".into();
     let output_span_tree = default();
     let input_span_tree  = span_tree::builder::TreeBuilder::new(15)

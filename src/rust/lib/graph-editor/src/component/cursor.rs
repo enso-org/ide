@@ -28,14 +28,16 @@ pub enum Mode {
         host     : display::object::Instance,
         position : Vector2<f32>,
         size     : Vector2<f32>,
+        color    : Option<color::Lcha>,
     }
 }
 
 impl Mode {
-    pub fn highlight<H>(host:H, position:Vector2<f32>, size:Vector2<f32>) -> Self
+    pub fn highlight<H>
+    (host:H, position:Vector2<f32>, size:Vector2<f32>, color:Option<color::Lcha>) -> Self
     where H:display::Object {
         let host = host.display_object().clone_ref();
-        Self::Highlight {host,position,size}
+        Self::Highlight {host,position,size,color}
     }
 }
 
@@ -56,7 +58,14 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (position:Vector2<f32>, width:f32, height:f32, selection_size:Vector2<f32>, press:f32, radius:f32) {
+        ( position       : Vector2<f32>
+        , width          : f32
+        , height         : f32
+        , selection_size : Vector2<f32>
+        , press          : f32
+        , radius         : f32
+        , color          : Vector4<f32>
+        ) {
             let press_diff       = 2.px() * &press;
             let radius           = 1.px() * radius - &press_diff;
             let selection_width  = 1.px() * &selection_size.x() * &press;
@@ -67,11 +76,14 @@ pub mod shape {
                 .corners_radius(radius)
                 .translate((-&selection_width/2.0, -&selection_height/2.0))
                 .translate(("input_position.x","input_position.y"))
-                .fill(color::Rgba::new(1.0,1.0,1.0,0.2));
+                .fill("srgba(input_color)");
             cursor.into()
         }
     }
 }
+
+//.fill(color::Rgba::new(1.0,1.0,1.0,0.2));
+
 
 ///// Shape view for Cursor.
 //#[derive(Clone,CloneRef,Debug)]
@@ -84,9 +96,9 @@ pub mod shape {
 
 
 
-// ==============
+// ===================
 // === InputEvents ===
-// ==============
+// ===================
 
 /// Cursor events.
 #[derive(Clone,CloneRef,Debug)]
@@ -212,15 +224,28 @@ impl Cursor {
         let (anim_pos_x_setter,anim_pos_x) = animation2(network);
         let (anim_pos_y_setter,anim_pos_y) = animation2(network);
 
+        let (anim_color_lab_l_setter,anim_color_lab_l) = animation2(network);
+        let (anim_color_lab_a_setter,anim_color_lab_a) = animation2(network);
+        let (anim_color_lab_b_setter,anim_color_lab_b) = animation2(network);
+        let (anim_color_alpha_setter,anim_color_alpha) = animation2(network);
+
+
+        anim_color_lab_l_setter.set_target_position(1.0);
+        anim_color_alpha_setter.set_target_position(0.2);
 
         let mouse = &scene.mouse.frp;
 
 
 
-
         frp::extend! { network
 
-            def anim_position      = anim_pos_x.zip_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
+            def anim_position = anim_pos_x.zip_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
+
+            anim_color <- zip_with4(&anim_color_lab_l,&anim_color_lab_a,&anim_color_lab_b,&anim_color_alpha,
+                |l,a,b,alpha| color::Rgba::from(color::Laba::new(*l,*a,*b,*alpha))
+            );
+
+
 
             def _t_press = input.press.map(enclose!((press) move |_| {
                 press.set_target_position(1.0);
@@ -232,15 +257,28 @@ impl Cursor {
 
             def fixed_position = input.set_mode.map(enclose!((anim_pos_x_setter,anim_pos_y_setter) move |m| {
                 match m {
-                    Mode::Highlight {host,..} => {
-                        let p = host.global_position();
-                        anim_pos_x_setter.set_target_position(p.x);
-                        anim_pos_y_setter.set_target_position(p.y);
+                    Mode::Highlight {host,color,..} => {
+                        let position = host.global_position();
+                        anim_pos_x_setter.set_target_position(position.x);
+                        anim_pos_y_setter.set_target_position(position.y);
                         anim_use_fixed_pos_setter.set_target_position(1.0);
-                        Some(p)
+
+                        if let Some(color) = color {
+                            let color = color::Laba::from(color);
+                            anim_color_lab_l_setter.set_target_position(color.lightness);
+                            anim_color_lab_a_setter.set_target_position(color.a);
+                            anim_color_lab_b_setter.set_target_position(color.b);
+                            anim_color_alpha_setter.set_target_position(color.alpha);
+                        }
+
+                        Some(position)
                     }
                     _ => {
                         anim_use_fixed_pos_setter.set_target_position(0.0);
+                        anim_color_lab_l_setter.set_target_position(1.0);
+                        anim_color_lab_a_setter.set_target_position(0.0);
+                        anim_color_lab_b_setter.set_target_position(0.0);
+                        anim_color_alpha_setter.set_target_position(0.2);
                         None
                     }
                 }
@@ -255,9 +293,8 @@ impl Cursor {
                 frp::Position::new(x,y)
             });
 
-            def _position = position.map(f!((p) {
-                view.shape.position.set(Vector2::new(p.x,p.y));
-            }));
+            eval anim_color    ((t) view.shape.color.set(Vector4::new(t.red,t.green,t.blue,t.alpha)));
+            eval position ((p) view.shape.position.set(Vector2::new(p.x,p.y)));
 
             def _position = mouse_position.map(f!([anim_pos_x_setter,anim_pos_y_setter](p) {
                 anim_pos_x_setter.set_target_position(p.x);
@@ -284,6 +321,8 @@ impl Cursor {
         radius.set_target_position(8.0);
         width.set_target_position(16.0);
         height.set_target_position(16.0);
+
+
 
         input.set_mode.emit(Mode::Normal);
 
