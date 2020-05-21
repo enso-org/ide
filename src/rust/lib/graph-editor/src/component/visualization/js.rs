@@ -86,7 +86,7 @@ impl VisualizationClassWrapper {
 ///
 /// JsSourceClass::from_js_source_raw(r#"
 ///     class Visualization {
-///         static inputTypes = ["[[float;3]]"]
+///         static inputTypes = ["[[Float,Float,Float]]"]
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
 ///     }

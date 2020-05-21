@@ -14,15 +14,15 @@
 //! // Add a new class that creates visualizations defined in JS.
 //! registry.register_class(JsSourceClass::from_js_source_raw(r#"
 //!     class BubbleVisualization {
-//!         static inputTypes = ["[[float;3]]"]
+//!         static inputTypes = ["[[Float,Float,Float]]"]
 //!         onDataReceived(root, data) {}
 //!         setSize(root, size) {}
 //!     }
 //!     return BubbleVisualization;
 //! "#.into()).unwrap());
 //!
-//! // Get all factories that can render  visualization for the type `[[float;3]]`.
-//! let target_type:EnsoType = "[[float;3]]".to_string().into();
+//! // Get all factories that can render  visualization for the type `[[Float,Float,Float]]`.
+//! let target_type:EnsoType = "[[Float,Float,Float]]".to_string().into();
 //! assert!(registry.valid_sources(&target_type).len() > 0);
 //! ```
 
@@ -64,7 +64,7 @@ impl Registry {
         registry.register_class(NativeConstructorClass::new(
             Signature {
                 name        : "Bubble Visualization (native)".to_string(),
-                input_types : vec!["[[float;3]]".to_string().into()],
+                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
             },
             |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));

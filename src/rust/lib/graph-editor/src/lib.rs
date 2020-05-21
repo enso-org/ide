@@ -1441,7 +1441,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
      let cycle_count = Rc::new(Cell::new(0));
      def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
-        let visualizations = visualization_registry.valid_sources(&"[[float;3]]".into());
+        let visualizations = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
         let vis  = &visualizations[cycle_count.get()];
         let vis  = vis.instantiate(&scene);

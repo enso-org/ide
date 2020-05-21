@@ -209,7 +209,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 /// let js_source_class = visualization::JsSourceClass::from_js_source_raw(r#"
 ///
 ///    class BubbleVisualization {
-///         static inputTypes = ["[[float;3]]"]
+///         static inputTypes = ["[[Float,Float,Float]]"]
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
 ///     }
@@ -222,7 +222,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 /// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
 ///     visualization::Signature {
 ///         name        : "Bubble Visualization (native)".to_string(),
-///         input_types : vec!["[[float;3]]".to_string().into()],
+///         input_types : vec!["[[Float,Float,Float]]".to_string().into()],
 ///     },
 ///     |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
 /// );
