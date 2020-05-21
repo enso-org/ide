@@ -17,6 +17,8 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 
+use super::node;
+
 
 
 // ============
@@ -46,6 +48,21 @@ pub mod shape {
 
 /// Canvas node shape definition.
 pub mod line {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        () {
+            let width  = LINE_WIDTH.px();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let shape  = Rect((width,height));
+            let shape  = shape.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
+            shape.into()
+        }
+    }
+}
+
+/// Canvas node shape definition.
+pub mod port_line {
     use super::*;
 
     ensogl::define_shape_system! {
@@ -120,6 +137,18 @@ impl Default for InputEvents {
 }
 
 
+pub fn sort_hack_1(scene:&Scene) {
+    let logger = Logger::new("hack");
+    component::ShapeView::<shape::Shape>::new(&logger,scene);
+    component::ShapeView::<line::Shape>::new(&logger,scene);
+}
+
+pub fn sort_hack_2(scene:&Scene) {
+    let logger = Logger::new("hack");
+    component::ShapeView::<port_line::Shape>::new(&logger,scene);
+}
+
+
 /// Internal data of `Edge`
 #[derive(Debug)]
 #[allow(missing_docs)]
@@ -130,6 +159,7 @@ pub struct EdgeData {
     pub corner          : component::ShapeView<shape::Shape>,
     pub side_line       : component::ShapeView<line::Shape>,
     pub main_line       : component::ShapeView<line::Shape>,
+    pub port_line       : component::ShapeView<port_line::Shape>,
     pub source_width    : Rc<Cell<f32>>,
     pub target_position : Rc<Cell<frp::Position>>,
 }
@@ -143,9 +173,11 @@ impl Edge {
         let corner    = component::ShapeView::<shape::Shape>::new(&logger.sub("corner"),scene);
         let side_line = component::ShapeView::<line::Shape>::new(&logger.sub("side_line"),scene);
         let main_line = component::ShapeView::<line::Shape>::new(&logger.sub("main_line"),scene);
+        let port_line = component::ShapeView::<port_line::Shape>::new(&logger.sub("port_line"),scene);
         object.add_child(&corner);
         object.add_child(&side_line);
         object.add_child(&main_line);
+        object.add_child(&port_line);
         side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
 
         let input = InputEvents::new();
@@ -155,13 +187,17 @@ impl Edge {
         let target_position = Rc::new(Cell::new(frp::Position::default()));
         source_width.set(100.0);
 
+        let port_line_height = node::NODE_HEIGHT/2.0 + node::SHADOW_SIZE;
+        port_line.shape.sprite.size().set(Vector2::new(10.0,port_line_height));
+
+
         frp::extend! { network
             eval input.target_position ((t) target_position.set(*t));
             eval input.source_width    ((t) source_width.set(*t));
             on_change <-_ [input.source_width,input.target_position];
-            eval_ on_change ([source_width,target_position,object,side_line,main_line,corner] {
+            eval_ on_change ([source_width,target_position,object,side_line,main_line,port_line,corner] {
                 let target = target_position.get();
-                let target = Vector2::new(target.x - object.position().x, target.y - object.position().y);
+                let target = Vector2::new(target.x - object.position().x, target.y - object.position().y + port_line_height);
                 let radius = 14.0;
                 let width  = source_width.get() / 2.0;
 
@@ -198,16 +234,22 @@ impl Edge {
                 side_line.shape.sprite.size().set(Vector2::new(10.0,corner_x - width + line_overlap));
                 side_line.mod_position(|p| p.x = side*(width + corner_x)/2.0);
 
+                let main_line_x = side * target.x;
                 main_line.shape.sprite.size().set(Vector2::new(10.0,corner_y - target.y + line_overlap));
                 main_line.mod_position(|p| {
-                    p.x = side * target.x;
+                    p.x = main_line_x;
                     p.y = (target.y + corner_y) / 2.0;
+                });
+
+                port_line.mod_position(|p| {
+                    p.x = main_line_x;
+                    p.y = target.y - port_line_height / 2.0;
                 });
             });
         }
 
         let events = input;
-        let data = Rc::new(EdgeData {object,logger,events,corner,side_line,main_line
+        let data = Rc::new(EdgeData {object,logger,events,corner,side_line,main_line,port_line
                                           ,source_width,target_position});
         Self {data}
     }

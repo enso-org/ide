@@ -23,6 +23,7 @@ use ensogl::gui::component::animation;
 use ensogl::gui::component::animation2;
 use ensogl::gui::component;
 
+use super::edge;
 use super::edge::Edge;
 use crate::component::visualization;
 
@@ -123,7 +124,7 @@ pub mod shape {
 
             // === Shadow ===
 
-            let shadow_size   = 14.px();
+            let shadow_size   = SHADOW_SIZE.px();
             let shadow_width  = &width  + &shadow_size * 2.0;
             let shadow_height = &height + &shadow_size * 2.0;
             let shadow_radius = &shadow_height / 2.0;
@@ -345,6 +346,7 @@ pub struct NodeModel {
 //pub const NODE_WIDTH : f32 = 284.0;
 pub const NODE_HEIGHT : f32 = 28.0;
 pub const TEXT_OFF : f32 = 12.0;
+pub const SHADOW_SIZE : f32 = 14.0;
 
 impl Node {
     pub fn new(scene:&Scene) -> Self {
@@ -359,11 +361,13 @@ impl NodeModel {
     pub fn new(scene:&Scene, network:&frp::Network) -> Self {
 
         let logger  = Logger::new("node");
-        let _connection = Edge::new(scene); // FIXME hack for sorting
+        edge::sort_hack_1(scene);
 
         let output_area = component::ShapeView::<output_area::Shape>::new(&logger.sub("output_area"),scene);
         let main_area   = component::ShapeView::<shape::Shape>::new(&logger.sub("main_area"),scene);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger.sub("drag_area"),scene);
+        edge::sort_hack_2(scene);
+
         port::sort_hack(scene); // FIXME hack for sorting
 
         let display_object  = display::object::Instance::new(&logger);
