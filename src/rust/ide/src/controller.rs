@@ -19,14 +19,14 @@ pub mod graph;
 pub mod module;
 pub mod project;
 pub mod text;
-pub mod visualisation;
+pub mod visualization;
 
 pub use graph::Handle           as Graph;
 pub use graph::executed::Handle as ExecutedGraph;
 pub use module::Handle          as Module;
 pub use project::Handle         as Project;
 pub use text::Handle            as Text;
-pub use visualisation::Handle   as Visualisation;
+pub use visualization::Handle   as Visualization;
 
 
 

@@ -31,6 +31,6 @@ pub mod shape_system;
 pub mod sprite_system;
 pub mod text_field;
 pub mod text_typing;
-pub mod visualisation;
+pub mod visualization;
 
 pub use enso_prelude as prelude;

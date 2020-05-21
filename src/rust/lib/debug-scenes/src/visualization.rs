@@ -15,7 +15,7 @@ use std::rc::Rc;
 use ensogl::display::Scene;
 use nalgebra::Vector2;
 use js_sys::Math::sin;
-// use ide::controller::visualisation::Handle;
+// use ide::controller::visualization::Handle;
 
 fn generate_data(seconds:f64) -> Vec<Vector2<f32>> {
     let mut data = Vec::new();
@@ -72,7 +72,7 @@ fn constructor_sample_js_bubble_chart() -> JsRenderer {
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_visualisation() {
+pub fn run_example_visualization() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
@@ -106,7 +106,7 @@ fn init(app:&Application) {
     let vis_class     = vis_factories.iter().find(|class| {
         class.attributes().name == "Graph (JS)"
     }).expect("Couldn't find Graph (JS) class.");
-    let visualisation = vis_class.instantiate(&scene).expect("Couldn't create visualiser.");
+    let visualization = vis_class.instantiate(&scene).expect("Couldn't create visualiser.");
 
     let mut was_rendered = false;
     let mut loader_hidden = false;
@@ -118,7 +118,7 @@ fn init(app:&Application) {
         let content = Rc::new(serde_json::to_value(data).unwrap());
         let data    = Data::JSON{ content };
 
-        visualisation.frp.set_data.emit(Some(data));
+        visualization.frp.set_data.emit(Some(data));
 
         // Temporary code removing the web-loader instance.
         // To be changed in the future.
