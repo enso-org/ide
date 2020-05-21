@@ -210,9 +210,9 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 /// let js_source_class = visualization::JsSourceClass::from_js_source_raw(r#"
 ///
 ///    class BubbleVisualization {
+///         static inputTypes = ["[[float;3]]"]
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
-///         getInputTypes() { return ["[[float;3]]"] };
 ///     }
 ///
 ///     return BubbleVisualization;

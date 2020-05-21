@@ -8,6 +8,8 @@ use crate::component::visualization::JsSourceClass;
 pub fn get_bubble_vis_class() -> JsSourceClass {
     let fn_constructor = r#"
         class BubbleVisualization {
+            static inputTypes = ["[[float;3]]"]
+
             onDataReceived(root, data) {
                 const xmlns = "http://www.w3.org/2000/svg";
                 while (root.firstChild) {
@@ -40,11 +42,6 @@ pub fn get_bubble_vis_class() -> JsSourceClass {
                 svgElem.setAttributeNS(null, "width"  , width);
                 svgElem.setAttributeNS(null, "height" , height);
             }
-
-            getInputTypes() {
-                return ["[[float;3]]"];
-            }
-
         }
 
         return BubbleVisualization;

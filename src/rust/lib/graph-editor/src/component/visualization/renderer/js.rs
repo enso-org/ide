@@ -160,9 +160,9 @@ impl JsRenderer {
     ///
     /// let renderer = JsRenderer::from_object_source(r#"function() {
     ///   class Visualization {
+    ///       static inputTypes = ["[[float;3]]"]
     ///       onDataReceived(root, data) {};
     ///       setSize(root, size) {};
-    ///       getInputTypes() { return ["[[float;3]"] };
     ///   }
     ///   return Visualization;
     /// }()"#).unwrap();

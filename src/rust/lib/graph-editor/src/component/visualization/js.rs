@@ -52,11 +52,7 @@ impl VisualizationClassWrapper {
     }
 
     fn input_types(&self) -> JsResult<Vec<EnsoType>> {
-        let fn_get_input_types = js_sys::Reflect::get(&self.prototype(), &"getInputTypes".into())?;
-        let fn_get_input_types = js_sys::Function ::from(fn_get_input_types);
-
-        let context                = JsValue::NULL;
-        let input_types            = fn_get_input_types.call0(&context)?;
+        let input_types            = js_sys::Reflect::get(&self.class, &"inputTypes".into())?;
         let input_types            = js_sys::Array::from(&input_types);
         let js_string_to_enso_type = |value:JsValue| {Some(EnsoType::from(value.as_string()?))};
         Ok(input_types.iter().filter_map(js_string_to_enso_type).collect())
@@ -90,10 +86,9 @@ impl VisualizationClassWrapper {
 ///
 /// JsSourceClass::from_js_source_raw(r#"
 ///     class Visualization {
+///         static inputTypes = ["[[float;3]]"]
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
-///         getInputTypes() {};
-///         instantiate() { return new Visualization(); }
 ///     }
 ///     return Visualizations;
 /// "#.into()).unwrap();

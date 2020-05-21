@@ -14,9 +14,9 @@
 //! // Add a new class that creates visualizations defined in JS.
 //! registry.register_class(JsSourceClass::from_js_source_raw(r#"
 //!     class BubbleVisualization {
+//!         static inputTypes = ["[[float;3]]"]
 //!         onDataReceived(root, data) {}
 //!         setSize(root, size) {}
-//!         getInputTypes() { return ["[float]"] };
 //!     }
 //!     return BubbleVisualization;
 //! "#.into()).unwrap());
