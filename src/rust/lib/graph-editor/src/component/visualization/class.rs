@@ -10,7 +10,6 @@ use ensogl::display;
 use std::error::Error;
 
 
-
 // ====================
 // === Helper Types ===
 // ====================
@@ -182,8 +181,18 @@ impl Visualization {
 // === Visualization Class ===
 // ===========================
 
+/// Indicates that instantiating a `Visualisation` from a `Class` has failed.
+#[derive(Debug,Display)]
+#[allow(missing_docs)]
+pub enum InstantiationError {
+    /// Indicates a problem with instantiating a class object.
+    InvalidClass         { inner:Box<dyn Error> },
+    /// Indicates a problem with instantiating a visualisation from a valid class object.
+    InvalidVisualisation { inner:Box<dyn Error> },
+}
+
 /// Result of the attempt to instantiate a `Visualization` from a `Class`.
-pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
+pub type InstantiationResult = Result<Visualization,InstantiationError>;
 
 /// Specifies a trait that allows the instantiation of `Visualizations`.
 ///

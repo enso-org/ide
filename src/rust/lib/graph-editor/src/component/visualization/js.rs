@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::JsVisualizationError;
+use crate::component::visualization::{JsVisualizationError, InstantiationError};
 use crate::component::visualization::JsRenderer;
 use crate::component::visualization::JsResult;
 use crate::component::visualization::InstantiationResult;
@@ -30,11 +30,11 @@ struct VisualizationClassWrapper {
 }
 
 impl VisualizationClassWrapper {
-    fn instantiate_class(source:&str) -> VisualizationClassWrapper {
+    fn instantiate_class(source:&str) -> JsResult<VisualizationClassWrapper> {
         let context     = JsValue::NULL;
         let constructor = js_sys::Function::new_no_args(source);
-        let class       = constructor.call0(&context).unwrap();
-        VisualizationClassWrapper{class}
+        let class       = constructor.call0(&context)?;
+        Ok(VisualizationClassWrapper{class})
     }
 
     fn signature(&self) -> JsResult<Signature> {
@@ -43,12 +43,12 @@ impl VisualizationClassWrapper {
         Ok(Signature {name,input_types})
     }
 
-    fn constructor(&self) -> js_sys::Function {
-        js_sys::Reflect::get(&self.prototype(),&"constructor".into()).unwrap().into()
+    fn constructor(&self) -> JsResult<js_sys::Function> {
+        Ok(js_sys::Reflect::get(&self.prototype()?,&"constructor".into())?.into())
     }
 
-    fn prototype(&self) -> JsValue {
-        js_sys::Reflect::get(&self.class,&"prototype".into()).unwrap()
+    fn prototype(&self) -> JsResult<JsValue> {
+        Ok(js_sys::Reflect::get(&self.class,&"prototype".into())?)
     }
 
     fn input_types(&self) -> JsResult<Vec<EnsoType>> {
@@ -59,7 +59,8 @@ impl VisualizationClassWrapper {
     }
 
     fn name(&self) -> JsResult<String> {
-        let name = js_sys::Reflect::get(&self.constructor(),&"name".into())?;
+        let constructor = self.constructor()?;
+        let name        = js_sys::Reflect::get(&constructor,&"name".into())?;
         Ok(name.as_string().unwrap_or_default())
     }
 
@@ -103,11 +104,11 @@ pub struct JsSourceClass {
 impl JsSourceClass {
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
     pub fn from_js_source_raw(source:&str) -> Result<Self,JsVisualizationError> {
-        let js_class   = VisualizationClassWrapper::instantiate_class(&source);
-        let signature = js_class.signature()?;
+        let js_class   = VisualizationClassWrapper::instantiate_class(&source)?;
+        let signature  = js_class.signature()?;
         let js_class   = Rc::new(js_class);
-        let signature = Rc::new(signature);
-        Ok(JsSourceClass{js_class, signature})
+        let signature  = Rc::new(signature);
+        Ok(JsSourceClass{js_class,signature})
     }
 }
 
@@ -117,8 +118,14 @@ impl Class for JsSourceClass {
     }
 
     fn instantiate(&self, scene:&Scene) -> InstantiationResult {
-        let obj      = self.js_class.instantiate()?;
-        let renderer = JsRenderer::from_object(obj)?;
+        let obj = match self.js_class.instantiate() {
+            Ok(obj) => obj,
+            Err(err) => return Err(InstantiationError::InvalidClass {inner:err.into()}),
+        };
+        let renderer = match JsRenderer::from_object(obj) {
+            Ok(renderer) => renderer,
+            Err(err) => return Err(InstantiationError::InvalidClass {inner:err.into()}),
+        };
         renderer.set_dom_layer(&scene.dom.layers.front);
         Ok(Visualization::new(renderer))
     }
