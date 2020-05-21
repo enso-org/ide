@@ -281,7 +281,7 @@ ensogl::def_command_api! { Commands
 
 
     /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
-    debug_set_data_for_selected_node,
+    debug_set_data_for_selected_visualization,
 
     /// Cycle the visualization for the selected nodes. TODO only has dummy functionality at the moment.
     debug_cycle_visualization_for_selected_node,
@@ -313,7 +313,7 @@ impl Commands {
             def disable_node_inverse_select      = source();
             def toggle_node_inverse_select       = source();
 
-            def debug_set_data_for_selected_node            = source();
+            def debug_set_data_for_selected_visualization            = source();
             def debug_cycle_visualization_for_selected_node = source();
 
         }
@@ -323,7 +323,7 @@ impl Commands {
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
              ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
-             ,debug_set_data_for_selected_node,debug_cycle_visualization_for_selected_node}
+             ,debug_set_data_for_selected_visualization,debug_cycle_visualization_for_selected_node}
     }
 }
 
@@ -1248,7 +1248,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::release (&[Key::Alt])                   , "toggle_node_subtract_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_visualization")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualization_for_selected_node")
         ]
     }
