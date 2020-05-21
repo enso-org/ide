@@ -401,7 +401,12 @@ impl NodeModel {
 
 
         Self {scene,display_object,logger,frp,main_area,drag_area,output_area,ports
-             ,visualization_container}
+             ,visualization_container} . init()
+    }
+
+    fn init(self) -> Self {
+        self.set_expression(Expression::debug_from_str("empty"));
+        self
     }
 
     pub fn width(&self) -> f32 {

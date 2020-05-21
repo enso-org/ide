@@ -129,6 +129,15 @@ pub struct Expression {
     pub output_span_tree : SpanTree,
 }
 
+impl Expression {
+    pub fn debug_from_str(s:&str) -> Self {
+        let code             = s.into();
+        let input_span_tree  = default();
+        let output_span_tree = default();
+        Self {code,input_span_tree,output_span_tree}
+    }
+}
+
 impl Debug for Expression {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Expression({})",self.code)
