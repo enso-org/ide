@@ -169,12 +169,6 @@ pub struct Manager {
     pub frp        : Events,
 }
 
-impl Drop for Manager {
-    fn drop(&mut self) {
-        println!("Manager DROP")
-    }
-}
-
 impl Manager {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         frp::new_network! { network
@@ -239,12 +233,15 @@ impl Manager {
 //                        let network = &port.events.network;
                         let hover   = &port.shape.hover;
                         let crumbs  = node.crumbs.clone();
-                        frp::new_network! { TRACE_ALL port_network
+                        frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
                             def _foo = port.events.mouse_out  . map(f_!(hover.set(0.0);));
 
                             def out  = port.events.mouse_out.constant(cursor::Mode::Normal);
                             def over = port.events.mouse_over.constant(cursor::Mode::highlight(&port,Vector2::new(x,0.0),Vector2::new(width2,height)));
+                            // FIXME: the following lines leak memory in the current FRP
+                            // implementation because self.frp does not belong to this network and
+                            // we are attaching node there. Nothing bad should happen though.
                             self.frp.cursor_mode_source.attach(&over);
                             self.frp.cursor_mode_source.attach(&out);
 

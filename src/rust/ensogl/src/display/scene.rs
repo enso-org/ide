@@ -42,7 +42,6 @@ use web_sys::HtmlElement;
 
 
 pub trait MouseTarget : Debug + 'static {
-    fn dropped    (&self) -> &frp::Stream;
     fn mouse_down (&self) -> &frp::Source;
     fn mouse_over (&self) -> &frp::Source;
     fn mouse_out  (&self) -> &frp::Source;

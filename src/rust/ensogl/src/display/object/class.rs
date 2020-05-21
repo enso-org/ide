@@ -204,8 +204,7 @@ impl NodeData {
             child.upgrade().for_each(|child| {
                 child.raw_unset_parent();
             });
-            dirty::SharedHasSet1::set(&self.dirty.removed_children,child);
-//            self.dirty.removed_children.set(child);
+            self.dirty.removed_children.set(child);
         });
     }
 

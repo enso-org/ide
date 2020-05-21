@@ -28,7 +28,6 @@ use enso_frp as frp;
 #[allow(missing_docs)]
 pub struct ShapeViewEvents {
     pub network    : frp::Network,
-    pub dropped    : frp::Stream,
     pub mouse_down : frp::Source,
     pub mouse_over : frp::Source,
     pub mouse_out  : frp::Source,
@@ -37,7 +36,7 @@ pub struct ShapeViewEvents {
 
 impl ShapeViewEvents {
     fn new() -> Self {
-        frp::new_network! { TRACE_ALL network
+        frp::new_network! { network
             on_drop    <- source_();
             mouse_down <- source_();
             mouse_over <- source_();
@@ -47,13 +46,11 @@ impl ShapeViewEvents {
             out_on_drop   <- on_drop.gate(&is_mouse_over);
             eval_ out_on_drop (mouse_out.emit(()));
         }
-        let dropped = on_drop.clone_ref().into();
-        Self {network,dropped,mouse_down,mouse_over,mouse_out,on_drop}
+        Self {network,mouse_down,mouse_over,mouse_out,on_drop}
     }
 }
 
 impl MouseTarget for ShapeViewEvents {
-    fn dropped    (&self) -> &frp::Stream { &self.dropped }
     fn mouse_down (&self) -> &frp::Source { &self.mouse_down }
     fn mouse_over (&self) -> &frp::Source { &self.mouse_over }
     fn mouse_out  (&self) -> &frp::Source { &self.mouse_out  }
