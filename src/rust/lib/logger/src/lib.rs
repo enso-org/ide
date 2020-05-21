@@ -77,7 +77,7 @@ impl Logger {
 
 #[cfg(target_arch = "wasm32")]
 impl Logger {
-    pub fn trace<M: LogMsg>(&self, msg: M) {
+    pub fn trace<M: LogMsg>(&self, _msg: M) {
         //console::trace_1(&self.format(msg));
     }
 
@@ -85,7 +85,7 @@ impl Logger {
         console::debug_1(&self.format(msg));
     }
 
-    pub fn info<M: LogMsg>(&self, msg: M) {
+    pub fn info<M: LogMsg>(&self, _msg: M) {
         //console::info_1(&self.format(msg));
     }
 
@@ -97,7 +97,7 @@ impl Logger {
         console::error_1(&self.format(msg));
     }
 
-    pub fn group_begin<M: LogMsg>(&self, msg: M) {
+    pub fn group_begin<M: LogMsg>(&self, _msg: M) {
         //console::group_1(&self.format(msg));
     }
 

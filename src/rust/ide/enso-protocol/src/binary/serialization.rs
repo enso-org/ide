@@ -22,6 +22,16 @@ use flatbuffers::WIPOffset;
 
 
 
+// =================
+// === constants ===
+// =================
+
+/// The initial buffer size used when serializing binary message.
+/// Should be large enough to fit most of the messages we send, while staying possibly small.
+pub const INITIAL_BUFFER_SIZE:usize = 256;
+
+
+
 // ==========================
 // === SerializableObject ===
 // ==========================
@@ -142,7 +152,7 @@ impl<'a> SerializableUnion for ToServerPayload<'a> {
                 let path     = path.serialize(builder); //serialize_path(path,builder);
                 let contents = builder.create_vector(contents);
                 WriteFileCommand::create(builder, &WriteFileCommandArgs {
-                    path : Some(path),
+                    path     : Some(path),
                     contents : Some(contents),
                 }).as_union_value()
             }
@@ -177,7 +187,7 @@ impl SerializableUnion for ToServerPayloadOwned {
                 let path     = path.serialize(builder); //serialize_path(path,builder);
                 let contents = builder.create_vector(contents);
                 WriteFileCommand::create(builder, &WriteFileCommandArgs {
-                    path : Some(path),
+                    path     : Some(path),
                     contents : Some(contents),
                 }).as_union_value()
             }
@@ -208,9 +218,9 @@ impl SerializableUnion for FromServerPayloadOwned {
                 Success::create(builder, &SuccessArgs {}).as_union_value()
             }
             FromServerPayloadOwned::Error {code,message} => {
-                let message  = builder.create_string(&message);
+                let message = builder.create_string(&message);
                 Error::create(builder, &ErrorArgs {
-                    code : *code,
+                    code    : *code,
                     message : Some(message),
                 }).as_union_value()
             }
@@ -221,10 +231,10 @@ impl SerializableUnion for FromServerPayloadOwned {
                 }).as_union_value()
             }
             FromServerPayloadOwned::VisualizationUpdate {data,context} => {
-                let data = builder.create_vector(&data);
+                let data    = builder.create_vector(&data);
                 let context = context.serialize(builder);
                 VisualisationUpdate::create(builder, &VisualisationUpdateArgs {
-                    data : Some(data),
+                    data                 : Some(data),
                     visualisationContext : Some(context),
                 }).as_union_value()
             }
@@ -363,7 +373,7 @@ pub trait SerializableRoot {
 
     /// Returns `finish`ed builder with the serialized entity.
     fn serialize(&self) -> FlatBufferBuilder {
-        let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+        let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(INITIAL_BUFFER_SIZE);
         self.write(&mut builder);
         builder
     }

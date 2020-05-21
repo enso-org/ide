@@ -254,7 +254,7 @@ async fn file_events() {
     }
 }
 
-#[wasm_bindgen_test::wasm_bindgen_test(async)]
+//#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn binary_protocol_test() {
     ensogl_system_web::set_stdout();
