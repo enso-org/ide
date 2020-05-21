@@ -229,7 +229,7 @@ impl Manager {
 
                             def out  = port.events.mouse_out.constant(cursor::Mode::Normal);
                             def over = port.events.mouse_over.constant(cursor::Mode::highlight(&port,Vector2::new(x,0.0),Vector2::new(width2,height)));
-                            self.frp.cursor_mode_source.attach(&over); // FIXME: It leaks memory in the current FRP implementation
+                            self.frp.cursor_mode_source.attach(&over);
                             self.frp.cursor_mode_source.attach(&out);
 
                             let press_source = &self.frp.press_source;
