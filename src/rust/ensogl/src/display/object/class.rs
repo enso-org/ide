@@ -13,7 +13,6 @@ use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
 use nalgebra::Vector3;
 use transform::CachedTransform;
-use enso_frp as frp;
 
 
 
@@ -98,7 +97,7 @@ impl Debug for Callbacks {
 // === Types ===
 
 pub type ChildrenDirty   = dirty::SharedSet<usize,Option<Box<dyn Fn()>>>;
-pub type RemovedChildren = dirty::SharedVector<Instance,Option<Box<dyn Fn()>>>;
+pub type RemovedChildren = dirty::SharedVector<WeakNode,Option<Box<dyn Fn()>>>;
 pub type NewParentDirty  = dirty::SharedBool<()>;
 pub type TransformDirty  = dirty::SharedBool<Option<Box<dyn Fn()>>>;
 
@@ -134,41 +133,12 @@ impl DirtyFlags {
         Self {parent,children,removed_children,transform,callback}
     }
 
-    pub fn set_callback<F:'static+Fn()>(&self,f:F) {
+    fn set_callback<F:'static+Fn()>(&self,f:F) {
         *self.callback.borrow_mut() = Box::new(f);
     }
 
-    pub fn unset_callback(&self) {
+    fn unset_callback(&self) {
         *self.callback.borrow_mut() = Box::new(||{});
-    }
-}
-
-
-
-
-// ===========
-// === Frp ===
-// ===========
-
-#[derive(Debug)]
-pub struct Frp {
-    pub network : frp::Network,
-    pub dropped : frp::Source,
-}
-
-impl Frp {
-    /// Constructor.
-    pub fn new() -> Self {
-        frp::new_network! { network
-            dropped <- source();
-        }
-        Self {network,dropped}
-    }
-}
-
-impl Default for Frp {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -189,7 +159,6 @@ pub struct NodeData {
     visible          : Cell<bool>,
     callbacks        : Callbacks,
     logger           : Logger,
-    pub frp          : Frp,
 }
 
 impl NodeData {
@@ -202,8 +171,7 @@ impl NodeData {
         let dirty            = DirtyFlags::new(&logger);
         let visible          = Cell::new(true);
         let callbacks        = default();
-        let frp              = default();
-        Self {logger,parent_bind,children,event_dispatcher,transform,visible,callbacks,dirty,frp}
+        Self {logger,parent_bind,children,event_dispatcher,transform,visible,callbacks,dirty}
     }
 
     pub fn is_visible(&self) -> bool {
@@ -235,8 +203,9 @@ impl NodeData {
             self.dirty.children.unset(&index);
             child.upgrade().for_each(|child| {
                 child.raw_unset_parent();
-                self.dirty.removed_children.set(child);
             });
+            dirty::SharedHasSet1::set(&self.dirty.removed_children,child);
+//            self.dirty.removed_children.set(child);
         });
     }
 
@@ -299,10 +268,12 @@ impl NodeData {
         if self.dirty.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
                 self.dirty.removed_children.take().into_iter().for_each(|child| {
-                    if child.is_orphan() {
-                        child.hide();
-                        if let Some(s) = scene {
-                            child.hide_with(s)
+                    if let Some(child) = child.upgrade() {
+                        if child.is_orphan() {
+                            child.hide();
+                            if let Some(s) = scene {
+                                child.hide_with(s)
+                            }
                         }
                     }
                 });
@@ -508,13 +479,6 @@ impl NodeData {
     }
 }
 
-impl Drop for NodeData {
-    fn drop(&mut self) {
-        self.logger.warning("DROP");
-        self.frp.dropped.emit(());
-    }
-}
-
 
 
 // ==========
@@ -663,6 +627,14 @@ pub struct WeakNode {
 impl WeakNode {
     pub fn upgrade(&self) -> Option<Instance> {
         self.weak.upgrade().map(|rc| Instance {rc})
+    }
+}
+
+// FIXME: This is not a valid implementation as the pointers may alias when one instance was dropped
+//        and other was created in the same location.
+impl PartialEq for WeakNode {
+    fn eq(&self, other:&Self) -> bool {
+        self.weak.ptr_eq(&other.weak)
     }
 }
 

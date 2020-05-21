@@ -361,9 +361,9 @@ impl NodeModel {
         let logger  = Logger::new("node");
         let _connection = Connection::new(scene); // FIXME hack for sorting
 
-        let output_area = component::ShapeView::<output_area::Shape>::new(&logger,scene);
-        let main_area   = component::ShapeView::<shape::Shape>::new(&logger,scene);
-        let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger,scene);
+        let output_area = component::ShapeView::<output_area::Shape>::new(&logger.sub("output_area"),scene);
+        let main_area   = component::ShapeView::<shape::Shape>::new(&logger.sub("main_area"),scene);
+        let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger.sub("drag_area"),scene);
         port::sort_hack(scene); // FIXME hack for sorting
 
         let display_object  = display::object::Instance::new(&logger);

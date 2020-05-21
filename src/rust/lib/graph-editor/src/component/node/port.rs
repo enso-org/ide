@@ -160,13 +160,13 @@ impl From<&Expression> for Expression {
 pub struct Manager {
     logger         : Logger,
     display_object : display::object::Instance,
-    pub frp        : Events,
     scene          : Scene,
     expression     : Rc<RefCell<Expression>>,
     label          : component::ShapeView<label::Shape>,
     ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
     width          : Rc<Cell<f32>>,
     port_networks  : Rc<RefCell<Vec<frp::Network>>>,
+    pub frp        : Events,
 }
 
 impl Drop for Manager {
@@ -224,7 +224,8 @@ impl Manager {
                     let contains_root = span.index.value == 0;
                     let skip          = node.kind.is_empty() || contains_root;
                     if !skip {
-                        let port   = component::ShapeView::<shape::Shape>::new(&self.logger,&self.scene);
+                        let logger = self.logger.sub("port");
+                        let port   = component::ShapeView::<shape::Shape>::new(&logger,&self.scene);
                         let unit   = 7.224_609_4;
                         let width  = unit * span.size.value as f32;
                         let width2  = width + 4.0;
@@ -238,7 +239,7 @@ impl Manager {
 //                        let network = &port.events.network;
                         let hover   = &port.shape.hover;
                         let crumbs  = node.crumbs.clone();
-                        frp::new_network! { port_network
+                        frp::new_network! { TRACE_ALL port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
                             def _foo = port.events.mouse_out  . map(f_!(hover.set(0.0);));
 
