@@ -42,7 +42,7 @@ impl From<&str> for EnsoType {
 /// Contains general information about a visualization.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct ClassAttributes {
+pub struct Signature {
     pub name        : String,
     pub input_types : Vec<EnsoType>,
 }
@@ -220,7 +220,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 ///
 /// // Create a `visualization::Class` that instantiates a `BubbleChart`.
 /// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
-///     visualization::ClassAttributes {
+///     visualization::Signature {
 ///         name        : "Bubble Visualization (native)".to_string(),
 ///         input_types : vec!["[[float;3]]".to_string().into()],
 ///     },
@@ -230,7 +230,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 pub trait Class: Debug {
     /// Provides additional information about the `Class`, for example, which `DataType`s can be
     /// rendered by the instantiated visualization.
-    fn attributes(&self) -> &ClassAttributes;
+    fn signature(&self) -> &Signature;
     /// Create new visualization, that is initialised for the given scene. This can fail if the
     /// `visualization::Class` contains invalid data, for example, JS code that fails to execute,
     /// or if the scene is in an invalid state.
@@ -274,14 +274,14 @@ pub trait VisualizationConstructor = Fn(&Scene) -> InstantiationResult;
 #[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct NativeConstructorClass {
-    info        : Rc<ClassAttributes>,
+    info        : Rc<Signature>,
     #[derivative(Debug="ignore")]
     constructor : Rc<dyn VisualizationConstructor>,
 }
 
 impl NativeConstructorClass {
     /// Create a visualization source from a closure that returns a `Visualization`.
-    pub fn new<T>(info: ClassAttributes, constructor:T) -> Self
+    pub fn new<T>(info: Signature, constructor:T) -> Self
     where T: VisualizationConstructor + 'static {
         let info = Rc::new(info);
         let constructor = Rc::new(constructor);
@@ -290,7 +290,7 @@ impl NativeConstructorClass {
 }
 
 impl Class for NativeConstructorClass {
-    fn attributes(&self) -> &ClassAttributes {
+    fn signature(&self) -> &Signature {
         &self.info
     }
 

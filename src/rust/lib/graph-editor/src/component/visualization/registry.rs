@@ -62,7 +62,7 @@ impl Registry {
         let registry = Self::new();
         // FIXME use proper enso types here.
         registry.register_class(NativeConstructorClass::new(
-            ClassAttributes {
+            Signature {
                 name        : "Bubble Visualization (native)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
@@ -80,7 +80,7 @@ impl Registry {
 
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
     pub fn register_class_rc(&self, class:Rc<dyn Class>) {
-        let spec = class.attributes();
+        let spec = class.signature();
         for dtype in &spec.input_types {
             let mut entries = self.entries.borrow_mut();
             let entry_vec = entries.entry(dtype.clone()).or_insert_with(default);

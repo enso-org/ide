@@ -8,7 +8,7 @@ use crate::component::visualization::JsResult;
 use crate::component::visualization::InstantiationResult;
 use crate::component::visualization::Class;
 use crate::component::visualization::Visualization;
-use crate::component::visualization::ClassAttributes;
+use crate::component::visualization::Signature;
 use crate::component::visualization::EnsoType;
 
 use ensogl::display::Scene;
@@ -22,7 +22,7 @@ use js_sys;
 // ===================================
 
 /// Internal wrapper for the a JS class that implements our visualization specification. Provides
-/// convenience functions for accessing JS methods and attributes.
+/// convenience functions for accessing JS methods and signature.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 struct VisualizationClassWrapper {
@@ -37,10 +37,10 @@ impl VisualizationClassWrapper {
         VisualizationClassWrapper{class}
     }
 
-    fn attributes(&self) -> JsResult<ClassAttributes> {
+    fn signature(&self) -> JsResult<Signature> {
         let input_types = self.input_types().unwrap_or_default();
         let name        = self.name()?;
-        Ok(ClassAttributes{name,input_types})
+        Ok(Signature {name,input_types})
     }
 
     fn constructor(&self) -> js_sys::Function {
@@ -97,23 +97,23 @@ impl VisualizationClassWrapper {
 #[allow(missing_docs)]
 pub struct JsSourceClass {
     js_class   : Rc<VisualizationClassWrapper>,
-    attributes : Rc<ClassAttributes>,
+    signature: Rc<Signature>,
 }
 
 impl JsSourceClass {
-    /// Create a visualization source from piece of JS source code. Attributes needs to be inferred.
+    /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
     pub fn from_js_source_raw(source:&str) -> Result<Self,JsVisualizationError> {
         let js_class   = VisualizationClassWrapper::instantiate_class(&source);
-        let attributes = js_class.attributes()?;
+        let signature = js_class.signature()?;
         let js_class   = Rc::new(js_class);
-        let attributes = Rc::new(attributes);
-        Ok(JsSourceClass{js_class,attributes})
+        let signature = Rc::new(signature);
+        Ok(JsSourceClass{js_class, signature})
     }
 }
 
 impl Class for JsSourceClass {
-    fn attributes(&self) -> &ClassAttributes {
-        &self.attributes
+    fn signature(&self) -> &Signature {
+        &self.signature
     }
 
     fn instantiate(&self, scene:&Scene) -> InstantiationResult {
