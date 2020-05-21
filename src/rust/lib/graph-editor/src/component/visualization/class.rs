@@ -247,13 +247,13 @@ pub struct Handle {
 
 impl Handle {
     /// Constructor.
-    pub fn new<T: Class + 'static>(class: T) -> Handle {
-        let wrapped = Rc::new(class);
-        Handle {class:Some(wrapped)}
+    pub fn new<T:Class+'static>(class:T) -> Handle {
+        let class = Rc::new(class);
+        Handle {class:Some(class)}
     }
 
     /// Return the inner class.
-    pub fn get_class(&self) -> Option<Rc<dyn Class>> {
+    pub fn class(&self) -> Option<Rc<dyn Class>> {
         self.class.clone()
     }
 }
@@ -280,11 +280,11 @@ pub struct NativeConstructorClass {
 
 impl NativeConstructorClass {
     /// Create a visualization source from a closure that returns a `Visualization`.
-    pub fn new<T>(info: Signature, constructor:T) -> Self
+    pub fn new<T>(info:Signature, constructor:T) -> Self
     where T: VisualizationConstructor + 'static {
-        let info = Rc::new(info);
+        let info        = Rc::new(info);
         let constructor = Rc::new(constructor);
-        NativeConstructorClass { info,constructor }
+        NativeConstructorClass{info,constructor}
     }
 }
 

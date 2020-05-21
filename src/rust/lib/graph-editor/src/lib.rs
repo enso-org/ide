@@ -1469,7 +1469,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     def _register_visualization = inputs.register_visualization_class.map(f!([visualization_registry](source) {
         if let Some(source) = source {
-            if let Some(class) = source.get_class() {
+            if let Some(class) = source.class() {
                 visualization_registry.register_class_rc(class.clone_ref());
             }
         }
