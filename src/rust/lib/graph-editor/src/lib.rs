@@ -653,6 +653,60 @@ impl Nodes {
 
 
 
+// =========================
+// === Entity Collection ===
+// =========================
+
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+struct EntityFrp {
+    pub clicked : frp::Source<Id>,
+}
+
+impl EntityFrp {
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def clicked = source();
+        }
+        Self {clicked}
+    }
+}
+
+#[derive(Debug,Clone,CloneRef)]
+pub struct EntityCollection<T:CloneRef> {
+    network  : frp::Network,
+    frp      : EntityFrp,
+    logger   : Logger,
+    all      : SharedHashMap<Id,T>,
+    selected : SharedHashSet<Id>,
+}
+
+impl<T:CloneRef+display::Object> EntityCollection<T> {
+    fn new(logger:Logger) -> Self{
+        let network  = frp::Network::new();
+        let frp      = EntityFrp::new(&network);
+        let all      = default();
+        let selected = default();
+        Self {network,frp,logger,all,selected}
+    }
+}
+
+impl EntityCollection<visualization::Container> {
+    fn push(&self, entity:visualization::Container) {
+        let network = &self.network;
+        let frp = self.frp.clone_ref();
+
+        let id = entity.display_object().id();
+        frp::extend! { network
+            def _clicked = entity.frp.clicked.map(move |_| frp.clicked.emit(id));
+        }
+
+        self.all.insert(id,entity);
+    }
+}
+
+
+
 
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct Edges {
@@ -803,6 +857,7 @@ impl GraphEditorModelWithNetwork {
             });
         }
 
+        self.visualizations.push(node.view.data.visualization_container.clone_ref());
         self.nodes.insert(node_id,node);
 
         node_id
@@ -828,6 +883,7 @@ pub struct GraphEditorModel {
     pub cursor         : component::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
+    pub visualizations : EntityCollection<visualization::Container>,
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
@@ -840,10 +896,11 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(logger.clone());
         let nodes          = Nodes::new(&logger);
+        let visualizations = EntityCollection::new(Logger::new("VisualisationCollection"));
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp }
+        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,visualizations }
     }
 
     fn new_edge(&self) -> EdgeId {
@@ -888,6 +945,37 @@ impl GraphEditorModel {
             self.nodes.selected.remove(&node_id);
             node.view.frp.deselect.emit(());
         }
+    }
+
+    fn select_visualisation(&self, id:impl Into<Id>) {
+        let id = id.into();
+        if let Some(container) = self.visualizations.all.get_cloned_ref(&id) {
+            // Only one visualization can be selected.
+            self.clear_vis_selection();
+            self.visualizations.selected.insert(id);
+            container.frp.select.emit(());
+        }
+
+    }
+
+    fn deselect_vis(&self, id:impl Into<Id>) {
+        let id = id.into();
+        if let Some(container) = self.visualizations.all.get_cloned_ref(&id) {
+            self.visualizations.selected.remove(&id);
+            container.frp.deselect.emit(());
+            // If there was another one in there, that's a bug.
+            debug_assert!(self.visualizations.selected.raw.borrow().is_empty());
+        }
+    }
+
+    fn clear_vis_selection(&self) {
+        self.visualizations.selected.for_each(|id| {
+            self.visualizations
+                .all
+                .get_cloned_ref(id)
+                .map(|container| { container.frp.deselect.emit(()) });
+        });
+        self.visualizations.selected.clear();
     }
 }
 
@@ -1239,6 +1327,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let touch                  = &model.touch_state;
     let visualization_registry = visualization::Registry::with_default_visualizations();
     let logger                 = &model.logger;
+    let visualizations         = &model.visualizations;
 
 
     let outputs = UnsealedFrpOutputs::new();
@@ -1367,7 +1456,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     deselect_on_bg_press    <- touch.background.selected.gate_not(&keep_selection);
     deselect_all_nodes      <+ deselect_on_bg_press;
-    all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.nodes.selected.mem_take()));
+    all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.clear_vis_selection();model.nodes.selected.mem_take()));
     outputs.node_deselected <+ all_nodes_to_deselect;
 
     node_selected           <- node_pressed.gate(&should_select);
@@ -1523,8 +1612,17 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         })
     });
 
-     // === Vis Cycling ===
-     def _cycle_vis = inputs.debug_cycle_visualization_for_selected_node.map(f!([inputs,nodes](_) {
+
+     // === Activate Visualisation ===
+
+    def _activate_visualisation = visualizations.frp.clicked.map(f!([model](id) {
+        model.select_visualisation(id);
+    }));
+
+
+    // === Vis Cycling ===
+
+    def _cycle_vis = inputs.debug_cycle_visualisation_for_selected_node.map(f!([inputs,nodes](_) {
         nodes.selected.for_each(|node| inputs.cycle_visualization.emit(node));
     }));
 

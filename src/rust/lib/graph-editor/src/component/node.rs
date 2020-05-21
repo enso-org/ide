@@ -335,6 +335,10 @@ impl NodeModel {
         self.output_area.mod_position(|t| t.x = width/2.0);
         self.output_area.mod_position(|t| t.y = height/2.0);
     }
+
+    pub fn visualization_container(&self) {
+        //TODO use getter
+    }
 }
 
 

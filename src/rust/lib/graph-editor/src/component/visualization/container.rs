@@ -35,9 +35,9 @@ pub mod frame {
             let width_bg  : Var<Distance<Pixels>> = width_bg.into();
             let height_bg : Var<Distance<Pixels>> = height_bg.into();
             let radius    : Var<Distance<Pixels>> = padding.clone().into();
-            let color_bg    = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let background  = Rect((&width_bg,&height_bg)).corners_radius(&radius);
-            let background  = background.fill(color::Rgba::from(color_bg));
+            let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
+            let background    = Rect((&width_bg,&height_bg)).corners_radius(&radius);
+            let background    = background.fill(color::Rgba::from(color_bg));
 
             let frame_outer = Rect((&width_bg,&height_bg)).corners_radius(&radius);
 
@@ -60,6 +60,29 @@ pub mod frame {
     }
 }
 
+pub mod overlay {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (width:f32,height:f32,selected:f32,padding:f32) {
+            let width_bg       = width.clone();
+            let height_bg      = height.clone();
+            let width_bg  : Var<Distance<Pixels>> = width_bg.into();
+            let height_bg : Var<Distance<Pixels>> = height_bg.into();
+            let radius    : Var<Distance<Pixels>> = padding.clone().into();
+            let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.0000001);
+            let background    = Rect((&width_bg,&height_bg)).corners_radius(&radius);
+            let overlay       = background.clone();
+            let overlay       = overlay.fill(color::Rgba::from(color_overlay));
+
+            let out = overlay;
+
+            out.into()
+        }
+    }
+}
+
+
 
 // ===========
 // === FRP ===
@@ -76,6 +99,8 @@ pub struct ContainerFrp {
     pub set_data          : frp::Source<Option<Data>>,
     pub select            : frp::Source,
     pub deselect          : frp::Source,
+    // TODO this should be a stream
+    pub clicked           : frp::Source,
 }
 
 impl Default for ContainerFrp {
@@ -87,9 +112,11 @@ impl Default for ContainerFrp {
             def set_data          = source();
             def select            = source();
             def deselect          = source();
+            def clicked           = source();
         };
         let network = visualization_events;
-        Self {network,set_visibility,set_visualization,toggle_visibility,set_data,select,deselect }
+        Self {network,set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
+              clicked}
     }
 }
 
@@ -112,21 +139,31 @@ pub struct Container {
     // same struct.
 
     #[shrinkwrap(main_field)]
-        data : Rc<ContainerData>,
-    pub frp  : ContainerFrp,
+        data              : Rc<ContainerData>,
+    pub frp               : ContainerFrp,
 }
 
 /// Internal data of a `Container`.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct ContainerData {
-    logger                  : Logger,
-    size                    : Cell<Vector2<f32>>,
-    padding                 : Cell<f32>,
-    display_object          : display::object::Instance,
-    display_object_internal : display::object::Instance,
+    logger                       : Logger,
+    size                         : Cell<Vector2<f32>>,
+    padding                      : Cell<f32>,
+    /// Topmost display object in the hierarchy. Used for global positioning.
+    display_object               : display::object::Instance,
+    /// Internal display object that will be sole child of `display_object` and can be attached and
+    /// detached from its parent for showing/hiding all child shapes.
+    display_object_internal      : display::object::Instance,
+    /// Parent of the visualisation. Allows adding/removing of visualisations without affecting
+    /// the order of other container shapes.
+    display_object_visualisation : display::object::Instance,
+
     visualization           : RefCell<Option<Visualization>>,
     frame                   : component::ShapeView<frame::Shape>,
+    overlay                 : component::ShapeView<overlay::Shape>,
+
+    scene                   : Scene
 
 }
 
@@ -163,7 +200,9 @@ impl ContainerData {
 
     /// Set the visualization shown in this container.
     fn set_visualisation(&self, visualization:Visualization) {
-        visualization.display_object().set_parent(&self.display_object_internal);
+        let vis_parent = &self.display_object_visualisation;
+        visualization.display_object().set_parent(&vis_parent);
+
         self.visualization.replace(Some(visualization));
         self.init_visualization_properties();
     }
@@ -184,28 +223,41 @@ impl Container {
         let size                    = Cell::new(Vector2::new(200.0, 200.0));
         let display_object          = display::object::Instance::new(&logger);
         let display_object_internal = display::object::Instance::new(&logger);
+        let display_object_visualisation = display::object::Instance::new(&logger);
+
         let padding                 = Cell::new(10.0);
         let frame                   = component::ShapeView::<frame::Shape>::new(&logger,scene);
+        let overlay                 = component::ShapeView::<overlay::Shape>::new(&logger,scene);
+        let scene                   = scene.clone_ref();
         let data                    = ContainerData {logger,visualization,size,display_object,frame,
-                                                     display_object_internal,padding};
+                                                     display_object_internal,padding,scene,overlay,
+                                                     display_object_visualisation};
         let data                    = Rc::new(data);
         data.set_visualization(Registry::default_visualisation(&scene));
         data.set_visibility(false);
         let frp                     = default();
-        Self {data,frp} . init(scene) . init_frp()
+        Self {data,frp} . init() . init_frp()
     }
 
-    fn init(self, scene:&Scene) ->  Self {
-        self.init_frame(scene)
+    fn init(self) ->  Self {
+        self.init_shape()
     }
 
-    fn init_frame(self, scene:&Scene) -> Self {
-        let shape_system = scene.shapes.shape_system(PhantomData::<frame::Shape>);
+    fn init_shape(self) -> Self {
+        // TODO avoid duplication
+        let shape_system = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
         shape_system.shape_system.set_alignment(
             alignment::HorizontalAlignment::Center,
             alignment::VerticalAlignment::Center
         );
 
+        let shape_system = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
+        shape_system.shape_system.set_alignment(
+            alignment::HorizontalAlignment::Center,
+            alignment::VerticalAlignment::Center
+        );
+
+        let overlay_shape = &self.data.overlay.shape;
         let frame_shape = &self.data.frame.shape;
         let padding     = self.data.padding.get();
         let width       = self.data.size.get().x;
@@ -215,12 +267,21 @@ impl Container {
         frame_shape.padding.set(padding);
         frame_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
         frame_shape.selected.set(0.0);
+        overlay_shape.width.set(width + 2.0 * padding);
+        overlay_shape.height.set(height + 2.0 * padding);
+        overlay_shape.padding.set(padding);
+        overlay_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
+        overlay_shape.selected.set(0.0);
 
         frame_shape.mod_position(|t| t.x += width/2.0);
         frame_shape.mod_position(|t| t.y += height/2.0);
-        self.display_object_internal.add_child(&self.data.frame);
-        self
+        overlay_shape.mod_position(|t| t.x += width/2.0);
+        overlay_shape.mod_position(|t| t.y += height/2.0);
 
+        self.display_object_internal.add_child(&self.data.overlay);
+        self.display_object_internal.add_child(&self.data.frame);
+        self.display_object_internal.add_child(&self.data.display_object_visualisation);
+        self
     }
 
     fn set_selected(&self, value:bool) {
@@ -266,16 +327,12 @@ impl Container {
                  selection.set_target_position(1.0);
             }));
 
-            def _deselect = frp.select.map(f!([selection](_) {
-                 selection.set_target_position(1.0);
+            def _deselect = frp.deselect.map(f!([selection](_) {
+                 selection.set_target_position(0.0);
             }));
 
-            def _output_show = container_data.frame.events.mouse_over.map(f!([selection](_) {
-                selection.set_target_position(1.0);
-            }));
-
-            def _output_hide = container_data.frame.events.mouse_out.map(f!([selection](_) {
-                selection.set_target_position(0.0);
+            def _output_hide = container_data.overlay.events.mouse_down.map(f!([frp](_) {
+                frp.clicked.emit(())
             }));
         }
         self
