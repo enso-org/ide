@@ -290,6 +290,7 @@ impl NodeModel {
         });
 
         display_object.add_child(&visualization_container);
+        visualization_container.frp.set_visibility.emit(false);
 
         ports.mod_position(|p| {
             p.x = TEXT_OFF;
@@ -336,8 +337,8 @@ impl NodeModel {
         self.output_area.mod_position(|t| t.y = height/2.0);
     }
 
-    pub fn visualization_container(&self) {
-        //TODO use getter
+    pub fn visualization_container(&self) -> &visualization::Container {
+        &self.visualization_container
     }
 }
 

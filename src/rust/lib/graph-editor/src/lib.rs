@@ -313,7 +313,7 @@ impl Commands {
             def disable_node_inverse_select      = source();
             def toggle_node_inverse_select       = source();
 
-            def debug_set_data_for_selected_visualization            = source();
+            def debug_set_data_for_selected_visualization   = source();
             def debug_cycle_visualization_for_selected_node = source();
 
         }
@@ -703,6 +703,13 @@ impl EntityCollection<visualization::Container> {
 
         self.all.insert(id,entity);
     }
+
+    fn get_selected(&self) -> Option<visualization::Container> {
+        let selected = self.selected.raw.borrow();
+        let selected = selected.iter().take(1).collect_vec();
+        let id       = selected.get(0)?;
+        self.all.get_cloned(id)
+    }
 }
 
 
@@ -857,7 +864,7 @@ impl GraphEditorModelWithNetwork {
             });
         }
 
-        self.visualizations.push(node.view.data.visualization_container.clone_ref());
+        self.visualizations.push(node.view.visualization_container().clone_ref());
         self.nodes.insert(node_id,node);
 
         node_id
@@ -1329,7 +1336,6 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let logger                 = &model.logger;
     let visualizations         = &model.visualizations;
 
-
     let outputs = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
@@ -1622,10 +1628,22 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Vis Cycling ===
 
-    def _cycle_vis = inputs.debug_cycle_visualisation_for_selected_node.map(f!([inputs,nodes](_) {
-        nodes.selected.for_each(|node| inputs.cycle_visualization.emit(node));
+    let cycle_count = Rc::new(Cell::new(0));
+    def _cycle_visualization = inputs.debug_cycle_visualization_for_selected_node.map(f!([scene,visualizations,visualization_registry,logger](_) {
+        let vis_classes = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
+        cycle_count.set(cycle_count.get() % vis_classes.len());
+        let vis       = &vis_classes[cycle_count.get()];
+        let vis       = vis.instantiate(&scene);
+        let container = visualizations.get_selected();
+        match (vis, container) {
+            (Ok(vis), Some(container))  => {
+                container.frp.set_visualization.emit(Some(vis));
+            },
+            (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {}", e)),
+            _           => {}
+        };
+        cycle_count.set(cycle_count.get() + 1);
     }));
-
 
     // === Vis Set ===
 
@@ -1674,7 +1692,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     def on_visualization_enabled  = source();
     def on_visualization_disabled = source();
 
-    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes,on_visualization_enabled,on_visualization_disabled](_) {
+    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes](_) {
         nodes.selected.for_each(|node_id| {
             if let Some(node) = nodes.get_cloned_ref(node_id) {
                 node.view.visualization_container.frp.toggle_visibility.emit(());

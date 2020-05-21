@@ -199,7 +199,7 @@ impl ContainerData {
     }
 
     /// Set the visualization shown in this container.
-    fn set_visualisation(&self, visualization:Visualization) {
+    fn set_visualization(&self, visualization:Visualization) {
         let vis_parent = &self.display_object_visualisation;
         visualization.display_object().set_parent(&vis_parent);
 
@@ -281,6 +281,7 @@ impl Container {
         self.display_object_internal.add_child(&self.data.overlay);
         self.display_object_internal.add_child(&self.data.frame);
         self.display_object_internal.add_child(&self.data.display_object_visualisation);
+
         self
     }
 
