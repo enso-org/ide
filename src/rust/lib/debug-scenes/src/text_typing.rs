@@ -32,6 +32,9 @@ pub fn run_example_text_typing() {
 
         let mut text_field = TextField::new(&world,properties);
         text_field.set_position(Vector3::new(10.0, 600.0, 0.0));
+        //FIXME:This is a workaround to get rid of the invalid texture usage warning.
+        text_field.set_content("-");
+        text_field.set_content("");
         world.add_child(&text_field.display_object());
 
         let now             = js_sys::Date::now();

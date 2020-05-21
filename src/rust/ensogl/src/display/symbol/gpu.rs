@@ -330,7 +330,8 @@ impl Symbol {
 
     pub fn render(&self) {
         group!(self.logger, "Rendering.", {
-            if self.is_hidden() {
+            let instance_count = self.surface.instance_scope().size() as i32;
+            if self.is_hidden() || instance_count <= 0 {
                 return;
             }
             self.with_program(|_|{
@@ -342,11 +343,9 @@ impl Symbol {
                 let textures             = &self.bindings.borrow().textures;
                 let bound_textures_iter  = textures.iter().map(|t| {t.bind_texture_unit(context)});
                 let _textures_keep_alive = bound_textures_iter.collect_vec();
-
                 let mode           = Context::TRIANGLE_STRIP;
                 let first          = 0;
                 let count          = self.surface.point_scope().size()    as i32;
-                let instance_count = self.surface.instance_scope().size() as i32;
 
                 // FIXME: we should uncomment the following code in some pedantic debug mode. It
                 //        introduces severe performance overhead (0.8ms -> 3ms per frame) because
@@ -366,7 +365,7 @@ impl Symbol {
                 // }
 
                 self.stats.inc_draw_call_count();
-                if instance_count > 0 {
+                if instance_count > 1 {
                     self.context.draw_arrays_instanced(mode,first,count,instance_count);
                 } else {
                     self.context.draw_arrays(mode,first,count);
