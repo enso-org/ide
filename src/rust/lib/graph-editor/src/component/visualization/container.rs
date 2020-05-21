@@ -46,7 +46,7 @@ impl Default for ContainerFrp {
 
 /// Container that wraps a `Visualization` for rendering and interaction in the GUI.
 ///
-/// The API to interact with the visualisation is exposed through the `ContainerFrp`.
+/// The API to interact with the visualization is exposed through the `ContainerFrp`.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct Container {
@@ -72,18 +72,18 @@ pub struct ContainerData {
 }
 
 impl ContainerData {
-    /// Set whether the visualisation should be visible or not.
+    /// Set whether the visualization should be visible or not.
     pub fn set_visibility(&self, is_visible:bool) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
             if is_visible {
-                vis.display_object().set_parent(&self.display_object);
+                self.add_child(vis);
             } else {
-                vis.display_object().unset_parent();
+                vis.unset_parent();
             }
         }
     }
 
-    /// Indicates whether the visualisation is visible.
+    /// Indicates whether the visualization is visible.
     fn is_visible(&self) -> bool {
         if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.has_parent()
@@ -99,8 +99,8 @@ impl ContainerData {
 
     /// Update the content properties with the values from the `ContainerData`.
     ///
-    /// Needs to called when a visualisation has been set.
-    fn init_visualisation_properties(&self) {
+    /// Needs to called when a visualization has been set.
+    fn init_visualization_properties(&self) {
         let size         = self.size.get();
         if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.set_size(size);
@@ -109,12 +109,19 @@ impl ContainerData {
     }
 
     /// Set the visualization shown in this container..
-    fn set_visualisation(&self, visualization:Visualization) {
-        visualization.display_object().set_parent(&self.display_object);
+    fn set_visualization(&self, visualization:Visualization) {
+        self.add_child(&visualization);
         self.visualization.replace(Some(visualization));
-        self.init_visualisation_properties();
+        self.init_visualization_properties();
     }
 }
+
+impl display::Object for ContainerData {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
 
 impl Container {
     /// Constructor.
@@ -137,21 +144,21 @@ impl Container {
 
             let container_data = &self.data;
 
-            def _f_hide = frp.set_visibility.map(f!((container_data)(is_visible) {
+            def _f_hide = frp.set_visibility.map(f!([container_data](is_visible) {
                 container_data.set_visibility(*is_visible);
             }));
 
-            def _f_toggle = frp.toggle_visibility.map(f!((container_data)(_) {
+            def _f_toggle = frp.toggle_visibility.map(f!([container_data](_) {
                 container_data.toggle_visibility()
             }));
 
-            def _f_set_vis = frp.set_visualization.map(f!((container_data)(visualisation) {
-                if let Some(visualisation) = visualisation.as_ref() {
-                    container_data.set_visualisation(visualisation.clone());
+            def _f_set_vis = frp.set_visualization.map(f!([container_data](visualization) {
+                if let Some(visualization) = visualization.as_ref() {
+                    container_data.set_visualization(visualization.clone());
                 }
             }));
 
-            def _f_set_data = frp.set_data.map(f!((container_data)(data) {
+            def _f_set_data = frp.set_data.map(f!([container_data](data) {
                  container_data.visualization.borrow()
                     .for_each_ref(|vis| vis.frp.set_data.emit(data));
             }));
