@@ -45,9 +45,6 @@ pub fn get_bubble_vis_class() -> JsSourceClass {
                 return ["[[float;3]]"];
             }
 
-            instantiate() {
-                return new BubbleVisualization()
-            }
         }
 
         return BubbleVisualization;
