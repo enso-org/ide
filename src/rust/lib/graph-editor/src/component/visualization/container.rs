@@ -14,7 +14,6 @@ use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
-use ensogl::math::topology::unit::PixelDistance;
 use ensogl::display::layout::alignment;
 use ensogl::gui::component::animation;
 
@@ -244,7 +243,7 @@ impl Container {
 
         frp::extend! { network
 
-            def _f_hide = frp.set_visibility.map(f!((container_data)(is_visible) {
+            def _f_hide = frp.set_visibility.map(f!([container_data](is_visible) {
                 container_data.set_visibility(*is_visible);
             }));
 
@@ -263,19 +262,19 @@ impl Container {
                     .for_each_ref(|vis| vis.frp.set_data.emit(data));
             }));
 
-            def _select = frp.select.map(f!((selection)(_) {
+            def _select = frp.select.map(f!([selection](_) {
                  selection.set_target_position(1.0);
             }));
 
-            def _deselect = frp.select.map(f!((selection)(_) {
+            def _deselect = frp.select.map(f!([selection](_) {
                  selection.set_target_position(1.0);
             }));
 
-            def _output_show = container_data.frame.events.mouse_over.map(f!((selection)(_) {
+            def _output_show = container_data.frame.events.mouse_over.map(f!([selection](_) {
                 selection.set_target_position(1.0);
             }));
 
-            def _output_hide = container_data.frame.events.mouse_out.map(f!((selection)(_) {
+            def _output_hide = container_data.frame.events.mouse_out.map(f!([selection](_) {
                 selection.set_target_position(0.0);
             }));
         }
