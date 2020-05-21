@@ -19,6 +19,7 @@ use crate::display::camera::Camera2d;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
 use crate::display::scene::dom::DomScene;
+use crate::display::shape::text::glyph::font;
 use crate::display::style;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display::symbol::Symbol;
@@ -337,7 +338,7 @@ impl Mouse {
         let mouse_manager   = MouseManager::new(&document.into());
         let frp             = frp::io::Mouse::new();
 
-        let on_move = mouse_manager.on_move.add(f!((frp,shape,position,last_position)(event:&mouse::OnMove) {
+        let on_move = mouse_manager.on_move.add(f!([frp,shape,position,last_position](event:&mouse::OnMove) {
             let pixel_ratio  = shape.pixel_ratio() as i32;
             let screen_x     = event.offset_x();
             let screen_y     = event.offset_y();
@@ -353,7 +354,7 @@ impl Mouse {
             }
         }));
 
-        let on_down = mouse_manager.on_down.add(f!((frp,button_state)(event:&mouse::OnDown) {
+        let on_down = mouse_manager.on_down.add(f!([frp,button_state](event:&mouse::OnDown) {
             match event.button() {
                 mouse::Button0 => button_state.button0_pressed.set(true),
                 mouse::Button1 => button_state.button1_pressed.set(true),
@@ -364,7 +365,7 @@ impl Mouse {
             frp.press.emit(());
         }));
 
-        let on_up = mouse_manager.on_up.add(f!((frp,button_state)(event:&mouse::OnUp) {
+        let on_up = mouse_manager.on_up.add(f!([frp,button_state](event:&mouse::OnUp) {
             match event.button() {
                 mouse::Button0 => button_state.button0_pressed.set(false),
                 mouse::Button1 => button_state.button1_pressed.set(false),
@@ -746,23 +747,24 @@ impl Views {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct SceneData {
-    pub display_object : display::object::Instance,
-    pub dom            : Dom,
-    pub context        : Context,
-    symbols            : SymbolRegistry,
-    pub variables      : UniformScope,
-    pub mouse          : Mouse,
-    pub uniforms       : Uniforms,
-    pub shapes         : ShapeRegistry,
-    pub stats          : Stats,
-    pub dirty          : Dirty,
-    pub logger         : Logger,
-    pub callbacks      : Callbacks,
-    pub renderer       : Renderer,
-    pub views          : Views,
-    pub style_sheet    : style::Sheet,
-    pub bg_color_var   : style::Var,
+    pub display_object  : display::object::Instance,
+    pub dom             : Dom,
+    pub context         : Context,
+    pub symbols         : SymbolRegistry,
+    pub variables       : UniformScope,
+    pub mouse           : Mouse,
+    pub uniforms        : Uniforms,
+    pub shapes          : ShapeRegistry,
+    pub stats           : Stats,
+    pub dirty           : Dirty,
+    pub logger          : Logger,
+    pub callbacks       : Callbacks,
+    pub renderer        : Renderer,
+    pub views           : Views,
+    pub style_sheet     : style::Sheet,
+    pub bg_color_var    : style::Var,
     pub bg_color_change : callback::Handle,
+    pub fonts           : font::SharedRegistry,
 }
 
 impl SceneData {
@@ -802,9 +804,10 @@ impl SceneData {
         let on_resize      = dom.root.on_resize(on_resize_cb);
         let callbacks      = Callbacks {on_zoom,on_resize};
         let style_sheet    = style::Sheet::new();
+        let fonts          = font::SharedRegistry::new();
 
         let bg_color_var = style_sheet.var("application.background.color");
-        let bg_color_change = bg_color_var.on_change(f!((dom)(change){
+        let bg_color_change = bg_color_var.on_change(f!([dom](change){
             change.color().for_each(|color| {
                 let color = color::Rgba::from(color);
                 let color = format!("rgba({},{},{},{})",255.0*color.red,255.0*color.green,255.0*color.blue,255.0*color.alpha);
@@ -814,7 +817,7 @@ impl SceneData {
 
         uniforms.pixel_ratio.set(dom.shape().pixel_ratio());
         Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables
-             ,stats,uniforms,mouse,callbacks,shapes,style_sheet,bg_color_var,bg_color_change}
+             ,stats,uniforms,mouse,callbacks,shapes,style_sheet,bg_color_var,bg_color_change,fonts}
     }
 
     pub fn on_resize<F:CallbackMut1Fn<web::dom::ShapeData>>(&self, callback:F) -> callback::Handle {

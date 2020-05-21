@@ -1,37 +1,35 @@
-//! The `Registry` provides a mechanism to store `Factory`s for all available visualizations. It
+//! The `Registry` provides a mechanism to store `visualization::Class`es for all available visualizations. It
 //! provides functionality to register new factories, as well as get suitable factories for
 //! a specific data type.
 //!
 //! Example
 //! --------
-//! ```
+//! ```no_run
 //! use graph_editor::component::visualization::Registry;
 //! use graph_editor::component::visualization::EnsoType;
-//! use graph_editor::component::visualization::JsSourceFactory;
+//! use graph_editor::component::visualization::JsSourceClass;
 //!
 //! // Instantiate a pre-populated registry.
-//! let registry = Registry::with_default_visualisations();
-//! // Add a new factory that creates visualisations defined in JS.
-//! registry.register_factory(JsSourceFactory::from_js_source_raw(r#"
-//! class BubbleVisualisation {
-//!     onDataReceived(root, data) {}
-//!     setSize(root, size) {}
-//! }
-//! return new BubbleVisualisation();
-//! "#.into()));
+//! let registry = Registry::with_default_visualizations();
+//! // Add a new class that creates visualizations defined in JS.
+//! registry.register_class(JsSourceClass::from_js_source_raw(r#"
+//!     class BubbleVisualization {
+//!         static inputTypes = ["[[float;3]]"]
+//!         onDataReceived(root, data) {}
+//!         setSize(root, size) {}
+//!     }
+//!     return BubbleVisualization;
+//! "#.into()).unwrap());
 //!
-//! // Get all factories that can render  visualisation for the type `[[float;3]]`.
+//! // Get all factories that can render  visualization for the type `[[float;3]]`.
 //! let target_type:EnsoType = "[[float;3]]".to_string().into();
 //! assert!(registry.valid_sources(&target_type).len() > 0);
 //! ```
+
 use crate::prelude::*;
 
-use crate::component::visualization::EnsoType;
-use crate::component::visualization::Factory;
-use crate::component::visualization::Metadata;
-use crate::component::visualization::NativeConstructorFactory;
-use crate::component::visualization::Visualization;
-use crate::component::visualization::renderer::example::js::constructor_sample_js_bubble_chart;
+use crate::component::visualization::*;
+use crate::component::visualization::renderer::example::js::get_bubble_vis_class;
 use crate::component::visualization::renderer::example::native::BubbleChart;
 
 use ensogl::display::scene::Scene;
@@ -42,62 +40,58 @@ use ensogl::display::scene::Scene;
 // === Visualization Registry ===
 // ==============================
 
+/// HashMap that contains the mapping from `EnsoType`s to a `Vec` of `Factories. This is meant to
+/// map a `EnsoType` to all `visualization::Class`es that support visualising that type.
+type RegistryTypeMap = HashMap<EnsoType, Vec<Rc<dyn Class>>>;
+
 /// The registry struct. For more information see the module description.
 #[derive(Clone,CloneRef,Default,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
-    entries : Rc<RefCell<Vec<Rc<dyn Factory>>>>
+    entries : Rc<RefCell<RegistryTypeMap>>,
 }
 
 impl Registry {
-
     /// Return an empty `Registry`.
-    pub fn empty() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 
     /// Return a `Registry` prepopulated with default visualizations.
-    pub fn with_default_visualisations() -> Self {
-        let registry = Self::empty();
-        // TODO fix types
-        registry.register_factory(NativeConstructorFactory::new(
-            Metadata {
-                name        : "Bubble Visualisation (native)".to_string(),
+    pub fn with_default_visualizations() -> Self {
+        let registry = Self::new();
+        // FIXME use proper enso types here.
+        registry.register_class(NativeConstructorClass::new(
+            ClassAttributes {
+                name        : "Bubble Visualization (native)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
-            Rc::new(|scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene))))
+            |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));
-        registry.register_factory(NativeConstructorFactory::new(
-            Metadata {
-                name        : "Bubble Visualisation (JS)".to_string(),
-                input_types : vec!["[[float;3]]".to_string().into()],
-            },
-            Rc::new(|scene:&Scene| {
-                let renderer = constructor_sample_js_bubble_chart();
-                renderer.set_dom_layer(&scene.dom.layers.front);
-                Ok(Visualization::new(renderer))
-            })
-        ));
+        registry.register_class(get_bubble_vis_class());
 
         registry
     }
 
-    /// Register a new visualisation factory with the registry.
-    pub fn register_factory<T:Factory + 'static>(&self, factory:T) {
-        self.entries.borrow_mut().push(Rc::new(factory));
+    /// Register a new visualization class with the registry.
+    pub fn register_class<T: Class + 'static>(&self, class:T) {
+        self.register_class_rc(Rc::new(class));
     }
 
-    /// Register a new visualisation factory that's pre-wrapped in an `Rc` with the registry.
-    pub fn register_factory_rc(&self, factory:Rc<dyn Factory>) {
-        self.entries.borrow_mut().push(factory);
+    /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
+    pub fn register_class_rc(&self, class:Rc<dyn Class>) {
+        let spec = class.attributes();
+        for dtype in &spec.input_types {
+            let mut entries = self.entries.borrow_mut();
+            let entry_vec = entries.entry(dtype.clone()).or_insert_with(default);
+            entry_vec.push(Rc::clone(&class));
+        }
+
     }
 
-    /// Return all `Factory`s that can create a visualisation for the given datatype.
-    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<dyn Factory>>{
-        // TODO: this is not super efficient. Consider building a HashMap from type to vis.
+    /// Return all `visualization::Class`es that can create a visualization for the given datatype.
+    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<dyn Class>>{
         let entries       = self.entries.borrow();
-        let entries       = entries.iter();
-        let valid_entries = entries.filter(|entry| entry.metadata().input_types.contains(dtype));
-        valid_entries.cloned().collect()
+        entries.get(dtype).cloned().unwrap_or_else(default)
     }
 }

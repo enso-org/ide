@@ -5,7 +5,10 @@ use crate::prelude::*;
 use crate::frp;
 use crate::visualization::*;
 
+use ensogl::display::Scene;
 use ensogl::display;
+use std::error::Error;
+use enso_prelude::CloneRef;
 
 
 
@@ -20,30 +23,31 @@ pub struct EnsoCode {
 }
 
 /// Type alias for a string representing an enso type.
-#[derive(Clone,CloneRef,Debug,PartialEq,Eq)]
+#[derive(Clone,CloneRef,Debug,PartialEq,Eq,Hash)]
 pub struct EnsoType {
     content: Rc<String>
 }
 
 impl From<String> for EnsoType {
-    fn from(source: String) -> Self {
+    fn from(source:String) -> Self {
         EnsoType { content:Rc::new(source) }
     }
 }
 
 impl From<&str> for EnsoType {
-    fn from(source: &str) -> Self {
+    fn from(source:&str) -> Self {
         EnsoType { content:Rc::new(source.to_string()) }
     }
 }
 
-/// Contains general information about a visualisation.
+/// Contains general information about a visualization.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct Metadata {
+pub struct ClassAttributes {
     pub name        : String,
     pub input_types : Vec<EnsoType>,
 }
+
 
 
 // =========================
@@ -145,7 +149,7 @@ impl Visualization {
         let visualization = &self.state;
         let frp           = &self.frp;
         frp::extend! { network
-            def _set_data = self.frp.set_data.map(f!((frp,visualization)(data) {
+            def _set_data = self.frp.set_data.map(f!([frp,visualization](data) {
                 if let Some(data) = data {
                     if visualization.renderer.receive_data(data.clone_ref()).is_err() {
                         frp.invalid_data.emit(())
@@ -157,19 +161,141 @@ impl Visualization {
         let renderer_frp     = self.state.renderer.frp();
         let renderer_network = &renderer_frp.network;
         frp::new_bridge_network! { [network,renderer_network]
-            def _on_changed = renderer_frp.on_change.map(f!((frp)(data) {
+            def _on_changed = renderer_frp.on_change.map(f!([frp](data) {
                 frp.change.emit(data)
             }));
-           def _on_preprocess_change = renderer_frp.on_preprocess_change.map(f!((frp)(data) {
+           def _on_preprocess_change = renderer_frp.on_preprocess_change.map(f!([frp](data) {
                 frp.preprocess_change.emit(data.as_ref().map(|code|code.clone_ref()))
             }));
         }
-
         self
     }
 
     /// Set the viewport size of the visualization.
     pub fn set_size(&self, size:Vector2<f32>) {
         self.state.renderer.set_size(size)
+    }
+}
+
+
+
+// ===========================
+// === Visualization Class ===
+// ===========================
+
+/// Result of the attempt to instantiate a `Visualization` from a `Class`.
+pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
+
+/// Specifies a trait that allows the instantiation of `Visualizations`.
+///
+/// The `Class` provides a way to implement structs that allow the instantiation of specific
+/// visualizations, while already providing general information that doesn't require an
+/// instantiated visualization, for example, the name or input type of the visualization.
+///
+/// There are two example implementations: The `JsSourceClass`, which is based on a JS snippet to
+/// instantiate `JsRenderer`, and the fairly generic `NativeConstructorClass`, that only requires
+/// a function that can create a InstantiationResult. The later can be used as a thin wrapper around
+/// the constructor methods of native visualizations.
+///
+/// Example
+/// --------
+/// ```no_run
+/// use graph_editor::component::visualization;
+/// use graph_editor::component::visualization::Visualization;
+/// use graph_editor::component::visualization::renderer::example::native::BubbleChart;
+/// use ensogl::display::Scene;
+/// use std::rc::Rc;
+///
+/// // Create a `visualization::Class` from a JS source code snippet.
+/// let js_source_class = visualization::JsSourceClass::from_js_source_raw(r#"
+///
+///    class BubbleVisualization {
+///         static inputTypes = ["[[float;3]]"]
+///         onDataReceived(root, data) {}
+///         setSize(root, size) {}
+///     }
+///
+///     return BubbleVisualization;
+///
+/// "#.into());
+///
+/// // Create a `visualization::Class` that instantiates a `BubbleChart`.
+/// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
+///     visualization::ClassAttributes {
+///         name        : "Bubble Visualization (native)".to_string(),
+///         input_types : vec!["[[float;3]]".to_string().into()],
+///     },
+///     |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
+/// );
+/// ```
+pub trait Class: Debug {
+    /// Provides additional information about the `Class`, for example, which `DataType`s can be
+    /// rendered by the instantiated visualization.
+    fn attributes(&self) -> &ClassAttributes;
+    /// Create new visualization, that is initialised for the given scene. This can fail if the
+    /// `visualization::Class` contains invalid data, for example, JS code that fails to execute,
+    /// or if the scene is in an invalid state.
+    // TODO consider not allowing failing here and require the checking on instantiation of the `Class`.
+    // TODO consider not providing the scene here, but hooking the the shapes/dom elements into the
+    // scene externally.
+    fn instantiate(&self, scene:&Scene) -> InstantiationResult;
+}
+
+#[derive(Clone,Debug,Default)]
+#[allow(missing_docs)]
+pub struct ClassHandle {
+    class : Option<Rc<dyn Class>>
+}
+
+impl ClassHandle {
+    /// Constructor.
+    pub fn new<T: Class + 'static>(class: T) -> ClassHandle {
+        let wrapped = Rc::new(class);
+        ClassHandle{class:Some(wrapped)}
+    }
+
+    /// Return the inner class.
+    pub fn get_class(&self) -> Option<Rc<dyn Class>> {
+        self.class.clone()
+    }
+}
+
+impl CloneRef for ClassHandle {}
+
+
+
+// ================================
+// === Native Constructor Class ===
+// ================================
+
+/// Type alias for a function that can create a `Visualization`.
+pub trait VisualizationConstructor = Fn(&Scene) -> InstantiationResult;
+
+#[derive(CloneRef,Clone,Derivative)]
+#[derivative(Debug)]
+#[allow(missing_docs)]
+pub struct NativeConstructorClass {
+    info        : Rc<ClassAttributes>,
+    #[derivative(Debug="ignore")]
+    constructor : Rc<dyn VisualizationConstructor>,
+}
+
+impl NativeConstructorClass {
+    /// Create a visualization source from a closure that returns a `Visualization`.
+    pub fn new<T>(info: ClassAttributes, constructor:T) -> Self
+    where T: VisualizationConstructor + 'static {
+        let info = Rc::new(info);
+        let constructor = Rc::new(constructor);
+        NativeConstructorClass { info,constructor }
+    }
+}
+
+impl Class for NativeConstructorClass {
+    fn attributes(&self) -> &ClassAttributes {
+        &self.info
+    }
+
+    fn instantiate(&self, scene:&Scene) -> InstantiationResult {
+        self.constructor.call((scene,))
     }
 }
