@@ -74,7 +74,7 @@ impl Registry {
     }
 
     /// Register a new visualization class with the registry.
-    pub fn register_class<T: Class + 'static>(&self, class:T) {
+    pub fn register_class<T:Class+'static>(&self, class:T) {
         self.register_class_rc(Rc::new(class));
     }
 
@@ -83,7 +83,7 @@ impl Registry {
         let spec = class.signature();
         for dtype in &spec.input_types {
             let mut entries = self.entries.borrow_mut();
-            let entry_vec = entries.entry(dtype.clone()).or_insert_with(default);
+            let entry_vec   = entries.entry(dtype.clone()).or_insert_with(default);
             entry_vec.push(Rc::clone(&class));
         }
 
