@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use ast::HasRepr;
 use ast::HasIdMap;
-use data::text::Index;
+use data::text::ByteIndex;
 
 pub use ast::Ast;
 
@@ -30,52 +30,55 @@ impl Metadata for serde_json::Value {}
 
 // === Source File ===
 
+/// Source File content with information about section placement.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct SourceFile {
+    /// The whole content of file.
+    pub content : String,
+    /// The range in bytes of module's "Code" section.
+    pub code : Range<ByteIndex>,
+    /// The range in bytes of module's "Id Map" section.
+    pub id_map : Range<ByteIndex>,
+    /// The range in bytes of module's "Metadata" section.
+    pub metadata : Range<ByteIndex>,
+}
+
+impl SourceFile {
+    /// Get fragment of serialized string with code.
+    pub fn code_slice(&self) -> &str { &self.slice(&self.code) }
+
+    /// Get fragment of serialized string with id map.
+    pub fn id_map_slice  (&self) -> &str { &self.slice(&self.id_map) }
+
+    /// Get fragment of serialized string with metadata.
+    pub fn metadata_slice(&self) -> &str { &self.slice(&self.metadata) }
+
+    fn slice(&self, range:&Range<ByteIndex>) -> &str {
+        &self.content[range.start.value..range.end.value]
+    }
+}
+
+
+// === Parsed Source File ===
+
 /// Parsed file / module with metadata.
 #[derive(Clone,Debug,Deserialize,Eq,PartialEq)]
-pub struct SourceFile<Metadata> {
+pub struct ParsedSourceFile<Metadata> {
     /// Ast representation.
     pub ast: ast::known::Module,
     /// Raw metadata in json.
     pub metadata: Metadata
 }
 
-impl<M:Metadata> TryFrom<&SourceFile<M>> for String {
+impl<M:Metadata> TryFrom<&ParsedSourceFile<M>> for String {
     type Error = serde_json::Error;
-    fn try_from(val:&SourceFile<M>) -> std::result::Result<String,Self::Error> {
-        Ok(val.serialize()?.string)
+    fn try_from(val:&ParsedSourceFile<M>) -> std::result::Result<String,Self::Error> {
+        Ok(val.serialize()?.content)
     }
 }
 
 
-// === Serialized Source File ===
-
-/// Serialized Source File to string with information about module section placement.
-#[allow(missing_docs)]
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct SerializedSourceFile {
-    pub string   : String,
-    pub code     : Range<Index>,
-    pub id_map   : Range<Index>,
-    pub metadata : Range<Index>,
-}
-
-impl SerializedSourceFile {
-    /// Get fragment of serialized string with code.
-    pub fn code_slice(&self) -> &str { &self.slice(&self.code    ) }
-
-    /// Get fragment of serialized string with id map.
-    pub fn id_map_slice  (&self) -> &str { &self.slice(&self.id_map  ) }
-
-    /// Get fragment of serialized string with metadata.
-    pub fn metadata_slice(&self) -> &str { &self.slice(&self.metadata) }
-
-    fn slice(&self, range:&Range<Index>) -> &str {
-        &self.string[range.start.value..range.end.value]
-    }
-}
-
-
-// === Source File Serialization ===
+// === Parsed Source File Serialization ===
 
 const METADATA_TAG:&str = "\n\n\n#### METADATA ####\n";
 
@@ -85,25 +88,23 @@ fn to_json_single_line(val:&impl Serialize) -> std::result::Result<String,serde_
     Ok(line)
 }
 
-impl<M:Metadata> SourceFile<M> {
-    /// Serialize SourceFile to string with information about code, id_map and metadata section
-    /// placement in it.
-    pub fn serialize(&self) -> std::result::Result<SerializedSourceFile,serde_json::Error> {
+impl<M:Metadata> ParsedSourceFile<M> {
+    /// Serialize to the SourceFile structure,
+    pub fn serialize(&self) -> std::result::Result<SourceFile,serde_json::Error> {
         let code                  = self.ast.repr();
         let id_map                = to_json_single_line(&self.ast.id_map())?;
         let metadata              = to_json_single_line(&self.metadata)?;
         let id_map_start          = code.len() + METADATA_TAG.len();
         let newlines_after_id_map = 1;
         let metadata_start        = id_map_start + id_map.len() + newlines_after_id_map;
-        Ok(SerializedSourceFile {
-            string   : iformat!("{code}{METADATA_TAG}{id_map}\n{metadata}"),
-            code     : Index::new(0)             ..Index::new(code.len()),
-            id_map   : Index::new(id_map_start)  ..Index::new(id_map_start + id_map.len()),
-            metadata : Index::new(metadata_start)..Index::new(metadata_start + metadata.len()),
+        Ok(SourceFile {
+            content  : iformat!("{code}{METADATA_TAG}{id_map}\n{metadata}"),
+            code     : ByteIndex::new(0             )..ByteIndex::new(code.len()                     ),
+            id_map   : ByteIndex::new(id_map_start  )..ByteIndex::new(id_map_start   + id_map.len()  ),
+            metadata : ByteIndex::new(metadata_start)..ByteIndex::new(metadata_start + metadata.len()),
         })
     }
 }
-
 
 
 
@@ -166,14 +167,14 @@ mod test {
     impl crate::api::Metadata for Metadata {}
 
     #[test]
-    fn serializing_source_file() {
+    fn serializing_parsed_source_file() {
         let node_id  = Uuid::from_str("89f29e9f-cd21-4d35-93ce-d6df9333e2cd").unwrap();
         let main     = ast::Ast::var("main");
         let node     = ast::Ast::infix_var("2","+","2").with_id(node_id);
         let infix    = ast::Ast::infix(main,"=",node);
         let ast      = ast::Ast::one_line_module(infix).try_into().unwrap();
         let metadata = Metadata{foo:321};
-        let source   = SourceFile {ast,metadata};
+        let source   = ParsedSourceFile {ast,metadata};
 
         let serialized = source.serialize().unwrap();
         let expected   = r#"main = 2 + 2
@@ -182,10 +183,10 @@ mod test {
 #### METADATA ####
 [[{"index":{"value":7},"size":{"value":5}},"89f29e9f-cd21-4d35-93ce-d6df9333e2cd"]]
 {"foo":321}"#;
-        assert_eq!(serialized.string  , expected.to_string());
-        assert_eq!(serialized.code    , Index::new(0)  ..Index::new(12));
-        assert_eq!(serialized.id_map  , Index::new(34) ..Index::new(117));
-        assert_eq!(serialized.metadata, Index::new(118)..Index::new(129));
+        assert_eq!(serialized.content , expected.to_string());
+        assert_eq!(serialized.code    , ByteIndex::new(0  )..ByteIndex::new(12));
+        assert_eq!(serialized.id_map  , ByteIndex::new(34 )..ByteIndex::new(117));
+        assert_eq!(serialized.metadata, ByteIndex::new(118)..ByteIndex::new(129));
 
         assert_eq!(serialized.code_slice(), "main = 2 + 2");
         assert_eq!(serialized.id_map_slice(),

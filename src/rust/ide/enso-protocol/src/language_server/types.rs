@@ -174,6 +174,7 @@ pub enum FileSystemObject {
 }
 
 
+
 // ================
 // === Position ===
 // ================
@@ -186,23 +187,20 @@ pub struct Position {
     pub character : usize
 }
 
-impl From<data::text::TextLocation> for Position {
-    fn from(location: data::text::TextLocation) -> Self {
-        Position {
-            line      : location.line,
-            character : location.column,
-        }
+impls!{ From + &From <data::text::TextLocation> for Position { |location|
+    Position {
+        line      : location.line,
+        character : location.column,
     }
-}
+}}
 
-impl Into<data::text::TextLocation> for Position {
-    fn into(self) -> data::text::TextLocation {
-        data::text::TextLocation {
-            line   : self.line,
-            column : self.character,
-        }
+impls!{ Into + &Into <data::text::TextLocation> for Position { |this|
+    data::text::TextLocation {
+        line   : this.line,
+        column : this.character,
     }
-}
+}}
+
 
 
 // =================
@@ -217,20 +215,16 @@ pub struct TextRange {
     pub end: Position
 }
 
-impl From<Range<data::text::TextLocation>> for TextRange {
-    fn from(range:Range<data::text::TextLocation>) -> Self {
-        TextRange {
-            start : range.start.into(),
-            end   : range.end.into(),
-        }
+impls!{ From + &From <Range<data::text::TextLocation>> for TextRange { |range|
+    TextRange {
+        start : range.start.into(),
+        end   : range.end.into(),
     }
-}
+}}
 
-impl Into<Range<data::text::TextLocation>> for TextRange {
-    fn into(self) -> Range<data::text::TextLocation> {
-        self.start.into()..self.end.into()
-    }
-}
+impls!{ Into + &Into <Range<data::text::TextLocation>> for TextRange { |this|
+    this.start.into()..this.end.into()
+}}
 
 
 

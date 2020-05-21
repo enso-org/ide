@@ -7,7 +7,7 @@ use crate::model::module::Notification;
 use enso_protocol::types::Sha3_224;
 use enso_protocol::language_server;
 use data::text::TextLocation;
-use parser::api::SerializedSourceFile;
+use parser::api::SourceFile;
 use parser::Parser;
 use enso_protocol::language_server::TextEdit;
 
@@ -25,9 +25,9 @@ struct ContentSummary {
     end_of_file : TextLocation,
 }
 
-/// The information about module's content, which was parsed at least once. In addition to minimal
-/// summery defined in `ContentSummary` it adds information about sections, what enables efficient
-/// updates after code and metadata changes.
+/// The information about module's content. In addition to minimal summery defined in
+/// `ContentSummary` it adds information about sections, what enables efficient updates after code
+/// and metadata changes.
 #[derive(Clone,Debug,Shrinkwrap)]
 struct ParsedContentSummary {
     #[shrinkwrap(main_field)]
@@ -38,17 +38,17 @@ struct ParsedContentSummary {
 }
 
 impl ParsedContentSummary {
-    /// Get summary from `SerializedSourceFile`.
-    fn from_source(source:&SerializedSourceFile) -> Self {
+    /// Get summary from `SourceFile`.
+    fn from_source(source:&SourceFile) -> Self {
         let summary = ContentSummary {
-            digest      : Sha3_224::new(source.string.as_bytes()),
-            end_of_file : TextLocation::at_document_end(&source.string)
+            digest      : Sha3_224::new(source.content.as_bytes()),
+            end_of_file : TextLocation::at_document_end(&source.content)
         };
         ParsedContentSummary {
             summary,
-            code        : TextLocation::convert_range(&source.string,&source.code),
-            id_map      : TextLocation::convert_range(&source.string,&source.id_map),
-            metadata    : TextLocation::convert_range(&source.string,&source.metadata),
+            code        : TextLocation::convert_byte_range(&source.content,&source.code),
+            id_map      : TextLocation::convert_byte_range(&source.content,&source.id_map),
+            metadata    : TextLocation::convert_byte_range(&source.content,&source.metadata),
         }
     }
 }
@@ -71,6 +71,7 @@ impl LanguageServerContent {
         }
     }
 }
+
 
 
 // ===========================
@@ -141,12 +142,12 @@ impl Module {
 impl Module {
     /// The asynchronous task scheduled during struct creation which listens for all module changes
     /// and send proper updates to Language Server.
-    async fn runner(this:Rc<Self>, initial_ls_content: ContentSummary) {
-        let first_invalidation = this.full_invalidation(&initial_ls_content).await;
-        let mut ls_content     = this.new_ls_content_info(initial_ls_content, first_invalidation);
-        let mut subscriber     = this.model.subscribe();
-        let weak               = Rc::downgrade(&this);
-        drop(this);
+    async fn runner(self:Rc<Self>, initial_ls_content: ContentSummary) {
+        let first_invalidation = self.full_invalidation(&initial_ls_content).await;
+        let mut ls_content     = self.new_ls_content_info(initial_ls_content, first_invalidation);
+        let mut subscriber     = self.model.subscribe();
+        let weak               = Rc::downgrade(&self);
+        drop(self);
 
         loop {
             let notification = subscriber.next().await;
@@ -177,7 +178,8 @@ impl Module {
         }
     }
 
-    /// Handle received notification. Returns the new content summery of Language Server state.
+    /// Send to LanguageServer update about received notification about module. Returns the new
+    /// content summery of Language Server state.
     async fn handle_notification
     (&self, content:&LanguageServerContent, notification:Notification)
     -> FallibleResult<ParsedContentSummary> {
@@ -213,7 +215,7 @@ impl Module {
         let range = TextLocation::at_document_begin()..ls_content.end_of_file;
         self.notify_language_server(ls_content,|content| vec![TextEdit {
             range : range.into(),
-            text  : content.string
+            text  : content.content
         }]).await
     }
 
@@ -222,7 +224,7 @@ impl Module {
     async fn notify_language_server
     ( &self
     , ls_content        : &ContentSummary
-    , edits_constructor : impl FnOnce(SerializedSourceFile) -> Vec<TextEdit>
+    , edits_constructor : impl FnOnce(SourceFile) -> Vec<TextEdit>
     ) -> FallibleResult<ParsedContentSummary> {
         let content = self.model.serialized_content()?;
         let summary = ParsedContentSummary::from_source(&content);
@@ -374,8 +376,6 @@ mod test {
         test.when_stalled(move || barrier_snd.send(()).unwrap());
         test.when_stalled(move || *module.borrow_mut() = None);
     }
-
-
 
 
 }

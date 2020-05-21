@@ -133,7 +133,7 @@ impl Handle {
         let path    = self.path.clone_ref();
         let ls      = self.language_server.clone();
         async move {
-            let version = Sha3_224::new(content?.string.as_bytes());
+            let version = Sha3_224::new(content?.content.as_bytes());
             Ok(ls.client.save_text_file(path.file_path(),&version).await?)
         }
     }

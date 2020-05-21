@@ -123,13 +123,12 @@ impl Handle {
             FileHandle::PlainText{..}       => StreamExt::boxed(futures::stream::empty()),
             FileHandle::Module {controller} => {
                 let subscriber = controller.model.subscribe();
-                let mapped     = subscriber.filter_map(Self::map_model_notification);
-                StreamExt::boxed(mapped)
+                subscriber.filter_map(Self::map_module_notification).boxed()
             }
         }
     }
 
-    async fn map_model_notification
+    async fn map_module_notification
     (notification:model::module::Notification) -> Option<Notification> {
         match notification {
             model::module::Notification::Invalidate      |

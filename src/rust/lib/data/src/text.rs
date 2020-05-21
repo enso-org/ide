@@ -28,6 +28,30 @@ impl Index {
     pub fn new(value:usize) -> Self {
         Index {value}
     }
+
+    /// Create char index from the byte index. It must traverse the content to count chars.
+    pub fn convert_byte_index(content:impl Str, index:ByteIndex) -> Self {
+        let slice = &content.as_ref()[..index.value];
+        Self::new(slice.chars().count())
+    }
+}
+
+
+// === ByteIndex ===
+
+/// Strongly typed index of byte in String (which may differ with analogous character index,
+/// because some chars takes more than one byte).
+//TODO[ao] We should use structures from ensogl::,math::topology to represent different quantities
+// and units.
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,Default,Hash,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
+pub struct ByteIndex { pub value:usize }
+
+impl ByteIndex {
+    /// Initializes Index with given value.
+    pub fn new(value:usize) -> Self {
+        ByteIndex {value}
+    }
 }
 
 
@@ -224,9 +248,16 @@ impl TextLocation {
         Self::from_index(content,range.start)..Self::from_index(content,range.end)
     }
 
-    fn after_chars<CharsIter,IntoCharsIter>(chars:IntoCharsIter) -> Self
-    where CharsIter     : Iterator<Item=char> + Clone,
-          IntoCharsIter : IntoIterator<Item=char, IntoIter=CharsIter> {
+    /// Converts a range in bytes into a range of TextLocation. It iterates over all characters
+    /// before range's end.
+    pub fn convert_byte_range(content:impl Str, range:&Range<ByteIndex>) -> Range<Self> {
+        let start = Index::convert_byte_index(content.as_ref(), range.start);
+        let end   = Index::convert_byte_index(content.as_ref(), range.end);
+        Self::convert_range(content,&(start..end))
+    }
+
+    fn after_chars<IntoCharsIter>(chars:IntoCharsIter) -> Self
+    where IntoCharsIter : IntoIterator<Item=char, IntoIter:Clone> {
         let iter             = chars.into_iter();
         let len              = iter.clone().into_iter().count();
         let newlines         = iter.enumerate().filter(|(_,c)| *c == '\n');

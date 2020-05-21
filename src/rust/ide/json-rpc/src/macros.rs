@@ -116,6 +116,7 @@ macro_rules! make_rpc_methods {
         // ==================
 
         /// Utilities for mocking client.
+        // TODO[ao] This whole environment should be replaced with mock-all crate.
         pub mod mock {
             use super::*;
 

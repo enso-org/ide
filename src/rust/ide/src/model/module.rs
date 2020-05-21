@@ -4,14 +4,14 @@ use crate::prelude::*;
 use crate::notification;
 use crate::double_representation::definition::DefinitionInfo;
 
+use data::text::TextChange;
+use data::text::TextLocation;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use parser::api::SourceFile;
-use parser::api::SerializedSourceFile;
+use parser::api::ParsedSourceFile;
 use serde::Serialize;
 use serde::Deserialize;
-use data::text::TextChange;
-use data::text::TextLocation;
 
 
 
@@ -36,11 +36,12 @@ pub enum Notification {
     /// The whole content is invalidated.
     Invalidate,
     /// The code has been edited. That involves also a change in module's id_map.
-    CodeChanged{
+    CodeChanged {
         /// The code change description.
         change:TextChange,
         /// Information about line:col position of replaced fragment.
-        replaced_location:Range<TextLocation>},
+        replaced_location:Range<TextLocation>
+    },
     /// The metadata (e.g. some node's position) has been changed.
     MetadataChanged,
 }
@@ -58,7 +59,7 @@ pub struct Metadata {
     #[serde(default="default")]
     pub ide : IdeMetadata,
     #[serde(flatten)]
-    /// Metadata of other users of SourceFile<Metadata> API.
+    /// Metadata of other users of ParsedSourceFile<Metadata> API.
     /// Ide should not modify this part of metadata.
     rest : serde_json::Value,
 }
@@ -101,7 +102,7 @@ impl Position {
 // ==============
 
 /// A type describing content of the module: the ast and metadata.
-pub type Content = SourceFile<Metadata>;
+pub type Content = ParsedSourceFile<Metadata>;
 
 /// A structure describing the module.
 ///
@@ -125,7 +126,7 @@ impl Module {
     /// Create state with given content.
     pub fn new(ast:ast::known::Module, metadata:Metadata) -> Self {
         Module {
-            content       : RefCell::new(SourceFile{ast,metadata}),
+            content       : RefCell::new(ParsedSourceFile{ast,metadata}),
             notifications : default(),
         }
     }
@@ -137,7 +138,7 @@ impl Module {
     }
 
     /// Get module sources as a string, which contains both code and metadata.
-    pub fn serialized_content(&self) -> FallibleResult<SerializedSourceFile> {
+    pub fn serialized_content(&self) -> FallibleResult<SourceFile> {
         self.content.borrow().serialize().map_err(|e| e.into())
     }
 
@@ -252,7 +253,7 @@ mod test {
             // Whole update
             let mut metadata = Metadata::default();
             metadata.ide.node.insert(id,node_metadata);
-            module.update_whole(SourceFile{ast:new_module_ast, metadata});
+            module.update_whole(ParsedSourceFile{ast:new_module_ast, metadata});
             assert_eq!(Some(Notification::Invalidate), subscription.next().await);
 
             // No more notifications emitted

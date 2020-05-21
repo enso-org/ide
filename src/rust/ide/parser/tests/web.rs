@@ -4,7 +4,7 @@ use ast::Ast;
 use ast::IdMap;
 use data::text::*;
 use parser::Parser;
-use parser::api::SourceFile;
+use parser::api::ParsedSourceFile;
 
 use uuid::Uuid;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -43,7 +43,7 @@ fn web_test() {
 
     let deserialize_metadata = || {
         let ast  = ast::known::Module::new(line(None), None);
-        let file = SourceFile {ast, metadata: serde_json::json!({})};
+        let file = ParsedSourceFile {ast, metadata: serde_json::json!({})};
         let code = String::try_from(&file).unwrap();
         assert_eq!(parser.parse_with_metadata(code).unwrap(), file);
     };
