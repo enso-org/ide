@@ -8,7 +8,6 @@ use crate::visualization::*;
 use ensogl::display::Scene;
 use ensogl::display;
 use std::error::Error;
-use enso_prelude::CloneRef;
 
 
 
