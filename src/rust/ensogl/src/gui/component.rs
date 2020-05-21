@@ -28,24 +28,32 @@ use enso_frp as frp;
 #[allow(missing_docs)]
 pub struct ShapeViewEvents {
     pub network    : frp::Network,
+    pub dropped    : frp::Stream,
     pub mouse_down : frp::Source,
     pub mouse_over : frp::Source,
     pub mouse_out  : frp::Source,
 }
 
-impl Default for ShapeViewEvents {
-    fn default() -> Self {
-        frp::new_network! { shape_view
-            def mouse_down = source_();
-            def mouse_over = source_();
-            def mouse_out  = source_();
+impl ShapeViewEvents {
+    fn new(display_object:&display::object::Instance) -> Self {
+        frp::new_network! { TRACE_ALL shape_view
+            dropped    <- display_object.frp.dropped.constant(());
+            mouse_down <- source_();
+            mouse_over <- source_();
+            mouse_out  <- source_();
+
+            is_mouse_over <- [mouse_over,mouse_out].toggle();
+            out_on_drop   <- dropped.gate(&is_mouse_over);
+            eval_ out_on_drop (mouse_out.emit(()));
         }
         let network = shape_view;
-        Self {network,mouse_down,mouse_over,mouse_out}
+        let dropped = dropped.into();
+        Self {network,dropped,mouse_down,mouse_over,mouse_out}
     }
 }
 
 impl MouseTarget for ShapeViewEvents {
+    fn dropped    (&self) -> &frp::Stream { &self.dropped }
     fn mouse_down (&self) -> &frp::Source { &self.mouse_down }
     fn mouse_over (&self) -> &frp::Source { &self.mouse_over }
     fn mouse_out  (&self) -> &frp::Source { &self.mouse_out  }
@@ -86,10 +94,10 @@ impl<S:Shape> ShapeView<S> {
     /// Constructor.
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let display_object = display::object::Instance::new(logger);
-        let events         = ShapeViewEvents::default();
 //        let data           = default();
         let shape_registry: &ShapeRegistry = &scene.shapes;
-        let shape = shape_registry.new_instance::<S>();
+        let shape          = shape_registry.new_instance::<S>();
+        let events         = ShapeViewEvents::new(&shape.display_object());
         display_object.add_child(&shape);
         for sprite in shape.sprites() {
             let events      = events.clone_ref();

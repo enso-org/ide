@@ -160,6 +160,12 @@ pub struct Manager {
     port_networks  : Rc<RefCell<Vec<frp::Network>>>,
 }
 
+impl Drop for Manager {
+    fn drop(&mut self) {
+        println!("Manager DROP")
+    }
+}
+
 impl Manager {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         frp::new_network! { network

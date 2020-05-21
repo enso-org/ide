@@ -13,6 +13,7 @@ use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
 use nalgebra::Vector3;
 use transform::CachedTransform;
+use enso_frp as frp;
 
 
 
@@ -144,6 +145,35 @@ impl DirtyFlags {
 
 
 
+
+// ===========
+// === Frp ===
+// ===========
+
+#[derive(Debug)]
+pub struct Frp {
+    pub network : frp::Network,
+    pub dropped : frp::Source,
+}
+
+impl Frp {
+    /// Constructor.
+    pub fn new() -> Self {
+        frp::new_network! { network
+            dropped <- source();
+        }
+        Self {network,dropped}
+    }
+}
+
+impl Default for Frp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
+
 // ================
 // === NodeData ===
 // ================
@@ -159,6 +189,7 @@ pub struct NodeData {
     visible          : Cell<bool>,
     callbacks        : Callbacks,
     logger           : Logger,
+    pub frp          : Frp,
 }
 
 impl NodeData {
@@ -171,7 +202,8 @@ impl NodeData {
         let dirty            = DirtyFlags::new(&logger);
         let visible          = Cell::new(true);
         let callbacks        = default();
-        Self {logger,parent_bind,children,event_dispatcher,transform,visible,callbacks,dirty}
+        let frp              = default();
+        Self {logger,parent_bind,children,event_dispatcher,transform,visible,callbacks,dirty,frp}
     }
 
     pub fn is_visible(&self) -> bool {
@@ -380,6 +412,7 @@ impl NodeData {
     }
 }
 
+
 // === Getters ===
 
 impl NodeData {
@@ -408,6 +441,7 @@ impl NodeData {
         self.transform.get().matrix()
     }
 }
+
 
 // === Setters ===
 
@@ -474,15 +508,10 @@ impl NodeData {
     }
 }
 
-impl Display for Instance {
-    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Instance")
-    }
-}
-
-impl Debug for Instance {
-    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Instance")
+impl Drop for NodeData {
+    fn drop(&mut self) {
+        self.logger.warning("DROP");
+        self.frp.dropped.emit(());
     }
 }
 
@@ -497,9 +526,9 @@ pub struct Id(usize);
 
 
 
-// ============
+// ================
 // === Instance ===
-// ============
+// ================
 
 #[derive(Clone,CloneRef,Shrinkwrap)]
 pub struct Instance {
@@ -605,6 +634,18 @@ impl Instance {
 impl PartialEq for Instance {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc,&other.rc)
+    }
+}
+
+impl Display for Instance {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Instance")
+    }
+}
+
+impl Debug for Instance {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Instance")
     }
 }
 
