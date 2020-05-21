@@ -23,7 +23,7 @@ use ensogl::gui::component::animation;
 use ensogl::gui::component::animation2;
 use ensogl::gui::component;
 
-use super::connection::Connection;
+use super::edge::Edge;
 use crate::component::visualization;
 
 
@@ -359,7 +359,7 @@ impl NodeModel {
     pub fn new(scene:&Scene, network:&frp::Network) -> Self {
 
         let logger  = Logger::new("node");
-        let _connection = Connection::new(scene); // FIXME hack for sorting
+        let _connection = Edge::new(scene); // FIXME hack for sorting
 
         let output_area = component::ShapeView::<output_area::Shape>::new(&logger.sub("output_area"),scene);
         let main_area   = component::ShapeView::<shape::Shape>::new(&logger.sub("main_area"),scene);

@@ -39,10 +39,7 @@ use ensogl::prelude::*;
 use ensogl::traits::*;
 use ensogl::application::shortcut;
 
-use crate::component::cursor::Cursor;
 use crate::component::node;
-use crate::component::node::Node as NodeView;
-use crate::component::connection::Connection as EdgeView;
 use enso_frp as frp;
 use enso_frp::io::keyboard;
 use enso_frp::Position;
@@ -486,7 +483,7 @@ generate_frp_outputs! {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Node {
-    pub view      : NodeView,
+    pub view      : component::Node,
     pub in_edges  : SharedHashSet<EdgeId>,
     pub out_edges : SharedHashSet<EdgeId>,
 }
@@ -495,7 +492,7 @@ pub struct Node {
 pub struct NodeId(pub Id);
 
 impl Node {
-    pub fn new(view:NodeView) -> Self {
+    pub fn new(view:component::Node) -> Self {
         let in_edges  = default();
         let out_edges = default();
         Self {view,in_edges,out_edges}
@@ -520,7 +517,7 @@ impl display::Object for Node {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Edge {
-    pub view : EdgeView,
+    pub view : component::Edge,
     source   : Rc<RefCell<Option<EdgeTarget>>>,
     target   : Rc<RefCell<Option<EdgeTarget>>>,
 }
@@ -529,7 +526,7 @@ pub struct Edge {
 pub struct EdgeId(pub Id);
 
 impl Edge {
-    pub fn new(view:EdgeView) -> Self {
+    pub fn new(view:component::Edge) -> Self {
         let source = default();
         let target = default();
         Self {view,source,target}
@@ -745,14 +742,14 @@ impl Deref for GraphEditorModelWithNetwork {
 }
 
 impl GraphEditorModelWithNetwork {
-    pub fn new<S:Into<Scene>>(scene:S, cursor:Cursor) -> Self {
+    pub fn new<S:Into<Scene>>(scene:S, cursor:component::Cursor) -> Self {
         let network = frp::Network::new();
         let model   = GraphEditorModel::new(scene,cursor,&network);
         Self {model,network}
     }
 
     fn new_node(&self, outputs:&UnsealedFrpOutputs) -> NodeId {
-        let view = NodeView::new(&self.scene);
+        let view = component::Node::new(&self.scene);
         let node = Node::new(view);
         let node_id = node.id();
         self.add_child(&node);
@@ -771,7 +768,7 @@ impl GraphEditorModelWithNetwork {
             ));
             def new_edge = node.view.frp.output_ports.mouse_down.map(f_!([model] {
                 if let Some(node) = model.nodes.get_cloned_ref(&node_id) {
-                    let view = EdgeView::new(&model.scene);
+                    let view = component::Edge::new(&model.scene);
                     model.add_child(&view);
                     let edge = Edge::new(view);
                     let edge_id = edge.id();
@@ -819,7 +816,7 @@ pub struct GraphEditorModel {
     pub logger         : Logger,
     pub display_object : display::object::Instance,
     pub scene          : Scene,
-    pub cursor         : Cursor,
+    pub cursor         : component::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
     touch_state        : TouchState,
@@ -829,7 +826,7 @@ pub struct GraphEditorModel {
 // === Public ===
 
 impl GraphEditorModel {
-    pub fn new<S:Into<Scene>>(scene:S, cursor:Cursor, network:&frp::Network) -> Self {
+    pub fn new<S:Into<Scene>>(scene:S, cursor:component::Cursor, network:&frp::Network) -> Self {
         let scene          = scene.into();
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(logger.clone());
@@ -841,7 +838,7 @@ impl GraphEditorModel {
     }
 
     fn new_edge(&self) -> EdgeId {
-        let edge = Edge::new(EdgeView::new(&self.scene));
+        let edge = Edge::new(component::Edge::new(&self.scene));
         self.add_child(&edge);
         self.edges.insert(edge.clone_ref());
         edge.id()
@@ -1186,7 +1183,7 @@ impl Default for SelectionMode {
 #[allow(unused_parens)]
 fn new_graph_editor(world:&World) -> GraphEditor {
     let scene  = world.scene();
-    let cursor = Cursor::new(world.scene());
+    let cursor = component::Cursor::new(world.scene());
     web::body().set_style_or_panic("cursor","none");
     world.add_child(&cursor);
 
@@ -1372,7 +1369,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }
 
 
-    // === Set NodeView Expression ===
+    // === Set component::Node Expression ===
     frp::extend! { network
 
     outputs.node_expression_set <+ inputs.set_node_expression;
@@ -1482,7 +1479,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
 
 
-    // === Connection discovery ===
+    // === Edge discovery ===
 
     edge_endpoint_set          <- [outputs.edge_source_set,outputs.edge_target_set]._0();
     both_endpoints_set         <- edge_endpoint_set.map(f!((id) model.is_connection(id)));

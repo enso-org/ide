@@ -1,4 +1,4 @@
-//! Definition of the Connection component.
+//! Definition of the Edge component.
 
 #![allow(missing_docs)]
 // WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
@@ -19,9 +19,9 @@ use ensogl::gui::component;
 
 
 
-// ==================
-// === Connection ===
-// ==================
+// ============
+// === Edge ===
+// ============
 
 /// Canvas node shape definition.
 pub mod shape {
@@ -79,17 +79,17 @@ const PADDING    : f32 = 5.0;
 
 
 
-// ==================
-// === Connection ===
-// ==================
+// ============
+// === Edge ===
+// ============
 
-/// Connection definition.
+/// Edge definition.
 #[derive(AsRef,Clone,CloneRef,Debug,Deref)]
-pub struct Connection {
-    data : Rc<ConnectionData>,
+pub struct Edge {
+    data : Rc<EdgeData>,
 }
 
-impl AsRef<Connection> for Connection {
+impl AsRef<Edge> for Edge {
     fn as_ref(&self) -> &Self {
         self
     }
@@ -120,10 +120,10 @@ impl Default for InputEvents {
 }
 
 
-/// Internal data of `Connection`
+/// Internal data of `Edge`
 #[derive(Debug)]
 #[allow(missing_docs)]
-pub struct ConnectionData {
+pub struct EdgeData {
     pub object          : display::object::Instance,
     pub logger          : Logger,
     pub events          : InputEvents,
@@ -134,7 +134,7 @@ pub struct ConnectionData {
     pub target_position : Rc<Cell<frp::Position>>,
 }
 
-impl Connection {
+impl Edge {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
         let logger    = Logger::new("edge");
@@ -207,13 +207,13 @@ impl Connection {
         }
 
         let events = input;
-        let data = Rc::new(ConnectionData {object,logger,events,corner,side_line,main_line
+        let data = Rc::new(EdgeData {object,logger,events,corner,side_line,main_line
                                           ,source_width,target_position});
         Self {data}
     }
 }
 
-impl display::Object for Connection {
+impl display::Object for Edge {
     fn display_object(&self) -> &display::object::Instance {
         &self.object
     }
