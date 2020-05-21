@@ -86,7 +86,7 @@ impl Handle {
     async fn list_file_visualisations(&self) -> FallibleResult<Vec<VisualisationIdentifier>> {
         let root_id   = self.language_server_rpc.content_root();
         let path      = language_server::Path::new(root_id,&[VISUALISATION_FOLDER]);
-        let file_list = self.language_server_rpc.file_list(path).await?;
+        let file_list = self.language_server_rpc.file_list(&path).await?;
         let result    = file_list.paths.iter().filter_map(|object| {
             if let language_server::FileSystemObject::File{name,path} = object {
                 let mut path = path.clone();
@@ -105,7 +105,7 @@ impl Handle {
 
     fn list_embedded_visualisations(&self) -> Vec<VisualisationIdentifier> {
         let result = self.embedded_visualisations.keys().cloned();
-        let result = result.map(|identifier| VisualisationIdentifier::Embedded(identifier));
+        let result = result.map(VisualisationIdentifier::Embedded);
         result.collect()
     }
 
@@ -127,7 +127,7 @@ impl Handle {
                 result.cloned().ok_or_else(error)
             },
             VisualisationIdentifier::File(path) =>
-                Ok(self.language_server_rpc.read_file(path.clone()).await?.contents)
+                Ok(self.language_server_rpc.read_file(&path).await?.contents)
         }
     }
 }

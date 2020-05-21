@@ -5,8 +5,8 @@ use ensogl::system::web;
 use ensogl::application::Application;
 use wasm_bindgen::prelude::*;
 use ensogl_core_msdf_sys::run_once_initialized;
-use graph_editor::component::visualization::NativeConstructorFactory;
-use graph_editor::component::visualization::Metadata;
+use graph_editor::component::visualization::NativeConstructorClass;
+use graph_editor::component::visualization::ClassAttributes;
 use graph_editor::component::visualization::Visualization;
 use graph_editor::component::visualization::JsRenderer;
 use graph_editor::component::visualization::Data;
@@ -88,25 +88,25 @@ fn init(app:&Application) {
     let scene      = world.scene();
     let camera     = scene.camera();
     let navigator  = Navigator::new(&scene,&camera);
-    let registry   = Registry::with_default_visualisations();
+    let registry   = Registry::with_default_visualizations();
 
-    registry.register_factory(NativeConstructorFactory::new(
-        Metadata {
+    registry.register_class(NativeConstructorClass::new(
+        ClassAttributes {
             name        : "Graph (JS)".to_string(),
             input_types : vec!["[[float;2]]".to_string().into()],
         },
-        Rc::new(|scene:&Scene| {
+        |scene:&Scene| {
             let renderer = constructor_sample_js_bubble_chart();
             renderer.set_dom_layer(&scene.dom.layers.front);
             Ok(Visualization::new(renderer))
-        })
+        }
     ));
 
-    let vis_factories  = registry.valid_sources(&"[[float;2]]".into());
-    let vis_factory    = vis_factories.iter().find(|factory| {
-        factory.metadata().name == "Graph (JS)"
-    }).expect("Couldn't find Graph (JS) factory.");
-    let visualisation = vis_factory.instantiate(&scene).expect("Couldn't create visualiser.");
+    let vis_factories = registry.valid_sources(&"[[float;2]]".into());
+    let vis_class     = vis_factories.iter().find(|class| {
+        class.attributes().name == "Graph (JS)"
+    }).expect("Couldn't find Graph (JS) class.");
+    let visualisation = vis_class.instantiate(&scene).expect("Couldn't create visualiser.");
 
     let mut was_rendered = false;
     let mut loader_hidden = false;
