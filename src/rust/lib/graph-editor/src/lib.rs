@@ -356,7 +356,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes       : frp::Source<Position>,
     pub cycle_visualization            : frp::Source<NodeId>,
     pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
-    pub register_visualization_class   : frp::Source<Option<Rc<visualization::ClassHandle>>>,
+    pub register_visualization_class   : frp::Source<Option<Rc<visualization::Handle>>>,
 }
 
 impl FrpInputs {

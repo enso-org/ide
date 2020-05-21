@@ -241,15 +241,15 @@ pub trait Class: Debug {
 
 #[derive(Clone,Debug,Default)]
 #[allow(missing_docs)]
-pub struct ClassHandle {
+pub struct Handle {
     class : Option<Rc<dyn Class>>
 }
 
-impl ClassHandle {
+impl Handle {
     /// Constructor.
-    pub fn new<T: Class + 'static>(class: T) -> ClassHandle {
+    pub fn new<T: Class + 'static>(class: T) -> Handle {
         let wrapped = Rc::new(class);
-        ClassHandle{class:Some(wrapped)}
+        Handle {class:Some(wrapped)}
     }
 
     /// Return the inner class.
@@ -258,7 +258,7 @@ impl ClassHandle {
     }
 }
 
-impl CloneRef for ClassHandle {}
+impl CloneRef for Handle {}
 
 
 
