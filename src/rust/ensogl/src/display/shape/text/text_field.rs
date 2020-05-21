@@ -10,29 +10,28 @@ pub mod word_occurrence;
 
 use crate::prelude::*;
 
-use crate::display;
+use crate::data::color;
 use crate::display::object::traits::*;
+use crate::display::shape::text::glyph::font;
 use crate::display::shape::text::text_field::content::location::TextLocationChange;
 use crate::display::shape::text::text_field::content::TextFieldContent;
-use crate::display::shape::text::text_field::cursor::Cursors;
 use crate::display::shape::text::text_field::cursor::Cursor;
 use crate::display::shape::text::text_field::cursor::CursorId;
-use crate::display::shape::text::text_field::cursor::Step;
 use crate::display::shape::text::text_field::cursor::CursorNavigation;
+use crate::display::shape::text::text_field::cursor::Cursors;
+use crate::display::shape::text::text_field::cursor::Step;
 use crate::display::shape::text::text_field::frp::TextFieldFrp;
-use crate::display::shape::text::text_field::word_occurrence::WordOccurrences;
-use crate::display::shape::text::glyph::font::FontHandle;
-use crate::display::shape::text::glyph::font::FontRegistry;
-use crate::display::shape::text::text_field::render::TextFieldSprites;
 use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignmentUpdate;
+use crate::display::shape::text::text_field::render::TextFieldSprites;
+use crate::display::shape::text::text_field::word_occurrence::WordOccurrences;
 use crate::display::world::World;
+use crate::display;
 use crate::system::web::text_input::KeyboardBinding;
 
 use data::text::TextChange;
 use data::text::TextLocation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
-use nalgebra::Vector4;
 
 
 
@@ -77,13 +76,12 @@ impl FocusManager {
 /// A display properties of TextField.
 #[derive(Debug)]
 pub struct TextFieldProperties {
-    /// FontHandle used for rendering text.
-    pub font: FontHandle,
+    /// Font handle used for rendering text.
+    pub font: font::Handle,
     /// Text size being a line height in pixels.
     pub text_size: f32,
     /// Base color of displayed text.
-    //TODO: base_color should use definitions in core/data/color
-    pub base_color: Vector4<f32>,
+    pub base_color: color::Rgba,
     /// Size of this component.
     pub size: Vector2<f32>,
 }
@@ -92,11 +90,11 @@ impl TextFieldProperties {
     const DEFAULT_FONT_FACE:&'static str = "DejaVuSansMono";
 
     /// A default set of properties.
-    pub fn default(fonts:&mut FontRegistry) -> Self {
+    pub fn default(fonts:&mut font::Registry) -> Self {
         TextFieldProperties {
             font      : fonts.get_or_load_embedded_font(Self::DEFAULT_FONT_FACE).unwrap(),
             text_size : 16.0,
-            base_color: Vector4::new(1.0, 1.0, 1.0, 1.0),
+            base_color: color::Rgba::new(1.0,1.0,1.0,0.0),
             size      : Vector2::new(100.0,100.0),
         }
     }

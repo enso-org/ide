@@ -6,18 +6,18 @@ use crate::prelude::*;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
+use crate::view::node_editor::NodeEditor;
+use crate::view::node_searcher::NodeSearcher;
 
+use enso_frp::io::keyboard;
+use ensogl::application::Application;
+use ensogl::display::shape::text::glyph::font;
 use ensogl::display::traits::*;
 use ensogl::display::world::World;
-use enso_frp::io::keyboard;
-use nalgebra::zero;
 use nalgebra::Vector2;
-use std::rc::Rc;
+use nalgebra::zero;
 use std::cell::RefCell;
-use ensogl::application::Application;
-use crate::view::node_editor::NodeEditor;
-use ensogl::display::shape::text::glyph::font::FontRegistry;
-use crate::view::node_searcher::NodeSearcher;
+use std::rc::Rc;
 
 
 
@@ -91,15 +91,15 @@ impl ViewLayout {
     ( logger           : &Logger
     , kb_actions       : &mut keyboard::Actions
     , application      : &Application
-    , text_controller  : controller::text::Handle
-    , graph_controller : controller::graph::Handle
-    , fonts            : &mut FontRegistry
+    , text_controller  : controller::Text
+    , graph_controller : controller::ExecutedGraph
+    , fonts            : &mut font::Registry
     ) -> Self {
         let logger        = logger.sub("ViewLayout");
         let world         = &application.display;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
-        let node_editor   = NodeEditor::new(&logger,application,graph_controller.clone());
-        let node_searcher = NodeSearcher::new(world,&logger,graph_controller,fonts);
+        let node_editor   = NodeEditor::new(&logger,application,graph_controller.clone_ref());
+        let node_searcher = NodeSearcher::new(world,&logger,graph_controller.graph.clone_ref(),fonts);
         world.add_child(&text_editor.display_object());
         world.add_child(&node_editor);
         world.add_child(&node_searcher);

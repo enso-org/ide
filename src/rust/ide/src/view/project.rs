@@ -8,7 +8,7 @@ use crate::view::layout::ViewLayout;
 
 use ensogl::control::callback;
 use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
-use ensogl::display::shape::text::glyph::font::FontRegistry;
+use ensogl::display::shape::text::glyph::font;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
@@ -73,12 +73,13 @@ impl ProjectView {
     pub async fn new(logger:&Logger, controller:controller::Project)
     -> FallibleResult<Self> {
         let root_id              = controller.language_server_rpc.content_root();
-        let path                 = controller::module::Path::new(root_id,&INITIAL_FILE_PATH);
+        let path                 = controller::FilePath::new(root_id,&INITIAL_FILE_PATH);
         let text_controller      = controller.text_controller(path.clone()).await?;
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
-        let module_controller    = controller.module_controller(path).await?;
-        let graph_controller     = module_controller.graph_controller_unchecked(graph_id);
+        let module_controller    = controller.module_controller(path.try_into()?).await?;
+        let graph_controller     = module_controller.executed_graph_controller_unchecked(graph_id);
+        let graph_controller     = graph_controller.await?;
         let application          = Application::new(&web::get_html_element_by_id("root").unwrap());
         let _world               = &application.display;
         // graph::register_shapes(&world);
@@ -87,11 +88,11 @@ impl ProjectView {
         let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
         let mut keyboard_actions = keyboard::Actions::new(&keyboard);
         let resize_callback      = None;
-        let mut fonts            = FontRegistry::new();
-        let layout               = ViewLayout::new
-            (&logger,&mut keyboard_actions,&application,text_controller,graph_controller,&mut fonts);
-        let data = ProjectViewData
-            {application,layout,resize_callback,controller,keyboard,keyboard_bindings,keyboard_actions};
+        let mut fonts            = font::Registry::new();
+        let layout               = ViewLayout::new(&logger,&mut keyboard_actions,&application,
+            text_controller,graph_controller,&mut fonts);
+        let data = ProjectViewData {application,layout,resize_callback,controller,keyboard,
+            keyboard_bindings,keyboard_actions};
         Ok(Self::new_from_data(data).init())
     }
 

@@ -38,8 +38,8 @@ pub fn decode_result<Ret:DeserializeOwned>
     match result {
         messages::Result::Success(ret) =>
             Ok(serde_json::from_value::<Ret>(ret.result)?),
-        messages::Result::Error(err) =>
-            Err(RpcError::RemoteError(err)),
+        messages::Result::Error {error} =>
+            Err(RpcError::RemoteError(error)),
     }
 }
 
@@ -175,7 +175,7 @@ impl<Notification> {
     }
 
     /// Sends a text message to the peer.
-    pub fn send_text_message(&mut self, text:String) -> std::result::Result<(), failure::Error> {
+    pub fn send_text_message(&mut self, text:&str) -> std::result::Result<(), failure::Error> {
         self.transport.send_text(text)
     }
 
@@ -234,18 +234,45 @@ impl<Notification> Handler<Notification> {
     /// reply message. It is automatically decoded into the expected type.
     pub fn open_request<In:api::RemoteMethodCall>
     (&self, input:In) -> impl Future<Output = Result<In::Returned>> {
+        let id      = self.generate_new_id();
+        let message = api::into_request_message(input,id);
+        let serialized_message = serde_json::to_string(&message).unwrap();
+        self.open_request_with_message(id,&serialized_message)
+    }
+
+    /// Sends a request to the peer and returns a `Future` that shall yield a reply message.
+    ///
+    /// This method exists to workaround a Rust compiler issue preventing using any kind of
+    /// non-static generic types together with `impl trait` return syntax when the returned type may
+    /// be required to be static. See: https://github.com/rust-lang/rust/issues/42940
+    ///
+    /// We avoid this by removing `api::RemoteMethodCall`-trait-bound type parameter (which would
+    /// include a lifetime) and by passing JSON and method named obtained from it separately.
+    /// This is suboptimal but still less evil than cloning all input arguments like before.
+    ///
+    /// FIXME: when possible unify with `open_request`
+    pub fn open_request_with_json<Returned:DeserializeOwned>
+    (&self, method_name:&str, input:&serde_json::Value) -> impl Future<Output = Result<Returned>> {
+        let id      = self.generate_new_id();
+        let message = crate::messages::Message::new_request(id,method_name,input);
+        let serialized_message = serde_json::to_string(&message).unwrap();
+        self.open_request_with_message(id,&serialized_message)
+    }
+
+    /// Sends a request to the peer and returns a `Future` that shall yield a reply message.
+    ///
+    /// Helper common \code for `open_request` and `open_request_with_json`. See
+    /// `open_request_with_json` docstring for more information.
+    pub fn open_request_with_message<Returned:DeserializeOwned>
+    (&self, id:Id, message_json:&str) -> impl Future<Output = Result<Returned>> {
         let (sender, receiver) = oneshot::channel::<ReplyMessage>();
         let ret                = receiver.map(|result_or_cancel| {
             let result = result_or_cancel?;
             decode_result(result)
         });
 
-        let id      = self.generate_new_id();
-        let message = api::into_request_message(input,id);
-        self.insert_ongoing_request(message.payload.id, sender);
-
-        let serialized_message = serde_json::to_string(&message).unwrap();
-        if self.send_text_message(serialized_message).is_err() {
+        self.insert_ongoing_request(id,sender);
+        if self.send_text_message(message_json).is_err() {
             // If message cannot be send, future ret must be cancelled.
             self.remove_ongoing_request(id);
         }
@@ -291,7 +318,7 @@ impl<Notification> Handler<Notification> {
     /// `Notification` JSON-serialized format. Otherwise, an error is raised.
     pub fn process_incoming_message(&self, message:String)
     where Notification: DeserializeOwned {
-        match messages::decode_incoming_message(message) {
+        match messages::decode_incoming_message(&message) {
             Ok(messages::IncomingMessage::Response(response)) =>
                 self.process_response(response),
             Ok(messages::IncomingMessage::Notification(notification)) =>
@@ -315,6 +342,8 @@ impl<Notification> Handler<Notification> {
         match event {
             TransportEvent::TextMessage(msg) =>
                 self.process_incoming_message(msg),
+            TransportEvent::BinaryMessage(data) =>
+                self.error_occurred(HandlingError::UnexpectedBinaryMessage(data)),
             TransportEvent::Opened => {}
             TransportEvent::Closed => {
                 // Dropping all ongoing calls will cancel their futures.

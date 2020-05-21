@@ -1,28 +1,36 @@
 //! Definition of the Node component.
 
+#![allow(missing_docs)]
+// WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
+
 pub mod port;
+
+pub use port::Expression;
 
 use crate::prelude::*;
 
-use crate::component::node::port::Registry;
-use crate::component::visualization;
-
 use enso_frp;
 use enso_frp as frp;
-use ensogl::data::color::*;
-use ensogl::data::color::Srgba;
+use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
-use ensogl::display::scene::ShapeRegistry;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::animation;
+use ensogl::gui::component::animation2;
 use ensogl::gui::component;
-use ensogl::math::topology::unit::AngleOps;
 
+use super::connection::Connection;
+use crate::component::visualization;
+
+
+
+// =============
+// === Icons ===
+// =============
 
 /// Icons definitions.
 pub mod icons {
@@ -51,9 +59,9 @@ pub mod icons {
         let rect3 = rect3 - rect2.translate_y(&offset);
         let rect2 = rect2 - rect1.translate_y(&offset);
 
-        let rect1 = rect1.fill(Srgba::new(0.26, 0.69, 0.99, 1.00));
-        let rect2 = rect2.fill(Srgba::new(0.26, 0.69, 0.99, 0.6));
-        let rect3 = rect3.fill(Srgba::new(0.26, 0.69, 0.99, 0.4));
+        let rect1 = rect1.fill(color::Rgba::new(0.26, 0.69, 0.99, 1.00));
+        let rect2 = rect2.fill(color::Rgba::new(0.26, 0.69, 0.99, 0.6));
+        let rect3 = rect3.fill(color::Rgba::new(0.26, 0.69, 0.99, 0.4));
 
         let icon = (rect3 + rect2 + rect1).translate_y(-persp_diff2/2.0);
         icon.into()
@@ -80,10 +88,12 @@ pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
     let ring    = &outer - &inner;
     let pie     = &ring * &section;
     let out     = &pie + &corner1 + &corner2;
-    let out     = out.fill(Srgba::new(0.9,0.9,0.9,1.0));
+    let out     = out.fill(color::Rgba::new(0.9,0.9,0.9,1.0));
     out.into()
 }
 
+
+const NODE_SHAPE_PADDING : f32 = 40.0;
 
 
 // ============
@@ -95,31 +105,108 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, selection:f32, creation:f32) {
-            style.get("node.radius").number().unwrap_or(32.0); // FIXME: this is not used yet
+        (style:Style, selection:f32) {
+            let bg_color = style.get("graph_editor.node.background.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
+            let selection_color = style.get("graph_editor.node.selection.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
+            let selection_size  = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
+
             let border_size_f = 16.0;
-            let node_radius   = 32.0.px() * creation;
-            let border_size   = border_size_f.px();
 
-            let node = Circle(&node_radius);
-            let node = node.fill(Srgb::new(0.97,0.96,0.95));
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
+            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
+            let radius = 14.px();
+            let shape  = Rect((&width,&height)).corners_radius(radius);
+            let shape  = shape.fill(color::Rgba::from(bg_color));
 
-            let shadow       = Circle(&node_radius + &border_size);
-            let shadow_color = LinearGradient::new()
-                .add(0.0,Srgba::new(0.0,0.0,0.0,0.0).into_linear())
-                .add(1.0,Srgba::new(0.0,0.0,0.0,0.14).into_linear());
-            let shadow_color = SdfSampler::new(shadow_color).max_distance(border_size_f).slope(Slope::Exponent(4.0));
-            let shadow       = shadow.fill(shadow_color);
 
-            let selection_ring = Circle(&node_radius - 1.px() + &border_size * selection);
-            let selection_ring = selection_ring.fill(Srgba::new(0.22,0.83,0.54,1.0));
+            // === Shadow ===
 
-            let loader_angle : Var<Angle<Radians>> = "Radians(clamp(input_time/2000.0 - 1.0) * 1.99 * PI)".into();
-            let loader        = ring_angle(&node_radius, &border_size, &loader_angle);
-            let loader        = loader.rotate(loader_angle / 2.0);
-            let loader        = loader.rotate("Radians(input_time/200.0)");
-            let icon          = icons::history();
-            let out           = loader + selection_ring + shadow + node + icon;
+            let shadow_size   = 14.px();
+            let shadow_width  = &width  + &shadow_size * 2.0;
+            let shadow_height = &height + &shadow_size * 2.0;
+            let shadow_radius = &shadow_height / 2.0;
+            let shadow        = Rect((shadow_width,shadow_height)).corners_radius(shadow_radius);
+            let shadow_color  = color::LinearGradient::new()
+                .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
+                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
+            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(4.0));
+            let shadow        = shadow.fill(shadow_color);
+
+
+            // === Selection ===
+
+            let selection_size = selection_size.px();
+            let select_width   = &width  - 2.px() + &selection_size * 2.0 * &selection;
+            let select_height  = &height - 2.px() + &selection_size * 2.0 * &selection;
+            let select_radius  = &select_height / 2.0;
+            let select         = Rect((select_width,select_height)).corners_radius(select_radius);
+            let select         = select.fill(color::Rgba::from(selection_color));
+
+            let out = select + shadow + shape;
+            out.into()
+        }
+    }
+}
+
+/// Canvas node shape definition.
+pub mod output_area {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (style:Style, grow:f32) {
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
+            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
+
+            let hover_area_size   = 20.0.px();
+            let hover_area_width  = &width  + &hover_area_size * 2.0;
+            let hover_area_height = &height / 2.0 + &hover_area_size;
+            let hover_area        = Rect((&hover_area_width,&hover_area_height));
+            let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
+            let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
+
+            let shrink           = 1.px() - 1.px() * &grow;
+            let radius           = 14.px();
+            let port_area_size   = 4.0.px() * &grow;
+            let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
+            let port_area_height = &height + (&port_area_size - &shrink) * 2.0;
+            let bottom_radius    = &radius + &port_area_size;
+            let port_area        = Rect((&port_area_width,&port_area_height));
+            let port_area        = port_area.corners_radius(&bottom_radius);
+            let port_area        = port_area - BottomHalfPlane();
+            let corner_radius    = &port_area_size / 2.0;
+            let corner_offset    = &port_area_width / 2.0 - &corner_radius;
+            let corner           = Circle(&corner_radius);
+            let left_corner      = corner.translate_x(-&corner_offset);
+            let right_corner     = corner.translate_x(&corner_offset);
+            let port_area        = port_area + left_corner + right_corner;
+            let port_area        = port_area.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
+
+            let out = hover_area + port_area;
+            out.into()
+        }
+    }
+}
+
+
+/// Canvas node shape definition.
+pub mod drag_area {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (style:Style) {
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
+            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
+            let radius = 14.px();
+            let shape  = Rect((&width,&height)).corners_radius(radius);
+            let shape  = shape.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
+
+            let out = shape;
             out.into()
         }
     }
@@ -127,18 +214,55 @@ pub mod shape {
 
 
 
-// ==============
-// === Events ===
-// ==============
+
+
+
+// ===========
+// === Frp ===
+// ===========
 
 /// Node events.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Events {
-    pub network           : frp::Network,
+pub struct InputEvents {
     pub select            : frp::Source,
     pub deselect          : frp::Source,
+    pub set_expression    : frp::Source<Expression>,
     pub set_visualization : frp::Source<Option<visualization::Visualization>>,
+}
+
+impl InputEvents {
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def select            = source();
+            def deselect          = source();
+            def set_expression    = source();
+            def set_visualization = source();
+        }
+        Self {select,deselect,set_expression,set_visualization}
+    }
+}
+
+
+#[derive(Clone,CloneRef,Debug,Deref)]
+#[allow(missing_docs)]
+pub struct OutputPortsEvents {
+    pub shape_view_events : component::ShapeViewEvents,
+}
+
+
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct Frp {
+    pub input        : InputEvents,
+    pub output_ports : OutputPortsEvents
+}
+
+impl Deref for Frp {
+    type Target = InputEvents;
+    fn deref(&self) -> &Self::Target {
+        &self.input
+    }
 }
 
 
@@ -147,10 +271,12 @@ pub struct Events {
 // === Node ===
 // ============
 
+// FIXME: Remove all Weak nodes - no needed anymore
+
 /// Node definition.
 #[derive(AsRef,Clone,CloneRef,Debug,Deref)]
 pub struct Node {
-    data : Rc<NodeData>,
+    data : Rc<NodeModelWithNetwork>,
 }
 
 impl AsRef<Node> for Node {
@@ -162,7 +288,7 @@ impl AsRef<Node> for Node {
 /// Weak version of `Node`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakNode {
-    data : Weak<NodeData>
+    data : Weak<NodeModelWithNetwork>
 }
 
 impl WeakElement for WeakNode {
@@ -185,106 +311,158 @@ impl WeakKey for WeakNode {
     }
 }
 
-/// Shape view for Node.
-#[derive(Debug,Clone,Copy)]
-pub struct NodeView {}
-impl component::ShapeViewDefinition for NodeView {
-    type Shape = shape::Shape;
-    fn new(shape:&Self::Shape, _scene:&Scene, _shape_registry:&ShapeRegistry) -> Self {
-        shape.sprite.size().set(Vector2::new(200.0,200.0));
-        Self {}
+
+/// Internal data of `Node`
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct NodeModelWithNetwork {
+    pub model       : Rc<NodeModel>,
+    pub frp_network : frp::Network,
+}
+
+impl Deref for NodeModelWithNetwork {
+    type Target = NodeModel;
+    fn deref(&self) -> &Self::Target {
+        &self.model
     }
 }
 
 /// Internal data of `Node`
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct NodeData {
+pub struct NodeModel {
+    pub scene                   : Scene,
+    pub display_object          : display::object::Instance,
     pub logger                  : Logger,
-    pub label                   : frp::Source<String>,
-    pub events                  : Events,
-    pub view                    : component::ShapeView<NodeView>,
-    pub ports                   : Registry,
-    pub visualization_container : visualization::Container
+    pub frp                     : Frp,
+    pub main_area               : component::ShapeView<shape::Shape>,
+    pub drag_area               : component::ShapeView<drag_area::Shape>,
+    pub output_area             : component::ShapeView<output_area::Shape>,
+    pub ports                   : port::Manager,
+    pub visualization_container : visualization::Container,
 }
+
+//pub const NODE_WIDTH : f32 = 284.0;
+pub const NODE_HEIGHT : f32 = 28.0;
+pub const TEXT_OFF : f32 = 12.0;
 
 impl Node {
+    pub fn new(scene:&Scene) -> Self {
+        let data = Rc::new(NodeModelWithNetwork::new(scene));
+        Self {data}
+    }
+}
+
+
+impl NodeModel {
     /// Constructor.
-    pub fn new() -> Self {
-        frp::new_network! { node_network
-            def label             = source::<String> ();
-            def select            = source::<()> ();
-            def deselect          = source::<()> ();
-            def set_visualization = source::<Option<visualization::Visualization>> ();
-        }
-        let network       = node_network;
-        let logger        = Logger::new("node");
-        let view          = component::ShapeView::new(&logger);
-        let events        = Events {network,select,deselect,set_visualization};
-        let ports         = Registry::default() ;
-        let visualization = default();
-        let data          = Rc::new(NodeData{logger,label,events,view,ports, visualization_container: visualization });
-        Self {data} . init()
+    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
+
+        let logger  = Logger::new("node");
+        let _connection = Connection::new(scene); // FIXME hack for sorting
+
+        let output_area = component::ShapeView::<output_area::Shape>::new(&logger,scene);
+        let main_area   = component::ShapeView::<shape::Shape>::new(&logger,scene);
+        let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger,scene);
+        port::sort_hack(scene); // FIXME hack for sorting
+
+        let display_object  = display::object::Instance::new(&logger);
+        display_object.add_child(&drag_area);
+        display_object.add_child(&output_area);
+        display_object.add_child(&main_area);
+
+        // FIXME: maybe we can expose shape system from shape?
+        let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
+        shape_system.shape_system.set_pointer_events(false);
+
+        let ports = port::Manager::new(&logger,scene);
+        let scene = scene.clone_ref();
+        let input = InputEvents::new(&network);
+
+        let visualization_container = visualization::Container::new();
+        visualization_container.mod_position(|t| {
+            t.x = 60.0;
+            t.y = -120.0;
+        });
+
+        display_object.add_child(&visualization_container);
+
+        ports.mod_position(|p| {
+            p.x = TEXT_OFF;
+            p.y = NODE_HEIGHT/2.0;
+        });
+        display_object.add_child(&ports);
+
+
+        let output_ports = OutputPortsEvents { shape_view_events:output_area.events.clone_ref() };
+
+        let frp = Frp{input,output_ports};
+
+
+
+        Self {scene,display_object,logger,frp,main_area,drag_area,output_area,ports
+             ,visualization_container}
     }
 
-    fn init(self) -> Self {
-        self.data.visualization_container.set_position(Vector3::new(0.0, -50.0, 0.0));
-        self.add_child(&self.data.visualization_container);
+    pub fn width(&self) -> f32 {
+        self.ports.width() + TEXT_OFF * 2.0
+    }
 
-        let network = &self.data.events.network;
+    fn set_expression(&self, expr:impl Into<Expression>) {
+        let expr = expr.into();
+        self.ports.set_expression(expr);
 
-        // FIXME: This is needed now because frp leaks memory.
-        let weak_view_data = Rc::downgrade(&self.view.data);
-        let creation = animation(network, move |value| {
-            weak_view_data.upgrade().for_each(|view_data| {
-                view_data.borrow().as_ref().for_each(|t| t.shape.creation.set(value))
-            })
-        });
-        creation.set_target_position(1.0);
+        let width = self.width();
+        let height = 28.0;
 
-        // FIXME: This is needed now because frp leaks memory.
-        let weak_view_data = Rc::downgrade(&self.view.data);
-        let selection = animation(network, move |value| {
-            weak_view_data.upgrade().for_each(|view_data| {
-                view_data.borrow().as_ref().for_each(|t| t.shape.selection.set(value))
-            })
-        });
-
-
-        frp::extend! { network
-            let selection_ref = selection.clone_ref();
-            def _f_select = self.events.select.map(move |_| {
-                selection_ref.set_target_position(1.0);
-            });
-
-            let selection_ref = selection.clone_ref();
-            def _f_deselect = self.events.deselect.map(move |_| {
-                selection_ref.set_target_position(0.0);
-            });
-
-            let weak_node = self.downgrade();
-            def _f_set_vis = self.events.set_visualization.map(move |content| {
-                if let Some(node) = weak_node.upgrade() {
-                    node.visualization_container.frp.set_visualization.emit(content)
-                }
-            });
-        }
-
-        // TODO this is sample functionality. Needs to be replaced with logic creating ports.
-        let input_port = self.data.ports.input.create(&self);
-        input_port.set_position(90.0_f32.degrees());
-        let output_port = self.data.ports.output.create(&self);
-        output_port.set_position(270.0_f32.degrees());
-
-        self
+        let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
+        self.main_area.shape.sprite.size().set(size);
+        self.drag_area.shape.sprite.size().set(size);
+        self.output_area.shape.sprite.size().set(size);
+        self.main_area.mod_position(|t| t.x = width/2.0);
+        self.main_area.mod_position(|t| t.y = height/2.0);
+        self.drag_area.mod_position(|t| t.x = width/2.0);
+        self.drag_area.mod_position(|t| t.y = height/2.0);
+        self.output_area.mod_position(|t| t.x = width/2.0);
+        self.output_area.mod_position(|t| t.y = height/2.0);
     }
 }
 
-impl Default for Node {
-    fn default() -> Self {
-        Self::new()
+
+
+impl NodeModelWithNetwork {
+    pub fn new(scene:&Scene) -> Self {
+        let frp_network = frp::Network::new();
+        let model       = Rc::new(NodeModel::new(scene,&frp_network));
+        let inputs      = &model.frp.input;
+        let view_data   = model.main_area.shape.clone_ref();
+        let selection   = animation(&frp_network, move |value| {
+            view_data.selection.set(value)
+        });
+
+        let (output_area_size_setter, output_area_size) = animation2(&frp_network);
+
+        frp::extend! { frp_network
+            eval_ inputs.select   (selection.set_target_position(1.0));
+            eval_ inputs.deselect (selection.set_target_position(0.0));
+
+            eval inputs.set_expression ((expr) model.set_expression(expr));
+
+            eval output_area_size ((size) model.output_area.shape.grow.set(*size));
+
+            eval_ model.output_area.events.mouse_over (output_area_size_setter.set_target_position(1.0));
+            eval_ model.output_area.events.mouse_out  (output_area_size_setter.set_target_position(0.0));
+
+            eval inputs.set_visualization ((content)
+                model.visualization_container.frp.set_visualization.emit(content)
+            );
+        }
+
+        Self {frp_network,model}
     }
 }
+
+
 
 impl StrongRef for Node {
     type WeakRef = WeakNode;
@@ -302,7 +480,7 @@ impl WeakRef for WeakNode {
 
 impl display::Object for Node {
     fn display_object(&self) -> &display::object::Instance {
-        &self.view.display_object
+        &self.display_object
     }
 }
 

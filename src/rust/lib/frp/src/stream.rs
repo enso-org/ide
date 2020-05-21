@@ -249,6 +249,11 @@ impl<Out:Data>            HasOutput for Stream      <Out> { type Output = Out; }
 impl<Def:HasOutputStatic> HasOutput for Node        <Def> { type Output = Output<Def>; }
 impl<Def:HasOutputStatic> HasOutput for WeakNode    <Def> { type Output = Output<Def>; }
 
+impl<Out:Data>            HasOutput for &OwnedStream <Out> { type Output = Out; }
+impl<Out:Data>            HasOutput for &Stream      <Out> { type Output = Out; }
+impl<Def:HasOutputStatic> HasOutput for &Node        <Def> { type Output = Output<Def>; }
+impl<Def:HasOutputStatic> HasOutput for &WeakNode    <Def> { type Output = Output<Def>; }
+
 
 // === Derefs ===
 
@@ -278,6 +283,15 @@ impl<Def:HasOutputStatic> Node<Def> {
         let this = Self::construct(label,definition);
         let weak = this.downgrade();
         stream.register_target(weak.into());
+        this
+    }
+
+    /// Just like `construct_and_connect` but also allows setting the default initial value.
+    pub fn construct_and_connect_with_init_value<S>
+    (label:Label, stream:&S, definition:Def, init:Output<Def>) -> Self
+    where S:EventOutput, Self:EventConsumer<Output<S>> {
+        let this = Self::construct_and_connect(label,stream,definition);
+        *this.stream.data.value_cache.borrow_mut() = init;
         this
     }
 
