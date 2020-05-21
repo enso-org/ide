@@ -79,14 +79,19 @@ impl Registry {
     }
 
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
-    pub fn register_class_rc(&self, class:Rc<dyn Class>) {
+    pub fn register_class_from_handle(&self, handle:&Handle) {
+        if let Some(class) = handle.class() {
+            self.register_class_rc(class);
+        }
+    }
+
+    fn register_class_rc(&self, class:Rc<dyn Class>) {
         let spec = class.signature();
         for dtype in &spec.input_types {
             let mut entries = self.entries.borrow_mut();
-            let entry_vec   = entries.entry(dtype.clone()).or_insert_with(default);
+            let entry_vec = entries.entry(dtype.clone()).or_insert_with(default);
             entry_vec.push(Rc::clone(&class));
         }
-
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
