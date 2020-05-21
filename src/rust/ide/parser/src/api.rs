@@ -155,8 +155,6 @@ pub fn interop_error<T>(error:T) -> Error
 mod test {
     use super::*;
 
-    use std::str::FromStr;
-    use uuid::Uuid;
 
 
     #[derive(Clone,Debug,Deserialize,Serialize)]
@@ -168,29 +166,26 @@ mod test {
 
     #[test]
     fn serializing_parsed_source_file() {
-        let node_id  = Uuid::from_str("89f29e9f-cd21-4d35-93ce-d6df9333e2cd").unwrap();
-        let main     = ast::Ast::var("main");
-        let node     = ast::Ast::infix_var("2","+","2").with_id(node_id);
-        let infix    = ast::Ast::infix(main,"=",node);
-        let ast      = ast::Ast::one_line_module(infix).try_into().unwrap();
-        let metadata = Metadata{foo:321};
-        let source   = ParsedSourceFile {ast,metadata};
-
+        let main       = ast::Ast::var("main");
+        let node       = ast::Ast::infix_var("2","+","2");
+        let infix      = ast::Ast::infix(main,"=",node);
+        let ast        = ast::Ast::one_line_module(infix).try_into().unwrap();
+        let metadata   = Metadata{foo:321};
+        let source     = ParsedSourceFile {ast,metadata};
         let serialized = source.serialize().unwrap();
-        let expected   = r#"main = 2 + 2
+
+        let expected_id_map   = to_json_single_line(&source.ast.id_map()).unwrap();
+        let expected_metadata = to_json_single_line(&source.metadata).unwrap();
+        let expected_content  = iformat!(r#"main = 2 + 2
 
 
 #### METADATA ####
-[[{"index":{"value":7},"size":{"value":5}},"89f29e9f-cd21-4d35-93ce-d6df9333e2cd"]]
-{"foo":321}"#;
-        assert_eq!(serialized.content , expected.to_string());
-        assert_eq!(serialized.code    , ByteIndex::new(0  )..ByteIndex::new(12));
-        assert_eq!(serialized.id_map  , ByteIndex::new(34 )..ByteIndex::new(117));
-        assert_eq!(serialized.metadata, ByteIndex::new(118)..ByteIndex::new(129));
+{expected_id_map}
+{expected_metadata}"#);
 
-        assert_eq!(serialized.code_slice(), "main = 2 + 2");
-        assert_eq!(serialized.id_map_slice(),
-            r#"[[{"index":{"value":7},"size":{"value":5}},"89f29e9f-cd21-4d35-93ce-d6df9333e2cd"]]"#);
-        assert_eq!(serialized.metadata_slice(), r#"{"foo":321}"#)
+        assert_eq!(serialized.content         , expected_content.to_string());
+        assert_eq!(serialized.code_slice()    , "main = 2 + 2");
+        assert_eq!(serialized.id_map_slice()  , expected_id_map.as_str());
+        assert_eq!(serialized.metadata_slice(), expected_metadata.as_str())
     }
 }

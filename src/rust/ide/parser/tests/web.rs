@@ -20,7 +20,7 @@ fn web_test() {
 
     let parse = |input| parser.parse_with_metadata(input).unwrap();
     let file  = |term|
-        SourceFile{metadata:serde_json::json!({}), ast:ast::known::KnownAst::new_no_id(term)};
+        ParsedSourceFile{metadata:serde_json::json!({}), ast:ast::known::KnownAst::new_no_id(term)};
 
 
     let line = |term| {
