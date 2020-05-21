@@ -132,7 +132,7 @@ impl TextEditor {
         }
     }
 
-    fn handle_text_field_notification(&self, change:&TextChange) {
+    fn handle_text_field_notification(&self, change:TextChange) {
         let (logger,controller) = self.with_borrowed(|data|
             (data.logger.clone_ref(),data.controller.clone_ref()));
         let result = controller.apply_text_change(change);

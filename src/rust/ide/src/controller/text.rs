@@ -109,7 +109,7 @@ impl Handle {
     /// This function should be called by view on every user interaction changing the text content
     /// of file. It will e.g. update the Module Controller state and notify other views about
     /// update in case of module files.
-    pub fn apply_text_change(&self, change:&TextChange) -> FallibleResult<()> {
+    pub fn apply_text_change(&self, change:TextChange) -> FallibleResult<()> {
         if let FileHandle::Module {controller} = &self.file {
             controller.apply_code_change(change)
         } else {
@@ -181,7 +181,7 @@ mod test {
             let controller = Handle::new_for_module(module.clone());
             let mut sub    = controller.subscribe();
 
-            module.apply_code_change(&TextChange::insert(Index::new(8),"2".to_string())).unwrap();
+            module.apply_code_change(TextChange::insert(Index::new(8),"2".to_string())).unwrap();
             assert_eq!(Some(Notification::Invalidate), sub.next().await);
         })
     }

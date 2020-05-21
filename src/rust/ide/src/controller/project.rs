@@ -95,6 +95,8 @@ mod test {
     use language_server::response;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use enso_protocol::language_server::CapabilityRegistration;
+    use enso_protocol::types::Sha3_224;
 
 
     wasm_bindgen_test_configure!(run_in_browser);
@@ -106,13 +108,9 @@ mod test {
             let path         = ModulePath::from_module_name("TestModule");
             let another_path = ModulePath::from_module_name("TestModule2");
 
-            let client    = language_server::MockClient::default();
-            let contents  = "2+2".to_string();
-            let file_path = path.file_path().clone();
-            expect_call!(client.read_file(file_path) => Ok(response::Read{contents}));
-            let file_path = another_path.file_path().clone();
-            let contents  = "2 + 2".to_string();
-            expect_call!(client.read_file(file_path) => Ok(response::Read{contents}));
+            let client = language_server::MockClient::default();
+            mock_calls_for_opening_text_file(&client,path.file_path().clone()        , "2+2");
+            mock_calls_for_opening_text_file(&client,another_path.file_path().clone(), "22+2");
             let connection     = language_server::Connection::new_mock(client);
             let project        = controller::Project::new(connection);
             let module         = project.module_controller(path.clone()).await.unwrap();
@@ -150,17 +148,28 @@ mod test {
     fn obtain_text_controller_for_module() {
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let file_name    = format!("test.{}",constants::LANGUAGE_FILE_EXTENSION);
+            let file_name    = format!("Test.{}",constants::LANGUAGE_FILE_EXTENSION);
             let path         = FilePath::new(default(),&[file_name]);
-            let contents     = "2 + 2".to_string();
 
             let client       = language_server::MockClient::default();
-            expect_call!(client.read_file(path=path.clone()) => Ok(response::Read {contents}));
+            mock_calls_for_opening_text_file(&client,path.clone(),"2 + 2");
             let connection   = language_server::Connection::new_mock(client);
             let project_ctrl = controller::Project::new(connection);
             let text_ctrl    = project_ctrl.text_controller(path.clone()).await.unwrap();
             let content      = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());
         });
+    }
+
+    fn mock_calls_for_opening_text_file
+    (client:&language_server::MockClient, path:language_server::Path, content:&str) {
+        let content          = content.to_string();
+        let current_version  = Sha3_224::new(content.as_bytes());
+        let write_capability = CapabilityRegistration::create_can_edit(path.clone());
+        let open_response    = response::OpenTextFile {content,current_version,
+            write_capability};
+        expect_call!(client.open_text_file(path=path.clone()) => Ok(open_response));
+        client.expect.apply_text_file_edit(|_| Ok(()));
+        expect_call!(client.close_text_file(path) => Ok(()));
     }
 }

@@ -142,20 +142,13 @@ impl Handle {
     ///
     /// May return Error when new code causes parsing errors, or when parsed code does not produce
     /// Module ast.
-    pub fn apply_code_change(&self,change:&TextChange) -> FallibleResult<()> {
-        let mut code         = self.code();
+    pub fn apply_code_change(&self,change:TextChange) -> FallibleResult<()> {
         let mut id_map       = self.model.ast().id_map();
         let replaced_size    = change.replaced.end - change.replaced.start;
         let replaced_span    = Span::new(change.replaced.start,replaced_size);
-        let replaced_indices = change.replaced.start.value..change.replaced.end.value;
 
-        code.replace_range(replaced_indices,&change.inserted);
         apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
-        let ast = self.parser.parse(code, id_map)?.try_into()?;
-        trace!(self.logger,"Applied change; Ast is now {ast:?}");
-        self.model.update_ast(ast);
-
-        Ok(())
+        self.model.apply_code_change(change,&self.parser,id_map)
     }
 
     /// Read module code.
@@ -277,11 +270,9 @@ mod test {
 
             let controller = Handle::new_mock(location,module,id_map,ls,parser).unwrap();
 
-            let mut subscription  = controller.model.subscribe();
-
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(1),"2".to_string());
-            controller.apply_code_change(&change).unwrap();
+            controller.apply_code_change(change).unwrap();
             let expected_ast = Ast::new_no_id(ast::Module {
                 lines: vec![BlockLine {
                     elem: Some(Ast::new(ast::Infix {
@@ -295,9 +286,6 @@ mod test {
                 }]
             });
             assert_eq!(expected_ast, controller.model.ast().into());
-
-            // Check emitted notifications
-            assert_eq!(Some(model::module::Notification::Invalidate ), subscription.next().await);
         });
     }
 }

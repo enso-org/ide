@@ -336,6 +336,15 @@ pub struct CapabilityRegistration {
     pub register_options: RegisterOptions
 }
 
+impl CapabilityRegistration {
+    /// Create "text/canEdit" capability for path
+    pub fn create_can_edit(path:Path) -> Option<Self> {
+        let method           = "text/canEdit".to_string();
+        let register_options = RegisterOptions::ReceivesTreeUpdates(ReceivesTreeUpdates {path});
+        Some(CapabilityRegistration {method,register_options})
+    }
+}
+
 
 // =======================
 // === RegisterOptions ===

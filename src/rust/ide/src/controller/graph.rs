@@ -820,10 +820,10 @@ mod tests {
         let mut test = GraphControllerFixture::set_up();
         test.run_graph_for_main("main = 2 + 2", "main", |module, graph| async move {
             let text_change = TextChange::insert(Index::new(12), "2".into());
-            module.apply_code_change(&text_change).unwrap();
+            module.apply_code_change(text_change).unwrap();
 
             let mut sub = graph.subscribe();
-            module.apply_code_change(&TextChange::insert(Index::new(1),"2".to_string())).unwrap();
+            module.apply_code_change(TextChange::insert(Index::new(1),"2".to_string())).unwrap();
             assert_eq!(Some(Notification::Invalidate), sub.next().await);
         })
     }

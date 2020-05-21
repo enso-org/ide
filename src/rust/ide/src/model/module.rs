@@ -10,6 +10,7 @@ use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use parser::api::SourceFile;
 use parser::api::ParsedSourceFile;
+use parser::Parser;
 use serde::Serialize;
 use serde::Deserialize;
 
@@ -131,12 +132,25 @@ impl Module {
         }
     }
 
-    /// Update whole content of the module.
-    pub fn update_whole(&self, content:Content) {
-        *self.content.borrow_mut() = content;
-        self.notify(Notification::Invalidate);
+    /// Subscribe for notifications about text representation changes.
+    pub fn subscribe(&self) -> Subscriber<Notification> {
+        self.notifications.borrow_mut().subscribe()
     }
 
+    /// Create module state from given code, id_map and metadata.
+    #[cfg(test)]
+    pub fn from_code_or_panic<S:ToString>
+    (code:S, id_map:ast::IdMap, metadata:Metadata) -> Self {
+        let parser = parser::Parser::new_or_panic();
+        let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
+        Self::new(ast,metadata)
+    }
+}
+
+
+// === Access to Module Content ===
+
+impl Module {
     /// Get module sources as a string, which contains both code and metadata.
     pub fn serialized_content(&self) -> FallibleResult<SourceFile> {
         self.content.borrow().serialize().map_err(|e| e.into())
@@ -145,12 +159,6 @@ impl Module {
     /// Get module's ast.
     pub fn ast(&self) -> ast::known::Module {
         self.content.borrow().ast.clone_ref()
-    }
-
-    /// Update ast in module controller.
-    pub fn update_ast(&self, ast:ast::known::Module) {
-        self.content.borrow_mut().ast  = ast;
-        self.notify(Notification::Invalidate);
     }
 
     /// Obtains definition information for given graph id.
@@ -164,6 +172,41 @@ impl Module {
     pub fn node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
         let data = self.content.borrow().metadata.ide.node.get(&id).cloned();
         data.ok_or_else(|| NodeMetadataNotFound(id).into())
+    }
+}
+
+
+// === Setters ===
+
+impl Module {
+
+    /// Update whole content of the module.
+    pub fn update_whole(&self, content:Content) {
+        *self.content.borrow_mut() = content;
+        self.notify(Notification::Invalidate);
+    }
+
+    /// Update ast in module controller.
+    pub fn update_ast(&self, ast:ast::known::Module) {
+        self.content.borrow_mut().ast  = ast;
+        self.notify(Notification::Invalidate);
+    }
+
+    /// Updates AST after code change.
+    ///
+    /// May return Error when new code causes parsing errors, or when parsed code does not produce
+    /// Module ast.
+    pub fn apply_code_change
+    (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult<()> {
+        let mut code          = self.ast().repr();
+        let replaced_indices  = change.replaced.start.value..change.replaced.end.value;
+        let replaced_location = TextLocation::convert_range(&code,&change.replaced);
+
+        code.replace_range(replaced_indices,&change.inserted);
+        let new_ast = parser.parse(code,new_id_map)?.try_into()?;
+        self.content.borrow_mut().ast = new_ast;
+        self.notify(Notification::CodeChanged {change,replaced_location});
+        Ok(())
     }
 
     /// Sets metadata for given node.
@@ -193,23 +236,9 @@ impl Module {
         self.notify(Notification::MetadataChanged);
     }
 
-    /// Subscribe for notifications about text representation changes.
-    pub fn subscribe(&self) -> Subscriber<Notification> {
-        self.notifications.borrow_mut().subscribe()
-    }
-
     fn notify(&self, notification:Notification) {
         let notify  = self.notifications.borrow_mut().publish(notification);
         executor::global::spawn(notify);
-    }
-
-    /// Create module state from given code, id_map and metadata.
-    #[cfg(test)]
-    pub fn from_code_or_panic<S:ToString>
-    (code:S, id_map:ast::IdMap, metadata:Metadata) -> Self {
-        let parser = parser::Parser::new_or_panic();
-        let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
-        Self::new(ast,metadata)
     }
 }
 
@@ -224,9 +253,26 @@ mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use uuid::Uuid;
 
-    #[test]
+    use data::text;
+    use uuid::Uuid;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[wasm_bindgen_test]
+    fn applying_code_change() {
+        let mut test = TestWithLocalPoolExecutor::set_up();
+        test.run_task(async {
+            let module = Module::from_code_or_panic("2 + 2",default(),default());
+            let change = TextChange {
+                replaced: text::Index::new(2)..text::Index::new(5),
+                inserted: "- abc".to_string(),
+            };
+            module.apply_code_change(change,&Parser::new_or_panic(),default()).unwrap();
+            assert_eq!("2 - abc",module.ast().repr());
+        });
+    }
+
+    #[wasm_bindgen_test]
     fn notifying() {
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async {
@@ -239,6 +285,16 @@ mod test {
             let new_module_ast = ast::known::Module::try_new(new_module_ast).unwrap();
             module.update_ast(new_module_ast.clone_ref());
             assert_eq!(Some(Notification::Invalidate), subscription.next().await);
+
+            // Code change
+            let change = TextChange {
+                replaced: text::Index::new(0)..text::Index::new(1),
+                inserted: "foo".to_string(),
+            };
+            module.apply_code_change(change.clone(),&Parser::new_or_panic(),default()).unwrap();
+            let replaced_location = TextLocation{line:0, column:0}..TextLocation{line:0, column:1};
+            let notification      = Notification::CodeChanged {change,replaced_location};
+            assert_eq!(Some(notification), subscription.next().await);
 
             // Metadata update
             let id            = Uuid::new_v4();
