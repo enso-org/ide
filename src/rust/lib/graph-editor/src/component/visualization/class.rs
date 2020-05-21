@@ -239,6 +239,7 @@ pub trait Class: Debug {
     fn instantiate(&self, scene:&Scene) -> InstantiationResult;
 }
 
+/// Wrapper for `Class` objects, so they can be passed through the FRP system.
 #[derive(Clone,Debug,Default)]
 #[allow(missing_docs)]
 pub struct Handle {
@@ -269,6 +270,8 @@ impl CloneRef for Handle {}
 /// Type alias for a function that can create a `Visualization`.
 pub trait VisualizationConstructor = Fn(&Scene) -> InstantiationResult;
 
+/// Constructor that instantiates visualisations from a given `VisualizationConstructor`. Can be
+/// used to wrap the constructor of visualizations defined in Rust.
 #[derive(CloneRef,Clone,Derivative)]
 #[derivative(Debug)]
 #[allow(missing_docs)]
