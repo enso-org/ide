@@ -42,6 +42,18 @@ impl Application {
         let themes    = theme::Manager::from(&display.scene().style_sheet);
         Self {logger,display,commands,shortcuts,views,themes}
     }
+
+    /// Constructor.
+    // TODO[ao] Duplicated with new - one version should remain.
+    pub async fn async_new(dom:&web_sys::HtmlElement) -> Self {
+        let logger    = Logger::new("Application");
+        let display   = World::async_new(dom).await;
+        let commands  = command::Registry::create(&logger);
+        let shortcuts = shortcut::Registry::new(&logger, &commands);
+        let views     = view::Registry::create(&logger,&display,&commands,&shortcuts);
+        let themes    = theme::Manager::from(&display.scene().style_sheet);
+        Self {logger,display,commands,shortcuts,views,themes}
+    }
 }
 
 impl display::Object for Application {

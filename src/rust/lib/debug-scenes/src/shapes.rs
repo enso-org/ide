@@ -12,7 +12,6 @@ use ensogl::application::Application;
 use graph_editor::{GraphEditor, EdgeTarget};
 use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
-use ensogl_core_msdf_sys::run_once_initialized;
 use ensogl::display::style::theme;
 use ensogl::data::color;
 use enso_frp::Position;
@@ -21,15 +20,13 @@ use enso_frp as frp;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_shapes() {
+pub async fn run_example_shapes() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-    run_once_initialized(|| {
-        let app = Application::new(&web::get_html_element_by_id("root").unwrap());
-        init(&app);
-        mem::forget(app);
-    });
+    let app = Application::async_new(&web::get_html_element_by_id("root").unwrap()).await;
+    init(&app);
+    mem::forget(app);
 }
 
 

@@ -83,7 +83,6 @@ pub struct World {
 
 impl World {
     /// Create and initialize new world instance.
-    #[allow(clippy::new_ret_no_self)]
     pub fn new(dom:&web_sys::HtmlElement) -> World {
         let logger          = Logger::new("world");
         let stats           = default();
@@ -109,6 +108,12 @@ impl World {
         let callback_handles = CallbackHandles {on_before_frame,on_frame,on_after_frame};
         Self {scene,scene_dirty,logger,main_loop,uniforms,callback_handles,stats,stats_monitor
              ,focus_manager} . init()
+    }
+
+    /// Create and initialize new world instance.
+    pub async fn async_new(dom:&web_sys::HtmlElement) -> Self {
+        ensogl_core_msdf_sys::initialized().await;
+        World::new(dom)
     }
 
     fn init(self) -> Self {
