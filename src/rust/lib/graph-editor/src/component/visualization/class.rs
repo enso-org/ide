@@ -222,7 +222,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 /// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
 ///     visualization::Signature {
 ///         name        : "Bubble Visualization (native)".to_string(),
-///         input_types : vec!["[[Float,Float,Float]]".to_string().into()],
+///         input_types : vec!["[[Float,Float,Float]]".into()],
 ///     },
 ///     |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
 /// );
