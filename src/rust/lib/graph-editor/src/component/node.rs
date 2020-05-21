@@ -345,7 +345,7 @@ pub struct NodeModel {
 
 //pub const NODE_WIDTH : f32 = 284.0;
 pub const NODE_HEIGHT : f32 = 28.0;
-pub const TEXT_OFF : f32 = 12.0;
+pub const TEXT_OFF : f32 = 10.0;
 pub const SHADOW_SIZE : f32 = 14.0;
 
 impl Node {

@@ -763,8 +763,8 @@ impl GraphEditorModelWithNetwork {
             def _node_on_down_tagged = node.view.drag_area.events.mouse_down.map(f_!(
                 touch.nodes.down.emit(node_id)
             ));
-            def _cursor_mode = node.view.ports.frp.cursor_mode.map(f!((mode)
-                cursor.frp.set_mode.emit(mode)
+            def _cursor_style = node.view.ports.frp.cursor_style.map(f!((mode)
+                cursor.frp.set_style.emit(mode)
             ));
             def new_edge = node.view.frp.output_ports.mouse_down.map(f_!([model] {
                 if let Some(node) = model.nodes.get_cloned_ref(&node_id) {
