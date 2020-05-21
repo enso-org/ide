@@ -245,7 +245,7 @@ ensogl::def_command_api! { Commands
     remove_selected_nodes,
     /// Remove all nodes from the graph.
     remove_all_nodes,
-    /// Toggle the visibility of the selected visualisations
+    /// Toggle the visibility of the selected visualizations
     toggle_visualization_visibility,
 
 
@@ -286,7 +286,7 @@ ensogl::def_command_api! { Commands
     debug_set_data_for_selected_node,
 
     /// Cycle the visualization for the selected nodes. TODO only has dummy functionality at the moment.
-    debug_cycle_visualisation_for_selected_node,
+    debug_cycle_visualization_for_selected_node,
 }
 
 impl Commands {
@@ -316,7 +316,7 @@ impl Commands {
             def toggle_node_inverse_select       = source();
 
             def debug_set_data_for_selected_node            = source();
-            def debug_cycle_visualisation_for_selected_node = source();
+            def debug_cycle_visualization_for_selected_node = source();
 
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
@@ -325,7 +325,7 @@ impl Commands {
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
              ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
-             ,debug_set_data_for_selected_node,debug_cycle_visualisation_for_selected_node}
+             ,debug_set_data_for_selected_node,debug_cycle_visualization_for_selected_node}
     }
 }
 
@@ -356,7 +356,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes       : frp::Source<Position>,
     pub cycle_visualization            : frp::Source<NodeId>,
     pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
-    pub register_visualisation_class   : frp::Source<Option<Rc<visualization::ClassHandle>>>,
+    pub register_visualization_class   : frp::Source<Option<Rc<visualization::ClassHandle>>>,
 }
 
 impl FrpInputs {
@@ -379,7 +379,7 @@ impl FrpInputs {
             def translate_selected_nodes       = source();
             def cycle_visualization            = source();
             def set_visualization              = source();
-            def register_visualisation_class   = source();
+            def register_visualization_class   = source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -387,7 +387,7 @@ impl FrpInputs {
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
              ,set_node_position,select_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
-             ,register_visualisation_class
+             ,register_visualization_class
         }
     }
 }
@@ -1125,7 +1125,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualisation_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualization_for_selected_node")
         ]
     }
 }
@@ -1201,7 +1201,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let inputs                 = &model.frp;
     let mouse                  = &scene.mouse.frp;
     let touch                  = &model.touch_state;
-    let visualization_registry = visualization::Registry::with_default_visualisations();
+    let visualization_registry = visualization::Registry::with_default_visualizations();
     let logger                 = &model.logger;
 
 
@@ -1411,7 +1411,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }));
 
      // === Vis Cycling ===
-     def _cycle_vis = inputs.debug_cycle_visualisation_for_selected_node.map(f!([inputs,nodes](_) {
+     def _cycle_vis = inputs.debug_cycle_visualization_for_selected_node.map(f!([inputs,nodes](_) {
         nodes.selected.for_each(|node| inputs.cycle_visualization.emit(node));
     }));
 
@@ -1441,9 +1441,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
      let cycle_count = Rc::new(Cell::new(0));
      def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
-        let visualisations = visualization_registry.valid_sources(&"[[float;3]]".into());
-        cycle_count.set(cycle_count.get() % visualisations.len());
-        let vis  = &visualisations[cycle_count.get()];
+        let visualizations = visualization_registry.valid_sources(&"[[float;3]]".into());
+        cycle_count.set(cycle_count.get() % visualizations.len());
+        let vis  = &visualizations[cycle_count.get()];
         let vis  = vis.instantiate(&scene);
         let node = nodes.get_cloned_ref(node_id);
         match (vis, node) {
@@ -1467,7 +1467,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Register Visualization ===
 
-    def _register_visualization = inputs.register_visualisation_class.map(f!([visualization_registry](source) {
+    def _register_visualization = inputs.register_visualization_class.map(f!([visualization_registry](source) {
         if let Some(source) = source {
             if let Some(class) = source.get_class() {
                 visualization_registry.register_class_rc(class.clone_ref());

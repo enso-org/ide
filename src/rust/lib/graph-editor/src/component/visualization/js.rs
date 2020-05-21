@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::JsVisualisationError;
+use crate::component::visualization::JsVisualizationError;
 use crate::component::visualization::JsRenderer;
 use crate::component::visualization::JsResult;
 use crate::component::visualization::InstantiationResult;
@@ -80,7 +80,7 @@ impl VisualizationClassWrapper {
 // === Js Source Class  ===
 // ========================
 
-/// Implements the `visualisation::Class` for a JS source string.
+/// Implements the `visualization::Class` for a JS source string.
 ///
 /// Example
 /// -------
@@ -89,13 +89,13 @@ impl VisualizationClassWrapper {
 /// # use graph_editor::component::visualization::JsSourceClass;
 ///
 /// JsSourceClass::from_js_source_raw(r#"
-///     class Visualisation {
+///     class Visualization {
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
 ///         getInputTypes() {};
-///         instantiate() { return new Visualisation(); }
+///         instantiate() { return new Visualization(); }
 ///     }
-///     return Visualisations;
+///     return Visualizations;
 /// "#.into()).unwrap();
 /// ```
 #[derive(CloneRef,Clone,Debug)]
@@ -106,8 +106,8 @@ pub struct JsSourceClass {
 }
 
 impl JsSourceClass {
-    /// Create a visualisation source from piece of JS source code. Attributes needs to be inferred.
-    pub fn from_js_source_raw(source:&str) -> Result<Self,JsVisualisationError> {
+    /// Create a visualization source from piece of JS source code. Attributes needs to be inferred.
+    pub fn from_js_source_raw(source:&str) -> Result<Self,JsVisualizationError> {
         let js_class   = VisualizationClassWrapper::instantiate_class(&source);
         let attributes = js_class.attributes()?;
         let js_class   = Rc::new(js_class);

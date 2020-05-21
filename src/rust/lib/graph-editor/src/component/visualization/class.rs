@@ -40,7 +40,7 @@ impl From<&str> for EnsoType {
     }
 }
 
-/// Contains general information about a visualisation.
+/// Contains general information about a visualization.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub struct ClassAttributes {
@@ -180,17 +180,17 @@ impl Visualization {
 
 
 // ===========================
-// === Visualisation Class ===
+// === Visualization Class ===
 // ===========================
 
-/// Result of the attempt to instantiate a `Visualisation` from a `Class`.
+/// Result of the attempt to instantiate a `Visualization` from a `Class`.
 pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 
-/// Specifies a trait that allows the instantiation of `Visualisations`.
+/// Specifies a trait that allows the instantiation of `Visualizations`.
 ///
 /// The `Class` provides a way to implement structs that allow the instantiation of specific
-/// visualisations, while already providing general information that doesn't require an
-/// instantiated visualization, for example, the name or input type of the visualisation.
+/// visualizations, while already providing general information that doesn't require an
+/// instantiated visualization, for example, the name or input type of the visualization.
 ///
 /// There are two example implementations: The `JsSourceClass`, which is based on a JS snippet to
 /// instantiate `JsRenderer`, and the fairly generic `NativeConstructorClass`, that only requires
@@ -206,23 +206,23 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 /// use ensogl::display::Scene;
 /// use std::rc::Rc;
 ///
-/// // Create a `visualisation::Class` from a JS source code snippet.
+/// // Create a `visualization::Class` from a JS source code snippet.
 /// let js_source_class = visualization::JsSourceClass::from_js_source_raw(r#"
 ///
-///    class BubbleVisualisation {
+///    class BubbleVisualization {
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
 ///         getInputTypes() { return ["[[float;3]]"] };
 ///     }
 ///
-///     return BubbleVisualisation;
+///     return BubbleVisualization;
 ///
 /// "#.into());
 ///
-/// // Create a `visualisation::Class` that instantiates a `BubbleChart`.
+/// // Create a `visualization::Class` that instantiates a `BubbleChart`.
 /// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
 ///     visualization::ClassAttributes {
-///         name        : "Bubble Visualisation (native)".to_string(),
+///         name        : "Bubble Visualization (native)".to_string(),
 ///         input_types : vec!["[[float;3]]".to_string().into()],
 ///     },
 ///     |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
@@ -232,8 +232,8 @@ pub trait Class: Debug {
     /// Provides additional information about the `Class`, for example, which `DataType`s can be
     /// rendered by the instantiated visualization.
     fn attributes(&self) -> &ClassAttributes;
-    /// Create new visualisation, that is initialised for the given scene. This can fail if the
-    /// `visualisation::Class` contains invalid data, for example, JS code that fails to execute,
+    /// Create new visualization, that is initialised for the given scene. This can fail if the
+    /// `visualization::Class` contains invalid data, for example, JS code that fails to execute,
     /// or if the scene is in an invalid state.
     // TODO consider not allowing failing here and require the checking on instantiation of the `Class`.
     // TODO consider not providing the scene here, but hooking the the shapes/dom elements into the
@@ -268,8 +268,8 @@ impl CloneRef for ClassHandle {}
 // === Native Constructor Class ===
 // ================================
 
-/// Type alias for a function that can create a `Visualisation`.
-pub trait VisualisationConstructor = Fn(&Scene) -> InstantiationResult;
+/// Type alias for a function that can create a `Visualization`.
+pub trait VisualizationConstructor = Fn(&Scene) -> InstantiationResult;
 
 #[derive(CloneRef,Clone,Derivative)]
 #[derivative(Debug)]
@@ -277,13 +277,13 @@ pub trait VisualisationConstructor = Fn(&Scene) -> InstantiationResult;
 pub struct NativeConstructorClass {
     info        : Rc<ClassAttributes>,
     #[derivative(Debug="ignore")]
-    constructor : Rc<dyn VisualisationConstructor>,
+    constructor : Rc<dyn VisualizationConstructor>,
 }
 
 impl NativeConstructorClass {
-    /// Create a visualisation source from a closure that returns a `Visualisation`.
+    /// Create a visualization source from a closure that returns a `Visualization`.
     pub fn new<T>(info: ClassAttributes, constructor:T) -> Self
-    where T: VisualisationConstructor + 'static {
+    where T: VisualizationConstructor + 'static {
         let info = Rc::new(info);
         let constructor = Rc::new(constructor);
         NativeConstructorClass { info,constructor }

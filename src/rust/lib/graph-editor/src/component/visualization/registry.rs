@@ -1,4 +1,4 @@
-//! The `Registry` provides a mechanism to store `visualisation::Class`es for all available visualizations. It
+//! The `Registry` provides a mechanism to store `visualization::Class`es for all available visualizations. It
 //! provides functionality to register new factories, as well as get suitable factories for
 //! a specific data type.
 //!
@@ -10,18 +10,18 @@
 //! use graph_editor::component::visualization::JsSourceClass;
 //!
 //! // Instantiate a pre-populated registry.
-//! let registry = Registry::with_default_visualisations();
-//! // Add a new class that creates visualisations defined in JS.
+//! let registry = Registry::with_default_visualizations();
+//! // Add a new class that creates visualizations defined in JS.
 //! registry.register_class(JsSourceClass::from_js_source_raw(r#"
-//!     class BubbleVisualisation {
+//!     class BubbleVisualization {
 //!         onDataReceived(root, data) {}
 //!         setSize(root, size) {}
 //!         getInputTypes() { return ["[float]"] };
 //!     }
-//!     return BubbleVisualisation;
+//!     return BubbleVisualization;
 //! "#.into()).unwrap());
 //!
-//! // Get all factories that can render  visualisation for the type `[[float;3]]`.
+//! // Get all factories that can render  visualization for the type `[[float;3]]`.
 //! let target_type:EnsoType = "[[float;3]]".to_string().into();
 //! assert!(registry.valid_sources(&target_type).len() > 0);
 //! ```
@@ -41,7 +41,7 @@ use ensogl::display::scene::Scene;
 // ==============================
 
 /// HashMap that contains the mapping from `EnsoType`s to a `Vec` of `Factories. This is meant to
-/// map a `EnsoType` to all `visualisation::Class`es that support visualising that type.
+/// map a `EnsoType` to all `visualization::Class`es that support visualising that type.
 type RegistryTypeMap = HashMap<EnsoType, Vec<Rc<dyn Class>>>;
 
 /// The registry struct. For more information see the module description.
@@ -58,12 +58,12 @@ impl Registry {
     }
 
     /// Return a `Registry` prepopulated with default visualizations.
-    pub fn with_default_visualisations() -> Self {
+    pub fn with_default_visualizations() -> Self {
         let registry = Self::new();
         // FIXME use proper enso types here.
         registry.register_class(NativeConstructorClass::new(
             ClassAttributes {
-                name        : "Bubble Visualisation (native)".to_string(),
+                name        : "Bubble Visualization (native)".to_string(),
                 input_types : vec!["[[float;3]]".to_string().into()],
             },
             |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
@@ -73,12 +73,12 @@ impl Registry {
         registry
     }
 
-    /// Register a new visualisation class with the registry.
+    /// Register a new visualization class with the registry.
     pub fn register_class<T: Class + 'static>(&self, class:T) {
         self.register_class_rc(Rc::new(class));
     }
 
-    /// Register a new visualisation class that's pre-wrapped in an `Rc` with the registry.
+    /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
     pub fn register_class_rc(&self, class:Rc<dyn Class>) {
         let spec = class.attributes();
         for dtype in &spec.input_types {
@@ -89,7 +89,7 @@ impl Registry {
 
     }
 
-    /// Return all `visualisation::Class`es that can create a visualisation for the given datatype.
+    /// Return all `visualization::Class`es that can create a visualization for the given datatype.
     pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<dyn Class>>{
         let entries       = self.entries.borrow();
         entries.get(dtype).cloned().unwrap_or_else(default)

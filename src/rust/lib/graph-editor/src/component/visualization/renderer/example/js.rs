@@ -1,13 +1,13 @@
-//! Example of the visualisation JS wrapper API usage
+//! Example of the visualization JS wrapper API usage
 // TODO remove once we have proper visualizations or replace with a nice d3 example.
 // These implementations are neither efficient nor pretty, but get the idea across.
 
 use crate::component::visualization::JsSourceClass;
 
-/// Return an `JsSourceClass` that creates example Bubble Visualisations implemented in JS.
+/// Return an `JsSourceClass` that creates example Bubble Visualizations implemented in JS.
 pub fn get_bubble_vis_class() -> JsSourceClass {
     let fn_constructor = r#"
-        class BubbleVisualisation {
+        class BubbleVisualization {
             onDataReceived(root, data) {
                 const xmlns = "http://www.w3.org/2000/svg";
                 while (root.firstChild) {
@@ -46,11 +46,11 @@ pub fn get_bubble_vis_class() -> JsSourceClass {
             }
 
             instantiate() {
-                return new BubbleVisualisation()
+                return new BubbleVisualization()
             }
         }
 
-        return BubbleVisualisation;
+        return BubbleVisualization;
     "#;
 
     JsSourceClass::from_js_source_raw(fn_constructor).unwrap()
