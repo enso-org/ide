@@ -2,7 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::{JsVisualizationError, InstantiationError};
+use crate::component::visualization::JsVisualizationError;
+use crate::component::visualization::InstantiationError;
 use crate::component::visualization::JsRenderer;
 use crate::component::visualization::JsResult;
 use crate::component::visualization::InstantiationResult;
