@@ -147,9 +147,9 @@ impl Client {
     /// Starts a new request, described by the given payload.
     /// Function `f`
     pub fn open<F,R>(&self, payload:ToServerPayload, f:F) -> LocalBoxFuture<FallibleResult<R>>
-        where F : FnOnce(FromServerPayloadOwned) -> FallibleResult<R>,
-              R : 'static,
-              F : 'static, {
+    where F : FnOnce(FromServerPayloadOwned) -> FallibleResult<R>,
+          R : 'static,
+          F : 'static, {
         let message = MessageToServerRef::new(payload);
         let id = message.message_id;
 
