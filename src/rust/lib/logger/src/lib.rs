@@ -102,7 +102,7 @@ impl Logger {
     }
 
     pub fn group_end(&self) {
-        console::group_end();
+        //console::group_end();
     }
 }
 
