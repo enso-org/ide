@@ -123,6 +123,6 @@ impl ViewLayout {
 
     /// Get GraphEditor.
     pub fn graph_editor(&self) -> GraphEditor {
-        self.rc.borrow_mut().node_editor.graph.editor.clone_ref()
+        self.rc.borrow_mut().node_editor.graph.graph_editor()
     }
 }

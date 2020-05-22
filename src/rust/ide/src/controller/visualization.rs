@@ -10,7 +10,7 @@ use std::rc::Rc;
 use enso_protocol::language_server;
 use graph_editor::GraphEditor;
 use enso_frp::stream::EventEmitter;
-use graph_editor::component::visualization::ClassHandle;
+use graph_editor::component::visualization::class;
 use graph_editor::component::visualization::JsSourceClass;
 
 
@@ -62,7 +62,7 @@ pub type EmbeddedVisualizationName   = String;
 #[shrinkwrap(mutable)]
 pub struct EmbeddedVisualizations {
     #[allow(missing_docs)]
-    pub map : HashMap<EmbeddedVisualizationName,Rc<ClassHandle>>
+    pub map : HashMap<EmbeddedVisualizationName,Rc<class::Handle>>
 }
 
 
@@ -98,10 +98,10 @@ impl Handle {
         for identifier in identifiers {
             let visualization = self.load_visualization(&identifier).await;
             visualization.map(|visualization| {
-                graph_editor.as_ref().map(|graph_editor| {
+                if let Some(graph_editor) = graph_editor.as_ref() {
                     let class_handle = &Some(visualization);
                     graph_editor.frp.register_visualization_class.emit_event(class_handle);
-                });
+                }
             })?;
         }
         *self.graph_editor.borrow_mut() = graph_editor;
@@ -143,7 +143,7 @@ impl Handle {
 
     /// Load the source code of the specified visualization.
     pub async fn load_visualization
-    (&self, visualization:&VisualizationIdentifier) -> FallibleResult<Rc<ClassHandle>> {
+    (&self, visualization:&VisualizationIdentifier) -> FallibleResult<Rc<class::Handle>> {
         match visualization {
             VisualizationIdentifier::Embedded(identifier) => {
                 let result     = self.embedded_visualizations.get(identifier);
@@ -156,7 +156,7 @@ impl Handle {
                 let identifier = visualization.clone();
                 let error      = |_| VisualizationError::CompileError{identifier}.into();
                 let js_class   = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
-                js_class.map(|js_class| Rc::new(ClassHandle::new(js_class)))
+                js_class.map(|js_class| Rc::new(class::Handle::new(js_class)))
             }
         }
     }
@@ -172,18 +172,19 @@ impl Handle {
 mod tests {
     use super::*;
 
-    use std::future::Future;
-    use utils::test::poll_future_output;
     use enso_protocol::language_server::FileSystemObject;
     use enso_protocol::language_server::Path;
+    use graph_editor::component::visualization::{NativeConstructorClass, Signature, Visualization};
+    use graph_editor::component::visualization::renderer::example::native::BubbleChart;
+    use ensogl::display::Scene;
 
-    fn result<T,F:Future<Output = FallibleResult<T>>>(fut:F) -> FallibleResult<T> {
-        let mut fut = Box::pin(fut);
-        poll_future_output(&mut fut).expect("Promise isn't ready")
-    }
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use wasm_bindgen_test::wasm_bindgen_test;
 
-    #[test]
-    fn list_and_load() {
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test(async)]
+    async fn list_and_load() {
         let mock_client = language_server::MockClient::default();
 
         let root_id = uuid::Uuid::default();
@@ -199,8 +200,22 @@ mod tests {
         let file_list_result = language_server::response::FileList{paths};
         mock_client.set_file_list_result(path, Ok(file_list_result));
 
-        let file_content0 = "<histogram code>".to_string();
-        let file_content1 = "<graph code>".to_string();
+        let file_content0 = r#"
+            class Vis0 {
+                static inputTypes = ["Float"]
+                onDataReceived(root,data) {}
+                setSize(root,size) {}
+            }
+            return Vis0
+        "#.to_string();
+        let file_content1 = r#"
+            class Vis1 {
+                static inputTypes = ["Float"]
+                onDataReceived(root,data) {}
+                setSize(root,size) {}
+            }
+            return Vis1
+        "#.to_string();
         let result0 = language_server::response::Read{contents:file_content0.clone()};
         let result1 = language_server::response::Read{contents:file_content1.clone()};
         mock_client.set_file_read_result(path0.clone(),Ok(result0));
@@ -208,23 +223,40 @@ mod tests {
 
         let language_server             = language_server::Connection::new_mock_rc(mock_client);
         let mut embedded_visualizations = EmbeddedVisualizations::default();
-        let embedded_content            = "<extremely fast point cloud code>".to_string();
-        embedded_visualizations.insert("PointCloud".to_string(),embedded_content.clone());
+        let embedded_visualization = Rc::new(class::Handle::new(NativeConstructorClass::new(
+            Signature {
+                name        : "Bubble Visualization (native)".to_string(),
+                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
+            },
+            |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
+        )));
+        embedded_visualizations.insert("PointCloud".to_string(),embedded_visualization.clone());
         let vis_controller           = Handle::new(language_server,embedded_visualizations);
 
-        let visualizations = result(vis_controller.list_visualizations());
+        let visualizations = vis_controller.list_visualizations().await;
         let visualizations = visualizations.expect("Couldn't list visualizations.");
 
         assert_eq!(visualizations[0],VisualizationIdentifier::Embedded("PointCloud".to_string()));
         assert_eq!(visualizations[1],VisualizationIdentifier::File(path0));
         assert_eq!(visualizations[2],VisualizationIdentifier::File(path1));
 
-        let content = vec![embedded_content,file_content0,file_content1];
+        let javascript_vis0 = JsSourceClass::from_js_source_raw(&file_content0);
+        let javascript_vis1 = JsSourceClass::from_js_source_raw(&file_content1);
+        let javascript_vis0 = javascript_vis0.expect("Couldn't create visualization class.");
+        let javascript_vis1 = javascript_vis1.expect("Couldn't create visualization class.");
+        let javascript_vis0 = Rc::new(class::Handle::new(javascript_vis0));
+        let javascript_vis1 = Rc::new(class::Handle::new(javascript_vis1));
+
+        let content = vec![embedded_visualization,javascript_vis0,javascript_vis1];
         let zipped  = visualizations.iter().zip(content.iter());
         for (visualization,content) in zipped {
-            let loaded_content = result(vis_controller.load_visualization(&visualization));
-            let loaded_content = loaded_content.expect("Couldn't load visualization's content.");
-            assert_eq!(*content,loaded_content);
+            let loaded_content   = vis_controller.load_visualization(&visualization).await;
+            let loaded_content   = loaded_content.expect("Couldn't load visualization's content.");
+            let loaded_signature = loaded_content.class();
+            let loaded_signature = loaded_signature.as_ref().expect("Couldn't get class.").signature();
+            let signature        = content.class();
+            let signature        = signature.as_ref().expect("Couldn't get class.").signature();
+            assert_eq!(signature,loaded_signature);
         }
     }
 }

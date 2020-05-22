@@ -5,17 +5,12 @@ use ensogl::system::web;
 use ensogl::application::Application;
 use wasm_bindgen::prelude::*;
 use ensogl_core_msdf_sys::run_once_initialized;
-use graph_editor::component::visualization::NativeConstructorClass;
-use graph_editor::component::visualization::ClassAttributes;
-use graph_editor::component::visualization::Visualization;
-use graph_editor::component::visualization::JsRenderer;
+use graph_editor::component::visualization::JsSourceClass;
 use graph_editor::component::visualization::Data;
 use graph_editor::component::visualization::Registry;
 use std::rc::Rc;
-use ensogl::display::Scene;
 use nalgebra::Vector2;
 use js_sys::Math::sin;
-// use ide::controller::visualization::Handle;
 
 fn generate_data(seconds:f64) -> Vec<Vector2<f32>> {
     let mut data = Vec::new();
@@ -27,9 +22,13 @@ fn generate_data(seconds:f64) -> Vec<Vector2<f32>> {
     data
 }
 
-fn constructor_sample_js_bubble_chart() -> JsRenderer {
+
+
+fn constructor_graph() -> JsSourceClass {
     let fn_constructor = r#"
         class Graph {
+            static inputTypes = ["[[Float,Float,Float]]"]
+
             onDataReceived(root, data) {
                 if (!root.canvas) {
                     root.canvas  = document.createElement("canvas");
@@ -65,9 +64,9 @@ fn constructor_sample_js_bubble_chart() -> JsRenderer {
             }
         }
 
-        return new Graph();
+        return Graph;
     "#;
-    JsRenderer::from_constructor(fn_constructor).unwrap()
+    JsSourceClass::from_js_source_raw(fn_constructor).unwrap()
 }
 
 #[wasm_bindgen]
@@ -90,22 +89,12 @@ fn init(app:&Application) {
     let navigator  = Navigator::new(&scene,&camera);
     let registry   = Registry::with_default_visualizations();
 
-    registry.register_class(NativeConstructorClass::new(
-        ClassAttributes {
-            name        : "Graph (JS)".to_string(),
-            input_types : vec!["[[float;2]]".to_string().into()],
-        },
-        |scene:&Scene| {
-            let renderer = constructor_sample_js_bubble_chart();
-            renderer.set_dom_layer(&scene.dom.layers.front);
-            Ok(Visualization::new(renderer))
-        }
-    ));
+    registry.register_class(constructor_graph());
 
-    let vis_factories = registry.valid_sources(&"[[float;2]]".into());
+    let vis_factories = registry.valid_sources(&"[[Float,Float,Float]]".into());
     let vis_class     = vis_factories.iter().find(|class| {
-        class.attributes().name == "Graph (JS)"
-    }).expect("Couldn't find Graph (JS) class.");
+        class.signature().name == "Graph"
+    }).expect("Couldn't find Graph class.");
     let visualization = vis_class.instantiate(&scene).expect("Couldn't create visualiser.");
 
     let mut was_rendered = false;
