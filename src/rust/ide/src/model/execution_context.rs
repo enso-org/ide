@@ -113,7 +113,7 @@ impl ExecutionContext {
     /// Pop the last stack item from this context. It returns error when only root call
     /// remains.
     pub fn pop(&self) -> FallibleResult<()> {
-        self.stack.borrow_mut().pop().ok_or(PopOnEmptyStack)?;
+        self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
         Ok(())
     }
 
@@ -124,7 +124,7 @@ impl ExecutionContext {
 
     /// Detaches visualization from current execution context.
     pub fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
-        Ok(self.visualizations.borrow_mut().remove(id).ok_or(InvalidVisualizationId)?)
+        Ok(self.visualizations.borrow_mut().remove(id).ok_or_else(InvalidVisualizationId)?)
     }
 
     /// Get an iterator over stack items.
