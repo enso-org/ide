@@ -42,7 +42,6 @@ use ensogl::application::shortcut;
 use crate::component::cursor::Cursor;
 use crate::component::node;
 use crate::component::node::Node as NodeView;
-use crate::component::node::WeakNode as WeakNodeView;
 use crate::component::connection::Connection as EdgeView;
 use enso_frp as frp;
 use enso_frp::io::keyboard;
@@ -54,12 +53,10 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
 use ensogl::display::Scene;
-use crate::component::node::port::Expression;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
-use crate::component::visualization::example::js::constructor_sample_js_bubble_chart;
 use crate::component::visualization::MockDataGenerator3D;
-use crate::component::visualization::example::native;
+
 
 
 // =====================
@@ -247,7 +244,7 @@ ensogl::def_command_api! { Commands
     remove_selected_nodes,
     /// Remove all nodes from the graph.
     remove_all_nodes,
-    /// Toggle the visibility of the selected visualisations
+    /// Toggle the visibility of the selected visualizations
     toggle_visualization_visibility,
 
 
@@ -288,7 +285,7 @@ ensogl::def_command_api! { Commands
     debug_set_data_for_selected_node,
 
     /// Cycle the visualization for the selected nodes. TODO only has dummy functionality at the moment.
-    debug_cycle_visualisation_for_selected_node,
+    debug_cycle_visualization_for_selected_node,
 }
 
 impl Commands {
@@ -318,7 +315,7 @@ impl Commands {
             def toggle_node_inverse_select       = source();
 
             def debug_set_data_for_selected_node            = source();
-            def debug_cycle_visualisation_for_selected_node = source();
+            def debug_cycle_visualization_for_selected_node = source();
 
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
@@ -327,7 +324,7 @@ impl Commands {
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
              ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
-             ,debug_set_data_for_selected_node,debug_cycle_visualisation_for_selected_node}
+             ,debug_set_data_for_selected_node,debug_cycle_visualization_for_selected_node}
     }
 }
 
@@ -352,12 +349,14 @@ pub struct FrpInputs {
     pub remove_all_node_output_edges   : frp::Source<NodeId>,
     pub remove_edge                    : frp::Source<EdgeId>,
     pub select_node                    : frp::Source<NodeId>,
-    pub set_node_expression            : frp::Source<(NodeId,Expression)>,
+    pub remove_node                    : frp::Source<NodeId>,
+    pub set_node_expression            : frp::Source<(NodeId,node::Expression)>,
     pub set_node_position              : frp::Source<(NodeId,Position)>,
     pub set_visualization_data         : frp::Source<NodeId>,
     pub translate_selected_nodes       : frp::Source<Position>,
     pub cycle_visualization            : frp::Source<NodeId>,
     pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
+    pub register_visualization_class   : frp::Source<Option<Rc<visualization::Handle>>>,
 }
 
 impl FrpInputs {
@@ -374,19 +373,23 @@ impl FrpInputs {
             def remove_all_node_output_edges   = source();
             def remove_edge                    = source();
             def select_node                    = source();
+            def remove_node                    = source();
             def set_node_expression            = source();
             def set_node_position              = source();
             def set_visualization_data         = source();
             def translate_selected_nodes       = source();
             def cycle_visualization            = source();
             def set_visualization              = source();
+            def register_visualization_class   = source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
              ,remove_all_node_input_edges,remove_all_node_output_edges,set_visualization_data
              ,connect_detached_edges_to_node,connect_edge_source,connect_edge_target
-             ,set_node_position,select_node,translate_selected_nodes,set_node_expression
-             ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization}
+             ,set_node_position,select_node,remove_node,translate_selected_nodes,set_node_expression
+             ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
+             ,register_visualization_class
+        }
     }
 }
 
@@ -458,19 +461,20 @@ macro_rules! generate_frp_outputs {
 
 
 generate_frp_outputs! {
-    node_added         : NodeId,
-    node_removed       : NodeId,
-    node_selected      : NodeId,
-    node_deselected    : NodeId,
-    node_position_set  : (NodeId,Position),
+    node_added          : NodeId,
+    node_removed        : NodeId,
+    node_selected       : NodeId,
+    node_deselected     : NodeId,
+    node_position_set   : (NodeId,Position),
+    node_expression_set : (NodeId,node::Expression),
 
-    edge_added         : EdgeId,
-    edge_removed       : EdgeId,
-    edge_source_set    : (EdgeId,EdgeTarget),
-    edge_target_set    : (EdgeId,EdgeTarget),
+    edge_added          : EdgeId,
+    edge_removed        : EdgeId,
+    edge_source_set     : (EdgeId,EdgeTarget),
+    edge_target_set     : (EdgeId,EdgeTarget),
 
-    connection_added   : EdgeId,
-    connection_removed : EdgeId,
+    connection_added    : EdgeId,
+    connection_removed  : EdgeId,
 }
 
 
@@ -765,7 +769,7 @@ impl GraphEditorModelWithNetwork {
             def _cursor_mode = node.view.ports.frp.cursor_mode.map(f!((mode)
                 cursor.frp.set_mode.emit(mode)
             ));
-            def edge_id = node.view.frp.output_ports.mouse_down.map(f_!([model] {
+            def new_edge = node.view.frp.output_ports.mouse_down.map(f_!([model] {
                 if let Some(node) = model.nodes.get_cloned_ref(&node_id) {
                     let view = EdgeView::new(&model.scene);
                     model.add_child(&view);
@@ -778,26 +782,22 @@ impl GraphEditorModelWithNetwork {
                 } else { default() }
             }));
 
-            outputs.edge_added.attach(&edge_id);
-            def new_edge_source = edge_id.map(move |id| (*id,EdgeTarget::new(node_id,default())));
-            outputs.edge_source_set.attach(&new_edge_source);
+            outputs.edge_added <+ new_edge;
+            def new_edge_source = new_edge.map(move |id| (*id,EdgeTarget::new(node_id,default())));
+            outputs.edge_source_set <+ new_edge_source;
 
+            def _eval = new_edge.map2(&cursor.frp.position,f!([model](id,position){
+                if let Some(edge) = model.edges.get_cloned_ref(id) {
+                    edge.view.events.target_position.emit(position)
+                }
+            }));
 
             def _press_node_input = node.view.ports.frp.press.map(f!((crumbs)
                 model.frp.press_node_input.emit(EdgeTarget::new(node_id,crumbs.clone()))
             ));
         }
 
-        let chart = constructor_sample_js_bubble_chart();
-        let dom_layer    = model.scene.dom.layers.front.clone_ref();
-        chart.set_dom_layer(&dom_layer);
-
-        let vis = Visualization::new(chart);
-        node.view.frp.set_visualization.emit(Some(vis));
-
-
         self.nodes.insert(node_id,node);
-
 
         node_id
     }
@@ -805,16 +805,6 @@ impl GraphEditorModelWithNetwork {
 
     pub fn get_node_position(&self, node_id:NodeId) -> Option<Vector3<f32>> {
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position())
-    }
-
-    // FIXME: remove
-    pub fn deprecated_add_node(&self) -> WeakNodeView {
-        todo!()
-    }
-
-    // FIXME: remove
-    pub fn deprecated_remove_node(&self, _node:WeakNodeView) {
-        todo!()
     }
 }
 
@@ -937,11 +927,14 @@ impl GraphEditorModel {
         edges
     }
 
-    fn set_node_expression(&self, node_id:impl Into<NodeId>, expr:impl Into<Expression>) {
+    fn set_node_expression(&self, node_id:impl Into<NodeId>, expr:impl Into<node::Expression>) {
         let node_id = node_id.into();
         let expr    = expr.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.view.ports.set_expression(expr);
+            node.view.frp.set_expression.emit(expr);
+        }
+        for edge_id in self.node_out_edges(node_id) {
+            self.refresh_edge_source_width(edge_id);
         }
     }
 
@@ -963,7 +956,9 @@ impl GraphEditorModel {
             if let Some(node) = self.nodes.get_cloned_ref(&target.node_id) {
                 node.out_edges.insert(edge_id);
                 edge.set_source(target.clone());
+                // FIXME: both lines require edge to refresh. Let's make it more efficient.
                 self.refresh_edge_position(edge_id);
+                self.refresh_edge_source_width(edge_id);
             }
         }
     }
@@ -1031,12 +1026,22 @@ impl GraphEditorModel {
         self.refresh_edge_target_position(edge_id);
     }
 
+    pub fn refresh_edge_source_width(&self, edge_id:EdgeId) {
+        if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
+            if let Some(edge_source) = edge.source() {
+                if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
+                    edge.view.events.source_width.emit(node.view.width());
+                }
+            }
+        };
+    }
+
     pub fn refresh_edge_source_position(&self, edge_id:EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_source) = edge.source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
                     edge.mod_position(|p| {
-                        p.x = node.position().x + node::NODE_WIDTH/2.0;
+                        p.x = node.position().x + node.view.width()/2.0;
                         p.y = node.position().y + node::NODE_HEIGHT/2.0;
                     });
                 }
@@ -1116,7 +1121,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualisation_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualization_for_selected_node")
         ]
     }
 }
@@ -1185,13 +1190,16 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     web::body().set_style_or_panic("cursor","none");
     world.add_child(&cursor);
 
-    let model   = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
-    let network = &model.network;
-    let nodes   = &model.nodes;
-    let edges   = &model.edges;
-    let inputs  = &model.frp;
-    let mouse   = &scene.mouse.frp;
-    let touch   = &model.touch_state;
+    let model                  = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
+    let network                = &model.network;
+    let nodes                  = &model.nodes;
+    let edges                  = &model.edges;
+    let inputs                 = &model.frp;
+    let mouse                  = &scene.mouse.frp;
+    let touch                  = &model.touch_state;
+    let visualization_registry = visualization::Registry::with_default_visualizations();
+    let logger                 = &model.logger;
+
 
     let outputs = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
@@ -1319,7 +1327,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     new_node_input          <- [inputs.press_node_input, inputs.connect_detached_edges_to_node];
     detached_targets        <= new_node_input.map(f_!(model.edges.detached_target.mem_take()));
-    new_edge_target         <- new_node_input.map2(&detached_targets, |t,id| (*id,t.clone()));
+    new_edge_target         <- detached_targets.map2(&new_node_input, |id,t| (*id,t.clone()));
     outputs.edge_target_set <+ new_edge_target;
 
     overlapping_edges       <= outputs.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
@@ -1367,7 +1375,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Set NodeView Expression ===
     frp::extend! { network
 
-    eval inputs.set_node_expression(((node_id,expr)) model.set_node_expression(node_id,expr));
+    outputs.node_expression_set <+ inputs.set_node_expression;
 
 
     // === Move Nodes ===
@@ -1398,12 +1406,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         })
     }));
 
-
-
-
-    // === Vis Cycling ===
-
-    def _cycle_vis= inputs.debug_cycle_visualisation_for_selected_node.map(f!([inputs,nodes](_) {
+     // === Vis Cycling ===
+     def _cycle_vis = inputs.debug_cycle_visualization_for_selected_node.map(f!([inputs,nodes](_) {
         nodes.selected.for_each(|node| inputs.cycle_visualization.emit(node));
     }));
 
@@ -1416,8 +1420,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         }
     }));
 
+    // === Vis Update Data ===
+
     // TODO remove this once real data is available.
-    let dummy_switch  = Rc::new(Cell::new(false));
     let sample_data_generator = MockDataGenerator3D::default();
     def _set_dumy_data = inputs.debug_set_data_for_selected_node.map(f!([nodes](_) {
         nodes.selected.for_each(|node_id| {
@@ -1430,21 +1435,21 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         })
     }));
 
-     def _set_dumy_data = inputs.cycle_visualization.map(f!([scene,nodes](node_id) {
-        // TODO remove dummy cycling once we have the visualization registry.
-        let dc = dummy_switch.get();
-        dummy_switch.set(!dc);
-        let vis = if dc {
-            Visualization::new(native::BubbleChart::new(&scene))
-        } else {
-            let chart     = constructor_sample_js_bubble_chart();
-            let dom_layer = scene.dom.layers.front.clone_ref();
-            chart.set_dom_layer(&dom_layer);
-            Visualization::new(chart)
+     let cycle_count = Rc::new(Cell::new(0));
+     def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
+        let visualizations = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
+        cycle_count.set(cycle_count.get() % visualizations.len());
+        let vis  = &visualizations[cycle_count.get()];
+        let vis  = vis.instantiate(&scene);
+        let node = nodes.get_cloned_ref(node_id);
+        match (vis, node) {
+            (Ok(vis), Some(node))  => {
+                    node.view.visualization_container.frp.set_visualization.emit(Some(vis));
+            },
+            (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {}", e)),
+            _           => {}
         };
-        if let Some(node) = nodes.get_cloned_ref(node_id) {
-            node.view.visualization_container.frp.set_visualization.emit(Some(vis));
-        }
+        cycle_count.set(cycle_count.get() + 1);
     }));
 
     def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes](_) {
@@ -1453,18 +1458,27 @@ fn new_graph_editor(world:&World) -> GraphEditor {
                 node.view.visualization_container.frp.toggle_visibility.emit(());
             }
         });
+
     }));
 
+    // === Register Visualization ===
+
+    def _register_visualization = inputs.register_visualization_class.map(f!([visualization_registry](handle) {
+        if let Some(handle) = handle {
+            visualization_registry.register_class_from_handle(&handle);
+        }
+    }));
 
 
     // === OUTPUTS REBIND ===
 
-    eval outputs.edge_source_set (((id,tgt)) model.connect_edge_source(*id,tgt));
-    eval outputs.edge_target_set (((id,tgt)) model.connect_edge_target(*id,tgt));
-    eval outputs.node_selected   ((id) model.select_node(id));
-    eval outputs.node_deselected ((id) model.deselect_node(id));
-    eval outputs.edge_removed    ((id) model.remove_edge(id));
-    eval outputs.node_removed    ((id) model.remove_node(id));
+    eval outputs.edge_source_set     (((id,tgt)) model.connect_edge_source(*id,tgt));
+    eval outputs.edge_target_set     (((id,tgt)) model.connect_edge_target(*id,tgt));
+    eval outputs.node_selected       ((id) model.select_node(id));
+    eval outputs.node_deselected     ((id) model.deselect_node(id));
+    eval outputs.edge_removed        ((id) model.remove_edge(id));
+    eval outputs.node_removed        ((id) model.remove_node(id));
+    eval outputs.node_expression_set (((id,expr)) model.set_node_expression(id,expr));
 
 
 
@@ -1484,6 +1498,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     def is_empty_src  = source::<bool>();
     def is_active = is_active_src.sampler();
     def is_empty  = is_empty_src.sampler();
+
+    // === Remove implementation ===
+    outputs.node_removed <+ inputs.remove_node;
 
     }
 
