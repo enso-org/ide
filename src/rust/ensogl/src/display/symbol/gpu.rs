@@ -330,8 +330,8 @@ impl Symbol {
 
     pub fn render(&self) {
         group!(self.logger, "Rendering.", {
-            let instance_count = self.surface.instance_scope().size() as i32;
-            if self.is_hidden() || instance_count <= 0 {
+            let instance_count = self.surface.instance_scope().size();
+            if self.is_hidden() || instance_count == 0 {
                 return;
             }
             self.with_program(|_|{
@@ -366,7 +366,7 @@ impl Symbol {
 
                 self.stats.inc_draw_call_count();
                 if instance_count > 1 {
-                    self.context.draw_arrays_instanced(mode,first,count,instance_count);
+                    self.context.draw_arrays_instanced(mode,first,count,instance_count as i32);
                 } else {
                     self.context.draw_arrays(mode,first,count);
                 }
