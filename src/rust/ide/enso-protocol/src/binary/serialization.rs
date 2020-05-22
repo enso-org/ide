@@ -149,7 +149,7 @@ impl<'a> SerializableUnion for ToServerPayload<'a> {
                 }).as_union_value()
             }
             ToServerPayload::WriteFile {path,contents} => {
-                let path     = path.serialize(builder); //serialize_path(path,builder);
+                let path     = path.serialize(builder);
                 let contents = builder.create_vector(contents);
                 WriteFileCommand::create(builder, &WriteFileCommandArgs {
                     path     : Some(path),
@@ -157,7 +157,7 @@ impl<'a> SerializableUnion for ToServerPayload<'a> {
                 }).as_union_value()
             }
             ToServerPayload::ReadFile {path} => {
-                let path = path.serialize(builder);//serialize_path(path,builder);
+                let path = path.serialize(builder);
                 ReadFileCommand::create(builder, &ReadFileCommandArgs {
                     path : Some(path)
                 }).as_union_value()
@@ -184,7 +184,7 @@ impl SerializableUnion for ToServerPayloadOwned {
                 }).as_union_value()
             }
             ToServerPayloadOwned::WriteFile {path,contents} => {
-                let path     = path.serialize(builder); //serialize_path(path,builder);
+                let path     = path.serialize(builder);
                 let contents = builder.create_vector(contents);
                 WriteFileCommand::create(builder, &WriteFileCommandArgs {
                     path     : Some(path),
@@ -192,7 +192,7 @@ impl SerializableUnion for ToServerPayloadOwned {
                 }).as_union_value()
             }
             ToServerPayloadOwned::ReadFile {path} => {
-                let path = path.serialize(builder);//serialize_path(path,builder);
+                let path = path.serialize(builder);
                 ReadFileCommand::create(builder, &ReadFileCommandArgs {
                     path : Some(path)
                 }).as_union_value()

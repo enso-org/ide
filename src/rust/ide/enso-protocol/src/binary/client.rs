@@ -5,7 +5,8 @@ use crate::prelude::*;
 
 use crate::handler::Handler;
 use crate::handler::Disposition;
-use crate::binary::message::{FromServerPayloadOwned, MessageToServerRef};
+use crate::binary::message::FromServerPayloadOwned;
+use crate::binary::message::MessageToServerRef;
 use crate::binary::message::ToServerPayload;
 use crate::common::error::UnexpectedMessage;
 use crate::binary::message::MessageFromServerOwned;
@@ -97,8 +98,8 @@ impl Client {
         }
     }
 
-    /// Helper function that does early processing of the peer's message and decides how it shall
-    /// be handled.
+    /// Function that does early processing of the peer's message and decides how it shall be
+    /// handled. Returns a function so that it may be passed to the `Handler`.
     fn processor
     (logger:Logger)
     -> impl FnMut(TransportEvent) -> Disposition<Uuid, FromServerPayloadOwned,Notification> + 'static {
@@ -145,8 +146,8 @@ impl Client {
     }
 
     /// Starts a new request, described by the given payload.
-    /// Function `f`
-    pub fn open<F,R>(&self, payload:ToServerPayload, f:F) -> LocalBoxFuture<FallibleResult<R>>
+    /// Function `f` serves to retrieve the request's result from the more general `Reply` type.
+    pub fn make_request<F,R>(&self, payload:ToServerPayload, f:F) -> LocalBoxFuture<FallibleResult<R>>
         where F : FnOnce(FromServerPayloadOwned) -> FallibleResult<R>,
               R : 'static,
               F : 'static, {
@@ -179,19 +180,19 @@ impl API for Client {
     fn init(&self, client_id:Uuid) -> LocalBoxFuture<FallibleResult<()>> {
         info!(self.logger,"Initializing binary connection as client with id {client_id}.");
         let payload = ToServerPayload::InitSession {client_id};
-        self.open(payload,Self::expect_success)
+        self.make_request(payload,Self::expect_success)
     }
 
     fn write_file(&self, path:&Path, contents:&[u8]) -> LocalBoxFuture<FallibleResult<()>> {
         info!(self.logger,"Writing file {path} with {contents.len()} bytes.");
         let payload = ToServerPayload::WriteFile {path,contents};
-        self.open(payload,Self::expect_success)
+        self.make_request(payload,Self::expect_success)
     }
 
     fn read_file(&self, path:&Path) -> LocalBoxFuture<FallibleResult<Vec<u8>>> {
         info!(self.logger,"Reading file {path}.");
         let payload = ToServerPayload::ReadFile {path};
-        self.open(payload, move |result| {
+        self.make_request(payload, move |result| {
             if let FromServerPayloadOwned::FileContentsReply {contents} = result {
                 Ok(contents)
             } else {

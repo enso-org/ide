@@ -224,7 +224,12 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
 
     /// Starts a new request described by a given message.
     ///
-    /// The request shall be sent to the server and then await the reply.
+    /// The request shall be sent to the server immediately and then await the reply.
+    /// Once the reply to this request arrives (or the call is abandoned for other reason, e.g. due
+    /// to a disconnection) the returned Future shall complete.
+    ///
+    /// `f` is a function that shall be used to handle server's reply. It should try returning the
+    /// desired request's result and must handle errors. (thus `FallibleResult`)
     pub fn make_request<F,R>
     (&self, message:&dyn IsRequest<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {

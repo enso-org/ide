@@ -120,7 +120,7 @@ const DEFAULT_PROJECT_NAME:&str = "Project";
 /// Note: Caller should store or leak this `JsExecutor` so the global
 /// spawner won't be dangling.
 pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
-    let executor   = executor::web::EventLoopExecutor::new_running();
+    let executor = executor::web::EventLoopExecutor::new_running();
     executor::global::set_spawner(executor.spawner.clone());
     executor
 }
