@@ -79,8 +79,8 @@ impl From<JsValue> for JsVisualizationError {
     }
 }
 
-/// Helper type to propagate results that can fail due to `JsVisualizationError`s.
-pub type JsResult<T> = Result<T, JsVisualizationError>;
+/// Internal helper type to propagate results that can fail due to `JsVisualizationError`s.
+pub(crate) type JsResult<T> = Result<T, JsVisualizationError>;
 
 
 
@@ -160,7 +160,7 @@ impl JsRenderer {
     ///
     /// let renderer = JsRenderer::from_object_source(r#"function() {
     ///   class Visualization {
-    ///       static inputTypes = ["[[float;3]]"]
+    ///       static inputTypes = ["[[Float,Float,Float]]"]
     ///       onDataReceived(root, data) {};
     ///       setSize(root, size) {};
     ///   }

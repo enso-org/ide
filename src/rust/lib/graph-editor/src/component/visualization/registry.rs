@@ -14,15 +14,15 @@
 //! // Add a new class that creates visualizations defined in JS.
 //! registry.register_class(JsSourceClass::from_js_source_raw(r#"
 //!     class BubbleVisualization {
-//!         static inputTypes = ["[[float;3]]"]
+//!         static inputTypes = ["[[Float,Float,Float]]"]
 //!         onDataReceived(root, data) {}
 //!         setSize(root, size) {}
 //!     }
 //!     return BubbleVisualization;
 //! "#.into()).unwrap());
 //!
-//! // Get all factories that can render  visualization for the type `[[float;3]]`.
-//! let target_type:EnsoType = "[[float;3]]".to_string().into();
+//! // Get all factories that can render  visualization for the type `[[Float,Float,Float]]`.
+//! let target_type:EnsoType = "[[Float,Float,Float]]".to_string().into();
 //! assert!(registry.valid_sources(&target_type).len() > 0);
 //! ```
 
@@ -62,9 +62,9 @@ impl Registry {
         let registry = Self::new();
         // FIXME use proper enso types here.
         registry.register_class(NativeConstructorClass::new(
-            ClassAttributes {
+            Signature {
                 name        : "Bubble Visualization (native)".to_string(),
-                input_types : vec!["[[float;3]]".to_string().into()],
+                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
             },
             |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));
@@ -74,19 +74,24 @@ impl Registry {
     }
 
     /// Register a new visualization class with the registry.
-    pub fn register_class<T: Class + 'static>(&self, class:T) {
+    pub fn register_class<T:Class+'static>(&self, class:T) {
         self.register_class_rc(Rc::new(class));
     }
 
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
-    pub fn register_class_rc(&self, class:Rc<dyn Class>) {
-        let spec = class.attributes();
+    pub fn register_class_from_handle(&self, handle:&Handle) {
+        if let Some(class) = handle.class() {
+            self.register_class_rc(class);
+        }
+    }
+
+    fn register_class_rc(&self, class:Rc<dyn Class>) {
+        let spec = class.signature();
         for dtype in &spec.input_types {
             let mut entries = self.entries.borrow_mut();
             let entry_vec = entries.entry(dtype.clone()).or_insert_with(default);
             entry_vec.push(Rc::clone(&class));
         }
-
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.

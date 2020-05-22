@@ -10,8 +10,8 @@
 //!    tasks that are the same for all visualizations. That is, interfacing with the other UI
 //!    elements, the visualization registry, as well as propagating frp messages.
 //!
-//! 3. The `Class` is a struct that instantiates `Visualization` structs and provides data about
-//!    the visualization even before they are instantiated like input datatype and name.
+//! 3. The `Class` is a struct that can instantiate multiple `Visualization` structs and provides
+//!    data about the visualization even before they are instantiated like input datatype and name.
 //!
 //! 4. The `Container` wraps the `Visualization` and provides the UI elements that facilitate
 //!    user interactions. For example, selecting a visualization or connecting it to nodes in the

@@ -356,7 +356,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes       : frp::Source<Position>,
     pub cycle_visualization            : frp::Source<NodeId>,
     pub set_visualization              : frp::Source<(NodeId,Option<Visualization>)>,
-    pub register_visualization_class   : frp::Source<Option<Rc<visualization::ClassHandle>>>,
+    pub register_visualization_class   : frp::Source<Option<Rc<visualization::Handle>>>,
 }
 
 impl FrpInputs {
@@ -1441,7 +1441,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
      let cycle_count = Rc::new(Cell::new(0));
      def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
-        let visualizations = visualization_registry.valid_sources(&"[[float;3]]".into());
+        let visualizations = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
         let vis  = &visualizations[cycle_count.get()];
         let vis  = vis.instantiate(&scene);
@@ -1467,11 +1467,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Register Visualization ===
 
-    def _register_visualization = inputs.register_visualization_class.map(f!([visualization_registry](source) {
-        if let Some(source) = source {
-            if let Some(class) = source.get_class() {
-                visualization_registry.register_class_rc(class.clone_ref());
-            }
+    def _register_visualization = inputs.register_visualization_class.map(f!([visualization_registry](handle) {
+        if let Some(handle) = handle {
+            visualization_registry.register_class_from_handle(&handle);
         }
     }));
 

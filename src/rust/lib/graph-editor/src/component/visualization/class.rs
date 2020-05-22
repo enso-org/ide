@@ -8,8 +8,6 @@ use crate::visualization::*;
 use ensogl::display::Scene;
 use ensogl::display;
 use std::error::Error;
-use enso_prelude::CloneRef;
-
 
 
 // ====================
@@ -43,7 +41,7 @@ impl From<&str> for EnsoType {
 /// Contains general information about a visualization.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct ClassAttributes {
+pub struct Signature {
     pub name        : String,
     pub input_types : Vec<EnsoType>,
 }
@@ -183,8 +181,18 @@ impl Visualization {
 // === Visualization Class ===
 // ===========================
 
+/// Indicates that instantiating a `Visualisation` from a `Class` has failed.
+#[derive(Debug,Display)]
+#[allow(missing_docs)]
+pub enum InstantiationError {
+    /// Indicates a problem with instantiating a class object.
+    InvalidClass         { inner:Box<dyn Error> },
+    /// Indicates a problem with instantiating a visualisation from a valid class object.
+    InvalidVisualisation { inner:Box<dyn Error> },
+}
+
 /// Result of the attempt to instantiate a `Visualization` from a `Class`.
-pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
+pub type InstantiationResult = Result<Visualization,InstantiationError>;
 
 /// Specifies a trait that allows the instantiation of `Visualizations`.
 ///
@@ -210,7 +218,7 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 /// let js_source_class = visualization::JsSourceClass::from_js_source_raw(r#"
 ///
 ///    class BubbleVisualization {
-///         static inputTypes = ["[[float;3]]"]
+///         static inputTypes = ["[[Float,Float,Float]]"]
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
 ///     }
@@ -221,9 +229,9 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 ///
 /// // Create a `visualization::Class` that instantiates a `BubbleChart`.
 /// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
-///     visualization::ClassAttributes {
+///     visualization::Signature {
 ///         name        : "Bubble Visualization (native)".to_string(),
-///         input_types : vec!["[[float;3]]".to_string().into()],
+///         input_types : vec!["[[Float,Float,Float]]".into()],
 ///     },
 ///     |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
 /// );
@@ -231,36 +239,36 @@ pub type InstantiationResult = Result<Visualization,Box<dyn Error>>;
 pub trait Class: Debug {
     /// Provides additional information about the `Class`, for example, which `DataType`s can be
     /// rendered by the instantiated visualization.
-    fn attributes(&self) -> &ClassAttributes;
+    fn signature(&self) -> &Signature;
     /// Create new visualization, that is initialised for the given scene. This can fail if the
     /// `visualization::Class` contains invalid data, for example, JS code that fails to execute,
     /// or if the scene is in an invalid state.
-    // TODO consider not allowing failing here and require the checking on instantiation of the `Class`.
     // TODO consider not providing the scene here, but hooking the the shapes/dom elements into the
     // scene externally.
     fn instantiate(&self, scene:&Scene) -> InstantiationResult;
 }
 
+/// Wrapper for `Class` objects, so they can be passed through the FRP system.
 #[derive(Clone,Debug,Default)]
 #[allow(missing_docs)]
-pub struct ClassHandle {
+pub struct Handle {
     class : Option<Rc<dyn Class>>
 }
 
-impl ClassHandle {
+impl Handle {
     /// Constructor.
-    pub fn new<T: Class + 'static>(class: T) -> ClassHandle {
-        let wrapped = Rc::new(class);
-        ClassHandle{class:Some(wrapped)}
+    pub fn new<T:Class+'static>(class:T) -> Handle {
+        let class = Rc::new(class);
+        Handle {class:Some(class)}
     }
 
     /// Return the inner class.
-    pub fn get_class(&self) -> Option<Rc<dyn Class>> {
+    pub fn class(&self) -> Option<Rc<dyn Class>> {
         self.class.clone()
     }
 }
 
-impl CloneRef for ClassHandle {}
+impl CloneRef for Handle {}
 
 
 
@@ -271,27 +279,29 @@ impl CloneRef for ClassHandle {}
 /// Type alias for a function that can create a `Visualization`.
 pub trait VisualizationConstructor = Fn(&Scene) -> InstantiationResult;
 
+/// Constructor that instantiates visualisations from a given `VisualizationConstructor`. Can be
+/// used to wrap the constructor of visualizations defined in Rust.
 #[derive(CloneRef,Clone,Derivative)]
 #[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct NativeConstructorClass {
-    info        : Rc<ClassAttributes>,
+    info        : Rc<Signature>,
     #[derivative(Debug="ignore")]
     constructor : Rc<dyn VisualizationConstructor>,
 }
 
 impl NativeConstructorClass {
     /// Create a visualization source from a closure that returns a `Visualization`.
-    pub fn new<T>(info: ClassAttributes, constructor:T) -> Self
+    pub fn new<T>(info:Signature, constructor:T) -> Self
     where T: VisualizationConstructor + 'static {
-        let info = Rc::new(info);
+        let info        = Rc::new(info);
         let constructor = Rc::new(constructor);
-        NativeConstructorClass { info,constructor }
+        NativeConstructorClass{info,constructor}
     }
 }
 
 impl Class for NativeConstructorClass {
-    fn attributes(&self) -> &ClassAttributes {
+    fn signature(&self) -> &Signature {
         &self.info
     }
 
