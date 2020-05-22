@@ -3,11 +3,11 @@
 
 use crate::prelude::*;
 
+use crate::ensogl::Duration;
 use crate::messages::Error;
 use crate::messages::Response;
 
 use futures::channel::oneshot::Canceled;
-
 
 
 // ================
@@ -28,6 +28,10 @@ pub enum RpcError {
     /// Failed to deserialize message from server.
     #[fail(display = "Failed to deserialize a message: {}.", _0)]
     DeserializationFailed(serde_json::Error),
+
+    /// Response timeout.
+    #[fail(display = "Response timeout after: {:?}.", _0)]
+    TimeoutError(Duration),
 }
 
 impl From<Canceled> for RpcError {

@@ -4,6 +4,8 @@ use crate::prelude::*;
 
 use crate::api;
 use crate::api::Result;
+use crate::ensogl::sleep;
+use crate::ensogl::Duration;
 use crate::error::HandlingError;
 use crate::error::RpcError;
 use crate::messages;
@@ -11,6 +13,7 @@ use crate::messages::Id;
 use crate::transport::Transport;
 use crate::transport::TransportEvent;
 
+use futures::future;
 use futures::FutureExt;
 use futures::StreamExt;
 use futures::Stream;
@@ -136,6 +139,8 @@ shared! { Handler
 /// Mutable state of the `Handler`.
 #[derive(Debug)]
 pub struct HandlerData<Notification> {
+    /// Timeout for futures.
+    timeout         : Duration,
     /// Ongoing calls.
     ongoing_calls   : OngoingCalls,
     /// Handle to send outgoing events.
@@ -222,6 +227,7 @@ impl<Notification> Handler<Notification> {
     /// `Transport` must be functional (e.g. not in the process of opening).
     pub fn new(transport:impl Transport + 'static) -> Handler<Notification> {
         let data = HandlerData {
+            timeout         : Duration::new(1,0),
             ongoing_calls   : default(),
             id_generator    : IdGenerator::new(),
             transport       : Box::new(transport),
@@ -276,7 +282,14 @@ impl<Notification> Handler<Notification> {
             // If message cannot be send, future ret must be cancelled.
             self.remove_ongoing_request(id);
         }
-        ret
+
+        let timeout = self.rc.borrow().timeout;
+        future::select(ret, sleep(timeout).boxed()).map(move |either|
+            match either {
+                future::Either::Left ((x, _)) => x,
+                future::Either::Right((_, _)) => Err(RpcError::TimeoutError(timeout)),
+            }
+        )
     }
 
     /// Deal with `Response` message from the peer.
