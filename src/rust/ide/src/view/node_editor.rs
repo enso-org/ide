@@ -155,8 +155,9 @@ impl GraphEditorIntegration {
 #[derive(Clone,CloneRef,Debug)]
 pub struct NodeEditor {
     display_object : display::object::Instance,
-    graph          : Rc<GraphEditorIntegration>,
     controller     : controller::ExecutedGraph,
+    #[allow(missing_docs)]
+    pub graph      : Rc<GraphEditorIntegration>,
 }
 
 impl NodeEditor {

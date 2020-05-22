@@ -8,7 +8,10 @@ use crate::prelude::*;
 
 use std::rc::Rc;
 use enso_protocol::language_server;
-
+use graph_editor::GraphEditor;
+use enso_frp::stream::EventEmitter;
+use graph_editor::component::visualization::{ClassHandle, Class, NativeConstructorClass, ClassAttributes, Visualization, JsRenderer, JsSourceClass};
+use ensogl::display::Scene;
 
 
 // =============
@@ -21,6 +24,10 @@ use enso_protocol::language_server;
 pub enum VisualizationError {
     #[fail(display = "Visualization \"{}\" not found.", identifier)]
     NotFound {
+        identifier : VisualizationIdentifier
+    },
+    #[fail(display = "JavaScript visualization \"{}\" failed to compile.", identifier)]
+    CompileError {
         identifier : VisualizationIdentifier
     }
 }
@@ -72,7 +79,8 @@ const VISUALISATION_FOLDER : &str = "visualization";
 #[derive(Debug,Clone)]
 pub struct Handle {
     language_server_rpc     : Rc<language_server::Connection>,
-    embedded_visualizations : EmbeddedVisualizations
+    embedded_visualizations : EmbeddedVisualizations,
+    graph_editor            : RefCell<Option<GraphEditor>>
 }
 
 impl Handle {
@@ -80,7 +88,25 @@ impl Handle {
     pub fn new
     ( language_server_rpc     : Rc<language_server::Connection>
     , embedded_visualizations : EmbeddedVisualizations) -> Self {
-        Self {language_server_rpc,embedded_visualizations}
+        let graph_editor = RefCell::new(None);
+        Self {language_server_rpc,embedded_visualizations,graph_editor}
+    }
+
+    /// Sets the GraphEditor to report about visualizations availability.
+    pub async fn set_graph_editor(&self, graph_editor:Option<GraphEditor>) -> FallibleResult<()> {
+        let identifiers = self.list_visualizations().await;
+        let identifiers = identifiers.unwrap_or_default();
+        for identifier in identifiers {
+            let visualization = self.load_visualization(&identifier).await;
+            visualization.map(|visualization| {
+                graph_editor.as_ref().map(|graph_editor| {
+                    let class_handle = &Some(Rc::new(ClassHandle::new(visualization)));
+                    graph_editor.frp.register_visualization_class.emit_event(class_handle);
+                });
+            })?;
+        }
+        *self.graph_editor.borrow_mut() = graph_editor;
+        Ok(())
     }
 
     async fn list_file_visualizations(&self) -> FallibleResult<Vec<VisualizationIdentifier>> {
@@ -118,17 +144,22 @@ impl Handle {
 
     /// Load the source code of the specified visualization.
     pub async fn load_visualization
-    (&self, visualization:&VisualizationIdentifier) -> FallibleResult<String> {
-        match visualization {
+    (&self, visualization:&VisualizationIdentifier) -> FallibleResult<impl Class> {
+        let js_code = match visualization {
             VisualizationIdentifier::Embedded(identifier) => {
                 let result     = self.embedded_visualizations.get(identifier);
                 let identifier = visualization.clone();
                 let error      = || VisualizationError::NotFound{identifier}.into();
-                result.cloned().ok_or_else(error)
+                let result : FallibleResult<String> = result.cloned().ok_or_else(error);
+                result?
             },
             VisualizationIdentifier::File(path) =>
-                Ok(self.language_server_rpc.read_file(&path).await?.contents)
-        }
+                self.language_server_rpc.read_file(&path).await?.contents
+        };
+        JsSourceClass::from_js_source_raw(&js_code).map_err(|_| {
+            let identifier = visualization.clone();
+            VisualizationError::CompileError{identifier}.into()
+        })
     }
 }
 
