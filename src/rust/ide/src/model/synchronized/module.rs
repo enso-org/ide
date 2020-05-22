@@ -197,7 +197,8 @@ impl Module {
                             range : summary.id_map.clone().into(),
                             text  : content.id_map_slice().to_string(),
                         };
-                        vec![code_change,id_map_change]
+                        //id_map goes first, because code change may alter it's position.
+                        vec![id_map_change,code_change]
                     }).await,
                 Notification::MetadataChanged =>
                     self.notify_language_server(&summary.summary, |content| vec![TextEdit {
