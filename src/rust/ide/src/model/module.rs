@@ -54,7 +54,7 @@ pub enum Notification {
 // ==============
 
 /// Mapping between ID and metadata.
-#[derive(Debug,Clone,Default,Deserialize,Serialize)]
+#[derive(Debug,Clone,Deserialize,Serialize)]
 pub struct Metadata {
     /// Metadata used within ide.
     #[serde(default="default")]
@@ -66,6 +66,17 @@ pub struct Metadata {
 }
 
 impl parser::api::Metadata for Metadata {}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Metadata {
+            ide : default(),
+            // We cannot default to unit, because it cannot be flattened, so calling
+            // `Metadata::default().serialize()` will result in an error.
+            rest : serde_json::Value::Object(default()),
+        }
+    }
+}
 
 /// Metadata that belongs to ide.
 #[derive(Debug,Clone,Default,Deserialize,Serialize)]

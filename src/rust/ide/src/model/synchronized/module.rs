@@ -19,7 +19,7 @@ use enso_protocol::language_server::TextEdit;
 
 /// The minimal information about module's content, required to do properly invalidation of opened
 /// module in Language Server.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Eq,PartialEq)]
 struct ContentSummary {
     digest      : Sha3_224,
     end_of_file : TextLocation,
@@ -28,7 +28,7 @@ struct ContentSummary {
 /// The information about module's content. In addition to minimal summery defined in
 /// `ContentSummary` it adds information about sections, what enables efficient updates after code
 /// and metadata changes.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Eq,PartialEq,Shrinkwrap)]
 struct ParsedContentSummary {
     #[shrinkwrap(main_field)]
     summary  : ContentSummary,
@@ -273,13 +273,15 @@ pub mod test {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
-    use json_rpc::expect_call;
-    use wasm_bindgen_test::wasm_bindgen_test;
-    use utils::test::ExpectTuple;
-    use enso_protocol::language_server::CapabilityRegistration;
     use data::text::TextChange;
     use data::text;
+    use enso_protocol::language_server::CapabilityRegistration;
     use json_rpc::error::RpcError;
+    use json_rpc::expect_call;
+    use utils::test::ExpectTuple;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+
 
     /// A helper structure for setting up the Language Server Mock Client calls during opening
     /// and invalidating module file.
@@ -350,7 +352,7 @@ pub mod test {
         }
     }
 
-    #[wasm_bindgent_test]
+    #[wasm_bindgen_test]
     fn handling_notifications() {
         let path            = controller::module::Path::from_module_name("TestModule");
         let parser          = Parser::new_or_panic();
@@ -393,7 +395,7 @@ pub mod test {
         test.when_stalled(move || *module.borrow_mut() = None);
     }
 
-    #[wasm_bindgent_test]
+    #[wasm_bindgen_test]
     fn handling_notification_after_failure() {
         let path            = controller::module::Path::from_module_name("TestModule");
         let initial_content = "main =\n    println \"Hello World!\"";

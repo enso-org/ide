@@ -259,7 +259,7 @@ impl TextLocation {
     fn after_chars<IntoCharsIter>(chars:IntoCharsIter) -> Self
     where IntoCharsIter : IntoIterator<Item=char, IntoIter:Clone> {
         let iter             = chars.into_iter();
-        let len              = iter.clone().into_iter().count();
+        let len              = iter.clone().count();
         let newlines         = iter.enumerate().filter(|(_,c)| *c == '\n');
         let newlines_indices = newlines.map(|(i,_)| i);
         TextLocation {
