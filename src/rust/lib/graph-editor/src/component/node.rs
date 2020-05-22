@@ -132,7 +132,7 @@ pub mod shape {
             let shadow_color  = color::LinearGradient::new()
                 .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
                 .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
-            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(4.0));
+            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(2.0));
             let shadow        = shadow.fill(shadow_color);
 
 
@@ -346,7 +346,7 @@ pub struct NodeModel {
 //pub const NODE_WIDTH : f32 = 284.0;
 pub const NODE_HEIGHT : f32 = 28.0;
 pub const TEXT_OFF : f32 = 10.0;
-pub const SHADOW_SIZE : f32 = 14.0;
+pub const SHADOW_SIZE : f32 = 10.0;
 
 impl Node {
     pub fn new(scene:&Scene) -> Self {

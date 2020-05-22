@@ -38,6 +38,11 @@ impl Style {
         let radius = None;//Some(4.0);
         Self {host,size,color,radius}
     }
+
+    pub fn color(color:color::Lcha) -> Self {
+        let color = Some(color);
+        Self {color,..default()}
+    }
 }
 
 //impl Default for Style {
