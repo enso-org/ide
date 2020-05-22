@@ -301,12 +301,14 @@ pub mod test {
             let initial_content = initial_content.into();
             let initial_version = Sha3_224::new(initial_content.as_bytes());
             let client          = language_server::MockClient::default();
-            let open_response   = language_server::response::OpenTextFile {
-                write_capability : CapabilityRegistration::create_can_edit(file_path.clone()),
+
+            let capability = CapabilityRegistration::create_can_edit_text_file(file_path.clone());
+            let open_resp  = language_server::response::OpenTextFile {
+                write_capability : Some(capability),
                 content          : initial_content.clone(),
                 current_version  : initial_version.clone(),
             };
-            expect_call!(client.open_text_file(path=file_path.clone()) => Ok(open_response));
+            expect_call!(client.open_text_file(path=file_path.clone()) => Ok(open_resp));
 
             let current_ls_code    = Rc::new(CloneCell::new(initial_content));
             let current_ls_version = Rc::new(CloneCell::new(initial_version));

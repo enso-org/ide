@@ -338,10 +338,24 @@ pub struct CapabilityRegistration {
 
 impl CapabilityRegistration {
     /// Create "text/canEdit" capability for path
-    pub fn create_can_edit(path:Path) -> Option<Self> {
+    pub fn create_can_edit_text_file(path:Path) -> Self {
         let method           = "text/canEdit".to_string();
-        let register_options = RegisterOptions::ReceivesTreeUpdates(ReceivesTreeUpdates {path});
-        Some(CapabilityRegistration {method,register_options})
+        let register_options = RegisterOptions::Path {path};
+        CapabilityRegistration {method,register_options}
+    }
+
+    /// Create "executionContext/canModify" capability for path
+    pub fn create_can_modify_execution_context(context_id:Uuid) -> Self {
+        let method = "executionContext/canModify".to_string();
+        let register_options = RegisterOptions::ExecutionContextId {context_id};
+        CapabilityRegistration {method,register_options}
+    }
+
+    /// Create "executionContext/receivesUpdates" capability for path
+    pub fn create_receives_execution_context_updates(context_id:Uuid) -> Self {
+        let method = "executionContext/receivesUpdates".to_string();
+        let register_options = RegisterOptions::ExecutionContextId {context_id};
+        CapabilityRegistration {method,register_options}
     }
 }
 
@@ -352,19 +366,12 @@ impl CapabilityRegistration {
 
 /// `capability/acquire` takes method and options specific to the method. This type represents the
 /// options. The used variant must match the method. See for details:
-/// https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md#capabilities
+/// https://github.com/luna/enso/blob/master/docs/language-server/protocol-language-server.md#capabilities
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged, rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub enum RegisterOptions {
-    ReceivesTreeUpdates(ReceivesTreeUpdates),
+    Path {path:Path},
     #[serde(rename_all = "camelCase")]
-    ExecutionContextId { context_id: ContextId }
-}
-
-/// `RegisterOptions`' to receive file system tree updates.
-#[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[allow(missing_docs)]
-pub struct ReceivesTreeUpdates {
-    pub path: Path
+    ExecutionContextId {context_id:ContextId},
 }

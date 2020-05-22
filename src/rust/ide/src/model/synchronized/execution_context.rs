@@ -121,7 +121,7 @@ mod test {
     use json_rpc::expect_call;
     use language_server::response;
     use utils::test::ExpectTuple;
-
+    use enso_protocol::language_server::CapabilityRegistration;
 
 
     #[test]
@@ -130,10 +130,12 @@ mod test {
         let context_id = model::execution_context::Id::new_v4();
         let root_def   = DefinitionName::new_plain("main");
         let ls_client  = language_server::MockClient::default();
+        let can_modify =
+            CapabilityRegistration::create_can_modify_execution_context(context_id);
+        let receives_updates =
+            CapabilityRegistration::create_receives_execution_context_updates(context_id);
         ls_client.expect.create_execution_context(move || Ok(response::CreateExecutionContext {
-            context_id,
-            can_modify       : create_capability("executionContext/canModify",context_id),
-            receives_updates : create_capability("executionContext/receivesUpdates",context_id),
+            context_id,can_modify,receives_updates,
         }));
         let method = language_server::MethodPointer {
             file            : path.file_path().clone(),
@@ -158,15 +160,6 @@ mod test {
             assert_eq!(path                   , context.module_path);
             assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
         })
-    }
-
-    fn create_capability
-    (method:impl Str, context_id:model::execution_context::Id)
-    -> language_server::CapabilityRegistration {
-        language_server::CapabilityRegistration {
-            method           : method.into(),
-            register_options : language_server::RegisterOptions::ExecutionContextId {context_id},
-        }
     }
 
     #[test]

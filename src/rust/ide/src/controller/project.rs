@@ -165,9 +165,9 @@ mod test {
     (client:&language_server::MockClient, path:language_server::Path, content:&str) {
         let content          = content.to_string();
         let current_version  = Sha3_224::new(content.as_bytes());
-        let write_capability = CapabilityRegistration::create_can_edit(path.clone());
-        let open_response    = response::OpenTextFile {content,current_version,
-            write_capability};
+        let write_capability = CapabilityRegistration::create_can_edit_text_file(path.clone());
+        let write_capability = Some(write_capability);
+        let open_response    = response::OpenTextFile {content,current_version,write_capability};
         expect_call!(client.open_text_file(path=path.clone()) => Ok(open_response));
         client.expect.apply_text_file_edit(|_| Ok(()));
         expect_call!(client.close_text_file(path) => Ok(()));
