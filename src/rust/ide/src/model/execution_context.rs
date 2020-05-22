@@ -18,12 +18,12 @@ use uuid::Uuid;
 /// Error then trying to pop stack item on ExecutionContext when there only root call remains.
 #[derive(Clone,Copy,Debug,Fail)]
 #[fail(display="Tried to pop an entry point")]
-pub struct PopOnEmptyStack {}
+pub struct PopOnEmptyStack();
 
 /// Error when using an Id that does not correspond to any known visualization.
 #[derive(Clone,Copy,Debug,Fail)]
 #[fail(display="Tried to use incorrect visualization Id")]
-pub struct InvalidVisualizationId {}
+pub struct InvalidVisualizationId();
 
 
 
@@ -113,7 +113,7 @@ impl ExecutionContext {
     /// Pop the last stack item from this context. It returns error when only root call
     /// remains.
     pub fn pop(&self) -> FallibleResult<()> {
-        self.stack.borrow_mut().pop().ok_or(PopOnEmptyStack{})?;
+        self.stack.borrow_mut().pop().ok_or(PopOnEmptyStack)?;
         Ok(())
     }
 
@@ -124,7 +124,7 @@ impl ExecutionContext {
 
     /// Detaches visualization from current execution context.
     pub fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
-        Ok(self.visualizations.borrow_mut().remove(id).ok_or(InvalidVisualizationId{})?)
+        Ok(self.visualizations.borrow_mut().remove(id).ok_or(InvalidVisualizationId)?)
     }
 
     /// Get an iterator over stack items.
