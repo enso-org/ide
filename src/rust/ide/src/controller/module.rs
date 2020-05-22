@@ -116,7 +116,7 @@ impl Handle {
     ///
     /// This function won't load module from file - it just get the state in `model` argument.
     pub fn new
-    ( parent          : Logger
+    ( parent          : &Logger
     , path            : Path
     , model           : Rc<model::Module>
     , language_server : Rc<language_server::Connection>
@@ -190,8 +190,7 @@ impl Handle {
 
     /// Returns a graph controller for graph in this module's subtree identified by `id`.
     pub fn graph_controller(&self, id:dr::graph::Id) -> FallibleResult<controller::Graph> {
-        controller::Graph::new(self.logger.clone_ref(), self.model.clone_ref(),
-                               self.parser.clone_ref(), id)
+        controller::Graph::new(&self.logger, self.model.clone_ref(), self.parser.clone_ref(), id)
     }
 
     /// Returns a executed graph controller for graph in this module's subtree identified by id.
@@ -205,14 +204,14 @@ impl Handle {
         let language_server = self.language_server.clone_ref();
         let path            = self.path.clone_ref();
         let execution_ctx   = ExecutionContext::create(self.logger.clone_ref(),language_server,path,
-                                                       definition_name).await?;
+            definition_name).await?;
         Ok(controller::ExecutedGraph::new(graph,execution_ctx))
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id` without
     /// checking if the graph exists.
     pub fn graph_controller_unchecked(&self, id:dr::graph::Id) -> controller::Graph {
-        controller::Graph::new_unchecked(self.logger.clone_ref(), self.model.clone_ref(),
+        controller::Graph::new_unchecked(&self.logger, self.model.clone_ref(),
                                          self.parser.clone_ref(), id)
     }
 

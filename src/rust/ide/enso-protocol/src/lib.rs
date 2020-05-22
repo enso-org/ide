@@ -1,11 +1,10 @@
 //! Client side implementation of Enso protocol.
 
-#![feature(type_alias_impl_trait)]
-#![feature(trait_alias)]
-//#![feature(async_closure)]
 #![feature(associated_type_bounds)]
 #![feature(associated_type_defaults)]
 #![feature(coerce_unsized)]
+#![feature(trait_alias)]
+#![feature(type_alias_impl_trait)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]

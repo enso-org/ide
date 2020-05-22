@@ -149,7 +149,7 @@ pub async fn new_opened_ws
 
 /// Connect to language server.
 pub async fn open_project
-( logger:Logger
+( logger:&Logger
 , json_endpoint:project_manager::IpWithSocket
 , binary_endpoint:project_manager::IpWithSocket
 ) -> FallibleResult<controller::Project> {
@@ -168,7 +168,7 @@ pub async fn open_project
 
 /// Open most recent project or create a new project if none exists.
 pub async fn open_most_recent_project_or_create_new
-(logger:Logger, project_manager:&impl project_manager::API) -> FallibleResult<controller::Project> {
+(logger:&Logger, project_manager:&impl project_manager::API) -> FallibleResult<controller::Project> {
     let projects_to_list = 1;
     let mut response     = project_manager.list_recent_projects(&projects_to_list).await?;
     let project_id = if let Some(project) = response.projects.pop() {
@@ -186,7 +186,7 @@ pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
 -> Result<ProjectView,failure::Error> {
     let transport    = connect_to_project_manager(logger.clone_ref(),config).await?;
     let pm           = setup_project_manager(transport);
-    let project      = open_most_recent_project_or_create_new(logger.clone_ref(),&pm).await?;
+    let project      = open_most_recent_project_or_create_new(logger,&pm).await?;
     let project_view = ProjectView::new(logger,project).await?;
     Ok(project_view)
 }
@@ -230,7 +230,7 @@ mod tests {
         let mut fixture = TestWithMockedTransport::set_up(&transport);
         fixture.run_test(async move {
             let client  = setup_project_manager(transport);
-            let project = open_most_recent_project_or_create_new(default(),&client).await;
+            let project = open_most_recent_project_or_create_new(&default(),&client).await;
             project.expect_err("error should have been reported");
         });
         fixture.when_stalled_send_response(json!({

@@ -27,8 +27,8 @@ uuid        = { version = "0.8"  , features = ["serde", "v4", "wasm-bindgen"] }
 
 
 [dev-dependencies]
-wasm-bindgen-test = { version = "0.3.8" }
-ensogl-system-web        = { version = "0.1.0"  , path = "../../lib/system/web"    }
+wasm-bindgen-test = { version = "0.3.8"                                     }
+ensogl-system-web = { version = "0.1.0"  , path = "../../lib/system/web"    }
 
 
 [build-dependencies]

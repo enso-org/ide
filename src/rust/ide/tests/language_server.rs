@@ -263,7 +263,7 @@ async fn binary_protocol_test() {
     let endpoint = ide::PROJECT_MANAGER_ENDPOINT;
     let ws       = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
     let pm       = ide::setup_project_manager(ws);
-    let project  = ide::open_most_recent_project_or_create_new(logger, &pm).await.unwrap();
+    let project  = ide::open_most_recent_project_or_create_new(&logger,&pm).await.unwrap();
     println!("Got project: {:?}", project);
     let path     = Path::new(project.language_server_rpc.content_root(), &["moje.txt"]);
     let contents = "Hello moje".as_bytes();

@@ -33,7 +33,7 @@ pub struct Handle {
 impl Handle {
     /// Create a new project controller.
     pub fn new
-    ( parent                 : Logger
+    ( parent                 : &Logger
     , language_server_client : language_server::Connection
     , language_server_binary : binary::Connection
     ) -> Self {
@@ -75,7 +75,7 @@ impl Handle {
     -> controller::Module {
         let ls     = self.language_server_rpc.clone_ref();
         let parser = self.parser.clone_ref();
-        controller::Module::new(self.logger.clone_ref(),path,model,ls,parser)
+        controller::Module::new(&self.logger,path,model,ls,parser)
     }
 
     async fn load_module(&self, path:ModulePath) -> FallibleResult<Rc<model::Module>> {
@@ -120,8 +120,8 @@ mod test {
             json_client.set_file_read_result(file_path, Ok(response::Read{contents}));
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(default());
-            let project           = controller::Project::new(default(),json_connection,
-                                                             binary_connection);
+            let project           = controller::Project::new(&default(),json_connection,
+                binary_connection);
             let module            = project.module_controller(path.clone()).await.unwrap();
             let same_module       = project.module_controller(path.clone()).await.unwrap();
             let another_module    = project.module_controller(another_path.clone()).await.unwrap();
@@ -137,8 +137,8 @@ mod test {
         TestWithLocalPoolExecutor::set_up().run_task(async move {
             let json_connection   = language_server::Connection::new_mock(default());
             let binary_connection = binary::Connection::new_mock(default());
-            let project_ctrl      = controller::Project::new(default(),json_connection,
-                                                             binary_connection);
+            let project_ctrl      = controller::Project::new(&default(),json_connection,
+                binary_connection);
             let root_id           = default();
             let path              = FilePath::new(root_id,&["TestPath"]);
             let another_path      = FilePath::new(root_id,&["TestPath2"]);
@@ -166,8 +166,8 @@ mod test {
             json_client.set_file_read_result(path.clone(), Ok(response::Read {contents}));
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(default());
-            let project_ctrl      = controller::Project::new(default(),json_connection,
-                                                             binary_connection);
+            let project_ctrl      = controller::Project::new(&default(),json_connection,
+                binary_connection);
             let text_ctrl         = project_ctrl.text_controller(path.clone()).await.unwrap();
             let content           = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());

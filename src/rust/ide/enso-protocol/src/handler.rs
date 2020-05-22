@@ -243,8 +243,8 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
 
     /// Creates a new stream with events from this handler.
     ///
-    /// If such stream was already existing, it will be finished (and
-    /// continuations should be able to process any remaining events).
+    /// If such stream was already existing, it will be finished (and continuations should be able
+    /// to process any remaining events).
     pub fn event_stream(&mut self) -> impl Stream<Item = Event<Notification>> {
         self.state.borrow_mut().event_stream()
     }
