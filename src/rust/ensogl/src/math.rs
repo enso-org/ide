@@ -36,6 +36,9 @@ pub mod types {
     pub use super::algebra::Matrix4x2;
     pub use super::algebra::Matrix4x3;
 
+    pub use super::algebra::V2;
+    pub use super::algebra::V3;
+
     pub use super::algebra::Zero;
     pub use super::algebra::HasComponents;
     pub use super::algebra::Dim1;
@@ -44,6 +47,4 @@ pub mod types {
     pub use super::algebra::Abs;
     pub use super::algebra::Magnitude;
     pub use super::algebra::Normalize;
-    pub use super::algebra::Point3;
-
 }

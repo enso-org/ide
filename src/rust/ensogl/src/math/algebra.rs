@@ -394,19 +394,74 @@ impl Acos for f32 {
 
 
 
-// =============
-// === Point ===
-// =============
+// ==========
+// === V2 ===
+// ==========
 
 /// A coordinate in space.
 #[derive(Clone,Copy,Debug,Neg,Sub,Add,Div,AddAssign,From,Shrinkwrap)]
 #[shrinkwrap(mutable)]
-pub struct Point3 {
+pub struct V2 {
+    /// Underlying representation
+    pub matrix : Vector2<f32>
+}
+
+impl V2 {
+    /// Constructor.
+    pub fn new(x:f32, y:f32) -> Self {
+        let matrix = Vector2::new(x,y);
+        Self {matrix}
+    }
+}
+
+impl Default for V2 {
+    fn default() -> Self {
+        let matrix = nalgebra::zero();
+        Self {matrix}
+    }
+}
+
+impl Magnitude for V2 {
+    fn magnitude(&self) -> f32 {
+        self.matrix.magnitude()
+    }
+}
+
+impl Normalize for V2 {
+    fn normalize(&self) -> Self {
+        Self {matrix:self.matrix.normalize()}
+    }
+}
+
+impl Mul<f32> for V2 {
+    type Output = V2;
+    fn mul(self, rhs:f32) -> Self::Output {
+        let matrix = self.matrix * rhs;
+        Self {matrix}
+    }
+}
+
+impl Into<Vector2<f32>> for V2 {
+    fn into(self) -> Vector2<f32> {
+        self.matrix
+    }
+}
+
+
+
+// ==========
+// === V3 ===
+// ==========
+
+/// A coordinate in space.
+#[derive(Clone,Copy,Debug,Neg,Sub,Add,Div,AddAssign,From,Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct V3 {
     /// Underlying representation
     pub matrix : Vector3<f32>
 }
 
-impl Point3 {
+impl V3 {
     /// Constructor.
     pub fn new(x:f32, y:f32, z:f32) -> Self {
         let matrix = Vector3::new(x,y,z);
@@ -414,34 +469,34 @@ impl Point3 {
     }
 }
 
-impl Default for Point3 {
+impl Default for V3 {
     fn default() -> Self {
         let matrix = nalgebra::zero();
         Self {matrix}
     }
 }
 
-impl Magnitude for Point3 {
+impl Magnitude for V3 {
     fn magnitude(&self) -> f32 {
         self.matrix.magnitude()
     }
 }
 
-impl Normalize for Point3 {
+impl Normalize for V3 {
     fn normalize(&self) -> Self {
         Self {matrix:self.matrix.normalize()}
     }
 }
 
-impl Mul<f32> for Point3 {
-    type Output = Point3;
+impl Mul<f32> for V3 {
+    type Output = V3;
     fn mul(self, rhs:f32) -> Self::Output {
         let matrix = self.matrix * rhs;
         Self {matrix}
     }
 }
 
-impl Into<Vector3<f32>> for Point3 {
+impl Into<Vector3<f32>> for V3 {
     fn into(self) -> Vector3<f32> {
         self.matrix
     }

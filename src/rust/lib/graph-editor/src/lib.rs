@@ -1255,10 +1255,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     def selection_size_on_down = selection_zero.sample(&mouse.press);
     def selection_size         = selection_size_if_down.merge(&selection_size_on_down);
 
-    eval selection_size ((p) cursor.set_selection_size(Vector2::new(p.x,p.y)));
+    eval selection_size ((p) cursor.frp.set_style.emit(cursor::Style::selection(Vector2::new(p.x,p.y))));
 
-    eval_ mouse.press   (cursor.frp.press.emit(()));
-    eval_ mouse.release (cursor.frp.release.emit(()));
+    eval_ mouse.press   (cursor.frp.set_style.emit(cursor::Style::pressed()));
+    eval_ mouse.release (cursor.frp.set_style.emit(cursor::Style::default()));
     }
 
 

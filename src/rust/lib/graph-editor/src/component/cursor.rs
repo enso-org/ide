@@ -16,35 +16,82 @@ use ensogl::display::{Sprite, Attribute};
 use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component::animation2;
+use ensogl::gui::component::animator;
 use ensogl::gui::component;
 use ensogl::system::web;
 
 
 
+#[derive(Debug,Clone)]
+pub struct StyleParam<T> {
+    pub value   : T,
+    pub animate : bool,
+}
+
+impl<T:Default> Default for StyleParam<T> {
+    fn default() -> Self {
+        let value   = default();
+        let animate = true;
+        Self {value,animate}
+    }
+}
+
+impl<T> StyleParam<T> {
+    pub fn new(value:T) -> Self {
+        let animate = true;
+        Self {value,animate}
+    }
+
+    pub fn new_no_animation(value:T) -> Self {
+        let animate = false;
+        Self {value,animate}
+    }
+}
+
+
 #[derive(Debug,Clone,Default)]
 pub struct Style {
     host   : Option<display::object::Instance>,
-    size   : Option<Vector2<f32>>,
+    size   : Option<StyleParam<Vector2<f32>>>,
     color  : Option<color::Lcha>,
     radius : Option<f32>,
+    press  : Option<f32>,
 }
 
 impl Style {
     pub fn highlight<H>
     (host:H, size:Vector2<f32>, color:Option<color::Lcha>) -> Self
     where H:display::Object {
-        let host   = Some(host.display_object().clone_ref());
-        let size   = Some(size);
-        let radius = None;//Some(4.0);
-        Self {host,size,color,radius}
+        let host = Some(host.display_object().clone_ref());
+        let size = Some(StyleParam::new(size));
+        Self {host,size,..default()}
     }
 
     pub fn color(color:color::Lcha) -> Self {
         let color = Some(color);
         Self {color,..default()}
     }
+
+    pub fn selection(size:Vector2<f32>) -> Self {
+        let size = Some(StyleParam::new_no_animation(size.abs() + Vector2::new(16.0,16.0)));
+        Self {size,..default()}
+    }
+
+    pub fn pressed() -> Self {
+        let press = Some(1.0);
+        Self {press,..default()}
+    }
 }
 
+impl Semigroup for Style {
+    fn concat_mut(&mut self, other:&Self) {
+        if self.host   . is_none() { self.host   = other.host   . clone() }
+        if self.size   . is_none() { self.size   = other.size   . clone() }
+        if self.color  . is_none() { self.color  = other.color  . clone() }
+        if self.radius . is_none() { self.radius = other.radius . clone() }
+        if self.press  . is_none() { self.press  = other.press  . clone() }
+    }
+}
 //impl Default for Style {
 //    fn default() -> Self {
 //        Self::Normal
@@ -72,8 +119,8 @@ pub mod shape {
         ) {
             let press_diff       = 2.px() * &press;
             let radius           = 1.px() * radius - &press_diff;
-            let selection_width  = 1.px() * &selection_size.x() * &press;
-            let selection_height = 1.px() * &selection_size.y() * &press;
+            let selection_width  = 1.px() * &selection_size.x(); // * &press;
+            let selection_height = 1.px() * &selection_size.y(); // * &press;
             let width            = (1.px() * &width  - &press_diff * 2.0) + selection_width.abs();
             let height           = (1.px() * &height - &press_diff * 2.0) + selection_height.abs();
             let cursor = Rect((width,height))
@@ -110,19 +157,15 @@ pub mod shape {
 pub struct InputEvents {
     pub network   : frp::Network,
     pub set_style : frp::Source<Style>,
-    pub press     : frp::Source,
-    pub release   : frp::Source,
 }
 
 impl Default for InputEvents {
     fn default() -> Self {
         frp::new_network! { cursor_events
             def set_style = source();
-            def press    = source();
-            def release  = source();
         }
         let network = cursor_events;
-        Self {network,set_style,press,release}
+        Self {network,set_style}
     }
 }
 
@@ -213,15 +256,17 @@ impl Cursor {
             view_data.radius.set(value)
         });
 
-        let view_data = view.shape.clone_ref();
-        let width = animation(network,move |value| {
-            view_data.width.set(value)
-        });
+//        let view_data = view.shape.clone_ref();
+//        let width = animation(network,move |value| {
+//            view_data.width.set(value)
+//        });
 
-        let view_data = view.shape.clone_ref();
-        let height = animation(network,move |value| {
-            view_data.height.set(value)
-        });
+        let (size,current_size) = animator::<V2>(network);
+
+//        let view_data = view.shape.clone_ref();
+//        let height = animation(network,move |value| {
+//            view_data.height.set(value)
+//        });
 
 
         let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(network);
@@ -234,18 +279,24 @@ impl Cursor {
         let (anim_color_alpha_setter,anim_color_alpha) = animation2(network);
 
 
-        anim_color_lab_l_setter.set_target_position(1.0);
-        anim_color_alpha_setter.set_target_position(0.2);
+        anim_color_lab_l_setter.set_target_value(1.0);
+        anim_color_alpha_setter.set_target_value(0.2);
 
-        radius.set_target_position(8.0);
-        width.set_target_position(16.0);
-        height.set_target_position(16.0);
+        radius.set_target_value(8.0);
+//        width.set_target_value(16.0);
+//        height.set_target_value(16.0);
+        size.set_target_value(V2::new(16.0,16.0));
 
         let mouse = &scene.mouse.frp;
 
 
 
         frp::extend! { network
+
+            eval current_size ([view](v) {
+                view.shape.width.set(v.x);
+                view.shape.height.set(v.y);
+            });
 
             def anim_position = anim_pos_x.zip_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
 
@@ -254,56 +305,51 @@ impl Cursor {
             );
 
 
+            def _ev = input.set_style.map(enclose!((size,anim_pos_x_setter,anim_pos_y_setter) move |style| {
+                match &style.press {
+                    None    => press.set_target_value(0.0),
+                    Some(t) => press.set_target_value(*t),
+                }
 
-            def _t_press = input.press.map(enclose!((press) move |_| {
-                press.set_target_position(1.0);
-            }));
-
-            def _t_release = input.release.map(enclose!((press) move |_| {
-                press.set_target_position(0.0);
-            }));
-
-            def _ev = input.set_style.map(enclose!((width,height,anim_pos_x_setter,anim_pos_y_setter) move |style| {
                 match &style.host {
-                    None       => anim_use_fixed_pos_setter.set_target_position(0.0),
+                    None       => anim_use_fixed_pos_setter.set_target_value(0.0),
                     Some(host) => {
                         let position = host.global_position();
-                        anim_pos_x_setter.set_target_position(position.x);
-                        anim_pos_y_setter.set_target_position(position.y);
-                        anim_use_fixed_pos_setter.set_target_position(1.0);
+                        anim_pos_x_setter.set_target_value(position.x);
+                        anim_pos_y_setter.set_target_value(position.y);
+                        anim_use_fixed_pos_setter.set_target_value(1.0);
                     }
                 }
 
                 match &style.color {
                     None => {
-                        anim_color_lab_l_setter.set_target_position(1.0);
-                        anim_color_lab_a_setter.set_target_position(0.0);
-                        anim_color_lab_b_setter.set_target_position(0.0);
-                        anim_color_alpha_setter.set_target_position(0.2);
+                        anim_color_lab_l_setter.set_target_value(1.0);
+                        anim_color_lab_a_setter.set_target_value(0.0);
+                        anim_color_lab_b_setter.set_target_value(0.0);
+                        anim_color_alpha_setter.set_target_value(0.2);
                     }
                     Some(color) => {
                         let color = color::Laba::from(color);
-                        anim_color_lab_l_setter.set_target_position(color.lightness);
-                        anim_color_lab_a_setter.set_target_position(color.a);
-                        anim_color_lab_b_setter.set_target_position(color.b);
-                        anim_color_alpha_setter.set_target_position(color.alpha);
+                        anim_color_lab_l_setter.set_target_value(color.lightness);
+                        anim_color_lab_a_setter.set_target_value(color.a);
+                        anim_color_lab_b_setter.set_target_value(color.b);
+                        anim_color_alpha_setter.set_target_value(color.alpha);
                     }
                 }
 
                 match &style.size {
                     None => {
-                        width.set_target_position(16.0);
-                        height.set_target_position(16.0);
+                        size.set_target_value(V2::new(16.0,16.0));
                     }
-                    Some(size) => {
-                        width.set_target_position(size.x);
-                        height.set_target_position(size.y);
+                    Some(new_size) => {
+                        size.set_target_value(V2::new(new_size.value.x,new_size.value.y));
+                        if !new_size.animate { size.skip() }
                     }
                 }
 
                 match &style.radius {
-                    None    => radius.set_target_position(8.0),
-                    Some(r) => radius.set_target_position(*r),
+                    None    => radius.set_target_value(8.0),
+                    Some(r) => radius.set_target_value(*r),
                 }
             }));
 
@@ -322,21 +368,21 @@ impl Cursor {
             eval position ((p) view.shape.position.set(Vector2::new(p.x,p.y)));
 
             def _position = mouse_position.map(f!([anim_pos_x_setter,anim_pos_y_setter](p) {
-                anim_pos_x_setter.set_target_position(p.x);
-                anim_pos_y_setter.set_target_position(p.y);
+                anim_pos_x_setter.set_target_value(p.x);
+                anim_pos_y_setter.set_target_value(p.y);
             }));
 
 //            def _t_mode = input.set_style.map(enclose!((radius,width,height) move |m| {
 //                match m {
 //                    Style::Normal => {
-//                        radius.set_target_position(8.0);
-//                        width.set_target_position(16.0);
-//                        height.set_target_position(16.0);
+//                        radius.set_target_value(8.0);
+//                        width.set_target_value(16.0);
+//                        height.set_target_value(16.0);
 //                    }
 //                    Style::Highlight {size,..} => {
-//                        radius.set_target_position(4.0);
-//                        width.set_target_position(size.x);
-//                        height.set_target_position(size.y);
+//                        radius.set_target_value(4.0);
+//                        width.set_target_value(size.x);
+//                        height.set_target_value(size.y);
 //                    }
 //                    _ => panic!()
 //                };
@@ -363,10 +409,10 @@ impl Cursor {
 //        self.view.shape.position.set(pos);
 //    }
 
-    /// Selection size setter.
-    pub fn set_selection_size(&self, pos:Vector2<f32>) {
-        self.view.shape.selection_size.set(pos);
-    }
+//    /// Selection size setter.
+//    pub fn set_selection_size(&self, pos:Vector2<f32>) {
+//        self.view.shape.selection_size.set(pos);
+//    }
 }
 
 impl StrongRef for Cursor {

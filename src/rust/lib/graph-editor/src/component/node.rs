@@ -452,15 +452,15 @@ impl NodeModelWithNetwork {
         let (output_area_size_setter, output_area_size) = animation2(&frp_network);
 
         frp::extend! { frp_network
-            eval_ inputs.select   (selection.set_target_position(1.0));
-            eval_ inputs.deselect (selection.set_target_position(0.0));
+            eval_ inputs.select   (selection.set_target_value(1.0));
+            eval_ inputs.deselect (selection.set_target_value(0.0));
 
             eval inputs.set_expression ((expr) model.set_expression(expr));
 
             eval output_area_size ((size) model.output_area.shape.grow.set(*size));
 
-            eval_ model.output_area.events.mouse_over (output_area_size_setter.set_target_position(1.0));
-            eval_ model.output_area.events.mouse_out  (output_area_size_setter.set_target_position(0.0));
+            eval_ model.output_area.events.mouse_over (output_area_size_setter.set_target_value(1.0));
+            eval_ model.output_area.events.mouse_out  (output_area_size_setter.set_target_value(0.0));
 
             eval inputs.set_visualization ((content)
                 model.visualization_container.frp.set_visualization.emit(content)
