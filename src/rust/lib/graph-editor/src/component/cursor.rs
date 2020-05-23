@@ -110,8 +110,7 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         ( position       : Vector2<f32>
-        , width          : f32
-        , height         : f32
+        , dim            : Vector2<f32>
         , selection_size : Vector2<f32>
         , press          : f32
         , radius         : f32
@@ -121,8 +120,8 @@ pub mod shape {
             let radius           = 1.px() * radius - &press_diff;
             let selection_width  = 1.px() * &selection_size.x(); // * &press;
             let selection_height = 1.px() * &selection_size.y(); // * &press;
-            let width            = (1.px() * &width  - &press_diff * 2.0) + selection_width.abs();
-            let height           = (1.px() * &height - &press_diff * 2.0) + selection_height.abs();
+            let width            = (1.px() * &dim.x() - &press_diff * 2.0) + selection_width.abs();
+            let height           = (1.px() * &dim.y() - &press_diff * 2.0) + selection_height.abs();
             let cursor = Rect((width,height))
                 .corners_radius(radius)
                 .translate((-&selection_width/2.0, -&selection_height/2.0))
@@ -293,10 +292,7 @@ impl Cursor {
 
         frp::extend! { network
 
-            eval current_size ([view](v) {
-                view.shape.width.set(v.x);
-                view.shape.height.set(v.y);
-            });
+            eval current_size ((v) view.shape.dim.set(v.into()));
 
             def anim_position = anim_pos_x.zip_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
 

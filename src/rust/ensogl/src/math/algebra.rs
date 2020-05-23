@@ -18,6 +18,13 @@ pub use nalgebra::Matrix4x2;
 pub use nalgebra::Matrix4x3;
 
 use nalgebra;
+use nalgebra::Scalar;
+use nalgebra::Matrix;
+use nalgebra::VectorN;
+use nalgebra::ComplexField;
+use nalgebra::Dim;
+use nalgebra::DimName;
+use nalgebra::storage::Storage;
 
 
 
@@ -29,6 +36,10 @@ use nalgebra;
 pub trait Zero {
     /// A zero value of this type.
     fn zero() -> Self;
+}
+
+pub fn zero<T:Zero>() -> T {
+    <T as Zero>::zero()
 }
 
 
@@ -155,17 +166,27 @@ impl Pow<f32> for f32 {
 /// Types which have magnitude value.
 #[allow(missing_docs)]
 pub trait Magnitude {
-    fn magnitude(&self) -> f32;
+    type Output;
+    fn magnitude(&self) -> Self::Output;
 }
 
 
 // === Impls ===
 
 impl Magnitude for f32 {
-    fn magnitude(&self) -> f32 {
+    type Output = f32;
+    fn magnitude(&self) -> Self::Output {
         self.abs()
     }
 }
+
+impl<N:ComplexField, R:Dim, C:Dim, S:Storage<N,R,C>> Magnitude for Matrix<N,R,C,S> {
+    type Output = N::RealField;
+    fn magnitude(&self) -> Self::Output {
+        self.norm()
+    }
+}
+
 
 
 // ==============
@@ -273,6 +294,7 @@ impl Normalize for f32 {
         self.signum()
     }
 }
+
 
 
 // ===================
@@ -401,6 +423,7 @@ impl Acos for f32 {
 /// A coordinate in space.
 #[derive(Clone,Copy,Debug,Neg,Sub,Add,Div,AddAssign,From,Shrinkwrap)]
 #[shrinkwrap(mutable)]
+#[repr(transparent)]
 pub struct V2 {
     /// Underlying representation
     pub matrix : Vector2<f32>
@@ -422,7 +445,8 @@ impl Default for V2 {
 }
 
 impl Magnitude for V2 {
-    fn magnitude(&self) -> f32 {
+    type Output = f32;
+    fn magnitude(&self) -> Self::Output {
         self.matrix.magnitude()
     }
 }
@@ -447,6 +471,12 @@ impl Into<Vector2<f32>> for V2 {
     }
 }
 
+impl Into<Vector2<f32>> for &V2 {
+    fn into(self) -> Vector2<f32> {
+        self.matrix
+    }
+}
+
 
 
 // ==========
@@ -456,6 +486,7 @@ impl Into<Vector2<f32>> for V2 {
 /// A coordinate in space.
 #[derive(Clone,Copy,Debug,Neg,Sub,Add,Div,AddAssign,From,Shrinkwrap)]
 #[shrinkwrap(mutable)]
+#[repr(transparent)]
 pub struct V3 {
     /// Underlying representation
     pub matrix : Vector3<f32>
@@ -477,7 +508,8 @@ impl Default for V3 {
 }
 
 impl Magnitude for V3 {
-    fn magnitude(&self) -> f32 {
+    type Output = f32;
+    fn magnitude(&self) -> Self::Output {
         self.matrix.magnitude()
     }
 }
@@ -497,6 +529,12 @@ impl Mul<f32> for V3 {
 }
 
 impl Into<Vector3<f32>> for V3 {
+    fn into(self) -> Vector3<f32> {
+        self.matrix
+    }
+}
+
+impl Into<Vector3<f32>> for &V3 {
     fn into(self) -> Vector3<f32> {
         self.matrix
     }

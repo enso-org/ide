@@ -40,6 +40,7 @@ pub mod types {
     pub use super::algebra::V3;
 
     pub use super::algebra::Zero;
+    pub use super::algebra::zero;
     pub use super::algebra::HasComponents;
     pub use super::algebra::Dim1;
     pub use super::algebra::Dim2;

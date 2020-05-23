@@ -15,7 +15,8 @@ use crate::animation;
 /// The type of the value of the simulation. In particular, the Value could be `f32`
 /// (1-dimensional simulation), or `Vector3<f32>` (3-dimensional simulation).
 pub trait Value
-    = 'static + Copy + Default + Debug + Magnitude + Normalize
+    = 'static + Copy + Default + Debug + Normalize
+    + Magnitude <Output=f32>
     + Neg<       Output=Self>
     + Sub<Self , Output=Self>
     + Add<Self , Output=Self>

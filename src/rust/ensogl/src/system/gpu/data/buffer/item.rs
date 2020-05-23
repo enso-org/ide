@@ -180,6 +180,21 @@ impl Storable for f32 {
     fn slice_to_items_mut   (buffer: &mut [Self]) -> &mut [Self::Cell] { buffer }
 }
 
+//impl Storable for V2 {
+//    type Cell = f32;
+//    type Rows = U2;
+//    type Cols = U1;
+//
+//    fn slice_from_items (buffer: &[Self::Cell]) -> &[Self] {
+//        let v : &[Vector2<f32>] = Storable::slice_from_items(buffer);
+//        v
+//    }
+//
+//    fn slice_from_items_mut (buffer: &mut [Self::Cell]) -> &mut [Self] { buffer }
+//    fn slice_to_items       (buffer: &    [Self]) -> &    [Self::Cell] { buffer }
+//    fn slice_to_items_mut   (buffer: &mut [Self]) -> &mut [Self::Cell] { buffer }
+//}
+
 
 impl<T:Storable<Cell=T>,R,C> Storable for MatrixMN<T,R,C>
     where T:ItemBounds, Self:MatrixCtx<T,R,C>,
