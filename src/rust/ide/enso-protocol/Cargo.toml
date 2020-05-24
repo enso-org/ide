@@ -18,7 +18,7 @@ chrono      = { version = "0.4"  , features = ["serde"]                       }
 failure     = { version = "0.1.8"                                             }
 flatbuffers = { version = "0.5"                                               }
 futures     = { version = "0.3.1"                                             }
-mockall = { version = "0.7.1", features = ["nightly"] }
+mockall     = { version = "0.7.1", features = ["nightly"]                     }
 hex         = { version = "0.4.2"                                             }
 serde       = { version = "1.0"  , features = ["derive"]                      }
 serde_json  = { version = "1.0"                                               }
@@ -38,5 +38,6 @@ flatc-rust             = { version = "0.1.2"                          }
 futures                = { version = "0.3.1"                          }
 reqwest                = { version = "0.10.1"                         }
 tokio                  = { version = "0.2.10" , features = ["macros"] }
+# Zip is needed because the build script downloads and extracts artifacts from the Engine.
 zip                    = { version = "0.5.0"                          }
 zip-extensions         = { version = "0.4.0"                          }

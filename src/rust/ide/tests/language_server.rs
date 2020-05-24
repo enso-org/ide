@@ -256,8 +256,13 @@ async fn file_events() {
 
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
+/// This integration test covers:
+/// * using project picker to open (or create) a project
+/// * establishing a binary protocol connection with Language Server
+/// * writing and reading a file using the binary protocol
 async fn binary_protocol_test() {
     ensogl_system_web::set_stdout();
+    // Setup project
     let _guard   = ide::setup_global_executor();
     let logger   = Logger::new("Test");
     let endpoint = ide::PROJECT_MANAGER_ENDPOINT;
@@ -265,8 +270,9 @@ async fn binary_protocol_test() {
     let pm       = ide::setup_project_manager(ws);
     let project  = ide::open_most_recent_project_or_create_new(&logger,&pm).await.unwrap();
     println!("Got project: {:?}", project);
-    let path     = Path::new(project.language_server_rpc.content_root(), &["moje.txt"]);
-    let contents = "Hello moje".as_bytes();
+
+    let path     = Path::new(project.language_server_rpc.content_root(), &["test_file.txt"]);
+    let contents = "Hello!".as_bytes();
     let written  = project.language_server_bin.write_file(&path,contents).await.unwrap();
     println!("Written: {:?}", written);
     let read_back = project.language_server_bin.read_file(&path).await.unwrap();

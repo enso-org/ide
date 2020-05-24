@@ -105,10 +105,8 @@ impl Client {
     -> impl FnMut(TransportEvent) -> Disposition<Uuid, FromServerPayloadOwned,Notification> + 'static {
         move |event:TransportEvent| {
             let binary_data = match event {
-                TransportEvent::BinaryMessage(data) =>
-                    data,
-                _ =>
-                    return Disposition::error(UnexpectedTextMessage),
+                TransportEvent::BinaryMessage(data) => data,
+                _ => return Disposition::error(UnexpectedTextMessage),
             };
             let message = match MessageFromServerOwned::deserialize(&binary_data) {
                 Ok(message) => message,

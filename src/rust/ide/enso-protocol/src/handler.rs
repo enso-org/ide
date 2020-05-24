@@ -230,6 +230,10 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     ///
     /// `f` is a function that shall be used to handle server's reply. It should try returning the
     /// desired request's result and must handle errors. (thus `FallibleResult`)
+    ///
+    /// We use here `&dyn IsRequest` rather them generic parameter `impl IsRequest` only to avoid
+    /// lifetime issues caused by this Rust compiler bug:
+    /// https://github.com/rust-lang/rust/issues/42940
     pub fn make_request<F,R>
     (&self, message:&dyn IsRequest<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {

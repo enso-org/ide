@@ -44,7 +44,7 @@ where Id:Copy + Debug + Display + Hash + Eq + Send + Sync + 'static {
         info!(self.logger,"Storing a new request {id}");
         // There will be no previous request, since Ids are assumed to be unique.
         // Still, if there was, we can just safely drop it.
-        let _ = self.ongoing_calls.insert(id, completer);
+        self.ongoing_calls.insert(id, completer);
     }
 
     /// Creates a new request and inserts it into the storage.
