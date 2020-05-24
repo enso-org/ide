@@ -439,7 +439,7 @@ macro_rules! generate_frp_outputs {
         #[derive(Debug,Clone,CloneRef)]
         pub struct UnsealedFrpOutputs {
             network : frp::Network,
-            $($field : frp::Merge<$field_ty>),*
+            $($field : frp::Any<$field_ty>),*
         }
 
         #[derive(Debug,Clone,CloneRef)]
@@ -452,7 +452,7 @@ macro_rules! generate_frp_outputs {
         impl UnsealedFrpOutputs {
             pub fn new() -> Self {
                 frp::new_network! { network
-                    $(def $field = gather();)*
+                    $(def $field = any_mut();)*
                 }
                 Self {network, $($field),*}
             }
@@ -690,17 +690,17 @@ pub struct TouchNetwork<T:frp::Data> {
 impl<T:frp::Data> TouchNetwork<T> {
     pub fn new(network:&frp::Network, mouse:&frp::io::Mouse) -> Self {
         frp::extend! { network
-            def down          = source::<T> ();
-            def down_bool     = down.map(|_| true);
-            def up_bool       = mouse.release.map(|_| false);
-            def is_down       = down_bool.merge(&up_bool);
-            def was_down      = is_down.previous();
-            def mouse_up      = mouse.release.gate(&was_down);
-            def pos_on_down   = mouse.position.sample(&down);
-            def pos_on_up     = mouse.position.sample(&mouse_up);
-            def should_select = pos_on_up.map3(&pos_on_down,&mouse.distance,Self::check);
-            def up            = down.sample(&mouse_up);
-            def selected      = up.gate(&should_select);
+            down          <- source::<T> ();
+            down_bool     <- down.map(|_| true);
+            up_bool       <- mouse.release.map(|_| false);
+            is_down       <- any (down_bool,up_bool);
+            was_down      <- is_down.previous();
+            mouse_up      <- mouse.release.gate(&was_down);
+            pos_on_down   <- mouse.position.sample(&down);
+            pos_on_up     <- mouse.position.sample(&mouse_up);
+            should_select <- pos_on_up.map3(&pos_on_down,&mouse.distance,Self::check);
+            up            <- down.sample(&mouse_up);
+            selected      <- up.gate(&should_select);
         }
         Self {down,up,is_down,selected}
     }
@@ -766,7 +766,8 @@ impl GraphEditorModelWithNetwork {
         Self {model,network}
     }
 
-    fn new_node(&self, outputs:&UnsealedFrpOutputs) -> NodeId {
+    fn new_node
+    (&self, outputs:&UnsealedFrpOutputs, cursor_style:&frp::Source<cursor::Style>) -> NodeId {
         let view = component::Node::new(&self.scene);
         let node = Node::new(view);
         let node_id = node.id();
@@ -782,7 +783,7 @@ impl GraphEditorModelWithNetwork {
                 touch.nodes.down.emit(node_id)
             ));
             def _cursor_style = node.view.ports.frp.cursor_style.map(f!((style)
-                cursor.frp.set_style.emit(style)
+                cursor_style.emit(style)
             ));
 
             some_edges_detached <- source_();
@@ -1164,7 +1165,7 @@ fn enable_disable_toggle
     let disable = disable.clone_ref();
     let toggle  = toggle.clone_ref();
     frp::extend! { network
-        out        <- gather();
+        out        <- any(...);
         on_toggle  <- toggle.map2(&out,|_,t| !t);
         on_enable  <- enable.constant(true);
         on_disable <- disable.constant(false);
@@ -1248,27 +1249,35 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Cursor Selection ===
     frp::extend! { network
 
-    def mouse_on_down_position = mouse.position.sample(&mouse.press);
-    def selection_zero         = source::<Position>();
-    def selection_size_down    = mouse.position.map2(&mouse_on_down_position,|m,n|{m-n});
-    def selection_size_if_down = selection_size_down.gate(&touch.background.is_down);
-    def selection_size_on_down = selection_zero.sample(&mouse.press);
-    def selection_size         = selection_size_if_down.merge(&selection_size_on_down);
+    mouse_on_down_position <- mouse.position.sample(&mouse.press);
+    selection_size_down    <- mouse.position.map2(&mouse_on_down_position,|m,n|{m-n});
+    selection_size         <- selection_size_down.gate(&touch.background.is_down);
 
-    eval selection_size ((p) cursor.frp.set_style.emit(cursor::Style::selection(Vector2::new(p.x,p.y))));
+    on_press_style   <- mouse.press   . constant(cursor::Style::pressed());
+    on_release_style <- mouse.release . constant(cursor::Style::default());
 
-    eval_ mouse.press   (cursor.frp.set_style.emit(cursor::Style::pressed()));
-    eval_ mouse.release (cursor.frp.set_style.emit(cursor::Style::default()));
+
+    cursor_selection_start <- selection_size.map(|p| cursor::Style::selection(Vector2::new(p.x,p.y)));
+    cursor_selection_end   <- mouse.release . constant(cursor::Style::default());
+
+    cursor_selection <- any (cursor_selection_start, cursor_selection_end);
+    trace cursor_selection;
+
+    cursor_press     <- any (on_press_style, on_release_style);
+
+
     }
 
 
     // === Cursor Color ===
     frp::extend! { network
 
-    eval_ outputs.some_edges_detached ([cursor]{
-        let style = cursor::Style::color(color::Lcha::new(0.6,0.5,0.76,1.0));
-        cursor.frp.set_style.emit(style)
-    });
+    cursor_color_edge_drag <- outputs.some_edges_detached.constant(cursor::Style::color_no_animation(color::Lcha::new(0.6,0.5,0.76,1.0)));
+
+
+
+
+
     }
 
 
@@ -1276,7 +1285,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Node Select ===
     frp::extend! { network
 
-    def deselect_all_nodes = gather_();
+    deselect_all_nodes <- any_(...);
 
     let multi_select_flag = enable_disable_toggle
         ( network
@@ -1306,7 +1315,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         , &inputs.toggle_node_inverse_select
         );
 
-    selection_mode <- zip_with4
+
+    selection_mode <- all_with4
         (&multi_select_flag,&merge_select_flag,&subtract_select_flag,&inverse_select_flag,
         |multi,merge,subtract,inverse| {
             if      *multi    { SelectionMode::Multi }
@@ -1318,6 +1328,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     );
 
     let node_pressed = touch.nodes.selected.clone_ref();
+
 
     node_was_selected <- node_pressed.map(f!((id) model.nodes.selected.contains(id)));
 
@@ -1360,7 +1371,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.edge_source_set <+ new_edge_source;
     outputs.edge_target_set <+ new_edge_target;
 
-    new_node_input          <- [inputs.press_node_input, inputs.set_detached_edge_targets];
+    new_node_input          <- any (inputs.press_node_input, inputs.set_detached_edge_targets);
     detached_targets        <- new_node_input.map(f_!(model.edges.detached_target.mem_take()));
     detached_target         <= detached_targets;
     new_edge_target         <- detached_target.map2(&new_node_input, |id,t| (*id,t.clone()));
@@ -1374,13 +1385,23 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Add Node ===
     frp::extend! { network
 
+    node_cursor_style <- source::<cursor::Style>();
+
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
-    add_node           <- [inputs.add_node, add_node_at_cursor];
-    new_node           <- add_node.map(f_!([model,outputs] model.new_node(&outputs)));
+    add_node           <- any (inputs.add_node, add_node_at_cursor);
+    new_node           <- add_node.map(f_!([model,outputs,node_cursor_style] model.new_node(&outputs,&node_cursor_style)));
     outputs.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
     outputs.node_position_set <+ node_with_position;
+
+//    cursor_style <- all(...);
+
+    cursor_style <- all_with4(&cursor_selection,&cursor_press,&cursor_color_edge_drag,&node_cursor_style,|t1,t2,t3,t4| {
+        vec![t1,t2,t3,t4].into_iter().fold(default(),|mut s:cursor::Style,i:&cursor::Style| { s.concat_mut(i); s })
+    });
+
+    eval cursor_style ((style) cursor.frp.set_style.emit(style));
     }
 
 
@@ -1389,7 +1410,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     all_nodes       <= inputs.remove_all_nodes      . map(f_!(model.all_nodes()));
     selected_nodes  <= inputs.remove_selected_nodes . map(f_!(model.selected_nodes()));
-    nodes_to_remove <- [all_nodes, selected_nodes];
+    nodes_to_remove <- any (all_nodes, selected_nodes);
     eval nodes_to_remove ((node_id) inputs.remove_all_node_edges.emit(node_id));
 
     outputs.node_removed <+ nodes_to_remove;
@@ -1399,11 +1420,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Remove Edge ===
     frp::extend! { network
 
-    rm_input_edges       <- [inputs.remove_all_node_edges, inputs.remove_all_node_input_edges];
-    rm_output_edges      <- [inputs.remove_all_node_edges, inputs.remove_all_node_output_edges];
+    rm_input_edges       <- any (inputs.remove_all_node_edges, inputs.remove_all_node_input_edges);
+    rm_output_edges      <- any (inputs.remove_all_node_edges, inputs.remove_all_node_output_edges);
     input_edges_to_rm    <= rm_input_edges  . map(f!((node_id) model.node_in_edges(node_id)));
     output_edges_to_rm   <= rm_output_edges . map(f!((node_id) model.node_out_edges(node_id)));
-    edges_to_rm          <- [inputs.remove_edge, input_edges_to_rm, output_edges_to_rm];
+    edges_to_rm          <- any (inputs.remove_edge, input_edges_to_rm, output_edges_to_rm);
     outputs.edge_removed <+ edges_to_rm;
     }
 
@@ -1418,10 +1439,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     node_drag         <- mouse.translation.gate(&touch.nodes.is_down);
     was_selected      <- touch.nodes.down.map(f!((id) model.nodes.selected.contains(id)));
-    tx_sel_nodes      <- [node_drag, inputs.translate_selected_nodes];
+    tx_sel_nodes      <- any (node_drag, inputs.translate_selected_nodes);
     non_selected_drag <- tx_sel_nodes.map2(&touch.nodes.down,|_,id|*id).gate_not(&was_selected);
     selected_drag     <= tx_sel_nodes.map(f_!(model.nodes.selected.keys())).gate(&was_selected);
-    nodes_to_drag     <- [non_selected_drag,selected_drag];
+    nodes_to_drag     <- any (non_selected_drag, selected_drag);
     nodes_new_pos     <- nodes_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
     outputs.node_position_set <+ nodes_new_pos;
 
@@ -1520,7 +1541,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Edge discovery ===
 
-    edge_endpoint_set          <- [outputs.edge_source_set,outputs.edge_target_set]._0();
+    edge_endpoint_set          <- any (outputs.edge_source_set, outputs.edge_target_set)._0();
     both_endpoints_set         <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
     new_connection             <- edge_endpoint_set.gate(&both_endpoints_set);
     outputs.connection_added   <+ new_connection;

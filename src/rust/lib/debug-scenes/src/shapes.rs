@@ -39,7 +39,7 @@ where T:frp::HasOutput<Output=Out>, T:Into<frp::Stream<Out>>, Out:frp::Data {
     frp::extend! { network
         def trigger_ = trigger.constant(());
         def runner   = source::<()>();
-        def switch   = gather();
+        def switch   = any_mut();
         switch.attach(&trigger_);
         def triggered = trigger.map(f_!(runner.emit(())));
         switch.attach(&triggered);

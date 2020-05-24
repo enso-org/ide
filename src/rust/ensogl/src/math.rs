@@ -38,6 +38,7 @@ pub mod types {
 
     pub use super::algebra::V2;
     pub use super::algebra::V3;
+    pub use super::algebra::V4;
 
     pub use super::algebra::Zero;
     pub use super::algebra::zero;

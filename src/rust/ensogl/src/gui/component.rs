@@ -43,7 +43,7 @@ impl ShapeViewEvents {
             mouse_over <- source_();
             mouse_out  <- source_();
 
-            is_mouse_over <- [mouse_over,mouse_out].toggle();
+            is_mouse_over <- any (mouse_over,mouse_out).toggle();
             out_on_drop   <- on_drop.gate(&is_mouse_over);
             eval_ out_on_drop (mouse_out.emit(()));
         }

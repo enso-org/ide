@@ -62,3 +62,40 @@ mod tests {
         assert_eq!(vec_1_2.times(3) , vec_1_2_times_3);
     }
 }
+
+
+
+
+trait Foldable {
+    type Item : Monoid;
+    fn fold(t:Self) -> Self::Item;
+}
+
+impl<T:Monoid> Foldable for (T,) {
+    type Item = T;
+    fn fold(t:Self) -> Self::Item {
+        t.0
+    }
+}
+
+impl<T:Monoid> Foldable for &(T,) {
+    type Item = T;
+    fn fold(t:Self) -> Self::Item {
+        t.0.clone()
+    }
+}
+
+
+//impl<T:Monoid> Foldable for (T,T) {
+//    type Item = T;
+//    fn fold(t:Self) -> Self::Item {
+//        t.0
+//    }
+//}
+//
+//impl<T:Monoid> Foldable for &(T,) {
+//    type Item = T;
+//    fn fold(t:Self) -> Self::Item {
+//        t.0.clone()
+//    }
+//}

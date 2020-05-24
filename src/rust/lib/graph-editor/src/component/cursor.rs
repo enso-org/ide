@@ -53,7 +53,8 @@ impl<T> StyleParam<T> {
 pub struct Style {
     host   : Option<display::object::Instance>,
     size   : Option<StyleParam<Vector2<f32>>>,
-    color  : Option<color::Lcha>,
+    offset : Option<StyleParam<Vector2<f32>>>,
+    color  : Option<StyleParam<color::Lcha>>,
     radius : Option<f32>,
     press  : Option<f32>,
 }
@@ -62,19 +63,26 @@ impl Style {
     pub fn highlight<H>
     (host:H, size:Vector2<f32>, color:Option<color::Lcha>) -> Self
     where H:display::Object {
-        let host = Some(host.display_object().clone_ref());
-        let size = Some(StyleParam::new(size));
-        Self {host,size,..default()}
+        let host  = Some(host.display_object().clone_ref());
+        let size  = Some(StyleParam::new(size));
+        let color = color.map(|c| StyleParam::new(c));
+        Self {host,size,color,..default()}
     }
 
     pub fn color(color:color::Lcha) -> Self {
-        let color = Some(color);
+        let color = Some(StyleParam::new(color));
+        Self {color,..default()}
+    }
+
+    pub fn color_no_animation(color:color::Lcha) -> Self {
+        let color = Some(StyleParam::new_no_animation(color));
         Self {color,..default()}
     }
 
     pub fn selection(size:Vector2<f32>) -> Self {
-        let size = Some(StyleParam::new_no_animation(size.abs() + Vector2::new(16.0,16.0)));
-        Self {size,..default()}
+        let offset = Some(StyleParam::new_no_animation(-size / 2.0));
+        let size   = Some(StyleParam::new_no_animation(size.abs() + Vector2::new(16.0,16.0)));
+        Self {size,offset,..default()}
     }
 
     pub fn pressed() -> Self {
@@ -87,6 +95,7 @@ impl Semigroup for Style {
     fn concat_mut(&mut self, other:&Self) {
         if self.host   . is_none() { self.host   = other.host   . clone() }
         if self.size   . is_none() { self.size   = other.size   . clone() }
+        if self.offset . is_none() { self.offset = other.offset . clone() }
         if self.color  . is_none() { self.color  = other.color  . clone() }
         if self.radius . is_none() { self.radius = other.radius . clone() }
         if self.press  . is_none() { self.press  = other.press  . clone() }
@@ -110,7 +119,8 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         ( position       : Vector2<f32>
-        , dim            : Vector2<f32>
+        , dim            : V2
+        , offset         : V2
         , selection_size : Vector2<f32>
         , press          : f32
         , radius         : f32
@@ -118,13 +128,14 @@ pub mod shape {
         ) {
             let press_diff       = 2.px() * &press;
             let radius           = 1.px() * radius - &press_diff;
+            let offset : Var<V2<Distance<Pixels>>>           = offset.px();
             let selection_width  = 1.px() * &selection_size.x(); // * &press;
             let selection_height = 1.px() * &selection_size.y(); // * &press;
             let width            = (1.px() * &dim.x() - &press_diff * 2.0) + selection_width.abs();
             let height           = (1.px() * &dim.y() - &press_diff * 2.0) + selection_height.abs();
             let cursor = Rect((width,height))
                 .corners_radius(radius)
-                .translate((-&selection_width/2.0, -&selection_height/2.0))
+                .translate(offset)
                 .translate(("input_position.x","input_position.y"))
                 .fill("srgba(input_color)");
             cursor.into()
@@ -242,7 +253,6 @@ impl Cursor {
 
 
 
-
         let network = &input.network;
 
         let view_data = view.shape.clone_ref();
@@ -261,6 +271,7 @@ impl Cursor {
 //        });
 
         let (size,current_size) = animator::<V2>(network);
+        let (offset,current_offset) = animator::<V2>(network);
 
 //        let view_data = view.shape.clone_ref();
 //        let height = animation(network,move |value| {
@@ -292,14 +303,14 @@ impl Cursor {
 
         frp::extend! { network
 
-            eval current_size ((v) view.shape.dim.set(v.into()));
+            eval current_size ((v) view.shape.dim.set(*v));
+            eval current_offset ((v) view.shape.offset.set(*v));
 
-            def anim_position = anim_pos_x.zip_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
+            def anim_position = anim_pos_x.all_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
 
-            anim_color <- zip_with4(&anim_color_lab_l,&anim_color_lab_a,&anim_color_lab_b,&anim_color_alpha,
+            anim_color <- all_with4(&anim_color_lab_l,&anim_color_lab_a,&anim_color_lab_b,&anim_color_alpha,
                 |l,a,b,alpha| color::Rgba::from(color::Laba::new(*l,*a,*b,*alpha))
             );
-
 
             def _ev = input.set_style.map(enclose!((size,anim_pos_x_setter,anim_pos_y_setter) move |style| {
                 match &style.press {
@@ -324,12 +335,18 @@ impl Cursor {
                         anim_color_lab_b_setter.set_target_value(0.0);
                         anim_color_alpha_setter.set_target_value(0.2);
                     }
-                    Some(color) => {
-                        let color = color::Laba::from(color);
-                        anim_color_lab_l_setter.set_target_value(color.lightness);
-                        anim_color_lab_a_setter.set_target_value(color.a);
-                        anim_color_lab_b_setter.set_target_value(color.b);
-                        anim_color_alpha_setter.set_target_value(color.alpha);
+                    Some(new_color) => {
+                        let lab = color::Laba::from(new_color.value);
+                        anim_color_lab_l_setter.set_target_value(lab.lightness);
+                        anim_color_lab_a_setter.set_target_value(lab.a);
+                        anim_color_lab_b_setter.set_target_value(lab.b);
+                        anim_color_alpha_setter.set_target_value(lab.alpha);
+                        if !new_color.animate {
+                            anim_color_lab_l_setter.skip();
+                            anim_color_lab_a_setter.skip();
+                            anim_color_lab_b_setter.skip();
+                            anim_color_alpha_setter.skip();
+                        }
                     }
                 }
 
@@ -340,6 +357,16 @@ impl Cursor {
                     Some(new_size) => {
                         size.set_target_value(V2::new(new_size.value.x,new_size.value.y));
                         if !new_size.animate { size.skip() }
+                    }
+                }
+
+                match &style.offset {
+                    None => {
+                        offset.set_target_value(V2::new(0.0,0.0));
+                    }
+                    Some(new_offset) => {
+                        offset.set_target_value(V2::new(new_offset.value.x,new_offset.value.y));
+                        if !new_offset.animate { offset.skip() }
                     }
                 }
 
@@ -354,7 +381,7 @@ impl Cursor {
             def uses_mouse_position = fixed_position.map(|p| p.is_none());
             def mouse_position = mouse.position.gate(&uses_mouse_position);
 
-            def position = mouse.position.zip_with3(&anim_position,&anim_use_fixed_pos, |p,ap,au| {
+            def position = mouse.position.all_with3(&anim_position,&anim_use_fixed_pos, |p,ap,au| {
                 let x = ap.x * au + p.x * (1.0 - au);
                 let y = ap.y * au + p.y * (1.0 - au);
                 frp::Position::new(x,y)

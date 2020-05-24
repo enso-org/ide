@@ -109,11 +109,11 @@ pub fn sort_hack(scene:&Scene) {
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct Events {
-    pub network        : frp::Network,
+    pub network         : frp::Network,
     pub cursor_style    : frp::Stream<cursor::Style>,
-    pub press          : frp::Stream<span_tree::Crumbs>,
-    press_source       : frp::Source<span_tree::Crumbs>,
-    cursor_style_source : frp::Merge<cursor::Style>,
+    pub press           : frp::Stream<span_tree::Crumbs>,
+    press_source        : frp::Source<span_tree::Crumbs>,
+    cursor_style_source : frp::Any<cursor::Style>,
 }
 
 
@@ -172,8 +172,8 @@ pub struct Manager {
 impl Manager {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         frp::new_network! { network
-            def cursor_style_source = gather::<cursor::Style>();
-            def press_source        = source::<span_tree::Crumbs>();
+            cursor_style_source <- any_mut::<cursor::Style>();
+            press_source        <- source::<span_tree::Crumbs>();
         }
 
         let logger         = logger.sub("port_manager");

@@ -239,7 +239,7 @@ impl Edge {
             eval input.target_position ((t) target_position.set(*t));
             eval input.target_attached ((t) target_attached.set(*t));
             eval input.source_width    ((t) source_width.set(*t));
-            on_change <-_ [input.source_width,input.target_position,input.target_attached];
+            on_change <- any_ (input.source_width, input.target_position, input.target_attached);
             eval_ on_change ([target_attached,source_width,target_position,object,front,back] {
                 let target = target_position.get();
                 let target = Vector2::new(target.x - object.position().x, target.y - object.position().y + port_line_height);
