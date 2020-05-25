@@ -87,7 +87,7 @@ impl ViewLayoutData {
 
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
-    pub fn new
+    pub async fn new
     ( logger                   : &Logger
     , kb_actions               : &mut keyboard::Actions
     , application              : &Application
@@ -95,21 +95,22 @@ impl ViewLayout {
     , graph_controller         : controller::ExecutedGraph
     , visualization_controller : controller::Visualization
     , fonts                    : &mut font::Registry
-    ) -> Self {
+    ) -> FallibleResult<Self> {
         let logger        = logger.sub("ViewLayout");
         let world         = &application.display;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
         let node_searcher = NodeSearcher::new(world,&logger,graph_controller.graph.clone_ref(),fonts);
         let graph_controller = graph_controller.clone_ref();
         let node_editor      = NodeEditor::new
-            (&logger,application,graph_controller,visualization_controller);
+            (&logger,application,graph_controller,visualization_controller).await?;
         world.add_child(&text_editor.display_object());
         world.add_child(&node_editor);
         world.add_child(&node_searcher);
         let size         = zero();
         let data         = ViewLayoutData {text_editor,node_editor,node_searcher,size,logger};
         let rc           = Rc::new(RefCell::new(data));
-        Self {rc}.init(world,kb_actions)
+        let rc = Self {rc}.init(world,kb_actions);
+        Ok(rc)
     }
 
     fn init_keyboard(self, _keyboard_actions:&mut keyboard::Actions) -> Self {

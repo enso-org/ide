@@ -453,17 +453,32 @@ pub struct NodeEditor {
 
 impl NodeEditor {
     /// Create Node Editor Panel.
-    pub fn new
+    pub async fn new
     ( logger        : &Logger
     , app           : &Application
     , controller    : controller::ExecutedGraph
-    , visualization : controller::Visualization) -> Self {
+    , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = logger.sub("NodeEditor");
         let display_object = display::object::Instance::new(&logger);
         let graph          = GraphEditorIntegratedWithController::new(logger,app,controller.clone_ref());
         let graph          = Rc::new(graph);
         display_object.add_child(&graph.model.editor);
-        NodeEditor {display_object,graph,controller,visualization}
+        Ok(NodeEditor {display_object,graph,controller,visualization}.init().await?)
+    }
+
+    async fn init(self) -> FallibleResult<Self> {
+        let graph_editor = self.graph.graph_editor();
+        let identifiers  = self.visualization.list_visualizations().await;
+        let identifiers  = identifiers.unwrap_or_default();
+        for identifier in identifiers {
+            let visualization = self.visualization.load_visualization(&identifier).await;
+            let visualization = visualization.map(|visualization| {
+                let class_handle = &Some(visualization);
+                graph_editor.frp.register_visualization_class.emit_event(class_handle);
+            });
+            visualization?;
+        }
+        Ok(self)
     }
 }
 

@@ -94,9 +94,8 @@ impl ProjectView {
         let resize_callback          = None;
         let mut fonts                = font::Registry::new();
         let visualization_controller = controller.visualization.clone();
-        let layout               = ViewLayout::new(&logger,&mut keyboard_actions,&application,
-            text_controller,graph_controller,visualization_controller,&mut fonts);
-        controller.visualization.set_graph_editor(Some(layout.graph_editor())).await?;
+        let layout = ViewLayout::new(&logger,&mut keyboard_actions,&application, text_controller,
+            graph_controller,visualization_controller,&mut fonts).await?;
         let data = ProjectViewData {application,layout,resize_callback,controller,keyboard,
             keyboard_bindings,keyboard_actions};
         Ok(Self::new_from_data(data).init())

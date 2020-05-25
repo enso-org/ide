@@ -9,7 +9,6 @@ use crate::prelude::*;
 use std::rc::Rc;
 use enso_protocol::language_server;
 use graph_editor::GraphEditor;
-use enso_frp::stream::EventEmitter;
 use graph_editor::component::visualization::class;
 use graph_editor::component::visualization::JsSourceClass;
 
@@ -89,24 +88,6 @@ impl Handle {
     , embedded_visualizations : EmbeddedVisualizations) -> Self {
         let graph_editor = Rc::new(RefCell::new(None));
         Self {language_server_rpc,embedded_visualizations,graph_editor}
-    }
-
-    /// Sets the GraphEditor to report about visualizations availability.
-    pub async fn set_graph_editor(&self, graph_editor:Option<GraphEditor>) -> FallibleResult<()> {
-        let identifiers = self.list_visualizations().await;
-        let identifiers = identifiers.unwrap_or_default();
-        for identifier in identifiers {
-            let visualization = self.load_visualization(&identifier).await;
-            let visualization = visualization.map(|visualization| {
-                if let Some(graph_editor) = graph_editor.as_ref() {
-                    let class_handle = &Some(visualization);
-                    graph_editor.frp.register_visualization_class.emit_event(class_handle);
-                }
-            });
-            visualization?;
-        }
-        *self.graph_editor.borrow_mut() = graph_editor;
-        Ok(())
     }
 
     async fn list_file_visualizations(&self) -> FallibleResult<Vec<VisualizationIdentifier>> {
