@@ -91,7 +91,7 @@ impl Style {
     }
 }
 
-impl Semigroup for Style {
+impl PartialSemigroup<&Style> for Style {
     fn concat_mut(&mut self, other:&Self) {
         if self.host   . is_none() { self.host   = other.host   . clone() }
         if self.size   . is_none() { self.size   = other.size   . clone() }
@@ -99,6 +99,12 @@ impl Semigroup for Style {
         if self.color  . is_none() { self.color  = other.color  . clone() }
         if self.radius . is_none() { self.radius = other.radius . clone() }
         if self.press  . is_none() { self.press  = other.press  . clone() }
+    }
+}
+
+impl PartialSemigroup<Style> for Style {
+    fn concat_mut(&mut self, other:Self) {
+        self.concat_mut(&other)
     }
 }
 //impl Default for Style {

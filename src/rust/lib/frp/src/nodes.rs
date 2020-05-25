@@ -98,6 +98,11 @@ impl Network {
         self.register(OwnedIter::new(label,event))
     }
 
+    pub fn fold<T1,X>(&self, label:Label, event:&T1) -> Stream<X>
+        where T1:EventOutput, for<'t> &'t T1::Output:IntoIterator<Item=&'t X>, X:Data+Monoid {
+        self.register(OwnedFold::new(label,event))
+    }
+
     pub fn _0<T1>(&self, label:Label, event:&T1) -> Stream<generics::ItemAt0<Output<T1>>>
         where T1:EventOutput, T1::Output:generics::GetItemAt0, generics::ItemAt0<T1::Output>:Data {
         self.register(OwnedGet0::new(label,event))
@@ -190,7 +195,36 @@ impl Network {
 
     // === All ===
 
-    /// Anys input streams into a stream containing values from all of them. On event from any of
+    /// Merges input streams into a stream containing values from all of them. On event from any of
+    /// the input streams, all streams are sampled and the final event is produced.
+    pub fn all_mut<T:Data>(&self, label:Label) -> AllMut<T> {
+        self.register_raw(OwnedAllMut::new(label))
+    }
+
+    pub fn all_vec2<Out,T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<Vec<Out>>
+    where Out:Data, T1:EventOutput<Output=Out>, T2:EventOutput<Output=Out> {
+        self.register(OwnedAllMut::new(label).with(t1).with(t2))
+    }
+
+    pub fn all_vec3<Out,T1,T2,T3>(&self, label:Label, t1:&T1, t2:&T2, t3:&T3) -> Stream<Vec<Out>>
+    where Out : Data,
+          T1  : EventOutput<Output=Out>,
+          T2  : EventOutput<Output=Out>,
+          T3  : EventOutput<Output=Out> {
+        self.register(OwnedAllMut::new(label).with(t1).with(t2).with(t3))
+    }
+
+    pub fn all_vec4<Out,T1,T2,T3,T4>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4) -> Stream<Vec<Out>>
+    where Out : Data,
+          T1  : EventOutput<Output=Out>,
+          T2  : EventOutput<Output=Out>,
+          T3  : EventOutput<Output=Out>,
+          T4  : EventOutput<Output=Out> {
+        self.register(OwnedAllMut::new(label).with(t1).with(t2).with(t3).with(t4))
+    }
+
+    /// Merges input streams into a stream containing values from all of them. On event from any of
     /// the input streams, all streams are sampled and the final event is produced.
     pub fn all<T1,T2>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<(Output<T1>,Output<T2>)>
     where T1:EventOutput, T2:EventOutput {
@@ -350,6 +384,11 @@ impl DynamicNetwork {
     pub fn iter<T1,X>(self, label:Label, event:&T1) -> OwnedStream<X>
     where T1:EventOutput, for<'t> &'t T1::Output:IntoIterator<Item=&'t X>, X:Data {
         OwnedIter::new(label,event).into()
+    }
+
+    pub fn fold<T1,X>(self, label:Label, event:&T1) -> OwnedStream<X>
+    where T1:EventOutput, for<'t> &'t T1::Output:IntoIterator<Item=&'t X>, X:Data+Monoid {
+        OwnedFold::new(label,event).into()
     }
 
     pub fn _0<T1>(self, label:Label, event:&T1) -> OwnedStream<generics::ItemAt0<Output<T1>>>
@@ -1207,6 +1246,46 @@ impl<T1> stream::InputBehaviors for IterData<T1> {
 }
 
 
+
+// ============
+// === Fold ===
+// ============
+
+#[derive(Debug)]
+pub struct FoldData  <T1> { event:T1 }
+pub type   OwnedFold <T1> = stream::Node     <FoldData<T1>>;
+pub type   Fold      <T1> = stream::WeakNode <FoldData<T1>>;
+
+impl<T1,X> HasOutput for FoldData<T1>
+    where T1:EventOutput, X:Data, for<'t> &'t T1::Output:IntoIterator<Item=&'t X> {
+    type Output = X;
+}
+
+impl<T1,X> OwnedFold<T1>
+    where T1:EventOutput, X:Data+Monoid, for<'t> &'t T1::Output:IntoIterator<Item=&'t X> {
+    /// Constructor.
+    pub fn new(label:Label, src:&T1) -> Self {
+        let event      = src.clone_ref();
+        let definition = FoldData {event};
+        Self::construct_and_connect(label,src,definition)
+    }
+}
+
+impl<T1,X> stream::EventConsumer<Output<T1>> for OwnedFold<T1>
+    where T1:EventOutput, X:Data+Monoid, for<'t> &'t T1::Output:IntoIterator<Item=&'t X> {
+    fn on_event(&self, event:&Output<T1>) {
+        self.emit_event(&event.into_iter().fold(default(),|t,s| t.concat(s)))
+    }
+}
+
+impl<T1> stream::InputBehaviors for FoldData<T1> {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![]
+    }
+}
+
+
+
 // ==============
 // === AllMut ===
 // ==============
@@ -1283,6 +1362,12 @@ impl<Out:Data> AllMut<Out> {
             t.watches.borrow_mut().push(Box::new(watch));
             t.srcs.borrow_mut().push(Box::new(src.clone_ref()))
         });
+    }
+
+    pub fn with<T1>(self, src:&T1) -> Self
+    where T1:EventOutput<Output=Out> {
+        self.attach(src);
+        self
     }
 }
 

@@ -237,6 +237,12 @@ macro_rules! extend_line2 {
     ([] $net:ident $name:ident <- all ( $($arg1:ident).+ , $($arg2:ident).+ , $($arg3:ident).+ )                    $($ts:tt)* ) => {$crate::extend_line2! { [] $net def $name = all3(&$($arg1).+,&$($arg2).+,&$($arg3).+)               $($ts)* } };
     ([] $net:ident $name:ident <- all ( $($arg1:ident).+ , $($arg2:ident).+ , $($arg3:ident).+ , $($arg4:ident).+ ) $($ts:tt)* ) => {$crate::extend_line2! { [] $net def $name = all4(&$($arg1).+,&$($arg2).+,&$($arg3).+,&$($arg4).+)   $($ts)* } };
 
+    ([] $net:ident $name:ident <- all [...]                                                                         $($ts:tt)* ) => {$crate::extend_line2! { [] $net $name <- all_mut()                                                  $($ts)* } };
+    ([] $net:ident $name:ident <- all [ $($arg1:ident).+ ]                                                                     ) => { let $name = $($arg1).+.clone_ref(); };
+    ([] $net:ident $name:ident <- all [ $($arg1:ident).+ , $($arg2:ident).+ ]                                       $($ts:tt)* ) => {$crate::extend_line2! { [] $net def $name = all_vec2(&$($arg1).+,&$($arg2).+)                         $($ts)* } };
+    ([] $net:ident $name:ident <- all [ $($arg1:ident).+ , $($arg2:ident).+ , $($arg3:ident).+ ]                    $($ts:tt)* ) => {$crate::extend_line2! { [] $net def $name = all_vec3(&$($arg1).+,&$($arg2).+,&$($arg3).+)             $($ts)* } };
+    ([] $net:ident $name:ident <- all [ $($arg1:ident).+ , $($arg2:ident).+ , $($arg3:ident).+ , $($arg4:ident).+ ] $($ts:tt)* ) => {$crate::extend_line2! { [] $net def $name = all_vec4(&$($arg1).+,&$($arg2).+,&$($arg3).+,&$($arg4).+) $($ts)* } };
+
     ([] $net:ident $name:ident <- all_ (...)                                                                         $($ts:tt)* ) => {$crate::extend_line2! { [] $net $name <- all_mut_()                                                $($ts)* } };
     ([] $net:ident $name:ident <- all_ ( $($arg1:ident).+ )                                                                     ) => { let $name = $($arg1).+.constant(()); };
     ([] $net:ident $name:ident <- all_ ( $($arg1:ident).+ , $($arg2:ident).+ )                                       $($ts:tt)* ) => {$crate::extend_line2! { [] $net def $name = all2_(&$($arg1).+,&$($arg2).+)                         $($ts)* } };

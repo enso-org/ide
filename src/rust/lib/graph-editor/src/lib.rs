@@ -1397,9 +1397,12 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
 //    cursor_style <- all(...);
 
-    cursor_style <- all_with4(&cursor_selection,&cursor_press,&cursor_color_edge_drag,&node_cursor_style,|t1,t2,t3,t4| {
-        vec![t1,t2,t3,t4].into_iter().fold(default(),|mut s:cursor::Style,i:&cursor::Style| { s.concat_mut(i); s })
-    });
+    cursor_style <- all
+        [ cursor_selection
+        , cursor_press
+        , cursor_color_edge_drag
+        , node_cursor_style
+        ].fold();
 
     eval cursor_style ((style) cursor.frp.set_style.emit(style));
     }
