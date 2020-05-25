@@ -999,6 +999,14 @@ impl GraphEditorModel {
         }
     }
 
+    fn take_edges_with_detached_targets(&self) -> HashSet<EdgeId> {
+        let edges = self.edges.detached_target.mem_take();
+        if !edges.is_empty() {
+            self.frp.all_edge_targets_attached.emit(());
+        }
+        edges
+    }
+
     fn overlapping_edges(&self, target:&EdgeTarget) -> Vec<EdgeId> {
         let mut overlapping = vec![];
         if let Some(node) = self.nodes.get_cloned_ref(&target.node_id) {
@@ -1401,6 +1409,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
 
     // === Node Connect ===
+
     frp::extend! { network
 
     outputs.edge_source_set <+ inputs.set_edge_source;
@@ -1418,13 +1427,17 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     port_mouse_up <- inputs.hover_node_input.sample(&mouse.release).unwrap();
 
     attach_all_edges        <- any (port_mouse_up, inputs.press_node_input, inputs.set_detached_edge_targets);
-    detached_targets        <- attach_all_edges.map(f_!(model.edges.detached_target.mem_take()));
-    detached_target         <= detached_targets;
-    new_edge_target         <- detached_target.map2(&attach_all_edges, |id,t| (*id,t.clone()));
+    detached_edge           <= attach_all_edges.map(f_!(model.take_edges_with_detached_targets()));
+    new_edge_target         <- detached_edge.map2(&attach_all_edges, |id,t| (*id,t.clone()));
     outputs.edge_target_set <+ new_edge_target;
 
     overlapping_edges       <= outputs.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
     outputs.edge_removed    <+ overlapping_edges;
+
+
+    detached_edge <= touch.background.down.map(f_!(model.take_edges_with_detached_targets()));
+    eval detached_edge ((id) model.remove_edge(id));
+
     }
 
 

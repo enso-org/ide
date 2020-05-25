@@ -209,6 +209,8 @@ pub struct EdgeData {
     pub target_attached : Rc<Cell<bool>>,
 }
 
+const END_OFFSET : f32 = 2.0;
+
 impl Edge {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
@@ -233,7 +235,7 @@ impl Edge {
         let target_attached : Rc<Cell<bool>> = default();
 
         let port_line_height = node::NODE_HEIGHT/2.0 + node::SHADOW_SIZE;
-        front . port_line.shape.sprite.size().set(Vector2::new(10.0,port_line_height));
+        front . port_line.shape.sprite.size().set(Vector2::new(10.0,port_line_height-END_OFFSET));
 
         frp::extend! { network
             eval input.target_position ((t) target_position.set(*t));
@@ -296,7 +298,7 @@ impl Edge {
 
                 front.port_line.mod_position(|p| {
                     p.x = main_line_x;
-                    p.y = target.y - port_line_height / 2.0;
+                    p.y = target.y - port_line_height / 2.0 + END_OFFSET;
                 });
             });
         }
