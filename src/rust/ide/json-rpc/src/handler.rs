@@ -134,6 +134,9 @@ pub type OngoingCalls = HashMap<Id,oneshot::Sender<ReplyMessage>>;
 
 pub use shapely::shared;
 
+/// The default timeout for all responses given in seconds.
+const TIMEOUT:u64 = 1;
+
 shared! { Handler
 
 /// Mutable state of the `Handler`.
@@ -200,6 +203,11 @@ impl<Notification> {
             channel::emit(event_transmitter,event)
         }
     }
+
+    /// All requests timeout after this duration.
+    pub fn timeout(&self) -> Duration {
+        self.timeout
+    }
 }
 } // shared!
 
@@ -227,7 +235,7 @@ impl<Notification> Handler<Notification> {
     /// `Transport` must be functional (e.g. not in the process of opening).
     pub fn new(transport:impl Transport + 'static) -> Handler<Notification> {
         let data = HandlerData {
-            timeout         : Duration::new(1,0),
+            timeout         : Duration::from_secs(TIMEOUT),
             ongoing_calls   : default(),
             id_generator    : IdGenerator::new(),
             transport       : Box::new(transport),
@@ -283,7 +291,7 @@ impl<Notification> Handler<Notification> {
             self.remove_ongoing_request(id);
         }
 
-        let timeout = self.rc.borrow().timeout;
+        let timeout = self.timeout();
         future::select(ret, sleep(timeout).boxed()).map(move |either|
             match either {
                 future::Either::Left ((x, _)) => x,

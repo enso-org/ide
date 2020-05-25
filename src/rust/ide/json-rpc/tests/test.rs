@@ -18,6 +18,8 @@ use std::pin::Pin;
 use utils::test::poll_future_output;
 use utils::test::poll_stream_output;
 use futures::task::LocalSpawnExt;
+use std::thread::sleep;
+use ensogl_system_web::Duration;
 
 type MockEvent = json_rpc::handler::Event<MockNotification>;
 
@@ -223,6 +225,24 @@ fn test_garbage_reply_error() {
     if let HandlingError::InvalidMessage(_) = internal_error {
     } else {
         panic!("Expected an error to be InvalidMessage");
+    }
+}
+
+#[test]
+fn test_timeout_error() {
+    let mut fixture = Fixture::new();
+    let mut fut     = Box::pin(fixture.client.pow(8));
+
+    assert!(poll_future_output(&mut fut).is_none()); // no reply
+    fixture.pool.run_until_stalled();
+    sleep(fixture.client.handler.timeout());
+    sleep(Duration::from_secs(1)); // sleep a little longer than the timeout
+
+    let result = poll_future_output(&mut fut);
+    let result = result.expect("result should be present");
+    let result = result.expect_err("result should be a failure");
+    if let RpcError::TimeoutError(_) = result {} else {
+        panic!("Expected an error to be TimeoutError");
     }
 }
 
