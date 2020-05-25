@@ -81,7 +81,7 @@ macro_rules! make_rpc_methods {
             }
 
             /// Set new timeout for future requests. Pending requests are not affected.
-            pub fn set_timeout(&mut self, timeout:Duration) {
+            pub fn set_timeout(&mut self, timeout:std::time::Duration) {
                 self.handler.borrow().set_timeout(timeout);
             }
         }
