@@ -60,7 +60,7 @@ pub trait StreamTestExt<S:?Sized + Stream> {
 
 impl<P,S> StreamTestExt<S> for Pin<P>
 where P : Unpin  + DerefMut<Target=S>,
-          S : ?Sized + Stream {
+      S : ?Sized + Stream {
     fn get_pinned_stream(&mut self) -> Pin<&mut S> {
         self.as_mut()
     }
