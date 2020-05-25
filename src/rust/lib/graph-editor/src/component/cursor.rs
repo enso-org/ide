@@ -89,6 +89,11 @@ impl Style {
         let press = Some(1.0);
         Self {press,..default()}
     }
+
+    pub fn press(mut self) -> Self {
+        self.press = Some(1.0);
+        self
+    }
 }
 
 impl PartialSemigroup<&Style> for Style {

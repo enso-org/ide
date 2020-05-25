@@ -1272,7 +1272,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Cursor Color ===
     frp::extend! { network
 
-    cursor_color_edge_drag <- outputs.some_edges_detached.constant(cursor::Style::color_no_animation(color::Lcha::new(0.6,0.5,0.76,1.0)));
+    let style = cursor::Style::color_no_animation(color::Lcha::new(0.6,0.5,0.76,1.0)).press();
+    cursor_style_on_edge_drag      <- outputs.some_edges_detached.constant(style);
+    cursor_style_on_edge_drag_stop <- outputs.all_edges_attached.constant(default());
+    cursor_style_edge_drag         <- any (cursor_style_on_edge_drag,cursor_style_on_edge_drag_stop);
 
 
 
@@ -1371,11 +1374,13 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.edge_source_set <+ new_edge_source;
     outputs.edge_target_set <+ new_edge_target;
 
-    new_node_input          <- any (inputs.press_node_input, inputs.set_detached_edge_targets);
-    detached_targets        <- new_node_input.map(f_!(model.edges.detached_target.mem_take()));
+    attach_all_edges        <- any (inputs.press_node_input, inputs.set_detached_edge_targets);
+    attach_all_edges_       <- attach_all_edges.constant(());
+    detached_targets        <- attach_all_edges.map(f_!(model.edges.detached_target.mem_take()));
     detached_target         <= detached_targets;
-    new_edge_target         <- detached_target.map2(&new_node_input, |id,t| (*id,t.clone()));
-    outputs.edge_target_set <+ new_edge_target;
+    new_edge_target         <- detached_target.map2(&attach_all_edges, |id,t| (*id,t.clone()));
+    outputs.edge_target_set    <+ new_edge_target;
+    outputs.all_edges_attached <+ attach_all_edges_;
 
     overlapping_edges       <= outputs.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
     outputs.edge_removed    <+ overlapping_edges;
@@ -1395,12 +1400,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
     outputs.node_position_set <+ node_with_position;
 
-//    cursor_style <- all(...);
-
     cursor_style <- all
         [ cursor_selection
         , cursor_press
-        , cursor_color_edge_drag
+        , cursor_style_edge_drag
         , node_cursor_style
         ].fold();
 
