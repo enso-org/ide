@@ -8,7 +8,6 @@ use crate::prelude::*;
 
 use std::rc::Rc;
 use enso_protocol::language_server;
-use graph_editor::GraphEditor;
 use graph_editor::component::visualization::class;
 use graph_editor::component::visualization::JsSourceClass;
 
@@ -57,11 +56,11 @@ pub enum VisualizationIdentifier {
 pub type EmbeddedVisualizationName   = String;
 
 /// Embedded visualizations mapped from name to source code.
-#[derive(Shrinkwrap,Debug,Clone,CloneRef,Default)]
+#[derive(Shrinkwrap,Debug,Clone,Default)]
 #[shrinkwrap(mutable)]
 pub struct EmbeddedVisualizations {
     #[allow(missing_docs)]
-    pub map : Rc<HashMap<EmbeddedVisualizationName,Rc<class::Handle>>>
+    pub map : HashMap<EmbeddedVisualizationName,Rc<class::Handle>>
 }
 
 
@@ -73,12 +72,16 @@ pub struct EmbeddedVisualizations {
 
 const VISUALISATION_FOLDER : &str = "visualization";
 
+#[derive(Debug)]
+struct VisualizationControllerData {
+    language_server_rpc     : Rc<language_server::Connection>,
+    embedded_visualizations : EmbeddedVisualizations
+}
+
 /// Visualization Controller's state.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Handle {
-    language_server_rpc     : Rc<language_server::Connection>,
-    embedded_visualizations : EmbeddedVisualizations,
-    graph_editor            : Rc<RefCell<Option<GraphEditor>>>
+    data : Rc<RefCell<VisualizationControllerData>>
 }
 
 impl Handle {
@@ -86,15 +89,18 @@ impl Handle {
     pub fn new
     ( language_server_rpc     : Rc<language_server::Connection>
     , embedded_visualizations : EmbeddedVisualizations) -> Self {
-        let graph_editor = Rc::new(RefCell::new(None));
-        Self {language_server_rpc,embedded_visualizations,graph_editor}
+        let data = VisualizationControllerData{language_server_rpc,embedded_visualizations};
+        let data = Rc::new(RefCell::new(data));
+        Self {data}
     }
 
     async fn list_file_visualizations(&self) -> FallibleResult<Vec<VisualizationIdentifier>> {
-        let root_id   = self.language_server_rpc.content_root();
-        let path      = language_server::Path::new(root_id,&[VISUALISATION_FOLDER]);
-        let file_list = self.language_server_rpc.file_list(&path).await?;
-        let result    = file_list.paths.iter().filter_map(|object| {
+        let data                = self.data.borrow();
+        let language_server_rpc = &data.language_server_rpc;
+        let root_id             = language_server_rpc.content_root();
+        let path                = language_server::Path::new(root_id,&[VISUALISATION_FOLDER]);
+        let file_list           = language_server_rpc.file_list(&path).await?;
+        let result              = file_list.paths.iter().filter_map(|object| {
             if let language_server::FileSystemObject::File{name,path} = object {
                 let mut path = path.clone();
                 path.segments.push(name.to_string());
@@ -111,7 +117,8 @@ impl Handle {
     }
 
     fn list_embedded_visualizations(&self) -> Vec<VisualizationIdentifier> {
-        let result = self.embedded_visualizations.keys().cloned();
+        let data   = self.data.borrow();
+        let result = data.embedded_visualizations.keys().cloned();
         let result = result.map(VisualizationIdentifier::Embedded);
         result.collect()
     }
@@ -128,16 +135,18 @@ impl Handle {
     (&self, visualization:&VisualizationIdentifier) -> FallibleResult<Rc<class::Handle>> {
         match visualization {
             VisualizationIdentifier::Embedded(identifier) => {
-                let result     = self.embedded_visualizations.get(identifier);
+                let data       = self.data.borrow();
+                let result     = data.embedded_visualizations.get(identifier);
                 let identifier = visualization.clone();
                 let error      = || VisualizationError::NotFound{identifier}.into();
                 result.cloned().ok_or_else(error)
             },
             VisualizationIdentifier::File(path) => {
-                let js_code    = self.language_server_rpc.read_file(&path).await?.contents;
-                let identifier = visualization.clone();
-                let error      = |_| VisualizationError::CompileError{identifier}.into();
-                let js_class   = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
+                let language_server = &self.data.borrow().language_server_rpc;
+                let js_code         = language_server.read_file(&path).await?.contents;
+                let identifier      = visualization.clone();
+                let error           = |_| VisualizationError::CompileError{identifier}.into();
+                let js_class        = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
                 js_class.map(|js_class| Rc::new(class::Handle::new(js_class)))
             }
         }
