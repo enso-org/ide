@@ -177,6 +177,7 @@ mod tests {
     use graph_editor::component::visualization::{NativeConstructorClass, Signature, Visualization};
     use graph_editor::component::visualization::renderer::example::native::BubbleChart;
     use ensogl::display::Scene;
+    use json_rpc::expect_call;
 
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -198,7 +199,7 @@ mod tests {
             FileSystemObject::new_file(path1.clone()),
         ];
         let file_list_result = language_server::response::FileList{paths};
-        mock_client.set_file_list_result(path, Ok(file_list_result));
+        expect_call!(mock_client.file_list(path=path) => Ok(file_list_result));
 
         let file_content0 = r#"
             class Vis0 {
@@ -218,8 +219,8 @@ mod tests {
         "#.to_string();
         let result0 = language_server::response::Read{contents:file_content0.clone()};
         let result1 = language_server::response::Read{contents:file_content1.clone()};
-        mock_client.set_file_read_result(path0.clone(),Ok(result0));
-        mock_client.set_file_read_result(path1.clone(),Ok(result1));
+        expect_call!(mock_client.read_file(path=path0.clone()) => Ok(result0));
+        expect_call!(mock_client.read_file(path=path1.clone()) => Ok(result1));
 
         let language_server             = language_server::Connection::new_mock_rc(mock_client);
         let mut embedded_visualizations = EmbeddedVisualizations::default();

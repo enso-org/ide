@@ -57,7 +57,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn file_operations() {
-    let ws        = WebSocket::new_opened(SERVER_ENDPOINT).await;
+    let ws        = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
     let ws        = ws.expect("Couldn't connect to WebSocket server.");
     let client    = Client::new(ws);
     let _executor = ide::setup_global_executor();
@@ -86,10 +86,7 @@ async fn file_operations() {
 
     let execution_context    = client.create_execution_context().await;
     let execution_context    = execution_context.expect("Couldn't create execution context.");
-    let execution_context_id = match execution_context.can_modify.register_options {
-        RegisterOptions::ExecutionContextId{context_id} => Some(context_id),
-        _                                               => None
-    }.expect("Couldn't get context ID.");
+    let execution_context_id = execution_context.context_id;
 
     let defined_on_type = "Main".to_string();
     let name            = "main".to_string();
@@ -170,8 +167,7 @@ async fn file_operations() {
     let read = client.read_file(&move_path).await.expect("Couldn't read contents");
     assert_eq!(contents,read.contents);
 
-    let receives_tree_updates   = ReceivesTreeUpdates{path:move_path.clone()};
-    let register_options        = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+    let register_options        = RegisterOptions::Path{path:move_path.clone()};
     let method                  = "text/canEdit".to_string();
     let capability_registration = CapabilityRegistration {method,register_options};
     let response = client.open_text_file(&move_path).await;
@@ -203,8 +199,7 @@ async fn file_operations() {
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn file_events() {
-    ensogl::system::web::set_stdout();
-    let ws         = WebSocket::new_opened(SERVER_ENDPOINT).await;
+    let ws         = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
     let ws         = ws.expect("Couldn't connect to WebSocket server.");
     let client     = Client::new(ws);
     let mut stream = client.events();
@@ -229,8 +224,7 @@ async fn file_events() {
     }
 
     let path       = Path{root_id, segments:vec![]};
-    let receives_tree_updates = ReceivesTreeUpdates{path};
-    let options    = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+    let options    = RegisterOptions::Path{path};
     let capability = client.acquire_capability(&"receivesTreeUpdates".to_string(),&options).await;
     capability.expect("Couldn't acquire receivesTreeUpdates capability.");
 
@@ -250,4 +244,32 @@ async fn file_events() {
     } else {
         panic!("Incoming event isn't a notification.");
     }
+}
+
+//#[wasm_bindgen_test::wasm_bindgen_test(async)]
+#[allow(dead_code)]
+/// This integration test covers:
+/// * using project picker to open (or create) a project
+/// * establishing a binary protocol connection with Language Server
+/// * writing and reading a file using the binary protocol
+async fn binary_protocol_test() {
+    // Setup project
+    let _guard   = ide::setup_global_executor();
+    let logger   = Logger::new("Test");
+    let endpoint = ide::PROJECT_MANAGER_ENDPOINT;
+    let ws       = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
+    let pm       = ide::setup_project_manager(ws);
+    let project  = ide::open_most_recent_project_or_create_new(&logger,&pm).await.unwrap();
+    println!("Got project: {:?}", project);
+
+    let path     = Path::new(project.language_server_rpc.content_root(), &["test_file.txt"]);
+    let contents = "Hello!".as_bytes();
+    let written  = project.language_server_bin.write_file(&path,contents).await.unwrap();
+    println!("Written: {:?}", written);
+    let read_back = project.language_server_bin.read_file(&path).await.unwrap();
+    println!("Read back: {:?}", read_back);
+    assert_eq!(contents, read_back.as_slice());
+
+    // TODO [mwu]
+    //  In future it would be nice to have here also a test for receiving a visualization update.
 }

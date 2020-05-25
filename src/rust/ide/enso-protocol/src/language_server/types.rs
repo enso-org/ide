@@ -37,6 +37,14 @@ impl Display for Path {
 }
 
 impl Path {
+    /// Splits path into name and segments. e.g.:
+    /// Path{root_id,segments:["foo","bar","qux"]} => ("qux",Path{root_id,segments:["foo","bar"]})
+    pub fn split_into_name_and_segments(&self) -> (String,Path) {
+        let mut path = self.clone();
+        let name     = path.segments.pop().unwrap_or_default();
+        (name,path)
+    }
+
     /// Returns the file name, i.e. the last segment if exists.
     pub fn file_name(&self) -> Option<&String> {
         self.segments.last()
@@ -174,41 +182,37 @@ pub enum FileSystemObject {
 }
 
 impl FileSystemObject {
-    fn split_path_into_name_and_segments(mut path:Path) -> (String,Path) {
-        let name = path.segments.pop().unwrap_or_default();
-        (name,path)
-    }
-
     /// Creates a new Directory variant.
     pub fn new_directory(path:Path) -> Self {
-        let (name,path) = Self::split_path_into_name_and_segments(path);
+        let (name,path) = path.split_into_name_and_segments();
         Self::Directory {name,path}
     }
 
     /// Creates a new DirectoryTruncated variant.
     pub fn new_directory_truncated(path:Path) -> Self {
-        let (name,path) = Self::split_path_into_name_and_segments(path);
+        let (name,path) = path.split_into_name_and_segments();
         Self::DirectoryTruncated {name,path}
     }
 
     /// Creates a new File variant.
     pub fn new_file(path:Path) -> Self {
-        let (name,path) = Self::split_path_into_name_and_segments(path);
+        let (name,path) = path.split_into_name_and_segments();
         Self::File {name,path}
     }
 
     /// Creates a new Other variant.
     pub fn new_other(path:Path) -> Self {
-        let (name,path) = Self::split_path_into_name_and_segments(path);
+        let (name,path) = path.split_into_name_and_segments();
         Self::Other {name,path}
     }
 
     /// Creates a new SymlinkLoop variant.
     pub fn new_symlink_loop(path:Path,target:Path) -> Self {
-        let (name,path) = Self::split_path_into_name_and_segments(path);
+        let (name,path) = path.split_into_name_and_segments();
         Self::SymlinkLoop {name,path,target}
     }
 }
+
 
 
 
@@ -220,9 +224,24 @@ impl FileSystemObject {
 #[derive(Hash, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(missing_docs)]
 pub struct Position {
-    pub line: u32,
-    pub character: u32
+    pub line      : usize,
+    pub character : usize
 }
+
+impls!{ From + &From <data::text::TextLocation> for Position { |location|
+    Position {
+        line      : location.line,
+        character : location.column,
+    }
+}}
+
+impls!{ Into + &Into <data::text::TextLocation> for Position { |this|
+    data::text::TextLocation {
+        line   : this.line,
+        column : this.character,
+    }
+}}
+
 
 
 // =================
@@ -236,6 +255,18 @@ pub struct TextRange {
     pub start: Position,
     pub end: Position
 }
+
+impls!{ From + &From <Range<data::text::TextLocation>> for TextRange { |range|
+    TextRange {
+        start : range.start.into(),
+        end   : range.end.into(),
+    }
+}}
+
+impls!{ Into + &Into <Range<data::text::TextLocation>> for TextRange { |this|
+    this.start.into()..this.end.into()
+}}
+
 
 
 // ================
@@ -346,6 +377,29 @@ pub struct CapabilityRegistration {
     pub register_options: RegisterOptions
 }
 
+impl CapabilityRegistration {
+    /// Create "text/canEdit" capability for path
+    pub fn create_can_edit_text_file(path:Path) -> Self {
+        let method           = "text/canEdit".to_string();
+        let register_options = RegisterOptions::Path {path};
+        CapabilityRegistration {method,register_options}
+    }
+
+    /// Create "executionContext/canModify" capability for path
+    pub fn create_can_modify_execution_context(context_id:Uuid) -> Self {
+        let method = "executionContext/canModify".to_string();
+        let register_options = RegisterOptions::ExecutionContextId {context_id};
+        CapabilityRegistration {method,register_options}
+    }
+
+    /// Create "executionContext/receivesUpdates" capability for path
+    pub fn create_receives_execution_context_updates(context_id:Uuid) -> Self {
+        let method = "executionContext/receivesUpdates".to_string();
+        let register_options = RegisterOptions::ExecutionContextId {context_id};
+        CapabilityRegistration {method,register_options}
+    }
+}
+
 
 // =======================
 // === RegisterOptions ===
@@ -353,19 +407,15 @@ pub struct CapabilityRegistration {
 
 /// `capability/acquire` takes method and options specific to the method. This type represents the
 /// options. The used variant must match the method. See for details:
-/// https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md#capabilities
+/// https://github.com/luna/enso/blob/master/docs/language-server/protocol-language-server.md#capabilities
+//TODO[ao] we cannot have one variant for each cabability due to `untagged` attribute.
+// The best solution is make CapabilityRegistration an enum and write serialization and
+// deserialization by hand.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged, rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub enum RegisterOptions {
-    ReceivesTreeUpdates(ReceivesTreeUpdates),
+    Path {path:Path},
     #[serde(rename_all = "camelCase")]
-    ExecutionContextId { context_id: ContextId }
-}
-
-/// `RegisterOptions`' to receive file system tree updates.
-#[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[allow(missing_docs)]
-pub struct ReceivesTreeUpdates {
-    pub path: Path
+    ExecutionContextId {context_id:ContextId},
 }
