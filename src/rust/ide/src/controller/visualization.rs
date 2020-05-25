@@ -39,7 +39,7 @@ pub enum VisualizationError {
 // === VisualizationIdentifier ===
 // ===============================
 
-/// This enum is used to identify a visualiser both in the project folder or natively embedded in
+/// This enum is used to identify a visualization both in the project folder or natively embedded in
 /// IDE.
 #[derive(Clone,Debug,Display,Eq,PartialEq)]
 #[allow(missing_docs)]
@@ -58,11 +58,11 @@ pub enum VisualizationIdentifier {
 pub type EmbeddedVisualizationName   = String;
 
 /// Embedded visualizations mapped from name to source code.
-#[derive(Shrinkwrap,Debug,Clone,Default)]
+#[derive(Shrinkwrap,Debug,Clone,CloneRef,Default)]
 #[shrinkwrap(mutable)]
 pub struct EmbeddedVisualizations {
     #[allow(missing_docs)]
-    pub map : HashMap<EmbeddedVisualizationName,Rc<class::Handle>>
+    pub map : Rc<HashMap<EmbeddedVisualizationName,Rc<class::Handle>>>
 }
 
 
@@ -75,11 +75,11 @@ pub struct EmbeddedVisualizations {
 const VISUALISATION_FOLDER : &str = "visualization";
 
 /// Visualization Controller's state.
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct Handle {
     language_server_rpc     : Rc<language_server::Connection>,
     embedded_visualizations : EmbeddedVisualizations,
-    graph_editor            : RefCell<Option<GraphEditor>>
+    graph_editor            : Rc<RefCell<Option<GraphEditor>>>
 }
 
 impl Handle {
@@ -87,7 +87,7 @@ impl Handle {
     pub fn new
     ( language_server_rpc     : Rc<language_server::Connection>
     , embedded_visualizations : EmbeddedVisualizations) -> Self {
-        let graph_editor = RefCell::new(None);
+        let graph_editor = Rc::new(RefCell::new(None));
         Self {language_server_rpc,embedded_visualizations,graph_editor}
     }
 
@@ -97,12 +97,13 @@ impl Handle {
         let identifiers = identifiers.unwrap_or_default();
         for identifier in identifiers {
             let visualization = self.load_visualization(&identifier).await;
-            visualization.map(|visualization| {
+            let visualization = visualization.map(|visualization| {
                 if let Some(graph_editor) = graph_editor.as_ref() {
                     let class_handle = &Some(visualization);
                     graph_editor.frp.register_visualization_class.emit_event(class_handle);
                 }
-            })?;
+            });
+            visualization?;
         }
         *self.graph_editor.borrow_mut() = graph_editor;
         Ok(())

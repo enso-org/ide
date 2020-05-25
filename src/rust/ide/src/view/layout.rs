@@ -88,18 +88,21 @@ impl ViewLayoutData {
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
     pub fn new
-    ( logger           : &Logger
-    , kb_actions       : &mut keyboard::Actions
-    , application      : &Application
-    , text_controller  : controller::Text
-    , graph_controller : controller::ExecutedGraph
-    , fonts            : &mut font::Registry
+    ( logger                   : &Logger
+    , kb_actions               : &mut keyboard::Actions
+    , application              : &Application
+    , text_controller          : controller::Text
+    , graph_controller         : controller::ExecutedGraph
+    , visualization_controller : controller::Visualization
+    , fonts                    : &mut font::Registry
     ) -> Self {
         let logger        = logger.sub("ViewLayout");
         let world         = &application.display;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
-        let node_editor   = NodeEditor::new(&logger,application,graph_controller.clone_ref());
         let node_searcher = NodeSearcher::new(world,&logger,graph_controller.graph.clone_ref(),fonts);
+        let graph_controller = graph_controller.clone_ref();
+        let node_editor      = NodeEditor::new
+            (&logger,application,graph_controller,visualization_controller);
         world.add_child(&text_editor.display_object());
         world.add_child(&node_editor);
         world.add_child(&node_searcher);

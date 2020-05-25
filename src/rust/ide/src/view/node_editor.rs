@@ -446,19 +446,24 @@ impl GraphEditorIntegratedWithControllerModel {
 pub struct NodeEditor {
     display_object : display::object::Instance,
     #[allow(missing_docs)]
-    pub graph  : Rc<GraphEditorIntegratedWithController>,
-    controller : controller::ExecutedGraph,
+    pub graph     : Rc<GraphEditorIntegratedWithController>,
+    controller    : controller::ExecutedGraph,
+    visualization : controller::Visualization
 }
 
 impl NodeEditor {
     /// Create Node Editor Panel.
-    pub fn new(logger:&Logger, app:&Application, controller:controller::ExecutedGraph) -> Self {
+    pub fn new
+    ( logger        : &Logger
+    , app           : &Application
+    , controller    : controller::ExecutedGraph
+    , visualization : controller::Visualization) -> Self {
         let logger         = logger.sub("NodeEditor");
         let display_object = display::object::Instance::new(&logger);
         let graph          = GraphEditorIntegratedWithController::new(logger,app,controller.clone_ref());
         let graph          = Rc::new(graph);
         display_object.add_child(&graph.model.editor);
-        NodeEditor {display_object,graph,controller}
+        NodeEditor {display_object,graph,controller,visualization}
     }
 }
 
