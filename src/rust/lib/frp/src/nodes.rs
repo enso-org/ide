@@ -93,6 +93,11 @@ impl Network {
         self.register(OwnedGateNot::new(label,event,behavior))
     }
 
+    pub fn unwrap<T,S>(&self, label:Label, event:&T) -> Stream<S>
+        where T:EventOutput<Output=Option<S>>, S:Data {
+        self.register(OwnedUnwrap::new(label,event))
+    }
+
     pub fn iter<T1,X>(&self, label:Label, event:&T1) -> Stream<X>
         where T1:EventOutput, for<'t> &'t T1::Output:IntoIterator<Item=&'t X>, X:Data {
         self.register(OwnedIter::new(label,event))
@@ -919,6 +924,41 @@ impl<T1,T2> stream::InputBehaviors for GateNotData<T1,T2>
     where T2:EventOutput {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![Link::behavior(&self.behavior)]
+    }
+}
+
+
+
+// ==============
+// === Unwrap ===
+// ==============
+
+#[derive(Debug)]
+pub struct UnwrapData  <T:EventOutput> { src:T }
+pub type   OwnedUnwrap <T> = stream::Node     <UnwrapData<T>>;
+pub type   Unwrap      <T> = stream::WeakNode <UnwrapData<T>>;
+
+impl<T,S> HasOutput for UnwrapData<T>
+where T:EventOutput<Output=Option<S>>, S:Data {
+    type Output = S;
+}
+
+impl<T,S> OwnedUnwrap<T>
+where T:EventOutput<Output=Option<S>>, S:Data {
+    /// Constructor.
+    pub fn new(label:Label, src1:&T) -> Self {
+        let src = src1.clone_ref();
+        let def = UnwrapData {src};
+        Self::construct_and_connect(label,src1,def)
+    }
+}
+
+impl<T,S> stream::EventConsumer<Output<T>> for OwnedUnwrap<T>
+where T:EventOutput<Output=Option<S>>, S:Data {
+    fn on_event(&self, event:&Output<T>) {
+        if let Some(t) = event {
+            self.emit_event(t)
+        }
     }
 }
 

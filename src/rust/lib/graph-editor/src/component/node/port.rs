@@ -112,7 +112,9 @@ pub struct Events {
     pub network         : frp::Network,
     pub cursor_style    : frp::Stream<cursor::Style>,
     pub press           : frp::Stream<span_tree::Crumbs>,
+    pub hover           : frp::Stream<Option<span_tree::Crumbs>>,
     press_source        : frp::Source<span_tree::Crumbs>,
+    hover_source        : frp::Source<Option<span_tree::Crumbs>>,
     cursor_style_source : frp::Any<cursor::Style>,
 }
 
@@ -174,6 +176,7 @@ impl Manager {
         frp::new_network! { network
             cursor_style_source <- any_mut::<cursor::Style>();
             press_source        <- source::<span_tree::Crumbs>();
+            hover_source        <- source::<Option<span_tree::Crumbs>>();
         }
 
         let logger         = logger.sub("port_manager");
@@ -184,9 +187,11 @@ impl Manager {
         let label          = component::ShapeView::<label::Shape>::new(&logger,&scene);
         let ports          = default();
         let width          = default();
-        let cursor_style    = (&cursor_style_source).into();
+        let cursor_style   = (&cursor_style_source).into();
         let press          = (&press_source).into();
-        let frp            = Events {network,cursor_style,press,cursor_style_source,press_source};
+        let hover          = (&hover_source).into();
+        let frp            = Events
+            {network,cursor_style,press,hover,cursor_style_source,press_source,hover_source};
 
         label.mod_position(|t| t.y -= 4.0);
 
@@ -245,8 +250,13 @@ impl Manager {
                             self.frp.cursor_style_source.attach(&over);
                             self.frp.cursor_style_source.attach(&out);
 
+                            let crumbs_down  = crumbs.clone();
+                            let crumbs_over  = crumbs.clone();
                             let press_source = &self.frp.press_source;
-                            def _press = port.events.mouse_down.map(f_!(press_source.emit(&crumbs)));
+                            let hover_source = &self.frp.hover_source;
+                            eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
+                            eval_ port.events.mouse_over (hover_source.emit(&Some(crumbs_over.clone())));
+                            eval_ port.events.mouse_out  (hover_source.emit(&None));
                         }
                         ports.push(port);
                         port_networks.push(port_network);
