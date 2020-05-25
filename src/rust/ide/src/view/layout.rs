@@ -109,8 +109,7 @@ impl ViewLayout {
         let size         = zero();
         let data         = ViewLayoutData {text_editor,node_editor,node_searcher,size,logger};
         let rc           = Rc::new(RefCell::new(data));
-        let rc = Self {rc}.init(world,kb_actions);
-        Ok(rc)
+        Ok(Self {rc}.init(world,kb_actions))
     }
 
     fn init_keyboard(self, _keyboard_actions:&mut keyboard::Actions) -> Self {
