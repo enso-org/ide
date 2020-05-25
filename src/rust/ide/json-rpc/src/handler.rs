@@ -295,7 +295,7 @@ impl<Notification> Handler<Notification> {
         future::select(ret, sleep(timeout).boxed()).map(move |either|
             match either {
                 future::Either::Left ((x, _)) => x,
-                future::Either::Right((_, _)) => Err(RpcError::TimeoutError(timeout)),
+                future::Either::Right((_, _)) => Err(RpcError::TimeoutError{millis:timeout.as_millis()}),
             }
         )
     }

@@ -3,7 +3,6 @@
 
 use crate::prelude::*;
 
-use crate::ensogl::Duration;
 use crate::messages::Error;
 use crate::messages::Response;
 
@@ -30,8 +29,9 @@ pub enum RpcError {
     DeserializationFailed(serde_json::Error),
 
     /// Response timeout.
-    #[fail(display = "Response timeout after: {:?}.", _0)]
-    TimeoutError(Duration),
+    #[allow(missing_docs)]
+    #[fail(display = "Response timeout after {} ms.", millis)]
+    TimeoutError{millis:u128},
 }
 
 impl From<Canceled> for RpcError {
