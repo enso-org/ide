@@ -194,7 +194,7 @@ impl<T:display::Object+Resizable+NativeUiElement+Networked+CloneRef+'static> Ful
         self.target.unset_layers_all(&self.scene);
         set_layers_fullscreen(&self.target, &self.scene);
 
-        let margin = 0.1;
+        let margin = 0.0;
         let scene_shape = self.scene.shape();
         let size_new    = Vector3::new(scene_shape.width(), scene_shape.height(),0.0) * (1.0 - margin);
 
@@ -202,7 +202,7 @@ impl<T:display::Object+Resizable+NativeUiElement+Networked+CloneRef+'static> Ful
         // accounted for here.
 
         let frp_network      = &self.target.network().clone_ref();
-        let target_pos       = size_new/2.0;
+        let target_pos       = Vector3::zero();
         let original_size    = self.size_original;
         let target_size      = size_new;
         let target           = self.target.clone_ref();
@@ -235,7 +235,6 @@ impl<T:display::Object+Resizable+NativeUiElement+Networked+CloneRef+'static> Ful
         let mut source_pos = self.target.position();
         source_pos        += global_pos_start ;
         source_pos        -= parent_pos ;
-        source_pos        -= self.target.size() / 2.0;
         let source_pos     = source_pos;
 
         self.target.set_position(source_pos);

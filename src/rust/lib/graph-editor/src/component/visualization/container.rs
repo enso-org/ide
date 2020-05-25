@@ -224,14 +224,18 @@ impl ContainerData {
         let padding       = self.padding.get();
         let width         = self.size.get().x;
         let height        = self.size.get().y;
-        frame_shape.width.set(width + 2.0 * padding);
-        frame_shape.height.set(height + 2.0 * padding);
+        frame_shape.width.set(width);
+        frame_shape.height.set(height);
         frame_shape.padding.set(padding);
-        frame_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
-        overlay_shape.width.set(width + 2.0 * padding);
-        overlay_shape.height.set(height + 2.0 * padding);
+        frame_shape.sprite.size().set(Vector2::new(width, height));
+        overlay_shape.width.set(width);
+        overlay_shape.height.set(height);
         overlay_shape.padding.set(padding);
-        overlay_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
+        overlay_shape.sprite.size().set(Vector2::new(width, height));
+
+        let pos = Vector3::new(width/2.0,height/2.0, 0.0);
+        frame_shape.set_position(pos);
+        overlay_shape.set_position(pos);
     }
 
     fn set_size(&self, size:Vector3<f32>) {
@@ -280,16 +284,6 @@ impl Container {
 
     fn init_shape(self) -> Self {
         self.update_shape_sizes();
-
-        let overlay_shape = &self.data.shape_overlay.shape;
-        let frame_shape   = &self.data.shape_frame.shape;
-        let width         = self.data.size.get().x;
-        let height        = self.data.size.get().y;
-        frame_shape.mod_position(|t| t.x += width/2.0);
-        frame_shape.mod_position(|t| t.y += height/2.0);
-        overlay_shape.mod_position(|t| t.x += width/2.0);
-        overlay_shape.mod_position(|t| t.y += height/2.0);
-
         self.display_object_internal.add_child(&self.data.shape_overlay);
         self.display_object_internal.add_child(&self.data.shape_frame);
         self.display_object_internal.add_child(&self.data.display_object_visualisation);
