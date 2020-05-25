@@ -1241,7 +1241,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Selection Target Redirection ===
     frp::extend! { network
-    def mouse_down_target  = mouse.press.map(f_!(model.scene.mouse.target.get()));
+    mouse_down_target <- mouse.press.map(f_!(model.scene.mouse.target.get()));
+    mouse_up_target   <- mouse.release.map(f_!(model.scene.mouse.target.get()));
+    background_up     <- mouse_up_target.map(|t| if t==&display::scene::Target::Background {Some(())} else {None}).unwrap();
+
     eval mouse_down_target([touch,model](target) {
         match target {
             display::scene::Target::Background  => touch.background.down.emit(()),
@@ -1434,9 +1437,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     overlapping_edges       <= outputs.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
     outputs.edge_removed    <+ overlapping_edges;
 
-
-    detached_edge <= touch.background.down.map(f_!(model.take_edges_with_detached_targets()));
-    eval detached_edge ((id) model.remove_edge(id));
+    drop_on_bg_up  <- background_up.gate(&connect_drag_mode);
+    drop_edges     <- any (drop_on_bg_up,touch.background.down);
+    edge_to_drop   <= drop_edges.map(f_!(model.take_edges_with_detached_targets()));
+    eval edge_to_drop ((id) model.remove_edge(id));
 
     }
 
