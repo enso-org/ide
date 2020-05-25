@@ -163,7 +163,7 @@ mod test {
 
             let json_client = language_server::MockClient::default();
             mock_calls_for_opening_text_file(&json_client,path.clone(),"2 + 2");
-            let json_connection   = language_server::Connection::new_mock(client);
+            let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(default());
             let project_ctrl      = controller::Project::new(&default(),json_connection,
                 binary_connection);
