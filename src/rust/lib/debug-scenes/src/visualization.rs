@@ -1,16 +1,16 @@
-#![allow(missing_docs)]
+//! This is a visualization example scene which creates a sinusoidal graph.
 
+use ensogl::application::Application;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::system::web;
-use ensogl::application::Application;
-use wasm_bindgen::prelude::*;
 use ensogl_core_msdf_sys::run_once_initialized;
-use graph_editor::component::visualization::JsSourceClass;
 use graph_editor::component::visualization::Data;
+use graph_editor::component::visualization::JsSourceClass;
 use graph_editor::component::visualization::Registry;
-use std::rc::Rc;
-use nalgebra::Vector2;
 use js_sys::Math::sin;
+use nalgebra::Vector2;
+use std::rc::Rc;
+use wasm_bindgen::prelude::*;
 
 fn generate_data(seconds:f64) -> Vec<Vector2<f32>> {
     let mut data = Vec::new();
@@ -70,7 +70,7 @@ fn constructor_graph() -> JsSourceClass {
 }
 
 #[wasm_bindgen]
-#[allow(dead_code)]
+#[allow(dead_code,missing_docs)]
 pub fn run_example_visualization() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
@@ -105,7 +105,7 @@ fn init(app:&Application) {
         let data    = generate_data((time_info.local / 1000.0).into());
         let data    = Rc::new(data);
         let content = Rc::new(serde_json::to_value(data).unwrap());
-        let data    = Data::JSON{ content };
+        let data    = Data::JSON{content};
 
         visualization.frp.set_data.emit(Some(data));
 

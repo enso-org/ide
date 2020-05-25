@@ -1,15 +1,14 @@
 //! Visualization controller.
 //!
-//! Ths Visualization Controller is Responsible identifying all the available visualization natively
-//! embedded in IDE and available within the project's `visualization` folder. The
-//! `Visualization Controller` lives as long as the `Project Controller`.
+//! Ths Visualization Controller is Responsible identifying all the available visualizations
+//! natively embedded in IDE and available within the project's `visualization` folder.
 
 use crate::prelude::*;
 
-use std::rc::Rc;
 use enso_protocol::language_server;
 use graph_editor::component::visualization::class;
 use graph_editor::component::visualization::JsSourceClass;
+use std::rc::Rc;
 
 
 
@@ -25,8 +24,8 @@ pub enum VisualizationError {
     NotFound {
         identifier : VisualizationIdentifier
     },
-    #[fail(display = "JavaScript visualization \"{}\" failed to compile.", identifier)]
-    CompileError {
+    #[fail(display = "JavaScript visualization \"{}\" failed to be instantiated.", identifier)]
+    InstantiationError {
         identifier : VisualizationIdentifier
     }
 }
@@ -37,8 +36,8 @@ pub enum VisualizationError {
 // === VisualizationIdentifier ===
 // ===============================
 
-/// This enum is used to identify a visualization both in the project folder or natively embedded in
-/// IDE.
+/// This enum is used to identify a visualization either in the project folder or natively
+/// embedded in IDE.
 #[derive(Clone,Debug,Display,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub enum VisualizationIdentifier {
@@ -53,14 +52,14 @@ pub enum VisualizationIdentifier {
 // ==============================
 
 #[allow(missing_docs)]
-pub type EmbeddedVisualizationName   = String;
+pub type EmbeddedVisualizationName = String;
 
 /// Embedded visualizations mapped from name to source code.
 #[derive(Shrinkwrap,Debug,Clone,Default)]
 #[shrinkwrap(mutable)]
 pub struct EmbeddedVisualizations {
     #[allow(missing_docs)]
-    pub map : HashMap<EmbeddedVisualizationName,Rc<class::Handle>>
+    pub map:HashMap<EmbeddedVisualizationName,Rc<class::Handle>>
 }
 
 
@@ -70,7 +69,7 @@ pub struct EmbeddedVisualizations {
 // === Handle ===
 // ==============
 
-const VISUALISATION_FOLDER : &str = "visualization";
+const VISUALIZATION_FOLDER:&str = "visualization";
 
 #[derive(Debug)]
 struct VisualizationControllerData {
@@ -78,7 +77,8 @@ struct VisualizationControllerData {
     embedded_visualizations : EmbeddedVisualizations
 }
 
-/// Visualization Controller's state.
+/// Visualization Controller is responsible for listing and loading all the available
+/// visualizations on the project and the native ones embedded on IDE.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Handle {
     data : Rc<RefCell<VisualizationControllerData>>
@@ -94,21 +94,21 @@ impl Handle {
         Self {data}
     }
 
-    async fn list_file_visualizations(&self) -> FallibleResult<Vec<VisualizationIdentifier>> {
+    async fn list_project_specific_visualizations
+    (&self) -> FallibleResult<Vec<VisualizationIdentifier>> {
         let data                = self.data.borrow();
         let language_server_rpc = &data.language_server_rpc;
         let root_id             = language_server_rpc.content_root();
-        let path                = language_server::Path::new(root_id,&[VISUALISATION_FOLDER]);
-        let file_list           = language_server_rpc.file_list(&path).await?;
-        let result              = file_list.paths.iter().filter_map(|object| {
-            if let language_server::FileSystemObject::File{name,path} = object {
-                let mut path = path.clone();
-                path.segments.push(name.to_string());
-                let root_id    = path.root_id;
-                let segments   = path.segments;
-                let path       = language_server::Path{root_id,segments};
-                let identifier = VisualizationIdentifier::File(path);
-                Some(identifier)
+        let path                = language_server::Path::new(root_id,&[VISUALIZATION_FOLDER]);
+        let folder              = language_server_rpc.file_exists(&path).await?;
+        let file_list           = if folder.exists {
+            language_server_rpc.file_list(&path).await?.paths
+        } else {
+            default()
+        };
+        let result = file_list.iter().filter_map(|object| {
+            if let language_server::FileSystemObject::File{name:_,path:_} = object {
+                Some(VisualizationIdentifier::File(object.into()))
             } else {
                 None
             }
@@ -126,7 +126,7 @@ impl Handle {
     /// Get a list of all available visualizations.
     pub async fn list_visualizations(&self) -> FallibleResult<Vec<VisualizationIdentifier>> {
         let mut visualizations = self.list_embedded_visualizations();
-        visualizations.extend_from_slice(&self.list_file_visualizations().await?);
+        visualizations.extend_from_slice(&self.list_project_specific_visualizations().await?);
         Ok(visualizations)
     }
 
@@ -145,7 +145,7 @@ impl Handle {
                 let language_server = &self.data.borrow().language_server_rpc;
                 let js_code         = language_server.read_file(&path).await?.contents;
                 let identifier      = visualization.clone();
-                let error           = |_| VisualizationError::CompileError{identifier}.into();
+                let error           = |_| VisualizationError::InstantiationError {identifier}.into();
                 let js_class        = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
                 js_class.map(|js_class| Rc::new(class::Handle::new(js_class)))
             }
@@ -163,11 +163,11 @@ impl Handle {
 mod tests {
     use super::*;
 
+    use ensogl::display::Scene;
     use enso_protocol::language_server::FileSystemObject;
     use enso_protocol::language_server::Path;
     use graph_editor::component::visualization::{NativeConstructorClass, Signature, Visualization};
     use graph_editor::component::visualization::renderer::example::native::BubbleChart;
-    use ensogl::display::Scene;
     use json_rpc::expect_call;
 
     use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -180,14 +180,13 @@ mod tests {
         let mock_client = language_server::MockClient::default();
 
         let root_id = uuid::Uuid::default();
-        let path    = Path{root_id,segments:vec!["visualization".into()]};
-
+        let path  = Path::new(root_id,&["visualization"]);
         let path0 = Path::new(root_id,&["visualization","histogram.js"]);
         let path1 = Path::new(root_id,&["visualization","graph.js"]);
 
         let paths   = vec![
-            FileSystemObject::new_file(path0.clone()),
-            FileSystemObject::new_file(path1.clone()),
+            FileSystemObject::new_file(path0.clone()).unwrap(),
+            FileSystemObject::new_file(path1.clone()).unwrap(),
         ];
         let file_list_result = language_server::response::FileList{paths};
         expect_call!(mock_client.file_list(path=path) => Ok(file_list_result));
@@ -231,6 +230,7 @@ mod tests {
         assert_eq!(visualizations[0],VisualizationIdentifier::Embedded("PointCloud".to_string()));
         assert_eq!(visualizations[1],VisualizationIdentifier::File(path0));
         assert_eq!(visualizations[2],VisualizationIdentifier::File(path1));
+        assert_eq!(visualizations.len(),3);
 
         let javascript_vis0 = JsSourceClass::from_js_source_raw(&file_content0);
         let javascript_vis1 = JsSourceClass::from_js_source_raw(&file_content1);
@@ -239,16 +239,18 @@ mod tests {
         let javascript_vis0 = Rc::new(class::Handle::new(javascript_vis0));
         let javascript_vis1 = Rc::new(class::Handle::new(javascript_vis1));
 
-        let content = vec![embedded_visualization,javascript_vis0,javascript_vis1];
-        let zipped  = visualizations.iter().zip(content.iter());
-        for (visualization,content) in zipped {
-            let loaded_content   = vis_controller.load_visualization(&visualization).await;
-            let loaded_content   = loaded_content.expect("Couldn't load visualization's content.");
-            let loaded_signature = loaded_content.class();
-            let loaded_signature = loaded_signature.as_ref().expect("Couldn't get class.").signature();
-            let signature        = content.class();
-            let signature        = signature.as_ref().expect("Couldn't get class.").signature();
-            assert_eq!(signature,loaded_signature);
+        let expected_visualizations = vec![embedded_visualization,javascript_vis0,javascript_vis1];
+        let zipped  = visualizations.iter().zip(expected_visualizations.iter());
+        for (visualization,expected_visualization) in zipped {
+            let loaded_visualization = vis_controller.load_visualization(&visualization).await;
+            let loaded_visualization = loaded_visualization.expect("Couldn't load visualization's content.");
+            let loaded_class         = loaded_visualization.class();
+            let loaded_class         = loaded_class.as_ref();
+            let loaded_signature     = loaded_class.expect("Couldn't get class.").signature();
+            let expected_class       = expected_visualization.class();
+            let expected_class       = expected_class.as_ref();
+            let expected_signature   = expected_class.expect("Couldn't get class.").signature();
+            assert_eq!(loaded_signature,expected_signature);
         }
     }
 }
