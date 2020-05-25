@@ -83,7 +83,7 @@ impl ExecutionContext {
     /// Attaches a new visualization for current execution context.
     pub async fn attach_visualization(&self, vis: Visualization) -> FallibleResult<()> {
         let config = vis.config(self.id,self.module_path.module_name().to_string());
-        self.language_server.attach_visualisation(&vis.id,&vis.node_id,&config).await?;
+        self.language_server.attach_visualisation(&vis.id, &vis.ast_id, &config).await?;
         self.model.attach_visualization(vis);
         Ok(())
     }
@@ -93,7 +93,7 @@ impl ExecutionContext {
         let vis    = self.model.detach_visualization(id)?;
         let vis_id = *id;
         let exe_id = self.id;
-        let ast_id = vis.node_id;
+        let ast_id = vis.ast_id;
         let ls     = self.language_server.clone_ref();
         let logger = self.logger.clone_ref();
         executor::global::spawn(async move {
@@ -252,14 +252,16 @@ mod test {
         let ls       = language_server::MockClient::default();
         let vis      = Visualization {
             id: model::execution_context::VisualizationId::new_v4(),
-            node_id: model::execution_context::ExpressionId::new_v4(),
+            ast_id: model::execution_context::ExpressionId::new_v4(),
             expression: "".to_string(),
         };
+        let vis_id = vis.id;
+        let ast_id = vis.ast_id;
         let config = vis.config(exe_id, path.module_name().to_string());
 
-        ls.set_attach_visualisation_result(vis.id,vis.node_id,config,Ok(()));
-        ls.set_detach_visualisation_result(exe_id,vis.id,vis.node_id,Ok(()));
-        ls.set_destroy_execution_context_result(exe_id,Ok(()));
+        expect_call!(ls.attach_visualisation(vis_id,ast_id,config) => Ok(()));
+        expect_call!(ls.detach_visualisation(exe_id,vis_id,ast_id) => Ok(()));
+        expect_call!(ls.destroy_execution_context(exe_id)          => Ok(()));
 
         let context = ExecutionContext::new_mock(exe_id,path,model,ls);
 

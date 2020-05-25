@@ -17,12 +17,12 @@ use uuid::Uuid;
 
 /// Error then trying to pop stack item on ExecutionContext when there only root call remains.
 #[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="Tried to pop an entry point")]
+#[fail(display="Tried to pop an entry point.")]
 pub struct PopOnEmptyStack();
 
 /// Error when using an Id that does not correspond to any known visualization.
 #[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="Tried to use incorrect visualization Id")]
+#[fail(display="Tried to use incorrect visualization Id.")]
 pub struct InvalidVisualizationId();
 
 
@@ -56,7 +56,7 @@ pub struct Visualization {
     /// Unique identifier of this visualization.
     pub id: VisualizationId,
     /// Node that is to be visualized.
-    pub node_id: ExpressionId,
+    pub ast_id: ExpressionId,
     /// An enso lambda that will transform the data into expected format, i.e. `a -> a.json`.
     pub expression: String,
 }
