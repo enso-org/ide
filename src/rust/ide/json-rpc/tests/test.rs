@@ -241,7 +241,7 @@ fn test_timeout_error() {
     let result = poll_future_output(&mut fut);
     let result = result.expect("result should be present");
     let result = result.expect_err("result should be a failure");
-    if let RpcError::TimeoutError{millis} = result {} else {
+    if let RpcError::TimeoutError{millis: _} = result {} else {
         panic!("Expected an error to be TimeoutError");
     }
 }

@@ -135,7 +135,7 @@ pub type OngoingCalls = HashMap<Id,oneshot::Sender<ReplyMessage>>;
 pub use shapely::shared;
 
 /// The default timeout for all responses given in seconds.
-const TIMEOUT:u64 = 1;
+const TIMEOUT_SECS:u64 = 1;
 
 shared! { Handler
 
@@ -208,6 +208,11 @@ impl<Notification> {
     pub fn timeout(&self) -> Duration {
         self.timeout
     }
+
+    /// Set new timeout for future requests. Pending requests are not affected.
+    pub fn set_timeout(&mut self, timeout:Duration) {
+        self.timeout = timeout;
+    }
 }
 } // shared!
 
@@ -235,7 +240,7 @@ impl<Notification> Handler<Notification> {
     /// `Transport` must be functional (e.g. not in the process of opening).
     pub fn new(transport:impl Transport + 'static) -> Handler<Notification> {
         let data = HandlerData {
-            timeout         : Duration::from_secs(TIMEOUT),
+            timeout         : Duration::from_secs(TIMEOUT_SECS),
             ongoing_calls   : default(),
             id_generator    : IdGenerator::new(),
             transport       : Box::new(transport),
@@ -291,11 +296,11 @@ impl<Notification> Handler<Notification> {
             self.remove_ongoing_request(id);
         }
 
-        let timeout = self.timeout();
-        future::select(ret, sleep(timeout).boxed()).map(move |either|
+        let millis = self.timeout().as_millis();
+        future::select(ret, sleep(self.timeout()).boxed()).map(move |either|
             match either {
                 future::Either::Left ((x, _)) => x,
-                future::Either::Right((_, _)) => Err(RpcError::TimeoutError{millis:timeout.as_millis()}),
+                future::Either::Right((_, _)) => Err(RpcError::TimeoutError{millis}),
             }
         )
     }

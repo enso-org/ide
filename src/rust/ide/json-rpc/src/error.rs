@@ -9,6 +9,7 @@ use crate::messages::Response;
 use futures::channel::oneshot::Canceled;
 
 
+
 // ================
 // === RpcError ===
 // ================
@@ -30,7 +31,7 @@ pub enum RpcError {
 
     /// Response timeout.
     #[allow(missing_docs)]
-    #[fail(display = "Response timeout after {} ms.", millis)]
+    #[fail(display = "Response timed out after {} ms.", millis)]
     TimeoutError{millis:u128},
 }
 
