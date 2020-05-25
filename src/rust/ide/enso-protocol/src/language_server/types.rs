@@ -367,6 +367,9 @@ impl CapabilityRegistration {
 /// `capability/acquire` takes method and options specific to the method. This type represents the
 /// options. The used variant must match the method. See for details:
 /// https://github.com/luna/enso/blob/master/docs/language-server/protocol-language-server.md#capabilities
+//TODO[ao] we cannot have one variant for each cabability due to `untagged` attribute.
+// The best solution is make CapabilityRegistration an enum and write serialization and
+// deserialization by hand.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged, rename_all = "camelCase")]
 #[allow(missing_docs)]
