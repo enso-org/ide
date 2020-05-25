@@ -492,7 +492,7 @@ pub mod traits {
 ///
 /// This function is an async version of std::thread::sleep, its timer starts just after the
 /// function call.
-// #[cfg(target_arch = "wasm32")]
+#[cfg(target_arch = "wasm32")]
 pub async fn sleep(duration:Duration) {
     use wasm_bindgen_futures::JsFuture;
 
