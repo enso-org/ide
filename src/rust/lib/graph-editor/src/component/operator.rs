@@ -8,6 +8,8 @@ use ensogl::display::Symbol;
 use ensogl::display::scene::View;
 use ensogl::display::traits::*;
 use ensogl::display;
+use ensogl::frp;
+use ensogl::gui::component::animation;
 
 
 /// Indicates the required target layer.
@@ -70,9 +72,15 @@ pub trait Resizable {
     fn set_size(&self, size:Vector3<f32>);
     /// Return the size of the UI element.
     fn size(&self) -> Vector3<f32>;
+    /// Return an FRP endpoint to set the size.
+    fn set_size_frp(&self) -> &frp::Source<Option<Vector2<f32>>> { unimplemented!() }
 }
 
-
+/// A component that owns a Network. Can be used to create external animations.
+pub trait Networked {
+    /// Return a reference to the components network.
+    fn network(&self) -> &frp::Network;
+}
 
 // ==================================
 // === Fullscreen Operator Handle ===
@@ -89,7 +97,7 @@ pub struct FullscreenOperatorHandle<T> {
 }
 
 
-impl<T:display::Object+Resizable+NativeUiElement+CloneRef> FullscreenOperatorHandle<T> {
+impl<T:display::Object+Resizable+NativeUiElement+CloneRef+Networked+'static> FullscreenOperatorHandle<T> {
     /// returns whether there is a component that is in fullscreen mode.
     pub fn is_active(&self) -> bool {
         self.operator.borrow().is_some()
@@ -167,7 +175,7 @@ pub struct FullscreenOperator<T> {
     parent_original   : Option<display::object::Instance>,
 }
 
-impl<T:display::Object+Resizable+NativeUiElement> FullscreenOperator<T> {
+impl<T:display::Object+Resizable+NativeUiElement+Networked+CloneRef+'static> FullscreenOperator<T> {
 
     /// Make the provided target fullscreen within the given scene and return the
     /// `FullscreenOperator`.
@@ -179,21 +187,32 @@ impl<T:display::Object+Resizable+NativeUiElement> FullscreenOperator<T> {
     }
 
     fn init(self) -> Self {
+        let original_pos = self.target.display_object().global_position();
+
         // Change parent
         self.target.display_object().set_parent(self.scene.display_object());
         self.target.unset_layers_all(&self.scene);
         set_layers_fullscreen(&self.target, &self.scene);
 
-        // Change size
-        // TODO enable resizing on scene size change
         let margin = 0.1;
         let scene_shape = self.scene.shape();
         let size_new    = Vector3::new(scene_shape.width(), scene_shape.height(),0.0) * (1.0 - margin);
-        self.target.set_size(size_new);
-        // Change position
+
         // TODO Currently we assume objects are center aligned, but this needs to be properly
         // accounted for here.
-        self.target.set_position(size_new/2.0);
+
+        let frp_network      = &self.target.network().clone_ref();
+        let target_pos       = size_new/2.0;
+        let original_size    = self.size_original;
+        let target_size      = size_new;
+        let target           = self.target.clone_ref();
+        let resize_animation = animation(frp_network, move |value| {
+            let pos  = original_pos  * (1.0 - value) + target_pos * value;
+            let size = original_size * (1.0 - value) + target_size * value;
+            target.set_position(pos);
+            target.set_size(size);
+        });
+        resize_animation.set_target_position(1.0);
 
         self.scene.views.toggle_overlay_cursor();
 
@@ -202,14 +221,39 @@ impl<T:display::Object+Resizable+NativeUiElement> FullscreenOperator<T> {
 
     /// Undo the fullscreen operation and restore the previous state exactly as it was.
     pub fn undo(self) {
+        let global_pos_start = self.target.global_position();
+
         self.target.unset_layers_all(&self.scene);
         set_layers_normal(&self.target, &self.scene);
 
-        self.target.set_size(self.size_original);
-        self.target.set_position(self.position_original);
-        if let Some(parent) = self.parent_original {
+        if let Some(parent) = self.parent_original.as_ref() {
             self.target.display_object().set_parent(&parent);
         }
+
+        let parent_pos     = self.parent_original.map(|p| p.global_position());
+        let parent_pos     = parent_pos.unwrap_or_else(Vector3::zero);
+        let mut source_pos = self.target.position();
+        source_pos        += global_pos_start ;
+        source_pos        -= parent_pos ;
+        source_pos        -= self.target.size() / 2.0;
+        let source_pos     = source_pos;
+
+        self.target.set_position(source_pos);
+
+        let original_pos     = self.target.position();
+        let target_pos       = self.position_original;
+        let original_size    = self.target.size();
+        let target_size      = self.size_original;
+        let target           = self.target.clone_ref();
+        let frp_network      = &self.target.network().clone_ref();
+        let resize_animation = animation(frp_network, move |value| {
+            let pos  = original_pos  * (1.0 - value) + target_pos * value;
+            let size = original_size * (1.0 - value) + target_size * value;
+            target.set_position(pos);
+            target.set_size(size);
+        });
+        resize_animation.set_target_position(1.0);
+
         self.scene.views.toggle_overlay_cursor();
     }
 }

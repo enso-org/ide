@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::component::operator::NativeUiElement;
+use crate::component::operator::Networked;
 use crate::component::operator::SymbolType;
 use crate::component::operator;
 use crate::frp;
@@ -18,7 +19,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
-
 
 
 // =============
@@ -107,6 +107,7 @@ pub struct ContainerFrp {
     pub select            : frp::Source,
     pub deselect          : frp::Source,
     pub toggle_fullscreen : frp::Source,
+    pub set_size          : frp::Source<Option<Vector2<f32>>>,
     // TODO this should be a stream
     pub clicked           : frp::Source,
 }
@@ -122,10 +123,11 @@ impl Default for ContainerFrp {
             def deselect          = source();
             def clicked           = source();
             def toggle_fullscreen = source();
+            def set_size          = source();
         };
         let network = visualization_events;
         Self {network,set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
-              clicked,toggle_fullscreen}
+              clicked,toggle_fullscreen,set_size}
     }
 }
 
@@ -215,6 +217,31 @@ impl ContainerData {
         self.visualization.replace(Some(visualization));
         self.init_visualization_properties();
     }
+
+    fn update_shape_sizes(&self) {
+        let overlay_shape = &self.shape_overlay.shape;
+        let frame_shape   = &self.shape_frame.shape;
+        let padding       = self.padding.get();
+        let width         = self.size.get().x;
+        let height        = self.size.get().y;
+        frame_shape.width.set(width + 2.0 * padding);
+        frame_shape.height.set(height + 2.0 * padding);
+        frame_shape.padding.set(padding);
+        frame_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
+        overlay_shape.width.set(width + 2.0 * padding);
+        overlay_shape.height.set(height + 2.0 * padding);
+        overlay_shape.padding.set(padding);
+        overlay_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
+    }
+
+    fn set_size(&self, size:Vector3<f32>) {
+        if let Some(vis) = self.visualization.borrow().as_ref() {
+            vis.set_size(size.xy());
+        }
+
+        self.size.set(size.xy());
+        self.update_shape_sizes();
+    }
 }
 
 impl display::Object for ContainerData {
@@ -270,21 +297,6 @@ impl Container {
         self
     }
 
-    fn update_shape_sizes(&self) {
-        let overlay_shape = &self.data.shape_overlay.shape;
-        let frame_shape   = &self.data.shape_frame.shape;
-        let padding       = self.data.padding.get();
-        let width         = self.data.size.get().x;
-        let height        = self.data.size.get().y;
-        frame_shape.width.set(width + 2.0 * padding);
-        frame_shape.height.set(height + 2.0 * padding);
-        frame_shape.padding.set(padding);
-        frame_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
-        overlay_shape.width.set(width + 2.0 * padding);
-        overlay_shape.height.set(height + 2.0 * padding);
-        overlay_shape.padding.set(padding);
-        overlay_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
-    }
 
     fn init_frp(self) -> Self {
         let frp                 = &self.frp;
@@ -335,16 +347,15 @@ impl Container {
 
 impl operator::Resizable for Container {
     fn set_size(&self, size:Vector3<f32>) {
-        if let Some(vis) = self.data.visualization.borrow().as_ref() {
-            vis.set_size(size.xy());
-        }
-
-        self.data.size.set(size.xy());
-        self.update_shape_sizes();
+        self.data.set_size(size);
     }
 
     fn size(&self) -> Vector3<f32>{
         Vector3::new(self.data.size.get().x,self.data.size.get().y, 0.0)
+    }
+
+    fn set_size_frp(&self) -> &frp::Source<Option<Vector2<f32>>> {
+        &self.frp.set_size
     }
 
 }
@@ -363,6 +374,12 @@ impl NativeUiElement for Container {
         };
         shapes
 
+    }
+}
+
+impl Networked for Container {
+    fn network(&self) -> &frp::Network {
+        &self.frp.network
     }
 }
 
