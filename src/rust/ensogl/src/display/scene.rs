@@ -706,34 +706,41 @@ impl ViewData {
 /// display shapes properly. This should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Views {
-    logger             : Logger,
-    pub main           : View,
-    pub cursor         : View,
-    pub label          : View,
-    pub overlay        : View,
-    pub visualisation  : View,
-    pub overlay_cursor : View,
-    all                : Rc<RefCell<Vec<WeakView>>>,
-    width              : f32,
-    height             : f32,
+    logger                    : Logger,
+    pub main                  : View,
+    pub cursor                : View,
+    pub label                 : View,
+    pub overlay               : View,
+    pub visualisation         : View,
+    pub overlay_visualisation : View,
+    pub overlay_cursor        : View,
+    all                       : Rc<RefCell<Vec<WeakView>>>,
+    width                     : f32,
+    height                    : f32,
 }
 
 impl Views {
     pub fn mk(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger         = logger.sub("views");
-        let main           = View::new(&logger,width,height);
-        let overlay        = View::new(&logger,width,height);
-        let cursor         = View::new(&logger,width,height);
-        let visualisation  = View::new(&logger,width,height);
-        let overlay_cursor = View::new(&logger,width,height);
+        let logger                 = logger.sub("views");
+        let main                   = View::new(&logger,width,height);
+        let cursor                 = View::new(&logger,width,height);
+        let visualisation          = View::new(&logger,width,height);
+        let overlay                = View::new(&logger,width,height);
+        let overlay_visualisation  = View::new(&logger,width,height);
+        let overlay_cursor         = View::new(&logger,width,height);
 
         let label          = View::new_with_camera(&logger,&main.camera);
-        let all            = vec![main.downgrade(),cursor.downgrade(),label.downgrade(),
-                                  overlay.downgrade(),visualisation.downgrade(),
+        let all            = vec![main.downgrade(),
+                                  visualisation.downgrade(),
+                                  cursor.downgrade(),
+                                  label.downgrade(),
+                                  overlay.downgrade(),
+                                  overlay_visualisation.downgrade(),
                                   overlay_cursor.downgrade(),
                                ];
         let all            = Rc::new(RefCell::new(all));
-        Self {logger,main,overlay,cursor,label,visualisation,overlay_cursor,all,width,height}
+        Self {logger,main,overlay,cursor,label,visualisation,overlay_cursor,overlay_visualisation,
+              all,width,height}
     }
 
     /// Creates a new view for this scene.

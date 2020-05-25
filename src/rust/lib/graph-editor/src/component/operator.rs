@@ -10,6 +10,15 @@ use ensogl::display::traits::*;
 use ensogl::display;
 
 
+/// Indicates the required target layer.
+// FIXME this is a layer management hack. Remove this once we have nicer scene layer management.
+#[derive(Debug)]
+pub enum SymbolType {
+    /// A symbol that goes onto the `Main` layer.
+    Main (Symbol),
+    /// A visualisation symbol that goes above the `Main` layer, but below the cursor.
+    Visualisation (Symbol),
+}
 
 // ==================================
 // === UI Component Helper Traits ===
@@ -19,16 +28,26 @@ use ensogl::display;
 /// and some helper methods for working with those shapes.
 pub trait NativeUiElement {
     /// Return all `Symbol`s that make up this component.
-    fn shapes(&self) -> Vec<Symbol>;
+    fn symbols(&self) -> Vec<SymbolType>;
 
     /// Change the scene layer of all `Symbol`s.
     fn set_layer(&self, layer:&View) {
-        self.shapes().iter().for_each(|symbol| layer.add(symbol))
+        self.symbols().iter().for_each(|symbol| {
+            match symbol{
+                SymbolType::Main(symbol)
+                | SymbolType::Visualisation(symbol)
+                => layer.add(symbol),
+            }
+        })
     }
 
     /// Remove the `Symbol`s from all scene layers.
-    fn unset_layer(&self, scene:&Scene) {
-        self.shapes().iter().for_each(|symbol| scene.views.remove_symbol(symbol))
+    fn unset_layers_all(&self, scene:&Scene) {
+        self.symbols().iter().for_each(|symbol|   match symbol{
+            SymbolType::Main(symbol)
+            | SymbolType::Visualisation(symbol)
+            =>scene.views.remove_symbol(symbol),
+        })
     }
 }
 
@@ -69,7 +88,8 @@ pub struct FullscreenOperatorHandle<T> {
     operator: Rc<RefCell<Option<FullscreenOperator<T>>>>
 }
 
-impl<T:display::Object+Resizable+NativeUiElement> FullscreenOperatorHandle<T> {
+
+impl<T:display::Object+Resizable+NativeUiElement+CloneRef> FullscreenOperatorHandle<T> {
     /// returns whether there is a component that is in fullscreen mode.
     pub fn is_active(&self) -> bool {
         self.operator.borrow().is_some()
@@ -87,6 +107,41 @@ impl<T:display::Object+Resizable+NativeUiElement> FullscreenOperatorHandle<T> {
     pub fn disable_fullscreen(&self) {
         if let Some(old) = self.operator.borrow_mut().take() {
             old.undo();
+        }
+    }
+
+    /// Return a ref clone of the fullscreen element.
+    pub fn get_element(&self) -> Option<T>{
+        self.operator.borrow().as_ref().map(|op| op.target.clone_ref())
+    }
+}
+
+
+
+// ===============================
+// === Layer Management Helper ===
+// ===============================
+
+/// FIXME This is an ugly hack for layer management.
+/// FIXME Needs to be removed as soon as we have something better.
+pub fn set_layers_normal<T:NativeUiElement>(target:&T, scene:&Scene){
+    target.unset_layers_all(&scene);
+    for symbol in target.symbols() {
+        match symbol {
+            SymbolType::Main(symbol)          => scene.views.main.add(&symbol),
+            SymbolType::Visualisation(symbol) => scene.views.visualisation.add(&symbol),
+        }
+    }
+}
+
+/// FIXME This is an ugly hack for layer management.
+/// FIXME Needs to be removed as soon as we have something better.
+pub fn set_layers_fullscreen<T:NativeUiElement>(target:&T, scene:&Scene) {
+    target.unset_layers_all(&scene);
+    for symbol in target.symbols() {
+        match symbol {
+            SymbolType::Main(symbol)          => scene.views.overlay.add(&symbol) ,
+            SymbolType::Visualisation(symbol) => scene.views.overlay_visualisation.add(&symbol) ,
         }
     }
 }
@@ -126,8 +181,9 @@ impl<T:display::Object+Resizable+NativeUiElement> FullscreenOperator<T> {
     fn init(self) -> Self {
         // Change parent
         self.target.display_object().set_parent(self.scene.display_object());
-        self.target.unset_layer(&self.scene);
-        self.target.set_layer(&self.scene.views.overlay);
+        self.target.unset_layers_all(&self.scene);
+        set_layers_fullscreen(&self.target, &self.scene);
+
         // Change size
         // TODO enable resizing on scene size change
         let margin = 0.1;
@@ -146,8 +202,8 @@ impl<T:display::Object+Resizable+NativeUiElement> FullscreenOperator<T> {
 
     /// Undo the fullscreen operation and restore the previous state exactly as it was.
     pub fn undo(self) {
-        self.target.unset_layer(&self.scene);
-        self.target.set_layer(&self.scene.views.main);
+        self.target.unset_layers_all(&self.scene);
+        set_layers_normal(&self.target, &self.scene);
 
         self.target.set_size(self.size_original);
         self.target.set_position(self.position_original);

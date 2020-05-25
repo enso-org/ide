@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::component::operator::NativeUiElement;
+use crate::component::operator::SymbolType;
 use crate::component::operator;
 use crate::frp;
 use crate::visualization::*;
@@ -11,7 +12,6 @@ use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
-use ensogl::display::Symbol;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
@@ -146,11 +146,11 @@ pub struct Container {
     // contains the FRP api and network. This split is required to avoid creating cycles in the FRP
     // network: the FRP network holds `Rc`s to the `ContainerData` and thus must not live in the
     // same struct.
-
     #[shrinkwrap(main_field)]
         data              : Rc<ContainerData>,
     pub frp               : ContainerFrp,
 }
+
 
 /// Internal data of a `Container`.
 #[derive(Debug,Clone)]
@@ -196,8 +196,6 @@ impl ContainerData {
         self.set_visibility(!self.is_visible())
     }
 
-
-
     /// Update the content properties with the values from the `ContainerData`.
     ///
     /// Needs to called when a visualization has been set.
@@ -205,16 +203,12 @@ impl ContainerData {
         let size         = self.size.get();
         if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.set_size(size);
-            vis.unset_layer(&self.scene);
-            vis.set_layer(&self.scene.views.visualisation);
         };
         self.set_visibility(true);
-
-
     }
 
     /// Set the visualization shown in this container.
-    fn set_visualization(&self, visualization:Visualization) {
+    pub fn set_visualization(&self, visualization:Visualization) {
         let vis_parent = &self.display_object_visualisation;
         visualization.display_object().set_parent(&vis_parent);
 
@@ -228,7 +222,6 @@ impl display::Object for ContainerData {
         &self.display_object
     }
 }
-
 
 impl Container {
     /// Constructor.
@@ -348,7 +341,6 @@ impl operator::Resizable for Container {
 
         self.data.size.set(size.xy());
         self.update_shape_sizes();
-
     }
 
     fn size(&self) -> Vector3<f32>{
@@ -358,11 +350,18 @@ impl operator::Resizable for Container {
 }
 
 impl NativeUiElement for Container {
-    fn shapes(&self) -> Vec<Symbol> {
+    fn symbols(&self) -> Vec<SymbolType> {
         let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
         let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-        vec![shape_system_frame.shape_system.symbol.clone_ref(),
-             shape_system_overlay.shape_system.symbol.clone_ref()]
+        let mut shapes =  vec![
+            SymbolType::Main(shape_system_frame.shape_system.symbol.clone_ref()),
+            SymbolType::Main(shape_system_overlay.shape_system.symbol.clone_ref())
+        ];
+
+        if let Some(vis) = self.data.visualization.borrow().as_ref() {
+            shapes.extend(vis.symbols());
+        };
+        shapes
 
     }
 }

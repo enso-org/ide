@@ -54,10 +54,12 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
 use ensogl::display::Scene;
+use crate::component::operator::FullscreenOperatorHandle;
+use crate::component::operator::set_layers_fullscreen;
+use crate::component::operator::set_layers_normal;
+use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
-use crate::component::visualization::MockDataGenerator3D;
-use crate::component::operator::FullscreenOperatorHandle;
 
 
 
@@ -687,31 +689,32 @@ pub struct EntityCollection<T:CloneRef> {
     logger              : Logger,
     all                 : SharedHashMap<Id,T>,
     selected            : SharedHashSet<Id>,
+    scene               : Scene,
     fullscreen_operator : FullscreenOperatorHandle::<visualization::Container>,
 }
 
 impl<T:CloneRef+display::Object> EntityCollection<T> {
-    fn new(logger:Logger) -> Self{
+    fn new(scene:Scene,logger:Logger) -> Self{
         let network  = frp::Network::new();
         let frp      = EntityFrp::new(&network);
         let all      = default();
         let selected = default();
         let fullscreen_operator = default();
-        Self {network,frp,logger,all,selected,fullscreen_operator}
+        Self {network,frp,logger,scene,all,selected,fullscreen_operator}
     }
 }
 
 impl EntityCollection<visualization::Container> {
-    fn push(&self, entity:visualization::Container) {
+    fn push(&self, container:visualization::Container) {
         let network = &self.network;
         let frp = self.frp.clone_ref();
 
-        let id = entity.display_object().id();
+        let id = container.display_object().id();
         frp::extend! { network
-            def _clicked = entity.frp.clicked.map(move |_| frp.clicked.emit(id));
+            def _clicked = container.frp.clicked.map(move |_| frp.clicked.emit(id));
         }
-
-        self.all.insert(id,entity);
+        set_layers_normal(&container,&self.scene);
+        self.all.insert(id,container);
     }
 
     fn get_selected(&self) -> Option<visualization::Container> {
@@ -720,8 +723,21 @@ impl EntityCollection<visualization::Container> {
         let id       = selected.get(0)?;
         self.all.get_cloned(id)
     }
-}
 
+    pub fn set_vis_for_selected(&self, vis:Visualization) {
+        if let Some(container) = self.get_selected() {
+            container.set_visualization(vis);
+            // FIXME This is a hack to make sure the layers are correct after setting
+            // a new visualisation. Needs to be changed to use proper layer management once
+            // available..
+            if self.fullscreen_operator.is_active() {
+                set_layers_fullscreen(&container,&self.scene)
+            } else {
+                set_layers_normal(&container,&self.scene)
+            }
+        }
+    }
+}
 
 
 
@@ -913,7 +929,7 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(logger.clone());
         let nodes          = Nodes::new(&logger);
-        let visualizations = EntityCollection::new(Logger::new("VisualisationCollection"));
+        let visualizations = EntityCollection::new(scene.clone_ref(),Logger::new("VisualisationCollection"));
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
@@ -1639,14 +1655,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         cycle_count.set(cycle_count.get() % vis_classes.len());
         let vis       = &vis_classes[cycle_count.get()];
         let vis       = vis.instantiate(&scene);
-        let container = visualizations.get_selected();
-        match (vis, container) {
-            (Ok(vis), Some(container))  => {
-                container.frp.set_visualization.emit(Some(vis));
-            },
-            (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {}", e)),
-            _           => {}
+        match vis {
+            Ok(vis)  => visualizations.set_vis_for_selected(vis),
+            Err(e)=>  logger.warning(|| format!("Failed to cycle visualization: {}",e)),
         };
+
         cycle_count.set(cycle_count.get() + 1);
     }));
 
@@ -1656,7 +1669,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         if visualizations.fullscreen_operator.is_active() {
             visualizations.fullscreen_operator.disable_fullscreen()
         } else if let Some(container) = visualizations.get_selected(){
-                visualizations.fullscreen_operator.set_fullscreen(container,scene.clone_ref());
+            visualizations.fullscreen_operator.set_fullscreen(container,scene.clone_ref());
         }
     }));
 

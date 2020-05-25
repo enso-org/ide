@@ -3,6 +3,8 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
+use crate::component::operator::NativeUiElement;
+use crate::component::operator::SymbolType;
 
 use ensogl::data::color::Rgba;
 use ensogl::display::DomSymbol;
@@ -10,7 +12,6 @@ use ensogl::display::layout::alignment;
 use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::gui::component;
-use crate::component::operator::NativeUiElement;
 use ensogl::display::Symbol;
 use ensogl::system::web;
 use ensogl::display::object::ObjectOps;
@@ -103,9 +104,9 @@ impl DataRenderer for BubbleChart {
 
 
 impl NativeUiElement for BubbleChart {
-    fn shapes(&self) -> Vec<Symbol> {
-        let shape_system   = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
-        vec![shape_system.shape_system.symbol.clone_ref()]
+    fn symbols(&self) -> Vec<SymbolType> {
+        let shape_system = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
+        vec![SymbolType::Visualisation(shape_system.shape_system.symbol.clone_ref())]
     }
 }
 

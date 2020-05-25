@@ -6,10 +6,10 @@ use crate::frp;
 use crate::visualization::*;
 
 use ensogl::display::Scene;
-use ensogl::display::Symbol;
 use ensogl::display;
 use std::error::Error;
 use crate::component::operator::NativeUiElement;
+use crate::component::operator::SymbolType;
 
 
 // ====================
@@ -178,8 +178,8 @@ impl Visualization {
 }
 
 impl NativeUiElement for Visualization {
-    fn shapes(&self) -> Vec<Symbol> {
-        self.state.renderer.shapes()
+    fn symbols(&self) -> Vec<SymbolType> {
+        self.state.renderer.symbols()
     }
 }
 
