@@ -28,7 +28,7 @@ mod js {
 
         export function set_object_transform(dom, matrix_array) {
             let css = arr_to_css_matrix3d(matrix_array);
-            dom.style.transform = 'translate(-50%, -50%)' + css;
+            dom.style.transform = css;
         }
     ")]
     extern "C" {

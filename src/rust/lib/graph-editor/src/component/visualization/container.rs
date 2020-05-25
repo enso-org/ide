@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+use crate::component::operator::NativeUiElement;
+use crate::component::operator;
 use crate::frp;
 use crate::visualization::*;
 
@@ -9,20 +11,24 @@ use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
+use ensogl::display::Symbol;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component;
-use ensogl::display::layout::alignment;
 use ensogl::gui::component::animation;
+use ensogl::gui::component;
+
 
 
 // =============
 // === Shape ===
 // =============
 
-/// Canvas node shape definition.
+/// Container frame shape definition.
+///
+/// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
+/// container.
 pub mod frame {
     use super::*;
 
@@ -60,6 +66,8 @@ pub mod frame {
     }
 }
 
+/// Container overlay shape definition. Used to capture events over the visualisation within the
+/// container.
 pub mod overlay {
     use super::*;
 
@@ -70,10 +78,9 @@ pub mod overlay {
             let width_bg  : Var<Distance<Pixels>> = width_bg.into();
             let height_bg : Var<Distance<Pixels>> = height_bg.into();
             let radius    : Var<Distance<Pixels>> = padding.clone().into();
-            let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.0000001);
-            let background    = Rect((&width_bg,&height_bg)).corners_radius(&radius);
-            let overlay       = background.clone();
-            let overlay       = overlay.fill(color::Rgba::from(color_overlay));
+            let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
+            let overlay    = Rect((&width_bg,&height_bg)).corners_radius(&radius);
+            let overlay       = overlay.fill(color_overlay);
 
             let out = overlay;
 
@@ -99,6 +106,7 @@ pub struct ContainerFrp {
     pub set_data          : frp::Source<Option<Data>>,
     pub select            : frp::Source,
     pub deselect          : frp::Source,
+    pub toggle_fullscreen : frp::Source,
     // TODO this should be a stream
     pub clicked           : frp::Source,
 }
@@ -113,10 +121,11 @@ impl Default for ContainerFrp {
             def select            = source();
             def deselect          = source();
             def clicked           = source();
+            def toggle_fullscreen = source();
         };
         let network = visualization_events;
         Self {network,set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
-              clicked}
+              clicked,toggle_fullscreen}
     }
 }
 
@@ -160,8 +169,8 @@ pub struct ContainerData {
     display_object_visualisation : display::object::Instance,
 
     visualization           : RefCell<Option<Visualization>>,
-    frame                   : component::ShapeView<frame::Shape>,
-    overlay                 : component::ShapeView<overlay::Shape>,
+    shape_frame             : component::ShapeView<frame::Shape>,
+    shape_overlay           : component::ShapeView<overlay::Shape>,
 
     scene                   : Scene
 
@@ -187,6 +196,8 @@ impl ContainerData {
         self.set_visibility(!self.is_visible())
     }
 
+
+
     /// Update the content properties with the values from the `ContainerData`.
     ///
     /// Needs to called when a visualization has been set.
@@ -194,8 +205,12 @@ impl ContainerData {
         let size         = self.size.get();
         if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.set_size(size);
+            vis.unset_layer(&self.scene);
+            vis.set_layer(&self.scene.views.visualisation);
         };
         self.set_visibility(true);
+
+
     }
 
     /// Set the visualization shown in this container.
@@ -226,11 +241,11 @@ impl Container {
         let display_object_visualisation = display::object::Instance::new(&logger);
 
         let padding                 = Cell::new(10.0);
-        let frame                   = component::ShapeView::<frame::Shape>::new(&logger,scene);
-        let overlay                 = component::ShapeView::<overlay::Shape>::new(&logger,scene);
+        let shape_frame             = component::ShapeView::<frame::Shape>::new(&logger,scene);
+        let shape_overlay           = component::ShapeView::<overlay::Shape>::new(&logger,scene);
         let scene                   = scene.clone_ref();
-        let data                    = ContainerData {logger,visualization,size,display_object,frame,
-                                                     display_object_internal,padding,scene,overlay,
+        let data                    = ContainerData {logger,visualization,size,display_object,shape_frame,
+                                                     display_object_internal,padding,scene,shape_overlay,
                                                      display_object_visualisation};
         let data                    = Rc::new(data);
         data.set_visualization(Registry::default_visualisation(&scene));
@@ -244,61 +259,46 @@ impl Container {
     }
 
     fn init_shape(self) -> Self {
-        // TODO avoid duplication
-        let shape_system = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
-        shape_system.shape_system.set_alignment(
-            alignment::HorizontalAlignment::Center,
-            alignment::VerticalAlignment::Center
-        );
+        self.update_shape_sizes();
 
-        let shape_system = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-        shape_system.shape_system.set_alignment(
-            alignment::HorizontalAlignment::Center,
-            alignment::VerticalAlignment::Center
-        );
-
-        let overlay_shape = &self.data.overlay.shape;
-        let frame_shape = &self.data.frame.shape;
-        let padding     = self.data.padding.get();
-        let width       = self.data.size.get().x;
-        let height      = self.data.size.get().y;
-        frame_shape.width.set(width + 2.0 * padding);
-        frame_shape.height.set(height + 2.0 * padding);
-        frame_shape.padding.set(padding);
-        frame_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
-        frame_shape.selected.set(0.0);
-        overlay_shape.width.set(width + 2.0 * padding);
-        overlay_shape.height.set(height + 2.0 * padding);
-        overlay_shape.padding.set(padding);
-        overlay_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
-        overlay_shape.selected.set(0.0);
-
+        let overlay_shape = &self.data.shape_overlay.shape;
+        let frame_shape   = &self.data.shape_frame.shape;
+        let width         = self.data.size.get().x;
+        let height        = self.data.size.get().y;
         frame_shape.mod_position(|t| t.x += width/2.0);
         frame_shape.mod_position(|t| t.y += height/2.0);
         overlay_shape.mod_position(|t| t.x += width/2.0);
         overlay_shape.mod_position(|t| t.y += height/2.0);
 
-        self.display_object_internal.add_child(&self.data.overlay);
-        self.display_object_internal.add_child(&self.data.frame);
+        self.display_object_internal.add_child(&self.data.shape_overlay);
+        self.display_object_internal.add_child(&self.data.shape_frame);
         self.display_object_internal.add_child(&self.data.display_object_visualisation);
-
+        self.display_object.add_child(&self.display_object_internal);
         self
     }
 
-    fn set_selected(&self, value:bool) {
-        if value {
-            self.data.frame.shape.selected.set(1.0);
-        } else{
-            self.data.frame.shape.selected.set(0.0);
-        }
+    fn update_shape_sizes(&self) {
+        let overlay_shape = &self.data.shape_overlay.shape;
+        let frame_shape   = &self.data.shape_frame.shape;
+        let padding       = self.data.padding.get();
+        let width         = self.data.size.get().x;
+        let height        = self.data.size.get().y;
+        frame_shape.width.set(width + 2.0 * padding);
+        frame_shape.height.set(height + 2.0 * padding);
+        frame_shape.padding.set(padding);
+        frame_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
+        overlay_shape.width.set(width + 2.0 * padding);
+        overlay_shape.height.set(height + 2.0 * padding);
+        overlay_shape.padding.set(padding);
+        overlay_shape.sprite.size().set(Vector2::new(width + 2.0 * padding, height + 2.0 * padding));
     }
 
     fn init_frp(self) -> Self {
-        let frp     = &self.frp;
-        let network = &self.frp.network;
-        let container_data = &self.data;
+        let frp                 = &self.frp;
+        let network             = &self.frp.network;
+        let container_data      = &self.data;
 
-        let frame_shape_data = container_data.frame.shape.clone_ref();
+        let frame_shape_data = container_data.shape_frame.shape.clone_ref();
         let selection = animation(network, move |value| {
             frame_shape_data.selected.set(value)
         });
@@ -332,11 +332,38 @@ impl Container {
                  selection.set_target_position(0.0);
             }));
 
-            def _output_hide = container_data.overlay.events.mouse_down.map(f!([frp](_) {
+            def _output_hide = container_data.shape_overlay.events.mouse_down.map(f!([frp](_) {
                 frp.clicked.emit(())
             }));
         }
         self
+    }
+}
+
+impl operator::Resizable for Container {
+    fn set_size(&self, size:Vector3<f32>) {
+        if let Some(vis) = self.data.visualization.borrow().as_ref() {
+            vis.set_size(size.xy());
+        }
+
+        self.data.size.set(size.xy());
+        self.update_shape_sizes();
+
+    }
+
+    fn size(&self) -> Vector3<f32>{
+        Vector3::new(self.data.size.get().x,self.data.size.get().y, 0.0)
+    }
+
+}
+
+impl NativeUiElement for Container {
+    fn shapes(&self) -> Vec<Symbol> {
+        let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
+        let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
+        vec![shape_system_frame.shape_system.symbol.clone_ref(),
+             shape_system_overlay.shape_system.symbol.clone_ref()]
+
     }
 }
 

@@ -6,7 +6,7 @@ use crate::visualization::*;
 use crate::frp;
 
 use ensogl::display;
-
+use crate::component::operator::NativeUiElement;
 
 
 // ===========
@@ -57,7 +57,7 @@ impl Default for DataRendererFrp {
 /// `valid_input_types` method. This serves as a hint, it will also reject invalid input in the
 /// `set_data` method with a `DataError`. The owner of the `DataRenderer` is in charge of producing
 /// UI feedback to indicate a problem with the data.
-pub trait DataRenderer: display::Object + Debug {
+pub trait DataRenderer: display::Object + NativeUiElement +  Debug {
     /// Receive the data that should be rendered. If the data is valid, it will return the data as
     /// processed by this `DataRenderer`, if the data is of an invalid data type, it violates other
     /// assumptions of this `DataRenderer`, a `DataError` is returned.
@@ -71,4 +71,9 @@ pub trait DataRenderer: display::Object + Debug {
     /// Note: the presence of this functions imposes the requirement that a `DataRendererFrp` is
     /// owned by whoever implements this trait.
     fn frp(&self) -> &DataRendererFrp;
+
+    // // TODO remove default
+    // fn native_component(&self) -> Option<&dyn NativeUiElement> {None}
+    // fn html_component(&self) -> Option<&dyn HtmUiElement> {None}
+
 }

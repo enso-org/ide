@@ -53,7 +53,11 @@ use ensogl::prelude::*;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
-
+use ensogl::display::Scene;
+use crate::component::visualization::Visualization;
+use crate::component::visualization;
+use crate::component::visualization::MockDataGenerator3D;
+use crate::component::operator::FullscreenOperatorHandle;
 
 
 
@@ -278,7 +282,8 @@ ensogl::def_command_api! { Commands
     /// Toggle nodes inverse selection mode.
     toggle_node_inverse_select,
 
-
+    /// Switches the selected visualisation to/from fullscreen mode.
+    toggle_fullscreen_for_selected_visualization,
 
     /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
     debug_set_data_for_selected_visualization,
@@ -316,6 +321,8 @@ impl Commands {
             def debug_set_data_for_selected_visualization   = source();
             def debug_cycle_visualization_for_selected_node = source();
 
+            def toggle_fullscreen_for_selected_visualization = source();
+
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
              ,toggle_visualization_visibility
@@ -323,7 +330,8 @@ impl Commands {
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
              ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
-             ,debug_set_data_for_selected_visualization,debug_cycle_visualization_for_selected_node}
+             ,debug_set_data_for_selected_visualization,debug_cycle_visualization_for_selected_node
+             ,toggle_fullscreen_for_selected_visualization}
     }
 }
 
@@ -674,11 +682,12 @@ impl EntityFrp {
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct EntityCollection<T:CloneRef> {
-    network  : frp::Network,
-    frp      : EntityFrp,
-    logger   : Logger,
-    all      : SharedHashMap<Id,T>,
-    selected : SharedHashSet<Id>,
+    network             : frp::Network,
+    frp                 : EntityFrp,
+    logger              : Logger,
+    all                 : SharedHashMap<Id,T>,
+    selected            : SharedHashSet<Id>,
+    fullscreen_operator : FullscreenOperatorHandle::<visualization::Container>,
 }
 
 impl<T:CloneRef+display::Object> EntityCollection<T> {
@@ -687,7 +696,8 @@ impl<T:CloneRef+display::Object> EntityCollection<T> {
         let frp      = EntityFrp::new(&network);
         let all      = default();
         let selected = default();
-        Self {network,frp,logger,all,selected}
+        let fullscreen_operator = default();
+        Self {network,frp,logger,all,selected,fullscreen_operator}
     }
 }
 
@@ -956,6 +966,9 @@ impl GraphEditorModel {
 
     fn select_visualisation(&self, id:impl Into<Id>) {
         let id = id.into();
+        if self.visualizations.selected.contains(&id){
+            return
+        }
         if let Some(container) = self.visualizations.all.get_cloned_ref(&id) {
             // Only one visualization can be selected.
             self.clear_vis_selection();
@@ -965,24 +978,15 @@ impl GraphEditorModel {
 
     }
 
-    fn deselect_vis(&self, id:impl Into<Id>) {
-        let id = id.into();
-        if let Some(container) = self.visualizations.all.get_cloned_ref(&id) {
-            self.visualizations.selected.remove(&id);
-            container.frp.deselect.emit(());
-            // If there was another one in there, that's a bug.
-            debug_assert!(self.visualizations.selected.raw.borrow().is_empty());
-        }
-    }
-
     fn clear_vis_selection(&self) {
         self.visualizations.selected.for_each(|id| {
             self.visualizations
                 .all
                 .get_cloned_ref(id)
-                .map(|container| { container.frp.deselect.emit(()) });
+                .for_each_ref(|container| { container.frp.deselect.emit(()) });
         });
         self.visualizations.selected.clear();
+        self.visualizations.fullscreen_operator.disable_fullscreen();
     }
 }
 
@@ -1257,6 +1261,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_visualization")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualization_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("g".into())]) , "toggle_fullscreen_for_selected_visualization")
         ]
     }
 }
@@ -1645,6 +1650,16 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         cycle_count.set(cycle_count.get() + 1);
     }));
 
+    // === Vis Fullscreen ===
+
+    def _toggle_fullscreen = inputs.toggle_fullscreen_for_selected_visualization.map(f!([scene,visualizations](_) {
+        if visualizations.fullscreen_operator.is_active() {
+            visualizations.fullscreen_operator.disable_fullscreen()
+        } else if let Some(container) = visualizations.get_selected(){
+                visualizations.fullscreen_operator.set_fullscreen(container,scene.clone_ref());
+        }
+    }));
+
     // === Vis Set ===
 
     def _update_vis_data = inputs.set_visualization.map(f!([nodes]((node_id,vis)) {
@@ -1778,3 +1793,5 @@ impl display::Object for GraphEditor {
         &self.display_object
     }
 }
+
+

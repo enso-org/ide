@@ -10,8 +10,11 @@ use ensogl::display::layout::alignment;
 use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::gui::component;
+use crate::component::operator::NativeUiElement;
+use ensogl::display::Symbol;
 use ensogl::system::web;
 use ensogl::display::object::ObjectOps;
+
 
 
 // ==========================
@@ -84,6 +87,7 @@ impl DataRenderer for BubbleChart {
             view.shape.sprite.size().set(self.size.get());
             view.shape.radius.set(item.z);
             view.shape.position.set(Vector2::new(item.x,item.y));
+
         });
         Ok(())
     }
@@ -94,6 +98,14 @@ impl DataRenderer for BubbleChart {
 
     fn frp(&self) -> &DataRendererFrp {
         &self.frp
+    }
+}
+
+
+impl NativeUiElement for BubbleChart {
+    fn shapes(&self) -> Vec<Symbol> {
+        let shape_system   = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
+        vec![shape_system.shape_system.symbol.clone_ref()]
     }
 }
 

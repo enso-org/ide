@@ -702,28 +702,38 @@ impl ViewData {
 // =============
 
 /// Please note that currently the `Views` structure is implemented in a hacky way. It assumes the
-/// existence of `main`, `cursor`, and `label` views, which are needed for the GUI to display shapes
-/// properly. This should be abstracted away in the future.
+/// existence of `main`, `overlay`, `cursor`, and `label` views, which are needed for the GUI to
+/// display shapes properly. This should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Views {
-    logger     : Logger,
-    pub main   : View,
-    pub cursor : View,
-    pub label  : View,
-    all        : Rc<RefCell<Vec<WeakView>>>,
-    width      : f32,
-    height     : f32,
+    logger             : Logger,
+    pub main           : View,
+    pub cursor         : View,
+    pub label          : View,
+    pub overlay        : View,
+    pub visualisation  : View,
+    pub overlay_cursor : View,
+    all                : Rc<RefCell<Vec<WeakView>>>,
+    width              : f32,
+    height             : f32,
 }
 
 impl Views {
     pub fn mk(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger = logger.sub("views");
-        let main   = View::new(&logger,width,height);
-        let cursor = View::new(&logger,width,height);
-        let label  = View::new_with_camera(&logger,&main.camera);
-        let all    = vec![main.downgrade(),cursor.downgrade(),label.downgrade()];
-        let all    = Rc::new(RefCell::new(all));
-        Self {logger,main,cursor,label,all,width,height}
+        let logger         = logger.sub("views");
+        let main           = View::new(&logger,width,height);
+        let overlay        = View::new(&logger,width,height);
+        let cursor         = View::new(&logger,width,height);
+        let visualisation  = View::new(&logger,width,height);
+        let overlay_cursor = View::new(&logger,width,height);
+
+        let label          = View::new_with_camera(&logger,&main.camera);
+        let all            = vec![main.downgrade(),cursor.downgrade(),label.downgrade(),
+                                  overlay.downgrade(),visualisation.downgrade(),
+                                  overlay_cursor.downgrade(),
+                               ];
+        let all            = Rc::new(RefCell::new(all));
+        Self {logger,main,overlay,cursor,label,visualisation,overlay_cursor,all,width,height}
     }
 
     /// Creates a new view for this scene.
@@ -736,6 +746,21 @@ impl Views {
 
     pub fn all(&self) -> Ref<Vec<WeakView>> {
         self.all.borrow()
+    }
+
+    /// Move cursor from/to cursor/cursor_overlay layer.
+    pub fn toggle_overlay_cursor(&self) {
+        let mut bottom_symbols = self.cursor.symbols.borrow_mut();
+        let mut top_symbols    = self.overlay_cursor.symbols.borrow_mut();
+        mem::swap(bottom_symbols.deref_mut(), top_symbols.deref_mut());
+    }
+
+    pub fn remove_symbol(&self, symbol:&Symbol) {
+        self.all().iter().for_each(|weak_layer| {
+            if let Some(layer) = weak_layer.upgrade() {
+                layer.remove(symbol);
+            }
+        })
     }
 }
 

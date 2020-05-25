@@ -30,13 +30,14 @@ use crate::component::visualization::DataRenderer;
 use crate::component::visualization::DataRendererFrp;
 
 use ensogl::display::DomScene;
+use ensogl::display::Symbol;
 use ensogl::display::DomSymbol;
 use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
-
+use crate::component::operator::NativeUiElement;
 
 
 // ==============
@@ -247,10 +248,17 @@ impl DataRenderer for JsRenderer {
             self.logger.warning(
                 || format!("Failed to set size in {:?} with error: {:?}", self, error));
         }
+        self.root_node.set_size(size);
     }
 
     fn frp(&self) -> &DataRendererFrp {
         &self.frp
+    }
+}
+
+impl NativeUiElement for JsRenderer {
+    fn shapes(&self) -> Vec<Symbol> {
+       vec![]
     }
 }
 

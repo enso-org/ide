@@ -15,12 +15,16 @@ pub fn get_bubble_vis_class() -> JsSourceClass {
                 while (root.firstChild) {
                     root.removeChild(root.lastChild);
                 }
+                const width = root.getAttributeNS(null, "width");
+                const height = root.getAttributeNS(null, "height");
 
                 const svgElem = document.createElementNS(xmlns, "svg");
                 svgElem.setAttributeNS(null, "id"     , "vis-svg");
-                svgElem.setAttributeNS(null, "viewBox", "0 0 " + 100 + " " + 100);
-                svgElem.setAttributeNS(null, "width"  , 100);
-                svgElem.setAttributeNS(null, "height" , 100);
+                svgElem.setAttributeNS(null, "viewBox", 0 + " " + 0 + " " + width + " " + height);
+                svgElem.setAttributeNS(null, "width"  , "100%");
+                svgElem.setAttributeNS(null, "height" , "100%");
+                // svgElem.setAttributeNS(null, "preserveAspectRatio" , "xMaxYMax meet");
+
                 root.appendChild(svgElem);
 
                 data.forEach(data => {
@@ -35,12 +39,8 @@ pub fn get_bubble_vis_class() -> JsSourceClass {
             }
 
             setSize(root, size) {
-                const width   = size[0];
-                const height  = size[1];
-                const svgElem = root.firstChild;
-                svgElem.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
-                svgElem.setAttributeNS(null, "width"  , width);
-                svgElem.setAttributeNS(null, "height" , height);
+                root.setAttributeNS(null, "width", size[0]);
+                root.setAttributeNS(null, "height", size[1]);
             }
         }
 

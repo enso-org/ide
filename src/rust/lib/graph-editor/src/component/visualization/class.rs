@@ -6,8 +6,10 @@ use crate::frp;
 use crate::visualization::*;
 
 use ensogl::display::Scene;
+use ensogl::display::Symbol;
 use ensogl::display;
 use std::error::Error;
+use crate::component::operator::NativeUiElement;
 
 
 // ====================
@@ -172,6 +174,12 @@ impl Visualization {
     /// Set the viewport size of the visualization.
     pub fn set_size(&self, size:Vector2<f32>) {
         self.state.renderer.set_size(size)
+    }
+}
+
+impl NativeUiElement for Visualization {
+    fn shapes(&self) -> Vec<Symbol> {
+        self.state.renderer.shapes()
     }
 }
 
