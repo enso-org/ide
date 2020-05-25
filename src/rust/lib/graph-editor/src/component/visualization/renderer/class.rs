@@ -58,11 +58,6 @@ impl Default for DataRendererFrp {
 /// `set_data` method with a `DataError`. The owner of the `DataRenderer` is in charge of producing
 /// UI feedback to indicate a problem with the data.
 pub trait DataRenderer: display::Object + Debug {
-    /// Indicate which `DataType`s can be rendered by this visualization.
-    fn valid_input_types(&self) -> Vec<DataType> {
-        // TODO this will need to be implemented by each Renderer once we get to the registry.
-        unimplemented!()
-    }
     /// Receive the data that should be rendered. If the data is valid, it will return the data as
     /// processed by this `DataRenderer`, if the data is of an invalid data type, it violates other
     /// assumptions of this `DataRenderer`, a `DataError` is returned.
