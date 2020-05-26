@@ -22,8 +22,53 @@ pub type DefinitionId = crate::double_representation::definition::Id;
 /// An identifier of expression.
 pub type ExpressionId = ast::Id;
 
-/// An update data that notification receives from the interpreter.
-pub type VisualizationUpdateData = Vec<u8>;
+
+
+// ===============================
+// === VisualizationUpdateData ===
+// ===============================
+
+/// An update data that notification receives from the interpreter. Owns the binary data generated
+/// for visualization by the Language Server.
+///
+/// Binary data can be accessed through `Deref` or `AsRef` implementations.
+///
+/// The inner storage is private and users should not make any assumptions about it.
+#[derive(Clone,Debug)]
+pub struct VisualizationUpdateData(Vec<u8>);
+
+impl VisualizationUpdateData {
+    /// Wraps given vector with binary data into a visualization update data.
+    pub fn new(data:Vec<u8>) -> VisualizationUpdateData {
+        VisualizationUpdateData(data)
+    }
+}
+
+impl AsRef<[u8]> for VisualizationUpdateData {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl AsMut<[u8]> for VisualizationUpdateData {
+    fn as_mut(&mut self) -> &mut [u8] {
+        self.0.as_mut()
+    }
+}
+
+impl Deref for VisualizationUpdateData {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl DerefMut for VisualizationUpdateData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut()
+    }
+}
 
 
 
@@ -151,7 +196,8 @@ impl ExecutionContext {
     /// Attaches a new visualization for current execution context.
     ///
     /// Returns a stream of visualization update data received from the server.
-    pub fn attach_visualization(&self, visualization:Visualization) -> impl Stream<Item=Vec<u8>> {
+    pub fn attach_visualization
+    (&self, visualization:Visualization) -> impl Stream<Item=VisualizationUpdateData> {
         let id                       = visualization.id;
         let (update_sender,receiver) = futures::channel::mpsc::unbounded();
         let visualization            = AttachedVisualization {visualization,update_sender};
