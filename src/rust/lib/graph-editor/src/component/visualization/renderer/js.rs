@@ -24,6 +24,8 @@
 
 use crate::prelude::*;
 
+use crate::component::operator::NativeComponent;
+use crate::component::operator::SymbolType;
 use crate::component::visualization::Data;
 use crate::component::visualization::DataError;
 use crate::component::visualization::DataRenderer;
@@ -36,7 +38,7 @@ use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
-use crate::component::operator::{NativeUiElement, SymbolType};
+
 
 
 // ==============
@@ -255,7 +257,7 @@ impl DataRenderer for JsRenderer {
     }
 }
 
-impl NativeUiElement for JsRenderer {
+impl NativeComponent for JsRenderer {
     fn symbols(&self) -> Vec<SymbolType> {
        vec![]
     }

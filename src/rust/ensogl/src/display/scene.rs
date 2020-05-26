@@ -728,17 +728,16 @@ impl Views {
         let overlay                = View::new(&logger,width,height);
         let overlay_visualisation  = View::new(&logger,width,height);
         let overlay_cursor         = View::new(&logger,width,height);
-
-        let label          = View::new_with_camera(&logger,&main.camera);
-        let all            = vec![main.downgrade(),
-                                  visualisation.downgrade(),
-                                  cursor.downgrade(),
-                                  label.downgrade(),
-                                  overlay.downgrade(),
-                                  overlay_visualisation.downgrade(),
-                                  overlay_cursor.downgrade(),
-                               ];
-        let all            = Rc::new(RefCell::new(all));
+        let label                  = View::new_with_camera(&logger,&main.camera);
+        let all                    = vec![main.downgrade(),
+                                          visualisation.downgrade(),
+                                          cursor.downgrade(),
+                                          label.downgrade(),
+                                          overlay.downgrade(),
+                                          overlay_visualisation.downgrade(),
+                                          overlay_cursor.downgrade(),
+                                     ];
+        let all                    = Rc::new(RefCell::new(all));
         Self {logger,main,overlay,cursor,label,visualisation,overlay_cursor,overlay_visualisation,
               all,width,height}
     }

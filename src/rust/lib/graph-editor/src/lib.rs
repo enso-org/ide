@@ -662,7 +662,6 @@ impl Nodes {
 
 
 
-
 // =========================
 // === Entity Collection ===
 // =========================
@@ -682,6 +681,8 @@ impl EntityFrp {
     }
 }
 
+/// And entity collection provides basic functionality to control a groups of entities and keep
+/// track of their selection status as well as fullscreen mode.
 #[derive(Debug,Clone,CloneRef)]
 pub struct EntityCollection<T:CloneRef> {
     network             : frp::Network,
@@ -991,7 +992,6 @@ impl GraphEditorModel {
             self.visualizations.selected.insert(id);
             container.frp.select.emit(());
         }
-
     }
 
     fn clear_vis_selection(&self) {

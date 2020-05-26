@@ -1,4 +1,16 @@
 //! Provides generic operations that can be applied to UI components.
+//!
+//! Rationale: this is a step towards a higher level abstraction for arbitrary UI elements. That is,
+//! instead of doing a lot of low level functionality within our UI components, we should instead be
+//! able to access some data about them and manipulate them in a consistent manner. For example:
+//! instead of every component implementing a "fullscreen mode", they just provide resizing
+//! functionality and access to their su-components and instead of determining the layer of shapes
+//! within the UI component, we instead make the shapes accessible via an API that indicates the
+//! expected behaviour of the shapes, and the actual layer management happens outside of the
+//! component.
+//!
+//! This is also a step to avoid relying too much on the presence of the `Scene` within the UI
+//! component.
 use crate::prelude::*;
 
 use ensogl::display::DomScene;
@@ -12,15 +24,6 @@ use ensogl::frp;
 use ensogl::gui::component::animation;
 
 
-/// Indicates the required target layer.
-// FIXME this is a layer management hack. Remove this once we have nicer scene layer management.
-#[derive(Debug)]
-pub enum SymbolType {
-    /// A symbol that goes onto the `Main` layer.
-    Main (Symbol),
-    /// A visualisation symbol that goes above the `Main` layer, but below the cursor.
-    Visualisation (Symbol),
-}
 
 // ==================================
 // === UI Component Helper Traits ===
@@ -28,7 +31,7 @@ pub enum SymbolType {
 
 /// Should be implemented by UI component that consist of `Symbol`. Provides access to the shapes
 /// and some helper methods for working with those shapes.
-pub trait NativeUiElement {
+pub trait NativeComponent {
     /// Return all `Symbol`s that make up this component.
     fn symbols(&self) -> Vec<SymbolType>;
 
@@ -55,7 +58,7 @@ pub trait NativeUiElement {
 
 /// Should be implemented by UI component that consist of `DomSymbol`s. Provides access to the
 /// symbols some helper methods for working with them.
-pub trait HtmlUiElement {
+pub trait HtmlComponent {
     /// Return all `DomSymbol`s that make up this component.
     fn elements(&self) -> Vec<DomSymbol>;
 
@@ -96,8 +99,7 @@ pub struct FullscreenOperatorHandle<T> {
     operator: Rc<RefCell<Option<FullscreenOperator<T>>>>
 }
 
-
-impl<T:display::Object+Resizable+NativeUiElement+CloneRef+Networked+'static> FullscreenOperatorHandle<T> {
+impl<T:display::Object+Resizable+ NativeComponent +CloneRef+Networked+'static> FullscreenOperatorHandle<T> {
     /// returns whether there is a component that is in fullscreen mode.
     pub fn is_active(&self) -> bool {
         self.operator.borrow().is_some()
@@ -130,9 +132,20 @@ impl<T:display::Object+Resizable+NativeUiElement+CloneRef+Networked+'static> Ful
 // === Layer Management Helper ===
 // ===============================
 
-/// FIXME This is an ugly hack for layer management.
-/// FIXME Needs to be removed as soon as we have something better.
-pub fn set_layers_normal<T:NativeUiElement>(target:&T, scene:&Scene){
+/// Indicates the required target layer.
+// FIXME this is a layer management hack. Remove this once we have nicer scene layer management.
+#[derive(Debug)]
+pub enum SymbolType {
+    /// A symbol that goes onto the `Main` layer.
+    Main (Symbol),
+    /// A visualisation symbol that goes above the `Main` layer, but below the cursor.
+    Visualisation (Symbol),
+}
+
+/// Moves the given components shapes to the default scene layers.
+// FIXME This is an ugly hack for layer management.
+// FIXME Needs to be removed as soon as we have something better.
+pub fn set_layers_normal<T: NativeComponent>(target:&T, scene:&Scene){
     target.unset_layers_all(&scene);
     for symbol in target.symbols() {
         match symbol {
@@ -142,9 +155,10 @@ pub fn set_layers_normal<T:NativeUiElement>(target:&T, scene:&Scene){
     }
 }
 
-/// FIXME This is an ugly hack for layer management.
-/// FIXME Needs to be removed as soon as we have something better.
-pub fn set_layers_fullscreen<T:NativeUiElement>(target:&T, scene:&Scene) {
+/// Moves the given components shapes to the fullscreen scene layers.
+// FIXME This is an ugly hack for layer management.
+// FIXME Needs to be removed as soon as we have something better.
+pub fn set_layers_fullscreen<T: NativeComponent>(target:&T, scene:&Scene) {
     target.unset_layers_all(&scene);
     for symbol in target.symbols() {
         match symbol {
@@ -164,7 +178,7 @@ pub fn set_layers_fullscreen<T:NativeUiElement>(target:&T, scene:&Scene) {
 /// undo the fullscreen operation and restore the previous state. The  `FullscreenOperator` can be
 /// applied to any target that implements `display::Object`, `Resizable` and `NativeUiElement`.
 // TODO consider incorporating these traits into display::Object or another common "SceneElement"
-// type. But it important that complex UI components can provide information about their
+// type. But it is important that complex UI components can provide information about their
 // sub-components (for example, multiple sub-shapes or HTML components).
 #[derive(Debug)]
 pub struct FullscreenOperator<T> {
@@ -175,8 +189,7 @@ pub struct FullscreenOperator<T> {
     parent_original   : Option<display::object::Instance>,
 }
 
-impl<T:display::Object+Resizable+NativeUiElement+Networked+CloneRef+'static> FullscreenOperator<T> {
-
+impl<T:display::Object+Resizable+ NativeComponent +Networked+CloneRef+'static> FullscreenOperator<T> {
     /// Make the provided target fullscreen within the given scene and return the
     /// `FullscreenOperator`.
     pub fn apply(target:T, scene:Scene) -> Self {

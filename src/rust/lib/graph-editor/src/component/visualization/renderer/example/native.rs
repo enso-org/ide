@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::operator::NativeUiElement;
+use crate::component::operator::NativeComponent;
 use crate::component::operator::SymbolType;
 
 use ensogl::data::color::Rgba;
@@ -103,7 +103,7 @@ impl DataRenderer for BubbleChart {
 }
 
 
-impl NativeUiElement for BubbleChart {
+impl NativeComponent for BubbleChart {
     fn symbols(&self) -> Vec<SymbolType> {
         let shape_system = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
         vec![SymbolType::Visualisation(shape_system.shape_system.symbol.clone_ref())]

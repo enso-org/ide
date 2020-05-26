@@ -8,7 +8,7 @@ use crate::visualization::*;
 use ensogl::display::Scene;
 use ensogl::display;
 use std::error::Error;
-use crate::component::operator::NativeUiElement;
+use crate::component::operator::NativeComponent;
 use crate::component::operator::SymbolType;
 
 
@@ -177,7 +177,7 @@ impl Visualization {
     }
 }
 
-impl NativeUiElement for Visualization {
+impl NativeComponent for Visualization {
     fn symbols(&self) -> Vec<SymbolType> {
         self.state.renderer.symbols()
     }

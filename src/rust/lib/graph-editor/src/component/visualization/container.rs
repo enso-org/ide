@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::operator::NativeUiElement;
+use crate::component::operator::NativeComponent;
 use crate::component::operator::Networked;
 use crate::component::operator::SymbolType;
 use crate::component::operator;
@@ -19,6 +19,7 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component;
+
 
 
 // =============
@@ -153,7 +154,6 @@ pub struct Container {
     pub frp               : ContainerFrp,
 }
 
-
 /// Internal data of a `Container`.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
@@ -173,7 +173,6 @@ pub struct ContainerData {
     visualization           : RefCell<Option<Visualization>>,
     shape_frame             : component::ShapeView<frame::Shape>,
     shape_overlay           : component::ShapeView<overlay::Shape>,
-
     scene                   : Scene
 
 }
@@ -291,7 +290,6 @@ impl Container {
         self
     }
 
-
     fn init_frp(self) -> Self {
         let frp                 = &self.frp;
         let network             = &self.frp.network;
@@ -351,10 +349,9 @@ impl operator::Resizable for Container {
     fn set_size_frp(&self) -> &frp::Source<Option<Vector2<f32>>> {
         &self.frp.set_size
     }
-
 }
 
-impl NativeUiElement for Container {
+impl NativeComponent for Container {
     fn symbols(&self) -> Vec<SymbolType> {
         let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
         let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
@@ -367,7 +364,6 @@ impl NativeUiElement for Container {
             shapes.extend(vis.symbols());
         };
         shapes
-
     }
 }
 
