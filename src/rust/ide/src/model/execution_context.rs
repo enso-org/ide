@@ -50,23 +50,11 @@ impl AsRef<[u8]> for VisualizationUpdateData {
     }
 }
 
-impl AsMut<[u8]> for VisualizationUpdateData {
-    fn as_mut(&mut self) -> &mut [u8] {
-        self.0.as_mut()
-    }
-}
-
 impl Deref for VisualizationUpdateData {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
         self.as_ref()
-    }
-}
-
-impl DerefMut for VisualizationUpdateData {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.as_mut()
     }
 }
 
