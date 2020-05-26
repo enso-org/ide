@@ -1279,6 +1279,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::release     (&[Key::Alt])                  , "toggle_node_subtract_select")
              , Self::self_shortcut(shortcut::Action::press       (&[Key::Shift,Key::Alt])       , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release     (&[Key::Shift,Key::Alt])       , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::double_press(&[Key::Character("d".into())]), "debug_set_data_for_selected_visualization")
              , Self::self_shortcut(shortcut::Action::press       (&[Key::Character("d".into())]), "debug_set_data_for_selected_visualization")
              , Self::self_shortcut(shortcut::Action::press       (&[Key::Character("f".into())]), "debug_cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::double_press(&[Key::Character(" ".into())]), "toggle_fullscreen_for_selected_visualization")
