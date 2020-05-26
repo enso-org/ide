@@ -145,8 +145,8 @@ pub type Id  = language_server::ContextId;
 /// the visualization update's data to the visualization's attacher (presumably the view).
 #[derive(Clone,Debug)]
 pub struct AttachedVisualization {
-    visualization:Visualization,
-    update_sender:futures::channel::mpsc::UnboundedSender<VisualizationUpdateData>,
+    visualization : Visualization,
+    update_sender : futures::channel::mpsc::UnboundedSender<VisualizationUpdateData>,
 }
 
 
@@ -170,7 +170,7 @@ pub struct ExecutionContext {
     /// Local call stack.
     stack:RefCell<Vec<LocalCall>>,
     /// Set of active visualizations.
-    visualizations: RefCell<HashMap<VisualizationId, AttachedVisualization>>,
+    visualizations: RefCell<HashMap<VisualizationId,AttachedVisualization>>,
 }
 
 impl ExecutionContext {
