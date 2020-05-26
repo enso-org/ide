@@ -354,10 +354,6 @@ impl operator::Resizable for Container {
     fn size(&self) -> Vector3<f32>{
         Vector3::new(self.data.size.get().x,self.data.size.get().y, 0.0)
     }
-
-    fn set_size_frp(&self) -> &frp::Source<Option<Vector2<f32>>> {
-        &self.frp.set_size
-    }
 }
 
 impl NativeComponent for Container {

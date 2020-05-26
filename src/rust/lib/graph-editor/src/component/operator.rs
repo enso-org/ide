@@ -75,8 +75,6 @@ pub trait Resizable {
     fn set_size(&self, size:Vector3<f32>);
     /// Return the size of the UI element.
     fn size(&self) -> Vector3<f32>;
-    /// Return an FRP endpoint to set the size.
-    fn set_size_frp(&self) -> &frp::Source<Option<Vector2<f32>>> { unimplemented!() }
 }
 
 /// A component that owns a Network. Can be used to create external animations.
@@ -174,6 +172,8 @@ pub fn set_layers_fullscreen<T: NativeComponent>(target:&T, scene:&Scene) {
 // === Fullscreen Operator ===
 // ===========================
 
+pub trait Fullscreenable = display::Object+Resizable+NativeComponent+Networked+CloneRef+'static;
+
 /// A `FullscreenOperator` can be used to apple fullscreen mode to a UI element as well as undo the
 /// undo the fullscreen operation and restore the previous state. The  `FullscreenOperator` can be
 /// applied to any target that implements `display::Object`, `Resizable` and `NativeUiElement`.
@@ -189,7 +189,7 @@ pub struct FullscreenOperator<T> {
     parent_original   : Option<display::object::Instance>,
 }
 
-impl<T:display::Object+Resizable+ NativeComponent +Networked+CloneRef+'static> FullscreenOperator<T> {
+impl<T:Fullscreenable> FullscreenOperator<T> {
     /// Make the provided target fullscreen within the given scene and return the
     /// `FullscreenOperator`.
     pub fn apply(target:T, scene:Scene) -> Self {
