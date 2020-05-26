@@ -186,7 +186,7 @@ define_sdf_shapes! {
     PlaneAngle (angle:Angle<Radians>) {
         float pi_2       = 2.0 * PI;
         float angle_norm = value(angle) / pi_2;
-              angle_norm = abs(mod(angle_norm,2.0)-1.0);
+              angle_norm = 1.0 - abs(mod(angle_norm,2.0)-1.0);
         float angle_rad  = angle_norm * pi_2;
         float off        = angle_norm - 0.5; // Fixes artifacts with 0 and 360 degrees.
         float distance   = abs(position).x*cos(angle_rad/2.0) - position.y*sin(angle_rad/2.0) - off;

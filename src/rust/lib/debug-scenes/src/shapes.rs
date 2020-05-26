@@ -80,28 +80,28 @@ fn init(app:&Application) {
 
 
     let node1_id = graph_editor.add_node();
-    let node2_id = graph_editor.add_node();
-
+//    let node2_id = graph_editor.add_node();
+//
     graph_editor.frp.set_node_position.emit((node1_id,Position::new(100.0 , 250.0)));
-    graph_editor.frp.set_node_position.emit((node2_id,Position::new(200.0 ,  50.0)));
-
+//    graph_editor.frp.set_node_position.emit((node2_id,Position::new(200.0 ,  50.0)));
+//
     graph_editor.frp.set_node_expression.emit((node1_id,expression_mock()));
-    graph_editor.frp.set_node_expression.emit((node2_id,expression_mock2()));
+//    graph_editor.frp.set_node_expression.emit((node2_id,expression_mock2()));
 
-    frp::new_network! { network
-        def trigger = source::<()>();
-        let (runner,condition) = fence(&network,&trigger);
-        def _eval = runner.map(f_!( {
-            graph_editor.frp.connect_nodes.emit((EdgeTarget::new(node1_id,default()),EdgeTarget::new(node2_id,vec![1,0,2])));
-        }));
-        def _debug = graph_editor.frp.outputs.edge_added.map2(&condition, |id,cond| {
-            let owner = if *cond { "GUI" } else { "ME" };
-            println!("Edge {:?} added by {}!",id,owner)
-        });
+//    frp::new_network! { network
+//        def trigger = source::<()>();
+//        let (runner,condition) = fence(&network,&trigger);
+//        def _eval = runner.map(f_!( {
+//            graph_editor.frp.connect_nodes.emit((EdgeTarget::new(node1_id,default()),EdgeTarget::new(node2_id,vec![1,0,2])));
+//        }));
+//        def _debug = graph_editor.frp.outputs.edge_added.map2(&condition, |id,cond| {
+//            let owner = if *cond { "GUI" } else { "ME" };
+//            println!("Edge {:?} added by {}!",id,owner)
+//        });
+//
+//    }
 
-    }
-
-    trigger.emit(());
+//    trigger.emit(());
 
 
     let mut was_rendered = false;
@@ -109,7 +109,7 @@ fn init(app:&Application) {
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
         let _keep_alive = &graph_editor;
-        let _keep_alive = &network;
+//        let _keep_alive = &network;
 
         // Temporary code removing the web-loader instance.
         // To be changed in the future.

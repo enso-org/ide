@@ -21,12 +21,44 @@ use super::node;
 
 
 
-macro_rules! define_corner {() => {
+macro_rules! define_corner {($($color:tt)*) => {
     /// Shape definition.
     pub mod corner {
         use super::*;
         ensogl::define_shape_system! {
-            (radius:f32, start_angle:f32, angle:f32) {
+            (radius:f32, angle:f32, pos:Vector2<f32>, width:f32) {
+                let radius = 1.px() * radius;
+                let ww  = LINE_WIDTH.px();
+                let width2 = ww / 2.0;
+                let ring   = Circle(&radius + &width2) - Circle(radius-width2);
+                let right : Var<f32> = (std::f32::consts::PI/2.0).into();
+                let rot    = right - &angle/2.0;
+                let mask   = Plane().cut_angle_fast(angle).rotate(rot);
+                let shape  = ring * mask;
+
+                let shadow_size = 10.px();
+                let n_radius = &shadow_size + 14.px();
+                let n_shape  = Rect((&shadow_size*2.0 + 2.px() * width,&n_radius*2.0)).corners_radius(n_radius);
+                let n_shape  = n_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+                let tx       = - 1.px() * pos.x();
+                let ty       = - 1.px() * pos.y();
+                let n_shape  = n_shape.translate((tx,ty));
+
+                let shape = shape - n_shape;
+                let shape = shape.fill(color::Rgba::from($($color)*));
+
+                shape.into()
+            }
+        }
+    }
+}}
+
+macro_rules! define_corner2 {($($color:tt)*) => {
+    /// Shape definition.
+    pub mod corner {
+        use super::*;
+        ensogl::define_shape_system! {
+            (radius:f32, angle:f32, pos:Vector2<f32>, dim:Vector2<f32>) {
                 let radius = 1.px() * radius;
                 let width  = LINE_WIDTH.px();
                 let width2 = width / 2.0;
@@ -35,14 +67,25 @@ macro_rules! define_corner {() => {
                 let rot    = right - &angle/2.0;
                 let mask   = Plane().cut_angle_fast(angle).rotate(rot);
                 let shape  = ring * mask;
-                let shape  = shape.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
+
+                let shadow_size = 10.px() + 1.px();
+                let n_radius = &shadow_size + 1.px() * dim.y();
+                let n_shape  = Rect((&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
+                let n_shape  = n_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+                let tx       = - 1.px() * pos.x();
+                let ty       = - 1.px() * pos.y();
+                let n_shape  = n_shape.translate((tx,ty));
+
+                let shape = shape * n_shape;
+                let shape = shape.fill(color::Rgba::from($($color)*));
+
                 shape.into()
             }
         }
     }
 }}
 
-macro_rules! define_line {() => {
+macro_rules! define_line {($($color:tt)*) => {
     /// Shape definition.
     pub mod line {
         use super::*;
@@ -51,7 +94,7 @@ macro_rules! define_line {() => {
                 let width  = LINE_WIDTH.px();
                 let height : Var<Distance<Pixels>> = "input_size.y".into();
                 let shape  = Rect((width,height));
-                let shape  = shape.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
+                let shape  = shape.fill(color::Rgba::from($($color)*));
                 shape.into()
             }
         }
@@ -65,14 +108,14 @@ macro_rules! define_line {() => {
 
 pub mod front {
     use super::*;
-    define_corner!();
-    define_line!();
+    define_corner!(color::Lcha::new(0.6,0.5,0.1,1.0));
+    define_line!(color::Lcha::new(0.6,0.5,0.2,1.0));
 }
 
 pub mod back {
     use super::*;
-    define_corner!();
-    define_line!();
+    define_corner2!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_line!(color::Lcha::new(0.6,0.5,0.66,1.0));
 }
 
 /// Canvas node shape definition.
@@ -90,7 +133,7 @@ pub mod helper {
 
 
 const LINE_WIDTH : f32 = 4.0;
-const PADDING    : f32 = 5.0;
+const PADDING    : f32 = 4.0;
 
 
 
@@ -145,6 +188,7 @@ pub fn sort_hack_1(scene:&Scene) {
 
 pub fn sort_hack_2(scene:&Scene) {
     let logger = Logger::new("hack");
+    component::ShapeView::<front::corner::Shape>::new(&logger,scene);
     component::ShapeView::<front::line::Shape>::new(&logger,scene);
 }
 
@@ -211,19 +255,22 @@ pub struct EdgeData {
 
 const END_OFFSET : f32 = 2.0;
 
+const INFINITE : f32 = 99999.0;
+
+
 impl Edge {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
         let logger    = Logger::new("edge");
         let object    = display::object::Instance::new(&logger);
-        let front     = Front::new(logger.sub("front"),scene);
-        let back      = Back::new(logger.sub("back"),scene);
+        let fg     = Front::new(logger.sub("fg"),scene);
+        let bg      = Back::new(logger.sub("bg"),scene);
 
-        object.add_child(&front);
-        object.add_child(&back);
+        object.add_child(&fg);
+        object.add_child(&bg);
 
-        front . side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
-        back  . side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
+        fg.side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
+        bg.side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
 
         let input = InputEvents::new();
         let network = &input.network;
@@ -234,76 +281,162 @@ impl Edge {
 
         let target_attached : Rc<Cell<bool>> = default();
 
-        let port_line_height = node::NODE_HEIGHT/2.0 + node::SHADOW_SIZE;
-        front . port_line.shape.sprite.size().set(Vector2::new(10.0,port_line_height-END_OFFSET));
+        let node_height = node::NODE_HEIGHT;
+        let shadow_size = node::SHADOW_SIZE;
+        let radius      = node_height / 2.0;
+
+        let port_line_height_max = node_height/2.0 + shadow_size;
+
 
         frp::extend! { network
             eval input.target_position ((t) target_position.set(*t));
             eval input.target_attached ((t) target_attached.set(*t));
             eval input.source_width    ((t) source_width.set(*t));
             on_change <- any_ (input.source_width, input.target_position, input.target_attached);
-            eval_ on_change ([target_attached,source_width,target_position,object,front,back] {
-                let target = target_position.get();
-                let target = Vector2::new(target.x - object.position().x, target.y - object.position().y + port_line_height);
-                let radius = 14.0;
-                let width  = source_width.get() / 2.0;
+            eval_ on_change ([target_attached,source_width,target_position,object,fg,bg] {
+                let target_attached = target_attached.get();
 
+                let width         = source_width.get() / 2.0;
                 let side_circle_x = width - radius;
-                let side          = target.x.signum();
-                let target        = Vector2::new(target.x.abs(),target.y);
+                let glob_target   = target_position.get();
+                let target_x      = glob_target.x - object.position().x;
+                let side          = target_x.signum();
+                let target_x      = target_x.abs();
+                let below_node    = target_x < width;
+
+                let local_target_y  = glob_target.y - object.position().y;
+
+                let port_line_height = if !below_node {port_line_height_max} else {
+                    if target_attached {
+                        f32::max(0.0,f32::min(port_line_height_max, -local_target_y - node_height/2.0))
+                    } else {
+                        f32::max(0.0,f32::min(port_line_height_max, -local_target_y - node_height/2.0 - shadow_size))
+                    }
+                };
+
+                let port_line_height_diff = port_line_height_max - port_line_height;
+
+                println!(">> {}",port_line_height);
+
+                let target_y         = local_target_y + port_line_height_max;
+                let target           = Vector2::new(target_x,target_y);
+                let main_line_target = Vector2::new(target_x,target_y+port_line_height_diff);
+
+
+                // === Corner ===
 
                 let corner_grow   = ((target.x - width) * 0.6).max(0.0);
                 let corner_radius = 20.0 + corner_grow;
                 let corner_radius = corner_radius.min(target.y.abs());
                 let corner_x      = target.x - corner_radius;
 
-
-                let x = (corner_x - side_circle_x).clamp(-corner_radius,radius);
-                let y = (radius*radius + corner_radius*corner_radius - x*x).sqrt();
-
-
+                let x             = (corner_x - side_circle_x).clamp(-corner_radius,radius);
+                let y             = (radius*radius + corner_radius*corner_radius - x*x).sqrt();
                 let angle1        = f32::atan2(y,x);
                 let angle2        = f32::atan2(radius,corner_radius);
-                let corner_angle  = std::f32::consts::PI - angle1 - angle2;
                 let angle_overlap = if corner_x > width { 0.0 } else { 0.1 };
+                let corner_angle  = std::f32::consts::PI - angle1 - angle2;
+                let corner_angle  = (corner_angle + angle_overlap) * side;
+                let corner_side   = (corner_radius + PADDING) * 2.0;
+                let corner_size   = Vector2::new(corner_side,corner_side);
+                let corner        = Vector2::new(corner_x*side,-y);
 
-                front.corner.shape.angle.set((corner_angle + angle_overlap) * side);
-
-
-                let corner_y    = - y;
-                let corner_side = (corner_radius + PADDING) * 2.0;
-                front.corner.shape.sprite.size().set(Vector2::new(corner_side,corner_side));
-                front.corner.shape.radius.set(corner_radius);
-                front.corner.mod_position(|t| t.x = corner_x * side);
-                front.corner.mod_position(|t| t.y = corner_y);
-
-                let line_overlap = 2.0;
-                front.side_line.shape.sprite.size().set(Vector2::new(10.0,corner_x - width + line_overlap));
-                front.side_line.mod_position(|p| p.x = side*(width + corner_x)/2.0);
-
-                let main_line_x = side * target.x;
-                let main_line_y = (target.y + corner_y) / 2.0;
-                let main_line_size = Vector2::new(10.0,corner_y - target.y + line_overlap);
-                let main_line_position = Vector3::new(main_line_x,main_line_y,0.0);
-
-                if target_attached.get() {
-                    front.main_line.shape.sprite.size().set(Vector2::new(0.0,0.0));
-                    back.main_line.shape.sprite.size().set(main_line_size);
-                    back.main_line.set_position(main_line_position);
+                bg.corner.shape.sprite.size().set(corner_size);
+                bg.corner.shape.angle.set(corner_angle);
+                bg.corner.shape.radius.set(corner_radius);
+                bg.corner.shape.pos.set(corner);
+                bg.corner.set_position_xy(corner);
+                if !target_attached {
+                    bg.corner.shape.dim.set(Vector2::new(width,radius));
+                    fg.corner.shape.sprite.size().set(corner_size);
+                    fg.corner.shape.angle.set(corner_angle);
+                    fg.corner.shape.radius.set(corner_radius);
+                    fg.corner.shape.pos.set(corner);
+                    fg.corner.shape.width.set(width);
+                    fg.corner.set_position_xy(corner);
                 } else {
-                    back.main_line.shape.sprite.size().set(Vector2::new(0.0,0.0));
-                    front.main_line.shape.sprite.size().set(main_line_size);
-                    front.main_line.set_position(main_line_position);
+                    fg.corner.shape.sprite.size().set(zero());
+                    bg.corner.shape.dim.set(Vector2::new(INFINITE,INFINITE));
                 }
 
-                front.port_line.mod_position(|p| {
+
+                // === Side Line ===
+
+                let line_side    = LINE_WIDTH + 2.0 * PADDING;
+                let line_overlap = 2.0;
+
+                let side_line_len = corner_x - width;
+
+                if target_attached {
+                    let bg_line_len  = side_line_len;
+                    let bg_line_x    = side * (width + bg_line_len/2.0);
+                    let bg_line_size = Vector2::new(line_side,bg_line_len + line_overlap);
+
+                    fg.side_line.shape.sprite.size().set(zero());
+                    bg.side_line.shape.sprite.size().set(bg_line_size);
+                    bg.side_line.mod_position(|p| p.x = bg_line_x);
+
+                } else {
+                    let bg_line_len  = f32::min(side_line_len,shadow_size);
+                    let fg_line_len  = side_line_len - bg_line_len;
+                    let bg_line_x    = side * (width + bg_line_len/2.0);
+                    let fg_line_x    = side * (width + fg_line_len/2.0 + bg_line_len + line_overlap/2.0);
+                    let bg_line_size = Vector2::new(line_side,bg_line_len + line_overlap * 2.0);
+                    let fg_line_size = Vector2::new(line_side,fg_line_len);
+
+                    bg.side_line.shape.sprite.size().set(bg_line_size);
+                    bg.side_line.mod_position(|p| p.x = bg_line_x);
+
+                    fg.side_line.shape.sprite.size().set(fg_line_size);
+                    fg.side_line.mod_position(|p| p.x = fg_line_x);
+                }
+
+                // === Main Line ===
+
+                let main_line_height   = corner.y - main_line_target.y;
+                let main_line_x        = side * target.x;
+                let main_line_y        = corner.y - main_line_height/2.0;
+                let main_line_size     = Vector2::new(line_side,main_line_height + line_overlap);
+                let main_line_position = Vector3::new(main_line_x,main_line_y,0.0);
+
+                if target_attached {
+                    fg.main_line.shape.sprite.size().set(zero());
+                    bg.main_line.shape.sprite.size().set(main_line_size);
+                    bg.main_line.set_position(main_line_position);
+                } else {
+                    let mut front_line_position = main_line_position;
+                    let mut front_line_size     = main_line_size;
+                    let mut back_line_position  = main_line_position;
+                    let mut back_line_size      = Vector2::new(0.0,0.0);
+                    let use_double_line         = below_node;
+                    if use_double_line {
+                        let diff               = shadow_size - f32::max(0.0,-corner.y - radius);
+                        front_line_position.y -= diff/2.0;
+                        front_line_size.y     -= diff;
+                        back_line_position.y   = corner.y - diff/2.0;
+                        back_line_size         = main_line_size;
+                        back_line_size.y       = diff + line_overlap;
+                    }
+                    bg.main_line.shape.sprite.size().set(back_line_size);
+                    bg.main_line.set_position(back_line_position);
+                    fg.main_line.shape.sprite.size().set(front_line_size);
+                    fg.main_line.set_position(front_line_position);
+                }
+
+
+                // === Port Line ===
+
+                fg.port_line.shape.sprite.size().set(Vector2::new(line_side,port_line_height-END_OFFSET));
+                fg.port_line.mod_position(|p| {
                     p.x = main_line_x;
-                    p.y = target.y - port_line_height / 2.0 + END_OFFSET;
+                    p.y = target.y - port_line_height_diff - port_line_height / 2.0 + END_OFFSET;
                 });
             });
         }
 
         let events = input;
+        let front = fg;
+        let back  = bg;
         let data = Rc::new(EdgeData {object,logger,events,front,back
                                           ,source_width,target_position,target_attached});
         Self {data}
