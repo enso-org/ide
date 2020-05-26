@@ -92,14 +92,14 @@ impl RegistryModel {
         let is_double_press  = detector.process_action(action_type,key_mask);
         if is_double_press {
             ActionType::DoublePress
-        } else{
+        } else {
             action_type
         }
     }
 
     fn process_action(&self, action_type:ActionType, key_mask:&KeyMask) {
        // TODO: Decide whether double press is in addition or instead of the normal press.
-        let action_type = self.pre_process_action(action_type, key_mask);
+        let action_type    = self.pre_process_action(action_type, key_mask);
         let action_map_mut = &mut self.action_map.borrow_mut();
         if let Some(rule_map) = action_map_mut.get_mut(&action_type) {
             if let Some(rules) = rule_map.get_mut(key_mask) {
@@ -389,8 +389,8 @@ impl<T:command::Provider> DefaultShortcutProvider for T {
 // TODO Consider using application/world time.
 #[derive(Clone,Debug)]
 struct DoublePressDetector {
-    prev_key  : Option<KeyMask>,
-    prev_time : Option<f64>,
+    prev_key     : Option<KeyMask>,
+    prev_time    : Option<f64>,
     threshold_ms : f64,
 }
 

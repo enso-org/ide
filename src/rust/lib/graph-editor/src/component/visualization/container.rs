@@ -107,10 +107,10 @@ pub struct ContainerFrp {
     pub set_data          : frp::Source<Option<Data>>,
     pub select            : frp::Source,
     pub deselect          : frp::Source,
-    pub toggle_fullscreen : frp::Source,
     pub set_size          : frp::Source<Option<Vector2<f32>>>,
-    // TODO this should be a stream
-    pub clicked           : frp::Source,
+    pub clicked           : frp::Stream,
+
+    on_click              : frp::Source,
 }
 
 impl Default for ContainerFrp {
@@ -122,13 +122,13 @@ impl Default for ContainerFrp {
             def set_data          = source();
             def select            = source();
             def deselect          = source();
-            def clicked           = source();
-            def toggle_fullscreen = source();
+            def on_click          = source();
             def set_size          = source();
+            let clicked           = on_click.clone_ref().into();
         };
         let network = visualization_events;
         Self {network,set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
-              clicked,toggle_fullscreen,set_size}
+              clicked,set_size,on_click}
     }
 }
 
@@ -339,7 +339,7 @@ impl Container {
             }));
 
             def _output_hide = container_data.shape_overlay.events.mouse_down.map(f!([frp](_) {
-                frp.clicked.emit(())
+                frp.on_click.emit(())
             }));
         }
         self
