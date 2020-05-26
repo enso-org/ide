@@ -9,6 +9,7 @@ use futures::channel::mpsc::UnboundedSender;
 use json_rpc::Transport;
 use json_rpc::TransportEvent;
 use logger::*;
+use logger::enabled::Logger;
 use std::future::Future;
 use utils::fail::FallibleResult;
 

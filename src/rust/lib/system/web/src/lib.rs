@@ -18,7 +18,7 @@ use crate::prelude::*;
 
 pub use web_sys::console;
 use js_sys::Function;
-use logger::Logger;
+use logger::enabled::Logger;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 
