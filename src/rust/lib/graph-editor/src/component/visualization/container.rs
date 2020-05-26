@@ -141,7 +141,8 @@ impl Default for ContainerFrp {
 /// Container that wraps a `Visualization` for rendering and interaction in the GUI.
 ///
 /// The API to interact with the visualization is exposed through the `ContainerFrp`.
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Derivative,Shrinkwrap)]
+#[derivative(PartialEq)]
 #[allow(missing_docs)]
 pub struct Container {
     // The internals are split into two structs: `ContainerData` and `ContainerFrp`. The
@@ -149,9 +150,17 @@ pub struct Container {
     // contains the FRP api and network. This split is required to avoid creating cycles in the FRP
     // network: the FRP network holds `Rc`s to the `ContainerData` and thus must not live in the
     // same struct.
+    #[derivative(PartialEq(compare_with="ref_eq"))]
     #[shrinkwrap(main_field)]
-        data              : Rc<ContainerData>,
+    pub data              : Rc<ContainerData>,
+    #[derivative(PartialEq="ignore")]
     pub frp               : ContainerFrp,
+}
+
+fn ref_eq(obj_a:&Rc<ContainerData>, obj_b:&Rc<ContainerData>) -> bool {
+    let ptr_a:*const _ = obj_a.as_ref();
+    let ptr_b:*const _ = obj_b.as_ref();
+    ptr_a == ptr_b
 }
 
 /// Internal data of a `Container`.

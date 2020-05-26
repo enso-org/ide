@@ -738,6 +738,10 @@ impl EntityCollection<visualization::Container> {
             }
         }
     }
+
+    pub fn is_fullscreen(&self, container:visualization::Container) -> bool {
+        self.fullscreen_operator.get_element() == Some(container)
+    }
 }
 
 
@@ -1262,22 +1266,22 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::Character("n".into())]) , "add_node_at_cursor")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace])             , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character(" ".into())]) , "toggle_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Meta])                  , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Meta])                  , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control])               , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Control])               , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift])                 , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Shift])                 , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Alt])                   , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Alt])                   , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_visualization")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualization_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("g".into())]) , "toggle_fullscreen_for_selected_visualization")
+        vec! [ Self::self_shortcut(shortcut::Action::press       (&[Key::Character("n".into())]), "add_node_at_cursor")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Backspace])            , "remove_selected_nodes")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Character(" ".into())]), "toggle_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Meta])                 , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release     (&[Key::Meta])                 , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Control])              , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release     (&[Key::Control])              , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Shift])                , "toggle_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::release     (&[Key::Shift])                , "toggle_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Alt])                  , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::release     (&[Key::Alt])                  , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Shift,Key::Alt])       , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::release     (&[Key::Shift,Key::Alt])       , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Character("d".into())]), "debug_set_data_for_selected_visualization")
+             , Self::self_shortcut(shortcut::Action::press       (&[Key::Character("f".into())]), "debug_cycle_visualization_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::double_press(&[Key::Character(" ".into())]), "toggle_fullscreen_for_selected_visualization")
         ]
     }
 }
@@ -1668,7 +1672,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     def _toggle_fullscreen = inputs.toggle_fullscreen_for_selected_visualization.map(f!([scene,visualizations](_) {
         if visualizations.fullscreen_operator.is_active() {
             visualizations.fullscreen_operator.disable_fullscreen()
-        } else if let Some(container) = visualizations.get_selected(){
+        } else if let Some(container) = visualizations.get_selected() {
+            container.data.set_visibility(true);
             visualizations.fullscreen_operator.set_fullscreen(container,scene.clone_ref());
         }
     }));
@@ -1720,14 +1725,16 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     def on_visualization_enabled  = source();
     def on_visualization_disabled = source();
 
-    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes](_) {
+    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([visualizations,nodes](_) {
         nodes.selected.for_each(|node_id| {
             if let Some(node) = nodes.get_cloned_ref(node_id) {
-                node.view.visualization_container.frp.toggle_visibility.emit(());
-                if node.view.visualization_container.is_visible() {
-                    on_visualization_enabled.emit(node_id);
-                } else {
-                    on_visualization_disabled.emit(node_id);
+                if !visualizations.is_fullscreen(node.view.visualization_container.clone_ref()) {
+                    node.view.visualization_container.frp.toggle_visibility.emit(());
+                    if node.view.visualization_container.is_visible() {
+                        on_visualization_enabled.emit(node_id);
+                    } else {
+                        on_visualization_disabled.emit(node_id);
+                    }
                 }
             }
         });

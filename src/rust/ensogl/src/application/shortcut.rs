@@ -5,9 +5,14 @@ use crate::prelude::*;
 use super::command;
 
 use crate::control::io::keyboard::listener::KeyboardFrpBindings;
-use crate::frp::io::keyboard::Keyboard;
 use crate::frp::io::keyboard::KeyMask;
+use crate::frp::io::keyboard::Keyboard;
 use crate::frp;
+#[cfg(target_arch = "wasm32")]
+use crate::system::web;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::time;
 
 
 
@@ -35,11 +40,12 @@ pub struct Registry {
 /// Internal representation of `Registry`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct RegistryModel {
-    logger            : Logger,
-    keyboard          : Keyboard,
-    keyboard_bindings : Rc<KeyboardFrpBindings>,
-    command_registry  : command::Registry,
-    action_map        : Rc<RefCell<ActionMap>>
+    logger                : Logger,
+    keyboard              : Keyboard,
+    keyboard_bindings     : Rc<KeyboardFrpBindings>,
+    command_registry      : command::Registry,
+    action_map            : Rc<RefCell<ActionMap>>,
+    double_press_detector : Rc<RefCell<DoublePressDetector>>
 }
 
 impl Deref for Registry {
@@ -49,16 +55,18 @@ impl Deref for Registry {
     }
 }
 
-
 impl RegistryModel {
     /// Constructor.
     pub fn new(logger:&Logger, command_registry:&command::Registry) -> Self {
-        let logger            = logger.sub("ShortcutRegistry");
-        let keyboard          = Keyboard::default();
-        let keyboard_bindings = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));
-        let command_registry  = command_registry.clone_ref();
-        let action_map        = default();
-        Self {logger,keyboard,keyboard_bindings,command_registry,action_map}
+        let logger                = logger.sub("ShortcutRegistry");
+        let keyboard              = Keyboard::default();
+        let keyboard_bindings     = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));
+        let command_registry      = command_registry.clone_ref();
+        let action_map            = default();
+        let double_press_detector = DoublePressDetector::new(750.0);
+        let double_press_detector = Rc::new(RefCell::new(double_press_detector));
+
+        Self {logger,keyboard,keyboard_bindings,command_registry,action_map,double_press_detector}
     }
 }
 
@@ -66,6 +74,7 @@ impl Registry {
     /// Constructor.
     pub fn new(logger:&Logger, command_registry:&command::Registry) -> Self {
         let model = RegistryModel::new(logger,command_registry);
+
         frp::new_network! { network
             eval model.keyboard.key_mask          ((m) model.process_action(ActionType::Press,m));
             eval model.keyboard.previous_key_mask ((m) model.process_action(ActionType::Release,m));
@@ -75,7 +84,22 @@ impl Registry {
 }
 
 impl RegistryModel {
+
+    /// Check the action against internal state and potentially change it. Right now this is used
+    /// to detect DoublePress actions.
+    fn pre_process_action(&self, action_type:ActionType, key_mask:&KeyMask) -> ActionType {
+        let mut detector     =  self.double_press_detector.borrow_mut();
+        let is_double_press  = detector.process_action(action_type,key_mask);
+        if is_double_press {
+            ActionType::DoublePress
+        } else{
+            action_type
+        }
+    }
+
     fn process_action(&self, action_type:ActionType, key_mask:&KeyMask) {
+       // TODO: Decide whether double press is in addition or instead of the normal press.
+        let action_type = self.pre_process_action(action_type, key_mask);
         let action_map_mut = &mut self.action_map.borrow_mut();
         if let Some(rule_map) = action_map_mut.get_mut(&action_type) {
             if let Some(rules) = rule_map.get_mut(key_mask) {
@@ -182,7 +206,7 @@ impl WeakHandle {
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
 #[allow(missing_docs)]
 pub enum ActionType {
-    Press, Release
+    Press, Release, DoublePress
 }
 
 /// Keyboard action defined as `ActionType` and `KeyMask`, like "release key 'n'". Please note that
@@ -212,6 +236,11 @@ impl Action {
     /// Smart constructor for the `Release` action.
     pub fn release(key_mask:impl Into<KeyMask>) -> Self {
         Self::new(ActionType::Release,key_mask)
+    }
+
+    /// Smart constructor for the `DoublePress` action.
+    pub fn double_press(key_mask:impl Into<KeyMask>) -> Self {
+        Self::new(ActionType::DoublePress,key_mask)
     }
 }
 
@@ -346,5 +375,69 @@ pub trait DefaultShortcutProvider : command::Provider {
 impl<T:command::Provider> DefaultShortcutProvider for T {
     default fn default_shortcuts() -> Vec<Shortcut> {
         default()
+    }
+}
+
+
+
+// ===========================
+// === DoublePressDetector ===
+// ===========================
+
+/// Detects whether a key was pressed in quick succession.
+// TODO Refactor for better platform independent time keeping.
+// TODO Consider using application/world time.
+#[derive(Clone,Debug)]
+struct DoublePressDetector {
+    prev_key  : Option<KeyMask>,
+    prev_time : Option<f64>,
+    threshold_ms : f64,
+}
+
+impl DoublePressDetector {
+    
+    fn new(threshold_ms:f64) -> Self {
+        DoublePressDetector {
+            prev_key     : None,
+            prev_time    : None,
+            threshold_ms
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn now(&self) -> f64 {
+        let performance = web::performance();
+        performance.now()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn now(&self) -> f64 {
+        time::Instant::now().elapsed().as_millis() as f64
+    }
+
+    /// Check whether this key hs been pressed within the threshold duration.
+    pub fn process_action(&mut self, action_type:ActionType, key_mask:&KeyMask) -> bool {
+        if action_type != ActionType::Press {
+            return false
+        }
+        // TODO Investigate why we are getting zero keymask press events after every real event.
+        if *key_mask == KeyMask::from_vec(vec![]) {
+            return false;
+        }
+
+        let is_same_key = if let Some(prev_key_mask) = self.prev_key {
+            prev_key_mask == *key_mask
+        } else {
+            false
+        };
+        let now = self.now();
+        let within_threshold = if let Some(prev_time) = self.prev_time {
+            (now - prev_time) < self.threshold_ms
+        } else {
+            false
+        };
+        self.prev_time = Some(now);
+        self.prev_key  = Some(*key_mask);
+        is_same_key && within_threshold
     }
 }
