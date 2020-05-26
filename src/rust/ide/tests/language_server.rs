@@ -249,7 +249,7 @@ async fn file_events() {
     }
 }
 
-#[wasm_bindgen_test::wasm_bindgen_test(async)]
+//#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 /// This integration test covers:
 /// * using project picker to open (or create) a project
