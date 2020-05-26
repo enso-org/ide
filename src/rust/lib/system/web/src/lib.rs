@@ -494,20 +494,26 @@ pub mod traits {
 /// function call.
 #[cfg(target_arch = "wasm32")]
 pub async fn sleep(duration:Duration) {
-    use wasm_bindgen_futures::JsFuture;
+    use futures::channel::oneshot;
 
-    let performance       = performance();
-    let call_milliseconds = performance.now();
-    let future : JsFuture = js_sys::Promise::new(&mut |resolve:Function,_| {
-        let milliseconds_from_call = ((performance.now() - call_milliseconds) * 1000.0) as i32;
-        let duration               = duration.as_millis() as i32;
-        let duration               = (duration - milliseconds_from_call).max(0);
-        let window                 = window();
-        let err                    = "Calling setTimeout failed.";
-        window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve,duration).expect(err);
-    }).into();
+    struct Timer(i32);
+
+    impl Drop for Timer {
+        fn drop(&mut self) {
+            window().clear_timeout_with_handle(self.0);
+        }
+    }
+
+    let (sender, receiver) = oneshot::channel();
+
+    let callback = Closure::new(move || { sender.send(()).unwrap(); });
+
+    let duration = duration.as_millis() as i32;
+    let timeout  = window().set_timeout_with_callback_and_timeout_and_arguments_0(callback.as_ref().unchecked_ref(), duration);
+    let _        = Timer(timeout.expect("Calling setTimeout failed."));
+
     // We don't expect any error coming from this Promise.
-    future.await.expect("setTimeout's future failed.");
+    receiver.await.expect("setTimeout's future failed.");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
