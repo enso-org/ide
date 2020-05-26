@@ -33,9 +33,38 @@ impl<F: Fn() -> S, S:Str> LogMsg for F {
 
 
 
-// ====================
-// === Logger Utils ===
-// ====================
+// ==============
+// === Logger ===
+// ==============
+
+pub trait LoggerApi {
+    /// Creates a new logger. Path should be a unique identifier of this logger.
+    fn new<T:Str>(path:T) -> Self;
+    /// Creates a new logger with this logger as a parent.
+    fn sub<T:Str>(&self, path:T) -> Self;
+    /// Evaluates function `f` and visually groups all logs will occur during its execution.
+    fn group<M:LogMsg,T,F:FnOnce() -> T>(&self, msg: M, f:F) -> T;
+    /// Log with stacktrace and level:info.
+    fn trace<M:LogMsg>(&self, msg:M);
+    /// Log with level:debug
+    fn debug<M:LogMsg>(&self, msg:M);
+    /// Log with level:info.
+    fn info<M:LogMsg>(&self, msg:M);
+    /// Log with level:warning.
+    fn warning<M:LogMsg>(&self, msg:M);
+    /// Log with level:error.
+    fn error<M:LogMsg>(&self, msg:M);
+    /// Visually groups all logs between group_begin and group_end.
+    fn group_begin<M:LogMsg>(&self, msg:M);
+    /// Visually groups all logs between group_begin and group_end.
+    fn group_end(&self);
+}
+
+
+
+/// ==============
+/// === Macros ===
+/// ==============
 
 #[macro_export]
 macro_rules! fmt {

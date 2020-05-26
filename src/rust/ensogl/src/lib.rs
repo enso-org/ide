@@ -65,6 +65,7 @@ pub use enso_frp as frp;
 pub mod prelude {
     pub use enso_prelude::*;
     pub use logger::*;
+    pub use logger::LoggerApi;
     pub use logger::enabled::Logger;
     pub use shapely::CloneRef;
     pub use shapely::newtype_copy;

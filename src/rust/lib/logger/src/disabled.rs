@@ -1,44 +1,33 @@
-use crate::LogMsg;
+use crate::*;
 use enso_prelude::*;
 use shapely::CloneRef;
 use std::fmt::Debug;
 
 
 
-// ==============
-// === Logger ===
-// ==============
-
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct Logger {
-    pub path: Rc<String>,
-}
+/// Trivial logger that discards all the messages.
+#[derive(Clone,Copy,CloneRef,Debug,Default)]
+pub struct Logger();
 
 #[allow(dead_code)]
-impl Logger {
-    pub fn new<T:Str>(path:T) -> Self {
-        Self {path:Rc::new(path.into())}
+impl LoggerApi for Logger {
+    fn new<T: Str>(_:T) -> Self {
+        Logger()
     }
 
-    pub fn sub<T:Str>(&self, path:T) -> Self {
-        if self.path.is_empty() {
-            Self::new(path)
-        } else {
-            Self::new(format!("{}.{}", self.path, path.as_ref()))
-        }
+    fn sub<T: Str>(&self, _:T) -> Self {
+        Logger()
     }
 
-    pub fn group<M:LogMsg, T, F:FnOnce() -> T>(&self, _msg:M, f:F) -> T {
+    fn group<M: LogMsg,T,F:FnOnce() -> T>(&self, _:M, f:F) -> T {
         f()
     }
-}
 
-impl Logger {
-    pub fn trace      <M:LogMsg>(&self, _msg:M) {}
-    pub fn debug      <M:LogMsg>(&self, _msg:M) {}
-    pub fn info       <M:LogMsg>(&self, _msg:M) {}
-    pub fn warning    <M:LogMsg>(&self, _msg:M) {}
-    pub fn error      <M:LogMsg>(&self, _msg:M) {}
-    pub fn group_begin<M:LogMsg>(&self, _msg:M) {}
-    pub fn group_end            (&self        ) {}
+    fn trace      <M: LogMsg>(&self, _:M){}
+    fn debug      <M: LogMsg>(&self, _:M){}
+    fn info       <M: LogMsg>(&self, _:M){}
+    fn warning    <M: LogMsg>(&self, _:M){}
+    fn error      <M: LogMsg>(&self, _:M){}
+    fn group_begin<M: LogMsg>(&self, _:M){}
+    fn group_end             (&self)     {}
 }
