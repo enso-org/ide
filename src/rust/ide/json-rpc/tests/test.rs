@@ -229,7 +229,7 @@ fn test_timeout_error() {
     sleep(fixture.client.handler.timeout());
     sleep(Duration::from_secs(1)); // sleep a little longer than the timeout
 
-    if let RpcError::TimeoutError{millis: _} = fut.expect_err() {} else {
+    if let RpcError::TimeoutError{..} = fut.expect_err() {} else {
         panic!("Expected an error to be TimeoutError");
     }
 }
