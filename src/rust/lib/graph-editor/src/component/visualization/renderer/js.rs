@@ -24,21 +24,19 @@
 
 use crate::prelude::*;
 
-use crate::component::operator::NativeComponent;
-use crate::component::operator::SymbolType;
 use crate::component::visualization::Data;
 use crate::component::visualization::DataError;
 use crate::component::visualization::DataRenderer;
 use crate::component::visualization::DataRendererFrp;
 
-use ensogl::display::DomScene;
+use ensogl::display::{DomScene, Symbol};
 use ensogl::display::DomSymbol;
 use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
-
+use crate::component::visualization::traits::{HasSymbols, SymbolLayoutData};
 
 
 // ==============
@@ -257,9 +255,13 @@ impl DataRenderer for JsRenderer {
     }
 }
 
-impl NativeComponent for JsRenderer {
-    fn symbols(&self) -> Vec<SymbolType> {
-       vec![]
+impl HasSymbols for JsRenderer {
+    fn symbols(&self) -> Vec<Symbol> {
+        vec![]
+    }
+
+    fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
+        vec![]
     }
 }
 

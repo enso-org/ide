@@ -2,15 +2,17 @@
 
 use crate::prelude::*;
 
-use crate::component::operator::NativeComponent;
-use crate::component::operator::Networked;
-use crate::component::operator::SymbolType;
-use crate::component::operator;
+use crate::component::visualization::traits::HasNetwork;
+use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::Resizable;
+use crate::component::visualization::traits::SymbolLayoutData;
+use crate::component::visualization::traits::TargetLayer;
 use crate::frp;
 use crate::visualization::*;
 
 use ensogl::data::color;
 use ensogl::display::Attribute;
+use ensogl::display::Symbol;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
@@ -261,11 +263,11 @@ impl display::Object for ContainerData {
 impl Container {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let logger                  = Logger::new("visualization");
-        let visualization           = default();
-        let size                    = Cell::new(Vector2::new(200.0, 200.0));
-        let display_object          = display::object::Instance::new(&logger);
-        let display_object_internal = display::object::Instance::new(&logger);
+        let logger                       = Logger::new("visualization");
+        let visualization                = default();
+        let size                         = Cell::new(Vector2::new(200.0, 200.0));
+        let display_object               = display::object::Instance::new(&logger);
+        let display_object_internal      = display::object::Instance::new(&logger);
         let display_object_visualisation = display::object::Instance::new(&logger);
 
         let padding                 = Cell::new(10.0);
@@ -337,9 +339,19 @@ impl Container {
         }
         self
     }
+
+    /// Return the symbols of the container, not of the visualization.
+    fn container_main_symbols(&self) -> Vec<Symbol> {
+        let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
+        let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
+        vec![
+            shape_system_frame.shape_system.symbol.clone_ref(),
+            shape_system_overlay.shape_system.symbol.clone_ref(),
+        ]
+    }
 }
 
-impl operator::Resizable for Container {
+impl Resizable for Container {
     fn set_size(&self, size:Vector3<f32>) {
         self.data.set_size(size);
     }
@@ -349,23 +361,25 @@ impl operator::Resizable for Container {
     }
 }
 
-impl NativeComponent for Container {
-    fn symbols(&self) -> Vec<SymbolType> {
-        let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
-        let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-        let mut shapes =  vec![
-            SymbolType::Main(shape_system_frame.shape_system.symbol.clone_ref()),
-            SymbolType::Main(shape_system_overlay.shape_system.symbol.clone_ref())
-        ];
-
+impl HasSymbols for Container {
+    fn symbols(&self) -> Vec<Symbol> {
+        let mut symbols  = self.container_main_symbols();
         if let Some(vis) = self.data.visualization.borrow().as_ref() {
-            shapes.extend(vis.symbols());
+            symbols.extend(vis.symbols());
         };
-        shapes
+        symbols
+    }
+
+    fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
+        let target_layer = TargetLayer::Main;
+        let symbols      = self.container_main_symbols().into_iter();
+        let symbols  = symbols.map(move |symbol| SymbolLayoutData{symbol,target_layer});
+        let vis_symbols  = self.data.visualization.borrow().as_ref().map(|vis| vis.symbols_with_data()).unwrap_or_default();
+        symbols.chain(vis_symbols).collect()
     }
 }
 
-impl Networked for Container {
+impl HasNetwork for Container {
     fn network(&self) -> &frp::Network {
         &self.frp.network
     }

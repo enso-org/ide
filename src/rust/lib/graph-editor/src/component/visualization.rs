@@ -25,8 +25,11 @@ pub mod class;
 pub mod container;
 pub mod data;
 pub mod js;
+pub mod fullscreen;
 pub mod registry;
 pub mod renderer;
+pub mod traits;
+pub mod stage;
 
 pub use class::*;
 pub use container::*;

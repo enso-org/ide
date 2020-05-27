@@ -54,12 +54,10 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
 use ensogl::display::Scene;
-use crate::component::operator::FullscreenOperatorHandle;
-use crate::component::operator::set_layers_fullscreen;
-use crate::component::operator::set_layers_normal;
 use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
+use crate::component::visualization::stage::Stage;
 
 
 
@@ -662,89 +660,6 @@ impl Nodes {
 
 
 
-// =========================
-// === Entity Collection ===
-// =========================
-
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-struct EntityFrp {
-    pub clicked : frp::Source<Id>,
-}
-
-impl EntityFrp {
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! { network
-            def clicked = source();
-        }
-        Self {clicked}
-    }
-}
-
-/// And entity collection provides basic functionality to control a groups of entities and keep
-/// track of their selection status as well as fullscreen mode.
-#[derive(Debug,Clone,CloneRef)]
-pub struct EntityCollection<T:CloneRef> {
-    network             : frp::Network,
-    frp                 : EntityFrp,
-    logger              : Logger,
-    all                 : SharedHashMap<Id,T>,
-    selected            : SharedHashSet<Id>,
-    scene               : Scene,
-    fullscreen_operator : FullscreenOperatorHandle::<visualization::Container>,
-}
-
-impl<T:CloneRef+display::Object> EntityCollection<T> {
-    fn new(scene:Scene,logger:Logger) -> Self{
-        let network  = frp::Network::new();
-        let frp      = EntityFrp::new(&network);
-        let all      = default();
-        let selected = default();
-        let fullscreen_operator = default();
-        Self {network,frp,logger,scene,all,selected,fullscreen_operator}
-    }
-}
-
-impl EntityCollection<visualization::Container> {
-    fn push(&self, container:visualization::Container) {
-        let network = &self.network;
-        let frp = self.frp.clone_ref();
-
-        let id = container.display_object().id();
-        frp::extend! { network
-            def _clicked = container.frp.clicked.map(move |_| frp.clicked.emit(id));
-        }
-        set_layers_normal(&container,&self.scene);
-        self.all.insert(id,container);
-    }
-
-    fn get_selected(&self) -> Option<visualization::Container> {
-        let selected = self.selected.raw.borrow();
-        let selected = selected.iter().take(1).collect_vec();
-        let id       = selected.get(0)?;
-        self.all.get_cloned(id)
-    }
-
-    pub fn set_vis_for_selected(&self, vis:Visualization) {
-        if let Some(container) = self.get_selected() {
-            container.set_visualization(vis);
-            // FIXME This is a hack to make sure the layers are correct after setting
-            // a new visualisation. Needs to be changed to use proper layer management once
-            // available..
-            if self.fullscreen_operator.is_active() {
-                set_layers_fullscreen(&container,&self.scene)
-            } else {
-                set_layers_normal(&container,&self.scene)
-            }
-        }
-    }
-
-    pub fn is_fullscreen(&self, container:visualization::Container) -> bool {
-        self.fullscreen_operator.get_element() == Some(container)
-    }
-}
-
-
 
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct Edges {
@@ -921,7 +836,7 @@ pub struct GraphEditorModel {
     pub cursor         : component::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
-    pub visualizations : EntityCollection<visualization::Container>,
+    pub visualizations : Stage,
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
@@ -934,7 +849,7 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(logger.clone());
         let nodes          = Nodes::new(&logger);
-        let visualizations = EntityCollection::new(scene.clone_ref(),Logger::new("VisualisationCollection"));
+        let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
@@ -983,30 +898,6 @@ impl GraphEditorModel {
             self.nodes.selected.remove(&node_id);
             node.view.frp.deselect.emit(());
         }
-    }
-
-    fn select_visualisation(&self, id:impl Into<Id>) {
-        let id = id.into();
-        if self.visualizations.selected.contains(&id){
-            return
-        }
-        if let Some(container) = self.visualizations.all.get_cloned_ref(&id) {
-            // Only one visualization can be selected.
-            self.clear_vis_selection();
-            self.visualizations.selected.insert(id);
-            container.frp.select.emit(());
-        }
-    }
-
-    fn clear_vis_selection(&self) {
-        self.visualizations.selected.for_each(|id| {
-            self.visualizations
-                .all
-                .get_cloned_ref(id)
-                .for_each_ref(|container| { container.frp.deselect.emit(()) });
-        });
-        self.visualizations.selected.clear();
-        self.visualizations.fullscreen_operator.disable_fullscreen();
     }
 }
 
@@ -1488,7 +1379,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     deselect_on_bg_press    <- touch.background.selected.gate_not(&keep_selection);
     deselect_all_nodes      <+ deselect_on_bg_press;
-    all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.clear_vis_selection();model.nodes.selected.mem_take()));
+    all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.visualizations.clear_selection();model.nodes.selected.mem_take()));
     outputs.node_deselected <+ all_nodes_to_deselect;
 
     node_selected           <- node_pressed.gate(&should_select);
@@ -1647,8 +1538,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
      // === Activate Visualisation ===
 
-    def _activate_visualisation = visualizations.frp.clicked.map(f!([model](id) {
-        model.select_visualisation(id);
+    def _activate_visualisation = visualizations.frp.clicked.map(f!([visualizations](id) {
+        visualizations.set_selected(id);
     }));
 
 
@@ -1670,13 +1561,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Vis Fullscreen ===
 
-    def _toggle_fullscreen = inputs.toggle_fullscreen_for_selected_visualization.map(f!([scene,visualizations](_) {
-        if visualizations.fullscreen_operator.is_active() {
-            visualizations.fullscreen_operator.disable_fullscreen()
-        } else if let Some(container) = visualizations.get_selected() {
-            container.data.set_visibility(true);
-            visualizations.fullscreen_operator.set_fullscreen(container,scene.clone_ref());
-        }
+    def _toggle_fullscreen = inputs.toggle_fullscreen_for_selected_visualization.map(f!([visualizations](_) {
+        visualizations.toggle_fullscreen_for_selected_visualization();
     }));
 
     // === Vis Set ===

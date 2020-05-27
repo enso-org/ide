@@ -3,8 +3,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::operator::NativeComponent;
-use crate::component::operator::SymbolType;
+use crate::component::visualization::traits::{SymbolLayoutData, TargetLayer};
 
 use ensogl::data::color::Rgba;
 use ensogl::display::DomSymbol;
@@ -103,10 +102,15 @@ impl DataRenderer for BubbleChart {
 }
 
 
-impl NativeComponent for BubbleChart {
-    fn symbols(&self) -> Vec<SymbolType> {
+impl traits::HasSymbols for BubbleChart {
+    fn symbols(&self) -> Vec<Symbol> {
         let shape_system = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
-        vec![SymbolType::Visualisation(shape_system.shape_system.symbol.clone_ref())]
+        vec![shape_system.shape_system.symbol.clone_ref()]
+    }
+
+    fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
+        let target_layer = TargetLayer::Visualisation;
+        self.symbols().into_iter().map(|symbol| SymbolLayoutData{ symbol,target_layer}).collect()
     }
 }
 

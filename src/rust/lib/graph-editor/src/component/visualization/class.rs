@@ -5,11 +5,10 @@ use crate::prelude::*;
 use crate::frp;
 use crate::visualization::*;
 
-use ensogl::display::Scene;
+use ensogl::display::{Scene, Symbol};
 use ensogl::display;
 use std::error::Error;
-use crate::component::operator::NativeComponent;
-use crate::component::operator::SymbolType;
+use crate::component::visualization::traits::{HasSymbols, SymbolLayoutData};
 
 
 // ====================
@@ -177,9 +176,13 @@ impl Visualization {
     }
 }
 
-impl NativeComponent for Visualization {
-    fn symbols(&self) -> Vec<SymbolType> {
+impl HasSymbols for Visualization {
+    fn symbols(&self) -> Vec<Symbol> {
         self.state.renderer.symbols()
+    }
+
+    fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
+        self.state.renderer.symbols_with_data()
     }
 }
 
