@@ -48,7 +48,7 @@ impl LoggerApi for Logger {
         println!("{}",self.format2(msg));
     }
     #[cfg(target_arch = "wasm32")]
-    pub fn trace<M:LogMsg>(&self, _msg:M) {
+    fn trace<M:LogMsg>(&self, msg:M) {
         console::trace_1(&self.format(msg));
     }
     
@@ -57,7 +57,7 @@ impl LoggerApi for Logger {
         println!("{}",self.format2(msg));
     }
     #[cfg(target_arch = "wasm32")]
-    pub fn debug<M:LogMsg>(&self, msg:M) {
+    fn debug<M:LogMsg>(&self, msg:M) {
         console::debug_1(&self.format(msg));
     }
     
@@ -66,7 +66,7 @@ impl LoggerApi for Logger {
         println!("{}",self.format2(msg));
     }
     #[cfg(target_arch = "wasm32")]
-    pub fn info<M:LogMsg>(&self, _msg:M) {
+    fn info<M:LogMsg>(&self, msg:M) {
         console::info_1(&self.format(msg));
     }
     
@@ -75,7 +75,7 @@ impl LoggerApi for Logger {
         println!("[WARNING] {}",self.format2(msg));
     }
     #[cfg(target_arch = "wasm32")]
-    pub fn warning<M:LogMsg>(&self, msg:M) {
+    fn warning<M:LogMsg>(&self, msg:M) {
         console::warn_1(&self.format(msg));
     }
     
@@ -84,7 +84,7 @@ impl LoggerApi for Logger {
         println!("[ERROR] {}",self.format2(msg));
     }
     #[cfg(target_arch = "wasm32")]
-    pub fn error<M:LogMsg>(&self, msg:M) {
+    fn error<M:LogMsg>(&self, msg:M) {
         console::error_1(&self.format(msg));
     }
     
@@ -93,7 +93,7 @@ impl LoggerApi for Logger {
         println!(">>> {}",self.format2(msg));
     }
     #[cfg(target_arch = "wasm32")]
-    pub fn group_begin<M:LogMsg>(&self, _msg:M) {
+    fn group_begin<M:LogMsg>(&self, msg:M) {
         console::group_1(&self.format(msg));
     }
     
@@ -102,7 +102,7 @@ impl LoggerApi for Logger {
         println!("<<<")
     }    
     #[cfg(target_arch = "wasm32")]
-    pub fn group_end(&self) {
+    fn group_end(&self) {
         console::group_end();
     }
 }
