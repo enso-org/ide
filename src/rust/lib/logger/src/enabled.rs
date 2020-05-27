@@ -31,9 +31,7 @@ impl LoggerApi for Logger {
     }
 
     fn sub<T:Str>(&self, path:T) -> Self {
-        if self.path.is_empty() {
-            Self::new(path)
-        } else {
+        if self.path.is_empty() { Self::new(path) } else {
             Self::new(format!("{}.{}", self.path, path.as_ref()))
         }
     }

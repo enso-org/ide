@@ -322,7 +322,7 @@ impl Camera2d {
     /// Creates new Camera instance.
     pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
         let logger         = logger.sub("camera");
-        let display_object = display::object::Instance::new(&logger);
+        let display_object = display::object::Instance::new(logger.clone());
         let data           = Camera2dData::new(logger,&display_object,width,height);
         let data           = Rc::new(RefCell::new(data));
         Self {display_object,data}

@@ -47,7 +47,7 @@ impl SymbolRegistry {
     /// Constructor.
     pub fn mk<OnMut:Fn()+'static>
     (variables:&UniformScope, stats:&Stats, context:&Context, logger:&Logger, on_mut:OnMut) -> Self {
-        let logger = logger.sub("symbol_registry");
+        let logger          = logger.sub("symbol_registry");
         logger.info("Initializing.");
         let symbol_logger   = logger.sub("symbol_dirty");
         let symbol_dirty    = SymbolDirty::new(symbol_logger,Box::new(on_mut));

@@ -6,7 +6,6 @@ pub mod dom;
 pub use crate::display::symbol::registry::SymbolId;
 
 use crate::prelude::*;
-use crate::prelude::disabled::Logger;
 
 use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback;
@@ -540,9 +539,11 @@ pub struct Callbacks {
 // === Renderer ===
 // ================
 
+pub type RendererLogger = disabled::Logger;
+
 #[derive(Clone,CloneRef,Debug)]
 pub struct Renderer {
-    logger    : Logger,
+    logger    : RendererLogger,
     dom       : Dom,
     context   : Context,
     variables : UniformScope,
@@ -552,7 +553,14 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(logger:&Logger, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
+
+    pub fn new
+    (logger:impl Into<RendererLogger>, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
+        Self::new_impl(logger.into(),dom,context,variables)
+    }
+
+    /// Separate implementation of `new` to avoid function body duplication after logger monorphization.
+    fn new_impl(logger:RendererLogger, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
         let logger    = logger.sub("renderer");
         let dom       = dom.clone_ref();
         let context   = context.clone_ref();

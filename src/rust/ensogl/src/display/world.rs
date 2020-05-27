@@ -85,7 +85,7 @@ impl World {
     /// Create and initialize new world instance.
     #[allow(clippy::new_ret_no_self)]
     pub fn new(dom:&web_sys::HtmlElement) -> World {
-        let logger          = disabled::Logger::new("world");
+        let logger          = Logger::new("world");
         let stats           = default();
         let scene_dirty     = dirty::SharedBool::new(logger.sub("scene_dirty"),());
         let on_change       = enclose!((scene_dirty) move || scene_dirty.set());

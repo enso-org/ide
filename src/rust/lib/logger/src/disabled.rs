@@ -9,13 +9,20 @@ use std::fmt::Debug;
 #[derive(Clone,Copy,CloneRef,Debug,Default)]
 pub struct Logger();
 
-#[allow(dead_code)]
+impl From<enabled::Logger> for Logger {
+    fn from(_:enabled::Logger) -> Self { Logger() }
+}
+
+impl From<&enabled::Logger> for Logger {
+    fn from(_:&enabled::Logger) -> Self { Logger() }
+}
+
 impl LoggerApi for Logger {
     fn new<T: Str>(_:T) -> Self {
         Logger()
     }
 
-    fn sub<T: Str>(&self, _:T) -> Self {
+    fn sub<T:Str>(&self, _:T) -> Logger {
         Logger()
     }
 
