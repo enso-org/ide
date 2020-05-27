@@ -296,9 +296,8 @@ impl<Notification> Handler<Notification> {
             self.remove_ongoing_request(id);
         }
 
-        let timeout = self.timeout();
-        let millis  = timeout.as_millis();
-        future::select(ret, sleep(timeout).boxed()).map(move |either|
+        let millis = self.timeout().as_millis();
+        future::select(ret, sleep(self.timeout()).boxed_local()).map(move |either|
             match either {
                 future::Either::Left ((x, _)) => x,
                 future::Either::Right((_, _)) => Err(RpcError::TimeoutError{millis}),

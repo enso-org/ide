@@ -21,6 +21,7 @@ use js_sys::Function;
 use logger::Logger;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
+use gloo_timers::future::TimeoutFuture;
 
 pub use web_sys::CanvasRenderingContext2d;
 pub use web_sys::Document;
@@ -494,26 +495,7 @@ pub mod traits {
 /// function call.
 #[cfg(target_arch = "wasm32")]
 pub async fn sleep(duration:Duration) {
-    use futures::channel::oneshot;
-
-    struct Timer(i32);
-
-    impl Drop for Timer {
-        fn drop(&mut self) {
-            window().clear_timeout_with_handle(self.0);
-        }
-    }
-
-    let (sender, receiver) = oneshot::channel();
-
-    let callback = Closure::new(move || { sender.send(()).unwrap(); });
-
-    let duration = duration.as_millis() as i32;
-    let timeout  = window().set_timeout_with_callback_and_timeout_and_arguments_0(callback.as_ref().unchecked_ref(), duration);
-    let _        = Timer(timeout.expect("Calling setTimeout failed."));
-
-    // We don't expect any error coming from this Promise.
-    receiver.await.expect("setTimeout's future failed.");
+    TimeoutFuture::new(duration.as_micros() as u32).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
