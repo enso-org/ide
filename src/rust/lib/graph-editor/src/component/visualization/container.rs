@@ -49,10 +49,9 @@ pub mod frame {
             let frame_outer = Rect((&width_bg,&height_bg)).corners_radius(&radius);
 
             let padding            = &padding * Var::<f32>::from(2.0) * &selected;
-            // +1 at the end to avoid aliasing artifacts.
-            let padding            = padding + Var::<f32>::from(1.0);
-            let width_frame_inner  = &width  - &padding;
-            let height_frame_inner = &height - &padding;
+            let padding_aliased    = padding - Var::<f32>::from(1.0);
+            let width_frame_inner  = &width  - &padding_aliased;
+            let height_frame_inner = &height - &padding_aliased;
             let width_frame_inner  = Var::<Distance<Pixels>>::from(width_frame_inner);
             let height_frame_inner = Var::<Distance<Pixels>>::from(height_frame_inner);
             let inner_radius       = &radius * (Var::<f32>::from(1.0) - &selected);
