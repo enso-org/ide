@@ -224,15 +224,12 @@ fn test_timeout_error() {
     let mut fixture = Fixture::new();
     let mut fut     = Box::pin(fixture.client.pow(8));
 
-    assert!(poll_future_output(&mut fut).is_none()); // no reply
+    fut.expect_pending(); // no reply
     fixture.pool.run_until_stalled();
     sleep(fixture.client.handler.timeout());
     sleep(Duration::from_secs(1)); // sleep a little longer than the timeout
 
-    let result = poll_future_output(&mut fut);
-    let result = result.expect("result should be present");
-    let result = result.expect_err("result should be a failure");
-    if let RpcError::TimeoutError{millis: _} = result {} else {
+    if let RpcError::TimeoutError{millis: _} = fut.expect_err() {} else {
         panic!("Expected an error to be TimeoutError");
     }
 }
