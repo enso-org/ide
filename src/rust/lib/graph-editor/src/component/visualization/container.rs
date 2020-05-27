@@ -37,28 +37,31 @@ pub mod frame {
         (width:f32,height:f32,selected:f32,padding:f32) {
             // TODO use style
 
-            let width_bg       = width.clone();
-            let height_bg      = height.clone();
-            let width_bg  : Var<Distance<Pixels>> = width_bg.into();
-            let height_bg : Var<Distance<Pixels>> = height_bg.into();
-            let radius    : Var<Distance<Pixels>> = padding.clone().into();
-            let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let background    = Rect((&width_bg,&height_bg)).corners_radius(&radius);
-            let background    = background.fill(color::Rgba::from(color_bg));
+            let width_bg   = width.clone();
+            let height_bg  = height.clone();
+            let width_bg   = Var::<Distance<Pixels>>::from(width_bg);
+            let height_bg  = Var::<Distance<Pixels>>::from(height_bg);
+            let radius     = Var::<Distance<Pixels>>::from(padding.clone());
+            let color_bg   = color::Lcha::new(0.2,0.013,0.18,1.0);
+            let background = Rect((&width_bg,&height_bg)).corners_radius(&radius);
+            let background = background.fill(color::Rgba::from(color_bg));
 
             let frame_outer = Rect((&width_bg,&height_bg)).corners_radius(&radius);
 
+            let padding            = &padding * Var::<f32>::from(2.0) * &selected;
             // +1 at the end to avoid aliasing artifacts.
-            let width_frame_inner       =  &width  - &padding * Var::<f32>::from(2.0) * &selected + Var::<f32>::from(1.0);
-            let height_frame_inner      =  &height - &padding * Var::<f32>::from(2.0) * &selected + Var::<f32>::from(1.0);
-            let width_frame_inner  : Var<Distance<Pixels>> = width_frame_inner.into();
-            let height_frame_inner : Var<Distance<Pixels>> = height_frame_inner.into();
-            let inner_radius = &radius * (Var::<f32>::from(1.0) - &selected);
-            let frame_inner = Rect((&width_frame_inner,&height_frame_inner)).corners_radius(&inner_radius);
+            let padding            = padding + Var::<f32>::from(1.0);
+            let width_frame_inner  = &width  - &padding;
+            let height_frame_inner = &height - &padding;
+            let width_frame_inner  = Var::<Distance<Pixels>>::from(width_frame_inner);
+            let height_frame_inner = Var::<Distance<Pixels>>::from(height_frame_inner);
+            let inner_radius       = &radius * (Var::<f32>::from(1.0) - &selected);
+            let frame_inner        = Rect((&width_frame_inner,&height_frame_inner));
+            let frame_rounded      = frame_inner.corners_radius(&inner_radius);
 
-            let frame = frame_outer.difference(frame_inner);
-            let color_frame    = color::Lcha::new(0.72,0.5,0.22,1.0);
-            let frame = frame.fill(color::Rgba::from(color_frame));
+            let frame       = frame_outer.difference(frame_rounded);
+            let color_frame = color::Lcha::new(0.72,0.5,0.22,1.0);
+            let frame       = frame.fill(color::Rgba::from(color_frame));
 
              let out = background + frame;
 
@@ -74,13 +77,13 @@ pub mod overlay {
 
     ensogl::define_shape_system! {
         (width:f32,height:f32,selected:f32,padding:f32) {
-            let width_bg       = width.clone();
-            let height_bg      = height.clone();
-            let width_bg  : Var<Distance<Pixels>> = width_bg.into();
-            let height_bg : Var<Distance<Pixels>> = height_bg.into();
-            let radius    : Var<Distance<Pixels>> = padding.clone().into();
+            let width_bg      = width.clone();
+            let height_bg     = height.clone();
+            let width_bg      = Var::<Distance<Pixels>>::from(width_bg);
+            let height_bg     = Var::<Distance<Pixels>>::from(height_bg);
+            let radius        = Var::<Distance<Pixels>>::from(padding);
             let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
-            let overlay    = Rect((&width_bg,&height_bg)).corners_radius(&radius);
+            let overlay       = Rect((&width_bg,&height_bg)).corners_radius(&radius);
             let overlay       = overlay.fill(color_overlay);
 
             let out = overlay;
@@ -152,9 +155,9 @@ pub struct Container {
     // same struct.
     #[derivative(PartialEq(compare_with="ref_eq"))]
     #[shrinkwrap(main_field)]
-    pub data              : Rc<ContainerData>,
+    pub data : Rc<ContainerData>,
     #[derivative(PartialEq="ignore")]
-    pub frp               : ContainerFrp,
+    pub frp  : ContainerFrp,
 }
 
 fn ref_eq(obj_a:&Rc<ContainerData>, obj_b:&Rc<ContainerData>) -> bool {
@@ -276,9 +279,9 @@ impl Container {
         let shape_frame             = component::ShapeView::<frame::Shape>::new(&logger,scene);
         let shape_overlay           = component::ShapeView::<overlay::Shape>::new(&logger,scene);
         let scene                   = scene.clone_ref();
-        let data                    = ContainerData {logger,visualization,size,display_object,shape_frame,
-                                                     display_object_internal,padding,scene,shape_overlay,
-                                                     display_object_visualisation};
+        let data                    = ContainerData {
+            logger,visualization,size,display_object,shape_frame,display_object_internal,padding,
+            scene,shape_overlay,display_object_visualisation};
         let data                    = Rc::new(data);
         data.set_visualization(Registry::default_visualisation(&scene));
         data.set_visibility(false);
