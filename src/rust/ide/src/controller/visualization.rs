@@ -22,25 +22,25 @@ use std::rc::Rc;
 pub enum VisualizationError {
     #[fail(display = "Visualization \"{}\" not found.", identifier)]
     NotFound {
-        identifier : VisualizationIdentifier
+        identifier : VisualizationPath
     },
     #[fail(display = "JavaScript visualization \"{}\" failed to be instantiated.", identifier)]
     InstantiationError {
-        identifier : VisualizationIdentifier
+        identifier : VisualizationPath
     }
 }
 
 
 
-// ===============================
-// === VisualizationIdentifier ===
-// ===============================
+// =========================
+// === VisualizationPath ===
+// =========================
 
-/// This enum is used to identify a visualization either in the project folder or natively
+/// This enum is used to provide a path to visualization either in the project folder or natively
 /// embedded in IDE.
 #[derive(Clone,Debug,Display,Eq,PartialEq)]
 #[allow(missing_docs)]
-pub enum VisualizationIdentifier {
+pub enum VisualizationPath {
     Embedded(String),
     File(language_server::Path)
 }
@@ -71,17 +71,12 @@ pub struct EmbeddedVisualizations {
 
 const VISUALIZATION_FOLDER:&str = "visualization";
 
-#[derive(Debug)]
-struct VisualizationControllerData {
-    language_server_rpc     : Rc<language_server::Connection>,
-    embedded_visualizations : EmbeddedVisualizations
-}
-
 /// Visualization Controller is responsible for listing and loading all the available
 /// visualizations on the project and the native ones embedded on IDE.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Handle {
-    data : Rc<RefCell<VisualizationControllerData>>
+    language_server_rpc     : Rc<language_server::Connection>,
+    embedded_visualizations : Rc<RefCell<EmbeddedVisualizations>>
 }
 
 impl Handle {
@@ -89,26 +84,23 @@ impl Handle {
     pub fn new
     ( language_server_rpc     : Rc<language_server::Connection>
     , embedded_visualizations : EmbeddedVisualizations) -> Self {
-        let data = VisualizationControllerData{language_server_rpc,embedded_visualizations};
-        let data = Rc::new(RefCell::new(data));
-        Self {data}
+        let embedded_visualizations = Rc::new(RefCell::new(embedded_visualizations));
+        Self {language_server_rpc,embedded_visualizations}
     }
 
     async fn list_project_specific_visualizations
-    (&self) -> FallibleResult<Vec<VisualizationIdentifier>> {
-        let data                = self.data.borrow();
-        let language_server_rpc = &data.language_server_rpc;
-        let root_id             = language_server_rpc.content_root();
-        let path                = language_server::Path::new(root_id,&[VISUALIZATION_FOLDER]);
-        let folder              = language_server_rpc.file_exists(&path).await?;
-        let file_list           = if folder.exists {
-            language_server_rpc.file_list(&path).await?.paths
+    (&self) -> FallibleResult<Vec<VisualizationPath>> {
+        let root_id   = self.language_server_rpc.content_root();
+        let path      = language_server::Path::new(root_id,&[VISUALIZATION_FOLDER]);
+        let folder    = self.language_server_rpc.file_exists(&path).await?;
+        let file_list = if folder.exists {
+            self.language_server_rpc.file_list(&path).await?.paths
         } else {
             default()
         };
         let result = file_list.iter().filter_map(|object| {
             if let language_server::FileSystemObject::File{name:_,path:_} = object {
-                Some(VisualizationIdentifier::File(object.into()))
+                Some(VisualizationPath::File(object.into()))
             } else {
                 None
             }
@@ -116,15 +108,15 @@ impl Handle {
         Ok(result)
     }
 
-    fn list_embedded_visualizations(&self) -> Vec<VisualizationIdentifier> {
-        let data   = self.data.borrow();
-        let result = data.embedded_visualizations.keys().cloned();
-        let result = result.map(VisualizationIdentifier::Embedded);
+    fn list_embedded_visualizations(&self) -> Vec<VisualizationPath> {
+        let embedded_visualizations = self.embedded_visualizations.borrow();
+        let result                  = embedded_visualizations.keys().cloned();
+        let result                  = result.map(VisualizationPath::Embedded);
         result.collect()
     }
 
     /// Get a list of all available visualizations.
-    pub async fn list_visualizations(&self) -> FallibleResult<Vec<VisualizationIdentifier>> {
+    pub async fn list_visualizations(&self) -> FallibleResult<Vec<VisualizationPath>> {
         let mut visualizations = self.list_embedded_visualizations();
         visualizations.extend_from_slice(&self.list_project_specific_visualizations().await?);
         Ok(visualizations)
@@ -132,18 +124,17 @@ impl Handle {
 
     /// Load the source code of the specified visualization.
     pub async fn load_visualization
-    (&self, visualization:&VisualizationIdentifier) -> FallibleResult<Rc<class::Handle>> {
+    (&self, visualization:&VisualizationPath) -> FallibleResult<Rc<class::Handle>> {
         match visualization {
-            VisualizationIdentifier::Embedded(identifier) => {
-                let data       = self.data.borrow();
-                let result     = data.embedded_visualizations.get(identifier);
-                let identifier = visualization.clone();
-                let error      = || VisualizationError::NotFound{identifier}.into();
+            VisualizationPath::Embedded(identifier) => {
+                let embedded_visualizations = self.embedded_visualizations.borrow();
+                let result                  = embedded_visualizations.get(identifier);
+                let identifier              = visualization.clone();
+                let error                   = || VisualizationError::NotFound{identifier}.into();
                 result.cloned().ok_or_else(error)
             },
-            VisualizationIdentifier::File(path) => {
-                let language_server = &self.data.borrow().language_server_rpc;
-                let js_code         = language_server.read_file(&path).await?.contents;
+            VisualizationPath::File(path) => {
+                let js_code         = self.language_server_rpc.read_file(&path).await?.contents;
                 let identifier      = visualization.clone();
                 let error           = |_| VisualizationError::InstantiationError {identifier}.into();
                 let js_class        = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
@@ -231,9 +222,9 @@ mod tests {
         let visualizations = vis_controller.list_visualizations().await;
         let visualizations = visualizations.expect("Couldn't list visualizations.");
 
-        assert_eq!(visualizations[0],VisualizationIdentifier::Embedded("PointCloud".to_string()));
-        assert_eq!(visualizations[1],VisualizationIdentifier::File(path0));
-        assert_eq!(visualizations[2],VisualizationIdentifier::File(path1));
+        assert_eq!(visualizations[0], VisualizationPath::Embedded("PointCloud".to_string()));
+        assert_eq!(visualizations[1], VisualizationPath::File(path0));
+        assert_eq!(visualizations[2], VisualizationPath::File(path1));
         assert_eq!(visualizations.len(),3);
 
         let javascript_vis0 = JsSourceClass::from_js_source_raw(&file_content0);
