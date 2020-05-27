@@ -4,7 +4,7 @@ use parser::prelude::*;
 
 use ast::*;
 use ast::test_utils::expect_shape;
-use parser::api::SourceFile;
+use parser::api::ParsedSourceFile;
 use utils::test::ExpectTuple;
 use wasm_bindgen_test::wasm_bindgen_test;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -64,10 +64,16 @@ impl Fixture {
 
     // === Test Methods ===
 
+    fn blank_line_round_trip(&mut self) {
+        let program = "main = \n    foo\n   \n    bar";
+        let ast     = self.parser.parse_module(program,default()).unwrap();
+        assert_eq!(ast.repr(),program);
+    }
+
     fn deserialize_metadata(&mut self) {
         let term = ast::Module {lines: vec![ast::BlockLine {elem:None,off:0}]};
         let ast  = known::KnownAst::new_no_id(term);
-        let file = SourceFile {ast, metadata: serde_json::json!({})};
+        let file = ParsedSourceFile {ast, metadata: serde_json::json!({})};
         let code = String::try_from(&file).unwrap();
         assert_eq!(self.parser.parse_with_metadata(code).unwrap(), file);
     }
@@ -374,6 +380,7 @@ impl Fixture {
         // * Opr (doesn't parse on its own, covered by Infix and other)
         // * Module (covered by every single test, as parser wraps everything
         //   into module)
+        self.blank_line_round_trip();
         self.deserialize_metadata();
         self.deserialize_unrecognized();
         self.deserialize_invalid_quote();
