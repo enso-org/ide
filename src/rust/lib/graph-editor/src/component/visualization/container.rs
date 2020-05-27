@@ -328,13 +328,8 @@ impl Container {
                     .for_each_ref(|vis| vis.frp.set_data.emit(data));
             }));
 
-            def _select = frp.select.map(f!([selection](_) {
-                 selection.set_target_position(1.0);
-            }));
-
-            def _deselect = frp.deselect.map(f!([selection](_) {
-                 selection.set_target_position(0.0);
-            }));
+            eval frp.select   ((_) selection.set_target_position(1.0));
+            eval frp.deselect ((_) selection.set_target_position(0.0));
 
             def _output_hide = container_data.shape_overlay.events.mouse_down.map(f!([frp](_) {
                 frp.on_click.emit(())
