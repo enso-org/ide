@@ -93,11 +93,12 @@ impl Handle {
     ) -> Self {
         let logger = parent.sub("Project Controller");
         info!(logger,"Creating a project controller for project {project_name.as_ref()}");
+        let binary_protocol_events  = language_server_binary.event_stream();
         let embedded_visualizations = default();
         let language_server_rpc     = Rc::new(language_server_client);
+        let language_server_bin     = Rc::new(language_server_binary);
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
-        let binary_protocol_events = language_server_binary.event_stream();
 
         let ret = Handle {
             project_name        : Rc::new(project_name.into()),
@@ -105,7 +106,7 @@ impl Handle {
             execution_contexts  : default(),
             parser              : Parser::new_or_panic(),
             language_server_rpc,
-            language_server_bin : Rc::new(language_server_binary),
+            language_server_bin,
             logger,
             visualization,
         };
