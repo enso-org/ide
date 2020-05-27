@@ -35,17 +35,6 @@ pub trait NativeComponent {
     /// Return all `Symbol`s that make up this component.
     fn symbols(&self) -> Vec<SymbolType>;
 
-    /// Change the scene layer of all `Symbol`s.
-    fn set_layer(&self, layer:&View) {
-        self.symbols().iter().for_each(|symbol| {
-            match symbol{
-                SymbolType::Main(symbol)
-                | SymbolType::Visualisation(symbol)
-                => layer.add(symbol),
-            }
-        })
-    }
-
     /// Remove the `Symbol`s from all scene layers.
     fn unset_layers_all(&self, scene:&Scene) {
         self.symbols().iter().for_each(|symbol|   match symbol{
@@ -53,18 +42,6 @@ pub trait NativeComponent {
             | SymbolType::Visualisation(symbol)
             =>scene.views.remove_symbol(symbol),
         })
-    }
-}
-
-/// Should be implemented by UI component that consist of `DomSymbol`s. Provides access to the
-/// symbols some helper methods for working with them.
-pub trait HtmlComponent {
-    /// Return all `DomSymbol`s that make up this component.
-    fn elements(&self) -> Vec<DomSymbol>;
-
-    /// Change the `DomScene` of all `DomSymbol`s.
-    fn set_layer(&self, scene:&DomScene) {
-        self.elements().iter().for_each(|element| scene.manage(&element))
     }
 }
 
@@ -82,6 +59,8 @@ pub trait Networked {
     /// Return a reference to the components network.
     fn network(&self) -> &frp::Network;
 }
+
+
 
 // ==================================
 // === Fullscreen Operator Handle ===
@@ -174,8 +153,8 @@ pub fn set_layers_fullscreen<T: NativeComponent>(target:&T, scene:&Scene) {
 
 pub trait Fullscreenable = display::Object+Resizable+NativeComponent+Networked+CloneRef+'static;
 
-/// A `FullscreenOperator` can be used to apple fullscreen mode to a UI element as well as undo the
-/// undo the fullscreen operation and restore the previous state. The  `FullscreenOperator` can be
+/// A `FullscreenOperator` can be used to apply fullscreen mode to a UI element as well as undo the
+/// the fullscreen operation and restore the previous state. The  `FullscreenOperator` can be
 /// applied to any target that implements `display::Object`, `Resizable` and `NativeUiElement`.
 // TODO consider incorporating these traits into display::Object or another common "SceneElement"
 // type. But it is important that complex UI components can provide information about their
