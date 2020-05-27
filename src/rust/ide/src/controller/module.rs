@@ -20,6 +20,10 @@ use parser::Parser;
 use failure::_core::fmt::Formatter;
 use enso_protocol::types::Sha3_224;
 
+/// The directory in the project that contains all the source files.
+const SOURCE_DIRECTORY:&str = "src";
+
+
 
 // ==============
 // === Errors ===
@@ -42,6 +46,10 @@ pub struct InvalidGraphId(controller::graph::Id);
 // ============
 
 /// Path identifying module's file in the Language Server.
+///
+/// The `file_path` contains at least two segments:
+/// * the first one is a source directory in the project (see `SOURCE_DIRECTORY`);
+/// * the last one is a source file with the module's contents.
 #[derive(Clone,Debug,Eq,Hash,PartialEq)]
 pub struct Path {
     file_path : FilePath,
@@ -52,7 +60,10 @@ impl Path {
     pub fn from_file_path(file_path:FilePath) -> Option<Self> {
         let has_proper_ext   = file_path.extension() == Some(constants::LANGUAGE_FILE_EXTENSION);
         let capitalized_name = file_path.file_name()?.chars().next()?.is_uppercase();
-        let is_module        = has_proper_ext && capitalized_name;
+        let in_src_directory = file_path.segments.first().contains_if(|name| {
+            *name == SOURCE_DIRECTORY
+        });
+        let is_module        = has_proper_ext && capitalized_name && in_src_directory;
         is_module.and_option_from(|| Some(Path{file_path}))
     }
 
@@ -68,13 +79,27 @@ impl Path {
         // The file stem existence should be checked during construction.
         self.file_path.file_stem().unwrap()
     }
+
     /// Create a module path consisting of a single segment, based on a given module name.
-    #[cfg(test)]
-    pub fn from_module_name(name:impl Str) -> Self {
+    /// The `default` is used
+    pub fn from_mock_module_name(name:impl Str) -> Self {
         let name:String = name.into();
         let file_name   = format!("{}.{}",name,constants::LANGUAGE_FILE_EXTENSION);
         let file_path   = FilePath::new(default(),&[file_name]);
         Self::from_file_path(file_path).unwrap()
+    }
+
+    /// Module's qualified name is used in some of the Language Server's APIs, like
+    /// `VisualisationConfiguration`.
+    ///
+    /// Qualified name is constructed as follows:
+    /// `ProjectName.<directories_between_src_and_enso_file>.<file_without_ext>`
+    pub fn qualified_name(&self, project_name:impl Str) -> String {
+        let project_name        = std::iter::once(project_name.as_ref());
+        let non_src_directories = &self.file_path.segments[1..self.file_path.segments.len()-1];
+        let directories_strs    = non_src_directories.iter().map(|string| string.as_str());
+        let module_name         = std::iter::once(self.module_name());
+        project_name.chain(directories_strs.chain(module_name)).join(".")
     }
 }
 
@@ -180,13 +205,15 @@ impl Handle {
     ///
     /// This function wont check if the definition under id exists.
     pub async fn executed_graph_controller_unchecked
-    (&self, id:dr::graph::Id) -> FallibleResult<controller::ExecutedGraph> {
+    (&self, id:dr::graph::Id, project:&controller::Project)
+    -> FallibleResult<controller::ExecutedGraph> {
         let definition_name = id.crumbs.last().cloned().ok_or_else(|| InvalidGraphId(id.clone()))?;
         let graph           = self.graph_controller_unchecked(id);
         let language_server = self.language_server.clone_ref();
         let path            = self.path.clone_ref();
-        let execution_ctx   = ExecutionContext::create(self.logger.clone_ref(),language_server,path,
-            definition_name).await?;
+        let execution_ctx   = project.create_execution_context(path,definition_name).await?;
+        // let execution_ctx   = ExecutionContext::create(&self.logger,language_server,path,
+        //     definition_name).await?;
         Ok(controller::ExecutedGraph::new(graph,execution_ctx))
     }
 
@@ -252,12 +279,28 @@ mod test {
         assert!(Path::from_file_path(path).is_none());
     }
 
+    #[test]
+    fn module_path_validation() {
+        assert!(Path::from_file_path(FilePath::new(default(), &["surce", "Main.enso"])).is_none());
+        assert!(Path::from_file_path(FilePath::new(default(), &["src", "Main"])).is_none());
+        assert!(Path::from_file_path(FilePath::new(default(), &["src", "Main.enso"])).is_some());
+    }
+
+    #[test]
+    fn module_qualified_name() {
+        let project_name = "P";
+        let root_id      = default();
+        let file_path    = FilePath::new(root_id, &["src", "Foo", "Bar.enso"]);
+        let module_path  = Path::from_file_path(file_path).unwrap();
+        assert_eq!(module_path.qualified_name(project_name), "P.Foo.Bar");
+    }
+
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
             let ls       = language_server::Connection::new_mock_rc(default());
             let parser   = Parser::new().unwrap();
-            let location = Path::from_module_name("Test");
+            let location = Path::from_mock_module_name("Test");
 
             let uuid1    = Uuid::new_v4();
             let uuid2    = Uuid::new_v4();

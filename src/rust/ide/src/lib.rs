@@ -66,6 +66,7 @@ use enso_protocol::binary;
 use enso_protocol::language_server;
 use enso_protocol::project_manager;
 use uuid::Uuid;
+use enso_protocol::project_manager::{ProjectMetadata, ProjectName};
 
 
 // =================
@@ -151,9 +152,10 @@ pub async fn new_opened_ws
 
 /// Connect to language server.
 pub async fn open_project
-( logger:&Logger
-, json_endpoint:project_manager::IpWithSocket
-, binary_endpoint:project_manager::IpWithSocket
+( logger          : &Logger
+, json_endpoint   : project_manager::IpWithSocket
+, binary_endpoint : project_manager::IpWithSocket
+, project_name    : impl Str
 ) -> FallibleResult<controller::Project> {
     info!(logger, "Establishing Language Server connections.");
     let client_id     = Uuid::new_v4();
@@ -165,7 +167,20 @@ pub async fn open_project
     crate::executor::global::spawn(client_binary.runner());
     let connection_json   = language_server::Connection::new(client_json,client_id).await?;
     let connection_binary = binary::Connection::new(client_binary,client_id).await?;
-    Ok(controller::Project::new(logger,connection_json,connection_binary))
+    Ok(controller::Project::new(logger,connection_json,connection_binary,project_name))
+}
+
+/// Creates a new project and returns its metadata, so the newly connected project can be opened.
+pub async fn create_project
+(logger:&Logger, project_manager:&impl project_manager::API) -> FallibleResult<ProjectMetadata> {
+    let name = DEFAULT_PROJECT_NAME.to_string();
+    info!(logger, "Creating a new project named `{name}`.");
+    let id = project_manager.create_project(&name).await?.project_id;
+    Ok(ProjectMetadata {
+        id,
+        name        : ProjectName {name},
+        last_opened : None,
+    })
 }
 
 /// Open most recent project or create a new project if none exists.
@@ -173,14 +188,14 @@ pub async fn open_most_recent_project_or_create_new
 (logger:&Logger, project_manager:&impl project_manager::API) -> FallibleResult<controller::Project> {
     let projects_to_list = 1;
     let mut response     = project_manager.list_recent_projects(&projects_to_list).await?;
-    let project_id = if let Some(project) = response.projects.pop() {
-        project.id
+    let project_metadata = if let Some(project) = response.projects.pop() {
+        project
     } else {
-        project_manager.create_project(&DEFAULT_PROJECT_NAME.to_string()).await?.project_id
+        create_project(logger,project_manager).await?
     };
-    let endpoints = project_manager.open_project(&project_id).await?;
+    let endpoints = project_manager.open_project(&project_metadata.id).await?;
     open_project(logger,endpoints.language_server_json_address,
-                 endpoints.language_server_binary_address).await
+                 endpoints.language_server_binary_address,&project_metadata.name.name).await
 }
 
 /// Sets up the project view, including the controller it uses.

@@ -111,7 +111,7 @@ impl Module {
         let file_path     = path.file_path().clone();
         info!(logger, "Opening module {file_path}");
         let opened = language_server.client.open_text_file(&file_path).await?;
-        trace!(logger, "Read content of module {path}, digest is {opened.current_version:?}");
+        info!(logger, "Read content of the module {path}, digest is {opened.current_version:?}");
         let end_of_file = TextLocation::at_document_end(&opened.content);
         // TODO[ao] We should not fail here when metadata are malformed, but discard them and set
         //  default instead.
@@ -357,7 +357,7 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn handling_notifications() {
-        let path            = controller::module::Path::from_module_name("TestModule");
+        let path            = controller::module::Path::from_mock_module_name("TestModule");
         let parser          = Parser::new_or_panic();
         let initial_content = "main =\n    println \"Hello World!\"";
 
@@ -400,7 +400,7 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn handling_notification_after_failure() {
-        let path            = controller::module::Path::from_module_name("TestModule");
+        let path            = controller::module::Path::from_mock_module_name("TestModule");
         let initial_content = "main =\n    println \"Hello World!\"";
 
         let setup           = LsClientSetup::new(path.file_path().clone(),initial_content);

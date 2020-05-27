@@ -34,12 +34,12 @@ use ensogl::application::Application;
 ///      editor and it will be connected with a file under this path.
 ///      To be replaced with better mechanism once we decide how to describe
 ///      default initial layout for the project.
-const INITIAL_FILE_PATH: [&str;2] = ["src","Main.enso"];
+pub const INITIAL_FILE_PATH: [&str;2] = ["src","Main.enso"];
 
 /// Name of the main definition.
 ///
 /// This is the definition whose graph will be opened on IDE start.
-const MAIN_DEFINITION_NAME:&str = "main";
+pub const MAIN_DEFINITION_NAME:&str = "main";
 
 
 
@@ -80,7 +80,7 @@ impl ProjectView {
         let main_name            = DefinitionName::new_plain(MAIN_DEFINITION_NAME);
         let graph_id             = controller::graph::Id::new_single_crumb(main_name);
         let module_controller    = controller.module_controller(path.try_into()?).await?;
-        let graph_controller     = module_controller.executed_graph_controller_unchecked(graph_id);
+        let graph_controller     = module_controller.executed_graph_controller_unchecked(graph_id,&controller);
         let graph_controller     = graph_controller.await?;
         let application          = Application::new(&web::get_html_element_by_id("root").unwrap());
         Self::setup_components(&application);

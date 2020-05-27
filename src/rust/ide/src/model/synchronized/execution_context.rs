@@ -29,23 +29,34 @@ pub struct ExecutionContext {
 }
 
 impl ExecutionContext {
+    pub fn id(&self) -> model::execution_context::Id {
+        self.id
+    }
+
     /// Create new ExecutionContext. It will be created in LanguageServer and the ExplicitCall
     /// stack frame will be pushed.
-    pub async fn create
-    ( parent          : Logger
+    ///
+    /// NOTE: By itself this execution context will not be able to receive any updates from the
+    /// language server.
+    pub fn create
+    ( parent          : &Logger
     , language_server : Rc<language_server::Connection>
     , module_path     : Rc<controller::module::Path>
     , root_definition : DefinitionName
-    ) -> FallibleResult<Self> {
+    ) -> impl Future<Output=FallibleResult<Self>> {
+        let parent = parent.clone();
         let logger = parent.sub("ExecutionContext");
-        let model  = model::ExecutionContext::new(root_definition);
-        info!(logger,"Creating.");
-        let id = language_server.client.create_execution_context().await?.context_id;
-        info!(logger,"Created. Id:{id}");
-        let this  = Self {id,module_path,model,language_server,logger};
-        this.push_root_frame().await?;
-        info!(this.logger,"Pushed root frame");
-        Ok(this)
+        async move {
+            info!(logger, "Creating.");
+            let id     = language_server.client.create_execution_context().await?.context_id;
+            let logger = parent.sub(iformat!{"ExecutionContext {id}"});
+            let model  = model::ExecutionContext::new(&logger,root_definition);
+            info!(logger, "Created. Id:{id}");
+            let this = Self { id, module_path, model, language_server, logger };
+            this.push_root_frame().await?;
+            info!(this.logger, "Pushed root frame");
+            Ok(this)
+        }
     }
 
     fn push_root_frame(&self) -> impl Future<Output=FallibleResult<()>> {
@@ -86,7 +97,7 @@ impl ExecutionContext {
     /// Returns a stream of visualization update data received from the server.
     pub async fn attach_visualization
     (&self, vis: Visualization) -> FallibleResult<impl Stream<Item=VisualizationUpdateData>> {
-        let config = vis.config(self.id,self.module_path.module_name().to_string());
+        let config = vis.config(self.id,"Project.Main".into());
         self.language_server.attach_visualisation(&vis.id, &vis.ast_id, &config).await?;
         let stream = self.model.attach_visualization(vis);
         Ok(stream)
@@ -107,6 +118,12 @@ impl ExecutionContext {
             }
         });
         Ok(vis)
+    }
+
+    /// Dispatches the visualization update data (typically received from as LS binary notification)
+    /// to the respective's visualization update channel.
+    pub fn dispatch_update(&self, visualization_id:VisualizationId, data:VisualizationUpdateData) {
+        self.model.dispatch_update(visualization_id,data)
     }
 
     /// Create a mock which does no call on `language_server` during construction.
@@ -158,7 +175,7 @@ mod test {
 
     #[test]
     fn creating_context() {
-        let path       = Rc::new(controller::module::Path::from_module_name("Test"));
+        let path       = Rc::new(controller::module::Path::from_mock_module_name("Test"));
         let context_id = model::execution_context::Id::new_v4();
         let root_def   = DefinitionName::new_plain("main");
         let ls_client  = language_server::MockClient::default();
@@ -187,7 +204,7 @@ mod test {
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let context = ExecutionContext::create(default(),connection,path.clone(),root_def);
+            let context = ExecutionContext::create(&default(),connection,path.clone(),root_def);
             let context = context.await.unwrap();
             assert_eq!(context_id             , context.id);
             assert_eq!(path                   , context.module_path);
@@ -200,9 +217,9 @@ mod test {
         let id                  = model::execution_context::Id::new_v4();
         let definition          = model::execution_context::DefinitionId::new_plain_name("foo");
         let expression_id       = model::execution_context::ExpressionId::new_v4();
-        let path                = controller::module::Path::from_module_name("Test");
+        let path                = controller::module::Path::from_mock_module_name("Test");
         let root_def            = DefinitionName::new_plain("main");
-        let model               = model::ExecutionContext::new(root_def);
+        let model               = model::ExecutionContext::new(&default(),root_def);
         let ls                  = language_server::MockClient::default();
         let expected_call_frame = language_server::LocalCall{expression_id};
         let expected_stack_item = language_server::StackItem::LocalCall(expected_call_frame);
@@ -229,10 +246,10 @@ mod test {
             call       : model::execution_context::ExpressionId::new_v4(),
             definition : model::execution_context::DefinitionId::new_plain_name("foo"),
         };
-        let path          = controller::module::Path::from_module_name("Test");
+        let path          = controller::module::Path::from_mock_module_name("Test");
         let root_def      = DefinitionName::new_plain("main");
         let ls            = language_server::MockClient::default();
-        let model         = model::ExecutionContext::new(root_def);
+        let model         = model::ExecutionContext::new(&default(),root_def);
         expect_call!(ls.pop_from_execution_context(id) => Ok(()));
         expect_call!(ls.destroy_execution_context(id) => Ok(()));
         model.push(item);
@@ -250,9 +267,9 @@ mod test {
     #[test]
     fn attaching_visualizations() {
         let exe_id   = model::execution_context::Id::new_v4();
-        let path     = controller::module::Path::from_module_name("Test");
+        let path     = controller::module::Path::from_mock_module_name("Test");
         let root_def = DefinitionName::new_plain("main");
-        let model    = model::ExecutionContext::new(root_def);
+        let model    = model::ExecutionContext::new(&default(),root_def);
         let ls       = language_server::MockClient::default();
         let vis      = Visualization {
             id: model::execution_context::VisualizationId::new_v4(),

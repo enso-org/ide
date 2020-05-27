@@ -100,7 +100,7 @@ pub struct LocalCall {
 /// Unique Id for visualization.
 pub type VisualizationId = Uuid;
 
-/// Visualization marker for specific Ast node with preprocessing function.
+/// Description of the visualization setup.
 #[derive(Clone,Debug)]
 pub struct Visualization {
     /// Unique identifier of this visualization.
@@ -112,6 +112,20 @@ pub struct Visualization {
 }
 
 impl Visualization {
+    pub fn new(ast_id:ExpressionId, expression:impl Into<String>) -> Visualization {
+        let id         = VisualizationId::new_v4();
+        let expression = expression.into();
+        Visualization {id,ast_id,expression}
+    }
+
+    pub fn new_json(ast_id:ExpressionId) -> Visualization {
+        Self::new(ast_id,"x -> x.json_serialize")
+    }
+
+    pub fn new_text(ast_id:ExpressionId) -> Visualization {
+        Self::new(ast_id,"a -> a.to_text")
+    }
+
     /// Creates a `VisualisationConfiguration` that is used in communication with language server.
     pub fn config
     (&self, execution_context_id:Uuid, visualisation_module:String) -> VisualisationConfiguration {
@@ -153,6 +167,7 @@ pub struct AttachedVisualization {
 /// controllers.
 #[derive(Debug)]
 pub struct ExecutionContext {
+    logger:Logger,
     /// A name of definition which is a root call of this context.
     pub entry_point:DefinitionName,
     /// Local call stack.
@@ -163,10 +178,11 @@ pub struct ExecutionContext {
 
 impl ExecutionContext {
     /// Create new execution context
-    pub fn new(entry_point:DefinitionName) -> Self {
+    pub fn new(logger:impl Into<Logger>, entry_point:DefinitionName) -> Self {
+        let logger         = logger.into();
         let stack          = default();
         let visualizations = default();
-        Self {entry_point,stack,visualizations}
+        Self {logger,entry_point,stack,visualizations}
     }
 
     /// Push a new stack item to execution context.
@@ -215,6 +231,7 @@ impl ExecutionContext {
             // TODO [mwu] Should we consider detaching the visualization if the view has dropped the
             //   channel's receiver? Or we need to provide a way to re-establish the channel.
             let _ = visualization.update_sender.unbounded_send(data);
+            debug!(self.logger,"Sending update data to the visualization {visualization_id}.");
         }
     }
 }

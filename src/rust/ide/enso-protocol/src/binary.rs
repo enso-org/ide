@@ -8,5 +8,6 @@ pub mod uuid;
 
 pub use client::API;
 pub use client::Client;
+pub use client::Notification;
 pub use client::MockAPI as MockClient;
 pub use connection::Connection;

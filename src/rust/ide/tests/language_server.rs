@@ -16,6 +16,8 @@ use enso_protocol::language_server::*;
 use enso_protocol::types::*;
 use ide::transport::web::WebSocket;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
+use ide::model::execution_context::{Visualization, VisualizationUpdateData};
+use std::time::Duration;
 
 /// The endpoint at which the Language Server should be accepting WS connections.
 const SERVER_ENDPOINT:&str = "ws://localhost:30616";
@@ -246,13 +248,17 @@ async fn file_events() {
     }
 }
 
-//#[wasm_bindgen_test::wasm_bindgen_test(async)]
+
+#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 /// This integration test covers:
 /// * using project picker to open (or create) a project
 /// * establishing a binary protocol connection with Language Server
 /// * writing and reading a file using the binary protocol
 async fn binary_protocol_test() {
+    use ensogl::system::web::sleep;
+
+    ensogl_system_web::set_stdout();
     // Setup project
     let _guard   = ide::setup_global_executor();
     let logger   = Logger::new("Test");
@@ -270,6 +276,31 @@ async fn binary_protocol_test() {
     println!("Read back: {:?}", read_back);
     assert_eq!(contents, read_back.as_slice());
 
-    // TODO [mwu]
-    //  In future it would be nice to have here also a test for receiving a visualization update.
+
+    let main_module_path = project.module_path(&ide::view::project::INITIAL_FILE_PATH).unwrap();
+    let main_module = project.module_controller(main_module_path).await.unwrap();
+    let main_function_id = double_representation::definition::Id::new_plain_name(ide::view::project::MAIN_DEFINITION_NAME);
+    let main_graph_executed = main_module.executed_graph_controller_unchecked(main_function_id,&project).await.unwrap();
+
+    let the_node = main_graph_executed.nodes().unwrap()[0].info.clone();
+    main_graph_executed.set_expression(the_node.id(), "10+20").unwrap();
+
+
+    println!("Main graph: {:?}", main_graph_executed);
+    println!("The code is: {:?}", main_module.code());
+    println!("Main node: {:?} with {}", the_node, the_node.expression().repr());
+
+    let visualization = Visualization::new_json(the_node.id());
+    let     stream    = main_graph_executed.attach_visualization(visualization).await.unwrap();
+    let mut stream    = stream.boxed_local();
+
+    let first_event : VisualizationUpdateData = stream.next().await.unwrap(); // there must be an update
+    println!("Got visualization update: {:?}",first_event);
+    assert_eq!(first_event.as_ref(), "30".as_bytes());
+
+    println!("Waiting 10 seconds");
+    sleep(Duration::from_secs(10)).await;
+    println!("Done!");
+
+
 }
