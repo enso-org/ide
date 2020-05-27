@@ -8,11 +8,7 @@ use crate::control::io::keyboard::listener::KeyboardFrpBindings;
 use crate::frp::io::keyboard::KeyMask;
 use crate::frp::io::keyboard::Keyboard;
 use crate::frp;
-#[cfg(target_arch = "wasm32")]
 use crate::system::web;
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::time;
 
 
 
@@ -70,18 +66,6 @@ impl RegistryModel {
     }
 }
 
-
-#[cfg(target_arch = "wasm32")]
-fn now() -> f64 {
-    let performance = web::performance();
-    performance.now()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn now() -> f64 {
-    time::Instant::now().elapsed().as_millis() as f64
-}
-
 impl Registry {
     /// Constructor.
     pub fn new(logger:&Logger, command_registry:&command::Registry) -> Self {
@@ -91,7 +75,7 @@ impl Registry {
         frp::new_network! { network
             is_zero_key        <- model.keyboard.key_mask.map(|m| *m ==KeyMask::from_vec(vec![]));
             valid_keys         <- model.keyboard.key_mask.gate_not(&is_zero_key);
-            timed_key          <- valid_keys.map(|m| (*m,now()));
+            timed_key          <- valid_keys.map(|m| (*m,web::performance().now()));
             timed_key_previous <- timed_key.previous();
             key_and_prev       <- timed_key.zip(&timed_key_previous);
             time_delta         <- key_and_prev.map(|((_,t1),(_,t2))| (t1-t2));
