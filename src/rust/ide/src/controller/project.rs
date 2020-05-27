@@ -10,17 +10,64 @@ use crate::controller::Visualization;
 
 use enso_protocol::language_server;
 use enso_protocol::binary;
+use enso_protocol::binary::message::VisualisationContext;
 use parser::Parser;
 use crate::model::synchronized::ExecutionContext;
-use crate::model::execution_context::VisualizationUpdateData;
+use crate::model::execution_context::{VisualizationUpdateData, VisualizationId};
+use uuid::Uuid;
+
+
+// ===============
+// === Aliases ===
+// ===============
+
+type ModulePath = controller::module::Path;
+
+type ExecutionContextId = model::execution_context::Id;
+
+
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="No visualization with id {} was found in the registry.", _0)]
+pub struct NoSuchVisualization(VisualizationId);
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="Visualization with id {} has been already dropped.", _0)]
+pub struct VisualizationDoesNotExistAnymore(VisualizationId);
+
+/// Stores the weak handles to the synchronized execution context models.
+/// Implements dispatching the visualization updates.
+#[derive(Clone,Debug,Default)]
+pub struct ExecutionContextsRegistry(RefCell<HashMap<ExecutionContextId,Weak<ExecutionContext>>>);
+
+impl ExecutionContextsRegistry {
+    /// Routes the visualization update into the appropriate execution context.
+    pub fn dispatch_visualization_update
+    (&self
+    , context : VisualisationContext
+    , data    : VisualizationUpdateData
+    ) -> FallibleResult<()> {
+        let context_id       = context.context_id;
+        let visualization_id = context.visualization_id;
+        let ctx = self.0.borrow_mut().get(&context_id).cloned();
+        let ctx = ctx.ok_or_else(|| NoSuchVisualization(context_id))?;
+        let ctx = ctx.upgrade().ok_or_else(|| VisualizationDoesNotExistAnymore(context_id))?;
+        ctx.dispatch_visualization_update(visualization_id,data)
+    }
+
+    /// Registers a new ExecutionContext. It will be eligible for receiving future updates routed
+    /// through `dispatch_visualization_update`.
+    pub fn insert(&self, context:&Rc<ExecutionContext>) {
+        self.0.borrow_mut().insert(context.id(),Rc::downgrade(&context));
+    }
+}
 
 
 // ==========================
 // === Project Controller ===
 // ==========================
-
-type ModulePath = controller::module::Path;
-type ExecutionCtxId = model::execution_context::Id;
 
 /// Project controller's state.
 #[allow(missing_docs)]
@@ -31,7 +78,7 @@ pub struct Handle {
     pub visualization       : Visualization,
     pub language_server_bin : Rc<binary::Connection>,
     pub module_registry     : Rc<model::registry::Registry<ModulePath,model::synchronized::Module>>,
-    pub execution_contexts  : Rc<RefCell<HashMap<ExecutionCtxId, Weak<model::synchronized::ExecutionContext>>>>,
+    pub execution_contexts  : Rc<ExecutionContextsRegistry>,
     pub parser              : Parser,
     pub logger              : Logger,
 }
@@ -39,10 +86,10 @@ pub struct Handle {
 impl Handle {
     /// Create a new project controller.
     pub fn new
-    ( parent                 : &Logger
-    , language_server_client : language_server::Connection
+    ( parent                     : &Logger
+    , language_server_client     : language_server::Connection
     , mut language_server_binary : binary::Connection
-    , project_name           : impl Str
+    , project_name               : impl Str
     ) -> Self {
         let logger = parent.sub("Project Controller");
         info!(logger,"Creating a project controller for project {project_name.as_ref()}");
@@ -51,6 +98,7 @@ impl Handle {
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
         let binary_protocol_events = language_server_binary.event_stream();
+
         let ret = Handle {
             project_name        : Rc::new(project_name.into()),
             module_registry     : default(),
@@ -62,35 +110,44 @@ impl Handle {
             visualization,
         };
 
-        let logger     = ret.logger.clone_ref();
-        let weak_execution_contexts = Rc::downgrade(&ret.execution_contexts);
-        crate::executor::global::spawn(binary_protocol_events.for_each(move |event| {
+        let binary_handler = ret.binary_event_handler();
+        crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
+        ret
+    }
+
+    /// Returns the primary content root id for this project.
+    pub fn content_root_id(&self) -> Uuid {
+        self.language_server_rpc.content_root()
+    }
+
+    /// Returns a handling function capable of processing updates from the binary protocol.
+    /// Such function will be then typically used to process events stream from the binary
+    /// connection handler.
+    pub fn binary_event_handler
+        (&self) -> impl Fn(enso_protocol::binary::Event) -> futures::future::Ready<()> {
+        let logger                  = self.logger.clone_ref();
+        let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
+        move |event| {
             debug!(logger, "Received an event from the binary protocol: {event:?}");
             use enso_protocol::binary::client::Event;
             use enso_protocol::binary::Notification;
             match event {
                 Event::Notification(Notification::VisualizationUpdate {context,data}) => {
-                    let execution_contexts = weak_execution_contexts.upgrade();
-
-                    if let Some(execution_context) = execution_contexts.and_then(|contexts| {
-                        let contexts = contexts.borrow();
-                        contexts.get(&context.context_id)?.upgrade()
-                    }) {
-                        debug!(logger, "Dispatching visualization update through context {context.context_id}");
-                        let update_data = VisualizationUpdateData::new(data);
-                        execution_context.dispatch_update(context.visualization_id,update_data);
+                    let data = VisualizationUpdateData::new(data);
+                    if let Some(execution_contexts) = weak_execution_contexts.upgrade() {
+                        let result = execution_contexts.dispatch_visualization_update(context,data);
+                        if let Err(error) = result {
+                            error!(logger,"Failed to handle the visualization update: {error}.");
+                        }
                     } else {
-                        warning!(logger, "Unexpected visualization update for execution context \
-                    {context.context_id}. No information about such context, cannot route the \
-                    update to any visualization.");
+                        error!(logger,"Received a visualization update despite project being \
+                        already dropped.");
                     }
                 }
-                _ => {}
+                _ => {} // At this point we do not care about anything other than visualizations.
             }
             futures::future::ready(())
-        }));
-
-        ret
+        }
     }
 
     /// Returns a text controller for a given file path.
@@ -118,13 +175,14 @@ impl Handle {
     }
 
     /// Creates a path describing a module in this project.
-    pub fn module_path
-    (&self, segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<ModulePath> {
-        let root_id = self.language_server_rpc.content_root();
-        let path    = language_server::Path::new(root_id,segments);
-        Ok(path.try_into()?)
+    ///
+    /// The segments should not include the leading "src/" directory, as this function adds.
+    pub fn module_path_from_qualified_name
+    (&self, name_segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<ModulePath> {
+        controller::module::Path::from_name_segments(self.content_root_id(), name_segments)
     }
 
+    /// Generates full module's qualified name that includes the leading project name segment.
     pub fn qualified_module_name(&self, path:&controller::module::Path) -> String {
         path.qualified_name(self.project_name.deref())
     }
@@ -144,44 +202,25 @@ impl Handle {
         model::synchronized::Module::open(path,language_server,parser)
     }
 
+    /// Creates a new execution context with given definition as a root; and registers the context
+    /// for receiving update.
     pub async fn create_execution_context
     (&self
     , module_path:Rc<controller::module::Path>
     , root_definition:double_representation::definition::DefinitionName
-    ) -> FallibleResult<Rc<model::synchronized::ExecutionContext>> {
-        use model::synchronized::ExecutionContext;
+    ) -> FallibleResult<Rc<ExecutionContext>> {
         let ls_rpc  = self.language_server_rpc.clone_ref();
         let context = ExecutionContext::create(&self.logger,ls_rpc,module_path,root_definition);
         let context = context.await?;
-        let id      = context.id();
         let context = Rc::new(context);
         self.register_execution_context(&context);
         Ok(context)
     }
 
+    /// Registers for receiving updated an execution context. Don't call this manually, if using
+    /// `create_execution_context` method -- it is automatically done.
     pub fn register_execution_context(&self, execution_context:&Rc<ExecutionContext>) {
-        let id   = execution_context.id();
-        let weak = Rc::downgrade(&execution_context);
-        self.execution_contexts.borrow_mut().insert(id,weak);
-    }
-
-    fn process_binary_notification(&self, notification:enso_protocol::binary::Notification) {
-        use enso_protocol::binary::Notification;
-        match notification {
-            Notification::VisualizationUpdate {context,data} => {
-                let execution_contexts = with(self.execution_contexts.borrow(), |map| {
-                    map.get(&context.context_id)?.upgrade()
-                });
-                if let Some(execution_context) = execution_contexts {
-                    let update_data = VisualizationUpdateData::new(data);
-                    execution_context.dispatch_update(context.visualization_id,update_data);
-                } else {
-                    warning!(self.logger, "Unexpected visualization update for execution context \
-                    {context.context_id}. No information about such context, cannot route the \
-                    update to any visualization.");
-                }
-            }
-        }
+        self.execution_contexts.insert(&execution_context);
     }
 }
 

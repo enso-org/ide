@@ -28,20 +28,16 @@ impl Handle {
         Handle{graph,execution_ctx}
     }
 
+    /// See `attach_visualization` in `ExecutionContext`.
     pub async fn attach_visualization
     (&self, visualization:Visualization)
     -> FallibleResult<impl Stream<Item=VisualizationUpdateData>> {
         self.execution_ctx.attach_visualization(visualization).await
     }
 
+    /// See `detach_visualization` in `ExecutionContext`.
     pub async fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
         self.execution_ctx.detach_visualization(id).await
-    }
-
-    /// Dispatches the visualization update data (typically received from as LS binary notification)
-    /// to the respective's visualization update channel.
-    pub fn dispatch_update(&self, visualization_id:VisualizationId, data:VisualizationUpdateData) {
-        self.execution_ctx.dispatch_update(visualization_id,data)
     }
 
     // TODO [mwu] Here goes the type/short_rep value access API

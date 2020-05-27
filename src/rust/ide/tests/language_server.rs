@@ -18,6 +18,7 @@ use ide::transport::web::WebSocket;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use ide::model::execution_context::{Visualization, VisualizationUpdateData};
 use std::time::Duration;
+use ide::view::project::INITIAL_MODULE_NAME;
 
 /// The endpoint at which the Language Server should be accepting WS connections.
 const SERVER_ENDPOINT:&str = "ws://localhost:30616";
@@ -277,7 +278,8 @@ async fn binary_protocol_test() {
     assert_eq!(contents, read_back.as_slice());
 
 
-    let main_module_path = project.module_path(&ide::view::project::INITIAL_FILE_PATH).unwrap();
+
+    let main_module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
     let main_module = project.module_controller(main_module_path).await.unwrap();
     let main_function_id = double_representation::definition::Id::new_plain_name(ide::view::project::MAIN_DEFINITION_NAME);
     let main_graph_executed = main_module.executed_graph_controller_unchecked(main_function_id,&project).await.unwrap();

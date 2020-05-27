@@ -52,6 +52,8 @@ pub mod prelude {
     pub use utils::option::OptionExt;
     pub use utils::vec::VecExt;
 
+    pub use uuid::Uuid;
+
     #[cfg(test)] pub use wasm_bindgen_test::wasm_bindgen_test;
     #[cfg(test)] pub use wasm_bindgen_test::wasm_bindgen_test_configure;
 }
@@ -76,10 +78,16 @@ use enso_protocol::project_manager::{ProjectMetadata, ProjectName};
 /// Global constants used across whole application.
 pub mod constants {
     /// A name of language this IDE supports
-    pub const LANGUAGE_NAME           : &str = "Enso";
+    pub const LANGUAGE_NAME:&str = "Enso";
 
-    /// A file extension of modules of language this IDE supports
-    pub const LANGUAGE_FILE_EXTENSION : &str = "enso";
+    /// A file extension of modules of language this IDE supports without leading dot.
+    pub const LANGUAGE_FILE_EXTENSION:&str = "enso";
+
+    /// A file extension of modules of language this IDE supports with leading dot.
+    pub const LANGUAGE_FILE_DOT_EXTENSION:&str = ".enso";
+
+    /// The directory in the project that contains all the source files.
+    pub const SOURCE_DIRECTORY:&str = "src";
 }
 
 

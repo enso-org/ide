@@ -29,6 +29,7 @@ pub struct ExecutionContext {
 }
 
 impl ExecutionContext {
+    /// The unique identifier of this execution context.
     pub fn id(&self) -> model::execution_context::Id {
         self.id
     }
@@ -122,8 +123,10 @@ impl ExecutionContext {
 
     /// Dispatches the visualization update data (typically received from as LS binary notification)
     /// to the respective's visualization update channel.
-    pub fn dispatch_update(&self, visualization_id:VisualizationId, data:VisualizationUpdateData) {
-        self.model.dispatch_update(visualization_id,data)
+    pub fn dispatch_visualization_update
+    (&self, visualization_id:VisualizationId, data:VisualizationUpdateData) -> FallibleResult<()> {
+        debug!(self.logger, "Dispatching visualization update through the context {self.id()}");
+        self.model.dispatch_visualization_update(visualization_id,data)
     }
 
     /// Create a mock which does no call on `language_server` during construction.

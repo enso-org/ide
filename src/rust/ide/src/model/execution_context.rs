@@ -112,16 +112,20 @@ pub struct Visualization {
 }
 
 impl Visualization {
+    /// Creates a new visualization description. The visualization will get a randomly assigned
+    /// identifier.
     pub fn new(ast_id:ExpressionId, expression:impl Into<String>) -> Visualization {
         let id         = VisualizationId::new_v4();
         let expression = expression.into();
         Visualization {id,ast_id,expression}
     }
 
+    /// Like `new` but uses a predefined expression that serializes value into the JSON.
     pub fn new_json(ast_id:ExpressionId) -> Visualization {
         Self::new(ast_id,"x -> x.json_serialize")
     }
 
+    /// Like `new` but uses a predefined expression that serializes value into the Text.
     pub fn new_text(ast_id:ExpressionId) -> Visualization {
         Self::new(ast_id,"a -> a.to_text")
     }
@@ -226,12 +230,19 @@ impl ExecutionContext {
 
     /// Dispatches the visualization update data (typically received from as LS binary notification)
     /// to the respective's visualization update channel.
-    pub fn dispatch_update(&self, visualization_id:VisualizationId, data:VisualizationUpdateData) {
+    pub fn dispatch_visualization_update
+    (&self, visualization_id:VisualizationId, data:VisualizationUpdateData) -> FallibleResult<()> {
         if let Some(visualization) = self.visualizations.borrow_mut().get(&visualization_id) {
             // TODO [mwu] Should we consider detaching the visualization if the view has dropped the
             //   channel's receiver? Or we need to provide a way to re-establish the channel.
             let _ = visualization.update_sender.unbounded_send(data);
             debug!(self.logger,"Sending update data to the visualization {visualization_id}.");
+            Ok(())
+        } else {
+            error!(self.logger,"Failed to dispatch update to visualization {visualization_id}. \
+            Failed to found such visualization.");
+            Ok(())
+            // TODO complain
         }
     }
 }

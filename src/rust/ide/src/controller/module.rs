@@ -9,7 +9,6 @@ use crate::prelude::*;
 
 use crate::controller::FilePath;
 use crate::double_representation::text::apply_code_change_to_id_map;
-use crate::model::synchronized::ExecutionContext;
 
 use ast;
 use ast::HasIdMap;
@@ -19,9 +18,9 @@ use enso_protocol::language_server;
 use parser::Parser;
 use failure::_core::fmt::Formatter;
 use enso_protocol::types::Sha3_224;
+use crate::constants::LANGUAGE_FILE_DOT_EXTENSION;
+use crate::constants::SOURCE_DIRECTORY;
 
-/// The directory in the project that contains all the source files.
-const SOURCE_DIRECTORY:&str = "src";
 
 
 
@@ -33,6 +32,11 @@ const SOURCE_DIRECTORY:&str = "src";
 #[derive(Clone,Copy,Debug,Fail)]
 #[fail(display="Invalid module path.")]
 pub struct InvalidModulePath {}
+
+/// Happens if an empty segments list is provided as qualified module name.
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="No qualified name segments were provided.")]
+pub struct EmptyQualifiedName;
 
 /// Error returned when graph id invalid.
 #[derive(Clone,Debug,Fail)]
@@ -50,7 +54,7 @@ pub struct InvalidGraphId(controller::graph::Id);
 /// The `file_path` contains at least two segments:
 /// * the first one is a source directory in the project (see `SOURCE_DIRECTORY`);
 /// * the last one is a source file with the module's contents.
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
+#[derive(Clone,Debug,Eq,Hash,PartialEq,Shrinkwrap)]
 pub struct Path {
     file_path : FilePath,
 }
@@ -65,6 +69,20 @@ impl Path {
         });
         let is_module        = has_proper_ext && capitalized_name && in_src_directory;
         is_module.and_option_from(|| Some(Path{file_path}))
+    }
+
+    /// Creates a module path from the module's qualified name segments.
+    /// Name segments should only cover the module names, excluding the project name.
+    ///
+    /// E.g. `["Main"]` -> `//root_id/src/Main.enso`
+    pub fn from_name_segments
+    (root_id:Uuid, name_segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<Path> {
+        let mut segments : Vec<String> = vec![SOURCE_DIRECTORY.into()];
+        segments.extend(name_segments.into_iter().map(|segment| segment.as_ref().to_string()));
+        let module_file = segments.last_mut().ok_or(EmptyQualifiedName)?;
+        module_file.push_str(LANGUAGE_FILE_DOT_EXTENSION);
+        let file_path = FilePath {root_id,segments} ;
+        Ok(Path {file_path})
     }
 
     /// Get the file path.
@@ -152,7 +170,6 @@ impl Handle {
         Handle {path,model,language_server,parser,logger}
     }
 
-
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
         let content = self.model.serialized_content();
@@ -209,11 +226,8 @@ impl Handle {
     -> FallibleResult<controller::ExecutedGraph> {
         let definition_name = id.crumbs.last().cloned().ok_or_else(|| InvalidGraphId(id.clone()))?;
         let graph           = self.graph_controller_unchecked(id);
-        let language_server = self.language_server.clone_ref();
         let path            = self.path.clone_ref();
         let execution_ctx   = project.create_execution_context(path,definition_name).await?;
-        // let execution_ctx   = ExecutionContext::create(&self.logger,language_server,path,
-        //     definition_name).await?;
         Ok(controller::ExecutedGraph::new(graph,execution_ctx))
     }
 
