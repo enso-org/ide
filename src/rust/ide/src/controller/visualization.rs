@@ -189,7 +189,7 @@ mod tests {
             FileSystemObject::new_file(path1.clone()).unwrap(),
         ];
         let file_list_result = language_server::response::FileList{paths};
-        expect_call!(mock_client.file_list(path=path) => Ok(file_list_result));
+        expect_call!(mock_client.file_list(path=path.clone()) => Ok(file_list_result));
 
         let file_content0 = r#"
             class Vis0 {
@@ -207,10 +207,14 @@ mod tests {
             }
             return Vis1
         "#.to_string();
-        let result0 = language_server::response::Read{contents:file_content0.clone()};
-        let result1 = language_server::response::Read{contents:file_content1.clone()};
-        expect_call!(mock_client.read_file(path=path0.clone()) => Ok(result0));
-        expect_call!(mock_client.read_file(path=path1.clone()) => Ok(result1));
+        let read_result0   = language_server::response::Read{contents:file_content0.clone()};
+        let read_result1   = language_server::response::Read{contents:file_content1.clone()};
+        let exists_result0 = language_server::response::FileExists{exists:true};
+        let exists_result1 = language_server::response::FileExists{exists:true};
+        expect_call!(mock_client.file_exists(path=path.clone()) => Ok(exists_result0));
+        expect_call!(mock_client.file_exists(path=path.clone()) => Ok(exists_result1));
+        expect_call!(mock_client.read_file(path=path0.clone())   => Ok(read_result0));
+        expect_call!(mock_client.read_file(path=path1.clone())   => Ok(read_result1));
 
         let language_server             = language_server::Connection::new_mock_rc(mock_client);
         let mut embedded_visualizations = EmbeddedVisualizations::default();

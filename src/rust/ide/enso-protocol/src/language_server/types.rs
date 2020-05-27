@@ -32,11 +32,11 @@ pub struct Path {
 impl From<&FileSystemObject> for Path {
     fn from(file_system_object:&FileSystemObject) -> Path {
         match file_system_object {
-            FileSystemObject::Directory{name,path}            => path.clone_with_segment(name),
-            FileSystemObject::File{name,path}                 => path.clone_with_segment(name),
-            FileSystemObject::DirectoryTruncated{name,path}   => path.clone_with_segment(name),
-            FileSystemObject::Other{name,path}                => path.clone_with_segment(name),
-            FileSystemObject::SymlinkLoop{name,path,target:_} => path.clone_with_segment(name)
+            FileSystemObject::Directory{name,path}          => path.clone_with_segment(name),
+            FileSystemObject::File{name,path}               => path.clone_with_segment(name),
+            FileSystemObject::DirectoryTruncated{name,path} => path.clone_with_segment(name),
+            FileSystemObject::Other{name,path}              => path.clone_with_segment(name),
+            FileSystemObject::SymlinkLoop{name,path,..}     => path.clone_with_segment(name)
         }
     }
 }
@@ -49,7 +49,7 @@ impl Display for Path {
 }
 
 impl Path {
-    /// Splits path into name and segments. e.g.:
+    /// Splits path into name and path to parent directory. e.g.:
     /// Path{root_id,segments:["foo","bar","qux"]} => ("qux",Path{root_id,segments:["foo","bar"]})
     pub fn split_into_name_and_parent(mut self) -> Option<(String, Path)> {
         self.segments.pop().map(|name| (name,self))
