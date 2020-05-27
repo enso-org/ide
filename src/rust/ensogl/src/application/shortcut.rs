@@ -45,7 +45,7 @@ pub struct RegistryModel {
     keyboard_bindings     : Rc<KeyboardFrpBindings>,
     command_registry      : command::Registry,
     action_map            : Rc<RefCell<ActionMap>>,
-    double_press_detector : Rc<RefCell<DoublePressDetector>>
+    // double_press_detector : Rc<RefCell<DoublePressDetector>>
 }
 
 impl Deref for Registry {
@@ -63,11 +63,23 @@ impl RegistryModel {
         let keyboard_bindings     = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));
         let command_registry      = command_registry.clone_ref();
         let action_map            = default();
-        let double_press_detector = DoublePressDetector::new(750.0);
-        let double_press_detector = Rc::new(RefCell::new(double_press_detector));
+        // let double_press_detector = DoublePressDetector::new(750.0);
+        // let double_press_detector = Rc::new(RefCell::new(double_press_detector));
 
-        Self {logger,keyboard,keyboard_bindings,command_registry,action_map,double_press_detector}
+        Self {logger,keyboard,keyboard_bindings,command_registry,action_map}
     }
+}
+
+
+#[cfg(target_arch = "wasm32")]
+fn now() -> f64 {
+    let performance = web::performance();
+    performance.now()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn now() -> f64 {
+    time::Instant::now().elapsed().as_millis() as f64
 }
 
 impl Registry {
@@ -75,7 +87,21 @@ impl Registry {
     pub fn new(logger:&Logger, command_registry:&command::Registry) -> Self {
         let model = RegistryModel::new(logger,command_registry);
 
+        let double_press_threshold_ms = 750.0;
         frp::new_network! { network
+            is_zero_key        <- model.keyboard.key_mask.map(|m| *m ==KeyMask::from_vec(vec![]));
+            valid_keys         <- model.keyboard.key_mask.gate_not(&is_zero_key);
+            timed_key          <- valid_keys.map(|m| (*m,now()));
+            timed_key_previous <- timed_key.previous();
+            key_and_prev       <- timed_key.zip(&timed_key_previous);
+            time_delta         <- key_and_prev.map(|((_,t1),(_,t2))| (t1-t2));
+            within_threshold   <- time_delta.map(move |delta| *delta < double_press_threshold_ms);
+            single_press       <- valid_keys.gate_not(&within_threshold);
+            double_press       <- valid_keys.gate(&within_threshold);
+
+            eval single_press ((m) model.process_action(ActionType::Press,m));
+            eval double_press ((m) model.process_action(ActionType::DoublePress,m));
+
             eval model.keyboard.key_mask          ((m) model.process_action(ActionType::Press,m));
             eval model.keyboard.previous_key_mask ((m) model.process_action(ActionType::Release,m));
         }
@@ -85,21 +111,7 @@ impl Registry {
 
 impl RegistryModel {
 
-    /// Check the action against internal state and potentially change it. Right now this is used
-    /// to detect DoublePress actions.
-    fn pre_process_action(&self, action_type:ActionType, key_mask:&KeyMask) -> ActionType {
-        let mut detector     =  self.double_press_detector.borrow_mut();
-        let is_double_press  = detector.process_action(action_type,key_mask);
-        if is_double_press {
-            ActionType::DoublePress
-        } else {
-            action_type
-        }
-    }
-
     fn process_action(&self, action_type:ActionType, key_mask:&KeyMask) {
-       // TODO: Decide whether double press is in addition or instead of the normal press.
-        let action_type    = self.pre_process_action(action_type, key_mask);
         let action_map_mut = &mut self.action_map.borrow_mut();
         if let Some(rule_map) = action_map_mut.get_mut(&action_type) {
             if let Some(rules) = rule_map.get_mut(key_mask) {
@@ -375,69 +387,5 @@ pub trait DefaultShortcutProvider : command::Provider {
 impl<T:command::Provider> DefaultShortcutProvider for T {
     default fn default_shortcuts() -> Vec<Shortcut> {
         default()
-    }
-}
-
-
-
-// ===========================
-// === DoublePressDetector ===
-// ===========================
-
-/// Detects whether a key was pressed in quick succession.
-// TODO Refactor for better platform independent time keeping.
-// TODO Consider using application/world time.
-#[derive(Clone,Debug)]
-struct DoublePressDetector {
-    prev_key     : Option<KeyMask>,
-    prev_time    : Option<f64>,
-    threshold_ms : f64,
-}
-
-impl DoublePressDetector {
-    
-    fn new(threshold_ms:f64) -> Self {
-        DoublePressDetector {
-            prev_key     : None,
-            prev_time    : None,
-            threshold_ms
-        }
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn now(&self) -> f64 {
-        let performance = web::performance();
-        performance.now()
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn now(&self) -> f64 {
-        time::Instant::now().elapsed().as_millis() as f64
-    }
-
-    /// Check whether this key hs been pressed within the threshold duration.
-    pub fn process_action(&mut self, action_type:ActionType, key_mask:&KeyMask) -> bool {
-        if action_type != ActionType::Press {
-            return false
-        }
-        // TODO Investigate why we are getting zero keymask press events after every real event.
-        if *key_mask == KeyMask::from_vec(vec![]) {
-            return false;
-        }
-
-        let is_same_key = if let Some(prev_key_mask) = self.prev_key {
-            prev_key_mask == *key_mask
-        } else {
-            false
-        };
-        let now = self.now();
-        let within_threshold = if let Some(prev_time) = self.prev_time {
-            (now - prev_time) < self.threshold_ms
-        } else {
-            false
-        };
-        self.prev_time = Some(now);
-        self.prev_key  = Some(*key_mask);
-        is_same_key && within_threshold
     }
 }
