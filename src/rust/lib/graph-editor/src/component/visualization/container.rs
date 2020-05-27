@@ -286,19 +286,21 @@ impl Container {
         data.set_visualization(Registry::default_visualisation(&scene));
         data.set_visibility(false);
         let frp                     = default();
-        Self {data,frp} . init() . init_frp()
+        Self {data,frp} . init()
     }
 
     fn init(self) ->  Self {
-        self.init_shape()
+        self.init_shape().init_frp()
     }
 
     fn init_shape(self) -> Self {
         self.update_shape_sizes();
-        self.display_object_internal.add_child(&self.data.shape_overlay);
-        self.display_object_internal.add_child(&self.data.shape_frame);
-        self.display_object_internal.add_child(&self.data.display_object_visualisation);
-        self.display_object.add_child(&self.display_object_internal);
+        self.data.display_object_internal.add_child(&self.data.shape_overlay);
+        self.data.display_object_internal.add_child(&self.data.shape_frame);
+        self.data.display_object_internal.add_child(&self.data.display_object_visualisation);
+        // Remove default parents to stay hidden on init.
+        self.data.display_object.add_child(&self.display_object_internal);
+        self.data.display_object_internal.unset_parent();
         self
     }
 

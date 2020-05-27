@@ -290,7 +290,6 @@ impl NodeModel {
         });
 
         display_object.add_child(&visualization_container);
-        visualization_container.frp.set_visibility.emit(false);
 
         ports.mod_position(|p| {
             p.x = TEXT_OFF;
