@@ -21,7 +21,6 @@ use js_sys::Function;
 use logger::Logger;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
-use gloo_timers::future::TimeoutFuture;
 
 pub use web_sys::CanvasRenderingContext2d;
 pub use web_sys::Document;
@@ -495,6 +494,8 @@ pub mod traits {
 /// function call.
 #[cfg(target_arch = "wasm32")]
 pub async fn sleep(duration:Duration) {
+    use gloo_timers::future::TimeoutFuture;
+
     TimeoutFuture::new(duration.as_micros() as u32).await
 }
 

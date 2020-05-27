@@ -204,7 +204,7 @@ impl<Notification> {
         }
     }
 
-    /// All requests timeout after this duration.
+    /// A `Duration` after which requests are timed out.
     pub fn timeout(&self) -> Duration {
         self.timeout
     }
