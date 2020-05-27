@@ -5,6 +5,8 @@
 
 use crate::prelude::*;
 
+use crate::config::PROJECT_VISUALIZATION_FOLDER;
+
 use enso_protocol::language_server;
 use graph_editor::component::visualization::class;
 use graph_editor::component::visualization::JsSourceClass;
@@ -64,12 +66,9 @@ pub struct EmbeddedVisualizations {
 
 
 
-
 // ==============
 // === Handle ===
 // ==============
-
-const VISUALIZATION_FOLDER:&str = "visualization";
 
 /// Visualization Controller is responsible for listing and loading all the available
 /// visualizations on the project and the native ones embedded on IDE.
@@ -91,7 +90,7 @@ impl Handle {
     async fn list_project_specific_visualizations
     (&self) -> FallibleResult<Vec<VisualizationPath>> {
         let root_id   = self.language_server_rpc.content_root();
-        let path      = language_server::Path::new(root_id,&[VISUALIZATION_FOLDER]);
+        let path      = language_server::Path::new(root_id,&[PROJECT_VISUALIZATION_FOLDER]);
         let folder    = self.language_server_rpc.file_exists(&path).await?;
         let file_list = if folder.exists {
             self.language_server_rpc.file_list(&path).await?.paths
@@ -99,7 +98,7 @@ impl Handle {
             default()
         };
         let result = file_list.iter().filter_map(|object| {
-            if let language_server::FileSystemObject::File{name:_,path:_} = object {
+            if let language_server::FileSystemObject::File{..} = object {
                 Some(VisualizationPath::File(object.into()))
             } else {
                 None
@@ -134,10 +133,10 @@ impl Handle {
                 result.cloned().ok_or_else(error)
             },
             VisualizationPath::File(path) => {
-                let js_code         = self.language_server_rpc.read_file(&path).await?.contents;
-                let identifier      = visualization.clone();
-                let error           = |_| VisualizationError::InstantiationError {identifier}.into();
-                let js_class        = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
+                let js_code    = self.language_server_rpc.read_file(&path).await?.contents;
+                let identifier = visualization.clone();
+                let error      = |_| VisualizationError::InstantiationError {identifier}.into();
+                let js_class   = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
                 js_class.map(|js_class| Rc::new(class::Handle::new(js_class)))
             }
         }

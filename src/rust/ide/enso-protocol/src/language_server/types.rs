@@ -32,11 +32,11 @@ pub struct Path {
 impl From<&FileSystemObject> for Path {
     fn from(file_system_object:&FileSystemObject) -> Path {
         match file_system_object {
-            FileSystemObject::Directory{name,path}          => path.clone_with_segment(name),
-            FileSystemObject::File{name,path}               => path.clone_with_segment(name),
-            FileSystemObject::DirectoryTruncated{name,path} => path.clone_with_segment(name),
-            FileSystemObject::Other{name,path}              => path.clone_with_segment(name),
-            FileSystemObject::SymlinkLoop{name,path,..}     => path.clone_with_segment(name)
+            FileSystemObject::Directory{name,path}          => path.append_im(name),
+            FileSystemObject::File{name,path}               => path.append_im(name),
+            FileSystemObject::DirectoryTruncated{name,path} => path.append_im(name),
+            FileSystemObject::Other{name,path}              => path.append_im(name),
+            FileSystemObject::SymlinkLoop{name,path,..}     => path.append_im(name)
         }
     }
 }
@@ -51,12 +51,12 @@ impl Display for Path {
 impl Path {
     /// Splits path into name and path to parent directory. e.g.:
     /// Path{root_id,segments:["foo","bar","qux"]} => ("qux",Path{root_id,segments:["foo","bar"]})
-    pub fn split_into_name_and_parent(mut self) -> Option<(String, Path)> {
-        self.segments.pop().map(|name| (name,self))
+    pub fn split(mut self) -> Option<(Path,String)> {
+        self.segments.pop().map(|name| (self,name))
     }
 
     /// Creates a new clone appending a new `segment`.
-    pub fn clone_with_segment(&self, segment:impl Str) -> Self {
+    pub fn append_im(&self, segment:impl Str) -> Self {
         let mut clone = self.clone();
         clone.segments.push(segment.into());
         clone
@@ -207,27 +207,27 @@ pub enum FileSystemObject {
 impl FileSystemObject {
     /// Creates a new Directory variant.
     pub fn new_directory(path:Path) -> Option<Self> {
-        path.split_into_name_and_parent().map(|(name,path)| Self::Directory{name,path})
+        path.split().map(|(path,name)| Self::Directory{name,path})
     }
 
     /// Creates a new DirectoryTruncated variant.
     pub fn new_directory_truncated(path:Path) -> Option<Self> {
-        path.split_into_name_and_parent().map(|(name,path)| Self::DirectoryTruncated{name,path})
+        path.split().map(|(path,name)| Self::DirectoryTruncated{name,path})
     }
 
     /// Creates a new File variant.
     pub fn new_file(path:Path) -> Option<Self> {
-        path.split_into_name_and_parent().map(|(name,path)| Self::File{name,path})
+        path.split().map(|(path,name)| Self::File{name,path})
     }
 
     /// Creates a new Other variant.
     pub fn new_other(path:Path) -> Option<Self> {
-        path.split_into_name_and_parent().map(|(name,path)| Self::Other{name,path})
+        path.split().map(|(path,name)| Self::Other{name,path})
     }
 
     /// Creates a new SymlinkLoop variant.
     pub fn new_symlink_loop(path:Path,target:Path) -> Option<Self> {
-        path.split_into_name_and_parent().map(|(name,path)| Self::SymlinkLoop{name,path,target})
+        path.split().map(|(path,name)| Self::SymlinkLoop{name,path,target})
     }
 }
 

@@ -45,7 +45,8 @@ impl Handle {
         let language_server_bin     = Rc::new(language_server_binary);
         let logger                  = parent.sub("Project Controller");
         let embedded_visualizations = default();
-        let visualization = Visualization::new(language_server_rpc.clone(),embedded_visualizations);
+        let language_server         = language_server_rpc.clone();
+        let visualization           = Visualization::new(language_server,embedded_visualizations);
         Handle {module_registry,parser,language_server_rpc,language_server_bin,logger,visualization}
     }
 
