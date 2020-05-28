@@ -52,7 +52,7 @@ failed, IDE displays an alert and opens new unsaved project.
 
 #### Story
 
-The Searcher panel appears in two cases:
+The Searcher panel appears when:
 * when user starts to edit node - the node became Searcher input and panel appears below, 
 * when user press tab with mouse over Graph Editor Panel - the new Searcher input appears with
   Searcher panel below.
@@ -64,8 +64,8 @@ introduce Searcher _mode_, which may be one of the following variants:
   selected on the scene.
 * _General_ in any other case.
 
-When the mode is `_Add to Selection_ then there should be displayed connection between node and
-the Searcher input similar to the connections between nodes.
+When the mode is _Add to Selection_ then there should be displayed connection between the selected
+node and the Searcher input.
 
 Additionally, the Searcher have _context_ which may change over time:
 * _Function Chosen_ with assigned _method pointer_, indicating that user have chosen the
@@ -73,12 +73,12 @@ Additionally, the Searcher have _context_ which may change over time:
 * `None` in any other case.
 
 The displayed content in Searcher panel depends on its _mode_, and current input.
-* When mode is _General_ and the text input is empty, the Searcher Panel should display main menu
-  whose entries are arranged in tiles.
+* When mode is _General_ and the text input is empty, the Searcher Panel should display main menu.
+  The Main Menu whose entries are arranged in tiles.
 * Otherwise, the Searcher Panel should display a list of suggestions. The exact content of the
   list depends on _mode_, current input and _context_. 
 
-Each suggestion have a label and an icon. One of the list elements may be selected, initially
+Each suggestion has a label and an icon. One of the list elements may be selected, initially
 the first one. The user changes selection by using arrow keys or by moving mouse pointer over
 elements. When pressing arrow up when the first element in is selected the selection is removed
 entirely. When none element is selected, pressing arrow down select the first element.
@@ -94,7 +94,7 @@ In this section we define two parts of searcher: _expression_ and _pattern_.
 * Otherwise, the input is parsed to Prefix Chain. The last element of chain become _pattern_, and
   the rest become _expression_. If there is only one element, the _expression_ is empty.
 
-When suggestion list needs to be created or updated, the engine method described in _Assumtions_ is
+When suggestion list needs to be created or updated, the engine method described in _Assumptions_ is
  called:
 * First argument:
   * If the searcher's mode is _Add to Selection_ and _expression_ is empty, the first output
@@ -124,7 +124,7 @@ EnsoGL library supports displaying rich line of text.
 
 ##### Engine
 
-The engine implements an method for getting list of suggestions. 
+The engine implements a method for getting list of suggestions. 
 
 The function takes:
 * One of:

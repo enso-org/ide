@@ -8,6 +8,7 @@
 * [Text Editor for Definition](#text-editor-for-definition)
 * [Searching Documentation](#searching-documentation)
 * [Learning Guide](#learning-guide)
+* [Expanded Nodes and Panels](#expanded-nodes-and-panels)
 * [Explore Community Scenes](#explore-community-scenes)
 
 
@@ -32,7 +33,7 @@ in the following situation:
 * the _pattern_ part of the Searcher input is empty. (See Node Suggestions section).
 
 If user choose file in this FileBrowser, the file path should be appended to the expression in
- Searcher input.
+the Searcher input.
 
 
 
@@ -49,7 +50,7 @@ If user choose file in this FileBrowser, the file path should be appended to the
 
 ##### Create Definitions
 
-The suggestion list on searcher has a new element in `Actions` category, labeled _Create
+The suggestion list in Searcher has a new element in `Actions` category, labeled _Create
 function &lt;searcher input&gt;_. The action is available when:
 * One of this condition is met:
   * the searcher mode is `General`;
@@ -59,7 +60,7 @@ function &lt;searcher input&gt;_. The action is available when:
 
 When this suggestion is chosen (by mouse click, or pressing Enter having it selected):
 * The Searcher panel disappears
-* A new definition in the module of currently displayed graph is created, whose name is took
+* A new definition in the module of the currently displayed graph is created, whose name is taken
   from searcher input.  If searcher mode was `AddNodeToSelection`, and the type of selected node
   output is `T`, the created definition is an extension method for type `T`, i.e. the function
   is defined as `T.<searcher input>`.
@@ -133,6 +134,10 @@ TODO: How do we define order of parameters and outputs?
 
 
 ### Learning guide
+
+
+
+### Expanded Nodes and Panels
 
 
 
