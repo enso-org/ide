@@ -109,8 +109,12 @@ impl ViewLayout {
         Self {rc}.init(world,kb_actions)
     }
 
-    fn init_keyboard(self, _keyboard_actions:&mut keyboard::Actions) -> Self {
+    fn init_keyboard(self, keyboard_actions:&mut keyboard::Actions) -> Self {
         // TODO[ao] add here some useful staff (quitting project for example)
+        let mut node_searcher = self.rc.borrow().node_searcher.clone();
+        keyboard_actions.add_action(&[keyboard::Key::Tab], move || {
+            node_searcher.show()
+        }).forget(); // FIXME: Remove forget.
         self
     }
 

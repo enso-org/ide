@@ -31,12 +31,12 @@ impl NodeSearcher {
         let logger         = logger.sub("NodeSearcher");
         let display_object = display::object::Instance::new(&logger);
         let properties     = TextFieldProperties {
-            font        : fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap(),
-            text_size   : 16.0,
-             base_color : color::Rgba::new(1.0, 1.0, 1.0, 0.7),
-            size        : Vector2::new(screen.width,16.0),
+            font       : fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap(),
+            text_size  : 16.0,
+            base_color : color::Rgba::new(1.0, 1.0, 1.0, 0.7),
+            size       : Vector2::new(screen.width,16.0),
         };
-        let text_field     = TextField::new(world,properties);
+        let text_field = TextField::new(world,properties);
         display_object.add_child(&text_field.display_object());
         let searcher = NodeSearcher{ display_object,text_field,controller,logger};
         searcher.initialize()
@@ -45,6 +45,7 @@ impl NodeSearcher {
     fn initialize(self) -> Self {
         let text_field_weak = self.text_field.downgrade();
         let controller      = self.controller.clone();
+        let display_object  = self.display_object.clone();
         self.text_field.set_text_edit_callback(move |change| {
             // If the text edit callback is called, the TextEdit must be still alive.
             let text_field    = text_field_weak.upgrade().unwrap();
@@ -58,12 +59,18 @@ impl NodeSearcher {
                 let new_node      = NewNodeInfo { expression,metadata,id,location_hint };
                 controller.add_node(new_node);
                 text_field.clear_content();
+                display_object.remove_child(&text_field.display_object());
             } else {
                 // Keep only one line.
                 text_field.set_content(expression);
             }
         });
         self
+    }
+
+    /// Show NodeSearcher if it's invisible.
+    pub fn show(&mut self) {
+        self.display_object.add_child(&self.text_field.display_object());
     }
 }
 
