@@ -76,6 +76,7 @@ pub trait Resizable {
 
 /// Provides functionality to enable or disable behaviour/visuals that should be triggered when the
 /// component is in fullscreen mode.
+#[allow(missing_docs)]
 pub trait HasFullscreenDecoration {
     fn enable_fullscreen_decoration(&self);
     fn disable_fullscreen_decoration(&self);

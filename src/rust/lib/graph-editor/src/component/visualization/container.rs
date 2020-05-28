@@ -300,6 +300,7 @@ impl Container {
 
     fn init_shape(self) -> Self {
         self.update_shape_sizes();
+        self.set_corner_roundness(1.0);
         self.data.display_object_internal.add_child(&self.data.shape_overlay);
         self.data.display_object_internal.add_child(&self.data.shape_frame);
         self.data.display_object_internal.add_child(&self.data.display_object_visualisation);
@@ -397,10 +398,10 @@ impl display::Object for Container {
 
 impl HasFullscreenDecoration for Container {
     fn enable_fullscreen_decoration(&self) {
-        self.data.set_corner_roundness(1.0);
+        self.data.set_corner_roundness(0.0);
     }
 
     fn disable_fullscreen_decoration(&self) {
-        self.data.set_corner_roundness(0.0);
+        self.data.set_corner_roundness(1.0);
     }
 }
