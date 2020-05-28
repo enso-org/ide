@@ -263,8 +263,9 @@ define_sdf_shapes! {
     // === Triangle ===
 
     Triangle (width:f32, height:f32) {
-        vec2  norm = normalize(vec2(height,width/2.0));
-        float dist = max(abs(position).x*norm.x + position.y*norm.y - height*norm.y, -position.y);
+        vec2  norm  = normalize(vec2(height,width/2.0));
+        float pos_y = -position.y - height/2.0;
+        float dist  = max(abs(position).x*norm.x + position.y*norm.y - height/2.0*norm.y, pos_y);
         return bound_sdf(dist,bounding_box(width,height/2.0));
     }
 }

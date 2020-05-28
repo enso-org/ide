@@ -101,6 +101,28 @@ macro_rules! define_line {($($color:tt)*) => {
     }
 }}
 
+macro_rules! define_arrow {($($color:tt)*) => {
+    /// Shape definition.
+    pub mod arrow {
+        use super::*;
+        ensogl::define_shape_system! {
+            () {
+                let width  : Var<Distance<Pixels>> = "input_size.x".into();
+                let height : Var<Distance<Pixels>> = "input_size.y".into();
+                let width      = width  - (2.0 * PADDING).px();
+                let height     = height - (2.0 * PADDING).px();
+                let triangle   = Triangle(width,height);
+                let offset     = (LINE_WIDTH/2.0).px();
+                let triangle_l = triangle.translate_x(-&offset);
+                let triangle_r = triangle.translate_x(&offset);
+                let shape      = triangle_l + triangle_r;
+                let shape      = shape.fill(color::Rgba::from($($color)*));
+                shape.into()
+            }
+        }
+    }
+}}
+
 
 // ============
 // === Edge ===
@@ -110,12 +132,14 @@ pub mod front {
     use super::*;
     define_corner!(color::Lcha::new(0.6,0.5,0.76,1.0));
     define_line!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
 }
 
 pub mod back {
     use super::*;
     define_corner2!(color::Lcha::new(0.6,0.5,0.76,1.0));
     define_line!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
 }
 
 /// Canvas node shape definition.
@@ -230,6 +254,7 @@ define_components!{
         side_line2 : front::line::Shape,
         main_line  : front::line::Shape,
         port_line  : front::line::Shape,
+        arrow      : front::arrow::Shape,
     }
 }
 
@@ -241,6 +266,7 @@ define_components!{
         side_line  : back::line::Shape,
         side_line2 : back::line::Shape,
         main_line  : back::line::Shape,
+        arrow      : front::arrow::Shape,
     }
 }
 
@@ -336,7 +362,7 @@ impl Edge {
 
 
 
-                let s1 = target_x < width + 20.0;
+                let s1 = target_x < width + 40.0;
                 let downward = if s1 {
                     if target_x < width {
                         local_target_y < -node_height / 2.0
@@ -482,8 +508,7 @@ impl Edge {
                     let use_double_line         = below_node;
                     if use_double_line {
                         let diff               = shadow_size - f32::max(0.0,-corner.y - radius);
-                        let diff = f32::min(diff, -local_target_y - node_height/2.0);
-                        println!(">> {}",diff);
+                        let diff               = f32::min(diff, -local_target_y - node_height/2.0);
                         front_line_position.y -= diff/2.0;
                         front_line_size.y     -= diff;
                         back_line_position.y   = corner.y - diff/2.0;
@@ -596,6 +621,15 @@ impl Edge {
                     fg.main_line.shape.sprite.size().set(main_line_size);
                     fg.main_line.set_position_xy(main_line_pos);
 
+                    if main_line_len > 0.0 {
+                        let arrow_pos = Vector2::new(main_line_pos.x, (corner_y - corner_radius + corner2_y + corner2_radius)/2.0);
+                        fg.arrow.shape.sprite.size().set(Vector2::new(20.0,20.0));
+                        fg.arrow.set_position_xy(arrow_pos);
+                    } else {
+                        fg.arrow.shape.sprite.size().set(zero());
+                    }
+
+                    println!(">> {}",main_line_len);
 
                     let side_line2_len  = corner3_x - corner2_x;
                     let side_line2_x    = side * (corner2_x + side_line2_len / 2.0);
