@@ -1,7 +1,7 @@
 //! Provides the fullscreen operation that can be applied to UI components.
 use crate::prelude::*;
 
-use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration};
 use crate::component::visualization::traits::Resizable;
 
 use enso_prelude::CloneRef;
@@ -18,7 +18,8 @@ use ensogl::gui::component::animation;
 // === Helper Types ===
 // ====================
 
-pub trait Fullscreenable = display::Object+Resizable+HasSymbols+CloneRef+'static;
+pub trait Fullscreenable = display::Object+Resizable+HasSymbols+CloneRef+HasFullscreenDecoration
+                           +'static;
 
 
 
@@ -259,6 +260,7 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
         // Change parent
         self.target.display_object().set_parent(self.scene.display_object());
         self.target.set_layers_fullscreen(&self.scene);
+        self.target.disable_fullscreen_decoration();
 
         let margin      = 0.0;
         let scene_shape = self.scene.shape();
@@ -286,6 +288,7 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
         let global_pos_start = self.target.global_position();
 
         self.target.set_layers_normal(&self.scene);
+        self.target.enable_fullscreen_decoration();
 
         if let Some(parent) = self.parent_original.as_ref() {
             self.target.display_object().set_parent(&parent);
@@ -304,6 +307,7 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
         let target_pos  = self.position_original;
         let source_size = self.target.size();
         let target_size = self.size_original;
+
 
         self.scene.views.toggle_overlay_cursor();
         AnimationTargetState {

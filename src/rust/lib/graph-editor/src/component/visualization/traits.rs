@@ -73,3 +73,19 @@ pub trait Resizable {
     /// Return the size of the UI element.
     fn size(&self) -> Vector3<f32>;
 }
+
+/// Provides functionality to enable or disable behaviour/visuals that should be triggered when the
+/// component is in fullscreen mode.
+pub trait HasFullscreenDecoration {
+    fn enable_fullscreen_decoration(&self);
+    fn disable_fullscreen_decoration(&self);
+
+    fn set_fullscreen_decoration(&self, value:bool) {
+        if value {
+            self.enable_fullscreen_decoration()
+        } else {
+            self.disable_fullscreen_decoration()
+        }
+    }
+}
+

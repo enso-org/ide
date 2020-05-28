@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration};
 use crate::component::visualization::traits::Resizable;
 use crate::component::visualization::traits::SymbolLayoutData;
 use crate::component::visualization::traits::TargetLayer;
@@ -35,19 +35,20 @@ pub mod frame {
     use super::*;
 
     ensogl::define_shape_system! {
-        (width:f32,height:f32,selected:f32,padding:f32) {
+        (width:f32,height:f32,selected:f32,padding:f32,roundness:f32) {
             // TODO use style
 
-            let width_bg   = width.clone();
-            let height_bg  = height.clone();
-            let width_bg   = Var::<Distance<Pixels>>::from(width_bg);
-            let height_bg  = Var::<Distance<Pixels>>::from(height_bg);
-            let radius     = Var::<Distance<Pixels>>::from(padding.clone());
-            let color_bg   = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let background = Rect((&width_bg,&height_bg)).corners_radius(&radius);
-            let background = background.fill(color::Rgba::from(color_bg));
+            let width_bg      = width.clone();
+            let height_bg     = height.clone();
+            let width_bg      = Var::<Distance<Pixels>>::from(width_bg);
+            let height_bg     = Var::<Distance<Pixels>>::from(height_bg);
+            let radius        = Var::<Distance<Pixels>>::from(padding.clone());
+            let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
+            let corner_radius = &radius * &roundness;
+            let background    = Rect((&width_bg,&height_bg)).corners_radius(&corner_radius);
+            let background    = background.fill(color::Rgba::from(color_bg));
 
-            let frame_outer = Rect((&width_bg,&height_bg)).corners_radius(&radius);
+            let frame_outer = Rect((&width_bg,&height_bg)).corners_radius(&corner_radius);
 
             let padding            = &padding * Var::<f32>::from(2.0) * &selected;
             let padding_aliased    = padding - Var::<f32>::from(1.0);
@@ -55,7 +56,7 @@ pub mod frame {
             let height_frame_inner = &height - &padding_aliased;
             let width_frame_inner  = Var::<Distance<Pixels>>::from(width_frame_inner);
             let height_frame_inner = Var::<Distance<Pixels>>::from(height_frame_inner);
-            let inner_radius       = &radius * (Var::<f32>::from(1.0) - &selected);
+            let inner_radius       = &corner_radius * (Var::<f32>::from(1.0) - &selected);
             let frame_inner        = Rect((&width_frame_inner,&height_frame_inner));
             let frame_rounded      = frame_inner.corners_radius(&inner_radius);
 
@@ -76,14 +77,15 @@ pub mod overlay {
     use super::*;
 
     ensogl::define_shape_system! {
-        (width:f32,height:f32,selected:f32,padding:f32) {
-            let width_bg      = width.clone();
-            let height_bg     = height.clone();
-            let width_bg      = Var::<Distance<Pixels>>::from(width_bg);
-            let height_bg     = Var::<Distance<Pixels>>::from(height_bg);
-            let radius        = Var::<Distance<Pixels>>::from(padding);
+        (width:f32,height:f32,selected:f32,padding:f32,roundness:f32) {
+            let width_bg       = width.clone();
+            let height_bg      = height.clone();
+            let width_bg       = Var::<Distance<Pixels>>::from(width_bg);
+            let height_bg      = Var::<Distance<Pixels>>::from(height_bg);
+            let radius         = Var::<Distance<Pixels>>::from(padding);
+            let corner_radius = &radius * &roundness;
             let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
-            let overlay       = Rect((&width_bg,&height_bg)).corners_radius(&radius);
+            let overlay       = Rect((&width_bg,&height_bg)).corners_radius(&corner_radius);
             let overlay       = overlay.fill(color_overlay);
 
             let out = overlay;
@@ -238,6 +240,7 @@ impl ContainerData {
         overlay_shape.padding.set(padding);
         overlay_shape.sprite.size().set(Vector2::new(width, height));
 
+
         let pos = Vector3::new(width/2.0,height/2.0, 0.0);
         frame_shape.set_position(pos);
         overlay_shape.set_position(pos);
@@ -250,6 +253,14 @@ impl ContainerData {
 
         self.size.set(size.xy());
         self.update_shape_sizes();
+    }
+
+    fn set_corner_roundness(&self, value:f32) {
+        let overlay_shape = &self.shape_overlay.shape;
+        let frame_shape   = &self.shape_frame.shape;
+
+        overlay_shape.roundness.set(value);
+        frame_shape.roundness.set(value);
     }
 }
 
@@ -381,5 +392,15 @@ impl HasSymbols for Container {
 impl display::Object for Container {
     fn display_object(&self) -> &display::object::Instance {
         &self.data.display_object
+    }
+}
+
+impl HasFullscreenDecoration for Container {
+    fn enable_fullscreen_decoration(&self) {
+        self.data.set_corner_roundness(1.0);
+    }
+
+    fn disable_fullscreen_decoration(&self) {
+        self.data.set_corner_roundness(0.0);
     }
 }
