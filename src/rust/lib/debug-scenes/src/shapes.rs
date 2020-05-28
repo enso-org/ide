@@ -80,13 +80,13 @@ fn init(app:&Application) {
 
 
     let node1_id = graph_editor.add_node();
-//    let node2_id = graph_editor.add_node();
+    let node2_id = graph_editor.add_node();
 //
     graph_editor.frp.set_node_position.emit((node1_id,Position::new(100.0 , 250.0)));
-//    graph_editor.frp.set_node_position.emit((node2_id,Position::new(200.0 ,  50.0)));
+    graph_editor.frp.set_node_position.emit((node2_id,Position::new(200.0 ,  50.0)));
 //
     graph_editor.frp.set_node_expression.emit((node1_id,expression_mock()));
-//    graph_editor.frp.set_node_expression.emit((node2_id,expression_mock2()));
+    graph_editor.frp.set_node_expression.emit((node2_id,expression_mock2()));
 
 //    frp::new_network! { network
 //        def trigger = source::<()>();
