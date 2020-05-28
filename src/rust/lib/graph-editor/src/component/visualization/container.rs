@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration};
+use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration, HasDomSymbols};
 use crate::component::visualization::traits::Resizable;
 use crate::component::visualization::traits::SymbolLayoutData;
 use crate::component::visualization::traits::TargetLayer;
@@ -10,7 +10,7 @@ use crate::frp;
 use crate::visualization::*;
 
 use ensogl::data::color;
-use ensogl::display::Attribute;
+use ensogl::display::{Attribute, DomSymbol};
 use ensogl::display::Symbol;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
@@ -387,6 +387,16 @@ impl HasSymbols for Container {
         let symbols  = symbols.map(move |symbol| SymbolLayoutData{symbol,target_layer});
         let vis_symbols  = self.data.visualization.borrow().as_ref().map(|vis| vis.symbols_with_data()).unwrap_or_default();
         symbols.chain(vis_symbols).collect()
+    }
+}
+
+impl HasDomSymbols for Container {
+    fn dom_symbols(&self) -> Vec<DomSymbol> {
+        if let Some(vis) = self.data.visualization.borrow().as_ref() {
+            vis.dom_symbols()
+        } else{
+            vec![]
+        }
     }
 }
 

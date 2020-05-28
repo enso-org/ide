@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use ensogl::display::Scene;
+use ensogl::display::{Scene, DomSymbol, DomScene};
 use ensogl::display::Symbol;
 
 
@@ -63,6 +63,29 @@ pub trait HasSymbols {
             }
         }
     }
+}
+
+/// Should be implemented by UI component that have `HasDomSymbols`s. Provides access to the symbols,
+/// as well as some helpers for placing them on the correct layers.
+pub trait HasDomSymbols {
+    /// Return all `DomSymbol`s that make up this component.
+    fn dom_symbols(&self) -> Vec<DomSymbol>;
+
+    /// Let's the given `DomScene` manage all `DomSymbol`s.
+    fn set_managed(&self, scene:&DomScene){
+        for symbol in &self.dom_symbols() {
+                scene.manage(symbol)
+        }
+    }
+
+    fn set_dom_layers_normal(&self, scene:&Scene) {
+        self.set_managed(&scene.dom.layers.main)
+    }
+
+    fn set_dom_layers_overlay(&self, scene:&Scene) {
+        self.set_managed(&scene.dom.layers.overlay)
+    }
+
 }
 
 /// Provides information and functionality to resize an element. A complex UI component should

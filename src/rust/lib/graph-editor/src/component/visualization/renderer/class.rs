@@ -7,6 +7,7 @@ use crate::frp;
 
 use ensogl::display;
 use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::HasDomSymbols;
 
 
 // ===========
@@ -57,7 +58,7 @@ impl Default for DataRendererFrp {
 /// `valid_input_types` method. This serves as a hint, it will also reject invalid input in the
 /// `set_data` method with a `DataError`. The owner of the `DataRenderer` is in charge of producing
 /// UI feedback to indicate a problem with the data.
-pub trait DataRenderer: display::Object + HasSymbols + Debug {
+pub trait DataRenderer: display::Object + HasSymbols + HasDomSymbols + Debug {
     /// Receive the data that should be rendered. If the data is valid, it will return the data as
     /// processed by this `DataRenderer`, if the data is of an invalid data type, it violates other
     /// assumptions of this `DataRenderer`, a `DataError` is returned.

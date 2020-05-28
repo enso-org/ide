@@ -1,7 +1,7 @@
 //! Provides the fullscreen operation that can be applied to UI components.
 use crate::prelude::*;
 
-use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration};
+use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration, HasDomSymbols};
 use crate::component::visualization::traits::Resizable;
 
 use ensogl::animation::physics::inertia::DynSimulator;
@@ -19,8 +19,8 @@ use ensogl::system::web;
 // === Helper Types ===
 // ====================
 
-pub trait Fullscreenable = display::Object+Resizable+HasSymbols+CloneRef+HasFullscreenDecoration
-                           +'static;
+pub trait Fullscreenable = display::Object+Resizable+HasSymbols+HasDomSymbols+CloneRef
+                           +HasFullscreenDecoration+'static;
 
 
 
@@ -269,6 +269,7 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
         // Change parent
         self.target.display_object().set_parent(self.scene.display_object());
         self.target.set_layers_fullscreen(&self.scene);
+        self.target.set_dom_layers_overlay(&self.scene);
         self.target.enable_fullscreen_decoration();
 
         let margin      = 0.0;
@@ -297,6 +298,7 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
         let global_pos_start = self.target.global_position();
 
         self.target.set_layers_normal(&self.scene);
+        self.target.set_dom_layers_normal(&self.scene);
         self.target.disable_fullscreen_decoration();
 
         if let Some(parent) = self.parent_original.as_ref() {

@@ -13,10 +13,10 @@ use ensogl::frp;
 
 use crate::SharedHashMap;
 use crate::SharedHashSet;
-use crate::component::visualization::fullscreen::FullscreenState;
 use crate::component::visualization::*;
+use crate::component::visualization::fullscreen::FullscreenState;
+use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::HasSymbols;
-
 
 
 // ===========
@@ -92,9 +92,11 @@ impl Stage {
         if let Some(container) = self.get_selected() {
             container.set_visualization(vis);
             if self.fullscreen_state.is_fullscreen() {
-                container.set_layers_fullscreen(&self.scene)
+                container.set_layers_fullscreen(&self.scene);
+                container.set_dom_layers_overlay(&self.scene);
             } else {
-                container.set_layers_normal(&self.scene)
+                container.set_layers_normal(&self.scene);
+                container.set_dom_layers_normal(&self.scene);
             }
         }
     }

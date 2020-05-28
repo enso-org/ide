@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::visualization::traits::SymbolLayoutData;
+use crate::component::visualization::traits::{SymbolLayoutData, HasDomSymbols};
 use crate::component::visualization::traits::TargetLayer;
 
 use ensogl::data::color::Rgba;
@@ -112,6 +112,12 @@ impl traits::HasSymbols for BubbleChart {
     fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
         let target_layer = TargetLayer::Visualisation;
         self.symbols().into_iter().map(|symbol| SymbolLayoutData{ symbol,target_layer}).collect()
+    }
+}
+
+impl HasDomSymbols for BubbleChart {
+    fn dom_symbols(&self) -> Vec<DomSymbol> {
+        vec![]
     }
 }
 

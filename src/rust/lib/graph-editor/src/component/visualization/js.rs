@@ -127,7 +127,7 @@ impl Class for JsSourceClass {
             Ok(renderer) => renderer,
             Err(err) => return Err(InstantiationError::InvalidClass {inner:err.into()}),
         };
-        renderer.set_dom_layer(&scene.dom.layers.front);
+        renderer.set_dom_layer(&scene.dom.layers.main);
         Ok(Visualization::new(renderer))
     }
 }

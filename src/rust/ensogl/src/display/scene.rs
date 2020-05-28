@@ -455,30 +455,30 @@ impl Dom {
 /// elements.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Layers {
+    /// Overlay DOM scene layer.
+    pub overlay: DomScene,
     /// Front DOM scene layer.
-    pub front : DomScene,
+    pub main: DomScene,
     /// The WebGL scene layer.
     pub canvas : web_sys::HtmlCanvasElement,
-    /// Back DOM scene layer.
-    pub back : DomScene,
+
 }
 
 impl Layers {
     /// Constructor.
     pub fn new(logger:&Logger, dom:&web_sys::HtmlDivElement) -> Self {
-        let canvas = web::create_canvas();
-        let front  = DomScene::new(&logger);
-        let back   = DomScene::new(&logger);
+        let canvas  = web::create_canvas();
+        let main    = DomScene::new(&logger);
+        let overlay = DomScene::new(&logger);
         canvas.set_style_or_panic("height"  , "100vh");
         canvas.set_style_or_panic("width"   , "100vw");
         canvas.set_style_or_panic("display" , "block");
-        front.dom.set_class_name("front");
-        back.dom.set_class_name("back");
-        dom.append_or_panic(&front.dom);
+        main.dom.set_class_name("front");
+        overlay.dom.set_class_name("back");
         dom.append_or_panic(&canvas);
-        dom.append_or_panic(&back.dom);
-        back.set_z_index(-1);
-        Self {front,canvas,back}
+        dom.append_or_panic(&main.dom);
+        dom.append_or_panic(&overlay.dom);
+        Self { main,canvas, overlay }
     }
 }
 
@@ -956,8 +956,8 @@ impl SceneData {
         if changed {
             self.frp.camera_changed_source.emit(());
             self.symbols.set_camera(camera);
-            self.dom.layers.front.update_view_projection(camera);
-            self.dom.layers.back.update_view_projection(camera);
+            self.dom.layers.main.update_view_projection(camera);
+            // self.dom.layers.back.update_view_projection(camera);
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).

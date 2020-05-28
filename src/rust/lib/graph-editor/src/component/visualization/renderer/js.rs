@@ -28,6 +28,7 @@ use crate::component::visualization::Data;
 use crate::component::visualization::DataError;
 use crate::component::visualization::DataRenderer;
 use crate::component::visualization::DataRendererFrp;
+use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::HasSymbols;
 use crate::component::visualization::traits::SymbolLayoutData;
 
@@ -267,6 +268,13 @@ impl HasSymbols for JsRenderer {
         vec![]
     }
 }
+
+impl HasDomSymbols for JsRenderer {
+    fn dom_symbols(&self) -> Vec<DomSymbol> {
+        vec![self.root_node.clone_ref()]
+    }
+}
+
 
 impl display::Object for JsRenderer {
     fn display_object(&self) -> &display::object::Instance {

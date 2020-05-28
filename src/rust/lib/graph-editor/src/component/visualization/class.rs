@@ -3,11 +3,13 @@
 use crate::prelude::*;
 
 use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::SymbolLayoutData;
 use crate::frp;
 use crate::visualization::*;
 
 use ensogl::display::Scene;
+use ensogl::display::DomSymbol;
 use ensogl::display::Symbol;
 use ensogl::display;
 use std::error::Error;
@@ -185,6 +187,12 @@ impl HasSymbols for Visualization {
 
     fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
         self.state.renderer.symbols_with_data()
+    }
+}
+
+impl HasDomSymbols for Visualization {
+    fn dom_symbols(&self) -> Vec<DomSymbol> {
+        self.state.renderer.dom_symbols()
     }
 }
 
