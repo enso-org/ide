@@ -993,7 +993,7 @@ impl GraphEditorModel {
                     self.frp.all_edge_targets_attached.emit(());
                 }
 
-                edge.view.events.target_attached.emit(true);
+                edge.view.frp.target_attached.emit(true);
                 self.refresh_edge_position(edge_id);
             };
         }
@@ -1064,7 +1064,7 @@ impl GraphEditorModel {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_source) = edge.source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
-                    edge.view.events.source_width.emit(node.view.width());
+                    edge.view.frp.source_width.emit(node.view.width());
                 }
             }
         };
@@ -1090,7 +1090,7 @@ impl GraphEditorModel {
                     let offset = node.view.ports.get_port_offset(&edge_target.port).unwrap_or_else(|| Vector2::new(0.0,0.0));
                     let node_position = node.view.position();
                     let pos = frp::Position::new(node_position.x + offset.x, node_position.y + offset.y);
-                    edge.view.events.target_position.emit(pos);
+                    edge.view.frp.target_position.emit(pos);
                 }
             }
         };
@@ -1501,7 +1501,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval edge_refresh_cursor_pos ([edges](position) {
         edges.detached_target.for_each(|id| {
             if let Some(edge) = edges.get_cloned_ref(id) {
-                edge.view.events.target_position.emit(position)
+                edge.view.frp.target_position.emit(position)
             }
         })
     });
