@@ -1,84 +1,222 @@
-//! Provides generic operations that can be applied to UI components.
-//!
-//! Rationale: this is a step towards a higher level abstraction for arbitrary UI elements. That is,
-//! instead of doing a lot of low level functionality within our UI components, we should instead be
-//! able to access some data about them and manipulate them in a consistent manner. For example:
-//! instead of every component implementing a "fullscreen mode", they just provide resizing
-//! functionality and access to their su-components and instead of determining the layer of shapes
-//! within the UI component, we instead make the shapes accessible via an API that indicates the
-//! expected behaviour of the shapes, and the actual layer management happens outside of the
-//! component.
-//!
-//! This is also a step to avoid relying too much on the presence of the `Scene` within the UI
-//! component.
+//! Provides the fullscreen operation that can be applied to UI components.
 use crate::prelude::*;
 
+use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::Resizable;
+
+use enso_prelude::CloneRef;
+use ensogl::animation::physics::inertia::DynSimulator;
 use ensogl::display::Scene;
 use ensogl::display::traits::*;
 use ensogl::display;
+use ensogl::frp;
 use ensogl::gui::component::animation;
-use crate::component::visualization::traits::Resizable;
-use crate::component::visualization::traits::HasSymbols;
-use crate::component::visualization::traits::HasNetwork;
 
 
-pub trait Fullscreenable = display::Object+Resizable+HasSymbols+HasNetwork+CloneRef+'static;
 
-// ==================================
-// === Fullscreen Operator Handle ===
-// ==================================
+// ====================
+// === Helper Types ===
+// ====================
 
-/// FullscreenOperatorCellHandle is a helper type that wraps a `FullscreenOperator` and applies an
-/// undos the operator on the inner component. This can be used to ensure that only a single
-/// component is made fullscreen at any time.
+pub trait Fullscreenable = display::Object+Resizable+HasSymbols+CloneRef+'static;
+
+
+
+// =========================
+// === Animation Helpers ===
+// =========================
+
+/// Weak ref to the inner `State` of the `FullscreenState`.
+type WeakState<T> = Weak<RefCell<StateModel<T>>>;
+
+/// Target state of the animated component. This is used in the animation to interpolate between t
+/// the initial and the final state.
+#[derive(Debug,Clone)]
+struct AnimationTargetState<T> {
+    /// Animated UI component.
+    target      : T,
+    /// Position at the start of the animation.
+    source_pos  : Vector3<f32>,
+    /// Size at the start of the animation.
+    source_size : Vector3<f32>,
+    /// Position at the end of the animation.
+    target_pos  : Vector3<f32>,
+    /// Size at the end of the animation.
+    target_size : Vector3<f32>,
+}
+
+/// Helper function that contains the logic of the animation.
+fn transition_animation_fn<T:Fullscreenable>(state: WeakState<T>, value:f32) {
+    if let Some(state) = state.upgrade() {
+        // Regular animation step
+        // We animate only if the correct state is given.
+        match state.borrow().deref(){
+            StateModel::TransitioningFromFullscreen {animation_data, .. } | StateModel::TransitioningToFullscreen { animation_data,.. } => {
+                let target      = animation_data.target.clone_ref();
+                let source_pos  = animation_data.source_pos;
+                let source_size = animation_data.source_size;
+                let target_pos  = animation_data.target_pos;
+                let target_size = animation_data.target_size;
+                let pos         = source_pos  * (1.0 - value) + target_pos * value;
+                let size        = source_size * (1.0 - value) + target_size * value;
+                target.set_position(pos);
+                target.set_size(size);
+            },
+            _  => ()
+        }
+        // Check for end of animation and set the correct follow up state.
+        if value >= 1.0 {
+            let new_state = match state.borrow().deref() {
+                StateModel::TransitioningFromFullscreen { .. } => {
+                    StateModel::NotFullscreen
+                }
+                StateModel::TransitioningToFullscreen { target_state, ..} => {
+                    StateModel::Fullscreen { data: target_state.clone() }
+                }
+                other    => other.clone(),
+            };
+            state.replace(new_state);
+        }
+    }
+}
+
+// ==================
+// === StateModel ===
+// ==================
+
+/// Represents the internal state of the FullscreenState. This is used to ensure animations always
+/// finish without interruption.
+#[derive(Debug,Clone)]
+enum StateModel<T> {
+    /// There is a UI component and it is in fullscreen mode.
+    Fullscreen {
+        data           : FullscreenStateData<T>
+    },
+    /// There is an animation running from fullscreen mode to non-fullscreen mode.
+    TransitioningFromFullscreen {
+        animation_data : AnimationTargetState<T>
+    },
+    /// There is an animation running from non-fullscreen mode to fullscreen mode.
+    TransitioningToFullscreen {
+        animation_data : AnimationTargetState<T>,
+        target_state   : FullscreenStateData<T>
+    },
+    /// There is no UI component in fullscreen mode.
+    NotFullscreen
+}
+
+impl<T> Default for StateModel<T> {
+    fn default() -> Self {
+        StateModel::NotFullscreen
+    }
+}
+
+
+
+// =======================
+// === FullscreenState ===
+// =======================
+
+/// The `FullscreenState` manages the state changes between fullscreen mode and non-fullscreen mode
+/// for a UI component. It creates animations for the state changes and ensure that the component
+/// cannot come into an illegal state during the transition.
 #[derive(Debug,CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-#[derivative(Default(bound=""))]
 pub struct FullscreenState<T> {
-    operator: Rc<RefCell<Option<FullscreenOperation<T>>>>
+    network   : frp::Network,
+    state     : Rc<RefCell<StateModel<T>>>,
+    animation : DynSimulator<f32>,
+}
+
+impl<T:Fullscreenable> Default for FullscreenState<T> {
+    fn default() -> Self {
+        let network    = frp::Network::new();
+        let state      = Rc::new(RefCell::new(StateModel::<T>::default()));
+        let weak_state = Rc::downgrade(&state);
+        let animation  = animation(&network, move |value| {
+            transition_animation_fn(weak_state.clone_ref(), value);
+        });
+        FullscreenState{network,state,animation}
+    }
 }
 
 impl<T:Fullscreenable> FullscreenState<T> {
-    /// returns whether there is a component that is in fullscreen mode.
-    pub fn is_active(&self) -> bool {
-        self.operator.borrow().is_some()
-    }
-
-    /// Enables fullscreen mode for the given component. If there is another component already in
-    /// fullscreen mode, it disables fullscreen for that component.
-    pub fn set_fullscreen(&self, target:T, scene:Scene) {
-        self.disable_fullscreen();
-        let operator = FullscreenOperation::enable_fullscreen(target, scene);
-        self.operator.set(operator);
-    }
-
-    /// Disables fullscreen mode for the given component.
-    pub fn disable_fullscreen(&self) {
-        if let Some(old) = self.operator.borrow_mut().take() {
-            old.disable_fullscreen();
+    /// Returns whether there is a component that is in fullscreen mode. Animation phases count as
+    /// still in fullscreen mode.
+    pub fn is_fullscreen(&self) -> bool {
+        match self.state.borrow().deref() {
+            StateModel::NotFullscreen{..} => false,
+            _                        => true,
         }
     }
 
+    /// Enables fullscreen mode for the given component. Does nothing if we are in an animation
+    /// phase, or already in fullscreen mode.
+    pub fn enable_fullscreen(&self, target:T, scene:Scene) {
+        if !self.is_fullscreen() {
+            self.transition_to_fullscreen(target, scene)
+        }
+    }
+
+    /// Disables fullscreen mode for the given component. Does nothing if we are in an animation
+    /// phase, or not in fullscreen mode.
+    pub fn disable_fullscreen(&self) {
+        let fullscreen_data =  {
+            let state = self.state.borrow();
+            let state = state.deref();
+            if let StateModel::Fullscreen {data} = state{
+                Some(data.clone())
+            } else {
+                None
+            }
+        };
+        if let Some(data) = fullscreen_data {
+            self.transition_to_non_fullscreen(&data)
+        }
+    }
+
+    /// Start the transition to non-fullscreen mode. Triggers the UI component state change and
+    /// starts the animation.
+    fn transition_to_non_fullscreen(&self, source_state:&FullscreenStateData<T>) {
+        let animation_data = source_state.prepare_non_fullscreen_animation();
+        let new_state = StateModel::TransitioningFromFullscreen { animation_data };
+        self.state.replace(new_state);
+        self.animation.set_position(0.0);
+        self.animation.set_target_position(1.0);
+    }
+
+    /// Start the transition to fullscreen mode. Triggers the UI component state change and
+    /// starts the animation.
+    fn transition_to_fullscreen(&self,target:T, scene:Scene) {
+        let target_state = FullscreenStateData::new(target, scene);
+        let animation_data = target_state.prepare_fullscreen_animation();
+        let new_state = StateModel::TransitioningToFullscreen { animation_data,target_state };
+        self.state.replace(new_state);
+        self.animation.set_position(0.0);
+        self.animation.set_target_position(1.0);
+    }
+
     /// Return a ref clone of the fullscreen element.
-    pub fn get_element(&self) -> Option<T>{
-        self.operator.borrow().as_ref().map(|op| op.target.clone_ref())
+    pub fn get_element(&self) -> Option<T> {
+        match self.state.borrow().deref() {
+            StateModel::Fullscreen{ data } => Some(data.target.clone_ref()),
+            _                         => None,
+        }
     }
 }
 
 
 
 // ============================
-// === Fullscreen Operation ===
+// === FullscreenStateData  ===
 // ============================
 
-/// A `FullscreenOperator` can be used to apply fullscreen mode to a UI element as well as undo the
-/// the fullscreen operation and restore the previous state. The  `FullscreenOperator` can be
-/// applied to any target that implements `display::Object`, `Resizable` and `NativeUiElement`.
-// TODO consider incorporating these traits into display::Object or another common "SceneElement"
-// type. But it is important that complex UI components can provide information about their
-// sub-components (for example, multiple sub-shapes or HTML components).
-#[derive(Debug)]
-pub struct FullscreenOperation<T> {
+/// The `FullscreenStateData` preserves the initial state of a UI element and provides functionality
+///to transition the UI component from/to fullscreen state. It handles the direct interactions with
+/// the UI component (setting of size/layers) outside of the animation and and provides the target
+/// state for the animation.
+#[derive(Debug,Clone)]
+pub struct FullscreenStateData<T> {
     target            : T,
     scene             : Scene,
     size_original     : Vector3<f32>,
@@ -86,18 +224,21 @@ pub struct FullscreenOperation<T> {
     parent_original   : Option<display::object::Instance>,
 }
 
-impl<T:Fullscreenable> FullscreenOperation<T> {
+
+impl<T:Fullscreenable> FullscreenStateData<T> {
     /// Make the provided target fullscreen within the given scene and return the
     /// `FullscreenOperator`.
-    pub fn enable_fullscreen(target:T, scene:Scene) -> Self {
+    pub fn new(target:T, scene:Scene) -> Self {
         let size_original     = target.size();
         let position_original = target.position();
         let parent_original   = target.display_object().rc.parent();
-        FullscreenOperation {target,scene,size_original,position_original,parent_original}.init()
+        FullscreenStateData {target,scene,size_original,position_original,parent_original}
     }
 
-    fn init(self) -> Self {
-        let original_pos = self.target.display_object().global_position();
+    /// Prepare the target component for the fullscreen animation and return the animation target
+    /// state.
+    fn prepare_fullscreen_animation(&self) -> AnimationTargetState<T> {
+        let source_pos = self.target.display_object().global_position();
 
         // Change parent
         self.target.display_object().set_parent(self.scene.display_object());
@@ -107,29 +248,25 @@ impl<T:Fullscreenable> FullscreenOperation<T> {
         let scene_shape = self.scene.shape();
         let size_new    = Vector3::new(scene_shape.width(), scene_shape.height(),0.0) * (1.0 - margin);
 
-        // TODO Currently we assume objects are center aligned, but this needs to be properly
-        // accounted for here.
+        // FIXME Currently we assume `Symbols` are center aligned, but they might not be.
+        // We should check the alignment here and change the computations accordingly.
 
-        let frp_network      = &self.target.network().clone_ref();
-        let target_pos       = Vector3::zero();
-        let original_size    = self.size_original;
-        let target_size      = size_new;
-        let target           = self.target.clone_ref();
-        let resize_animation = animation(frp_network, move |value| {
-            let pos  = original_pos  * (1.0 - value) + target_pos  * value;
-            let size = original_size * (1.0 - value) + target_size * value;
-            target.set_position(pos);
-            target.set_size(size);
-        });
-        resize_animation.set_target_position(1.0);
-
+        let target_pos  = Vector3::zero();
+        let source_size = self.size_original;
+        let target_size = size_new;
         self.scene.views.toggle_overlay_cursor();
 
-        self
+        AnimationTargetState {
+            target: self.target.clone_ref(),
+            source_pos,
+            source_size,
+            target_pos,
+            target_size,
+        }
     }
-
-    /// Undo the fullscreen operation and restore the previous state exactly as it was.
-    pub fn disable_fullscreen(self) {
+    /// Prepare the target component for the non-fullscreen animation and return the animation target
+    /// state.
+    fn prepare_non_fullscreen_animation(&self) -> AnimationTargetState<T> {
         let global_pos_start = self.target.global_position();
 
         self.target.set_layers_normal(&self.scene);
@@ -138,8 +275,7 @@ impl<T:Fullscreenable> FullscreenOperation<T> {
             self.target.display_object().set_parent(&parent);
         }
 
-        println!("{:?}", self.target.display_object().has_parent());
-        let parent_pos     = self.parent_original.map(|p| p.global_position());
+        let parent_pos     = self.parent_original.as_ref().map(|p| p.global_position());
         let parent_pos     = parent_pos.unwrap_or_else(Vector3::zero);
         let mut source_pos = self.target.position();
         source_pos        += global_pos_start ;
@@ -148,20 +284,18 @@ impl<T:Fullscreenable> FullscreenOperation<T> {
 
         self.target.set_position(source_pos);
 
-        let original_pos     = self.target.position();
-        let target_pos       = self.position_original;
-        let original_size    = self.target.size();
-        let target_size      = self.size_original;
-        let target           = self.target.clone_ref();
-        let frp_network      = &self.target.network().clone_ref();
-        let resize_animation = animation(frp_network, move |value| {
-            let pos  = original_pos  * (1.0 - value) + target_pos * value;
-            let size = original_size * (1.0 - value) + target_size * value;
-            target.set_position(pos);
-            target.set_size(size);
-        });
-        resize_animation.set_target_position(1.0);
+        let source_pos  = self.target.position();
+        let target_pos  = self.position_original;
+        let source_size = self.target.size();
+        let target_size = self.size_original;
 
         self.scene.views.toggle_overlay_cursor();
+        AnimationTargetState {
+            target: self.target.clone_ref(),
+            source_pos,
+            source_size,
+            target_pos,
+            target_size,
+        }
     }
 }

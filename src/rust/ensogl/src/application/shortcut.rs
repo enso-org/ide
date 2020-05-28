@@ -41,7 +41,6 @@ pub struct RegistryModel {
     keyboard_bindings     : Rc<KeyboardFrpBindings>,
     command_registry      : command::Registry,
     action_map            : Rc<RefCell<ActionMap>>,
-    // double_press_detector : Rc<RefCell<DoublePressDetector>>
 }
 
 impl Deref for Registry {
@@ -59,8 +58,6 @@ impl RegistryModel {
         let keyboard_bindings     = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));
         let command_registry      = command_registry.clone_ref();
         let action_map            = default();
-        // let double_press_detector = DoublePressDetector::new(750.0);
-        // let double_press_detector = Rc::new(RefCell::new(double_press_detector));
 
         Self {logger,keyboard,keyboard_bindings,command_registry,action_map}
     }
@@ -86,7 +83,6 @@ impl Registry {
             eval single_press ((m) model.process_action(ActionType::Press,m));
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
 
-            eval model.keyboard.key_mask          ((m) model.process_action(ActionType::Press,m));
             eval model.keyboard.previous_key_mask ((m) model.process_action(ActionType::Release,m));
         }
         Self {model,network}

@@ -89,7 +89,7 @@ impl Stage {
     pub fn set_vis_for_selected(&self, vis:Visualization) {
         if let Some(container) = self.get_selected() {
             container.set_visualization(vis);
-            if self.fullscreen_state.is_active() {
+            if self.fullscreen_state.is_fullscreen() {
                 container.set_layers_fullscreen(&self.scene)
             } else {
                 container.set_layers_normal(&self.scene)
@@ -158,11 +158,11 @@ impl Stage {
 
     /// Change the fullscreen status of the selected container.
     pub fn toggle_fullscreen_for_selected_visualization(&self) {
-        if self.fullscreen_state.is_active() {
+        if self.fullscreen_state.is_fullscreen() {
             self.fullscreen_state.disable_fullscreen()
         } else if let Some(container) = self.get_selected() {
             container.data.set_visibility(true);
-            self.fullscreen_state.set_fullscreen(container, self.scene.clone_ref());
+            self.fullscreen_state.enable_fullscreen(container, self.scene.clone_ref());
         }
     }
 }

@@ -1,10 +1,9 @@
 //! Provides traits that let us know about the capabilities of complex UI components..
-//!
+
 use crate::prelude::*;
 
 use ensogl::display::Scene;
 use ensogl::display::Symbol;
-use ensogl::frp;
 
 
 
@@ -29,7 +28,7 @@ pub struct SymbolLayoutData {
     pub target_layer : TargetLayer,
 }
 
-/// Should be implemented by UI component that consist of `Symbol`. Provides access to the symbols,
+/// Should be implemented by UI component that have `Symbol`s. Provides access to the symbols,
 /// as well as some helpers for placing them on the correct layers.
 pub trait HasSymbols {
     /// Return all `Symbol`s that make up this component.
@@ -45,6 +44,7 @@ pub trait HasSymbols {
 
     /// Moves the given components shapes to the default scene layers.
     fn set_layers_normal(&self, scene:&Scene){
+        println!("NOT FULLSCREEN");
         self.unset_layers_all(&scene);
         for symbol_data in self.symbols_with_data() {
             match symbol_data.target_layer {
@@ -56,6 +56,7 @@ pub trait HasSymbols {
 
     /// Moves the given components shapes to the fullscreen scene layers.
     fn set_layers_fullscreen(&self, scene:&Scene) {
+        println!("FULLSCREEN");
         self.unset_layers_all(&scene);
         for symbol_data in self.symbols_with_data() {
             match symbol_data.target_layer {
@@ -73,10 +74,4 @@ pub trait Resizable {
     fn set_size(&self, size:Vector3<f32>);
     /// Return the size of the UI element.
     fn size(&self) -> Vector3<f32>;
-}
-
-/// A component that owns a Network. Can be used to create external animations.
-pub trait HasNetwork {
-    /// Return a reference to the components network.
-    fn network(&self) -> &frp::Network;
 }

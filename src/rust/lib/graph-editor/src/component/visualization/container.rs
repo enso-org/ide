@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::traits::HasNetwork;
 use crate::component::visualization::traits::HasSymbols;
 use crate::component::visualization::traits::Resizable;
 use crate::component::visualization::traits::SymbolLayoutData;
@@ -376,12 +375,6 @@ impl HasSymbols for Container {
         let symbols  = symbols.map(move |symbol| SymbolLayoutData{symbol,target_layer});
         let vis_symbols  = self.data.visualization.borrow().as_ref().map(|vis| vis.symbols_with_data()).unwrap_or_default();
         symbols.chain(vis_symbols).collect()
-    }
-}
-
-impl HasNetwork for Container {
-    fn network(&self) -> &frp::Network {
-        &self.frp.network
     }
 }
 
