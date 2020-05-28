@@ -4,13 +4,14 @@ use crate::prelude::*;
 use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration};
 use crate::component::visualization::traits::Resizable;
 
-use enso_prelude::CloneRef;
 use ensogl::animation::physics::inertia::DynSimulator;
+use ensogl::control::callback;
 use ensogl::display::Scene;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::frp;
 use ensogl::gui::component::animation;
+use ensogl::system::web;
 
 
 
@@ -90,7 +91,8 @@ fn transition_animation_fn<T:Fullscreenable>(state: WeakState<T>, value:f32) {
 enum StateModel<T> {
     /// There is a UI component and it is in fullscreen mode.
     Fullscreen {
-        data           : FullscreenStateData<T>
+        data           : FullscreenStateData<T>,
+        resize_handle  : callback::Handle,
     },
     /// There is an animation running from fullscreen mode to non-fullscreen mode.
     TransitioningFromFullscreen {
@@ -105,7 +107,7 @@ enum StateModel<T> {
     NotFullscreen
 }
 
-impl<T:Clone> StateModel<T> {
+impl<T:Fullscreenable> StateModel<T> {
     /// Called to indicate the the running animation has ended. Changes the state to the correct
     /// follow up state. Does nothing if no animation was running.
     fn animation_end_transition(&mut self) {
@@ -114,11 +116,21 @@ impl<T:Clone> StateModel<T> {
                 StateModel::NotFullscreen
             }
             StateModel::TransitioningToFullscreen { target_state, ..} => {
-                StateModel::Fullscreen { data: target_state }
+                let resize_handle = target_state.make_resize_handle();
+                StateModel::Fullscreen { data: target_state, resize_handle }
             }
             other    => other,
         };
         *self = new_state;
+    }
+
+    /// Returns whether there is a component that is in fullscreen mode. Animation phases count as
+    /// still in fullscreen mode.
+    pub fn is_fullscreen(&self) -> bool {
+        match self {
+            StateModel::NotFullscreen{..} => false,
+            _                             => true,
+        }
     }
 }
 
@@ -161,10 +173,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
     /// Returns whether there is a component that is in fullscreen mode. Animation phases count as
     /// still in fullscreen mode.
     pub fn is_fullscreen(&self) -> bool {
-        match self.state.borrow().deref() {
-            StateModel::NotFullscreen{..} => false,
-            _                             => true,
-        }
+        self.state.borrow().is_fullscreen()
     }
 
     /// Enables fullscreen mode for the given component. Does nothing if we are in an animation
@@ -181,7 +190,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
         let fullscreen_data = {
             let state = self.state.borrow();
             let state = state.deref();
-            if let StateModel::Fullscreen {data} = state {
+            if let StateModel::Fullscreen {data, ..} = state {
                 Some(data.clone())
             } else {
                 None
@@ -216,7 +225,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
     /// Return a ref clone of the fullscreen element.
     pub fn get_element(&self) -> Option<T> {
         match self.state.borrow().deref() {
-            StateModel::Fullscreen{ data } => Some(data.target.clone_ref()),
+            StateModel::Fullscreen{ data, .. } => Some(data.target.clone_ref()),
             _                              => None,
         }
     }
@@ -317,5 +326,13 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
             target_pos,
             target_size,
         }
+    }
+
+    fn make_resize_handle(&self) -> callback::Handle {
+        let target = self.target.clone_ref();
+        self.scene.on_resize(enclose!((target) move |scene_shape:&web::dom::ShapeData| {
+            let size_new  = Vector3::new(scene_shape.width(), scene_shape.height(),0.0);
+            target.set_size(size_new);
+        }))
     }
 }
