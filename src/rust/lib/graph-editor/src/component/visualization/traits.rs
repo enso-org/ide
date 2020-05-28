@@ -44,7 +44,6 @@ pub trait HasSymbols {
 
     /// Moves the given components shapes to the default scene layers.
     fn set_layers_normal(&self, scene:&Scene){
-        println!("NOT FULLSCREEN");
         self.unset_layers_all(&scene);
         for symbol_data in self.symbols_with_data() {
             match symbol_data.target_layer {
@@ -56,7 +55,6 @@ pub trait HasSymbols {
 
     /// Moves the given components shapes to the fullscreen scene layers.
     fn set_layers_fullscreen(&self, scene:&Scene) {
-        println!("FULLSCREEN");
         self.unset_layers_all(&scene);
         for symbol_data in self.symbols_with_data() {
             match symbol_data.target_layer {

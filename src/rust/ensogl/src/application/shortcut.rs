@@ -36,11 +36,11 @@ pub struct Registry {
 /// Internal representation of `Registry`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct RegistryModel {
-    logger                : Logger,
-    keyboard              : Keyboard,
-    keyboard_bindings     : Rc<KeyboardFrpBindings>,
-    command_registry      : command::Registry,
-    action_map            : Rc<RefCell<ActionMap>>,
+    logger            : Logger,
+    keyboard          : Keyboard,
+    keyboard_bindings : Rc<KeyboardFrpBindings>,
+    command_registry  : command::Registry,
+    action_map        : Rc<RefCell<ActionMap>>,
 }
 
 impl Deref for Registry {
@@ -53,11 +53,11 @@ impl Deref for Registry {
 impl RegistryModel {
     /// Constructor.
     pub fn new(logger:&Logger, command_registry:&command::Registry) -> Self {
-        let logger                = logger.sub("ShortcutRegistry");
-        let keyboard              = Keyboard::default();
-        let keyboard_bindings     = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));
-        let command_registry      = command_registry.clone_ref();
-        let action_map            = default();
+        let logger            = logger.sub("ShortcutRegistry");
+        let keyboard          = Keyboard::default();
+        let keyboard_bindings = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));
+        let command_registry  = command_registry.clone_ref();
+        let action_map        = default();
 
         Self {logger,keyboard,keyboard_bindings,command_registry,action_map}
     }
@@ -68,6 +68,7 @@ impl Registry {
     pub fn new(logger:&Logger, command_registry:&command::Registry) -> Self {
         let model = RegistryModel::new(logger,command_registry);
 
+        // TODO this should probably be in some IDE configuration.
         let double_press_threshold_ms = 750.0;
         frp::new_network! { network
             is_zero_key        <- model.keyboard.key_mask.map(|m| *m ==KeyMask::from_vec(vec![]));
@@ -82,7 +83,6 @@ impl Registry {
 
             eval single_press ((m) model.process_action(ActionType::Press,m));
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
-
             eval model.keyboard.previous_key_mask ((m) model.process_action(ActionType::Release,m));
         }
         Self {model,network}

@@ -23,9 +23,11 @@ use crate::component::visualization::traits::HasSymbols;
 // === FRP ===
 // ===========
 
+/// Frp for the `Stage`.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct StageFrp {
+    /// Provides click events for any Visualisation on this `Stage`.
     pub clicked : frp::Source<Id>,
 }
 

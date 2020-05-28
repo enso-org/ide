@@ -2,13 +2,15 @@
 
 use crate::prelude::*;
 
+use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::SymbolLayoutData;
 use crate::frp;
 use crate::visualization::*;
 
-use ensogl::display::{Scene, Symbol};
+use ensogl::display::Scene;
+use ensogl::display::Symbol;
 use ensogl::display;
 use std::error::Error;
-use crate::component::visualization::traits::{HasSymbols, SymbolLayoutData};
 
 
 // ====================

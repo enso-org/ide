@@ -28,15 +28,18 @@ use crate::component::visualization::Data;
 use crate::component::visualization::DataError;
 use crate::component::visualization::DataRenderer;
 use crate::component::visualization::DataRendererFrp;
+use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::SymbolLayoutData;
 
-use ensogl::display::{DomScene, Symbol};
+use ensogl::display::DomScene;
 use ensogl::display::DomSymbol;
+use ensogl::display::Symbol;
 use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
-use crate::component::visualization::traits::{HasSymbols, SymbolLayoutData};
+
 
 
 // ==============

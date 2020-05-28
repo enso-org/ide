@@ -3,15 +3,16 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::visualization::traits::{SymbolLayoutData, TargetLayer};
+use crate::component::visualization::traits::SymbolLayoutData;
+use crate::component::visualization::traits::TargetLayer;
 
 use ensogl::data::color::Rgba;
 use ensogl::display::DomSymbol;
+use ensogl::display::Symbol;
 use ensogl::display::layout::alignment;
 use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::gui::component;
-use ensogl::display::Symbol;
 use ensogl::system::web;
 use ensogl::display::object::ObjectOps;
 

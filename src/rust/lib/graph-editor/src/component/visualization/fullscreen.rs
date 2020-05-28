@@ -26,11 +26,11 @@ pub trait Fullscreenable = display::Object+Resizable+HasSymbols+CloneRef+'static
 // === Animation Helpers ===
 // =========================
 
-/// Weak ref to the inner `State` of the `FullscreenState`.
+/// Weak ref to the inner `State` of the `StateModel`.
 type WeakState<T> = Weak<RefCell<StateModel<T>>>;
 
-/// Target state of the animated component. This is used in the animation to interpolate between t
-/// the initial and the final state.
+/// Initial and target state of the animated component. This is used in the animation to interpolate between
+/// the initial and the target state.
 #[derive(Debug,Clone)]
 struct AnimationTargetState<T> {
     /// Animated UI component.
@@ -45,37 +45,36 @@ struct AnimationTargetState<T> {
     target_size : Vector3<f32>,
 }
 
+impl<T:Fullscreenable> AnimationTargetState<T> {
+    /// Set the interpolated values on the target.
+    fn apply_interpolation(&self, value:f32) {
+        let target      = &self.target;
+        let source_pos  = self.source_pos;
+        let source_size = self.source_size;
+        let target_pos  = self.target_pos;
+        let target_size = self.target_size;
+        let pos         = source_pos  * (1.0 - value) + target_pos * value;
+        let size        = source_size * (1.0 - value) + target_size * value;
+        target.set_position(pos);
+        target.set_size(size);
+    }
+}
+
 /// Helper function that contains the logic of the animation.
 fn transition_animation_fn<T:Fullscreenable>(state: WeakState<T>, value:f32) {
     if let Some(state) = state.upgrade() {
         // Regular animation step
         // We animate only if the correct state is given.
         match state.borrow().deref(){
-            StateModel::TransitioningFromFullscreen {animation_data, .. } | StateModel::TransitioningToFullscreen { animation_data,.. } => {
-                let target      = animation_data.target.clone_ref();
-                let source_pos  = animation_data.source_pos;
-                let source_size = animation_data.source_size;
-                let target_pos  = animation_data.target_pos;
-                let target_size = animation_data.target_size;
-                let pos         = source_pos  * (1.0 - value) + target_pos * value;
-                let size        = source_size * (1.0 - value) + target_size * value;
-                target.set_position(pos);
-                target.set_size(size);
+            StateModel::TransitioningFromFullscreen {animation_data, .. }
+            | StateModel::TransitioningToFullscreen { animation_data,.. } => {
+                animation_data.apply_interpolation(value);
             },
             _  => ()
         }
-        // Check for end of animation and set the correct follow up state.
+        // Check for end of animation and update the state.
         if value >= 1.0 {
-            let new_state = match state.borrow().deref() {
-                StateModel::TransitioningFromFullscreen { .. } => {
-                    StateModel::NotFullscreen
-                }
-                StateModel::TransitioningToFullscreen { target_state, ..} => {
-                    StateModel::Fullscreen { data: target_state.clone() }
-                }
-                other    => other.clone(),
-            };
-            state.replace(new_state);
+           state.borrow_mut().animation_end_transition();
         }
     }
 }
@@ -103,6 +102,23 @@ enum StateModel<T> {
     },
     /// There is no UI component in fullscreen mode.
     NotFullscreen
+}
+
+impl<T:Clone> StateModel<T> {
+    /// Called to indicate the the running animation has ended. Changes the state to the correct
+    /// follow up state. Does nothing if no animation was running.
+    fn animation_end_transition(&mut self) {
+        let new_state = match self.clone() {
+            StateModel::TransitioningFromFullscreen { .. } => {
+                StateModel::NotFullscreen
+            }
+            StateModel::TransitioningToFullscreen { target_state, ..} => {
+                StateModel::Fullscreen { data: target_state }
+            }
+            other    => other,
+        };
+        *self = new_state;
+    }
 }
 
 impl<T> Default for StateModel<T> {
@@ -146,7 +162,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
     pub fn is_fullscreen(&self) -> bool {
         match self.state.borrow().deref() {
             StateModel::NotFullscreen{..} => false,
-            _                        => true,
+            _                             => true,
         }
     }
 
@@ -161,10 +177,10 @@ impl<T:Fullscreenable> FullscreenState<T> {
     /// Disables fullscreen mode for the given component. Does nothing if we are in an animation
     /// phase, or not in fullscreen mode.
     pub fn disable_fullscreen(&self) {
-        let fullscreen_data =  {
+        let fullscreen_data = {
             let state = self.state.borrow();
             let state = state.deref();
-            if let StateModel::Fullscreen {data} = state{
+            if let StateModel::Fullscreen {data} = state {
                 Some(data.clone())
             } else {
                 None
@@ -179,7 +195,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
     /// starts the animation.
     fn transition_to_non_fullscreen(&self, source_state:&FullscreenStateData<T>) {
         let animation_data = source_state.prepare_non_fullscreen_animation();
-        let new_state = StateModel::TransitioningFromFullscreen { animation_data };
+        let new_state      = StateModel::TransitioningFromFullscreen { animation_data };
         self.state.replace(new_state);
         self.animation.set_position(0.0);
         self.animation.set_target_position(1.0);
@@ -188,9 +204,9 @@ impl<T:Fullscreenable> FullscreenState<T> {
     /// Start the transition to fullscreen mode. Triggers the UI component state change and
     /// starts the animation.
     fn transition_to_fullscreen(&self,target:T, scene:Scene) {
-        let target_state = FullscreenStateData::new(target, scene);
+        let target_state   = FullscreenStateData::new(target, scene);
         let animation_data = target_state.prepare_fullscreen_animation();
-        let new_state = StateModel::TransitioningToFullscreen { animation_data,target_state };
+        let new_state      = StateModel::TransitioningToFullscreen { animation_data,target_state };
         self.state.replace(new_state);
         self.animation.set_position(0.0);
         self.animation.set_target_position(1.0);
@@ -200,7 +216,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
     pub fn get_element(&self) -> Option<T> {
         match self.state.borrow().deref() {
             StateModel::Fullscreen{ data } => Some(data.target.clone_ref()),
-            _                         => None,
+            _                              => None,
         }
     }
 }
@@ -212,7 +228,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
 // ============================
 
 /// The `FullscreenStateData` preserves the initial state of a UI element and provides functionality
-///to transition the UI component from/to fullscreen state. It handles the direct interactions with
+/// to transition the UI component from/to fullscreen state. It handles the direct interactions with
 /// the UI component (setting of size/layers) outside of the animation and and provides the target
 /// state for the animation.
 #[derive(Debug,Clone)]
