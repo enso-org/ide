@@ -98,8 +98,8 @@ impl TextFieldSprites {
     }
 
     /// Update the count and length of rendered lines according to the given properties.
-    // TODO this is done in quite uneffective way, as a hot fix for resing TextField.
-    //  see the issue #177
+    // TODO [ao] This is done in quite uneffective way, as a hot fix for resing TextField.
+    //  See the issue https://github.com/luna/ide/issues/177
     pub fn update_lines(&mut self, properties:&TextFieldProperties) {
         let font              = properties.font.clone_ref();
         let line_height       = properties.text_size;
