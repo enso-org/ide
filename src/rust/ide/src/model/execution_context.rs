@@ -35,7 +35,7 @@ pub type ExpressionId = ast::Id;
 /// Binary data can be accessed through `Deref` or `AsRef` implementations.
 ///
 /// The inner storage is private and users should not make any assumptions about it.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub struct VisualizationUpdateData(Vec<u8>);
 
 impl VisualizationUpdateData {
@@ -72,8 +72,8 @@ pub struct PopOnEmptyStack();
 
 /// Error when using an Id that does not correspond to any known visualization.
 #[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="Tried to use incorrect visualization Id.")]
-pub struct InvalidVisualizationId();
+#[fail(display="Tried to use incorrect visualization Id: {}.",_0)]
+pub struct InvalidVisualizationId(VisualizationId);
 
 
 
@@ -211,7 +211,7 @@ impl ExecutionContext {
 
     /// Detaches visualization from current execution context.
     pub fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
-        let err = InvalidVisualizationId;
+        let err = || InvalidVisualizationId(*id);
         Ok(self.visualizations.borrow_mut().remove(id).ok_or_else(err)?.visualization)
     }
 
@@ -237,8 +237,7 @@ impl ExecutionContext {
         } else {
             error!(self.logger,"Failed to dispatch update to visualization {visualization_id}. \
             Failed to found such visualization.");
-            Ok(())
-            // TODO complain
+            Err(InvalidVisualizationId(visualization_id).into())
         }
     }
 }

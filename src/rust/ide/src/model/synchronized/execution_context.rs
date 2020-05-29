@@ -168,13 +168,14 @@ impl Drop for ExecutionContext {
 mod test {
     use super::*;
 
-    use crate::model::module::QualifiedName as ModuleQualifiedName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::module::QualifiedName as ModuleQualifiedName;
 
+    use enso_protocol::language_server::CapabilityRegistration;
     use json_rpc::expect_call;
     use language_server::response;
     use utils::test::ExpectTuple;
-    use enso_protocol::language_server::CapabilityRegistration;
+    use utils::test::stream::StreamTestExt;
 
 
     #[test]
@@ -269,7 +270,7 @@ mod test {
     }
 
     #[test]
-    fn attaching_visualizations() {
+    fn attaching_visualizations_and_notifying() {
         let exe_id   = model::execution_context::Id::new_v4();
         let path     = model::module::Path::from_mock_module_name("Test");
         let root_def = DefinitionName::new_plain("main");
@@ -293,11 +294,25 @@ mod test {
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let wrong_id = model::execution_context::VisualizationId::new_v4();
-            assert!(context.attach_visualization(vis.clone()).await.is_ok());
+            let wrong_id   = model::execution_context::VisualizationId::new_v4();
+            let events     = context.attach_visualization(vis.clone()).await.unwrap();
+            let mut events = events.boxed_local();
+            events.expect_pending();
+
+            let update = VisualizationUpdateData::new(vec![1,2,3]);
+            context.dispatch_visualization_update(vis.id,update.clone()).unwrap();
+            assert_eq!(events.expect_next(),update);
+
+            events.expect_pending();
+            let other_vis_id = VisualizationId::new_v4();
+            context.dispatch_visualization_update(other_vis_id,update.clone()).unwrap_err();
+            events.expect_pending();
             assert!(context.detach_visualization(&wrong_id).await.is_err());
+            events.expect_pending();
             assert!(context.detach_visualization(&vis.id).await.is_ok());
+            events.expect_terminated();
             assert!(context.detach_visualization(&vis.id).await.is_err());
-        })
+            context.dispatch_visualization_update(vis.id,update.clone()).unwrap_err();
+        });
     }
 }

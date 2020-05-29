@@ -249,31 +249,25 @@ async fn file_events() {
     }
 }
 
-
-//#[wasm_bindgen_test::wasm_bindgen_test(async)]
-#[allow(dead_code)]
-/// This integration test covers:
+/// This procedure sets up the project, testing:
 /// * using project picker to open (or create) a project
 /// * establishing a binary protocol connection with Language Server
-/// * writing and reading a file using the binary protocol
-async fn binary_protocol_test() {
-    let json_visualization_expr = "x -> x.json_serialize";
-    //let text_visualization_expr = "a -> a.to_text";
-
-    use ensogl::system::web::sleep;
-    use ide::view::project::MAIN_DEFINITION_NAME;
-    use double_representation::definition::Id as DefinitionId;
-
+async fn setup_project() -> ide::controller::Project {
     ensogl_system_web::set_stdout();
-    // Setup project
     let _guard   = ide::setup_global_executor();
     let logger   = Logger::new("Test");
     let endpoint = ide::PROJECT_MANAGER_ENDPOINT;
     let ws       = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
     let pm       = ide::setup_project_manager(ws);
-    let project  = ide::open_most_recent_project_or_create_new(&logger,&pm).await.unwrap();
-    println!("Got project: {:?}", project);
+    ide::open_most_recent_project_or_create_new(&logger,&pm).await.unwrap()
+}
 
+//#[wasm_bindgen_test::wasm_bindgen_test(async)]
+#[allow(dead_code)]
+/// This integration test covers writing and reading a file using the binary protocol
+async fn binary_protocol_test() {
+    let project  = setup_project().await;
+    println!("Got project: {:?}",project);
     let path     = Path::new(project.language_server_rpc.content_root(), &["test_file.txt"]);
     let contents = "Hello!".as_bytes();
     let written  = project.language_server_bin.write_file(&path,contents).await.unwrap();
@@ -281,11 +275,25 @@ async fn binary_protocol_test() {
     let read_back = project.language_server_bin.read_file(&path).await.unwrap();
     println!("Read back: {:?}", read_back);
     assert_eq!(contents, read_back.as_slice());
+}
 
+#[wasm_bindgen_test::wasm_bindgen_test(async)]
+#[allow(dead_code)]
+/// This integration test covers attaching visualizations and receiving their updates.
+async fn binary_visualization_updates_test() {
+    let project  = setup_project().await;
+    println!("Got project: {:?}", project);
+
+    let json_visualization_expr = "x -> x.json_serialize";
+
+    use ensogl::system::web::sleep;
+    use ide::view::project::MAIN_DEFINITION_NAME;
+    use double_representation::definition::Id as DefinitionId;
 
     let main_module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
     let main_module_qualified_name = project.qualified_module_name(&main_module_path);
     let main_module                = project.module_controller(main_module_path).await.unwrap();
+    println!("Got module: {:?}", main_module);
     let main_function_id           = DefinitionId::new_plain_name(MAIN_DEFINITION_NAME);
     let main_graph_executed        = main_module.executed_graph_controller_unchecked(
         main_function_id,&project).await.unwrap();
