@@ -239,16 +239,14 @@ impl ContainerData {
         overlay_shape.height.set(height);
         overlay_shape.padding.set(padding);
         overlay_shape.sprite.size().set(Vector2::new(width, height));
-
-
-        let pos = Vector3::new(width/2.0,height/2.0, 0.0);
-        frame_shape.set_position(pos);
-        overlay_shape.set_position(pos);
     }
 
     fn set_size(&self, size:Vector3<f32>) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
-            vis.set_size(size.xy());
+            let padding  = self.padding.get() * 2.0;
+            let padding  = Vector2::new(padding, padding);
+            let vis_size = size.xy() - padding;
+            vis.set_size(vis_size);
         }
 
         self.size.set(size.xy());

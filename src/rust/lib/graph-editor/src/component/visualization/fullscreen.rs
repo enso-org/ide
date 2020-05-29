@@ -279,7 +279,7 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
         // FIXME Currently we assume `Symbols` are center aligned, but they might not be.
         // We should check the alignment here and change the computations accordingly.
 
-        let target_pos  = Vector3::zero();
+        let target_pos  = size_new / 2.0;
         let source_size = self.size_original;
         let target_size = size_new;
         self.scene.views.toggle_overlay_cursor();

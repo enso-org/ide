@@ -79,15 +79,10 @@ impl DataRenderer for BubbleChart {
         // But this ensures that we can get a cropped view area and avoids an issue with the data
         // and position not matching up.
         views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
-
-            let shape_system = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
-            shape_system.shape_system.set_alignment(
-                alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
-
             view.display_object.set_parent(&self.display_object);
             view.shape.sprite.size().set(self.size.get());
             view.shape.radius.set(item.z);
-            view.shape.position.set(Vector2::new(item.x,item.y));
+            view.shape.position.set(Vector2::new(item.x,item.y) - self.size.get() / 2.0);
 
         });
         Ok(())
