@@ -162,8 +162,8 @@ pub struct NodeData {
 }
 
 impl NodeData {
-    pub fn new(logger:Logger) -> Self {
-        let logger           = logger;
+    pub fn new(logger:impl Into<Logger>) -> Self {
+        let logger           = logger.into();
         let parent_bind      = default();
         let children         = default();
         let event_dispatcher = default();
@@ -505,7 +505,7 @@ impl Instance {
 
     /// Constructor.
     pub fn new(logger:impl Into<Logger>) -> Self {
-        Self {rc:Rc::new(NodeData::new(logger.into()))}
+        Self {rc:Rc::new(NodeData::new(logger))}
     }
 
     pub fn downgrade(&self) -> WeakNode {

@@ -62,16 +62,16 @@ where Id:Debug, Reply:Debug, Notification:Debug {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 struct HandlerData<Id,Reply,Notification>
-where Id            : Eq+Hash+Debug,
-      Notification  : Debug,
-      Reply         : Debug, {
-      #[derivative(Debug="ignore")]
-      transport     : Box<dyn Transport>,
-      logger        : Logger,
-      sender        : Option<UnboundedSender<Event<Notification>>>,
-      ongoing_calls : OngoingCalls<Id,Reply>,
-      #[derivative(Debug="ignore")]
-      processor     : Box<dyn FnMut(TransportEvent) -> Disposition<Id,Reply,Notification>>,
+where Id           : Eq+Hash+Debug,
+      Notification : Debug,
+      Reply        : Debug, {
+    #[derivative(Debug="ignore")]
+    transport     : Box<dyn Transport>,
+    logger        : Logger,
+    sender        : Option<UnboundedSender<Event<Notification>>>,
+    ongoing_calls : OngoingCalls<Id,Reply>,
+    #[derivative(Debug="ignore")]
+    processor     : Box<dyn FnMut(TransportEvent) -> Disposition<Id,Reply,Notification>>,
 }
 
 impl <Id,Reply,Notification> HandlerData<Id,Reply,Notification>

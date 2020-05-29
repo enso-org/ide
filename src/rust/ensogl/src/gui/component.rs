@@ -102,7 +102,7 @@ impl<Shape> Drop for ShapeViewModel<Shape> {
 
 impl<S:Shape> ShapeView<S> {
     /// Constructor.
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
+    pub fn new(logger:&impl AnyLogger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"shape_view");
         let display_object = display::object::Instance::new(logger);
 //        let data           = default();

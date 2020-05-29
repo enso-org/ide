@@ -1,8 +1,13 @@
-#![feature(trait_alias)]
-#![feature(set_stdio)]
-#![warn(unsafe_code)]
+#![deny(unconditional_recursion)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
+#![warn(missing_docs)]
+#![warn(trivial_casts)]
+#![warn(trivial_numeric_casts)]
+#![warn(unsafe_code)]
+#![warn(unused_import_braces)]
+
+//! This crate contains implementation of logging interface.
 
 pub mod disabled;
 pub mod enabled;
@@ -15,7 +20,9 @@ use enso_prelude::*;
 // === LogMsg ===
 // ==============
 
+/// Message that can be logged.
 pub trait LogMsg {
+    /// Turns message into `&str` and passes it to input function.
     fn with_log_msg<F: FnOnce(&str) -> T, T>(&self, f:F) -> T;
 }
 
@@ -37,6 +44,7 @@ impl<F: Fn() -> S, S:Str> LogMsg for F {
 // === Logger ===
 // ==============
 
+/// Interface common to all loggers.
 pub trait AnyLogger {
     /// Path that is used as an unique identifier of this logger.
     fn path(&self) -> &str;
@@ -75,15 +83,17 @@ pub trait AnyLogger {
 
 
 
-/// ==============
-/// === Macros ===
-/// ==============
+// ==============
+// === Macros ===
+// ==============
 
+/// Shortcut for `|| format!(..)`.
 #[macro_export]
 macro_rules! fmt {
     ($($arg:tt)*) => (||(format!($($arg)*)))
 }
 
+/// Evaluates expression and visually groups all logs will occur during its execution.
 #[macro_export]
 macro_rules! group {
     ($logger:expr, $message:tt, {$($body:tt)*}) => {{
@@ -95,6 +105,7 @@ macro_rules! group {
     }};
 }
 
+/// Logs a message on on given level.
 #[macro_export]
 macro_rules! log_template {
     ($method:ident $logger:expr, $message:tt $($rest:tt)*) => {
@@ -102,7 +113,7 @@ macro_rules! log_template {
     };
 }
 
-
+/// Logs a message on on given level.
 #[macro_export]
 macro_rules! log_template_impl {
     ($method:ident $logger:expr, $expr:expr) => {{
@@ -117,6 +128,7 @@ macro_rules! log_template_impl {
     }};
 }
 
+/// Logs an internal error with descriptive message.
 #[macro_export]
 macro_rules! with_internal_bug_message { ($f:ident $($args:tt)*) => { $crate::$f! {
 "This is a bug. Please report it and and provide us with as much information as \
@@ -124,6 +136,7 @@ possible at https://github.com/luna/enso/issues. Thank you!"
 $($args)*
 }};}
 
+/// Logs an internal error.
 #[macro_export]
 macro_rules! log_internal_bug_template {
     ($($toks:tt)*) => {
@@ -131,6 +144,7 @@ macro_rules! log_internal_bug_template {
     };
 }
 
+/// Logs an internal error.
 #[macro_export]
 macro_rules! log_internal_bug_template_impl {
     ($note:tt $method:ident $logger:expr, $message:tt $($rest:tt)*) => {
@@ -140,6 +154,7 @@ macro_rules! log_internal_bug_template_impl {
     };
 }
 
+/// Log with stacktrace and level:info.
 #[macro_export]
 macro_rules! trace {
     ($($toks:tt)*) => {
@@ -147,6 +162,7 @@ macro_rules! trace {
     };
 }
 
+/// Log with level:debug
 #[macro_export]
 macro_rules! debug {
     ($($toks:tt)*) => {
@@ -154,6 +170,7 @@ macro_rules! debug {
     };
 }
 
+/// Log with level:info.
 #[macro_export]
 macro_rules! info {
     ($($toks:tt)*) => {
@@ -161,6 +178,7 @@ macro_rules! info {
     };
 }
 
+/// Log with level:warning.
 #[macro_export]
 macro_rules! warning {
     ($($toks:tt)*) => {
@@ -168,6 +186,7 @@ macro_rules! warning {
     };
 }
 
+/// Log with level:error.
 #[macro_export]
 macro_rules! error {
     ($($toks:tt)*) => {
@@ -175,6 +194,7 @@ macro_rules! error {
     };
 }
 
+/// Logs an internal warning.
 #[macro_export]
 macro_rules! internal_warning {
     ($($toks:tt)*) => {

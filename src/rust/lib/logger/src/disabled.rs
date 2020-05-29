@@ -1,9 +1,18 @@
-use crate::*;
+//! Contains definition of trivial logger that discards all messages.
+
 use enso_prelude::*;
+
+use crate::LogMsg;
+use crate::AnyLogger;
+
 use shapely::CloneRef;
 use std::fmt::Debug;
 
 
+
+// ==============
+// === Logger ===
+// ==============
 
 /// Trivial logger that discards all the messages.
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -12,11 +21,23 @@ pub struct Logger{
     pub path:Rc<String>,
 }
 
-impl From<enabled::Logger> for Logger {
-    fn from(logger:enabled::Logger) -> Self {
+
+
+// ===================
+// === Conversions ===
+// ===================
+
+impl From<crate::enabled::Logger> for Logger {
+    fn from(logger:crate::enabled::Logger) -> Self {
         Self::new(logger.path())
     }
 }
+
+
+
+// ======================
+// === AnyLogger Impl ===
+// ======================
 
 impl AnyLogger for Logger {
     fn path(&self) -> &str {

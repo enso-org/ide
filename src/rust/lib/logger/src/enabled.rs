@@ -1,5 +1,10 @@
-use crate::*;
+//! Contains implementation of default logger.
+
 use enso_prelude::*;
+
+use crate::AnyLogger;
+use crate::LogMsg;
+
 use shapely::CloneRef;
 use std::fmt::Debug;
 
@@ -7,6 +12,12 @@ use std::fmt::Debug;
 use web_sys::console;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
+
+
+
+// ==============
+// === Logger ===
+// ==============
 
 /// Default Logger implementation.
 #[derive(Clone,CloneRef,Debug,Default)]
@@ -27,11 +38,23 @@ impl Logger {
     }
 }
 
-impl From<disabled::Logger> for Logger {
-    fn from(logger:disabled::Logger) -> Self {
+
+
+// ===================
+// === Conversions ===
+// ===================
+
+impl From<crate::disabled::Logger> for Logger {
+    fn from(logger:crate::disabled::Logger) -> Self {
         Self::new(logger.path())
     }
 }
+
+
+
+// ======================
+// === AnyLogger Impl ===
+// ======================
 
 #[cfg(not(target_arch = "wasm32"))]
 impl AnyLogger for Logger {
