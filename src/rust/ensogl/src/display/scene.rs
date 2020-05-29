@@ -6,7 +6,6 @@ pub mod dom;
 pub use crate::display::symbol::registry::SymbolId;
 
 use crate::prelude::*;
-use crate::prelude::disabled::Logger;
 
 use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback;
@@ -778,7 +777,7 @@ impl SceneData {
         parent_dom.append_child(&dom.root).unwrap();
         dom.recompute_shape_with_reflow();
 
-        let display_object = display::object::Instance::new(logger.clone());
+        let display_object = display::object::Instance::new(&logger);
         let context        = web::get_webgl2_context(&dom.layers.canvas);
         let sub_logger     = Logger::sub(&logger,"shape_dirty").into();
         let shape_dirty    = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));

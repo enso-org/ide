@@ -832,7 +832,7 @@ impl GraphEditorModel {
     pub fn new<S:Into<Scene>>(scene:S, cursor:Cursor, network:&frp::Network) -> Self {
         let scene          = scene.into();
         let logger         = Logger::new("GraphEditor");
-        let display_object = display::object::Instance::new(logger.clone());
+        let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
         let edges          = default();
         let frp            = FrpInputs::new(network);
