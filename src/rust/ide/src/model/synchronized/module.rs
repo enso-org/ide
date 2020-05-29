@@ -154,6 +154,7 @@ impl Module {
             let this = weak.upgrade();
             match (notification,this) {
                 (Some(notification),Some(this)) => {
+                    debug!(this.logger,"Processing a notification: {notification:?}");
                     let result = this.handle_notification(&ls_content,notification).await;
                     ls_content = this.new_ls_content_info(ls_content.summary().clone(),result)
                 }

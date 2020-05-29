@@ -205,6 +205,7 @@ impl ExecutionContext {
         let id                       = visualization.id;
         let (update_sender,receiver) = futures::channel::mpsc::unbounded();
         let visualization            = AttachedVisualization {visualization,update_sender};
+        info!(self.logger,"Inserting to the registry: {id}.");
         self.visualizations.borrow_mut().insert(id,visualization);
         receiver
     }
@@ -212,6 +213,7 @@ impl ExecutionContext {
     /// Detaches visualization from current execution context.
     pub fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
         let err = || InvalidVisualizationId(*id);
+        info!(self.logger,"Removing from the registry: {id}.");
         Ok(self.visualizations.borrow_mut().remove(id).ok_or_else(err)?.visualization)
     }
 

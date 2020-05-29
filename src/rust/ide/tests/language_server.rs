@@ -14,11 +14,13 @@ use ide::prelude::*;
 
 use enso_protocol::language_server::*;
 use enso_protocol::types::*;
+use ide::controller::Project;
+use ide::model::execution_context::Visualization;
 use ide::transport::web::WebSocket;
-use wasm_bindgen_test::wasm_bindgen_test_configure;
-use ide::model::execution_context::{Visualization, VisualizationUpdateData};
-use std::time::Duration;
 use ide::view::project::INITIAL_MODULE_NAME;
+use wasm_bindgen_test::wasm_bindgen_test;
+use std::time::Duration;
+use wasm_bindgen_test::wasm_bindgen_test_configure;
 
 /// The endpoint at which the Language Server should be accepting WS connections.
 const SERVER_ENDPOINT:&str = "ws://localhost:30616";
@@ -252,10 +254,10 @@ async fn file_events() {
 /// This procedure sets up the project, testing:
 /// * using project picker to open (or create) a project
 /// * establishing a binary protocol connection with Language Server
-async fn setup_project() -> ide::controller::Project {
+async fn setup_project() -> Project {
     ensogl_system_web::set_stdout();
-    let _guard   = ide::setup_global_executor();
     let logger   = Logger::new("Test");
+    info!(logger,"Setting up the project.");
     let endpoint = ide::PROJECT_MANAGER_ENDPOINT;
     let ws       = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
     let pm       = ide::setup_project_manager(ws);
@@ -266,6 +268,7 @@ async fn setup_project() -> ide::controller::Project {
 #[allow(dead_code)]
 /// This integration test covers writing and reading a file using the binary protocol
 async fn binary_protocol_test() {
+    let _guard   = ide::setup_global_executor();
     let project  = setup_project().await;
     println!("Got project: {:?}",project);
     let path     = Path::new(project.language_server_rpc.content_root(), &["test_file.txt"]);
@@ -277,45 +280,49 @@ async fn binary_protocol_test() {
     assert_eq!(contents, read_back.as_slice());
 }
 
-#[wasm_bindgen_test::wasm_bindgen_test(async)]
-#[allow(dead_code)]
-/// This integration test covers attaching visualizations and receiving their updates.
-async fn binary_visualization_updates_test() {
+/// The future that tests attaching visualization and routing its updates.
+async fn binary_visualization_updates_test_hlp() {
     let project  = setup_project().await;
     println!("Got project: {:?}", project);
 
-    let json_visualization_expr = "x -> x.json_serialize";
+    let expression = "x -> x.json_serialize";
 
     use ensogl::system::web::sleep;
     use ide::view::project::MAIN_DEFINITION_NAME;
     use double_representation::definition::Id as DefinitionId;
 
-    let main_module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
-    let main_module_qualified_name = project.qualified_module_name(&main_module_path);
-    let main_module                = project.module_controller(main_module_path).await.unwrap();
-    println!("Got module: {:?}", main_module);
-    let main_function_id           = DefinitionId::new_plain_name(MAIN_DEFINITION_NAME);
-    let main_graph_executed        = main_module.executed_graph_controller_unchecked(
-        main_function_id,&project).await.unwrap();
+    let module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
+    let module_qualified_name = project.qualified_module_name(&module_path);
+    let module                = project.module_controller(module_path).await.unwrap();
+    println!("Got module: {:?}", module);
+    let function_id           = DefinitionId::new_plain_name(MAIN_DEFINITION_NAME);
+    let graph_executed        = module.executed_graph_controller_unchecked(
+        function_id,&project).await.unwrap();
 
+    let the_node = graph_executed.nodes().unwrap()[0].info.clone();
+    graph_executed.set_expression(the_node.id(), "10+20").unwrap();
 
-    let the_node = main_graph_executed.nodes().unwrap()[0].info.clone();
-    main_graph_executed.set_expression(the_node.id(), "10+20").unwrap();
+    // We must yield control for a moment, so the text edit is applied.
+    sleep(Duration::from_millis(1)).await;
 
-
-    println!("Main graph: {:?}", main_graph_executed);
-    println!("The code is: {:?}", main_module.code());
+    println!("Main graph: {:?}", graph_executed);
+    println!("The code is: {:?}", module.code());
     println!("Main node: {:?} with {}", the_node, the_node.expression().repr());
 
-    let visualization = Visualization::new(the_node.id(),json_visualization_expr,main_module_qualified_name);
-    let     stream    = main_graph_executed.attach_visualization(visualization).await.unwrap();
+    let visualization = Visualization::new(the_node.id(),expression,module_qualified_name);
+    let     stream    = graph_executed.attach_visualization(visualization.clone()).await.unwrap();
+    println!("Attached the visualization {}", visualization.id);
     let mut stream    = stream.boxed_local();
-
-    let first_event : VisualizationUpdateData = stream.next().await.unwrap(); // there must be an update
-    println!("Got visualization update: {:?}",first_event);
+    let first_event = stream.next().await.unwrap(); // await update
     assert_eq!(first_event.as_ref(), "30".as_bytes());
+}
 
-    println!("Waiting 10 seconds");
-    sleep(Duration::from_secs(10)).await;
-    println!("Done!");
+//#[wasm_bindgen_test]
+#[allow(dead_code)]
+/// This integration test covers attaching visualizations and receiving their updates.
+fn binary_visualization_updates_test() {
+    let executor = ide::executor::web::EventLoopExecutor::new_running();
+    ide::executor::global::set_spawner(executor.spawner.clone());
+    executor.spawn_local(binary_visualization_updates_test_hlp()).unwrap();
+    std::mem::forget(executor);
 }

@@ -78,14 +78,17 @@ impl Path {
     /// Create a path from the file path. Returns Err if given path is not a valid module file.
     pub fn from_file_path(file_path:FilePath) -> Result<Self,InvalidModulePath> {
         use ModulePathViolation::*;
-        let error             = |issue| InvalidModulePath {path:file_path.clone(),issue};
+        let error             = |issue| {
+            let path = file_path.clone();
+            move || InvalidModulePath {path,issue}
+        };
         let correct_extension = file_path.extension() == Some(constants::LANGUAGE_FILE_EXTENSION);
-        correct_extension.ok_or_else(|| error(WrongFileExtension))?;
-        let file_name       = file_path.file_name().ok_or(error(ContainsNoSegments))?;
-        let name_first_char = file_name.chars().next().ok_or(error(ContainsEmptySegment))?;
-        name_first_char.is_uppercase().ok_or_else(|| error(NonCapitalizedFileName))?;
+        correct_extension.ok_or_else(error(WrongFileExtension))?;
+        let file_name       = file_path.file_name().ok_or_else(error(ContainsNoSegments))?;
+        let name_first_char = file_name.chars().next().ok_or_else(error(ContainsEmptySegment))?;
+        name_first_char.is_uppercase().ok_or_else(error(NonCapitalizedFileName))?;
         let is_in_src = file_path.segments.first().contains_if(|name| *name == SOURCE_DIRECTORY);
-        is_in_src.ok_or_else(|| error(NotInSourceDirectory))?;
+        is_in_src.ok_or_else(error(NotInSourceDirectory))?;
         Ok(Path {file_path})
     }
 

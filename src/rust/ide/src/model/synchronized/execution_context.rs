@@ -98,10 +98,19 @@ impl ExecutionContext {
     /// Returns a stream of visualization update data received from the server.
     pub async fn attach_visualization
     (&self, vis:Visualization) -> FallibleResult<impl Stream<Item=VisualizationUpdateData>> {
+        // Note: [mwu]
+        //  We must register our visualization in the model first, because Language server can send
+        //  us visualization updates through the binary socket before confirming that visualization
+        //  has been successfully attached.
         let config = vis.config(self.id);
-        self.language_server.attach_visualisation(&vis.id, &vis.ast_id, &config).await?;
-        let stream = self.model.attach_visualization(vis);
-        Ok(stream)
+        let stream = self.model.attach_visualization(vis.clone());
+        let result = self.language_server.attach_visualisation(&vis.id, &vis.ast_id, &config).await;
+        if let Err(e) = result {
+            self.model.detach_visualization(&vis.id)?;
+            Err(e.into())
+        } else {
+            Ok(stream)
+        }
     }
 
     /// Detaches visualization from current execution context.
