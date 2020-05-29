@@ -140,9 +140,12 @@ impl Connection {
         let logger    = Logger::new("edge");
         let object    = display::object::Instance::new(&logger);
 
-        let corner    = component::ShapeView::<shape::Shape>::new(&logger.sub("corner"),scene);
-        let side_line = component::ShapeView::<line::Shape>::new(&logger.sub("side_line"),scene);
-        let main_line = component::ShapeView::<line::Shape>::new(&logger.sub("main_line"),scene);
+        let corner_log = Logger::sub(&logger,"corner");
+        let side_log   = Logger::sub(&logger,"side_line");
+        let main_log   = Logger::sub(&logger,"main_line");
+        let corner     = component::ShapeView::<shape::Shape>::new(&corner_log,scene);
+        let side_line  = component::ShapeView::<line ::Shape>::new(&side_log,scene);
+        let main_line  = component::ShapeView::<line ::Shape>::new(&main_log,scene);
         object.add_child(&corner);
         object.add_child(&side_line);
         object.add_child(&main_line);

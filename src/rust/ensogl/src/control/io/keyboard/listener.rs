@@ -33,12 +33,12 @@ pub struct Listener {
 }
 
 impl Listener {
-    fn new<F:ListenerCallback>(logger:&Logger,event_type:impl Str, f:F) -> Self {
+    fn new<F:ListenerCallback>(logger:&impl AnyLogger,event_type:impl Str, f:F) -> Self {
         let closure     = Box::new(f);
         let callback    = ListenerClosure::wrap(closure);
         let element     = web::body();
         let js_function = callback.as_ref().unchecked_ref();
-        let logger      = logger.sub("Listener");
+        let logger      = Logger::sub(logger,"Listener");
         let event_type  = event_type.as_ref();
         if element.add_event_listener_with_callback(event_type,js_function).is_err() {
             logger.warning(|| format!("Couldn't add {} event listener.",event_type));

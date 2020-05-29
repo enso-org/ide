@@ -37,13 +37,26 @@ impl<F: Fn() -> S, S:Str> LogMsg for F {
 // === Logger ===
 // ==============
 
-pub trait LoggerApi {
-    /// Creates a new logger. Path should be a unique identifier of this logger.
-    fn new<T:Str>(path:T) -> Self;
+pub trait AnyLogger {
+    /// Path that is used as an unique identifier of this logger.
+    fn path(&self) -> &str;
+
+    /// Creates a new logger. Path should be a unique identifier for this logger.
+    fn new(path:impl Str) -> Self;
+
     /// Creates a new logger with this logger as a parent.
-    fn sub<T:Str>(&self, path:T) -> Self;
+    fn sub(logger:&impl AnyLogger, path:impl Str) -> Self where Self:Sized {
+        Self::new(format!("{}.{}", logger.path(), path.as_ref()))
+    }
+
     /// Evaluates function `f` and visually groups all logs will occur during its execution.
-    fn group<M:LogMsg,T,F:FnOnce() -> T>(&self, msg: M, f:F) -> T;
+    fn group<M:LogMsg,T,F:FnOnce() -> T>(&self, msg: M, f:F) -> T {
+        self.group_begin(msg);
+        let out = f();
+        self.group_end();
+        out
+    }
+
     /// Log with stacktrace and level:info.
     fn trace<M:LogMsg>(&self, msg:M);
     /// Log with level:debug

@@ -6,28 +6,25 @@ use std::fmt::Debug;
 
 
 /// Trivial logger that discards all the messages.
-#[derive(Clone,Copy,CloneRef,Debug,Default)]
-pub struct Logger();
+#[derive(Clone,CloneRef,Debug,Default)]
+pub struct Logger{
+    /// Path that is used as an unique identifier of this logger.
+    pub path:Rc<String>,
+}
 
 impl From<enabled::Logger> for Logger {
-    fn from(_:enabled::Logger) -> Self { Logger() }
+    fn from(logger:enabled::Logger) -> Self {
+        Self::new(logger.path())
+    }
 }
 
-impl From<&enabled::Logger> for Logger {
-    fn from(_:&enabled::Logger) -> Self { Logger() }
-}
-
-impl LoggerApi for Logger {
-    fn new<T: Str>(_:T) -> Self {
-        Logger()
+impl AnyLogger for Logger {
+    fn path(&self) -> &str {
+        self.path.as_str()
     }
 
-    fn sub<T:Str>(&self, _:T) -> Logger {
-        Logger()
-    }
-
-    fn group<M: LogMsg,T,F:FnOnce() -> T>(&self, _:M, f:F) -> T {
-        f()
+    fn new(path:impl Str) -> Self {
+        Self {path:Rc::new(path.into())}
     }
 
     fn trace      <M: LogMsg>(&self, _:M){}

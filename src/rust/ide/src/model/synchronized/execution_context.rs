@@ -31,12 +31,12 @@ impl ExecutionContext {
     /// Create new ExecutionContext. It will be created in LanguageServer and the ExplicitCall
     /// stack frame will be pushed.
     pub async fn create
-    ( parent          : Logger
+    ( parent          : impl AnyLogger
     , language_server : Rc<language_server::Connection>
     , module_path     : Rc<controller::module::Path>
     , root_definition : DefinitionName
     ) -> FallibleResult<Self> {
-        let logger = parent.sub("ExecutionContext");
+        let logger = Logger::sub(&parent,"ExecutionContext");
         let model  = model::ExecutionContext::new(root_definition);
         info!(logger,"Creating.");
         let id = language_server.client.create_execution_context().await?.context_id;
@@ -183,7 +183,7 @@ mod test {
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let context = ExecutionContext::create(default(),connection,path.clone(),root_def);
+            let context = ExecutionContext::create(Logger::default(),connection,path.clone(),root_def);
             let context = context.await.unwrap();
             assert_eq!(context_id             , context.id);
             assert_eq!(path                   , context.module_path);

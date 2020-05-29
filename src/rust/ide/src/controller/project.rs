@@ -33,7 +33,7 @@ pub struct Handle {
 impl Handle {
     /// Create a new project controller.
     pub fn new
-    ( parent                 : &Logger
+    ( parent                 : &impl AnyLogger
     , language_server_client : language_server::Connection
     , language_server_binary : binary::Connection
     ) -> Self {
@@ -42,7 +42,7 @@ impl Handle {
             parser              : Parser::new_or_panic(),
             language_server_rpc : Rc::new(language_server_client),
             language_server_bin : Rc::new(language_server_binary),
-            logger              : parent.sub("Project Controller"),
+            logger              : Logger::sub(parent,"Project Controller"),
         }
     }
 
@@ -120,7 +120,7 @@ mod test {
             mock_calls_for_opening_text_file(&json_client,another_path.file_path().clone(),"22+2");
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(default());
-            let project           = controller::Project::new(&default(),json_connection,
+            let project           = controller::Project::new(&Logger::default(),json_connection,
                 binary_connection);
             let module            = project.module_controller(path.clone()).await.unwrap();
             let same_module       = project.module_controller(path.clone()).await.unwrap();
@@ -137,7 +137,7 @@ mod test {
         TestWithLocalPoolExecutor::set_up().run_task(async move {
             let json_connection   = language_server::Connection::new_mock(default());
             let binary_connection = binary::Connection::new_mock(default());
-            let project_ctrl      = controller::Project::new(&default(),json_connection,
+            let project_ctrl      = controller::Project::new(&Logger::default(),json_connection,
                 binary_connection);
             let root_id           = default();
             let path              = FilePath::new(root_id,&["TestPath"]);
@@ -165,7 +165,7 @@ mod test {
             mock_calls_for_opening_text_file(&json_client,path.clone(),"2 + 2");
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(default());
-            let project_ctrl      = controller::Project::new(&default(),json_connection,
+            let project_ctrl      = controller::Project::new(&Logger::default(),json_connection,
                 binary_connection);
             let text_ctrl         = project_ctrl.text_controller(path.clone()).await.unwrap();
             let content           = text_ctrl.read_content().await.unwrap();

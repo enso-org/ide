@@ -6,6 +6,7 @@ pub mod dom;
 pub use crate::display::symbol::registry::SymbolId;
 
 use crate::prelude::*;
+use crate::prelude::disabled::Logger;
 
 use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback;
@@ -467,8 +468,8 @@ impl Layers {
     /// Constructor.
     pub fn new(logger:&Logger, dom:&web_sys::HtmlDivElement) -> Self {
         let canvas = web::create_canvas();
-        let front  = DomScene::new(&logger);
-        let back   = DomScene::new(&logger);
+        let front  = DomScene::new(logger);
+        let back   = DomScene::new(logger);
         canvas.set_style_or_panic("height"  , "100vh");
         canvas.set_style_or_panic("width"   , "100vw");
         canvas.set_style_or_panic("display" , "block");
@@ -539,11 +540,9 @@ pub struct Callbacks {
 // === Renderer ===
 // ================
 
-pub type RendererLogger = disabled::Logger;
-
 #[derive(Clone,CloneRef,Debug)]
 pub struct Renderer {
-    logger    : RendererLogger,
+    logger    : Logger,
     dom       : Dom,
     context   : Context,
     variables : UniformScope,
@@ -553,15 +552,8 @@ pub struct Renderer {
 }
 
 impl Renderer {
-
-    pub fn new
-    (logger:impl Into<RendererLogger>, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
-        Self::new_impl(logger.into(),dom,context,variables)
-    }
-
-    /// Separate implementation of `new` to avoid function body duplication after logger monorphization.
-    fn new_impl(logger:RendererLogger, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
-        let logger    = logger.sub("renderer");
+    fn new(logger:&impl AnyLogger, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
+        let logger    = Logger::sub(logger,"renderer");
         let dom       = dom.clone_ref();
         let context   = context.clone_ref();
         let variables = variables.clone_ref();
@@ -685,15 +677,15 @@ impl WeakView {
 }
 
 impl ViewData {
-    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger  = logger.sub("view");
+    pub fn new(logger:&impl AnyLogger, width:f32, height:f32) -> Self {
+        let logger  = Logger::sub(logger,"view");
         let camera  = Camera2d::new(&logger,width,height);
         let symbols = default();
         Self {logger,camera,symbols}
     }
 
-    pub fn new_with_camera(logger:&Logger, camera:&Camera2d) -> Self {
-        let logger  = logger.sub("view");
+    pub fn new_with_camera(logger:&impl AnyLogger, camera:&Camera2d) -> Self {
+        let logger  = Logger::sub(logger,"view");
         let camera  = camera.clone_ref();
         let symbols = default();
         Self {logger,camera,symbols}
@@ -725,8 +717,8 @@ pub struct Views {
 }
 
 impl Views {
-    pub fn mk(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger = logger.sub("views");
+    pub fn mk(logger:&impl AnyLogger, width:f32, height:f32) -> Self {
+        let logger = Logger::sub(logger,"views");
         let main   = View::new(&logger,width,height);
         let cursor = View::new(&logger,width,height);
         let label  = View::new_with_camera(&logger,&main.camera);
@@ -786,14 +778,15 @@ impl SceneData {
         parent_dom.append_child(&dom.root).unwrap();
         dom.recompute_shape_with_reflow();
 
-        let display_object = display::object::Instance::new(&logger);
+        let display_object = display::object::Instance::new(logger.clone());
         let context        = web::get_webgl2_context(&dom.layers.canvas);
-        let sub_logger     = logger.sub("shape_dirty");
+        let sub_logger     = Logger::sub(&logger,"shape_dirty").into();
         let shape_dirty    = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
-        let sub_logger     = logger.sub("symbols_dirty");
+        let sub_logger     = Logger::sub(&logger,"symbols_dirty").into();
         let dirty_flag     = SymbolRegistryDirty::new(sub_logger,Box::new(on_mut));
         let on_change      = enclose!((dirty_flag) move || dirty_flag.set());
-        let variables      = UniformScope::new(logger.sub("global_variables"),&context);
+        let sub_logger     = Logger::sub(&logger,"global_variables").into();
+        let variables      = UniformScope::new(sub_logger,&context);
         let symbols        = SymbolRegistry::mk(&variables,&stats,&context,&logger,on_change);
         let screen_shape   = dom.shape().current();
         let width          = screen_shape.width();
@@ -801,7 +794,7 @@ impl SceneData {
         let symbols_dirty  = dirty_flag;
         let views          = Views::mk(&logger,width,height);
         let stats          = stats.clone();
-        let mouse_logger   = logger.sub("mouse");
+        let mouse_logger   = Logger::sub(&logger,"mouse");
         let mouse          = Mouse::new(&dom.shape(),&variables,mouse_logger);
         let shapes         = ShapeRegistry::default();
         let uniforms       = Uniforms::new(&variables);
@@ -941,8 +934,8 @@ pub struct Scene {
 
 impl Scene {
     pub fn new<OnMut:Fn()+Clone+'static>
-    (parent_dom:&HtmlElement, logger:&Logger, stats:&Stats, on_mut:OnMut) -> Self {
-        let logger        = logger.sub("scene");
+    (parent_dom:&HtmlElement, logger:&impl AnyLogger, stats:&Stats, on_mut:OnMut) -> Self {
+        let logger        = Logger::sub(logger,"scene");
         let no_mut_access = SceneData::new(parent_dom,logger,stats,on_mut);
         let this = Self {no_mut_access};
         this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref()); // FIXME ugly

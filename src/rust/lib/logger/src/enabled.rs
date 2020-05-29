@@ -2,106 +2,110 @@ use crate::*;
 use enso_prelude::*;
 use shapely::CloneRef;
 use std::fmt::Debug;
-use wasm_bindgen::JsValue;
 
 #[cfg(target_arch = "wasm32")]
 use web_sys::console;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsValue;
 
 /// Default Logger implementation.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct Logger {
+    /// Path that is used as an unique identifier of this logger.
     pub path:Rc<String>,
 }
 
-#[allow(dead_code)]
 impl Logger {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn format<M:LogMsg>(&self, msg:M) -> String {
+        msg.with_log_msg(|s| format!("[{}] {}", self.path, s))
+    }
+
+    #[cfg(target_arch = "wasm32")]
     fn format<M:LogMsg>(&self, msg:M) -> JsValue {
         msg.with_log_msg(|s| format!("[{}] {}", self.path, s)).into()
     }
+}
 
-    fn format2<M:LogMsg>(&self, msg:M) -> String {
-        msg.with_log_msg(|s| format!("[{}] {}", self.path, s))
+impl From<disabled::Logger> for Logger {
+    fn from(logger:disabled::Logger) -> Self {
+        Self::new(logger.path())
     }
 }
 
-impl LoggerApi for Logger {
-    fn new<T:Str>(path:T) -> Self {
-        let path = Rc::new(path.into());
-        Self {path}
+#[cfg(not(target_arch = "wasm32"))]
+impl AnyLogger for Logger {
+    fn path(&self) -> &str {
+        self.path.as_str()
     }
 
-    fn sub<T:Str>(&self, path:T) -> Self {
-        if self.path.is_empty() { Self::new(path) } else {
-            Self::new(format!("{}.{}", self.path, path.as_ref()))
-        }
+    fn new(path:impl Str) -> Self {
+        Self {path:Rc::new(path.into())}
     }
 
-    fn group<M:LogMsg,T,F:FnOnce() -> T>(&self, msg:M, f:F) -> T {
-        self.group_begin(msg);
-        let out = f();
-        self.group_end();
-        out
-    }
-    
-    #[cfg(not(target_arch = "wasm32"))]
     fn trace<M:LogMsg>(&self, msg:M) {
-        println!("{}",self.format2(msg));
+        println!("{}",self.format(msg));
     }
-    #[cfg(target_arch = "wasm32")]
+
+    fn debug<M:LogMsg>(&self, msg:M) {
+        println!("{}",self.format(msg));
+    }
+
+    fn info<M:LogMsg>(&self, msg:M) {
+        println!("{}",self.format(msg));
+    }
+
+    fn warning<M:LogMsg>(&self, msg:M) {
+        println!("[WARNING] {}",self.format(msg));
+    }
+
+    fn error<M:LogMsg>(&self, msg:M) {
+        println!("[ERROR] {}",self.format(msg));
+    }
+
+    fn group_begin<M:LogMsg>(&self, msg:M) {
+        println!(">>> {}",self.format(msg));
+    }
+
+    fn group_end(&self) {
+        println!("<<<")
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl AnyLogger for Logger {
+    fn path(&self) -> &str {
+        self.path.as_str()
+    }
+
+    fn new(path:impl Str) -> Self {
+        Self {path:Rc::new(path.into())}
+    }
+
     fn trace<M:LogMsg>(&self, msg:M) {
         console::trace_1(&self.format(msg));
     }
-    
-    #[cfg(not(target_arch = "wasm32"))]
-    fn debug<M:LogMsg>(&self, msg:M) {
-        println!("{}",self.format2(msg));
-    }
-    #[cfg(target_arch = "wasm32")]
+
     fn debug<M:LogMsg>(&self, msg:M) {
         console::debug_1(&self.format(msg));
     }
-    
-    #[cfg(not(target_arch = "wasm32"))]
-    fn info<M:LogMsg>(&self, msg:M) {
-        println!("{}",self.format2(msg));
-    }
-    #[cfg(target_arch = "wasm32")]
+
     fn info<M:LogMsg>(&self, msg:M) {
         console::info_1(&self.format(msg));
     }
-    
-    #[cfg(not(target_arch = "wasm32"))]
-    fn warning<M:LogMsg>(&self, msg:M) {
-        println!("[WARNING] {}",self.format2(msg));
-    }
-    #[cfg(target_arch = "wasm32")]
+
     fn warning<M:LogMsg>(&self, msg:M) {
         console::warn_1(&self.format(msg));
     }
-    
-    #[cfg(not(target_arch = "wasm32"))]
-    fn error<M:LogMsg>(&self, msg:M) {
-        println!("[ERROR] {}",self.format2(msg));
-    }
-    #[cfg(target_arch = "wasm32")]
+
     fn error<M:LogMsg>(&self, msg:M) {
         console::error_1(&self.format(msg));
     }
-    
-    #[cfg(not(target_arch = "wasm32"))]
-    fn group_begin<M:LogMsg>(&self, msg:M) {
-        println!(">>> {}",self.format2(msg));
-    }
-    #[cfg(target_arch = "wasm32")]
+
     fn group_begin<M:LogMsg>(&self, msg:M) {
         console::group_1(&self.format(msg));
     }
-    
-    #[cfg(not(target_arch = "wasm32"))]
-    fn group_end(&self) {
-        println!("<<<")
-    }    
-    #[cfg(target_arch = "wasm32")]
+
     fn group_end(&self) {
         console::group_end();
     }

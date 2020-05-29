@@ -617,8 +617,8 @@ impl Deref for Nodes {
 }
 
 impl Nodes {
-    pub fn new(logger:&Logger) -> Self {
-        let logger   = logger.sub("nodes");
+    pub fn new(logger:&impl AnyLogger) -> Self {
+        let logger   = Logger::sub(logger,"nodes");
         let all      = default();
         let selected = default();
         Self {logger,all,selected}
@@ -645,8 +645,8 @@ impl Deref for Edges {
 }
 
 impl Edges {
-    pub fn new(logger:&Logger) -> Self {
-        let logger   = logger.sub("edges");
+    pub fn new(logger:&impl AnyLogger) -> Self {
+        let logger   = Logger::sub(logger,"edges");
         let all      = default();
         let detached_source = default();
         let detached_target = default();

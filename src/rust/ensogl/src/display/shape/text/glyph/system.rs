@@ -100,7 +100,7 @@ pub struct Line {
 impl Line {
     /// Constructor.
     pub fn new(logger:&Logger, glyph_system:&GlyphSystem) -> Self {
-        let logger         = logger.sub("line");
+        let logger         = Logger::sub(logger,"line");
         let display_object = display::object::Instance::new(logger);
         let glyph_system   = glyph_system.clone_ref();
         let font_size      = Rc::new(Cell::new(11.0));

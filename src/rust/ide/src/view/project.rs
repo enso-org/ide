@@ -72,7 +72,7 @@ shared! { ProjectView
 
 impl ProjectView {
     /// Create a new ProjectView.
-    pub async fn new(logger:&Logger, controller:controller::Project)
+    pub async fn new(logger:&impl AnyLogger, controller:controller::Project)
     -> FallibleResult<Self> {
         let root_id              = controller.language_server_rpc.content_root();
         let path                 = controller::FilePath::new(root_id,&INITIAL_FILE_PATH);
@@ -87,7 +87,7 @@ impl ProjectView {
         Self::setup_theme(&application);
         let _world               = &application.display;
         // graph::register_shapes(&world);
-        let logger               = logger.sub("ProjectView");
+        let logger               = Logger::sub(logger,"ProjectView");
         let keyboard             = Keyboard::default();
         let keyboard_bindings    = KeyboardFrpBindings::new(&logger,&keyboard);
         let mut keyboard_actions = keyboard::Actions::new(&keyboard);

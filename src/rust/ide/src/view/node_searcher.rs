@@ -22,13 +22,13 @@ pub struct NodeSearcher {
 }
 
 impl NodeSearcher {
-    pub fn new
-    (world:&World, logger:&Logger, controller:controller::graph::Handle, fonts:&mut font::Registry)
+    pub fn new<Log:AnyLogger>
+    (world:&World, logger:&Log, controller:controller::graph::Handle, fonts:&mut font::Registry)
     -> Self {
         let scene          = world.scene();
         let camera         = scene.camera();
         let screen         = camera.screen();
-        let logger         = logger.sub("NodeSearcher");
+        let logger         = Logger::sub(logger,"NodeSearcher");
         let display_object = display::object::Instance::new(&logger);
         let properties     = TextFieldProperties {
             font        : fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap(),
