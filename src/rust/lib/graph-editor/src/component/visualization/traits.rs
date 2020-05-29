@@ -23,7 +23,7 @@ pub enum TargetLayer {
 /// Contains a symbol and information about which layer it should be placed on.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct SymbolLayoutData {
+pub struct SymbolWithLayout {
     pub symbol       : Symbol,
     pub target_layer : TargetLayer,
 }
@@ -35,7 +35,7 @@ pub trait HasSymbols {
     fn symbols(&self) -> Vec<Symbol>;
 
     /// Return all symbols with their layout data for this component.
-    fn symbols_with_data(&self) -> Vec<SymbolLayoutData>;
+    fn symbols_with_data(&self) -> Vec<SymbolWithLayout>;
 
     /// Remove the `Symbol`s from all scene layers.
     fn unset_layers_all(&self, scene:&Scene) {

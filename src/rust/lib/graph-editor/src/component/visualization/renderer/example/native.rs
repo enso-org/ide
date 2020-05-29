@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::visualization::traits::SymbolLayoutData;
+use crate::component::visualization::traits::SymbolWithLayout;
 use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::TargetLayer;
 
@@ -105,9 +105,9 @@ impl traits::HasSymbols for BubbleChart {
         vec![shape_system.shape_system.symbol.clone_ref()]
     }
 
-    fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
+    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
         let target_layer = TargetLayer::Visualisation;
-        self.symbols().into_iter().map(|symbol| SymbolLayoutData{ symbol,target_layer}).collect()
+        self.symbols().into_iter().map(|symbol| SymbolWithLayout { symbol,target_layer}).collect()
     }
 }
 

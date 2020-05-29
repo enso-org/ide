@@ -103,7 +103,7 @@ impl Stage {
 
     /// Return whether the given container is in fullscreen mode.
     pub fn is_fullscreen(&self, container:Container) -> bool {
-        self.fullscreen_state.get_element() == Some(container)
+        self.fullscreen_state.get_fullscreen_component() == Some(container)
     }
 
     /// Return whether the given container is selected.

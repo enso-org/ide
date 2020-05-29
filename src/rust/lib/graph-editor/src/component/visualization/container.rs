@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration, HasDomSymbols};
 use crate::component::visualization::traits::Resizable;
-use crate::component::visualization::traits::SymbolLayoutData;
+use crate::component::visualization::traits::SymbolWithLayout;
 use crate::component::visualization::traits::TargetLayer;
 use crate::frp;
 use crate::visualization::*;
@@ -379,10 +379,10 @@ impl HasSymbols for Container {
         symbols
     }
 
-    fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
+    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
         let target_layer = TargetLayer::Main;
         let symbols      = self.container_main_symbols().into_iter();
-        let symbols  = symbols.map(move |symbol| SymbolLayoutData{symbol,target_layer});
+        let symbols  = symbols.map(move |symbol| SymbolWithLayout {symbol,target_layer});
         let vis_symbols  = self.data.visualization.borrow().as_ref().map(|vis| vis.symbols_with_data()).unwrap_or_default();
         symbols.chain(vis_symbols).collect()
     }

@@ -30,7 +30,7 @@ use crate::component::visualization::DataRenderer;
 use crate::component::visualization::DataRendererFrp;
 use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::HasSymbols;
-use crate::component::visualization::traits::SymbolLayoutData;
+use crate::component::visualization::traits::SymbolWithLayout;
 
 use ensogl::display::DomScene;
 use ensogl::display::DomSymbol;
@@ -264,7 +264,7 @@ impl HasSymbols for JsRenderer {
         vec![]
     }
 
-    fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
+    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
         vec![]
     }
 }

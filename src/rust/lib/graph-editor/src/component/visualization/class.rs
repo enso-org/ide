@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::component::visualization::traits::HasSymbols;
 use crate::component::visualization::traits::HasDomSymbols;
-use crate::component::visualization::traits::SymbolLayoutData;
+use crate::component::visualization::traits::SymbolWithLayout;
 use crate::frp;
 use crate::visualization::*;
 
@@ -185,7 +185,7 @@ impl HasSymbols for Visualization {
         self.state.renderer.symbols()
     }
 
-    fn symbols_with_data(&self) -> Vec<SymbolLayoutData> {
+    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
         self.state.renderer.symbols_with_data()
     }
 }
