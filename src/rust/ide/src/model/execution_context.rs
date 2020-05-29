@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::controller::module::QualifiedName as ModuleQualifiedName;
+use crate::model::module::QualifiedName as ModuleQualifiedName;
 use crate::double_representation::definition::DefinitionName;
 
 use enso_protocol::language_server;

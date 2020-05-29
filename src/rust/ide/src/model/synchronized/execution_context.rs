@@ -23,7 +23,7 @@ use json_rpc::error::RpcError;
 pub struct ExecutionContext {
     id              : model::execution_context::Id,
     model           : model::ExecutionContext,
-    module_path     : Rc<controller::module::Path>,
+    module_path     : Rc<model::module::Path>,
     language_server : Rc<language_server::Connection>,
     logger          : Logger,
 }
@@ -42,7 +42,7 @@ impl ExecutionContext {
     pub fn create
     ( parent          : &Logger
     , language_server : Rc<language_server::Connection>
-    , module_path     : Rc<controller::module::Path>
+    , module_path     : Rc<model::module::Path>
     , root_definition : DefinitionName
     ) -> impl Future<Output=FallibleResult<Self>> {
         let parent = parent.clone();
@@ -133,7 +133,7 @@ impl ExecutionContext {
     #[cfg(test)]
     pub fn new_mock
     ( id              : model::execution_context::Id
-    , path            : controller::module::Path
+    , path            : model::module::Path
     , model           : model::ExecutionContext
     , language_server : language_server::MockClient
     ) -> Self {
@@ -168,7 +168,7 @@ impl Drop for ExecutionContext {
 mod test {
     use super::*;
 
-    use crate::controller::module::QualifiedName as ModuleQualifiedName;
+    use crate::model::module::QualifiedName as ModuleQualifiedName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use json_rpc::expect_call;
@@ -179,7 +179,7 @@ mod test {
 
     #[test]
     fn creating_context() {
-        let path       = Rc::new(controller::module::Path::from_mock_module_name("Test"));
+        let path       = Rc::new(model::module::Path::from_mock_module_name("Test"));
         let context_id = model::execution_context::Id::new_v4();
         let root_def   = DefinitionName::new_plain("main");
         let ls_client  = language_server::MockClient::default();
@@ -221,7 +221,7 @@ mod test {
         let id                  = model::execution_context::Id::new_v4();
         let definition          = model::execution_context::DefinitionId::new_plain_name("foo");
         let expression_id       = model::execution_context::ExpressionId::new_v4();
-        let path                = controller::module::Path::from_mock_module_name("Test");
+        let path                = model::module::Path::from_mock_module_name("Test");
         let root_def            = DefinitionName::new_plain("main");
         let model               = model::ExecutionContext::new(&default(),root_def);
         let ls                  = language_server::MockClient::default();
@@ -250,7 +250,7 @@ mod test {
             call       : model::execution_context::ExpressionId::new_v4(),
             definition : model::execution_context::DefinitionId::new_plain_name("foo"),
         };
-        let path          = controller::module::Path::from_mock_module_name("Test");
+        let path          = model::module::Path::from_mock_module_name("Test");
         let root_def      = DefinitionName::new_plain("main");
         let ls            = language_server::MockClient::default();
         let model         = model::ExecutionContext::new(&default(),root_def);
@@ -271,7 +271,7 @@ mod test {
     #[test]
     fn attaching_visualizations() {
         let exe_id   = model::execution_context::Id::new_v4();
-        let path     = controller::module::Path::from_mock_module_name("Test");
+        let path     = model::module::Path::from_mock_module_name("Test");
         let root_def = DefinitionName::new_plain("main");
         let model    = model::ExecutionContext::new(&default(),root_def);
         let ls       = language_server::MockClient::default();

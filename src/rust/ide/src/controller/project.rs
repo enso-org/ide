@@ -7,14 +7,15 @@ use crate::prelude::*;
 
 use crate::controller::FilePath;
 use crate::controller::Visualization;
-use crate::controller::module::QualifiedName as ModuleQualifiedName;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
+use crate::model::module::QualifiedName as ModuleQualifiedName;
+use crate::model::module::Path          as ModulePath;
 use crate::model::synchronized::ExecutionContext;
 
-use enso_protocol::language_server;
 use enso_protocol::binary;
 use enso_protocol::binary::message::VisualisationContext;
+use enso_protocol::language_server;
 use parser::Parser;
 use uuid::Uuid;
 
@@ -22,8 +23,6 @@ use uuid::Uuid;
 // ===============
 // === Aliases ===
 // ===============
-
-type ModulePath = controller::module::Path;
 
 type ExecutionContextId = model::execution_context::Id;
 
@@ -178,7 +177,7 @@ impl Handle {
     ///
     /// It supports both modules and plain text files.
     pub async fn text_controller(&self, path:FilePath) -> FallibleResult<controller::Text> {
-        if let Ok(path) = controller::module::Path::from_file_path(path.clone()) {
+        if let Ok(path) = model::module::Path::from_file_path(path.clone()) {
             info!(self.logger,"Obtaining controller for module {path}");
             let module = self.module_controller(path).await?;
             Ok(controller::Text::new_for_module(module))
@@ -203,11 +202,11 @@ impl Handle {
     /// The segments should not include the leading "src/" directory, as this function adds.
     pub fn module_path_from_qualified_name
     (&self, name_segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<ModulePath> {
-        controller::module::Path::from_name_segments(self.content_root_id(), name_segments)
+        model::module::Path::from_name_segments(self.content_root_id(), name_segments)
     }
 
     /// Generates full module's qualified name that includes the leading project name segment.
-    pub fn qualified_module_name(&self, path:&controller::module::Path) -> ModuleQualifiedName {
+    pub fn qualified_module_name(&self, path:&model::module::Path) -> ModuleQualifiedName {
         ModuleQualifiedName::from_path(path,self.project_name.deref())
     }
 
@@ -230,7 +229,7 @@ impl Handle {
     /// for receiving update.
     pub async fn create_execution_context
     (&self
-    , module_path:Rc<controller::module::Path>
+    , module_path:Rc<model::module::Path>
     , root_definition:double_representation::definition::DefinitionName
     ) -> FallibleResult<Rc<ExecutionContext>> {
         let ls_rpc  = self.language_server_rpc.clone_ref();

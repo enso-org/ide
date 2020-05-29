@@ -87,7 +87,7 @@ impl LanguageServerContent {
 /// [https://github.com/luna/enso/blob/master/docs/language-server/protocol-language-server.md].
 #[derive(Debug)]
 pub struct Module {
-    path            : controller::module::Path,
+    path            : model::module::Path,
     /// The module handle.
     pub model       : model::Module,
     language_server : Rc<language_server::Connection>,
@@ -103,7 +103,7 @@ impl Module {
     /// This function will open the module in Language Server and schedule task which will send
     /// updates about module's change to Language Server.
     pub async fn open
-    ( path            : controller::module::Path
+    ( path            : model::module::Path
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
     ) -> FallibleResult<Rc<Self>> {
@@ -126,7 +126,7 @@ impl Module {
 
     /// Create a module mock.
     #[cfg(test)]
-    pub fn mock(path:controller::module::Path, model:model::Module) -> Rc<Self> {
+    pub fn mock(path:model::module::Path, model:model::Module) -> Rc<Self> {
         let logger = Logger::new(iformat!("Mocked Module {path}"));
         let client = language_server::MockClient::default();
         client.expect.close_text_file(|_| Ok(()));
@@ -357,7 +357,7 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn handling_notifications() {
-        let path            = controller::module::Path::from_mock_module_name("TestModule");
+        let path            = model::module::Path::from_mock_module_name("TestModule");
         let parser          = Parser::new_or_panic();
         let initial_content = "main =\n    println \"Hello World!\"";
 
@@ -400,7 +400,7 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn handling_notification_after_failure() {
-        let path            = controller::module::Path::from_mock_module_name("TestModule");
+        let path            = model::module::Path::from_mock_module_name("TestModule");
         let initial_content = "main =\n    println \"Hello World!\"";
 
         let setup           = LsClientSetup::new(path.file_path().clone(),initial_content);

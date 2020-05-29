@@ -157,7 +157,7 @@ mod test {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
-    type ModulePath = controller::module::Path;
+    type ModulePath = model::module::Path;
     type Registry   = super::Registry<ModulePath,model::Module>;
 
     #[test]

@@ -4,9 +4,9 @@
 use crate::prelude::*;
 
 use crate::double_representation::definition::DefinitionName;
+use crate::model::module::Path as ModulePath;
 use crate::view::layout::ViewLayout;
 
-use controller::module::Path as ModulePath;
 use ensogl::application::Application;
 use ensogl::control::callback;
 use ensogl::control::io::keyboard::listener::KeyboardFrpBindings;
