@@ -67,8 +67,9 @@ use crate::view::project::ProjectView;
 use enso_protocol::binary;
 use enso_protocol::language_server;
 use enso_protocol::project_manager;
+use enso_protocol::project_manager::ProjectMetadata;
+use enso_protocol::project_manager::ProjectName;
 use uuid::Uuid;
-use enso_protocol::project_manager::{ProjectMetadata, ProjectName};
 
 
 // =================

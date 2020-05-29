@@ -97,8 +97,8 @@ impl ExecutionContext {
     ///
     /// Returns a stream of visualization update data received from the server.
     pub async fn attach_visualization
-    (&self, vis: Visualization) -> FallibleResult<impl Stream<Item=VisualizationUpdateData>> {
-        let config = vis.config(self.id,"Project.Main".into());
+    (&self, vis:Visualization) -> FallibleResult<impl Stream<Item=VisualizationUpdateData>> {
+        let config = vis.config(self.id);
         self.language_server.attach_visualisation(&vis.id, &vis.ast_id, &config).await?;
         let stream = self.model.attach_visualization(vis);
         Ok(stream)
@@ -168,6 +168,7 @@ impl Drop for ExecutionContext {
 mod test {
     use super::*;
 
+    use crate::controller::module::QualifiedName as ModuleQualifiedName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use json_rpc::expect_call;
@@ -275,13 +276,14 @@ mod test {
         let model    = model::ExecutionContext::new(&default(),root_def);
         let ls       = language_server::MockClient::default();
         let vis      = Visualization {
-            id: model::execution_context::VisualizationId::new_v4(),
-            ast_id: model::execution_context::ExpressionId::new_v4(),
-            expression: "".to_string(),
+            id                   : model::execution_context::VisualizationId::new_v4(),
+            ast_id               : model::execution_context::ExpressionId::new_v4(),
+            expression           : "".to_string(),
+            visualisation_module : ModuleQualifiedName::from_path(&path,"PPPP"),
         };
         let vis_id = vis.id;
         let ast_id = vis.ast_id;
-        let config = vis.config(exe_id, path.module_name().to_string());
+        let config = vis.config(exe_id);
 
         expect_call!(ls.attach_visualisation(vis_id,ast_id,config) => Ok(()));
         expect_call!(ls.detach_visualisation(exe_id,vis_id,ast_id) => Ok(()));

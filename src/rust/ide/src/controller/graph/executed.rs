@@ -21,9 +21,15 @@ pub struct Handle {
 impl Handle {
     /// Create handle for given graph and execution context.
     ///
-    /// This takes ownership of execution context which will be shared between all copies of this
-    /// handle; when all copies will be dropped, the execution context will be dropped as well
-    /// (and will then removed from LanguageServer).
+    /// This takes a (shared) ownership of execution context which will be shared between all copies
+    /// of this handle. It is held through `Rc` because the registry in the project controller needs
+    /// to store a weak handle to the execution context as well (to be able to properly route some
+    /// notifications, like visualization updates).
+    ///
+    /// However, in a typical setup, this controller handle (and its copies) shall be the only
+    /// strong references to the execution context and it is expected that it will be dropped after
+    /// the last copy of this controller is dropped.
+    /// Then the context when being dropped shall remove itself from the Language Server.
     pub fn new(graph:controller::Graph, execution_ctx:Rc<ExecutionContext>) -> Self {
         Handle{graph,execution_ctx}
     }

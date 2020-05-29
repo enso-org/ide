@@ -7,13 +7,15 @@ use crate::prelude::*;
 
 use crate::controller::FilePath;
 use crate::controller::Visualization;
+use crate::controller::module::QualifiedName as ModuleQualifiedName;
+use crate::model::execution_context::VisualizationId;
+use crate::model::execution_context::VisualizationUpdateData;
+use crate::model::synchronized::ExecutionContext;
 
 use enso_protocol::language_server;
 use enso_protocol::binary;
 use enso_protocol::binary::message::VisualisationContext;
 use parser::Parser;
-use crate::model::synchronized::ExecutionContext;
-use crate::model::execution_context::{VisualizationUpdateData, VisualizationId};
 use uuid::Uuid;
 
 
@@ -27,20 +29,29 @@ type ExecutionContextId = model::execution_context::Id;
 
 
 
+// =================================
+// === ExecutionContextsRegistry ===
+// =================================
+
+// === Errors ===
+
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,Fail)]
 #[fail(display="No visualization with id {} was found in the registry.", _0)]
 pub struct NoSuchVisualization(VisualizationId);
 
-#[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="Visualization with id {} has been already dropped.", _0)]
-pub struct VisualizationDoesNotExistAnymore(VisualizationId);
+
+// === Aliases ===
+
+type ExecutionContextWeakMap = WeakValueHashMap<ExecutionContextId,Weak<ExecutionContext>>;
+
+
+// === Definition ===
 
 /// Stores the weak handles to the synchronized execution context models.
 /// Implements dispatching the visualization updates.
 #[derive(Clone,Debug,Default)]
-pub struct ExecutionContextsRegistry(RefCell<HashMap<ExecutionContextId,Weak<ExecutionContext>>>);
+pub struct ExecutionContextsRegistry(RefCell<ExecutionContextWeakMap>);
 
 impl ExecutionContextsRegistry {
     /// Routes the visualization update into the appropriate execution context.
@@ -51,18 +62,18 @@ impl ExecutionContextsRegistry {
     ) -> FallibleResult<()> {
         let context_id       = context.context_id;
         let visualization_id = context.visualization_id;
-        let ctx = self.0.borrow_mut().get(&context_id).cloned();
+        let ctx = self.0.borrow_mut().get(&context_id);
         let ctx = ctx.ok_or_else(|| NoSuchVisualization(context_id))?;
-        let ctx = ctx.upgrade().ok_or_else(|| VisualizationDoesNotExistAnymore(context_id))?;
         ctx.dispatch_visualization_update(visualization_id,data)
     }
 
     /// Registers a new ExecutionContext. It will be eligible for receiving future updates routed
     /// through `dispatch_visualization_update`.
-    pub fn insert(&self, context:&Rc<ExecutionContext>) {
-        self.0.borrow_mut().insert(context.id(),Rc::downgrade(&context));
+    pub fn insert(&self, context:Rc<ExecutionContext>) {
+        self.0.borrow_mut().insert(context.id(),context);
     }
 }
+
 
 
 // ==========================
@@ -99,12 +110,16 @@ impl Handle {
         let language_server_bin     = Rc::new(language_server_binary);
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
+        let project_name            = Rc::new(project_name.into());
+        let module_registry         = default();
+        let execution_contexts      = default();
+        let parser                  = Parser::new_or_panic();
 
         let ret = Handle {
-            project_name        : Rc::new(project_name.into()),
-            module_registry     : default(),
-            execution_contexts  : default(),
-            parser              : Parser::new_or_panic(),
+            project_name,
+            module_registry,
+            execution_contexts,
+            parser,
             language_server_rpc,
             language_server_bin,
             logger,
@@ -145,7 +160,15 @@ impl Handle {
                         already dropped.");
                     }
                 }
-                _ => {} // At this point we do not care about anything other than visualizations.
+                Event::Closed => {
+                    error!(logger,"Lost binary data connection!");
+                    // TODO [wmu]
+                    //  The problem should be reported to the user and the connection should be
+                    //  reestablished, see https://github.com/luna/ide/issues/145
+                }
+                Event::Error(error) => {
+                    error!(logger,"Error emitted by the binary data connection: {error}.");
+                }
             }
             futures::future::ready(())
         }
@@ -155,7 +178,7 @@ impl Handle {
     ///
     /// It supports both modules and plain text files.
     pub async fn text_controller(&self, path:FilePath) -> FallibleResult<controller::Text> {
-        if let Some(path) = controller::module::Path::from_file_path(path.clone()) {
+        if let Ok(path) = controller::module::Path::from_file_path(path.clone()) {
             info!(self.logger,"Obtaining controller for module {path}");
             let module = self.module_controller(path).await?;
             Ok(controller::Text::new_for_module(module))
@@ -184,8 +207,8 @@ impl Handle {
     }
 
     /// Generates full module's qualified name that includes the leading project name segment.
-    pub fn qualified_module_name(&self, path:&controller::module::Path) -> String {
-        path.qualified_name(self.project_name.deref())
+    pub fn qualified_module_name(&self, path:&controller::module::Path) -> ModuleQualifiedName {
+        ModuleQualifiedName::from_path(path,self.project_name.deref())
     }
 
     fn module_controller_with_model
@@ -221,7 +244,7 @@ impl Handle {
     /// Registers for receiving updated an execution context. Don't call this manually, if using
     /// `create_execution_context` method -- it is automatically done.
     pub fn register_execution_context(&self, execution_context:&Rc<ExecutionContext>) {
-        self.execution_contexts.insert(&execution_context);
+        self.execution_contexts.insert(execution_context.clone_ref());
     }
 }
 
@@ -235,6 +258,7 @@ impl Handle {
 mod test {
     use super::*;
 
+    use crate::DEFAULT_PROJECT_NAME;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use json_rpc::expect_call;
@@ -243,10 +267,30 @@ mod test {
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use enso_protocol::language_server::CapabilityRegistration;
     use enso_protocol::types::Sha3_224;
-    use crate::DEFAULT_PROJECT_NAME;
 
 
     wasm_bindgen_test_configure!(run_in_browser);
+
+    /// Sets up project controller using mock Language Server clients.
+    /// Passed fucntions should be used to setup expectations upon the mock clients.
+    /// Additionally, an `event_stream` expectation will be setup for a binary protocol, as
+    /// project controller always calls it.
+    fn setup_mock_project
+    ( setup_mock_json   : impl FnOnce(&mut language_server::MockClient)
+    , setup_mock_binary : impl FnOnce(&mut enso_protocol::binary::MockClient)
+    ) -> controller::Project {
+        let mut json_client   = language_server::MockClient::default();
+        let mut binary_client = enso_protocol::binary::MockClient::default();
+        binary_client.expect_event_stream().return_once(|| {
+            futures::stream::empty().boxed_local()
+        });
+
+        setup_mock_json(&mut json_client);
+        setup_mock_binary(&mut binary_client);
+        let json_connection   = language_server::Connection::new_mock(json_client);
+        let binary_connection = binary::Connection::new_mock(binary_client);
+        controller::Project::new(&default(),json_connection,binary_connection,DEFAULT_PROJECT_NAME)
+    }
 
     #[wasm_bindgen_test]
     fn obtain_module_controller() {
@@ -255,13 +299,10 @@ mod test {
             let path         = ModulePath::from_mock_module_name("TestModule");
             let another_path = ModulePath::from_mock_module_name("TestModule2");
 
-            let json_client = language_server::MockClient::default();
-            mock_calls_for_opening_text_file(&json_client,path.file_path().clone(),"2+2");
-            mock_calls_for_opening_text_file(&json_client,another_path.file_path().clone(),"22+2");
-            let json_connection   = language_server::Connection::new_mock(json_client);
-            let binary_connection = binary::Connection::new_mock(default());
-            let project           = controller::Project::new(&default(),json_connection,
-                binary_connection,DEFAULT_PROJECT_NAME);
+            let project = setup_mock_project(|ls_json| {
+                mock_calls_for_opening_text_file(ls_json,path.file_path().clone(),"2+2");
+                mock_calls_for_opening_text_file(ls_json,another_path.file_path().clone(),"22+2");
+            }, |_| {});
             let module            = project.module_controller(path.clone()).await.unwrap();
             let same_module       = project.module_controller(path.clone()).await.unwrap();
             let another_module    = project.module_controller(another_path.clone()).await.unwrap();
@@ -275,13 +316,10 @@ mod test {
     #[wasm_bindgen_test]
     fn obtain_plain_text_controller() {
         TestWithLocalPoolExecutor::set_up().run_task(async move {
-            let json_connection   = language_server::Connection::new_mock(default());
-            let binary_connection = binary::Connection::new_mock(default());
-            let project_ctrl      = controller::Project::new(&default(),json_connection,
-                binary_connection,DEFAULT_PROJECT_NAME);
-            let root_id           = default();
-            let path              = FilePath::new(root_id,&["TestPath"]);
-            let another_path      = FilePath::new(root_id,&["TestPath2"]);
+            let project_ctrl = setup_mock_project(|_|{}, |_|{});
+            let root_id      = default();
+            let path         = FilePath::new(root_id,&["TestPath"]);
+            let another_path = FilePath::new(root_id,&["TestPath2"]);
 
             let text_ctrl       = project_ctrl.text_controller(path.clone()).await.unwrap();
             let another_ctrl    = project_ctrl.text_controller(another_path.clone()).await.unwrap();
@@ -298,17 +336,13 @@ mod test {
     fn obtain_text_controller_for_module() {
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
-            let file_name    = format!("Test.{}",constants::LANGUAGE_FILE_EXTENSION);
-            let path         = FilePath::new(default(),&[file_name]);
-
-            let json_client = language_server::MockClient::default();
-            mock_calls_for_opening_text_file(&json_client,path.clone(),"2 + 2");
-            let json_connection   = language_server::Connection::new_mock(json_client);
-            let binary_connection = binary::Connection::new_mock(default());
-            let project_ctrl      = controller::Project::new(&default(),json_connection,
-                binary_connection,DEFAULT_PROJECT_NAME);
-            let text_ctrl         = project_ctrl.text_controller(path.clone()).await.unwrap();
-            let content           = text_ctrl.read_content().await.unwrap();
+            let module_path  = ModulePath::from_mock_module_name("Test");
+            let file_path    = module_path.file_path();
+            let project_ctrl = setup_mock_project(|mock_json_client| {
+                mock_calls_for_opening_text_file(mock_json_client,file_path.clone(),"2 + 2");
+            }, |_| {});
+            let text_ctrl = project_ctrl.text_controller(file_path.clone()).await.unwrap();
+            let content   = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());
         });
     }

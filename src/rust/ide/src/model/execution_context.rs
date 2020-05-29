@@ -2,6 +2,7 @@
 
 use crate::prelude::*;
 
+use crate::controller::module::QualifiedName as ModuleQualifiedName;
 use crate::double_representation::definition::DefinitionName;
 
 use enso_protocol::language_server;
@@ -109,32 +110,27 @@ pub struct Visualization {
     pub ast_id: ExpressionId,
     /// An enso lambda that will transform the data into expected format, e.g. `a -> a.json`.
     pub expression: String,
+    /// Visualization module - the module in which context the expression should be evaluated.
+    pub visualisation_module:ModuleQualifiedName
 }
 
 impl Visualization {
     /// Creates a new visualization description. The visualization will get a randomly assigned
     /// identifier.
-    pub fn new(ast_id:ExpressionId, expression:impl Into<String>) -> Visualization {
+    pub fn new
+    (ast_id:ExpressionId, expression:impl Into<String>, visualisation_module:ModuleQualifiedName)
+    -> Visualization {
         let id         = VisualizationId::new_v4();
         let expression = expression.into();
-        Visualization {id,ast_id,expression}
-    }
-
-    /// Like `new` but uses a predefined expression that serializes value into the JSON.
-    pub fn new_json(ast_id:ExpressionId) -> Visualization {
-        Self::new(ast_id,"x -> x.json_serialize")
-    }
-
-    /// Like `new` but uses a predefined expression that serializes value into the Text.
-    pub fn new_text(ast_id:ExpressionId) -> Visualization {
-        Self::new(ast_id,"a -> a.to_text")
+        Visualization {id,ast_id,expression,visualisation_module}
     }
 
     /// Creates a `VisualisationConfiguration` that is used in communication with language server.
     pub fn config
-    (&self, execution_context_id:Uuid, visualisation_module:String) -> VisualisationConfiguration {
-        let expression = self.expression.clone();
-        VisualisationConfiguration{execution_context_id,visualisation_module,expression}
+    (&self, execution_context_id:Uuid) -> VisualisationConfiguration {
+        let expression           = self.expression.clone();
+        let visualisation_module = self.visualisation_module.to_string();
+        VisualisationConfiguration {execution_context_id,visualisation_module,expression}
     }
 }
 

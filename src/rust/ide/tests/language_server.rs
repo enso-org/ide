@@ -250,14 +250,19 @@ async fn file_events() {
 }
 
 
-#[wasm_bindgen_test::wasm_bindgen_test(async)]
+//#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 /// This integration test covers:
 /// * using project picker to open (or create) a project
 /// * establishing a binary protocol connection with Language Server
 /// * writing and reading a file using the binary protocol
 async fn binary_protocol_test() {
+    let json_visualization_expr = "x -> x.json_serialize";
+    //let text_visualization_expr = "a -> a.to_text";
+
     use ensogl::system::web::sleep;
+    use ide::view::project::MAIN_DEFINITION_NAME;
+    use double_representation::definition::Id as DefinitionId;
 
     ensogl_system_web::set_stdout();
     // Setup project
@@ -278,11 +283,13 @@ async fn binary_protocol_test() {
     assert_eq!(contents, read_back.as_slice());
 
 
-
     let main_module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
-    let main_module = project.module_controller(main_module_path).await.unwrap();
-    let main_function_id = double_representation::definition::Id::new_plain_name(ide::view::project::MAIN_DEFINITION_NAME);
-    let main_graph_executed = main_module.executed_graph_controller_unchecked(main_function_id,&project).await.unwrap();
+    let main_module_qualified_name = project.qualified_module_name(&main_module_path);
+    let main_module                = project.module_controller(main_module_path).await.unwrap();
+    let main_function_id           = DefinitionId::new_plain_name(MAIN_DEFINITION_NAME);
+    let main_graph_executed        = main_module.executed_graph_controller_unchecked(
+        main_function_id,&project).await.unwrap();
+
 
     let the_node = main_graph_executed.nodes().unwrap()[0].info.clone();
     main_graph_executed.set_expression(the_node.id(), "10+20").unwrap();
@@ -292,7 +299,7 @@ async fn binary_protocol_test() {
     println!("The code is: {:?}", main_module.code());
     println!("Main node: {:?} with {}", the_node, the_node.expression().repr());
 
-    let visualization = Visualization::new_json(the_node.id());
+    let visualization = Visualization::new(the_node.id(),json_visualization_expr,main_module_qualified_name);
     let     stream    = main_graph_executed.attach_visualization(visualization).await.unwrap();
     let mut stream    = stream.boxed_local();
 
@@ -303,6 +310,4 @@ async fn binary_protocol_test() {
     println!("Waiting 10 seconds");
     sleep(Duration::from_secs(10)).await;
     println!("Done!");
-
-
 }
