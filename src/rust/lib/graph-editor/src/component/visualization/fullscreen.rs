@@ -21,8 +21,8 @@ use ensogl::system::web;
 
 pub trait FrpEntity = Debug + CloneRef + 'static;
 
-pub trait Fullscreenable = FrpEntity + display::Object+Resizable+HasSymbols+HasDomSymbols
-                           +HasFullscreenDecoration;
+pub trait Fullscreenable = FrpEntity + display::Object + Resizable + HasSymbols + HasDomSymbols
+                           + HasFullscreenDecoration;
 
 
 
@@ -83,6 +83,8 @@ fn transition_animation_fn<T:Fullscreenable>(state: WeakState<T>, value:f32) {
     }
 }
 
+
+
 // ==================
 // === StateModel ===
 // ==================
@@ -93,16 +95,22 @@ fn transition_animation_fn<T:Fullscreenable>(state: WeakState<T>, value:f32) {
 enum StateModel<T> {
     /// There is a UI component and it is in fullscreen mode.
     Fullscreen {
+        /// The state of the component that will be in fullscreen mode.
         data           : FullscreenStateData<T>,
+        /// The animation handle that keeps the size of the fullscreen component in sync with the
+        /// scene.
         resize_handle  : callback::Handle,
     },
     /// There is an animation running from fullscreen mode to non-fullscreen mode.
     TransitioningFromFullscreen {
+        /// The data required to run an animation.
         animation_data : AnimationTargetState<T>
     },
     /// There is an animation running from non-fullscreen mode to fullscreen mode.
     TransitioningToFullscreen {
+        /// The data required to run an animation.
         animation_data : AnimationTargetState<T>,
+        /// The state of the component that will be in fullscreen mode.
         target_state   : FullscreenStateData<T>
     },
     /// There is no UI component in fullscreen mode.
@@ -171,6 +179,10 @@ impl<T:FrpEntity> FullscreenStateFrp<T> {
 /// The `FullscreenState` manages the state changes between fullscreen mode and non-fullscreen mode
 /// for a UI component. It creates animations for the state changes and ensure that the component
 /// cannot come into an illegal state during the transition.
+///
+/// This is achieved by having an internal state enum `StateModel` that tracks the state we are in.
+/// This wa we can handle state changes correctly, e.g. restore the correct state if we need to
+/// abort/finish an animation,
 #[derive(Debug,CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 pub struct FullscreenState<T:FrpEntity> {
@@ -371,6 +383,8 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
 // === FullscreenStateHandle  ===
 // ==============================
 
+/// FullscreenStateHandle that ensures separation of FRP, network and internal data. Is
+/// `clone_ref`able for use in FRPs.
 #[derive(Clone,CloneRef,Debug,Derivative,Shrinkwrap)]
 #[derivative(PartialEq)]
 #[allow(missing_docs)]
