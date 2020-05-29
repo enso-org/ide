@@ -71,12 +71,11 @@ impl Registry {
         // TODO this should probably be in some IDE configuration.
         let double_press_threshold_ms = 750.0;
         frp::new_network! { network
-            is_zero_key        <- model.keyboard.key_mask.map(|m| *m ==KeyMask::from_vec(vec![]));
+            is_zero_key        <- model.keyboard.key_mask.map(|m| *m == default());
             valid_keys         <- model.keyboard.key_mask.gate_not(&is_zero_key);
-            timed_key          <- valid_keys.map(|m| (*m,web::performance().now()));
-            timed_key_previous <- timed_key.previous();
-            key_and_prev       <- timed_key.zip(&timed_key_previous);
-            time_delta         <- key_and_prev.map(|((_,t1),(_,t2))| (t1-t2));
+            key_press_time     <- valid_keys.map(|_| web::performance().now());
+            timed_previous     <- key_press_time.previous();
+            time_delta         <- key_press_time.zip_with(&timed_previous, |t1,t2| (t1-t2));
             within_threshold   <- time_delta.map(move |delta| *delta < double_press_threshold_ms);
             single_press       <- valid_keys.gate_not(&within_threshold);
             double_press       <- valid_keys.gate(&within_threshold);
