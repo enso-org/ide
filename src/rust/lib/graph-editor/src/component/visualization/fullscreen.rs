@@ -356,7 +356,8 @@ impl<T:Fullscreenable> FullscreenState<T> {
 
     /// Disables fullscreen mode for the given component.
     pub fn disable_fullscreen(&self) {
-        if let Some(data) = self.state.borrow().get_fullscreen_data(){
+        let data =  self.state.borrow().get_fullscreen_data();
+        if let Some(data) = data {
             self.transition_to_non_fullscreen(&data)
         }
     }
