@@ -14,7 +14,7 @@ use ensogl::frp;
 use crate::SharedHashMap;
 use crate::SharedHashSet;
 use crate::component::visualization::*;
-use crate::component::visualization::fullscreen::FullscreenState;
+use crate::component::visualization::fullscreen::FullscreenStateHandle;
 use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::HasSymbols;
 
@@ -58,7 +58,7 @@ pub struct Stage {
     all                 : SharedHashMap<Id,Container>,
     selected            : SharedHashSet<Id>,
     scene               : Scene,
-    fullscreen_state    : FullscreenState::<Container>,
+    fullscreen_state    : FullscreenStateHandle::<Container>,
 }
 
 impl Stage {
@@ -157,16 +157,16 @@ impl Stage {
                 .for_each_ref(|container| { container.frp.deselect.emit(()) });
         });
         self.selected.clear();
-        self.fullscreen_state.disable_fullscreen();
+        self.fullscreen_state.frp.disable_fullscreen.emit(());
     }
 
     /// Change the fullscreen status of the selected container.
     pub fn toggle_fullscreen_for_selected_visualization(&self) {
         if self.fullscreen_state.is_fullscreen() {
-            self.fullscreen_state.disable_fullscreen()
+            self.fullscreen_state.frp.disable_fullscreen.emit(());
         } else if let Some(container) = self.get_selected() {
             container.data.set_visibility(true);
-            self.fullscreen_state.enable_fullscreen(container, self.scene.clone_ref());
+            self.fullscreen_state.frp.set_fullscreen.emit(Some((container,self.scene.clone_ref())));
         }
     }
 }

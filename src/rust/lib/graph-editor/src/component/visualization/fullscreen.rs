@@ -19,8 +19,10 @@ use ensogl::system::web;
 // === Helper Types ===
 // ====================
 
-pub trait Fullscreenable = display::Object+Resizable+HasSymbols+HasDomSymbols+CloneRef
-                           +HasFullscreenDecoration+'static;
+pub trait FrpEntity = Debug + CloneRef + 'static;
+
+pub trait Fullscreenable = FrpEntity + display::Object+Resizable+HasSymbols+HasDomSymbols
+                           +HasFullscreenDecoration;
 
 
 
@@ -140,7 +142,27 @@ impl<T> Default for StateModel<T> {
     }
 }
 
+// ==========================
+// === FullscreenStateFrp ===
+// ==========================
 
+/// FullscreenStateFrp events.
+#[derive(CloneRef,Debug,Derivative)]
+#[derivative(Clone(bound=""))]
+pub struct FullscreenStateFrp<T:FrpEntity> {
+    pub set_fullscreen     : frp::Source<Option<(T,Scene)>>,
+    pub disable_fullscreen : frp::Source,
+}
+
+impl<T:FrpEntity> FullscreenStateFrp<T> {
+    fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def set_fullscreen     = source();
+            def disable_fullscreen = source();
+        }
+        Self {set_fullscreen,disable_fullscreen}
+    }
+}
 
 // =======================
 // === FullscreenState ===
@@ -151,25 +173,23 @@ impl<T> Default for StateModel<T> {
 /// cannot come into an illegal state during the transition.
 #[derive(Debug,CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct FullscreenState<T> {
-    network   : frp::Network,
-    state     : Rc<RefCell<StateModel<T>>>,
-    animation : DynSimulator<f32>,
+pub struct FullscreenState<T:FrpEntity> {
+        state     : Rc<RefCell<StateModel<T>>>,
+        animation : DynSimulator<f32>,
 }
 
-impl<T:Fullscreenable> Default for FullscreenState<T> {
-    fn default() -> Self {
-        let network    = frp::Network::new();
+impl<T:Fullscreenable> FullscreenState<T> {
+
+    fn new(network:&frp::Network) -> Self {
         let state      = Rc::new(RefCell::new(StateModel::<T>::default()));
         let weak_state = Rc::downgrade(&state);
         let animation  = animation(&network, move |value| {
             transition_animation_fn(weak_state.clone_ref(), value);
         });
-        FullscreenState{network,state,animation}
-    }
-}
 
-impl<T:Fullscreenable> FullscreenState<T> {
+        FullscreenState{state,animation}
+    }
+
     /// Returns whether there is a component that is in fullscreen mode. Animation phases count as
     /// still in fullscreen mode.
     pub fn is_fullscreen(&self) -> bool {
@@ -178,7 +198,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
 
     /// Enables fullscreen mode for the given component. Does nothing if we are in an animation
     /// phase, or already in fullscreen mode.
-    pub fn enable_fullscreen(&self, target:T, scene:Scene) {
+    fn enable_fullscreen(&self, target:T, scene:Scene) {
         if !self.is_fullscreen() {
             self.transition_to_fullscreen(target, scene)
         }
@@ -186,7 +206,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
 
     /// Disables fullscreen mode for the given component. Does nothing if we are in an animation
     /// phase, or not in fullscreen mode.
-    pub fn disable_fullscreen(&self) {
+    fn disable_fullscreen(&self) {
         let fullscreen_data = {
             let state = self.state.borrow();
             let state = state.deref();
@@ -207,8 +227,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
         let animation_data = source_state.prepare_non_fullscreen_animation();
         let new_state      = StateModel::TransitioningFromFullscreen { animation_data };
         self.state.replace(new_state);
-        self.animation.set_position(0.0);
-        self.animation.set_target_position(1.0);
+        self.start_animation();
     }
 
     /// Start the transition to fullscreen mode. Triggers the UI component state change and
@@ -218,8 +237,16 @@ impl<T:Fullscreenable> FullscreenState<T> {
         let animation_data = target_state.prepare_fullscreen_animation();
         let new_state      = StateModel::TransitioningToFullscreen { animation_data,target_state };
         self.state.replace(new_state);
+        self.start_animation();
+    }
+
+    fn start_animation(&self) {
         self.animation.set_position(0.0);
         self.animation.set_target_position(1.0);
+    }
+
+    fn abort_animation(&self) {
+        self.animation.set_position(1.0);
     }
 
     /// Return a ref clone of the fullscreen element.
@@ -319,7 +346,6 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
         let source_size = self.target.size();
         let target_size = self.size_original;
 
-
         self.scene.views.toggle_overlay_cursor();
         AnimationTargetState {
             target: self.target.clone_ref(),
@@ -336,5 +362,58 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
             let size_new  = Vector3::new(scene_shape.width(), scene_shape.height(),0.0);
             target.set_size(size_new);
         }))
+    }
+}
+
+
+// ==============================
+// === FullscreenStateHandle  ===
+// ==============================
+
+#[derive(Clone,CloneRef,Debug,Derivative,Shrinkwrap)]
+#[derivative(PartialEq)]
+#[allow(missing_docs)]
+pub struct FullscreenStateHandle<T:FrpEntity> {
+    #[derivative(PartialEq="ignore")]
+    network   : frp::Network,
+    #[derivative(PartialEq="ignore")]
+    pub frp   : FullscreenStateFrp<T>,
+    #[derivative(PartialEq(compare_with="Rc::ptr_eq"))]
+    #[shrinkwrap(main_field)]
+    pub state: Rc<FullscreenState<T>>
+}
+
+impl<T:Fullscreenable> FullscreenStateHandle<T>{
+
+    fn new() -> Self {
+        let network = frp::Network::new();
+        let frp     = FullscreenStateFrp::new(&network);
+        let state   = FullscreenState::new(&network);
+        let state   = Rc::new(state);
+        FullscreenStateHandle {network,frp,state }.init_frp()
+    }
+
+    fn init_frp(self) -> Self {
+        let frp     = &self.frp;
+        let network = &self.network;
+        let data    = self.state.clone_ref();
+
+        frp::extend! { network
+            eval frp.disable_fullscreen ((_) data.disable_fullscreen());
+            def _set_fullscreen =  frp.set_fullscreen.map(f!([data](target_data) {
+                 if let Some((target,scene)) = target_data {
+                    data.enable_fullscreen(target.clone_ref(),scene.clone_ref())
+                } else {
+                    data.disable_fullscreen()
+                }
+            }));
+        };
+        self
+    }
+}
+
+impl<T:Fullscreenable> Default for FullscreenStateHandle<T>{
+    fn default() -> Self {
+        Self::new()
     }
 }
