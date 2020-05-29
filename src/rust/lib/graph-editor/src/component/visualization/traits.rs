@@ -42,7 +42,7 @@ pub trait HasSymbols {
         self.symbols().iter().for_each(|symbol| scene.views.remove_symbol(symbol));
     }
 
-    /// Moves the given components shapes to the default scene layers.
+    /// Moves the given components symbols to the default scene layers.
     fn set_layers_normal(&self, scene:&Scene){
         self.unset_layers_all(&scene);
         for symbol_data in self.symbols_with_data() {
@@ -53,7 +53,7 @@ pub trait HasSymbols {
         }
     }
 
-    /// Moves the given components shapes to the fullscreen scene layers.
+    /// Moves the given components symbols to the fullscreen scene layers.
     fn set_layers_fullscreen(&self, scene:&Scene) {
         self.unset_layers_all(&scene);
         for symbol_data in self.symbols_with_data() {
@@ -78,10 +78,12 @@ pub trait HasDomSymbols {
         }
     }
 
+    /// Moves the symbols to the default scene layers.
     fn set_dom_layers_normal(&self, scene:&Scene) {
         self.set_managed(&scene.dom.layers.main)
     }
 
+    /// Moves the symbols to the fullscreen scene layers.
     fn set_dom_layers_overlay(&self, scene:&Scene) {
         self.set_managed(&scene.dom.layers.overlay)
     }
