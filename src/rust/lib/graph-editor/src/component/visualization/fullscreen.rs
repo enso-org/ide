@@ -465,6 +465,7 @@ impl<T:Fullscreenable> FullscreenStateHandle<T>{
 
         frp::extend! { network
             eval frp.disable_fullscreen ((_) data.disable_fullscreen());
+
             def _set_fullscreen =  frp.set_fullscreen.map(f!([data](target_data) {
                  if let Some((target,scene)) = target_data {
                     data.enable_fullscreen(target.clone_ref(),scene.clone_ref())
