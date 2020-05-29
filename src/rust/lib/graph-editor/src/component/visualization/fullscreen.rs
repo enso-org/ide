@@ -291,7 +291,11 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
     /// Prepare the target component for the fullscreen animation and return the animation target
     /// state.
     fn prepare_fullscreen_animation(&self) -> AnimationTargetState<T> {
-        let source_pos = self.target.display_object().global_position();
+        let scene_shape = self.scene.shape();
+        let source_pos  = self.target.display_object().global_position();
+        let source_pos  = self.scene.views.main.camera.apply_transform(source_pos);
+        let scene_delta = Vector3::new(scene_shape.width(),  scene_shape.height(), 0.0);
+        let source_pos  = source_pos + scene_delta;
 
         // Change parent
         self.target.display_object().set_parent(self.scene.display_object());
@@ -299,15 +303,12 @@ impl<T:Fullscreenable> FullscreenStateData<T> {
         self.target.set_dom_layers_overlay(&self.scene);
         self.target.enable_fullscreen_decoration();
 
-        let margin      = 0.0;
-        let scene_shape = self.scene.shape();
-        let size_new    = Vector3::new(scene_shape.width(), scene_shape.height(),0.0) * (1.0 - margin);
 
         // FIXME Currently we assume `Symbols` are center aligned, but they might not be.
         // We should check the alignment here and change the computations accordingly.
-
+        let size_new    = Vector3::new(scene_shape.width(), scene_shape.height(),0.0);
         let target_pos  = size_new / 2.0;
-        let source_size = self.size_original;
+        let source_size = self.size_original * self.scene.views.main.camera.zoom();
         let target_size = size_new;
         self.scene.views.toggle_overlay_cursor();
 

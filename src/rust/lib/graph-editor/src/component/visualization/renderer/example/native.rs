@@ -3,7 +3,8 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::visualization::traits::{SymbolLayoutData, HasDomSymbols};
+use crate::component::visualization::traits::SymbolLayoutData;
+use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::TargetLayer;
 
 use ensogl::data::color::Rgba;
