@@ -298,6 +298,14 @@ impl display::Object for EdgeModelData {
     }
 }
 
+fn min(a:f32,b:f32) -> f32 {
+    f32::min(a,b)
+}
+
+
+fn max(a:f32,b:f32) -> f32 {
+    f32::max(a,b)
+}
 
 impl EdgeModelData {
     pub fn redraw(&self) {
@@ -309,110 +317,129 @@ impl EdgeModelData {
         let bg              = &self.back;
         let target_attached = self.target_attached.get();
 
-        let node_height     = node::NODE_HEIGHT;
-        let node_padding    = node::SHADOW_SIZE;
-        let node_radius     = node_height / 2.0;
-        let node_half_width = self.source_width.get() / 2.0;
-        let node_circle     = Vector2::new(node_half_width-node_radius,0.0);
-
-        let mut port_line_len_max = node_height/2.0 + node_padding;
-
+        let node_height      = node::NODE_HEIGHT;
+        let node_padding     = node::SHADOW_SIZE;
+        let node_radius      = node_height / 2.0;
+        let node_half_width  = self.source_width.get() / 2.0;
+        let node_half_height = node_height / 2.0;
+        let node_circle      = Vector2::new(node_half_width-node_radius,0.0);
 
 
-        let world_space_target   = self.target_position.get();
-        let target_x             = world_space_target.x - self.position().x;
-        let target_y             = world_space_target.y - self.position().y;
-        let side                 = target_x.signum();
-        let target_x             = target_x.abs();
-        let target               = Vector2::new(target_x,target_y);
-        let target_is_below_node = target.x < node_half_width && target.y < (-node_height/2.0);
+        // === Target ===
+        //
+        // Target is the end position of the connection in local node space (the origin is placed in
+        // the center of the node). We handle lines drawing in special way when target is below the
+        // node (for example, not to draw the port line above source node).
+        //
+        // ╭──────────────╮
+        // │      ┼ (0,0) │
+        // ╰──────────────╯────╮
+        //                     │
+        //                     ▢ target
+
+        let world_space_target     = self.target_position.get();
+        let target_x               = world_space_target.x - self.position().x;
+        let target_y               = world_space_target.y - self.position().y;
+        let side                   = target_x.signum();
+        let target_x               = target_x.abs();
+        let target                 = Vector2::new(target_x,target_y);
+        let target_is_below_node_x = target.x < node_half_width;
+        let target_is_below_node_y = target.y < (-node_half_height);
+        let target_is_below_node   = target_is_below_node_x && target_is_below_node_y;
 
 
-        let mut port_line_len = if !target_is_below_node {port_line_len_max} else {
-            if target_attached {
-                f32::max(0.0,f32::min(port_line_len_max, -target.y - node_height/2.0))
-            } else {
-                f32::max(0.0,f32::min(port_line_len_max, -target.y - node_height/2.0 - node_padding))
-            }
-        };
+        // === Port Line Length ===
+        //
+        // ╭──╮
+        // ╰──╯───╮
+        //        ╵
+        //     ╭──┼──╮ ▲  Port line covers the area above target node and the area of target node
+        //     │  ▢  │ ▼  shadow. It can be shorter if the target position is below the node or the
+        //     ╰─────╯    connection is being dragged, in order not to overlap with the source node.
 
-        let upward_corner_radius = 20.0;
+        let mut port_line_len_max = node_half_height + node_padding;
+        let space_attached        = -target.y - node_half_height;
+        let space                 = space_attached - node_padding;
+        let len_below_free        = max(0.0,min(port_line_len_max,space));
+        let len_below_attached    = max(0.0,min(port_line_len_max,space_attached));
+        let len_below             = if target_attached {len_below_attached} else {len_below_free};
+        let mut port_line_len     = if target_is_below_node {len_below} else {port_line_len_max};
 
 
-        let min_down_dist = upward_corner_radius + port_line_len;
+        // === Upward Discovery ===
+        //
+        // Discovers when the connection should go upwards. The `upward_corner_radius` defines the
+        // preferred radius for every corner in this scenario.
+        //
+        // ╭─────╮    ╭─╮
+        // ╰─────╯────╯ │
+        //              ▢
+
+        let upward_corner_radius        = 20.0;
+        let min_len_for_non_curved_line = upward_corner_radius + port_line_len;
+        let upward_distance             = target.y + min_len_for_non_curved_line;
 
 
-        let upw      = target.y + min_down_dist;
+        // === Flat side ===
+        //
+        // Maximum side distance before connection is curved up.
+        //
+        // ╭─────╮◄──►    ╭─────╮◄──►╭─╮
+        // ╰─────╯───╮    ╰─────╯────╯ │
+        //           ▢                 ▢
 
-
-
-        let s1 = target.x < node_half_width + 40.0;
-        let downward = if s1 {
-            if target.x < node_half_width {
-                target.y < -node_height / 2.0
-            } else {
-                target.y < 0.0
-            }
-        } else {
-            upw < 0.0 || target_is_below_node
-        };
-
-        if s1 && downward {
-            port_line_len = f32::min(port_line_len,-target.y);
-            port_line_len_max = f32::min(port_line_len_max,-target.y);
+        let flat_side_size = 40.0;
+        let is_flat_side   = target.x < node_half_width + flat_side_size;
+        let downward_flat  = if target_is_below_node_x {target_is_below_node_y} else {target.y<0.0};
+        let downward_far   = upward_distance < 0.0 || target_is_below_node;
+        let downward       = if is_flat_side {downward_flat} else {downward_far};
+        let flat_downward  = is_flat_side && downward;
+        if flat_downward {
+            port_line_len     = min(port_line_len,-target.y);
+            port_line_len_max = min(port_line_len_max,-target.y);
         }
-
-        let mut port_line_target_y         = target.y + port_line_len_max;
-
-
-
 
         let port_line_len_diff = port_line_len_max - port_line_len;
-
-
-        let mut port_line_target       = Vector2::new(target.x,port_line_target_y);
-        let main_line_target = Vector2::new(target.x,port_line_target_y+port_line_len_diff);
-
-
-
-//                let downward = -target.y > port_line_len; //upw < 0.0 || target_is_below_node;
+        let port_line_target   = Vector2::new(target.x,target.y + port_line_len_max);
+        let main_line_target   = Vector2::new(target.x,port_line_target.y + port_line_len_diff);
 
 
 
-        let mut corner_target = port_line_target;
+
+        let mut corner1_target = port_line_target;
 
         if !downward {
-            corner_target.x = if s1 {
-                node_half_width + upward_corner_radius + f32::max(0.0,target.x - node_half_width + upward_corner_radius)
+            corner1_target.x = if is_flat_side {
+                node_half_width + upward_corner_radius + max(0.0,target.x - node_half_width + upward_corner_radius)
             } else {
-                f32::min(node_half_width + (target.x - node_half_width)/2.0,node_half_width + 2.0*upward_corner_radius)
+                min(node_half_width + (target.x - node_half_width)/2.0,node_half_width + 2.0*upward_corner_radius)
             };
-            corner_target.y = f32::min(upward_corner_radius,upw/2.0);
+            corner1_target.y = min(upward_corner_radius,upward_distance/2.0);
         }
 
 
-//                if !downward && !s1 {
-//                    corner_radius = corner_target.x - node_half_width;
+//                if !downward && !is_flat_side {
+//                    corner_radius = corner1_target.x - node_half_width;
 //                    println!("? {}", corner_radius);
 //                }
 
 
         // === Corner ===
 
-        let corner_grow   = ((corner_target.x - node_half_width) * 0.6).max(0.0);
+        let corner_grow   = ((corner1_target.x - node_half_width) * 0.6).max(0.0);
         let corner_radius = 20.0 + corner_grow;
-        let mut corner_radius = corner_radius.min(corner_target.y.abs());
-        let corner_x      = corner_target.x - corner_radius;
+        let mut corner_radius = corner_radius.min(corner1_target.y.abs());
+        let corner_x      = corner1_target.x - corner_radius;
 
 
         //      r1
-        //    ◄---►                  (1) x^2 + y^2 = r1^2 + r2^2
+        //    ◄───►                  (1) x^2 + y^2 = r1^2 + r2^2
         //    _____                  (1) => y = sqrt((r1^2 + r2^2)/x^2)
         //  .'     `.
         // /   _.-"""B-._     ▲
-        // | .'0┼    |   `.   |      angle1 = A-XY-0
-        // \/   │    /     \  | r2   angle2 = 0-XY-B
-        // |`._ │__.'       | |      alpha  = B-XY-X_AXIS
+        // | .'0┼    |   `.   │      angle1 = A-XY-0
+        // \/   │    /     \  │ r2   angle2 = 0-XY-B
+        // |`._ │__.'       | │      alpha  = B-XY-X_AXIS
         // |   A└───┼─      | ▼
         // |      (x,y)     |        tg(angle1) = y  / x
         //  \              /         tg(angle2) = r1 / r2
@@ -469,7 +496,7 @@ impl EdgeModelData {
             bg.side_line.mod_position(|p| p.x = bg_line_x);
 
         } else {
-            let bg_line_len  = f32::min(side_line_len,node_padding);
+            let bg_line_len  = min(side_line_len,node_padding);
             let fg_line_len  = side_line_len - bg_line_len;
             let bg_line_x    = side * (node_half_width + bg_line_len/2.0);
             let fg_line_x    = side * (node_half_width + fg_line_len/2.0 + bg_line_len + line_side_overlap);
@@ -505,8 +532,8 @@ impl EdgeModelData {
             let mut back_line_size      = Vector2::new(0.0,0.0);
             let use_double_line         = target_is_below_node;
             if use_double_line {
-                let diff               = node_padding - f32::max(0.0,-corner.y - node_radius);
-                let diff               = f32::min(diff, -target.y - node_height/2.0);
+                let diff               = node_padding - max(0.0,-corner.y - node_radius);
+                let diff               = min(diff, -target.y - node_half_height);
                 front_line_position.y -= diff/2.0;
                 front_line_size.y     -= diff;
                 back_line_position.y   = corner.y - diff/2.0;
@@ -543,7 +570,7 @@ impl EdgeModelData {
             let corner2_radius = corner_radius;
             let corner3_radius = upward_corner_radius;
 
-            let corner2_x      = corner_target.x + corner_radius;
+            let corner2_x      = corner1_target.x + corner_radius;
             let corner3_x      = port_line_target.x - corner3_radius;
             let corner2_bbox_x = corner2_x - corner2_radius;
             let corner3_bbox_x = corner3_x + corner3_radius;
@@ -569,9 +596,9 @@ impl EdgeModelData {
             let corner3_y      = port_line_target.y;
 
             let corner2_y      = corner3_y + corner3_radius - corner2_radius;
-            let corner2_y      = f32::max(corner2_y, corner_y);
+            let corner2_y      = max(corner2_y, corner_y);
 
-            let corner3_y      = f32::max(corner3_y,corner2_y - corner3_radius + corner2_radius);
+            let corner3_y      = max(corner3_y,corner2_y - corner3_radius + corner2_radius);
 
             let corner3        = Vector2::new(corner3_x*side,corner3_y);
             let corner3_angle  = if (side_combined == 1.0) {0.0} else {-std::f32::consts::PI / 2.0};
@@ -588,7 +615,7 @@ impl EdgeModelData {
 
             let xoff = 20.0;
 
-            let corner2_x      = corner_target.x + corner_2_3_side * corner2_radius;
+            let corner2_x      = corner1_target.x + corner_2_3_side * corner2_radius;
 
             let corner2        = Vector2::new(corner2_x*side,corner2_y);
             let corner2_angle  = if (side_combined == 1.0) {-std::f32::consts::PI / 2.0} else {0.0};
@@ -608,7 +635,7 @@ impl EdgeModelData {
 
             let main_line_len    = corner2_y - corner_y;
             let main_line_size   = Vector2::new(line_shape_width,main_line_len + line_sides_overlap);
-            let main_line_x      = side * corner_target.x;
+            let main_line_x      = side * corner1_target.x;
             let main_line_y      = main_line_len / 2.0 + corner_y;
             let main_line_pos    = Vector2::new(main_line_x,main_line_y);
 
@@ -622,8 +649,6 @@ impl EdgeModelData {
             } else {
                 fg.arrow.shape.sprite.size().set(zero());
             }
-
-            println!(">> {}",main_line_len);
 
             let side_line2_len  = corner3_x - corner2_x;
             let side_line2_x    = side * (corner2_x + side_line2_len / 2.0);
