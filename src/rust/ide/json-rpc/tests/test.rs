@@ -1,5 +1,6 @@
 use json_rpc::prelude::*;
 
+use ensogl_system_web::Duration;
 use futures::FutureExt;
 use futures::Stream;
 use futures::task::LocalSpawnExt;
@@ -18,7 +19,6 @@ use std::future::Future;
 use std::pin::Pin;
 use utils::test::traits::*;
 use std::thread::sleep;
-use ensogl_system_web::Duration;
 
 type MockEvent = json_rpc::handler::Event<MockNotification>;
 
