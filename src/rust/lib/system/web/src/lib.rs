@@ -496,7 +496,7 @@ pub mod traits {
 pub async fn sleep(duration:Duration) {
     use gloo_timers::future::TimeoutFuture;
 
-    TimeoutFuture::new(duration.as_micros() as u32).await
+    TimeoutFuture::new(duration.as_millis() as u32).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
