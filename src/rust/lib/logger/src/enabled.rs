@@ -44,11 +44,7 @@ impl Logger {
 // === Conversions ===
 // ===================
 
-impl From<crate::disabled::Logger> for Logger {
-    fn from(logger:crate::disabled::Logger) -> Self {
-        Self::new(logger.path())
-    }
-}
+impls!{ From + &From <crate::disabled::Logger> for Logger { |logger| Self::new(logger.path()) }}
 
 
 

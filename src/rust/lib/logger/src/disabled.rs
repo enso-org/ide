@@ -27,11 +27,7 @@ pub struct Logger{
 // === Conversions ===
 // ===================
 
-impl From<crate::enabled::Logger> for Logger {
-    fn from(logger:crate::enabled::Logger) -> Self {
-        Self::new(logger.path())
-    }
-}
+impls!{ From + &From <crate::enabled::Logger> for Logger { |logger| Self::new(logger.path()) }}
 
 
 
