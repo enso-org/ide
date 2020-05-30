@@ -19,6 +19,7 @@ use ide::model::execution_context::Visualization;
 use ide::transport::web::WebSocket;
 use ide::view::project::INITIAL_MODULE_NAME;
 use std::time::Duration;
+#[allow(unused_imports)]
 use wasm_bindgen_test::wasm_bindgen_test;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 
