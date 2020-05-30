@@ -213,35 +213,28 @@ pub struct Cursor {
 }
 
 /// Internal data for `Cursor`.
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct CursorModel {
     pub logger : Logger,
     pub frp    : FrpInputs,
     pub view   : component::ShapeView<shape::Shape>,
-    pub resize_handle : callback::Handle,
-    pub style : Rc<RefCell<Style>>,
+    pub style  : Rc<RefCell<Style>>,
+    pub resize_handle : callback::Handle, // FIXME: migrate to FRP
 }
 
-impl Cursor {
-    /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
+impl CursorModel {
+    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
         let logger = Logger::new("cursor");
+        let frp    = FrpInputs::new(network);
         let view   = component::ShapeView::<shape::Shape>::new(&logger,scene);
-        let network = frp::Network::new();
-        let input = FrpInputs::new(&network);
-
-        let style = Rc::new(RefCell::new(Style::default()));
-
-
-
         let scene_shape = scene.shape();
-        let shape       = &view.shape;
+        let shape  = &view.shape;
         shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
-
         let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
             shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
         }));
+        let style = Rc::new(RefCell::new(Style::default()));
 
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
@@ -249,6 +242,35 @@ impl Cursor {
 
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.cursor.add(&shape_system.shape_system.symbol);
+
+        Self {logger,frp,view,resize_handle,style}
+    }
+}
+
+impl Cursor {
+    /// Constructor.
+    pub fn new(scene:&Scene) -> Self {
+//        let logger = Logger::new("cursor");
+//        let view   = component::ShapeView::<shape::Shape>::new(&logger,scene);
+        let network = frp::Network::new();
+//        let input = FrpInputs::new(&network);
+
+//        let style = Rc::new(RefCell::new(Style::default()));
+
+
+
+//        let scene_shape = scene.shape();
+//        let shape       = &view.shape;
+
+//        let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
+//            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
+//        }));
+
+        let model = CursorModel::new(scene,&network);
+
+        let view = &model.view;
+        let input = &model.frp;
+        let style = &model.style;
 
 
         let view_data = view.shape.clone_ref();
@@ -390,9 +412,8 @@ impl Cursor {
 
 
         input.set_style.emit(Style::default());
+        let input = input.clone_ref();
 
-        let frp     = input.clone_ref();
-        let model   = CursorModel {logger,frp,view,resize_handle,style};
         let model   = Rc::new(model);
 
         let frp    = Frp {network,input,position};
