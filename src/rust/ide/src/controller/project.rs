@@ -115,16 +115,8 @@ impl Handle {
         let execution_contexts      = default();
         let parser                  = Parser::new_or_panic();
 
-        let ret = Handle {
-            project_name,
-            module_registry,
-            execution_contexts,
-            parser,
-            language_server_rpc,
-            language_server_bin,
-            logger,
-            visualization,
-        };
+        let ret = Handle {project_name,module_registry,execution_contexts,parser,
+            language_server_rpc,language_server_bin,logger,visualization};
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
