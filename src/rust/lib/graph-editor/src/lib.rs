@@ -25,7 +25,6 @@
 
 #![recursion_limit="1024"]
 
-
 #[warn(missing_docs)]
 pub mod component;
 
@@ -34,27 +33,27 @@ pub mod prelude {
     pub use ensogl::prelude::*;
 }
 
-use ensogl::application;
-use ensogl::prelude::*;
-use ensogl::traits::*;
-use ensogl::application::shortcut;
-
+use crate::component::cursor;
 use crate::component::node;
+use crate::component::visualization::MockDataGenerator3D;
+use crate::component::visualization::Visualization;
+use crate::component::visualization;
+
 use enso_frp as frp;
 use enso_frp::io::keyboard;
 use enso_frp::Position;
+use ensogl::application::shortcut;
+use ensogl::application;
+use ensogl::data::color;
 use ensogl::display::object::Id;
+use ensogl::display::Scene;
 use ensogl::display::world::*;
 use ensogl::display;
+use ensogl::prelude::*;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
+use ensogl::traits::*;
 use nalgebra::Vector2;
-use ensogl::display::Scene;
-use crate::component::visualization::Visualization;
-use crate::component::visualization;
-use crate::component::visualization::MockDataGenerator3D;
-use crate::component::cursor;
-use ensogl::data::color;
 
 
 

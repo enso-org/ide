@@ -24,14 +24,6 @@ pub trait PixelDistance {
     fn px(&self) -> Self::Output;
 }
 
-//impl<T:unit::PixelDistance> PixelDistance for T
-//where <T as unit::PixelDistance>::Output : Into<Var<<T as unit::PixelDistance>::Output>> {
-//    type Output = Var<<T as unit::PixelDistance>::Output>;
-//    fn px(&self) -> Self::Output {
-//        unit::PixelDistance::px(self).into()
-//    }
-//}
-
 impl PixelDistance for i32 {
     type Output = Var<Distance<Pixels>>;
     fn px(&self) -> Self::Output {
@@ -45,7 +37,6 @@ impl PixelDistance for f32 {
         unit::PixelDistance::px(self).into()
     }
 }
-
 
 
 

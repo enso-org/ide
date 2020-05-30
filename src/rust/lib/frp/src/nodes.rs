@@ -128,14 +128,14 @@ impl Network {
 
     /// Merges multiple input streams into a single output stream. All input streams have to share
     /// the same output data type. Please note that `any_mut` can be used to create recursive FRP
-    /// networks by creating an empty any and using the `attach` method to attach new streams to
+    /// networks by creating an empty `any` and using the `attach` method to attach new streams to
     /// it. When a recursive network is created, `any_mut` breaks the cycle. After passing the first
     /// event, no more events will be passed till the end of the current FRP network resolution.
     pub fn any_mut<T:Data>(&self, label:Label) -> Any<T> {
         self.register_raw(OwnedAny::new(label))
     }
 
-    /// Anys multiple input streams into a single output stream. All input streams have to share
+    /// Merges multiple input streams into a single output stream. All input streams have to share
     /// the same output data type.
     pub fn any<T1,T2,T:Data>(&self, label:Label, t1:&T1, t2:&T2) -> Stream<T>
     where T1:EventOutput<Output=T>, T2:EventOutput<Output=T> {

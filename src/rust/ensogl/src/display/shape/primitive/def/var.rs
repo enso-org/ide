@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::data::color;
+use crate::display::shape::primitive::def::unit::PixelDistance;
 use crate::math::algebra::Acos;
 use crate::math::algebra::Asin;
 use crate::math::algebra::Cos;
@@ -16,10 +17,10 @@ use crate::math::topology::unit::Radians;
 use crate::math::topology::unit::Unit;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
-use crate::display::shape::primitive::def::unit::PixelDistance;
 
 use nalgebra::Scalar;
 use std::ops::*;
+
 
 
 // ======================

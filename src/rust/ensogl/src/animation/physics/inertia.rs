@@ -8,9 +8,9 @@ use crate::animation;
 
 
 
-// ================
+// =============
 // === Value ===
-// ================
+// =============
 
 /// The type of the value of the simulation. In particular, the Value could be `f32`
 /// (1-dimensional simulation), or `Vector3<f32>` (3-dimensional simulation).
@@ -96,12 +96,12 @@ impl Thresholds {
 pub struct SimulationData<T> {
     value        : T,
     target_value : T,
-    velocity        : T,
-    mass            : Mass,
-    spring          : Spring,
-    drag            : Drag,
-    thresholds      : Thresholds,
-    active          : bool,
+    velocity     : T,
+    mass         : Mass,
+    spring       : Spring,
+    drag         : Drag,
+    thresholds   : Thresholds,
+    active       : bool,
 }
 
 impl<T:Value> SimulationData<T> {
@@ -156,12 +156,12 @@ impl<T:Value> SimulationData<T> {
 impl<T:Value> SimulationData<T> {
     pub fn value        (&self) -> T          { self.value }
     pub fn target_value (&self) -> T          { self.target_value }
-    pub fn velocity        (&self) -> T          { self.velocity }
-    pub fn mass            (&self) -> Mass       { self.mass }
-    pub fn spring          (&self) -> Spring     { self.spring }
-    pub fn drag            (&self) -> Drag       { self.drag }
-    pub fn thresholds      (&self) -> Thresholds { self.thresholds }
-    pub fn active          (&self) -> bool       { self.active }
+    pub fn velocity     (&self) -> T          { self.velocity }
+    pub fn mass         (&self) -> Mass       { self.mass }
+    pub fn spring       (&self) -> Spring     { self.spring }
+    pub fn drag         (&self) -> Drag       { self.drag }
+    pub fn thresholds   (&self) -> Thresholds { self.thresholds }
+    pub fn active       (&self) -> bool       { self.active }
 }
 
 

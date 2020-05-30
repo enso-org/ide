@@ -2,7 +2,6 @@
 //! various general-purpose instances.
 
 use super::semigroup::Semigroup;
-//use super::semigroup::SemigroupIm;
 
 
 
@@ -57,7 +56,8 @@ mod tests {
 }
 
 
-
+// TODO: Think what to do with this. It would not be needed if tuples implement Iter. Alternatively
+// we could immplement own tuple type.
 
 //trait Foldable {
 //    type Item : Monoid;
@@ -105,4 +105,3 @@ mod tests {
 //define_foldable_for_tuple![0,1,2,3,4,5,6,7,8,9,10,11,12,13];
 //define_foldable_for_tuple![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14];
 //define_foldable_for_tuple![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-

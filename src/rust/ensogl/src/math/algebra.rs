@@ -534,21 +534,20 @@ define_vector! {V2 {x,y}}
 define_vector! {V3 {x,y,z}}
 define_vector! {V4 {x,y,z,w}}
 
-
 impl<T:Scalar> From<Vector2<T>> for V2<T> {
     fn from(t:Vector2<T>) -> Self {
         V2(t.x,t.y)
     }
 }
 
-impl Into<Vector2<f32>> for V2 {
-    fn into(self) -> Vector2<f32> {
+impl<T:Scalar> Into<Vector2<T>> for V2<T> {
+    fn into(self) -> Vector2<T> {
         Vector2::new(self.x,self.y)
     }
 }
 
-impl Into<Vector2<f32>> for &V2 {
-    fn into(self) -> Vector2<f32> {
+impl<T:Scalar> Into<Vector2<T>> for &V2<T> {
+    fn into(self) -> Vector2<T> {
         Vector2::new(self.x,self.y)
     }
 }
@@ -561,17 +560,18 @@ impl<T:Scalar> From<Vector3<T>> for V3<T> {
     }
 }
 
-impl Into<Vector3<f32>> for V3 {
-    fn into(self) -> Vector3<f32> {
+impl<T:Scalar> Into<Vector3<T>> for V3<T> {
+    fn into(self) -> Vector3<T> {
         Vector3::new(self.x,self.y,self.z)
     }
 }
 
-impl Into<Vector3<f32>> for &V3 {
-    fn into(self) -> Vector3<f32> {
+impl<T:Scalar> Into<Vector3<T>> for &V3<T> {
+    fn into(self) -> Vector3<T> {
         Vector3::new(self.x,self.y,self.z)
     }
 }
+
 
 
 impl<T:Scalar> From<Vector4<T>> for V4<T> {
@@ -580,14 +580,14 @@ impl<T:Scalar> From<Vector4<T>> for V4<T> {
     }
 }
 
-impl Into<Vector4<f32>> for V4 {
-    fn into(self) -> Vector4<f32> {
+impl<T:Scalar> Into<Vector4<T>> for V4<T> {
+    fn into(self) -> Vector4<T> {
         Vector4::new(self.x,self.y,self.z,self.w)
     }
 }
 
-impl Into<Vector4<f32>> for &V4 {
-    fn into(self) -> Vector4<f32> {
+impl<T:Scalar> Into<Vector4<T>> for &V4<T> {
+    fn into(self) -> Vector4<T> {
         Vector4::new(self.x,self.y,self.z,self.w)
     }
 }

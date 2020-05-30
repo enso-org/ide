@@ -112,11 +112,6 @@ impl PartialSemigroup<Style> for Style {
         self.concat_mut(&other)
     }
 }
-//impl Default for Style {
-//    fn default() -> Self {
-//        Self::Normal
-//    }
-//}
 
 
 
@@ -148,24 +143,11 @@ pub mod shape {
                 .corners_radius(radius)
                 .translate(offset)
                 .translate(("input_position.x","input_position.y"))
-//                .fill("srgba(input_color)");
-                .fill("srgba(vec4(1.0,1.0,1.0,0.1))");
+                .fill("srgba(input_color)");
             cursor.into()
         }
     }
 }
-
-//.fill(color::Rgba::new(1.0,1.0,1.0,0.2));
-
-
-///// Shape view for Cursor.
-//#[derive(Clone,CloneRef,Debug)]
-//#[allow(missing_docs)]
-//pub struct CursorView {}
-//
-//impl component::ShapeViewDefinition for CursorView {
-//    type Shape = shape::Shape;
-//}
 
 
 
@@ -259,11 +241,6 @@ impl Cursor {
 
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.cursor.add(&shape_system.shape_system.symbol);
-//        let scene_view = scene.views.new();
-//        scene.views.main.remove(&shape_system.shape_system.symbol);
-//        scene_view.add(&shape_system.shape_system.symbol);
-
-
 
         let network = &input.network;
 
@@ -277,19 +254,8 @@ impl Cursor {
             view_data.radius.set(value)
         });
 
-//        let view_data = view.shape.clone_ref();
-//        let width = animation(network,move |value| {
-//            view_data.width.set(value)
-//        });
-
         let (size,current_size) = animator::<V2>(network);
         let (offset,current_offset) = animator::<V2>(network);
-
-//        let view_data = view.shape.clone_ref();
-//        let height = animation(network,move |value| {
-//            view_data.height.set(value)
-//        });
-
 
         let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(network);
         let (anim_pos_x_setter,anim_pos_x) = animation2(network);
@@ -305,8 +271,6 @@ impl Cursor {
         anim_color_alpha_setter.set_target_value(0.2);
 
         radius.set_target_value(8.0);
-//        width.set_target_value(16.0);
-//        height.set_target_value(16.0);
         size.set_target_value(V2::new(16.0,16.0));
 
         let mouse = &scene.mouse.frp;
@@ -406,22 +370,6 @@ impl Cursor {
                 anim_pos_x_setter.set_target_value(p.x);
                 anim_pos_y_setter.set_target_value(p.y);
             }));
-
-//            def _t_mode = input.set_style.map(enclose!((radius,width,height) move |m| {
-//                match m {
-//                    Style::Normal => {
-//                        radius.set_target_value(8.0);
-//                        width.set_target_value(16.0);
-//                        height.set_target_value(16.0);
-//                    }
-//                    Style::Highlight {size,..} => {
-//                        radius.set_target_value(4.0);
-//                        width.set_target_value(size.x);
-//                        height.set_target_value(size.y);
-//                    }
-//                    _ => panic!()
-//                };
-//            }));
         }
 
 
@@ -436,18 +384,7 @@ impl Cursor {
         let data   = Rc::new(data);
 
         Cursor {data}
-
     }
-
-//    /// Position setter.
-//    pub fn set_position(&self, pos:Vector2<f32>) {
-//        self.view.shape.position.set(pos);
-//    }
-
-//    /// Selection size setter.
-//    pub fn set_selection_size(&self, pos:Vector2<f32>) {
-//        self.view.shape.selection_size.set(pos);
-//    }
 }
 
 impl StrongRef for Cursor {

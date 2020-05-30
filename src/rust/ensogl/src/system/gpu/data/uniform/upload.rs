@@ -45,7 +45,7 @@ impl UniformUpload for f32 {
 }
 
 
-
+// === Vector ===
 
 impl UniformUpload for Vector2<f32> {
     fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
@@ -123,6 +123,7 @@ impl UniformUpload for Vector4<bool> {
 }
 
 
+// === V ===
 
 impl UniformUpload for V2<f32> {
     fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
@@ -200,6 +201,7 @@ impl UniformUpload for V4<bool> {
 }
 
 
+// === Matrix ===
 
 impl UniformUpload for Matrix2<f32> {
     fn upload_uniform(&self, context:&Context, location:&WebGlUniformLocation) {
