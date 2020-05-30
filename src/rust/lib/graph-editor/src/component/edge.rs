@@ -1,7 +1,5 @@
 //! Definition of the Edge component.
 
-#![allow(missing_docs)]
-// WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
 
 use crate::prelude::*;
 
@@ -21,7 +19,42 @@ use super::node;
 
 
 
-macro_rules! define_corner {($($color:tt)*) => {
+fn min(a:f32,b:f32) -> f32 {
+    f32::min(a,b)
+}
+
+
+fn max(a:f32,b:f32) -> f32 {
+    f32::max(a,b)
+}
+
+
+
+
+// =================
+// === Constants ===
+// =================
+
+const LINE_SHAPE_WIDTH   : f32 = LINE_WIDTH + 2.0 * PADDING;
+const LINE_SIDE_OVERLAP  : f32 = 1.0;
+const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
+const LINE_WIDTH         : f32 = 4.0;
+const MOUSE_OFFSET       : f32 = 2.0;
+const NODE_HALF_HEIGHT   : f32 = NODE_HEIGHT / 2.0;
+const NODE_HEIGHT        : f32 = node::NODE_HEIGHT;
+const NODE_PADDING       : f32 = node::SHADOW_SIZE;
+const PADDING            : f32 = 4.0;
+const RIGHT_ANGLE        : f32 = std::f32::consts::PI / 2.0;
+
+const INFINITE : f32 = 99999.0;
+
+
+
+// =========================
+// === Shape Definitions ===
+// =========================
+
+macro_rules! define_corner_start {($($color:tt)*) => {
     /// Shape definition.
     pub mod corner {
         use super::*;
@@ -31,7 +64,7 @@ macro_rules! define_corner {($($color:tt)*) => {
                 let width  = LINE_WIDTH.px();
                 let width2 = width / 2.0;
                 let ring   = Circle(&radius + &width2) - Circle(radius-width2);
-                let right : Var<f32> = (std::f32::consts::PI/2.0).into();
+                let right : Var<f32> = (RIGHT_ANGLE).into();
                 let rot    = right - &angle/2.0 + start_angle;
                 let mask   = Plane().cut_angle_fast(angle).rotate(rot);
                 let shape  = ring * mask;
@@ -53,7 +86,7 @@ macro_rules! define_corner {($($color:tt)*) => {
     }
 }}
 
-macro_rules! define_corner2 {($($color:tt)*) => {
+macro_rules! define_corner_end {($($color:tt)*) => {
     /// Shape definition.
     pub mod corner {
         use super::*;
@@ -63,7 +96,7 @@ macro_rules! define_corner2 {($($color:tt)*) => {
                 let width  = LINE_WIDTH.px();
                 let width2 = width / 2.0;
                 let ring   = Circle(&radius + &width2) - Circle(radius-width2);
-                let right : Var<f32> = (std::f32::consts::PI/2.0).into();
+                let right : Var<f32> = (RIGHT_ANGLE).into();
                 let rot    = right - &angle/2.0 + start_angle;
                 let mask   = Plane().cut_angle_fast(angle).rotate(rot);
                 let shape  = ring * mask;
@@ -124,192 +157,10 @@ macro_rules! define_arrow {($($color:tt)*) => {
 }}
 
 
-// ============
-// === Edge ===
-// ============
 
-pub mod front {
-    use super::*;
-    define_corner!(color::Lcha::new(0.6,0.5,0.76,1.0));
-    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0));
-    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
-}
-
-pub mod back {
-    use super::*;
-    define_corner2!(color::Lcha::new(0.6,0.5,0.76,1.0));
-    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0));
-    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
-}
-
-/// Canvas node shape definition.
-pub mod helper {
-    use super::*;
-
-    ensogl::define_shape_system! {
-        () {
-            let shape = Circle(2.px());
-            let shape = shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
-            shape.into()
-        }
-    }
-}
-
-
-const LINE_WIDTH : f32 = 4.0;
-const PADDING    : f32 = 4.0;
-
-
-
-// ============
-// === Edge ===
-// ============
-
-/// Edge definition.
-#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
-pub struct Edge {
-    #[deref]
-    model   : Rc<EdgeModel>,
-    network : frp::Network,
-}
-
-impl AsRef<Edge> for Edge {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
-
-#[derive(Clone,CloneRef,Debug)]
-pub struct Frp {
-    pub source_width    : frp::Source<f32>,
-    pub target_position : frp::Source<frp::Position>,
-    pub target_attached : frp::Source<bool>,
-}
-
-impl Frp {
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! { network
-            def source_width    = source();
-            def target_position = source();
-            def target_attached = source();
-        }
-        Self {source_width,target_position,target_attached}
-    }
-}
-
-
-pub fn sort_hack_1(scene:&Scene) {
-    let logger = Logger::new("hack");
-    component::ShapeView::<back::corner::Shape>::new(&logger,scene);
-    component::ShapeView::<back::line::Shape>::new(&logger,scene);
-    component::ShapeView::<back::arrow::Shape>::new(&logger,scene);
-}
-
-pub fn sort_hack_2(scene:&Scene) {
-    let logger = Logger::new("hack");
-    component::ShapeView::<front::corner::Shape>::new(&logger,scene);
-    component::ShapeView::<front::line::Shape>::new(&logger,scene);
-    component::ShapeView::<front::arrow::Shape>::new(&logger,scene);
-}
-
-
-macro_rules! define_components {
-    ($name:ident {
-        $($field:ident : $field_type:ty),* $(,)?
-    }) => {
-        #[derive(Debug,Clone,CloneRef)]
-        pub struct $name {
-            pub logger         : Logger,
-            pub display_object : display::object::Instance,
-            $(pub $field : component::ShapeView<$field_type>),*
-        }
-
-        impl $name {
-            pub fn new(logger:Logger, scene:&Scene) -> Self {
-                let display_object = display::object::Instance::new(&logger);
-                $(let $field = component::ShapeView::new(&logger.sub(stringify!($field)),scene);)*
-                $(display_object.add_child(&$field);)*
-                Self {logger,display_object,$($field),*}
-            }
-        }
-
-        impl display::Object for $name {
-            fn display_object(&self) -> &display::object::Instance {
-                &self.display_object
-            }
-        }
-    }
-}
-
-define_components!{
-    Front {
-        corner     : front::corner::Shape,
-        corner2    : front::corner::Shape,
-        corner3    : front::corner::Shape,
-        side_line  : front::line::Shape,
-        side_line2 : front::line::Shape,
-        main_line  : front::line::Shape,
-        port_line  : front::line::Shape,
-        arrow      : front::arrow::Shape,
-    }
-}
-
-define_components!{
-    Back {
-        corner     : back::corner::Shape,
-        corner2    : back::corner::Shape,
-        corner3    : back::corner::Shape,
-        side_line  : back::line::Shape,
-        side_line2 : back::line::Shape,
-        main_line  : back::line::Shape,
-        arrow      : back::arrow::Shape,
-    }
-}
-
-
-/// Internal data of `Edge`
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct EdgeModelData {
-    pub display_object  : display::object::Instance,
-    pub logger          : Logger,
-    pub frp             : Frp,
-    pub front           : Front,
-    pub back            : Back,
-    pub source_width    : Rc<Cell<f32>>,
-    pub target_position : Rc<Cell<frp::Position>>,
-    pub target_attached : Rc<Cell<bool>>,
-}
-
-/// Edge definition.
-#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
-pub struct EdgeModel {
-    data : Rc<EdgeModelData>,
-}
-
-const INFINITE : f32 = 99999.0;
-
-
-
-impl display::Object for EdgeModelData {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
-    }
-}
-
-fn min(a:f32,b:f32) -> f32 {
-    f32::min(a,b)
-}
-
-
-fn max(a:f32,b:f32) -> f32 {
-    f32::max(a,b)
-}
-
-const LINE_SHAPE_WIDTH   : f32 = LINE_WIDTH + 2.0 * PADDING;
-const LINE_SIDE_OVERLAP  : f32 = 1.0;
-const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
+// ========================
+// === Shape Operations ===
+// ========================
 
 trait LayoutLine {
     fn layout_v(&self,start:Vector2<f32>,len:f32);
@@ -373,6 +224,133 @@ impl LayoutLine for component::ShapeView<back::line::Shape> {
 }
 
 
+
+// ===========================
+// === Front / Back Shapes ===
+// ===========================
+
+pub mod front {
+    use super::*;
+    define_corner_start!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
+}
+
+pub mod back {
+    use super::*;
+    define_corner_end!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
+}
+
+
+
+// ===========================
+// === Front / Back Layers ===
+// ===========================
+
+macro_rules! define_components {
+    ($name:ident {
+        $($field:ident : $field_type:ty),* $(,)?
+    }) => {
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct $name {
+            pub logger         : Logger,
+            pub display_object : display::object::Instance,
+            $(pub $field : component::ShapeView<$field_type>),*
+        }
+
+        impl $name {
+            pub fn new(logger:Logger, scene:&Scene) -> Self {
+                let display_object = display::object::Instance::new(&logger);
+                $(let $field = component::ShapeView::new(&logger.sub(stringify!($field)),scene);)*
+                $(display_object.add_child(&$field);)*
+                Self {logger,display_object,$($field),*}
+            }
+        }
+
+        impl display::Object for $name {
+            fn display_object(&self) -> &display::object::Instance {
+                &self.display_object
+            }
+        }
+    }
+}
+
+define_components!{
+    Front {
+        corner     : front::corner::Shape,
+        corner2    : front::corner::Shape,
+        corner3    : front::corner::Shape,
+        side_line  : front::line::Shape,
+        side_line2 : front::line::Shape,
+        main_line  : front::line::Shape,
+        port_line  : front::line::Shape,
+        arrow      : front::arrow::Shape,
+    }
+}
+
+define_components!{
+    Back {
+        corner     : back::corner::Shape,
+        corner2    : back::corner::Shape,
+        corner3    : back::corner::Shape,
+        side_line  : back::line::Shape,
+        side_line2 : back::line::Shape,
+        main_line  : back::line::Shape,
+        arrow      : back::arrow::Shape,
+    }
+}
+
+pub fn sort_hack_1(scene:&Scene) {
+    let logger = Logger::new("hack");
+    component::ShapeView::<back::corner::Shape>::new(&logger,scene);
+    component::ShapeView::<back::line::Shape>::new(&logger,scene);
+    component::ShapeView::<back::arrow::Shape>::new(&logger,scene);
+}
+
+pub fn sort_hack_2(scene:&Scene) {
+    let logger = Logger::new("hack");
+    component::ShapeView::<front::corner::Shape>::new(&logger,scene);
+    component::ShapeView::<front::line::Shape>::new(&logger,scene);
+    component::ShapeView::<front::arrow::Shape>::new(&logger,scene);
+}
+
+
+
+// ===========
+// === FRP ===
+// ===========
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Frp {
+    pub source_width    : frp::Source<f32>,
+    pub target_position : frp::Source<frp::Position>,
+    pub target_attached : frp::Source<bool>,
+}
+
+impl Frp {
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def source_width    = source();
+            def target_position = source();
+            def target_attached = source();
+        }
+        Self {source_width,target_position,target_attached}
+    }
+}
+
+
+
+// ==================
+// === Math Utils ===
+// ==================
+
+/// For the given radius of the first circle (`r1`), radius of the second circle (`r2`), and the
+/// x-axis position of the second circle (`x`), computes the y-axis position of the second circle in
+/// such a way, that the borders of the circle cross at the right angle. It also computes the angle
+/// of the intersection. Please note, that the center of the first circle is in the origin.
+///
 ///       r1
 ///      ◄───►                (1) x^2 + y^2 = r1^2 + r2^2
 ///    _____                  (1) => y = sqrt((r1^2 + r2^2)/x^2)
@@ -397,28 +375,129 @@ fn circle_intersection(x:f32, r1:f32, r2:f32) -> (f32,f32) {
 }
 
 
-const RIGHT_ANGLE : f32 = std::f32::consts::PI / 2.0;
 
-const NODE_PADDING     : f32 = node::SHADOW_SIZE;
-const NODE_HEIGHT      : f32 = node::NODE_HEIGHT;
-const NODE_HALF_HEIGHT : f32 = NODE_HEIGHT / 2.0;
-const MOUSE_OFFSET     : f32 = 2.0;
+// ============
+// === Edge ===
+// ============
+
+/// Edge definition.
+#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
+pub struct Edge {
+    #[deref]
+    model   : Rc<EdgeModel>,
+    network : frp::Network,
+}
+
+impl AsRef<Edge> for Edge {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
+
+
+
+
+impl display::Object for EdgeModelData {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
+impl Edge {
+    /// Constructor.
+    pub fn new(scene:&Scene) -> Self {
+        let network = frp::Network::new();
+        let data    = Rc::new(EdgeModelData::new(scene,&network));
+        let model   = Rc::new(EdgeModel {data});
+        Self {model,network} . init()
+    }
+
+    fn init(self) -> Self {
+        let network         = &self.network;
+        let input           = &self.frp;
+        let target_position = &self.target_position;
+        let target_attached = &self.target_attached;
+        let source_width    = &self.source_width;
+        let model           = &self.model;
+        frp::extend! { network
+            eval input.target_position ((t) target_position.set(*t));
+            eval input.target_attached ((t) target_attached.set(*t));
+            eval input.source_width    ((t) source_width.set(*t));
+            on_change <- any_ (input.source_width, input.target_position, input.target_attached);
+            eval_ on_change (model.redraw());
+        }
+        self
+    }
+}
+
+impl display::Object for Edge {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
+
+
+// =================
+// === EdgeModel ===
+// =================
+
+/// Edge definition.
+#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
+pub struct EdgeModel {
+    data : Rc<EdgeModelData>,
+}
+
+/// Internal data of `Edge`
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct EdgeModelData {
+    pub display_object  : display::object::Instance,
+    pub logger          : Logger,
+    pub frp             : Frp,
+    pub front           : Front,
+    pub back            : Back,
+    pub source_width    : Rc<Cell<f32>>,
+    pub target_position : Rc<Cell<frp::Position>>,
+    pub target_attached : Rc<Cell<bool>>,
+}
 
 impl EdgeModelData {
+    /// Constructor.
+    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
+        let logger         = Logger::new("edge");
+        let display_object = display::object::Instance::new(&logger);
+        let front          = Front::new(logger.sub("front"),scene);
+        let back           = Back::new(logger.sub("back"),scene);
 
+        display_object.add_child(&front);
+        display_object.add_child(&back);
+
+        front . side_line  . mod_rotation(|r| r.z = RIGHT_ANGLE);
+        back  . side_line  . mod_rotation(|r| r.z = RIGHT_ANGLE);
+        front . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
+        back  . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
+
+        let frp             = Frp::new(&network);
+        let source_width    = Rc::new(Cell::new(100.0));
+        let target_position = Rc::new(Cell::new(frp::Position::default()));
+        let target_attached = Rc::new(Cell::new(false));
+
+        Self {display_object,logger,frp,front,back,source_width,target_position,target_attached}
+    }
+
+    /// Redraws the connection.
     pub fn redraw(&self) {
-        let line_side_overlap  = 1.0;
-        let line_sides_overlap = 2.0 * line_side_overlap;
-        let line_shape_width   = LINE_WIDTH + 2.0 * PADDING;
+
+        // === Variables ===
 
         let fg              = &self.front;
         let bg              = &self.back;
         let target_attached = self.target_attached.get();
-
-        let node_half_width  = self.source_width.get() / 2.0;
-        let node_circle      = Vector2::new(node_half_width-NODE_HALF_HEIGHT,0.0);
-
-        let node_radius         = NODE_HALF_HEIGHT;
+        let node_half_width = self.source_width.get() / 2.0;
+        let node_circle     = Vector2::new(node_half_width-NODE_HALF_HEIGHT,0.0);
+        let node_radius     = NODE_HALF_HEIGHT;
 
 
         // === Target ===
@@ -787,73 +866,5 @@ impl EdgeModelData {
         // === Port Line ===
 
         fg.port_line.layout_v(port_line_start, port_line_len);
-    }
-}
-
-impl Edge {
-    /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
-        let logger    = Logger::new("edge");
-        let display_object    = display::object::Instance::new(&logger);
-        let fg     = Front::new(logger.sub("fg"),scene);
-        let bg      = Back::new(logger.sub("bg"),scene);
-
-        display_object.add_child(&fg);
-        display_object.add_child(&bg);
-
-        fg.side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
-        bg.side_line.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
-        fg.side_line2.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
-        bg.side_line2.mod_rotation(|r| r.z = std::f32::consts::PI/2.0);
-
-        let network = frp::Network::new();
-        let input = Frp::new(&network);
-
-        let source_width : Rc<Cell<f32>> = default();
-        let target_position = Rc::new(Cell::new(frp::Position::default()));
-        source_width.set(100.0);
-
-        let target_attached : Rc<Cell<bool>> = default();
-
-
-
-
-
-
-
-        let frp = input;
-        let front = fg;
-        let back  = bg;
-        let data = Rc::new(EdgeModelData {display_object,logger,frp,front,back
-                                          ,source_width,target_position,target_attached});
-        let model = Rc::new(EdgeModel {data});
-
-
-
-
-        Self {model,network} . init()
-    }
-
-    fn init(self) -> Self {
-        let network         = &self.network;
-        let input           = &self.frp;
-        let target_position = &self.target_position;
-        let target_attached = &self.target_attached;
-        let source_width    = &self.source_width;
-        let model           = &self.model;
-        frp::extend! { network
-            eval input.target_position ((t) target_position.set(*t));
-            eval input.target_attached ((t) target_attached.set(*t));
-            eval input.source_width    ((t) source_width.set(*t));
-            on_change <- any_ (input.source_width, input.target_position, input.target_attached);
-            eval_ on_change (model.redraw());
-        }
-        self
-    }
-}
-
-impl display::Object for Edge {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
     }
 }
