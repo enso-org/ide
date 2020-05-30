@@ -148,7 +148,8 @@ pub mod shape {
                 .corners_radius(radius)
                 .translate(offset)
                 .translate(("input_position.x","input_position.y"))
-                .fill("srgba(input_color)");
+//                .fill("srgba(input_color)");
+                .fill("srgba(vec4(1.0,1.0,1.0,0.1))");
             cursor.into()
         }
     }

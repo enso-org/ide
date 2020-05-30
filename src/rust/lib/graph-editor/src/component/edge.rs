@@ -286,8 +286,6 @@ pub struct EdgeModel {
     data : Rc<EdgeModelData>,
 }
 
-const END_OFFSET : f32 = 2.0;
-
 const INFINITE : f32 = 99999.0;
 
 
@@ -307,7 +305,52 @@ fn max(a:f32,b:f32) -> f32 {
     f32::max(a,b)
 }
 
+const LINE_SHAPE_WIDTH   : f32 = LINE_WIDTH + 2.0 * PADDING;
+const LINE_SIDE_OVERLAP  : f32 = 1.0;
+const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
+
+trait LayoutLine {
+    fn layout(&self,start:Vector2<f32>,len:f32);
+    fn layout_no_overlap(&self,start:Vector2<f32>,len:f32);
+}
+
+impl LayoutLine for component::ShapeView<front::line::Shape> {
+    fn layout(&self, start: Vector2<f32>, len: f32) {
+        let pos = Vector2::new(start.x, start.y + len / 2.0);
+        let size = Vector2::new(LINE_SHAPE_WIDTH, len + LINE_SIDES_OVERLAP);
+        self.shape.sprite.size().set(size);
+        self.set_position_xy(pos);
+    }
+    fn layout_no_overlap(&self, start: Vector2<f32>, len: f32) {
+        let pos = Vector2::new(start.x, start.y + len / 2.0);
+        let size = Vector2::new(LINE_SHAPE_WIDTH, len);
+        self.shape.sprite.size().set(size);
+        self.set_position_xy(pos);
+    }
+}
+
+impl LayoutLine for component::ShapeView<back::line::Shape> {
+    fn layout(&self, start: Vector2<f32>, len: f32) {
+        let pos = Vector2::new(start.x, start.y + len / 2.0);
+        let size = Vector2::new(LINE_SHAPE_WIDTH, len + LINE_SIDES_OVERLAP);
+        self.shape.sprite.size().set(size);
+        self.set_position_xy(pos);
+    }
+    fn layout_no_overlap(&self, start: Vector2<f32>, len: f32) {
+        let pos = Vector2::new(start.x, start.y + len / 2.0);
+        let size = Vector2::new(LINE_SHAPE_WIDTH, len);
+        self.shape.sprite.size().set(size);
+        self.set_position_xy(pos);
+    }
+}
+
+const NODE_PADDING     : f32 = node::SHADOW_SIZE;
+const NODE_HEIGHT      : f32 = node::NODE_HEIGHT;
+const NODE_HALF_HEIGHT : f32 = NODE_HEIGHT / 2.0;
+const MOUSE_OFFSET     : f32 = 2.0;
+
 impl EdgeModelData {
+
     pub fn redraw(&self) {
         let line_side_overlap  = 1.0;
         let line_sides_overlap = 2.0 * line_side_overlap;
@@ -317,12 +360,8 @@ impl EdgeModelData {
         let bg              = &self.back;
         let target_attached = self.target_attached.get();
 
-        let node_height      = node::NODE_HEIGHT;
-        let node_padding     = node::SHADOW_SIZE;
-        let node_radius      = node_height / 2.0;
         let node_half_width  = self.source_width.get() / 2.0;
-        let node_half_height = node_height / 2.0;
-        let node_circle      = Vector2::new(node_half_width-node_radius,0.0);
+        let node_circle      = Vector2::new(node_half_width-NODE_HALF_HEIGHT,0.0);
 
 
         // === Target ===
@@ -344,26 +383,12 @@ impl EdgeModelData {
         let target_x               = target_x.abs();
         let target                 = Vector2::new(target_x,target_y);
         let target_is_below_node_x = target.x < node_half_width;
-        let target_is_below_node_y = target.y < (-node_half_height);
+        let target_is_below_node_y = target.y < (-NODE_HALF_HEIGHT);
         let target_is_below_node   = target_is_below_node_x && target_is_below_node_y;
 
 
-        // === Port Line Length ===
-        //
-        // ╭──╮
-        // ╰──╯───╮
-        //        ╵
-        //     ╭──┼──╮ ▲  Port line covers the area above target node and the area of target node
-        //     │  ▢  │ ▼  shadow. It can be shorter if the target position is below the node or the
-        //     ╰─────╯    connection is being dragged, in order not to overlap with the source node.
+        let port_line_len_max     = NODE_HALF_HEIGHT + NODE_PADDING;
 
-        let mut port_line_len_max = node_half_height + node_padding;
-        let space_attached        = -target.y - node_half_height;
-        let space                 = space_attached - node_padding;
-        let len_below_free        = max(0.0,min(port_line_len_max,space));
-        let len_below_attached    = max(0.0,min(port_line_len_max,space_attached));
-        let len_below             = if target_attached {len_below_attached} else {len_below_free};
-        let mut port_line_len     = if target_is_below_node {len_below} else {port_line_len_max};
 
 
         // === Upward Discovery ===
@@ -376,8 +401,9 @@ impl EdgeModelData {
         //              ▢
 
         let upward_corner_radius        = 20.0;
-        let min_len_for_non_curved_line = upward_corner_radius + port_line_len;
-        let upward_distance             = target.y + min_len_for_non_curved_line;
+        let min_len_for_non_curved_line = upward_corner_radius + port_line_len_max;
+
+
 
 
         // === Flat side ===
@@ -391,24 +417,52 @@ impl EdgeModelData {
         let flat_side_size = 40.0;
         let is_flat_side   = target.x < node_half_width + flat_side_size;
         let downward_flat  = if target_is_below_node_x {target_is_below_node_y} else {target.y<0.0};
-        let downward_far   = upward_distance < 0.0 || target_is_below_node;
-        let downward       = if is_flat_side {downward_flat} else {downward_far};
-        let flat_downward  = is_flat_side && downward;
-        if flat_downward {
-            port_line_len     = min(port_line_len,-target.y);
-            port_line_len_max = min(port_line_len_max,-target.y);
-        }
+        let downward_far   = -target.y > min_len_for_non_curved_line || target_is_below_node;
+        let is_down        = if is_flat_side {downward_flat} else {downward_far};
 
+
+
+
+
+        // === Port Line Length ===
+        //
+        // ╭──╮
+        // ╰──╯───╮
+        //        ╵
+        //     ╭──┼──╮ ▲  Port line covers the area above target node and the area of target node
+        //     │  ▢  │ ▼  shadow. It can be shorter if the target position is below the node or the
+        //     ╰─────╯    connection is being dragged, in order not to overlap with the source node.
+
+        let port_line_start    = Vector2::new(side * target.x, target.y + MOUSE_OFFSET);
+        let space_attached     = -port_line_start.y - NODE_HALF_HEIGHT - LINE_SIDE_OVERLAP;
+        let space              = space_attached - NODE_PADDING;
+        let len_below_free     = max(0.0,min(port_line_len_max,space));
+        let len_below_attached = max(0.0,min(port_line_len_max,space_attached));
+        let len_below          = if target_attached {len_below_attached} else {len_below_free};
+        let far_side_len       = if target_is_below_node {len_below} else {port_line_len_max};
+        let flat_side_len      = min(far_side_len,-target.y);
+        let port_line_len      = if is_flat_side && is_down {flat_side_len} else {far_side_len};
         let port_line_len_diff = port_line_len_max - port_line_len;
-        let port_line_target   = Vector2::new(target.x,target.y + port_line_len_max);
-        let main_line_target   = Vector2::new(target.x,port_line_target.y + port_line_len_diff);
 
 
 
 
-        let mut corner1_target = port_line_target;
+        let port_line_end   = Vector2::new(target.x,target.y + port_line_len);
+//        let main_line_target   = Vector2::new(target.x,port_line_end.y); // + port_line_len_diff);
 
-        if !downward {
+
+
+
+
+
+        let upward_distance             = target.y + min_len_for_non_curved_line;
+
+
+
+
+        let mut corner1_target = port_line_end;
+
+        if !is_down {
             corner1_target.x = if is_flat_side {
                 node_half_width + upward_corner_radius + max(0.0,target.x - node_half_width + upward_corner_radius)
             } else {
@@ -418,7 +472,7 @@ impl EdgeModelData {
         }
 
 
-//                if !downward && !is_flat_side {
+//                if !is_down && !is_flat_side {
 //                    corner_radius = corner1_target.x - node_half_width;
 //                    println!("? {}", corner_radius);
 //                }
@@ -447,18 +501,18 @@ impl EdgeModelData {
         //      `-....-'
 
 
-        let x             = (corner_x - node_circle.x).clamp(-corner_radius,node_radius);
-        let y             = (node_radius*node_radius + corner_radius*corner_radius - x*x).sqrt();
+        let x             = (corner_x - node_circle.x).clamp(-corner_radius,NODE_HALF_HEIGHT);
+        let y             = (NODE_HALF_HEIGHT*NODE_HALF_HEIGHT + corner_radius*corner_radius - x*x).sqrt();
         let angle1        = f32::atan2(y,x);
-        let angle2        = f32::atan2(node_radius,corner_radius);
+        let angle2        = f32::atan2(NODE_HALF_HEIGHT,corner_radius);
         let angle_overlap = if corner_x > node_half_width { 0.0 } else { 0.1 };
         let corner_angle  = std::f32::consts::PI - angle1 - angle2;
         let corner_angle  = (corner_angle + angle_overlap) * side;
-        let corner_angle  = if downward {corner_angle} else {side * std::f32::consts::PI / 2.0};
+        let corner_angle  = if is_down {corner_angle} else {side * std::f32::consts::PI / 2.0};
         let corner_side   = (corner_radius + PADDING) * 2.0;
         let corner_size   = Vector2::new(corner_side,corner_side);
-        let corner_y      = if downward {-y} else {y};
-        let start_angle   = if downward {0.0} else {side * std::f32::consts::PI / 2.0};
+        let corner_y      = if is_down {-y} else {y};
+        let start_angle   = if is_down {0.0} else {side * std::f32::consts::PI / 2.0};
         let corner        = Vector2::new(corner_x*side,corner_y);
 
         bg.corner.shape.sprite.size().set(corner_size);
@@ -468,7 +522,7 @@ impl EdgeModelData {
         bg.corner.shape.pos.set(corner);
         bg.corner.set_position_xy(corner);
         if !target_attached {
-            bg.corner.shape.dim.set(Vector2::new(node_half_width,node_radius));
+            bg.corner.shape.dim.set(Vector2::new(node_half_width,NODE_HALF_HEIGHT));
             fg.corner.shape.sprite.size().set(corner_size);
             fg.corner.shape.start_angle.set(start_angle);
             fg.corner.shape.angle.set(corner_angle);
@@ -496,7 +550,7 @@ impl EdgeModelData {
             bg.side_line.mod_position(|p| p.x = bg_line_x);
 
         } else {
-            let bg_line_len  = min(side_line_len,node_padding);
+            let bg_line_len  = min(side_line_len,NODE_PADDING);
             let fg_line_len  = side_line_len - bg_line_len;
             let bg_line_x    = side * (node_half_width + bg_line_len/2.0);
             let fg_line_x    = side * (node_half_width + fg_line_len/2.0 + bg_line_len + line_side_overlap);
@@ -512,38 +566,41 @@ impl EdgeModelData {
 
 
 
-        // === Main Line ===
+        // === Main Line (downwards) ===
+        //
+        // Main line is the long vertical line. In case it is placed below the node and the edge is
+        // in drag mode, it is divided into two segments. The upper segment is drawn behind node
+        // shadow, while the second is drawn on the top layer. In case of edge in drag mode drawn
+        // next to node, only the top layer segment is used.
+        //
+        // Please note that only applies to edges going down. Refer to docs of main line of edges
+        // going up to learn more.
+        //
+        // Double edge:   Single edge:
+        // ╭─────╮        ╭─────╮
+        // ╰──┬──╯        ╰─────╯────╮
+        //    ╷                      │
+        //    ▢                      ▢
 
-        let main_line_height   = corner.y - main_line_target.y;
-        let main_line_x        = side * port_line_target.x;
-        let main_line_y        = corner.y - main_line_height/2.0;
-        let main_line_size     = Vector2::new(line_shape_width,main_line_height + line_sides_overlap);
-        let main_line_position = Vector3::new(main_line_x,main_line_y,0.0);
-
-
-        if target_attached {
-            fg.main_line.shape.sprite.size().set(zero());
-            bg.main_line.shape.sprite.size().set(main_line_size);
-            bg.main_line.set_position(main_line_position);
-        } else {
-            let mut front_line_position = main_line_position;
-            let mut front_line_size     = main_line_size;
-            let mut back_line_position  = main_line_position;
-            let mut back_line_size      = Vector2::new(0.0,0.0);
-            let use_double_line         = target_is_below_node;
-            if use_double_line {
-                let diff               = node_padding - max(0.0,-corner.y - node_radius);
-                let diff               = min(diff, -target.y - node_half_height);
-                front_line_position.y -= diff/2.0;
-                front_line_size.y     -= diff;
-                back_line_position.y   = corner.y - diff/2.0;
-                back_line_size         = main_line_size;
-                back_line_size.y       = diff + line_sides_overlap;
+        if is_down {
+            let main_line_end_y = corner.y;
+            let main_line_len   = main_line_end_y - port_line_start.y;
+            if !target_attached && target_is_below_node {
+                let back_line_start_y = max(-NODE_HALF_HEIGHT - NODE_PADDING, port_line_start.y);
+                let back_line_start = Vector2::new(port_line_start.x, back_line_start_y);
+                let back_line_len = main_line_end_y - back_line_start_y;
+                let front_line_len = main_line_len - back_line_len;
+                bg.main_line.layout(back_line_start, back_line_len);
+                fg.main_line.layout(port_line_start, front_line_len);
+            } else if target_attached {
+                let main_line_start_y = port_line_start.y + port_line_len;
+                let main_line_start = Vector2::new(port_line_start.x, main_line_start_y);
+                fg.main_line.shape.sprite.size().set(zero());
+                bg.main_line.layout(main_line_start, main_line_len - port_line_len);
+            } else {
+                bg.main_line.shape.sprite.size().set(zero());
+                fg.main_line.layout(port_line_start, main_line_len);
             }
-            bg.main_line.shape.sprite.size().set(back_line_size);
-            bg.main_line.set_position(back_line_position);
-            fg.main_line.shape.sprite.size().set(front_line_size);
-            fg.main_line.set_position(front_line_position);
         }
 
 
@@ -552,7 +609,7 @@ impl EdgeModelData {
 
 
 
-        if !downward {
+        if !is_down {
 
 
             //
@@ -571,7 +628,7 @@ impl EdgeModelData {
             let corner3_radius = upward_corner_radius;
 
             let corner2_x      = corner1_target.x + corner_radius;
-            let corner3_x      = port_line_target.x - corner3_radius;
+            let corner3_x      = port_line_end.x - corner3_radius;
             let corner2_bbox_x = corner2_x - corner2_radius;
             let corner3_bbox_x = corner3_x + corner3_radius;
 
@@ -592,8 +649,8 @@ impl EdgeModelData {
 
             let corner3_side   = (corner3_radius + PADDING) * 2.0;
             let corner3_size   = Vector2::new(corner3_side,corner3_side);
-            let corner3_x      = port_line_target.x - corner_2_3_side * corner3_radius;
-            let corner3_y      = port_line_target.y;
+            let corner3_x      = port_line_end.x - corner_2_3_side * corner3_radius;
+            let corner3_y      = port_line_end.y;
 
             let corner2_y      = corner3_y + corner3_radius - corner2_radius;
             let corner2_y      = max(corner2_y, corner_y);
@@ -611,7 +668,7 @@ impl EdgeModelData {
             fg.corner3.shape.width.set(0.0);
             fg.corner3.set_position_xy(corner3);
 
-            port_line_len = corner3_y - target.y;
+            // port_line_len = corner3_y - target.y;
 
             let xoff = 20.0;
 
@@ -668,11 +725,14 @@ impl EdgeModelData {
 
         // === Port Line ===
 
-        fg.port_line.shape.sprite.size().set(Vector2::new(line_shape_width,port_line_len-END_OFFSET));
-        fg.port_line.mod_position(|p| {
-            p.x = main_line_x;
-            p.y = port_line_target.y - port_line_len_max + port_line_len/2.0 + END_OFFSET;
-        });
+        fg.port_line.layout(port_line_start, port_line_len);
+
+
+//        fg.port_line.shape.sprite.size().set(Vector2::new(line_shape_width,port_line_len-MOUSE_OFFSET));
+//        fg.port_line.mod_position(|p| {
+//            p.x = port_line_start.x;
+//            p.y = port_line_end.y - port_line_len_max + port_line_len/2.0 + MOUSE_OFFSET;
+//        });
     }
 }
 
