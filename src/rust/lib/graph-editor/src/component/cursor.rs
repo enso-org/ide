@@ -22,6 +22,10 @@ use ensogl::system::web;
 
 
 
+// ==================
+// === StyleParam ===
+// ==================
+
 #[derive(Debug,Clone)]
 pub struct StyleParam<T> {
     pub value   : T,
@@ -48,6 +52,11 @@ impl<T> StyleParam<T> {
     }
 }
 
+
+
+// =============
+// === Style ===
+// =============
 
 #[derive(Debug,Clone,Default)]
 pub struct Style {
@@ -152,38 +161,38 @@ pub mod shape {
 
 
 
-// ===================
-// === InputEvents ===
-// ===================
+// =================
+// === FrpInputs ===
+// =================
 
 /// Cursor events.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct InputEvents {
-    pub network   : frp::Network,
+pub struct FrpInputs {
     pub set_style : frp::Source<Style>,
 }
 
-impl Default for InputEvents {
-    fn default() -> Self {
-        frp::new_network! { cursor_events
+impl FrpInputs {
+    /// Constructor.
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
             def set_style = source();
         }
-        let network = cursor_events;
-        Self {network,set_style}
+        Self {set_style}
     }
 }
 
 /// Cursor events.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Events {
-    pub input    : InputEvents,
+pub struct Frp {
+    pub network  : frp::Network,
+    pub input    : FrpInputs,
     pub position : frp::Stream<frp::Position>,
 }
 
-impl Deref for Events {
-    type Target = InputEvents;
+impl Deref for Frp {
+    type Target = FrpInputs;
     fn deref(&self) -> &Self::Target {
         &self.input
     }
@@ -198,24 +207,20 @@ impl Deref for Events {
 /// Cursor (mouse pointer) definition.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Cursor {
-    data : Rc<CursorData>
-}
-
-/// Weak version of `Cursor`.
-#[derive(Clone,CloneRef,Debug)]
-pub struct WeakCursor {
-    data : Weak<CursorData>
+    #[shrinkwrap(main_field)]
+    model   : Rc<CursorModel>,
+    pub frp : Frp,
 }
 
 /// Internal data for `Cursor`.
 #[derive(Debug)]
 #[allow(missing_docs)]
-pub struct CursorData {
+pub struct CursorModel {
     pub logger : Logger,
-    pub frp    : Events,
+    pub frp    : FrpInputs,
     pub view   : component::ShapeView<shape::Shape>,
-//    pub scene_view    : scene::View,
     pub resize_handle : callback::Handle,
+    pub style : Rc<RefCell<Style>>,
 }
 
 impl Cursor {
@@ -223,8 +228,10 @@ impl Cursor {
     pub fn new(scene:&Scene) -> Self {
         let logger = Logger::new("cursor");
         let view   = component::ShapeView::<shape::Shape>::new(&logger,scene);
-        let input = InputEvents::default();
+        let network = frp::Network::new();
+        let input = FrpInputs::new(&network);
 
+        let style = Rc::new(RefCell::new(Style::default()));
 
 
 
@@ -243,29 +250,28 @@ impl Cursor {
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.cursor.add(&shape_system.shape_system.symbol);
 
-        let network = &input.network;
 
         let view_data = view.shape.clone_ref();
-        let press = animation(network,move |value| {
+        let press = animation(&network,move |value| {
             view_data.press.set(value)
         });
 
         let view_data = view.shape.clone_ref();
-        let radius = animation(network,move |value| {
+        let radius = animation(&network,move |value| {
             view_data.radius.set(value)
         });
 
-        let (size,current_size) = animator::<V2>(network);
-        let (offset,current_offset) = animator::<V2>(network);
+        let (size,current_size) = animator::<V2>(&network);
+        let (offset,current_offset) = animator::<V2>(&network);
 
-        let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(network);
-        let (anim_pos_x_setter,anim_pos_x) = animation2(network);
-        let (anim_pos_y_setter,anim_pos_y) = animation2(network);
+        let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(&network);
+        let (anim_pos_x_setter,anim_pos_x) = animation2(&network);
+        let (anim_pos_y_setter,anim_pos_y) = animation2(&network);
 
-        let (anim_color_lab_l_setter,anim_color_lab_l) = animation2(network);
-        let (anim_color_lab_a_setter,anim_color_lab_a) = animation2(network);
-        let (anim_color_lab_b_setter,anim_color_lab_b) = animation2(network);
-        let (anim_color_alpha_setter,anim_color_alpha) = animation2(network);
+        let (anim_color_lab_l_setter,anim_color_lab_l) = animation2(&network);
+        let (anim_color_lab_a_setter,anim_color_lab_a) = animation2(&network);
+        let (anim_color_lab_b_setter,anim_color_lab_b) = animation2(&network);
+        let (anim_color_alpha_setter,anim_color_alpha) = animation2(&network);
 
 
         anim_color_lab_l_setter.set_target_value(1.0);
@@ -289,13 +295,17 @@ impl Cursor {
                 |l,a,b,alpha| color::Rgba::from(color::Laba::new(*l,*a,*b,*alpha))
             );
 
-            def _ev = input.set_style.map(enclose!((size,anim_pos_x_setter,anim_pos_y_setter) move |style| {
-                match &style.press {
+            eval_ scene.frp.camera_changed ([]{
+                println!(">>>");
+            });
+
+            def _ev = input.set_style.map(enclose!((style,size,anim_pos_x_setter,anim_pos_y_setter) move |new_style| {
+                match &new_style.press {
                     None    => press.set_target_value(0.0),
                     Some(t) => press.set_target_value(*t),
                 }
 
-                match &style.host {
+                match &new_style.host {
                     None       => anim_use_fixed_pos_setter.set_target_value(0.0),
                     Some(host) => {
                         let position = host.global_position();
@@ -305,7 +315,7 @@ impl Cursor {
                     }
                 }
 
-                match &style.color {
+                match &new_style.color {
                     None => {
                         anim_color_lab_l_setter.set_target_value(1.0);
                         anim_color_lab_a_setter.set_target_value(0.0);
@@ -327,7 +337,7 @@ impl Cursor {
                     }
                 }
 
-                match &style.size {
+                match &new_style.size {
                     None => {
                         size.set_target_value(V2::new(16.0,16.0));
                     }
@@ -337,7 +347,7 @@ impl Cursor {
                     }
                 }
 
-                match &style.offset {
+                match &new_style.offset {
                     None => {
                         offset.set_target_value(V2::new(0.0,0.0));
                     }
@@ -347,10 +357,12 @@ impl Cursor {
                     }
                 }
 
-                match &style.radius {
+                match &new_style.radius {
                     None    => radius.set_target_value(8.0),
                     Some(r) => radius.set_target_value(*r),
                 }
+
+                *style.borrow_mut() = new_style.clone();
             }));
 
             def fixed_position = input.set_style.map(|style| style.host.as_ref().map(|t| t.global_position()));
@@ -379,26 +391,13 @@ impl Cursor {
 
         input.set_style.emit(Style::default());
 
+        let frp     = input.clone_ref();
+        let model   = CursorModel {logger,frp,view,resize_handle,style};
+        let model   = Rc::new(model);
 
-        let frp    = Events {input,position};
-        let data   = CursorData {logger,frp,view,resize_handle};
-        let data   = Rc::new(data);
+        let frp    = Frp {network,input,position};
 
-        Cursor {data}
-    }
-}
-
-impl StrongRef for Cursor {
-    type WeakRef = WeakCursor;
-    fn downgrade(&self) -> WeakCursor {
-        WeakCursor {data:Rc::downgrade(&self.data)}
-    }
-}
-
-impl WeakRef for WeakCursor {
-    type StrongRef = Cursor;
-    fn upgrade(&self) -> Option<Cursor> {
-        self.data.upgrade().map(|data| Cursor{data})
+        Cursor {frp,model}
     }
 }
 
