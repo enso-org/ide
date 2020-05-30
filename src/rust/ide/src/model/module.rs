@@ -18,6 +18,7 @@ use serde::Serialize;
 use serde::Deserialize;
 
 
+
 // ============
 // == Errors ==
 // ============
@@ -71,7 +72,7 @@ pub struct EmptyQualifiedName;
 /// * the last one is a source file with the module's contents.
 #[derive(Clone,Debug,Eq,Hash,PartialEq,Shrinkwrap)]
 pub struct Path {
-    file_path : FilePath,
+    file_path:FilePath,
 }
 
 impl Path {

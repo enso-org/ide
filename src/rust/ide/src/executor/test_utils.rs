@@ -24,7 +24,7 @@ impl TestWithLocalPoolExecutor {
         let running_task_count = Rc::new(Cell::new(0));
 
         set_spawner(executor.spawner());
-        Self {executor,running_task_count }
+        Self {executor,running_task_count}
     }
 
     /// Spawn new task in executor.
