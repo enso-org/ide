@@ -15,7 +15,7 @@ use crate::stream::Stream;
 use crate::stream::OwnedStream;
 use crate::stream;
 use enso_generics as generics;
-use enso_generi cs::traits::*;
+use enso_generics::traits::*;
 
 
 

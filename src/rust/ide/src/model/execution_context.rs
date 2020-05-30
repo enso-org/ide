@@ -7,6 +7,8 @@ use crate::double_representation::definition::DefinitionName;
 use enso_protocol::language_server;
 use enso_protocol::language_server::VisualisationConfiguration;
 
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -34,7 +36,7 @@ pub type ExpressionId = ast::Id;
 /// Binary data can be accessed through `Deref` or `AsRef` implementations.
 ///
 /// The inner storage is private and users should not make any assumptions about it.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct VisualizationUpdateData(Vec<u8>);
 
 impl VisualizationUpdateData {

@@ -55,7 +55,6 @@ use nalgebra::Vector2;
 use ensogl::display::Scene;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
-use crate::component::visualization::MockDataGenerator3D;
 
 
 
@@ -1092,9 +1091,17 @@ impl Deref for GraphEditor {
 }
 
 impl GraphEditor {
+    /// Add a new node and returns its ID.
     pub fn add_node(&self) -> NodeId {
         self.frp.add_node.emit(());
         self.frp.outputs.node_added.value()
+    }
+
+    /// Send visualization data to the specified node.
+    pub fn send_visualization_data(&self, node:NodeId, data:visualization::Data) {
+        if let Some(node) = self.nodes.get_cloned_ref(&node) {
+            node.view.visualization_container.frp.set_data.emit(Some(data));
+        }
     }
 }
 
@@ -1420,23 +1427,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         }
     }));
 
-    // === Vis Update Data ===
+    // === Vis Cycling ===
 
-    // TODO remove this once real data is available.
-    let sample_data_generator = MockDataGenerator3D::default();
-    def _set_dumy_data = inputs.debug_set_data_for_selected_node.map(f!([nodes](_) {
-        nodes.selected.for_each(|node_id| {
-            let data          = Rc::new(sample_data_generator.generate_data());
-            let content       = Rc::new(serde_json::to_value(data).unwrap());
-            let data          = visualization::Data::JSON{ content };
-            if let Some(node) = nodes.get_cloned(node_id) {
-                node.view.visualization_container.frp.set_data.emit(Some(data));
-            }
-        })
-    }));
-
-     let cycle_count = Rc::new(Cell::new(0));
-     def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
+    let cycle_count = Rc::new(Cell::new(0));
+    def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
         let visualizations = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
         let vis  = &visualizations[cycle_count.get()];

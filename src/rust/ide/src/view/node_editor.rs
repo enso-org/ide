@@ -13,7 +13,8 @@ use graph_editor::GraphEditor;
 use graph_editor::EdgeTarget;
 use utils::channel::process_stream_with_handle;
 use bimap::BiMap;
-
+use crate::model::execution_context::Visualization;
+use crate::model::synchronized::ExecutionContext;
 
 
 // ==============
@@ -275,6 +276,39 @@ impl GraphEditorIntegratedWithControllerModel {
             self.editor.frp.inputs.set_node_position.emit_event(&(displayed_id,default_pos));
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
+        // TODO[dg]: Should we only attach visualization when it is visible?
+        self.attach_visualization(displayed_id).ok();
+    }
+
+    async fn async_attach_visualization
+    ( editor        : GraphEditor
+    , node_id       : graph_editor::NodeId
+    , execution_ctx : Rc<ExecutionContext>
+    , visualization : Visualization) {
+        if let Ok(stream) = execution_ctx.attach_visualization(visualization).await {
+            let stream = stream.boxed_local();
+            let foreach_fut = stream.for_each(move |update| {
+                if let Ok(content) = serde_json::to_value(&update) {
+                    let content = Rc::new(content);
+                    let data    = graph_editor::component::visualization::Data::JSON{content};
+                    editor.send_visualization_data(node_id, data);
+                }
+                futures::future::ready(())
+            });
+            crate::executor::global::spawn(foreach_fut);
+        }
+    }
+
+    fn attach_visualization(&self, node_id:graph_editor::NodeId) -> FallibleResult<()> {
+        let id            = uuid::Uuid::new_v4();
+        let expression    = "x -> x.json_serialize".to_string();
+        let ast_id        = self.get_controller_node_id(node_id)?;
+        let visualization = Visualization{ast_id,expression,id};
+        let execution_ctx = self.controller.execution_ctx.clone_ref();
+        let editor        = self.editor.clone();
+        let attach = Self::async_attach_visualization(editor,node_id,execution_ctx,visualization);
+        crate::executor::global::spawn(attach);
+        Ok(())
     }
 
     fn update_node_view
