@@ -362,6 +362,7 @@ impl Frp {
 /// such a way, that the borders of the circle cross at the right angle. It also computes the angle
 /// of the intersection. Please note, that the center of the first circle is in the origin.
 ///
+/// ```compile_fail
 ///       r1
 ///      ◄───►                (1) x^2 + y^2 = r1^2 + r2^2
 ///    _____                  (1) => y = sqrt((r1^2 + r2^2)/x^2)
@@ -375,7 +376,7 @@ impl Frp {
 ///  \              /         tg(angle2) = r1 / r2
 ///   `._        _.'          alpha      = PI - angle1 - angle2
 ///      `-....-'
-///
+///```
 fn circle_intersection(x:f32, r1:f32, r2:f32) -> (f32,f32) {
     let x_norm = x.clamp(-r2,r1);
     let y      = (r1*r1 + r2*r2 - x_norm*x_norm).sqrt();
