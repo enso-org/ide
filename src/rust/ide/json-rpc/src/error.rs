@@ -28,6 +28,26 @@ pub enum RpcError {
     /// Failed to deserialize message from server.
     #[fail(display = "Failed to deserialize a message: {}.", _0)]
     DeserializationFailed(serde_json::Error),
+
+    /// Response was deserialized but its type was wrong.
+    #[fail(display = "Received a reply of a wrong type.")]
+    MismatchedResponseType,
+
+    /// Response timeout.
+    #[allow(missing_docs)]
+    #[fail(display = "Response timed out after {} ms.", millis)]
+    TimeoutError{millis:u128},
+}
+
+impl RpcError {
+    /// Wraps provided by the remote peer code and message into a `RpcError`.
+    pub fn new_remote_error(code:i64, message:impl Str) -> RpcError {
+        RpcError::RemoteError(Error {
+            code,
+            message : message.into(),
+            data    : None,
+        })
+    }
 }
 
 impl From<Canceled> for RpcError {

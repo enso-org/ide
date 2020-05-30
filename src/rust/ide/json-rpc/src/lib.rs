@@ -23,7 +23,10 @@ pub mod transport;
 pub use api::RemoteMethodCall;
 pub use api::Result;
 pub use enso_prelude as prelude;
+pub use ensogl_system_web as ensogl;
 pub use transport::Transport;
 pub use transport::TransportEvent;
 pub use handler::Event;
 pub use handler::Handler;
+
+#[cfg(test)] pub use utils::test::traits::*;

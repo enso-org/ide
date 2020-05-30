@@ -119,7 +119,7 @@ shared! { TextField
         frp              : Option<TextFieldFrp>,
         word_occurrences : Option<WordOccurrences>,
         #[derivative(Debug="ignore")]
-        text_change_callback : Option<Box<dyn FnMut(&TextChange)>>,
+        text_change_callback : Option<Box<dyn FnMut(TextChange)>>,
         focus_manager        : FocusManager,
         // TODO[ao] this should be infered from focus_manager, but it requires much refactoring.
         focused              : bool,
@@ -144,6 +144,12 @@ shared! { TextField
         /// Get size.
         pub fn size(&self) -> Vector2<f32> {
             self.properties.size
+        }
+
+        /// Set size.
+        pub fn set_size(&mut self, size:Vector2<f32>) {
+            self.properties.size = size;
+            self.rendered.update_lines(&self.properties);
         }
 
         /// Scroll text by given offset in pixels.
@@ -331,7 +337,7 @@ shared! { TextField
         ///
         /// This callback will be called once per `write` function call and all functions using it.
         /// That's include all edits being an effect of keyboard or mouse event.
-        pub fn set_text_edit_callback<Callback:FnMut(&TextChange) + 'static>
+        pub fn set_text_edit_callback<Callback:FnMut(TextChange) + 'static>
         (&mut self, callback:Callback) {
             self.text_change_callback = Some(Box::new(callback))
         }
@@ -440,7 +446,7 @@ impl TextField {
                 this.apply_one_cursor_change(&mut location_change,cursor_id,to_insert)
             });
             if let Some(callback) = opt_callback.as_mut() {
-                callback(&notification);
+                callback(notification);
             }
         }
         self.with_borrowed(|this| {

@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::notification;
 use crate::controller::graph::NodeTrees;
 
 use enso_frp as frp;
@@ -108,6 +107,13 @@ pub struct GraphEditorIntegratedWithController {
     network : frp::Network,
 }
 
+impl GraphEditorIntegratedWithController {
+    /// Get GraphEditor.
+    pub fn graph_editor(&self) -> GraphEditor {
+        self.model.editor.clone_ref()
+    }
+}
+
 #[derive(Debug)]
 struct GraphEditorIntegratedWithControllerModel {
     logger           : Logger,
@@ -146,7 +152,7 @@ impl GraphEditorIntegratedWithController {
         frp::extend! {network
             // Notifications from controller
             let handle_notification = FencedAction::fence(&network,
-                f!((notification:&Option<notification::Graph>)
+                f!((notification:&Option<controller::graph::Notification>)
                     model.handle_controller_notification(*notification);
             ));
 
@@ -164,7 +170,7 @@ impl GraphEditorIntegratedWithController {
 
     fn connect_frp_to_controller_notifications
     ( model        : &Rc<GraphEditorIntegratedWithControllerModel>
-    , frp_endpoint : frp::Source<Option<notification::Graph>>
+    , frp_endpoint : frp::Source<Option<controller::graph::Notification>>
     ) {
         let stream  = model.controller.graph.subscribe();
         let weak    = Rc::downgrade(model);
@@ -332,9 +338,10 @@ impl GraphEditorIntegratedWithControllerModel {
 
 impl GraphEditorIntegratedWithControllerModel {
     /// Handles notification received from controller.
-    pub fn handle_controller_notification(&self, notification:Option<notification::Graph>) {
+    pub fn handle_controller_notification
+    (&self, notification:Option<controller::graph::Notification>) {
         let result = match notification {
-            Some(notification::Graph::Invalidate) => self.update_graph_view(),
+            Some(controller::graph::Notification::Invalidate) => self.update_graph_view(),
             other => {
                 warning!(self.logger,"Handling notification {other:?} is not implemented; \
                     performing full invalidation");
@@ -438,19 +445,40 @@ impl GraphEditorIntegratedWithControllerModel {
 #[derive(Clone,CloneRef,Debug)]
 pub struct NodeEditor {
     display_object : display::object::Instance,
-    graph          : Rc<GraphEditorIntegratedWithController>,
-    controller     : controller::ExecutedGraph,
+    #[allow(missing_docs)]
+    pub graph     : Rc<GraphEditorIntegratedWithController>,
+    controller    : controller::ExecutedGraph,
+    visualization : controller::Visualization
 }
 
 impl NodeEditor {
     /// Create Node Editor Panel.
-    pub fn new(logger:&Logger, app:&Application, controller:controller::ExecutedGraph) -> Self {
+    pub async fn new
+    ( logger        : &Logger
+    , app           : &Application
+    , controller    : controller::ExecutedGraph
+    , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = logger.sub("NodeEditor");
         let display_object = display::object::Instance::new(&logger);
         let graph          = GraphEditorIntegratedWithController::new(logger,app,controller.clone_ref());
         let graph          = Rc::new(graph);
         display_object.add_child(&graph.model.editor);
-        NodeEditor {display_object,graph,controller}
+        Ok(NodeEditor {display_object,graph,controller,visualization}.init().await?)
+    }
+
+    async fn init(self) -> FallibleResult<Self> {
+        let graph_editor = self.graph.graph_editor();
+        let identifiers  = self.visualization.list_visualizations().await;
+        let identifiers  = identifiers.unwrap_or_default();
+        for identifier in identifiers {
+            let visualization = self.visualization.load_visualization(&identifier).await;
+            let visualization = visualization.map(|visualization| {
+                let class_handle = &Some(visualization);
+                graph_editor.frp.register_visualization_class.emit_event(class_handle);
+            });
+            visualization?;
+        }
+        Ok(self)
     }
 }
 

@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::notification;
 use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
@@ -126,14 +125,14 @@ impl TextEditor {
         }));
     }
 
-    fn handle_controller_notification(&self, notification:notification::Text)
+    fn handle_controller_notification(&self, notification:controller::text::Notification)
     -> impl Future<Output=()> {
         match notification {
-            notification::Text::Invalidate => self.reload_content()
+            controller::text::Notification::Invalidate => self.reload_content()
         }
     }
 
-    fn handle_text_field_notification(&self, change:&TextChange) {
+    fn handle_text_field_notification(&self, change:TextChange) {
         let (logger,controller) = self.with_borrowed(|data|
             (data.logger.clone_ref(),data.controller.clone_ref()));
         let result = controller.apply_text_change(change);
@@ -166,10 +165,8 @@ impl TextEditor {
         let position = data.position;
         let position = Vector3::new(position.x + padding.left,position.y + padding.bottom,z_origin);
         data.text_field.set_position(position);
-        // TODO: Set text field size once the size change gets supported.
-        // https://app.zenhub.com/workspaces/enso-5b57093c92e09f0d21193695/issues/luna/ide/217
-        // let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
-        // self.text_field.set_size(self.dimensions - padding);
+        let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
+        data.text_field.set_size(data.size - padding);
     }
 }
 

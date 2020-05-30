@@ -7,8 +7,7 @@ use json_rpc::test_util::transport::mock::MockTransport;
 use serde_json::json;
 use serde_json::Value;
 use std::future::Future;
-use utils::test::poll_future_output;
-use utils::test::poll_stream_output;
+use utils::test::traits::*;
 
 
 
@@ -40,7 +39,7 @@ fn setup_language_server() -> Fixture {
 fn test_file_event_notification() {
     let mut fixture = setup_language_server();
     let mut events  = Box::pin(fixture.client.events());
-    assert!(poll_stream_output(&mut events).is_none());
+    events.expect_pending();
 
     let root_id        = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
     let root_id        = root_id.expect("Couldn't parse uuid.");
@@ -62,12 +61,11 @@ fn test_file_event_notification() {
             }
         }"#;
     fixture.transport.mock_peer_text_message(notification_text);
-    assert!(poll_stream_output(&mut events).is_none());
+    events.expect_pending();
 
     fixture.executor.run_until_stalled();
 
-    let event = poll_stream_output(&mut events);
-    if let Some(Event::Notification(n)) = event {
+    if let Event::Notification(n) = events.expect_next() {
         assert_eq!(n, Notification::FileEvent {event:expected_event});
     } else {
         panic!("expected notification event");
@@ -99,8 +97,7 @@ where Fun : FnOnce(&mut Client) -> Fut,
     let response = Message::new_success(request.id, result);
     fixture.transport.mock_peer_json_message(response);
     fixture.executor.run_until_stalled();
-    let output = poll_future_output(&mut request_future).unwrap().unwrap();
-    assert_eq!(output, expected_output);
+    assert_eq!(request_future.expect_ok(),expected_output);
 }
 
 #[test]
@@ -187,7 +184,7 @@ fn test_file_requests() {
     test_request(
         |client| client.move_file(&main, &target),
         "file/move",
-        from_main_to_target.clone(),
+        from_main_to_target,
         unit_json.clone(),
         ());
 
@@ -237,7 +234,7 @@ fn test_file_requests() {
     test_request(
         |client| client.file_info(&main),
         "file/info",
-        path_main.clone(),
+        path_main,
         sample_attributes_json,
         expected_attributes);
     let create_file_json = json!({
@@ -246,7 +243,7 @@ fn test_file_requests() {
     test_request(
         |client| client.create_file(&file_system_object),
         "file/create",
-        create_file_json.clone(),
+        create_file_json,
         unit_json.clone(),
         ());
     test_request(
@@ -259,7 +256,7 @@ fn test_file_requests() {
             },
             "contents" : "Hello world!"
         }),
-        unit_json.clone(),
+        unit_json,
         ());
 }
 
@@ -287,9 +284,8 @@ fn test_acquire_capability() {
     let root_id   = root_id.expect("Couldn't parse uuid.");
     let unit_json = json!(null);
 
-    let path                  = Path { root_id, segments: default() };
-    let receives_tree_updates = ReceivesTreeUpdates { path };
-    let options               = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+    let path    = Path { root_id, segments: default() };
+    let options = RegisterOptions::Path{path};
     test_request(
         |client| client.acquire_capability(&"receivesTreeUpdates".to_string(), &options),
         "capability/acquire",
@@ -302,7 +298,7 @@ fn test_acquire_capability() {
                 }
             }
         }),
-        unit_json.clone(),
+        unit_json,
         ()
     );
 }
@@ -429,8 +425,7 @@ fn test_execution_context() {
     let current_version       = Sha3_224::new(content);
     let content               = String::from_utf8_lossy(content).to_string();
     let method                = "text/canEdit".to_string();
-    let receives_tree_updates = ReceivesTreeUpdates{path:main.clone()};
-    let register_options      = RegisterOptions::ReceivesTreeUpdates(receives_tree_updates);
+    let register_options      = RegisterOptions::Path{path:main.clone()};
     let write_capability      = Some(CapabilityRegistration{method,register_options});
     let open_text_file_response = response::OpenTextFile
     {content,current_version:current_version.clone(),write_capability};
@@ -467,7 +462,7 @@ fn test_execution_context() {
     let old_version = Sha3_224::new(b"Hello world!");
     let new_version = Sha3_224::new(b"Hello, world!");
     let path        = main.clone();
-    let edit        = FileEdit {path,edits,old_version,new_version:new_version.clone()};
+    let edit        = FileEdit {path,edits,old_version,new_version:new_version};
     test_request(
         |client| client.apply_text_file_edit(&edit),
         "text/applyEdit",
