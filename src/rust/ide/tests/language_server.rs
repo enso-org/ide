@@ -18,8 +18,8 @@ use ide::controller::Project;
 use ide::model::execution_context::Visualization;
 use ide::transport::web::WebSocket;
 use ide::view::project::INITIAL_MODULE_NAME;
-use wasm_bindgen_test::wasm_bindgen_test;
 use std::time::Duration;
+use wasm_bindgen_test::wasm_bindgen_test;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 
 /// The endpoint at which the Language Server should be accepting WS connections.

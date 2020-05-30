@@ -25,19 +25,16 @@ use shapely::shared;
 // === Constants ===
 // =================
 
-/// Path of the file that is initially opened in project view.
+/// The name of the module initially opened in the project view.
 ///
-/// Currently this path is hardcoded in the engine services and is populated for each project
+/// Currently this name is hardcoded in the engine services and is populated for each project
 /// created using engine's Project Picker service.
 ///
-/// TODO [mwu] Path of the file that will be initially opened in the text editor.
+/// TODO [mwu] Name of the moduke that will be initially opened in the text editor.
 ///      Provisionally the Project View is hardcoded to open with a single text
-///      editor and it will be connected with a file under this path.
+///      editor and it will be connected with a file with module of this name.
 ///      To be replaced with better mechanism once we decide how to describe
 ///      default initial layout for the project.
-pub const INITIAL_FILE_NAME:&str = "Main.enso";
-
-/// The name of the initially opened module.
 pub const INITIAL_MODULE_NAME:&str = "Main";
 
 /// Name of the main definition.
