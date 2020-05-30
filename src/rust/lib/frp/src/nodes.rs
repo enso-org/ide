@@ -1337,6 +1337,12 @@ pub struct AllMutData  <Out=()> {
 pub type   OwnedAllMut <Out=()> = stream::Node     <AllMutData<Out>>;
 pub type   AllMut      <Out=()> = stream::WeakNode <AllMutData<Out>>;
 
+impl<Out> Debug for AllMutData<Out> {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"AllMutData")
+    }
+}
+
 impl<Out:Data> HasOutput for AllMutData<Out> {
     type Output = Vec<Out>;
 }
@@ -1412,7 +1418,7 @@ impl<Out:Data> AllMut<Out> {
 }
 
 impl<Out:Data> stream::EventConsumer<Out> for OwnedAllMut<Out> {
-    fn on_event(&self, event:&Out) {
+    fn on_event(&self, _event:&Out) {
         let values = self.srcs.borrow().iter().map(|src| src.value()).collect();
         self.emit_event(&values);
     }

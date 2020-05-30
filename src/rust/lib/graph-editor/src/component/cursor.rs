@@ -65,7 +65,7 @@ impl Style {
     where H:display::Object {
         let host  = Some(host.display_object().clone_ref());
         let size  = Some(StyleParam::new(size));
-        let color = color.map(|c| StyleParam::new(c));
+        let color = color.map(StyleParam::new);
         Self {host,size,color,..default()}
     }
 
@@ -97,6 +97,7 @@ impl Style {
 }
 
 impl PartialSemigroup<&Style> for Style {
+    #[allow(clippy::clone_on_copy)]
     fn concat_mut(&mut self, other:&Self) {
         if self.host   . is_none() { self.host   = other.host   . clone() }
         if self.size   . is_none() { self.size   = other.size   . clone() }

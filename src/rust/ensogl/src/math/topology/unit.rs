@@ -183,6 +183,7 @@ pub type Distance<Type=Anything,Repr=f32> = Unit<quantity::Distance,Type,Repr>;
 pub struct Pixels;
 
 /// Provides a `px` method to every unit that can be converted to a pixel distance.
+#[allow(missing_docs)]
 pub trait PixelDistance {
     type Output;
     /// Distance in pixels.

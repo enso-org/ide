@@ -20,10 +20,8 @@ pub use nalgebra::Matrix4x3;
 use nalgebra;
 use nalgebra::Scalar;
 use nalgebra::Matrix;
-use nalgebra::VectorN;
 use nalgebra::ComplexField;
 use nalgebra::Dim;
-use nalgebra::DimName;
 use nalgebra::storage::Storage;
 
 use std::ops::AddAssign;
@@ -40,6 +38,7 @@ pub trait Zero {
     fn zero() -> Self;
 }
 
+/// Smart constructor for the `Zero` trait.
 pub fn zero<T:Zero>() -> T {
     <T as Zero>::zero()
 }
@@ -59,7 +58,7 @@ macro_rules! gen_zero {
 
 macro_rules! gen_zero_nalgebra {
     ([$($ty:ident),*]) => {$(
-        impl<T:nalgebra::Scalar+num_traits::Zero> Zero for $ty<T> {
+        impl<T:Scalar+num_traits::Zero> Zero for $ty<T> {
             fn zero() -> Self {
                 nalgebra::zero()
             }
@@ -425,9 +424,14 @@ macro_rules! define_vector {
         #[derive(Clone,Copy,Debug,Default)]
         #[repr(C)]
         pub struct $name<T=f32> {
-            $(pub $field : T),*
+            $(
+                /// Vector component.
+                pub $field : T
+            ),*
         }
 
+        /// Smart constructor.
+        #[allow(non_snake_case)]
         pub fn $name<T>($($field:T),*) -> $name<T> {
             $name {$($field),*}
         }
@@ -438,6 +442,12 @@ macro_rules! define_vector {
                 Self {$($field),*}
             }
 
+            /// Converts the struct to slice.
+            ///
+            /// # Safety
+            /// The code is safe as the struct is implemented as `repr(C)`.
+            #[allow(unsafe_code)]
+            #[allow(trivial_casts)]
             pub fn as_slice(&self) -> &[T] {
                 // Safe, because $name is defined as `#[repr(C)]`.
                 let ptr = self as *const $name<T> as *const T;

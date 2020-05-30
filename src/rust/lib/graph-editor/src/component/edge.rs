@@ -229,6 +229,7 @@ impl LayoutLine for component::ShapeView<back::line::Shape> {
 // === Front / Back Shapes ===
 // ===========================
 
+/// Shape definitions which will be rendered in the front layer (on top of nodes).
 pub mod front {
     use super::*;
     define_corner_start!(color::Lcha::new(0.6,0.5,0.76,1.0));
@@ -236,6 +237,7 @@ pub mod front {
     define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
 }
 
+/// Shape definitions which will be rendered in the bottom layer (below nodes).
 pub mod back {
     use super::*;
     define_corner_end!(color::Lcha::new(0.6,0.5,0.76,1.0));
@@ -254,6 +256,7 @@ macro_rules! define_components {
         $($field:ident : $field_type:ty),* $(,)?
     }) => {
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(missing_docs)]
         pub struct $name {
             pub logger         : Logger,
             pub display_object : display::object::Instance,
@@ -261,6 +264,7 @@ macro_rules! define_components {
         }
 
         impl $name {
+            /// Constructor.
             pub fn new(logger:Logger, scene:&Scene) -> Self {
                 let display_object = display::object::Instance::new(&logger);
                 $(let $field = component::ShapeView::new(&logger.sub(stringify!($field)),scene);)*
@@ -302,15 +306,19 @@ define_components!{
     }
 }
 
+// TODO: Implement proper sorting and remove.
+/// Hack function used to register the elements for the sorting purposes. To be removed.
 pub fn sort_hack_1(scene:&Scene) {
-    let logger = Logger::new("hack");
+    let logger = Logger::new("hack_sort");
     component::ShapeView::<back::corner::Shape>::new(&logger,scene);
     component::ShapeView::<back::line::Shape>::new(&logger,scene);
     component::ShapeView::<back::arrow::Shape>::new(&logger,scene);
 }
 
+// TODO: Implement proper sorting and remove.
+/// Hack function used to register the elements for the sorting purposes. To be removed.
 pub fn sort_hack_2(scene:&Scene) {
-    let logger = Logger::new("hack");
+    let logger = Logger::new("hack_sort");
     component::ShapeView::<front::corner::Shape>::new(&logger,scene);
     component::ShapeView::<front::line::Shape>::new(&logger,scene);
     component::ShapeView::<front::arrow::Shape>::new(&logger,scene);
@@ -322,7 +330,9 @@ pub fn sort_hack_2(scene:&Scene) {
 // === FRP ===
 // ===========
 
+/// FRP endpoints of the edge.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct Frp {
     pub source_width    : frp::Source<f32>,
     pub target_position : frp::Source<frp::Position>,
@@ -330,6 +340,7 @@ pub struct Frp {
 }
 
 impl Frp {
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def source_width    = source();
@@ -488,6 +499,7 @@ impl EdgeModelData {
     }
 
     /// Redraws the connection.
+    #[allow(clippy::cognitive_complexity)]
     pub fn redraw(&self) {
 
         // === Variables ===
@@ -572,7 +584,6 @@ impl EdgeModelData {
         let far_side_len       = if target_is_below_node {len_below} else {port_line_len_max};
         let flat_side_len      = min(far_side_len,-port_line_start.y);
         let mut port_line_len  = if is_flat_side && is_down {flat_side_len} else {far_side_len};
-        let port_line_len_diff = port_line_len_max - port_line_len;
         let port_line_end      = Vector2::new(target.x,port_line_start.y + port_line_len);
 
 
@@ -732,6 +743,7 @@ impl EdgeModelData {
             let side_combined       = side * corner_2_3_side;
             let corner2_radius      = corner2_radius * corner_2_3_scale;
             let corner3_radius      = corner3_radius * corner_2_3_scale;
+            let is_right_side       = (side_combined - 1.0) < std::f32::EPSILON;
 
 
             // === Corner2 & Corner3 Placement ===
@@ -747,7 +759,7 @@ impl EdgeModelData {
             let corner2_y     = max(corner2_y, corner1.y);
             let corner3_y     = max(corner3_y,corner2_y - corner3_radius + corner2_radius);
             let corner3       = Vector2::new(corner3_x*side,corner3_y);
-            let corner3_angle = if (side_combined == 1.0) {0.0} else {-RIGHT_ANGLE};
+            let corner3_angle = if is_right_side {0.0} else {-RIGHT_ANGLE};
 
             if target_attached {
                 fg.corner3.shape.sprite.size().set(zero());
@@ -771,7 +783,7 @@ impl EdgeModelData {
 
             let corner2_x     = corner1_target.x + corner_2_3_side * corner2_radius;
             let corner2       = Vector2::new(corner2_x*side,corner2_y);
-            let corner2_angle = if (side_combined == 1.0) {-RIGHT_ANGLE} else {0.0};
+            let corner2_angle = if is_right_side {-RIGHT_ANGLE} else {0.0};
 
             if target_attached {
                 fg.corner2.shape.sprite.size().set(zero());

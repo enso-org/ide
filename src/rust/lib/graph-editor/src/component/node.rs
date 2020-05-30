@@ -24,9 +24,7 @@ use ensogl::gui::component::animation2;
 use ensogl::gui::component;
 
 use super::edge;
-use super::edge::Edge;
 use crate::component::visualization;
-
 
 
 
@@ -45,7 +43,7 @@ pub mod shape {
         (style:Style, selection:f32) {
             let bg_color = style.get("graph_editor.node.background.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
             let selection_color = style.get("graph_editor.node.selection.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
-            let selection_size  = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
+            let _selection_size = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
 
             let border_size_f = 16.0;
 

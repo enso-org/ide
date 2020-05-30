@@ -9,7 +9,7 @@ use ensogl::prelude::*;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::system::web;
 use ensogl::application::Application;
-use graph_editor::{GraphEditor, EdgeTarget};
+use graph_editor::GraphEditor;
 use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
 use ensogl_core_msdf_sys::run_once_initialized;
@@ -33,7 +33,7 @@ pub fn run_example_shapes() {
 }
 
 
-fn fence<T,Out>(network:&frp::Network, trigger:T) -> (frp::Stream,frp::Stream<bool>)
+fn _fence<T,Out>(network:&frp::Network, trigger:T) -> (frp::Stream,frp::Stream<bool>)
 where T:frp::HasOutput<Output=Out>, T:Into<frp::Stream<Out>>, Out:frp::Data {
     let trigger = trigger.into();
     frp::extend! { network

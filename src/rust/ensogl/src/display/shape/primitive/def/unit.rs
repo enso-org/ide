@@ -18,6 +18,7 @@ pub use crate::math::topology::unit::Degrees;
 // =====================
 
 /// Provides a `px` method to every unit that can be converted to a pixel distance.
+#[allow(missing_docs)]
 pub trait PixelDistance {
     type Output;
     /// Distance in pixels.

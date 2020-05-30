@@ -786,9 +786,8 @@ impl GraphEditorModelWithNetwork {
         let node_id = node.id();
         self.add_child(&node);
 
-        let cursor = &self.cursor;
-        let touch  = &self.touch_state;
-        let model  = &self.model;
+        let touch = &self.touch_state;
+        let model = &self.model;
 
         frp::new_bridge_network! { [self.network, node.view.main_area.events.network]
             eval_ node.view.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
@@ -1392,7 +1391,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
     add_node           <- any (inputs.add_node, add_node_at_cursor);
-    new_node           <- add_node.map(f_!([model,outputs,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down)));
+    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down)));
     outputs.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
