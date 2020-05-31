@@ -8,6 +8,7 @@ use crate::prelude::*;
 
 use crate::animation::physics::inertia;
 use crate::animation::physics::inertia::DynSimulator;
+use crate::animation::easing;
 use crate::display::object::traits::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
@@ -219,5 +220,17 @@ pub fn animator<T:inertia::Value>(network:&frp::Network) -> (DynSimulator<T>, fr
         def target = source::<T>();
     }
     let source = DynSimulator::<T>::new(Box::new(f!((t) target.emit(t))));
+    (source,target.into())
+}
+
+
+/// Define a new animation FRP network.
+pub fn animator2(network:&frp::Network) -> (easing::Animator<f32,Box<dyn Fn(f32)->f32>,Box<dyn Fn(f32)>>, frp::Stream<f32>) {
+    frp::extend! { network
+        def target = source::<f32>();
+    }
+    let ff = Box::new(easing::quad_in_out) as Box<dyn Fn(f32) -> f32>;
+    let gg = Box::new(f!((t) target.emit(t))) as Box<dyn Fn(f32)>;
+    let source = easing::Animator::new(0.0,1.0,ff,gg);
     (source,target.into())
 }

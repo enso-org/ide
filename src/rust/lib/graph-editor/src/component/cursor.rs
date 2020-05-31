@@ -17,8 +17,10 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component::animation2;
 use ensogl::gui::component::animator;
+use ensogl::gui::component::animator2;
 use ensogl::gui::component;
 use ensogl::system::web;
+use ensogl::animation::physics::inertia::Spring;
 
 use ensogl::display::object::class::ObjectOps; // FIXME: why?
 
@@ -135,20 +137,21 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        ( dim            : V2
-        , offset         : V2
+        ( offset         : V2
         , selection_size : Vector2<f32>
         , press          : f32
         , radius         : f32
         , color          : Vector4<f32>
         ) {
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
             let press_diff       = 2.px() * &press;
             let radius           = 1.px() * radius - &press_diff;
             let offset : Var<V2<Distance<Pixels>>>           = offset.px();
             let selection_width  = 1.px() * &selection_size.x(); // * &press;
             let selection_height = 1.px() * &selection_size.y(); // * &press;
-            let width            = (1.px() * &dim.x() - &press_diff * 2.0) + selection_width.abs();
-            let height           = (1.px() * &dim.y() - &press_diff * 2.0) + selection_height.abs();
+            let width            = (&width  - &press_diff * 2.0) + selection_width.abs();
+            let height           = (&height - &press_diff * 2.0) + selection_height.abs();
             let cursor = Rect((width,height))
                 .corners_radius(radius)
                 //.translate(offset)
@@ -273,6 +276,10 @@ impl Cursor {
         let (size,current_size) = animator::<V2>(&network);
         let (offset,current_offset) = animator::<V2>(&network);
         let (host_position,current_host_position) = animator::<V3>(&network);
+        let (host_selection,current_host_selection) = animator::<f32>(&network);
+
+        let (host_selection,current_host_selection) = animator2(&network);
+        host_selection.set_duration(300.0);
 //        let (camera_position,current_camera_position) = animator::<V3>(&network);
 
         let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(&network);
@@ -295,9 +302,12 @@ impl Cursor {
 
 
 
+
         frp::extend! { network
 
-            eval current_size ((v) view.shape.dim.set(*v));
+            trace current_host_selection;
+
+            eval current_size ((v) view.shape.sprite.size().set(Vector2::new(v.x,v.y)));
             eval current_offset ((v) view.shape.offset.set(*v));
 
 //            def anim_position = anim_pos_x.all_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
@@ -309,11 +319,19 @@ impl Cursor {
 
 
             def _ev = input.set_style.map(enclose!((anim_use_fixed_pos_setter,style,size,host_position) move |new_style| {
+//                host_selection.set_target_value(0.0);
+//                host_selection.skip();
+                host_selection.rewind();
+
                 match &new_style.press {
                     None    => press.set_target_value(0.0),
                     Some(t) => press.set_target_value(*t),
                 }
 
+                match &new_style.host {
+                    Some(_) => host_selection.start(), // set_target_value(100.0),
+                    _ => {}
+                }
 //                match &new_style.host {
 //                    None       => anim_use_fixed_pos_setter.set_target_value(0.0),
 //                    Some(host) => {
@@ -370,6 +388,8 @@ impl Cursor {
                     Some(r) => radius.set_target_value(*r),
                 }
 
+
+
                 *style.borrow_mut() = new_style.clone();
             }));
 
@@ -382,50 +402,14 @@ impl Cursor {
             def is_not_hosted = hosted_position.map(|p| p.is_none());
             def mouse_position_not_hosted = mouse.position.gate(&is_not_hosted);
 
-            def position = mouse.position.all_with3(&current_host_position,&anim_use_fixed_pos, |p,ap,au| {
-                let x = ap.x * au + p.x * (1.0 - au);
-                let y = ap.y * au + p.y * (1.0 - au);
-                let z = ap.z * au;// + p.z * (1.0 - au);
-                V3(x,y,z)
-            });
 
-            eval anim_color    ((t) view.shape.color.set(Vector4::new(t.red,t.green,t.blue,t.alpha)));
-            eval position ((p) view.set_position(Vector3::new(p.x,p.y,p.z)));
-
-
-
-//            foo <- current_camera_position.all_with(&anim_use_fixed_pos,f!([model](pos,f) {
-//                let tgt = model.scene.camera().position();
-//                let x   = f*tgt.x + (1.0 - f) * pos.x;
-//                let y   = f*tgt.y + (1.0 - f) * pos.y;
-//                let z   = f*tgt.z + (1.0 - f) * pos.z;
-//                model.scene.views.cursor.camera.set_position(Vector3::new(x,y,z))
-//            }));
-
-//            def foo = mouse.position.all_with3(&current_host_position,&anim_use_fixed_pos, |p,ap,au| {
-//                let x = ap.x * au + p.x * (1.0 - au);
-//                let y = ap.y * au + p.y * (1.0 - au);
-//                frp::Position::new(x,y)
-//            });
-
-            eval_ host_changed([model,host_position,anim_use_fixed_pos_setter]{
-//                println!(">>> {:?}", model.scene.camera().position());
-
+            eval_ host_changed([model,host_position,anim_use_fixed_pos_setter] {
                 match &model.style.borrow().host {
                     None       => {
                         anim_use_fixed_pos_setter.set_target_value(0.0);
-//                        model.scene.views.cursor.camera.set_position_xy(Vector2::new(0.0,0.0));
-//                        model.scene.views.cursor.camera.reset_zoom();
                         let z = model.scene.views.cursor.camera.z_zoom_1();
-//                        camera_position.set_target_value(V3(0.0,0.0,z));
-
                     }
                     Some(host) => {
-//                        let host_matrix = host.transform_matrix();
-//                        let cam_matrix  = model.scene.camera().view_projection_matrix();
-//                        let matrix      = cam_matrix * host_matrix;
-//                        let position    = (matrix * Vector4::new(0.0,0.0,0.0,1.0)).xyz();
-
                         anim_use_fixed_pos_setter.set_target_value(1.0);
                         let m1 = model.scene.views.cursor.camera.inversed_view_matrix();
                         let m2 = model.scene.camera().view_matrix();
@@ -434,14 +418,28 @@ impl Cursor {
                         let position    = Vector4::new(position.x,position.y,position.z,1.0);
                         let position    = m2 * (m1 * position);
                         host_position.set_target_value(V3(position.x,position.y,position.z));
-                        host_position.skip();
-
-//                        model.scene.views.cursor.camera.set_position(model.scene.camera().position());
-//                        let tgt_cam_pos = model.scene.camera().position();
-//                        camera_position.set_target_value(tgt_cam_pos.into());
                     }
                 }
             });
+
+
+            hp <- host_changed.all_with3(&current_host_selection,&current_host_position, f!([host_position](_,s,p) {
+                let tp = host_position.target_value();
+                let x  = s * tp.x + (1.0 - s) * p.x;
+                let y  = s * tp.y + (1.0 - s) * p.y;
+                let z  = s * tp.z + (1.0 - s) * p.z;
+                V3(x,y,z)
+            }));
+
+            def position = mouse.position.all_with3(&hp,&anim_use_fixed_pos, |p,ap,au| {
+                let x = ap.x * au + p.x * (1.0 - au);
+                let y = ap.y * au + p.y * (1.0 - au);
+                let z = ap.z * au;// + p.z * (1.0 - au);
+                V3(x,y,z)
+            });
+
+            eval anim_color    ((t) view.shape.color.set(Vector4::new(t.red,t.green,t.blue,t.alpha)));
+            eval position ((p) view.set_position(Vector3::new(p.x,p.y,p.z)));
 
             def _position = mouse_position_not_hosted.map(f!([host_position](p) {
                 host_position.set_target_value(V3(p.x,p.y,0.0));

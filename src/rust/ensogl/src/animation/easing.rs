@@ -156,7 +156,7 @@ impl<T:Value,F,Cb> AnimatorData<T,F,Cb>
         let weight = (self.tween_fn)(sample);
         let value  = self.start_value.get() * (1.0-weight) + self.end_value.get() * weight;
         (self.callback)(value);
-        if (sample - 1.0) < std::f32::EPSILON {
+        if (sample - 1.0).abs() < std::f32::EPSILON {
             self.active.set(false);
         }
     }
@@ -196,7 +196,7 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:FnEasing, Cb:Callback<T> {
         self
     }
 
-    fn start(&self) {
+    pub fn start(&self) {
         if self.animation_loop.get().is_none() {
             let animation_loop = animation::Loop::new(step(&self));
             self.animation_loop.set(Some(animation_loop));
@@ -204,10 +204,12 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:FnEasing, Cb:Callback<T> {
         }
     }
 
-    fn stop(&self) {
+    pub fn stop(&self) {
         self.animation_loop.set(None);
         self.data.active.set(false);
     }
+}
+impl<T:Value,F,Cb> Animator<T,F,Cb> where F:FnEasing, Cb:Callback<T> {
 
     /// Resets the animator.
     pub fn reset(&self) {
@@ -215,11 +217,18 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:FnEasing, Cb:Callback<T> {
         self.start();
     }
 
+    /// Stops the animation, rewinds it to the initial value and calls the callback.
+    pub fn rewind(&self) {
+        self.stop();
+        (self.data.callback)(self.start_value());
+    }
+
     /// Checks whether the animator is running.
     pub fn active(&self) -> bool {
         self.data.active.get()
     }
 }
+
 
 // === Getters & Setters ===
 
