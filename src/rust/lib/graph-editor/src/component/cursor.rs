@@ -135,8 +135,7 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        ( position       : Vector2<f32>
-        , dim            : V2
+        ( dim            : V2
         , offset         : V2
         , selection_size : Vector2<f32>
         , press          : f32
@@ -152,8 +151,7 @@ pub mod shape {
             let height           = (1.px() * &dim.y() - &press_diff * 2.0) + selection_height.abs();
             let cursor = Rect((width,height))
                 .corners_radius(radius)
-                .translate(offset)
-                .translate(("input_position.x","input_position.y"))
+                //.translate(offset)
                 .fill("srgba(input_color)");
             cursor.into()
         }
@@ -222,7 +220,6 @@ pub struct CursorModel {
     pub frp    : FrpInputs,
     pub view   : component::ShapeView<shape::Shape>,
     pub style  : Rc<RefCell<Style>>,
-    pub resize_handle : callback::Handle, // FIXME: migrate to FRP
 }
 
 impl CursorModel {
@@ -232,14 +229,14 @@ impl CursorModel {
         let view   = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let scene_shape = scene.shape();
         let shape  = &view.shape;
-        shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
-        let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
-            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
-        }));
+        shape.sprite.size().set(Vector2::new(50.0,50.0));
+//        let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
+//            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
+//        }));
         let style = Rc::new(RefCell::new(Style::default()));
 
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
-        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
+//        shape_system.shape_system.set_alignment(alignment::HorizontalAlignment::Left, alignment::VerticalAlignment::Bottom);
         shape_system.shape_system.set_pointer_events(false);
 
         scene.views.main.remove(&shape_system.shape_system.symbol);
@@ -247,28 +244,14 @@ impl CursorModel {
 
         let scene = scene.clone_ref();
 
-        Self {logger,scene,frp,view,resize_handle,style}
+        Self {logger,scene,frp,view,style}
     }
 }
 
 impl Cursor {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-//        let logger = Logger::new("cursor");
-//        let view   = component::ShapeView::<shape::Shape>::new(&logger,scene);
         let network = frp::Network::new();
-//        let input = FrpInputs::new(&network);
-
-//        let style = Rc::new(RefCell::new(Style::default()));
-
-
-
-//        let scene_shape = scene.shape();
-//        let shape       = &view.shape;
-
-//        let resize_handle = scene.on_resize(enclose!((shape) move |scene_shape:&web::dom::ShapeData| {
-//            shape.sprite.size().set(Vector2::new(scene_shape.width(),scene_shape.height()));
-//        }));
 
         let model = CursorModel::new(scene,&network);
 
@@ -289,10 +272,12 @@ impl Cursor {
 
         let (size,current_size) = animator::<V2>(&network);
         let (offset,current_offset) = animator::<V2>(&network);
+        let (host_position,current_host_position) = animator::<V2>(&network);
+        let (camera_position,current_camera_position) = animator::<V2>(&network);
 
         let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(&network);
-        let (anim_pos_x_setter,anim_pos_x) = animation2(&network);
-        let (anim_pos_y_setter,anim_pos_y) = animation2(&network);
+//        let (anim_pos_x_setter,anim_pos_x) = animation2(&network);
+//        let (anim_pos_y_setter,anim_pos_y) = animation2(&network);
 
         let (anim_color_lab_l_setter,anim_color_lab_l) = animation2(&network);
         let (anim_color_lab_a_setter,anim_color_lab_a) = animation2(&network);
@@ -315,7 +300,7 @@ impl Cursor {
             eval current_size ((v) view.shape.dim.set(*v));
             eval current_offset ((v) view.shape.offset.set(*v));
 
-            def anim_position = anim_pos_x.all_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
+//            def anim_position = anim_pos_x.all_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
 
             anim_color <- all_with4(&anim_color_lab_l,&anim_color_lab_a,&anim_color_lab_b,&anim_color_alpha,
                 |l,a,b,alpha| color::Rgba::from(color::Laba::new(*l,*a,*b,*alpha))
@@ -323,21 +308,20 @@ impl Cursor {
 
 
 
-            def _ev = input.set_style.map(enclose!((anim_use_fixed_pos_setter,style,size,anim_pos_x_setter,anim_pos_y_setter) move |new_style| {
+            def _ev = input.set_style.map(enclose!((anim_use_fixed_pos_setter,style,size,host_position) move |new_style| {
                 match &new_style.press {
                     None    => press.set_target_value(0.0),
                     Some(t) => press.set_target_value(*t),
                 }
 
-                match &new_style.host {
-                    None       => anim_use_fixed_pos_setter.set_target_value(0.0),
-                    Some(host) => {
-                        let position = host.global_position();
-                        anim_pos_x_setter.set_target_value(position.x);
-                        anim_pos_y_setter.set_target_value(position.y);
-                        anim_use_fixed_pos_setter.set_target_value(1.0);
-                    }
-                }
+//                match &new_style.host {
+//                    None       => anim_use_fixed_pos_setter.set_target_value(0.0),
+//                    Some(host) => {
+//                        let position = host.global_position();
+//                        host_position.set_target_value(V2(position.x,position.y));
+//                        anim_use_fixed_pos_setter.set_target_value(1.0);
+//                    }
+//                }
 
                 match &new_style.color {
                     None => {
@@ -389,22 +373,7 @@ impl Cursor {
                 *style.borrow_mut() = new_style.clone();
             }));
 
-            eval_ scene.frp.camera_changed ([model,anim_pos_x_setter,anim_pos_y_setter,anim_use_fixed_pos_setter]{
-                println!(">>> {:?}", model.scene.camera().position());
 
-                match &model.style.borrow().host {
-                    None       => anim_use_fixed_pos_setter.set_target_value(0.0),
-                    Some(host) => {
-                        let host_matrix = host.transform_matrix();
-                        let cam_matrix  = model.scene.camera().view_projection_matrix();
-                        let matrix      = cam_matrix * host_matrix;
-                        let position    = (matrix * Vector4::new(0.0,0.0,0.0,1.0)).xyz();
-                        anim_pos_x_setter.set_target_value(position.x);
-                        anim_pos_y_setter.set_target_value(position.y);
-                        anim_use_fixed_pos_setter.set_target_value(1.0);
-                    }
-                }
-            });
 
             pos_changed <- any_(input.set_style,scene.frp.camera_changed);
 
@@ -413,19 +382,48 @@ impl Cursor {
             def uses_mouse_position = fixed_position.map(|p| p.is_none());
             def mouse_position = mouse.position.gate(&uses_mouse_position);
 
-            def position = mouse.position.all_with3(&anim_position,&anim_use_fixed_pos, |p,ap,au| {
+            def position = mouse.position.all_with3(&current_host_position,&anim_use_fixed_pos, |p,ap,au| {
                 let x = ap.x * au + p.x * (1.0 - au);
                 let y = ap.y * au + p.y * (1.0 - au);
                 frp::Position::new(x,y)
             });
 
             eval anim_color    ((t) view.shape.color.set(Vector4::new(t.red,t.green,t.blue,t.alpha)));
-            eval position ((p) view.shape.position.set(Vector2::new(p.x,p.y)));
+            eval position ((p) view.set_position_xy(Vector2::new(p.x,p.y)));
 
-            def _position = mouse_position.map(f!([anim_pos_x_setter,anim_pos_y_setter](p) {
-                anim_pos_x_setter.set_target_value(p.x);
-                anim_pos_y_setter.set_target_value(p.y);
-            }));
+
+            eval current_camera_position((pos) model.scene.views.cursor.camera.set_position_xy(Vector2::new(pos.x,pos.y)));
+            
+            eval_ pos_changed ([model,host_position,camera_position,anim_use_fixed_pos_setter]{
+                println!(">>> {:?}", model.scene.camera().position());
+
+                match &model.style.borrow().host {
+                    None       => {
+                        anim_use_fixed_pos_setter.set_target_value(0.0);
+//                        model.scene.views.cursor.camera.set_position_xy(Vector2::new(0.0,0.0));
+//                        model.scene.views.cursor.camera.reset_zoom();
+                        camera_position.set_target_value(V2(0.0,0.0));
+
+                    }
+                    Some(host) => {
+//                        let host_matrix = host.transform_matrix();
+//                        let cam_matrix  = model.scene.camera().view_projection_matrix();
+//                        let matrix      = cam_matrix * host_matrix;
+//                        let position    = (matrix * Vector4::new(0.0,0.0,0.0,1.0)).xyz();
+                        let position    = host.global_position();
+                        host_position.set_target_value(V2(position.x,position.y));
+                        anim_use_fixed_pos_setter.set_target_value(1.0);
+//                        model.scene.views.cursor.camera.set_position(model.scene.camera().position());
+                        let tgt_cam_pos = model.scene.camera().position();
+                        camera_position.set_target_value(V2(tgt_cam_pos.x,tgt_cam_pos.y));
+                    }
+                }
+            });
+
+//            def _position = mouse_position.map(f!([anim_pos_x_setter,anim_pos_y_setter](p) {
+//                anim_pos_x_setter.set_target_value(p.x);
+//                anim_pos_y_setter.set_target_value(p.y);
+//            }));
         }
 
 

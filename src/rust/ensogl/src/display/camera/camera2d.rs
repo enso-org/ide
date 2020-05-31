@@ -262,6 +262,11 @@ impl Camera2dData {
         let dimensions = Vector2::new(width,height);
         self.screen_update_registry.run_all(&dimensions);
     }
+
+    pub fn reset_zoom(&mut self) {
+        self.zoom = 1.0;
+        self.set_screen(self.screen.width,self.screen.height);
+    }
 }
 
 
@@ -336,6 +341,10 @@ impl Camera2d {
     /// Sets screen dimensions.
     pub fn set_screen(&self, width:f32, height:f32) {
         self.data.borrow_mut().set_screen(width,height)
+    }
+
+    pub fn reset_zoom(&self) {
+        self.data.borrow_mut().reset_zoom()
     }
 
     /// Update all diry camera parameters and compute updated view-projection matrix.
