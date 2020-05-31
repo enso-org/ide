@@ -187,7 +187,7 @@ impl FrpInputs {
 pub struct Frp {
     pub network  : frp::Network,
     pub input    : FrpInputs,
-    pub position : frp::Stream<frp::Position>,
+    pub position : frp::Stream<V3>,
 }
 
 impl Deref for Frp {
@@ -272,8 +272,8 @@ impl Cursor {
 
         let (size,current_size) = animator::<V2>(&network);
         let (offset,current_offset) = animator::<V2>(&network);
-        let (host_position,current_host_position) = animator::<V2>(&network);
-        let (camera_position,current_camera_position) = animator::<V2>(&network);
+        let (host_position,current_host_position) = animator::<V3>(&network);
+//        let (camera_position,current_camera_position) = animator::<V3>(&network);
 
         let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(&network);
 //        let (anim_pos_x_setter,anim_pos_x) = animation2(&network);
@@ -375,34 +375,49 @@ impl Cursor {
 
 
 
-            pos_changed <- any_(input.set_style,scene.frp.camera_changed);
+            host_changed <- any_(input.set_style,scene.frp.camera_changed);
 
-            def fixed_position = pos_changed.map(f_!(model.style.borrow().host.as_ref().map(|t| t.global_position())));
+            def hosted_position = host_changed.map(f_!(model.style.borrow().host.as_ref().map(|t| t.global_position())));
 
-            def uses_mouse_position = fixed_position.map(|p| p.is_none());
-            def mouse_position = mouse.position.gate(&uses_mouse_position);
+            def is_not_hosted = hosted_position.map(|p| p.is_none());
+            def mouse_position_not_hosted = mouse.position.gate(&is_not_hosted);
 
             def position = mouse.position.all_with3(&current_host_position,&anim_use_fixed_pos, |p,ap,au| {
                 let x = ap.x * au + p.x * (1.0 - au);
                 let y = ap.y * au + p.y * (1.0 - au);
-                frp::Position::new(x,y)
+                let z = ap.z * au;// + p.z * (1.0 - au);
+                V3(x,y,z)
             });
 
             eval anim_color    ((t) view.shape.color.set(Vector4::new(t.red,t.green,t.blue,t.alpha)));
-            eval position ((p) view.set_position_xy(Vector2::new(p.x,p.y)));
+            eval position ((p) view.set_position(Vector3::new(p.x,p.y,p.z)));
 
 
-            eval current_camera_position((pos) model.scene.views.cursor.camera.set_position_xy(Vector2::new(pos.x,pos.y)));
-            
-            eval_ pos_changed ([model,host_position,camera_position,anim_use_fixed_pos_setter]{
-                println!(">>> {:?}", model.scene.camera().position());
+
+//            foo <- current_camera_position.all_with(&anim_use_fixed_pos,f!([model](pos,f) {
+//                let tgt = model.scene.camera().position();
+//                let x   = f*tgt.x + (1.0 - f) * pos.x;
+//                let y   = f*tgt.y + (1.0 - f) * pos.y;
+//                let z   = f*tgt.z + (1.0 - f) * pos.z;
+//                model.scene.views.cursor.camera.set_position(Vector3::new(x,y,z))
+//            }));
+
+//            def foo = mouse.position.all_with3(&current_host_position,&anim_use_fixed_pos, |p,ap,au| {
+//                let x = ap.x * au + p.x * (1.0 - au);
+//                let y = ap.y * au + p.y * (1.0 - au);
+//                frp::Position::new(x,y)
+//            });
+
+            eval_ host_changed([model,host_position,anim_use_fixed_pos_setter]{
+//                println!(">>> {:?}", model.scene.camera().position());
 
                 match &model.style.borrow().host {
                     None       => {
                         anim_use_fixed_pos_setter.set_target_value(0.0);
 //                        model.scene.views.cursor.camera.set_position_xy(Vector2::new(0.0,0.0));
 //                        model.scene.views.cursor.camera.reset_zoom();
-                        camera_position.set_target_value(V2(0.0,0.0));
+                        let z = model.scene.views.cursor.camera.z_zoom_1();
+//                        camera_position.set_target_value(V3(0.0,0.0,z));
 
                     }
                     Some(host) => {
@@ -410,20 +425,27 @@ impl Cursor {
 //                        let cam_matrix  = model.scene.camera().view_projection_matrix();
 //                        let matrix      = cam_matrix * host_matrix;
 //                        let position    = (matrix * Vector4::new(0.0,0.0,0.0,1.0)).xyz();
-                        let position    = host.global_position();
-                        host_position.set_target_value(V2(position.x,position.y));
+
                         anim_use_fixed_pos_setter.set_target_value(1.0);
+                        let m1 = model.scene.views.cursor.camera.inversed_view_matrix();
+                        let m2 = model.scene.camera().view_matrix();
+
+                        let position    = host.global_position();
+                        let position    = Vector4::new(position.x,position.y,position.z,1.0);
+                        let position    = m2 * (m1 * position);
+                        host_position.set_target_value(V3(position.x,position.y,position.z));
+                        host_position.skip();
+
 //                        model.scene.views.cursor.camera.set_position(model.scene.camera().position());
-                        let tgt_cam_pos = model.scene.camera().position();
-                        camera_position.set_target_value(V2(tgt_cam_pos.x,tgt_cam_pos.y));
+//                        let tgt_cam_pos = model.scene.camera().position();
+//                        camera_position.set_target_value(tgt_cam_pos.into());
                     }
                 }
             });
 
-//            def _position = mouse_position.map(f!([anim_pos_x_setter,anim_pos_y_setter](p) {
-//                anim_pos_x_setter.set_target_value(p.x);
-//                anim_pos_y_setter.set_target_value(p.y);
-//            }));
+            def _position = mouse_position_not_hosted.map(f!([host_position](p) {
+                host_position.set_target_value(V3(p.x,p.y,0.0));
+            }));
         }
 
 

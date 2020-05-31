@@ -1499,7 +1499,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval edge_refresh_cursor_pos ([edges](position) {
         edges.detached_target.for_each(|id| {
             if let Some(edge) = edges.get_cloned_ref(id) {
-                edge.view.frp.target_position.emit(position)
+                edge.view.frp.target_position.emit(frp::Position::new(position.x,position.y))
             }
         })
     });
