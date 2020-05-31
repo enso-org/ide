@@ -20,6 +20,7 @@ use ensogl::gui::component::animator;
 use ensogl::gui::component;
 use ensogl::system::web;
 
+use ensogl::display::object::class::ObjectOps; // FIXME: why?
 
 
 // ==================
@@ -217,6 +218,7 @@ pub struct Cursor {
 #[allow(missing_docs)]
 pub struct CursorModel {
     pub logger : Logger,
+    pub scene  : Scene,
     pub frp    : FrpInputs,
     pub view   : component::ShapeView<shape::Shape>,
     pub style  : Rc<RefCell<Style>>,
@@ -243,7 +245,9 @@ impl CursorModel {
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.cursor.add(&shape_system.shape_system.symbol);
 
-        Self {logger,frp,view,resize_handle,style}
+        let scene = scene.clone_ref();
+
+        Self {logger,scene,frp,view,resize_handle,style}
     }
 }
 
@@ -317,11 +321,9 @@ impl Cursor {
                 |l,a,b,alpha| color::Rgba::from(color::Laba::new(*l,*a,*b,*alpha))
             );
 
-            eval_ scene.frp.camera_changed ([]{
-                println!(">>>");
-            });
 
-            def _ev = input.set_style.map(enclose!((style,size,anim_pos_x_setter,anim_pos_y_setter) move |new_style| {
+
+            def _ev = input.set_style.map(enclose!((anim_use_fixed_pos_setter,style,size,anim_pos_x_setter,anim_pos_y_setter) move |new_style| {
                 match &new_style.press {
                     None    => press.set_target_value(0.0),
                     Some(t) => press.set_target_value(*t),
@@ -387,7 +389,26 @@ impl Cursor {
                 *style.borrow_mut() = new_style.clone();
             }));
 
-            def fixed_position = input.set_style.map(|style| style.host.as_ref().map(|t| t.global_position()));
+            eval_ scene.frp.camera_changed ([model,anim_pos_x_setter,anim_pos_y_setter,anim_use_fixed_pos_setter]{
+                println!(">>> {:?}", model.scene.camera().position());
+
+                match &model.style.borrow().host {
+                    None       => anim_use_fixed_pos_setter.set_target_value(0.0),
+                    Some(host) => {
+                        let host_matrix = host.transform_matrix();
+                        let cam_matrix  = model.scene.camera().view_projection_matrix();
+                        let matrix      = cam_matrix * host_matrix;
+                        let position    = (matrix * Vector4::new(0.0,0.0,0.0,1.0)).xyz();
+                        anim_pos_x_setter.set_target_value(position.x);
+                        anim_pos_y_setter.set_target_value(position.y);
+                        anim_use_fixed_pos_setter.set_target_value(1.0);
+                    }
+                }
+            });
+
+            pos_changed <- any_(input.set_style,scene.frp.camera_changed);
+
+            def fixed_position = pos_changed.map(f_!(model.style.borrow().host.as_ref().map(|t| t.global_position())));
 
             def uses_mouse_position = fixed_position.map(|p| p.is_none());
             def mouse_position = mouse.position.gate(&uses_mouse_position);
