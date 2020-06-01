@@ -75,7 +75,7 @@ impl Registry {
             valid_keys         <- model.keyboard.key_mask.gate_not(&is_zero_key);
             key_press_time     <- valid_keys.map(|_| web::performance().now());
             timed_previous     <- key_press_time.previous();
-            time_delta         <- key_press_time.zip_with(&timed_previous, |t1,t2| (t1-t2));
+            time_delta         <- key_press_time.all_with(&timed_previous, |t1,t2| (t1-t2));
             within_threshold   <- time_delta.map(move |delta| *delta < double_press_threshold_ms);
             single_press       <- valid_keys.gate_not(&within_threshold);
             double_press       <- valid_keys.gate(&within_threshold);

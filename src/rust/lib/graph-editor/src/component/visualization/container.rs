@@ -2,7 +2,9 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration, HasDomSymbols};
+use crate::component::visualization::traits::HasSymbols;
+use crate::component::visualization::traits::HasFullscreenDecoration;
+use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::Resizable;
 use crate::component::visualization::traits::SymbolWithLayout;
 use crate::component::visualization::traits::TargetLayer;
@@ -10,7 +12,8 @@ use crate::frp;
 use crate::visualization::*;
 
 use ensogl::data::color;
-use ensogl::display::{Attribute, DomSymbol};
+use ensogl::display::Attribute;
+use ensogl::display::DomSymbol;
 use ensogl::display::Symbol;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
@@ -18,7 +21,7 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::animation;
+use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 
 
@@ -314,7 +317,7 @@ impl Container {
         let container_data      = &self.data;
 
         let frame_shape_data = container_data.shape_frame.shape.clone_ref();
-        let selection = animation(network, move |value| {
+        let selection = Animation(network, move |value| {
             frame_shape_data.selected.set(value)
         });
 

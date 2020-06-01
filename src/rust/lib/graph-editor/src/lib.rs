@@ -37,27 +37,24 @@ use crate::component::cursor;
 use crate::component::node;
 use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization::Visualization;
+use crate::component::visualization::stage::Stage;
 use crate::component::visualization;
 
+
 use enso_frp as frp;
-use enso_frp::io::keyboard;
 use enso_frp::Position;
+use enso_frp::io::keyboard;
 use ensogl::application::shortcut;
 use ensogl::application;
 use ensogl::data::color;
-use ensogl::display::object::Id;
 use ensogl::display::Scene;
+use ensogl::display::object::Id;
 use ensogl::display::world::*;
 use ensogl::display;
 use ensogl::prelude::*;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
-use ensogl::display::Scene;
-use crate::component::visualization::MockDataGenerator3D;
-use crate::component::visualization::Visualization;
-use crate::component::visualization;
-use crate::component::visualization::stage::Stage;
 
 
 

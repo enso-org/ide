@@ -10,7 +10,6 @@ use crate::component::visualization::traits::TargetLayer;
 use ensogl::data::color::Rgba;
 use ensogl::display::DomSymbol;
 use ensogl::display::Symbol;
-use ensogl::display::layout::alignment;
 use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::gui::component;
@@ -153,7 +152,7 @@ impl RawText {
         // FIXME It seems by default the text here is mirrored.
         // FIXME This should be fixed in the DOMSymbol directly and removed here.
         root_node.set_rotation(Vector3::new(180.0_f32.to_radians(), 0.0, 0.0));
-        scene.dom.layers.front.manage(&root_node);
+        scene.dom.layers.main.manage(&root_node);
 
         RawText{root_node,logger,frp,size,scene}.init()
     }
@@ -198,5 +197,21 @@ impl DataRenderer for RawText {
 
     fn frp(&self) -> &DataRendererFrp {
         &self.frp
+    }
+}
+
+impl traits::HasSymbols for RawText {
+    fn symbols(&self) -> Vec<Symbol> {
+        vec![]
+    }
+
+    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
+        vec![]
+    }
+}
+
+impl HasDomSymbols for RawText {
+    fn dom_symbols(&self) -> Vec<DomSymbol> {
+        vec![self.root_node]
     }
 }

@@ -10,7 +10,7 @@ use ensogl::display::Scene;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::frp;
-use ensogl::gui::component::animation;
+use ensogl::gui::component::Animation;
 use ensogl::system::web;
 
 
@@ -334,7 +334,7 @@ impl<T:Fullscreenable> FullscreenState<T> {
     fn new(network:&frp::Network) -> Self {
         let state      = Rc::new(RefCell::new(StateModel::<T>::default()));
         let weak_state = Rc::downgrade(&state);
-        let animation  = animation(&network, move |value| {
+        let animation  = Animation(&network, move |value| {
             transition_animation_fn(weak_state.clone_ref(), value);
         });
 
