@@ -1568,10 +1568,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
                 node.view.visualization_container.frp.toggle_visibility.emit(());
                 if node.view.visualization_container.is_visible() {
                     inputs.on_visualization_enabled.emit(node_id);
-                    println!("on_visualization_enabled");
                 } else {
                     inputs.on_visualization_disabled.emit(node_id);
-                    println!("on_visualization_disabled");
                 }
             }
         });
