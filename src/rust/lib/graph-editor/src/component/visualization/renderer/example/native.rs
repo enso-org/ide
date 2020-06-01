@@ -152,6 +152,7 @@ impl RawText {
         style += "color:white;";
         style += &format!("height:{}px;", self.size.get().x);
         style += &format!("width:{}px;", self.size.get().y);
+        style += "pointer-events:auto";
         self.root_node.dom().set_attribute("style",&style).unwrap();
     }
 }
