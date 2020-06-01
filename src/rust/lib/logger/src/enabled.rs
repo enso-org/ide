@@ -69,27 +69,27 @@ impl Logger {
     }
     /// Log with stacktrace and level:info.
     pub fn trace<M:LogMsg>(path:&str, msg:M) {
-        console::trace_1(Self::format(path,msg));
+        console::trace_1(&Self::format(path,msg));
     }
     /// Log with level:debug
     pub fn debug<M:LogMsg>(path:&str, msg:M) {
-        console::debug_1(Self::format(path,msg));
+        console::debug_1(&Self::format(path,msg));
     }
     /// Log with level:info.
     pub fn info<M:LogMsg>(path:&str, msg:M) {
-        console::info_1(Self::format(path,msg));
+        console::info_1(&Self::format(path,msg));
     }
     /// Log with level:warning.
     pub fn warning<M:LogMsg>(path:&str, msg:M) {
-        console::warn_1(Self::format(path,msg));
+        console::warn_1(&Self::format(path,msg));
     }
     /// Log with level:error.
     pub fn error<M:LogMsg>(path:&str, msg:M) {
-        console::error_1(Self::format(path,msg));
+        console::error_1(&Self::format(path,msg));
     }
     /// Visually groups all logs between group_begin and group_end.
     pub fn group_begin<M:LogMsg>(path:&str, msg:M) {
-        console::group_1(Self::format(path,msg));
+        console::group_1(&Self::format(path,msg));
     }
     /// Visually groups all logs between group_begin and group_end.
     pub fn group_end() {
