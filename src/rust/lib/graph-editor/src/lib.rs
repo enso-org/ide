@@ -1139,13 +1139,6 @@ impl GraphEditor {
         self.frp.add_node.emit(());
         self.frp.outputs.node_added.value()
     }
-
-    /// Send visualization data to the specified node.
-    pub fn send_visualization_data(&self, node:NodeId, data:visualization::Data) {
-        if let Some(node) = self.nodes.get_cloned_ref(&node) {
-            node.view.visualization_container.frp.set_data.emit(Some(data));
-        }
-    }
 }
 
 impl application::command::Provider for GraphEditor {

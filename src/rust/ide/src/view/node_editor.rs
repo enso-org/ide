@@ -302,8 +302,13 @@ impl GraphEditorIntegratedWithControllerModel {
             let foreach_fut = stream.for_each(move |update| {
                 // TODO [mwu] For now only JSON visualizations are supported, so we can just assume
                 //            JSON data in the binary package.
+
                 match Self::deserialize_visualization_data(update.as_ref()) {
-                    Ok(data)   => editor.send_visualization_data(node_id, data),
+                    Ok(data)   => {
+                        let endpoint = &editor.frp.inputs.set_visualization_data;
+                        let event    = (node_id,Some(data));
+                        endpoint.emit_event(&event);
+                    },
                     Err(error) => error!(editor.logger, "Failed to deserialize visualization \
                     update. {error}"),
                 }
