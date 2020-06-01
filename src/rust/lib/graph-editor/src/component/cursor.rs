@@ -17,6 +17,7 @@ use ensogl::display;
 use ensogl::gui::component::animation;
 use ensogl::gui::component::animation2;
 use ensogl::gui::component::animator;
+use ensogl::gui::component::Animator;
 use ensogl::gui::component::animator2;
 use ensogl::gui::component;
 use ensogl::system::web;
@@ -214,6 +215,8 @@ pub struct Cursor {
     pub frp : Frp,
 }
 
+
+
 /// Internal data for `Cursor`.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
@@ -273,18 +276,12 @@ impl Cursor {
             view_data.radius.set(value)
         });
 
-        let (size,current_size) = animator::<V2>(&network);
-        let (offset,current_offset) = animator::<V2>(&network);
-        let (host_position,current_host_position) = animator::<V3>(&network);
-        let (host_selection,current_host_selection) = animator::<f32>(&network);
-
-        let (host_selection,current_host_selection) = animator2(&network);
-        host_selection.set_duration(300.0);
-//        let (camera_position,current_camera_position) = animator::<V3>(&network);
-
-        let (anim_use_fixed_pos_setter,anim_use_fixed_pos) = animation2(&network);
-//        let (anim_pos_x_setter,anim_pos_x) = animation2(&network);
-//        let (anim_pos_y_setter,anim_pos_y) = animation2(&network);
+        let size                 = Animator::<V2>::new(&network);
+        let offset               = Animator::<V2>::new(&network);
+        let host_position        = Animator::<V3>::new(&network);
+        let host_position_weight = Animator::<f32>::new(&network);
+        let (host_position_snap,current_host_position_snap) = animator2(&network);
+        host_position_snap.set_duration(300.0);
 
         let (anim_color_lab_l_setter,anim_color_lab_l) = animation2(&network);
         let (anim_color_lab_a_setter,anim_color_lab_a) = animation2(&network);
@@ -305,10 +302,8 @@ impl Cursor {
 
         frp::extend! { network
 
-            trace current_host_selection;
-
-            eval current_size ((v) view.shape.sprite.size().set(Vector2::new(v.x,v.y)));
-            eval current_offset ((v) view.shape.offset.set(*v));
+            eval size.value ((v) view.shape.sprite.size().set(Vector2::new(v.x,v.y)));
+            eval offset.value ((v) view.shape.offset.set(*v));
 
 //            def anim_position = anim_pos_x.all_with(&anim_pos_y,|x,y| frp::Position::new(*x,*y));
 
@@ -318,10 +313,10 @@ impl Cursor {
 
 
 
-            def _ev = input.set_style.map(enclose!((anim_use_fixed_pos_setter,style,size,host_position) move |new_style| {
-//                host_selection.set_target_value(0.0);
-//                host_selection.skip();
-                host_selection.rewind();
+            def _ev = input.set_style.map(enclose!((host_position_weight,style,size,host_position) move |new_style| {
+//                host_position_snap.set_target_value(0.0);
+//                host_position_snap.skip();
+                host_position_snap.rewind();
 
                 match &new_style.press {
                     None    => press.set_target_value(0.0),
@@ -329,15 +324,15 @@ impl Cursor {
                 }
 
                 match &new_style.host {
-                    Some(_) => host_selection.start(), // set_target_value(100.0),
+                    Some(_) => host_position_snap.start(), // set_target_value(100.0),
                     _ => {}
                 }
 //                match &new_style.host {
-//                    None       => anim_use_fixed_pos_setter.set_target_value(0.0),
+//                    None       => host_position_weight.set_target_value(0.0),
 //                    Some(host) => {
 //                        let position = host.global_position();
 //                        host_position.set_target_value(V2(position.x,position.y));
-//                        anim_use_fixed_pos_setter.set_target_value(1.0);
+//                        host_position_weight.set_target_value(1.0);
 //                    }
 //                }
 
@@ -403,14 +398,14 @@ impl Cursor {
             def mouse_position_not_hosted = mouse.position.gate(&is_not_hosted);
 
 
-            eval_ host_changed([model,host_position,anim_use_fixed_pos_setter] {
+            eval_ host_changed([model,host_position,host_position_weight] {
                 match &model.style.borrow().host {
                     None       => {
-                        anim_use_fixed_pos_setter.set_target_value(0.0);
+                        host_position_weight.set_target_value(0.0);
                         let z = model.scene.views.cursor.camera.z_zoom_1();
                     }
                     Some(host) => {
-                        anim_use_fixed_pos_setter.set_target_value(1.0);
+                        host_position_weight.set_target_value(1.0);
                         let m1 = model.scene.views.cursor.camera.inversed_view_matrix();
                         let m2 = model.scene.camera().view_matrix();
 
@@ -423,7 +418,7 @@ impl Cursor {
             });
 
 
-            hp <- host_changed.all_with3(&current_host_selection,&current_host_position, f!([host_position](_,s,p) {
+            hp <- host_changed.all_with3(&current_host_position_snap,&host_position.value, f!([host_position](_,s,p) {
                 let tp = host_position.target_value();
                 let x  = s * tp.x + (1.0 - s) * p.x;
                 let y  = s * tp.y + (1.0 - s) * p.y;
@@ -431,7 +426,7 @@ impl Cursor {
                 V3(x,y,z)
             }));
 
-            def position = mouse.position.all_with3(&hp,&anim_use_fixed_pos, |p,ap,au| {
+            def position = mouse.position.all_with3(&hp,&host_position_weight.value, |p,ap,au| {
                 let x = ap.x * au + p.x * (1.0 - au);
                 let y = ap.y * au + p.y * (1.0 - au);
                 let z = ap.z * au;// + p.z * (1.0 - au);

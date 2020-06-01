@@ -213,6 +213,20 @@ pub fn animation2(network:&frp::Network) -> (DynSimulator<f32>, frp::Stream<f32>
     (source,target.into())
 }
 
+#[derive(CloneRef,Derivative,Debug,Shrinkwrap)]
+#[derivative(Clone(bound=""))]
+pub struct Animator<T> {
+    #[shrinkwrap(main_field)]
+    pub simulator : DynSimulator<T>,
+    pub value     : frp::Stream<T>,
+}
+
+impl<T:inertia::Value> Animator<T> {
+    pub fn new(network:&frp::Network) -> Self {
+        let (simulator,value) = animator(network);
+        Self {simulator,value}
+    }
+}
 
 /// Define a new animation FRP network.
 pub fn animator<T:inertia::Value>(network:&frp::Network) -> (DynSimulator<T>, frp::Stream<T>) {
