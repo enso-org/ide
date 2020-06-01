@@ -15,7 +15,7 @@ use crate::model::synchronized::ExecutionContext;
 pub struct Handle {
     /// A handle to basic graph operations.
     pub graph:controller::Graph,
-    /// Execution Context handle.
+    /// Execution Context handle, its call stack top contains `graph`'s definition.
     execution_ctx:Rc<ExecutionContext>,
 }
 

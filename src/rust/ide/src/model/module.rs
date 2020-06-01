@@ -170,13 +170,35 @@ pub struct QualifiedName(String);
 
 impl QualifiedName {
     /// Obtains a module's full qualified name from its path and the project name.
+    ///
+    /// ```
+    /// use ide::prelude::*;
+    /// use ide::model::module::QualifiedName;
+    /// use ide::model::module::Path;
+    ///
+    /// let path = Path::from_name_segments(default(),&["Main"]).unwrap();
+    /// assert_eq!(path.to_string(),"//00000000-0000-0000-0000-000000000000/src/Main.enso");
+    /// let name = QualifiedName::from_path(&path,"Project");
+    /// assert_eq!(name.to_string(),"Project.Main");
+    /// ```
     pub fn from_path(path:&Path, project_name:impl Str) -> QualifiedName {
         let non_src_directories = &path.file_path.segments[1..path.file_path.segments.len()-1];
-        Self::from_module_segments(project_name, non_src_directories)
+        let non_src_directories = non_src_directories.iter().map(|dirname| dirname.as_str());
+        let module_name         = std::iter::once(path.module_name());
+        let module_segments     = non_src_directories.chain(module_name);
+        Self::from_module_segments(module_segments,project_name)
     }
 
     /// Obtains a module's full qualified name from its path and the project name.
-    pub fn from_module_segments(project_name:impl Str, module_segments:impl IntoIterator<Item:AsRef<str>>)
+    ///
+    /// ```
+    /// use ide::model::module::QualifiedName;
+    ///
+    /// let name = QualifiedName::from_module_segments(&["Main"],"Project");
+    /// assert_eq!(name.to_string(), "Project.Main");
+    /// ```
+    pub fn from_module_segments
+    (module_segments:impl IntoIterator<Item:AsRef<str>>, project_name:impl Str)
     -> QualifiedName {
         let project_name     = std::iter::once(project_name.into());
         let module_segments  = module_segments.into_iter();

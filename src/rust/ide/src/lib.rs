@@ -89,6 +89,9 @@ pub mod constants {
 
     /// The directory in the project that contains all the source files.
     pub const SOURCE_DIRECTORY:&str = "src";
+
+    /// An invocable language expression that serialize given input into JSON.
+    pub const SERIALIZE_TO_JSON_EXPRESSION:&str = "x -> x.json_serialize";
 }
 
 
