@@ -14,8 +14,8 @@ use graph_editor::EdgeTarget;
 use utils::channel::process_stream_with_handle;
 use bimap::BiMap;
 use crate::model::execution_context::Visualization;
-use crate::model::synchronized::ExecutionContext;
 use crate::model::module::QualifiedName;
+use graph_editor::component::visualization::Data as VisualizationData;
 
 
 // ==============
@@ -284,20 +284,28 @@ impl GraphEditorIntegratedWithControllerModel {
     async fn async_attach_visualization
     ( editor        : GraphEditor
     , node_id       : graph_editor::NodeId
-    , execution_ctx : Rc<ExecutionContext>
+    , controller    : controller::ExecutedGraph
     , visualization : Visualization) {
-        if let Ok(stream) = execution_ctx.attach_visualization(visualization).await {
+        if let Ok(stream) = controller.attach_visualization(visualization).await {
             let stream = stream.boxed_local();
             let foreach_fut = stream.for_each(move |update| {
-                if let Ok(content) = serde_json::to_value(&update) {
-                    let content = Rc::new(content);
-                    let data    = graph_editor::component::visualization::Data::JSON{content};
-                    editor.send_visualization_data(node_id, data);
+                // TODO [mwu] For now only JSON visualizations are supported, so we can just assume
+                //            JSON data in the binary package.
+                match Self::deserialize_visualization_data(update.as_ref()) {
+                    Ok(data)   => editor.send_visualization_data(node_id, data),
+                    Err(error) => error!(editor.logger, "Failed to deserialize visualization \
+                    update. {error}"),
                 }
                 futures::future::ready(())
             });
             crate::executor::global::spawn(foreach_fut);
         }
+    }
+
+    fn deserialize_visualization_data(data:&[u8]) -> FallibleResult<VisualizationData> {
+        let as_text = std::str::from_utf8(data)?;
+        let as_json = serde_json::from_str(as_text)?;
+        Ok(VisualizationData::new_json(as_json))
     }
 
     fn attach_visualization(&self, node_id:graph_editor::NodeId) -> FallibleResult<()> {
@@ -306,9 +314,9 @@ impl GraphEditorIntegratedWithControllerModel {
         let ast_id        = self.get_controller_node_id(node_id)?;
         let visualisation_module = QualifiedName::from_module_segments("Project",&["Main"]);
         let visualization = Visualization{ast_id,expression,id,visualisation_module};
-        let execution_ctx = self.controller.execution_ctx.clone_ref();
+        let controller    = self.controller.clone_ref();
         let editor        = self.editor.clone();
-        let attach = Self::async_attach_visualization(editor,node_id,execution_ctx,visualization);
+        let attach = Self::async_attach_visualization(editor,node_id,controller,visualization);
         crate::executor::global::spawn(attach);
         Ok(())
     }
