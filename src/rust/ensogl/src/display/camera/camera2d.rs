@@ -361,11 +361,12 @@ impl Camera2d {
         self.data.borrow_mut().set_screen(width,height)
     }
 
+    /// Resets the zoom of the camera to the 1.0 value.
     pub fn reset_zoom(&self) {
         self.data.borrow_mut().reset_zoom()
     }
 
-    /// Update all diry camera parameters and compute updated view-projection matrix.
+    /// Update all dirty camera parameters and compute updated view-projection matrix.
     pub fn update(&self) -> bool {
         self.data.borrow_mut().update()
     }

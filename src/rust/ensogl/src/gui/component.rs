@@ -193,15 +193,19 @@ impl<T> display::Object for ShapeView<T> {
 // === Animation ===
 // =================
 
+/// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
+/// is computed, it is emitted via the endpoint.
 #[derive(CloneRef,Derivative,Debug,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
-pub struct Animator<T> {
+#[allow(missing_docs)]
+pub struct Animation<T> {
     #[shrinkwrap(main_field)]
     pub simulator : DynSimulator<T>,
     pub value     : frp::Stream<T>,
 }
 
-impl<T:inertia::Value> Animator<T> {
+impl<T:inertia::Value> Animation<T> {
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def target = source::<T>();
@@ -212,13 +216,31 @@ impl<T:inertia::Value> Animator<T> {
     }
 }
 
-/// Define a new animation FRP network.
-pub fn animator2(network:&frp::Network) -> (easing::Animator<f32,Box<dyn Fn(f32)->f32>,Box<dyn Fn(f32)>>, frp::Stream<f32>) {
-    frp::extend! { network
-        def target = source::<f32>();
+
+
+// =============
+// === Tween ===
+// =============
+
+/// Smart tween handler. Contains tween animator and frp endpoint. Whenever a new value is computed,
+/// it is emitted via the endpoint.
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[allow(missing_docs)]
+pub struct Tween {
+    #[shrinkwrap(main_field)]
+    pub animator : easing::DynAnimator<f32,easing::QuadInOut>,
+    pub value    : frp::Stream<f32>,
+}
+
+impl Tween {
+    /// Constructor.
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def target = source::<f32>();
+        }
+        let f        = easing::quad_in_out();
+        let animator = easing::DynAnimator::new(0.0,1.0,f,Box::new(f!((t) target.emit(t))));
+        let value    = target.into();
+        Self {animator,value}
     }
-    let ff = Box::new(easing::quad_in_out) as Box<dyn Fn(f32) -> f32>;
-    let gg = Box::new(f!((t) target.emit(t))) as Box<dyn Fn(f32)>;
-    let source = easing::Animator::new(0.0,1.0,ff,gg);
-    (source,target.into())
 }

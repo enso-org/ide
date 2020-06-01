@@ -19,7 +19,7 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::Animator;
+use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 
 use super::edge;
@@ -344,8 +344,8 @@ impl Node {
         let frp_network      = frp::Network::new();
         let model            = Rc::new(NodeModel::new(scene,&frp_network));
         let inputs           = &model.frp.input;
-        let selection        = Animator::<f32>::new(&frp_network);
-        let output_area_size = Animator::<f32>::new(&frp_network);
+        let selection        = Animation::<f32>::new(&frp_network);
+        let output_area_size = Animation::<f32>::new(&frp_network);
 
         frp::extend! { frp_network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));

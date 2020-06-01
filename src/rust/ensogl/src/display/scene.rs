@@ -50,7 +50,6 @@ pub trait MouseTarget : Debug + 'static {
 
 use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::{Shape,ShapeSystemOf};
-use crate::display::object::ObjectOps;
 
 
 // =========================

@@ -616,6 +616,26 @@ define_vector! {V2 {x,y}}
 define_vector! {V3 {x,y,z}}
 define_vector! {V4 {x,y,z,w}}
 
+impl<T:Default> From<V2<T>> for V3<T> {
+    fn from(t:V2<T>) -> Self {
+        V3(t.x,t.y,default())
+    }
+}
+
+impl<T:Default> From<V2<T>> for V4<T> {
+    fn from(t:V2<T>) -> Self {
+        V4(t.x,t.y,default(),default())
+    }
+}
+
+impl<T:Default> From<V3<T>> for V4<T> {
+    fn from(t:V3<T>) -> Self {
+        V4(t.x,t.y,t.z,default())
+    }
+}
+
+
+
 impl<T:Scalar> From<Vector2<T>> for V2<T> {
     fn from(t:Vector2<T>) -> Self {
         V2(t.x,t.y)

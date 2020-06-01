@@ -52,7 +52,6 @@ use ensogl::display;
 use ensogl::prelude::*;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
-use ensogl::traits::*;
 use nalgebra::Vector2;
 
 

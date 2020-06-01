@@ -1,26 +1,17 @@
 //! Definition of the Cursor (known as well as mouse pointer) component.
 
-#![allow(missing_docs)]
-// WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
-
 use crate::prelude::*;
 
 use enso_frp as frp;
-use ensogl::control::callback;
 use ensogl::data::color;
 use ensogl::display::Buffer;
-use ensogl::display::layout::alignment;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::{Sprite, Attribute};
 use ensogl::display;
-use ensogl::gui::component::Animator;
-use ensogl::gui::component::animator2;
+use ensogl::gui::component::Animation;
+use ensogl::gui::component::Tween;
 use ensogl::gui::component;
-use ensogl::system::web;
-use ensogl::animation::physics::inertia::Spring;
-
-use ensogl::display::object::class::ObjectOps; // FIXME: why?
 
 
 
@@ -28,12 +19,12 @@ use ensogl::display::object::class::ObjectOps; // FIXME: why?
 // === StyleValue ===
 // ==================
 
-
 /// Defines a value of the cursor style and also information if the value should be animated.
 /// Sometimes disabling animation is required. A good example is the implementation of a selection
 /// box. When drawing selection box with the mouse, the user wants to see it in real-time, without
 /// it growing over time.
 #[derive(Debug,Clone)]
+#[allow(missing_docs)]
 pub struct StyleValue<T> {
     pub value   : T,
     pub animate : bool,
@@ -97,8 +88,8 @@ define_style! {
     size   : Option<StyleValue<Vector2<f32>>>,
     offset : Option<StyleValue<Vector2<f32>>>,
     color  : Option<StyleValue<color::Lcha>>,
-    radius : Option<f32>,
-    press  : Option<f32>,
+    radius : Option<StyleValue<f32>>,
+    press  : Option<StyleValue<f32>>,
 }
 
 
@@ -132,7 +123,7 @@ impl Style {
     }
 
     pub fn new_press() -> Self {
-        let press = Some(1.0);
+        let press = Some(StyleValue::new(1.0));
         Self {press,..default()}
     }
 }
@@ -140,9 +131,10 @@ impl Style {
 
 // === Setters ===
 
+#[allow(missing_docs)]
 impl Style {
     pub fn press(mut self) -> Self {
-        self.press = Some(1.0);
+        self.press = Some(StyleValue::new(1.0));
         self
     }
 }
@@ -150,6 +142,7 @@ impl Style {
 
 // === Getters ===
 
+#[allow(missing_docs)]
 impl Style {
     pub fn host_position(&self) -> Option<Vector3<f32>> {
         self.host.as_ref().map(|t| t.position())
@@ -166,8 +159,7 @@ impl Style {
 pub mod shape {
     use super::*;
     ensogl::define_shape_system! {
-        ( offset         : V2
-        , selection_size : Vector2<f32>
+        ( selection_size : Vector2<f32>
         , press          : f32
         , radius         : f32
         , color          : Vector4<f32>
@@ -176,14 +168,12 @@ pub mod shape {
             let height : Var<Distance<Pixels>> = "input_size.y".into();
             let press_diff       = 2.px() * &press;
             let radius           = 1.px() * radius - &press_diff;
-            let offset : Var<V2<Distance<Pixels>>>           = offset.px();
-            let selection_width  = 1.px() * &selection_size.x(); // * &press;
-            let selection_height = 1.px() * &selection_size.y(); // * &press;
+            let selection_width  = 1.px() * &selection_size.x();
+            let selection_height = 1.px() * &selection_size.y();
             let width            = (&width  - &press_diff * 2.0) + selection_width.abs();
             let height           = (&height - &press_diff * 2.0) + selection_height.abs();
             let cursor = Rect((width,height))
                 .corners_radius(radius)
-                //.translate(offset)
                 .fill("srgba(input_color)");
             cursor.into()
         }
@@ -272,6 +262,7 @@ impl CursorModel {
 
 /// Cursor (mouse pointer) definition.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[allow(missing_docs)]
 pub struct Cursor {
     #[shrinkwrap(main_field)]
     model   : Rc<CursorModel>,
@@ -306,15 +297,15 @@ impl Cursor {
         //     host during the movement. After it is fully attached, cursor moves with the same
         //     speed as the scene when panning.
         //
-        let press                = Animator :: <f32> :: new(&network);
-        let radius               = Animator :: <f32> :: new(&network);
-        let size                 = Animator :: <V2>  :: new(&network);
-        let offset               = Animator :: <V2>  :: new(&network);
-        let color_lab            = Animator :: <V3>  :: new(&network);
-        let color_alpha          = Animator :: <f32> :: new(&network);
-        let host_position        = Animator :: <V3>  :: new(&network);
-        let host_follow_weight = Animator :: <f32> :: new(&network);
-        let (host_attached_weight,host_attached_weight_value) = animator2(&network);
+        let press                = Animation :: <f32> :: new(&network);
+        let radius               = Animation :: <f32> :: new(&network);
+        let size                 = Animation :: <V2>  :: new(&network);
+        let offset               = Animation :: <V2>  :: new(&network);
+        let color_lab            = Animation :: <V3>  :: new(&network);
+        let color_alpha          = Animation :: <f32> :: new(&network);
+        let host_position        = Animation :: <V3>  :: new(&network);
+        let host_follow_weight   = Animation :: <f32> :: new(&network);
+        let host_attached_weight = Tween     :: new(&network);
 
         let default_size   = V2(16.0,16.0);
         let default_radius = 8.0;
@@ -331,20 +322,24 @@ impl Cursor {
         frp::extend! { network
             eval press.value  ((v) model.view.shape.press.set(*v));
             eval radius.value ((v) model.view.shape.radius.set(*v));
-            eval offset.value ((v) model.view.shape.offset.set(*v));
             eval size.value   ((v) model.view.shape.sprite.size().set(Vector2::new(v.x,v.y)));
 
             anim_color <- all_with(&color_lab.value,&color_alpha.value,
                 |lab,alpha| color::Rgba::from(color::Laba::new(lab.x,lab.y,lab.z,*alpha))
             );
 
-            eval input.set_style([host_follow_weight,size,host_position,model] (new_style) {
+            eval input.set_style([host_attached_weight,size,offset,model] (new_style) {
                 host_attached_weight.rewind();
                 if new_style.host.is_some() { host_attached_weight.start() }
 
                 match &new_style.press {
-                    None    => press.set_target_value(0.0),
-                    Some(t) => press.set_target_value(*t),
+                    None => press.set_target_value(0.0),
+                    Some(new_press) => {
+                        press.set_target_value(new_press.value);
+                        if !new_press.animate {
+                            press.skip();
+                        }
+                    }
                 }
 
                 match &new_style.color {
@@ -380,8 +375,11 @@ impl Cursor {
                 }
 
                 match &new_style.radius {
-                    None    => radius.set_target_value(default_radius),
-                    Some(r) => radius.set_target_value(*r),
+                    None => radius.set_target_value(default_radius),
+                    Some(new_radius) => {
+                        radius.set_target_value(new_radius.value);
+                        if !new_radius.animate { radius.skip() }
+                    }
                 }
 
                 *model.style.borrow_mut() = new_style.clone();
@@ -394,15 +392,11 @@ impl Cursor {
 
             eval_ host_changed([model,host_position,host_follow_weight] {
                 match &model.style.borrow().host {
-                    None => {
-                        host_follow_weight.set_target_value(0.0);
-                        let z = model.scene.views.cursor.camera.z_zoom_1();
-                    }
+                    None       => host_follow_weight.set_target_value(0.0),
                     Some(host) => {
                         host_follow_weight.set_target_value(1.0);
-                        let m1 = model.scene.views.cursor.camera.inversed_view_matrix();
-                        let m2 = model.scene.camera().view_matrix();
-
+                        let m1          = model.scene.views.cursor.camera.inversed_view_matrix();
+                        let m2          = model.scene.camera().view_matrix();
                         let position    = host.global_position();
                         let position    = Vector4::new(position.x,position.y,position.z,1.0);
                         let position    = m2 * (m1 * position);
@@ -412,21 +406,22 @@ impl Cursor {
             });
 
             host_attached <- host_changed.all_with3
-                (&host_attached_weight_value,&host_position.value, f!((_,weight,pos_anim) {
+                (&host_attached_weight.value,&host_position.value, f!((_,weight,pos_anim) {
                     host_position.target_value() * weight + pos_anim * (1.0 - weight)
                 })
             );
 
-            position <- mouse.position.all_with3
-                (&host_attached,&host_follow_weight.value, |pos_rt,pos_attached,weight| {
-                    let pos_rt = V3(pos_rt.x,pos_rt.y,0.0);
+            position <- mouse.position.all_with4
+                (&host_attached,&host_follow_weight.value,&offset.value,
+                |pos_rt,pos_attached,weight,offset| {
+                    let pos_rt : V3 = (V2(pos_rt.x,pos_rt.y) + *offset).into();
                     pos_attached * weight + pos_rt * (1.0 - weight)
                 }
             );
 
-            eval mouse_pos_rt ((p) host_position.set_target_value(V3(p.x,p.y,0.0)));
+            eval mouse_pos_rt ((t) host_position.set_target_value(V3(t.x,t.y,0.0)));
             eval anim_color   ((t) model.view.shape.color.set(t.into()));
-            eval position     ((p) model.view.set_position(p.into()));
+            eval position     ((t) model.view.set_position(t.into()));
         }
 
         input.set_style.emit(Style::default());
