@@ -135,7 +135,6 @@ impl GraphEditorIntegratedWithController {
     pub fn new(logger:Logger, app:&Application, controller:controller::ExecutedGraph) -> Self {
         let model       = GraphEditorIntegratedWithControllerModel::new(logger,app,controller);
         let model       = Rc::new(model);
-        let editor_ins = &model.editor.frp.inputs;
         let editor_outs = &model.editor.frp.outputs;
         frp::new_network! {network
             let invalidate = FencedAction::fence(&network,f!([model](()) {
@@ -157,7 +156,6 @@ impl GraphEditorIntegratedWithController {
             GraphEditorIntegratedWithControllerModel::visualization_enabled_in_ui,&invalidate.trigger);
         let visualization_disabled = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::visualization_disabled_in_ui,&invalidate.trigger);
-        // FIXME!!!!!!!!!!!!  connect  visualization_enabled visualization_disabled
         frp::extend! {network
             // Notifications from controller
             let handle_notification = FencedAction::fence(&network,
@@ -172,9 +170,8 @@ impl GraphEditorIntegratedWithController {
             def _action = editor_outs.connection_added      .map2(&is_hold,connection_created);
             def _action = editor_outs.connection_removed    .map2(&is_hold,connection_removed);
             def _action = editor_outs.node_position_set     .map2(&is_hold,node_moved);
-            // FIXME !!!!! ///////
-             def _action = editor_ins.visualization_enabled .map2(&is_hold,visualization_enabled);
-             def _action = editor_ins.visualization_disabled.map2(&is_hold,visualization_disabled);
+            def _action = editor_outs.visualization_enabled .map2(&is_hold,visualization_enabled);
+            def _action = editor_outs.visualization_disabled.map2(&is_hold,visualization_disabled);
         }
         Self::connect_frp_to_controller_notifications(&model,handle_notification.trigger);
         Self {model,network}
@@ -288,8 +285,6 @@ impl GraphEditorIntegratedWithControllerModel {
             self.editor.frp.inputs.set_node_position.emit_event(&(displayed_id,default_pos));
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
-        // TODO[dg]: Should we only attach visualization when it is visible?
-        self.attach_visualization(displayed_id).ok();
     }
 
     async fn async_attach_visualization
@@ -486,8 +481,24 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn visualization_disabled_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
-        debug!(self.logger, "Detaching visualization on {node_id}");
-        //let id = self.visualizations.borrow_mut().get(node_id).ok_or_else();
+        debug!(self.logger, "Node editor wants to detach visualization on {node_id}");
+        let id = self.visualizations.borrow_mut().get(node_id).cloned().unwrap_or_default();
+        let graph = self.controller.clone_ref();
+        let logger = self.logger.clone_ref();
+        // crate::executor::global::spawn(async move {
+        //     info!(logger,"In the async block: {id}.");
+        //     let id = id;
+        //     if graph.detach_visualization(&id).await.is_err() {
+        //         // TODO report error?
+        //     }
+        //     ()
+        // });
+
+
+
+        //let detach_visualization : futures::future::LocalBoxFuture<'static,FallibleResult<Visualization>> = self.controller.detach_visualization(&id).boxed_local();
+
+        //crate::executor::global::spawn(detach_visualization);
         Ok(())
         //let node_id = self.get_controller_node_id(*node_id)?;
         //self.attach_visualization(node_id.clone())

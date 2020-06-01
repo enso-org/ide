@@ -1149,7 +1149,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         use keyboard::Key;
         vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::Character("n".into())]) , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace])             , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character(" ".into())]) , "toggle_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control, Key::Character(" ".into())]) , "toggle_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Meta])                  , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::release (&[Key::Meta])                  , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Control])               , "toggle_node_multi_select")
@@ -1161,7 +1161,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])        , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())]) , "debug_set_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("f".into())]) , "debug_cycle_visualization_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control, Key::Character("f".into())]) , "debug_cycle_visualization_for_selected_node")
         ]
     }
 }

@@ -66,6 +66,7 @@ impl BubbleChart {
 impl DataRenderer for BubbleChart {
 
     fn receive_data(&self, data:Data) -> Result<(),DataError> {
+        debug!(self.logger, "Received data: {data:?}");
         let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
         // Avoid re-creating views, if we have already created some before.
         let mut views = self.views.borrow_mut();
@@ -164,6 +165,7 @@ impl display::Object for RawText {
 
 impl DataRenderer for RawText {
     fn receive_data(&self, data:Data) -> Result<(),DataError> {
+        debug!(self.logger, "Received data: {data:?}");
         let data_inner = data.as_json()?;
         let data_str   = serde_json::to_string_pretty(&data_inner);
         let data_str   = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
