@@ -135,7 +135,7 @@ pub type OngoingCalls = HashMap<Id,oneshot::Sender<ReplyMessage>>;
 pub use shapely::shared;
 
 /// The default timeout for all responses.
-const TIMEOUT:Duration = Duration::from_secs(1);
+const TIMEOUT:Duration = Duration::from_secs(10);
 
 shared! { Handler
 
