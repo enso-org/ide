@@ -15,6 +15,7 @@ use utils::channel::process_stream_with_handle;
 use bimap::BiMap;
 use crate::model::execution_context::Visualization;
 use crate::model::synchronized::ExecutionContext;
+use crate::model::module::QualifiedName;
 
 
 // ==============
@@ -303,7 +304,8 @@ impl GraphEditorIntegratedWithControllerModel {
         let id            = uuid::Uuid::new_v4();
         let expression    = "x -> x.json_serialize".to_string();
         let ast_id        = self.get_controller_node_id(node_id)?;
-        let visualization = Visualization{ast_id,expression,id};
+        let visualisation_module = QualifiedName::from_module_segments("Project",&["Main"]);
+        let visualization = Visualization{ast_id,expression,id,visualisation_module};
         let execution_ctx = self.controller.execution_ctx.clone_ref();
         let editor        = self.editor.clone();
         let attach = Self::async_attach_visualization(editor,node_id,execution_ctx,visualization);

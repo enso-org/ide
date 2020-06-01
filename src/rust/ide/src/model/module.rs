@@ -171,11 +171,18 @@ pub struct QualifiedName(String);
 impl QualifiedName {
     /// Obtains a module's full qualified name from its path and the project name.
     pub fn from_path(path:&Path, project_name:impl Str) -> QualifiedName {
-        let project_name        = std::iter::once(project_name.as_ref());
         let non_src_directories = &path.file_path.segments[1..path.file_path.segments.len()-1];
-        let directories_strs    = non_src_directories.iter().map(|string| string.as_str());
-        let module_name         = std::iter::once(path.module_name());
-        let name                = project_name.chain(directories_strs.chain(module_name)).join(".");
+        Self::from_module_segments(project_name, non_src_directories)
+    }
+
+    /// Obtains a module's full qualified name from its path and the project name.
+    pub fn from_module_segments(project_name:impl Str, module_segments:impl IntoIterator<Item:AsRef<str>>)
+    -> QualifiedName {
+        let project_name     = std::iter::once(project_name.into());
+        let module_segments  = module_segments.into_iter();
+        let module_segments  = module_segments.map(|segment| segment.as_ref().to_string());
+        let mut all_segments = project_name.chain(module_segments);
+        let name = all_segments.join(".");
         QualifiedName(name)
     }
 }

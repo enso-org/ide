@@ -35,7 +35,6 @@ pub mod prelude {
 
 use crate::component::cursor;
 use crate::component::node;
-use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization::Visualization;
 use crate::component::visualization;
 
@@ -54,10 +53,6 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use ensogl::traits::*;
 use nalgebra::Vector2;
-use ensogl::display::Scene;
-use crate::component::visualization::Visualization;
-use crate::component::visualization;
-
 
 
 
