@@ -207,7 +207,7 @@ pub mod shape {
 #[allow(missing_docs)]
 pub struct Frp {
     pub network  : frp::Network,
-    pub input    : FrpInputs, // deref
+    pub input    : FrpInputs,
     pub position : frp::Stream<V3>,
 }
 
@@ -261,7 +261,7 @@ impl CursorModel {
         let view   = component::ShapeView::<shape::Shape>::new(&logger,&scene);
         let style  = default();
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>); // register
+        let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.cursor.add(&shape_system.shape_system.symbol);
