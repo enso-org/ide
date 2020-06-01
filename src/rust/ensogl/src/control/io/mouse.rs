@@ -14,7 +14,6 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
-use web_sys::AddEventListenerOptions;
 
 pub use button::*;
 pub use event::*;
@@ -110,10 +109,7 @@ macro_rules! define_bindings {
                     }));
                     let js_closure = $name.as_ref().unchecked_ref();
                     let js_name    = stringify!($js_name);
-                    let mut options    = AddEventListenerOptions::new();
-                    options.capture(true);
-                    let result     = dom. add_event_listener_with_callback_and_add_event_listener_options_and_wants_untrusted(
-                                      js_name,js_closure,&options,None);
+                    let result     = dom.add_event_listener_with_callback(js_name,js_closure);
                     if let Err(e)  = result { panic!("Cannot add event listener. {:?}",e) }
                 )*
                 let closures = Rc::new(MouseManagerClosures {dom:dom.deref().clone(),$($name),*});
