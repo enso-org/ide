@@ -245,7 +245,7 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         self.start();
     }
 
-    /// Stops the animation, rewinds it to the initial value and calls the callback.
+    /// Stop the animation, rewinds it to the initial value and calls the callback.
     pub fn rewind(&self) {
         self.stop();
         (self.data.callback)(self.start_value());

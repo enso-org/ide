@@ -52,6 +52,7 @@ use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::{Shape,ShapeSystemOf};
 
 
+
 // =========================
 // === ComponentRegistry ===
 // =========================
@@ -918,10 +919,8 @@ impl SceneData {
     fn update_camera(&self) {
         // Updating camera for DOM layers. Please note that DOM layers cannot use multi-camera
         // setups now, so we are using here the main camera only.
-//        println!("----------------");
         let camera  = self.camera();
         let changed = camera.update();
-//        println!("SCENE CAM: {:?}", camera.global_position());
         if changed {
             self.frp.camera_changed_source.emit(());
             self.symbols.set_camera(camera);
