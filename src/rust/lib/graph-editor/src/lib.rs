@@ -360,9 +360,7 @@ pub struct FrpInputs {
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<Visualization>)>,
     pub register_visualization_class : frp::Source<Option<Rc<visualization::Handle>>>,
-    pub visualization_enabled        : frp::Stream<NodeId>,
-    pub visualization_disabled       : frp::Stream<NodeId>,
-    pub set_visualization_data       : frp::Source<(NodeId,Option<visualization::Data>)>,
+     pub set_visualization_data       : frp::Source<(NodeId,Option<visualization::Data>)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     some_edge_targets_detached : frp::Source,
@@ -403,10 +401,6 @@ impl FrpInputs {
             def on_visualization_enabled  = source();
             def on_visualization_disabled = source();
 
-            let visualization_enabled  = on_visualization_enabled.clone_ref().into();
-            let visualization_disabled = on_visualization_disabled.clone_ref().into();
-
-
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -416,8 +410,8 @@ impl FrpInputs {
              ,set_node_position,select_node,remove_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
              ,register_visualization_class,some_edge_targets_detached,all_edge_targets_attached
-             ,hover_node_input,visualization_enabled,on_visualization_disabled
-             ,on_visualization_enabled,visualization_disabled
+             ,hover_node_input,on_visualization_disabled
+             ,on_visualization_enabled
              }
     }
 }
@@ -1538,7 +1532,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             let data          = Rc::new(sample_data_generator.generate_data());
             let content       = Rc::new(serde_json::to_value(data).unwrap());
             let data          = visualization::Data::JSON{ content };
-            inputs.set_visualization_data.emit((node_id.clone(),Some(data)));
+            inputs.set_visualization_data.emit((*node_id,Some(data)));
         })
     }));
 
@@ -1577,6 +1571,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             }
         });
     }));
+
+    outputs.visualization_enabled  <+ inputs.on_visualization_enabled;
+    outputs.visualization_disabled <+ inputs.on_visualization_disabled;
 
     // === Register Visualization ===
 
