@@ -113,24 +113,25 @@ impl display::Object for BubbleChart {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct RawText {
-    scene          : Scene,
-    root_node        : DomSymbol,
-    size               : Cell<Vector2<f32>>,
-    frp                : DataRendererFrp,
-    logger             : Logger,
+    scene     : Scene,
+    root_node : DomSymbol,
+    size      : Cell<Vector2<f32>>,
+    frp       : DataRendererFrp,
+    logger    : Logger,
 }
 
 impl RawText {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let logger    = Logger::new("bubble");
+        let logger    = Logger::new("RawText");
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         let frp       = default();
         let size      = Cell::new(Vector2::zero());
         let scene     = scene.clone_ref();
 
-        // TODO: Fix rotation in DomSymbol.
+        // FIXME It seems by default the text here is mirrored.
+        // FIXME This should be fixed in the DOMSymbol directly and removed here.
         root_node.set_rotation(Vector3::new(180.0_f32.to_radians(), 0.0, 0.0));
         scene.dom.layers.front.manage(&root_node);
 
@@ -150,6 +151,7 @@ impl RawText {
         style += "color:white;";
         style += &format!("height:{}px;", self.size.get().x);
         style += &format!("width:{}px;", self.size.get().y);
+        style += "pointer-events:auto";
         self.root_node.dom().set_attribute("style",&style).unwrap();
     }
 }
@@ -161,7 +163,6 @@ impl display::Object for RawText {
 }
 
 impl DataRenderer for RawText {
-
     fn receive_data(&self, data:Data) -> Result<(),DataError> {
         let data_inner = data.as_json()?;
         let data_str   = serde_json::to_string_pretty(&data_inner);
