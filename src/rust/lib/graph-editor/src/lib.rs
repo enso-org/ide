@@ -210,9 +210,6 @@ impl<K,V,S> SharedHashMap<K,V,S> {
 
 
 
-
-
-
 #[derive(Debug,Clone,CloneRef)]
 pub struct Frp {
     pub inputs  : FrpInputs,
@@ -364,8 +361,6 @@ pub struct FrpInputs {
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     some_edge_targets_detached : frp::Source,
     all_edge_targets_attached  : frp::Source,
-    on_visualization_enabled   : frp::Source<NodeId>,
-    on_visualization_disabled  : frp::Source<NodeId>
 }
 
 impl FrpInputs {
@@ -397,9 +392,6 @@ impl FrpInputs {
             def some_edge_targets_detached = source();
             def all_edge_targets_attached  = source();
 
-            def on_visualization_enabled  = source();
-            def on_visualization_disabled = source();
-
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -409,8 +401,7 @@ impl FrpInputs {
              ,set_node_position,select_node,remove_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
              ,register_visualization_class,some_edge_targets_detached,all_edge_targets_attached
-             ,hover_node_input,on_visualization_disabled
-             ,on_visualization_enabled
+             ,hover_node_input
              }
     }
 }
@@ -483,19 +474,20 @@ macro_rules! generate_frp_outputs {
 
 
 generate_frp_outputs! {
-    node_added          : NodeId,
-    node_removed        : NodeId,
-    node_selected       : NodeId,
-    node_deselected     : NodeId,
-    node_position_set   : (NodeId,Position),
-    node_expression_set : (NodeId,node::Expression),
+    node_added                : NodeId,
+    node_removed              : NodeId,
+    node_selected             : NodeId,
+    node_deselected           : NodeId,
+    node_position_set         : (NodeId,Position),
+    node_position_set_batched : (NodeId,Position),
+    node_expression_set       : (NodeId,node::Expression),
 
-    edge_added          : EdgeId,
-    edge_removed        : EdgeId,
-    edge_source_set     : (EdgeId,EdgeTarget),
-    edge_target_set     : (EdgeId,EdgeTarget),
-    edge_source_unset   : EdgeId,
-    edge_target_unset   : EdgeId,
+    edge_added        : EdgeId,
+    edge_removed      : EdgeId,
+    edge_source_set   : (EdgeId,EdgeTarget),
+    edge_target_set   : (EdgeId,EdgeTarget),
+    edge_source_unset : EdgeId,
+    edge_target_unset : EdgeId,
 
     some_edge_targets_detached : (),
     all_edge_targets_attached  : (),
@@ -1047,6 +1039,14 @@ impl GraphEditorModel {
         }
     }
 
+    pub fn node_position(&self, node_id:impl Into<NodeId>) -> Position {
+        let node_id = node_id.into();
+        self.nodes.get_cloned_ref(&node_id).map(|node| {
+            let v_pos = node.position();
+            frp::Position::new(v_pos.x, v_pos.y)
+        }).unwrap_or_default()
+    }
+
     pub fn node_pos_mod
     (&self, node_id:impl Into<NodeId>, pos_diff:impl Into<Position>) -> (NodeId,Position) {
         let node_id      = node_id.into();
@@ -1403,7 +1403,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
-    outputs.node_position_set <+ node_with_position;
+    outputs.node_position_set         <+ node_with_position;
+    outputs.node_position_set_batched <+ node_with_position;
 
     cursor_style <- all
         [ cursor_selection
@@ -1487,16 +1488,26 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     node_drag         <- mouse.translation.gate(&touch.nodes.is_down);
     was_selected      <- touch.nodes.down.map(f!((id) model.nodes.selected.contains(id)));
     tx_sel_nodes      <- any (node_drag, inputs.translate_selected_nodes);
-    non_selected_drag <- tx_sel_nodes.map2(&touch.nodes.down,|_,id|*id).gate_not(&was_selected);
-    selected_drag     <= tx_sel_nodes.map(f_!(model.nodes.selected.keys())).gate(&was_selected);
+    non_selected_drag <- tx_sel_nodes.map2(&touch.nodes.down,|_,id|vec![*id]).gate_not(&was_selected);
+    selected_drag     <- tx_sel_nodes.map(f_!(model.nodes.selected.keys())).gate(&was_selected);
     nodes_to_drag     <- any (non_selected_drag, selected_drag);
-    nodes_new_pos     <- nodes_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
-    outputs.node_position_set <+ nodes_new_pos;
+    node_to_drag      <= nodes_to_drag;
+    node_new_pos      <- node_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
+    outputs.node_position_set <+ node_new_pos;
+
+    was_drag_false        <- touch.nodes.down.constant(false);
+    was_drag_true         <- node_drag.constant(true);
+    was_drag              <- any (was_drag_false,was_drag_true);
+    drag_finish           <- touch.nodes.up.gate(&was_drag);
+    dragged_node          <= nodes_to_drag.sample(&drag_finish);
+    dragged_node_pos      <- dragged_node.map(f!([model] (id) (*id,model.node_position(id))));
+    outputs.node_position_set_batched <+ dragged_node_pos;
 
 
     // === Set Node Position ===
 
-    outputs.node_position_set <+ inputs.set_node_position;
+    outputs.node_position_set         <+ inputs.set_node_position;
+    outputs.node_position_set_batched <+ inputs.set_node_position;
     eval outputs.node_position_set (((id,pos)) model.set_node_position(id,pos));
 
 
@@ -1562,21 +1573,24 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         cycle_count.set(cycle_count.get() + 1);
     }));
 
-    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes,inputs](_) {
+    def on_visualization_enabled  = source();
+    def on_visualization_disabled = source();
+
+    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes,on_visualization_enabled,on_visualization_disabled](_) {
         nodes.selected.for_each(|node_id| {
             if let Some(node) = nodes.get_cloned_ref(node_id) {
                 node.view.visualization_container.frp.toggle_visibility.emit(());
                 if node.view.visualization_container.is_visible() {
-                    inputs.on_visualization_enabled.emit(node_id);
+                    on_visualization_enabled.emit(node_id);
                 } else {
-                    inputs.on_visualization_disabled.emit(node_id);
+                    on_visualization_disabled.emit(node_id);
                 }
             }
         });
     }));
 
-    outputs.visualization_enabled  <+ inputs.on_visualization_enabled;
-    outputs.visualization_disabled <+ inputs.on_visualization_disabled;
+    outputs.visualization_enabled  <+ on_visualization_enabled;
+    outputs.visualization_disabled <+ on_visualization_disabled;
 
     // === Register Visualization ===
 
