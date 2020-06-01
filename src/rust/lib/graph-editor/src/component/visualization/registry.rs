@@ -109,14 +109,13 @@ impl Registry {
 
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> Visualization {
-        // TODO replace with RawText visualisation.
-       let class = Rc::new(NativeConstructorClass::new(
+        let class = NativeConstructorClass::new(
             Signature {
-                name        : "Bubble Visualization (native)".to_string(),
+                name        : "Raw Text Visualization (native)".to_string(),
                 input_types : vec!["[[Float,Float,Float]]".to_string().into()],
             },
-            |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
-        ));
+            |scene:&Scene| Ok(Visualization::new(RawText::new(scene)))
+        );
         class.instantiate(&scene).expect("Failed to instantiate default visualisation")
     }
 }
