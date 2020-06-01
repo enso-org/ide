@@ -421,7 +421,7 @@ impl Acos for f32 {
 macro_rules! define_vector {
     ($name:ident {$($field:ident),*}) => {
         /// A coordinate in space.
-        #[derive(Clone,Copy,Debug,Default)]
+        #[derive(Clone,Copy,Debug,Default,PartialEq)]
         #[repr(C)]
         pub struct $name<T=f32> {
             $(
@@ -518,7 +518,31 @@ macro_rules! define_vector {
             type Output = $name;
             fn mul(self, rhs:f32) -> Self::Output {
                 $(let $field = self.$field.mul(rhs);)*
-                Self {$($field),*}
+                $name {$($field),*}
+            }
+        }
+
+        impl Mul<&f32> for $name {
+            type Output = $name;
+            fn mul(self, rhs:&f32) -> Self::Output {
+                $(let $field = self.$field.mul(rhs);)*
+                $name {$($field),*}
+            }
+        }
+
+        impl Mul<f32> for &$name {
+            type Output = $name;
+            fn mul(self, rhs:f32) -> Self::Output {
+                $(let $field = self.$field.mul(rhs);)*
+                $name {$($field),*}
+            }
+        }
+
+        impl Mul<&f32> for &$name {
+            type Output = $name;
+            fn mul(self, rhs:&f32) -> Self::Output {
+                $(let $field = self.$field.mul(rhs);)*
+                $name {$($field),*}
             }
         }
 
@@ -526,13 +550,61 @@ macro_rules! define_vector {
             type Output = $name;
             fn div(self, rhs:f32) -> Self::Output {
                 $(let $field = self.$field.div(rhs);)*
-                Self {$($field),*}
+                $name {$($field),*}
+            }
+        }
+
+        impl Div<&f32> for $name {
+            type Output = $name;
+            fn div(self, rhs:&f32) -> Self::Output {
+                $(let $field = self.$field.div(rhs);)*
+                $name {$($field),*}
+            }
+        }
+
+        impl Div<f32> for &$name {
+            type Output = $name;
+            fn div(self, rhs:f32) -> Self::Output {
+                $(let $field = self.$field.div(rhs);)*
+                $name {$($field),*}
+            }
+        }
+
+        impl Div<&f32> for &$name {
+            type Output = $name;
+            fn div(self, rhs:&f32) -> Self::Output {
+                $(let $field = self.$field.div(rhs);)*
+                $name {$($field),*}
             }
         }
 
         impl Mul<$name> for f32 {
             type Output = $name;
             fn mul(self, rhs:$name) -> Self::Output {
+                $(let $field = self.mul(rhs.$field);)*
+                $name {$($field),*}
+            }
+        }
+
+        impl Mul<&$name> for f32 {
+            type Output = $name;
+            fn mul(self, rhs:&$name) -> Self::Output {
+                $(let $field = self.mul(rhs.$field);)*
+                $name {$($field),*}
+            }
+        }
+
+        impl Mul<$name> for &f32 {
+            type Output = $name;
+            fn mul(self, rhs:$name) -> Self::Output {
+                $(let $field = self.mul(rhs.$field);)*
+                $name {$($field),*}
+            }
+        }
+
+        impl Mul<&$name> for &f32 {
+            type Output = $name;
+            fn mul(self, rhs:&$name) -> Self::Output {
                 $(let $field = self.mul(rhs.$field);)*
                 $name {$($field),*}
             }

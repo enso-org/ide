@@ -94,7 +94,7 @@ where D:HasComponentsRepr, ComponentsOf<D>:Into<D> {
 }
 
 impl<D> Into<Vector3<f32>> for Color<D>
-    where Self : HasComponents<ComponentsRepr=(f32,f32,f32)> {
+where Color<D> : HasComponents<ComponentsRepr=(f32,f32,f32)> {
     fn into(self) -> Vector3<f32> {
         let tt : Components<(f32,f32,f32)> = self.into_components();
         let xx : Vector3<f32> = Into::<Vector3<f32>>::into(tt);
@@ -103,9 +103,27 @@ impl<D> Into<Vector3<f32>> for Color<D>
 }
 
 impl<D> Into<Vector4<f32>> for Color<D>
-    where Self : HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
+where Color<D> : HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
     fn into(self) -> Vector4<f32> {
         let tt : Components<(f32,f32,f32,f32)> = self.into_components();
+        let xx : Vector4<f32> = Into::<Vector4<f32>>::into(tt);
+        xx
+    }
+}
+
+impl<D> Into<Vector3<f32>> for &Color<D>
+    where Color<D> : Copy + HasComponents<ComponentsRepr=(f32,f32,f32)> {
+    fn into(self) -> Vector3<f32> {
+        let tt : Components<(f32,f32,f32)> = (*self).into_components();
+        let xx : Vector3<f32> = Into::<Vector3<f32>>::into(tt);
+        xx
+    }
+}
+
+impl<D> Into<Vector4<f32>> for &Color<D>
+    where Color<D> : Copy + HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
+    fn into(self) -> Vector4<f32> {
+        let tt : Components<(f32,f32,f32,f32)> = (*self).into_components();
         let xx : Vector4<f32> = Into::<Vector4<f32>>::into(tt);
         xx
     }

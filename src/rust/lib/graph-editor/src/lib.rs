@@ -1263,11 +1263,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     selection_size_down    <- mouse.position.map2(&mouse_on_down_position,|m,n|{m-n});
     selection_size         <- selection_size_down.gate(&touch.background.is_down);
 
-    on_press_style   <- mouse.press   . constant(cursor::Style::pressed());
+    on_press_style   <- mouse.press   . constant(cursor::Style::new_press());
     on_release_style <- mouse.release . constant(cursor::Style::default());
 
 
-    cursor_selection_start <- selection_size.map(|p| cursor::Style::selection(Vector2::new(p.x,p.y)));
+    cursor_selection_start <- selection_size.map(|p| cursor::Style::new_box_selection(Vector2::new(p.x,p.y)));
     cursor_selection_end   <- mouse.release . constant(cursor::Style::default());
 
     cursor_selection <- any (cursor_selection_start, cursor_selection_end);
@@ -1281,7 +1281,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Cursor Color ===
     frp::extend! { network
 
-    let style = cursor::Style::color_no_animation(color::Lcha::new(0.6,0.5,0.76,1.0)).press();
+    let style = cursor::Style::new_color_no_animation(color::Lcha::new(0.6,0.5,0.76,1.0)).press();
     cursor_style_on_edge_drag      <- outputs.some_edge_targets_detached.constant(style);
     cursor_style_on_edge_drag_stop <- outputs.all_edge_targets_attached.constant(default());
     cursor_style_edge_drag         <- any (cursor_style_on_edge_drag,cursor_style_on_edge_drag_stop);

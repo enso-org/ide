@@ -193,26 +193,6 @@ impl<T> display::Object for ShapeView<T> {
 // === Animation ===
 // =================
 
-// TODO: This should grow and then should be refactored somewhere else.
-/// Define a new animation FRP network.
-pub fn animation<F>(network:&frp::Network, f:F) -> DynSimulator<f32>
-where F : Fn(f32) + 'static {
-    frp::extend! { network
-        def target = source::<f32> ();
-        def _eval  = target.map(move |value| f(*value));
-    }
-    DynSimulator::<f32>::new(Box::new(move |t| target.emit(t)))
-}
-
-/// Define a new animation FRP network. // FIXME: refactor
-pub fn animation2(network:&frp::Network) -> (DynSimulator<f32>, frp::Stream<f32>) {
-    frp::extend! { network
-        def target = source::<f32> ();
-    }
-    let source = DynSimulator::<f32>::new(Box::new(f!((t) target.emit(t))));
-    (source,target.into())
-}
-
 #[derive(CloneRef,Derivative,Debug,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 pub struct Animator<T> {
@@ -223,20 +203,14 @@ pub struct Animator<T> {
 
 impl<T:inertia::Value> Animator<T> {
     pub fn new(network:&frp::Network) -> Self {
-        let (simulator,value) = animator(network);
+        frp::extend! { network
+            def target = source::<T>();
+        }
+        let simulator = DynSimulator::<T>::new(Box::new(f!((t) target.emit(t))));
+        let value     = target.into();
         Self {simulator,value}
     }
 }
-
-/// Define a new animation FRP network.
-pub fn animator<T:inertia::Value>(network:&frp::Network) -> (DynSimulator<T>, frp::Stream<T>) {
-    frp::extend! { network
-        def target = source::<T>();
-    }
-    let source = DynSimulator::<T>::new(Box::new(f!((t) target.emit(t))));
-    (source,target.into())
-}
-
 
 /// Define a new animation FRP network.
 pub fn animator2(network:&frp::Network) -> (easing::Animator<f32,Box<dyn Fn(f32)->f32>,Box<dyn Fn(f32)>>, frp::Stream<f32>) {

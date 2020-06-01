@@ -15,7 +15,7 @@ use crate::animation;
 /// The type of the value of the simulation. In particular, the Value could be `f32`
 /// (1-dimensional simulation), or `Vector3<f32>` (3-dimensional simulation).
 pub trait Value
-    = 'static + Copy + Default + Debug + Normalize
+    = 'static + Copy + Default + Debug + Normalize + PartialEq
     + Magnitude <Output=f32>
     + Neg<       Output=Self>
     + Sub<Self , Output=Self>
@@ -367,13 +367,14 @@ where Cb : Callback<T> {
     }
 
     pub fn set_target_value(&self, target_value:T) {
-        self.simulation.set_target_value(target_value);
-        self.start();
+        if target_value != self.target_value() {
+            self.simulation.set_target_value(target_value);
+            self.start();
+        }
     }
 
     pub fn update_target_value<F:FnOnce(T)->T>(&self, f:F) {
-        self.simulation.update_target_value(f);
-        self.start();
+        self.set_target_value(f(self.target_value()))
     }
 
     pub fn skip(&self) {
