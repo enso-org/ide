@@ -292,7 +292,6 @@ impl Cursor {
         let model   = CursorModel::new(scene,&network);
         let input   = &model.frp;
         let mouse   = &scene.mouse.frp;
-        // TODO: opisac lepiej mieszanie factorow nizej
 
         // === Animations ===
         //
