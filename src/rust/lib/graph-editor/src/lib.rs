@@ -503,6 +503,9 @@ generate_frp_outputs! {
 
     connection_added    : EdgeId,
     connection_removed  : EdgeId,
+
+    visualization_enabled  : NodeId,
+    visualization_disabled : NodeId,
 }
 
 
