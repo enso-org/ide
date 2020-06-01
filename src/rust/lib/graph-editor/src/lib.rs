@@ -359,7 +359,7 @@ pub struct FrpInputs {
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<Visualization>)>,
     pub register_visualization_class : frp::Source<Option<Rc<visualization::Handle>>>,
-     pub set_visualization_data       : frp::Source<(NodeId,Option<visualization::Data>)>,
+    pub set_visualization_data       : frp::Source<(NodeId,Option<visualization::Data>)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     some_edge_targets_detached : frp::Source,
