@@ -162,9 +162,11 @@ impl GraphEditorIntegratedWithController {
         let node_moved         = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_moved_in_ui,&invalidate.trigger);
         let visualization_enabled = Self::ui_action(&model,
-            GraphEditorIntegratedWithControllerModel::visualization_enabled_in_ui,&invalidate.trigger);
+            GraphEditorIntegratedWithControllerModel::visualization_enabled_in_ui,
+            &invalidate.trigger);
         let visualization_disabled = Self::ui_action(&model,
-            GraphEditorIntegratedWithControllerModel::visualization_disabled_in_ui,&invalidate.trigger);
+            GraphEditorIntegratedWithControllerModel::visualization_disabled_in_ui,
+            &invalidate.trigger);
         frp::extend! {network
             // Notifications from controller
             let handle_notification = FencedAction::fence(&network,
@@ -175,11 +177,11 @@ impl GraphEditorIntegratedWithController {
             // Changes in Graph Editor
             let is_handling_notification = handle_notification.is_running;
             def is_hold = is_handling_notification.all_with(&invalidate.is_running, |l,r| *l || *r);
-            def _action = editor_outs.node_removed          .map2(&is_hold,node_removed);
-            def _action = editor_outs.connection_added      .map2(&is_hold,connection_created);
-            def _action = editor_outs.visualization_enabled .map2(&is_hold,visualization_enabled);
-            def _action = editor_outs.visualization_disabled.map2(&is_hold,visualization_disabled);
-            def _action = editor_outs.connection_removed    .map2(&is_hold,connection_removed);
+            def _action = editor_outs.node_removed             .map2(&is_hold,node_removed);
+            def _action = editor_outs.connection_added         .map2(&is_hold,connection_created);
+            def _action = editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
+            def _action = editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
+            def _action = editor_outs.connection_removed       .map2(&is_hold,connection_removed);
             def _action = editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
         }
         Self::connect_frp_to_controller_notifications(&model,handle_notification.trigger);

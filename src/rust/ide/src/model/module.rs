@@ -204,7 +204,7 @@ impl QualifiedName {
         let module_segments  = module_segments.into_iter();
         let module_segments  = module_segments.map(|segment| segment.as_ref().to_string());
         let mut all_segments = project_name.chain(module_segments);
-        let name = all_segments.join(".");
+        let name             = all_segments.join(".");
         QualifiedName(name)
     }
 }

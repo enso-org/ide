@@ -1,7 +1,7 @@
 //! Definition of all FRP stream nodes.
 //!
 //! Please note that the documentation is provided for methods of `Network`, as this is considered
-//! to be the public API. The same documentation applies to node definitions bellow.
+//! to be the public API. The same documentation applies to node definitions below.
 #![allow(missing_docs)]
 #![allow(clippy::type_complexity)]
 
@@ -303,7 +303,7 @@ impl Network {
         self.register(OwnedAllWith2::new(label,t1,t2,f))
     }
 
-    /// Specialized version `zip_with`.
+    /// Specialized version `all_with`.
     pub fn all_with3<T1,T2,T3,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, f:F) -> Stream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T:Data,
@@ -311,7 +311,7 @@ impl Network {
         self.register(OwnedAllWith3::new(label,t1,t2,t3,f))
     }
 
-    /// Specialized version `zip_with`.
+    /// Specialized version `all_with`.
     pub fn all_with4<T1,T2,T3,T4,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, f:F) -> Stream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T:Data,
