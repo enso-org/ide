@@ -1042,7 +1042,7 @@ impl GraphEditorModel {
         self.nodes.get_cloned_ref(&node_id).map(|node| {
             let v_pos = node.position();
             frp::Position::new(v_pos.x, v_pos.y)
-        }).unwrap_or(default())
+        }).unwrap_or_default()
     }
 
     pub fn node_pos_mod
