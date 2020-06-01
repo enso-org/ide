@@ -365,8 +365,6 @@ pub struct FrpInputs {
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     some_edge_targets_detached : frp::Source,
     all_edge_targets_attached  : frp::Source,
-    on_visualization_enabled   : frp::Source<NodeId>,
-    on_visualization_disabled  : frp::Source<NodeId>
 }
 
 impl FrpInputs {
@@ -398,9 +396,6 @@ impl FrpInputs {
             def some_edge_targets_detached = source();
             def all_edge_targets_attached  = source();
 
-            def on_visualization_enabled  = source();
-            def on_visualization_disabled = source();
-
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -410,8 +405,7 @@ impl FrpInputs {
              ,set_node_position,select_node,remove_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
              ,register_visualization_class,some_edge_targets_detached,all_edge_targets_attached
-             ,hover_node_input,on_visualization_disabled
-             ,on_visualization_enabled
+             ,hover_node_input
              }
     }
 }
@@ -1562,21 +1556,24 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         cycle_count.set(cycle_count.get() + 1);
     }));
 
-    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes,inputs](_) {
+    def on_visualization_enabled  = source();
+    def on_visualization_disabled = source();
+
+    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([nodes,on_visualization_enabled,on_visualization_disabled](_) {
         nodes.selected.for_each(|node_id| {
             if let Some(node) = nodes.get_cloned_ref(node_id) {
                 node.view.visualization_container.frp.toggle_visibility.emit(());
                 if node.view.visualization_container.is_visible() {
-                    inputs.on_visualization_enabled.emit(node_id);
+                    on_visualization_enabled.emit(node_id);
                 } else {
-                    inputs.on_visualization_disabled.emit(node_id);
+                    on_visualization_disabled.emit(node_id);
                 }
             }
         });
     }));
 
-    outputs.visualization_enabled  <+ inputs.on_visualization_enabled;
-    outputs.visualization_disabled <+ inputs.on_visualization_disabled;
+    outputs.visualization_enabled  <+ on_visualization_enabled;
+    outputs.visualization_disabled <+ on_visualization_disabled;
 
     // === Register Visualization ===
 
