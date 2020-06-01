@@ -1,4 +1,4 @@
-//! Contains definition of trivial logger that discards all messages.
+//! Contains definition of trivial logger that discards all messages except warnings and errors.
 
 use enso_prelude::*;
 
@@ -14,7 +14,7 @@ use std::fmt::Debug;
 // === Logger ===
 // ==============
 
-/// Trivial logger that discards all the messages.
+/// Trivial logger that discards all messages except warnings and errors.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct Logger{
     /// Path that is used as an unique identifier of this logger.
@@ -44,11 +44,11 @@ impl AnyLogger for Logger {
         Self {path:Rc::new(path.into())}
     }
 
-    fn trace      <M: LogMsg>(&self, _:M){}
-    fn debug      <M: LogMsg>(&self, _:M){}
-    fn info       <M: LogMsg>(&self, _:M){}
-    fn warning    <M: LogMsg>(&self, _:M){}
-    fn error      <M: LogMsg>(&self, _:M){}
-    fn group_begin<M: LogMsg>(&self, _:M){}
-    fn group_end             (&self)     {}
+    fn trace      <M: LogMsg>(&self,   _:M) {                                                 }
+    fn debug      <M: LogMsg>(&self,   _:M) {                                                 }
+    fn info       <M: LogMsg>(&self,   _:M) {                                                 }
+    fn warning    <M: LogMsg>(&self, msg:M) { crate::enabled::Logger::warning(&self.path,msg) }
+    fn error      <M: LogMsg>(&self, msg:M) { crate::enabled::Logger::error  (&self.path,msg) }
+    fn group_begin<M: LogMsg>(&self,   _:M) {                                                 }
+    fn group_end             (&self       ) {                                                 }
 }

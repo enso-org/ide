@@ -26,15 +26,74 @@ pub struct Logger {
     pub path:Rc<String>,
 }
 
-impl Logger {
-    #[cfg(not(target_arch = "wasm32"))]
-    fn format<M:LogMsg>(&self, msg:M) -> String {
-        msg.with_log_msg(|s| format!("[{}] {}", self.path, s))
-    }
 
-    #[cfg(target_arch = "wasm32")]
-    fn format<M:LogMsg>(&self, msg:M) -> JsValue {
-        msg.with_log_msg(|s| format!("[{}] {}", self.path, s)).into()
+#[cfg(not(target_arch = "wasm32"))]
+impl Logger {
+    fn format<M:LogMsg>(path:&str, msg:M) -> String {
+        msg.with_log_msg(|s| format!("[{}] {}", path, s))
+    }
+    /// Log with stacktrace and level:info.
+    pub fn trace<M:LogMsg>(path:&str, msg:M) {
+        println!("{}",Self::format(path,msg));
+    }
+    /// Log with level:debug
+    pub fn debug<M:LogMsg>(path:&str, msg:M) {
+        println!("{}",Self::format(path,msg));
+    }
+    /// Log with level:info.
+    pub fn info<M:LogMsg>(path:&str, msg:M) {
+        println!("{}",Self::format(path,msg));
+    }
+    /// Log with level:warning.
+    pub fn warning<M:LogMsg>(path:&str, msg:M) {
+        println!("[WARNING] {}",Self::format(path,msg));
+    }
+    /// Log with level:error.
+    pub fn error<M:LogMsg>(path:&str, msg:M) {
+        println!("[ERROR] {}",Self::format(path,msg));
+    }
+    /// Visually groups all logs between group_begin and group_end.
+    pub fn group_begin<M:LogMsg>(path:&str, msg:M) {
+        println!(">>> {}",Self::format(path,msg));
+    }
+    /// Visually groups all logs between group_begin and group_end.
+    pub fn group_end() {
+        println!("<<<")
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Logger {
+    fn format<M:LogMsg>(path:&str, msg:M) -> JsValue {
+        msg.with_log_msg(|s| format!("[{}] {}", path, s)).into()
+    }
+    /// Log with stacktrace and level:info.
+    pub fn trace<M:LogMsg>(path:&str, msg:M) {
+        console::trace_1(Self::format(path,msg));
+    }
+    /// Log with level:debug
+    pub fn debug<M:LogMsg>(path:&str, msg:M) {
+        console::debug_1(Self::format(path,msg));
+    }
+    /// Log with level:info.
+    pub fn info<M:LogMsg>(path:&str, msg:M) {
+        console::info_1(Self::format(path,msg));
+    }
+    /// Log with level:warning.
+    pub fn warning<M:LogMsg>(path:&str, msg:M) {
+        console::warn_1(Self::format(path,msg));
+    }
+    /// Log with level:error.
+    pub fn error<M:LogMsg>(path:&str, msg:M) {
+        console::error_1(Self::format(path,msg));
+    }
+    /// Visually groups all logs between group_begin and group_end.
+    pub fn group_begin<M:LogMsg>(path:&str, msg:M) {
+        console::group_1(Self::format(path,msg));
+    }
+    /// Visually groups all logs between group_begin and group_end.
+    pub fn group_end() {
+        console::group_end();
     }
 }
 
@@ -52,7 +111,6 @@ impls!{ From + &From <crate::disabled::Logger> for Logger { |logger| Self::new(l
 // === AnyLogger Impl ===
 // ======================
 
-#[cfg(not(target_arch = "wasm32"))]
 impl AnyLogger for Logger {
     fn path(&self) -> &str {
         self.path.as_str()
@@ -62,70 +120,11 @@ impl AnyLogger for Logger {
         Self {path:Rc::new(path.into())}
     }
 
-    fn trace<M:LogMsg>(&self, msg:M) {
-        println!("{}",self.format(msg));
-    }
-
-    fn debug<M:LogMsg>(&self, msg:M) {
-        println!("{}",self.format(msg));
-    }
-
-    fn info<M:LogMsg>(&self, msg:M) {
-        println!("{}",self.format(msg));
-    }
-
-    fn warning<M:LogMsg>(&self, msg:M) {
-        println!("[WARNING] {}",self.format(msg));
-    }
-
-    fn error<M:LogMsg>(&self, msg:M) {
-        println!("[ERROR] {}",self.format(msg));
-    }
-
-    fn group_begin<M:LogMsg>(&self, msg:M) {
-        println!(">>> {}",self.format(msg));
-    }
-
-    fn group_end(&self) {
-        println!("<<<")
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl AnyLogger for Logger {
-    fn path(&self) -> &str {
-        self.path.as_str()
-    }
-
-    fn new(path:impl Str) -> Self {
-        Self {path:Rc::new(path.into())}
-    }
-
-    fn trace<M:LogMsg>(&self, msg:M) {
-        console::trace_1(&self.format(msg));
-    }
-
-    fn debug<M:LogMsg>(&self, msg:M) {
-        console::debug_1(&self.format(msg));
-    }
-
-    fn info<M:LogMsg>(&self, msg:M) {
-        console::info_1(&self.format(msg));
-    }
-
-    fn warning<M:LogMsg>(&self, msg:M) {
-        console::warn_1(&self.format(msg));
-    }
-
-    fn error<M:LogMsg>(&self, msg:M) {
-        console::error_1(&self.format(msg));
-    }
-
-    fn group_begin<M:LogMsg>(&self, msg:M) {
-        console::group_1(&self.format(msg));
-    }
-
-    fn group_end(&self) {
-        console::group_end();
-    }
+    fn trace      <M:LogMsg>(&self, msg:M) { Self::trace      (&self.path,msg) }
+    fn debug      <M:LogMsg>(&self, msg:M) { Self::debug      (&self.path,msg) }
+    fn info       <M:LogMsg>(&self, msg:M) { Self::info       (&self.path,msg) }
+    fn warning    <M:LogMsg>(&self, msg:M) { Self::warning    (&self.path,msg) }
+    fn error      <M:LogMsg>(&self, msg:M) { Self::error      (&self.path,msg) }
+    fn group_begin<M:LogMsg>(&self, msg:M) { Self::group_begin(&self.path,msg) }
+    fn group_end            (&self       ) { Self::group_end  (              ) }
 }

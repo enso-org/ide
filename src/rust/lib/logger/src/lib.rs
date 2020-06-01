@@ -54,7 +54,9 @@ pub trait AnyLogger {
 
     /// Creates a new logger with this logger as a parent.
     fn sub(logger:&impl AnyLogger, path:impl Str) -> Self where Self:Sized {
-        Self::new(format!("{}.{}", logger.path(), path.as_ref()))
+        if logger.path().is_empty() {Self::new(path)} else {
+            Self::new(format!("{}.{}", logger.path(), path.as_ref()))
+        }
     }
 
     /// Evaluates function `f` and visually groups all logs will occur during its execution.

@@ -779,12 +779,12 @@ impl SceneData {
 
         let display_object = display::object::Instance::new(&logger);
         let context        = web::get_webgl2_context(&dom.layers.canvas);
-        let sub_logger     = Logger::sub(&logger,"shape_dirty").into();
+        let sub_logger     = Logger::sub(&logger,"shape_dirty");
         let shape_dirty    = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
-        let sub_logger     = Logger::sub(&logger,"symbols_dirty").into();
+        let sub_logger     = Logger::sub(&logger,"symbols_dirty");
         let dirty_flag     = SymbolRegistryDirty::new(sub_logger,Box::new(on_mut));
         let on_change      = enclose!((dirty_flag) move || dirty_flag.set());
-        let sub_logger     = Logger::sub(&logger,"global_variables").into();
+        let sub_logger     = Logger::sub(&logger,"global_variables");
         let variables      = UniformScope::new(sub_logger,&context);
         let symbols        = SymbolRegistry::mk(&variables,&stats,&context,&logger,on_change);
         let screen_shape   = dom.shape().current();
