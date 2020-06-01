@@ -84,7 +84,7 @@ impl ContainerData {
     }
 
     /// Indicates whether the visualization is visible.
-    fn is_visible(&self) -> bool {
+    pub fn is_visible(&self) -> bool {
         if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.has_parent()
         } else {
