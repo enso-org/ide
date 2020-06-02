@@ -175,6 +175,11 @@ where K:Eq+Hash, S:std::hash::BuildHasher {
         self.raw.borrow_mut().insert(k,v)
     }
 
+    pub fn get_copied(&self, k:&K) -> Option<V>
+    where V:Copy {
+        self.raw.borrow().get(k).copied()
+    }
+
     pub fn get_cloned(&self, k:&K) -> Option<V>
     where V:Clone {
         self.raw.borrow().get(k).cloned()
@@ -1537,7 +1542,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         }
     }));
 
-    // === Vis Cycling ===
+    // === Vis Update Data ===
 
     // TODO remove this once real data is available.
     let sample_data_generator = MockDataGenerator3D::default();

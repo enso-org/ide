@@ -66,7 +66,6 @@ impl BubbleChart {
 impl DataRenderer for BubbleChart {
 
     fn receive_data(&self, data:Data) -> Result<(),DataError> {
-        debug!(self.logger, "Received data: {data:?}");
         let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
         // Avoid re-creating views, if we have already created some before.
         let mut views = self.views.borrow_mut();

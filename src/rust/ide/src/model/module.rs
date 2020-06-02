@@ -169,7 +169,7 @@ impl Display for Path {
 pub struct QualifiedName(String);
 
 impl QualifiedName {
-    /// Obtains a module's full qualified name from its path and the project name.
+    /// Obtain a module's full qualified name from its path and the project name.
     ///
     /// ```
     /// use ide::prelude::*;
@@ -189,7 +189,7 @@ impl QualifiedName {
         Self::from_module_segments(module_segments,project_name)
     }
 
-    /// Obtains a module's full qualified name from its path and the project name.
+    /// Obtain a module's full qualified name from its path and the project name.
     ///
     /// ```
     /// use ide::model::module::QualifiedName;

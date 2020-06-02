@@ -19,7 +19,6 @@
 #![feature(unboxed_closures)]
 #![feature(vec_remove_item)]
 #![feature(weak_into_raw)]
-#![allow(unused_parens)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
