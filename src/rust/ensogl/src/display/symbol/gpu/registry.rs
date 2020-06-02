@@ -38,7 +38,7 @@ pub struct SymbolRegistry {
     symbol_dirty    : SymbolDirty,
     logger          : Logger,
     view_projection : Uniform<Matrix4<f32>>,
-    zoom            : Uniform<f32>,
+    z_zoom_1        : Uniform<f32>,
     variables       : UniformScope,
     context         : Context,
     stats           : Stats,
@@ -56,10 +56,10 @@ impl SymbolRegistry {
         let symbols         = default();
         let variables       = variables.clone();
         let view_projection = variables.add_or_panic("view_projection", Matrix4::<f32>::identity());
-        let zoom            = variables.add_or_panic("zoom"           , 1.0);
+        let z_zoom_1        = variables.add_or_panic("z_zoom_1"       , 1.0);
         let context         = context.clone();
         let stats           = stats.clone_ref();
-        Self {symbols,symbol_dirty,logger,view_projection,zoom,variables,context,stats}
+        Self {symbols,symbol_dirty,logger,view_projection,z_zoom_1,variables,context,stats}
     }
 
     /// Creates a new `Symbol` instance and returns its id.
@@ -102,7 +102,7 @@ impl SymbolRegistry {
     /// Updates the view-projection matrix after camera movement.
     pub fn set_camera(&self, camera:&Camera2d) {
         self.view_projection.set(camera.view_projection_matrix());
-        self.zoom.set(camera.zoom());
+        self.z_zoom_1.set(camera.z_zoom_1());
     }
 
     /// Rasterize all symbols.
