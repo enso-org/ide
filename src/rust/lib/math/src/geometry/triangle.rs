@@ -1,13 +1,16 @@
 //! This module defines an computations related to triangle geometry.
 
-use crate::math::algebra::Acos;
-use crate::math::algebra::Cos;
-use crate::math::algebra::Field;
-use crate::math::algebra::Sin;
-use crate::math::algebra::Sqrt;
+use crate::algebra::Acos;
+use crate::algebra::Cos;
+use crate::algebra::Field;
+use crate::algebra::Sin;
+use crate::algebra::Sqrt;
 
 use core::f32::consts::PI;
-use failure::_core::ops::{Add, Mul, Sub};
+use std::ops::Add;
+use std::ops::Mul;
+use std::ops::Sub;
+
 
 
 /// Represents a triangle through its angles and side lengths. This struct is only meant to be a

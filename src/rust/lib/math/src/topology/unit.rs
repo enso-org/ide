@@ -1,13 +1,9 @@
 //! Defines unit of measurement abstraction. See: https://en.wikipedia.org/wiki/Unit_of_measurement
 
-use crate::prelude::*;
+use crate::algebra::*;
 
-use crate::system::gpu::shader::glsl;
-use crate::system::gpu::shader::glsl::Glsl;
-use crate::system::gpu::shader::glsl::traits::*;
-
-use nalgebra::*;
 use std::ops::*;
+use std::marker::PhantomData;
 
 
 
@@ -20,7 +16,7 @@ use std::ops::*;
 ///   - Type, like pixels, degrees, or radians.
 ///   - Repr, like f32, or f64.
 #[derive(Clone,Copy,Debug,PartialEq)]
-pub struct Unit<Quantity=Anything,Type=Anything,Repr=f32> {
+pub struct Unit<Quantity,Type,Repr=f32> {
     /// The raw value of this unit.
     pub value : Repr,
     _quantity : PhantomData<Quantity>,
@@ -48,8 +44,17 @@ impl<Quantity,Type,Repr> Abs for Unit<Quantity,Type,Repr> where Repr:Abs {
 
 // === Operators ===
 
-impls! { [Quantity,Type,Repr] From<Repr> for Unit<Quantity,Type,Repr>  { |t| {Self::new(t)} } }
-impls! { [Quantity,Type]      From<Unit<Quantity,Type,f32>> for f32    { |t| {t.value} } }
+impl<Quantity,Type,Repr> From<Repr> for Unit<Quantity,Type,Repr> {
+    fn from(t:Repr) -> Self {
+        Self::new(t)
+    }
+}
+
+impl<Quantity,Type> From<Unit<Quantity,Type,f32>> for f32 {
+    fn from(t:Unit<Quantity,Type,f32>) -> Self {
+        t.value
+    }
+}
 
 macro_rules! impl_operator_for_unit {
     ( $name:ident $fn:ident <$rhs:ty> for $lhs:ty ) => {
@@ -173,7 +178,7 @@ define_quantities! {Distance,Angle}
 // ================
 
 /// Distance parametrized by the unit type.
-pub type Distance<Type=Anything,Repr=f32> = Unit<quantity::Distance,Type,Repr>;
+pub type Distance<Type,Repr=f32> = Unit<quantity::Distance,Type,Repr>;
 
 
 // === Pixels ===
@@ -211,24 +216,6 @@ impl PixelDistance for V2<f32> {
     }
 }
 
-impls! { From + &From <Distance<Pixels>> for Glsl { |t| { t.value.into() } }}
-
-impls! { From<PhantomData<Distance<Pixels>>> for glsl::PrimType {
-    |_|  { PhantomData::<f32>.into() }
-}}
-
-impls! { From<PhantomData<Vector2<Distance<Pixels>>>> for glsl::PrimType {
-    |_|  { PhantomData::<Vector2<f32>>.into() }
-}}
-
-impls! { From<PhantomData<Vector3<Distance<Pixels>>>> for glsl::PrimType {
-    |_|  { PhantomData::<Vector3<f32>>.into() }
-}}
-
-impls! { From<PhantomData<Vector4<Distance<Pixels>>>> for glsl::PrimType {
-    |_|  { PhantomData::<Vector4<f32>>.into() }
-}}
-
 
 
 // =============
@@ -236,7 +223,7 @@ impls! { From<PhantomData<Vector4<Distance<Pixels>>>> for glsl::PrimType {
 // =============
 
 /// Angle parametrized by the unit type.
-pub type Angle<Type=Anything,Repr=f32> = Unit<quantity::Angle,Type,Repr>;
+pub type Angle<Type,Repr=f32> = Unit<quantity::Angle,Type,Repr>;
 
 /// Degrees angle unit type.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
@@ -300,14 +287,6 @@ impl AngleOps for Angle<Radians> {
         *self
     }
 }
-
-impls! { From< Angle<Radians>> for Glsl { |t| { glsl::f32_to_rad(&t.value.glsl()) } }}
-impls! { From<&Angle<Radians>> for Glsl { |t| { glsl::f32_to_rad(&t.value.glsl()) } }}
-impls! { From< Angle<Degrees>> for Glsl { |t| { glsl::deg_to_f32(&glsl::f32_to_deg(&t.value.glsl())) } }}
-impls! { From<&Angle<Degrees>> for Glsl { |t| { glsl::deg_to_f32(&glsl::f32_to_deg(&t.value.glsl())) } }}
-impls! { From<PhantomData<Angle<Radians>>> for glsl::PrimType {
-    |_|  { "Radians".into() }
-}}
 
 
 
