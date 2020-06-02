@@ -37,7 +37,7 @@ use std::ops::Sub;
 /// -------
 /// ```
 /// # use assert_approx_eq::assert_approx_eq;
-/// # use ensogl::math::geometry::triangle::Triangle;
+/// # use crate::geometry::triangle::Triangle;
 /// let result = Triangle::<f32>::from_sides_and_angle(1.0, 1.0 , 60.0_f32.to_radians());
 ///
 /// assert_approx_eq!(result.side_bc(), 1.0);

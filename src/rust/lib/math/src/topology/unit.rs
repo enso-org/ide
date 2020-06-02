@@ -57,25 +57,25 @@ impl<Quantity,Type> From<Unit<Quantity,Type,f32>> for f32 {
 }
 
 macro_rules! impl_operator_for_unit {
-    ( $name:ident $fn:ident <$rhs:ty> for $lhs:ty ) => {
-        impl_operator_for_unit_with_ref_rhs! { $name $fn <$rhs> for $lhs [value] }
-        impl_operator_for_unit_with_ref_lhs! { $name $fn <$rhs> for $lhs }
+    ( $name:ident $fn:ident $ln:ident $rn:ident <$rhs:ty> for $lhs:ty ) => {
+        impl_operator_for_unit_with_ref_rhs! { $name $fn $ln $rn <$rhs> for $lhs [value] }
+        impl_operator_for_unit_with_ref_lhs! { $name $fn $ln $rn <$rhs> for $lhs }
     }
 }
 
 macro_rules! impl_operator_for_unit_with_ref_rhs {
-    ( $name:ident $fn:ident <$rhs:ty> for $lhs:ty $([$rhs_accessor:ident])? ) => {
-        impl<Quantity,Type,Lhs,Rhs> $name<$rhs> for $lhs
-        where Lhs : $name<Rhs> {
-            type Output = Unit<Quantity,Type,<Lhs as $name<Rhs>>::Output>;
+    ( $name:ident $fn:ident $ln:ident $rn:ident <$rhs:ty> for $lhs:ty $([$rhs_accessor:ident])? ) => {
+        impl<Quantity,Type>/*,$ln,$rn>*/ $name<$rhs> for $lhs
+        where $ln : $name<$rn> {
+            type Output = Unit<Quantity,Type,<$ln as $name<$rn>>::Output>;
             fn $fn(self, rhs:$rhs) -> Self::Output {
                 (self.value.$fn(rhs $(.$rhs_accessor)?)).into()
             }
         }
 
-        impl<'t,Quantity,Type,Lhs,Rhs> $name<$rhs> for &'t $lhs
-        where &'t Lhs : $name<Rhs> {
-            type Output = Unit<Quantity,Type,<&'t Lhs as $name<Rhs>>::Output>;
+        impl<'t,Quantity,Type>/*,$ln,$rn>*/ $name<$rhs> for &'t $lhs
+        where &'t $ln : $name<$rn> {
+            type Output = Unit<Quantity,Type,<&'t $ln as $name<$rn>>::Output>;
             fn $fn(self, rhs:$rhs) -> Self::Output {
                 ((&self.value).$fn(rhs $(.$rhs_accessor)?)).into()
             }
@@ -84,18 +84,18 @@ macro_rules! impl_operator_for_unit_with_ref_rhs {
 }
 
 macro_rules! impl_operator_for_unit_with_ref_lhs {
-    ( $name:ident $fn:ident <$rhs:ty> for $lhs:ty ) => {
-        impl<'t,Quantity,Type,Lhs,Rhs> $name<&'t $rhs> for &'t $lhs
-        where &'t Lhs : $name<&'t Rhs> {
-            type Output = Unit<Quantity,Type,<&'t Lhs as $name<&'t Rhs>>::Output>;
+    ( $name:ident $fn:ident $ln:ident $rn:ident <$rhs:ty> for $lhs:ty ) => {
+        impl<'t,Quantity,Type>/*,$ln,$rn>*/ $name<&'t $rhs> for &'t $lhs
+        where &'t $ln : $name<&'t $rn> {
+            type Output = Unit<Quantity,Type,<&'t $ln as $name<&'t $rn>>::Output>;
             fn $fn(self, rhs:&'t $rhs) -> Self::Output {
                 ((&self.value).$fn(&rhs.value)).into()
             }
         }
 
-        impl<'t,Quantity,Type,Lhs,Rhs> $name<&'t $rhs> for $lhs
-            where Lhs : $name<&'t Rhs> {
-            type Output = Unit<Quantity,Type,<Lhs as $name<&'t Rhs>>::Output>;
+        impl<'t,Quantity,Type>/*,$ln,$rn>*/ $name<&'t $rhs> for $lhs
+            where $ln : $name<&'t $rn> {
+            type Output = Unit<Quantity,Type,<$ln as $name<&'t $rn>>::Output>;
             fn $fn(self, rhs:&'t $rhs) -> Self::Output {
                 (self.value.$fn(&rhs.value)).into()
             }
@@ -103,11 +103,48 @@ macro_rules! impl_operator_for_unit_with_ref_lhs {
     }
 }
 
-impl_operator_for_unit! { Add add <Unit<Quantity,Type,Rhs>> for Unit<Quantity,Type,Lhs> }
-impl_operator_for_unit! { Sub sub <Unit<Quantity,Type,Rhs>> for Unit<Quantity,Type,Lhs> }
 
-impl_operator_for_unit_with_ref_rhs! { Mul mul <Rhs> for Unit<Quantity,Type,Lhs> }
-impl_operator_for_unit_with_ref_rhs! { Div div <Rhs> for Unit<Quantity,Type,Lhs> }
+macro_rules! impl_operator_for_prim_type_rhs {
+    ( $name:ident $fn:ident $t:ident ) => {
+        impl<Quantity,Type> $name<$t> for Unit<Quantity,Type,$t> {
+            type Output = Unit<Quantity,Type,$t>;
+            fn $fn(self, rhs:$t) -> Self::Output {
+                (self.value.$fn(rhs)).into()
+            }
+        }
+
+        impl<Quantity,Type> $name<$t> for &Unit<Quantity,Type,$t> {
+            type Output = Unit<Quantity,Type,$t>;
+            fn $fn(self, rhs:$t) -> Self::Output {
+                (self.value.$fn(rhs)).into()
+            }
+        }
+
+        impl<Quantity,Type> $name<&$t> for Unit<Quantity,Type,$t> {
+            type Output = Unit<Quantity,Type,$t>;
+            fn $fn(self, rhs:&$t) -> Self::Output {
+                (self.value.$fn(*rhs)).into()
+            }
+        }
+
+        impl<Quantity,Type> $name<&$t> for &Unit<Quantity,Type,$t> {
+            type Output = Unit<Quantity,Type,$t>;
+            fn $fn(self, rhs:&$t) -> Self::Output {
+                ((&self.value).$fn(*rhs)).into()
+            }
+        }
+    }
+}
+
+impl_operator_for_prim_type_rhs!( Mul mul f32);
+impl_operator_for_prim_type_rhs!( Div div f32);
+
+// TODO: The following line (commented) is more generic, but is likely to introduce infinite
+//       compilation loop rutc bug.
+// impl_operator_for_unit! { Add add Lhs Rhs <Unit<Quantity,Type,Rhs>> for Unit<Quantity,Type,Lhs> }
+impl_operator_for_unit! { Add add f32 f32 <Unit<Quantity,Type,f32>> for Unit<Quantity,Type,f32> }
+impl_operator_for_unit! { Sub sub f32 f32 <Unit<Quantity,Type,f32>> for Unit<Quantity,Type,f32> }
+
 
 impl<Quantity,Type> Mul<Unit<Quantity,Type,f32>> for f32 {
     type Output = Unit<Quantity,Type,f32>;
@@ -152,6 +189,7 @@ impl<'t,Quantity,Type,V> Neg for &'t Unit<Quantity,Type,V>
         (-&self.value).into()
     }
 }
+
 
 
 // ================
