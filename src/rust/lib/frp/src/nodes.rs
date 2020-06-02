@@ -70,6 +70,21 @@ impl Network {
         self.register(OwnedConstant::new(label,src,value))
     }
 
+    pub fn to_true<T:EventOutput> (&self, label:Label, src:&T) -> Stream<bool> {
+        self.constant(label,src,true)
+    }
+
+    pub fn to_false<T:EventOutput> (&self, label:Label, src:&T) -> Stream<bool> {
+        self.constant(label,src,false)
+    }
+
+    pub fn bool<T1,T2> (&self, label:Label, src1:&T1, src2:&T2) -> Stream<bool>
+    where T1:EventOutput, T2:EventOutput {
+        let false_ = self.to_false (label,src1);
+        let true_  = self.to_true  (label,src1);
+        self.any(label,&false_,&true_)
+    }
+
     /// Remembers the value of the input stream and outputs the previously received one.
     pub fn previous<T:EventOutput> (&self, label:Label, src:&T) -> Stream<Output<T>> {
         self.register(OwnedPrevious::new(label,src))

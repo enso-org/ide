@@ -4,7 +4,6 @@ use crate::prelude::*;
 use crate::component::visualization::traits::{HasSymbols, HasFullscreenDecoration, HasDomSymbols};
 use crate::component::visualization::traits::Resizable;
 
-use ensogl::animation::physics::inertia::DynSimulator;
 use ensogl::control::callback;
 use ensogl::display::Scene;
 use ensogl::display::traits::*;

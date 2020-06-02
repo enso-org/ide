@@ -69,20 +69,23 @@ impl Registry {
         let model = RegistryModel::new(logger,command_registry);
 
         // TODO this should probably be in some IDE configuration.
-        let double_press_threshold_ms = 750.0;
+        let double_press_threshold_ms = 300.0;
         frp::new_network! { network
-            is_zero_key        <- model.keyboard.key_mask.map(|m| *m == default());
-            valid_keys         <- model.keyboard.key_mask.gate_not(&is_zero_key);
-            key_press_time     <- valid_keys.map(|_| web::performance().now());
-            timed_previous     <- key_press_time.previous();
-            time_delta         <- key_press_time.all_with(&timed_previous, |t1,t2| (t1-t2));
-            within_threshold   <- time_delta.map(move |delta| *delta < double_press_threshold_ms);
-            single_press       <- valid_keys.gate_not(&within_threshold);
-            double_press       <- valid_keys.gate(&within_threshold);
+            let key_mask = model.keyboard.key_mask.clone_ref();
+            nothing_pressed    <- key_mask.map(|m| *m == default());
+            single_press       <- key_mask.gate_not(&nothing_pressed);
+            press_time         <- single_press.map(|_| web::performance().now());
+            timed_previous     <- press_time.previous();
+            time_delta         <- press_time.all_with(&timed_previous, |t1,t2| (t1-t2));
+            is_double_press    <- time_delta.map(move |delta| *delta < double_press_threshold_ms);
+            double_press       <- single_press.gate(&is_double_press);
+            let prev_key = model.keyboard.previous_key_mask.clone_ref();
+            the_same_key       <- prev_key.map2(&key_mask,|t,s| t == s);
+            release            <- prev_key.gate_not(&the_same_key);
 
             eval single_press ((m) model.process_action(ActionType::Press,m));
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
-            eval model.keyboard.previous_key_mask ((m) model.process_action(ActionType::Release,m));
+            eval release      ((m) model.process_action(ActionType::Release,m));
         }
         Self {model,network}
     }

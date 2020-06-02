@@ -162,12 +162,15 @@ impl RawText {
         self
     }
 
+    // TODO: Integrate with the global style system and replace constant color.
     fn update_style(&self) {
         let mut style = "white-space:pre;".to_string();
         style += "overflow-y:auto;";
         style += "overflow-x:auto;";
-        // TODO: Integrate with the global style system and replace constant color.
-        style += "color:white;";
+        style += "font-family:dejavuSansMono;";
+        style += "font-size:12px;";
+        style += "margin-left:12px;";
+        style += "color:rgba(255,255,255,0.7);";
         style += &format!("height:{}px;", self.size.get().x);
         style += &format!("width:{}px;", self.size.get().y);
         style += "pointer-events:auto";
@@ -186,6 +189,7 @@ impl DataRenderer for RawText {
         let data_inner = data.as_json()?;
         let data_str   = serde_json::to_string_pretty(&data_inner);
         let data_str   = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
+        let data_str   = format!("\n{}",data_str);
         self.root_node.dom().set_inner_text(&data_str);
         Ok(())
     }
