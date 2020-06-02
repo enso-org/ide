@@ -27,7 +27,7 @@ use nalgebra::Vector4;
 /// just want it, for example to match the behavior of color mixing in web browsers, which is
 /// broken for many years already:
 /// https://stackoverflow.com/questions/60179850/webgl-2-0-canvas-blending-with-html-in-linear-color-space
-#[derive(Clone,Copy,Debug,PartialEq)]
+#[derive(Clone,Copy,Debug,Default,PartialEq)]
 pub struct Color<D> {
     /// The underlying color representation. It is either `Alpha` or a color space instance.
     pub data : D
@@ -94,20 +94,30 @@ where D:HasComponentsRepr, ComponentsOf<D>:Into<D> {
 }
 
 impl<D> Into<Vector3<f32>> for Color<D>
-    where Self : HasComponents<ComponentsRepr=(f32,f32,f32)> {
+where Color<D> : HasComponents<ComponentsRepr=(f32,f32,f32)> {
     fn into(self) -> Vector3<f32> {
-        let tt : Components<(f32,f32,f32)> = self.into_components();
-        let xx : Vector3<f32> = Into::<Vector3<f32>>::into(tt);
-        xx
+        Into::<Vector3<f32>>::into(self.into_components())
     }
 }
 
 impl<D> Into<Vector4<f32>> for Color<D>
-    where Self : HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
+where Color<D> : HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
     fn into(self) -> Vector4<f32> {
-        let tt : Components<(f32,f32,f32,f32)> = self.into_components();
-        let xx : Vector4<f32> = Into::<Vector4<f32>>::into(tt);
-        xx
+        Into::<Vector4<f32>>::into(self.into_components())
+    }
+}
+
+impl<D> Into<Vector3<f32>> for &Color<D>
+where Color<D> : Copy + HasComponents<ComponentsRepr=(f32,f32,f32)> {
+    fn into(self) -> Vector3<f32> {
+        Into::<Vector3<f32>>::into((*self).into_components())
+    }
+}
+
+impl<D> Into<Vector4<f32>> for &Color<D>
+where Color<D> : Copy + HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
+    fn into(self) -> Vector4<f32> {
+        Into::<Vector4<f32>>::into((*self).into_components())
     }
 }
 
@@ -222,6 +232,14 @@ impl<C> Deref for Alpha<C> {
 impl<C> From<C> for Alpha<C> {
     fn from(color:C) -> Self {
         let alpha = 1.0;
+        Self {alpha,color}
+    }
+}
+
+impl<C:Default> Default for Alpha<C> {
+    fn default() -> Self {
+        let alpha = 1.0;
+        let color = default();
         Self {alpha,color}
     }
 }

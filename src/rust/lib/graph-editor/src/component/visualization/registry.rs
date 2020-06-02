@@ -33,7 +33,7 @@ use crate::component::visualization::renderer::example::js::get_bubble_vis_class
 use crate::component::visualization::renderer::example::native::BubbleChart;
 
 use ensogl::display::scene::Scene;
-
+use crate::component::visualization::example::native::RawText;
 
 
 // ==============================
@@ -69,6 +69,13 @@ impl Registry {
             |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));
         registry.register_class(get_bubble_vis_class());
+        registry.register_class(NativeConstructorClass::new(
+            Signature {
+                name        : "Raw Text Visualization (native)".to_string(),
+                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
+            },
+            |scene:&Scene| Ok(Visualization::new(RawText::new(scene)))
+        ));
 
         registry
     }
@@ -98,5 +105,17 @@ impl Registry {
     pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<dyn Class>>{
         let entries       = self.entries.borrow();
         entries.get(dtype).cloned().unwrap_or_else(default)
+    }
+
+    /// Return a default visualisation class.
+    pub fn default_visualisation(scene:&Scene) -> Visualization {
+        let class = NativeConstructorClass::new(
+            Signature {
+                name        : "Raw Text Visualization (native)".to_string(),
+                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
+            },
+            |scene:&Scene| Ok(Visualization::new(RawText::new(scene)))
+        );
+        class.instantiate(&scene).expect("Failed to instantiate default visualisation")
     }
 }
