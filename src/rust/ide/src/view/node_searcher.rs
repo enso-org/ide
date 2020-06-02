@@ -3,7 +3,12 @@
 
 use crate::prelude::*;
 
-use crate::controller::graph::{NewNodeInfo, LocationHint};
+use crate::controller::graph::LocationHint;
+use crate::controller::graph::NewNodeInfo;
+use crate::model::module::NodeMetadata;
+use crate::model::module::Position;
+use crate::view::node_editor::NodeEditor;
+
 use ensogl::data::color;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::text_field::TextField;
@@ -16,6 +21,7 @@ use ensogl::traits::*;
 #[derive(Clone,Debug)]
 pub struct NodeSearcher {
     display_object : display::object::Instance,
+    node_editor    : NodeEditor,
     text_field     : TextField,
     controller     : controller::graph::Handle,
     logger         : Logger,
@@ -23,7 +29,11 @@ pub struct NodeSearcher {
 
 impl NodeSearcher {
     pub fn new
-    (world:&World, logger:&Logger, controller:controller::graph::Handle, fonts:&mut font::Registry)
+    ( world       : &World
+    , logger      : &Logger
+    , node_editor : NodeEditor
+    , controller  : controller::graph::Handle
+    , fonts       : &mut font::Registry)
     -> Self {
         let scene          = world.scene();
         let camera         = scene.camera();
@@ -38,7 +48,7 @@ impl NodeSearcher {
         };
         let text_field = TextField::new(world,properties);
         display_object.add_child(&text_field.display_object());
-        let searcher = NodeSearcher{ display_object,text_field,controller,logger};
+        let searcher = NodeSearcher{node_editor,display_object,text_field,controller,logger};
         searcher.initialize()
     }
 
@@ -46,13 +56,16 @@ impl NodeSearcher {
         let text_field_weak = self.text_field.downgrade();
         let controller      = self.controller.clone();
         let display_object  = self.display_object.clone();
+        let node_editor     = self.node_editor.clone_ref();
         self.text_field.set_text_edit_callback(move |change| {
             // If the text edit callback is called, the TextEdit must be still alive.
             let text_field    = text_field_weak.upgrade().unwrap();
             let field_content = text_field.get_content();
             let expression    = field_content.split('\n').next().unwrap();
             if change.inserted == "\n" {
-                let metadata      = default();
+                let position      = display_object.position() - node_editor.position();
+                let position      = Some(Position{vector:Vector2::new(position.x,position.y)});
+                let metadata      = Some(NodeMetadata{position});
                 let id            = None;
                 let location_hint = LocationHint::End;
                 let expression    = expression.to_string();
@@ -71,6 +84,8 @@ impl NodeSearcher {
     /// Show NodeSearcher if it's invisible.
     pub fn show(&mut self) {
         self.display_object.add_child(&self.text_field.display_object());
+        self.text_field.set_content("");
+        self.text_field.set_focus();
     }
 }
 
