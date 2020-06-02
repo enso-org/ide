@@ -31,7 +31,8 @@ pub type SymbolDirty = dirty::SharedSet<SymbolId,Box<dyn Fn()>>;
 
 // === Definition ===
 
-/// Registry for all the created symbols.
+/// Registry for all the created symbols. The `z_zoom_1` value describes the z-axis distance at
+/// which the `zoom` value is `1.0`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct SymbolRegistry {
     symbols         : Rc<RefCell<OptVec<Symbol>>>,
