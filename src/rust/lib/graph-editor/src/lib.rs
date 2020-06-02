@@ -177,6 +177,11 @@ where K:Eq+Hash, S:std::hash::BuildHasher {
         self.raw.borrow_mut().insert(k,v)
     }
 
+    pub fn get_copied(&self, k:&K) -> Option<V>
+    where V:Copy {
+        self.raw.borrow().get(k).copied()
+    }
+
     pub fn get_cloned(&self, k:&K) -> Option<V>
     where V:Clone {
         self.raw.borrow().get(k).cloned()
@@ -283,7 +288,7 @@ ensogl::def_command_api! { Commands
     toggle_fullscreen_for_selected_visualization,
 
     /// Set the data for the selected nodes. // TODO only has dummy functionality at the moment.
-    debug_set_data_for_selected_visualization,
+    debug_set_data_for_selected_node,
 
     /// Cycle the visualization for the selected nodes. TODO only has dummy functionality at the moment.
     debug_cycle_visualization_for_selected_node,
@@ -315,7 +320,7 @@ impl Commands {
             def disable_node_inverse_select      = source();
             def toggle_node_inverse_select       = source();
 
-            def debug_set_data_for_selected_visualization   = source();
+            def debug_set_data_for_selected_node   = source();
             def debug_cycle_visualization_for_selected_node = source();
 
             def toggle_fullscreen_for_selected_visualization = source();
@@ -327,7 +332,7 @@ impl Commands {
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
              ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
-             ,debug_set_data_for_selected_visualization,debug_cycle_visualization_for_selected_node
+             ,debug_set_data_for_selected_node,debug_cycle_visualization_for_selected_node
              ,toggle_fullscreen_for_selected_visualization}
     }
 }
@@ -397,7 +402,6 @@ impl FrpInputs {
             def hover_node_input           = source();
             def some_edge_targets_detached = source();
             def all_edge_targets_attached  = source();
-
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -1139,6 +1143,7 @@ impl Deref for GraphEditor {
 }
 
 impl GraphEditor {
+    /// Add a new node and returns its ID.
     pub fn add_node(&self) -> NodeId {
         self.frp.add_node.emit(());
         self.frp.outputs.node_added.value()
@@ -1154,24 +1159,22 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press       (&[Key::Character("n".into())]), "add_node_at_cursor")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Backspace])            , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Character(" ".into())]), "toggle_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Meta])                 , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release     (&[Key::Meta])                 , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Control])              , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release     (&[Key::Control])              , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Shift])                , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::release     (&[Key::Shift])                , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Alt])                  , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::release     (&[Key::Alt])                  , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Shift,Key::Alt])       , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::release     (&[Key::Shift,Key::Alt])       , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::double_press(&[Key::Character("d".into())]), "debug_set_data_for_selected_visualization")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Character("d".into())]), "debug_set_data_for_selected_visualization")
-             , Self::self_shortcut(shortcut::Action::press       (&[Key::Character("f".into())]), "debug_cycle_visualization_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::double_press(&[Key::Character(" ".into())]), "toggle_fullscreen_for_selected_visualization")
-        ]
+        vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::Character("n".into())])               , "add_node_at_cursor")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace])                           , "remove_selected_nodes")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control, Key::Character(" ".into())]) , "toggle_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Meta])                                , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Meta])                                , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control])                             , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Control])                             , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift])                               , "toggle_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Shift])                               , "toggle_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Alt])                                 , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Alt])                                 , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())])               , "debug_set_data_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control, Key::Character("f".into())]) , "debug_cycle_visualization_for_selected_node")
+             ]
     }
 }
 
@@ -1609,7 +1612,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     def on_visualization_enabled  = source();
     def on_visualization_disabled = source();
 
-    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([visualizations,nodes](_) {
+    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([visualizations,on_visualization_enabled,on_visualization_disabled,nodes](_) {
         nodes.selected.for_each(|node_id| {
             if let Some(node) = nodes.get_cloned_ref(node_id) {
                 if !visualizations.is_fullscreen(node.view.visualization_container.clone_ref()) {

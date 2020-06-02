@@ -25,6 +25,7 @@ members = [
     "lib/generics",
     "lib/logger",
     "lib/macro-utils",
+    "lib/math",
     "lib/optics",
     "lib/prelude",
     "lib/shapely/impl",
@@ -33,7 +34,7 @@ members = [
 ]
 
 [profile.dev]
-opt-level = 0
+opt-level = 2
 lto       = false
 debug     = true
 

@@ -212,6 +212,6 @@ impl traits::HasSymbols for RawText {
 
 impl HasDomSymbols for RawText {
     fn dom_symbols(&self) -> Vec<DomSymbol> {
-        vec![self.root_node]
+        vec![self.root_node.clone_ref()]
     }
 }

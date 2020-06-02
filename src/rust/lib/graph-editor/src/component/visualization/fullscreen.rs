@@ -326,7 +326,7 @@ impl<T> Default for StateModel<T> {
 #[derivative(Clone(bound=""))]
 pub struct FullscreenState<T:FrpEntity> {
         state     : Rc<RefCell<StateModel<T>>>,
-        animation : DynSimulator<f32>,
+        animation : Animation<f32>,
 }
 
 impl<T:Fullscreenable> FullscreenState<T> {
@@ -334,9 +334,11 @@ impl<T:Fullscreenable> FullscreenState<T> {
     fn new(network:&frp::Network) -> Self {
         let state      = Rc::new(RefCell::new(StateModel::<T>::default()));
         let weak_state = Rc::downgrade(&state);
-        let animation  = Animation(&network, move |value| {
-            transition_animation_fn(weak_state.clone_ref(), value);
-        });
+        let animation  = Animation::new(&network);
+
+        frp::extend! { network
+            eval animation.value ([](value) transition_animation_fn(weak_state.clone_ref(),*value));
+        }
 
         FullscreenState{state,animation}
     }
@@ -385,14 +387,14 @@ impl<T:Fullscreenable> FullscreenState<T> {
 
     /// Start the animation from 0.0;
     fn start_animation(&self) {
-        self.animation.set_position(0.0);
-        self.animation.set_target_position(1.0);
+        self.animation.set_value(0.0);
+        self.animation.set_target_value(1.0);
     }
 
     /// Abort and immediately finish the animation, if it is running.
     fn abort_animation(&self) {
         if self.state.borrow().is_animation_state() {
-            self.animation.set_position(1.0);
+            self.animation.set_value(1.0);
         }
     }
 

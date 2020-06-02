@@ -273,7 +273,7 @@ impl display::Object for ContainerData {
 
 impl Container {
     /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
+    pub fn new(s:&Scene) -> Self {
         let logger                       = Logger::new("visualization");
         let visualization                = default();
         let size                         = Cell::new(Vector2::new(200.0, 200.0));
@@ -282,14 +282,14 @@ impl Container {
         let display_object_visualisation = display::object::Instance::new(&logger);
 
         let padding                 = Cell::new(10.0);
-        let shape_frame             = component::ShapeView::<frame::Shape>::new(&logger,scene);
-        let shape_overlay           = component::ShapeView::<overlay::Shape>::new(&logger,scene);
-        let scene                   = scene.clone_ref();
+        let shape_frame             = component::ShapeView::<frame::Shape>::new(&logger,s);
+        let shape_overlay           = component::ShapeView::<overlay::Shape>::new(&logger,s);
+        let scene                   = s.clone_ref();
         let data                    = ContainerData {
             logger,visualization,size,display_object,shape_frame,display_object_internal,padding,
             scene,shape_overlay,display_object_visualisation};
         let data                    = Rc::new(data);
-        data.set_visualization(Registry::default_visualisation(&scene));
+        data.set_visualization(Registry::default_visualisation(s));
         data.set_visibility(false);
         let frp                     = default();
         Self {data,frp} . init()
@@ -317,11 +317,10 @@ impl Container {
         let container_data      = &self.data;
 
         let frame_shape_data = container_data.shape_frame.shape.clone_ref();
-        let selection = Animation(network, move |value| {
-            frame_shape_data.selected.set(value)
-        });
+        let selection = Animation::new(network);
 
         frp::extend! { network
+            eval selection.value ((value) frame_shape_data.selected.set(*value));
 
             def _f_hide = frp.set_visibility.map(f!([container_data](is_visible) {
                 container_data.set_visibility(*is_visible);
@@ -342,8 +341,8 @@ impl Container {
                     .for_each_ref(|vis| vis.frp.set_data.emit(data));
             }));
 
-            eval frp.select   ((_) selection.set_target_position(1.0));
-            eval frp.deselect ((_) selection.set_target_position(0.0));
+            eval frp.select   ((_) selection.set_target_value(1.0));
+            eval frp.deselect ((_) selection.set_target_value(0.0));
 
             def _output_hide = container_data.shape_overlay.events.mouse_down.map(f!([frp](_) {
                 frp.on_click.emit(())
