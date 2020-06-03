@@ -1,5 +1,7 @@
 //! Definition of the Port component.
 
+pub mod output;
+
 use crate::prelude::*;
 
 //use crate::component::node::port::Registry;
