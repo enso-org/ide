@@ -149,8 +149,8 @@ impl OutPutPortsData {
     }
 
     fn update_hover_area(&mut self) {
-        let hover_size = Vector2::new(self.size.x, self.size.y);
-        let hover_pos  = Vector3::new(0.0, -hover_size.y / 2.0, 0.0);
+        let hover_size = Vector2::new(self.size.x,self.size.y);
+        let hover_pos  = Vector3::new(0.0,-hover_size.y / 4.0,0.0);
         self.hover_area.set_position(hover_pos);
         self.hover_area.shape.sprite.size().set(hover_size);
     }
@@ -163,10 +163,10 @@ impl OutPutPortsData {
         let width_no_gaps = width - gap_width * (port_num - 1.0) ;
         let height        = self.size.y;
         let element_width = width_no_gaps / port_num;
-        let element_size  = Vector2::new(element_width, height);
+        let element_size  = Vector2::new(element_width,height);
 
         // Align shapes along width.
-        let x_start = 0.0;
+        let x_start = -width/2.0 + NODE_SHAPE_PADDING;
         let x_delta = element_width + gap_width;
         for (index, view) in self.ports.iter().enumerate(){
             let pos_x = x_start + x_delta * index as f32;
@@ -178,7 +178,7 @@ impl OutPutPortsData {
             shape.sprite.size().set(element_size);
             shape.shape_width.set(width);
             shape.grow.set(BASE_SIZE);
-            shape.offset_x.set(pos_x);
+            shape.offset_x.set(x_delta * index as f32);
         }
     }
 
