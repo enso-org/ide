@@ -45,18 +45,26 @@ impl<F: Fn() -> S, S:Str> LogMsg for F {
 // ==============
 
 /// Interface common to all loggers.
-pub trait AnyLogger {
+pub trait AnyLogger : Sized {
+    /// Alias for self.
+    type This;
+
     /// Path that is used as an unique identifier of this logger.
     fn path(&self) -> &str;
 
     /// Creates a new logger. Path should be a unique identifier for this logger.
-    fn new(path:impl Str) -> Self;
+    fn new(path:impl Str) -> Self::This;
 
     /// Creates a new logger with this logger as a parent.
-    fn sub(logger:&impl AnyLogger, path:impl Str) -> Self where Self:Sized {
+    fn sub(logger:impl AnyLogger, path:impl Str) -> Self::This {
         if logger.path().is_empty() {Self::new(path)} else {
             Self::new(format!("{}.{}", logger.path(), path.as_ref()))
         }
+    }
+
+    /// Creates a logger from AnyLogger.
+    fn from_logger(logger:impl AnyLogger) -> Self::This {
+        Self::new(logger.path())
     }
 
     /// Evaluates function `f` and visually groups all logs will occur during its execution.
@@ -81,6 +89,26 @@ pub trait AnyLogger {
     fn group_begin<M:LogMsg>(&self, msg:M);
     /// Visually groups all logs between group_begin and group_end.
     fn group_end(&self);
+}
+
+impl<T:AnyLogger> AnyLogger for &T {
+    type This = T::This;
+
+    fn path(&self) -> &str {
+        T::path(self)
+    }
+
+    fn new(path:impl Str) -> Self::This {
+        T::new(path)
+    }
+
+    fn trace      <M:LogMsg>(&self, msg:M) { T::trace      (self,msg) }
+    fn debug      <M:LogMsg>(&self, msg:M) { T::debug      (self,msg) }
+    fn info       <M:LogMsg>(&self, msg:M) { T::info       (self,msg) }
+    fn warning    <M:LogMsg>(&self, msg:M) { T::warning    (self,msg) }
+    fn error      <M:LogMsg>(&self, msg:M) { T::error      (self,msg) }
+    fn group_begin<M:LogMsg>(&self, msg:M) { T::group_begin(self,msg) }
+    fn group_end            (&self       ) { T::group_end  (self    ) }
 }
 
 

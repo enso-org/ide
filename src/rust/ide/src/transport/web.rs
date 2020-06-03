@@ -120,7 +120,7 @@ pub struct WebSocket {
 
 impl WebSocket {
     /// Wraps given WebSocket object.
-    pub fn new(ws:web_sys::WebSocket, parent:&impl AnyLogger, name:impl Str) -> WebSocket {
+    pub fn new(ws:web_sys::WebSocket, parent:impl AnyLogger, name:impl Str) -> WebSocket {
         ws.set_binary_type(BinaryType::Arraybuffer);
         WebSocket {
             logger     : Logger::sub(parent,name),

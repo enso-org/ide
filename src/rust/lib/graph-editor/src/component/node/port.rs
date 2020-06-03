@@ -170,7 +170,7 @@ pub struct Manager {
 }
 
 impl Manager {
-    pub fn new(logger:&impl AnyLogger, scene:&Scene) -> Self {
+    pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
         frp::new_network! { network
             def cursor_mode_source = gather::<cursor::Mode>();
             def press_source       = source::<span_tree::Crumbs>();

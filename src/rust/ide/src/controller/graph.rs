@@ -409,7 +409,7 @@ impl Handle {
 
     /// Creates a new controller. Does not check if id is valid.
     pub fn new_unchecked
-    (parent:&impl AnyLogger, module:Rc<model::synchronized::Module>, parser:Parser, id:Id) -> Handle {
+    (parent:impl AnyLogger, module:Rc<model::synchronized::Module>, parser:Parser, id:Id) -> Handle {
         let id     = Rc::new(id);
         let logger = Logger::sub(parent,format!("Graph Controller {}", id));
         Handle {module,parser,id,logger}

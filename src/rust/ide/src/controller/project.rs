@@ -33,7 +33,7 @@ pub struct Handle {
 impl Handle {
     /// Create a new project controller.
     pub fn new
-    ( parent                 : &impl AnyLogger
+    ( parent                 : impl AnyLogger
     , language_server_client : language_server::Connection
     , language_server_binary : binary::Connection
     ) -> Self {

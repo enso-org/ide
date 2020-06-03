@@ -99,7 +99,7 @@ pub struct Line {
 
 impl Line {
     /// Constructor.
-    pub fn new(logger:&impl AnyLogger, glyph_system:&GlyphSystem) -> Self {
+    pub fn new(logger:impl AnyLogger, glyph_system:&GlyphSystem) -> Self {
         let logger         = Logger::sub(logger,"line");
         let display_object = display::object::Instance::new(logger);
         let glyph_system   = glyph_system.clone_ref();

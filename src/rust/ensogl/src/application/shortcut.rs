@@ -52,7 +52,7 @@ impl Deref for Registry {
 
 impl RegistryModel {
     /// Constructor.
-    pub fn new(logger:&impl AnyLogger, command_registry:&command::Registry) -> Self {
+    pub fn new(logger:impl AnyLogger, command_registry:&command::Registry) -> Self {
         let logger            = Logger::sub(logger,"ShortcutRegistry");
         let keyboard          = Keyboard::default();
         let keyboard_bindings = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));

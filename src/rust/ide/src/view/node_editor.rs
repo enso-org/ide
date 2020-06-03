@@ -444,7 +444,7 @@ pub struct NodeEditor {
 
 impl NodeEditor {
     /// Create Node Editor Panel.
-    pub fn new(logger:&impl AnyLogger, app:&Application, controller:controller::ExecutedGraph) -> Self {
+    pub fn new(logger:impl AnyLogger, app:&Application, controller:controller::ExecutedGraph) -> Self {
         let logger         = Logger::sub(logger,"NodeEditor");
         let display_object = display::object::Instance::new(&logger);
         let graph          = GraphEditorIntegratedWithController::new(logger,app,controller.clone_ref());

@@ -88,7 +88,7 @@ impl ViewLayoutData {
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
     pub fn new
-    ( logger           : &impl AnyLogger
+    ( logger           : impl AnyLogger
     , kb_actions       : &mut keyboard::Actions
     , application      : &Application
     , text_controller  : controller::Text

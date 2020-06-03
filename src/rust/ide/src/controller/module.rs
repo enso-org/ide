@@ -116,7 +116,7 @@ impl Handle {
     ///
     /// This function won't load module from file - it just get the state in `model` argument.
     pub fn new
-    ( parent          : &impl AnyLogger
+    ( parent          : impl AnyLogger
     , path            : Path
     , model           : Rc<model::synchronized::Module>
     , language_server : Rc<language_server::Connection>

@@ -320,7 +320,7 @@ pub struct Camera2d {
 
 impl Camera2d {
     /// Creates new Camera instance.
-    pub fn new(logger:&impl AnyLogger, width:f32, height:f32) -> Self {
+    pub fn new(logger:impl AnyLogger, width:f32, height:f32) -> Self {
         let logger         = Logger::sub(logger,"camera");
         let display_object = display::object::Instance::new(&logger);
         let data           = Camera2dData::new(logger,&display_object,width,height);

@@ -72,7 +72,7 @@ shared! { ProjectView
 
 impl ProjectView {
     /// Create a new ProjectView.
-    pub async fn new(logger:&impl AnyLogger, controller:controller::Project)
+    pub async fn new(logger:impl AnyLogger, controller:controller::Project)
     -> FallibleResult<Self> {
         let root_id              = controller.language_server_rpc.content_root();
         let path                 = controller::FilePath::new(root_id,&INITIAL_FILE_PATH);

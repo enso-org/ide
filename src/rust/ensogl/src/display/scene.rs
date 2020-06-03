@@ -551,7 +551,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    fn new(logger:&impl AnyLogger, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
+    fn new(logger:impl AnyLogger, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
         let logger    = Logger::sub(logger,"renderer");
         let dom       = dom.clone_ref();
         let context   = context.clone_ref();
@@ -676,14 +676,14 @@ impl WeakView {
 }
 
 impl ViewData {
-    pub fn new(logger:&impl AnyLogger, width:f32, height:f32) -> Self {
+    pub fn new(logger:impl AnyLogger, width:f32, height:f32) -> Self {
         let logger  = Logger::sub(logger,"view");
         let camera  = Camera2d::new(&logger,width,height);
         let symbols = default();
         Self {logger,camera,symbols}
     }
 
-    pub fn new_with_camera(logger:&impl AnyLogger, camera:&Camera2d) -> Self {
+    pub fn new_with_camera(logger:impl AnyLogger, camera:&Camera2d) -> Self {
         let logger  = Logger::sub(logger,"view");
         let camera  = camera.clone_ref();
         let symbols = default();
@@ -716,7 +716,7 @@ pub struct Views {
 }
 
 impl Views {
-    pub fn mk(logger:&impl AnyLogger, width:f32, height:f32) -> Self {
+    pub fn mk(logger:impl AnyLogger, width:f32, height:f32) -> Self {
         let logger = Logger::sub(logger,"views");
         let main   = View::new(&logger,width,height);
         let cursor = View::new(&logger,width,height);
@@ -933,7 +933,7 @@ pub struct Scene {
 
 impl Scene {
     pub fn new<OnMut:Fn()+Clone+'static>
-    (parent_dom:&HtmlElement, logger:&impl AnyLogger, stats:&Stats, on_mut:OnMut) -> Self {
+    (parent_dom:&HtmlElement, logger:impl AnyLogger, stats:&Stats, on_mut:OnMut) -> Self {
         let logger        = Logger::sub(logger,"scene");
         let no_mut_access = SceneData::new(parent_dom,logger,stats,on_mut);
         let this = Self {no_mut_access};

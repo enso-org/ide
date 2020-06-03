@@ -64,7 +64,7 @@ impl {
 impl TextEditor {
     /// Creates a new TextEditor.
     pub fn new
-    ( logger           : &impl AnyLogger
+    ( logger           : impl AnyLogger
     , world            : &World
     , controller       : controller::Text
     , keyboard_actions : &mut keyboard::Actions

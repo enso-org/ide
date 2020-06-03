@@ -36,6 +36,8 @@ impls!{ From + &From <crate::enabled::Logger> for Logger { |logger| Self::new(lo
 // ======================
 
 impl AnyLogger for Logger {
+    type This = Self;
+
     fn path(&self) -> &str {
         self.path.as_str()
     }

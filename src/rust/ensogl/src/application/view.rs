@@ -51,7 +51,7 @@ pub struct Registry {
 impl Registry {
     /// Constructor.
     pub fn create
-    ( logger            : &impl AnyLogger
+    ( logger            : impl AnyLogger
     , display           : &World
     , command_registry  : &command::Registry
     , shortcut_registry : &shortcut::Registry

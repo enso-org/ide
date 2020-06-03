@@ -134,7 +134,7 @@ impl Client {
     /// Before client is functional:
     /// * `runner` must be scheduled for execution;
     /// * `init` must be called or it needs to be wrapped into `Connection`.
-    pub fn new(parent:&impl AnyLogger, transport:impl Transport + 'static) -> Client {
+    pub fn new(parent:impl AnyLogger, transport:impl Transport + 'static) -> Client {
         let logger    = Logger::sub(parent,"binary-protocol-client");
         let processor = Self::processor(logger.clone_ref());
         Client {

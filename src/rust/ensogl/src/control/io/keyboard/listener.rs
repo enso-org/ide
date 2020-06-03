@@ -33,7 +33,7 @@ pub struct Listener {
 }
 
 impl Listener {
-    fn new<F:ListenerCallback>(logger:&impl AnyLogger,event_type:impl Str, f:F) -> Self {
+    fn new<F:ListenerCallback>(logger:impl AnyLogger,event_type:impl Str, f:F) -> Self {
         let closure     = Box::new(f);
         let callback    = ListenerClosure::wrap(closure);
         let element     = web::body();
@@ -48,12 +48,12 @@ impl Listener {
     }
 
     /// Creates a new key down event listener.
-    pub fn new_key_down<F:ListenerCallback>(logger:&impl AnyLogger, f:F) -> Self {
+    pub fn new_key_down<F:ListenerCallback>(logger:impl AnyLogger, f:F) -> Self {
         Self::new(logger,"keydown",f)
     }
 
     /// Creates a new key up event listener.
-    pub fn new_key_up<F:ListenerCallback>(logger:&impl AnyLogger, f:F) -> Self {
+    pub fn new_key_up<F:ListenerCallback>(logger:impl AnyLogger, f:F) -> Self {
         Self::new(logger,"keyup",f)
     }
 }
@@ -76,8 +76,7 @@ pub struct KeyboardFrpBindings {
 
 impl KeyboardFrpBindings {
     /// Create new Keyboard and Frp bindings.
-    pub fn new(logger:impl Into<Logger>, keyboard:&Keyboard) -> Self {
-        let logger = logger.into();
+    pub fn new(logger:impl AnyLogger, keyboard:&Keyboard) -> Self {
         let key_down = Listener::new_key_down(&logger,enclose!((keyboard.on_pressed => frp)
             move |event:KeyboardEvent| {
                 if let Ok(key) = event.key().parse::<Key>() {
