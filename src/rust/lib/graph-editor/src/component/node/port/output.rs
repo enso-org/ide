@@ -206,14 +206,14 @@ impl OutPutPortsData {
 // ===================
 
 #[derive(Debug,Clone,CloneRef)]
-pub struct OutPutPorts {
+pub struct OutputPorts {
     pub frp            : Frp,
         network        : frp::Network,
         data           : Rc<RefCell<OutPutPortsData>>,
         display_object : display::object::Instance,
 }
 
-impl OutPutPorts {
+impl OutputPorts {
     pub fn new(scene:&Scene, number_of_ports:u8) -> Self {
         let logger         = Logger::new("bubble");
 
@@ -236,7 +236,7 @@ impl OutPutPorts {
                                      ports,gap_width,hover_area}.init();
         let data = Rc::new(RefCell::new(data));
 
-        OutPutPorts {data,network,frp,display_object}.init()
+        OutputPorts {data,network,frp,display_object}.init()
     }
 
     fn init(mut self) -> Self {
@@ -298,7 +298,7 @@ impl OutPutPorts {
     }
 }
 
-impl display::Object for OutPutPorts {
+impl display::Object for OutputPorts {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }

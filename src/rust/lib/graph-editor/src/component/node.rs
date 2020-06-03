@@ -24,7 +24,7 @@ use ensogl::gui::component;
 
 use super::edge;
 use crate::component::visualization;
-use crate::component::node::port::output::OutPutPorts;
+use crate::component::node::port::output::OutputPorts;
 
 
 pub(crate) const NODE_SHAPE_PADDING : f32 = 40.0;
@@ -198,7 +198,7 @@ pub struct NodeModel {
     pub drag_area               : component::ShapeView<drag_area::Shape>,
     pub ports                   : port::Manager,
     pub visualization_container : visualization::Container,
-    pub output_ports            : OutPutPorts,
+    pub output_ports            : OutputPorts,
 }
 
 pub const NODE_HEIGHT : f32 = 28.0;
@@ -213,7 +213,7 @@ impl NodeModel {
         let logger  = Logger::new("node");
         edge::sort_hack_1(scene);
 
-        OutPutPorts::init_shape_order_hack(&scene);
+        OutputPorts::init_shape_order_hack(&scene);
         let main_area   = component::ShapeView::<shape::Shape>::new(&logger.sub("main_area"),scene);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger.sub("drag_area"),scene);
         edge::sort_hack_2(scene);
@@ -249,7 +249,7 @@ impl NodeModel {
         let frp = Frp{input};
 
 
-        let output_ports = OutPutPorts::new(&scene, 5);
+        let output_ports = OutputPorts::new(&scene, 5);
         display_object.add_child(&output_ports);
 
         Self {scene,display_object,logger,frp,main_area,drag_area,ports
