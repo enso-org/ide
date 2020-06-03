@@ -37,7 +37,7 @@ pub mod port_area {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, grow:f32, shape_width:f32, offset_x:f32, padding:f32) {
+        (style:Style, grow:f32, shape_width:f32, offset_x:f32, padding:f32, opacity:f32) {
 
             let width  : Var<Distance<Pixels>> = shape_width.into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
@@ -80,7 +80,8 @@ pub mod port_area {
 
             let port_area_cropped = crop_window.intersection(port_area_aligned);
 
-            let port_area_colored = port_area_cropped.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
+            let color             = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
+            let port_area_colored = port_area_cropped.fill(color);
 
             (port_area_colored + hover_area).into()
         }
@@ -221,7 +222,7 @@ impl OutputPorts {
         frp::extend! { network
             eval  frp.set_size ((size) data.borrow_mut().set_size(size.unwrap_or_else(zero)));
 
-            def set_port_size  = source::<(PortId,f32)>();
+            def set_port_size      = source::<(PortId,f32)>();
             def set_port_sizes_all = source::<f32>();
 
             def _set_port_sizes = set_port_sizes_all.map(f!([set_port_size,data](size) {
@@ -230,30 +231,50 @@ impl OutputPorts {
                     set_port_size.emit((index,*size));
                 };
             }));
+
+            def set_port_opacity     = source::<(PortId,f32)>();
+            def set_port_opacity_all = source::<f32>();
+
+            def _set_port_opacities = set_port_opacity_all.map(f!([set_port_opacity,data](size) {
+                let port_num = data.borrow().ports.len();
+                for index in 0..port_num {
+                    set_port_opacity.emit((index,*size));
+                };
+            }));
         }
 
         // Init ports
         {
             for (index,view) in data.borrow().ports.iter().enumerate() {
                 let shape          = &view.shape;
-                let port_area_size = Animation::<f32>::new(&network);
+                let port_size    = Animation::<f32>::new(&network);
+                let port_opacity = Animation::<f32>::new(&network);
                 frp::extend! { network
+                     eval port_size.value ((size) shape.grow.set(*size));
+                     eval port_opacity.value   ((size) shape.opacity.set(*size));
 
                     is_resize_target <- set_port_size.map(move |(id, _)| *id==index);
-                    size_change <- set_port_size.gate(&is_resize_target);
-                    _change_size <- size_change.map(f!(((_, size))  {
-                        port_area_size.set_target_value(*size)
+                    size_change      <- set_port_size.gate(&is_resize_target);
+                    _change_size     <- size_change.map(f!(((_, size))  {
+                        port_size.set_target_value(*size)
                     }));
 
-                    eval port_area_size.value ((size) shape.grow.set(*size));
+                    is_opacity_target <- set_port_opacity.map(move |(id, _)| *id==index);
+                    opacity_change    <- set_port_opacity.gate(&is_opacity_target);
+                    _change_size      <- opacity_change.map(f!(((_, opacity))  {
+                        port_opacity.set_target_value(*opacity)
+                    }));
 
-                    eval view.events.mouse_over ([port_area_size,set_port_sizes_all](_) {
+                    eval view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,set_port_opacity_all](_) {
                         set_port_sizes_all.emit(BASE_SIZE);
-                        port_area_size.set_target_value(HIGHLIGHT_SIZE);
+                        set_port_opacity_all.emit(0.5);
+                        port_size.set_target_value(HIGHLIGHT_SIZE);
+                        port_opacity.set_target_value(1.0);
                     });
 
-                    eval view.events.mouse_out ([set_port_sizes_all](_) {
+                    eval view.events.mouse_out ([set_port_sizes_all,set_port_opacity_all](_) {
                          set_port_sizes_all.emit(0.0);
+                         set_port_opacity_all.emit(0.0);
                     });
 
                     eval view.events.mouse_down ([frp](_) {
