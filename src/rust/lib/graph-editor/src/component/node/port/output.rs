@@ -13,7 +13,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
-
 use crate::node::NODE_SHAPE_PADDING;
 
 
@@ -78,30 +77,10 @@ pub mod port_area {
     }
 }
 
-/// Defines an invisible shape that is used to catch hover events below the main port area.
-mod hover_area {
-    use super::*;
-    ensogl::define_shape_system! {
-        () {
-            let width  : Var<Distance<Pixels>> = "input_size.x".into();
-            let height : Var<Distance<Pixels>> = "input_size.y".into();
-
-            let hover_area_size   = 20.0.px();
-            let hover_area_width  = &width  + &hover_area_size * 2.0;
-            let hover_area_height = &height / 2.0 + &hover_area_size;
-            let hover_area        = Rect((&hover_area_width,&hover_area_height));
-            let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
-
-            hover_area.into()
-        }
-    }
-}
-
-
-
 // ===========
 // === Frp ===
 // ===========
+
 
 type PortId = usize;
 
@@ -139,20 +118,12 @@ pub struct OutPutPortsData {
     size           : Vector2<f32>,
     gap_width      : f32,
     ports          : Vec<component::ShapeView<port_area::Shape>>,
-    hover_area     : component::ShapeView<hover_area::Shape>,
 }
 
 impl OutPutPortsData {
     fn init(mut self) -> Self {
         self.update_shapes();
         self
-    }
-
-    fn update_hover_area(&mut self) {
-        let hover_size = Vector2::new(self.size.x,self.size.y);
-        let hover_pos  = Vector3::new(0.0,-hover_size.y / 4.0,0.0);
-        self.hover_area.set_position(hover_pos);
-        self.hover_area.shape.sprite.size().set(hover_size);
     }
 
     fn update_ports(&mut self) {
@@ -169,6 +140,8 @@ impl OutPutPortsData {
         let x_start = -width/2.0 + NODE_SHAPE_PADDING;
         let x_delta = element_width + gap_width;
         for (index, view) in self.ports.iter().enumerate(){
+            view.display_object().set_parent(&self.display_object);
+
             let pos_x = x_start + x_delta * index as f32;
             let pos_y = 0.0;
             let pos   = Vector2::new(pos_x,pos_y);
@@ -177,27 +150,17 @@ impl OutPutPortsData {
             let shape = &view.shape;
             shape.sprite.size().set(element_size);
             shape.shape_width.set(width);
-            shape.grow.set(BASE_SIZE);
             shape.offset_x.set(x_delta * index as f32);
         }
     }
 
     fn update_shapes(&mut self) {
         self.update_ports();
-        self.update_hover_area();
     }
 
     fn set_size(&mut self, size:Vector2<f32>) {
         self.size = size;
         self.update_shapes();
-    }
-
-    fn hide_ports(&self) {
-        self.ports.iter().for_each(|port| port.display_object().unset_parent())
-    }
-
-    fn show_ports(&self) {
-        self.ports.iter().for_each(|port| port.display_object().set_parent(&self.display_object))
     }
 }
 
@@ -229,11 +192,8 @@ impl OutputPorts {
         ports.resize_with(number_of_ports as usize,|| component::ShapeView::new(&logger,&scene));
         let ports = ports;
 
-        let hover_area     = component::ShapeView::new(&logger,&scene);
-        hover_area.display_object().set_parent(&display_object);
-
         let data =  OutPutPortsData {display_object:display_object.clone_ref(),scene,logger,size,
-                                     ports,gap_width,hover_area}.init();
+                                     ports,gap_width}.init();
         let data = Rc::new(RefCell::new(data));
 
         OutputPorts {data,network,frp,display_object}.init()
@@ -251,34 +211,40 @@ impl OutputPorts {
 
         frp::extend! { network
             eval  frp.set_size ((size) data.borrow_mut().set_size(size.unwrap_or_else(zero)));
-        }
 
-        // Init hover area
-        {
-            let hover_area = &data.borrow().hover_area;
-            frp::extend! { network
-                eval hover_area.events.mouse_over ((_) data.borrow().show_ports());
-                eval hover_area.events.mouse_out  ((_) data.borrow().hide_ports());
-            }
+            def set_port_size  = source::<(PortId,f32)>();
+            def set_port_sizes_all = source::<f32>();
+
+            def _set_port_sizes = set_port_sizes_all.map(f!([set_port_size,data](size) {
+                let port_num = data.borrow().ports.len();
+                for index in 0..port_num {
+                    set_port_size.emit((index,*size));
+                };
+            }));
         }
 
         // Init ports
         {
             for (index,view) in data.borrow().ports.iter().enumerate() {
                 let shape          = &view.shape;
-                let data           = self.data.clone_ref();
                 let port_area_size = Animation::<f32>::new(&network);
                 frp::extend! { network
+
+                    is_resize_target <- set_port_size.map(move |(id, _)| *id==index);
+                    size_change <- set_port_size.gate(&is_resize_target);
+                    _change_size <- size_change.map(f!(((_, size))  {
+                        port_area_size.set_target_value(*size)
+                    }));
+
                     eval port_area_size.value ((size) shape.grow.set(*size));
 
-                    eval view.events.mouse_over ([port_area_size,data](_) {
-                        data.borrow().show_ports();
+                    eval view.events.mouse_over ([port_area_size,set_port_sizes_all](_) {
+                        set_port_sizes_all.emit(BASE_SIZE);
                         port_area_size.set_target_value(HIGHLIGHT_SIZE);
                     });
 
-                    eval view.events.mouse_out ([port_area_size](_) {
-                        port_area_size.set_target_value(BASE_SIZE);
-                          data.borrow().hide_ports();
+                    eval view.events.mouse_out ([set_port_sizes_all](_) {
+                         set_port_sizes_all.emit(0.0);
                     });
 
                     eval view.events.mouse_down ([frp](_) {
@@ -293,7 +259,6 @@ impl OutputPorts {
     /// Hack function used to register the elements for the sorting purposes. To be removed.
     pub(crate) fn init_shape_order_hack(scene:&Scene) {
         let logger = Logger::new("hack");
-        component::ShapeView::<hover_area::Shape>::new(&logger,scene);
         component::ShapeView::<port_area::Shape>::new(&logger,scene);
     }
 }
