@@ -37,7 +37,8 @@ pub mod port_area {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, grow:f32, shape_width:f32, offset_x:f32) {
+        (style:Style, grow:f32, shape_width:f32, offset_x:f32, padding:f32) {
+
             let width  : Var<Distance<Pixels>> = shape_width.into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
             let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
@@ -65,14 +66,23 @@ pub mod port_area {
             let left_corner      = corner.translate_x(-&corner_offset);
             let right_corner     = corner.translate_x(&corner_offset);
             let port_area        = port_area + left_corner + right_corner;
-            let port_area        = port_area.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
 
             // Move the shape so it shows the correct slice, as indicated by `offset_x`.
             let offset_x          = Var::<Distance<Pixels>>::from(offset_x);
             let offset_x          = width/2.0 - offset_x;
             let port_area_aligned = port_area.translate_x(offset_x);
 
-            (port_area_aligned + hover_area).into()
+            let overall_width     = Var::<Distance<Pixels>>::from("input_size.x");
+            let padding           = Var::<Distance<Pixels>>::from(&padding * 2.0);
+            let crop_window_width = &overall_width - &padding;
+            let crop_window       = Rect((&crop_window_width,&height));
+            let crop_window       = crop_window.translate_y(-height * 0.5);
+
+            let port_area_cropped = crop_window.intersection(port_area_aligned);
+
+            let port_area_colored = port_area_cropped.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
+
+            (port_area_colored + hover_area).into()
         }
     }
 }
@@ -129,16 +139,14 @@ impl OutPutPortsData {
     fn update_ports(&mut self) {
         let port_num      = self.ports.len() as f32;
 
-        let gap_width     = self.gap_width;
         let width         = self.size.x;
-        let width_no_gaps = width - gap_width * (port_num - 1.0) ;
         let height        = self.size.y;
-        let element_width = width_no_gaps / port_num;
+        let element_width = width / port_num;
         let element_size  = Vector2::new(element_width,height);
 
         // Align shapes along width.
         let x_start = -width/2.0 + NODE_SHAPE_PADDING;
-        let x_delta = element_width + gap_width;
+        let x_delta = element_width;
         for (index, view) in self.ports.iter().enumerate(){
             view.display_object().set_parent(&self.display_object);
 
@@ -150,6 +158,7 @@ impl OutPutPortsData {
             let shape = &view.shape;
             shape.sprite.size().set(element_size);
             shape.shape_width.set(width);
+            shape.padding.set(self.gap_width);
             shape.offset_x.set(x_delta * index as f32);
         }
     }
