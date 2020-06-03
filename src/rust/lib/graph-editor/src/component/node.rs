@@ -265,16 +265,12 @@ impl NodeModel {
         self.ports.width() + TEXT_OFF * 2.0
     }
 
-    fn height(&self) -> f32 {
-        28.0
-    }
-
     fn set_expression(&self, expr:impl Into<Expression>) {
         let expr = expr.into();
         self.ports.set_expression(expr);
 
         let width = self.width();
-        let height = self.height();
+        let height = 28.0;
 
         let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
         self.main_area.shape.sprite.size().set(size);
