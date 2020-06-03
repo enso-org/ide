@@ -196,9 +196,9 @@ pub struct NodeModel {
     pub frp            : Frp,
     pub main_area      : component::ShapeView<shape::Shape>,
     pub drag_area      : component::ShapeView<drag_area::Shape>,
-    pub output_ports   : OutPutPorts,
     pub ports          : port::Manager,
     pub visualization  : visualization::Container,
+    pub output_ports   : OutputPorts,
 }
 
 pub const CORNER_RADIUS : f32 = 14.0;
@@ -215,10 +215,10 @@ impl NodeModel {
         edge::sort_hack_1(scene);
 
         OutPutPorts::init_shape_order_hack(&scene);
-        let main_logger   = Logger::sub(&logger,"main_area");
-        let drag_logger   = Logger::sub(&logger,"drag_area");
-        let main_area     = component::ShapeView::<shape      ::Shape>::new(&main_logger  ,scene);
-        let drag_area     = component::ShapeView::<drag_area  ::Shape>::new(&drag_logger  ,scene);
+        let main_logger = Logger::sub(&logger,"main_area");
+        let drag_logger = Logger::sub(&logger,"drag_area");
+        let main_area   = component::ShapeView::<shape      ::Shape>::new(&main_logger  ,scene);
+        let drag_area   = component::ShapeView::<drag_area  ::Shape>::new(&drag_logger  ,scene);
         edge::sort_hack_2(scene);
 
         port::sort_hack(scene); // FIXME hack for sorting
@@ -252,7 +252,7 @@ impl NodeModel {
         let frp = Frp{input};
 
 
-        let output_ports = OutPutPorts::new(&scene, 5);
+        let output_ports = OutputPorts::new(&scene, 5);
         display_object.add_child(&output_ports);
 
 
