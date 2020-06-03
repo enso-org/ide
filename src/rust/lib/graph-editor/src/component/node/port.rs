@@ -1,5 +1,7 @@
 //! Definition of the Port component.
 
+pub mod output;
+
 use crate::prelude::*;
 
 //use crate::component::node::port::Registry;
@@ -33,7 +35,7 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, hover:f32) {
+        (style:Style, size:Vector2<f32>, hover:f32) {
             let width  : Var<Distance<Pixels>> = "input_size.x".into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
             let radius = 6.px();

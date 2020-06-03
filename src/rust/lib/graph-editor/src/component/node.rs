@@ -24,10 +24,10 @@ use ensogl::gui::component;
 
 use super::edge;
 use crate::component::visualization;
+use crate::component::node::port::output::OutPutPorts;
 
 
-
-const NODE_SHAPE_PADDING : f32 = 40.0;
+pub(crate) const NODE_SHAPE_PADDING : f32 = 40.0;
 
 
 // ============
@@ -93,48 +93,6 @@ pub mod shape {
 }
 
 /// Canvas node shape definition.
-pub mod output_area {
-    use super::*;
-
-    ensogl::define_shape_system! {
-        (style:Style, grow:f32) {
-            let width  : Var<Distance<Pixels>> = "input_size.x".into();
-            let height : Var<Distance<Pixels>> = "input_size.y".into();
-            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
-            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
-
-            let hover_area_size   = 20.0.px();
-            let hover_area_width  = &width  + &hover_area_size * 2.0;
-            let hover_area_height = &height / 2.0 + &hover_area_size;
-            let hover_area        = Rect((&hover_area_width,&hover_area_height));
-            let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
-            let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
-
-            let shrink           = 1.px() - 1.px() * &grow;
-            let radius           = 14.px();
-            let port_area_size   = 4.0.px() * &grow;
-            let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
-            let port_area_height = &height + (&port_area_size - &shrink) * 2.0;
-            let bottom_radius    = &radius + &port_area_size;
-            let port_area        = Rect((&port_area_width,&port_area_height));
-            let port_area        = port_area.corners_radius(&bottom_radius);
-            let port_area        = port_area - BottomHalfPlane();
-            let corner_radius    = &port_area_size / 2.0;
-            let corner_offset    = &port_area_width / 2.0 - &corner_radius;
-            let corner           = Circle(&corner_radius);
-            let left_corner      = corner.translate_x(-&corner_offset);
-            let right_corner     = corner.translate_x(&corner_offset);
-            let port_area        = port_area + left_corner + right_corner;
-            let port_area        = port_area.fill(color::Rgba::from(color::Lcha::new(0.6,0.5,0.76,1.0)));
-
-            let out = hover_area + port_area;
-            out.into()
-        }
-    }
-}
-
-
-/// Canvas node shape definition.
 pub mod drag_area {
     use super::*;
 
@@ -186,18 +144,10 @@ impl InputEvents {
 }
 
 
-#[derive(Clone,CloneRef,Debug,Deref)]
-#[allow(missing_docs)]
-pub struct OutputPortsEvents {
-    pub shape_view_events : component::ShapeViewEvents,
-}
-
-
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
     pub input        : InputEvents,
-    pub output_ports : OutputPortsEvents
 }
 
 impl Deref for Frp {
@@ -246,9 +196,9 @@ pub struct NodeModel {
     pub frp                     : Frp,
     pub main_area               : component::ShapeView<shape::Shape>,
     pub drag_area               : component::ShapeView<drag_area::Shape>,
-    pub output_area             : component::ShapeView<output_area::Shape>,
     pub ports                   : port::Manager,
     pub visualization_container : visualization::Container,
+    pub output_ports            : OutPutPorts,
 }
 
 pub const NODE_HEIGHT : f32 = 28.0;
@@ -263,7 +213,7 @@ impl NodeModel {
         let logger  = Logger::new("node");
         edge::sort_hack_1(scene);
 
-        let output_area = component::ShapeView::<output_area::Shape>::new(&logger.sub("output_area"),scene);
+        OutPutPorts::init_shape_order_hack(&scene);
         let main_area   = component::ShapeView::<shape::Shape>::new(&logger.sub("main_area"),scene);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger.sub("drag_area"),scene);
         edge::sort_hack_2(scene);
@@ -272,7 +222,6 @@ impl NodeModel {
 
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
-        display_object.add_child(&output_area);
         display_object.add_child(&main_area);
 
         // FIXME: maybe we can expose shape system from shape?
@@ -297,15 +246,14 @@ impl NodeModel {
         });
         display_object.add_child(&ports);
 
-
-        let output_ports = OutputPortsEvents { shape_view_events:output_area.events.clone_ref() };
-
-        let frp = Frp{input,output_ports};
+        let frp = Frp{input};
 
 
+        let output_ports = OutPutPorts::new(&scene, 5);
+        display_object.add_child(&output_ports);
 
-        Self {scene,display_object,logger,frp,main_area,drag_area,output_area,ports
-             ,visualization_container} . init()
+        Self {scene,display_object,logger,frp,main_area,drag_area,ports
+             ,visualization_container,output_ports} . init()
     }
 
     fn init(self) -> Self {
@@ -317,23 +265,27 @@ impl NodeModel {
         self.ports.width() + TEXT_OFF * 2.0
     }
 
+    fn height(&self) -> f32 {
+        28.0
+    }
+
     fn set_expression(&self, expr:impl Into<Expression>) {
         let expr = expr.into();
         self.ports.set_expression(expr);
 
         let width = self.width();
-        let height = 28.0;
+        let height = self.height();
 
         let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
         self.main_area.shape.sprite.size().set(size);
         self.drag_area.shape.sprite.size().set(size);
-        self.output_area.shape.sprite.size().set(size);
         self.main_area.mod_position(|t| t.x = width/2.0);
         self.main_area.mod_position(|t| t.y = height/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.y = height/2.0);
-        self.output_area.mod_position(|t| t.x = width/2.0);
-        self.output_area.mod_position(|t| t.y = height/2.0);
+
+        self.output_ports.frp.set_size.emit(Some(size));
+        self.output_ports.mod_position(|t| t.y = height/2.0);
     }
 }
 
@@ -345,7 +297,7 @@ impl Node {
         let model            = Rc::new(NodeModel::new(scene,&frp_network));
         let inputs           = &model.frp.input;
         let selection        = Animation::<f32>::new(&frp_network);
-        let output_area_size = Animation::<f32>::new(&frp_network);
+
 
         frp::extend! { frp_network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
@@ -353,11 +305,6 @@ impl Node {
             eval_ inputs.deselect (selection.set_target_value(0.0));
 
             eval inputs.set_expression ((expr) model.set_expression(expr));
-
-            eval output_area_size.value ((size) model.output_area.shape.grow.set(*size));
-
-            eval_ model.output_area.events.mouse_over (output_area_size.set_target_value(1.0));
-            eval_ model.output_area.events.mouse_out  (output_area_size.set_target_value(0.0));
 
             eval inputs.set_visualization ((content)
                 model.visualization_container.frp.set_visualization.emit(content)
