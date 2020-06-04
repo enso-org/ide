@@ -136,7 +136,7 @@ pub struct OutPutPortsData {
 
 impl OutPutPortsData {
 
-    fn new(scene:Scene, number_of_ports:u8) -> Self {
+    fn new(scene:Scene, number_of_ports:u32) -> Self {
         let logger         = Logger::new("OutPutPorts");
         let display_object = display::object::Instance::new(&logger);
         let size           = Cell::new(Vector2::zero());
@@ -205,7 +205,7 @@ pub struct OutputPorts {
 }
 
 impl OutputPorts {
-    pub fn new(scene:&Scene, number_of_ports:u8) -> Self {
+    pub fn new(scene:&Scene, number_of_ports:u32) -> Self {
 
         let network        = default();
         let frp            = Frp::new(&network);
