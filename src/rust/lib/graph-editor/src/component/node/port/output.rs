@@ -257,32 +257,26 @@ impl OutputPorts {
 
                     is_resize_target <- set_port_size.map(move |(id,_)| *id == index);
                     size_change      <- set_port_size.gate(&is_resize_target);
-                    _change_size     <- size_change.map(f!(((_, size))  {
-                        port_size.set_target_value(*size)
-                    }));
+                    eval size_change (((_, size)) port_size.set_target_value(*size));
 
                     is_opacity_target <- set_port_opacity.map(move |(id, _)| *id==index);
                     opacity_change    <- set_port_opacity.gate(&is_opacity_target);
-                    _change_size      <- opacity_change.map(f!(((_, opacity))  {
-                        port_opacity.set_target_value(*opacity)
-                    }));
+                    eval opacity_change (((_, opacity)) port_opacity.set_target_value(*opacity));
 
-                    eval view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,
-                                                  set_port_opacity_all](_) {
+                    eval_ view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,
+                                                  set_port_opacity_all] {
                         set_port_sizes_all.emit(BASE_SIZE);
                         set_port_opacity_all.emit(0.5);
                         port_size.set_target_value(HIGHLIGHT_SIZE);
                         port_opacity.set_target_value(1.0);
                     });
 
-                    eval view.events.mouse_out ([set_port_sizes_all,set_port_opacity_all](_) {
+                    eval_ view.events.mouse_out ([set_port_sizes_all,set_port_opacity_all] {
                          set_port_sizes_all.emit(0.0);
                          set_port_opacity_all.emit(0.0);
                     });
 
-                    eval view.events.mouse_down ([frp](_) {
-                        frp.on_port_mouse_down.emit(index);
-                    });
+                    eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
                 }
             }
         }
