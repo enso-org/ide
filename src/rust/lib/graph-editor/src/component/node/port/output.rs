@@ -13,6 +13,7 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
+
 use crate::node::NODE_SHAPE_PADDING;
 
 
@@ -21,9 +22,9 @@ use crate::node::NODE_SHAPE_PADDING;
 // === Constants ===
 // =================
 
-const BASE_SIZE:f32         = 0.5;
-const HIGHLIGHT_SIZE:f32    = 1.0;
-const SEGMENT_GAP_WIDTH:f32 = 2.0;
+const BASE_SIZE         : f32 = 0.5;
+const HIGHLIGHT_SIZE    : f32 = 1.0;
+const SEGMENT_GAP_WIDTH : f32 = 2.0;
 
 
 
@@ -88,10 +89,11 @@ pub mod port_area {
     }
 }
 
+
+
 // ===========
 // === Frp ===
 // ===========
-
 
 type PortId = usize;
 
@@ -246,14 +248,14 @@ impl OutputPorts {
         // Init ports
         {
             for (index,view) in data.borrow().ports.iter().enumerate() {
-                let shape          = &view.shape;
+                let shape        = &view.shape;
                 let port_size    = Animation::<f32>::new(&network);
                 let port_opacity = Animation::<f32>::new(&network);
                 frp::extend! { network
-                     eval port_size.value ((size) shape.grow.set(*size));
-                     eval port_opacity.value   ((size) shape.opacity.set(*size));
+                     eval port_size.value    ((size) shape.grow.set(*size));
+                     eval port_opacity.value ((size) shape.opacity.set(*size));
 
-                    is_resize_target <- set_port_size.map(move |(id, _)| *id==index);
+                    is_resize_target <- set_port_size.map(move |(id,_)| *id == index);
                     size_change      <- set_port_size.gate(&is_resize_target);
                     _change_size     <- size_change.map(f!(((_, size))  {
                         port_size.set_target_value(*size)
@@ -265,7 +267,8 @@ impl OutputPorts {
                         port_opacity.set_target_value(*opacity)
                     }));
 
-                    eval view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,set_port_opacity_all](_) {
+                    eval view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,
+                                                  set_port_opacity_all](_) {
                         set_port_sizes_all.emit(BASE_SIZE);
                         set_port_opacity_all.emit(0.5);
                         port_size.set_target_value(HIGHLIGHT_SIZE);
