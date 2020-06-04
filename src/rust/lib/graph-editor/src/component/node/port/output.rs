@@ -15,6 +15,7 @@ use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 
 use crate::node::NODE_SHAPE_PADDING;
+use crate::node::NODE_SHAPE_RADIUS;
 
 
 
@@ -53,7 +54,7 @@ pub mod port_area {
             let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
             let shrink           = 1.px() - 1.px() * &grow;
-            let radius           = 14.px();
+            let radius           = NODE_SHAPE_RADIUS.px();
             let port_area_size   = 4.0.px() * &grow;
             let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
             let port_area_height = &height + (&port_area_size - &shrink) * 2.0;

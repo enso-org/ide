@@ -28,6 +28,7 @@ use crate::component::node::port::output::OutputPorts;
 
 
 pub(crate) const NODE_SHAPE_PADDING : f32 = 40.0;
+pub(crate) const NODE_SHAPE_RADIUS  : f32 = 14.0;
 
 
 // ============
@@ -50,7 +51,7 @@ pub mod shape {
             let height : Var<Distance<Pixels>> = "input_size.y".into();
             let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
             let height = height - NODE_SHAPE_PADDING.px() * 2.0;
-            let radius = 14.px();
+            let radius = NODE_SHAPE_RADIUS.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
             let shape  = shape.fill(color::Rgba::from(bg_color));
 
