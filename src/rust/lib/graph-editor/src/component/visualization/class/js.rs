@@ -10,7 +10,8 @@ use crate::component::visualization::InstantiationResult;
 use crate::component::visualization::Class;
 use crate::component::visualization::Visualization;
 use crate::component::visualization::Signature;
-use crate::data::EnsoType;
+use crate::component::visualization::Path;
+use crate::data::*;
 
 use ensogl::display::Scene;
 use ensogl::system::web::JsValue;
@@ -57,9 +58,10 @@ pub struct JsSourceClass {
 
 impl JsSourceClass {
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
-    pub fn from_js_source_raw(source:&str) -> Result<Self,JsVisualizationError> {
+    pub fn from_js_source_raw
+    (module:impl Into<LibraryName>, source:&str) -> Result<Self,JsVisualizationError> {
         let js_class  = JsClassWrapper::instantiate_class(&source)?;
-        let signature = js_class.signature()?;
+        let signature = js_class.signature(module)?;
         Ok(JsSourceClass{js_class,signature})
     }
 }
@@ -105,10 +107,11 @@ impl JsClassWrapper {
         Ok(JsClassWrapper{class})
     }
 
-    fn signature(&self) -> JsResult<Signature> {
+    fn signature(&self, module:impl Into<LibraryName>) -> JsResult<Signature> {
         let input_type = self.input_type().unwrap_or_default();
         let name       = self.name()?;
-        Ok(Signature {name,input_type})
+        let path       = Path::new(module,name);
+        Ok(Signature::new(path,input_type))
     }
 
     fn constructor(&self) -> JsResult<js_sys::Function> {
@@ -125,7 +128,7 @@ impl JsClassWrapper {
         Ok(input_type_str)
     }
 
-    fn name(&self) -> JsResult<ImString> {
+    fn name(&self) -> JsResult<VisualizationName> {
         let constructor = self.constructor()?;
         let name        = js_sys::Reflect::get(&constructor,&NAME_FIELD.into())?;
         Ok(name.as_string().unwrap_or_default().into())

@@ -373,7 +373,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes     : frp::Source<Position>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<Visualization>)>,
-    pub register_visualization_class : frp::Source<Option<Rc<visualization::AnyClass>>>, // FIXME: Rc!!!
+    pub register_visualization_class : frp::Source<Option<visualization::AnyClass>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
@@ -1275,7 +1275,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let inputs                 = &model.frp;
     let mouse                  = &scene.mouse.frp;
     let touch                  = &model.touch_state;
-    let visualization_registry = visualization::Registry::with_default_visualizations();
+    let visualizations = visualization::Registry::with_default_visualizations();
     let logger                 = &model.logger;
 //    let visualizations         = &model.visualizations;
 
@@ -1572,8 +1572,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Vis Cycling ===
 
 //    let cycle_count = Rc::new(Cell::new(0));
-//    def _cycle_visualization = inputs.cycle_visualization_for_selected_node.map(f!([scene,visualizations,visualization_registry,logger](_) {
-//        let vis_classes = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
+//    def _cycle_visualization = inputs.cycle_visualization_for_selected_node.map(f!([scene,visualizations,visualizations,logger](_) {
+//        let vis_classes = visualizations.valid_sources(&"[[Float,Float,Float]]".into());
 //        cycle_count.set(cycle_count.get() % vis_classes.len());
 //        let vis       = &vis_classes[cycle_count.get()];
 //        let vis       = vis.instantiate(&scene);
@@ -1619,8 +1619,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
      }));
 
      let cycle_count = Rc::new(Cell::new(0));
-     def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualization_registry,logger](node_id) {
-        let visualizations = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
+     def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualizations,logger](node_id) {
+        let visualizations = visualizations.valid_sources(&"[[Float,Float,Float]]".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
         let vis  = &visualizations[cycle_count.get()];
         let vis  = vis.instantiate(&scene);
@@ -1676,9 +1676,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Register Visualization ===
 
-    def _register_visualization = inputs.register_visualization_class.map(f!([visualization_registry](handle) {
+    def _register_visualization = inputs.register_visualization_class.map(f!([visualizations](handle) {
         if let Some(handle) = handle {
-            visualization_registry.register(&handle);
+            visualizations.add(handle);
         }
     }));
 

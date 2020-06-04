@@ -2,6 +2,7 @@
 // TODO remove once we have proper visualizations or replace with a nice d3 example.
 // These implementations are neither efficient nor pretty, but get the idea across.
 
+use crate::data;
 use crate::component::visualization::JsSourceClass;
 
 /// Return an `JsSourceClass` that creates example Bubble Visualizations implemented in JS.
@@ -47,5 +48,5 @@ pub fn get_bubble_vis_class() -> JsSourceClass {
         return BubbleVisualization;
     "#;
 
-    JsSourceClass::from_js_source_raw(fn_constructor).unwrap()
+    JsSourceClass::from_js_source_raw(data::builtin_library(),fn_constructor).unwrap()
 }

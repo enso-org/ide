@@ -302,6 +302,7 @@ impl Container {
         let network = frp::Network::new();
         let frp     = Frp::new(&network);
         let model   = Rc::new(ContainerModel::new(logger,scene));
+        let def_viz =
         model.set_visualization(Some(Registry::default_visualisation(scene)));
         Self {model,frp,network} . init()
     }

@@ -8,6 +8,7 @@ use crate::prelude::*;
 use crate::config::PROJECT_VISUALIZATION_FOLDER;
 
 use enso_protocol::language_server;
+use graph_editor::data;
 use graph_editor::component::visualization::class;
 use graph_editor::component::visualization::JsSourceClass;
 use std::rc::Rc;
@@ -61,7 +62,7 @@ pub type EmbeddedVisualizationName = String;
 #[shrinkwrap(mutable)]
 pub struct EmbeddedVisualizations {
     #[allow(missing_docs)]
-    pub map:HashMap<EmbeddedVisualizationName,Rc<class::AnyClass>>
+    pub map:HashMap<EmbeddedVisualizationName,class::AnyClass>
 }
 
 
@@ -123,7 +124,7 @@ impl Handle {
 
     /// Load the source code of the specified visualization.
     pub async fn load_visualization
-    (&self, visualization:&VisualizationPath) -> FallibleResult<Rc<class::AnyClass>> {
+    (&self, visualization:&VisualizationPath) -> FallibleResult<class::AnyClass> {
         match visualization {
             VisualizationPath::Embedded(identifier) => {
                 let embedded_visualizations = self.embedded_visualizations.borrow();
@@ -136,8 +137,9 @@ impl Handle {
                 let js_code    = self.language_server_rpc.read_file(&path).await?.contents;
                 let identifier = visualization.clone();
                 let error      = |_| VisualizationError::InstantiationError {identifier}.into();
-                let js_class   = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
-                js_class.map(|js_class| Rc::new(class::AnyClass::new(js_class)))
+                let module     = data::builtin_library(); // FIXME: provide real library name.
+                let js_class   = JsSourceClass::from_js_source_raw(module,&js_code).map_err(error);
+                js_class.map(|js_class| class::AnyClass::new(js_class))
             }
         }
     }

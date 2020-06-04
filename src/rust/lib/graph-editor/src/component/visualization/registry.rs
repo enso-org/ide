@@ -30,85 +30,66 @@ use crate::prelude::*;
 
 use crate::component::visualization;
 use crate::component::visualization::*;
-use crate::component::visualization::renderer::example::js::get_bubble_vis_class;
-use crate::component::visualization::renderer::example::native::BubbleChart;
 use crate::data::EnsoType;
 
 use ensogl::display::scene::Scene;
 use crate::component::visualization::example::native::RawText;
 use enso_prelude::CloneRef;
+use ensogl::data::OptVec;
+
 
 
 // ==============================
 // === Visualization Registry ===
 // ==============================
 
-/// HashMap that contains the mapping from `EnsoType`s to a `Vec` of `Factories. This is meant to
-/// map a `EnsoType` to all `visualization::Class`es that support visualising that type.
-type RegistryTypeMap = HashMap<EnsoType, Vec<Rc<dyn Class>>>;
-
 /// The registry struct. For more information see the module description.
-#[derive(Clone,CloneRef,Default,Debug)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
-    map : Rc<RefCell<RegistryTypeMap>>,
+    default  : AnyClass,
+//    vec      : OptVec<AnyClass>,
+    type_map : Rc<RefCell<HashMap<EnsoType,Vec<AnyClass>>>>,
 }
 
 impl Registry {
     /// Return an empty `Registry`.
     pub fn new() -> Self {
-        Self::default()
+        let default  = visualization::example::native::RawText::class().into();
+        let type_map = Default::default();
+        Self {default,type_map} . init()
+    }
+
+    fn init(self) -> Self {
+        self.add(&self.default);
+        self
     }
 
     /// Return a `Registry` prepopulated with default visualizations.
     pub fn with_default_visualizations() -> Self {
         let registry = Self::new();
-        registry.register_class_old(visualization::class::Native::new(
-            Signature::for_any_type("Bubble Visualization (native)"),
-            |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
-        ));
-        registry.register_class_old(get_bubble_vis_class());
-        registry.register_class_old(visualization::class::Native::new(
-            Signature::for_any_type("Raw Text Visualization (native)"),
-            |scene:&Scene| {
-                println!("raw text cons 2");
-                Ok(Visualization::new(RawText::new(scene)))
-            }
-        ));
-
+        registry.add(visualization::example::native::BubbleChart::class());
+        registry.add(visualization::example::native::RawText::class());
+        registry.add(visualization::example::js::get_bubble_vis_class());
         registry
     }
 
-    /// Register a new visualization class with the registry.
-    pub fn register_class_old<T:Class+'static>(&self, class:T) {
-        self.register_class_rc(Rc::new(class));
-    }
-
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
-    pub fn register(&self, class:&AnyClass) {
-        self.register_class_rc(class.class.clone_ref())
-    }
-
-    fn register_class_rc(&self, class:Rc<dyn Class>) {
-        let sig = class.signature();
-        self.map.borrow_mut().entry(sig.input_type.clone()).or_default().push(Rc::clone(&class));
+    pub fn add(&self, class:impl Into<AnyClass>) {
+        let class = class.into();
+        let sig   = class.signature();
+        self.type_map.borrow_mut().entry(sig.input_type.clone()).or_default().push(class);
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
-    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<dyn Class>>{
-        let map = self.map.borrow();
-        map.get(dtype).cloned().unwrap_or_else(default)
+    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<AnyClass>{
+        let type_map = self.type_map.borrow();
+        type_map.get(dtype).cloned().unwrap_or_else(default)
     }
 
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> Visualization {
-        let class = visualization::class::Native::new(
-            Signature::for_any_type("Raw Text Visualization (native)"),
-            |scene:&Scene| {
-                println!("raw text cons");
-                Ok(Visualization::new(RawText::new(scene)))
-            }
-        );
-        class.instantiate(&scene).expect("Failed to instantiate default visualisation")
+        let class = visualization::example::native::RawText::class();
+        class.instantiate(&scene).expect("Failed to instantiate default visualisation.")
     }
 }

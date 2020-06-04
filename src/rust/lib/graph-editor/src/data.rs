@@ -2,49 +2,33 @@ use crate::prelude::*;
 
 
 
-// ================
-// === EnsoCode ===
-// ================
+// ==================
+// === Data Types ===
+// ==================
 
-/// Type alias for a string containing Enso code.
-#[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
-pub struct EnsoCode {
-    content: ImString
-}
+im_string_newtype!{
+    /// Name of the Enso library.
+    LibraryName,
 
+    /// Name of the visualization. You cannot register two visualizations of the same name in the
+    /// same library.
+    VisualizationName,
 
+    /// The source code of Enso program.
+    EnsoCode,
 
-// ================
-// === EnsoType ===
-// ================
-
-/// Type alias for a string representing an Enso type.
-#[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
-pub struct EnsoType {
-    content: ImString
+    /// The Enso type representation. Can be a complex type, like `String|Int`.
+    EnsoType,
 }
 
 impl EnsoType {
-    pub fn new(content:impl Into<ImString>) -> Self {
-        let content = content.into();
-        Self {content}
-    }
-
+    /// The `Any` Enso type. It is the type which matches all other types.
     pub fn any() -> Self {
         "Any".into()
     }
 }
 
-// TODO: all conversions in newtype macro
-
-impl From<String> for EnsoType {
-    fn from(content:String) -> Self {
-        Self::new(content)
-    }
-}
-
-impl From<&str> for EnsoType {
-    fn from(content:&str) -> Self {
-        Self::new(content)
-    }
+/// Builtin library name. For internal usage only.
+pub fn builtin_library() -> LibraryName {
+    "builtin".into()
 }

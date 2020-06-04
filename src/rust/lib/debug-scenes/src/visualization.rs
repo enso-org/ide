@@ -4,6 +4,7 @@ use ensogl::application::Application;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::system::web;
 use ensogl_core_msdf_sys::run_once_initialized;
+use graph_editor::data;
 use graph_editor::component::visualization::Data;
 use graph_editor::component::visualization::JsSourceClass;
 use graph_editor::component::visualization::Registry;
@@ -66,7 +67,7 @@ fn constructor_graph() -> JsSourceClass {
 
         return Graph;
     "#;
-    JsSourceClass::from_js_source_raw(fn_constructor).unwrap()
+    JsSourceClass::from_js_source_raw(data::builtin_library(),fn_constructor).unwrap()
 }
 
 #[wasm_bindgen]
@@ -89,7 +90,7 @@ fn init(app:&Application) {
     let navigator  = Navigator::new(&scene,&camera);
     let registry   = Registry::with_default_visualizations();
 
-    registry.register_class_old(constructor_graph());
+    registry.add(constructor_graph());
 
     let vis_factories = registry.valid_sources(&"[[Float,Float,Float]]".into());
     let vis_class     = vis_factories.iter().find(|class| {

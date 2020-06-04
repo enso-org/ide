@@ -58,6 +58,13 @@ pub struct BubbleChart {
 
 #[allow(missing_docs)]
 impl BubbleChart {
+    pub fn class() -> class::Native {
+        class::Native::new(
+            Signature::for_any_type(Path::builtin("[Demo] Bubble Visualization")),
+            |scene:&Scene| { Ok(Visualization::new(Self::new(scene))) }
+        )
+    }
+
     pub fn new(scene:&Scene) -> Self {
         let logger         = Logger::new("bubble");
         let display_object = display::object::Instance::new(&logger);
@@ -66,7 +73,7 @@ impl BubbleChart {
         let frp            = RendererFrp::new(&network);
         let size           = default();
         let scene          = scene.clone_ref();
-        let signature      = Signature::for_any_type("[Demo] Bubble Chart");
+        let signature      = Signature::for_any_type(Path::builtin("[Demo] Bubble Chart"));
         BubbleChart {display_object,views,logger,frp,network,size,scene,signature} . init()
     }
 
@@ -152,6 +159,13 @@ pub struct RawText {
 }
 
 impl RawText {
+    pub fn class() -> class::Native {
+        class::Native::new(
+            Signature::for_any_type(Path::builtin("Raw Text Visualization (native)")),
+            |scene:&Scene| { Ok(Visualization::new(Self::new(scene))) }
+        )
+    }
+
     pub fn new(scene:&Scene) -> Self {
         let network = default();
         let model   = RawTextModel::new(scene,&network);

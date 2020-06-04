@@ -24,6 +24,7 @@
 pub mod class;
 pub mod container;
 pub mod data;
+pub mod example;
 pub mod fullscreen;
 pub mod registry;
 pub mod renderer;
