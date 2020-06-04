@@ -21,7 +21,7 @@ use std::error::Error;
 // ================
 
 /// Type alias for a string containing Enso code.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Debug,Default)]
 pub struct EnsoCode {
     content: Rc<String>
 }
@@ -33,7 +33,7 @@ pub struct EnsoCode {
 // ================
 
 /// Type alias for a string representing an Enso type.
-#[derive(Clone,CloneRef,Debug,PartialEq,Eq,Hash)]
+#[derive(Clone,CloneRef,Debug,Default,PartialEq,Eq,Hash)]
 pub struct EnsoType {
     content: Rc<String>
 }
@@ -55,12 +55,6 @@ impl From<String> for EnsoType {
 impl From<&str> for EnsoType {
     fn from(source:&str) -> Self {
         EnsoType { content:Rc::new(source.to_string()) }
-    }
-}
-
-impl Default for EnsoType {
-    fn default() -> Self {
-        Self::any()
     }
 }
 
@@ -97,7 +91,7 @@ impl Signature {
 #[allow(missing_docs)]
 pub struct Frp {
     /// Can be sent to set the data of the visualization.
-    pub set_data             : frp::Source<Option<Data>>,
+    pub set_data             : frp::Source<Data>,
     /// Will be emitted if the visualization has new data (e.g., through UI interaction).
     /// Data is provides encoded as EnsoCode.
     pub on_change            : frp::Stream<Option<EnsoCode>>,
@@ -188,10 +182,8 @@ impl Visualization {
         let frp           = &self.frp;
         frp::extend! { network
             def _set_data = self.frp.set_data.map(f!([frp,visualization](data) {
-                if let Some(data) = data {
-                    if visualization.renderer.receive_data(data.clone_ref()).is_err() {
-                        frp.invalid_data.emit(())
-                    }
+                if visualization.renderer.receive_data(data.clone()).is_err() {
+                    frp.invalid_data.emit(())
                 }
             }));
         }

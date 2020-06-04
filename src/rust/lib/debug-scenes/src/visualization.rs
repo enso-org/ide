@@ -104,10 +104,10 @@ fn init(app:&Application) {
 
         let data    = generate_data((time_info.local / 1000.0).into());
         let data    = Rc::new(data);
-        let content = Rc::new(serde_json::to_value(data).unwrap());
+        let content = serde_json::to_value(data).unwrap();
         let data    = Data::Json{content};
 
-        visualization.frp.set_data.emit(Some(data));
+        visualization.frp.set_data.emit(data);
 
         // Temporary code removing the web-loader instance.
         // To be changed in the future.

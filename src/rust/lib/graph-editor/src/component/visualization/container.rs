@@ -37,10 +37,9 @@ use ensogl::gui::component;
 pub mod frame {
     use super::*;
 
+    // TODO use style
     ensogl::define_shape_system! {
         (width:f32,height:f32,selected:f32,padding:f32,roundness:f32) {
-            // TODO use style
-
             let width_bg      = width.clone();
             let height_bg     = height.clone();
             let width_bg      = Var::<Distance<Pixels>>::from(width_bg);
@@ -106,11 +105,10 @@ pub mod overlay {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub network           : frp::Network,
     pub set_visibility    : frp::Source<bool>,
     pub toggle_visibility : frp::Source,
     pub set_visualization : frp::Source<Option<Visualization>>,
-    pub set_data          : frp::Source<Option<Data>>,
+    pub set_data          : frp::Source<Data>,
     pub select            : frp::Source,
     pub deselect          : frp::Source,
     pub set_size          : frp::Source<Option<Vector2<f32>>>,
@@ -118,9 +116,9 @@ pub struct Frp {
     on_click              : frp::Source,
 }
 
-impl Default for Frp {
-    fn default() -> Self {
-        frp::new_network! { TRACE_ALL visualization_events
+impl Frp {
+    fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
             def set_visibility    = source();
             def toggle_visibility = source();
             def set_visualization = source();
@@ -131,25 +129,26 @@ impl Default for Frp {
             def set_size          = source();
             let clicked           = on_click.clone_ref().into();
         };
-        let network = visualization_events;
-        Self {network,set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
+        Self {set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
               clicked,set_size,on_click}
     }
 }
 
 
 
-///////////////////////////
+// ======================
+// === ContainerModel ===
+// ======================
 
 /// Internal data of a `Container`.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct ContainerModel {
-    logger                       : Logger,
-    size                         : Cell<Vector2<f32>>,
-    padding                      : Cell<f32>,
-    display_object               : display::object::Instance,
-    display_object_internal      : display::object::Instance,
+    logger                  : Logger,
+    size                    : Cell<Vector2<f32>>,
+    padding                 : Cell<f32>,
+    display_object          : display::object::Instance,
+    display_object_internal : display::object::Instance,
 
     visualization           : RefCell<Option<Visualization>>,
     shape_frame             : component::ShapeView<frame::Shape>,
@@ -266,8 +265,8 @@ impl display::Object for ContainerModel {
 pub struct Container {
     #[shrinkwrap(main_field)]
     pub model : Rc<ContainerModel>,
-    #[derivative(PartialEq="ignore")]
-    pub frp  : Frp,
+    pub frp   : Frp,
+    network   : frp::Network,
 }
 
 impl Drop for Container {
@@ -279,15 +278,16 @@ impl Drop for Container {
 impl Container {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let frp  = default();
-        let model = Rc::new(ContainerModel::new(scene));
-//        model.set_visualization(Registry::default_visualisation(scene));
-        Self {model,frp} . init()
+        let network = frp::Network::new();
+        let frp     = Frp::new(&network);
+        let model   = Rc::new(ContainerModel::new(scene));
+        model.set_visualization(Registry::default_visualisation(scene));
+        Self {model,frp,network} . init()
     }
 
     fn init(self) -> Self {
         let inputs    = &self.frp;
-        let network   = &self.frp.network;
+        let network   = &self.network;
         let model     = &self.model;
         let selection = Animation::new(network);
 
@@ -312,15 +312,15 @@ impl Container {
         self
     }
 
-    /// Return the symbols of the container, not of the visualization.
-    fn container_main_symbols(&self) -> Vec<Symbol> {
-        let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
-        let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-        vec![
-            shape_system_frame.shape_system.symbol.clone_ref(),
-            shape_system_overlay.shape_system.symbol.clone_ref(),
-        ]
-    }
+//    /// Return the symbols of the container, not of the visualization.
+//    fn container_main_symbols(&self) -> Vec<Symbol> {
+//        let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
+//        let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
+//        vec![
+//            shape_system_frame.shape_system.symbol.clone_ref(),
+//            shape_system_overlay.shape_system.symbol.clone_ref(),
+//        ]
+//    }
 }
 
 impl Resizable for Container {

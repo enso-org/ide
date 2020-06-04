@@ -372,7 +372,7 @@ pub struct FrpInputs {
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<Visualization>)>,
     pub register_visualization_class : frp::Source<Option<Rc<visualization::Handle>>>,
-    pub set_visualization_data       : frp::Source<(NodeId,Option<visualization::Data>)>,
+    pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     some_edge_targets_detached : frp::Source,
@@ -932,18 +932,18 @@ impl GraphEditorModel {
 
     // FIXME: make nicer
     fn enable_visualization(&self, node_id:impl Into<NodeId>) {
-//        let node_id = node_id.into();
-//        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-//            node.visualization.frp.set_visibility.emit(true);
-//        }
+        let node_id = node_id.into();
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            node.visualization.frp.set_visibility.emit(true);
+        }
     }
 
     // FIXME: make nicer
     fn disable_visualization(&self, node_id:impl Into<NodeId>) {
-//        let node_id = node_id.into();
-//        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-//            node.visualization.frp.set_visibility.emit(false);
-//        }
+        let node_id = node_id.into();
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            node.visualization.frp.set_visibility.emit(false);
+        }
     }
 
     /// Warning! This function does not remove connected edges. It needs to be handled by the
@@ -1603,10 +1603,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let sample_data_generator = MockDataGenerator3D::default();
     def _set_dumy_data = inputs.set_test_visualization_data_for_selected_node.map(f!([nodes,inputs](_) {
         nodes.selected.for_each(|node_id| {
-            let data    = Rc::new(sample_data_generator.generate_data());
-            let content = Rc::new(serde_json::to_value(data).unwrap());
+            let data    = Rc::new(sample_data_generator.generate_data()); // FIXME: why rc?
+            let content = serde_json::to_value(data).unwrap();
             let data    = visualization::Data::Json{ content };
-            inputs.set_visualization_data.emit((*node_id,Some(data)));
+            inputs.set_visualization_data.emit((*node_id,data));
         })
     }));
 
@@ -1671,24 +1671,6 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.visualization_disabled <+ viz_disable;
     outputs.visualization_disabled <+ viz_preview_disable;
 
-
-//    def _toggle_selected = inputs.toggle_visualization_visibility.map(f!([visualizations,visualization_enabled,visualization_disabled,nodes](_) {
-//        nodes.selected.for_each(|node_id| {
-//            if let Some(node) = nodes.get_cloned_ref(node_id) {
-//                if !visualizations.is_fullscreen(node.visualization.clone_ref()) {
-//                    node.visualization.frp.toggle_visibility.emit(());
-//                    if node.visualization.is_visible() {
-//                        visualization_enabled.emit(node_id);
-//                    } else {
-//                        visualization_disabled.emit(node_id);
-//                    }
-//                }
-//            }
-//        });
-//    }));
-
-//    outputs.visualization_enabled  <+ visualization_enabled;
-//    outputs.visualization_disabled <+ visualization_disabled;
 
     // === Register Visualization ===
 

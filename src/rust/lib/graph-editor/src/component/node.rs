@@ -341,14 +341,6 @@ impl NodeModel {
     }
 }
 
-
-impl Drop for NodeModel {
-    fn drop(&mut self) {
-        println!("node model drop");
-    }
-}
-
-
 impl Node {
     pub fn new(scene:&Scene) -> Self {
         let frp_network      = frp::Network::new();

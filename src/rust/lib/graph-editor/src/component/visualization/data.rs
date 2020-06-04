@@ -16,17 +16,23 @@ use serde::Deserialize;
 pub type DataType = EnsoType;
 
 /// Wrapper for data that can be consumed by a visualization.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub enum Data {
-    Json { content : Rc<serde_json::Value> },
+    Json { content : serde_json::Value },
     Binary, // TODO replace with actual binary data stream.
+}
+
+impl Default for Data {
+    fn default() -> Self {
+        Self::json(default())
+    }
 }
 
 impl Data {
     /// Wraps the given Json value into a visualization Data.
-    pub fn new_json(content:serde_json::Value) -> Data {
-        let content = Rc::new(content);
+    pub fn json(content:serde_json::Value) -> Data {
+//        let content = Rc::new(content);
         Data::Json {content}
     }
 
@@ -39,24 +45,24 @@ impl Data {
 //        }
 //    }
 
-    /// Returns the wrapped data in Rust format. If the data cannot be returned as rust datatype, a
-    /// `DataError` is returned instead.
-    pub fn as_binary<T>(&self) -> Result<Rc<T>, DataError>
-        where for<'de> T:Deserialize<'de> + 'static {
-        match &self {
-            Data::Json { content } => {
-                // We try to deserialize here. Just in case it works.
-                // This is useful for simple data types where we don't want to care to much about
-                // representation, e.g., a list of numbers.
-                let value : serde_json::Value = content.as_ref().clone();
-                if let Ok(result) = serde_json::from_value(value) {
-                    Ok(Rc::new(result))
-                } else {
-                    Err(DataError::InvalidDataType)
-                }
-            },
-            Data::Binary => todo!(),
-        }
+    // FIXME: signature wrong, should not be used.
+    pub fn as_binary<T>(&self) -> Result<Rc<T>, DataError> {
+        todo!()
+//        where for<'de> T:Deserialize<'de> + 'static {
+//        match &self {
+//            Data::Json { content } => {
+//                // We try to deserialize here. Just in case it works.
+//                // This is useful for simple data types where we don't want to care to much about
+//                // representation, e.g., a list of numbers.
+//                let value : serde_json::Value = content.as_ref().clone();
+//                if let Ok(result) = serde_json::from_value(value) {
+//                    Ok(Rc::new(result))
+//                } else {
+//                    Err(DataError::InvalidDataType)
+//                }
+//            },
+//            Data::Binary => todo!(),
+//        }
     }
 }
 
