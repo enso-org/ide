@@ -67,3 +67,30 @@ pub trait DataRenderer: display::Object + Debug {
     /// Return a ref to the internal FRP network.
     fn frp(&self) -> &DataRendererFrp;
 }
+
+
+
+// ===================
+// === AnyRenderer ===
+// ===================
+
+/// Internal data of Visualization.
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[allow(missing_docs)]
+pub struct AnyRenderer {
+    renderer : Rc<dyn DataRenderer>,
+}
+
+impl AnyRenderer {
+    pub fn new<T>(renderer:T) -> Self
+    where T : 'static + DataRenderer {
+        let renderer = Rc::new(renderer);
+        Self {renderer}
+    }
+}
+
+impl display::Object for AnyRenderer {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.renderer.display_object()
+    }
+}

@@ -123,22 +123,7 @@ impl Frp {
 
 
 
-// ===========================
-// === Visualization Model ===
-// ===========================
 
-/// Internal data of Visualization.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct State {
-    pub renderer : Rc<dyn DataRenderer>,
-}
-
-impl display::Object for State {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.renderer.display_object()
-    }
-}
 
 
 
@@ -152,12 +137,12 @@ impl display::Object for State {
 pub struct Visualization {
     pub network : frp::Network,
     pub frp     : Frp,
-        state   : State
+    renderer    : AnyRenderer
 }
 
 impl display::Object for Visualization {
     fn display_object(&self) -> &display::object::Instance {
-        &self.state.display_object()
+        &self.renderer.display_object()
     }
 }
 
@@ -166,24 +151,23 @@ impl Visualization {
     pub fn new<T: DataRenderer + 'static>(renderer:T) -> Self {
         let network  = default();
         let frp      = Frp::new(&network);
-        let renderer = Rc::new(renderer);
-        let state    = State {renderer};
-        Visualization{frp,state,network}.init()
+        let renderer = AnyRenderer::new(renderer);
+        Visualization{frp,renderer,network}.init()
     }
 
     fn init(self) -> Self {
-        let network       = &self.network;
-        let visualization = &self.state;
-        let frp           = &self.frp;
+        let network  = &self.network;
+        let renderer = &self.renderer;
+        let frp      = &self.frp;
         frp::extend! { network
-            def _set_data = self.frp.set_data.map(f!([frp,visualization](data) {
-                if visualization.renderer.receive_data(data.clone()).is_err() {
+            def _set_data = self.frp.set_data.map(f!([frp,renderer](data) {
+                if renderer.receive_data(data.clone()).is_err() {
                     frp.invalid_data.emit(())
                 }
             }));
         }
 
-        let renderer_frp     = self.state.renderer.frp();
+        let renderer_frp     = self.renderer.frp();
         let renderer_network = &renderer_frp.network;
         frp::new_bridge_network! { [network,renderer_network]
             eval renderer_frp.on_change ((t) frp.change.emit(t));
@@ -194,25 +178,9 @@ impl Visualization {
 
     /// Set the viewport size of the visualization.
     pub fn set_size(&self, size:V2) {
-        self.state.renderer.set_size(size)
+        self.renderer.set_size(size)
     }
 }
-
-//impl HasSymbols for Visualization {
-//    fn symbols(&self) -> Vec<Symbol> {
-//        self.state.renderer.symbols()
-//    }
-//
-//    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
-//        self.state.renderer.symbols_with_data()
-//    }
-//}
-//
-//impl HasDomSymbols for Visualization {
-//    fn dom_symbols(&self) -> Vec<DomSymbol> {
-//        self.state.renderer.dom_symbols()
-//    }
-//}
 
 
 
@@ -348,3 +316,13 @@ impl Class for NativeConstructorClass {
         self.constructor.call((scene,))
     }
 }
+
+
+
+
+pub trait VisualizationDefinition {
+    fn signature(&self)  -> &Signature;
+    fn instantiate(scene:&Scene) -> InstantiationResult;
+}
+
+

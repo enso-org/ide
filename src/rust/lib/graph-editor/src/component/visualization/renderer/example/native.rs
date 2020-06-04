@@ -46,6 +46,7 @@ pub mod shape {
 pub struct BubbleChart {
     pub display_object : display::object::Instance,
     pub scene          : Scene,
+        signature      : Signature,
         frp            : DataRendererFrp,
         views          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
         logger         : Logger,
@@ -61,9 +62,21 @@ impl BubbleChart {
         let frp            = default();
         let size           = default();
         let scene          = scene.clone_ref();
-        BubbleChart { display_object,views,logger,frp,size,scene }
+        let signature      = Signature::for_any_type("[Demo] Bubble Chart");
+        BubbleChart {display_object,views,logger,frp,size,scene,signature}
     }
 }
+
+impl VisualizationDefinition for BubbleChart {
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn instantiate(scene:&Scene) -> InstantiationResult {
+        Ok(Visualization::new(BubbleChart::new(scene)))
+    }
+}
+
 
 impl DataRenderer for BubbleChart {
 
