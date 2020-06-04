@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
+use crate::component::visualization;
 use crate::component::visualization::traits::SymbolWithLayout;
 use crate::component::visualization::traits::TargetLayer;
 
@@ -14,6 +15,7 @@ use ensogl::display;
 use ensogl::gui::component;
 use ensogl::system::web;
 use ensogl::display::object::ObjectOps;
+use crate::frp;
 
 
 
@@ -47,10 +49,11 @@ pub struct BubbleChart {
     pub display_object : display::object::Instance,
     pub scene          : Scene,
         signature      : Signature,
-        frp            : DataRendererFrp,
+        frp            : RendererFrp,
+        network        : frp::Network,
         views          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
         logger         : Logger,
-        size           : Cell<V2>,
+        size           : Rc<Cell<V2>>,
 }
 
 #[allow(missing_docs)]
@@ -59,42 +62,70 @@ impl BubbleChart {
         let logger         = Logger::new("bubble");
         let display_object = display::object::Instance::new(&logger);
         let views          = RefCell::new(vec![]);
-        let frp            = default();
+        let network        = default();
+        let frp            = RendererFrp::new(&network);
         let size           = default();
         let scene          = scene.clone_ref();
         let signature      = Signature::for_any_type("[Demo] Bubble Chart");
-        BubbleChart {display_object,views,logger,frp,size,scene,signature}
+        BubbleChart {display_object,views,logger,frp,network,size,scene,signature} . init()
+    }
+
+    fn init(self) -> Self {
+        let network = &self.network;
+        let size    = &self.size;
+        frp::extend! { network
+            eval self.frp.set_size ((s) size.set(*s));
+            eval self.frp.send_data ([](data) {
+//                let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
+//                // Avoid re-creating views, if we have already created some before.
+//                let mut views = self.views.borrow_mut();
+//                views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
+//
+//                // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
+//                // But this ensures that we can get a cropped view area and avoids an issue with the data
+//                // and position not matching up.
+//                views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
+//                    let size : Vector2<f32> = self.size.get().into();
+//                    view.display_object.set_parent(&self.display_object);
+//                    view.shape.sprite.size().set(size);
+//                    view.shape.radius.set(item.z);
+//                    view.shape.position.set(Vector2::new(item.x,item.y) - size / 2.0);
+//                });
+//                Ok(())
+            });
+        }
+        self
     }
 }
 
 
 
-impl DataRenderer for BubbleChart {
+impl Renderer for BubbleChart {
 
-    fn receive_data(&self, data:Data) -> Result<(),DataError> {
-        let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
-        // Avoid re-creating views, if we have already created some before.
-        let mut views = self.views.borrow_mut();
-        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
+//    fn receive_data(&self, data:Data) -> Result<(),DataError> {
+//        let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
+//        // Avoid re-creating views, if we have already created some before.
+//        let mut views = self.views.borrow_mut();
+//        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
+//
+//        // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
+//        // But this ensures that we can get a cropped view area and avoids an issue with the data
+//        // and position not matching up.
+//        views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
+//            let size : Vector2<f32> = self.size.get().into();
+//            view.display_object.set_parent(&self.display_object);
+//            view.shape.sprite.size().set(size);
+//            view.shape.radius.set(item.z);
+//            view.shape.position.set(Vector2::new(item.x,item.y) - size / 2.0);
+//        });
+//        Ok(())
+//    }
 
-        // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
-        // But this ensures that we can get a cropped view area and avoids an issue with the data
-        // and position not matching up.
-        views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
-            let size : Vector2<f32> = self.size.get().into();
-            view.display_object.set_parent(&self.display_object);
-            view.shape.sprite.size().set(size);
-            view.shape.radius.set(item.z);
-            view.shape.position.set(Vector2::new(item.x,item.y) - size / 2.0);
-        });
-        Ok(())
-    }
+//    fn set_size(&self, size:V2) {
+//        self.size.set(size);
+//    }
 
-    fn set_size(&self, size:V2) {
-        self.size.set(size);
-    }
-
-    fn frp(&self) -> &DataRendererFrp {
+    fn frp(&self) -> &RendererFrp {
         &self.frp
     }
 }
@@ -112,35 +143,79 @@ impl display::Object for BubbleChart {
 // ===============
 
 /// Sample visualization that renders the given data as text. Useful for debugging and testing.
-#[derive(Debug)]
+#[derive(Debug,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct RawText {
-    dom    : DomSymbol,
-    size   : Cell<V2>,
-    frp    : DataRendererFrp,
-    logger : Logger,
+    #[shrinkwrap(main_field)]
+    model   : RawTextModel,
+    network : frp::Network,
 }
 
 impl RawText {
-    /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let logger = Logger::new("RawText");
-        let div    = web::create_div();
-        let dom    = DomSymbol::new(&div);
-        let frp    = default();
-        let size   = default();
+        let network = default();
+        let model   = RawTextModel::new(scene,&network);
+        Self {model,network} . init()
+    }
+
+    fn init(self) -> Self {
+        let network = &self.network;
+        let model   = &self.model;
+        frp::extend! { network
+            eval self.frp.set_size  ((size) model.set_size(*size));
+            eval self.frp.send_data ((data) model.receive_data(data););
+        }
+        self
+    }
+}
+
+/// Sample visualization that renders the given data as text. Useful for debugging and testing.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct RawTextModel {
+    logger  : Logger,
+    dom     : DomSymbol,
+    size    : Rc<Cell<V2>>,
+    frp     : RendererFrp,
+}
+
+impl RawTextModel {
+    /// Constructor.
+    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
+        let logger  = Logger::new("RawText");
+        let div     = web::create_div();
+        let dom     = DomSymbol::new(&div);
+        let frp     = RendererFrp::new(&network);
+        let size    = Rc::new(Cell::new(V2(200.0,200.0)));
 
         // FIXME It seems by default the text here is mirrored.
         // FIXME This should be fixed in the DOMSymbol directly and removed here.
         dom.set_rotation(Vector3::new(180.0_f32.to_radians(), 0.0, 0.0));
 
         scene.dom.layers.main.manage(&dom);
-        RawText{dom,logger,frp,size}.init()
+        RawTextModel{dom,logger,frp,size}.init()
     }
 
     fn init(self) -> Self {
         self.reload_style();
         self
+    }
+
+    fn set_size(&self, size:V2) {
+        self.size.set(size);
+        self.reload_style();
+    }
+
+    fn receive_data(&self, data:&Data) -> Result<(),DataError> {
+        let data_inner = match data {
+            Data::Json {content} => content,
+            _ => todo!() // FIXME
+        };
+        let data_str = serde_json::to_string_pretty(&data_inner);
+        let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
+        let data_str = format!("\n{}",data_str);
+        self.dom.dom().set_inner_text(&data_str);
+        Ok(())
     }
 
     fn reload_style(&self) {
@@ -160,25 +235,8 @@ impl RawText {
     }
 }
 
-impl DataRenderer for RawText {
-    fn receive_data(&self, data:Data) -> Result<(),DataError> {
-        let data_inner = match data {
-            Data::Json {content} => content,
-            _ => todo!() // FIXME
-        };
-        let data_str = serde_json::to_string_pretty(&data_inner);
-        let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
-        let data_str = format!("\n{}",data_str);
-        self.dom.dom().set_inner_text(&data_str);
-        Ok(())
-    }
-
-    fn set_size(&self, size:V2) {
-        self.size.set(size);
-        self.reload_style();
-    }
-
-    fn frp(&self) -> &DataRendererFrp {
+impl Renderer for RawText {
+    fn frp(&self) -> &RendererFrp {
         &self.frp
     }
 }

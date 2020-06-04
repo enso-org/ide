@@ -24,10 +24,9 @@
 
 use crate::prelude::*;
 
+use crate::component::visualization;
 use crate::component::visualization::Data;
 use crate::component::visualization::DataError;
-use crate::component::visualization::DataRenderer;
-use crate::component::visualization::DataRendererFrp;
 use crate::component::visualization::traits::SymbolWithLayout;
 
 use ensogl::display::DomScene;
@@ -38,6 +37,7 @@ use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
+use crate::frp;
 
 
 
@@ -99,7 +99,8 @@ pub struct JsRenderer {
     pub logger           : Logger,
         on_data_received : js_sys::Function,
         set_size         : js_sys::Function,
-        frp              : DataRendererFrp,
+        network          : frp::Network,
+        frp              : visualization::RendererFrp,
 }
 
 impl JsRenderer {
@@ -122,12 +123,13 @@ impl JsRenderer {
         let set_size = js_sys::Function::new_no_args(fn_set_size);
 
         let logger    = Logger::new("JsRendererGeneric");
-        let frp       = default();
+        let network   = default();
+        let frp       = visualization::RendererFrp::new(&network);
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis").unwrap();
 
-        JsRenderer { on_data_received: set_data,set_size,root_node,frp,logger }
+        JsRenderer { on_data_received: set_data,set_size,root_node,network,frp,logger }
     }
 
     /// Internal helper that tries to convert a JS object into a `JsRenderer`.
@@ -144,12 +146,13 @@ impl JsRenderer {
         let set_size:js_sys::Function = set_size.into();
 
         let logger    = Logger::new("JsRenderer");
-        let frp       = default();
+        let network   = default();
+        let frp       = visualization::RendererFrp::new(&network);
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")?;
 
-        Ok(JsRenderer { on_data_received: set_data,set_size,root_node,frp,logger })
+        Ok(JsRenderer { on_data_received: set_data,set_size,root_node,frp,network,logger })
     }
 
     /// Constructor from a source that evaluates to an object with specific methods.
@@ -225,38 +228,38 @@ impl JsRenderer {
     }
 }
 
-impl DataRenderer for JsRenderer {
+impl visualization::Renderer for JsRenderer {
 
-    fn receive_data(&self, data:Data) -> Result<(),DataError> {
-        let context   = JsValue::NULL;
-        let data_json = match data {
-            Data::Json {content} => content,
-            _ => todo!() // FIXME
-        };
-        let data_js   = match JsValue::from_serde(&data_json) {
-            Ok(value) => value,
-            Err(_)    => return Err(DataError::InvalidDataType),
-        };
-        if let Err(error) = self.on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
-            self.logger.warning(
-                || format!("Failed to set data in {:?} with error: {:?}",self,error));
-            return Err(DataError::InternalComputationError)
-        }
-        Ok(())
-    }
+//    fn receive_data(&self, data:Data) -> Result<(),DataError> {
+//        let context   = JsValue::NULL;
+//        let data_json = match data {
+//            Data::Json {content} => content,
+//            _ => todo!() // FIXME
+//        };
+//        let data_js   = match JsValue::from_serde(&data_json) {
+//            Ok(value) => value,
+//            Err(_)    => return Err(DataError::InvalidDataType),
+//        };
+//        if let Err(error) = self.on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
+//            self.logger.warning(
+//                || format!("Failed to set data in {:?} with error: {:?}",self,error));
+//            return Err(DataError::InternalComputationError)
+//        }
+//        Ok(())
+//    }
 
-    fn set_size(&self, size:V2) {
-        let size          = Vector2::new(size.x,size.y);
-        let context       = JsValue::NULL;
-        let data_json     = JsValue::from_serde(&size).unwrap();
-        if let Err(error) = self.set_size.call2(&context, &self.root_node.dom(), &data_json) {
-            self.logger.warning(
-                || format!("Failed to set size in {:?} with error: {:?}", self, error));
-        }
-        self.root_node.set_size(size);
-    }
+//    fn set_size(&self, size:V2) {
+//        let size          = Vector2::new(size.x,size.y);
+//        let context       = JsValue::NULL;
+//        let data_json     = JsValue::from_serde(&size).unwrap();
+//        if let Err(error) = self.set_size.call2(&context, &self.root_node.dom(), &data_json) {
+//            self.logger.warning(
+//                || format!("Failed to set size in {:?} with error: {:?}", self, error));
+//        }
+//        self.root_node.set_size(size);
+//    }
 
-    fn frp(&self) -> &DataRendererFrp {
+    fn frp(&self) -> &visualization::RendererFrp {
         &self.frp
     }
 }

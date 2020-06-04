@@ -232,14 +232,14 @@ impl ContainerModel {
     fn set_visualization(&self, visualization:Option<Visualization>) {
         if let Some(visualization) = visualization {
             let size = self.size.get();
-            visualization.set_size(size);
+            visualization.set_size.emit(size);
             self.shapes.add_child(&visualization);
             self.visualization.replace(Some(visualization));
         }
     }
 
     fn set_visualization_data(&self, data:&Data) {
-        self.visualization.borrow().for_each_ref(|vis| vis.frp.set_data.emit(data))
+        self.visualization.borrow().for_each_ref(|vis| vis.send_data.emit(data))
     }
 
     fn update_shape_sizes(&self) {
@@ -255,7 +255,7 @@ impl ContainerModel {
             let radius = CORNER_RADIUS * 2.0;
             let radius = Vector2::new(radius, radius);
             let vis_size = size.xy() - radius;
-            vis.set_size(vis_size.into());
+            vis.set_size.emit(&vis_size.into());
         }
 
         self.size.set(size.xy().into());

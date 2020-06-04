@@ -107,7 +107,7 @@ fn init(app:&Application) {
         let content = serde_json::to_value(data).unwrap();
         let data    = Data::Json{content};
 
-        visualization.frp.set_data.emit(data);
+        visualization.send_data.emit(data);
 
         // Temporary code removing the web-loader instance.
         // To be changed in the future.
