@@ -93,7 +93,7 @@ fn init(app:&Application) {
 
     let vis_factories = registry.valid_sources(&"[[Float,Float,Float]]".into());
     let vis_class     = vis_factories.iter().find(|class| {
-        &**class.signature().name == "Graph"
+        &*class.signature().name == "Graph"
     }).expect("Couldn't find Graph class.");
     let visualization = vis_class.instantiate(&scene).expect("Couldn't create visualiser.");
 
