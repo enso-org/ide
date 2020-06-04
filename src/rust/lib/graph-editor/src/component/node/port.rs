@@ -1,5 +1,6 @@
 //! Definition of the Port component.
 
+#[warn(missing_docs)]
 pub mod output;
 
 use crate::prelude::*;

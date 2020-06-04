@@ -96,11 +96,15 @@ pub mod port_area {
 // === Frp ===
 // ===========
 
+/// Id of a specific port inside of `OutPutPortsData`.
 type PortId = usize;
 
+/// Frp API of the `OutPutPorts`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Frp {
+    /// Update the size of the `OutPutPorts`. Should match the size of the parent node for visual correctness.
     pub set_size        : frp::Source<V2<f32>>,
+    /// Emitted whenever one of the ports receives a `MouseDown` event. The `PortId` indicates the source port.
     pub port_mouse_down : frp::Stream<PortId>,
 
     on_port_mouse_down  : frp::Source<PortId>,
@@ -124,6 +128,7 @@ impl Frp {
 // === OutPutPortsData ===
 // =======================
 
+/// Internal data of the `OutPutPorts`.
 #[derive(Debug)]
 pub struct OutPutPortsData {
     display_object : display::object::Instance,
@@ -196,8 +201,12 @@ impl OutPutPortsData {
 // === OutPutPorts ===
 // ===================
 
+/// Implements the segmented output port area. Provides shapes that can be attached to a `Node` to
+/// add an interactive area with output ports. The ports appear on hover, and the currently
+/// hovered port is highlighted.
 #[derive(Debug,Clone,CloneRef)]
 pub struct OutputPorts {
+    /// The FRP api of the `OutPutPorts`.
     pub frp            : Frp,
         network        : frp::Network,
         data           : Rc<RefCell<OutPutPortsData>>,
@@ -205,6 +214,7 @@ pub struct OutputPorts {
 }
 
 impl OutputPorts {
+    /// Constructor.
     pub fn new(scene:&Scene, number_of_ports:u32) -> Self {
 
         let network        = default();
@@ -283,7 +293,6 @@ impl OutputPorts {
                 eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
             }
         }
-
     }
 
     // TODO: Implement proper sorting and remove.
