@@ -99,7 +99,7 @@ type PortId = usize;
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Frp {
-    pub set_size        : frp::Source<Option<Vector2<f32>>>,
+    pub set_size        : frp::Source<V2<f32>>,
     pub port_mouse_down : frp::Stream<PortId>,
 
     on_port_mouse_down  : frp::Source<PortId>,
@@ -222,7 +222,7 @@ impl OutputPorts {
         let data    = &self.data;
 
         frp::extend! { network
-            eval  frp.set_size ((size) data.borrow_mut().set_size(size.unwrap_or_else(zero)));
+            eval  frp.set_size ((size) data.borrow_mut().set_size(size.into()));
 
             def set_port_size      = source::<(PortId,f32)>();
             def set_port_sizes_all = source::<f32>();
