@@ -89,7 +89,11 @@ impl {
 
     pub fn new_instance<T:Shape>(&mut self) -> T {
         let system = self.get_or_register::<ShapeSystemOf<T>>();
-        system.new_instance()
+        let shape  = system.new_instance();
+        for sprite in &shape.sprites() {
+            sprite.unset_parent();
+        }
+        shape
     }
 
     pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:i32, instance_id:usize, target:T) {

@@ -251,9 +251,10 @@ pub struct NodeModel {
     pub visualization  : visualization::Container,
 }
 
-pub const NODE_HEIGHT : f32 = 28.0;
-pub const TEXT_OFF    : f32 = 10.0;
-pub const SHADOW_SIZE : f32 = 10.0;
+pub const CORNER_RADIUS : f32 = 14.0;
+pub const NODE_HEIGHT   : f32 = 28.0;
+pub const TEXT_OFF      : f32 = 10.0;
+pub const SHADOW_SIZE   : f32 = 10.0;
 
 
 impl NodeModel {
@@ -283,7 +284,7 @@ impl NodeModel {
         let scene = scene.clone_ref();
         let input = InputEvents::new(&network);
 
-        let visualization = visualization::Container::new(&scene);
+        let visualization = visualization::Container::new(&logger,&scene);
         visualization.mod_position(|t| {
             t.x = 60.0;
             t.y = -120.0;

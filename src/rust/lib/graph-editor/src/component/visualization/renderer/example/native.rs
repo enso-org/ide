@@ -163,16 +163,18 @@ impl RawText {
 
     // TODO: Integrate with the global style system and replace constant color.
     fn update_style(&self) {
-        let mut style = "white-space:pre;".to_string();
-        style += "overflow-y:auto;";
-        style += "overflow-x:auto;";
-        style += "font-family:dejavuSansMono;";
-        style += "font-size:12px;";
-        style += "margin-left:12px;";
-        style += "color:rgba(255,255,255,0.7);";
-        style += &format!("height:{}px;", self.size.get().x);
-        style += &format!("width:{}px;", self.size.get().y);
-        style += "pointer-events:auto";
+        let style = vec!
+            [ "white-space:pre;"
+            , "overflow-y:auto;"
+            , "overflow-x:auto;"
+            , "font-family:dejavuSansMono;"
+            , "font-size:11px;"
+            , "margin-left:12px;"
+            , "color:rgba(255,255,255,0.7);"
+            , &format!("height:{}px;",self.size.get().x)
+            , &format!("width:{}px;",self.size.get().y)
+            , "pointer-events:auto;"
+            ].join("");
         self.root_node.dom().set_attribute("style",&style).unwrap();
     }
 }

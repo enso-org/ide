@@ -26,6 +26,15 @@ use ensogl::gui::component;
 
 
 
+// =================
+// === Constants ===
+// =================
+
+const DEFAULT_SIZE  : V2  = V2(200.0,200.0);
+const CORNER_RADIUS : f32 = super::super::node::CORNER_RADIUS;
+
+
+
 // =============
 // === Shape ===
 // =============
@@ -39,10 +48,10 @@ pub mod frame {
 
     // TODO use style
     ensogl::define_shape_system! {
-        (selected:f32,padding:f32,roundness:f32) {
+        (selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Distance<Pixels>> = "input_size.x".into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
-            let radius        = 1.px() * &padding;
+            let radius        = 1.px() * &radius;
             let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
@@ -50,7 +59,7 @@ pub mod frame {
 
             let frame_outer = Rect((&width,&height)).corners_radius(&corner_radius);
 
-            let padding            = 2.px() * &padding * &selected;
+            let padding            = &radius * 2.0 * &selected;
             let padding_aliased    = padding - 1.px();
             let width_frame_inner  = &width  - &padding_aliased;
             let height_frame_inner = &height - &padding_aliased;
@@ -77,10 +86,10 @@ pub mod overlay {
     use super::*;
 
     ensogl::define_shape_system! {
-        (selected:f32,padding:f32,roundness:f32) {
+        (selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Distance<Pixels>> = "input_size.x".into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
-            let radius        = 1.px() * &padding;
+            let radius        = 1.px() * &radius;
             let corner_radius = &radius * &roundness;
             let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
             let overlay       = Rect((&width,&height)).corners_radius(&corner_radius);
@@ -173,25 +182,23 @@ impl display::Object for Shapes {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ContainerModel {
-    logger                : Logger,
-    display_object        : display::object::Instance,
-    size                  : Cell<V2>,
-    padding               : Cell<f32>,
-    visualization         : RefCell<Option<Visualization>>,
-    scene                 : Scene,
-    shapes                : Shapes,
+    logger         : Logger,
+    display_object : display::object::Instance,
+    size           : Cell<V2>,
+    visualization  : RefCell<Option<Visualization>>,
+    scene          : Scene,
+    shapes         : Shapes,
 }
 
 impl ContainerModel {
-    pub fn new(scene:&Scene) -> Self {
-        let logger         = Logger::new("visualization_container");
+    pub fn new(logger:&Logger, scene:&Scene) -> Self {
+        let logger         = logger.sub("visualization_container");
         let display_object = display::object::Instance::new(&logger);
         let visualization  = default();
-        let size           = Cell::new(V2(200.0, 200.0));
-        let padding        = Cell::new(10.0);
+        let size           = Cell::new(DEFAULT_SIZE);
         let shapes         = Shapes::new(&logger,scene);
         let scene          = scene.clone_ref();
-        Self {logger,visualization,size,display_object,shapes,padding,scene} . init()
+        Self {logger,visualization,size,display_object,shapes,scene} . init()
     }
 
     fn init(self) -> Self {
@@ -204,23 +211,26 @@ impl ContainerModel {
         self
     }
 
-    /// Set whether the visualization should be visible or not.
-    pub fn set_visibility(&self, visibility:bool) {
-        if visibility { self.add_child    (&self.shapes) }
-        else          { self.remove_child (&self.shapes) }
-    }
-
     /// Indicates whether the visualization is visible.
     pub fn is_visible(&self) -> bool {
         self.shapes.has_parent()
     }
 
-    /// Toggle visibility.
+    /// Set whether the visualization should be visible or not.
+    fn set_visibility(&self, visibility:bool) {
+        if visibility { self.add_child    (&self.shapes) }
+        else          { self.remove_child (&self.shapes) }
+    }
+}
+
+
+// === Private API ===
+
+impl ContainerModel {
     fn toggle_visibility(&self) {
         self.set_visibility(!self.is_visible())
     }
 
-    /// Set the visualization shown in this container.
     fn set_visualization(&self, visualization:Option<Visualization>) {
         if let Some(visualization) = visualization {
             let size = self.size.get();
@@ -235,18 +245,18 @@ impl ContainerModel {
     }
 
     fn update_shape_sizes(&self) {
-        let padding = self.padding.get();
-        self.shapes.frame   . shape.padding.set(padding);
-        self.shapes.overlay . shape.padding.set(padding);
-        self.shapes.frame   . shape.sprite.size().set(self.size.get().into());
-        self.shapes.overlay . shape.sprite.size().set(self.size.get().into());
+        let size = self.size.get().into();
+        self.shapes.frame   . shape.radius.set(CORNER_RADIUS);
+        self.shapes.overlay . shape.radius.set(CORNER_RADIUS);
+        self.shapes.frame   . shape.sprite.size().set(size);
+        self.shapes.overlay . shape.sprite.size().set(size);
     }
 
     fn set_size(&self, size:Vector3<f32>) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
-            let padding  = self.padding.get() * 2.0;
-            let padding  = Vector2::new(padding, padding);
-            let vis_size = size.xy() - padding;
+            let radius = CORNER_RADIUS * 2.0;
+            let radius = Vector2::new(radius, radius);
+            let vis_size = size.xy() - radius;
             vis.set_size(vis_size.into());
         }
 
@@ -286,10 +296,10 @@ pub struct Container {
 
 impl Container {
     /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
+    pub fn new(logger:&Logger,scene:&Scene) -> Self {
         let network = frp::Network::new();
         let frp     = Frp::new(&network);
-        let model   = Rc::new(ContainerModel::new(scene));
+        let model   = Rc::new(ContainerModel::new(logger,scene));
         model.set_visualization(Some(Registry::default_visualisation(scene)));
         Self {model,frp,network} . init()
     }
@@ -305,33 +315,39 @@ impl Container {
             eval_ inputs.toggle_visibility (model.toggle_visibility());
             eval  inputs.set_visualization ((v) model.set_visualization(v.clone()));
             eval  inputs.set_data          ((t) model.set_visualization_data(t));
-            eval  inputs.select            ((_) selection.set_target_value(1.0));
-            eval  inputs.deselect          ((_) selection.set_target_value(0.0));
+            eval_ inputs.select            (selection.set_target_value(1.0));
+            eval_ inputs.deselect          (selection.set_target_value(0.0));
             eval_ model.shapes.overlay.events.mouse_down (inputs.on_click.emit(()));
         }
         self
     }
+}
 
-//    /// Return the symbols of the container, not of the visualization.
-//    fn container_main_symbols(&self) -> Vec<Symbol> {
-//        let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
-//        let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-//        vec![
-//            shape_system_frame.shape_system.symbol.clone_ref(),
-//            shape_system_overlay.shape_system.symbol.clone_ref(),
-//        ]
+impl display::Object for Container {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.model.display_object
+    }
+}
+
+//impl HasFullscreenDecoration for Container {
+//    fn enable_fullscreen_decoration(&self) {
+//        self.model.set_corner_roundness(0.0);
 //    }
-}
+//
+//    fn disable_fullscreen_decoration(&self) {
+//        self.model.set_corner_roundness(1.0);
+//    }
+//}
 
-impl Resizable for Container {
-    fn set_size(&self, size:Vector3<f32>) {
-        self.model.set_size(size);
-    }
-
-    fn size(&self) -> Vector3<f32>{
-        Vector3::new(self.model.size.get().x,self.model.size.get().y, 0.0)
-    }
-}
+//impl Resizable for Container {
+//    fn set_size(&self, size:Vector3<f32>) {
+//        self.model.set_size(size);
+//    }
+//
+//    fn size(&self) -> Vector3<f32>{
+//        Vector3::new(self.model.size.get().x,self.model.size.get().y, 0.0)
+//    }
+//}
 
 //impl HasSymbols for Container {
 //    fn symbols(&self) -> Vec<Symbol> {
@@ -361,18 +377,12 @@ impl Resizable for Container {
 //    }
 //}
 
-impl display::Object for Container {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.model.display_object
-    }
-}
-
-impl HasFullscreenDecoration for Container {
-    fn enable_fullscreen_decoration(&self) {
-        self.model.set_corner_roundness(0.0);
-    }
-
-    fn disable_fullscreen_decoration(&self) {
-        self.model.set_corner_roundness(1.0);
-    }
-}
+//    /// Return the symbols of the container, not of the visualization.
+//    fn container_main_symbols(&self) -> Vec<Symbol> {
+//        let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
+//        let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
+//        vec![
+//            shape_system_frame.shape_system.symbol.clone_ref(),
+//            shape_system_overlay.shape_system.symbol.clone_ref(),
+//        ]
+//    }
