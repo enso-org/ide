@@ -129,29 +129,44 @@ pub struct OutPutPortsData {
     display_object : display::object::Instance,
     scene          : Scene,
     logger         : Logger,
-    size           : Vector2<f32>,
-    gap_width      : f32,
-    ports          : Vec<component::ShapeView<port_area::Shape>>,
+    size           : Cell<Vector2<f32>>,
+    gap_width      : Cell<f32>,
+    ports          : RefCell<Vec<component::ShapeView<port_area::Shape>>>,
 }
 
 impl OutPutPortsData {
-    fn init(mut self) -> Self {
+
+    fn new(scene:Scene, number_of_ports:u8) -> Self {
+        let logger         = Logger::new("OutPutPorts");
+        let display_object = display::object::Instance::new(&logger);
+        let size           = Cell::new(Vector2::zero());
+        let scene          = scene.clone_ref();
+        let gap_width      = Cell::new(SEGMENT_GAP_WIDTH);
+
+        let mut ports      = Vec::default();
+        ports.resize_with(number_of_ports as usize,|| component::ShapeView::new(&logger,&scene));
+        let ports          = RefCell::new(ports);
+
+        OutPutPortsData {display_object,scene,logger,size,ports,gap_width}.init()
+    }
+    fn init(self) -> Self {
         self.update_shapes();
         self
     }
 
-    fn update_ports(&mut self) {
-        let port_num      = self.ports.len() as f32;
+    fn update_ports(&self) {
+        let port_num      = self.ports.borrow().len() as f32;
 
-        let width         = self.size.x;
-        let height        = self.size.y;
+        let width         = self.size.get().x;
+        let height        = self.size.get().y;
         let element_width = width / port_num;
         let element_size  = Vector2::new(element_width,height);
+        let gap_width     = self.gap_width.get();
 
         // Align shapes along width.
         let x_start = -width/2.0 + NODE_SHAPE_PADDING;
         let x_delta = element_width;
-        for (index, view) in self.ports.iter().enumerate(){
+        for (index, view) in self.ports.borrow().iter().enumerate(){
             view.display_object().set_parent(&self.display_object);
 
             let pos_x = x_start + x_delta * index as f32;
@@ -162,17 +177,17 @@ impl OutPutPortsData {
             let shape = &view.shape;
             shape.sprite.size().set(element_size);
             shape.shape_width.set(width);
-            shape.padding.set(self.gap_width);
+            shape.padding.set(gap_width);
             shape.offset_x.set(x_delta * index as f32);
         }
     }
 
-    fn update_shapes(&mut self) {
+    fn update_shapes(&self) {
         self.update_ports();
     }
 
-    fn set_size(&mut self, size:Vector2<f32>) {
-        self.size = size;
+    fn set_size(&self, size:Vector2<f32>) {
+        self.size.set(size);
         self.update_shapes();
     }
 }
@@ -191,23 +206,12 @@ pub struct OutputPorts {
 
 impl OutputPorts {
     pub fn new(scene:&Scene, number_of_ports:u8) -> Self {
-        let logger         = Logger::new("bubble");
 
-        let display_object = display::object::Instance::new(&logger);
         let network        = default();
         let frp            = Frp::new(&network);
-
-        let size           = Vector2::zero();
-        let scene          = scene.clone_ref();
-        let gap_width      = SEGMENT_GAP_WIDTH;
-
-        let mut ports      = Vec::default();
-        ports.resize_with(number_of_ports as usize,|| component::ShapeView::new(&logger,&scene));
-        let ports = ports;
-
-        let data =  OutPutPortsData {display_object:display_object.clone_ref(),scene,logger,size,
-                                     ports,gap_width}.init();
-        let data = Rc::new(RefCell::new(data));
+        let data           = OutPutPortsData::new(scene.clone_ref(),number_of_ports);
+        let data           = Rc::new(RefCell::new(data));
+        let display_object = data.borrow().deref().display_object.clone_ref();
 
         OutputPorts {data,network,frp,display_object}.init()
     }
@@ -229,7 +233,7 @@ impl OutputPorts {
             def set_port_sizes_all = source::<f32>();
 
             def _set_port_sizes = set_port_sizes_all.map(f!([set_port_size,data](size) {
-                let port_num = data.borrow().ports.len();
+                let port_num = data.borrow().ports.borrow().len();
                 for index in 0..port_num {
                     set_port_size.emit((index,*size));
                 };
@@ -239,7 +243,7 @@ impl OutputPorts {
             def set_port_opacity_all = source::<f32>();
 
             def _set_port_opacities = set_port_opacity_all.map(f!([set_port_opacity,data](size) {
-                let port_num = data.borrow().ports.len();
+                let port_num = data.borrow().ports.borrow().len();
                 for index in 0..port_num {
                     set_port_opacity.emit((index,*size));
                 };
@@ -247,40 +251,39 @@ impl OutputPorts {
         }
 
         // Init ports
-        {
-            for (index,view) in data.borrow().ports.iter().enumerate() {
-                let shape        = &view.shape;
-                let port_size    = Animation::<f32>::new(&network);
-                let port_opacity = Animation::<f32>::new(&network);
-                frp::extend! { network
-                     eval port_size.value    ((size) shape.grow.set(*size));
-                     eval port_opacity.value ((size) shape.opacity.set(*size));
+        for (index,view) in data.borrow().ports.borrow().iter().enumerate() {
+            let shape        = &view.shape;
+            let port_size    = Animation::<f32>::new(&network);
+            let port_opacity = Animation::<f32>::new(&network);
+            frp::extend! { network
+                 eval port_size.value    ((size) shape.grow.set(*size));
+                 eval port_opacity.value ((size) shape.opacity.set(*size));
 
-                    is_resize_target <- set_port_size.map(move |(id,_)| *id == index);
-                    size_change      <- set_port_size.gate(&is_resize_target);
-                    eval size_change (((_, size)) port_size.set_target_value(*size));
+                is_resize_target <- set_port_size.map(move |(id,_)| *id == index);
+                size_change      <- set_port_size.gate(&is_resize_target);
+                eval size_change (((_, size)) port_size.set_target_value(*size));
 
-                    is_opacity_target <- set_port_opacity.map(move |(id, _)| *id==index);
-                    opacity_change    <- set_port_opacity.gate(&is_opacity_target);
-                    eval opacity_change (((_, opacity)) port_opacity.set_target_value(*opacity));
+                is_opacity_target <- set_port_opacity.map(move |(id, _)| *id==index);
+                opacity_change    <- set_port_opacity.gate(&is_opacity_target);
+                eval opacity_change (((_, opacity)) port_opacity.set_target_value(*opacity));
 
-                    eval_ view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,
-                                                  set_port_opacity_all] {
-                        set_port_sizes_all.emit(BASE_SIZE);
-                        set_port_opacity_all.emit(0.5);
-                        port_size.set_target_value(HIGHLIGHT_SIZE);
-                        port_opacity.set_target_value(1.0);
-                    });
+                eval_ view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,
+                                              set_port_opacity_all] {
+                    set_port_sizes_all.emit(BASE_SIZE);
+                    set_port_opacity_all.emit(0.5);
+                    port_size.set_target_value(HIGHLIGHT_SIZE);
+                    port_opacity.set_target_value(1.0);
+                });
 
-                    eval_ view.events.mouse_out ([set_port_sizes_all,set_port_opacity_all] {
-                         set_port_sizes_all.emit(0.0);
-                         set_port_opacity_all.emit(0.0);
-                    });
+                eval_ view.events.mouse_out ([set_port_sizes_all,set_port_opacity_all] {
+                     set_port_sizes_all.emit(0.0);
+                     set_port_opacity_all.emit(0.0);
+                });
 
-                    eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
-                }
+                eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
             }
         }
+
     }
 
     // TODO: Implement proper sorting and remove.
