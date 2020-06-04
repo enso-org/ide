@@ -78,7 +78,7 @@ pub trait DataRenderer: display::Object + Debug {
 /// Internal data of Visualization.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[allow(missing_docs)]
-pub struct AnyRenderer {
+pub struct  AnyRenderer {
     renderer : Rc<dyn DataRenderer>,
 }
 
