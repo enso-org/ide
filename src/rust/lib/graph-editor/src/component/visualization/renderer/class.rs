@@ -6,9 +6,6 @@ use crate::visualization::*;
 use crate::frp;
 
 use ensogl::display;
-use crate::component::visualization::traits::HasSymbols;
-use crate::component::visualization::traits::HasDomSymbols;
-
 
 
 // ===========
@@ -18,7 +15,7 @@ use crate::component::visualization::traits::HasDomSymbols;
 /// FRP API of a `DataRenderer`.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Frp {
+pub struct DataRendererFrp {
     pub network : frp::Network,
     /// This is emitted if the state of the renderer has been changed by UI interaction.
     /// It contains the output data of this visualization if there is some.
@@ -31,7 +28,7 @@ pub struct Frp {
     preprocess_change : frp::Source<EnsoCode>,
 }
 
-impl Default for Frp {
+impl Default for DataRendererFrp {
     fn default() -> Self {
         frp::new_network! { network
             def change            = source();
@@ -57,7 +54,7 @@ impl Default for Frp {
 /// `valid_input_types` method. This serves as a hint, it will also reject invalid input in the
 /// `set_data` method with a `DataError`. The owner of the `DataRenderer` is in charge of producing
 /// UI feedback to indicate a problem with the data.
-pub trait DataRenderer: display::Object + HasSymbols + HasDomSymbols + Debug {
+pub trait DataRenderer: display::Object + Debug {
     /// Receive the data that should be rendered. If the data is valid, it will return the data as
     /// processed by this `DataRenderer`, if the data is of an invalid data type, it violates other
     /// assumptions of this `DataRenderer`, a `DataError` is returned.
@@ -68,5 +65,5 @@ pub trait DataRenderer: display::Object + HasSymbols + HasDomSymbols + Debug {
     fn set_size(&self, size:V2);
 
     /// Return a ref to the internal FRP network.
-    fn frp(&self) -> &Frp;
+    fn frp(&self) -> &DataRendererFrp;
 }

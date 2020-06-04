@@ -28,67 +28,67 @@ pub struct SymbolWithLayout {
     pub target_layer : TargetLayer,
 }
 
-/// Should be implemented by UI component that have `Symbol`s. Provides access to the symbols,
-/// as well as some helpers for placing them on the correct layers.
-pub trait HasSymbols {
-    /// Return all `Symbol`s that make up this component.
-    fn symbols(&self) -> Vec<Symbol>;
-
-    /// Return all symbols with their layout data for this component.
-    fn symbols_with_data(&self) -> Vec<SymbolWithLayout>;
-
-    /// Remove the `Symbol`s from all scene layers.
-    fn unset_layers_all(&self, scene:&Scene) {
-        self.symbols().iter().for_each(|symbol| scene.views.remove_symbol(symbol));
-    }
-
-    /// Moves the given components symbols to the default scene layers.
-    fn set_layers_normal(&self, scene:&Scene){
-        self.unset_layers_all(&scene);
-        for symbol_data in self.symbols_with_data() {
-            match symbol_data.target_layer {
-                TargetLayer::Main          => scene.views.main.add(&symbol_data.symbol),
-                TargetLayer::Visualisation => scene.views.visualisation.add(&symbol_data.symbol),
-            }
-        }
-    }
-
-    /// Moves the given components symbols to the fullscreen scene layers.
-    fn set_layers_fullscreen(&self, scene:&Scene) {
-        self.unset_layers_all(&scene);
-        for symbol_data in self.symbols_with_data() {
-            match symbol_data.target_layer {
-                TargetLayer::Main          => scene.views.overlay.add(&symbol_data.symbol),
-                TargetLayer::Visualisation => scene.views.overlay_visualisation.add(&symbol_data.symbol),
-            }
-        }
-    }
-}
-
-/// Should be implemented by UI component that have `HasDomSymbols`s. Provides access to the symbols,
-/// as well as some helpers for placing them on the correct layers.
-pub trait HasDomSymbols {
-    /// Return all `DomSymbol`s that make up this component.
-    fn dom_symbols(&self) -> Vec<DomSymbol>;
-
-    /// Let's the given `DomScene` manage all `DomSymbol`s.
-    fn set_managed(&self, scene:&DomScene){
-        for symbol in &self.dom_symbols() {
-                scene.manage(symbol)
-        }
-    }
-
-    /// Moves the symbols to the default scene layers.
-    fn set_dom_layers_normal(&self, scene:&Scene) {
-        self.set_managed(&scene.dom.layers.main)
-    }
-
-    /// Moves the symbols to the fullscreen scene layers.
-    fn set_dom_layers_overlay(&self, scene:&Scene) {
-        self.set_managed(&scene.dom.layers.overlay)
-    }
-
-}
+///// Should be implemented by UI component that have `Symbol`s. Provides access to the symbols,
+///// as well as some helpers for placing them on the correct layers.
+//pub trait HasSymbols {
+//    /// Return all `Symbol`s that make up this component.
+//    fn symbols(&self) -> Vec<Symbol>;
+//
+//    /// Return all symbols with their layout data for this component.
+//    fn symbols_with_data(&self) -> Vec<SymbolWithLayout>;
+//
+//    /// Remove the `Symbol`s from all scene layers.
+//    fn unset_layers_all(&self, scene:&Scene) {
+//        self.symbols().iter().for_each(|symbol| scene.views.remove_symbol(symbol));
+//    }
+//
+//    /// Moves the given components symbols to the default scene layers.
+//    fn set_layers_normal(&self, scene:&Scene){
+//        self.unset_layers_all(&scene);
+//        for symbol_data in self.symbols_with_data() {
+//            match symbol_data.target_layer {
+//                TargetLayer::Main          => scene.views.main.add(&symbol_data.symbol),
+//                TargetLayer::Visualisation => scene.views.visualisation.add(&symbol_data.symbol),
+//            }
+//        }
+//    }
+//
+//    /// Moves the given components symbols to the fullscreen scene layers.
+//    fn set_layers_fullscreen(&self, scene:&Scene) {
+//        self.unset_layers_all(&scene);
+//        for symbol_data in self.symbols_with_data() {
+//            match symbol_data.target_layer {
+//                TargetLayer::Main          => scene.views.overlay.add(&symbol_data.symbol),
+//                TargetLayer::Visualisation => scene.views.overlay_visualisation.add(&symbol_data.symbol),
+//            }
+//        }
+//    }
+//}
+//
+///// Should be implemented by UI component that have `HasDomSymbols`s. Provides access to the symbols,
+///// as well as some helpers for placing them on the correct layers.
+//pub trait HasDomSymbols {
+//    /// Return all `DomSymbol`s that make up this component.
+//    fn dom_symbols(&self) -> Vec<DomSymbol>;
+//
+//    /// Let's the given `DomScene` manage all `DomSymbol`s.
+//    fn set_managed(&self, scene:&DomScene){
+//        for symbol in &self.dom_symbols() {
+//                scene.manage(symbol)
+//        }
+//    }
+//
+//    /// Moves the symbols to the default scene layers.
+//    fn set_dom_layers_normal(&self, scene:&Scene) {
+//        self.set_managed(&scene.dom.layers.main)
+//    }
+//
+//    /// Moves the symbols to the fullscreen scene layers.
+//    fn set_dom_layers_overlay(&self, scene:&Scene) {
+//        self.set_managed(&scene.dom.layers.overlay)
+//    }
+//
+//}
 
 /// Provides information and functionality to resize an element. A complex UI component should
 /// implement this and propagate size and layout changes to all its sub-components.

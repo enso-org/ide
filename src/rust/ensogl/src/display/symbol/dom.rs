@@ -88,10 +88,11 @@ impl Drop for Guard {
 // =================
 
 /// A DOM element which is managed by the rendering engine.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct DomSymbol {
-    display_object : display::object::Instance,
+    #[shrinkwrap(main_field)]
     dom            : HtmlDivElement,
+    display_object : display::object::Instance,
     size           : Rc<Cell<Vector2<f32>>>,
     guard          : Rc<Guard>,
 }

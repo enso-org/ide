@@ -2,9 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::traits::HasSymbols;
 use crate::component::visualization::traits::HasFullscreenDecoration;
-use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::Resizable;
 use crate::component::visualization::traits::SymbolWithLayout;
 use crate::component::visualization::traits::TargetLayer;

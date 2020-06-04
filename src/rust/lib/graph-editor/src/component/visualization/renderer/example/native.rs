@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use crate::component::visualization::*;
 use crate::component::visualization::traits::SymbolWithLayout;
-use crate::component::visualization::traits::HasDomSymbols;
 use crate::component::visualization::traits::TargetLayer;
 
 use ensogl::data::color::Rgba;
@@ -18,9 +17,9 @@ use ensogl::display::object::ObjectOps;
 
 
 
-// ==========================
-// === Native BubbleChart ===
-// ==========================
+// ===================
+// === BubbleChart ===
+// ===================
 
 /// Bubble shape definition.
 pub mod shape {
@@ -41,7 +40,7 @@ pub mod shape {
     }
 }
 
-/// Sample implementation of a Bubble Chart using the ensogl shape system.
+/// Sample implementation of a Bubble Chart.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct BubbleChart {
@@ -96,25 +95,6 @@ impl DataRenderer for BubbleChart {
     }
 }
 
-
-impl traits::HasSymbols for BubbleChart {
-    fn symbols(&self) -> Vec<Symbol> {
-        let shape_system = self.scene.shapes.shape_system(PhantomData::<shape::Shape>);
-        vec![shape_system.shape_system.symbol.clone_ref()]
-    }
-
-    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
-        let target_layer = TargetLayer::Visualisation;
-        self.symbols().into_iter().map(|symbol| SymbolWithLayout { symbol,target_layer}).collect()
-    }
-}
-
-impl HasDomSymbols for BubbleChart {
-    fn dom_symbols(&self) -> Vec<DomSymbol> {
-        vec![]
-    }
-}
-
 impl display::Object for BubbleChart {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object.display_object()
@@ -123,46 +103,43 @@ impl display::Object for BubbleChart {
 
 
 
-// ===============================
-// === Native RawText Renderer ===
-// ===============================
+// ===============
+// === RawText ===
+// ===============
 
 /// Sample visualization that renders the given data as text. Useful for debugging and testing.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct RawText {
-    scene     : Scene,
-    root_node : DomSymbol,
-    size      : Cell<V2>,
-    frp       : DataRendererFrp,
-    logger    : Logger,
+    dom    : DomSymbol,
+    size   : Cell<V2>,
+    frp    : DataRendererFrp,
+    logger : Logger,
 }
 
 impl RawText {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let logger    = Logger::new("RawText");
-        let div       = web::create_div();
-        let root_node = DomSymbol::new(&div);
-        let frp       = default();
-        let size      = default();
-        let scene     = scene.clone_ref();
+        let logger = Logger::new("RawText");
+        let div    = web::create_div();
+        let dom    = DomSymbol::new(&div);
+        let frp    = default();
+        let size   = default();
 
         // FIXME It seems by default the text here is mirrored.
         // FIXME This should be fixed in the DOMSymbol directly and removed here.
-        root_node.set_rotation(Vector3::new(180.0_f32.to_radians(), 0.0, 0.0));
-        scene.dom.layers.main.manage(&root_node);
+        dom.set_rotation(Vector3::new(180.0_f32.to_radians(), 0.0, 0.0));
 
-        RawText{root_node,logger,frp,size,scene}.init()
+        scene.dom.layers.main.manage(&dom);
+        RawText{dom,logger,frp,size}.init()
     }
 
     fn init(self) -> Self {
-        self.update_style();
+        self.reload_style();
         self
     }
 
-    // TODO: Integrate with the global style system and replace constant color.
-    fn update_style(&self) {
+    fn reload_style(&self) {
         let style = vec!
             [ "white-space:pre;"
             , "overflow-y:auto;"
@@ -175,13 +152,7 @@ impl RawText {
             , &format!("width:{}px;",self.size.get().y)
             , "pointer-events:auto;"
             ].join("");
-        self.root_node.dom().set_attribute("style",&style).unwrap();
-    }
-}
-
-impl display::Object for RawText {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.root_node.display_object()
+        self.dom.set_attribute("style",&style).unwrap();
     }
 }
 
@@ -191,16 +162,16 @@ impl DataRenderer for RawText {
             Data::Json {content} => content,
             _ => todo!() // FIXME
         };
-        let data_str   = serde_json::to_string_pretty(&data_inner);
-        let data_str   = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
-        let data_str   = format!("\n{}",data_str);
-        self.root_node.dom().set_inner_text(&data_str);
+        let data_str = serde_json::to_string_pretty(&data_inner);
+        let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
+        let data_str = format!("\n{}",data_str);
+        self.dom.dom().set_inner_text(&data_str);
         Ok(())
     }
 
     fn set_size(&self, size:V2) {
         self.size.set(size);
-        self.update_style();
+        self.reload_style();
     }
 
     fn frp(&self) -> &DataRendererFrp {
@@ -208,18 +179,8 @@ impl DataRenderer for RawText {
     }
 }
 
-impl traits::HasSymbols for RawText {
-    fn symbols(&self) -> Vec<Symbol> {
-        vec![]
-    }
-
-    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
-        vec![]
-    }
-}
-
-impl HasDomSymbols for RawText {
-    fn dom_symbols(&self) -> Vec<DomSymbol> {
-        vec![self.root_node.clone_ref()]
+impl display::Object for RawText {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.dom.display_object()
     }
 }
