@@ -6,6 +6,7 @@ use crate::visualization::*;
 use crate::frp;
 
 use ensogl::display;
+use crate::data::EnsoCode;
 
 
 // ===========

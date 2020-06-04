@@ -24,7 +24,6 @@
 pub mod class;
 pub mod container;
 pub mod data;
-pub mod js;
 pub mod fullscreen;
 pub mod registry;
 pub mod renderer;
@@ -34,6 +33,5 @@ pub mod stage;
 pub use class::*;
 pub use container::*;
 pub use data::*;
-pub use js::*;
 pub use registry::*;
 pub use renderer::*;

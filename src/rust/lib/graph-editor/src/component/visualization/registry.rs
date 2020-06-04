@@ -12,7 +12,7 @@
 //! // Instantiate a pre-populated registry.
 //! let registry = Registry::with_default_visualizations();
 //! // Add a new class that creates visualizations defined in JS.
-//! registry.register_class(JsSourceClass::from_js_source_raw(r#"
+//! registry.register(JsSourceClass::from_js_source_raw(r#"
 //!     class BubbleVisualization {
 //!         static inputType = "Any"
 //!         onDataReceived(root, data) {}
@@ -31,10 +31,11 @@ use crate::prelude::*;
 use crate::component::visualization::*;
 use crate::component::visualization::renderer::example::js::get_bubble_vis_class;
 use crate::component::visualization::renderer::example::native::BubbleChart;
+use crate::data::EnsoType;
 
 use ensogl::display::scene::Scene;
 use crate::component::visualization::example::native::RawText;
-
+use enso_prelude::CloneRef;
 
 
 // ==============================
@@ -61,12 +62,12 @@ impl Registry {
     /// Return a `Registry` prepopulated with default visualizations.
     pub fn with_default_visualizations() -> Self {
         let registry = Self::new();
-        registry.register_class(NativeConstructorClass::new(
+        registry.register_class_old(NativeConstructorClass::new(
             Signature::for_any_type("Bubble Visualization (native)"),
             |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));
-        registry.register_class(get_bubble_vis_class());
-        registry.register_class(NativeConstructorClass::new(
+        registry.register_class_old(get_bubble_vis_class());
+        registry.register_class_old(NativeConstructorClass::new(
             Signature::for_any_type("Raw Text Visualization (native)"),
             |scene:&Scene| {
                 println!("raw text cons 2");
@@ -78,15 +79,13 @@ impl Registry {
     }
 
     /// Register a new visualization class with the registry.
-    pub fn register_class<T:Class+'static>(&self, class:T) {
+    pub fn register_class_old<T:Class+'static>(&self, class:T) {
         self.register_class_rc(Rc::new(class));
     }
 
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
-    pub fn register_class_from_handle(&self, handle:&Handle) {
-        if let Some(class) = handle.class() {
-            self.register_class_rc(class);
-        }
+    pub fn register(&self, class:&AnyClass) {
+        self.register_class_rc(class.class.clone_ref())
     }
 
     fn register_class_rc(&self, class:Rc<dyn Class>) {

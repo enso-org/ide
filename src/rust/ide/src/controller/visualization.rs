@@ -61,7 +61,7 @@ pub type EmbeddedVisualizationName = String;
 #[shrinkwrap(mutable)]
 pub struct EmbeddedVisualizations {
     #[allow(missing_docs)]
-    pub map:HashMap<EmbeddedVisualizationName,Rc<class::Handle>>
+    pub map:HashMap<EmbeddedVisualizationName,Rc<class::AnyClass>>
 }
 
 
@@ -123,7 +123,7 @@ impl Handle {
 
     /// Load the source code of the specified visualization.
     pub async fn load_visualization
-    (&self, visualization:&VisualizationPath) -> FallibleResult<Rc<class::Handle>> {
+    (&self, visualization:&VisualizationPath) -> FallibleResult<Rc<class::AnyClass>> {
         match visualization {
             VisualizationPath::Embedded(identifier) => {
                 let embedded_visualizations = self.embedded_visualizations.borrow();
@@ -137,7 +137,7 @@ impl Handle {
                 let identifier = visualization.clone();
                 let error      = |_| VisualizationError::InstantiationError {identifier}.into();
                 let js_class   = JsSourceClass::from_js_source_raw(&js_code).map_err(error);
-                js_class.map(|js_class| Rc::new(class::Handle::new(js_class)))
+                js_class.map(|js_class| Rc::new(class::AnyClass::new(js_class)))
             }
         }
     }

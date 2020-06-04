@@ -67,15 +67,6 @@ impl BubbleChart {
     }
 }
 
-impl VisualizationDefinition for BubbleChart {
-    fn signature(&self) -> &Signature {
-        &self.signature
-    }
-
-    fn instantiate(scene:&Scene) -> InstantiationResult {
-        Ok(Visualization::new(BubbleChart::new(scene)))
-    }
-}
 
 
 impl DataRenderer for BubbleChart {

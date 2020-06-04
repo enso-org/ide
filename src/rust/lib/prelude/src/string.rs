@@ -4,6 +4,7 @@ use std::borrow::Cow;
 
 use crate::impls;
 use std::ops::Deref;
+use std::rc::Rc;
 use derive_more::*;
 
 
@@ -63,5 +64,48 @@ impl Deref for CowString {
 impl AsRef<str> for CowString {
     fn as_ref(&self) -> &str {
         self.deref()
+    }
+}
+
+
+
+// ================
+// === ImString ===
+// ================
+
+#[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
+pub struct ImString {
+    content : Rc<String>
+}
+
+impl ImString {
+    pub fn new(content:impl Into<String>) -> Self {
+        let content = Rc::new(content.into());
+        Self {content}
+    }
+}
+
+impl AsRef<str> for ImString {
+    fn as_ref(&self) -> &str {
+        &self.content
+    }
+}
+
+impl Deref for ImString {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.content
+    }
+}
+
+impl From<String> for ImString {
+    fn from(source:String) -> Self {
+        Self::new(source)
+    }
+}
+
+impl From<&str> for ImString {
+    fn from(source:&str) -> Self {
+        Self::new(source)
     }
 }

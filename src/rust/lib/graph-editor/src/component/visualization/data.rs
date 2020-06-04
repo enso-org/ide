@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::EnsoType;
+use crate::data::EnsoType;
 
 use serde::Deserialize;
 

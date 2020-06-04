@@ -28,6 +28,8 @@
 #[warn(missing_docs)]
 pub mod component;
 
+pub mod data;
+
 /// Common types and functions usable in all modules of this crate.
 pub mod prelude {
     pub use ensogl::prelude::*;
@@ -371,7 +373,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes     : frp::Source<Position>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<Visualization>)>,
-    pub register_visualization_class : frp::Source<Option<Rc<visualization::Handle>>>,
+    pub register_visualization_class : frp::Source<Option<Rc<visualization::AnyClass>>>, // FIXME: Rc!!!
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
@@ -1676,7 +1678,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     def _register_visualization = inputs.register_visualization_class.map(f!([visualization_registry](handle) {
         if let Some(handle) = handle {
-            visualization_registry.register_class_from_handle(&handle);
+            visualization_registry.register(&handle);
         }
     }));
 
