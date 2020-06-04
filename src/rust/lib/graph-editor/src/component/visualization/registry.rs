@@ -14,7 +14,7 @@
 //! // Add a new class that creates visualizations defined in JS.
 //! registry.register_class(JsSourceClass::from_js_source_raw(r#"
 //!     class BubbleVisualization {
-//!         static inputTypes = ["[[Float,Float,Float]]"]
+//!         static inputType = "Any"
 //!         onDataReceived(root, data) {}
 //!         setSize(root, size) {}
 //!     }
@@ -36,6 +36,7 @@ use ensogl::display::scene::Scene;
 use crate::component::visualization::example::native::RawText;
 
 
+
 // ==============================
 // === Visualization Registry ===
 // ==============================
@@ -48,7 +49,7 @@ type RegistryTypeMap = HashMap<EnsoType, Vec<Rc<dyn Class>>>;
 #[derive(Clone,CloneRef,Default,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
-    entries : Rc<RefCell<RegistryTypeMap>>,
+    map : Rc<RefCell<RegistryTypeMap>>,
 }
 
 impl Registry {
@@ -60,21 +61,17 @@ impl Registry {
     /// Return a `Registry` prepopulated with default visualizations.
     pub fn with_default_visualizations() -> Self {
         let registry = Self::new();
-        // FIXME use proper enso types here.
         registry.register_class(NativeConstructorClass::new(
-            Signature {
-                name        : "Bubble Visualization (native)".to_string(),
-                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
-            },
+            Signature::for_any_type("Bubble Visualization (native)"),
             |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));
         registry.register_class(get_bubble_vis_class());
         registry.register_class(NativeConstructorClass::new(
-            Signature {
-                name        : "Raw Text Visualization (native)".to_string(),
-                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
-            },
-            |scene:&Scene| Ok(Visualization::new(RawText::new(scene)))
+            Signature::for_any_type("Raw Text Visualization (native)"),
+            |scene:&Scene| {
+                println!("raw text cons 2");
+                Ok(Visualization::new(RawText::new(scene)))
+            }
         ));
 
         registry
@@ -93,28 +90,24 @@ impl Registry {
     }
 
     fn register_class_rc(&self, class:Rc<dyn Class>) {
-        let spec = class.signature();
-        for dtype in &spec.input_types {
-            let mut entries = self.entries.borrow_mut();
-            let entry_vec = entries.entry(dtype.clone()).or_insert_with(default);
-            entry_vec.push(Rc::clone(&class));
-        }
+        let sig = class.signature();
+        self.map.borrow_mut().entry(sig.input_type.clone()).or_default().push(Rc::clone(&class));
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
     pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Rc<dyn Class>>{
-        let entries       = self.entries.borrow();
-        entries.get(dtype).cloned().unwrap_or_else(default)
+        let map = self.map.borrow();
+        map.get(dtype).cloned().unwrap_or_else(default)
     }
 
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> Visualization {
         let class = NativeConstructorClass::new(
-            Signature {
-                name        : "Raw Text Visualization (native)".to_string(),
-                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
-            },
-            |scene:&Scene| Ok(Visualization::new(RawText::new(scene)))
+            Signature::for_any_type("Raw Text Visualization (native)"),
+            |scene:&Scene| {
+                println!("raw text cons");
+                Ok(Visualization::new(RawText::new(scene)))
+            }
         );
         class.instantiate(&scene).expect("Failed to instantiate default visualisation")
     }

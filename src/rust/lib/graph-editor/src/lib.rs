@@ -37,7 +37,7 @@ use crate::component::cursor;
 use crate::component::node;
 use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization::Visualization;
-use crate::component::visualization::stage::Stage;
+//use crate::component::visualization::stage::Stage;
 use crate::component::visualization;
 
 
@@ -818,7 +818,7 @@ impl GraphEditorModelWithNetwork {
             });
         }
 
-        self.visualizations.push(node.visualization().clone_ref());
+//        self.visualizations.push(node.visualization().clone_ref());
         self.nodes.insert(node_id,node);
 
         node_id
@@ -844,7 +844,7 @@ pub struct GraphEditorModel {
     pub cursor         : component::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
-    pub visualizations : Stage,
+//    pub visualizations : Stage,
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
@@ -857,11 +857,11 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(logger.clone());
         let nodes          = Nodes::new(&logger);
-        let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
+//        let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,visualizations }
+        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp}//visualizations }
     }
 
     fn new_edge(&self) -> EdgeId {
@@ -932,18 +932,18 @@ impl GraphEditorModel {
 
     // FIXME: make nicer
     fn enable_visualization(&self, node_id:impl Into<NodeId>) {
-        let node_id = node_id.into();
-        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.visualization.frp.set_visibility.emit(true);
-        }
+//        let node_id = node_id.into();
+//        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+//            node.visualization.frp.set_visibility.emit(true);
+//        }
     }
 
     // FIXME: make nicer
     fn disable_visualization(&self, node_id:impl Into<NodeId>) {
-        let node_id = node_id.into();
-        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.visualization.frp.set_visibility.emit(false);
-        }
+//        let node_id = node_id.into();
+//        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+//            node.visualization.frp.set_visibility.emit(false);
+//        }
     }
 
     /// Warning! This function does not remove connected edges. It needs to be handled by the
@@ -1275,7 +1275,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let touch                  = &model.touch_state;
     let visualization_registry = visualization::Registry::with_default_visualizations();
     let logger                 = &model.logger;
-    let visualizations         = &model.visualizations;
+//    let visualizations         = &model.visualizations;
 
     let outputs = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
@@ -1403,7 +1403,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     deselect_on_bg_press    <- touch.background.selected.gate_not(&keep_selection);
     deselect_all_nodes      <+ deselect_on_bg_press;
-    all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.visualizations.clear_selection();model.nodes.selected.mem_take()));
+    all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.nodes.selected.mem_take()));
     outputs.node_deselected <+ all_nodes_to_deselect;
 
     node_selected           <- node_pressed.gate(&should_select);
@@ -1562,40 +1562,40 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
      // === Activate Visualisation ===
 
-    def _activate_visualisation = visualizations.frp.clicked.map(f!([visualizations](id) {
-        visualizations.set_selected(id);
-    }));
+//    def _activate_visualisation = visualizations.frp.clicked.map(f!([visualizations](id) {
+//        visualizations.set_selected(id);
+//    }));
 
 
     // === Vis Cycling ===
 
-    let cycle_count = Rc::new(Cell::new(0));
-    def _cycle_visualization = inputs.cycle_visualization_for_selected_node.map(f!([scene,visualizations,visualization_registry,logger](_) {
-        let vis_classes = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
-        cycle_count.set(cycle_count.get() % vis_classes.len());
-        let vis       = &vis_classes[cycle_count.get()];
-        let vis       = vis.instantiate(&scene);
-        match vis {
-            Ok(vis)  => visualizations.set_vis_for_selected(vis),
-            Err(e)=>  logger.warning(|| format!("Failed to cycle visualization: {}",e)),
-        };
-
-        cycle_count.set(cycle_count.get() + 1);
-    }));
-
-    // === Vis Fullscreen ===
-
-    def _toggle_fullscreen = inputs.toggle_fullscreen_for_selected_visualization.map(f!([visualizations](_) {
-        visualizations.toggle_fullscreen_for_selected_visualization();
-    }));
-
-    // === Vis Set ===
-
-    def _update_vis_data = inputs.set_visualization.map(f!([nodes]((node_id,vis)) {
-        if let Some(node) = nodes.get_cloned_ref(node_id) {
-            node.visualization.frp.set_visualization.emit(vis)
-        }
-    }));
+//    let cycle_count = Rc::new(Cell::new(0));
+//    def _cycle_visualization = inputs.cycle_visualization_for_selected_node.map(f!([scene,visualizations,visualization_registry,logger](_) {
+//        let vis_classes = visualization_registry.valid_sources(&"[[Float,Float,Float]]".into());
+//        cycle_count.set(cycle_count.get() % vis_classes.len());
+//        let vis       = &vis_classes[cycle_count.get()];
+//        let vis       = vis.instantiate(&scene);
+//        match vis {
+//            Ok(vis)  => visualizations.set_vis_for_selected(vis),
+//            Err(e)=>  logger.warning(|| format!("Failed to cycle visualization: {}",e)),
+//        };
+//
+//        cycle_count.set(cycle_count.get() + 1);
+//    }));
+//
+//    // === Vis Fullscreen ===
+//
+//    def _toggle_fullscreen = inputs.toggle_fullscreen_for_selected_visualization.map(f!([visualizations](_) {
+//        visualizations.toggle_fullscreen_for_selected_visualization();
+//    }));
+//
+//    // === Vis Set ===
+//
+//    def _update_vis_data = inputs.set_visualization.map(f!([nodes]((node_id,vis)) {
+//        if let Some(node) = nodes.get_cloned_ref(node_id) {
+//            node.visualization.frp.set_visualization.emit(vis)
+//        }
+//    }));
 
     // === Vis Update Data ===
 
@@ -1603,16 +1603,16 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let sample_data_generator = MockDataGenerator3D::default();
     def _set_dumy_data = inputs.set_test_visualization_data_for_selected_node.map(f!([nodes,inputs](_) {
         nodes.selected.for_each(|node_id| {
-            let data          = Rc::new(sample_data_generator.generate_data());
-            let content       = Rc::new(serde_json::to_value(data).unwrap());
-            let data          = visualization::Data::JSON{ content };
+            let data    = Rc::new(sample_data_generator.generate_data());
+            let content = Rc::new(serde_json::to_value(data).unwrap());
+            let data    = visualization::Data::Json{ content };
             inputs.set_visualization_data.emit((*node_id,Some(data)));
         })
     }));
 
     def _set_data = inputs.set_visualization_data.map(f!([nodes]((node_id,data)) {
          if let Some(node) = nodes.get_cloned(node_id) {
-                node.visualization.frp.set_data.emit(data);
+             node.visualization.frp.set_data.emit(data);
          }
      }));
 
@@ -1634,6 +1634,13 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }));
 
 
+    // === Visualization toggle ===
+    //
+    // Algorithm:
+    //     - Press key. If all selected nodes have enabled vis, disable them.
+    //     - If not, enable vis on missing nodes.
+    //     - Release key. If the time passed from key press was short, do nothing.
+    //     - If it was long, disable vis which were disabled (preview mode).
 
     let viz_press_ev      = inputs.press_visualization_visibility.clone_ref();
     let viz_release       = inputs.release_visualization_visibility.clone_ref();

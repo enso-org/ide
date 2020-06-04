@@ -231,7 +231,10 @@ impl DataRenderer for JsRenderer {
 
     fn receive_data(&self, data:Data) -> Result<(),DataError> {
         let context   = JsValue::NULL;
-        let data_json = data.as_json()?;
+        let data_json = match data {
+            Data::Json {content} => content,
+            _ => todo!() // FIXME
+        };
         let data_js   = match JsValue::from_serde(&data_json) {
             Ok(value) => value,
             Err(_)    => return Err(DataError::InvalidDataType),

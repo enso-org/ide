@@ -15,21 +15,36 @@ use ensogl::display;
 use std::error::Error;
 
 
-// ====================
-// === Helper Types ===
-// ====================
 
-/// Type alias for a string containing enso code.
+// ================
+// === EnsoCode ===
+// ================
+
+/// Type alias for a string containing Enso code.
 #[derive(Clone,CloneRef,Debug)]
 pub struct EnsoCode {
     content: Rc<String>
 }
 
-/// Type alias for a string representing an enso type.
+
+
+// ================
+// === EnsoType ===
+// ================
+
+/// Type alias for a string representing an Enso type.
 #[derive(Clone,CloneRef,Debug,PartialEq,Eq,Hash)]
 pub struct EnsoType {
     content: Rc<String>
 }
+
+impl EnsoType {
+    pub fn any() -> Self {
+        "Any".into()
+    }
+}
+
+// TODO: all conversions in newtype macro
 
 impl From<String> for EnsoType {
     fn from(source:String) -> Self {
@@ -43,12 +58,32 @@ impl From<&str> for EnsoType {
     }
 }
 
+impl Default for EnsoType {
+    fn default() -> Self {
+        Self::any()
+    }
+}
+
+
+
+// =================
+// === Signature ===
+// =================
+
 /// Contains general information about a visualization.
 #[derive(Clone,Debug,PartialEq)]
 #[allow(missing_docs)]
 pub struct Signature {
-    pub name        : String,
-    pub input_types : Vec<EnsoType>,
+    pub name       : String,
+    pub input_type : EnsoType,
+}
+
+impl Signature {
+    pub fn for_any_type(name:impl Into<String>) -> Self {
+        let name       = name.into();
+        let input_type = EnsoType::any();
+        Self {name,input_type}
+    }
 }
 
 
@@ -252,7 +287,7 @@ pub type InstantiationResult = Result<Visualization,InstantiationError>;
 /// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
 ///     visualization::Signature {
 ///         name        : "Bubble Visualization (native)".to_string(),
-///         input_types : vec!["[[Float,Float,Float]]".into()],
+///         input_type : vec!["[[Float,Float,Float]]".into()],
 ///     },
 ///     |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
 /// );

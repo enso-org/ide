@@ -17,17 +17,21 @@ use ensogl::system::web::JsValue;
 use js_sys;
 
 
+const NAME_FIELD       : &str = "name";
+const INPUT_TYPE_FIELD : &str = "inputType";
+
+
 
 // ===================================
 // === Visualization Class Wrapper ===
 // ===================================
 
-/// Internal wrapper for the a JS class that implements our visualization specification. Provides
+/// Internal wrapper for the a JS class that implements the visualization specification. Provides
 /// convenience functions for accessing JS methods and signature.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 struct VisualizationClassWrapper {
-    class: JsValue,
+    class : JsValue,
 }
 
 impl VisualizationClassWrapper {
@@ -39,9 +43,9 @@ impl VisualizationClassWrapper {
     }
 
     fn signature(&self) -> JsResult<Signature> {
-        let input_types = self.input_types().unwrap_or_default();
-        let name        = self.name()?;
-        Ok(Signature {name,input_types})
+        let input_type = self.input_type().unwrap_or_default();
+        let name       = self.name()?;
+        Ok(Signature {name,input_type})
     }
 
     fn constructor(&self) -> JsResult<js_sys::Function> {
@@ -52,16 +56,15 @@ impl VisualizationClassWrapper {
         Ok(js_sys::Reflect::get(&self.class,&"prototype".into())?)
     }
 
-    fn input_types(&self) -> JsResult<Vec<EnsoType>> {
-        let input_types            = js_sys::Reflect::get(&self.class, &"inputTypes".into())?;
-        let input_types            = js_sys::Array::from(&input_types);
-        let js_string_to_enso_type = |value:JsValue| {Some(EnsoType::from(value.as_string()?))};
-        Ok(input_types.iter().filter_map(js_string_to_enso_type).collect())
+    fn input_type(&self) -> JsResult<EnsoType> {
+        let input_type     = js_sys::Reflect::get(&self.class, &INPUT_TYPE_FIELD.into())?;
+        let input_type_str = EnsoType::from(input_type.as_string().unwrap()); // FIXME incl check if field exists
+        Ok(input_type_str)
     }
 
     fn name(&self) -> JsResult<String> {
         let constructor = self.constructor()?;
-        let name        = js_sys::Reflect::get(&constructor,&"name".into())?;
+        let name        = js_sys::Reflect::get(&constructor,&NAME_FIELD.into())?;
         Ok(name.as_string().unwrap_or_default())
     }
 
@@ -88,7 +91,7 @@ impl VisualizationClassWrapper {
 ///
 /// JsSourceClass::from_js_source_raw(r#"
 ///     class Visualization {
-///         static inputTypes = ["[[Float,Float,Float]]"]
+///         static inputType = "Any"
 ///         onDataReceived(root, data) {}
 ///         setSize(root, size) {}
 ///     }

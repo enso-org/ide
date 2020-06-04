@@ -81,18 +81,16 @@ pub mod overlay {
 
     ensogl::define_shape_system! {
         (width:f32,height:f32,selected:f32,padding:f32,roundness:f32) {
-            let width_bg       = width.clone();
-            let height_bg      = height.clone();
-            let width_bg       = Var::<Distance<Pixels>>::from(width_bg);
-            let height_bg      = Var::<Distance<Pixels>>::from(height_bg);
-            let radius         = Var::<Distance<Pixels>>::from(padding);
+            let width_bg      = width.clone();
+            let height_bg     = height.clone();
+            let width_bg      = Var::<Distance<Pixels>>::from(width_bg);
+            let height_bg     = Var::<Distance<Pixels>>::from(height_bg);
+            let radius        = Var::<Distance<Pixels>>::from(padding);
             let corner_radius = &radius * &roundness;
             let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
             let overlay       = Rect((&width_bg,&height_bg)).corners_radius(&corner_radius);
             let overlay       = overlay.fill(color_overlay);
-
-            let out = overlay;
-
+            let out           = overlay;
             out.into()
         }
     }
@@ -107,7 +105,7 @@ pub mod overlay {
 /// Event system of the `Container`.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct ContainerFrp {
+pub struct Frp {
     pub network           : frp::Network,
     pub set_visibility    : frp::Source<bool>,
     pub toggle_visibility : frp::Source,
@@ -117,13 +115,12 @@ pub struct ContainerFrp {
     pub deselect          : frp::Source,
     pub set_size          : frp::Source<Option<Vector2<f32>>>,
     pub clicked           : frp::Stream,
-
     on_click              : frp::Source,
 }
 
-impl Default for ContainerFrp {
+impl Default for Frp {
     fn default() -> Self {
-        frp::new_network! { visualization_events
+        frp::new_network! { TRACE_ALL visualization_events
             def set_visibility    = source();
             def toggle_visibility = source();
             def set_visualization = source();
@@ -142,44 +139,17 @@ impl Default for ContainerFrp {
 
 
 
-// ================================
-// === Visualizations Container ===
-// ================================
-
-/// Container that wraps a `Visualization` for rendering and interaction in the GUI.
-///
-/// The API to interact with the visualization is exposed through the `ContainerFrp`.
-#[derive(Clone,CloneRef,Debug,Derivative,Shrinkwrap)]
-#[derivative(PartialEq)]
-#[allow(missing_docs)]
-pub struct Container {
-    // The internals are split into two structs: `ContainerData` and `ContainerFrp`. The
-    // `ContainerData` contains the actual data and logic for the `Container`. The `ContainerFrp`
-    // contains the FRP api and network. This split is required to avoid creating cycles in the FRP
-    // network: the FRP network holds `Rc`s to the `ContainerData` and thus must not live in the
-    // same struct.
-    #[derivative(PartialEq(compare_with="Rc::ptr_eq"))]
-    #[shrinkwrap(main_field)]
-    pub data : Rc<ContainerData>,
-    #[derivative(PartialEq="ignore")]
-    pub frp  : ContainerFrp,
-}
+///////////////////////////
 
 /// Internal data of a `Container`.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
-pub struct ContainerData {
+pub struct ContainerModel {
     logger                       : Logger,
     size                         : Cell<Vector2<f32>>,
     padding                      : Cell<f32>,
-    /// Topmost display object in the hierarchy. Used for global positioning.
     display_object               : display::object::Instance,
-    /// Internal display object that will be sole child of `display_object` and can be attached and
-    /// detached from its parent for showing/hiding all child shapes.
     display_object_internal      : display::object::Instance,
-    /// Parent of the visualisation. Allows adding/removing of visualisations without affecting
-    /// the order of other container shapes.
-    display_object_visualisation : display::object::Instance,
 
     visualization           : RefCell<Option<Visualization>>,
     shape_frame             : component::ShapeView<frame::Shape>,
@@ -188,14 +158,40 @@ pub struct ContainerData {
 
 }
 
-impl ContainerData {
+impl ContainerModel {
+    pub fn new(scene:&Scene) -> Self {
+        let logger                  = Logger::new("visualization_container");
+        let visualization           = default();
+        let size                    = Cell::new(Vector2::new(200.0, 200.0));
+        let display_object          = display::object::Instance::new(&logger);
+        let display_object_internal = display::object::Instance::new(&logger);
+
+        let padding                 = Cell::new(10.0);
+        let shape_frame             = component::ShapeView::<frame::Shape>::new(&logger,scene);
+        let shape_overlay           = component::ShapeView::<overlay::Shape>::new(&logger,scene);
+        let scene                   = scene.clone_ref();
+
+        display_object_internal.add_child(&shape_overlay);
+        display_object_internal.add_child(&shape_frame);
+
+        Self {logger,visualization,size,display_object,shape_frame,display_object_internal,padding
+             ,scene,shape_overlay} . init()
+    }
+
+    fn init(self) -> Self {
+        // FIXME: These 2 lines fix a bug with display objects visible on stage.
+        self.set_visibility(true);
+        self.set_visibility(false);
+
+        self.update_shape_sizes();
+        self.set_corner_roundness(1.0);
+        self
+    }
+
     /// Set whether the visualization should be visible or not.
-    pub fn set_visibility(&self, is_visible:bool) {
-        if is_visible {
-            self.display_object_internal.set_parent(&self.display_object);
-        } else {
-            self.display_object_internal.unset_parent();
-        }
+    pub fn set_visibility(&self, visibility:bool) {
+        if visibility { self.add_child    (&self.display_object_internal) }
+        else          { self.remove_child (&self.display_object_internal) }
     }
 
     /// Indicates whether the visualization is visible.
@@ -208,24 +204,12 @@ impl ContainerData {
         self.set_visibility(!self.is_visible())
     }
 
-    /// Update the content properties with the values from the `ContainerData`.
-    ///
-    /// Needs to called when a visualization has been set.
-    fn init_visualization_properties(&self) {
-        let size         = self.size.get();
-        if let Some(vis) = self.visualization.borrow().as_ref() {
-            vis.set_size(size);
-        };
-        self.set_visibility(true);
-    }
-
     /// Set the visualization shown in this container.
     pub fn set_visualization(&self, visualization:Visualization) {
-        let vis_parent = &self.display_object_visualisation;
-        visualization.display_object().set_parent(&vis_parent);
-
+        let size = self.size.get();
+        visualization.set_size(size);
+        self.display_object_internal.add_child(&visualization);
         self.visualization.replace(Some(visualization));
-        self.init_visualization_properties();
     }
 
     fn update_shape_sizes(&self) {
@@ -257,96 +241,73 @@ impl ContainerData {
     }
 
     fn set_corner_roundness(&self, value:f32) {
-        let overlay_shape = &self.shape_overlay.shape;
-        let frame_shape   = &self.shape_frame.shape;
-
-        overlay_shape.roundness.set(value);
-        frame_shape.roundness.set(value);
+        self.shape_overlay.shape.roundness.set(value);
+        self.shape_frame.shape.roundness.set(value);
     }
 }
 
-impl display::Object for ContainerData {
+impl display::Object for ContainerModel {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
 }
 
+
+
+// =================
+// === Container ===
+// =================
+
+/// Container that wraps a `Visualization` for rendering and interaction in the GUI.
+///
+/// The API to interact with the visualization is exposed through the `Frp`.
+#[derive(Clone,CloneRef,Debug,Derivative,Shrinkwrap)]
+#[allow(missing_docs)]
+pub struct Container {
+    #[shrinkwrap(main_field)]
+    pub model : Rc<ContainerModel>,
+    #[derivative(PartialEq="ignore")]
+    pub frp  : Frp,
+}
+
+impl Drop for Container {
+    fn drop(&mut self) {
+        println!("container drop");
+    }
+}
+
 impl Container {
     /// Constructor.
-    pub fn new(s:&Scene) -> Self {
-        let logger                       = Logger::new("visualization");
-        let visualization                = default();
-        let size                         = Cell::new(Vector2::new(200.0, 200.0));
-        let display_object               = display::object::Instance::new(&logger);
-        let display_object_internal      = display::object::Instance::new(&logger);
-        let display_object_visualisation = display::object::Instance::new(&logger);
-
-        let padding                 = Cell::new(10.0);
-        let shape_frame             = component::ShapeView::<frame::Shape>::new(&logger,s);
-        let shape_overlay           = component::ShapeView::<overlay::Shape>::new(&logger,s);
-        let scene                   = s.clone_ref();
-        let data                    = ContainerData {
-            logger,visualization,size,display_object,shape_frame,display_object_internal,padding,
-            scene,shape_overlay,display_object_visualisation};
-        let data                    = Rc::new(data);
-        data.set_visualization(Registry::default_visualisation(s));
-        data.set_visibility(false);
-        let frp                     = default();
-        Self {data,frp} . init()
+    pub fn new(scene:&Scene) -> Self {
+        let frp  = default();
+        let model = Rc::new(ContainerModel::new(scene));
+//        model.set_visualization(Registry::default_visualisation(scene));
+        Self {model,frp} . init()
     }
 
-    fn init(self) ->  Self {
-        self.init_shape().init_frp()
-    }
-
-    fn init_shape(self) -> Self {
-        self.update_shape_sizes();
-        self.set_corner_roundness(1.0);
-        self.data.display_object_internal.add_child(&self.data.shape_overlay);
-        self.data.display_object_internal.add_child(&self.data.shape_frame);
-        self.data.display_object_internal.add_child(&self.data.display_object_visualisation);
-        // Remove default parents to stay hidden on init.
-        self.data.display_object.add_child(&self.display_object_internal);
-        self.data.display_object_internal.unset_parent();
-        self
-    }
-
-    fn init_frp(self) -> Self {
-        let frp                 = &self.frp;
-        let network             = &self.frp.network;
-        let container_data      = &self.data;
-
-        let frame_shape_data = container_data.shape_frame.shape.clone_ref();
+    fn init(self) -> Self {
+        let inputs    = &self.frp;
+        let network   = &self.frp.network;
+        let model     = &self.model;
         let selection = Animation::new(network);
 
         frp::extend! { network
-            eval selection.value ((value) frame_shape_data.selected.set(*value));
+            eval  selection.value ((value) model.shape_frame.shape.selected.set(*value));
+            eval  inputs.set_visibility((v) model.set_visibility(*v));
+            eval_ inputs.toggle_visibility (model.toggle_visibility());
 
-            def _f_hide = frp.set_visibility.map(f!([container_data](is_visible) {
-                container_data.set_visibility(*is_visible);
-            }));
-
-            def _f_toggle = frp.toggle_visibility.map(f!([container_data](_) {
-                container_data.toggle_visibility()
-            }));
-
-            def _f_set_vis = frp.set_visualization.map(f!([container_data](visualization) {
+            def _f_set_vis = inputs.set_visualization.map(f!([model](visualization) {
                 if let Some(visualization) = visualization.as_ref() {
-                    container_data.set_visualization(visualization.clone());
+                    model.set_visualization(visualization.clone());
                 }
             }));
 
-            def _f_set_data = frp.set_data.map(f!([container_data](data) {
-                 container_data.visualization.borrow()
-                    .for_each_ref(|vis| vis.frp.set_data.emit(data));
-            }));
+            eval inputs.set_data ((t) model.visualization.borrow().for_each_ref(|vis| vis.frp.set_data.emit(t)));
 
-            eval frp.select   ((_) selection.set_target_value(1.0));
-            eval frp.deselect ((_) selection.set_target_value(0.0));
+            eval inputs.select   ((_) selection.set_target_value(1.0));
+            eval inputs.deselect ((_) selection.set_target_value(0.0));
 
-            def _output_hide = container_data.shape_overlay.events.mouse_down.map(f!([frp](_) {
-                frp.on_click.emit(())
-            }));
+            eval_ model.shape_overlay.events.mouse_down (inputs.on_click.emit(()));
         }
         self
     }
@@ -364,54 +325,54 @@ impl Container {
 
 impl Resizable for Container {
     fn set_size(&self, size:Vector3<f32>) {
-        self.data.set_size(size);
+        self.model.set_size(size);
     }
 
     fn size(&self) -> Vector3<f32>{
-        Vector3::new(self.data.size.get().x,self.data.size.get().y, 0.0)
+        Vector3::new(self.model.size.get().x,self.model.size.get().y, 0.0)
     }
 }
 
-impl HasSymbols for Container {
-    fn symbols(&self) -> Vec<Symbol> {
-        let mut symbols  = self.container_main_symbols();
-        if let Some(vis) = self.data.visualization.borrow().as_ref() {
-            symbols.extend(vis.symbols());
-        };
-        symbols
-    }
-
-    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
-        let target_layer = TargetLayer::Main;
-        let symbols      = self.container_main_symbols().into_iter();
-        let symbols  = symbols.map(move |symbol| SymbolWithLayout {symbol,target_layer});
-        let vis_symbols  = self.data.visualization.borrow().as_ref().map(|vis| vis.symbols_with_data()).unwrap_or_default();
-        symbols.chain(vis_symbols).collect()
-    }
-}
-
-impl HasDomSymbols for Container {
-    fn dom_symbols(&self) -> Vec<DomSymbol> {
-        if let Some(vis) = self.data.visualization.borrow().as_ref() {
-            vis.dom_symbols()
-        } else{
-            vec![]
-        }
-    }
-}
+//impl HasSymbols for Container {
+//    fn symbols(&self) -> Vec<Symbol> {
+//        let mut symbols  = self.container_main_symbols();
+//        if let Some(vis) = self.model.visualization.borrow().as_ref() {
+//            symbols.extend(vis.symbols());
+//        };
+//        symbols
+//    }
+//
+//    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
+//        let target_layer = TargetLayer::Main;
+//        let symbols      = self.container_main_symbols().into_iter();
+//        let symbols  = symbols.map(move |symbol| SymbolWithLayout {symbol,target_layer});
+//        let vis_symbols  = self.model.visualization.borrow().as_ref().map(|vis| vis.symbols_with_data()).unwrap_or_default();
+//        symbols.chain(vis_symbols).collect()
+//    }
+//}
+//
+//impl HasDomSymbols for Container {
+//    fn dom_symbols(&self) -> Vec<DomSymbol> {
+//        if let Some(vis) = self.model.visualization.borrow().as_ref() {
+//            vis.dom_symbols()
+//        } else{
+//            vec![]
+//        }
+//    }
+//}
 
 impl display::Object for Container {
     fn display_object(&self) -> &display::object::Instance {
-        &self.data.display_object
+        &self.model.display_object
     }
 }
 
 impl HasFullscreenDecoration for Container {
     fn enable_fullscreen_decoration(&self) {
-        self.data.set_corner_roundness(0.0);
+        self.model.set_corner_roundness(0.0);
     }
 
     fn disable_fullscreen_decoration(&self) {
-        self.data.set_corner_roundness(1.0);
+        self.model.set_corner_roundness(1.0);
     }
 }

@@ -16,37 +16,35 @@ use serde::Deserialize;
 pub type DataType = EnsoType;
 
 /// Wrapper for data that can be consumed by a visualization.
-/// TODO[mm] consider static versus dynamic typing for visualizations and data!
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub enum Data {
-    JSON   { content : Rc<serde_json::Value> },
-    // TODO replace with actual binary data stream.
-    Binary { content : Rc<dyn Any>           },
+    Json { content : Rc<serde_json::Value> },
+    Binary, // TODO replace with actual binary data stream.
 }
 
 impl Data {
-    /// Wraps the given JSON value into a visualization Data.
+    /// Wraps the given Json value into a visualization Data.
     pub fn new_json(content:serde_json::Value) -> Data {
         let content = Rc::new(content);
-        Data::JSON {content}
+        Data::Json {content}
     }
 
-    /// Returns the data as as JSON. If the data cannot be returned as JSON, it will return a
-    /// `DataError` instead.
-    pub fn as_json(&self) -> Result<Rc<serde_json::Value>, DataError> {
-        match &self {
-            Data::JSON { content } => Ok(Rc::clone(content)),
-            _ => { Err(DataError::InvalidDataType{})  },
-        }
-    }
+//    /// Returns the data as as Json. If the data cannot be returned as Json, it will return a
+//    /// `DataError` instead.
+//    pub fn as_json(&self) -> Result<Rc<serde_json::Value>, DataError> {
+//        match &self {
+//            Data::Json { content } => Ok(Rc::clone(content)),
+//            _ => { Err(DataError::InvalidDataType{})  },
+//        }
+//    }
 
     /// Returns the wrapped data in Rust format. If the data cannot be returned as rust datatype, a
     /// `DataError` is returned instead.
     pub fn as_binary<T>(&self) -> Result<Rc<T>, DataError>
         where for<'de> T:Deserialize<'de> + 'static {
         match &self {
-            Data::JSON { content } => {
+            Data::Json { content } => {
                 // We try to deserialize here. Just in case it works.
                 // This is useful for simple data types where we don't want to care to much about
                 // representation, e.g., a list of numbers.
@@ -57,8 +55,7 @@ impl Data {
                     Err(DataError::InvalidDataType)
                 }
             },
-            Data::Binary { content } => { Rc::clone(content).downcast()
-                .or(Err(DataError::InvalidDataType))},
+            Data::Binary => todo!(),
         }
     }
 }

@@ -8,7 +8,7 @@ use crate::component::visualization::JsSourceClass;
 pub fn get_bubble_vis_class() -> JsSourceClass {
     let fn_constructor = r#"
         class BubbleVisualization {
-            static inputTypes = ["[[Float,Float,Float]]"]
+            static inputType = "Any"
 
             onDataReceived(root, data) {
                 const xmlns = "http://www.w3.org/2000/svg";

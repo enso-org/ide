@@ -186,7 +186,10 @@ impl display::Object for RawText {
 
 impl DataRenderer for RawText {
     fn receive_data(&self, data:Data) -> Result<(),DataError> {
-        let data_inner = data.as_json()?;
+        let data_inner = match data {
+            Data::Json {content} => content,
+            _ => todo!() // FIXME
+        };
         let data_str   = serde_json::to_string_pretty(&data_inner);
         let data_str   = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
         let data_str   = format!("\n{}",data_str);
