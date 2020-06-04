@@ -215,7 +215,7 @@ impl NodeModel {
         let logger  = Logger::new("node");
         edge::sort_hack_1(scene);
 
-        OutPutPorts::init_shape_order_hack(&scene);
+        OutPutPorts::order_hack(&scene);
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape      ::Shape>::new(&main_logger  ,scene);

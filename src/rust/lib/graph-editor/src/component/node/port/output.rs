@@ -288,7 +288,7 @@ impl OutputPorts {
 
     // TODO: Implement proper sorting and remove.
     /// Hack function used to register the elements for the sorting purposes. To be removed.
-    pub(crate) fn init_shape_order_hack(scene:&Scene) {
+    pub(crate) fn order_hack(scene:&Scene) {
         let logger = Logger::new("hack");
         component::ShapeView::<port_area::Shape>::new(&logger,scene);
     }
