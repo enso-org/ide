@@ -1,8 +1,10 @@
 //! This module defines the `Visualization` struct and related functionality.
 
 pub mod js;
+pub mod native;
 
 pub use js::*;
+pub use native::*;
 
 use crate::prelude::*;
 
@@ -160,38 +162,6 @@ impl Visualization {
 /// instantiate `JsRenderer`, and the fairly generic `NativeConstructorClass`, that only requires
 /// a function that can create a InstantiationResult. The later can be used as a thin wrapper around
 /// the constructor methods of native visualizations.
-///
-/// Example
-/// --------
-/// ```no_run
-/// use graph_editor::component::visualization;
-/// use graph_editor::component::visualization::Visualization;
-/// use graph_editor::component::visualization::renderer::example::native::BubbleChart;
-/// use ensogl::display::Scene;
-/// use std::rc::Rc;
-///
-/// // Create a `visualization::Class` from a JS source code snippet.
-/// let js_source_class = visualization::JsSourceClass::from_js_source_raw(r#"
-///
-///    class BubbleVisualization {
-///         static inputTypes = ["[[Float,Float,Float]]"]
-///         onDataReceived(root, data) {}
-///         setSize(root, size) {}
-///     }
-///
-///     return BubbleVisualization;
-///
-/// "#.into());
-///
-/// // Create a `visualization::Class` that instantiates a `BubbleChart`.
-/// let native_bubble_vis_class = visualization::NativeConstructorClass::new(
-///     visualization::Signature {
-///         name        : "Bubble Visualization (native)".to_string(),
-///         input_type : vec!["[[Float,Float,Float]]".into()],
-///     },
-///     |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
-/// );
-/// ```
 pub trait Class: Debug {
     /// Provides additional information about the `Class`, for example, which `DataType`s can be
     /// rendered by the instantiated visualization.
@@ -250,44 +220,6 @@ impl Class for AnyClass {
     }
 }
 
-
-
-// ================================
-// === Native Constructor Class ===
-// ================================
-
-/// Type alias for a function that can create a `Visualization`.
-pub trait VisualizationConstructor = Fn(&Scene) -> InstantiationResult;
-
-/// Constructor that instantiates visualisations from a given `VisualizationConstructor`. Can be
-/// used to wrap the constructor of visualizations defined in Rust.
-#[derive(Clone,Derivative)]
-#[derivative(Debug)]
-#[allow(missing_docs)]
-pub struct NativeConstructorClass {
-    #[derivative(Debug="ignore")]
-    constructor : Rc<dyn VisualizationConstructor>,
-    signature   : Signature,
-}
-
-impl NativeConstructorClass {
-    /// Create a visualization source from a closure that returns a `Visualization`.
-    pub fn new<T>(signature:Signature, constructor:T) -> Self
-    where T: VisualizationConstructor + 'static {
-        let constructor = Rc::new(constructor);
-        NativeConstructorClass{signature,constructor}
-    }
-}
-
-impl Class for NativeConstructorClass {
-    fn signature(&self) -> &Signature {
-        &self.signature
-    }
-
-    fn instantiate(&self, scene:&Scene) -> InstantiationResult {
-        self.constructor.call((scene,))
-    }
-}
 
 
 

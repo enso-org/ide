@@ -28,6 +28,7 @@
 
 use crate::prelude::*;
 
+use crate::component::visualization;
 use crate::component::visualization::*;
 use crate::component::visualization::renderer::example::js::get_bubble_vis_class;
 use crate::component::visualization::renderer::example::native::BubbleChart;
@@ -62,12 +63,12 @@ impl Registry {
     /// Return a `Registry` prepopulated with default visualizations.
     pub fn with_default_visualizations() -> Self {
         let registry = Self::new();
-        registry.register_class_old(NativeConstructorClass::new(
+        registry.register_class_old(visualization::class::Native::new(
             Signature::for_any_type("Bubble Visualization (native)"),
             |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
         ));
         registry.register_class_old(get_bubble_vis_class());
-        registry.register_class_old(NativeConstructorClass::new(
+        registry.register_class_old(visualization::class::Native::new(
             Signature::for_any_type("Raw Text Visualization (native)"),
             |scene:&Scene| {
                 println!("raw text cons 2");
@@ -101,7 +102,7 @@ impl Registry {
 
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> Visualization {
-        let class = NativeConstructorClass::new(
+        let class = visualization::class::Native::new(
             Signature::for_any_type("Raw Text Visualization (native)"),
             |scene:&Scene| {
                 println!("raw text cons");
