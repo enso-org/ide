@@ -13,6 +13,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(unboxed_closures)]
 #![feature(weak_into_raw)]
+#![feature(entry_insert)]
 #![feature(fn_traits)]
 
 #![warn(trivial_casts)]

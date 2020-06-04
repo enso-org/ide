@@ -48,7 +48,7 @@ use ensogl::data::OptVec;
 #[allow(missing_docs)]
 pub struct Registry {
     default  : AnyClass,
-//    vec      : OptVec<AnyClass>,
+    path_map : Rc<RefCell<HashMap<Path,AnyClass>>>,
     type_map : Rc<RefCell<HashMap<EnsoType,Vec<AnyClass>>>>,
 }
 
@@ -56,8 +56,9 @@ impl Registry {
     /// Return an empty `Registry`.
     pub fn new() -> Self {
         let default  = visualization::example::native::RawText::class().into();
+        let path_map = Default::default();
         let type_map = Default::default();
-        Self {default,type_map} . init()
+        Self {default,path_map,type_map} . init()
     }
 
     fn init(self) -> Self {
@@ -78,7 +79,8 @@ impl Registry {
     pub fn add(&self, class:impl Into<AnyClass>) {
         let class = class.into();
         let sig   = class.signature();
-        self.type_map.borrow_mut().entry(sig.input_type.clone()).or_default().push(class);
+        self.type_map.borrow_mut().entry(sig.input_type.clone()).or_default().push(class.clone_ref());
+        self.path_map.borrow_mut().entry(sig.path.clone()).insert(class);
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
