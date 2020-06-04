@@ -21,7 +21,7 @@ use std::error::Error;
 // ================
 
 /// Type alias for a string containing Enso code.
-#[derive(Clone,CloneRef,Debug,Default)]
+#[derive(Clone,Debug,Default)]
 pub struct EnsoCode {
     content: Rc<String>
 }
@@ -94,15 +94,15 @@ pub struct Frp {
     pub set_data             : frp::Source<Data>,
     /// Will be emitted if the visualization has new data (e.g., through UI interaction).
     /// Data is provides encoded as EnsoCode.
-    pub on_change            : frp::Stream<Option<EnsoCode>>,
+    pub on_change            : frp::Stream<EnsoCode>,
     /// Will be emitted if the visualization changes it's preprocessor code.
-    pub on_preprocess_change : frp::Stream<Option<EnsoCode>>,
+    pub on_preprocess_change : frp::Stream<EnsoCode>,
     /// Will be emitted if the visualization has been provided with invalid data.
     pub on_invalid_data      : frp::Stream<()>,
 
     // Internal sources that feed the public streams.
-    change            : frp::Source<Option<EnsoCode>>,
-    preprocess_change : frp::Source<Option<EnsoCode>>,
+    change            : frp::Source<EnsoCode>,
+    preprocess_change : frp::Source<EnsoCode>,
     invalid_data      : frp::Source<()>,
 
 }
@@ -134,8 +134,7 @@ impl Frp {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct State {
-    pub renderer     : Rc<dyn DataRenderer>,
-    pub preprocessor : Rc<RefCell<Option<EnsoCode>>>,
+    pub renderer : Rc<dyn DataRenderer>,
 }
 
 impl display::Object for State {
@@ -168,12 +167,11 @@ impl display::Object for Visualization {
 impl Visualization {
     /// Create a new `Visualization` with the given `DataRenderer`.
     pub fn new<T: DataRenderer + 'static>(renderer:T) -> Self {
-        let preprocessor = default();
-        let network      = default();
-        let frp          = Frp::new(&network);
-        let renderer     = Rc::new(renderer);
-        let internal     = State {preprocessor,renderer};
-        Visualization{frp, state: internal,network}.init()
+        let network  = default();
+        let frp      = Frp::new(&network);
+        let renderer = Rc::new(renderer);
+        let state    = State {renderer};
+        Visualization{frp,state,network}.init()
     }
 
     fn init(self) -> Self {
@@ -191,12 +189,8 @@ impl Visualization {
         let renderer_frp     = self.state.renderer.frp();
         let renderer_network = &renderer_frp.network;
         frp::new_bridge_network! { [network,renderer_network]
-            def _on_changed = renderer_frp.on_change.map(f!([frp](data) {
-                frp.change.emit(data)
-            }));
-           def _on_preprocess_change = renderer_frp.on_preprocess_change.map(f!([frp](data) {
-                frp.preprocess_change.emit(data.as_ref().map(|code|code.clone_ref()))
-            }));
+            eval renderer_frp.on_change ((t) frp.change.emit(t));
+            eval renderer_frp.on_preprocess_change ((t) frp.preprocess_change.emit(t.clone()));
         }
         self
     }

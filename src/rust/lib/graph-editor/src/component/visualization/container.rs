@@ -207,7 +207,7 @@ impl ContainerModel {
         self.set_visibility(false);
 
         self.update_shape_sizes();
-        self.set_corner_roundness(1.0);
+        self.init_corner_roundness();
         self
     }
 
@@ -262,6 +262,10 @@ impl ContainerModel {
 
         self.size.set(size.xy().into());
         self.update_shape_sizes();
+    }
+
+    fn init_corner_roundness(&self) {
+        self.set_corner_roundness(1.0)
     }
 
     fn set_corner_roundness(&self, value:f32) {
