@@ -65,7 +65,7 @@ pub trait DataRenderer: display::Object + HasSymbols + HasDomSymbols + Debug {
     fn receive_data(&self, data:Data) -> Result<(), DataError>;
     /// Set the size of viewport of the visualization. The visualization must not render outside of
     /// this viewport.
-    fn set_size(&self, size:Vector2<f32>);
+    fn set_size(&self, size:V2);
 
     /// Return a ref to the internal FRP network. This replaces a potential callback mechanism.
     ///

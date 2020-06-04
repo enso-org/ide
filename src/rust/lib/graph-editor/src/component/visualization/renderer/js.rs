@@ -247,7 +247,8 @@ impl DataRenderer for JsRenderer {
         Ok(())
     }
 
-    fn set_size(&self, size:Vector2<f32>) {
+    fn set_size(&self, size:V2) {
+        let size          = Vector2::new(size.x,size.y);
         let context       = JsValue::NULL;
         let data_json     = JsValue::from_serde(&size).unwrap();
         if let Err(error) = self.set_size.call2(&context, &self.root_node.dom(), &data_json) {

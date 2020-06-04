@@ -39,21 +39,19 @@ pub mod frame {
 
     // TODO use style
     ensogl::define_shape_system! {
-        (width:f32,height:f32,selected:f32,padding:f32,roundness:f32) {
-            let width_bg      = width.clone();
-            let height_bg     = height.clone();
-            let width_bg      = Var::<Distance<Pixels>>::from(width_bg);
-            let height_bg     = Var::<Distance<Pixels>>::from(height_bg);
-            let radius        = Var::<Distance<Pixels>>::from(padding.clone());
+        (selected:f32,padding:f32,roundness:f32) {
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let radius        = 1.px() * &padding;
             let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
             let corner_radius = &radius * &roundness;
-            let background    = Rect((&width_bg,&height_bg)).corners_radius(&corner_radius);
+            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
 
-            let frame_outer = Rect((&width_bg,&height_bg)).corners_radius(&corner_radius);
+            let frame_outer = Rect((&width,&height)).corners_radius(&corner_radius);
 
-            let padding            = &padding * Var::<f32>::from(2.0) * &selected;
-            let padding_aliased    = padding - Var::<f32>::from(1.0);
+            let padding            = 2.px() * &padding * &selected;
+            let padding_aliased    = padding - 1.px();
             let width_frame_inner  = &width  - &padding_aliased;
             let height_frame_inner = &height - &padding_aliased;
             let width_frame_inner  = Var::<Distance<Pixels>>::from(width_frame_inner);
@@ -79,15 +77,13 @@ pub mod overlay {
     use super::*;
 
     ensogl::define_shape_system! {
-        (width:f32,height:f32,selected:f32,padding:f32,roundness:f32) {
-            let width_bg      = width.clone();
-            let height_bg     = height.clone();
-            let width_bg      = Var::<Distance<Pixels>>::from(width_bg);
-            let height_bg     = Var::<Distance<Pixels>>::from(height_bg);
-            let radius        = Var::<Distance<Pixels>>::from(padding);
+        (selected:f32,padding:f32,roundness:f32) {
+            let width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let radius        = 1.px() * &padding;
             let corner_radius = &radius * &roundness;
             let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
-            let overlay       = Rect((&width_bg,&height_bg)).corners_radius(&corner_radius);
+            let overlay       = Rect((&width,&height)).corners_radius(&corner_radius);
             let overlay       = overlay.fill(color_overlay);
             let out           = overlay;
             out.into()
@@ -111,7 +107,7 @@ pub struct Frp {
     pub set_data          : frp::Source<Data>,
     pub select            : frp::Source,
     pub deselect          : frp::Source,
-    pub set_size          : frp::Source<Option<Vector2<f32>>>,
+    pub set_size          : frp::Source<V2>,
     pub clicked           : frp::Stream,
     on_click              : frp::Source,
 }
@@ -136,45 +132,66 @@ impl Frp {
 
 
 
+// ==============
+// === Shapes ===
+// ==============
+
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct Shapes {
+    logger         : Logger,
+    display_object : display::object::Instance,
+    frame          : component::ShapeView<frame::Shape>,
+    overlay        : component::ShapeView<overlay::Shape>,
+}
+
+impl Shapes {
+    pub fn new(logger:&Logger, scene:&Scene) -> Self {
+        let logger         = logger.sub("shapes");
+        let display_object = display::object::Instance::new(&logger);
+        let frame          = component::ShapeView::<frame::Shape>::new(&logger,scene);
+        let overlay        = component::ShapeView::<overlay::Shape>::new(&logger,scene);
+        display_object.add_child(&overlay);
+        display_object.add_child(&frame);
+        Self {logger,display_object,frame,overlay}
+    }
+}
+
+impl display::Object for Shapes {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
+
+
 // ======================
 // === ContainerModel ===
 // ======================
 
 /// Internal data of a `Container`.
-#[derive(Debug,Clone)]
+#[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ContainerModel {
-    logger                  : Logger,
-    size                    : Cell<Vector2<f32>>,
-    padding                 : Cell<f32>,
-    display_object          : display::object::Instance,
-    display_object_internal : display::object::Instance,
-
-    visualization           : RefCell<Option<Visualization>>,
-    shape_frame             : component::ShapeView<frame::Shape>,
-    shape_overlay           : component::ShapeView<overlay::Shape>,
-    scene                   : Scene
-
+    logger                : Logger,
+    display_object        : display::object::Instance,
+    size                  : Cell<V2>,
+    padding               : Cell<f32>,
+    visualization         : RefCell<Option<Visualization>>,
+    scene                 : Scene,
+    shapes                : Shapes,
 }
 
 impl ContainerModel {
     pub fn new(scene:&Scene) -> Self {
-        let logger                  = Logger::new("visualization_container");
-        let visualization           = default();
-        let size                    = Cell::new(Vector2::new(200.0, 200.0));
-        let display_object          = display::object::Instance::new(&logger);
-        let display_object_internal = display::object::Instance::new(&logger);
-
-        let padding                 = Cell::new(10.0);
-        let shape_frame             = component::ShapeView::<frame::Shape>::new(&logger,scene);
-        let shape_overlay           = component::ShapeView::<overlay::Shape>::new(&logger,scene);
-        let scene                   = scene.clone_ref();
-
-        display_object_internal.add_child(&shape_overlay);
-        display_object_internal.add_child(&shape_frame);
-
-        Self {logger,visualization,size,display_object,shape_frame,display_object_internal,padding
-             ,scene,shape_overlay} . init()
+        let logger         = Logger::new("visualization_container");
+        let display_object = display::object::Instance::new(&logger);
+        let visualization  = default();
+        let size           = Cell::new(V2(200.0, 200.0));
+        let padding        = Cell::new(10.0);
+        let shapes         = Shapes::new(&logger,scene);
+        let scene          = scene.clone_ref();
+        Self {logger,visualization,size,display_object,shapes,padding,scene} . init()
     }
 
     fn init(self) -> Self {
@@ -189,13 +206,13 @@ impl ContainerModel {
 
     /// Set whether the visualization should be visible or not.
     pub fn set_visibility(&self, visibility:bool) {
-        if visibility { self.add_child    (&self.display_object_internal) }
-        else          { self.remove_child (&self.display_object_internal) }
+        if visibility { self.add_child    (&self.shapes) }
+        else          { self.remove_child (&self.shapes) }
     }
 
     /// Indicates whether the visualization is visible.
     pub fn is_visible(&self) -> bool {
-        self.display_object_internal.has_parent()
+        self.shapes.has_parent()
     }
 
     /// Toggle visibility.
@@ -204,27 +221,25 @@ impl ContainerModel {
     }
 
     /// Set the visualization shown in this container.
-    pub fn set_visualization(&self, visualization:Visualization) {
-        let size = self.size.get();
-        visualization.set_size(size);
-        self.display_object_internal.add_child(&visualization);
-        self.visualization.replace(Some(visualization));
+    fn set_visualization(&self, visualization:Option<Visualization>) {
+        if let Some(visualization) = visualization {
+            let size = self.size.get();
+            visualization.set_size(size);
+            self.shapes.add_child(&visualization);
+            self.visualization.replace(Some(visualization));
+        }
+    }
+
+    fn set_visualization_data(&self, data:&Data) {
+        self.visualization.borrow().for_each_ref(|vis| vis.frp.set_data.emit(data))
     }
 
     fn update_shape_sizes(&self) {
-        let overlay_shape = &self.shape_overlay.shape;
-        let frame_shape   = &self.shape_frame.shape;
-        let padding       = self.padding.get();
-        let width         = self.size.get().x;
-        let height        = self.size.get().y;
-        frame_shape.width.set(width);
-        frame_shape.height.set(height);
-        frame_shape.padding.set(padding);
-        frame_shape.sprite.size().set(Vector2::new(width, height));
-        overlay_shape.width.set(width);
-        overlay_shape.height.set(height);
-        overlay_shape.padding.set(padding);
-        overlay_shape.sprite.size().set(Vector2::new(width, height));
+        let padding = self.padding.get();
+        self.shapes.frame   . shape.padding.set(padding);
+        self.shapes.overlay . shape.padding.set(padding);
+        self.shapes.frame   . shape.sprite.size().set(self.size.get().into());
+        self.shapes.overlay . shape.sprite.size().set(self.size.get().into());
     }
 
     fn set_size(&self, size:Vector3<f32>) {
@@ -232,16 +247,16 @@ impl ContainerModel {
             let padding  = self.padding.get() * 2.0;
             let padding  = Vector2::new(padding, padding);
             let vis_size = size.xy() - padding;
-            vis.set_size(vis_size);
+            vis.set_size(vis_size.into());
         }
 
-        self.size.set(size.xy());
+        self.size.set(size.xy().into());
         self.update_shape_sizes();
     }
 
     fn set_corner_roundness(&self, value:f32) {
-        self.shape_overlay.shape.roundness.set(value);
-        self.shape_frame.shape.roundness.set(value);
+        self.shapes.overlay.shape.roundness.set(value);
+        self.shapes.frame.shape.roundness.set(value);
     }
 }
 
@@ -269,19 +284,13 @@ pub struct Container {
     network   : frp::Network,
 }
 
-impl Drop for Container {
-    fn drop(&mut self) {
-        println!("container drop");
-    }
-}
-
 impl Container {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
         let network = frp::Network::new();
         let frp     = Frp::new(&network);
         let model   = Rc::new(ContainerModel::new(scene));
-        model.set_visualization(Registry::default_visualisation(scene));
+        model.set_visualization(Some(Registry::default_visualisation(scene)));
         Self {model,frp,network} . init()
     }
 
@@ -290,24 +299,15 @@ impl Container {
         let network   = &self.network;
         let model     = &self.model;
         let selection = Animation::new(network);
-
         frp::extend! { network
-            eval  selection.value ((value) model.shape_frame.shape.selected.set(*value));
-            eval  inputs.set_visibility((v) model.set_visibility(*v));
+            eval  selection.value          ((value) model.shapes.frame.shape.selected.set(*value));
+            eval  inputs.set_visibility    ((v) model.set_visibility(*v));
             eval_ inputs.toggle_visibility (model.toggle_visibility());
-
-            def _f_set_vis = inputs.set_visualization.map(f!([model](visualization) {
-                if let Some(visualization) = visualization.as_ref() {
-                    model.set_visualization(visualization.clone());
-                }
-            }));
-
-            eval inputs.set_data ((t) model.visualization.borrow().for_each_ref(|vis| vis.frp.set_data.emit(t)));
-
-            eval inputs.select   ((_) selection.set_target_value(1.0));
-            eval inputs.deselect ((_) selection.set_target_value(0.0));
-
-            eval_ model.shape_overlay.events.mouse_down (inputs.on_click.emit(()));
+            eval  inputs.set_visualization ((v) model.set_visualization(v.clone()));
+            eval  inputs.set_data          ((t) model.set_visualization_data(t));
+            eval  inputs.select            ((_) selection.set_target_value(1.0));
+            eval  inputs.deselect          ((_) selection.set_target_value(0.0));
+            eval_ model.shapes.overlay.events.mouse_down (inputs.on_click.emit(()));
         }
         self
     }

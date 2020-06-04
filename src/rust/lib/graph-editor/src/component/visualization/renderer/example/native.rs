@@ -50,7 +50,7 @@ pub struct BubbleChart {
         frp            : DataRendererFrp,
         views          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
         logger         : Logger,
-        size           : Cell<Vector2<f32>>,
+        size           : Cell<V2>,
 }
 
 #[allow(missing_docs)]
@@ -60,9 +60,8 @@ impl BubbleChart {
         let display_object = display::object::Instance::new(&logger);
         let views          = RefCell::new(vec![]);
         let frp            = default();
-        let size           = Cell::new(Vector2::zero());
+        let size           = default();
         let scene          = scene.clone_ref();
-
         BubbleChart { display_object,views,logger,frp,size,scene }
     }
 }
@@ -79,16 +78,16 @@ impl DataRenderer for BubbleChart {
         // But this ensures that we can get a cropped view area and avoids an issue with the data
         // and position not matching up.
         views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
+            let size : Vector2<f32> = self.size.get().into();
             view.display_object.set_parent(&self.display_object);
-            view.shape.sprite.size().set(self.size.get());
+            view.shape.sprite.size().set(size);
             view.shape.radius.set(item.z);
-            view.shape.position.set(Vector2::new(item.x,item.y) - self.size.get() / 2.0);
-
+            view.shape.position.set(Vector2::new(item.x,item.y) - size / 2.0);
         });
         Ok(())
     }
 
-    fn set_size(&self, size:Vector2<f32>) {
+    fn set_size(&self, size:V2) {
         self.size.set(size);
     }
 
@@ -134,7 +133,7 @@ impl display::Object for BubbleChart {
 pub struct RawText {
     scene     : Scene,
     root_node : DomSymbol,
-    size      : Cell<Vector2<f32>>,
+    size      : Cell<V2>,
     frp       : DataRendererFrp,
     logger    : Logger,
 }
@@ -146,7 +145,7 @@ impl RawText {
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         let frp       = default();
-        let size      = Cell::new(Vector2::zero());
+        let size      = default();
         let scene     = scene.clone_ref();
 
         // FIXME It seems by default the text here is mirrored.
@@ -197,7 +196,7 @@ impl DataRenderer for RawText {
         Ok(())
     }
 
-    fn set_size(&self, size:Vector2<f32>) {
+    fn set_size(&self, size:V2) {
         self.size.set(size);
         self.update_style();
     }

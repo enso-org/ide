@@ -202,7 +202,7 @@ impl Visualization {
     }
 
     /// Set the viewport size of the visualization.
-    pub fn set_size(&self, size:Vector2<f32>) {
+    pub fn set_size(&self, size:V2) {
         self.state.renderer.set_size(size)
     }
 }
