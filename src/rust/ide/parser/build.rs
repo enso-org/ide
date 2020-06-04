@@ -90,8 +90,8 @@ impl ParserProvider {
         let get_error      = format!("Failed to get response from {}.",    url);
         let download_error = format!("Failed to download contents of {}.", url);
         let server_error   = format!("Server replied with error when getting {}.", url);
-        let response = reqwest::get(url).await.expect(&get_error);
-        let response = response.error_for_status().expect(&server_error);
+        let response       = reqwest::get(url).await.expect(&get_error);
+        let response       = response.error_for_status().expect(&server_error);
         response.bytes().await.expect(&download_error)
     }
 
