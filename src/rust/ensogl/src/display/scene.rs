@@ -262,22 +262,22 @@ mod target_tests {
 
     #[test]
     fn test_encoding() {
-        let pack   = Target::encode(0,0);
+        let pack = Target::encode(0,0);
         assert_eq!(pack,DecodingResult::Ok(0,0,0));
 
-        let pack   = Target::encode(3,7);
+        let pack = Target::encode(3,7);
         assert_eq!(pack,DecodingResult::Ok(0,48,7));
 
-        let pack   = Target::encode(3,256);
+        let pack = Target::encode(3,256);
         assert_eq!(pack,DecodingResult::Ok(0,49,0));
 
-        let pack   = Target::encode(255,356);
+        let pack = Target::encode(255,356);
         assert_eq!(pack,DecodingResult::Ok(15,241,100));
 
-        let pack   = Target::encode(256,356);
+        let pack = Target::encode(256,356);
         assert_eq!(pack,DecodingResult::Ok(16,1,100));
 
-        let pack   = Target::encode(31256,0);
+        let pack = Target::encode(31256,0);
         assert_eq!(pack,DecodingResult::Truncated(161,128,0));
     }
 }

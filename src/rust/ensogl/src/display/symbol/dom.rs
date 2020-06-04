@@ -29,7 +29,7 @@ mod js {
 
         export function set_object_transform(dom, matrix_array) {
             let css = arr_to_css_matrix3d(matrix_array);
-            dom.style.transform = css + 'translate(-50%, -50%)';
+            dom.style.transform = 'translate(-50%, -50%)' + css;
         }
     ")]
     extern "C" {
@@ -109,8 +109,7 @@ impl DomSymbol {
         let display_object = display::object::Instance::new(logger);
         let guard          = Rc::new(Guard::new(&display_object,&dom));
         display_object.set_on_updated(enclose!((dom) move |t| {
-            let transform     = t.matrix();
-            let mut transform = invert_y(transform);
+            let mut transform = t.matrix();
             transform.iter_mut().for_each(|a| *a = eps(*a));
             set_object_transform(&dom,&transform);
         }));
