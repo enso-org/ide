@@ -26,6 +26,9 @@ const BASE_SIZE           : f32 = 0.5;
 const HIGHLIGHT_SIZE      : f32 = 1.0;
 const SEGMENT_GAP_WIDTH   : f32 = 2.0;
 
+const SHOW_DELAY_DURATION : f32 = 150.0;
+const HIDE_DELAY_DURATION : f32 = 25.0;
+
 
 
 // ==============
@@ -354,6 +357,12 @@ impl OutputPorts {
                 ));
             }
         }
+
+        // FIXME this is a hack to ensure the ports are invisible at startup.
+        // Right noe we get some of FRP mouse events on startup that leave the
+        // ports visible by default.
+        // Once that is fixed, remove this line.
+        on_hide_delay_finish.emit(());
     }
 
     // TODO: Implement proper sorting and remove.
