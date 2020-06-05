@@ -68,16 +68,18 @@ impl Registry {
     pub fn new(logger:&Logger, command_registry:&command::Registry) -> Self {
         let model = RegistryModel::new(logger,command_registry);
 
-        // TODO this should probably be in some IDE configuration.
+        // TODO move to theme configuration.
         let double_press_threshold_ms = 300.0;
         frp::new_network! { network
             let key_mask = model.keyboard.key_mask.clone_ref();
             nothing_pressed    <- key_mask.map(|m| *m == default());
             single_press       <- key_mask.gate_not(&nothing_pressed);
+            single_press_prev  <- single_press.previous();
             press_time         <- single_press.map(|_| web::performance().now());
-            timed_previous     <- press_time.previous();
-            time_delta         <- press_time.all_with(&timed_previous, |t1,t2| (t1-t2));
-            is_double_press    <- time_delta.map(move |delta| *delta < double_press_threshold_ms);
+            press_time_prev    <- press_time.previous();
+            time_delta         <- press_time.map2(&press_time_prev, |t1,t2| (t1-t2));
+            is_double_press    <- time_delta.map3(&single_press,&single_press_prev,
+                move |delta,t,s| *delta < double_press_threshold_ms && t == s);
             double_press       <- single_press.gate(&is_double_press);
             let prev_key = model.keyboard.previous_key_mask.clone_ref();
             the_same_key       <- prev_key.map2(&key_mask,|t,s| t == s);
