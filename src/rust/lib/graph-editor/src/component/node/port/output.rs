@@ -12,6 +12,7 @@ use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::gui::component::Animation;
+use ensogl::gui::component::Tween;
 use ensogl::gui::component;
 
 use crate::node;
