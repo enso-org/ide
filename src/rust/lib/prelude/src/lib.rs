@@ -122,29 +122,47 @@ impl<T> Deref for Immutable<T> {
 /// creation time and store it as `f32`. As long as it cannot be mutated, the structure can
 /// implement `CloneRef`. In order to guide the auto-deriving mechanism, it is advised to wrap all
 /// immutable fields in the `Immutable` newtype.
-pub trait CloneRef: Sized + Clone {
-    fn clone_ref(&self) -> Self {
-        self.clone()
-    }
+pub trait CloneRef: Sized {
+    fn clone_ref(&self) -> Self;
 }
 
-impl CloneRef for () {}
-impl CloneRef for f32 {}
-impl CloneRef for f64 {}
-impl CloneRef for i32 {}
-impl CloneRef for i64 {}
-impl CloneRef for usize {}
-impl<T> CloneRef for PhantomData<T> {}
-impl<T:?Sized> CloneRef for Rc<T> {}
-impl<T:?Sized> CloneRef for Weak<T> {}
+#[macro_export]
+macro_rules! impl_clone_ref_as_clone {
+    ([$($bounds:tt)*] $($toks:tt)*) => {
+        impl <$($bounds)*> CloneRef for $($toks)* {
+            fn clone_ref(&self) -> Self {
+                self.clone()
+            }
+        }
+    };
 
-impl CloneRef for wasm_bindgen::JsValue {}
-impl CloneRef for web_sys::HtmlDivElement {}
-impl CloneRef for web_sys::HtmlElement {}
-impl CloneRef for web_sys::Performance {}
-impl CloneRef for web_sys::WebGl2RenderingContext {}
-impl CloneRef for web_sys::HtmlCanvasElement {}
-impl CloneRef for web_sys::EventTarget {}
+    ($($toks:tt)*) => {
+        impl CloneRef for $($toks)* {
+            fn clone_ref(&self) -> Self {
+                self.clone()
+            }
+        }
+    };
+}
+
+impl_clone_ref_as_clone!(());
+impl_clone_ref_as_clone!(f32);
+impl_clone_ref_as_clone!(f64);
+impl_clone_ref_as_clone!(i32);
+impl_clone_ref_as_clone!(i64);
+impl_clone_ref_as_clone!(usize);
+impl_clone_ref_as_clone!([T] PhantomData<T>);
+impl_clone_ref_as_clone!([T:?Sized] Rc<T>);
+impl_clone_ref_as_clone!([T:?Sized] Weak<T>);
+
+impl_clone_ref_as_clone!(wasm_bindgen::JsValue);
+impl_clone_ref_as_clone!(web_sys::HtmlDivElement);
+impl_clone_ref_as_clone!(web_sys::HtmlElement);
+impl_clone_ref_as_clone!(web_sys::Performance);
+impl_clone_ref_as_clone!(web_sys::WebGl2RenderingContext);
+impl_clone_ref_as_clone!(web_sys::HtmlCanvasElement);
+impl_clone_ref_as_clone!(web_sys::EventTarget);
+
 
 /// Provides method `to`, which is just like `into` but allows fo superfish syntax.
 pub trait ToImpl: Sized {

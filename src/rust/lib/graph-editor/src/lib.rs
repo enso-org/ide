@@ -12,7 +12,9 @@
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
 #![feature(unboxed_closures)]
+#![feature(vec_remove_item)]
 #![feature(weak_into_raw)]
+#![feature(entry_insert)]
 #![feature(fn_traits)]
 
 #![warn(trivial_casts)]
@@ -61,6 +63,55 @@ use nalgebra::Vector2;
 
 
 const VIZ_PREVIEW_MODE_TOGGLE_TIME_MS : f32 = 300.0;
+
+
+#[derive(Clone,CloneRef,Debug,Derivative)]
+#[derivative(Default(bound=""))]
+pub struct SharedVec<T> {
+    pub raw : Rc<RefCell<Vec<T>>>
+}
+
+impl<T> SharedVec<T> {
+    /// Constructor.
+    pub fn new() -> Self {
+        default()
+    }
+
+    /// Append an element to the back of a collection.
+    pub fn push(&self, t:T) {
+        self.raw.borrow_mut().push(t);
+    }
+
+    /// Remove the first instance of `item` from the vector if the item exists.
+    pub fn remove_item(&self, t:&T) where T:PartialEq {
+        self.raw.borrow_mut().remove_item(t);
+    }
+
+    /// Return `true` if the slice contains an element with the given value.
+    pub fn contains(&self, t:&T) -> bool where T:PartialEq {
+        self.raw.borrow().contains(t)
+    }
+
+    /// Return clone of the last element of the slice, or `None` if it is empty.
+    pub fn last_cloned(&self) -> Option<T> where T:Clone {
+        self.raw.borrow().last().cloned()
+    }
+
+    /// Replace the collection with the default value, and return the previous value.
+    pub fn mem_take(&self) -> Vec<T> {
+        mem::take(&mut self.raw.borrow_mut())
+    }
+}
+
+impl<T:Clone> SharedVec<T> {
+    /// Return a vector of all items stored in the collection in order.
+    pub fn items(&self) -> Vec<T> {
+        self.raw.borrow().clone()
+    }
+}
+
+
+
 
 
 // =====================
@@ -258,6 +309,8 @@ ensogl::def_command_api! { Commands
     toggle_visualization_visibility,
     /// Simulates a visualization open press event. In case the event will be shortly followed by `release_visualization_visibility`, the visualization will be shown permanently. In other case, it will be disabled as soon as the `release_visualization_visibility` is emitted.
     press_visualization_visibility,
+    /// Simulates a visualization open double press event. This event toggles the visualization fullscreen mode.
+    double_press_visualization_visibility,
     /// Simulates a visualization open release event. See `press_visualization_visibility` to learn more.
     release_visualization_visibility,
     /// Set a test visualization data for the selected nodes. Useful for testing visualizations during their development.
@@ -303,38 +356,39 @@ ensogl::def_command_api! { Commands
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def add_node                         = source();
-            def add_node_at_cursor               = source();
-            def remove_selected_nodes            = source();
-            def remove_all_nodes                 = source();
-            def toggle_visualization_visibility  = source();
-            def press_visualization_visibility   = source();
-            def release_visualization_visibility = source();
+            def add_node                              = source();
+            def add_node_at_cursor                    = source();
+            def remove_selected_nodes                 = source();
+            def remove_all_nodes                      = source();
+            def toggle_visualization_visibility       = source();
+            def press_visualization_visibility        = source();
+            def double_press_visualization_visibility = source();
+            def release_visualization_visibility      = source();
 
-            def enable_node_multi_select         = source();
-            def disable_node_multi_select        = source();
-            def toggle_node_multi_select         = source();
+            def enable_node_multi_select              = source();
+            def disable_node_multi_select             = source();
+            def toggle_node_multi_select              = source();
 
-            def enable_node_merge_select         = source();
-            def disable_node_merge_select        = source();
-            def toggle_node_merge_select         = source();
+            def enable_node_merge_select              = source();
+            def disable_node_merge_select             = source();
+            def toggle_node_merge_select              = source();
 
-            def enable_node_subtract_select      = source();
-            def disable_node_subtract_select     = source();
-            def toggle_node_subtract_select      = source();
+            def enable_node_subtract_select           = source();
+            def disable_node_subtract_select          = source();
+            def toggle_node_subtract_select           = source();
 
-            def enable_node_inverse_select       = source();
-            def disable_node_inverse_select      = source();
-            def toggle_node_inverse_select       = source();
+            def enable_node_inverse_select            = source();
+            def disable_node_inverse_select           = source();
+            def toggle_node_inverse_select            = source();
 
-            def set_test_visualization_data_for_selected_node   = source();
-            def cycle_visualization_for_selected_node = source();
+            def set_test_visualization_data_for_selected_node = source();
+            def cycle_visualization_for_selected_node         = source();
 
             def toggle_fullscreen_for_selected_visualization = source();
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
              ,toggle_visualization_visibility,press_visualization_visibility
-             ,release_visualization_visibility
+             ,double_press_visualization_visibility,release_visualization_visibility
              ,enable_node_multi_select,disable_node_multi_select,toggle_node_multi_select
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
@@ -514,6 +568,7 @@ generate_frp_outputs! {
 
     visualization_enabled  : NodeId,
     visualization_disabled : NodeId,
+    visualization_enable_fullscreen : NodeId,
 }
 
 
@@ -649,7 +704,7 @@ impl EdgeTarget {
 pub struct Nodes {
     pub logger   : Logger,
     pub all      : SharedHashMap<NodeId,Node>,
-    pub selected : SharedHashSet<NodeId>,
+    pub selected : SharedVec<NodeId>,
 }
 
 impl Deref for Nodes {
@@ -886,7 +941,7 @@ impl GraphEditorModel {
     }
 
     pub fn selected_nodes(&self) -> Vec<NodeId> {
-        self.nodes.selected.keys()
+        self.nodes.selected.items()
     }
 }
 
@@ -897,7 +952,7 @@ impl GraphEditorModel {
     fn select_node(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            self.nodes.selected.insert(node_id);
+            self.nodes.selected.push(node_id);
             node.frp.select.emit(());
         }
     }
@@ -905,9 +960,13 @@ impl GraphEditorModel {
     fn deselect_node(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            self.nodes.selected.remove(&node_id);
+            self.nodes.selected.remove_item(&node_id);
             node.frp.deselect.emit(());
         }
+    }
+
+    fn last_selected_node(&self) -> Option<NodeId> {
+        self.nodes.selected.last_cloned()
     }
 }
 
@@ -953,7 +1012,7 @@ impl GraphEditorModel {
     fn remove_node(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         self.nodes.remove(&node_id);
-        self.nodes.selected.remove(&node_id);
+        self.nodes.selected.remove_item(&node_id);
     }
 
     fn node_in_edges(&self, node_id:impl Into<NodeId>) -> Vec<EdgeId> {
@@ -1184,22 +1243,23 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::Character("n".into())])               , "add_node_at_cursor")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace])                           , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character(" ".into())])               , "press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Character(" ".into())])               , "release_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Meta])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Meta])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control])                             , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Control])                             , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift])                               , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Shift])                               , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Alt])                                 , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Alt])                                 , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::release (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Character("d".into())])               , "set_test_visualization_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press   (&[Key::Control, Key::Character("f".into())]) , "cycle_visualization_for_selected_node")
+        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Character("n".into())])               , "add_node_at_cursor")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Backspace])                           , "remove_selected_nodes")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character(" ".into())])               , "press_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::double_press (&[Key::Character(" ".into())])               , "double_press_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Character(" ".into())])               , "release_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta])                                , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta])                                , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control])                             , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control])                             , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift])                               , "toggle_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift])                               , "toggle_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Alt])                                 , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Alt])                                 , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("d".into())])               , "set_test_visualization_data_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control, Key::Character("f".into())]) , "cycle_visualization_for_selected_node")
              ]
     }
 }
@@ -1422,8 +1482,6 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
 
     let node_output_touch = TouchNetwork::<NodeId>::new(&network,&mouse);
-    trace node_output_touch.selected;
-
     on_connect_drag_mode   <- node_output_touch.down.constant(true);
     on_connect_follow_mode <- node_output_touch.selected.constant(false);
     connect_drag_mode      <- any (on_connect_drag_mode,on_connect_follow_mode);
@@ -1527,7 +1585,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     was_selected      <- touch.nodes.down.map(f!((id) model.nodes.selected.contains(id)));
     tx_sel_nodes      <- any (node_drag, inputs.translate_selected_nodes);
     non_selected_drag <- tx_sel_nodes.map2(&touch.nodes.down,|_,id|vec![*id]).gate_not(&was_selected);
-    selected_drag     <- tx_sel_nodes.map(f_!(model.nodes.selected.keys())).gate(&was_selected);
+    selected_drag     <- tx_sel_nodes.map(f_!(model.nodes.selected.items())).gate(&was_selected);
     nodes_to_drag     <- any (non_selected_drag, selected_drag);
     node_to_drag      <= nodes_to_drag;
     node_new_pos      <- node_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
@@ -1604,12 +1662,12 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // TODO remove this once real data is available.
     let sample_data_generator = MockDataGenerator3D::default();
     def _set_dumy_data = inputs.set_test_visualization_data_for_selected_node.map(f!([nodes,inputs](_) {
-        nodes.selected.for_each(|node_id| {
+        for node_id in &*nodes.selected.raw.borrow() {
             let data    = Rc::new(sample_data_generator.generate_data()); // FIXME: why rc?
             let content = serde_json::to_value(data).unwrap();
             let data    = visualization::Data::Json{ content };
             inputs.set_visualization_data.emit((*node_id,data));
-        })
+        }
     }));
 
     def _set_data = inputs.set_visualization_data.map(f!([nodes]((node_id,data)) {
@@ -1645,6 +1703,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     //     - If it was long, disable vis which were disabled (preview mode).
 
     let viz_press_ev      = inputs.press_visualization_visibility.clone_ref();
+    let viz_d_press_ev    = inputs.double_press_visualization_visibility.clone_ref();
     let viz_release       = inputs.release_visualization_visibility.clone_ref();
     viz_pressed          <- bool(&viz_release,&viz_press_ev);
     viz_was_pressed      <- viz_pressed.previous();
@@ -1669,9 +1728,12 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     viz_disable          <= viz_tgt_nodes.gate(&viz_tgt_nodes_all_on);
     viz_preview_disable  <= viz_tgt_nodes_off.sample(&viz_preview_mode_end);
 
+    viz_fullscreen_on <= viz_d_press_ev.map(f_!(model.last_selected_node()));
+
     outputs.visualization_enabled  <+ viz_enable;
     outputs.visualization_disabled <+ viz_disable;
     outputs.visualization_disabled <+ viz_preview_disable;
+    outputs.visualization_enable_fullscreen <+ viz_fullscreen_on;
 
 
     // === Register Visualization ===
