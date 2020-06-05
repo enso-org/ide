@@ -91,9 +91,9 @@ impl {
     pub fn new_instance<T:display::shape::system::Shape>(&mut self) -> T {
         let system = self.get_or_register::<ShapeSystemOf<T>>();
         let shape  = system.new_instance();
-        for sprite in &shape.sprites() {
-            sprite.unset_parent();
-        }
+        // for sprite in &shape.sprites() {
+        //     sprite.unset_parent();
+        // }
         shape
     }
 
@@ -700,13 +700,11 @@ impl ViewData {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Views {
     logger                    : Logger,
+    pub viz                   : View,
     pub main                  : View,
     pub cursor                : View,
     pub label                 : View,
-    pub overlay               : View,
-    pub visualisation         : View,
-    pub overlay_visualisation : View,
-    pub overlay_cursor        : View,
+    pub viz_fullscreen        : View,
     all                       : Rc<RefCell<Vec<WeakView>>>,
     width                     : f32,
     height                    : f32,
@@ -716,23 +714,19 @@ impl Views {
     pub fn mk(logger:&Logger, width:f32, height:f32) -> Self {
         let logger                 = logger.sub("views");
         let main                   = View::new(&logger,width,height);
+        let viz                    = View::new_with_camera(&logger,&main.camera);
         let cursor                 = View::new(&logger,width,height);
-        let visualisation          = View::new(&logger,width,height);
-        let overlay                = View::new(&logger,width,height);
-        let overlay_visualisation  = View::new(&logger,width,height);
-        let overlay_cursor         = View::new(&logger,width,height);
         let label                  = View::new_with_camera(&logger,&main.camera);
+        let viz_fullscreen         = View::new(&logger,width,height);
         let all                    = vec![
+            viz.downgrade(),
             main.downgrade(),
-            visualisation.downgrade(),
             cursor.downgrade(),
             label.downgrade(),
-            overlay.downgrade(),
-            overlay_visualisation.downgrade(),
-            overlay_cursor.downgrade(),
+            viz_fullscreen.downgrade()
         ];
         let all                    = Rc::new(RefCell::new(all));
-        Self {logger,main,overlay,cursor,label,visualisation,overlay_cursor,overlay_visualisation,
+        Self {logger,viz,main,cursor,label,viz_fullscreen,
               all,width,height}
     }
 
@@ -748,12 +742,12 @@ impl Views {
         self.all.borrow()
     }
 
-    /// Move cursor from/to cursor/cursor_overlay layer.
-    pub fn toggle_overlay_cursor(&self) {
-        let mut bottom_symbols = self.cursor.symbols.borrow_mut();
-        let mut top_symbols    = self.overlay_cursor.symbols.borrow_mut();
-        mem::swap(bottom_symbols.deref_mut(), top_symbols.deref_mut());
-    }
+//    /// Move cursor from/to cursor/cursor_overlay layer.
+//    pub fn toggle_overlay_cursor(&self) {
+//        let mut bottom_symbols = self.cursor.symbols.borrow_mut();
+//        let mut top_symbols    = self.overlay_cursor.symbols.borrow_mut();
+//        mem::swap(bottom_symbols.deref_mut(), top_symbols.deref_mut());
+//    }
 
     pub fn remove_symbol(&self, symbol:&Symbol) {
         self.all().iter().for_each(|weak_layer| {
