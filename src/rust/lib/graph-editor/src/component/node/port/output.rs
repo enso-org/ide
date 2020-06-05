@@ -163,17 +163,17 @@ impl OutPutPortsData {
     }
 
     fn update_shape_layout_based_on_size(&self) {
-        let port_num      = self.ports.borrow().len() as f32;
+        let port_num    = self.ports.borrow().len() as f32;
 
-        let width         = self.size.get().x;
-        let height        = self.size.get().y;
-        let element_width = (width - NODE_SHAPE_PADDING) / port_num;
-        let element_size  = Vector2::new(element_width,height);
-        let gap_width     = self.gap_width.get();
+        let width       = self.size.get().x;
+        let height      = self.size.get().y;
+        let port_width  = (width - NODE_SHAPE_PADDING) / port_num;
+        let port_size   = Vector2::new(port_width, height);
+        let gap_width   = self.gap_width.get();
 
         // Align shapes along width.
         let x_start = -width / 2.0 + NODE_SHAPE_PADDING;
-        let x_delta = element_width;
+        let x_delta = port_width;
         for (index, view) in self.ports.borrow().iter().enumerate(){
             view.display_object().set_parent(&self.display_object);
 
@@ -183,7 +183,7 @@ impl OutPutPortsData {
             view.set_position_xy(pos);
 
             let shape = &view.shape;
-            shape.sprite.size().set(element_size);
+            shape.sprite.size().set(port_size);
             shape.shape_width.set(width);
             shape.padding.set(gap_width);
             shape.offset_x.set(x_delta * index as f32);
