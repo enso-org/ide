@@ -15,6 +15,7 @@ use ensogl::display::DomSymbol;
 use ensogl::display::Symbol;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
+use ensogl::display::scene;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
@@ -119,10 +120,12 @@ pub struct Frp {
     pub disable_fullscreen : frp::Source,
     pub clicked            : frp::Stream,
     on_click               : frp::Source,
+    scene_shape            : frp::Sampler<scene::Shape>,
+    size                   : frp::Sampler<V2>,
 }
 
 impl Frp {
-    fn new(network:&frp::Network) -> Self {
+    fn new(network:&frp::Network, scene:&Scene) -> Self {
         frp::extend! { network
             set_visibility     <- source();
             toggle_visibility  <- source();
@@ -132,12 +135,16 @@ impl Frp {
             deselect           <- source();
             on_click           <- source();
             set_size           <- source();
+            trace set_size;
             enable_fullscreen  <- source();
             disable_fullscreen <- source();
+            size               <- set_size.sampler();
+            trace size;
             let clicked         = on_click.clone_ref().into();
         };
+        let scene_shape = scene.shape().clone_ref();
         Self {set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
-              clicked,set_size,on_click,enable_fullscreen,disable_fullscreen}
+              clicked,set_size,on_click,enable_fullscreen,disable_fullscreen,scene_shape,size}
     }
 }
 
@@ -186,30 +193,29 @@ impl display::Object for Shapes {
 pub struct ContainerModel {
     logger         : Logger,
     display_object : display::object::Instance,
-    size           : Cell<V2>,
+    frp            : Frp,
     visualization  : RefCell<Option<Visualization>>,
     scene          : Scene,
     shapes         : Shapes,
 }
 
 impl ContainerModel {
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
+    pub fn new(logger:&Logger, scene:&Scene, network:&frp::Network) -> Self {
         let logger         = logger.sub("visualization_container");
         let display_object = display::object::Instance::new(&logger);
         let visualization  = default();
-        let size           = Cell::new(DEFAULT_SIZE);
+        let frp            = Frp::new(&network,scene);
         let shapes         = Shapes::new(&logger,scene);
         let scene          = scene.clone_ref();
-        Self {logger,visualization,size,display_object,shapes,scene} . init()
+        Self {logger,frp,visualization,display_object,shapes,scene} . init()
     }
 
     fn init(self) -> Self {
+        self.update_shape_sizes();
+        self.init_corner_roundness();
         // FIXME: These 2 lines fix a bug with display objects visible on stage.
         self.set_visibility(true);
         self.set_visibility(false);
-
-        self.update_shape_sizes();
-        self.init_corner_roundness();
         self
     }
 
@@ -235,10 +241,13 @@ impl ContainerModel {
 
     fn set_visualization(&self, visualization:Option<Visualization>) {
         if let Some(visualization) = visualization {
-            let size = self.size.get();
+            let size = self.frp.size.value();
+            println!(">>> {:?}", size);
             visualization.set_size.emit(size);
             self.shapes.add_child(&visualization);
             self.visualization.replace(Some(visualization));
+
+
         }
     }
 
@@ -247,23 +256,36 @@ impl ContainerModel {
     }
 
     fn update_shape_sizes(&self) {
-        let size = self.size.get().into();
+        let size = self.frp.size.value().into();
         self.shapes.frame   . shape.radius.set(CORNER_RADIUS);
         self.shapes.overlay . shape.radius.set(CORNER_RADIUS);
         self.shapes.frame   . shape.sprite.size().set(size);
         self.shapes.overlay . shape.sprite.size().set(size);
     }
 
-    fn set_size(&self, size:Vector3<f32>) {
-        if let Some(vis) = self.visualization.borrow().as_ref() {
-            let radius = CORNER_RADIUS * 2.0;
-            let radius = Vector2::new(radius, radius);
-            let vis_size = size.xy() - radius;
-            vis.set_size.emit(&vis_size.into());
+    fn set_size(&self, size:impl Into<V2>) {
+        let size = size.into();
+        println!("set size {:?}", size);
+
+        self.shapes.frame   . shape.radius.set(CORNER_RADIUS);
+        self.shapes.overlay . shape.radius.set(CORNER_RADIUS);
+        self.shapes.frame   . shape.sprite.size().set(size.into());
+        self.shapes.overlay . shape.sprite.size().set(size.into());
+
+        if let Some(viz) = &*self.visualization.borrow() {
+            viz.set_size.emit(size);
         }
 
-        self.size.set(size.xy().into());
-        self.update_shape_sizes();
+//        if let Some(vis) = self.visualization.borrow().as_ref() {
+//            let radius   = CORNER_RADIUS * 2.0;
+//            let radius   = V2(radius,radius);
+//            let vis_size = size - radius;
+//            vis.set_size.emit(vis_size);
+//        }
+//
+//        self.size.set(size);
+//        self.update_shape_sizes();
+
     }
 
     fn init_corner_roundness(&self) {
@@ -304,20 +326,19 @@ impl Container {
     /// Constructor.
     pub fn new(logger:&Logger,scene:&Scene) -> Self {
         let network = frp::Network::new();
-        let frp     = Frp::new(&network);
-        let model   = Rc::new(ContainerModel::new(logger,scene));
-        let def_viz =
-        model.set_visualization(Some(Registry::default_visualisation(scene)));
-        Self {model,frp,network} . init()
+        let model   = Rc::new(ContainerModel::new(logger,scene,&network));
+        let frp     = model.frp.clone_ref();
+        Self {model,frp,network} . init(scene)
     }
 
-    fn init(self) -> Self {
-        let inputs    = &self.frp;
-        let network   = &self.network;
-        let model     = &self.model;
-        let selection = Animation::new(network);
-
+    fn init(self,scene:&Scene) -> Self {
+        let inputs     = &self.frp;
+        let network    = &self.network;
+        let model      = &self.model;
+        let selection  = Animation::new(network);
         let fullscreen = Animation::new(network);
+        let size       = Animation::<V2>::new(network);
+
 
         frp::extend! { network
             eval  selection.value          ((value) model.shapes.frame.shape.selected.set(*value));
@@ -334,9 +355,29 @@ impl Container {
             eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
             trace inputs.enable_fullscreen;
 
-            eval fullscreen.value ((v) model.set_corner_roundness(1.0 - v));
+            _foo <- fullscreen.value.all_with3
+                (&inputs.set_size,&inputs.scene_shape,f!([model,size](v,s,shape) {
+                    println!("? {:?}",s);
+                    model.set_corner_roundness(1.0 - v);
+                    let shape : V2 = shape.into();
+                    let ss = s * (1.0 - v) + shape * v;
+
+                    size.set_target_value(ss);
+//                    model.set_size(shape);
+            }));
+
+            eval size.value ((v) model.set_size(v));
 
         }
+
+//        inputs.set_size.emit(DEFAULT_SIZE);
+
+        inputs.set_size.emit(DEFAULT_SIZE);
+        size.skip();
+
+        model.set_visualization(Some(Registry::default_visualisation(scene)));
+
+
         self
     }
 }
