@@ -14,6 +14,7 @@ use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl::system::web;
+use ensogl::system::web::StyleSetter;
 use ensogl::display::object::ObjectOps;
 use crate::frp;
 
@@ -202,9 +203,14 @@ impl RawTextModel {
         let frp     = RendererFrp::new(&network);
         let size    = Rc::new(Cell::new(V2(200.0,200.0)));
 
-        // FIXME It seems by default the text here is mirrored.
-        // FIXME This should be fixed in the DOMSymbol directly and removed here.
-        dom.set_rotation(Vector3::new(180.0_f32.to_radians(), 0.0, 0.0));
+        dom.dom().set_style_or_warn("white-space"   ,"pre"                  ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"    ,"auto"                 ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"    ,"auto"                 ,&logger);
+        dom.dom().set_style_or_warn("font-family"   ,"dejavuSansMono"       ,&logger);
+        dom.dom().set_style_or_warn("font-size"     ,"11px"                 ,&logger);
+        dom.dom().set_style_or_warn("margin-left"   ,"12px"                 ,&logger);
+        dom.dom().set_style_or_warn("color"         ,"rgba(255,255,255,0.7)",&logger);
+        dom.dom().set_style_or_warn("pointer-events","auto"                 ,&logger);
 
         scene.dom.layers.main.manage(&dom);
         RawTextModel{dom,logger,frp,size}.init()
@@ -233,19 +239,8 @@ impl RawTextModel {
     }
 
     fn reload_style(&self) {
-        let style = vec!
-            [ "white-space:pre;"
-            , "overflow-y:auto;"
-            , "overflow-x:auto;"
-            , "font-family:dejavuSansMono;"
-            , "font-size:11px;"
-            , "margin-left:12px;"
-            , "color:rgba(255,255,255,0.7);"
-            , &format!("height:{}px;",self.size.get().x)
-            , &format!("width:{}px;",self.size.get().y)
-            , "pointer-events:auto;"
-            ].join("");
-        self.dom.set_attribute("style",&style).unwrap();
+        let size = self.size.get();
+        self.dom.set_size(Vector2::new(size.x,size.y));
     }
 }
 

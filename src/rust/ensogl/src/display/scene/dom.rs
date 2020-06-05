@@ -163,6 +163,11 @@ impl DomScene {
         Self {data}
     }
 
+    /// Gets the number of children DomSymbols.
+    pub fn number_of_children(&self) -> u32 {
+        self.data.dom.children().length()
+    }
+
     /// Sets the z-index of this DOM element.
     pub fn set_z_index(&self, z:i32) {
         self.data.dom.set_style_or_warn("z-index", z.to_string(), &self.logger);

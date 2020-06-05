@@ -480,6 +480,7 @@ impl Layers {
         canvas.set_style_or_panic("display" , "block");
         main.dom.set_class_name("front");
         overlay.dom.set_class_name("back");
+        overlay.set_z_index(-1);
         dom.append_or_panic(&canvas);
         dom.append_or_panic(&main.dom);
         dom.append_or_panic(&overlay.dom);
@@ -946,8 +947,12 @@ impl SceneData {
         if changed {
             self.frp.camera_changed_source.emit(());
             self.symbols.set_camera(camera);
-            self.dom.layers.main.update_view_projection(camera);
-            // self.dom.layers.back.update_view_projection(camera);
+            if self.dom.layers.main.number_of_children() > 0 {
+                self.dom.layers.main.update_view_projection(camera);
+            }
+            if self.dom.layers.overlay.number_of_children() > 0 {
+                self.dom.layers.overlay.update_view_projection(camera);
+            }
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
