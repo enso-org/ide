@@ -12,7 +12,6 @@ use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
-use ensogl::gui::component::Tween;
 use ensogl::gui::component;
 
 use crate::node::NODE_SHAPE_PADDING;
@@ -28,9 +27,6 @@ use crate::node::NODE_SHAPE_RADIUS;
 const BASE_SIZE           : f32 = 0.5;
 const HIGHLIGHT_SIZE      : f32 = 1.0;
 const SEGMENT_GAP_WIDTH   : f32 = 2.0;
-
-const SHOW_DELAY_DURATION : f32 = 150.0;
-const HIDE_DELAY_DURATION : f32 = 25.0;
 
 
 
@@ -243,13 +239,13 @@ impl OutputPorts {
         let data    = &self.data;
 
         frp::extend! { network
-            eval  frp.set_size ((size) data.borrow_mut().set_size(size.into()));
+            eval  frp.set_size ((size) data.set_size(size.into()));
 
             def set_port_size      = source::<(PortId,f32)>();
             def set_port_sizes_all = source::<f32>();
 
             def _set_port_sizes = set_port_sizes_all.map(f!([set_port_size,data](size) {
-                let port_num = data.borrow().ports.borrow().len();
+                let port_num = data.ports.borrow().len();
                 for index in 0..port_num {
                     set_port_size.emit((index,*size));
                 };
@@ -259,7 +255,7 @@ impl OutputPorts {
             def set_port_opacity_all = source::<f32>();
 
             def _set_port_opacities = set_port_opacity_all.map(f!([set_port_opacity,data](size) {
-                let port_num = data.borrow().ports.borrow().len();
+                let port_num = data.ports.borrow().len();
                 for index in 0..port_num {
                     set_port_opacity.emit((index,*size));
                 };
@@ -267,7 +263,7 @@ impl OutputPorts {
         }
 
         // Init ports
-        for (index,view) in data.borrow().ports.borrow().iter().enumerate() {
+        for (index,view) in data.ports.borrow().iter().enumerate() {
             let shape        = &view.shape;
             let port_size    = Animation::<f32>::new(&network);
             let port_opacity = Animation::<f32>::new(&network);
@@ -299,12 +295,6 @@ impl OutputPorts {
                 eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
             }
         }
-
-        // FIXME this is a hack to ensure the ports are invisible at startup.
-        // Right noe we get some of FRP mouse events on startup that leave the
-        // ports visible by default.
-        // Once that is fixed, remove this line.
-        on_hide_delay_finish.emit(());
     }
 
     // TODO: Implement proper sorting and remove.
