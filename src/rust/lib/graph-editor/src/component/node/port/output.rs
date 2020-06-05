@@ -40,7 +40,6 @@ pub mod port_area {
 
     ensogl::define_shape_system! {
         (style:Style, grow:f32, shape_width:f32, offset_x:f32, padding:f32, opacity:f32) {
-
             let width  : Var<Distance<Pixels>> = shape_width.into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
             let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
@@ -74,14 +73,15 @@ pub mod port_area {
             let offset_x          = width/2.0 - offset_x;
             let port_area_aligned = port_area.translate_x(offset_x);
 
+            // Crop the sides of the visible area to show a gap between segments.
             let overall_width     = Var::<Distance<Pixels>>::from("input_size.x");
             let padding           = Var::<Distance<Pixels>>::from(&padding * 2.0);
             let crop_window_width = &overall_width - &padding;
             let crop_window       = Rect((&crop_window_width,&height));
             let crop_window       = crop_window.translate_y(-height * 0.5);
-
             let port_area_cropped = crop_window.intersection(port_area_aligned);
 
+            // FIXME: Use colour from style and apply transparency there.
             let color             = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
             let port_area_colored = port_area_cropped.fill(color);
 
@@ -132,7 +132,6 @@ impl Frp {
 #[derive(Debug)]
 pub struct OutPutPortsData {
     display_object : display::object::Instance,
-    scene          : Scene,
     logger         : Logger,
     size           : Cell<Vector2<f32>>,
     gap_width      : Cell<f32>,
@@ -145,21 +144,20 @@ impl OutPutPortsData {
         let logger         = Logger::new("OutPutPorts");
         let display_object = display::object::Instance::new(&logger);
         let size           = Cell::new(Vector2::zero());
-        let scene          = scene.clone_ref();
         let gap_width      = Cell::new(SEGMENT_GAP_WIDTH);
 
         let mut ports      = Vec::default();
         ports.resize_with(number_of_ports as usize,|| component::ShapeView::new(&logger,&scene));
         let ports          = RefCell::new(ports);
 
-        OutPutPortsData {display_object,scene,logger,size,ports,gap_width}.init()
+        OutPutPortsData {display_object,logger,size,ports,gap_width}.init()
     }
     fn init(self) -> Self {
-        self.update_shapes();
+        self.update_shape_layout_based_on_size();
         self
     }
 
-    fn update_ports(&self) {
+    fn update_shape_layout_based_on_size(&self) {
         let port_num      = self.ports.borrow().len() as f32;
 
         let width         = self.size.get().x;
@@ -187,13 +185,9 @@ impl OutPutPortsData {
         }
     }
 
-    fn update_shapes(&self) {
-        self.update_ports();
-    }
-
     fn set_size(&self, size:Vector2<f32>) {
         self.size.set(size);
-        self.update_shapes();
+        self.update_shape_layout_based_on_size();
     }
 }
 
@@ -209,8 +203,7 @@ pub struct OutputPorts {
     /// The FRP api of the `OutPutPorts`.
     pub frp            : Frp,
         network        : frp::Network,
-        data           : Rc<RefCell<OutPutPortsData>>,
-        display_object : display::object::Instance,
+        data           : Rc<OutPutPortsData>,
 }
 
 impl OutputPorts {
@@ -220,10 +213,9 @@ impl OutputPorts {
         let network        = default();
         let frp            = Frp::new(&network);
         let data           = OutPutPortsData::new(scene.clone_ref(),number_of_ports);
-        let data           = Rc::new(RefCell::new(data));
-        let display_object = data.borrow().deref().display_object.clone_ref();
+        let data           = Rc::new(data);
 
-        OutputPorts {data,network,frp,display_object}.init()
+        OutputPorts {data,network,frp}.init()
     }
 
     fn init(mut self) -> Self {
@@ -237,13 +229,13 @@ impl OutputPorts {
         let data    = &self.data;
 
         frp::extend! { network
-            eval  frp.set_size ((size) data.borrow_mut().set_size(size.into()));
+            eval  frp.set_size ((size) data.set_size(size.into()));
 
             def set_port_size      = source::<(PortId,f32)>();
             def set_port_sizes_all = source::<f32>();
 
             def _set_port_sizes = set_port_sizes_all.map(f!([set_port_size,data](size) {
-                let port_num = data.borrow().ports.borrow().len();
+                let port_num = data.ports.borrow().len();
                 for index in 0..port_num {
                     set_port_size.emit((index,*size));
                 };
@@ -253,7 +245,7 @@ impl OutputPorts {
             def set_port_opacity_all = source::<f32>();
 
             def _set_port_opacities = set_port_opacity_all.map(f!([set_port_opacity,data](size) {
-                let port_num = data.borrow().ports.borrow().len();
+                let port_num = data.ports.borrow().len();
                 for index in 0..port_num {
                     set_port_opacity.emit((index,*size));
                 };
@@ -261,7 +253,7 @@ impl OutputPorts {
         }
 
         // Init ports
-        for (index,view) in data.borrow().ports.borrow().iter().enumerate() {
+        for (index,view) in data.ports.borrow().iter().enumerate() {
             let shape        = &view.shape;
             let port_size    = Animation::<f32>::new(&network);
             let port_opacity = Animation::<f32>::new(&network);
@@ -305,6 +297,6 @@ impl OutputPorts {
 
 impl display::Object for OutputPorts {
     fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
+        &self.data.display_object
     }
 }

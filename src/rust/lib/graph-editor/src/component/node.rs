@@ -250,6 +250,7 @@ impl NodeModel {
         let frp = Frp{input};
 
 
+        // TODO: Determine number of output ports based on node semantics.
         let output_ports = OutputPorts::new(&scene, 5);
         display_object.add_child(&output_ports);
 
