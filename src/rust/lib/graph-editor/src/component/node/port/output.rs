@@ -12,6 +12,7 @@ use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
+use ensogl::gui::component::Tween;
 use ensogl::gui::component;
 
 use crate::node::NODE_SHAPE_PADDING;
@@ -22,10 +23,14 @@ use crate::node::NODE_SHAPE_RADIUS;
 // =================
 // === Constants ===
 // =================
+// TODO: These values should be in some IDE configuration.
 
-const BASE_SIZE         : f32 = 0.5;
-const HIGHLIGHT_SIZE    : f32 = 1.0;
-const SEGMENT_GAP_WIDTH : f32 = 2.0;
+const BASE_SIZE           : f32 = 0.5;
+const HIGHLIGHT_SIZE      : f32 = 1.0;
+const SEGMENT_GAP_WIDTH   : f32 = 2.0;
+
+const SHOW_DELAY_DURATION : f32 = 150.0;
+const HIDE_DELAY_DURATION : f32 = 25.0;
 
 
 
@@ -118,7 +123,7 @@ impl Frp {
 
             let port_mouse_down = on_port_mouse_down.clone_ref().into();
         }
-        Self{set_size,on_port_mouse_down,port_mouse_down}
+        Self{set_size,port_mouse_down,on_port_mouse_down}
     }
 }
 
@@ -162,12 +167,12 @@ impl OutPutPortsData {
 
         let width         = self.size.get().x;
         let height        = self.size.get().y;
-        let element_width = width / port_num;
+        let element_width = (width - NODE_SHAPE_PADDING) / port_num;
         let element_size  = Vector2::new(element_width,height);
         let gap_width     = self.gap_width.get();
 
         // Align shapes along width.
-        let x_start = -width/2.0 + NODE_SHAPE_PADDING;
+        let x_start = -width / 2.0 + NODE_SHAPE_PADDING;
         let x_delta = element_width;
         for (index, view) in self.ports.borrow().iter().enumerate(){
             view.display_object().set_parent(&self.display_object);
@@ -191,13 +196,22 @@ impl OutPutPortsData {
     }
 }
 
+
+
 // ===================
 // === OutPutPorts ===
 // ===================
 
 /// Implements the segmented output port area. Provides shapes that can be attached to a `Node` to
-/// add an interactive area with output ports. The ports appear on hover, and the currently
-/// hovered port is highlighted.
+/// add an interactive area with output ports.
+///
+/// The `OutputPorts` facilitate the falling behaviour:
+///  * when one of the output ports is hovered, after a set time, all ports are show and the hovered
+///    port is highlighted.
+///  * when a different port is hovered, it is highlighted immediately.
+///  * when none of the ports is hovered all of the `OutputPorts` disappear. Note: there is a very
+///    small delay for disappearing to allow for smooth switching between ports.
+///
 #[derive(Debug,Clone,CloneRef)]
 pub struct OutputPorts {
     /// The FRP api of the `OutPutPorts`.
@@ -228,28 +242,78 @@ impl OutputPorts {
         let frp     = &self.frp;
         let data    = &self.data;
 
+        // Used to set and detect the end of the tweens. The actual value is irrelevant, only the
+        // duration of the tween matters and that this value is reached after that time.
+        const TWEEN_END_VALUE:f32 = 1.0;
+
+        // Timer used to measure whether the hover has been long enough to show the ports.
+        let delay_show = Tween::new(&network);
+        delay_show.set_duration(SHOW_DELAY_DURATION);
+
+        // Timer used to measure whether the mouse has been gone long enough to hide all ports.
+        let delay_hide = Tween::new(&network);
+        delay_hide.set_duration(HIDE_DELAY_DURATION);
+
         frp::extend! { network
-            eval  frp.set_size ((size) data.set_size(size.into()));
 
-            def set_port_size      = source::<(PortId,f32)>();
-            def set_port_sizes_all = source::<f32>();
 
-            def _set_port_sizes = set_port_sizes_all.map(f!([set_port_size,data](size) {
-                let port_num = data.ports.borrow().len();
-                for index in 0..port_num {
-                    set_port_size.emit((index,*size));
-                };
+            // === Size Change Handling == ///
+
+            eval frp.set_size ((size) data.set_size(size.into()));
+
+
+            // === Hover Event Handling == ///
+
+            // Is emitted by the ports when they receive a MouseOver event.
+            def mouse_over           = source::<PortId>();
+            // Is emitted by the ports when they receive a MouseOut event.
+            def mouse_out            = source::<PortId>();
+
+            // Is emitted by the delay_show timer when it has finished running.
+            def on_show_delay_finish = source::<()>();
+            // Is emitted by the delay_hide timer when it has finished running.
+            def on_hide_delay_finish = source::<()>();
+            // Status indicates whether the shapes are visible or not.
+            def is_active            = source::<bool>();
+
+            // We map to (), so we can easier integrate with other events that also provide ().
+            // The actual ID of the hovered port will later again be sampled from mouse_over.
+            mouse_over_while_inactive  <- mouse_over.gate_not(&is_active).map(|_|());
+            mouse_over_while_active    <- mouse_over.gate(&is_active).map(|_|());
+
+            def _activate_show_delay = mouse_over_while_inactive.map(f_!({
+                delay_show.set_end_value(TWEEN_END_VALUE)
+            }));
+            def _activate_hide_delay = mouse_out.map(f_!({
+                delay_hide.set_end_value(TWEEN_END_VALUE)
             }));
 
-            def set_port_opacity     = source::<(PortId,f32)>();
-            def set_port_opacity_all = source::<f32>();
+            /// FIXME f! macros don't seem to support `if` statements. So this code doesn't use them
+            /// at the moment. Use them once this works.
+            let on_show_delay_finish_ref = on_show_delay_finish.clone_ref();
+            def _delay_show = delay_show.value.map(move |value| {
+                if *value == TWEEN_END_VALUE{on_show_delay_finish_ref.emit(())}
+            });
 
-            def _set_port_opacities = set_port_opacity_all.map(f!([set_port_opacity,data](size) {
-                let port_num = data.ports.borrow().len();
-                for index in 0..port_num {
-                    set_port_opacity.emit((index,*size));
-                };
-            }));
+            let on_hide_delay_finish_ref = on_hide_delay_finish.clone_ref();
+            def _delay_hide = delay_hide.value.map(move |value| {
+                if *value == TWEEN_END_VALUE {on_hide_delay_finish_ref.emit(())}
+            });
+
+            // Ports need to be visible either because we had the delay_show timer run out (that
+            // means there is an active hover) or because we had a MouseOver event before the
+            // delay_hide ran out (that means that we probably switched between ports).
+            activate_ports <- any(mouse_over_while_active,on_show_delay_finish);
+            def set_active = activate_ports.map(f_!(is_active.emit(true);delay_hide.stop()));
+
+            // This is provided for ports to act on their activation and will be used further down
+            // in the ports initialisation code.
+            def activate_ports_with_selected = mouse_over.sample(&set_active);
+
+            // This is provided for ports to hide themselves. This is used in the port
+            // Initialisation code further down.
+            def hide_all = on_hide_delay_finish.map(f_!(delay_show.rewind();is_active.emit(false)));
+
         }
 
         // Init ports
@@ -257,34 +321,52 @@ impl OutputPorts {
             let shape        = &view.shape;
             let port_size    = Animation::<f32>::new(&network);
             let port_opacity = Animation::<f32>::new(&network);
+
             frp::extend! { network
+
+
+                // === Mouse Event Handling == ///
+
+                eval_ view.events.mouse_over(mouse_over.emit(index));
+                eval_ view.events.mouse_out(mouse_out.emit(index));
+                eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
+
+
+                 // === Animation Handling == ///
+
                  eval port_size.value    ((size) shape.grow.set(*size));
                  eval port_opacity.value ((size) shape.opacity.set(*size));
 
-                is_resize_target <- set_port_size.map(move |(id,_)| *id == index);
-                size_change      <- set_port_size.gate(&is_resize_target);
-                eval size_change (((_, size)) port_size.set_target_value(*size));
 
-                is_opacity_target <- set_port_opacity.map(move |(id, _)| *id==index);
-                opacity_change    <- set_port_opacity.gate(&is_opacity_target);
-                eval opacity_change (((_, opacity)) port_opacity.set_target_value(*opacity));
+                // === Visibility and Highlight Handling == ///
 
-                eval_ view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,
-                                              set_port_opacity_all] {
-                    set_port_sizes_all.emit(BASE_SIZE);
-                    set_port_opacity_all.emit(0.5);
-                    port_size.set_target_value(HIGHLIGHT_SIZE);
+                 def _hide_all = hide_all.map(f_!([port_size,port_opacity]{
+                     port_size.set_target_value(0.0);
+                     port_opacity.set_target_value(0.0);
+                 }));
+
+                // Through the provided ID we can infer whether this port should be highlighted.
+                is_selected      <- activate_ports_with_selected.map(move |id| *id == index);
+                show_normal      <- activate_ports_with_selected.gate_not(&is_selected);
+                show_highlighted <- activate_ports_with_selected.gate(&is_selected);
+
+                def _show_highlighted = show_highlighted.map(f_!([port_opacity,port_size]{
                     port_opacity.set_target_value(1.0);
-                });
+                    port_size.set_target_value(HIGHLIGHT_SIZE);
+                }));
 
-                eval_ view.events.mouse_out ([set_port_sizes_all,set_port_opacity_all] {
-                     set_port_sizes_all.emit(0.0);
-                     set_port_opacity_all.emit(0.0);
-                });
-
-                eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
+                def _show_highlighted = show_normal.map(f_!([port_opacity,port_size]
+                    port_opacity.set_target_value(0.5);
+                    port_size.set_target_value(BASE_SIZE);
+                ));
             }
         }
+
+        // FIXME this is a hack to ensure the ports are invisible at startup.
+        // Right noe we get some of FRP mouse events on startup that leave the
+        // ports visible by default.
+        // Once that is fixed, remove this line.
+        on_hide_delay_finish.emit(());
     }
 
     // TODO: Implement proper sorting and remove.
