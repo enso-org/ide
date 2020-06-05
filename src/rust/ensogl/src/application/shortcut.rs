@@ -74,6 +74,8 @@ impl Registry {
             let key_mask = model.keyboard.key_mask.clone_ref();
             nothing_pressed    <- key_mask.map(|m| *m == default());
             single_press       <- key_mask.gate_not(&nothing_pressed);
+            eval single_press ((m) model.process_action(ActionType::Press,m));
+
             single_press_prev  <- single_press.previous();
             press_time         <- single_press.map(|_| web::performance().now());
             press_time_prev    <- press_time.previous();
@@ -81,12 +83,11 @@ impl Registry {
             is_double_press    <- time_delta.map3(&single_press,&single_press_prev,
                 move |delta,t,s| *delta < double_press_threshold_ms && t == s);
             double_press       <- single_press.gate(&is_double_press);
+            eval double_press ((m) model.process_action(ActionType::DoublePress,m));
+
             let prev_key = model.keyboard.previous_key_mask.clone_ref();
             the_same_key       <- prev_key.map2(&key_mask,|t,s| t == s);
             release            <- prev_key.gate_not(&the_same_key);
-
-            eval single_press ((m) model.process_action(ActionType::Press,m));
-            eval double_press ((m) model.process_action(ActionType::DoublePress,m));
             eval release      ((m) model.process_action(ActionType::Release,m));
         }
         Self {model,network}

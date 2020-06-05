@@ -108,32 +108,36 @@ pub mod overlay {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub set_visibility    : frp::Source<bool>,
-    pub toggle_visibility : frp::Source,
-    pub set_visualization : frp::Source<Option<Visualization>>,
-    pub set_data          : frp::Source<Data>,
-    pub select            : frp::Source,
-    pub deselect          : frp::Source,
-    pub set_size          : frp::Source<V2>,
-    pub clicked           : frp::Stream,
-    on_click              : frp::Source,
+    pub set_visibility     : frp::Source<bool>,
+    pub toggle_visibility  : frp::Source,
+    pub set_visualization  : frp::Source<Option<Visualization>>,
+    pub set_data           : frp::Source<Data>,
+    pub select             : frp::Source,
+    pub deselect           : frp::Source,
+    pub set_size           : frp::Source<V2>,
+    pub enable_fullscreen  : frp::Source,
+    pub disable_fullscreen : frp::Source,
+    pub clicked            : frp::Stream,
+    on_click               : frp::Source,
 }
 
 impl Frp {
     fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def set_visibility    = source();
-            def toggle_visibility = source();
-            def set_visualization = source();
-            def set_data          = source();
-            def select            = source();
-            def deselect          = source();
-            def on_click          = source();
-            def set_size          = source();
-            let clicked           = on_click.clone_ref().into();
+            set_visibility     <- source();
+            toggle_visibility  <- source();
+            set_visualization  <- source();
+            set_data           <- source();
+            select             <- source();
+            deselect           <- source();
+            on_click           <- source();
+            set_size           <- source();
+            enable_fullscreen  <- source();
+            disable_fullscreen <- source();
+            let clicked         = on_click.clone_ref().into();
         };
         Self {set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
-              clicked,set_size,on_click}
+              clicked,set_size,on_click,enable_fullscreen,disable_fullscreen}
     }
 }
 
@@ -312,15 +316,26 @@ impl Container {
         let network   = &self.network;
         let model     = &self.model;
         let selection = Animation::new(network);
+
+        let fullscreen = Animation::new(network);
+
         frp::extend! { network
             eval  selection.value          ((value) model.shapes.frame.shape.selected.set(*value));
             eval  inputs.set_visibility    ((v) model.set_visibility(*v));
+            trace inputs.set_visibility;
             eval_ inputs.toggle_visibility (model.toggle_visibility());
             eval  inputs.set_visualization ((v) model.set_visualization(v.clone()));
             eval  inputs.set_data          ((t) model.set_visualization_data(t));
             eval_ inputs.select            (selection.set_target_value(1.0));
             eval_ inputs.deselect          (selection.set_target_value(0.0));
             eval_ model.shapes.overlay.events.mouse_down (inputs.on_click.emit(()));
+
+            eval_ inputs.enable_fullscreen (model.set_visibility(true));
+            eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
+            trace inputs.enable_fullscreen;
+
+            eval fullscreen.value ((v) model.set_corner_roundness(1.0 - v));
+
         }
         self
     }

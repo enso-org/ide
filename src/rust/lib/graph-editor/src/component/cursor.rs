@@ -407,11 +407,11 @@ impl Cursor {
                     None       => host_follow_weight.set_target_value(0.0),
                     Some(host) => {
                         host_follow_weight.set_target_value(1.0);
-                        let m1          = model.scene.views.cursor.camera.inversed_view_matrix();
-                        let m2          = model.scene.camera().view_matrix();
-                        let position    = host.global_position();
-                        let position    = Vector4::new(position.x,position.y,position.z,1.0);
-                        let position    = m2 * (m1 * position);
+                        let m1       = model.scene.views.cursor.camera.inversed_view_matrix();
+                        let m2       = model.scene.camera().view_matrix();
+                        let position = host.global_position();
+                        let position = Vector4::new(position.x,position.y,position.z,1.0);
+                        let position = m2 * (m1 * position);
                         host_position.set_target_value(V3(position.x,position.y,position.z));
                     }
                 }

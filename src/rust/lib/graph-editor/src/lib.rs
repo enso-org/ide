@@ -1007,6 +1007,13 @@ impl GraphEditorModel {
         }
     }
 
+    fn enable_visualization_fullscreen(&self, node_id:impl Into<NodeId>) {
+        let node_id = node_id.into();
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            node.visualization.frp.enable_fullscreen.emit(());
+        }
+    }
+
     /// Warning! This function does not remove connected edges. It needs to be handled by the
     /// implementation.
     fn remove_node(&self, node_id:impl Into<NodeId>) {
@@ -1727,8 +1734,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     viz_enable           <= viz_tgt_nodes.gate_not(&viz_tgt_nodes_all_on);
     viz_disable          <= viz_tgt_nodes.gate(&viz_tgt_nodes_all_on);
     viz_preview_disable  <= viz_tgt_nodes_off.sample(&viz_preview_mode_end);
-
-    viz_fullscreen_on <= viz_d_press_ev.map(f_!(model.last_selected_node()));
+    viz_fullscreen_on    <= viz_d_press_ev.map(f_!(model.last_selected_node()));
 
     outputs.visualization_enabled  <+ viz_enable;
     outputs.visualization_disabled <+ viz_disable;
@@ -1759,7 +1765,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval outputs.node_expression_set    (((id,expr)) model.set_node_expression(id,expr));
     eval outputs.visualization_enabled  ((id) model.enable_visualization(id));
     eval outputs.visualization_disabled ((id) model.disable_visualization(id));
-
+    eval outputs.visualization_enable_fullscreen ((id) model.enable_visualization_fullscreen(id));
 
 
     // === Edge discovery ===
