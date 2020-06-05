@@ -160,7 +160,6 @@ impl OutPutPortsData {
 
     fn update_shape_layout_based_on_size(&self) {
         let port_num    = self.ports.borrow().len() as f32;
-
         let width       = self.size.get().x;
         let height      = self.size.get().y;
         let port_width  = (width - NODE_SHAPE_PADDING) / port_num;
