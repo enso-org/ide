@@ -290,7 +290,6 @@ impl NodeModel {
             t.y = -120.0;
         });
 
-        println!("***");
         display_object.add_child(&visualization);
 
         ports.mod_position(|p| {

@@ -55,9 +55,7 @@ pub mod frame {
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
-
-            let out = background;
-            out.into()
+            background.into()
         }
     }
 }
@@ -79,11 +77,8 @@ pub mod frame2 {
             let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
-//            let background    = background.fill(color::Rgba::from(color_bg));
-            let background    = background.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
-
-            let out = background;
-            out.into()
+            let background    = background.fill(color::Rgba::from(color_bg));
+            background.into()
         }
     }
 }
@@ -234,7 +229,7 @@ impl ContainerModel {
 
     fn init(self) -> Self {
         self.update_shape_sizes();
-//        self.init_corner_roundness();
+        self.init_corner_roundness();
         // FIXME: These 2 lines fix a bug with display objects visible on stage.
         self.set_visibility(true);
         self.set_visibility(false);
@@ -248,17 +243,13 @@ impl ContainerModel {
 
     /// Set whether the visualization should be visible or not.
     fn set_visibility(&self, visibility:bool) {
-        println!("set vis {}", visibility);
         if visibility { self.add_child    (&self.shapes) }
         else          { self.remove_child (&self.shapes) }
     }
 
 
     fn enable_fullscreen(&self) {
-        println!("enable_fullscreen");
-
         self.is_fullscreen.set(true);
-
     }
 }
 
@@ -267,12 +258,10 @@ impl ContainerModel {
 
 impl ContainerModel {
     fn toggle_visibility(&self) {
-        println!("toggle_visibility");
         self.set_visibility(!self.is_visible())
     }
 
     fn set_visualization(&self, visualization:Option<Visualization>) {
-        println!("set_visualization");
         if let Some(visualization) = visualization {
             let size = self.frp.size.value();
             visualization.set_size.emit(size);
@@ -282,13 +271,11 @@ impl ContainerModel {
     }
 
     fn set_visualization_data(&self, data:&Data) {
-        println!("set_visualization_data");
 
         self.visualization.borrow().for_each_ref(|vis| vis.send_data.emit(data))
     }
 
     fn update_shape_sizes(&self) {
-        println!("update_shape_sizes");
 
         let size = self.frp.size.value();
         self.set_size(size);
@@ -296,23 +283,22 @@ impl ContainerModel {
 
     fn set_size(&self, size:impl Into<V2>) {
         let size = size.into();
-        println!("set size {} {:?}", self.is_fullscreen.get(),size);
-//        if self.is_fullscreen.get() {
-//            self.shapes.frame_fullscreen . shape.radius.set(CORNER_RADIUS);
-//            self.shapes.frame_fullscreen . shape.sprite.size().set(size.into());
-//            self.shapes.frame            . shape.sprite.size().set(zero());
-//            self.shapes.overlay          . shape.sprite.size().set(zero());
-//        } else {
-//            self.shapes.frame.shape.radius.set(CORNER_RADIUS);
-//            self.shapes.overlay.shape.radius.set(CORNER_RADIUS);
+        if self.is_fullscreen.get() {
+            self.shapes.frame_fullscreen . shape.radius.set(CORNER_RADIUS);
+            self.shapes.frame_fullscreen . shape.sprite.size().set(size.into());
+            self.shapes.frame            . shape.sprite.size().set(zero());
+            self.shapes.overlay          . shape.sprite.size().set(zero());
+        } else {
+            self.shapes.frame.shape.radius.set(CORNER_RADIUS);
+            self.shapes.overlay.shape.radius.set(CORNER_RADIUS);
             self.shapes.frame.shape.sprite.size().set(size.into());
             self.shapes.overlay.shape.sprite.size().set(size.into());
             self.shapes.frame_fullscreen . shape.sprite.size().set(zero());
-//        }
+        }
 
-//        if let Some(viz) = &*self.visualization.borrow() {
-//            viz.set_size.emit(size);
-//        }
+        if let Some(viz) = &*self.visualization.borrow() {
+            viz.set_size.emit(size);
+        }
 
 //        if let Some(vis) = self.visualization.borrow().as_ref() {
 //            let radius   = CORNER_RADIUS * 2.0;
@@ -326,15 +312,15 @@ impl ContainerModel {
 
     }
 
-//    fn init_corner_roundness(&self) {
-//        self.set_corner_roundness(1.0)
-//    }
-//
-//    fn set_corner_roundness(&self, value:f32) {
-//        self.shapes.overlay.shape.roundness.set(value);
-//        self.shapes.frame.shape.roundness.set(value);
-//        self.shapes.frame_fullscreen.shape.roundness.set(value);
-//    }
+    fn init_corner_roundness(&self) {
+        self.set_corner_roundness(1.0)
+    }
+
+    fn set_corner_roundness(&self, value:f32) {
+        self.shapes.overlay.shape.roundness.set(value);
+        self.shapes.frame.shape.roundness.set(value);
+        self.shapes.frame_fullscreen.shape.roundness.set(value);
+    }
 }
 
 impl display::Object for ContainerModel {
@@ -364,7 +350,6 @@ pub struct Container {
 impl Container {
     /// Constructor.
     pub fn new(logger:&Logger,scene:&Scene) -> Self {
-        println!("-------------------");
         let network = frp::Network::new();
         let model   = Rc::new(ContainerModel::new(logger,scene,&network));
         let frp     = model.frp.clone_ref();
@@ -429,19 +414,19 @@ impl Container {
                     let weight_inv      = 1.0 - weight;
                     let scene_size : V2 = scene_size.into();
                     let current_size    = weight_inv * viz_size + weight * scene_size;
-//                    model.set_corner_roundness(weight_inv);
+                    model.set_corner_roundness(weight_inv);
                     model.set_size(current_size);
 
-//                    let m1  = model.scene.views.viz_fullscreen.camera.inversed_view_matrix();
-//                    let m2  = model.scene.views.viz.camera.view_matrix();
-//                    let pos = model.global_position();
-//                    let pos = Vector4::new(pos.x,pos.y,pos.z,1.0);
-//                    let pos = m2 * (m1 * pos);
-//                    let pp = V3(pos.x,pos.y,pos.z);
-//                    let scene_size : V2 = scene_size.into();
-//                    let tgt_pos = V3(scene_size.x/2.0,scene_size.y/2.0,0.0);
-//                    let current_pos = pp * weight_inv + tgt_pos * weight;
-//                    model.shapes.frame_fullscreen.set_position(current_pos.into());
+                    let m1  = model.scene.views.viz_fullscreen.camera.inversed_view_matrix();
+                    let m2  = model.scene.views.viz.camera.view_matrix();
+                    let pos = model.global_position();
+                    let pos = Vector4::new(pos.x,pos.y,pos.z,1.0);
+                    let pos = m2 * (m1 * pos);
+                    let pp = V3(pos.x,pos.y,pos.z);
+                    let scene_size : V2 = scene_size.into();
+                    let tgt_pos = V3(scene_size.x/2.0,scene_size.y/2.0,0.0);
+                    let current_pos = pp * weight_inv + tgt_pos * weight;
+                    model.shapes.frame_fullscreen.set_position(current_pos.into());
 
             }));
 
@@ -454,10 +439,6 @@ impl Container {
 
         inputs.set_size.emit(DEFAULT_SIZE);
         size.skip();
-
-        model.set_size(V2(201.0,200.0));
-        model.set_size(V2(201.0,200.0));
-        model.set_size(V2(201.0,200.0));
 
 //        model.set_visualization(Some(Registry::default_visualisation(scene)));
 
