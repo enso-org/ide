@@ -10,7 +10,7 @@ use crate::config::PROJECT_VISUALIZATION_FOLDER;
 use enso_protocol::language_server;
 use graph_editor::data;
 use graph_editor::component::visualization::class;
-use graph_editor::component::visualization::JsSourceClass;
+use graph_editor::component::visualization;
 use std::rc::Rc;
 
 
@@ -138,7 +138,7 @@ impl Handle {
                 let identifier = visualization.clone();
                 let error      = |_| VisualizationError::InstantiationError {identifier}.into();
                 let module     = data::builtin_library(); // FIXME: provide real library name.
-                let js_class   = JsSourceClass::from_js_source_raw(module,&js_code).map_err(error);
+                let js_class   = visualization::JavaScript::new(module,&js_code).map_err(error);
                 js_class.map(|js_class| class::AnyClass::new(js_class))
             }
         }
@@ -228,8 +228,8 @@ mod tests {
         assert_eq!(visualizations[2], VisualizationPath::File(path1));
         assert_eq!(visualizations.len(),3);
 
-        let javascript_vis0 = JsSourceClass::from_js_source_raw(&file_content0);
-        let javascript_vis1 = JsSourceClass::from_js_source_raw(&file_content1);
+        let javascript_vis0 = visualization::JavaScript::new(&file_content0);
+        let javascript_vis1 = visualization::JavaScript::new(&file_content1);
         let javascript_vis0 = javascript_vis0.expect("Couldn't create visualization class.");
         let javascript_vis1 = javascript_vis1.expect("Couldn't create visualization class.");
         let javascript_vis0 = Rc::new(class::Handle::new(javascript_vis0));

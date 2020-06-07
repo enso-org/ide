@@ -3,11 +3,11 @@
 // These implementations are neither efficient nor pretty, but get the idea across.
 
 use crate::data;
-use crate::component::visualization::JsSourceClass;
+use crate::component::visualization;
 
-/// Return an `JsSourceClass` that creates example Bubble Visualizations implemented in JS.
-pub fn get_bubble_vis_class() -> JsSourceClass {
-    let fn_constructor = r#"
+/// Return an `JavScript` that creates example Bubble Visualizations implemented in JS.
+pub fn get_bubble_vis_class() -> visualization::JavaScript {
+    let source = r#"
         class BubbleVisualization {
             static inputType = "Any"
 
@@ -48,5 +48,5 @@ pub fn get_bubble_vis_class() -> JsSourceClass {
         return BubbleVisualization;
     "#;
 
-    JsSourceClass::from_js_source_raw(data::builtin_library(),fn_constructor).unwrap()
+    visualization::JavaScript::new(data::builtin_library(),source).unwrap() // FIXME unwrap
 }

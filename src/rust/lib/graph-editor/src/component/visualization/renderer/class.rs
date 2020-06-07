@@ -59,15 +59,6 @@ impl RendererFrp {
 /// `set_data` method with a `DataError`. The owner of the `Renderer` is in charge of producing
 /// UI feedback to indicate a problem with the data.
 pub trait Renderer: display::Object + Debug {
-//    /// Receive the data that should be rendered. If the data is valid, it will return the data as
-//    /// processed by this `Renderer`, if the data is of an invalid data type, it violates other
-//    /// assumptions of this `Renderer`, a `DataError` is returned.
-//    fn send_data(&self, data:Data) -> Result<(), DataError>;
-
-//    /// Set the size of viewport of the visualization. The visualization must not render outside of
-//    /// this viewport.
-//    fn set_size(&self, size:V2);
-
     /// Return a ref to the internal FRP network.
     fn frp(&self) -> &RendererFrp;
 }

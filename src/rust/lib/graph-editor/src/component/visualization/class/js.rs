@@ -27,7 +27,7 @@ const INPUT_TYPE_FIELD : &str = "inputType";
 
 
 // =====================
-// === JsSourceClass ===
+// === JavaScript ===
 // =====================
 
 /// Implements the `visualization::Class` for a JS source string.
@@ -36,9 +36,9 @@ const INPUT_TYPE_FIELD : &str = "inputType";
 /// -------
 /// ```no_run
 ///
-/// # use graph_editor::component::visualization::JsSourceClass;
+/// # use graph_editor::component::visualization::JavaScript;
 ///
-/// JsSourceClass::from_js_source_raw(r#"
+/// JavaScript::from_js_source_raw(r#"
 ///     class Visualization {
 ///         static inputType = "Any"
 ///         onDataReceived(root, data) {}
@@ -49,22 +49,22 @@ const INPUT_TYPE_FIELD : &str = "inputType";
 /// ```
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct JsSourceClass {
-    js_class  : JsClassWrapper,
+pub struct JavaScript {
+    js_class  : JavaScriptClassWrapper,
     signature : visualization::Signature,
 }
 
-impl JsSourceClass {
+impl JavaScript {
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
-    pub fn from_js_source_raw
-    (module:impl Into<LibraryName>, source:&str) -> Result<Self,JsVisualizationError> {
-        let js_class  = JsClassWrapper::instantiate_class(&source)?;
+    pub fn new
+    (module:impl Into<LibraryName>, source:impl AsRef<str>) -> Result<Self,JsVisualizationError> {
+        let js_class  = JavaScriptClassWrapper::instantiate_class(source)?;
         let signature = js_class.signature(module)?;
-        Ok(JsSourceClass{js_class,signature})
+        Ok(JavaScript{js_class,signature})
     }
 }
 
-impl visualization::Class for JsSourceClass {
+impl visualization::Class for JavaScript {
     fn signature(&self) -> &visualization::Signature {
         &self.signature
     }
@@ -86,23 +86,24 @@ impl visualization::Class for JsSourceClass {
 
 
 // ======================
-// === JsClassWrapper ===
+// === JavaScriptClassWrapper ===
 // ======================
 
 /// Internal wrapper for the a JS class that implements the visualization specification. Provides
 /// convenience functions for accessing JS methods and signature.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-struct JsClassWrapper {
+struct JavaScriptClassWrapper {
     class : JsValue,
 }
 
-impl JsClassWrapper {
-    fn instantiate_class(source:&str) -> JsResult<JsClassWrapper> {
+impl JavaScriptClassWrapper {
+    fn instantiate_class(source:impl AsRef<str>) -> JsResult<JavaScriptClassWrapper> {
+        let source      = source.as_ref();
         let context     = JsValue::NULL;
         let constructor = js_sys::Function::new_no_args(source);
         let class       = constructor.call0(&context)?;
-        Ok(JsClassWrapper{class})
+        Ok(JavaScriptClassWrapper{class})
     }
 
     fn signature(&self, module:impl Into<LibraryName>) -> JsResult<visualization::Signature> {

@@ -6,7 +6,7 @@ use ensogl::system::web;
 use ensogl_core_msdf_sys::run_once_initialized;
 use graph_editor::data;
 use graph_editor::component::visualization::Data;
-use graph_editor::component::visualization::JsSourceClass;
+use graph_editor::component::visualization;
 use graph_editor::component::visualization::Registry;
 use js_sys::Math::sin;
 use nalgebra::Vector2;
@@ -25,8 +25,8 @@ fn generate_data(seconds:f64) -> Vec<Vector2<f32>> {
 
 
 
-fn constructor_graph() -> JsSourceClass {
-    let fn_constructor = r#"
+fn constructor_graph() -> visualization::JavaScript {
+    let source = r#"
         class Graph {
             static inputTypes = ["[[Float,Float,Float]]"]
 
@@ -67,7 +67,7 @@ fn constructor_graph() -> JsSourceClass {
 
         return Graph;
     "#;
-    JsSourceClass::from_js_source_raw(data::builtin_library(),fn_constructor).unwrap()
+    visualization::JavaScript::new(data::builtin_library(),source).unwrap() // FIXME unwrap
 }
 
 #[wasm_bindgen]
