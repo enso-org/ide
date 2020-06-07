@@ -27,7 +27,7 @@ pub struct Native {
 impl Native {
     /// Create a visualization source from a closure that returns a `Visualization`.
     pub fn new<T>(signature:Signature, constructor:T) -> Self
-        where T: VisualizationConstructor + 'static {
+    where T: Fn(&Scene) -> InstantiationResult + 'static {
         let constructor = Rc::new(constructor);
         Native{signature,constructor}
     }

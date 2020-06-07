@@ -60,7 +60,7 @@ impl BubbleChart {
     pub fn class() -> class::Native {
         class::Native::new(
             Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization")),
-            |scene:&Scene| { Ok(Visualization::new(Self::new(scene))) }
+            |scene| { Ok(Visualization::new(Self::new(scene))) }
         )
     }
 
@@ -161,7 +161,7 @@ impl RawText {
     pub fn class() -> class::Native {
         class::Native::new(
             Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)")),
-            |scene:&Scene| { Ok(Visualization::new(Self::new(scene))) }
+            |scene| { Ok(Visualization::new(Self::new(scene))) }
         )
     }
 

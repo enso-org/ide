@@ -61,19 +61,19 @@ pub struct Visualization {
     renderer : Rc<dyn Renderer>,
 }
 
+impl Visualization {
+    /// Constructor.
+    pub fn new<T>(renderer:T) -> Self
+    where T : 'static + Renderer {
+        let renderer = Rc::new(renderer);
+        Self {renderer}
+    }
+}
+
 impl Deref for Visualization {
     type Target = RendererFrp;
     fn deref(&self) -> &Self::Target {
         self.renderer.frp()
-    }
-}
-
-impl Visualization {
-    /// Constructor.
-    pub fn new<T>(renderer:T) -> Self
-        where T : 'static + Renderer {
-        let renderer = Rc::new(renderer);
-        Self {renderer}
     }
 }
 
@@ -89,20 +89,21 @@ impl display::Object for Visualization {
 // === Class ===
 // =============
 
-/// Specifies a trait that allows the instantiation of `Visualizations`.
+/// Trait that allows the instantiation of `Visualizations`.
 ///
-/// The `Class` provides a way to implement structs that allow the instantiation of specific
-/// visualizations, while already providing general information that doesn't require an
-/// instantiated visualization, for example, the name or input type of the visualization.
+/// The `Class` provides both a general information about a visualization, so called `Signature`, as
+/// well a way to instantiate the visualization.
 ///
-/// There are two example implementations: The `JsSourceClass`, which is based on a JS snippet to
+/// There are two generic implementations provided. The `JsSourceClass`, which is based on a JS snippet to
 /// instantiate `JsRenderer`, and the fairly generic `NativeConstructorClass`, that only requires
 /// a function that can create a InstantiationResult. The later can be used as a thin wrapper around
 /// the constructor methods of native visualizations.
 pub trait Class: Debug {
+
     /// Provides additional information about the `Class`, for example, which `DataType`s can be
     /// rendered by the instantiated visualization.
     fn signature(&self) -> &Signature;
+
     /// Create new visualization, that is initialised for the given scene. This can fail if the
     /// `visualization::Class` contains invalid data, for example, JS code that fails to execute,
     /// or if the scene is in an invalid state.
@@ -112,6 +113,12 @@ pub trait Class: Debug {
 }
 
 
+// === Result ===
+
+/// Result of the attempt to instantiate a `Visualization` from a `Class`.
+pub type InstantiationResult = Result<Visualization,InstantiationError>;
+
+
 // === Errors ===
 
 /// Indicates that instantiating a `Visualisation` from a `Class` has failed.
@@ -119,13 +126,11 @@ pub trait Class: Debug {
 #[allow(missing_docs)]
 pub enum InstantiationError {
     /// Indicates a problem with instantiating a class object.
-    InvalidClass         { inner:Box<dyn Error> },
+    InvalidClass { inner:Box<dyn Error> },
+
     /// Indicates a problem with instantiating a visualisation from a valid class object.
     InvalidVisualisation { inner:Box<dyn Error> },
 }
-
-/// Result of the attempt to instantiate a `Visualization` from a `Class`.
-pub type InstantiationResult = Result<Visualization,InstantiationError>;
 
 
 
