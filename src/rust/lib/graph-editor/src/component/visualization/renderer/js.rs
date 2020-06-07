@@ -1,14 +1,14 @@
 //! This module contains functionality that allows the usage of JavaScript to define visualizations.
 //!
-//! The `JsRenderer` defines a generic way to wrap JS function calls and allow interaction with
+//! The `Instance` defines a generic way to wrap JS function calls and allow interaction with
 //! JS code and the visualization system.
 //!
-//! There are at the moment three way to generate a `JsRenderer`:
-//! 1. `JsRenderer::from_functions` where the bodies of the required functions are provided as
+//! There are at the moment three way to generate a `Instance`:
+//! 1. `Instance::from_functions` where the bodies of the required functions are provided as
 //!    source code.
-//! 2. `JsRenderer::from_object` where the a piece of JS code is provided that must evaluate to an
+//! 2. `Instance::from_object` where the a piece of JS code is provided that must evaluate to an
 //!     object that has the required methods that will be called at runtime.
-//! 3. `JsRenderer::from_constructor`where the body of a constructor function needs to be
+//! 3. `Instance::from_constructor`where the body of a constructor function needs to be
 //!     provided. The returned object needs to fulfill the same specification as in (2).
 //!
 //! Right now the only functions supported on the wrapped object are
@@ -18,7 +18,7 @@
 //!    as well as the intended size.
 //!
 //! All functions on the class are optional, and methods that are not present, will be handled as
-//! no-op by the  `JsRenderer`.
+//! no-op by the  `Instance`.
 //!
 //! TODO: refine spec and add functions as needed, e.g., init, callback hooks or type indicators.
 
@@ -86,14 +86,14 @@ pub(crate) type JsResult<T> = Result<T, JsVisualizationError>;
 
 
 // ==================
-// === JsRenderer ===
+// === Instance ===
 // ==================
 
 /// `JsVisualizationGeneric` allows the use of arbitrary javascript to create visualizations. It
 /// takes function definitions as strings and proved those functions with data.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct JsRenderer {
+pub struct Instance {
     pub root_node        : DomSymbol,
     pub logger           : Logger,
         on_data_received : js_sys::Function,
@@ -102,9 +102,9 @@ pub struct JsRenderer {
         frp              : visualization::InstanceFrp,
 }
 
-impl JsRenderer {
-    /// Internal helper that tries to convert a JS object into a `JsRenderer`.
-    fn from_object_js(object:js_sys::Object) -> Result<JsRenderer,JsVisualizationError> {
+impl Instance {
+    /// Internal helper that tries to convert a JS object into a `Instance`.
+    fn from_object_js(object:js_sys::Object) -> Result<Instance,JsVisualizationError> {
         let on_data_received = js_sys::Reflect::get(&object,&"onDataReceived".into())?;
         let set_size         = js_sys::Reflect::get(&object,&"setSize".into())?;
         if !on_data_received.is_function() {
@@ -116,14 +116,14 @@ impl JsRenderer {
         let on_data_received:js_sys::Function = on_data_received.into();
         let set_size:js_sys::Function = set_size.into();
 
-        let logger    = Logger::new("JsRenderer");
+        let logger    = Logger::new("Instance");
         let network   = default();
         let frp       = visualization::InstanceFrp::new(&network);
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")?;
 
-        Ok(JsRenderer { on_data_received,set_size,root_node,frp,network,logger })
+        Ok(Instance { on_data_received,set_size,root_node,frp,network,logger })
     }
 
     /// Constructor from a source that evaluates to an object with specific methods.
@@ -132,9 +132,9 @@ impl JsRenderer {
     /// --------
     ///
     /// ```no_run
-    /// use graph_editor::component::visualization::JsRenderer;
+    /// use graph_editor::component::visualization::Instance;
     ///
-    /// let renderer = JsRenderer::from_object_source(r#"function() {
+    /// let renderer = Instance::from_object_source(r#"function() {
     ///   class Visualization {
     ///       static inputTypes = ["[[Float,Float,Float]]"]
     ///       onDataReceived(root, data) {};
@@ -147,7 +147,7 @@ impl JsRenderer {
     ///
     /// For a full example see
     /// `crate::component::visualization::renderer::example::object_sample_js_bubble_chart`
-    pub fn from_object_source(source: &str) -> Result<JsRenderer,JsVisualizationError> {
+    pub fn from_object_source(source: &str) -> Result<Instance,JsVisualizationError> {
         let object = js_sys::eval(source)?;
         if !object.is_object() {
             return Err(JsVisualizationError::NotAnObject { inner:object } )
@@ -155,7 +155,7 @@ impl JsRenderer {
         Self::from_object_js(object.into())
     }
 
-    pub(crate) fn from_object(object:JsValue) -> Result<JsRenderer,JsVisualizationError> {
+    pub(crate) fn from_object(object:JsValue) -> Result<Instance,JsVisualizationError> {
         if !object.is_object() {
             return Err(JsVisualizationError::NotAnObject { inner:object } )
         }
@@ -168,9 +168,9 @@ impl JsRenderer {
     /// --------
     ///
     /// ```no_run
-    /// use graph_editor::component::visualization::JsRenderer;
+    /// use graph_editor::component::visualization::Instance;
     ///
-    /// let renderer = JsRenderer::from_constructor("
+    /// let renderer = Instance::from_constructor("
     ///   class Visualization {
     ///       onDataReceived(root, data) {};
     ///       setSize(root, size) {};
@@ -181,7 +181,7 @@ impl JsRenderer {
     /// ```
     /// For a full example see
     /// `crate::component::visualization::renderer::example::constructor_sample_js_bubble_chart`
-    pub fn from_constructor(source:&str) -> Result<JsRenderer,JsVisualizationError> {
+    pub fn from_constructor(source:&str) -> Result<Instance,JsVisualizationError> {
         let context     = JsValue::NULL;
         let constructor = js_sys::Function::new_no_args(source);
         let object      = constructor.call0(&context)?;
@@ -199,7 +199,7 @@ impl JsRenderer {
     }
 }
 
-impl visualization::Instance for JsRenderer {
+impl visualization::Instance for Instance {
 
 //    fn receive_data(&self, data:Data) -> Result<(),DataError> {
 //        let context   = JsValue::NULL;
@@ -235,7 +235,7 @@ impl visualization::Instance for JsRenderer {
     }
 }
 
-impl display::Object for JsRenderer {
+impl display::Object for Instance {
     fn display_object(&self) -> &display::object::Instance {
         &self.root_node.display_object()
     }

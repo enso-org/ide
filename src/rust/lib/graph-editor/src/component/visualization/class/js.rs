@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::component::visualization::JsVisualizationError;
 use crate::component::visualization::InstantiationError;
-use crate::component::visualization::JsRenderer;
+use crate::component::visualization::renderer::js::Instance;
 use crate::component::visualization::JsResult;
 use crate::component::visualization::InstantiationResult;
 use crate::component::visualization::Visualization;
@@ -74,7 +74,7 @@ impl visualization::Class for JavaScript {
             Ok  (obj) => obj,
             Err (err) => return Err(InstantiationError::InvalidClass {inner:err.into()}),
         };
-        let renderer = match JsRenderer::from_object(obj) {
+        let renderer = match Instance::from_object(obj) {
             Ok  (obj) => obj,
             Err (err) => return Err(InstantiationError::InvalidClass {inner:err.into()}),
         };
