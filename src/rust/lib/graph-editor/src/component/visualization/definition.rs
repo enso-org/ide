@@ -12,6 +12,7 @@ use ensogl::display::DomSymbol;
 use ensogl::display::Symbol;
 use ensogl::display;
 use std::error::Error;
+use ensogl::system::web::JsValue;
 
 
 
@@ -83,8 +84,9 @@ pub type InstantiationResult = Result<visualization::Instance,InstantiationError
 
 // === Errors ===
 
+// TODO: make Display and fix all usages.
 /// Indicates that instantiating a `Visualisation` from a `Definition` has failed.
-#[derive(Debug,Display)]
+#[derive(Debug)]
 #[allow(missing_docs)]
 pub enum InstantiationError {
     /// Indicates a problem with instantiating a class object.
@@ -92,4 +94,6 @@ pub enum InstantiationError {
 
     /// Indicates a problem with instantiating a visualisation from a valid class object.
     InvalidVisualisation { inner:Box<dyn Error> },
+
+    ConstructorError (JsValue),
 }

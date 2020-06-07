@@ -98,7 +98,6 @@ pub struct Instance {
     pub logger           : Logger,
         on_data_received : js_sys::Function,
         set_size         : js_sys::Function,
-        network          : frp::Network,
         frp              : visualization::instance::Frp,
 }
 
@@ -117,13 +116,12 @@ impl Instance {
         let set_size:js_sys::Function = set_size.into();
 
         let logger    = Logger::new("Instance");
-        let network   = default();
-        let frp       = visualization::instance::Frp::new(&network);
+        let frp       = visualization::instance::Frp::new();
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")?;
 
-        Ok(Instance { on_data_received,set_size,root_node,frp,network,logger })
+        Ok(Instance { on_data_received,set_size,root_node,frp,logger })
     }
 
     /// Constructor from a source that evaluates to an object with specific methods.

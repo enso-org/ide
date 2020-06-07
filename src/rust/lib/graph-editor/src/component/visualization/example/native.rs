@@ -49,7 +49,6 @@ pub struct BubbleChart {
     pub scene          : Scene,
         signature      : Signature,
         frp            : visualization::instance::Frp,
-        network        : frp::Network,
         views          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
         logger         : Logger,
         size           : Rc<Cell<V2>>,
@@ -68,20 +67,20 @@ impl BubbleChart {
         let logger         = Logger::new("bubble");
         let display_object = display::object::Instance::new(&logger);
         let views          = RefCell::new(vec![]);
-        let network        = default();
-        let frp            = visualization::instance::Frp::new(&network);
+        let frp            = visualization::instance::Frp::new();
         let size           = default();
         let scene          = scene.clone_ref();
         let signature      = Signature::new_for_any_type(Path::builtin("[Demo] Bubble Chart"));
-        BubbleChart {display_object,views,logger,frp,network,size,scene,signature} . init()
+        BubbleChart {display_object,views,logger,frp,size,scene,signature} . init()
     }
 
     fn init(self) -> Self {
-        let network = &self.network;
+        let network = &self.frp.network;
         let size    = &self.size;
         frp::extend! { network
             eval self.frp.set_size ((s) size.set(*s));
             eval self.frp.send_data ([](data) {
+            // FIXME: uncomment and update.
 //                let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
 //                // Avoid re-creating views, if we have already created some before.
 //                let mut views = self.views.borrow_mut();
@@ -110,38 +109,6 @@ impl From<BubbleChart> for visualization::Instance {
     }
 }
 
-
-
-//impl visualization::InstanceX for BubbleChart {
-//
-////    fn receive_data(&self, data:Data) -> Result<(),DataError> {
-////        let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
-////        // Avoid re-creating views, if we have already created some before.
-////        let mut views = self.views.borrow_mut();
-////        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
-////
-////        // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
-////        // But this ensures that we can get a cropped view area and avoids an issue with the data
-////        // and position not matching up.
-////        views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
-////            let size : Vector2<f32> = self.size.get().into();
-////            view.display_object.set_parent(&self.display_object);
-////            view.shape.sprite.size().set(size);
-////            view.shape.radius.set(item.z);
-////            view.shape.position.set(Vector2::new(item.x,item.y) - size / 2.0);
-////        });
-////        Ok(())
-////    }
-//
-////    fn set_size(&self, size:V2) {
-////        self.size.set(size);
-////    }
-//
-//    fn frp(&self) -> &visualization::instance::Frp {
-//        &self.frp
-//    }
-//}
-
 impl display::Object for BubbleChart {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object.display_object()
@@ -159,8 +126,7 @@ impl display::Object for BubbleChart {
 #[allow(missing_docs)]
 pub struct RawText {
     #[shrinkwrap(main_field)]
-    model   : RawTextModel,
-    network : frp::Network,
+    model : RawTextModel,
 }
 
 impl RawText {
@@ -172,13 +138,12 @@ impl RawText {
     }
 
     pub fn new(scene:&Scene) -> Self {
-        let network = default();
-        let model   = RawTextModel::new(scene,&network);
-        Self {model,network} . init()
+        let model = RawTextModel::new(scene);
+        Self {model} . init()
     }
 
     fn init(self) -> Self {
-        let network = &self.network;
+        let network = &self.model.frp.network;
         let model   = &self.model;
         frp::extend! { network
             eval self.frp.set_size  ((size) model.set_size(*size));
@@ -200,11 +165,11 @@ pub struct RawTextModel {
 
 impl RawTextModel {
     /// Constructor.
-    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
+    pub fn new(scene:&Scene) -> Self {
         let logger  = Logger::new("RawText");
         let div     = web::create_div();
         let dom     = DomSymbol::new(&div);
-        let frp     = visualization::instance::Frp::new(&network);
+        let frp     = visualization::instance::Frp::new();
         let size    = Rc::new(Cell::new(V2(200.0,200.0)));
 
         dom.dom().set_style_or_warn("white-space"   ,"pre"                  ,&logger);

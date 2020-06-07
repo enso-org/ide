@@ -1698,7 +1698,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             (Ok(vis), Some(node))  => {
                     node.visualization.frp.set_visualization.emit(Some(vis));
             },
-            (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {}", e)),
+            (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {:?}", e)),
             _           => {}
         };
         cycle_count.set(cycle_count.get() + 1);

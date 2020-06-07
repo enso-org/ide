@@ -71,7 +71,7 @@ impl Registry {
         let registry = Self::new();
         registry.add(visualization::example::native::BubbleChart::class());
         registry.add(visualization::example::native::RawText::class());
-        registry.add(visualization::example::java_script::get_bubble_vis_class());
+        // registry.add(visualization::example::java_script::get_bubble_vis_class());
         registry
     }
 

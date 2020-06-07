@@ -1,8 +1,18 @@
 //! This module contains functionality to create a `Class` object from a JS source strings.
 
+// TODO: write specification
+//     class Visualization {
+//         static label     = "plot chart"
+//         static inputType = "Any"
+//         onDataReceived(root, data) {}
+//         setSize(root, size) {}
+//     }
+//     return Visualizations;
+
 use crate::prelude::*;
 
 use crate::component::visualization::InstantiationResult;
+use crate::component::visualization::InstantiationError;
 use crate::component::visualization;
 use crate::data::*;
 
@@ -12,6 +22,7 @@ use super::instance::Instance;
 use ensogl::display::Scene;
 use ensogl::system::web::JsValue;
 use js_sys;
+use js_sys::JsString;
 
 
 
@@ -19,59 +30,47 @@ use js_sys;
 // === Constants ===
 // =================
 
-const NAME_FIELD       : &str = "name";
+const LABEL_FIELD      : &str = "label";
 const INPUT_TYPE_FIELD : &str = "inputType";
 
 
 
-// =====================
+// ==================
 // === Definition ===
-// =====================
+// ==================
 
-/// Implements the `visualization::Class` for a JS source string.
-///
-/// Example
-/// -------
-/// ```no_run
-///
-/// # use graph_editor::component::visualization::Definition;
-///
-/// Definition::from_js_source_raw(r#"
-///     class Visualization {
-///         static inputType = "Any"
-///         onDataReceived(root, data) {}
-///         setSize(root, size) {}
-///     }
-///     return Visualizations;
-/// "#.into()).unwrap();
-/// ```
-#[derive(Clone,Debug)]
+/// JavaScript visualization definition.
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Definition {
-    js_class  : JavaScriptClass,
+    class     : JsValue,
     signature : visualization::Signature,
 }
 
 impl Definition {
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
-    pub fn new
-    (module:impl Into<LibraryName>, source:impl AsRef<str>) -> Result<Self,instance::JsVisualizationError> {
-        let js_class  = JavaScriptClass::new_from_function(source)?;
-        let signature = js_class.signature(module)?;
-        Ok(Definition{js_class,signature})
+    pub fn new (library:impl Into<LibraryName>, source:impl AsRef<str>) -> Result<Self,Error> {
+        let source     = source.as_ref();
+        let context    = JsValue::NULL;
+        let function   = js_sys::Function::new_no_args(source);
+        let class      = function.call0(&context).map_err(|e| Error::InvalidFunction(e))?;
+
+        let library    = library.into();
+        let input_type = try_str_field(&class,INPUT_TYPE_FIELD).unwrap_or_default();
+        let label      = label(&class)?;
+        let path       = visualization::Path::new(library,label);
+        let signature  = visualization::Signature::new(path,input_type);
+
+        Ok(Self{class,signature})
     }
 
     fn new_instance(&self, scene:&Scene) -> InstantiationResult {
-        let obj = match self.js_class.new_instance() {
-            Ok  (obj) => obj,
-            Err (err) => return Err(visualization::InstantiationError::InvalidClass {inner:err.into()}),
-        };
-        let renderer = match Instance::from_object(obj) {
-            Ok  (obj) => obj,
-            Err (err) => return Err(visualization::InstantiationError::InvalidClass {inner:err.into()}),
-        };
-        renderer.set_dom_layer(&scene.dom.layers.main);
-        Ok(renderer.into())
+        let js_new  = js_sys::Function::new_with_args("cls", "return new cls()");
+        let context = JsValue::NULL;
+        let obj     = js_new.call1(&context,&self.class).map_err(|e| InstantiationError::ConstructorError(e))?;
+        let instance = Instance::from_object(obj).unwrap(); // ?; FIXME
+        instance.set_dom_layer(&scene.dom.layers.main);
+        Ok(instance.into())
     }
 }
 
@@ -82,59 +81,38 @@ impl From<Definition> for visualization::Definition {
 }
 
 
+// === Utils ===
 
-// =======================
-// === JavaScriptClass ===
-// =======================
-
-/// Internal wrapper for the a JS class that implements the visualization specification. Provides
-/// convenience functions for accessing JS methods and signature.
-#[derive(Clone,Debug)]
-#[allow(missing_docs)]
-struct JavaScriptClass {
-    class : JsValue,
+fn try_str_field(obj:&JsValue, field:&str) -> Option<String> {
+    let field     = js_sys::Reflect::get(obj,&field.into()).ok()?;
+    let js_string = JsString::try_from(&field)?;
+    Some(js_string.into())
 }
 
-impl JavaScriptClass {
-    /// Constructor.
-    fn new_from_function(source:impl AsRef<str>) -> instance::JsResult<JavaScriptClass> {
-        let source   = source.as_ref();
-        let context  = JsValue::NULL;
-        let function = js_sys::Function::new_no_args(source);
-        let class    = function.call0(&context)?;
-        Ok(JavaScriptClass{class})
-    }
+// TODO: convert cammel case names to nice names
+fn label(class:&JsValue) -> Result<String,Error> {
+    try_str_field(class,LABEL_FIELD).map(Ok).unwrap_or_else(|| {
+        let class_name = try_str_field(class,"name").ok_or(Error::InvalidClass(InvalidClass::MissingName))?;
+        Ok(class_name)
+    })
+}
 
-    fn signature(&self, module:impl Into<LibraryName>) -> instance::JsResult<visualization::Signature> {
-        let input_type = self.input_type().unwrap_or_default();
-        let name       = self.name()?;
-        let path       = visualization::Path::new(module,name);
-        Ok(visualization::Signature::new(path,input_type))
-    }
 
-    fn constructor(&self) -> instance::JsResult<js_sys::Function> {
-        Ok(js_sys::Reflect::get(&self.prototype()?,&"constructor".into())?.into())
-    }
 
-    fn prototype(&self) -> instance::JsResult<JsValue> {
-        Ok(js_sys::Reflect::get(&self.class,&"prototype".into())?)
-    }
+// =============
+// === Error ===
+// =============
 
-    fn input_type(&self) -> instance::JsResult<EnsoType> {
-        let input_type     = js_sys::Reflect::get(&self.class, &INPUT_TYPE_FIELD.into())?;
-        let input_type_str = EnsoType::from(input_type.as_string().unwrap()); // FIXME incl check if field exists
-        Ok(input_type_str)
-    }
+pub type FallibleDefinition = Result<Definition,Error>;
 
-    fn name(&self) -> instance::JsResult<visualization::Name> {
-        let constructor = self.constructor()?;
-        let name        = js_sys::Reflect::get(&constructor,&NAME_FIELD.into())?;
-        Ok(name.as_string().unwrap_or_default().into())
-    }
+#[derive(Clone,Debug)]
+pub enum Error {
+    InvalidFunction(JsValue),
+    InvalidClass(InvalidClass),
+}
 
-    fn new_instance(&self) -> instance::JsResult<JsValue> {
-        let fn_wrapper = js_sys::Function::new_with_args("cls", "return new cls()");
-        let context    = JsValue::NULL;
-        Ok(fn_wrapper.call1(&context, &self.class)?)
-    }
+#[derive(Clone,Debug)]
+pub enum InvalidClass {
+    MissingName,
+    ConstructorFail(JsValue),
 }

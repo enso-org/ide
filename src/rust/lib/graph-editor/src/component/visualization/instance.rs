@@ -18,6 +18,7 @@ use crate::data::EnsoCode;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
+    pub network              : frp::Network,
     pub on_change            : frp::Stream<EnsoCode>,
     pub on_preprocess_change : frp::Stream<EnsoCode>,
     pub set_size             : frp::Source<V2>,
@@ -29,8 +30,8 @@ pub struct Frp {
 
 impl Frp {
     /// Constructor.
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! { network
+    pub fn new() -> Self {
+        frp::new_network! { network
             def change            = source();
             def preprocess_change = source();
             def set_size          = source();
@@ -38,7 +39,7 @@ impl Frp {
         };
         let on_change            = change.clone_ref().into();
         let on_preprocess_change = preprocess_change.clone_ref().into();
-        Self {on_change,on_preprocess_change,change,preprocess_change,set_size,send_data}
+        Self {network,on_change,on_preprocess_change,change,preprocess_change,set_size,send_data}
     }
 }
 
