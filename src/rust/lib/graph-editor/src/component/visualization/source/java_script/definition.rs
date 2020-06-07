@@ -63,13 +63,13 @@ impl Definition {
     }
 }
 
-impl visualization::Class for Definition {
+impl visualization::Definition for Definition {
     fn signature(&self) -> &visualization::Signature {
         &self.signature
     }
 
-    fn instantiate(&self, scene:&Scene) -> InstantiationResult {
-        let obj = match self.js_class.instantiate() {
+    fn new_instance(&self, scene:&Scene) -> InstantiationResult {
+        let obj = match self.js_class.new_instance() {
             Ok  (obj) => obj,
             Err (err) => return Err(visualization::InstantiationError::InvalidClass {inner:err.into()}),
         };
@@ -132,7 +132,7 @@ impl JavaScriptClassWrapper {
         Ok(name.as_string().unwrap_or_default().into())
     }
 
-    fn instantiate(&self) -> instance::JsResult<JsValue> {
+    fn new_instance(&self) -> instance::JsResult<JsValue> {
         let fn_wrapper = js_sys::Function::new_with_args("cls", "return new cls()");
         let context    = JsValue::NULL;
         Ok(fn_wrapper.call1(&context, &self.class)?)

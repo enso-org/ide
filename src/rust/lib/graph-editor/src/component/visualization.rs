@@ -27,7 +27,7 @@ pub mod data;
 pub mod example;
 pub mod path;
 pub mod registry;
-pub mod renderer;
+pub mod instance;
 pub mod source;
 
 pub use class::*;
@@ -35,5 +35,5 @@ pub use container::*;
 pub use data::*;
 pub use path::*;
 pub use registry::*;
-pub use renderer::*;
+pub use instance::Instance;
 pub use source::*;

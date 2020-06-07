@@ -84,11 +84,11 @@ pub fn run_example_visualization() {
 }
 
 fn init(app:&Application) {
-    let world      = &app.display;
-    let scene      = world.scene();
-    let camera     = scene.camera();
-    let navigator  = Navigator::new(&scene,&camera);
-    let registry   = Registry::with_default_visualizations();
+    let world     = &app.display;
+    let scene     = world.scene();
+    let camera    = scene.camera();
+    let navigator = Navigator::new(&scene,&camera);
+    let registry  = Registry::with_default_visualizations();
 
     registry.add(constructor_graph());
 
@@ -96,7 +96,7 @@ fn init(app:&Application) {
     let vis_class     = vis_factories.iter().find(|class| {
         &*class.signature().name == "Graph"
     }).expect("Couldn't find Graph class.");
-    let visualization = vis_class.instantiate(&scene).expect("Couldn't create visualiser.");
+    let visualization = vis_class.new_instance(&scene).expect("Couldn't create visualiser.");
 
     let mut was_rendered = false;
     let mut loader_hidden = false;

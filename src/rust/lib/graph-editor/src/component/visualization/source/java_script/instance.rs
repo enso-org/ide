@@ -99,7 +99,7 @@ pub struct Instance {
         on_data_received : js_sys::Function,
         set_size         : js_sys::Function,
         network          : frp::Network,
-        frp              : visualization::InstanceFrp,
+        frp              : visualization::instance::Frp,
 }
 
 impl Instance {
@@ -118,7 +118,7 @@ impl Instance {
 
         let logger    = Logger::new("Instance");
         let network   = default();
-        let frp       = visualization::InstanceFrp::new(&network);
+        let frp       = visualization::instance::Frp::new(&network);
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")?;
@@ -230,7 +230,7 @@ impl visualization::Instance for Instance {
 //        self.root_node.set_size(size);
 //    }
 
-    fn frp(&self) -> &visualization::InstanceFrp {
+    fn frp(&self) -> &visualization::instance::Frp {
         &self.frp
     }
 }

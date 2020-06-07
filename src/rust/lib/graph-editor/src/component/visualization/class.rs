@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::data::*;
 use crate::frp;
+use crate::visualization;
 use crate::visualization::*;
 
 use ensogl::display::Scene;
@@ -65,7 +66,7 @@ impl Visualization {
 }
 
 impl Deref for Visualization {
-    type Target = InstanceFrp;
+    type Target = visualization::instance::Frp;
     fn deref(&self) -> &Self::Target {
         self.renderer.frp()
     }
@@ -80,42 +81,42 @@ impl display::Object for Visualization {
 
 
 // =============
-// === Class ===
+// === Definition ===
 // =============
 
 /// Trait that allows the instantiation of `Visualizations`.
 ///
-/// The `Class` provides both a general information about a visualization, so called `Signature`, as
+/// The `Definition` provides both a general information about a visualization, so called `Signature`, as
 /// well a way to instantiate the visualization.
 ///
 /// There are two generic implementations provided. The `JsSourceClass`, which is based on a JS snippet to
 /// instantiate `JsRenderer`, and the fairly generic `NativeConstructorClass`, that only requires
 /// a function that can create a InstantiationResult. The later can be used as a thin wrapper around
 /// the constructor methods of native visualizations.
-pub trait Class: Debug {
+pub trait Definition: Debug {
 
-    /// Provides additional information about the `Class`, for example, which `DataType`s can be
+    /// Provides additional information about the `Definition`, for example, which `DataType`s can be
     /// rendered by the instantiated visualization.
     fn signature(&self) -> &Signature;
 
     /// Create new visualization, that is initialised for the given scene. This can fail if the
-    /// `visualization::Class` contains invalid data, for example, JS code that fails to execute,
+    /// `visualization::Definition` contains invalid data, for example, JS code that fails to execute,
     /// or if the scene is in an invalid state.
     // TODO consider not providing the scene here, but hooking the the shapes/dom elements into the
     // scene externally.
-    fn instantiate(&self, scene:&Scene) -> InstantiationResult;
+    fn new_instance(&self, scene:&Scene) -> InstantiationResult;
 }
 
 
 // === Result ===
 
-/// Result of the attempt to instantiate a `Visualization` from a `Class`.
+/// Result of the attempt to instantiate a `Visualization` from a `Definition`.
 pub type InstantiationResult = Result<Visualization,InstantiationError>;
 
 
 // === Errors ===
 
-/// Indicates that instantiating a `Visualisation` from a `Class` has failed.
+/// Indicates that instantiating a `Visualisation` from a `Definition` has failed.
 #[derive(Debug,Display)]
 #[allow(missing_docs)]
 pub enum InstantiationError {
@@ -129,24 +130,24 @@ pub enum InstantiationError {
 
 
 // ================
-// === AnyClass ===
+// === AnyDefinition ===
 // ================
 
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[allow(missing_docs)]
-pub struct AnyClass {
-    pub class : Rc<dyn Class>
+pub struct AnyDefinition {
+    pub class : Rc<dyn Definition>
 }
 
-impl AnyClass {
+impl AnyDefinition {
     /// Constructor.
-    pub fn new<T:Class+'static>(class:T) -> AnyClass {
+    pub fn new<T:Definition+'static>(class:T) -> AnyDefinition {
         let class = Rc::new(class);
-        AnyClass {class}
+        AnyDefinition {class}
     }
 }
 
-impl<T:Class+'static> From<T> for AnyClass {
+impl<T:Definition+'static> From<T> for AnyDefinition {
     fn from(t:T) -> Self {
         Self::new(t)
     }

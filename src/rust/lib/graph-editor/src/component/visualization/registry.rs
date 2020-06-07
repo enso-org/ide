@@ -47,9 +47,9 @@ use ensogl::data::OptVec;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
-    default  : AnyClass,
-    path_map : Rc<RefCell<HashMap<Path,AnyClass>>>,
-    type_map : Rc<RefCell<HashMap<EnsoType,Vec<AnyClass>>>>,
+    default  : AnyDefinition,
+    path_map : Rc<RefCell<HashMap<Path,AnyDefinition>>>,
+    type_map : Rc<RefCell<HashMap<EnsoType,Vec<AnyDefinition>>>>,
 }
 
 impl Registry {
@@ -71,12 +71,12 @@ impl Registry {
         let registry = Self::new();
         registry.add(visualization::example::native::BubbleChart::class());
         registry.add(visualization::example::native::RawText::class());
-        registry.add(visualization::example::js::get_bubble_vis_class());
+        registry.add(visualization::example::java_script::get_bubble_vis_class());
         registry
     }
 
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
-    pub fn add(&self, class:impl Into<AnyClass>) {
+    pub fn add(&self, class:impl Into<AnyDefinition>) {
         let class = class.into();
         let sig   = class.signature();
         self.type_map.borrow_mut().entry(sig.input_type.clone()).or_default().push(class.clone_ref());
@@ -84,7 +84,7 @@ impl Registry {
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
-    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<AnyClass>{
+    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<AnyDefinition>{
         let type_map = self.type_map.borrow();
         type_map.get(dtype).cloned().unwrap_or_else(default)
     }
@@ -92,6 +92,6 @@ impl Registry {
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> Visualization {
         let class = visualization::example::native::RawText::class();
-        class.instantiate(&scene).expect("Failed to instantiate default visualisation.")
+        class.new_instance(&scene).expect("Failed to instantiate default visualisation.")
     }
 }

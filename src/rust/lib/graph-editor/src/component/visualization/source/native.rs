@@ -34,12 +34,12 @@ impl Native {
     }
 }
 
-impl visualization::Class for Native {
+impl visualization::Definition for Native {
     fn signature(&self) -> &visualization::Signature {
         &self.signature
     }
 
-    fn instantiate(&self, scene:&Scene) -> visualization::InstantiationResult {
+    fn new_instance(&self, scene:&Scene) -> visualization::InstantiationResult {
         self.constructor.call((scene,))
     }
 }

@@ -433,7 +433,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes     : frp::Source<Position>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<Visualization>)>,
-    pub register_visualization_class : frp::Source<Option<visualization::AnyClass>>,
+    pub register_visualization_class : frp::Source<Option<visualization::AnyDefinition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
@@ -1647,7 +1647,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 //        let vis_classes = visualizations.valid_sources(&"[[Float,Float,Float]]".into());
 //        cycle_count.set(cycle_count.get() % vis_classes.len());
 //        let vis       = &vis_classes[cycle_count.get()];
-//        let vis       = vis.instantiate(&scene);
+//        let vis       = vis.new_instance(&scene);
 //        match vis {
 //            Ok(vis)  => visualizations.set_vis_for_selected(vis),
 //            Err(e)=>  logger.warning(|| format!("Failed to cycle visualization: {}",e)),
@@ -1694,7 +1694,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         let visualizations = visualizations.valid_sources(&"[[Float,Float,Float]]".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
         let vis  = &visualizations[cycle_count.get()];
-        let vis  = vis.instantiate(&scene);
+        let vis  = vis.new_instance(&scene);
         let node = nodes.get_cloned_ref(node_id);
         match (vis, node) {
             (Ok(vis), Some(node))  => {

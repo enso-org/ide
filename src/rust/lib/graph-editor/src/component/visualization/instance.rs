@@ -16,7 +16,7 @@ use crate::data::EnsoCode;
 /// FRP API of a `Renderer`.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct InstanceFrp {
+pub struct Frp {
     /// This is emitted if the state of the renderer has been changed by UI interaction.
     /// It contains the output data of this visualization if there is some.
     pub on_change : frp::Stream<EnsoCode>,
@@ -30,7 +30,7 @@ pub struct InstanceFrp {
     preprocess_change : frp::Source<EnsoCode>,
 }
 
-impl InstanceFrp {
+impl Frp {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def change            = source();
@@ -60,9 +60,5 @@ impl InstanceFrp {
 /// UI feedback to indicate a problem with the data.
 pub trait Instance: display::Object + Debug {
     /// Return a ref to the internal FRP network.
-    fn frp(&self) -> &InstanceFrp;
+    fn frp(&self) -> &Frp;
 }
-
-
-
-

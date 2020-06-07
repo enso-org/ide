@@ -48,7 +48,7 @@ pub struct BubbleChart {
     pub display_object : display::object::Instance,
     pub scene          : Scene,
         signature      : Signature,
-        frp            : InstanceFrp,
+        frp            : visualization::instance::Frp,
         network        : frp::Network,
         views          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
         logger         : Logger,
@@ -69,7 +69,7 @@ impl BubbleChart {
         let display_object = display::object::Instance::new(&logger);
         let views          = RefCell::new(vec![]);
         let network        = default();
-        let frp            = InstanceFrp::new(&network);
+        let frp            = visualization::instance::Frp::new(&network);
         let size           = default();
         let scene          = scene.clone_ref();
         let signature      = Signature::new_for_any_type(Path::builtin("[Demo] Bubble Chart"));
@@ -131,7 +131,7 @@ impl visualization::Instance for BubbleChart {
 //        self.size.set(size);
 //    }
 
-    fn frp(&self) -> &InstanceFrp {
+    fn frp(&self) -> &visualization::instance::Frp {
         &self.frp
     }
 }
@@ -189,7 +189,7 @@ pub struct RawTextModel {
     logger : Logger,
     dom    : DomSymbol,
     size   : Rc<Cell<V2>>,
-    frp    : InstanceFrp,
+    frp    : visualization::instance::Frp,
 }
 
 impl RawTextModel {
@@ -198,7 +198,7 @@ impl RawTextModel {
         let logger  = Logger::new("RawText");
         let div     = web::create_div();
         let dom     = DomSymbol::new(&div);
-        let frp     = InstanceFrp::new(&network);
+        let frp     = visualization::instance::Frp::new(&network);
         let size    = Rc::new(Cell::new(V2(200.0,200.0)));
 
         dom.dom().set_style_or_warn("white-space"   ,"pre"                  ,&logger);
@@ -243,7 +243,7 @@ impl RawTextModel {
 }
 
 impl visualization::Instance for RawText {
-    fn frp(&self) -> &InstanceFrp {
+    fn frp(&self) -> &visualization::instance::Frp {
         &self.frp
     }
 }
