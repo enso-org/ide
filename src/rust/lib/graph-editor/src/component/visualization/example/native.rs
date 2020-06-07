@@ -48,7 +48,7 @@ pub struct BubbleChart {
     pub display_object : display::object::Instance,
     pub scene          : Scene,
         signature      : Signature,
-        frp            : RendererFrp,
+        frp            : InstanceFrp,
         network        : frp::Network,
         views          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
         logger         : Logger,
@@ -69,7 +69,7 @@ impl BubbleChart {
         let display_object = display::object::Instance::new(&logger);
         let views          = RefCell::new(vec![]);
         let network        = default();
-        let frp            = RendererFrp::new(&network);
+        let frp            = InstanceFrp::new(&network);
         let size           = default();
         let scene          = scene.clone_ref();
         let signature      = Signature::new_for_any_type(Path::builtin("[Demo] Bubble Chart"));
@@ -106,7 +106,7 @@ impl BubbleChart {
 
 
 
-impl Renderer for BubbleChart {
+impl visualization::Instance for BubbleChart {
 
 //    fn receive_data(&self, data:Data) -> Result<(),DataError> {
 //        let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
@@ -131,7 +131,7 @@ impl Renderer for BubbleChart {
 //        self.size.set(size);
 //    }
 
-    fn frp(&self) -> &RendererFrp {
+    fn frp(&self) -> &InstanceFrp {
         &self.frp
     }
 }
@@ -189,7 +189,7 @@ pub struct RawTextModel {
     logger : Logger,
     dom    : DomSymbol,
     size   : Rc<Cell<V2>>,
-    frp    : RendererFrp,
+    frp    : InstanceFrp,
 }
 
 impl RawTextModel {
@@ -198,7 +198,7 @@ impl RawTextModel {
         let logger  = Logger::new("RawText");
         let div     = web::create_div();
         let dom     = DomSymbol::new(&div);
-        let frp     = RendererFrp::new(&network);
+        let frp     = InstanceFrp::new(&network);
         let size    = Rc::new(Cell::new(V2(200.0,200.0)));
 
         dom.dom().set_style_or_warn("white-space"   ,"pre"                  ,&logger);
@@ -242,8 +242,8 @@ impl RawTextModel {
     }
 }
 
-impl Renderer for RawText {
-    fn frp(&self) -> &RendererFrp {
+impl visualization::Instance for RawText {
+    fn frp(&self) -> &InstanceFrp {
         &self.frp
     }
 }

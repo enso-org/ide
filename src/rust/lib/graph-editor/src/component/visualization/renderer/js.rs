@@ -99,59 +99,31 @@ pub struct JsRenderer {
         on_data_received : js_sys::Function,
         set_size         : js_sys::Function,
         network          : frp::Network,
-        frp              : visualization::RendererFrp,
+        frp              : visualization::InstanceFrp,
 }
 
 impl JsRenderer {
-    /// Constructor from single functions.
-    ///
-    /// `fn_set_data` and `fn_set_size` need to be strings that contain valid JavaScript code. This
-    /// code will be executed as the function body of the respective functions.
-    ///
-    /// `fn_set_data` will be called with two arguments: the first argument (`root) )will be the
-    /// root node that the visualization should use to build its output, the second argument
-    /// (`data`)will be the data that it should visualise.
-    ///
-    /// `fn_set_size` will be called with a tuple of floating point values indicating the desired
-    /// width and height. This can be used by the visualization to ensure proper scaling.
-    ///
-    /// For a full example see
-    /// `crate::component::visualization::renderer::example::function_sample_js_bubble_chart`
-    pub fn from_functions(fn_set_data:&str, fn_set_size:&str) -> Self {
-        let set_data = js_sys::Function::new_no_args(fn_set_data);
-        let set_size = js_sys::Function::new_no_args(fn_set_size);
-
-        let logger    = Logger::new("JsRendererGeneric");
-        let network   = default();
-        let frp       = visualization::RendererFrp::new(&network);
-        let div       = web::create_div();
-        let root_node = DomSymbol::new(&div);
-        root_node.dom().set_attribute("id","vis").unwrap();
-
-        JsRenderer { on_data_received: set_data,set_size,root_node,network,frp,logger }
-    }
-
     /// Internal helper that tries to convert a JS object into a `JsRenderer`.
     fn from_object_js(object:js_sys::Object) -> Result<JsRenderer,JsVisualizationError> {
-        let set_data = js_sys::Reflect::get(&object,&"onDataReceived".into())?;
-        let set_size = js_sys::Reflect::get(&object,&"setSize".into())?;
-        if !set_data.is_function() {
-            return Err(JsVisualizationError::NotAFunction { inner:set_data })
+        let on_data_received = js_sys::Reflect::get(&object,&"onDataReceived".into())?;
+        let set_size         = js_sys::Reflect::get(&object,&"setSize".into())?;
+        if !on_data_received.is_function() {
+            return Err(JsVisualizationError::NotAFunction { inner:on_data_received })
         }
         if !set_size.is_function() {
             return Err(JsVisualizationError::NotAFunction { inner:set_size })
         }
-        let set_data:js_sys::Function = set_data.into();
+        let on_data_received:js_sys::Function = on_data_received.into();
         let set_size:js_sys::Function = set_size.into();
 
         let logger    = Logger::new("JsRenderer");
         let network   = default();
-        let frp       = visualization::RendererFrp::new(&network);
+        let frp       = visualization::InstanceFrp::new(&network);
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")?;
 
-        Ok(JsRenderer { on_data_received: set_data,set_size,root_node,frp,network,logger })
+        Ok(JsRenderer { on_data_received,set_size,root_node,frp,network,logger })
     }
 
     /// Constructor from a source that evaluates to an object with specific methods.
@@ -227,7 +199,7 @@ impl JsRenderer {
     }
 }
 
-impl visualization::Renderer for JsRenderer {
+impl visualization::Instance for JsRenderer {
 
 //    fn receive_data(&self, data:Data) -> Result<(),DataError> {
 //        let context   = JsValue::NULL;
@@ -258,7 +230,7 @@ impl visualization::Renderer for JsRenderer {
 //        self.root_node.set_size(size);
 //    }
 
-    fn frp(&self) -> &visualization::RendererFrp {
+    fn frp(&self) -> &visualization::InstanceFrp {
         &self.frp
     }
 }

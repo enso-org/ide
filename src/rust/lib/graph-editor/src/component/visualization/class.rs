@@ -58,20 +58,20 @@ impl Signature {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Visualization {
-    renderer : Rc<dyn Renderer>,
+    renderer : Rc<dyn Instance>,
 }
 
 impl Visualization {
     /// Constructor.
     pub fn new<T>(renderer:T) -> Self
-    where T : 'static + Renderer {
+    where T : 'static + Instance {
         let renderer = Rc::new(renderer);
         Self {renderer}
     }
 }
 
 impl Deref for Visualization {
-    type Target = RendererFrp;
+    type Target = InstanceFrp;
     fn deref(&self) -> &Self::Target {
         self.renderer.frp()
     }
