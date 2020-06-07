@@ -2,10 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::component::visualization::traits::HasFullscreenDecoration;
-use crate::component::visualization::traits::Resizable;
-use crate::component::visualization::traits::SymbolWithLayout;
-use crate::component::visualization::traits::TargetLayer;
 use crate::frp;
 use crate::visualization::*;
 
@@ -158,39 +154,65 @@ impl Frp {
 
 #[derive(Debug)]
 #[allow(missing_docs)]
-pub struct Shapes {
+pub struct View {
     logger           : Logger,
     display_object   : display::object::Instance,
     frame            : component::ShapeView<frame::Shape>,
-    frame_fullscreen : component::ShapeView<frame2::Shape>,
     overlay          : component::ShapeView<overlay::Shape>,
 }
 
-impl Shapes {
+impl View {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
-        let logger           = logger.sub("shapes");
+        let logger           = logger.sub("view");
         let display_object   = display::object::Instance::new(&logger);
         let frame            = component::ShapeView::<frame::Shape>::new(&logger,scene);
-        let frame_fullscreen = component::ShapeView::<frame2::Shape>::new(&logger,scene);
         let overlay          = component::ShapeView::<overlay::Shape>::new(&logger,scene);
         display_object.add_child(&overlay);
         display_object.add_child(&frame);
-        scene.add_child(&frame_fullscreen);
-//        display_object.add_child(&frame_fullscreen);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<frame::Shape>);
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.viz.add(&shape_system.shape_system.symbol);
 
+        Self {logger,display_object,frame,overlay}
+    }
+}
+
+impl display::Object for View {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
+
+// ==============
+// === Shapes ===
+// ==============
+
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct FullscreenView {
+    logger           : Logger,
+    display_object   : display::object::Instance,
+    frame_fullscreen : component::ShapeView<frame2::Shape>,
+}
+
+impl FullscreenView {
+    pub fn new(logger:&Logger, scene:&Scene) -> Self {
+        let logger           = logger.sub("fullscreen_view");
+        let display_object   = display::object::Instance::new(&logger);
+        let frame_fullscreen = component::ShapeView::<frame2::Shape>::new(&logger,scene);
+        display_object.add_child(&frame_fullscreen);
+
         let shape_system = scene.shapes.shape_system(PhantomData::<frame2::Shape>);
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.viz_fullscreen.add(&shape_system.shape_system.symbol);
 
-        Self {logger,display_object,frame,frame_fullscreen,overlay}
+        Self {logger,display_object,frame_fullscreen}
     }
 }
 
-impl display::Object for Shapes {
+impl display::Object for FullscreenView {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
@@ -211,7 +233,8 @@ pub struct ContainerModel {
     frp            : Frp,
     visualization  : RefCell<Option<Visualization>>,
     scene          : Scene,
-    shapes         : Shapes,
+    view            : View,
+    fullscreen_view : FullscreenView,
     is_fullscreen  : Rc<Cell<bool>>,
 }
 
@@ -221,10 +244,11 @@ impl ContainerModel {
         let display_object = display::object::Instance::new(&logger);
         let visualization  = default();
         let frp            = Frp::new(&network,scene);
-        let shapes         = Shapes::new(&logger,scene);
+        let view           = View::new(&logger,scene);
+        let fullscreen_view = FullscreenView::new(&logger,scene);
         let scene          = scene.clone_ref();
         let is_fullscreen  = default();
-        Self {logger,frp,visualization,display_object,shapes,scene,is_fullscreen} . init()
+        Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen} . init()
     }
 
     fn init(self) -> Self {
@@ -238,18 +262,28 @@ impl ContainerModel {
 
     /// Indicates whether the visualization is visible.
     pub fn is_visible(&self) -> bool {
-        self.shapes.has_parent()
+        self.view.has_parent()
     }
 
     /// Set whether the visualization should be visible or not.
     fn set_visibility(&self, visibility:bool) {
-        if visibility { self.add_child    (&self.shapes) }
-        else          { self.remove_child (&self.shapes) }
+        if visibility {
+            self.add_child(&self.view);
+            self.scene.add_child(&self.fullscreen_view);
+        }
+        else {
+            self.remove_child(&self.view);
+            self.scene.remove_child(&self.fullscreen_view);
+        }
     }
 
 
     fn enable_fullscreen(&self) {
         self.is_fullscreen.set(true);
+        if let Some(viz) = &*self.visualization.borrow() {
+            println!("reattaching");
+            self.fullscreen_view.add_child(viz)
+        }
     }
 }
 
@@ -265,7 +299,7 @@ impl ContainerModel {
         if let Some(visualization) = visualization {
             let size = self.frp.size.value();
             visualization.set_size.emit(size);
-            self.shapes.add_child(&visualization);
+            self.view.add_child(&visualization);
             self.visualization.replace(Some(visualization));
         }
     }
@@ -284,32 +318,21 @@ impl ContainerModel {
     fn set_size(&self, size:impl Into<V2>) {
         let size = size.into();
         if self.is_fullscreen.get() {
-            self.shapes.frame_fullscreen . shape.radius.set(CORNER_RADIUS);
-            self.shapes.frame_fullscreen . shape.sprite.size().set(size.into());
-            self.shapes.frame            . shape.sprite.size().set(zero());
-            self.shapes.overlay          . shape.sprite.size().set(zero());
+            self.fullscreen_view.frame_fullscreen . shape.radius.set(CORNER_RADIUS);
+            self.fullscreen_view.frame_fullscreen . shape.sprite.size().set(size.into());
+            self.view.frame            . shape.sprite.size().set(zero());
+            self.view.overlay          . shape.sprite.size().set(zero());
         } else {
-            self.shapes.frame.shape.radius.set(CORNER_RADIUS);
-            self.shapes.overlay.shape.radius.set(CORNER_RADIUS);
-            self.shapes.frame.shape.sprite.size().set(size.into());
-            self.shapes.overlay.shape.sprite.size().set(size.into());
-            self.shapes.frame_fullscreen . shape.sprite.size().set(zero());
+            self.view.frame.shape.radius.set(CORNER_RADIUS);
+            self.view.overlay.shape.radius.set(CORNER_RADIUS);
+            self.view.frame.shape.sprite.size().set(size.into());
+            self.view.overlay.shape.sprite.size().set(size.into());
+            self.fullscreen_view.frame_fullscreen . shape.sprite.size().set(zero());
         }
 
         if let Some(viz) = &*self.visualization.borrow() {
             viz.set_size.emit(size);
         }
-
-//        if let Some(vis) = self.visualization.borrow().as_ref() {
-//            let radius   = CORNER_RADIUS * 2.0;
-//            let radius   = V2(radius,radius);
-//            let vis_size = size - radius;
-//            vis.set_size.emit(vis_size);
-//        }
-//
-//        self.size.set(size);
-//        self.update_shape_sizes();
-
     }
 
     fn init_corner_roundness(&self) {
@@ -317,9 +340,9 @@ impl ContainerModel {
     }
 
     fn set_corner_roundness(&self, value:f32) {
-        self.shapes.overlay.shape.roundness.set(value);
-        self.shapes.frame.shape.roundness.set(value);
-        self.shapes.frame_fullscreen.shape.roundness.set(value);
+        self.view.overlay.shape.roundness.set(value);
+        self.view.frame.shape.roundness.set(value);
+        self.fullscreen_view.frame_fullscreen.shape.roundness.set(value);
     }
 }
 
@@ -360,56 +383,23 @@ impl Container {
         let inputs     = &self.frp;
         let network    = &self.network;
         let model      = &self.model;
-        let selection  = Animation::new(network);
         let fullscreen = Animation::new(network);
         let size       = Animation::<V2>::new(network);
         let fullscreen_position   = Animation::<V3>::new(network);
 
 
         frp::extend! { network
-            eval  selection.value          ((value) model.shapes.frame.shape.selected.set(*value));
             eval  inputs.set_visibility    ((v) model.set_visibility(*v));
             eval_ inputs.toggle_visibility (model.toggle_visibility());
             eval  inputs.set_visualization ((v) model.set_visualization(v.clone()));
             eval  inputs.set_data          ((t) model.set_visualization_data(t));
-            eval_ inputs.select            (selection.set_target_value(1.0));
-            eval_ inputs.deselect          (selection.set_target_value(0.0));
-            eval_ model.shapes.overlay.events.mouse_down (inputs.on_click.emit(()));
-
             eval_ inputs.enable_fullscreen (model.set_visibility(true));
             eval_ inputs.enable_fullscreen (model.enable_fullscreen());
             eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
 
-//            _eval <- inputs.enable_fullscreen.map2(&inputs.scene_shape,f!([model,fullscreen_position,size](_,scene_size){
-//                let m1  = model.scene.views.viz_fullscreen.camera.inversed_view_matrix();
-//                let m2  = model.scene.views.viz.camera.view_matrix();
-//                let pos = model.global_position();
-//                let pos = Vector4::new(pos.x,pos.y,pos.z,1.0);
-//                let pos = m2 * (m1 * pos);
-//                let pp = V3(pos.x,pos.y,pos.z);
-//                fullscreen_position.set_target_value(pp);
-//                fullscreen_position.skip();
-////                let tgt_pos = V3(pos.x,pos.y,pos.z) * weight;
-//                let scene_size : V2 = scene_size.into();
-//                let tgt_pos = V3(scene_size.x/2.0,scene_size.y/2.0,0.0);
-//                fullscreen_position.set_target_value(tgt_pos);
-//
-//                size.set_target_value(scene_size.into());
-//            }));
-
-//            _eval <- fullscreen.value.all_with3
-//                (&inputs.set_size,&inputs.scene_shape
-//                ,f!([model,size,fullscreen_position](weight,viz_size,scene_size) {
-//                    let weight_inv      = 1.0 - weight;
-//                    let scene_size : V2 = scene_size.into();
-//                    let target_size     = viz_size * weight_inv + scene_size * weight;
-//                    model.set_corner_roundness(weight_inv);
-//                    size.set_target_value(target_size);
-//            }));
-
             eval inputs.set_size ((s) size.set_target_value(s.into()));
-//
-            _foo <- fullscreen.value.all_with3(&size.value,&inputs.scene_shape,
+
+            _eval <- fullscreen.value.all_with3(&size.value,&inputs.scene_shape,
                 f!([model] (weight,viz_size,scene_size) {
                     let weight_inv      = 1.0 - weight;
                     let scene_size : V2 = scene_size.into();
@@ -426,23 +416,17 @@ impl Container {
                     let scene_size : V2 = scene_size.into();
                     let tgt_pos = V3(scene_size.x/2.0,scene_size.y/2.0,0.0);
                     let current_pos = pp * weight_inv + tgt_pos * weight;
-                    model.shapes.frame_fullscreen.set_position(current_pos.into());
+                    model.fullscreen_view.set_position(current_pos.into());
 
             }));
 
-//            eval size.value     ((v) model.set_size(v));
-            eval fullscreen_position.value ((p)  model.shapes.frame_fullscreen.set_position(p.into()));
+            eval fullscreen_position.value ((p)  model.fullscreen_view.set_position(p.into()));
 
         }
 
-//        inputs.set_size.emit(DEFAULT_SIZE);
-
         inputs.set_size.emit(DEFAULT_SIZE);
         size.skip();
-
-//        model.set_visualization(Some(Registry::default_visualisation(scene)));
-
-
+        model.set_visualization(Some(Registry::default_visualisation(scene)));
         self
     }
 }
@@ -452,61 +436,3 @@ impl display::Object for Container {
         &self.model.display_object
     }
 }
-
-//impl HasFullscreenDecoration for Container {
-//    fn enable_fullscreen_decoration(&self) {
-//        self.model.set_corner_roundness(0.0);
-//    }
-//
-//    fn disable_fullscreen_decoration(&self) {
-//        self.model.set_corner_roundness(1.0);
-//    }
-//}
-
-//impl Resizable for Container {
-//    fn set_size(&self, size:Vector3<f32>) {
-//        self.model.set_size(size);
-//    }
-//
-//    fn size(&self) -> Vector3<f32>{
-//        Vector3::new(self.model.size.get().x,self.model.size.get().y, 0.0)
-//    }
-//}
-
-//impl HasSymbols for Container {
-//    fn symbols(&self) -> Vec<Symbol> {
-//        let mut symbols  = self.container_main_symbols();
-//        if let Some(vis) = self.model.visualization.borrow().as_ref() {
-//            symbols.extend(vis.symbols());
-//        };
-//        symbols
-//    }
-//
-//    fn symbols_with_data(&self) -> Vec<SymbolWithLayout> {
-//        let target_layer = TargetLayer::Main;
-//        let symbols      = self.container_main_symbols().into_iter();
-//        let symbols  = symbols.map(move |symbol| SymbolWithLayout {symbol,target_layer});
-//        let vis_symbols  = self.model.visualization.borrow().as_ref().map(|vis| vis.symbols_with_data()).unwrap_or_default();
-//        symbols.chain(vis_symbols).collect()
-//    }
-//}
-//
-//impl HasDomSymbols for Container {
-//    fn dom_symbols(&self) -> Vec<DomSymbol> {
-//        if let Some(vis) = self.model.visualization.borrow().as_ref() {
-//            vis.dom_symbols()
-//        } else{
-//            vec![]
-//        }
-//    }
-//}
-
-//    /// Return the symbols of the container, not of the visualization.
-//    fn container_main_symbols(&self) -> Vec<Symbol> {
-//        let shape_system_frame   = self.scene.shapes.shape_system(PhantomData::<frame::Shape>);
-//        let shape_system_overlay = self.scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-//        vec![
-//            shape_system_frame.shape_system.symbol.clone_ref(),
-//            shape_system_overlay.shape_system.symbol.clone_ref(),
-//        ]
-//    }

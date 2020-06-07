@@ -25,14 +25,13 @@ pub mod class;
 pub mod container;
 pub mod data;
 pub mod example;
-pub mod fullscreen;
+pub mod path;
 pub mod registry;
 pub mod renderer;
-pub mod traits;
-pub mod stage;
 
 pub use class::*;
 pub use container::*;
 pub use data::*;
+pub use path::*;
 pub use registry::*;
 pub use renderer::*;

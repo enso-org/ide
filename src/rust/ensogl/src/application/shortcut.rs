@@ -72,17 +72,19 @@ impl Registry {
         let double_press_threshold_ms = 300.0;
         frp::new_network! { network
             let key_mask = model.keyboard.key_mask.clone_ref();
-            nothing_pressed    <- key_mask.map(|m| *m == default());
-            single_press       <- key_mask.gate_not(&nothing_pressed);
-            eval single_press ((m) model.process_action(ActionType::Press,m));
+            nothing_pressed      <- key_mask.map(|m| *m == default());
+            nothing_pressed_prev <- nothing_pressed.previous();
+            press                <- key_mask.gate_not(&nothing_pressed);
+            single_press         <- press.gate(&nothing_pressed_prev);
+            eval press ((m) model.process_action(ActionType::Press,m));
 
             single_press_prev  <- single_press.previous();
             press_time         <- single_press.map(|_| web::performance().now());
             press_time_prev    <- press_time.previous();
             time_delta         <- press_time.map2(&press_time_prev, |t1,t2| (t1-t2));
-            is_double_press    <- time_delta.map3(&single_press,&single_press_prev,
-                move |delta,t,s| *delta < double_press_threshold_ms && t == s);
-            double_press       <- single_press.gate(&is_double_press);
+            is_double_press    <- time_delta.map4(&press,&single_press_prev,&nothing_pressed_prev,
+                move |delta,t,s,g| *g && *delta < double_press_threshold_ms && t == s);
+            double_press       <- press.gate(&is_double_press);
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
 
             let prev_key = model.keyboard.previous_key_mask.clone_ref();

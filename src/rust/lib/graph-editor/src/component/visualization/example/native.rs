@@ -4,8 +4,6 @@ use crate::prelude::*;
 
 use crate::component::visualization::*;
 use crate::component::visualization;
-use crate::component::visualization::traits::SymbolWithLayout;
-use crate::component::visualization::traits::TargetLayer;
 
 use ensogl::data::color::Rgba;
 use ensogl::display::DomSymbol;
@@ -61,7 +59,7 @@ pub struct BubbleChart {
 impl BubbleChart {
     pub fn class() -> class::Native {
         class::Native::new(
-            Signature::for_any_type(Path::builtin("[Demo] Bubble Visualization")),
+            Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization")),
             |scene:&Scene| { Ok(Visualization::new(Self::new(scene))) }
         )
     }
@@ -74,7 +72,7 @@ impl BubbleChart {
         let frp            = RendererFrp::new(&network);
         let size           = default();
         let scene          = scene.clone_ref();
-        let signature      = Signature::for_any_type(Path::builtin("[Demo] Bubble Chart"));
+        let signature      = Signature::new_for_any_type(Path::builtin("[Demo] Bubble Chart"));
         BubbleChart {display_object,views,logger,frp,network,size,scene,signature} . init()
     }
 
@@ -162,7 +160,7 @@ pub struct RawText {
 impl RawText {
     pub fn class() -> class::Native {
         class::Native::new(
-            Signature::for_any_type(Path::builtin("Raw Text Visualization (native)")),
+            Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)")),
             |scene:&Scene| { Ok(Visualization::new(Self::new(scene))) }
         )
     }
@@ -188,10 +186,10 @@ impl RawText {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct RawTextModel {
-    logger  : Logger,
-    dom     : DomSymbol,
-    size    : Rc<Cell<V2>>,
-    frp     : RendererFrp,
+    logger : Logger,
+    dom    : DomSymbol,
+    size   : Rc<Cell<V2>>,
+    frp    : RendererFrp,
 }
 
 impl RawTextModel {

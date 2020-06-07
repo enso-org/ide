@@ -27,7 +27,6 @@ use crate::prelude::*;
 use crate::component::visualization;
 use crate::component::visualization::Data;
 use crate::component::visualization::DataError;
-use crate::component::visualization::traits::SymbolWithLayout;
 
 use ensogl::display::DomScene;
 use ensogl::display::DomSymbol;

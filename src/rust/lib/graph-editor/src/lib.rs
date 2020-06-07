@@ -351,40 +351,46 @@ ensogl::def_command_api! { Commands
 
     /// Switches the selected visualisation to/from fullscreen mode.
     toggle_fullscreen_for_selected_visualization,
+
+
+    /// Cancel the operation being currently performed. Often mapped to the escape key.
+    cancel,
 }
 
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def add_node                              = source();
-            def add_node_at_cursor                    = source();
-            def remove_selected_nodes                 = source();
-            def remove_all_nodes                      = source();
-            def toggle_visualization_visibility       = source();
-            def press_visualization_visibility        = source();
-            def double_press_visualization_visibility = source();
-            def release_visualization_visibility      = source();
+            add_node                              <- source();
+            add_node_at_cursor                    <- source();
+            remove_selected_nodes                 <- source();
+            remove_all_nodes                      <- source();
+            toggle_visualization_visibility       <- source();
+            press_visualization_visibility        <- source();
+            double_press_visualization_visibility <- source();
+            release_visualization_visibility      <- source();
 
-            def enable_node_multi_select              = source();
-            def disable_node_multi_select             = source();
-            def toggle_node_multi_select              = source();
+            enable_node_multi_select              <- source();
+            disable_node_multi_select             <- source();
+            toggle_node_multi_select              <- source();
 
-            def enable_node_merge_select              = source();
-            def disable_node_merge_select             = source();
-            def toggle_node_merge_select              = source();
+            enable_node_merge_select              <- source();
+            disable_node_merge_select             <- source();
+            toggle_node_merge_select              <- source();
 
-            def enable_node_subtract_select           = source();
-            def disable_node_subtract_select          = source();
-            def toggle_node_subtract_select           = source();
+            enable_node_subtract_select           <- source();
+            disable_node_subtract_select          <- source();
+            toggle_node_subtract_select           <- source();
 
-            def enable_node_inverse_select            = source();
-            def disable_node_inverse_select           = source();
-            def toggle_node_inverse_select            = source();
+            enable_node_inverse_select            <- source();
+            disable_node_inverse_select           <- source();
+            toggle_node_inverse_select            <- source();
 
-            def set_test_visualization_data_for_selected_node = source();
-            def cycle_visualization_for_selected_node         = source();
+            set_test_visualization_data_for_selected_node <- source();
+            cycle_visualization_for_selected_node         <- source();
 
-            def toggle_fullscreen_for_selected_visualization = source();
+            toggle_fullscreen_for_selected_visualization <- source();
+
+            cancel <- source();
         }
         Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
              ,toggle_visualization_visibility,press_visualization_visibility
@@ -394,7 +400,7 @@ impl Commands {
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
              ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
              ,set_test_visualization_data_for_selected_node,cycle_visualization_for_selected_node
-             ,toggle_fullscreen_for_selected_visualization}
+             ,toggle_fullscreen_for_selected_visualization,cancel}
     }
 }
 

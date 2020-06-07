@@ -1,4 +1,4 @@
-//! This module defines the `Visualization` struct and related functionality.
+//! `Visualization` struct definition and related functionality.
 
 pub mod js;
 pub mod native;
@@ -20,31 +20,6 @@ use std::error::Error;
 
 
 
-// ============
-// === Path ===
-// ============
-
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
-pub struct Path {
-    pub library : LibraryName,
-    pub name    : VisualizationName,
-}
-
-impl Path {
-    pub fn new(library:impl Into<LibraryName>, name:impl Into<VisualizationName>) -> Self {
-        let library = library.into();
-        let name   = name.into();
-        Self {library,name}
-    }
-
-    pub fn builtin(name:impl Into<VisualizationName>) -> Self {
-        let library = builtin_library();
-        Self::new(library,name)
-    }
-}
-
-
-
 // =================
 // === Signature ===
 // =================
@@ -59,13 +34,15 @@ pub struct Signature {
 }
 
 impl Signature {
+    /// Constructor.
     pub fn new(path:impl Into<Path>, input_type:impl Into<EnsoType>) -> Self {
         let path       = path.into();
         let input_type = input_type.into();
         Self {path,input_type}
     }
 
-    pub fn for_any_type(path:impl Into<Path>) -> Self {
+    /// Constructor of signature valid for any Enso type.
+    pub fn new_for_any_type(path:impl Into<Path>) -> Self {
         let input_type = EnsoType::any();
         Self::new(path,input_type)
     }
@@ -80,7 +57,7 @@ impl Signature {
 /// Internal data of Visualization.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct  Visualization {
+pub struct Visualization {
     renderer : Rc<dyn Renderer>,
 }
 
@@ -92,6 +69,7 @@ impl Deref for Visualization {
 }
 
 impl Visualization {
+    /// Constructor.
     pub fn new<T>(renderer:T) -> Self
         where T : 'static + Renderer {
         let renderer = Rc::new(renderer);

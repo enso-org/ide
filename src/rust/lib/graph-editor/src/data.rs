@@ -10,10 +10,6 @@ im_string_newtype!{
     /// Name of the Enso library.
     LibraryName,
 
-    /// Name of the visualization. You cannot register two visualizations of the same name in the
-    /// same library.
-    VisualizationName,
-
     /// The source code of Enso program.
     EnsoCode,
 

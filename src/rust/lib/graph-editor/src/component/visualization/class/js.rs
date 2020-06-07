@@ -7,10 +7,8 @@ use crate::component::visualization::InstantiationError;
 use crate::component::visualization::JsRenderer;
 use crate::component::visualization::JsResult;
 use crate::component::visualization::InstantiationResult;
-use crate::component::visualization::Class;
 use crate::component::visualization::Visualization;
-use crate::component::visualization::Signature;
-use crate::component::visualization::Path;
+use crate::component::visualization;
 use crate::data::*;
 
 use ensogl::display::Scene;
@@ -53,7 +51,7 @@ const INPUT_TYPE_FIELD : &str = "inputType";
 #[allow(missing_docs)]
 pub struct JsSourceClass {
     js_class  : JsClassWrapper,
-    signature : Signature,
+    signature : visualization::Signature,
 }
 
 impl JsSourceClass {
@@ -66,8 +64,8 @@ impl JsSourceClass {
     }
 }
 
-impl Class for JsSourceClass {
-    fn signature(&self) -> &Signature {
+impl visualization::Class for JsSourceClass {
+    fn signature(&self) -> &visualization::Signature {
         &self.signature
     }
 
@@ -107,11 +105,11 @@ impl JsClassWrapper {
         Ok(JsClassWrapper{class})
     }
 
-    fn signature(&self, module:impl Into<LibraryName>) -> JsResult<Signature> {
+    fn signature(&self, module:impl Into<LibraryName>) -> JsResult<visualization::Signature> {
         let input_type = self.input_type().unwrap_or_default();
         let name       = self.name()?;
-        let path       = Path::new(module,name);
-        Ok(Signature::new(path,input_type))
+        let path       = visualization::Path::new(module,name);
+        Ok(visualization::Signature::new(path,input_type))
     }
 
     fn constructor(&self) -> JsResult<js_sys::Function> {
@@ -128,7 +126,7 @@ impl JsClassWrapper {
         Ok(input_type_str)
     }
 
-    fn name(&self) -> JsResult<VisualizationName> {
+    fn name(&self) -> JsResult<visualization::Name> {
         let constructor = self.constructor()?;
         let name        = js_sys::Reflect::get(&constructor,&NAME_FIELD.into())?;
         Ok(name.as_string().unwrap_or_default().into())
