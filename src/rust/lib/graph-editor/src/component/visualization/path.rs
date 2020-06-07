@@ -19,7 +19,7 @@ im_string_newtype!{
 // === Path ===
 // ============
 
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
+#[derive(Clone,CloneRef,Debug,Eq,Hash,PartialEq)]
 pub struct Path {
     pub library : data::LibraryName,
     pub name    : Name,

@@ -620,8 +620,7 @@ impl NodeEditor {
         for identifier in identifiers {
             let visualization = self.visualization.load_visualization(&identifier).await;
             let visualization = visualization.map(|visualization| {
-                let class_handle = &Some(visualization);
-                graph_editor.frp.register_visualization_class.emit_event(class_handle);
+                graph_editor.frp.register_visualization.emit(Some(visualization));
             });
             visualization?;
         }

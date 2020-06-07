@@ -15,15 +15,12 @@ use std::error::Error;
 
 
 
-
-
-
 // =================
 // === Signature ===
 // =================
 
 /// Contains general information about a visualization.
-#[derive(Clone,Debug,Eq,Hash,PartialEq,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Eq,Hash,PartialEq,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct Signature {
     #[shrinkwrap(main_field)]
@@ -48,32 +45,33 @@ impl Signature {
 
 
 
-
-// =============
+// ==================
 // === Definition ===
-// =============
+// ==================
 
-/// Trait that allows the instantiation of `Visualizations`.
-///
-/// The `Definition` provides both a general information about a visualization, so called `Signature`, as
-/// well a way to instantiate the visualization.
-///
-/// There are two generic implementations provided. The `JsSourceClass`, which is based on a JS snippet to
-/// instantiate `JsRenderer`, and the fairly generic `NativeConstructorClass`, that only requires
-/// a function that can create a InstantiationResult. The later can be used as a thin wrapper around
-/// the constructor methods of native visualizations.
-pub trait Definition: Debug {
+/// Generic definition of a visualization. Provides information about the visualization `Signature`,
+/// and a way to create new instances.
+#[derive(Clone,CloneRef,Derivative)]
+#[derivative(Debug)]
+pub struct Definition {
+    pub signature   : Signature,
+    #[derivative(Debug="ignore")]
+    pub constructor : Rc<dyn Fn(&Scene) -> InstantiationResult>,
+}
 
-    /// Provides additional information about the `Definition`, for example, which `DataType`s can be
-    /// rendered by the instantiated visualization.
-    fn signature(&self) -> &Signature;
+impl Definition {
+    /// Constructor.
+    pub fn new<F>(signature:impl Into<Signature>, constructor:F) -> Self
+    where F:'static + Fn(&Scene) -> InstantiationResult {
+        let signature   = signature.into();
+        let constructor = Rc::new(constructor);
+        Self {signature,constructor}
+    }
 
-    /// Create new visualization, that is initialised for the given scene. This can fail if the
-    /// `visualization::Definition` contains invalid data, for example, JS code that fails to execute,
-    /// or if the scene is in an invalid state.
-    // TODO consider not providing the scene here, but hooking the the shapes/dom elements into the
-    // scene externally.
-    fn new_instance(&self, scene:&Scene) -> InstantiationResult;
+    /// Creates a new instance of the visualization.
+    pub fn new_instance(&self, scene:&Scene) -> InstantiationResult {
+        (self.constructor)(scene)
+    }
 }
 
 
@@ -94,30 +92,4 @@ pub enum InstantiationError {
 
     /// Indicates a problem with instantiating a visualisation from a valid class object.
     InvalidVisualisation { inner:Box<dyn Error> },
-}
-
-
-
-// ================
-// === AnyDefinition ===
-// ================
-
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
-#[allow(missing_docs)]
-pub struct AnyDefinition {
-    pub class : Rc<dyn Definition>
-}
-
-impl AnyDefinition {
-    /// Constructor.
-    pub fn new<T:Definition+'static>(class:T) -> AnyDefinition {
-        let class = Rc::new(class);
-        AnyDefinition {class}
-    }
-}
-
-impl<T:Definition+'static> From<T> for AnyDefinition {
-    fn from(t:T) -> Self {
-        Self::new(t)
-    }
 }

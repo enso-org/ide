@@ -431,7 +431,7 @@ pub struct FrpInputs {
     pub translate_selected_nodes     : frp::Source<Position>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Instance>)>,
-    pub register_visualization_class : frp::Source<Option<visualization::AnyDefinition>>,
+    pub register_visualization : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
@@ -462,7 +462,7 @@ impl FrpInputs {
             def translate_selected_nodes     = source();
             def cycle_visualization          = source();
             def set_visualization            = source();
-            def register_visualization_class = source();
+            def register_visualization = source();
 
             def hover_node_input           = source();
             def some_edge_targets_detached = source();
@@ -475,7 +475,7 @@ impl FrpInputs {
              ,unset_edge_source,unset_edge_target
              ,set_node_position,select_node,remove_node,translate_selected_nodes,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
-             ,register_visualization_class,some_edge_targets_detached,all_edge_targets_attached
+             ,register_visualization,some_edge_targets_detached,all_edge_targets_attached
              ,hover_node_input
              }
     }
@@ -1748,7 +1748,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Register Visualization ===
 
-    def _register_visualization = inputs.register_visualization_class.map(f!([visualizations](handle) {
+    def _register_visualization = inputs.register_visualization.map(f!([visualizations](handle) {
         if let Some(handle) = handle {
             visualizations.add(handle);
         }

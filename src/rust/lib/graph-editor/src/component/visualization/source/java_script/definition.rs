@@ -48,7 +48,7 @@ const INPUT_TYPE_FIELD : &str = "inputType";
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub struct Definition {
-    js_class  : JavaScriptClassWrapper,
+    js_class  : JavaScriptClass,
     signature : visualization::Signature,
 }
 
@@ -56,15 +56,9 @@ impl Definition {
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
     pub fn new
     (module:impl Into<LibraryName>, source:impl AsRef<str>) -> Result<Self,instance::JsVisualizationError> {
-        let js_class  = JavaScriptClassWrapper::instantiate_class(source)?;
+        let js_class  = JavaScriptClass::new(source)?;
         let signature = js_class.signature(module)?;
         Ok(Definition{js_class,signature})
-    }
-}
-
-impl visualization::Definition for Definition {
-    fn signature(&self) -> &visualization::Signature {
-        &self.signature
     }
 
     fn new_instance(&self, scene:&Scene) -> InstantiationResult {
@@ -81,27 +75,34 @@ impl visualization::Definition for Definition {
     }
 }
 
+impl From<Definition> for visualization::Definition {
+    fn from(t:Definition) -> Self {
+        Self::new(t.signature.clone_ref(),move |scene| t.new_instance(scene))
+    }
+}
 
 
-// ======================
-// === JavaScriptClassWrapper ===
-// ======================
+
+// =======================
+// === JavaScriptClass ===
+// =======================
 
 /// Internal wrapper for the a JS class that implements the visualization specification. Provides
 /// convenience functions for accessing JS methods and signature.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-struct JavaScriptClassWrapper {
+struct JavaScriptClass {
     class : JsValue,
 }
 
-impl JavaScriptClassWrapper {
-    fn instantiate_class(source:impl AsRef<str>) -> instance::JsResult<JavaScriptClassWrapper> {
-        let source      = source.as_ref();
-        let context     = JsValue::NULL;
-        let constructor = js_sys::Function::new_no_args(source);
-        let class       = constructor.call0(&context)?;
-        Ok(JavaScriptClassWrapper{class})
+impl JavaScriptClass {
+    /// Constructor.
+    fn new(source:impl AsRef<str>) -> instance::JsResult<JavaScriptClass> {
+        let source   = source.as_ref();
+        let context  = JsValue::NULL;
+        let function = js_sys::Function::new_no_args(source);
+        let class    = function.call0(&context)?;
+        Ok(JavaScriptClass{class})
     }
 
     fn signature(&self, module:impl Into<LibraryName>) -> instance::JsResult<visualization::Signature> {

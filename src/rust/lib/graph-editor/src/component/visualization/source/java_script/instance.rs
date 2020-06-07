@@ -81,7 +81,7 @@ impl From<JsValue> for JsVisualizationError {
 }
 
 /// Internal helper type to propagate results that can fail due to `JsVisualizationError`s.
-pub(crate) type JsResult<T> = Result<T, JsVisualizationError>;
+pub type JsResult<T> = Result<T, JsVisualizationError>;
 
 
 

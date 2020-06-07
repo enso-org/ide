@@ -1,8 +1,10 @@
-//! This module defines copy-on-write String implementation.
+//! This module defines several useful string variants, including copy-on-write and immutable
+//! implementations.
 
 use std::borrow::Cow;
 
 use crate::impls;
+use crate::clone::*;
 use std::ops::Deref;
 use std::rc::Rc;
 use derive_more::*;
@@ -74,7 +76,7 @@ impl AsRef<str> for CowString {
 // ================
 
 /// Immutable string implementation with a fast clone implementation.
-#[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
+#[derive(Clone,CloneRef,Debug,Default,Eq,Hash,PartialEq)]
 pub struct ImString {
     content : Rc<String>
 }
@@ -150,7 +152,7 @@ impl From<&&str> for ImString {
 macro_rules! im_string_newtype {
     ($($(#$meta:tt)* $name:ident),* $(,)?) => {$(
         $(#$meta)*
-        #[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
+        #[derive(Clone,CloneRef,Debug,Default,Eq,Hash,PartialEq)]
         pub struct $name {
             content : ImString
         }

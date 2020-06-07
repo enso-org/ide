@@ -39,21 +39,21 @@ use ensogl::data::OptVec;
 
 
 
-// ==============================
-// === Visualization Registry ===
-// ==============================
+// ================
+// === Registry ===
+// ================
 
 /// The registry struct. For more information see the module description.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
-    default  : AnyDefinition,
-    path_map : Rc<RefCell<HashMap<Path,AnyDefinition>>>,
-    type_map : Rc<RefCell<HashMap<EnsoType,Vec<AnyDefinition>>>>,
+    default  : Definition,
+    path_map : Rc<RefCell<HashMap<Path,Definition>>>,
+    type_map : Rc<RefCell<HashMap<EnsoType,Vec<Definition>>>>,
 }
 
 impl Registry {
-    /// Return an empty `Registry`.
+    /// Constructor.
     pub fn new() -> Self {
         let default  = visualization::example::native::RawText::class().into();
         let path_map = Default::default();
@@ -76,15 +76,15 @@ impl Registry {
     }
 
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
-    pub fn add(&self, class:impl Into<AnyDefinition>) {
+    pub fn add(&self, class:impl Into<Definition>) {
         let class = class.into();
-        let sig   = class.signature();
+        let sig   = &class.signature;
         self.type_map.borrow_mut().entry(sig.input_type.clone()).or_default().push(class.clone_ref());
         self.path_map.borrow_mut().entry(sig.path.clone()).insert(class);
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
-    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<AnyDefinition>{
+    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Definition>{
         let type_map = self.type_map.borrow();
         type_map.get(dtype).cloned().unwrap_or_else(default)
     }
