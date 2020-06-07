@@ -3,7 +3,6 @@
 use crate::prelude::*;
 
 use crate::component::visualization::InstantiationResult;
-use crate::component::visualization::Visualization;
 use crate::component::visualization;
 use crate::data::*;
 
@@ -78,7 +77,7 @@ impl visualization::Definition for Definition {
             Err (err) => return Err(visualization::InstantiationError::InvalidClass {inner:err.into()}),
         };
         renderer.set_dom_layer(&scene.dom.layers.main);
-        Ok(Visualization::new(renderer))
+        Ok(visualization::Instance::new(renderer))
     }
 }
 

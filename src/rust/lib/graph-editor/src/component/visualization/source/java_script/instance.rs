@@ -199,7 +199,7 @@ impl Instance {
     }
 }
 
-impl visualization::Instance for Instance {
+impl visualization::InstanceX for Instance {
 
 //    fn receive_data(&self, data:Data) -> Result<(),DataError> {
 //        let context   = JsValue::NULL;

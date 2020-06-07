@@ -90,7 +90,7 @@ impl Registry {
     }
 
     /// Return a default visualisation class.
-    pub fn default_visualisation(scene:&Scene) -> Visualization {
+    pub fn default_visualisation(scene:&Scene) -> visualization::Instance {
         let class = visualization::example::native::RawText::class();
         class.new_instance(&scene).expect("Failed to instantiate default visualisation.")
     }

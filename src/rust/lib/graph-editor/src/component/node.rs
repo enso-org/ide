@@ -170,7 +170,7 @@ pub struct InputEvents {
     pub select            : frp::Source,
     pub deselect          : frp::Source,
     pub set_expression    : frp::Source<Expression>,
-    pub set_visualization : frp::Source<Option<visualization::Visualization>>,
+    pub set_visualization : frp::Source<Option<visualization::Instance>>,
 }
 
 impl InputEvents {

@@ -15,6 +15,9 @@ use std::error::Error;
 
 
 
+
+
+
 // =================
 // === Signature ===
 // =================
@@ -43,40 +46,6 @@ impl Signature {
     }
 }
 
-
-
-// =====================
-// === Visualization ===
-// =====================
-
-/// Internal data of Visualization.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct Visualization {
-    renderer : Rc<dyn Instance>,
-}
-
-impl Visualization {
-    /// Constructor.
-    pub fn new<T>(renderer:T) -> Self
-    where T : 'static + Instance {
-        let renderer = Rc::new(renderer);
-        Self {renderer}
-    }
-}
-
-impl Deref for Visualization {
-    type Target = visualization::instance::Frp;
-    fn deref(&self) -> &Self::Target {
-        self.renderer.frp()
-    }
-}
-
-impl display::Object for Visualization {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.renderer.display_object()
-    }
-}
 
 
 
@@ -111,7 +80,7 @@ pub trait Definition: Debug {
 // === Result ===
 
 /// Result of the attempt to instantiate a `Visualization` from a `Definition`.
-pub type InstantiationResult = Result<Visualization,InstantiationError>;
+pub type InstantiationResult = Result<visualization::Instance,InstantiationError>;
 
 
 // === Errors ===

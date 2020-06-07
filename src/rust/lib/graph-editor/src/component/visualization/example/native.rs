@@ -60,7 +60,7 @@ impl BubbleChart {
     pub fn class() -> visualization::native::Native {
         visualization::native::Native::new(
             Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization")),
-            |scene| { Ok(Visualization::new(Self::new(scene))) }
+            |scene| { Ok(visualization::Instance::new(Self::new(scene))) }
         )
     }
 
@@ -106,7 +106,7 @@ impl BubbleChart {
 
 
 
-impl visualization::Instance for BubbleChart {
+impl visualization::InstanceX for BubbleChart {
 
 //    fn receive_data(&self, data:Data) -> Result<(),DataError> {
 //        let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
@@ -161,7 +161,7 @@ impl RawText {
     pub fn class() -> visualization::native::Native {
         visualization::native::Native::new(
             Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)")),
-            |scene| { Ok(Visualization::new(Self::new(scene))) }
+            |scene| { Ok(visualization::Instance::new(Self::new(scene))) }
         )
     }
 
@@ -242,7 +242,7 @@ impl RawTextModel {
     }
 }
 
-impl visualization::Instance for RawText {
+impl visualization::InstanceX for RawText {
     fn frp(&self) -> &visualization::instance::Frp {
         &self.frp
     }

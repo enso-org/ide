@@ -9,7 +9,7 @@ use crate::config::PROJECT_VISUALIZATION_FOLDER;
 
 use enso_protocol::language_server;
 use graph_editor::data;
-use graph_editor::component::visualization::class;
+use graph_editor::component::visualization::definition;
 use graph_editor::component::visualization;
 use std::rc::Rc;
 
@@ -62,7 +62,7 @@ pub type EmbeddedVisualizationName = String;
 #[shrinkwrap(mutable)]
 pub struct EmbeddedVisualizations {
     #[allow(missing_docs)]
-    pub map:HashMap<EmbeddedVisualizationName,class::AnyDefinition>
+    pub map:HashMap<EmbeddedVisualizationName, definition::AnyDefinition>
 }
 
 
@@ -124,7 +124,7 @@ impl Handle {
 
     /// Load the source code of the specified visualization.
     pub async fn load_visualization
-    (&self, visualization:&VisualizationPath) -> FallibleResult<class::AnyDefinition> {
+    (&self, visualization:&VisualizationPath) -> FallibleResult<definition::AnyDefinition> {
         match visualization {
             VisualizationPath::Embedded(identifier) => {
                 let embedded_visualizations = self.embedded_visualizations.borrow();
@@ -139,7 +139,7 @@ impl Handle {
                 let error      = |_| VisualizationError::InstantiationError {identifier}.into();
                 let module     = data::builtin_library(); // FIXME: provide real library name.
                 let js_class   = visualization::java_script::Definition::new(module,&js_code).map_err(error);
-                js_class.map(|js_class| class::AnyDefinition::new(js_class))
+                js_class.map(|js_class| definition::AnyDefinition::new(js_class))
             }
         }
     }
@@ -210,7 +210,7 @@ mod tests {
 
         let language_server             = language_server::Connection::new_mock_rc(mock_client);
         let mut embedded_visualizations = EmbeddedVisualizations::default();
-        let embedded_visualization = Rc::new(class::Handle::new(NativeConstructorClass::new(
+        let embedded_visualization = Rc::new(definition::Handle::new(NativeConstructorClass::new(
             Signature {
                 name        : "Bubble Visualization (native)".to_string(),
                 input_types : vec!["[[Float,Float,Float]]".to_string().into()],
@@ -232,8 +232,8 @@ mod tests {
         let javascript_vis1 = visualization::JavaScript::new(&file_content1);
         let javascript_vis0 = javascript_vis0.expect("Couldn't create visualization class.");
         let javascript_vis1 = javascript_vis1.expect("Couldn't create visualization class.");
-        let javascript_vis0 = Rc::new(class::Handle::new(javascript_vis0));
-        let javascript_vis1 = Rc::new(class::Handle::new(javascript_vis1));
+        let javascript_vis0 = Rc::new(definition::Handle::new(javascript_vis0));
+        let javascript_vis1 = Rc::new(definition::Handle::new(javascript_vis1));
 
         let expected_visualizations = vec![embedded_visualization,javascript_vis0,javascript_vis1];
         let zipped  = visualizations.iter().zip(expected_visualizations.iter());

@@ -9,6 +9,52 @@ use ensogl::display;
 use crate::data::EnsoCode;
 
 
+
+// =====================
+// === Visualization ===
+// =====================
+
+/// Internal data of Visualization.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct Instance {
+    renderer : Rc<dyn InstanceX>,
+}
+
+impl Instance {
+    /// Constructor.
+    pub fn new<T>(renderer:T) -> Self
+        where T : 'static + InstanceX {
+        let renderer = Rc::new(renderer);
+        Self {renderer}
+    }
+}
+
+impl Deref for Instance {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        self.renderer.frp()
+    }
+}
+
+impl display::Object for Instance {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.renderer.display_object()
+    }
+}
+
+
+
+// ================
+// === InstanceX ===
+// ================
+
+pub trait InstanceX: display::Object + Debug {
+    fn frp(&self) -> &Frp;
+}
+
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -17,11 +63,7 @@ use crate::data::EnsoCode;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    /// This is emitted if the state of the renderer has been changed by UI interaction.
-    /// It contains the output data of this visualization if there is some.
-    pub on_change : frp::Stream<EnsoCode>,
-    /// Will be emitted if the visualization changes it's preprocessor. Transmits the new
-    /// preprocessor code.
+    pub on_change            : frp::Stream<EnsoCode>,
     pub on_preprocess_change : frp::Stream<EnsoCode>,
     pub set_size             : frp::Source<V2>,
     pub send_data            : frp::Source<Data>,
@@ -31,6 +73,7 @@ pub struct Frp {
 }
 
 impl Frp {
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def change            = source();
@@ -46,19 +89,4 @@ impl Frp {
 
 
 
-// ====================
-// === Renderer ===
-// ====================
 
-/// At the core of the visualization system sits a `Renderer`. The Renderer is in charge of
-/// producing a `display::Object` that will be shown in the scene. It will create FRP events to
-/// indicate updates to its output data (e.g., through user interaction).
-///
-/// A Renderer can indicate what kind of data it can use to create a visualization through the
-/// `valid_input_types` method. This serves as a hint, it will also reject invalid input in the
-/// `set_data` method with a `DataError`. The owner of the `Renderer` is in charge of producing
-/// UI feedback to indicate a problem with the data.
-pub trait Instance: display::Object + Debug {
-    /// Return a ref to the internal FRP network.
-    fn frp(&self) -> &Frp;
-}

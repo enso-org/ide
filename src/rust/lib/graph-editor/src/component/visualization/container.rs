@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::frp;
+use crate::visualization;
 use crate::visualization::*;
 
 use ensogl::data::color;
@@ -111,7 +112,7 @@ pub mod overlay {
 pub struct Frp {
     pub set_visibility     : frp::Source<bool>,
     pub toggle_visibility  : frp::Source,
-    pub set_visualization  : frp::Source<Option<Visualization>>,
+    pub set_visualization  : frp::Source<Option<visualization::Instance>>,
     pub set_data           : frp::Source<Data>,
     pub select             : frp::Source,
     pub deselect           : frp::Source,
@@ -231,7 +232,7 @@ pub struct ContainerModel {
     logger         : Logger,
     display_object : display::object::Instance,
     frp            : Frp,
-    visualization  : RefCell<Option<Visualization>>,
+    visualization  : RefCell<Option<visualization::Instance>>,
     scene          : Scene,
     view            : View,
     fullscreen_view : FullscreenView,
@@ -295,7 +296,7 @@ impl ContainerModel {
         self.set_visibility(!self.is_visible())
     }
 
-    fn set_visualization(&self, visualization:Option<Visualization>) {
+    fn set_visualization(&self, visualization:Option<visualization::Instance>) {
         if let Some(visualization) = visualization {
             let size = self.frp.size.value();
             visualization.set_size.emit(size);

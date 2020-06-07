@@ -40,8 +40,6 @@ pub mod prelude {
 use crate::component::cursor;
 use crate::component::node;
 use crate::component::visualization::MockDataGenerator3D;
-use crate::component::visualization::Visualization;
-//use crate::component::visualization::stage::Stage;
 use crate::component::visualization;
 
 
@@ -432,7 +430,7 @@ pub struct FrpInputs {
     pub set_node_position            : frp::Source<(NodeId,Position)>,
     pub translate_selected_nodes     : frp::Source<Position>,
     pub cycle_visualization          : frp::Source<NodeId>,
-    pub set_visualization            : frp::Source<(NodeId,Option<Visualization>)>,
+    pub set_visualization            : frp::Source<(NodeId,Option<visualization::Instance>)>,
     pub register_visualization_class : frp::Source<Option<visualization::AnyDefinition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
