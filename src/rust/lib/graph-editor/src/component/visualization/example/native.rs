@@ -57,8 +57,8 @@ pub struct BubbleChart {
 
 #[allow(missing_docs)]
 impl BubbleChart {
-    pub fn class() -> class::Native {
-        class::Native::new(
+    pub fn class() -> visualization::native::Native {
+        visualization::native::Native::new(
             Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization")),
             |scene| { Ok(Visualization::new(Self::new(scene))) }
         )
@@ -158,8 +158,8 @@ pub struct RawText {
 }
 
 impl RawText {
-    pub fn class() -> class::Native {
-        class::Native::new(
+    pub fn class() -> visualization::native::Native {
+        visualization::native::Native::new(
             Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)")),
             |scene| { Ok(Visualization::new(Self::new(scene))) }
         )

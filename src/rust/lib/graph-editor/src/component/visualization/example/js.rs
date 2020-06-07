@@ -6,7 +6,7 @@ use crate::data;
 use crate::component::visualization;
 
 /// Return an `JavScript` that creates example Bubble Visualizations implemented in JS.
-pub fn get_bubble_vis_class() -> visualization::JavaScript {
+pub fn get_bubble_vis_class() -> visualization::java_script::Definition {
     let source = r#"
         class BubbleVisualization {
             static inputType = "Any"
@@ -48,5 +48,5 @@ pub fn get_bubble_vis_class() -> visualization::JavaScript {
         return BubbleVisualization;
     "#;
 
-    visualization::JavaScript::new(data::builtin_library(),source).unwrap() // FIXME unwrap
+    visualization::java_script::Definition::new(data::builtin_library(),source).unwrap() // FIXME unwrap
 }

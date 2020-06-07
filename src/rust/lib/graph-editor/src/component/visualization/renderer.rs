@@ -2,7 +2,5 @@
 //! the `DataRenderer`.
 
 pub mod class;
-pub mod js;
 
 pub use class::*;
-pub use js::*;

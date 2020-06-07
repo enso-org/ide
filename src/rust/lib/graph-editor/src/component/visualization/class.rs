@@ -1,11 +1,5 @@
 //! `Visualization` struct definition and related functionality.
 
-pub mod js;
-pub mod native;
-
-pub use js::*;
-pub use native::*;
-
 use crate::prelude::*;
 
 use crate::data::*;

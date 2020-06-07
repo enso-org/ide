@@ -25,7 +25,7 @@ fn generate_data(seconds:f64) -> Vec<Vector2<f32>> {
 
 
 
-fn constructor_graph() -> visualization::JavaScript {
+fn constructor_graph() -> visualization::java_script::Definition {
     let source = r#"
         class Graph {
             static inputTypes = ["[[Float,Float,Float]]"]
@@ -67,7 +67,7 @@ fn constructor_graph() -> visualization::JavaScript {
 
         return Graph;
     "#;
-    visualization::JavaScript::new(data::builtin_library(),source).unwrap() // FIXME unwrap
+    visualization::java_script::Definition::new(data::builtin_library(),source).unwrap() // FIXME unwrap
 }
 
 #[wasm_bindgen]

@@ -138,7 +138,7 @@ impl Handle {
                 let identifier = visualization.clone();
                 let error      = |_| VisualizationError::InstantiationError {identifier}.into();
                 let module     = data::builtin_library(); // FIXME: provide real library name.
-                let js_class   = visualization::JavaScript::new(module,&js_code).map_err(error);
+                let js_class   = visualization::java_script::Definition::new(module,&js_code).map_err(error);
                 js_class.map(|js_class| class::AnyClass::new(js_class))
             }
         }
