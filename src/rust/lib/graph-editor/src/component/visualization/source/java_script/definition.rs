@@ -56,7 +56,7 @@ impl Definition {
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
     pub fn new
     (module:impl Into<LibraryName>, source:impl AsRef<str>) -> Result<Self,instance::JsVisualizationError> {
-        let js_class  = JavaScriptClass::new(source)?;
+        let js_class  = JavaScriptClass::new_from_function(source)?;
         let signature = js_class.signature(module)?;
         Ok(Definition{js_class,signature})
     }
@@ -97,7 +97,7 @@ struct JavaScriptClass {
 
 impl JavaScriptClass {
     /// Constructor.
-    fn new(source:impl AsRef<str>) -> instance::JsResult<JavaScriptClass> {
+    fn new_from_function(source:impl AsRef<str>) -> instance::JsResult<JavaScriptClass> {
         let source   = source.as_ref();
         let context  = JsValue::NULL;
         let function = js_sys::Function::new_no_args(source);
