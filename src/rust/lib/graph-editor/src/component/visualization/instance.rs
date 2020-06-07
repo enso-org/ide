@@ -14,18 +14,41 @@ use crate::data::EnsoCode;
 // === FRP ===
 // ===========
 
-/// FRP API of a `Renderer`.
+/// Inputs of the visualization FRP system. Please note that inputs and outputs are kept in separate
+/// structures because the visualization author may want to keep the inputs in a model and allow it
+/// to be clone-ref'd into FRP closures. If FRP inputs owned the network, it would cause memory
+/// leak.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
+pub struct FrpInputs {
+    pub set_size  : frp::Source<V2>,
+    pub send_data : frp::Source<Data>,
+}
+
+/// Visualization FRP network.
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[allow(missing_docs)]
 pub struct Frp {
+    #[shrinkwrap(main_field)]
+    pub inputs               : FrpInputs,
     pub network              : frp::Network,
+
     pub on_change            : frp::Stream<EnsoCode>,
     pub on_preprocess_change : frp::Stream<EnsoCode>,
-    pub set_size             : frp::Source<V2>,
-    pub send_data            : frp::Source<Data>,
 
     change            : frp::Source<EnsoCode>,
     preprocess_change : frp::Source<EnsoCode>,
+}
+
+impl FrpInputs {
+    /// Constructor.
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            set_size  <- source();
+            send_data <- source();
+        };
+        Self {set_size,send_data}
+    }
 }
 
 impl Frp {
@@ -34,12 +57,11 @@ impl Frp {
         frp::new_network! { network
             def change            = source();
             def preprocess_change = source();
-            def set_size          = source();
-            def send_data         = source();
         };
         let on_change            = change.clone_ref().into();
         let on_preprocess_change = preprocess_change.clone_ref().into();
-        Self {network,on_change,on_preprocess_change,change,preprocess_change,set_size,send_data}
+        let inputs               = FrpInputs::new(&network);
+        Self {network,on_change,on_preprocess_change,change,preprocess_change,inputs}
     }
 }
 

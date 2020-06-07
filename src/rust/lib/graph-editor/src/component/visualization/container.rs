@@ -1,5 +1,13 @@
 //! This module defines the `Container` struct and related functionality.
 
+// FIXME There is a serious preformance problem in this implementation. It assumes that the
+// FIXME visualization is a child of the container. However, this is very inefficient. Consider a
+// FIXME visualization containing 1M of points. When moving a node (and thus moving a container),
+// FIXME this would iterate over 1M of display objects and update their positions. Instead of that,
+// FIXME each visualization should be positioned by some wise uniform management, maybe by a
+// FIXME separate camera (view?) per visualization? This is also connected to a question how to
+// FIXME create efficient dashboard view.
+
 use crate::prelude::*;
 
 use crate::frp;
@@ -35,11 +43,11 @@ const CORNER_RADIUS : f32 = super::super::node::CORNER_RADIUS;
 // === Shape ===
 // =============
 
-/// Container frame shape definition.
+/// Container background shape definition.
 ///
 /// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
 /// container.
-pub mod frame {
+pub mod background {
     use super::*;
 
     // TODO use style
@@ -58,11 +66,11 @@ pub mod frame {
 }
 
 
-/// Container frame shape definition.
+/// Container background shape definition.
 ///
 /// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
 /// container.
-pub mod frame2 {
+pub mod fullscreen_background {
     use super::*;
 
     // TODO use style
@@ -149,33 +157,34 @@ impl Frp {
 
 
 
-// ==============
-// === Shapes ===
-// ==============
+// ============
+// === View ===
+// ============
 
+/// View of the visualization container.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct View {
-    logger           : Logger,
-    display_object   : display::object::Instance,
-    frame            : component::ShapeView<frame::Shape>,
-    overlay          : component::ShapeView<overlay::Shape>,
+    logger         : Logger,
+    display_object : display::object::Instance,
+    background     : component::ShapeView<background::Shape>,
+    overlay        : component::ShapeView<overlay::Shape>,
 }
 
 impl View {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
-        let logger           = logger.sub("view");
-        let display_object   = display::object::Instance::new(&logger);
-        let frame            = component::ShapeView::<frame::Shape>::new(&logger,scene);
-        let overlay          = component::ShapeView::<overlay::Shape>::new(&logger,scene);
+        let logger         = logger.sub("view");
+        let display_object = display::object::Instance::new(&logger);
+        let background     = component::ShapeView::<background::Shape>::new(&logger,scene);
+        let overlay        = component::ShapeView::<overlay::Shape>::new(&logger,scene);
         display_object.add_child(&overlay);
-        display_object.add_child(&frame);
+        display_object.add_child(&background);
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<frame::Shape>);
+        let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.viz.add(&shape_system.shape_system.symbol);
 
-        Self {logger,display_object,frame,overlay}
+        Self {logger,display_object,background,overlay}
     }
 }
 
@@ -186,30 +195,33 @@ impl display::Object for View {
 }
 
 
-// ==============
-// === Shapes ===
-// ==============
 
+// ======================
+// === FullscreenView ===
+// ======================
+
+/// View of the visualization container meant to be used in fullscreen mode. Its components are
+/// rendered on top-level layers of the stage.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct FullscreenView {
     logger           : Logger,
     display_object   : display::object::Instance,
-    frame_fullscreen : component::ShapeView<frame2::Shape>,
+    background : component::ShapeView<fullscreen_background::Shape>,
 }
 
 impl FullscreenView {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
-        let logger           = logger.sub("fullscreen_view");
-        let display_object   = display::object::Instance::new(&logger);
-        let frame_fullscreen = component::ShapeView::<frame2::Shape>::new(&logger,scene);
-        display_object.add_child(&frame_fullscreen);
+        let logger         = logger.sub("fullscreen_view");
+        let display_object = display::object::Instance::new(&logger);
+        let background          = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
+        display_object.add_child(&background);
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<frame2::Shape>);
+        let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.viz_fullscreen.add(&shape_system.shape_system.symbol);
 
-        Self {logger,display_object,frame_fullscreen}
+        Self {logger,display_object,background}
     }
 }
 
@@ -229,27 +241,28 @@ impl display::Object for FullscreenView {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ContainerModel {
-    logger         : Logger,
-    display_object : display::object::Instance,
-    frp            : Frp,
-    visualization  : RefCell<Option<visualization::Instance>>,
-    scene          : Scene,
+    logger          : Logger,
+    display_object  : display::object::Instance,
+    frp             : Frp,
+    visualization   : RefCell<Option<visualization::Instance>>,
+    scene           : Scene,
     view            : View,
     fullscreen_view : FullscreenView,
-    is_fullscreen  : Rc<Cell<bool>>,
+    is_fullscreen   : Rc<Cell<bool>>,
 }
 
 impl ContainerModel {
     pub fn new(logger:&Logger, scene:&Scene, network:&frp::Network) -> Self {
-        let logger         = logger.sub("visualization_container");
-        let display_object = display::object::Instance::new(&logger);
-        let visualization  = default();
-        let frp            = Frp::new(&network,scene);
-        let view           = View::new(&logger,scene);
+        let logger          = logger.sub("visualization_container");
+        let display_object  = display::object::Instance::new(&logger);
+        let visualization   = default();
+        let frp             = Frp::new(&network,scene);
+        let view            = View::new(&logger,scene);
         let fullscreen_view = FullscreenView::new(&logger,scene);
-        let scene          = scene.clone_ref();
-        let is_fullscreen  = default();
-        Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen} . init()
+        let scene           = scene.clone_ref();
+        let is_fullscreen   = default();
+        Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen}
+            . init()
     }
 
     fn init(self) -> Self {
@@ -265,8 +278,12 @@ impl ContainerModel {
     pub fn is_visible(&self) -> bool {
         self.view.has_parent()
     }
+}
 
-    /// Set whether the visualization should be visible or not.
+
+// === Private API ===
+
+impl ContainerModel {
     fn set_visibility(&self, visibility:bool) {
         if visibility {
             self.add_child(&self.view);
@@ -278,7 +295,6 @@ impl ContainerModel {
         }
     }
 
-
     fn enable_fullscreen(&self) {
         self.is_fullscreen.set(true);
         if let Some(viz) = &*self.visualization.borrow() {
@@ -286,12 +302,7 @@ impl ContainerModel {
             self.fullscreen_view.add_child(viz)
         }
     }
-}
 
-
-// === Private API ===
-
-impl ContainerModel {
     fn toggle_visibility(&self) {
         self.set_visibility(!self.is_visible())
     }
@@ -306,12 +317,10 @@ impl ContainerModel {
     }
 
     fn set_visualization_data(&self, data:&Data) {
-
         self.visualization.borrow().for_each_ref(|vis| vis.send_data.emit(data))
     }
 
     fn update_shape_sizes(&self) {
-
         let size = self.frp.size.value();
         self.set_size(size);
     }
@@ -319,16 +328,16 @@ impl ContainerModel {
     fn set_size(&self, size:impl Into<V2>) {
         let size = size.into();
         if self.is_fullscreen.get() {
-            self.fullscreen_view.frame_fullscreen . shape.radius.set(CORNER_RADIUS);
-            self.fullscreen_view.frame_fullscreen . shape.sprite.size().set(size.into());
-            self.view.frame            . shape.sprite.size().set(zero());
-            self.view.overlay          . shape.sprite.size().set(zero());
+            self.fullscreen_view.background . shape.radius.set(CORNER_RADIUS);
+            self.fullscreen_view.background . shape.sprite.size().set(size.into());
+            self.view.background   . shape.sprite.size().set(zero());
+            self.view.overlay . shape.sprite.size().set(zero());
         } else {
-            self.view.frame.shape.radius.set(CORNER_RADIUS);
+            self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.frame.shape.sprite.size().set(size.into());
+            self.view.background.shape.sprite.size().set(size.into());
             self.view.overlay.shape.sprite.size().set(size.into());
-            self.fullscreen_view.frame_fullscreen . shape.sprite.size().set(zero());
+            self.fullscreen_view.background . shape.sprite.size().set(zero());
         }
 
         if let Some(viz) = &*self.visualization.borrow() {
@@ -342,8 +351,8 @@ impl ContainerModel {
 
     fn set_corner_roundness(&self, value:f32) {
         self.view.overlay.shape.roundness.set(value);
-        self.view.frame.shape.roundness.set(value);
-        self.fullscreen_view.frame_fullscreen.shape.roundness.set(value);
+        self.view.background.shape.roundness.set(value);
+        self.fullscreen_view.background.shape.roundness.set(value);
     }
 }
 
@@ -359,7 +368,9 @@ impl display::Object for ContainerModel {
 // === Container ===
 // =================
 
-/// Container that wraps a `Visualization` for rendering and interaction in the GUI.
+// TODO: Finish the fullscreen management when implementing layout management.
+
+/// Container that wraps a `visualization::Instance` for rendering and interaction in the GUI.
 ///
 /// The API to interact with the visualization is exposed through the `Frp`.
 #[derive(Clone,CloneRef,Debug,Derivative,Shrinkwrap)]
@@ -388,7 +399,6 @@ impl Container {
         let size       = Animation::<V2>::new(network);
         let fullscreen_position   = Animation::<V3>::new(network);
 
-
         frp::extend! { network
             eval  inputs.set_visibility    ((v) model.set_visibility(*v));
             eval_ inputs.toggle_visibility (model.toggle_visibility());
@@ -397,8 +407,7 @@ impl Container {
             eval_ inputs.enable_fullscreen (model.set_visibility(true));
             eval_ inputs.enable_fullscreen (model.enable_fullscreen());
             eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
-
-            eval inputs.set_size ((s) size.set_target_value(s.into()));
+            eval  inputs.set_size          ((s) size.set_target_value(s.into()));
 
             _eval <- fullscreen.value.all_with3(&size.value,&inputs.scene_shape,
                 f!([model] (weight,viz_size,scene_size) {
@@ -422,7 +431,6 @@ impl Container {
             }));
 
             eval fullscreen_position.value ((p)  model.fullscreen_view.set_position(p.into()));
-
         }
 
         inputs.set_size.emit(DEFAULT_SIZE);

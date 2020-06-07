@@ -106,7 +106,7 @@ fn init(app:&Application) {
         let data    = generate_data((time_info.local / 1000.0).into());
         let data    = Rc::new(data);
         let content = serde_json::to_value(data).unwrap();
-        let data    = Data::Json{content};
+        let data    = Data::from(content);
 
         visualization.send_data.emit(data);
 

@@ -1,4 +1,4 @@
-//! `Visualization` struct definition and related functionality.
+//! Visualization definition abstraction.
 
 use crate::prelude::*;
 
@@ -7,12 +7,12 @@ use crate::frp;
 use crate::visualization;
 use crate::visualization::*;
 
-use ensogl::display::Scene;
 use ensogl::display::DomSymbol;
+use ensogl::display::Scene;
 use ensogl::display::Symbol;
 use ensogl::display;
-use std::error::Error;
 use ensogl::system::web::JsValue;
+use std::error::Error;
 
 
 
@@ -20,7 +20,7 @@ use ensogl::system::web::JsValue;
 // === Signature ===
 // =================
 
-/// Contains general information about a visualization.
+/// General information about a visualization.
 #[derive(Clone,CloneRef,Debug,Eq,Hash,PartialEq,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct Signature {

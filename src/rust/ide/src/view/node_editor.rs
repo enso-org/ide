@@ -327,8 +327,8 @@ impl GraphEditorIntegratedWithControllerModel {
     (data:VisualizationUpdateData) -> FallibleResult<visualization::Data> {
         let binary  = data.as_ref();
         let as_text = std::str::from_utf8(binary)?;
-        let as_json = serde_json::from_str(as_text)?;
-        Ok(visualization::Data::json(as_json))
+        let as_json : serde_json::Value = serde_json::from_str(as_text)?;
+        Ok(visualization::Data::from(as_json))
     }
 
     fn update_node_view

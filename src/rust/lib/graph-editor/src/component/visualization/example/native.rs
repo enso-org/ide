@@ -56,7 +56,7 @@ pub struct BubbleChart {
 
 #[allow(missing_docs)]
 impl BubbleChart {
-    pub fn class() -> visualization::Definition {
+    pub fn definition() -> visualization::Definition {
         visualization::Definition::new(
             Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization")),
             |scene| { Ok(Self::new(scene).into()) }
@@ -127,23 +127,27 @@ impl display::Object for BubbleChart {
 pub struct RawText {
     #[shrinkwrap(main_field)]
     model : RawTextModel,
+    frp   : visualization::instance::Frp,
 }
 
 impl RawText {
-    pub fn class() -> visualization::Definition {
+    /// Definition of this visualization.
+    pub fn definition() -> visualization::Definition {
         visualization::Definition::new(
             Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)")),
             |scene| { Ok(Self::new(scene).into()) }
         )
     }
 
+    /// Constructor.
     pub fn new(scene:&Scene) -> Self {
+        let frp   = visualization::instance::Frp::new();
         let model = RawTextModel::new(scene);
-        Self {model} . init()
+        Self {model,frp} . init()
     }
 
     fn init(self) -> Self {
-        let network = &self.model.frp.network;
+        let network = &self.frp.network;
         let model   = &self.model;
         frp::extend! { network
             eval self.frp.set_size  ((size) model.set_size(*size));
@@ -153,23 +157,20 @@ impl RawText {
     }
 }
 
-/// Sample visualization that renders the given data as text. Useful for debugging and testing.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct RawTextModel {
     logger : Logger,
     dom    : DomSymbol,
     size   : Rc<Cell<V2>>,
-    frp    : visualization::instance::Frp,
 }
 
 impl RawTextModel {
     /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
+    fn new(scene:&Scene) -> Self {
         let logger  = Logger::new("RawText");
         let div     = web::create_div();
         let dom     = DomSymbol::new(&div);
-        let frp     = visualization::instance::Frp::new();
         let size    = Rc::new(Cell::new(V2(200.0,200.0)));
 
         dom.dom().set_style_or_warn("white-space"   ,"pre"                  ,&logger);
@@ -182,7 +183,7 @@ impl RawTextModel {
         dom.dom().set_style_or_warn("pointer-events","auto"                 ,&logger);
 
         scene.dom.layers.main.manage(&dom);
-        RawTextModel{dom,logger,frp,size}.init()
+        RawTextModel{dom,logger,size}.init()
     }
 
     fn init(self) -> Self {
@@ -200,7 +201,7 @@ impl RawTextModel {
             Data::Json {content} => content,
             _ => todo!() // FIXME
         };
-        let data_str = serde_json::to_string_pretty(&data_inner);
+        let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
         let data_str = format!("\n{}",data_str);
         self.dom.dom().set_inner_text(&data_str);

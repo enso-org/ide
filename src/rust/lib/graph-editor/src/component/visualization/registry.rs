@@ -47,7 +47,6 @@ use ensogl::data::OptVec;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
-    default  : Definition,
     path_map : Rc<RefCell<HashMap<Path,Definition>>>,
     type_map : Rc<RefCell<HashMap<EnsoType,Vec<Definition>>>>,
 }
@@ -55,22 +54,16 @@ pub struct Registry {
 impl Registry {
     /// Constructor.
     pub fn new() -> Self {
-        let default  = visualization::example::native::RawText::class().into();
         let path_map = Default::default();
         let type_map = Default::default();
-        Self {default,path_map,type_map} . init()
+        Self {path_map,type_map}
     }
 
-    fn init(self) -> Self {
-        self.add(&self.default);
-        self
-    }
-
-    /// Return a `Registry` prepopulated with default visualizations.
+    /// Return a `Registry` pre-populated with default visualizations.
     pub fn with_default_visualizations() -> Self {
         let registry = Self::new();
-        registry.add(visualization::example::native::BubbleChart::class());
-        registry.add(visualization::example::native::RawText::class());
+        registry.add(visualization::example::native::BubbleChart::definition());
+        registry.add(visualization::example::native::RawText::definition());
         // registry.add(visualization::example::java_script::get_bubble_vis_class());
         registry
     }
@@ -91,7 +84,7 @@ impl Registry {
 
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> visualization::Instance {
-        let class = visualization::example::native::RawText::class();
+        let class = visualization::example::native::RawText::definition();
         class.new_instance(&scene).expect("Failed to instantiate default visualisation.")
     }
 }

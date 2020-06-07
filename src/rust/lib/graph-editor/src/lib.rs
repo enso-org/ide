@@ -1676,7 +1676,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         for node_id in &*nodes.selected.raw.borrow() {
             let data    = Rc::new(sample_data_generator.generate_data()); // FIXME: why rc?
             let content = serde_json::to_value(data).unwrap();
-            let data    = visualization::Data::Json{ content };
+            let data    = visualization::Data::from(content);
             inputs.set_visualization_data.emit((*node_id,data));
         }
     }));
