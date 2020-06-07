@@ -10,51 +10,6 @@ use crate::data::EnsoCode;
 
 
 
-// =====================
-// === Visualization ===
-// =====================
-
-/// Internal data of Visualization.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct Instance {
-    renderer : Rc<dyn InstanceX>,
-}
-
-impl Instance {
-    /// Constructor.
-    pub fn new<T>(renderer:T) -> Self
-        where T : 'static + InstanceX {
-        let renderer = Rc::new(renderer);
-        Self {renderer}
-    }
-}
-
-impl Deref for Instance {
-    type Target = Frp;
-    fn deref(&self) -> &Self::Target {
-        self.renderer.frp()
-    }
-}
-
-impl display::Object for Instance {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.renderer.display_object()
-    }
-}
-
-
-
-// ================
-// === InstanceX ===
-// ================
-
-pub trait InstanceX: display::Object + Debug {
-    fn frp(&self) -> &Frp;
-}
-
-
-
 // ===========
 // === FRP ===
 // ===========
@@ -89,4 +44,36 @@ impl Frp {
 
 
 
+// ================
+// === Instance ===
+// ================
 
+/// Abstraction for any visualization instance.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct Instance {
+    display_object : display::object::Instance,
+    frp            : Frp
+}
+
+impl Instance {
+    /// Constructor.
+    pub fn new(display_object:impl display::Object, frp:impl Into<Frp>) -> Self {
+        let display_object = display_object.display_object().clone_ref();
+        let frp            = frp.into();
+        Self {display_object,frp}
+    }
+}
+
+impl Deref for Instance {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
+
+impl display::Object for Instance {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}

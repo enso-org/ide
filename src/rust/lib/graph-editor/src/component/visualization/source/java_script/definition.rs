@@ -77,7 +77,7 @@ impl visualization::Definition for Definition {
             Err (err) => return Err(visualization::InstantiationError::InvalidClass {inner:err.into()}),
         };
         renderer.set_dom_layer(&scene.dom.layers.main);
-        Ok(visualization::Instance::new(renderer))
+        Ok(renderer.into())
     }
 }
 

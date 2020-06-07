@@ -199,39 +199,45 @@ impl Instance {
     }
 }
 
-impl visualization::InstanceX for Instance {
-
-//    fn receive_data(&self, data:Data) -> Result<(),DataError> {
-//        let context   = JsValue::NULL;
-//        let data_json = match data {
-//            Data::Json {content} => content,
-//            _ => todo!() // FIXME
-//        };
-//        let data_js   = match JsValue::from_serde(&data_json) {
-//            Ok(value) => value,
-//            Err(_)    => return Err(DataError::InvalidDataType),
-//        };
-//        if let Err(error) = self.on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
-//            self.logger.warning(
-//                || format!("Failed to set data in {:?} with error: {:?}",self,error));
-//            return Err(DataError::InternalComputationError)
-//        }
-//        Ok(())
+//impl visualization::InstanceX for Instance {
+//
+////    fn receive_data(&self, data:Data) -> Result<(),DataError> {
+////        let context   = JsValue::NULL;
+////        let data_json = match data {
+////            Data::Json {content} => content,
+////            _ => todo!() // FIXME
+////        };
+////        let data_js   = match JsValue::from_serde(&data_json) {
+////            Ok(value) => value,
+////            Err(_)    => return Err(DataError::InvalidDataType),
+////        };
+////        if let Err(error) = self.on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
+////            self.logger.warning(
+////                || format!("Failed to set data in {:?} with error: {:?}",self,error));
+////            return Err(DataError::InternalComputationError)
+////        }
+////        Ok(())
+////    }
+//
+////    fn set_size(&self, size:V2) {
+////        let size          = Vector2::new(size.x,size.y);
+////        let context       = JsValue::NULL;
+////        let data_json     = JsValue::from_serde(&size).unwrap();
+////        if let Err(error) = self.set_size.call2(&context, &self.root_node.dom(), &data_json) {
+////            self.logger.warning(
+////                || format!("Failed to set size in {:?} with error: {:?}", self, error));
+////        }
+////        self.root_node.set_size(size);
+////    }
+//
+//    fn frp(&self) -> &visualization::instance::Frp {
+//        &self.frp
 //    }
+//}
 
-//    fn set_size(&self, size:V2) {
-//        let size          = Vector2::new(size.x,size.y);
-//        let context       = JsValue::NULL;
-//        let data_json     = JsValue::from_serde(&size).unwrap();
-//        if let Err(error) = self.set_size.call2(&context, &self.root_node.dom(), &data_json) {
-//            self.logger.warning(
-//                || format!("Failed to set size in {:?} with error: {:?}", self, error));
-//        }
-//        self.root_node.set_size(size);
-//    }
-
-    fn frp(&self) -> &visualization::instance::Frp {
-        &self.frp
+impl From<Instance> for visualization::Instance {
+    fn from(t:Instance) -> Self {
+        Self::new(&t,&t.frp)
     }
 }
 

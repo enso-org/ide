@@ -60,7 +60,7 @@ impl BubbleChart {
     pub fn class() -> visualization::native::Native {
         visualization::native::Native::new(
             Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization")),
-            |scene| { Ok(visualization::Instance::new(Self::new(scene))) }
+            |scene| { Ok(Self::new(scene).into()) }
         )
     }
 
@@ -104,37 +104,43 @@ impl BubbleChart {
     }
 }
 
-
-
-impl visualization::InstanceX for BubbleChart {
-
-//    fn receive_data(&self, data:Data) -> Result<(),DataError> {
-//        let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
-//        // Avoid re-creating views, if we have already created some before.
-//        let mut views = self.views.borrow_mut();
-//        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
-//
-//        // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
-//        // But this ensures that we can get a cropped view area and avoids an issue with the data
-//        // and position not matching up.
-//        views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
-//            let size : Vector2<f32> = self.size.get().into();
-//            view.display_object.set_parent(&self.display_object);
-//            view.shape.sprite.size().set(size);
-//            view.shape.radius.set(item.z);
-//            view.shape.position.set(Vector2::new(item.x,item.y) - size / 2.0);
-//        });
-//        Ok(())
-//    }
-
-//    fn set_size(&self, size:V2) {
-//        self.size.set(size);
-//    }
-
-    fn frp(&self) -> &visualization::instance::Frp {
-        &self.frp
+impl From<BubbleChart> for visualization::Instance {
+    fn from(t:BubbleChart) -> Self {
+        Self::new(&t,&t.frp)
     }
 }
+
+
+
+//impl visualization::InstanceX for BubbleChart {
+//
+////    fn receive_data(&self, data:Data) -> Result<(),DataError> {
+////        let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
+////        // Avoid re-creating views, if we have already created some before.
+////        let mut views = self.views.borrow_mut();
+////        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
+////
+////        // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
+////        // But this ensures that we can get a cropped view area and avoids an issue with the data
+////        // and position not matching up.
+////        views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
+////            let size : Vector2<f32> = self.size.get().into();
+////            view.display_object.set_parent(&self.display_object);
+////            view.shape.sprite.size().set(size);
+////            view.shape.radius.set(item.z);
+////            view.shape.position.set(Vector2::new(item.x,item.y) - size / 2.0);
+////        });
+////        Ok(())
+////    }
+//
+////    fn set_size(&self, size:V2) {
+////        self.size.set(size);
+////    }
+//
+//    fn frp(&self) -> &visualization::instance::Frp {
+//        &self.frp
+//    }
+//}
 
 impl display::Object for BubbleChart {
     fn display_object(&self) -> &display::object::Instance {
@@ -161,7 +167,7 @@ impl RawText {
     pub fn class() -> visualization::native::Native {
         visualization::native::Native::new(
             Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)")),
-            |scene| { Ok(visualization::Instance::new(Self::new(scene))) }
+            |scene| { Ok(Self::new(scene).into()) }
         )
     }
 
@@ -242,9 +248,9 @@ impl RawTextModel {
     }
 }
 
-impl visualization::InstanceX for RawText {
-    fn frp(&self) -> &visualization::instance::Frp {
-        &self.frp
+impl From<RawText> for visualization::Instance {
+    fn from(t:RawText) -> Self {
+        Self::new(&t,&t.frp)
     }
 }
 
