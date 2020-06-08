@@ -33,6 +33,7 @@ use crate::system::web::StyleSetter;
 use crate::system::web;
 use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::ShapeSystemOf;
+use crate::display::layout::Alignment;
 
 use display::style::data::DataMatch;
 use enso_frp as frp;
@@ -48,9 +49,6 @@ pub trait MouseTarget : Debug + 'static {
     fn mouse_over (&self) -> &frp::Source;
     fn mouse_out  (&self) -> &frp::Source;
 }
-
-
-
 
 
 
@@ -669,6 +667,7 @@ impl ViewData {
         let logger  = logger.sub("view");
         let camera  = Camera2d::new(&logger,width,height);
         let symbols = default();
+        // camera.set_alignment(Alignment::center());
         Self {logger,camera,symbols}
     }
 
@@ -749,7 +748,6 @@ impl Views {
 pub struct Frp {
     pub network        : frp::Network,
     pub camera_changed : frp::Stream,
-
     camera_changed_source : frp::Source,
 }
 

@@ -7,7 +7,8 @@ use crate::prelude::*;
 use crate::display::traits::*;
 
 use crate::debug::Stats;
-use crate::display::layout::types::*;
+use crate::display::layout::alignment;
+use crate::display::layout::Alignment;
 use crate::display;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
@@ -234,9 +235,7 @@ impl SpriteSystem {
         let uv                = point_scope.add_buffer("uv");
         let transform         = instance_scope.add_buffer("transform");
         let size              = instance_scope.add_buffer("size");
-        let horizontal        = HorizontalAlignment::Center;
-        let vertical          = VerticalAlignment::Center;
-        let initial_alignment = Self::uv_offset(horizontal,vertical);
+        let initial_alignment = Self::uv_offset(Alignment::center());
         let alignment         = symbol.variables().add_or_panic("alignment",initial_alignment);
 
         stats.inc_sprite_system_count();
@@ -275,8 +274,8 @@ impl SpriteSystem {
     }
 
     /// Set alignment of sprites.
-    pub fn set_alignment(&self, horizontal:HorizontalAlignment, vertical:VerticalAlignment) {
-        self.alignment.set(Self::uv_offset(horizontal,vertical));
+    pub fn set_alignment(&self, alignment:Alignment) {
+        self.alignment.set(Self::uv_offset(alignment));
     }
 
     /// Run the renderer.
@@ -350,18 +349,18 @@ impl SpriteSystem {
         material
     }
 
-    fn uv_offset(horizontal:HorizontalAlignment, vertical:VerticalAlignment) -> Vector2<f32> {
-        let x_alignment = match horizontal {
-            HorizontalAlignment::Left   => 0.0,
-            HorizontalAlignment::Center => 0.5,
-            HorizontalAlignment::Right  => 1.0,
+    fn uv_offset(alignment:Alignment) -> Vector2<f32> {
+        let x = match alignment.horizontal {
+            alignment::Horizontal::Left   => 0.0,
+            alignment::Horizontal::Center => 0.5,
+            alignment::Horizontal::Right  => 1.0,
         };
-        let y_alignment = match vertical {
-            VerticalAlignment::Top    => 1.0,
-            VerticalAlignment::Center => 0.5,
-            VerticalAlignment::Bottom => 0.0,
+        let y = match alignment.vertical {
+            alignment::Vertical::Top    => 1.0,
+            alignment::Vertical::Center => 0.5,
+            alignment::Vertical::Bottom => 0.0,
         };
-        Vector2::new(x_alignment,y_alignment)
+        Vector2::new(x,y)
     }
 }
 

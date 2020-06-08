@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::display::layout::types::*;
+use crate::display::layout::Alignment;
 use crate::display::shape::text::glyph::font;
 use crate::display::shape::text::glyph::font::GlyphRenderInfo;
 use crate::display::shape::text::glyph::pen::PenIterator;
@@ -264,7 +264,7 @@ impl GlyphSystem {
         let mesh          = symbol.surface();
 
         sprite_system.set_material(Self::material());
-        sprite_system.set_alignment(HorizontalAlignment::Left,VerticalAlignment::Bottom);
+        sprite_system.set_alignment(Alignment::bottom_left());
         scene.variables.add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables.add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {logger,context,sprite_system,font,
