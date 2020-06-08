@@ -9,6 +9,7 @@ use crate::view::text_editor::TextEditor;
 use crate::view::node_editor::NodeEditor;
 use crate::view::node_searcher::NodeSearcher;
 
+use enso_callback as callback;
 use enso_frp::io::keyboard;
 use ensogl::application::Application;
 use ensogl::display::shape::text::glyph::font;
@@ -31,12 +32,13 @@ shared! { ViewLayout
 /// Initial implementation of ViewLayout with a TextEditor and NodeEditor.
 #[derive(Debug)]
 pub struct ViewLayoutData {
-    text_editor    : TextEditor,
-    node_editor    : NodeEditor,
-    node_searcher  : NodeSearcher,
-    size           : Vector2<f32>,
-    logger         : Logger,
-    mouse_position : Uniform<Vector2<i32>>
+    text_editor               : TextEditor,
+    node_editor               : NodeEditor,
+    node_searcher             : NodeSearcher,
+    size                      : Vector2<f32>,
+    logger                    : Logger,
+    mouse_position            : Uniform<Vector2<i32>>,
+    node_searcher_show_action : Option<callback::Handle>
 }
 
 impl {
@@ -108,23 +110,27 @@ impl ViewLayout {
         world.add_child(&text_editor.display_object());
         world.add_child(&node_editor);
         world.add_child(&node_searcher);
-        let size           = zero();
-        let mouse_position = world.scene().mouse.position.clone_ref();
-        let data = ViewLayoutData{text_editor,node_editor,node_searcher,size,logger,mouse_position};
+        let size                      = zero();
+        let mouse_position            = world.scene().mouse.position.clone_ref();
+        let node_searcher_show_action = None;
+        let data = ViewLayoutData{text_editor,node_editor,node_searcher,size,logger,mouse_position,
+            node_searcher_show_action};
         let rc   = Rc::new(RefCell::new(data));
         Ok(Self {rc}.init(world,kb_actions))
     }
 
     fn init_keyboard(self, keyboard_actions:&mut keyboard::Actions) -> Self {
         // TODO[ao] add here some useful staff (quitting project for example)
-        let layout = self.rc.clone();
-        keyboard_actions.add_action(&[keyboard::Key::Tab], move || {
+        let layout                    = self.rc.clone();
+        let keys                      = &[keyboard::Key::Tab];
+        let node_searcher_show_action = keyboard_actions.add_action(keys, move || {
             let mut layout             = layout.borrow_mut();
             let position               = layout.mouse_position.get();
             let node_searcher_position = Vector3::new(position.x as f32,position.y as f32,0.0);
             layout.node_searcher.set_position(node_searcher_position);
             layout.node_searcher.show();
-        }).forget(); // FIXME: Remove forget.
+        });
+        self.rc.borrow_mut().node_searcher_show_action = Some(node_searcher_show_action);
         self
     }
 

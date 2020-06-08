@@ -87,6 +87,10 @@ impl NodeSearcher {
         self.text_field.set_content("");
         self.text_field.set_focus();
     }
+
+    pub fn hide(&mut self) {
+
+    }
 }
 
 impl display::Object for NodeSearcher {
