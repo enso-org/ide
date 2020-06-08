@@ -37,6 +37,8 @@ pub struct ViewLayoutData {
     node_searcher             : NodeSearcher,
     size                      : Vector2<f32>,
     logger                    : Logger,
+    /// FIXME[dg]: This is a provisional code. Getting the mouse position from Uniform is bad. Mouse
+    /// position should be retrieved from the frp network instead.
     mouse_position            : Uniform<Vector2<i32>>,
     node_searcher_show_action : Option<callback::Handle>
 }
@@ -126,6 +128,7 @@ impl ViewLayout {
         let node_searcher_show_action = keyboard_actions.add_action(keys, move || {
             let mut layout             = layout.borrow_mut();
             let position               = layout.mouse_position.get();
+            //TODO[dg]: Test it when graph scene panning is working.
             let node_searcher_position = Vector3::new(position.x as f32,position.y as f32,0.0);
             layout.node_searcher.set_position(node_searcher_position);
             layout.node_searcher.show();

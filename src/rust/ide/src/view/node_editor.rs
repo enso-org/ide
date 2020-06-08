@@ -293,10 +293,10 @@ impl GraphEditorIntegratedWithControllerModel {
         let id           = info.info.id();
         let displayed_id = self.editor.add_node();
         self.update_node_view(displayed_id,info,trees);
-        let position = info.metadata.and_then(|md| md.position).map(|position| {
-            frp::Position{x:position.vector.x,y:position.vector.y}
-        }).unwrap_or(default_pos);
-        self.editor.frp.inputs.set_node_position.emit_event(&(displayed_id,position));
+        // If position wasn't present in metadata, we must initialize it.
+        if info.metadata.and_then(|md| md.position).is_none() {
+            self.editor.frp.inputs.set_node_position.emit_event(&(displayed_id,default_pos));
+        }
         self.node_views.borrow_mut().insert(id, displayed_id);
     }
 
