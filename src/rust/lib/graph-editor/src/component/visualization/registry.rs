@@ -45,6 +45,7 @@ impl Registry {
         registry
     }
 
+    // FIXME: what does "pre-wrapped in an Rc" mean?
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
     pub fn add(&self, class:impl Into<visualization::Definition>) {
         let class = class.into();
@@ -53,7 +54,9 @@ impl Registry {
         self.path_map.borrow_mut().entry(sig.path.clone()).insert(class);
     }
 
+    // FIXME: what does "pre-wrapped in an Rc" mean?
     /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
+    // FIXME: please explain the comment below. Is it worth doing now?
     /// TODO: Consider generalising the FallibleDefinition.
     pub fn try_add_java_script(&self, class:impl Into<visualization::java_script::FallibleDefinition>) {
         let class = class.into();

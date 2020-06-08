@@ -30,16 +30,16 @@ pub struct FrpInputs {
 #[allow(missing_docs)]
 pub struct Frp {
     #[shrinkwrap(main_field)]
-    pub inputs               : FrpInputs,
-    pub network              : frp::Network,
+    pub inputs                : FrpInputs,
+    pub network               : frp::Network,
 
     pub on_change             : frp::Stream<EnsoCode>,
     pub on_preprocess_change  : frp::Stream<EnsoCode>,
     pub on_data_receive_error : frp::Stream<Option<DataError>>,
 
-    pub data_receive_error : frp::Source<Option<DataError>>,
-    pub change             : frp::Source<EnsoCode>,
-    pub preprocess_change  : frp::Source<EnsoCode>,
+    pub data_receive_error    : frp::Source<Option<DataError>>,
+    pub change                : frp::Source<EnsoCode>,
+    pub preprocess_change     : frp::Source<EnsoCode>,
 }
 
 impl FrpInputs {
@@ -65,8 +65,8 @@ impl Frp {
         let on_preprocess_change  = preprocess_change.clone_ref().into();
         let on_data_receive_error = data_receive_error.clone_ref().into();
         let inputs                = FrpInputs::new(&network);
-        Self {network,on_change,on_preprocess_change,on_data_receive_error,change,preprocess_change,
-              inputs,data_receive_error}
+        Self {network,on_change,on_preprocess_change,on_data_receive_error,change,preprocess_change
+             ,inputs,data_receive_error}
     }
 }
 

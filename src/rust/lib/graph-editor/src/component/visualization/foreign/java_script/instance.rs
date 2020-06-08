@@ -7,8 +7,10 @@
 //! fullfills the spec described in `java_script/definition.rs
 //!
 //! All methods are optional and if they are not present, will be handled as no-op.
-//!
-//! TODO: refine spec and add functions as needed, e.g., init, callback hooks or type indicators.
+
+// FIXME: We should not mention in all docs that "all methods are optional etc" - if this changes,
+//        we will have a lot of docs to be fixed. Lets just send the reader to the spec definition
+//        instead!.
 
 use crate::prelude::*;
 
@@ -26,6 +28,7 @@ use js_sys;
 use std::fmt::Formatter;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -34,10 +37,16 @@ use std::fmt::Formatter;
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub enum Error {
+    // FIXME: this error is not specific enough. It should be named `InstanceIsNotAnObject` and used
+    //        only to indicate that the value we used to create instance was not a valid object.
+    //        The error messge below "Not an object: {:?}" is also not very specific about what
+    //        really happened.
     /// The provided value was expected to be a JS object, but was not.
     NotAnObject        { object:JsValue },
     /// An error occurred when calling the class constructor.
+    // FIXME: kets make it more specific - what exactly us constructor error?
     ConstructorError   { js_error:JsValue },
+    // FIXME: can we remove it? We should handle each error explicitely. When something unknown happens?
     /// An unknown error occurred on the JS side. Inspect the content for more information.
     Unknown            { js_error:JsValue }
 }
@@ -60,6 +69,8 @@ impl Display for Error {
 
 impl std::error::Error for Error {}
 
+// FIXME: this impl encourages to use Unknown value. Using unknown should be always explicit.
+//        do we really need Unknmown error at all?
 impl From<JsValue> for Error {
     fn from(value:JsValue) -> Self {
         // TODO add differentiation if we encounter specific errors and return new variants.
@@ -90,9 +101,9 @@ pub struct InstanceModel {
 impl InstanceModel {
     /// Internal helper that tries to convert a JS object into a `Instance`.
     fn from_object_js(object:js_sys::Object) -> result::Result<Self, Error> {
-        let on_data_received = method(&object, "onDataReceived").ok();
+        let on_data_received = get_method(&object, "onDataReceived").ok(); // FIXME: literals eveywhere - move them to constants.
         let on_data_received = Rc::new(on_data_received);
-        let set_size         = method(&object, "setSize").ok();
+        let set_size         = get_method(&object, "setSize").ok();
         let set_size         =  Rc::new(set_size);
 
         let logger    = Logger::new("Instance");
@@ -131,7 +142,7 @@ impl InstanceModel {
                Err(_)    => return Err(DataError::InvalidDataType),
            };
            if let Err(error) = on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
-               self.logger.warning(
+               self.logger.warning( // FIXME Use `warning!` macro instead. Will be a lot shorter.
                    || format!("Failed to set data in {:?} with error: {:?}",self,error));
                return Err(DataError::InternalComputationError)
            }
@@ -182,7 +193,7 @@ impl Instance {
         let frp     = self.frp.clone_ref();
         frp::extend! { network
             eval frp.set_size  ((size) model.set_size(*size));
-            eval frp.send_data ([frp](data) {
+            eval frp.send_data ([frp](data) { // FIXME this leaks memory!
                 if let Err(e) = model.receive_data(data) {
                     frp.data_receive_error.emit(Some(e));
                 }
@@ -190,17 +201,6 @@ impl Instance {
         }
         self
     }
-}
-
-
-// === Utils ===
-
-/// Try to return the method specified by the given name on the given object as a
-/// `js_sys::Function`.
-fn method(object:&js_sys::Object, name:&str) -> Result<js_sys::Function> {
-    let method_value                     = js_sys::Reflect::get(object,&name.into())?;
-    let method_function:js_sys::Function = method_value.into();
-    Ok(method_function)
 }
 
 impl From<Instance> for visualization::Instance {
@@ -213,4 +213,15 @@ impl display::Object for Instance {
     fn display_object(&self) -> &display::object::Instance {
         &self.model.root_node.display_object()
     }
+}
+
+
+// === Utils ===
+
+/// Try to return the method specified by the given name on the given object as a
+/// `js_sys::Function`.
+fn get_method(object:&js_sys::Object, name:&str) -> Result<js_sys::Function> {
+    let method_value                     = js_sys::Reflect::get(object,&name.into())?;
+    let method_function:js_sys::Function = method_value.into();
+    Ok(method_function)
 }

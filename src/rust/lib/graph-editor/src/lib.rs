@@ -1271,7 +1271,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("d".into())])               , "set_test_visualization_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control, Key::Character("f".into())]) , "cycle_visualization_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("f".into())]) , "cycle_visualization_for_selected_node")
              ]
     }
 }
@@ -1688,18 +1688,21 @@ fn new_graph_editor(world:&World) -> GraphEditor {
          }
      }));
 
+     nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
+     node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
+
      let cycle_count = Rc::new(Cell::new(0));
-     def _cycle_visualization = inputs.cycle_visualization.map(f!([scene,nodes,visualizations,logger](node_id) {
-        let visualizations = visualizations.valid_sources(&"[[Float,Float,Float]]".into());
+     def _cycle_visualization = node_to_cycle.map(f!([scene,nodes,visualizations,logger](node_id) {
+        let visualizations = visualizations.valid_sources(&"Any".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
         let vis  = &visualizations[cycle_count.get()];
         let vis  = vis.new_instance(&scene);
         let node = nodes.get_cloned_ref(node_id);
         match (vis, node) {
             (Ok(vis), Some(node))  => {
-                    node.visualization.frp.set_visualization.emit(Some(vis));
+                node.visualization.frp.set_visualization.emit(Some(vis));
             },
-            (Err(e), _) =>  logger.warning(|| format!("Failed to cycle visualization: {:?}", e)),
+            (Err(e), _) => logger.warning(|| format!("Failed to cycle visualization: {:?}", e)),
             _           => {}
         };
         cycle_count.set(cycle_count.get() + 1);
