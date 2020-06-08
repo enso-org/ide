@@ -79,7 +79,6 @@ pub type InstantiationResult = Result<visualization::Instance,InstantiationError
 
 // === Errors ===
 
-// TODO: make Display and fix all usages.
 /// Indicates that instantiating a `Visualisation` from a `Definition` has failed.
 #[derive(Debug)]
 #[allow(missing_docs)]

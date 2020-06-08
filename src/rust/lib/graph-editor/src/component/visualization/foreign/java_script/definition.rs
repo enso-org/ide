@@ -41,13 +41,11 @@
 //!     return Visualizations;
 //!```
 
-
-// TODO: Add exhaustive tests for spec.
-
 use crate::prelude::*;
 
 use crate::component::visualization::InstantiationError;
 use crate::component::visualization::InstantiationResult;
+use crate::component::visualization::java_script::instance;
 use crate::component::visualization;
 use crate::data::*;
 
@@ -58,7 +56,6 @@ use ensogl::system::web::JsValue;
 use js_sys::JsString;
 use js_sys;
 use wasm_bindgen::JsCast;
-use crate::component::visualization::java_script::instance;
 
 
 // =================
@@ -156,34 +153,4 @@ pub enum Error {
 #[allow(missing_docs,missing_copy_implementations)]
 pub enum InvalidClass {
     MissingName,
-}
-
-
-
-// ============
-// === Test ===
-// ============
-
-#[cfg(test)]
-mod tests {
-    // use super::*;
-
-    // use wasm_bindgen_test::wasm_bindgen_test_configure;
-    // use wasm_bindgen_test::wasm_bindgen_test;
-
-    // wasm_bindgen_test_configure!(run_in_browser);
-    //
-    // #[wasm_bindgen_test(async)]
-    //
-    // #[test]
-    // fn test_empty_js_vis() {
-    //     let empty_vis = "class Empty{}; return Visualisation;";
-    //     let definition = Definition::new("EmptyLib", empty_vis);
-    //     let definition = definition.expect("Failed to create a definition from a valid minimal JS source.");
-    //     assert_eq!(definition.class, "Empty");
-    //     assert_eq!(definition.signature.input_type, "Any".into());
-    //
-    //     // TODO test instantiation.
-    //
-    // }
 }
