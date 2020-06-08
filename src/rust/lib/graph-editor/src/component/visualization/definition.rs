@@ -85,6 +85,8 @@ pub type InstantiationResult = Result<visualization::Instance,InstantiationError
 // === Errors ===
 
 // TODO: make Display and fix all usages.
+// TODO: Do not use `dyn Error`. Just use specific types everywhere. If we get `InvalidClass` we
+//       want to pattern match and understand why it was invalid.
 /// Indicates that instantiating a `Visualisation` from a `Definition` has failed.
 #[derive(Debug)]
 #[allow(missing_docs)]

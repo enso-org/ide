@@ -8,7 +8,7 @@ use crate::data;
 // ============
 
 im_string_newtype!{
-    /// Name of the visualization. You cannot register two visualizations of the same name in the
+    /// Name of the visualization. You cannot define two visualizations of the same name in the
     /// same library.
     Name
 }
@@ -19,6 +19,8 @@ im_string_newtype!{
 // === Path ===
 // ============
 
+/// A fully qualified path of a visualization definition. Contains both the library name and the
+/// visualization name.
 #[derive(Clone,CloneRef,Debug,Eq,Hash,PartialEq)]
 pub struct Path {
     pub library : data::LibraryName,
@@ -26,12 +28,14 @@ pub struct Path {
 }
 
 impl Path {
+    /// Constructor.
     pub fn new(library:impl Into<data::LibraryName>, name:impl Into<Name>) -> Self {
         let library = library.into();
         let name   = name.into();
         Self {library,name}
     }
 
+    /// Constructor for builtin visualizations.
     pub fn builtin(name:impl Into<Name>) -> Self {
         let library = data::builtin_library();
         Self::new(library,name)

@@ -1,30 +1,6 @@
 //! The `Registry` provides a mechanism to store `visualization::Class`es for all available visualizations. It
 //! provides functionality to register new factories, as well as get suitable factories for
 //! a specific data type.
-//!
-//! Example
-//! --------
-//! ```no_run
-//! use graph_editor::component::visualization::Registry;
-//! use graph_editor::component::visualization::EnsoType;
-//! use graph_editor::component::visualization::JsSourceClass;
-//!
-//! // Instantiate a pre-populated registry.
-//! let registry = Registry::with_default_visualizations();
-//! // Add a new class that creates visualizations defined in JS.
-//! registry.register(JsSourceClass::from_js_source_raw(r#"
-//!     class BubbleVisualization {
-//!         static inputType = "Any"
-//!         onDataReceived(root, data) {}
-//!         setSize(root, size) {}
-//!     }
-//!     return BubbleVisualization;
-//! "#.into()).unwrap());
-//!
-//! // Get all factories that can render  visualization for the type `[[Float,Float,Float]]`.
-//! let target_type:EnsoType = "[[Float,Float,Float]]".to_string().into();
-//! assert!(registry.valid_sources(&target_type).len() > 0);
-//! ```
 
 use crate::prelude::*;
 
@@ -64,7 +40,8 @@ impl Registry {
         let registry = Self::new();
         registry.add(visualization::example::native::BubbleChart::definition());
         registry.add(visualization::example::native::RawText::definition());
-        // registry.add(visualization::example::java_script::get_bubble_vis_class());
+        // FIXME: uncomment and handle error. Use logger to report that the visualization was not registered due to some error.
+        // registry.add(visualization::example::java_script::bubble_visualization());
         registry
     }
 
@@ -77,14 +54,15 @@ impl Registry {
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
-    pub fn valid_sources(&self, dtype:&EnsoType) -> Vec<Definition>{
+    pub fn valid_sources(&self, tp:&EnsoType) -> Vec<Definition>{
         let type_map = self.type_map.borrow();
-        type_map.get(dtype).cloned().unwrap_or_else(default)
+        type_map.get(tp).cloned().unwrap_or_default()
     }
 
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> visualization::Instance {
         let class = visualization::example::native::RawText::definition();
+        // FIXME: do not fail the program. If something bad happens, report it and try to rescue.
         class.new_instance(&scene).expect("Failed to instantiate default visualisation.")
     }
 }

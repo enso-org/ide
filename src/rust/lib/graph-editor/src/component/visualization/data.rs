@@ -83,6 +83,7 @@ pub enum DataError {
 // === Sample Data Generator ===
 // =============================
 
+// FIXME: add docs. This could stay here as it helps trsting data.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct MockDataGenerator3D {
     counter: Rc<Cell<f32>>

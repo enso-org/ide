@@ -22,6 +22,11 @@
 //!
 //! TODO: refine spec and add functions as needed, e.g., init, callback hooks or type indicators.
 
+// FIXME: the above docs are not valid anymore. Some functions like `from_functions` were removed.
+//        They were removed because there is no point in supporting so many ways of doing that.
+//        Lets support only the things that are really used. In fact I would not have such a big
+//        problem with the definitions if the code was not just copy-paste between them.
+
 use crate::prelude::*;
 
 use crate::component::visualization;
@@ -43,6 +48,18 @@ use crate::frp;
 // ==============
 // === Errors ===
 // ==============
+
+// FIXME: These errors do not tell anything about why they happened! For example, if we have a class
+//        in JS which does not define function "onDataReceived", then we will get error
+//        "NotAFunction (undefined)". Moreover, if such function is not defined, we should not
+//        raise an error! Everything in vis definition should be optional.
+//        Moreover, we exactly know hen these errors occur, so please mark them as specific as
+//        possible whenever they occur.
+
+// FIXME: the name of the error doesnt make sense. I understand that this is the error which
+//        occurs when trying to instantiate visualization? If so, it should be just named `Error`,
+//        as we are in `instance` module. After this change other names do not have much sense as
+//        well, like `JsResult`.
 
 /// Errors that can occur when transforming JS source to a visualization.
 #[derive(Clone,Debug)]
@@ -85,9 +102,9 @@ pub type JsResult<T> = Result<T, JsVisualizationError>;
 
 
 
-// ==================
+// ================
 // === Instance ===
-// ==================
+// ================
 
 /// `JsVisualizationGeneric` allows the use of arbitrary javascript to create visualizations. It
 /// takes function definitions as strings and proved those functions with data.
@@ -125,26 +142,6 @@ impl Instance {
     }
 
     /// Constructor from a source that evaluates to an object with specific methods.
-    ///
-    /// Example:
-    /// --------
-    ///
-    /// ```no_run
-    /// use graph_editor::component::visualization::Instance;
-    ///
-    /// let renderer = Instance::from_object_source(r#"function() {
-    ///   class Visualization {
-    ///       static inputTypes = ["[[Float,Float,Float]]"]
-    ///       onDataReceived(root, data) {};
-    ///       setSize(root, size) {};
-    ///   }
-    ///   return Visualization;
-    /// }()"#).unwrap();
-    ///
-    /// ```
-    ///
-    /// For a full example see
-    /// `crate::component::visualization::renderer::example::object_sample_js_bubble_chart`
     pub fn from_object_source(source: &str) -> Result<Instance,JsVisualizationError> {
         let object = js_sys::eval(source)?;
         if !object.is_object() {
@@ -153,7 +150,7 @@ impl Instance {
         Self::from_object_js(object.into())
     }
 
-    pub(crate) fn from_object(object:JsValue) -> Result<Instance,JsVisualizationError> {
+    pub fn from_object(object:JsValue) -> Result<Instance,JsVisualizationError> {
         if !object.is_object() {
             return Err(JsVisualizationError::NotAnObject { inner:object } )
         }
@@ -161,24 +158,6 @@ impl Instance {
     }
 
     /// Constructor from function body that returns a object with specific functions.
-    ///
-    /// Example:
-    /// --------
-    ///
-    /// ```no_run
-    /// use graph_editor::component::visualization::Instance;
-    ///
-    /// let renderer = Instance::from_constructor("
-    ///   class Visualization {
-    ///       onDataReceived(root, data) {};
-    ///       setSize(root, size) {};
-    ///   }
-    ///   return Visualization;
-    ///   ").unwrap();
-    ///
-    /// ```
-    /// For a full example see
-    /// `crate::component::visualization::renderer::example::constructor_sample_js_bubble_chart`
     pub fn from_constructor(source:&str) -> Result<Instance,JsVisualizationError> {
         let context     = JsValue::NULL;
         let constructor = js_sys::Function::new_no_args(source);
@@ -196,6 +175,8 @@ impl Instance {
         scene.manage(&self.root_node);
     }
 }
+
+// FIXME: Move to FRP
 
 //impl visualization::InstanceX for Instance {
 //

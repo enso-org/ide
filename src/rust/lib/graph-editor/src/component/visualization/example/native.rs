@@ -18,6 +18,8 @@ use crate::frp;
 
 
 
+// FIXME: move to separate file.
+
 // ===================
 // === BubbleChart ===
 // ===================
@@ -116,6 +118,8 @@ impl display::Object for BubbleChart {
 }
 
 
+
+// FIXME: move to separate file.
 
 // ===============
 // === RawText ===

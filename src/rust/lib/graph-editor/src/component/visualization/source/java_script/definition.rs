@@ -1,6 +1,7 @@
 //! This module contains functionality to create a `Class` object from a JS source strings.
 
-// TODO: write specification
+// TODO: write detailed specification. Please note that EVERYTHING should be optional. Make sure it
+//       is handled propelry in all places in the code. add tests of visualizations without fields.
 //     class Visualization {
 //         static label     = "plot chart"
 //         static inputType = "Any"
@@ -89,7 +90,7 @@ fn try_str_field(obj:&JsValue, field:&str) -> Option<String> {
     Some(js_string.into())
 }
 
-// TODO: convert cammel case names to nice names
+// TODO: convert camel-case names to nice names
 fn label(class:&JsValue) -> Result<String,Error> {
     try_str_field(class,LABEL_FIELD).map(Ok).unwrap_or_else(|| {
         let class_name = try_str_field(class,"name").ok_or(Error::InvalidClass(InvalidClass::MissingName))?;

@@ -1,6 +1,6 @@
 //! This module defines the `Container` struct and related functionality.
 
-// FIXME There is a serious preformance problem in this implementation. It assumes that the
+// FIXME There is a serious performance problem in this implementation. It assumes that the
 // FIXME visualization is a child of the container. However, this is very inefficient. Consider a
 // FIXME visualization containing 1M of points. When moving a node (and thus moving a container),
 // FIXME this would iterate over 1M of display objects and update their positions. Instead of that,
@@ -214,7 +214,7 @@ impl FullscreenView {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = logger.sub("fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
-        let background          = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
+        let background     = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
         display_object.add_child(&background);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
