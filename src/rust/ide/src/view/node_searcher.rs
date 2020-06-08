@@ -84,7 +84,7 @@ impl NodeSearcher {
     /// Show NodeSearcher if it's invisible.
     pub fn show(&mut self) {
         self.display_object.add_child(&self.text_field.display_object());
-        self.text_field.set_content("");
+        self.text_field.clear_content();
         self.text_field.set_focus();
     }
 }
