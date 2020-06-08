@@ -47,7 +47,7 @@ impl NodeSearcher {
             size       : Vector2::new(screen.width,16.0),
         };
         let text_field = TextField::new(world,properties);
-        display_object.add_child(&text_field.display_object());
+        display_object.add_child(&text_field);
         let searcher = NodeSearcher{node_editor,display_object,text_field,controller,logger};
         searcher.initialize()
     }
