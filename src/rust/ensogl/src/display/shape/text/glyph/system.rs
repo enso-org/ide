@@ -213,11 +213,11 @@ impl Line {
             glyph.set_position(Vector3::new(glyph_x,glyph_y,0.0));
             glyph.set_glyph(chr);
             glyph.color().set(color);
-            glyph.size().set(size);
+            glyph.size.set(size);
         }
 
         for glyph in self.glyphs.borrow().iter().skip(content_len) {
-            glyph.size().set(Vector2::new(0.0,0.0));
+            glyph.size.set(Vector2::new(0.0,0.0));
         }
     }
 }

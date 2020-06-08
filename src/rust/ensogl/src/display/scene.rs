@@ -695,35 +695,34 @@ impl ViewData {
 /// display shapes properly. This should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Views {
-    logger                    : Logger,
-    pub viz                   : View,
-    pub main                  : View,
-    pub cursor                : View,
-    pub label                 : View,
-    pub viz_fullscreen        : View,
-    all                       : Rc<RefCell<Vec<WeakView>>>,
-    width                     : f32,
-    height                    : f32,
+    logger             : Logger,
+    pub viz            : View,
+    pub main           : View,
+    pub cursor         : View,
+    pub label          : View,
+    pub viz_fullscreen : View,
+    all                : Rc<RefCell<Vec<WeakView>>>,
+    width              : f32,
+    height             : f32,
 }
 
 impl Views {
     pub fn mk(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger                 = logger.sub("views");
-        let main                   = View::new(&logger,width,height);
-        let viz                    = View::new_with_camera(&logger,&main.camera);
-        let cursor                 = View::new(&logger,width,height);
-        let label                  = View::new_with_camera(&logger,&main.camera);
-        let viz_fullscreen         = View::new(&logger,width,height);
-        let all                    = vec![
+        let logger         = logger.sub("views");
+        let main           = View::new(&logger,width,height);
+        let viz            = View::new_with_camera(&logger,&main.camera);
+        let cursor         = View::new(&logger,width,height);
+        let label          = View::new_with_camera(&logger,&main.camera);
+        let viz_fullscreen = View::new(&logger,width,height);
+        let all            = vec![
             viz.downgrade(),
             main.downgrade(),
             cursor.downgrade(),
             label.downgrade(),
             viz_fullscreen.downgrade()
         ];
-        let all                    = Rc::new(RefCell::new(all));
-        Self {logger,viz,main,cursor,label,viz_fullscreen,
-              all,width,height}
+        let all = Rc::new(RefCell::new(all));
+        Self {logger,viz,main,cursor,label,viz_fullscreen,all,width,height}
     }
 
     /// Creates a new view for this scene.
@@ -736,21 +735,6 @@ impl Views {
 
     pub fn all(&self) -> Ref<Vec<WeakView>> {
         self.all.borrow()
-    }
-
-//    /// Move cursor from/to cursor/cursor_overlay layer.
-//    pub fn toggle_overlay_cursor(&self) {
-//        let mut bottom_symbols = self.cursor.symbols.borrow_mut();
-//        let mut top_symbols    = self.overlay_cursor.symbols.borrow_mut();
-//        mem::swap(bottom_symbols.deref_mut(), top_symbols.deref_mut());
-//    }
-
-    pub fn remove_symbol(&self, symbol:&Symbol) {
-        self.all().iter().for_each(|weak_layer| {
-            if let Some(layer) = weak_layer.upgrade() {
-                layer.remove(symbol);
-            }
-        })
     }
 }
 
@@ -923,12 +907,8 @@ impl SceneData {
         if changed {
             self.frp.camera_changed_source.emit(());
             self.symbols.set_camera(camera);
-            if self.dom.layers.main.number_of_children() > 0 {
-                self.dom.layers.main.update_view_projection(camera);
-            }
-            if self.dom.layers.overlay.number_of_children() > 0 {
-                self.dom.layers.overlay.update_view_projection(camera);
-            }
+            self.dom.layers.main.update_view_projection(camera);
+            self.dom.layers.overlay.update_view_projection(camera);
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).

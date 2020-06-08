@@ -5,7 +5,7 @@
 use crate::data;
 use crate::component::visualization;
 
-/// Return an `JavScript` that creates example Bubble Visualizations implemented in JS.
+/// Return a `JavaScript` Bubble visualization.
 pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition {
     let source = r#"
         class BubbleVisualization {

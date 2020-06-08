@@ -333,7 +333,7 @@ impl Cursor {
             eval radius.value ((v) model.view.shape.radius.set(*v));
             eval size.value   ([model] (v) {
                 let dim = Vector2::new(v.x+SIDES_PADDING,v.y+SIDES_PADDING);
-                model.view.shape.sprite.size().set(dim);
+                model.view.shape.sprite.size.set(dim);
             });
 
             anim_color <- all_with(&color_lab.value,&color_alpha.value,

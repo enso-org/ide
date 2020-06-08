@@ -45,7 +45,7 @@ pub fn run_example_dom_symbols() {
             let size       = Vector2::new(width, height);
             let position   = Vector3::new(width / 1.5 * x + width / 2.0, y, 0.0);
             let sprite     = sprite_system.new_instance();
-            sprite.size().set(size);
+            sprite.size.set(size);
             sprite.mod_position(|t| *t = position);
             sprites.push(sprite);
         } else {

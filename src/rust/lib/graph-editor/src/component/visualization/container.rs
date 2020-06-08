@@ -329,15 +329,15 @@ impl ContainerModel {
         let size = size.into();
         if self.is_fullscreen.get() {
             self.fullscreen_view.background . shape.radius.set(CORNER_RADIUS);
-            self.fullscreen_view.background . shape.sprite.size().set(size.into());
-            self.view.background   . shape.sprite.size().set(zero());
-            self.view.overlay . shape.sprite.size().set(zero());
+            self.fullscreen_view.background . shape.sprite.size.set(size.into());
+            self.view.background   . shape.sprite.size.set(zero());
+            self.view.overlay . shape.sprite.size.set(zero());
         } else {
             self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.background.shape.sprite.size().set(size.into());
-            self.view.overlay.shape.sprite.size().set(size.into());
-            self.fullscreen_view.background . shape.sprite.size().set(zero());
+            self.view.background.shape.sprite.size.set(size.into());
+            self.view.overlay.shape.sprite.size.set(size.into());
+            self.fullscreen_view.background . shape.sprite.size.set(zero());
         }
 
         if let Some(viz) = &*self.visualization.borrow() {

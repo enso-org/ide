@@ -326,9 +326,9 @@ impl NodeModel {
         let height = 28.0;
 
         let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
-        self.main_area.shape.sprite.size().set(size);
-        self.drag_area.shape.sprite.size().set(size);
-        self.output_area.shape.sprite.size().set(size);
+        self.main_area.shape.sprite.size.set(size);
+        self.drag_area.shape.sprite.size.set(size);
+        self.output_area.shape.sprite.size.set(size);
         self.main_area.mod_position(|t| t.x = width/2.0);
         self.main_area.mod_position(|t| t.y = height/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);

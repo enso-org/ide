@@ -154,9 +154,9 @@ impl Size {
 pub struct Sprite {
     pub symbol      : Symbol,
     pub instance_id : AttributeInstanceIndex,
+    pub size        : Size,
     display_object  : display::object::Instance,
     transform       : Attribute<Matrix4<f32>>,
-    size            : Size,
     stats           : Rc<SpriteStats>,
     guard           : Rc<SpriteGuard>,
 }
@@ -193,11 +193,6 @@ impl Sprite {
     /// Get the symbol id.
     pub fn symbol_id(&self) -> i32 {
         self.symbol.id
-    }
-
-    /// Size accessor.
-    pub fn size(&self) -> &Size {
-        &self.size
     }
 }
 

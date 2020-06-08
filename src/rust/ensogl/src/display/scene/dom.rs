@@ -164,7 +164,7 @@ impl DomScene {
     }
 
     /// Gets the number of children DomSymbols.
-    pub fn number_of_children(&self) -> u32 {
+    pub fn children_number(&self) -> u32 {
         self.data.dom.children().length()
     }
 
@@ -187,6 +187,8 @@ impl DomScene {
     /// Update the objects to match the new camera's point of view. This function should be called
     /// only after camera position change.
     pub fn update_view_projection(&self, camera:&Camera2d) {
+        if self.children_number() == 0 { return }
+
         let trans_cam  = camera.transform_matrix().try_inverse();
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam  = trans_cam.map(eps);

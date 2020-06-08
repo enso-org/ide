@@ -51,7 +51,7 @@ impl Signature {
 #[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct Definition {
-    pub signature   : Signature,
+    pub signature : Signature,
     #[derivative(Debug="ignore")]
     pub constructor : Rc<dyn Fn(&Scene) -> InstantiationResult>,
 }

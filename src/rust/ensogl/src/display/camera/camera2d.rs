@@ -380,12 +380,6 @@ impl Camera2d {
     pub fn add_screen_update_callback<F:ScreenUpdateFn>(&self, f:F) -> callback::Handle {
         self.data.borrow_mut().add_screen_update_callback(f)
     }
-
-    /// Apply this cameras coordinate transform to the given coordinates.
-    pub fn apply_transform(&self, coordinates:Vector3<f32>) -> Vector3<f32>{
-        let coordinates = Vector4::new(coordinates.x, coordinates.y, coordinates.z, 1.0);
-        (self.view_projection_matrix() * coordinates).xyz() * self.zoom()
-    }
 }
 
 
