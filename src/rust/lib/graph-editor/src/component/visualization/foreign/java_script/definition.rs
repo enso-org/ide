@@ -26,7 +26,7 @@
 //!       leaves no corner cases.
 //! TODO: Thoughts on changing spec:
 //!        * should root be provided once in the constructor?
-//!        * could setSize be removed and instead the visualisation should change it's size based
+//!        * could setSize be removed and instead the visualisation should change its size based
 //!          on the size of the root node?
 //!
 //! Example
@@ -42,20 +42,12 @@
 //!```
 
 
-// TODO: write detailed specification. Please note that EVERYTHING should be optional. Make sure it
-//       is handled propelry in all places in the code. add tests of visualizations without fields.
-//     class Visualization {
-//         static label     = "plot chart"
-//         static inputType = "Any"
-//         onDataReceived(root, data) {}
-//         setSize(root, size) {}
-//     }
-//     return Visualizations;
+// TODO: Add exhaustive tests for spec.
 
 use crate::prelude::*;
 
-use crate::component::visualization::InstantiationResult;
 use crate::component::visualization::InstantiationError;
+use crate::component::visualization::InstantiationResult;
 use crate::component::visualization;
 use crate::data::*;
 
@@ -66,7 +58,7 @@ use ensogl::system::web::JsValue;
 use js_sys::JsString;
 use js_sys;
 use wasm_bindgen::JsCast;
-
+use crate::component::visualization::java_script::instance;
 
 
 // =================
@@ -108,10 +100,12 @@ impl Definition {
     }
 
     fn new_instance(&self, scene:&Scene) -> InstantiationResult {
-        let js_new  = js_sys::Function::new_with_args("cls", "return new cls()");
-        let context = JsValue::NULL;
-        let obj     = js_new.call1(&context,&self.class).map_err(InstantiationError::ConstructorError)?;
-        let instance = Instance::from_object(obj).unwrap(); // ?; FIXME
+        let js_new   = js_sys::Function::new_with_args("cls", "return new cls()");
+        let context  = JsValue::NULL;
+        let obj      = js_new.call1(&context,&self.class)
+            .map_err(|js_error|instance::Error::ConstructorError{js_error})
+            .map_err(InstantiationError::ConstructorError)?;
+        let instance = Instance::new(obj).map_err(InstantiationError::ConstructorError)?;
         instance.set_dom_layer(&scene.dom.layers.main);
         Ok(instance.into())
     }
@@ -159,8 +153,30 @@ pub enum Error {
 
 /// Subset of `Error` related to invalid JavaScript class definition.
 #[derive(Clone,Debug)]
-#[allow(missing_docs)]
+#[allow(missing_docs,missing_copy_implementations)]
 pub enum InvalidClass {
     MissingName,
-    ConstructorFail(JsValue),
+}
+
+
+
+// ============
+// === Test ===
+// ============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_js_vis() {
+        let empty_vis = "class Empty{}; return Visualisation;";
+        let definition = Definition::new("EmptyLib", empty_vis);
+        let definition = definition.expect("Failed to create a definition from a valid minimal JS source.");
+        assert_eq!(definition.class, "Empty");
+        assert_eq!(definition.signature.input_type, "Any".into());
+
+        // TODO test instantiation.
+
+    }
 }

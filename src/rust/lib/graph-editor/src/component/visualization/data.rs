@@ -63,7 +63,6 @@ impl From<serde_json::Value> for Data {
 // === Errors ===
 // ==============
 
-// TODO[mm] add more information to errors once typing is defined.
 /// Indicates a problem with the provided data. That is, the data has the wrong format, or maybe
 /// violates some other assumption of the visualization.
 #[derive(Copy,Clone,Debug)]
@@ -80,8 +79,10 @@ pub enum DataError {
 // === Sample Data Generator ===
 // =============================
 
-// FIXME: add docs. This could stay here as it helps trsting data.
-/// Docs...
+/// The `MockDataGenerator3D` creates sample data in the format of `Vec<Vector3<f32>>`. The data
+/// is changing incrementally on every call. The data is meant to be interpreted as a number of
+/// circles defined through x-coordinate, y-coordinate and radius which respectively correspond to
+/// the `Vectors3`s x/y/z values.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct MockDataGenerator3D {
     counter: Rc<Cell<f32>>
