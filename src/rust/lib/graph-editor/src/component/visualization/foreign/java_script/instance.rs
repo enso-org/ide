@@ -204,7 +204,7 @@ fn method(object:&js_sys::Object, name:&str) -> Result<js_sys::Function> {
 }
 
 impl From<Instance> for visualization::Instance {
-    fn from(t: Instance) -> Self {
+    fn from(t:Instance) -> Self {
         Self::new(&t,&t.frp)
     }
 }
