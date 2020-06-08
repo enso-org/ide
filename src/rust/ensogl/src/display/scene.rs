@@ -8,7 +8,6 @@ pub use crate::system::web::dom::Shape;
 
 use crate::prelude::*;
 
-use crate::control::callback::CallbackMut1Fn;
 use crate::control::callback;
 use crate::control::io::mouse::MouseManager;
 use crate::control::io::mouse;
@@ -32,6 +31,8 @@ use crate::system::gpu::types::*;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web;
+use crate::display::shape::ShapeSystemInstance;
+use crate::display::shape::system::ShapeSystemOf;
 
 use display::style::data::DataMatch;
 use enso_frp as frp;
@@ -49,8 +50,7 @@ pub trait MouseTarget : Debug + 'static {
 }
 
 
-use crate::display::shape::ShapeSystemInstance;
-use crate::display::shape::system::{ShapeSystemOf};
+
 
 
 
@@ -90,11 +90,7 @@ impl {
 
     pub fn new_instance<T:display::shape::system::Shape>(&mut self) -> T {
         let system = self.get_or_register::<ShapeSystemOf<T>>();
-        let shape  = system.new_instance();
-        // for sprite in &shape.sprites() {
-        //     sprite.unset_parent();
-        // }
-        shape
+        system.new_instance()
     }
 
     pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:i32, instance_id:usize, target:T) {
@@ -332,7 +328,7 @@ pub struct Mouse {
 }
 
 impl Mouse {
-    pub fn new(shape:&frp::Sampler<web::dom::Shape>, variables:&UniformScope, logger:Logger) -> Self {
+    pub fn new(shape:&frp::Sampler<Shape>, variables:&UniformScope, logger:Logger) -> Self {
         let target          = Target::default();
         let last_position   = Rc::new(Cell::new(Vector2::new(0,0)));
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
@@ -440,7 +436,7 @@ impl Dom {
         Self {root,layers}
     }
 
-    pub fn shape(&self) -> web::dom::Shape {
+    pub fn shape(&self) -> Shape {
         self.root.shape()
     }
 
@@ -828,40 +824,32 @@ impl SceneData {
         parent_dom.append_child(&dom.root).unwrap();
         dom.recompute_shape_with_reflow();
 
-        let display_object = display::object::Instance::new(&logger);
-        let context        = web::get_webgl2_context(&dom.layers.canvas);
-        let sub_logger     = logger.sub("shape_dirty");
-        let shape_dirty    = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
-        let sub_logger     = logger.sub("symbols_dirty");
-        let dirty_flag     = SymbolRegistryDirty::new(sub_logger,Box::new(on_mut));
-        let on_change      = enclose!((dirty_flag) move || dirty_flag.set());
-        let variables      = UniformScope::new(logger.sub("global_variables"),&context);
-        let symbols        = SymbolRegistry::mk(&variables,&stats,&context,&logger,on_change);
-        let screen_shape   = dom.shape();
-        let width          = screen_shape.width;
-        let height         = screen_shape.height;
-        let symbols_dirty  = dirty_flag;
-        let views          = Views::mk(&logger,width,height);
-        let stats          = stats.clone();
-        let mouse_logger   = logger.sub("mouse");
-        let mouse          = Mouse::new(&dom.root.shape,&variables,mouse_logger);
-        let shapes         = ShapeRegistry::default();
-        let uniforms       = Uniforms::new(&variables);
-        let dirty          = Dirty {symbols:symbols_dirty,shape:shape_dirty};
-        let renderer       = Renderer::new(&logger,&dom,&context,&variables);
-//        let on_resize_cb   = enclose!((dirty) move |_:&web::dom::ShapeData| dirty.shape.set());
-//        let on_resize      = dom.root.on_resize(on_resize_cb);
-//        let callbacks      = Callbacks {on_resize};
-        let style_sheet    = style::Sheet::new();
-        let fonts          = font::SharedRegistry::new();
-
-        let frp            = Frp::new();
-        let network        = &frp.network;
-        frp::extend! { network
-            eval_ dom.root.shape (dirty.shape.set());
-        }
-
-        let bg_color_var = style_sheet.var("application.background.color");
+        let display_object  = display::object::Instance::new(&logger);
+        let context         = web::get_webgl2_context(&dom.layers.canvas);
+        let sub_logger      = logger.sub("shape_dirty");
+        let shape_dirty     = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
+        let sub_logger      = logger.sub("symbols_dirty");
+        let dirty_flag      = SymbolRegistryDirty::new(sub_logger,Box::new(on_mut));
+        let on_change       = enclose!((dirty_flag) move || dirty_flag.set());
+        let variables       = UniformScope::new(logger.sub("global_variables"),&context);
+        let symbols         = SymbolRegistry::mk(&variables,&stats,&context,&logger,on_change);
+        let screen_shape    = dom.shape();
+        let width           = screen_shape.width;
+        let height          = screen_shape.height;
+        let symbols_dirty   = dirty_flag;
+        let views           = Views::mk(&logger,width,height);
+        let stats           = stats.clone();
+        let mouse_logger    = logger.sub("mouse");
+        let mouse           = Mouse::new(&dom.root.shape,&variables,mouse_logger);
+        let shapes          = ShapeRegistry::default();
+        let uniforms        = Uniforms::new(&variables);
+        let dirty           = Dirty {symbols:symbols_dirty,shape:shape_dirty};
+        let renderer        = Renderer::new(&logger,&dom,&context,&variables);
+        let style_sheet     = style::Sheet::new();
+        let fonts           = font::SharedRegistry::new();
+        let frp             = Frp::new();
+        let network         = &frp.network;
+        let bg_color_var    = style_sheet.var("application.background.color");
         let bg_color_change = bg_color_var.on_change(f!([dom](change){
             change.color().for_each(|color| {
                 let color = color::Rgba::from(color);
@@ -870,12 +858,16 @@ impl SceneData {
             })
         }));
 
+        frp::extend! { network
+            eval_ dom.root.shape (dirty.shape.set());
+        }
+
         uniforms.pixel_ratio.set(dom.shape().pixel_ratio);
         Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables,stats
              ,uniforms,mouse,shapes,style_sheet,bg_color_var,bg_color_change,fonts,frp}
     }
 
-    pub fn shape(&self) -> &frp::Sampler<web::dom::Shape> {
+    pub fn shape(&self) -> &frp::Sampler<Shape> {
         &self.dom.root.shape
     }
 
@@ -901,16 +893,6 @@ impl SceneData {
             self.shapes.get_mouse_target(current_target) . for_each(|t| t.mouse_out().emit(()));
             self.shapes.get_mouse_target(new_target)     . for_each(|t| t.mouse_over().emit(()));
             self.mouse.reemit_position_event(); // See docs to learn why.
-            // TODO: Inspect the code below and clean the related codebase accordingly.
-//            match target {
-//                Target::Background => {}
-//                Target::Symbol {symbol_id,..} => {
-//                    let symbol = self.symbols.index(symbol_id as usize);
-//                    symbol.dispatch_event(&DynEvent::new(())); // FIXME: currently unused
-//                    // println!("{:?}",target);
-//                    // TODO: finish events sending, including OnOver and OnOut.
-//                }
-//            }
         }
     }
 
@@ -958,7 +940,7 @@ impl SceneData {
     /// Resize the underlying canvas. This function should rather not be called
     /// directly. If you want to change the canvas size, modify the `shape` and
     /// set the dirty flag.
-    fn resize_canvas(&self, screen:web::dom::Shape) {
+    fn resize_canvas(&self, screen:Shape) {
         let canvas = screen.device_pixels();
         group!(self.logger,"Resized to {screen.width}px x {screen.height}px.", {
             self.dom.layers.canvas.set_attribute("width",  &canvas.width.to_string()).unwrap();

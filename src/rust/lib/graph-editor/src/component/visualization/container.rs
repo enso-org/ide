@@ -12,12 +12,9 @@ use crate::prelude::*;
 
 use crate::frp;
 use crate::visualization;
-use crate::visualization::*;
 
 use ensogl::data::color;
 use ensogl::display::Attribute;
-use ensogl::display::DomSymbol;
-use ensogl::display::Symbol;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene;
@@ -121,7 +118,7 @@ pub struct Frp {
     pub set_visibility     : frp::Source<bool>,
     pub toggle_visibility  : frp::Source,
     pub set_visualization  : frp::Source<Option<visualization::Instance>>,
-    pub set_data           : frp::Source<Data>,
+    pub set_data           : frp::Source<visualization::Data>,
     pub select             : frp::Source,
     pub deselect           : frp::Source,
     pub set_size           : frp::Source<V2>,
@@ -172,6 +169,7 @@ pub struct View {
 }
 
 impl View {
+    /// Constructor.
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = logger.sub("view");
         let display_object = display::object::Instance::new(&logger);
@@ -211,6 +209,7 @@ pub struct FullscreenView {
 }
 
 impl FullscreenView {
+    /// Constructor.
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = logger.sub("fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
@@ -252,6 +251,7 @@ pub struct ContainerModel {
 }
 
 impl ContainerModel {
+    /// Constructor.
     pub fn new(logger:&Logger, scene:&Scene, network:&frp::Network) -> Self {
         let logger          = logger.sub("visualization_container");
         let display_object  = display::object::Instance::new(&logger);
@@ -316,7 +316,7 @@ impl ContainerModel {
         }
     }
 
-    fn set_visualization_data(&self, data:&Data) {
+    fn set_visualization_data(&self, data:&visualization::Data) {
         self.visualization.borrow().for_each_ref(|vis| vis.send_data.emit(data))
     }
 
@@ -423,7 +423,6 @@ impl Container {
                     let pos = Vector4::new(pos.x,pos.y,pos.z,1.0);
                     let pos = m2 * (m1 * pos);
                     let pp = V3(pos.x,pos.y,pos.z);
-                    let scene_size : V2 = scene_size.into();
                     let tgt_pos = V3(scene_size.x/2.0,scene_size.y/2.0,0.0);
                     let current_pos = pp * weight_inv + tgt_pos * weight;
                     model.fullscreen_view.set_position(current_pos.into());
@@ -435,7 +434,7 @@ impl Container {
 
         inputs.set_size.emit(DEFAULT_SIZE);
         size.skip();
-        model.set_visualization(Some(Registry::default_visualisation(scene)));
+        model.set_visualization(Some(visualization::Registry::default_visualisation(scene)));
         self
     }
 }

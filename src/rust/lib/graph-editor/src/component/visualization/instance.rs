@@ -65,6 +65,12 @@ impl Frp {
     }
 }
 
+impl Default for Frp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 
 // ================

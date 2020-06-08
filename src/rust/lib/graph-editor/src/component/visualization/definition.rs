@@ -3,14 +3,9 @@
 use crate::prelude::*;
 
 use crate::data::*;
-use crate::frp;
 use crate::visualization;
-use crate::visualization::*;
 
-use ensogl::display::DomSymbol;
 use ensogl::display::Scene;
-use ensogl::display::Symbol;
-use ensogl::display;
 use ensogl::system::web::JsValue;
 use std::error::Error;
 
@@ -25,20 +20,20 @@ use std::error::Error;
 #[allow(missing_docs)]
 pub struct Signature {
     #[shrinkwrap(main_field)]
-    pub path       : Path,
+    pub path       : visualization::Path,
     pub input_type : EnsoType,
 }
 
 impl Signature {
     /// Constructor.
-    pub fn new(path:impl Into<Path>, input_type:impl Into<EnsoType>) -> Self {
+    pub fn new(path:impl Into<visualization::Path>, input_type:impl Into<EnsoType>) -> Self {
         let path       = path.into();
         let input_type = input_type.into();
         Self {path,input_type}
     }
 
     /// Constructor of signature valid for any Enso type.
-    pub fn new_for_any_type(path:impl Into<Path>) -> Self {
+    pub fn new_for_any_type(path:impl Into<visualization::Path>) -> Self {
         let input_type = EnsoType::any();
         Self::new(path,input_type)
     }
@@ -54,6 +49,7 @@ impl Signature {
 /// and a way to create new instances.
 #[derive(Clone,CloneRef,Derivative)]
 #[derivative(Debug)]
+#[allow(missing_docs)]
 pub struct Definition {
     pub signature   : Signature,
     #[derivative(Debug="ignore")]

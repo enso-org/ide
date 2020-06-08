@@ -30,6 +30,7 @@
 #[warn(missing_docs)]
 pub mod component;
 
+pub mod builtin;
 pub mod data;
 
 /// Common types and functions usable in all modules of this crate.
@@ -1725,7 +1726,6 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     viz_preview_mode     <- viz_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
     viz_preview_mode_end <- viz_release.gate(&viz_preview_mode);
     viz_tgt_nodes        <- viz_press.map(f_!(model.selected_nodes()));
-    viz_tgt_node         <= viz_tgt_nodes;
     viz_tgt_nodes_off    <- viz_tgt_nodes.map(f!([model](node_ids) {
         node_ids.iter().cloned().filter(|node_id| {
             model.nodes.get_cloned_ref(node_id)

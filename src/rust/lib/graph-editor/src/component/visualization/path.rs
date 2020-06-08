@@ -1,3 +1,5 @@
+//! Definition of name and path which define unique visualization definition location.
+
 use crate::prelude::*;
 use crate::data;
 
@@ -22,6 +24,7 @@ im_string_newtype!{
 /// A fully qualified path of a visualization definition. Contains both the library name and the
 /// visualization name.
 #[derive(Clone,CloneRef,Debug,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub struct Path {
     pub library : data::LibraryName,
     pub name    : Name,

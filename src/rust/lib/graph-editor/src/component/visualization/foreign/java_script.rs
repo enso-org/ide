@@ -1,3 +1,5 @@
+//! Root module for JavaScript API bindings.
+
 pub mod definition;
 pub mod instance;
 

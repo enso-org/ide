@@ -17,13 +17,13 @@ use crate::component::visualization::InstantiationError;
 use crate::component::visualization;
 use crate::data::*;
 
-use super::instance;
 use super::instance::Instance;
 
 use ensogl::display::Scene;
 use ensogl::system::web::JsValue;
-use js_sys;
 use js_sys::JsString;
+use js_sys;
+use wasm_bindgen::JsCast;
 
 
 
@@ -54,7 +54,7 @@ impl Definition {
         let source     = source.as_ref();
         let context    = JsValue::NULL;
         let function   = js_sys::Function::new_no_args(source);
-        let class      = function.call0(&context).map_err(|e| Error::InvalidFunction(e))?;
+        let class      = function.call0(&context).map_err(Error::InvalidFunction)?;
 
         let library    = library.into();
         let input_type = try_str_field(&class,INPUT_TYPE_FIELD).unwrap_or_default();
@@ -68,7 +68,7 @@ impl Definition {
     fn new_instance(&self, scene:&Scene) -> InstantiationResult {
         let js_new  = js_sys::Function::new_with_args("cls", "return new cls()");
         let context = JsValue::NULL;
-        let obj     = js_new.call1(&context,&self.class).map_err(|e| InstantiationError::ConstructorError(e))?;
+        let obj     = js_new.call1(&context,&self.class).map_err(InstantiationError::ConstructorError)?;
         let instance = Instance::from_object(obj).unwrap(); // ?; FIXME
         instance.set_dom_layer(&scene.dom.layers.main);
         Ok(instance.into())
@@ -86,7 +86,7 @@ impl From<Definition> for visualization::Definition {
 
 fn try_str_field(obj:&JsValue, field:&str) -> Option<String> {
     let field     = js_sys::Reflect::get(obj,&field.into()).ok()?;
-    let js_string = JsString::try_from(&field)?;
+    let js_string = field.dyn_ref::<JsString>()?;
     Some(js_string.into())
 }
 
@@ -104,15 +104,20 @@ fn label(class:&JsValue) -> Result<String,Error> {
 // === Error ===
 // =============
 
+/// Visualization definition or an error occurred during its construction.
 pub type FallibleDefinition = Result<Definition,Error>;
 
+/// Error occurred during visualization definition.
 #[derive(Clone,Debug)]
+#[allow(missing_docs)]
 pub enum Error {
     InvalidFunction(JsValue),
     InvalidClass(InvalidClass),
 }
 
+/// Subset of `Error` related to invalid JavaScript class definition.
 #[derive(Clone,Debug)]
+#[allow(missing_docs)]
 pub enum InvalidClass {
     MissingName,
     ConstructorFail(JsValue),

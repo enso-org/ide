@@ -7,13 +7,11 @@ use crate::component::visualization;
 
 use ensogl::data::color::Rgba;
 use ensogl::display::DomSymbol;
-use ensogl::display::Symbol;
 use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
-use ensogl::display::object::ObjectOps;
 use crate::frp;
 
 
@@ -58,8 +56,8 @@ pub struct BubbleChart {
 
 #[allow(missing_docs)]
 impl BubbleChart {
-    pub fn definition() -> visualization::Definition {
-        visualization::Definition::new(
+    pub fn definition() -> Definition {
+        Definition::new(
             Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization")),
             |scene| { Ok(Self::new(scene).into()) }
         )
@@ -81,7 +79,7 @@ impl BubbleChart {
         let size    = &self.size;
         frp::extend! { network
             eval self.frp.set_size ((s) size.set(*s));
-            eval self.frp.send_data ([](data) {
+            eval self.frp.send_data ([](_data) {
             // FIXME: uncomment and update.
 //                let data_inner: Rc<Vec<Vector3<f32>>> = data.as_binary()?;
 //                // Avoid re-creating views, if we have already created some before.
@@ -105,7 +103,7 @@ impl BubbleChart {
     }
 }
 
-impl From<BubbleChart> for visualization::Instance {
+impl From<BubbleChart> for Instance {
     fn from(t:BubbleChart) -> Self {
         Self::new(&t,&t.frp)
     }
@@ -136,8 +134,8 @@ pub struct RawText {
 
 impl RawText {
     /// Definition of this visualization.
-    pub fn definition() -> visualization::Definition {
-        visualization::Definition::new(
+    pub fn definition() -> Definition {
+        Definition::new(
             Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)")),
             |scene| { Ok(Self::new(scene).into()) }
         )
@@ -155,7 +153,7 @@ impl RawText {
         let model   = &self.model;
         frp::extend! { network
             eval self.frp.set_size  ((size) model.set_size(*size));
-            eval self.frp.send_data ((data) model.receive_data(data););
+            eval self.frp.send_data ((data) model.receive_data(data).unwrap()); // FIXME : on error emit it via FRP
         }
         self
     }
@@ -218,7 +216,7 @@ impl RawTextModel {
     }
 }
 
-impl From<RawText> for visualization::Instance {
+impl From<RawText> for Instance {
     fn from(t:RawText) -> Self {
         Self::new(&t,&t.frp)
     }

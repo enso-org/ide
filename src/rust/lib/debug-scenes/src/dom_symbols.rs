@@ -11,7 +11,6 @@ use ensogl::display::symbol::geometry::SpriteSystem;
 use ensogl::display::world::*;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::prelude::*;
-//use ensogl::animation::animator::fixed_step::FixedStepAnimator;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -19,6 +18,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
+#[allow(clippy::many_single_char_names)]
 pub fn run_example_dom_symbols() {
     web::forward_panic_hook_to_console();
     web::set_stdout();

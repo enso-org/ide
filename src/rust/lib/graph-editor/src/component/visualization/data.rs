@@ -2,9 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::data::EnsoType;
-use serde::Deserialize;
-
 
 
 // ============
@@ -84,6 +81,7 @@ pub enum DataError {
 // =============================
 
 // FIXME: add docs. This could stay here as it helps trsting data.
+/// Docs...
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct MockDataGenerator3D {
     counter: Rc<Cell<f32>>

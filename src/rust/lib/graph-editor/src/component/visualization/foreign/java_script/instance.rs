@@ -30,18 +30,14 @@
 use crate::prelude::*;
 
 use crate::component::visualization;
-use crate::component::visualization::Data;
-use crate::component::visualization::DataError;
 
 use ensogl::display::DomScene;
 use ensogl::display::DomSymbol;
-use ensogl::display::Symbol;
 use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
-use crate::frp;
 
 
 
@@ -150,6 +146,7 @@ impl Instance {
         Self::from_object_js(object.into())
     }
 
+    /// Constructor from JavaScript object.
     pub fn from_object(object:JsValue) -> Result<Instance,JsVisualizationError> {
         if !object.is_object() {
             return Err(JsVisualizationError::NotAnObject { inner:object } )
