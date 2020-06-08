@@ -7,7 +7,7 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::text::apply_code_change_to_id_map;
+use crate::double_representation::text::{apply_code_change_to_id_map, apply_code_change_to_id_map2};
 use crate::model::module::Path;
 
 use ast;
@@ -80,11 +80,8 @@ impl Handle {
     /// May return Error when new code causes parsing errors, or when parsed code does not produce
     /// Module ast.
     pub fn apply_code_change(&self,change:TextChange) -> FallibleResult<()> {
-        let mut id_map       = self.model.ast().id_map();
-        let replaced_size    = change.replaced.end - change.replaced.start;
-        let replaced_span    = Span::new(change.replaced.start,replaced_size);
-
-        apply_code_change_to_id_map(&mut id_map,&replaced_span,&change.inserted);
+        let mut id_map    = self.model.ast().id_map();
+        apply_code_change_to_id_map2(&mut id_map,&change,&self.model.ast().repr());
         self.model.apply_code_change(change,&self.parser,id_map)
     }
 

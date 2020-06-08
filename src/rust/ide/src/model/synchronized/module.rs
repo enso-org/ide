@@ -184,6 +184,7 @@ impl Module {
     async fn handle_notification
     (&self, content:&LanguageServerContent, notification:Notification)
     -> FallibleResult<ParsedContentSummary> {
+        debug!(self.logger, "handling notification: {content:?}");
         match content {
             LanguageServerContent::Desynchronized(summary) => self.full_invalidation(summary).await,
             LanguageServerContent::Synchronized(summary)   => match notification {
@@ -214,6 +215,7 @@ impl Module {
     /// of Language Server state.
     async fn full_invalidation
     (&self, ls_content:&ContentSummary) -> FallibleResult<ParsedContentSummary> {
+        debug!(self.logger, "handling full invalidation: {ls_content:?}");
         let range = TextLocation::at_document_begin()..ls_content.end_of_file;
         self.notify_language_server(ls_content,|content| vec![TextEdit {
             range : range.into(),
@@ -228,6 +230,8 @@ impl Module {
     , ls_content        : &ContentSummary
     , edits_constructor : impl FnOnce(SourceFile) -> Vec<TextEdit>
     ) -> FallibleResult<ParsedContentSummary> {
+        println!("notify_language_server: ls_content: {:?}",ls_content);
+        debug!(self.logger, "notify_language_server");
         let content = self.model.serialized_content()?;
         let summary = ParsedContentSummary::from_source(&content);
         let edit    = language_server::types::FileEdit {
@@ -236,6 +240,7 @@ impl Module {
             old_version : ls_content.digest.clone(),
             new_version : summary.digest.clone()
         };
+        println!("notify_language_server: Notifying LS with edit: {:?}",edit);
         self.language_server.client.apply_text_file_edit(&edit).await?;
         Ok(summary)
     }

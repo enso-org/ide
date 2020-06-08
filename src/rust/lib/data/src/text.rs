@@ -11,6 +11,7 @@ use serde::Serialize;
 use serde::Deserialize;
 
 
+
 /// ======================================
 /// === Text Coordinates And Distances ===
 /// ======================================
@@ -94,6 +95,12 @@ impl SubAssign for Size {
     }
 }
 
+impl Display for Size {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"{}",self.value)
+    }
+}
+
 
 // === Span ===
 
@@ -160,6 +167,26 @@ impls! { Into + &Into <Range<usize>> for Span { |this|
 impl PartialEq<Range<usize>> for Span {
     fn eq(&self, other:&Range<usize>) -> bool {
         &self.range() == other
+    }
+}
+
+impl Display for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"{}..{}",self.index.value,self.end().value)
+    }
+}
+
+impl std::ops::Index<Span> for str {
+    type Output = str;
+
+    fn index(&self, index:Span) -> &Self::Output {
+        &self[index.range()]
+    }
+}
+
+impl From<Range<Index>> for Span {
+    fn from(range:Range<Index>) -> Self {
+        Span::from_indices(range.start,range.end)
     }
 }
 
@@ -317,6 +344,45 @@ impl<Index,Content> TextChangeTemplate<Index,Content> {
     pub fn replace(replaced:Range<Index>, text:Content) -> Self {
         let inserted = text;
         TextChangeTemplate {replaced,inserted}
+    }
+}
+
+impl<Index:Sub+Clone,Content> TextChangeTemplate<Index,Content> {
+    /// Calculate the size of the replaced text.
+    pub fn replaced_size(&self) -> Index::Output {
+        self.replaced.end.clone() - self.replaced.start.clone()
+    }
+}
+
+impl<Content> TextChangeTemplate<Index,Content> {
+    /// Calculate the size of the replaced text.
+    pub fn replaced_span(&self) -> Span {
+        let index = self.replaced.start;
+        let size  = self.replaced_size();
+        Span {index,size}
+    }
+
+    /// Applies the text edit on given `String` value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the replaced span is out of the string value bounds.
+    pub fn apply(&self, target:&mut String) where Content:AsRef<str> {
+        //debug!(logger, "change: {change:?}, my code: \n```\n{code}\n```");
+        let replaced_indices  = self.replaced.start.value..self.replaced.end.value;
+        //debug!(logger, "replacing range {replaced_indices:?} with {change.inserted}");
+        target.replace_range(replaced_indices,self.inserted.as_ref());
+    }
+
+    /// Applies the text edit on string and returns the result.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the replaced span is out of the string value bounds.
+    pub fn applied(&self, target:&str) -> String where Content:AsRef<str> {
+        let mut target = target.to_string();
+        self.apply(&mut target);
+        target
     }
 }
 
