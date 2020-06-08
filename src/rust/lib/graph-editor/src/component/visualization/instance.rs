@@ -33,19 +33,21 @@ pub struct Frp {
     pub inputs               : FrpInputs,
     pub network              : frp::Network,
 
-    pub on_change            : frp::Stream<EnsoCode>,
-    pub on_preprocess_change : frp::Stream<EnsoCode>,
+    pub on_change             : frp::Stream<EnsoCode>,
+    pub on_preprocess_change  : frp::Stream<EnsoCode>,
+    pub on_data_receive_error : frp::Stream<Option<DataError>>,
 
-    change            : frp::Source<EnsoCode>,
-    preprocess_change : frp::Source<EnsoCode>,
+    pub data_receive_error : frp::Source<Option<DataError>>,
+    pub change             : frp::Source<EnsoCode>,
+    pub preprocess_change  : frp::Source<EnsoCode>,
 }
 
 impl FrpInputs {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            set_size  <- source();
-            send_data <- source();
+            set_size           <- source();
+            send_data          <- source();
         };
         Self {set_size,send_data}
     }
@@ -55,13 +57,16 @@ impl Frp {
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { network
-            def change            = source();
-            def preprocess_change = source();
+            def change             = source();
+            def preprocess_change  = source();
+            def data_receive_error = source();
         };
-        let on_change            = change.clone_ref().into();
-        let on_preprocess_change = preprocess_change.clone_ref().into();
-        let inputs               = FrpInputs::new(&network);
-        Self {network,on_change,on_preprocess_change,change,preprocess_change,inputs}
+        let on_change             = change.clone_ref().into();
+        let on_preprocess_change  = preprocess_change.clone_ref().into();
+        let on_data_receive_error = data_receive_error.clone_ref().into();
+        let inputs                = FrpInputs::new(&network);
+        Self {network,on_change,on_preprocess_change,on_data_receive_error,change,preprocess_change,
+              inputs,data_receive_error}
     }
 }
 

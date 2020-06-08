@@ -50,3 +50,13 @@ pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition 
 
     visualization::java_script::Definition::new(data::builtin_library(),source)
 }
+
+/// Return an empty minimal `JavaScript` visualization. This should not be used except for testing.
+pub fn empty_visualization() -> visualization::java_script::FallibleDefinition {
+    let source = r#"
+        class EmptyVisualization {}
+        return EmptyVisualization;
+    "#;
+
+    visualization::java_script::Definition::new(data::builtin_library(),source)
+}

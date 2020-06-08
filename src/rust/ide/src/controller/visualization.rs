@@ -156,11 +156,10 @@ impl Handle {
 mod tests {
     use super::*;
 
-    use ensogl::display::Scene;
     use enso_protocol::language_server::FileSystemObject;
     use enso_protocol::language_server::Path;
-    use graph_editor::component::visualization::{NativeConstructorClass, Signature, Visualization};
-    use graph_editor::component::visualization::renderer::example::native::BubbleChart;
+    use graph_editor::builtin;
+    use graph_editor::component::visualization;
     use json_rpc::expect_call;
 
     use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -206,47 +205,37 @@ mod tests {
         let exists_result1 = language_server::response::FileExists{exists:true};
         expect_call!(mock_client.file_exists(path=path.clone()) => Ok(exists_result0));
         expect_call!(mock_client.file_exists(path=path.clone()) => Ok(exists_result1));
-        expect_call!(mock_client.read_file(path=path0.clone())   => Ok(read_result0));
-        expect_call!(mock_client.read_file(path=path1.clone())   => Ok(read_result1));
+        expect_call!(mock_client.read_file(path=path0.clone())  => Ok(read_result0));
+        expect_call!(mock_client.read_file(path=path1.clone())  => Ok(read_result1));
 
         let language_server             = language_server::Connection::new_mock_rc(mock_client);
         let mut embedded_visualizations = EmbeddedVisualizations::default();
-        let embedded_visualization = Rc::new(definition::Handle::new(NativeConstructorClass::new(
-            Signature {
-                name        : "Bubble Visualization (native)".to_string(),
-                input_types : vec!["[[Float,Float,Float]]".to_string().into()],
-            },
-            |scene:&Scene| Ok(Visualization::new(BubbleChart::new(scene)))
-        )));
-        embedded_visualizations.insert("PointCloud".to_string(),embedded_visualization.clone());
-        let vis_controller           = Handle::new(language_server,embedded_visualizations);
+        let embedded_visualization      = builtin::visualization::native::BubbleChart::definition();
+        embedded_visualizations.insert("[Demo] Bubble Visualization".to_string(), embedded_visualization.clone());
+        let vis_controller              = Handle::new(language_server,embedded_visualizations);
 
         let visualizations = vis_controller.list_visualizations().await;
         let visualizations = visualizations.expect("Couldn't list visualizations.");
 
-        assert_eq!(visualizations[0], VisualizationPath::Embedded("PointCloud".to_string()));
+        assert_eq!(visualizations[0], VisualizationPath::Embedded("[Demo] Bubble Visualization".to_string()));
         assert_eq!(visualizations[1], VisualizationPath::File(path0));
         assert_eq!(visualizations[2], VisualizationPath::File(path1));
         assert_eq!(visualizations.len(),3);
 
-        let javascript_vis0 = visualization::JavaScript::new(&file_content0);
-        let javascript_vis1 = visualization::JavaScript::new(&file_content1);
+        let javascript_vis0 = visualization::java_script::Definition::new("builtin", &file_content0);
+        let javascript_vis1 = visualization::java_script::Definition::new("builtin", &file_content1);
         let javascript_vis0 = javascript_vis0.expect("Couldn't create visualization class.");
         let javascript_vis1 = javascript_vis1.expect("Couldn't create visualization class.");
-        let javascript_vis0 = Rc::new(definition::Handle::new(javascript_vis0));
-        let javascript_vis1 = Rc::new(definition::Handle::new(javascript_vis1));
+        let javascript_vis0:visualization::Definition = javascript_vis0.into();
+        let javascript_vis1:visualization::Definition = javascript_vis1.into();
 
         let expected_visualizations = vec![embedded_visualization,javascript_vis0,javascript_vis1];
         let zipped  = visualizations.iter().zip(expected_visualizations.iter());
-        for (visualization,expected_visualization) in zipped {
-            let loaded_visualization = vis_controller.load_visualization(&visualization).await;
-            let loaded_visualization = loaded_visualization.expect("Couldn't load visualization's content.");
-            let loaded_class         = loaded_visualization.class();
-            let loaded_class         = loaded_class.as_ref();
-            let loaded_signature     = loaded_class.expect("Couldn't get class.").signature();
-            let expected_class       = expected_visualization.class();
-            let expected_class       = expected_class.as_ref();
-            let expected_signature   = expected_class.expect("Couldn't get class.").signature();
+        for (visualization, expected_definition) in zipped {
+            let loaded_definition  = vis_controller.load_visualization(&visualization).await;
+            let loaded_definition  = loaded_definition.expect("Couldn't load visualization's content.");
+            let loaded_signature   = &loaded_definition.signature;
+            let expected_signature = &expected_definition.signature;
             assert_eq!(loaded_signature,expected_signature);
         }
     }

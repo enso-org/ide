@@ -6,9 +6,8 @@ use crate::data::*;
 use crate::visualization;
 
 use ensogl::display::Scene;
-use ensogl::system::web::JsValue;
-use std::error::Error;
-
+use std::fmt::Formatter;
+use visualization::java_script;
 
 
 // =================
@@ -80,18 +79,19 @@ pub type InstantiationResult = Result<visualization::Instance,InstantiationError
 
 // === Errors ===
 
-// TODO: make Display and fix all usages.
-// TODO: Do not use `dyn Error`. Just use specific types everywhere. If we get `InvalidClass` we
-//       want to pattern match and understand why it was invalid.
 /// Indicates that instantiating a `Visualisation` from a `Definition` has failed.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub enum InstantiationError {
-    /// Indicates a problem with instantiating a class object.
-    InvalidClass { inner:Box<dyn Error> },
+    ConstructorError (java_script::instance::Error),
+}
 
-    /// Indicates a problem with instantiating a visualisation from a valid class object.
-    InvalidVisualisation { inner:Box<dyn Error> },
-
-    ConstructorError (JsValue),
+impl Display for InstantiationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            InstantiationError::ConstructorError(value)  => {
+                f.write_fmt(format_args!("Could not construct visualisation because of error: {:?}",value))
+            },
+        }
+    }
 }

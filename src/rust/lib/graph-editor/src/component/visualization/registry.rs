@@ -18,17 +18,22 @@ use enso_prelude::CloneRef;
 // ================
 
 /// The registry struct. For more information see the module description.
-#[derive(Clone,CloneRef,Debug,Default)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
     path_map : Rc<RefCell<HashMap<visualization::Path,visualization::Definition>>>,
     type_map : Rc<RefCell<HashMap<EnsoType,Vec<visualization::Definition>>>>,
+    logger   : Logger,
 }
 
 impl Registry {
     /// Constructor.
     pub fn new() -> Self {
-        default()
+        let path_map = default();
+        let type_map = default();
+        let logger   = Logger::new("Registry");
+        Registry{path_map,type_map,logger}
+
     }
 
     /// Return a `Registry` pre-populated with default visualizations.
@@ -36,8 +41,7 @@ impl Registry {
         let registry = Self::new();
         registry.add(builtin::visualization::native::BubbleChart::definition());
         registry.add(builtin::visualization::native::RawText::definition());
-        // FIXME: uncomment and handle error. Use logger to report that the visualization was not registered due to some error.
-        // registry.add(visualization::example::java_script::bubble_visualization());
+        registry.try_add_java_script(builtin::visualization::java_script::bubble_visualization());
         registry
     }
 
@@ -49,6 +53,19 @@ impl Registry {
         self.path_map.borrow_mut().entry(sig.path.clone()).insert(class);
     }
 
+    /// Register a new visualization class that's pre-wrapped in an `Rc` with the registry.
+    /// TODO: Consider generalising the FallibleDefinition.
+    pub fn try_add_java_script(&self, class:impl Into<visualization::java_script::FallibleDefinition>) {
+        let class = class.into();
+        match class {
+            Ok(class) => {self.add(class) },
+            Err(e)    => {
+                self.logger.warning(|| format!("Failed to add visualization class to registry due \
+                                                to error: {:?}", e))
+            },
+        };
+    }
+
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
     pub fn valid_sources(&self, tp:&EnsoType) -> Vec<visualization::Definition>{
         let type_map = self.type_map.borrow();
@@ -57,8 +74,13 @@ impl Registry {
 
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> visualization::Instance {
-        let class = builtin::visualization::native::RawText::definition();
-        // FIXME: do not fail the program. If something bad happens, report it and try to rescue.
-        class.new_instance(&scene).expect("Failed to instantiate default visualisation.")
+        let instance =  builtin::visualization::native::RawText::new(scene);
+        instance.into()
+    }
+}
+
+impl Default for Registry {
+    fn default() -> Self {
+        Registry::new()
     }
 }

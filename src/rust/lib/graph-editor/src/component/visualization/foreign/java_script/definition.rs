@@ -1,19 +1,51 @@
 //! This module contains functionality to create a `Class` object from a JS source strings.
-
-// TODO: write detailed specification. Please note that EVERYTHING should be optional. Make sure it
-//       is handled propelry in all places in the code. add tests of visualizations without fields.
-//     class Visualization {
-//         static label     = "plot chart"
-//         static inputType = "Any"
-//         onDataReceived(root, data) {}
-//         setSize(root, size) {}
-//     }
-//     return Visualizations;
+//!
+//! The JS source needs to follow the following spec:
+//! * the provided code needs to be the body of a function that takes no arguments and returns a
+//!   class object.
+//! * the returned class MAY define a static field `label` that will be read once when processing
+//!   the class. The label value string representation will be used as a a textual representation
+//!   of the visualization, e.g., in selection forms or widget headings. If this field is not set a
+//!   default value will be used.
+//! * the returned class MAY define a static field `inputType` that will be read once when
+//!   processing the class. The string representation of the `inputType` value will be interpreted
+//!   as an Enso type. This type will be used to determine what data the visualization can receive.
+//!   If this field is not set the type "Any" will be assumed by default.
+//! * the returned class object will be instantiated by calling its constructor with no arguments.
+//! * the instantiated object MAY define a method `onDataReceived(root, data)`. If this method is
+//!   present, it will be called whenever no data is provided for the visualization. The argument
+//!   `root` will be set to the DOM element that should be used as the parent of the visualization.
+//!   The argument `data` will be set to the incoming data, which may be in any format that is
+//!   compatible with the type specified in `inputType`. If this method is not present, not data
+//!   updates are provided.
+//! * the instantiated object CAN define a method `setSize(root, size)`. If this method is
+//!   present, it will be called whenever the parent of the visualisation changes it's size. If
+//!   this method is not present, not size updates are provided.
+//!
+//! TODO: this should be read by someone with deep knowledge of JS to ensure it all makes sense and
+//!       leaves no corner cases.
+//! TODO: Thoughts on changing spec:
+//!        * should root be provided once in the constructor?
+//!        * could setSize be removed and instead the visualisation should change its size based
+//!          on the size of the root node?
+//!
+//! Example
+//! ------
+//! ```JS
+//! class Visualization {
+//!         static label     = "plot chart"
+//!         static inputType = "Any"
+//!         onDataReceived(root, data) {}
+//!         setSize(root, size) {}
+//!     }
+//!     return Visualizations;
+//!```
 
 use crate::prelude::*;
 
-use crate::component::visualization::InstantiationResult;
 use crate::component::visualization::InstantiationError;
+use crate::component::visualization::InstantiationResult;
+use crate::component::visualization::java_script::instance;
 use crate::component::visualization;
 use crate::data::*;
 
@@ -24,7 +56,6 @@ use ensogl::system::web::JsValue;
 use js_sys::JsString;
 use js_sys;
 use wasm_bindgen::JsCast;
-
 
 
 // =================
@@ -66,10 +97,12 @@ impl Definition {
     }
 
     fn new_instance(&self, scene:&Scene) -> InstantiationResult {
-        let js_new  = js_sys::Function::new_with_args("cls", "return new cls()");
-        let context = JsValue::NULL;
-        let obj     = js_new.call1(&context,&self.class).map_err(InstantiationError::ConstructorError)?;
-        let instance = Instance::from_object(obj).unwrap(); // ?; FIXME
+        let js_new   = js_sys::Function::new_with_args("cls", "return new cls()");
+        let context  = JsValue::NULL;
+        let obj      = js_new.call1(&context,&self.class)
+            .map_err(|js_error|instance::Error::ConstructorError{js_error})
+            .map_err(InstantiationError::ConstructorError)?;
+        let instance = Instance::new(obj).map_err(InstantiationError::ConstructorError)?;
         instance.set_dom_layer(&scene.dom.layers.main);
         Ok(instance.into())
     }
@@ -117,8 +150,7 @@ pub enum Error {
 
 /// Subset of `Error` related to invalid JavaScript class definition.
 #[derive(Clone,Debug)]
-#[allow(missing_docs)]
+#[allow(missing_docs,missing_copy_implementations)]
 pub enum InvalidClass {
     MissingName,
-    ConstructorFail(JsValue),
 }
