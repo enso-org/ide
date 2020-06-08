@@ -222,8 +222,8 @@ mod tests {
         assert_eq!(visualizations[2], VisualizationPath::File(path1));
         assert_eq!(visualizations.len(),3);
 
-        let javascript_vis0 = visualization::java_script::Definition::new("TestLib", &file_content0);
-        let javascript_vis1 = visualization::java_script::Definition::new("TestLib", &file_content1);
+        let javascript_vis0 = visualization::java_script::Definition::new("builtin", &file_content0);
+        let javascript_vis1 = visualization::java_script::Definition::new("builtin", &file_content1);
         let javascript_vis0 = javascript_vis0.expect("Couldn't create visualization class.");
         let javascript_vis1 = javascript_vis1.expect("Couldn't create visualization class.");
         let javascript_vis0:visualization::Definition = javascript_vis0.into();
