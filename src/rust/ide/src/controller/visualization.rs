@@ -209,14 +209,15 @@ mod tests {
         expect_call!(mock_client.read_file(path=path1.clone())   => Ok(read_result1));
 
         let language_server         = language_server::Connection::new_mock_rc(mock_client);
-        let embedded_visualizations = EmbeddedVisualizations::default();
+        let mut embedded_visualizations = EmbeddedVisualizations::default();
         let embedded_visualization  = builtin::visualization::native::BubbleChart::definition();
+        embedded_visualizations.insert("[Demo] Bubble Visualization".to_string(), embedded_visualization.clone());
         let vis_controller          = Handle::new(language_server,embedded_visualizations);
 
         let visualizations = vis_controller.list_visualizations().await;
         let visualizations = visualizations.expect("Couldn't list visualizations.");
 
-        assert_eq!(visualizations[0], VisualizationPath::Embedded("PointCloud".to_string()));
+        assert_eq!(visualizations[0], VisualizationPath::Embedded("[Demo] Bubble Visualization".to_string()));
         assert_eq!(visualizations[1], VisualizationPath::File(path0));
         assert_eq!(visualizations[2], VisualizationPath::File(path1));
         assert_eq!(visualizations.len(),3);
