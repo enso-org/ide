@@ -117,7 +117,7 @@ impl ViewLayout {
 
     fn init_keyboard(self, keyboard_actions:&mut keyboard::Actions) -> Self {
         // TODO[ao] add here some useful staff (quitting project for example)
-        let layout = self.rc.clone();
+        let layout = self.rc.clone_ref();
         keyboard_actions.add_action(&[keyboard::Key::Tab], move || {
             let mut layout             = layout.borrow_mut();
             let position               = layout.mouse_position.get();
