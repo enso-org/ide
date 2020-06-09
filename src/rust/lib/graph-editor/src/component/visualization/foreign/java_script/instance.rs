@@ -15,7 +15,8 @@ use crate::component::visualization;
 use crate::frp;
 
 use core::result;
-use ensogl::display::{DomScene, Scene};
+use ensogl::display::DomScene;
+use ensogl::display::Scene;
 use ensogl::display::DomSymbol;
 use ensogl::display;
 use ensogl::system::web::JsValue;
@@ -121,14 +122,8 @@ impl InstanceModel {
     }
 
     fn init(self) -> Self {
-        let context   = &self.object;
-        if let Ok(init_dom) = get_method(&self.object,method::INIT_DOM) {
-            if let Err(err) = init_dom.call1(&context,&self.root_node.dom()) {
-                self.logger.warning(
-                    || format!("Failed to initialise dom element with error: {:?}",err)
-                );
-            }
-        }
+        let init_dom = get_method(&self.object,method::INIT_DOM).ok();
+        let _ = self.try_call1(&init_dom, &self.root_node.dom());
         self
     }
 
@@ -139,39 +134,40 @@ impl InstanceModel {
         scene.manage(&self.root_node);
     }
 
+    fn set_size(&self, size:V2) {
+        let size          = Vector2::new(size.x,size.y);
+        let data_json     = JsValue::from_serde(&size).unwrap();
+        let _             = self.try_call1(&self.set_size, &data_json);
+        self.root_node.set_size(size);
+    }
+
    fn receive_data(&self, data:&Data) -> result::Result<(),DataError> {
-       if let Some (on_data_received) = &self.on_data_received.deref() {
-           let context   = &self.object;
-           let data_json = match data {
-               Data::Json {content} => content,
-               _ => todo!() // FIXME
-           };
-           let data_json:&serde_json::Value = data_json.deref();
-           let data_js   = match JsValue::from_serde(data_json) {
-               Ok(value) => value,
-               Err(_)    => return Err(DataError::InvalidDataType),
-           };
-           if let Err(error) = on_data_received.call1(&context, &data_js) {
-               self.logger.warning(
-                   || format!("Failed to set data in {:?} with error: {:?}",self,error));
-               return Err(DataError::InternalComputationError)
-           }
-       }
-       Ok(())
+        let data_json = match data {
+           Data::Json {content} => content,
+           _ => todo!() // FIXME
+        };
+        let data_json:&serde_json::Value = data_json.deref();
+        let data_js   = match JsValue::from_serde(data_json) {
+            Ok(value) => value,
+            Err(_)    => return Err(DataError::InvalidDataType),
+        };
+        self.try_call1(&self.on_data_received, &data_js)
+            .map_err(|_| DataError::InternalComputationError)?;
+        Ok(())
    }
 
-   fn set_size(&self, size:V2) {
-       if let Some(set_size) = &self.set_size.deref() {
-           let size          = Vector2::new(size.x,size.y);
-           let context       = &self.object;
-           let data_json     = JsValue::from_serde(&size).unwrap();
-           if let Err(error) = set_size.call1(&context, &data_json) {
-               self.logger.warning(
-                   || format!("Failed to set size in {:?} with error: {:?}", self, error));
-           }
-           self.root_node.set_size(size);
-       }
-   }
+    /// Helper method to call methods on the wrapped javascript object.
+    fn try_call1(&self, method:&Option<js_sys::Function>, arg:&JsValue)
+        ->  result::Result<(),JsValue> {
+        if let Some(method) = method {
+            if let Err(error) = method.call1(&self.object, arg) {
+                self.logger.warning(
+                    || format!("Failed to call method {:?} with error: {:?}",method,error));
+                return Err(error)
+            }
+        }
+        Ok(())
+    }
 }
 
 
