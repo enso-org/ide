@@ -30,11 +30,47 @@ impl Position {
     }
 }
 
+impl Mul<f32> for &Position {
+    type Output = Position;
+    fn mul(self, rhs:f32) -> Self::Output {
+        let x = self.x * rhs;
+        let y = self.y * rhs;
+        Position {x,y}
+    }
+}
+
+impl Mul<&f32> for Position {
+    type Output = Position;
+    fn mul(self, rhs:&f32) -> Self::Output {
+        let x = self.x * rhs;
+        let y = self.y * rhs;
+        Position {x,y}
+    }
+}
+
 impl Sub<&Position> for &Position {
     type Output = Position;
-    fn sub(self, rhs: &Position) -> Self::Output {
+    fn sub(self, rhs:&Position) -> Self::Output {
         let x = self.x - rhs.x;
         let y = self.y - rhs.y;
+        Position {x,y}
+    }
+}
+
+impl Add<&Position> for &Position {
+    type Output = Position;
+    fn add(self, rhs:&Position) -> Self::Output {
+        let x = self.x + rhs.x;
+        let y = self.y + rhs.y;
+        Position {x,y}
+    }
+}
+
+impl Add<Position> for Position {
+    type Output = Position;
+    fn add(self, rhs:Position) -> Self::Output {
+        let x = self.x + rhs.x;
+        let y = self.y + rhs.y;
         Position {x,y}
     }
 }

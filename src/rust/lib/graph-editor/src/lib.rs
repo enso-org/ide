@@ -58,6 +58,7 @@ use ensogl::prelude::*;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
+use ensogl::gui::component::Animation;
 
 
 
@@ -1649,18 +1650,6 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }
 
 
-    // === Remove Edge ===
-    frp::extend! { network
-
-    rm_input_edges       <- any (inputs.remove_all_node_edges, inputs.remove_all_node_input_edges);
-    rm_output_edges      <- any (inputs.remove_all_node_edges, inputs.remove_all_node_output_edges);
-    input_edges_to_rm    <= rm_input_edges  . map(f!((node_id) model.node_in_edges(node_id)));
-    output_edges_to_rm   <= rm_output_edges . map(f!((node_id) model.node_out_edges(node_id)));
-    edges_to_rm          <- any (inputs.remove_edge, input_edges_to_rm, output_edges_to_rm);
-    outputs.edge_removed <+ edges_to_rm;
-    }
-
-
     // === Set Node Expression ===
     frp::extend! { network
 
@@ -1669,33 +1658,93 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Move Nodes ===
 
-    node_drag         <- mouse.translation.gate(&touch.nodes.is_down);
-    was_selected      <- touch.nodes.down.map(f!((id) model.nodes.selected.contains(id)));
-    tx_sel_nodes      <- any (node_drag, inputs.translate_selected_nodes);
-    non_selected_drag <- tx_sel_nodes.map2(&touch.nodes.down,|_,id|vec![*id]).gate_not(&was_selected);
-    selected_drag     <- tx_sel_nodes.map(f_!(model.nodes.selected.items())).gate(&was_selected);
-    nodes_to_drag     <- any (non_selected_drag,selected_drag);
-    eval nodes_to_drag ((ids) model.disable_grid_snapping_for(ids));
-    main_node_to_drag <- nodes_to_drag.map(|nodes| nodes[0]);
-    main_node_new_pos <- main_node_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
-    node_to_drag      <= nodes_to_drag;
-    node_new_pos      <- node_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
+    let main            = touch.nodes.down.clone_ref();
+    let main_pressed    = touch.nodes.is_down.clone_ref();
+    main_was_sel       <- main.map(f!((id) model.nodes.selected.contains(id)));
+    tgts_if_non_sel    <- main.map(|id|vec![*id]).gate_not(&main_was_sel);
+    tgts_if_sel        <- main.map(f_!(model.nodes.selected.items())).gate(&main_was_sel);
+    tgts               <- any(tgts_if_non_sel,tgts_if_sel);
+    eval tgts ((ids) model.disable_grid_snapping_for(ids));
 
-    snapping <- main_node_new_pos.map(f!(((_,pos)) model.nodes.check_grid_magnet(pos)));
-    trace snapping;
-
-    outputs.node_position_set <+ node_new_pos;
+    main_pos_on_press  <- main.map(f!((id) model.node_position(id)));
+    mouse_pos_on_press <- mouse.position.sample(&main);
+    mouse_pos_diff     <- mouse.position.map2(&mouse_pos_on_press,|t,s|t-s).gate(&main_pressed);
+    main_tgt_pos_rt    <- mouse_pos_diff.map2(&main_pos_on_press,|t,s|t+s);
 
 
-    was_drag_false        <- touch.nodes.down.constant(false);
-    was_drag_true         <- node_drag.constant(true);
-    was_drag              <- any (was_drag_false,was_drag_true);
-    drag_finish           <- touch.nodes.up.gate(&was_drag);
-    dragged_node          <= nodes_to_drag.sample(&drag_finish);
-    dragged_node_pos      <- dragged_node.map(f!([model] (id) (*id,model.node_position(id))));
-    outputs.node_position_set_batched <+ dragged_node_pos;
+    let main_tgt_pos_follow = Animation::<V2<f32>>::new(&network);
+    let snap_strength       = Animation::<f32>::new(&network);
 
-    eval_ outputs.node_position_set_batched (model.recompute_grid_snapping());
+    main_tgt_pos_snap <- main_tgt_pos_rt.map(f!([model,snap_strength](pos) {
+        let snapped = model.nodes.check_grid_magnet(pos);
+        let x = snapped.x.unwrap_or(pos.x);
+        let y = snapped.y.unwrap_or(pos.y);
+        let w = if snapped.x.is_none() && snapped.y.is_none() { 0.0 } else { 1.0 };
+        snap_strength.set_target_value(w);
+        Position::new(x,y)
+    }));
+
+
+    main_tgt_pos <- main_tgt_pos_rt.all_with3(&main_tgt_pos_follow.value,&snap_strength.value,
+        |pos_rt,pos_snap,strength| {
+            let pos_snap = Position::new(pos_snap.x,pos_snap.y);
+            pos_rt * (1.0 - strength) + pos_snap * strength
+        });
+
+
+    eval main_tgt_pos_snap ((p) main_tgt_pos_follow.set_target_value(V2(p.x,p.y)));
+
+    trace snap_strength.value;
+
+    // TEST
+    new_pos <- main_tgt_pos.map2(&main,|p,id| (*id,Position::new(p.x,p.y)));
+    outputs.node_position_set <+ new_pos;
+
+//    drag_pos_diff     <- mouse.translation.gate(&touch.nodes.is_down);
+//    was_selected      <- touch.nodes.down.map(f!((id) model.nodes.selected.contains(id)));
+//    tx_sel_nodes      <- any (drag_pos_diff, inputs.translate_selected_nodes);
+//    non_selected_drag <- tx_sel_nodes.map2(&touch.nodes.down,|_,id|vec![*id]).gate_not(&was_selected);
+//    selected_drag     <- tx_sel_nodes.map(f_!(model.nodes.selected.items())).gate(&was_selected);
+//    nodes_to_drag     <- any (non_selected_drag,selected_drag);
+//    eval nodes_to_drag ((ids) model.disable_grid_snapping_for(ids));
+//    main_node_to_drag <- nodes_to_drag.map(|nodes| nodes[0]);
+//    main_node_new_pos <- main_node_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
+//    node_to_drag      <= nodes_to_drag;
+//    node_new_pos      <- node_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
+//
+//
+//    let new_pos        = Animation::<V2<f32>>::new(&network);
+//    eval main_node_new_pos(((_,pos)) new_pos.set_target_value(V2(pos.x,pos.y)));
+//
+//
+//    snap_position     <- main_node_new_pos.map(f!(((_,pos)) model.nodes.check_grid_magnet(pos)));
+//    pos_snap_diff     <- node_new_pos.map2(&snap_position,|(_,p1),p2| {
+//        let x = p2.x.map(|t| t-p1.x).unwrap_or_default();
+//        let y = p2.y.map(|t| t-p1.y).unwrap_or_default();
+//        Position::new(x,y)
+//    });
+//    main_node_new_pos_snapped <- main_node_new_pos.map2(&pos_snap_diff,|(id,p),p2| (*id,Position::new(p.x+p2.x,p.y+p2.y)));
+//
+//
+////    eval snap_position ([snapping](p) {
+////        let tgt = if p.x.is_none() && p.y.is_none() { 0.0 } else { 1.0 };
+////        snapping.set_target_value(tgt);
+////    });
+////    trace snapping.value;
+//
+////    outputs.node_position_set <+ node_new_pos;
+//    outputs.node_position_set <+ main_node_new_pos_snapped;
+//
+//
+//    was_drag_false        <- touch.nodes.down.constant(false);
+//    was_drag_true         <- drag_pos_diff.constant(true);
+//    was_drag              <- any (was_drag_false,was_drag_true);
+//    drag_finish           <- touch.nodes.up.gate(&was_drag);
+//    dragged_node          <= nodes_to_drag.sample(&drag_finish);
+//    dragged_node_pos      <- dragged_node.map(f!([model] (id) (*id,model.node_position(id))));
+//    outputs.node_position_set_batched <+ dragged_node_pos;
+//
+//    eval_ outputs.node_position_set_batched (model.recompute_grid_snapping());
 
 
     // === Set Node Position ===
@@ -1881,6 +1930,18 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Remove implementation ===
     outputs.node_removed <+ inputs.remove_node;
 
+    }
+
+
+    // === Remove Edge ===
+    frp::extend! { network
+
+    rm_input_edges       <- any (inputs.remove_all_node_edges, inputs.remove_all_node_input_edges);
+    rm_output_edges      <- any (inputs.remove_all_node_edges, inputs.remove_all_node_output_edges);
+    input_edges_to_rm    <= rm_input_edges  . map(f!((node_id) model.node_in_edges(node_id)));
+    output_edges_to_rm   <= rm_output_edges . map(f!((node_id) model.node_out_edges(node_id)));
+    edges_to_rm          <- any (inputs.remove_edge, input_edges_to_rm, output_edges_to_rm);
+    outputs.edge_removed <+ edges_to_rm;
     }
 
     // FIXME This is a temporary solution. Should be replaced by a real thing once layout
