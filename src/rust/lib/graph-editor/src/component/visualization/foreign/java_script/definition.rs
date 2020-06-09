@@ -115,6 +115,7 @@ use ensogl::system::web::JsValue;
 use js_sys::JsString;
 use js_sys;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::__rt::core::fmt::Formatter;
 
 
 // =================
@@ -159,7 +160,7 @@ impl Definition {
         let js_new   = js_sys::Function::new_with_args("cls", "return new cls()");
         let context  = JsValue::NULL;
         let obj      = js_new.call1(&context,&self.class)
-            .map_err(|js_error|instance::Error::InstantiationError {js_error})
+            .map_err(|js_error|instance::Error::ConstructorError {js_error})
             .map_err(InstantiationError::ConstructorError)?;
         let instance = Instance::new(obj).map_err(InstantiationError::ConstructorError)?;
         instance.set_dom_layer(&scene.dom.layers.main);
@@ -205,6 +206,19 @@ pub type FallibleDefinition = Result<Definition,Error>;
 pub enum Error {
     InvalidFunction(JsValue),
     InvalidClass(InvalidClass),
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::InvalidFunction(value)  => {
+                f.write_fmt(format_args!("Provided value is not a valid function: {:?}",value))
+            },
+            Error::InvalidClass(value)  => {
+                f.write_fmt(format_args!("Provided value is not a valid class: {:?}",value))
+            },
+        }
+    }
 }
 
 /// Subset of `Error` related to invalid JavaScript class definition.

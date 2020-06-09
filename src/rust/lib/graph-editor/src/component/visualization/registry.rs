@@ -58,9 +58,9 @@ impl Registry {
         let class = class.into();
         match class {
             Ok(class) => {self.add(class) },
-            Err(e)    => {
+            Err(err)    => {
                 warning!(&self.logger,"Failed to add visualization class to registry due to error: \
-                                       {error}")
+                                       {err}")
             },
         };
     }

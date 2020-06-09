@@ -43,6 +43,8 @@ mod method_name {
 pub enum Error {
     /// The provided `JsValue` was expected to be of type `object`, but was not.
     ValueIsNotAnObject { object:JsValue },
+    /// The object was expected to have the named property but does not.
+    PropertyNotFoundOnObject { object:JsValue, property:String },
     /// An error occurred on the javascript side when calling the class constructor.
     ConstructorError   { js_error:JsValue },
 }
@@ -50,11 +52,16 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Error::ValueIsNotAnObject { object: inner }  => {
-                f.write_fmt(format_args!("JsValue was expected to be of type `object`, but was not: {:?}",inner))
+            Error::ValueIsNotAnObject { object }  => {
+                f.write_fmt(format_args!("JsValue was expected to be of type `object`, but was \
+                                          not: {:?}",object))
             },
-            Error::InstantiationError { js_error: inner }      => {
-                f.write_fmt(format_args!("Error while constructing object: {:?}",inner))
+            Error::PropertyNotFoundOnObject  { object, property }  => {
+                f.write_fmt(format_args!("Object was expected to have property {:?} \
+                                          but has not: {:?}",property,object))
+            },
+            Error::ConstructorError { js_error }  => {
+                f.write_fmt(format_args!("Error while constructing object: {:?}",js_error))
             },
         }
     }
@@ -88,12 +95,13 @@ impl InstanceModel {
         let on_data_received = get_method(&object, method_name::ON_DATA_RECEIVED).ok();
         let on_data_received = Rc::new(on_data_received);
         let set_size         = get_method(&object, method_name::SET_SIZE).ok();
-        let set_size         =  Rc::new(set_size);
+        let set_size         = Rc::new(set_size);
 
         let logger    = Logger::new("Instance");
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
-        root_node.dom().set_attribute("id","vis")?;
+        root_node.dom().set_attribute("id","vis")
+            .map_err(|js_error|Error::ConstructorError{js_error})?;
 
         Ok(InstanceModel { on_data_received,set_size,root_node,logger })
     }
@@ -126,7 +134,8 @@ impl InstanceModel {
                Err(_)    => return Err(DataError::InvalidDataType),
            };
            if let Err(error) = on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
-               warning!(&self.logger, "Failed to set data in {self} with error: {error}");
+               self.logger.warning(
+                   || format!("Failed to set data in {:?} with error: {:?}",self,error));
                return Err(DataError::InternalComputationError)
            }
        }
@@ -139,7 +148,8 @@ impl InstanceModel {
            let context       = JsValue::NULL;
            let data_json     = JsValue::from_serde(&size).unwrap();
            if let Err(error) = set_size.call2(&context, &self.root_node.dom(), &data_json) {
-               warning!(&self.logger, "Failed to set size in {self} with error: {error}");
+               self.logger.warning(
+                   || format!("Failed to set size in {:?} with error: {:?}", self, error));
            }
            self.root_node.set_size(size);
        }
@@ -202,8 +212,11 @@ impl display::Object for Instance {
 
 /// Try to return the method specified by the given name on the given object as a
 /// `js_sys::Function`.
-fn get_method(object:&js_sys::Object, name:&str) -> Result<js_sys::Function> {
-    let method_value                     = js_sys::Reflect::get(object,&name.into())?;
+fn get_method(object:&js_sys::Object, property:&str) -> Result<js_sys::Function> {
+    let method_value  = js_sys::Reflect::get(object,&property.into());
+    let method_value  = method_value.map_err(
+        |object| Error::PropertyNotFoundOnObject{object,property:property.to_string()})?;
+
     let method_function:js_sys::Function = method_value.into();
     Ok(method_function)
 }
