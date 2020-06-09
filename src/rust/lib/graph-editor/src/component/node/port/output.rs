@@ -238,25 +238,26 @@ impl OutputPorts {
         frp::extend! { network
             eval  frp.set_size ((size) data.set_size(size.into()));
 
-            def set_port_size      = source::<(PortId,f32)>();
-            def set_port_sizes_all = source::<f32>();
+            set_port_size      <- source::<(PortId,f32)>();
+            set_port_sizes_all <- source::<f32>();
 
-            def _set_port_sizes = set_port_sizes_all.map(f!([set_port_size,data](size) {
+            eval set_port_sizes_all ([set_port_size,data](size) {
                 let port_num = data.ports.borrow().len();
                 for index in 0..port_num {
                     set_port_size.emit((index,*size));
                 };
-            }));
+            });
 
-            def set_port_opacity     = source::<(PortId,f32)>();
-            def set_port_opacity_all = source::<f32>();
+            set_port_opacity     <- source::<(PortId,f32)>();
+            set_port_opacity_all <- source::<f32>();
 
-            def _set_port_opacities = set_port_opacity_all.map(f!([set_port_opacity,data](size) {
-                let port_num = data.ports.borrow().len();
-                for index in 0..port_num {
-                    set_port_opacity.emit((index,*size));
-                };
+            port_ix_to_change   <= set_port_opacity_all.map(f_!([data] {
+                Vec::<usize>::from_iter(0..data.ports.borrow().len())
             }));
+            set_port_opacity_for_port    <- all(&port_ix_to_change,&set_port_opacity_all);
+            eval set_port_opacity_for_port ([set_port_opacity]((index, opacity)) {
+               set_port_opacity.emit((*index,*opacity));
+            });
         }
 
         // Init ports
