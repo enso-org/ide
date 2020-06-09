@@ -234,7 +234,10 @@ fn get_method(object:&js_sys::Object, property:&str) -> Result<js_sys::Function>
     let method_value  = js_sys::Reflect::get(object,&property.into());
     let method_value  = method_value.map_err(
         |object| Error::PropertyNotFoundOnObject{object,property:property.to_string()})?;
-
+    if method_value.is_undefined() {
+        let object:JsValue = object.into();
+        return Err(Error::PropertyNotFoundOnObject{object,property:property.to_string()});
+    }
     let method_function:js_sys::Function = method_value.into();
     Ok(method_function)
 }

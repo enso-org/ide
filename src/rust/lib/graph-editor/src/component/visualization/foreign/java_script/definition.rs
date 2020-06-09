@@ -104,7 +104,7 @@ use crate::component::visualization::InstantiationError;
 use crate::component::visualization::InstantiationResult;
 use crate::component::visualization;
 use crate::data::*;
-
+use super::base_class;
 use super::instance::Instance;
 
 use ensogl::display::Scene;
@@ -135,15 +135,6 @@ pub mod method {
 }
 
 
-const BASE_CLASS : &str = r#"
-class Visualization {
-    setPreprocessor (code) {}
-    initDom (root)  { this.dom = root }
-}
-"#;
-
-
-
 
 // ==================
 // === Definition ===
@@ -162,10 +153,10 @@ impl Definition {
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
     pub fn new (library:impl Into<LibraryName>, source:impl AsRef<str>) -> Result<Self,Error> {
         let source       = source.as_ref();
-        let source        = BASE_CLASS.to_string() + source; // FIXME use proper context instead of copying the base class definition.
+        let source       = source;
         let context      = JsValue::NULL;
-        let function     = js_sys::Function::new_no_args(&source);
-        let class        = function.call0(&context).map_err(Error::InvalidFunction)?;
+        let function     = js_sys::Function::new_with_args("Visualization", &source);
+        let class        = function.call1(&context, &base_class::cls()).map_err(Error::InvalidFunction)?;
 
         let library      = library.into();
         let input_type   = try_str_field(&class,field::INPUT_TYPE).unwrap_or_default();
