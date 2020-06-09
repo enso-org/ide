@@ -28,7 +28,7 @@ use web_sys::HtmlElement;
 // ==================
 
 /// Look and feel properties of sprite objects.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 #[allow(missing_docs)]
 pub struct SpriteData {
     pub position : Vector2<f32>,

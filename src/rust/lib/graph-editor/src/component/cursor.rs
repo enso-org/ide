@@ -341,7 +341,7 @@ impl Cursor {
             );
 
             eval input.set_style([host_attached_weight,size,offset,model] (new_style) {
-                host_attached_weight.rewind();
+                host_attached_weight.stop_and_rewind();
                 if new_style.host.is_some() { host_attached_weight.start() }
 
                 match &new_style.press {

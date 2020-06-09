@@ -138,7 +138,7 @@ pub fn elastic_in_out_params(t:f32, period:f32, amplitude:f32) -> f32 {
 // ================
 
 /// Easing animator value.
-pub trait Value = Copy + Add<Self,Output=Self> + Mul<f32,Output=Self> + 'static;
+pub trait Value = Copy + Add<Self,Output=Self> + Mul<f32,Output=Self> + PartialEq + 'static;
 
 /// Easing animator callback.
 pub trait Callback<T> = Fn(T) + 'static;
@@ -169,6 +169,7 @@ pub struct AnimatorData<T,F,Cb> {
     pub duration     : Cell<f32>,
     pub start_value  : Cell<T>,
     pub end_value    : Cell<T>,
+    pub value        : Cell<T>,
     pub active       : Cell<bool>,
     #[derivative(Debug="ignore")]
     pub tween_fn     : F,
@@ -184,6 +185,7 @@ impl<T:Value,F,Cb> AnimatorData<T,F,Cb>
         let weight = (self.tween_fn)(sample);
         let value  = self.start_value.get() * (1.0-weight) + self.end_value.get() * weight;
         (self.callback)(value);
+        self.value.set(value);
         if (sample - 1.0).abs() < std::f32::EPSILON {
             self.active.set(false);
         }
@@ -208,20 +210,23 @@ fn step<T:Value,F,Cb>(easing:&Animator<T,F,Cb>) -> Step<T,F,Cb>
 
 impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
     /// Constructor.
-    pub fn new(start_value:T, end_value:T, tween_fn:F, callback:Cb) -> Self {
+    pub fn new_not_started(start:T, end:T, tween_fn:F, callback:Cb) -> Self {
         let duration       = Cell::new(1000.0);
-        let start_value    = Cell::new(start_value);
-        let end_value      = Cell::new(end_value);
+        let value          = Cell::new(start);
+        let start_value    = Cell::new(start);
+        let end_value      = Cell::new(end);
         let active         = default();
-        let data           = AnimatorData {duration,start_value,end_value,active,tween_fn,callback};
+        let data           = AnimatorData {duration,value,start_value,end_value,active,tween_fn,callback};
         let data           = Rc::new(data);
         let animation_loop = default();
-        Self {data,animation_loop} . init()
+        Self {data,animation_loop}
     }
 
-    fn init(self) -> Self {
-        self.start();
-        self
+    /// Constructor.
+    pub fn new(start:T, end:T, tween_fn:F, callback:Cb) -> Self {
+        let this = Self::new_not_started(start,end,tween_fn,callback);
+        this.start();
+        this
     }
 
     /// Start the animator.
@@ -245,15 +250,39 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         self.start();
     }
 
-    /// Stop the animation, rewinds it to the initial value and calls the callback.
-    pub fn rewind(&self) {
+    /// Stop the animation, rewinds it to the provided value and calls the callback.
+    pub fn stop_and_rewind_to(&self, value:T) {
         self.stop();
-        (self.data.callback)(self.start_value());
+        self.set_start_value(value);
+        self.data.value.set(value);
+        (self.data.callback)(value);
+    }
+
+    /// Stop the animation, rewinds it to the initial value and calls the callback.
+    pub fn stop_and_rewind(&self) {
+        self.stop_and_rewind_to(self.start_value());
     }
 
     /// Checks whether the animator is running.
     pub fn active(&self) -> bool {
         self.data.active.get()
+    }
+
+    pub fn from_now_to(&self, tgt:T) {
+        let current = self.value();
+        self.data.start_value.set(current);
+        self.data.end_value.set(tgt);
+        if current != tgt {
+            (self.data.callback)(self.start_value());
+            self.start();
+        }
+    }
+
+    pub fn skip(&self) {
+        self.stop();
+        let value = self.end_value();
+        self.data.value.set(value);
+        (self.data.callback)(value);
     }
 }
 
@@ -266,18 +295,20 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         self.data.start_value.get()
     }
 
+    pub fn value(&self) -> T {
+        self.data.value.get()
+    }
+
     pub fn end_value(&self) -> T {
         self.data.end_value.get()
     }
 
     pub fn set_start_value(&self, t:T) {
         self.data.start_value.set(t);
-        self.start();
     }
 
     pub fn set_end_value(&self, t:T) {
         self.data.end_value.set(t);
-        self.start();
     }
 
     pub fn set_duration(&self, t:f32) {

@@ -59,6 +59,7 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use nalgebra::Vector2;
 use ensogl::gui::component::Animation;
+use ensogl::gui::component::Tween;
 
 
 
@@ -719,7 +720,7 @@ impl Grid {
         Vector2::new(x,y)
     }
 
-    fn axis_close_to(axis:&Vec<f32>, pos:f32, threshold:f32) -> Option<f32> {
+    fn axis_close_to(axis:&[f32], pos:f32, threshold:f32) -> Option<f32> {
         match axis.binary_search_by(|t| t.partial_cmp(&pos).unwrap()) {
             Ok (ix) => Some(axis[ix]),
             Err(ix) => {
@@ -795,8 +796,8 @@ impl Nodes {
         *self.grid.borrow_mut() = Grid {sorted_xs,sorted_ys};
     }
 
-    pub fn check_grid_magnet(&self, position:&Position) -> Vector2<Option<f32>> {
-        self.grid.borrow().close_to(Vector2::new(position.x,position.y),10.0)
+    pub fn check_grid_magnet(&self, position:Vector2<f32>) -> Vector2<Option<f32>> {
+        self.grid.borrow().close_to(position,10.0)
     }
 }
 
@@ -1226,12 +1227,9 @@ impl GraphEditorModel {
         self.nodes.recompute_grid(default());
     }
 
-    pub fn node_position(&self, node_id:impl Into<NodeId>) -> Position {
+    pub fn node_position(&self, node_id:impl Into<NodeId>) -> Vector2<f32> {
         let node_id = node_id.into();
-        self.nodes.get_cloned_ref(&node_id).map(|node| {
-            let v_pos = node.position();
-            frp::Position::new(v_pos.x, v_pos.y)
-        }).unwrap_or_default()
+        self.nodes.get_cloned_ref(&node_id).map(|node| node.position().xy()).unwrap_or_default()
     }
 
     pub fn node_pos_mod
@@ -1656,7 +1654,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.node_expression_set <+ inputs.set_node_expression;
 
 
+    // ==================
     // === Move Nodes ===
+    // ==================
+
+    mouse_pos_fix <- mouse.position.map(|p| Vector2::new(p.x,p.y));
 
     let main            = touch.nodes.down.clone_ref();
     let main_pressed    = touch.nodes.is_down.clone_ref();
@@ -1666,35 +1668,48 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     tgts               <- any(tgts_if_non_sel,tgts_if_sel);
     eval tgts ((ids) model.disable_grid_snapping_for(ids));
 
-    main_pos_on_press  <- main.map(f!((id) model.node_position(id)));
-    mouse_pos_on_press <- mouse.position.sample(&main);
-    mouse_pos_diff     <- mouse.position.map2(&mouse_pos_on_press,|t,s|t-s).gate(&main_pressed);
-    main_tgt_pos_rt    <- mouse_pos_diff.map2(&main_pos_on_press,|t,s|t+s);
+    main_pos_on_press       <- main.map(f!((id) model.node_position(id)));
+    mouse_pos_on_press      <- mouse_pos_fix.sample(&main);
+    mouse_pos_diff          <- mouse_pos_fix.map2(&mouse_pos_on_press,|t,s|t-s).gate(&main_pressed);
+    main_tgt_pos_rt_changed <- mouse_pos_diff.map2(&main_pos_on_press,|t,s|t+s);
+    main_tgt_pos_rt         <- any(&main_tgt_pos_rt_changed,&main_pos_on_press);
+    just_pressed            <- bool(&main_tgt_pos_rt_changed,&main_pos_on_press);
 
+    let main_tgt_pos_follow = Animation::<Vector2<f32>>::new(&network);
+    let x_snap_strength     = Tween::new(&network);
+    let y_snap_strength     = Tween::new(&network);
+    x_snap_strength.set_duration(300.0);
+    y_snap_strength.set_duration(300.0);
 
-    let main_tgt_pos_follow = Animation::<V2<f32>>::new(&network);
-    let snap_strength       = Animation::<f32>::new(&network);
-
-    main_tgt_pos_snap <- main_tgt_pos_rt.map(f!([model,snap_strength](pos) {
-        let snapped = model.nodes.check_grid_magnet(pos);
-        let x = snapped.x.unwrap_or(pos.x);
-        let y = snapped.y.unwrap_or(pos.y);
-        let w = if snapped.x.is_none() && snapped.y.is_none() { 0.0 } else { 1.0 };
-        snap_strength.set_target_value(w);
-        Position::new(x,y)
+    _eval <- main_tgt_pos_rt.map2(&just_pressed,
+        f!([model,x_snap_strength,y_snap_strength,main_tgt_pos_follow](pos,just_pressed) {
+            let snapped = model.nodes.check_grid_magnet(*pos);
+            let x = snapped.x.unwrap_or(pos.x);
+            let y = snapped.y.unwrap_or(pos.y);
+            x_snap_strength.from_now_to(if snapped.x.is_none() { 0.0 } else { 1.0 });
+            y_snap_strength.from_now_to(if snapped.y.is_none() { 0.0 } else { 1.0 });
+            main_tgt_pos_follow.set_target_value(Vector2::new(x,y));
+            if *just_pressed {
+                x_snap_strength.skip();
+                y_snap_strength.skip();
+                main_tgt_pos_follow.skip();
+            }
     }));
 
-
-    main_tgt_pos <- main_tgt_pos_rt.all_with3(&main_tgt_pos_follow.value,&snap_strength.value,
-        |pos_rt,pos_snap,strength| {
-            let pos_snap = Position::new(pos_snap.x,pos_snap.y);
-            pos_rt * (1.0 - strength) + pos_snap * strength
+    main_tgt_pos <- all_with4
+        ( &main_tgt_pos_rt
+        , &main_tgt_pos_follow.value
+        , &x_snap_strength.value
+        , &y_snap_strength.value
+        , |rt,snap,xw,yw| {
+            let one   = Vector2::new(1.0,1.0);
+            let w     = Vector2::new(*xw,*yw);
+            let w_inv = one - w;
+            let x     = rt.x * w_inv.x + snap.x * w.x;
+            let y     = rt.y * w_inv.y + snap.y * w.y;
+            Vector2::new(x,y)
         });
 
-
-    eval main_tgt_pos_snap ((p) main_tgt_pos_follow.set_target_value(V2(p.x,p.y)));
-
-    trace snap_strength.value;
 
     // TEST
     new_pos <- main_tgt_pos.map2(&main,|p,id| (*id,Position::new(p.x,p.y)));
