@@ -61,7 +61,8 @@ macro_rules! gen_zero {
 
 macro_rules! gen_zero_nalgebra {
     ([$($ty:ident),*]) => {$(
-        impl<T:Scalar+num_traits::Zero> Zero for $ty<T> {
+        impl<T:Scalar> Zero for $ty<T>
+        where $ty<T> : num_traits::Zero {
             fn zero() -> Self {
                 nalgebra::zero()
             }
@@ -647,19 +648,19 @@ impl<T:Default> From<V3<T>> for V4<T> {
 
 
 
-impl<T:Scalar> From<Vector2<T>> for V2<T> {
+impl<T:Scalar+Copy> From<Vector2<T>> for V2<T> {
     fn from(t:Vector2<T>) -> Self {
         V2(t.x,t.y)
     }
 }
 
-impl<T:Scalar> Into<Vector2<T>> for V2<T> {
+impl<T:Scalar+Copy> Into<Vector2<T>> for V2<T> {
     fn into(self) -> Vector2<T> {
         Vector2::new(self.x,self.y)
     }
 }
 
-impl<T:Scalar> Into<Vector2<T>> for &V2<T> {
+impl<T:Scalar+Copy> Into<Vector2<T>> for &V2<T> {
     fn into(self) -> Vector2<T> {
         Vector2::new(self.x,self.y)
     }
@@ -667,19 +668,19 @@ impl<T:Scalar> Into<Vector2<T>> for &V2<T> {
 
 
 
-impl<T:Scalar> From<Vector3<T>> for V3<T> {
+impl<T:Scalar+Copy> From<Vector3<T>> for V3<T> {
     fn from(t:Vector3<T>) -> Self {
         V3(t.x,t.y,t.z)
     }
 }
 
-impl<T:Scalar> Into<Vector3<T>> for V3<T> {
+impl<T:Scalar+Copy> Into<Vector3<T>> for V3<T> {
     fn into(self) -> Vector3<T> {
         Vector3::new(self.x,self.y,self.z)
     }
 }
 
-impl<T:Scalar> Into<Vector3<T>> for &V3<T> {
+impl<T:Scalar+Copy> Into<Vector3<T>> for &V3<T> {
     fn into(self) -> Vector3<T> {
         Vector3::new(self.x,self.y,self.z)
     }
@@ -687,19 +688,19 @@ impl<T:Scalar> Into<Vector3<T>> for &V3<T> {
 
 
 
-impl<T:Scalar> From<Vector4<T>> for V4<T> {
+impl<T:Scalar+Copy> From<Vector4<T>> for V4<T> {
     fn from(t:Vector4<T>) -> Self {
         V4(t.x,t.y,t.z,t.w)
     }
 }
 
-impl<T:Scalar> Into<Vector4<T>> for V4<T> {
+impl<T:Scalar+Copy> Into<Vector4<T>> for V4<T> {
     fn into(self) -> Vector4<T> {
         Vector4::new(self.x,self.y,self.z,self.w)
     }
 }
 
-impl<T:Scalar> Into<Vector4<T>> for &V4<T> {
+impl<T:Scalar+Copy> Into<Vector4<T>> for &V4<T> {
     fn into(self) -> Vector4<T> {
         Vector4::new(self.x,self.y,self.z,self.w)
     }
