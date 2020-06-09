@@ -122,7 +122,7 @@ impl InstanceModel {
 
     fn init(self) -> Self {
         let context   = &self.object;
-        if let Some(init_dom) = get_method(&self.object,method::INIT_DOM).ok() {
+        if let Ok(init_dom) = get_method(&self.object,method::INIT_DOM) {
             if let Err(err) = init_dom.call1(&context,&self.root_node.dom()) {
                 self.logger.warning(
                     || format!("Failed to initialise dom element with error: {:?}",err)
