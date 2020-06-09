@@ -122,8 +122,7 @@ impl InstanceModel {
                Err(_)    => return Err(DataError::InvalidDataType),
            };
            if let Err(error) = on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
-               self.logger.warning( // FIXME Use `warning!` macro instead. Will be a lot shorter.
-                   || format!("Failed to set data in {:?} with error: {:?}",self,error));
+               warning!(&self.logger, "Failed to set data in {self} with error: {error}");
                return Err(DataError::InternalComputationError)
            }
        }
@@ -136,8 +135,7 @@ impl InstanceModel {
            let context       = JsValue::NULL;
            let data_json     = JsValue::from_serde(&size).unwrap();
            if let Err(error) = set_size.call2(&context, &self.root_node.dom(), &data_json) {
-               self.logger.warning(
-                   || format!("Failed to set size in {:?} with error: {:?}", self, error));
+               warning!(&self.logger, "Failed to set size in {self} with error: {error}");
            }
            self.root_node.set_size(size);
        }
