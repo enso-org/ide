@@ -298,7 +298,6 @@ impl ContainerModel {
     fn enable_fullscreen(&self) {
         self.is_fullscreen.set(true);
         if let Some(viz) = &*self.visualization.borrow() {
-            println!("reattaching");
             self.fullscreen_view.add_child(viz)
         }
     }
@@ -397,7 +396,7 @@ impl Container {
         let model      = &self.model;
         let fullscreen = Animation::new(network);
         let size       = Animation::<V2>::new(network);
-        let fullscreen_position   = Animation::<V3>::new(network);
+        let fullscreen_position = Animation::<V3>::new(network);
 
         frp::extend! { network
             eval  inputs.set_visibility    ((v) model.set_visibility(*v));
@@ -428,7 +427,7 @@ impl Container {
 
             }));
 
-            eval fullscreen_position.value ((p)  model.fullscreen_view.set_position(p.into()));
+            eval fullscreen_position.value ((p) model.fullscreen_view.set_position(p.into()));
         }
 
         inputs.set_size.emit(DEFAULT_SIZE);

@@ -77,7 +77,7 @@ impl Registry {
 
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> visualization::Instance {
-        let instance =  builtin::visualization::native::RawText::new(scene);
+        let instance = builtin::visualization::native::RawText::new(scene);
         instance.into()
     }
 }

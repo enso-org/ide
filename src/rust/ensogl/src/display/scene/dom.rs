@@ -90,7 +90,7 @@ fn setup_camera_orthographic(dom:&web::JsValue, matrix:&Matrix4<f32>) {
 /// Inverts Matrix Y coordinates. It's equivalent to scaling by (1.0, -1.0, 1.0).
 pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
     // Negating the second column to invert Y.
-    m.row_part_mut(1, 4).iter_mut().for_each(|a| *a = -*a);
+    m.row_part_mut(1,4).iter_mut().for_each(|a| *a = -*a);
     m
 }
 
@@ -199,11 +199,11 @@ impl DomScene {
 
         match camera.projection() {
             Projection::Perspective{..} => {
-                js::setup_perspective(&self.data.dom , &near.into());
-                setup_camera_perspective(&self.data.view_projection_dom , near, &trans_cam);
+                js::setup_perspective(&self.data.dom,&near.into());
+                setup_camera_perspective(&self.data.view_projection_dom,near,&trans_cam);
             },
             Projection::Orthographic => {
-                setup_camera_orthographic(&self.data.view_projection_dom , &trans_cam);
+                setup_camera_orthographic(&self.data.view_projection_dom,&trans_cam);
             }
         }
     }
