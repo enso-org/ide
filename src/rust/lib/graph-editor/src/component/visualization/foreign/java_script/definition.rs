@@ -93,11 +93,9 @@
 //!   area automatically. The `size` parameter contains two fields `width` and `height` expressed in
 //!   pixels.
 
-// FIXME: Make sure the above definition is implemented in the JS API, including the `Visualization`
-//        superclass, its `dom` field and the `setPreprocessor` method (connected to Rust side).
+// TODO: Connect the `setPreprocessor` method on Rust side.
 
 // FIXME: Can we simplify the above definition so its more minimal, yet functional?
-
 
 
 use crate::prelude::*;
