@@ -37,46 +37,26 @@ use std::fmt::Formatter;
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub enum Error {
-    // FIXME: this error is not specific enough. It should be named `InstanceIsNotAnObject` and used
-    //        only to indicate that the value we used to create instance was not a valid object.
-    //        The error messge below "Not an object: {:?}" is also not very specific about what
-    //        really happened.
-    /// The provided value was expected to be a JS object, but was not.
-    NotAnObject        { object:JsValue },
-    /// An error occurred when calling the class constructor.
-    // FIXME: kets make it more specific - what exactly us constructor error?
+    /// The provided `JsValue` was expected to be of type `object`, but was not.
+    ValueIsNotAnObject { object:JsValue },
+    /// An error occurred on the javascript side when calling the class constructor.
     ConstructorError   { js_error:JsValue },
-    // FIXME: can we remove it? We should handle each error explicitely. When something unknown happens?
-    /// An unknown error occurred on the JS side. Inspect the content for more information.
-    Unknown            { js_error:JsValue }
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Error::NotAnObject { object: inner }  => {
-                f.write_fmt(format_args!("Not an object: {:?}",inner))
+            Error::ValueIsNotAnObject { object: inner }  => {
+                f.write_fmt(format_args!("JsValue was expected to be of type `object`, but was not: {:?}",inner))
             },
-            Error::ConstructorError { js_error: inner }      => {
+            Error::InstantiationError { js_error: inner }      => {
                 f.write_fmt(format_args!("Error while constructing object: {:?}",inner))
-            },
-            Error::Unknown { js_error: inner }      => {
-                f.write_fmt(format_args!("Unknown error: {:?}",inner))
             },
         }
     }
 }
 
 impl std::error::Error for Error {}
-
-// FIXME: this impl encourages to use Unknown value. Using unknown should be always explicit.
-//        do we really need Unknmown error at all?
-impl From<JsValue> for Error {
-    fn from(value:JsValue) -> Self {
-        // TODO add differentiation if we encounter specific errors and return new variants.
-        Error::Unknown { js_error:value}
-    }
-}
 
 /// Internal helper type to propagate results that can fail due to `JsVisualizationError`s.
 pub type Result<T> = result::Result<T, Error>;
@@ -117,7 +97,7 @@ impl InstanceModel {
     /// Constructor from JavaScript object.
     pub fn from_object(object:JsValue) -> result::Result<Self, Error> {
         if !object.is_object() {
-            return Err(Error::NotAnObject { object } )
+            return Err(Error::ValueIsNotAnObject { object } )
         }
         Self::from_object_js(object.into())
     }

@@ -159,7 +159,7 @@ impl Definition {
         let js_new   = js_sys::Function::new_with_args("cls", "return new cls()");
         let context  = JsValue::NULL;
         let obj      = js_new.call1(&context,&self.class)
-            .map_err(|js_error|instance::Error::ConstructorError{js_error})
+            .map_err(|js_error|instance::Error::InstantiationError {js_error})
             .map_err(InstantiationError::ConstructorError)?;
         let instance = Instance::new(obj).map_err(InstantiationError::ConstructorError)?;
         instance.set_dom_layer(&scene.dom.layers.main);
