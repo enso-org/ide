@@ -23,8 +23,9 @@ use ensogl::system::web::StyleSetter;
 #[allow(missing_docs)]
 pub struct RawText {
     #[shrinkwrap(main_field)]
-    model : RawTextModel,
-    frp   : visualization::instance::Frp,
+    model   : RawTextModel,
+    frp     : visualization::instance::Frp,
+    network : frp::Network,
 }
 
 impl RawText {
@@ -39,17 +40,23 @@ impl RawText {
 
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let frp   = visualization::instance::Frp::new();
+        let network = default();
+        let frp   = visualization::instance::Frp::new(&network);
         let model = RawTextModel::new(scene);
-        Self {model,frp} . init()
+        Self {model,frp,network} . init()
     }
 
     fn init(self) -> Self {
-        let network = &self.frp.network;
-        let model   = &self.model;
+        let network = &self.network;
+        let model   = self.model.clone_ref();
+        let frp     = self.frp.clone_ref();
         frp::extend! { network
-            eval self.frp.set_size  ((size) model.set_size(*size));
-            eval self.frp.send_data ((data) model.receive_data(data).unwrap()); // FIXME : on error emit it via FRP
+            eval frp.set_size  ((size) model.set_size(*size));
+            eval frp.send_data ([frp](data) {
+                if let Err(e) = model.receive_data(data) {
+                    frp.data_receive_error.emit(Some(e));
+                }
+             });
         }
         self
     }
@@ -114,7 +121,7 @@ impl RawTextModel {
 
 impl From<RawText> for Instance {
     fn from(t:RawText) -> Self {
-        Self::new(&t,&t.frp)
+        Self::new(&t,&t.frp,&t.network)
     }
 }
 

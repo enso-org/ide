@@ -185,27 +185,29 @@ impl InstanceModel {
 #[allow(missing_docs)]
 pub struct Instance {
     #[shrinkwrap(main_field)]
-    model : InstanceModel,
-    frp   : visualization::instance::Frp,
+    model   : InstanceModel,
+    frp     : visualization::instance::Frp,
+    network : frp::Network,
 }
 
 impl Instance {
     /// Constructor.
     pub fn new(class:&JsValue, scene:&Scene) -> result::Result<Instance, Error>  {
-        let model = InstanceModel::from_class(class)?;
+        let network = default();
+        let frp     = visualization::instance::Frp::new(&network);
+        let model   = InstanceModel::from_class(class)?;
         model.set_dom_layer(&scene.dom.layers.main);
 
-        let frp   = default();
-        Ok(Instance{model,frp}.init_frp())
+        Ok(Instance{model,frp,network}.init_frp())
     }
 
     fn init_frp(self) -> Self {
-        let network = &self.frp.network;
+        let network = &self.network;
         let model   = self.model.clone_ref();
         let frp     = self.frp.clone_ref();
         frp::extend! { network
             eval frp.set_size  ((size) model.set_size(*size));
-            eval frp.send_data ([frp](data) { // FIXME this leaks memory!
+            eval frp.send_data ([frp](data) {
                 if let Err(e) = model.receive_data(data) {
                     frp.data_receive_error.emit(Some(e));
                 }
@@ -217,7 +219,7 @@ impl Instance {
 
 impl From<Instance> for visualization::Instance {
     fn from(t:Instance) -> Self {
-        Self::new(&t,&t.frp)
+        Self::new(&t,&t.frp,&t.network)
     }
 }
 
