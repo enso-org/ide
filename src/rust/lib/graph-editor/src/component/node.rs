@@ -27,8 +27,8 @@ use crate::component::visualization;
 use crate::component::node::port::output::OutPutPorts;
 
 
-pub(crate) const NODE_SHAPE_PADDING : f32 = 40.0;
-pub(crate) const NODE_SHAPE_RADIUS  : f32 = 14.0;
+pub const NODE_SHAPE_PADDING : f32 = 40.0;
+pub const NODE_SHAPE_RADIUS  : f32 = 14.0;
 
 
 // ============
