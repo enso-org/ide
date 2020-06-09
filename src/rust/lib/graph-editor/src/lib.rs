@@ -574,6 +574,8 @@ generate_frp_outputs! {
     visualization_enabled  : NodeId,
     visualization_disabled : NodeId,
     visualization_enable_fullscreen : NodeId,
+    visualization_set_preprocessor  : (NodeId,data::EnsoCode),
+
 }
 
 

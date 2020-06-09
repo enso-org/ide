@@ -10,6 +10,7 @@
 
 use crate::prelude::*;
 
+use crate::data::EnsoCode;
 use crate::frp;
 use crate::visualization;
 
@@ -24,7 +25,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
-
 
 
 // =================
@@ -115,40 +115,45 @@ pub mod overlay {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub set_visibility     : frp::Source<bool>,
-    pub toggle_visibility  : frp::Source,
-    pub set_visualization  : frp::Source<Option<visualization::Instance>>,
-    pub set_data           : frp::Source<visualization::Data>,
-    pub select             : frp::Source,
-    pub deselect           : frp::Source,
-    pub set_size           : frp::Source<V2>,
-    pub enable_fullscreen  : frp::Source,
-    pub disable_fullscreen : frp::Source,
-    pub clicked            : frp::Stream,
-    on_click               : frp::Source,
-    scene_shape            : frp::Sampler<scene::Shape>,
-    size                   : frp::Sampler<V2>,
+    pub set_visibility        : frp::Source<bool>,
+    pub toggle_visibility     : frp::Source,
+    pub set_visualization     : frp::Source<Option<visualization::Instance>>,
+    pub set_data              : frp::Source<visualization::Data>,
+    pub select                : frp::Source,
+    pub deselect              : frp::Source,
+    pub set_size              : frp::Source<V2>,
+    pub enable_fullscreen     : frp::Source,
+    pub disable_fullscreen    : frp::Source,
+    pub clicked               : frp::Stream,
+    pub preprocessor_selected : frp::Stream<EnsoCode>,
+    on_click                  : frp::Source,
+    scene_shape               : frp::Sampler<scene::Shape>,
+    size                      : frp::Sampler<V2>,
+    preprocessor_select       : frp::Source<EnsoCode>,
 }
 
 impl Frp {
     fn new(network:&frp::Network, scene:&Scene) -> Self {
         frp::extend! { network
-            set_visibility     <- source();
-            toggle_visibility  <- source();
-            set_visualization  <- source();
-            set_data           <- source();
-            select             <- source();
-            deselect           <- source();
-            on_click           <- source();
-            set_size           <- source();
-            enable_fullscreen  <- source();
-            disable_fullscreen <- source();
-            size               <- set_size.sampler();
-            let clicked         = on_click.clone_ref().into();
+            set_visibility      <- source();
+            toggle_visibility   <- source();
+            set_visualization   <- source();
+            set_data            <- source();
+            select              <- source();
+            deselect            <- source();
+            on_click            <- source();
+            set_size            <- source();
+            enable_fullscreen   <- source();
+            disable_fullscreen  <- source();
+            preprocessor_select <- source();
+            size                <- set_size.sampler();
+            let clicked             = on_click.clone_ref().into();
+            let preprocessor_selected = preprocessor_select.clone_ref().into();
         };
         let scene_shape = scene.shape().clone_ref();
         Self {set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
-              clicked,set_size,on_click,enable_fullscreen,disable_fullscreen,scene_shape,size}
+              clicked,set_size,on_click,enable_fullscreen,disable_fullscreen,scene_shape,size,
+              preprocessor_selected,preprocessor_select}
     }
 }
 
@@ -394,6 +399,7 @@ impl Container {
         let inputs     = &self.frp;
         let network    = &self.network;
         let model      = &self.model;
+        let model_frp =  &model.frp;
         let fullscreen = Animation::new(network);
         let size       = Animation::<V2>::new(network);
         let fullscreen_position = Animation::<V3>::new(network);
@@ -428,6 +434,8 @@ impl Container {
             }));
 
             eval fullscreen_position.value ((p) model.fullscreen_view.set_position(p.into()));
+
+            eval model_frp.preprocessor_selected ((code) inputs.preprocessor_select.emit(code));
         }
 
         inputs.set_size.emit(DEFAULT_SIZE);
