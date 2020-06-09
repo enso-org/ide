@@ -23,6 +23,15 @@ use js_sys;
 use std::fmt::Formatter;
 
 
+// =================
+// === Constants ===
+// =================
+
+mod method_name {
+    pub const ON_DATA_RECEIVED:&str = "onDataReceived";
+    pub const SET_SIZE:&str = "onDataReceived";
+}
+
 
 // ==============
 // === Errors ===
@@ -76,9 +85,9 @@ pub struct InstanceModel {
 impl InstanceModel {
     /// Internal helper that tries to convert a JS object into a `Instance`.
     fn from_object_js(object:js_sys::Object) -> result::Result<Self, Error> {
-        let on_data_received = get_method(&object, "onDataReceived").ok(); // FIXME: literals eveywhere - move them to constants.
+        let on_data_received = get_method(&object, method_name::ON_DATA_RECEIVED).ok();
         let on_data_received = Rc::new(on_data_received);
-        let set_size         = get_method(&object, "setSize").ok();
+        let set_size         = get_method(&object, method_name::SET_SIZE).ok();
         let set_size         =  Rc::new(set_size);
 
         let logger    = Logger::new("Instance");
