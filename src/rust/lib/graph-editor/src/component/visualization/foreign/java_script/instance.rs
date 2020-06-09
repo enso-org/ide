@@ -15,13 +15,25 @@ use crate::component::visualization;
 use crate::frp;
 
 use core::result;
-use ensogl::display::DomScene;
+use ensogl::display::{DomScene, Scene};
 use ensogl::display::DomSymbol;
 use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
+
+
+// =================
+// === Constants ===
+// =================
+
+#[allow(missing_docs)]
+pub mod constructor {
+    pub const ARG: &str = "cls, root";
+    pub const BODY : &str = "return new cls(root)";
+}
+
 
 
 // ==============
@@ -82,19 +94,28 @@ pub struct InstanceModel {
 }
 
 impl InstanceModel {
-    /// Internal helper that tries to convert a JS object into a `Instance`.
-    fn from_object_js(object:js_sys::Object) -> result::Result<Self, Error> {
-        let on_data_received = get_method(&object, method::ON_DATA_RECEIVED).ok();
-        let on_data_received = Rc::new(on_data_received);
-        let set_size         = get_method(&object, method::SET_SIZE).ok();
-        let set_size         = Rc::new(set_size);
-        let object           = Rc::new(object);
-
-        let logger    = Logger::new("Instance");
+    /// Tries to create a InstanceModel from the given visualisation class.
+    pub fn from_class(class:&JsValue) -> result::Result<Self, Error> {
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")
             .map_err(|js_error|Error::ConstructorError{js_error})?;
+
+        let js_new   = js_sys::Function::new_with_args(constructor::ARG, constructor::BODY);
+        let context  = JsValue::NULL;
+        let object   = js_new.call2(&context,&class, &root_node)
+            .map_err(|js_error|Error::ConstructorError {js_error})?;
+        if !object.is_object() {
+            return Err(Error::ValueIsNotAnObject { object } )
+        }
+        let object:js_sys::Object = object.into();
+
+        let on_data_received = get_method(&object, method::ON_DATA_RECEIVED).ok();
+        let on_data_received = Rc::new(on_data_received);
+        let set_size         = get_method(&object, method::SET_SIZE).ok();
+        let set_size         = Rc::new(set_size);
+        let logger           = Logger::new("Instance");
+        let object           = Rc::new(object);
 
         Ok(InstanceModel{object,on_data_received,set_size,root_node,logger}.init())
     }
@@ -109,14 +130,6 @@ impl InstanceModel {
             }
         }
         self
-    }
-
-    /// Constructor from JavaScript object.
-    pub fn from_object(object:JsValue) -> result::Result<Self, Error> {
-        if !object.is_object() {
-            return Err(Error::ValueIsNotAnObject { object } )
-        }
-        Self::from_object_js(object.into())
     }
 
     /// Hooks the root node into the given scene.
@@ -178,8 +191,10 @@ pub struct Instance {
 
 impl Instance {
     /// Constructor.
-    pub fn new(object:JsValue) -> result::Result<Instance, Error>  {
-        let model = InstanceModel::from_object(object)?;
+    pub fn new(class:&JsValue, scene:&Scene) -> result::Result<Instance, Error>  {
+        let model = InstanceModel::from_class(class)?;
+        model.set_dom_layer(&scene.dom.layers.main);
+
         let frp   = default();
         Ok(Instance{model,frp}.init_frp())
     }

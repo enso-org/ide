@@ -104,7 +104,6 @@ use crate::prelude::*;
 
 use crate::component::visualization::InstantiationError;
 use crate::component::visualization::InstantiationResult;
-use crate::component::visualization::java_script::instance;
 use crate::component::visualization;
 use crate::data::*;
 
@@ -137,11 +136,6 @@ pub mod method {
     pub const INIT_DOM         : &str = "initDom";
 }
 
-#[allow(missing_docs)]
-pub mod constructor {
-    pub const ARG: &str = "cls";
-    pub const BODY : &str = "return new cls()";
-}
 
 const BASE_CLASS : &str = r#"
 class Visualization {
@@ -167,23 +161,11 @@ pub struct Definition {
 
 impl Definition {
 
-    fn get_visualisation_context() -> JsValue {
-        let context = js_sys::eval(BASE_CLASS);
-        match context {
-            Ok(context) => context,
-            Err(e) => {
-                eprintln!("Could not create context for visualisations due to error: {:?}", e);
-                // TODO: get a logger in here to show a warning/error
-                JsValue::NULL
-            }
-        }
-    }
-
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
     pub fn new (library:impl Into<LibraryName>, source:impl AsRef<str>) -> Result<Self,Error> {
         let source       = source.as_ref();
         let source        = BASE_CLASS.to_string() + source; // FIXME use proper context instead of copying the base class definition.
-        let context      = Self::get_visualisation_context();
+        let context      = JsValue::NULL;
         let function     = js_sys::Function::new_no_args(&source);
         let class        = function.call0(&context).map_err(Error::InvalidFunction)?;
 
@@ -201,13 +183,8 @@ impl Definition {
     }
 
     fn new_instance(&self, scene:&Scene) -> InstantiationResult {
-        let js_new   = js_sys::Function::new_with_args(constructor::ARG, constructor::BODY);
-        let context  = Self::get_visualisation_context();
-        let obj      = js_new.call1(&context,&self.class)
-            .map_err(|js_error|instance::Error::ConstructorError {js_error})
+        let instance = Instance::new(&self.class, scene)
             .map_err(InstantiationError::ConstructorError)?;
-        let instance = Instance::new(obj).map_err(InstantiationError::ConstructorError)?;
-        instance.set_dom_layer(&scene.dom.layers.main);
         Ok(instance.into())
     }
 }
