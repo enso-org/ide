@@ -5,12 +5,7 @@
 //!
 //! An `Instance` can be created via `Instance::from_object` where the a JS object is provided that
 //! fullfills the spec described in `java_script/definition.rs
-//!
-//! All methods are optional and if they are not present, will be handled as no-op.
 
-// FIXME: We should not mention in all docs that "all methods are optional etc" - if this changes,
-//        we will have a lot of docs to be fixed. Lets just send the reader to the spec definition
-//        instead!.
 
 use crate::prelude::*;
 
