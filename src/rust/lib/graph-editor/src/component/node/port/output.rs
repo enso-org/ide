@@ -1,6 +1,8 @@
 //! Implements the segmented output port area.
 use crate::prelude::*;
 
+use ensogl::display::traits::*;
+
 use enso_frp as frp;
 use enso_frp;
 use ensogl::data::color;
@@ -8,15 +10,11 @@ use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
-use ensogl::display::shape::*;
-use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 
-use crate::node::NODE_SHAPE_PADDING;
-use crate::node::NODE_SHAPE_RADIUS;
-
+use crate::node;
 
 
 // =================
@@ -38,13 +36,14 @@ const SEGMENT_GAP_WIDTH   : f32 = 2.0;
 /// each segment. Each shapes represents a window of the underlying shape.
 pub mod port_area {
     use super::*;
+    use ensogl::display::shape::*;
 
     ensogl::define_shape_system! {
         (style:Style, grow:f32, shape_width:f32, offset_x:f32, padding:f32, opacity:f32) {
             let width  : Var<Distance<Pixels>> = shape_width.into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
-            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
-            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
+            let width  = width  - node::NODE_SHAPE_PADDING.px() * 2.0;
+            let height = height - node::NODE_SHAPE_PADDING.px() * 2.0;
 
             let hover_area_size   = 20.0.px();
             let hover_area_width  = &width  + &hover_area_size * 2.0;
@@ -54,7 +53,7 @@ pub mod port_area {
             let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
             let shrink           = 1.px() - 1.px() * &grow;
-            let radius           = NODE_SHAPE_RADIUS.px();
+            let radius           = node::NODE_SHAPE_RADIUS.px();
             let port_area_size   = 4.0.px() * &grow;
             let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
             let port_area_height = &height + (&port_area_size - &shrink) * 2.0;
@@ -162,12 +161,12 @@ impl OutPutPortsData {
         let port_num    = self.ports.borrow().len() as f32;
         let width       = self.size.get().x;
         let height      = self.size.get().y;
-        let port_width  = (width - NODE_SHAPE_PADDING) / port_num;
+        let port_width  = (width - node::NODE_SHAPE_PADDING) / port_num;
         let port_size   = Vector2::new(port_width, height);
         let gap_width   = self.gap_width.get();
 
         // Align shapes along width.
-        let x_start = -width / 2.0 + NODE_SHAPE_PADDING;
+        let x_start = -width / 2.0 + node::NODE_SHAPE_PADDING;
         let x_delta = port_width;
         for (index, view) in self.ports.borrow().iter().enumerate(){
             view.display_object().set_parent(&self.display_object);
