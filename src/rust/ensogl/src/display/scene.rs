@@ -33,7 +33,6 @@ use crate::system::web::StyleSetter;
 use crate::system::web;
 use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::ShapeSystemOf;
-use crate::display::layout::Alignment;
 
 use display::style::data::DataMatch;
 use enso_frp as frp;
@@ -339,7 +338,8 @@ impl Mouse {
         let mouse_manager   = MouseManager::new(&document.into());
         let frp             = frp::io::Mouse::new();
 
-        let on_move = mouse_manager.on_move.add(f!([frp,scene_frp,position,last_position](event:&mouse::OnMove) {
+        let on_move = mouse_manager.on_move.add(f!([frp,scene_frp,position,last_position]
+        (event:&mouse::OnMove) {
             let shape       = scene_frp.shape.value();
             let pixel_ratio = shape.pixel_ratio as i32;
             let screen_x    = event.client_x();
@@ -351,8 +351,7 @@ impl Mouse {
                 last_position.set(new_position);
                 let new_canvas_position = new_position * pixel_ratio;
                 position.set(new_canvas_position);
-                let position = enso_frp::Position::new(new_position.x as f32 - shape.width/2.0,new_position.y as f32 - shape.height/2.0);
-//                let position = enso_frp::Position::new(new_position.x as f32,new_position.y as f32);
+                let position = enso_frp::Position::new(new_position.x as f32,new_position.y as f32);
                 frp.position.emit(position);
             }
         }));
@@ -671,7 +670,6 @@ impl ViewData {
         let logger  = logger.sub("view");
         let camera  = Camera2d::new(&logger,width,height);
         let symbols = default();
-        // camera.set_alignment(Alignment::center());
         Self {logger,camera,symbols}
     }
 
@@ -752,8 +750,6 @@ impl Views {
 pub struct Frp {
     pub network        : frp::Network,
     pub shape          : frp::Sampler<Shape>,
-    pub alignment      : frp::Sampler<Alignment>,
-    pub set_alignment  : frp::Source<Alignment>,
     pub camera_changed : frp::Stream,
     camera_changed_source : frp::Source,
 }
@@ -763,12 +759,10 @@ impl Frp {
     pub fn new(shape:&frp::Sampler<Shape>) -> Self {
         frp::new_network! { network
             camera_changed_source <- source();
-            set_alignment         <- source();
-            alignment             <- set_alignment.sampler();
         }
         let shape          = shape.clone_ref();
         let camera_changed = camera_changed_source.clone_ref().into();
-        Self {network,shape,alignment,set_alignment,camera_changed,camera_changed_source}
+        Self {network,shape,camera_changed,camera_changed_source}
     }
 }
 
@@ -845,17 +839,8 @@ impl SceneData {
         }));
 
         frp::extend! { network
-            eval_ frp.shape         (dirty.shape.set());
-            eval  frp.set_alignment ([views] (t) {
-                for view in &*views.all.borrow() {
-                    if let Some(view) = view.upgrade() {
-                        view.camera.set_alignment(t)
-                    }
-                }
-            });
+            eval_ frp.shape (dirty.shape.set());
         }
-
-         frp.set_alignment.emit(Alignment::center());
 
         uniforms.pixel_ratio.set(dom.shape().pixel_ratio);
         Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables,stats
