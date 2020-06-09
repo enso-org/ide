@@ -130,7 +130,7 @@ impl Frp {
 
 /// Internal data of the `OutPutPorts`.
 #[derive(Debug)]
-pub struct OutPutPortsData {
+pub struct OutputPortsData {
     display_object : display::object::Instance,
     logger         : Logger,
     size           : Cell<Vector2<f32>>,
@@ -138,7 +138,7 @@ pub struct OutPutPortsData {
     ports          : RefCell<Vec<component::ShapeView<port_area::Shape>>>,
 }
 
-impl OutPutPortsData {
+impl OutputPortsData {
 
     fn new(scene:Scene, number_of_ports:u32) -> Self {
         let logger         = Logger::new("OutPutPorts");
@@ -150,20 +150,21 @@ impl OutPutPortsData {
         ports.resize_with(number_of_ports as usize,|| component::ShapeView::new(&logger,&scene));
         let ports          = RefCell::new(ports);
 
-        OutPutPortsData {display_object,logger,size,ports,gap_width}.init()
+        OutputPortsData {display_object,logger,size,ports,gap_width}.init()
     }
+
     fn init(self) -> Self {
         self.update_shape_layout_based_on_size();
         self
     }
 
     fn update_shape_layout_based_on_size(&self) {
-        let port_num    = self.ports.borrow().len() as f32;
-        let width       = self.size.get().x;
-        let height      = self.size.get().y;
-        let port_width  = (width - node::NODE_SHAPE_PADDING) / port_num;
-        let port_size   = Vector2::new(port_width, height);
-        let gap_width   = self.gap_width.get();
+        let port_num   = self.ports.borrow().len() as f32;
+        let width      = self.size.get().x;
+        let height     = self.size.get().y;
+        let port_width = (width - node::NODE_SHAPE_PADDING) / port_num;
+        let port_size  = Vector2::new(port_width, height);
+        let gap_width  = self.gap_width.get();
 
         // Align shapes along width.
         let x_start = -width / 2.0 + node::NODE_SHAPE_PADDING;
@@ -209,20 +210,18 @@ impl OutPutPortsData {
 #[derive(Debug,Clone,CloneRef)]
 pub struct OutputPorts {
     /// The FRP api of the `OutPutPorts`.
-    pub frp            : Frp,
-        network        : frp::Network,
-        data           : Rc<OutPutPortsData>,
+    pub frp     : Frp,
+        network : frp::Network,
+        data    : Rc<OutputPortsData>,
 }
 
 impl OutputPorts {
     /// Constructor.
     pub fn new(scene:&Scene, number_of_ports:u32) -> Self {
-
-        let network        = default();
-        let frp            = Frp::new(&network);
-        let data           = OutPutPortsData::new(scene.clone_ref(),number_of_ports);
-        let data           = Rc::new(data);
-
+        let network = default();
+        let frp     = Frp::new(&network);
+        let data    = OutputPortsData::new(scene.clone_ref(), number_of_ports);
+        let data    = Rc::new(data);
         OutputPorts {data,network,frp}.init()
     }
 
