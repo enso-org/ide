@@ -53,7 +53,7 @@ pub struct BubbleChart {
 impl BubbleChart {
     pub fn definition() -> Definition {
         Definition::new(
-            Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization")),
+            Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization"), Format::Json),
             |scene| { Ok(Self::new(scene).into()) }
         )
     }
@@ -65,7 +65,8 @@ impl BubbleChart {
         let frp            = visualization::instance::Frp::new();
         let size           = default();
         let scene          = scene.clone_ref();
-        let signature      = Signature::new_for_any_type(Path::builtin("[Demo] Bubble Chart"));
+        let signature      = Signature::new_for_any_type(Path::builtin("[Demo] Bubble Chart"),
+                                                         Format::Json);
         BubbleChart {display_object,views,logger,frp,size,scene,signature} . init()
     }
 

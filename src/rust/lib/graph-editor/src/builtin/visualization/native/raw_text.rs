@@ -31,7 +31,8 @@ impl RawText {
     /// Definition of this visualization.
     pub fn definition() -> Definition {
         Definition::new(
-            Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)")),
+            Signature::new_for_any_type(Path::builtin("Raw Text Visualization (native)"),
+                                        Format::Json),
             |scene| { Ok(Self::new(scene).into()) }
         )
     }

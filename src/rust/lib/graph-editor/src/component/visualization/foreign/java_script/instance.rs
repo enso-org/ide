@@ -10,6 +10,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
+use crate::component::visualization::java_script::method;
 use crate::component::visualization;
 use crate::frp;
 
@@ -21,16 +22,6 @@ use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
-
-
-// =================
-// === Constants ===
-// =================
-
-mod method_name {
-    pub const ON_DATA_RECEIVED:&str = "onDataReceived";
-    pub const SET_SIZE:&str = "onDataReceived";
-}
 
 
 // ==============
@@ -87,15 +78,17 @@ pub struct InstanceModel {
     pub logger           : Logger,
         on_data_received : Rc<Option<js_sys::Function>>,
         set_size         : Rc<Option<js_sys::Function>>,
+        object           : Rc<js_sys::Object>,
 }
 
 impl InstanceModel {
     /// Internal helper that tries to convert a JS object into a `Instance`.
     fn from_object_js(object:js_sys::Object) -> result::Result<Self, Error> {
-        let on_data_received = get_method(&object, method_name::ON_DATA_RECEIVED).ok();
+        let on_data_received = get_method(&object, method::ON_DATA_RECEIVED).ok();
         let on_data_received = Rc::new(on_data_received);
-        let set_size         = get_method(&object, method_name::SET_SIZE).ok();
+        let set_size         = get_method(&object, method::SET_SIZE).ok();
         let set_size         = Rc::new(set_size);
+        let object           = Rc::new(object);
 
         let logger    = Logger::new("Instance");
         let div       = web::create_div();
@@ -103,7 +96,19 @@ impl InstanceModel {
         root_node.dom().set_attribute("id","vis")
             .map_err(|js_error|Error::ConstructorError{js_error})?;
 
-        Ok(InstanceModel { on_data_received,set_size,root_node,logger })
+        Ok(InstanceModel{object,on_data_received,set_size,root_node,logger}.init())
+    }
+
+    fn init(self) -> Self {
+        let context   = &self.object;
+        if let Some(init_dom) = get_method(&self.object,method::INIT_DOM).ok() {
+            if let Err(err) = init_dom.call1(&context,&self.root_node.dom()) {
+                self.logger.warning(
+                    || format!("Failed to initialise dom element with error: {:?}",err)
+                );
+            }
+        }
+        self
     }
 
     /// Constructor from JavaScript object.
@@ -123,7 +128,7 @@ impl InstanceModel {
 
    fn receive_data(&self, data:&Data) -> result::Result<(),DataError> {
        if let Some (on_data_received) = &self.on_data_received.deref() {
-           let context   = JsValue::NULL;
+           let context   = &self.object;
            let data_json = match data {
                Data::Json {content} => content,
                _ => todo!() // FIXME
@@ -133,7 +138,7 @@ impl InstanceModel {
                Ok(value) => value,
                Err(_)    => return Err(DataError::InvalidDataType),
            };
-           if let Err(error) = on_data_received.call2(&context, &self.root_node.dom(), &data_js) {
+           if let Err(error) = on_data_received.call1(&context, &data_js) {
                self.logger.warning(
                    || format!("Failed to set data in {:?} with error: {:?}",self,error));
                return Err(DataError::InternalComputationError)
@@ -145,9 +150,9 @@ impl InstanceModel {
    fn set_size(&self, size:V2) {
        if let Some(set_size) = &self.set_size.deref() {
            let size          = Vector2::new(size.x,size.y);
-           let context       = JsValue::NULL;
+           let context       = &self.object;
            let data_json     = JsValue::from_serde(&size).unwrap();
-           if let Err(error) = set_size.call2(&context, &self.root_node.dom(), &data_json) {
+           if let Err(error) = set_size.call1(&context, &data_json) {
                self.logger.warning(
                    || format!("Failed to set size in {:?} with error: {:?}", self, error));
            }

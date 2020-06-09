@@ -115,15 +115,41 @@ use ensogl::system::web::JsValue;
 use js_sys::JsString;
 use js_sys;
 use wasm_bindgen::JsCast;
-use wasm_bindgen::__rt::core::fmt::Formatter;
+use fmt::Formatter;
+use std::str::FromStr;
 
 
 // =================
 // === Constants ===
 // =================
 
-const LABEL_FIELD      : &str = "label";
-const INPUT_TYPE_FIELD : &str = "inputType";
+#[allow(missing_docs)]
+pub mod field {
+    pub const LABEL         : &str = "label";
+    pub const INPUT_TYPE    : &str = "inputType";
+    pub const INPUT_FORMAT  : &str = "inputFormat";
+}
+
+#[allow(missing_docs)]
+pub mod method {
+    pub const ON_DATA_RECEIVED : &str = "onDataReceived";
+    pub const SET_SIZE         : &str = "setSize";
+    pub const INIT_DOM         : &str = "initDom";
+}
+
+#[allow(missing_docs)]
+pub mod constructor {
+    pub const ARG: &str = "cls";
+    pub const BODY : &str = "return new cls()";
+}
+
+const BASE_CLASS : &str = r#"
+class Visualization {
+    setPreprocessor (code) {}
+    initDom (root)  { this.dom = root }
+}
+"#;
+
 
 
 
@@ -140,25 +166,43 @@ pub struct Definition {
 }
 
 impl Definition {
+
+    fn get_visualisation_context() -> JsValue {
+        let context = js_sys::eval(BASE_CLASS);
+        match context {
+            Ok(context) => context,
+            Err(e) => {
+                eprintln!("Could not create context for visualisations due to error: {:?}", e);
+                // TODO: get a logger in here to show a warning/error
+                JsValue::NULL
+            }
+        }
+    }
+
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
     pub fn new (library:impl Into<LibraryName>, source:impl AsRef<str>) -> Result<Self,Error> {
-        let source     = source.as_ref();
-        let context    = JsValue::NULL;
-        let function   = js_sys::Function::new_no_args(source);
-        let class      = function.call0(&context).map_err(Error::InvalidFunction)?;
+        let source       = source.as_ref();
+        let source        = BASE_CLASS.to_string() + source; // FIXME use proper context instead of copying the base class definition.
+        let context      = Self::get_visualisation_context();
+        let function     = js_sys::Function::new_no_args(&source);
+        let class        = function.call0(&context).map_err(Error::InvalidFunction)?;
 
-        let library    = library.into();
-        let input_type = try_str_field(&class,INPUT_TYPE_FIELD).unwrap_or_default();
-        let label      = label(&class)?;
-        let path       = visualization::Path::new(library,label);
-        let signature  = visualization::Signature::new(path,input_type);
+        let library      = library.into();
+        let input_type   = try_str_field(&class,field::INPUT_TYPE).unwrap_or_default();
+
+        let input_format = try_str_field(&class,field::INPUT_FORMAT).unwrap_or_default();
+        let input_format = visualization::data::Format::from_str(&input_format).unwrap_or_default();
+
+        let label        = label(&class)?;
+        let path         = visualization::Path::new(library,label);
+        let signature    = visualization::Signature::new(path,input_type,input_format);
 
         Ok(Self{class,signature})
     }
 
     fn new_instance(&self, scene:&Scene) -> InstantiationResult {
-        let js_new   = js_sys::Function::new_with_args("cls", "return new cls()");
-        let context  = JsValue::NULL;
+        let js_new   = js_sys::Function::new_with_args(constructor::ARG, constructor::BODY);
+        let context  = Self::get_visualisation_context();
         let obj      = js_new.call1(&context,&self.class)
             .map_err(|js_error|instance::Error::ConstructorError {js_error})
             .map_err(InstantiationError::ConstructorError)?;
@@ -185,7 +229,7 @@ fn try_str_field(obj:&JsValue, field:&str) -> Option<String> {
 
 // TODO: convert camel-case names to nice names
 fn label(class:&JsValue) -> Result<String,Error> {
-    try_str_field(class,LABEL_FIELD).map(Ok).unwrap_or_else(|| {
+    try_str_field(class,field::LABEL).map(Ok).unwrap_or_else(|| {
         let class_name = try_str_field(class,"name").ok_or(Error::InvalidClass(InvalidClass::MissingName))?;
         Ok(class_name)
     })
