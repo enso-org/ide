@@ -282,8 +282,8 @@ impl Camera2dData {
         self.screen_update_registry.run_all(&dimensions);
     }
 
-    pub fn set_alignment(&mut self, alignment:Alignment) {
-        self.alignment = alignment;
+    pub fn set_alignment(&mut self, alignment:impl Into<Alignment>) {
+        self.alignment = alignment.into();
         self.transform_dirty.set();
     }
 
@@ -471,7 +471,7 @@ impl Camera2d {
         self.data.borrow_mut().set_position(value)
     }
 
-    pub fn set_alignment(&self, alignment:Alignment) {
+    pub fn set_alignment(&self, alignment:impl Into<Alignment>) {
         self.data.borrow_mut().set_alignment(alignment)
     }
 }
