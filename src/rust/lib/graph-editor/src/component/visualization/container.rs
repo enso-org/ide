@@ -423,8 +423,7 @@ impl Container {
                     let pos = Vector4::new(pos.x,pos.y,pos.z,1.0);
                     let pos = m2 * (m1 * pos);
                     let pp = V3(pos.x,pos.y,pos.z);
-                    let tgt_pos = V3(scene_size.x/2.0,scene_size.y/2.0,0.0);
-                    let current_pos = pp * weight_inv + tgt_pos * weight;
+                    let current_pos = pp * weight_inv;
                     model.fullscreen_view.set_position(current_pos.into());
 
             }));

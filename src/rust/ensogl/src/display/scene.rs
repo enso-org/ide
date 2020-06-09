@@ -323,11 +323,13 @@ pub struct Mouse {
     pub target        : Rc<Cell<Target>>,
     pub handles       : Rc<Vec<callback::Handle>>,
     pub frp           : enso_frp::io::Mouse,
+    pub scene_frp     : Frp,
     pub logger        : Logger
 }
 
 impl Mouse {
     pub fn new(scene_frp:&Frp, variables:&UniformScope, logger:Logger) -> Self {
+        let scene_frp       = scene_frp.clone_ref();
         let target          = Target::default();
         let last_position   = Rc::new(Cell::new(Vector2::new(0,0)));
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
@@ -351,7 +353,7 @@ impl Mouse {
                 last_position.set(new_position);
                 let new_canvas_position = new_position * pixel_ratio;
                 position.set(new_canvas_position);
-                let position = enso_frp::Position::new(new_position.x as f32,new_position.y as f32);
+                let position = enso_frp::Position::new(new_position.x as f32 - shape.width/2.0,new_position.y as f32 - shape.height/2.0);
                 frp.position.emit(position);
             }
         }));
@@ -379,7 +381,7 @@ impl Mouse {
         }));
 
         let handles = Rc::new(vec![on_move,on_down,on_up]);
-        Self {mouse_manager,last_position,position,hover_ids,button_state,target,handles,frp,logger}
+        Self {mouse_manager,last_position,position,hover_ids,button_state,target,handles,frp,scene_frp,logger}
     }
 
     /// Reemits FRP mouse changed position event with the last mouse position value.
@@ -403,8 +405,11 @@ impl Mouse {
     /// and you can assume that it is synchronous. Whenever mouse moves, it is discovered what
     /// element it hovers, and its position change event is emitted as well.
     pub fn reemit_position_event(&self) {
+        let shape       = self.scene_frp.shape.value();
+
         let position = self.last_position.get();
-        let position = enso_frp::Position::new(position.x as f32,position.y as f32);
+        let position = enso_frp::Position::new(position.x as f32 - shape.width/2.0,position.y as f32 - shape.height/2.0);
+
         self.frp.position.emit(position);
     }
 }

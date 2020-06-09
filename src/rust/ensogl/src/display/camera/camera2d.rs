@@ -8,9 +8,6 @@ use crate::display;
 use crate::data::dirty::traits::*;
 use crate::control::callback;
 
-use nalgebra::Vector2;
-use nalgebra::Vector3;
-use nalgebra::Matrix4;
 use nalgebra::Perspective3;
 
 
@@ -92,6 +89,7 @@ impl Default for Clipping {
 // === Dirty ===
 // =============
 
+/// Dirty status of camera properties.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Dirty {
     projection : ProjectionDirty,
@@ -112,6 +110,7 @@ impl Dirty {
 // === Matrixes ===
 // ================
 
+/// Camera matrix properties.
 #[derive(Debug)]
 pub struct Matrix {
     view            : Matrix4<f32>,
@@ -257,17 +256,17 @@ impl Camera2dData {
 // === Setters ===
 
 impl Camera2dData {
-    pub fn projection_mut(&mut self) -> &mut Projection {
+    fn projection_mut(&mut self) -> &mut Projection {
         self.dirty.projection.set();
         &mut self.projection
     }
 
-    pub fn clipping_mut(&mut self) -> &mut Clipping {
+    fn clipping_mut(&mut self) -> &mut Clipping {
         self.dirty.projection.set();
         &mut self.clipping
     }
 
-    pub fn set_screen(&mut self, width:f32, height:f32) {
+    fn set_screen(&mut self, width:f32, height:f32) {
         self.screen.width  = width;
         self.screen.height = height;
         self.dirty.projection.set();
@@ -286,7 +285,7 @@ impl Camera2dData {
         self.screen_update_registry.run_all(&dimensions);
     }
 
-    pub fn reset_zoom(&mut self) {
+    fn reset_zoom(&mut self) {
         self.zoom = 1.0;
         self.set_screen(self.screen.width,self.screen.height);
     }
@@ -296,24 +295,19 @@ impl Camera2dData {
 // === Transform Setters ===
 
 impl Camera2dData {
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+    fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
         self.mod_position_keep_zoom(f);
         self.zoom = self.z_zoom_1 / self.display_object.position().z;
     }
 
-    pub fn set_position(&mut self, value:Vector3<f32>) {
+    fn set_position(&mut self, value:Vector3<f32>) {
         self.mod_position(|p| *p = value);
     }
 
-    pub fn set_rotation(&mut self, yaw:f32, pitch:f32, roll:f32) {
+    fn set_rotation(&mut self, yaw:f32, pitch:f32, roll:f32) {
         self.display_object.mod_rotation(|r| *r = Vector3::new(yaw,pitch,roll))
     }
-}
 
-
-// === Private Transform Setters ===
-
-impl Camera2dData {
     fn mod_position_keep_zoom<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
         self.display_object.mod_position(f)
     }
