@@ -44,6 +44,8 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
         Size::new(ret)
     };
 
+    let inserted_non_white = inserted.chars().any(non_white);
+
     // In case of collisions (when, after resizing spans, multiple ids for the same span are
     // present), the mappings from this map will be preferred over other ones.
     //
@@ -68,7 +70,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
             // If there are only spaces between current AST symbol and insertion, extend the symbol.
             // This is for cases like line with `foo ` being changed into `foo j`.
             debug!(logger,"Between: `{code_between}`");
-            if all_spaces(code_between) {
+            if all_spaces(code_between) && inserted_non_white {
                 debug!(logger,"Will extend front");
                 span.extend_left(inserted_size);
                 span.extend_left(Size::from(code_between));
@@ -76,8 +78,10 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
             }
         } else if span.index >= removed.index {
             // AST node starts inside the edited region. It doesn't end strictly inside it.
-            debug!(logger, "Trailing overlap");
-            span.set_left(removed.index);
+            let removed_before = span.index - removed.index;
+            debug!(logger, "Trailing overlap of length {removed_before}");
+            span.move_left(removed_before);
+            span.shrink_right(removed.size - removed_before);
             span.extend_right(inserted_size);
             trim_front = true;
         } else if span.end() >= removed.index {
@@ -90,7 +94,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
             // If there are only spaces between current AST symbol and insertion, extend the symbol.
             // This is for cases like line with `foo ` being changed into `foo j`.
             let between = &code[Span::from(span.end() .. removed.index)];
-            if all_spaces(between) {
+            if all_spaces(between) && inserted_non_white {
                 debug!(logger,"Will extend ");
                 span.size += Size::new(between.len()) + inserted_size;
                 trim_back = true;
@@ -110,7 +114,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
             // Trim trailing spaces
             let space_count = spaces_size(new_repr.chars().rev());
             debug!(logger,"Will trim back {to_trim_back} and {space_count} spaces");
-            debug!(logger,"The would-be code: {new_repr}");
+            debug!(logger,"The would-be code: `{new_repr}`");
             span.size -= Size::new(space_count);
         }
 
@@ -276,7 +280,9 @@ mod test {
         // All the cases describe edit to a middle line in three line main definition.
         let cases = [
             "a = «⎀f»foo",
+            "a = «f»foo",
             "a = «⎀ »foo",
+            "a = « »foo",
             "a = «⎀f» foo",
             "a = foo«⎀ »",
             "a = foo«⎀\n»",
@@ -287,8 +293,12 @@ mod test {
 
             // Same as above but not in an assignment form
             "«⎀f»foo",
-            // "«⎀ »foo",  // Note: This would actually break the block (change of indent).
-            // "«⎀f» foo", // Note: This would actually break the block (change of indent).
+            "«f»foo",
+            // Commented out tests below would fail because of leading whitespace breaking the
+            // block structure.
+                // "«⎀ »foo",
+                // "« »foo",
+                // "«⎀f» foo",
             "foo«⎀ »",
             "foo«⎀\n»",
             "foo «⎀\n»",
@@ -303,44 +313,5 @@ mod test {
             let case = Case::from_markdown(main_def);
             case.assert_edit_keeps_node_ids(&parser);
         }
-    }
-
-    #[test]
-    fn applying_code_changes_to_id_map() {
-        let uuid1 = Uuid::new_v4();
-        let uuid2 = Uuid::new_v4();
-        let uuid3 = Uuid::new_v4();
-        let uuid4 = Uuid::new_v4();
-        let uuid5 = Uuid::new_v4();
-        let mut id_map = IdMap::new(vec!
-            [ (Span::new(Index::new(0) , Size::new(3)), uuid1)
-            , (Span::new(Index::new(5) , Size::new(2)), uuid2)
-            , (Span::new(Index::new(7) , Size::new(2)), uuid3)
-            , (Span::new(Index::new(9) , Size::new(2)), uuid4)
-            , (Span::new(Index::new(13), Size::new(2)), uuid5)
-            ]);
-        let code = "foo  aa++bb  cc";
-
-        let change = TextChange::replace(Index::new(6)..Index::new(10), "a test".to_string());
-        apply_code_change_to_id_map(&mut id_map, &change, code);
-        let expected = IdMap::new(vec!
-            [ (Span::new(Index::new(0) , Size::new(3)), uuid1)
-            , (Span::new(Index::new(5) , Size::new(7)), uuid2)
-            , (Span::new(Index::new(12), Size::new(1)), uuid4)
-            , (Span::new(Index::new(15), Size::new(2)), uuid5)
-            ]);
-        assert_eq!(expected, id_map);
-
-        let code = "foo  aa++bb  cc";
-
-
-        let change = TextChange::replace(Index::new(12)..Index::new(14), "x".to_string());
-        apply_code_change_to_id_map(&mut id_map, &change,"");
-        let expected = IdMap::new(vec!
-            [ (Span::new(Index::new(0) , Size::new(3)), uuid1)
-            , (Span::new(Index::new(5) , Size::new(8)), uuid2)
-            , (Span::new(Index::new(14), Size::new(2)), uuid5)
-            ]);
-        assert_eq!(expected, id_map);
     }
 }

@@ -5,7 +5,8 @@ use crate::prelude::*;
 
 use crate::data::dirty;
 use crate::display;
-use crate::display::layout::types::*;
+use crate::display::layout::alignment;
+use crate::display::layout::Alignment;
 use crate::data::dirty::traits::*;
 use crate::control::callback;
 
@@ -140,8 +141,8 @@ impl Camera2dData {
         let inversed_view_matrix   = Matrix4::identity();
         let projection_matrix      = Matrix4::identity();
         let view_projection_matrix = Matrix4::identity();
-        let projection_dirty       = ProjectionDirty::new(logger.sub("projection_dirty"),());
-        let transform_dirty        = TransformDirty::new(logger.sub("transform_dirty"),());
+        let projection_dirty       = ProjectionDirty::new(Logger::sub(&logger,"projection_dirty"),());
+        let transform_dirty        = TransformDirty::new(Logger::sub(&logger,"transform_dirty"),());
         let transform              = transform.clone2();
         let zoom_update_registry   = default();
         let screen_update_registry = default();
@@ -171,14 +172,14 @@ impl Camera2dData {
         let half_width    = self.screen.width  / 2.0;
         let half_height   = self.screen.height / 2.0;
         let x_offset      = match self.alignment.horizontal {
-            HorizontalAlignment::Left   =>  half_width,
-            HorizontalAlignment::Center =>  0.0,
-            HorizontalAlignment::Right  => -half_width
+            alignment::Horizontal::Left   =>  half_width,
+            alignment::Horizontal::Center =>  0.0,
+            alignment::Horizontal::Right  => -half_width
         };
         let y_offset = match self.alignment.vertical {
-            VerticalAlignment::Bottom =>  half_height,
-            VerticalAlignment::Center =>  0.0,
-            VerticalAlignment::Top    => -half_height
+            alignment::Vertical::Bottom =>  half_height,
+            alignment::Vertical::Center =>  0.0,
+            alignment::Vertical::Top    => -half_height
         };
 
         let alignment_transform = Vector3::new(x_offset, y_offset, 0.0);
@@ -281,6 +282,11 @@ impl Camera2dData {
         self.screen_update_registry.run_all(&dimensions);
     }
 
+    pub fn set_alignment(&mut self, alignment:Alignment) {
+        self.alignment = alignment;
+        self.transform_dirty.set();
+    }
+
     pub fn reset_zoom(&mut self) {
         self.zoom = 1.0;
         self.set_screen(self.screen.width,self.screen.height);
@@ -343,8 +349,8 @@ pub struct Camera2d {
 
 impl Camera2d {
     /// Creates new Camera instance.
-    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger         = logger.sub("camera");
+    pub fn new(logger:impl AnyLogger, width:f32, height:f32) -> Self {
+        let logger         = Logger::sub(logger,"camera");
         let display_object = display::object::Instance::new(&logger);
         let data           = Camera2dData::new(logger,&display_object,width,height);
         let data           = Rc::new(RefCell::new(data));
@@ -455,15 +461,18 @@ impl Camera2d {
 
 // === Setters ===
 
+#[allow(missing_docs)]
 impl Camera2d {
-    /// Modifies position.
     pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
         self.data.borrow_mut().mod_position(f)
     }
 
-    /// Sets position.
     pub fn set_position(&self, value:Vector3<f32>) {
         self.data.borrow_mut().set_position(value)
+    }
+
+    pub fn set_alignment(&self, alignment:Alignment) {
+        self.data.borrow_mut().set_alignment(alignment)
     }
 }
 

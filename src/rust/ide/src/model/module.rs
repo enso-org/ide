@@ -393,7 +393,6 @@ impl Module {
     /// Module ast.
     pub fn apply_code_change
     (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult<()> {
-        let logger            = Logger::new("apply_code_change");
         let mut code          = self.ast().repr();
         let replaced_location = TextLocation::convert_range(&code,&change.replaced);
         change.apply(&mut code);

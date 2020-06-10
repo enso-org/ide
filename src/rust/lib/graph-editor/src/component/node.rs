@@ -170,7 +170,7 @@ pub struct InputEvents {
     pub select            : frp::Source,
     pub deselect          : frp::Source,
     pub set_expression    : frp::Source<Expression>,
-    pub set_visualization : frp::Source<Option<visualization::Visualization>>,
+    pub set_visualization : frp::Source<Option<visualization::Instance>>,
 }
 
 impl InputEvents {
@@ -240,20 +240,21 @@ impl Deref for Node {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct NodeModel {
-    pub scene                   : Scene,
-    pub display_object          : display::object::Instance,
-    pub logger                  : Logger,
-    pub frp                     : Frp,
-    pub main_area               : component::ShapeView<shape::Shape>,
-    pub drag_area               : component::ShapeView<drag_area::Shape>,
-    pub output_area             : component::ShapeView<output_area::Shape>,
-    pub ports                   : port::Manager,
-    pub visualization_container : visualization::Container,
+    pub scene          : Scene,
+    pub display_object : display::object::Instance,
+    pub logger         : Logger,
+    pub frp            : Frp,
+    pub main_area      : component::ShapeView<shape::Shape>,
+    pub drag_area      : component::ShapeView<drag_area::Shape>,
+    pub output_area    : component::ShapeView<output_area::Shape>,
+    pub ports          : port::Manager,
+    pub visualization  : visualization::Container,
 }
 
-pub const NODE_HEIGHT : f32 = 28.0;
-pub const TEXT_OFF : f32 = 10.0;
-pub const SHADOW_SIZE : f32 = 10.0;
+pub const CORNER_RADIUS : f32 = 14.0;
+pub const NODE_HEIGHT   : f32 = 28.0;
+pub const TEXT_OFF      : f32 = 10.0;
+pub const SHADOW_SIZE   : f32 = 10.0;
 
 
 impl NodeModel {
@@ -263,9 +264,12 @@ impl NodeModel {
         let logger  = Logger::new("node");
         edge::sort_hack_1(scene);
 
-        let output_area = component::ShapeView::<output_area::Shape>::new(&logger.sub("output_area"),scene);
-        let main_area   = component::ShapeView::<shape::Shape>::new(&logger.sub("main_area"),scene);
-        let drag_area   = component::ShapeView::<drag_area::Shape>::new(&logger.sub("drag_area"),scene);
+        let output_logger = Logger::sub(&logger,"output_area");
+        let main_logger   = Logger::sub(&logger,"main_area");
+        let drag_logger   = Logger::sub(&logger,"drag_area");
+        let output_area   = component::ShapeView::<output_area::Shape>::new(&output_logger,scene);
+        let main_area     = component::ShapeView::<shape      ::Shape>::new(&main_logger  ,scene);
+        let drag_area     = component::ShapeView::<drag_area  ::Shape>::new(&drag_logger  ,scene);
         edge::sort_hack_2(scene);
 
         port::sort_hack(scene); // FIXME hack for sorting
@@ -283,13 +287,13 @@ impl NodeModel {
         let scene = scene.clone_ref();
         let input = InputEvents::new(&network);
 
-        let visualization_container = visualization::Container::new(&scene);
-        visualization_container.mod_position(|t| {
+        let visualization = visualization::Container::new(&logger,&scene);
+        visualization.mod_position(|t| {
             t.x = 60.0;
             t.y = -120.0;
         });
 
-        display_object.add_child(&visualization_container);
+        display_object.add_child(&visualization);
 
         ports.mod_position(|p| {
             p.x = TEXT_OFF;
@@ -305,7 +309,7 @@ impl NodeModel {
 
 
         Self {scene,display_object,logger,frp,main_area,drag_area,output_area,ports
-             ,visualization_container} . init()
+             ,visualization} . init()
     }
 
     fn init(self) -> Self {
@@ -325,9 +329,9 @@ impl NodeModel {
         let height = 28.0;
 
         let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
-        self.main_area.shape.sprite.size().set(size);
-        self.drag_area.shape.sprite.size().set(size);
-        self.output_area.shape.sprite.size().set(size);
+        self.main_area.shape.sprite.size.set(size);
+        self.drag_area.shape.sprite.size.set(size);
+        self.output_area.shape.sprite.size.set(size);
         self.main_area.mod_position(|t| t.x = width/2.0);
         self.main_area.mod_position(|t| t.y = height/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
@@ -335,9 +339,11 @@ impl NodeModel {
         self.output_area.mod_position(|t| t.x = width/2.0);
         self.output_area.mod_position(|t| t.y = height/2.0);
     }
+
+    pub fn visualization(&self) -> &visualization::Container {
+        &self.visualization
+    }
 }
-
-
 
 impl Node {
     pub fn new(scene:&Scene) -> Self {
@@ -360,7 +366,7 @@ impl Node {
             eval_ model.output_area.events.mouse_out  (output_area_size.set_target_value(0.0));
 
             eval inputs.set_visualization ((content)
-                model.visualization_container.frp.set_visualization.emit(content)
+                model.visualization.frp.set_visualization.emit(content)
             );
         }
 

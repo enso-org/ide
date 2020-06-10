@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::display::layout::types::*;
+use crate::display::layout::Alignment;
 use crate::display::shape::text::glyph::font;
 use crate::display::shape::text::glyph::font::GlyphRenderInfo;
 use crate::display::shape::text::glyph::pen::PenIterator;
@@ -99,8 +99,8 @@ pub struct Line {
 
 impl Line {
     /// Constructor.
-    pub fn new(logger:&Logger, glyph_system:&GlyphSystem) -> Self {
-        let logger         = logger.sub("line");
+    pub fn new(logger:impl AnyLogger, glyph_system:&GlyphSystem) -> Self {
+        let logger         = Logger::sub(logger,"line");
         let display_object = display::object::Instance::new(logger);
         let glyph_system   = glyph_system.clone_ref();
         let font_size      = Rc::new(Cell::new(11.0));
@@ -213,11 +213,11 @@ impl Line {
             glyph.set_position(Vector3::new(glyph_x,glyph_y,0.0));
             glyph.set_glyph(chr);
             glyph.color().set(color);
-            glyph.size().set(size);
+            glyph.size.set(size);
         }
 
         for glyph in self.glyphs.borrow().iter().skip(content_len) {
-            glyph.size().set(Vector2::new(0.0,0.0));
+            glyph.size.set(Vector2::new(0.0,0.0));
         }
     }
 }
@@ -264,7 +264,7 @@ impl GlyphSystem {
         let mesh          = symbol.surface();
 
         sprite_system.set_material(Self::material());
-        sprite_system.set_alignment(HorizontalAlignment::Left,VerticalAlignment::Bottom);
+        sprite_system.set_alignment(Alignment::bottom_left());
         scene.variables.add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables.add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {logger,context,sprite_system,font,

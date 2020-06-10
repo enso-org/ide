@@ -161,38 +161,46 @@ impl Span {
         start .. end
     }
 
+    /// Expand the span by moving its left (start) index.
     pub fn extend_left(&mut self, size:Size) {
         self.index -= size;
         self.size += size;
     }
 
+    /// Expand the span by moving its right (end) index.
     pub fn extend_right(&mut self, size:Size) {
         self.size += size;
     }
 
+    /// Shrink the span by moving its left (start) index.
     pub fn shrink_left(&mut self, size:Size) {
         self.index += size;
         self.size -= size;
     }
 
+    /// Shrink the span by moving its right (end) index.
     pub fn shrink_right(&mut self, size:Size) {
         self.size -= size;
     }
 
+    /// Move the whole span left, maintaining its size.
     pub fn move_left(&mut self, size:Size) {
         self.index -= size;
     }
 
+    /// Move the whole span right, maintaining its size.
     pub fn move_right(&mut self, size:Size) {
         self.index += size;
     }
 
+    /// Move the start index of the span, adjusting the size.
     pub fn set_left(&mut self, new_left:Index) {
         let end = self.end();
         self.index = new_left;
         self.size = end - new_left;
     }
 
+    /// Move the end index of the span, adjusting the size.
     pub fn set_right(&mut self, new_right:Index) {
         self.size = new_right - self.index;
     }
