@@ -264,7 +264,7 @@ mod test {
         let path          = model::module::Path::from_mock_module_name("Test");
         let root_def      = DefinitionName::new_plain("main");
         let ls            = language_server::MockClient::default();
-        let model         = model::ExecutionContext::new(&default(),root_def);
+        let model         = model::ExecutionContext::new(Logger::default(),root_def);
         expect_call!(ls.pop_from_execution_context(id) => Ok(()));
         expect_call!(ls.destroy_execution_context(id) => Ok(()));
         model.push(item);
@@ -284,7 +284,7 @@ mod test {
         let exe_id   = model::execution_context::Id::new_v4();
         let path     = model::module::Path::from_mock_module_name("Test");
         let root_def = DefinitionName::new_plain("main");
-        let model    = model::ExecutionContext::new(&default(),root_def);
+        let model    = model::ExecutionContext::new(Logger::default(),root_def);
         let ls       = language_server::MockClient::default();
         let vis      = Visualization {
             id                   : model::execution_context::VisualizationId::new_v4(),
