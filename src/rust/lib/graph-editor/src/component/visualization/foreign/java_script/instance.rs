@@ -10,14 +10,16 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
+use crate::component::visualization::java_script::base_class::VisualisationInitialisationData;
 use crate::component::visualization::java_script::method;
 use crate::component::visualization;
 use crate::frp;
 
 use core::result;
+use enso_frp::stream::EventEmitter;
 use ensogl::display::DomScene;
-use ensogl::display::Scene;
 use ensogl::display::DomSymbol;
+use ensogl::display::Scene;
 use ensogl::display;
 use ensogl::system::web::JsValue;
 use ensogl::system::web;
@@ -75,6 +77,10 @@ impl std::error::Error for Error {}
 
 /// Internal helper type to propagate results that can fail due to `JsVisualizationError`s.
 pub type Result<T> = result::Result<T, Error>;
+/// Helper type for the callback used to set the preprocessor code.
+pub trait PreprocessorCallback = Fn(String);
+/// Internal helper type to store the preprocessor callback.
+type PreprocessorCallbackCell = Rc<RefCell<Option<Box<dyn PreprocessorCallback>>>>;
 
 
 
@@ -84,47 +90,80 @@ pub type Result<T> = result::Result<T, Error>;
 
 /// `JsVisualizationGeneric` allows the use of arbitrary javascript to create visualizations. It
 /// takes function definitions as strings and proved those functions with data.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Derivative)]
+#[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct InstanceModel {
-    pub root_node        : DomSymbol,
-    pub logger           : Logger,
-        on_data_received : Rc<Option<js_sys::Function>>,
-        set_size         : Rc<Option<js_sys::Function>>,
-        object           : Rc<js_sys::Object>,
+    pub root_node                    : DomSymbol,
+    pub logger                       : Logger,
+        on_data_received             : Rc<Option<js_sys::Function>>,
+        set_size                     : Rc<Option<js_sys::Function>>,
+        object                       : Rc<js_sys::Object>,
+        #[derivative(Debug="ignore")]
+        preprocessor_change_callback : PreprocessorCallbackCell,
 }
 
 impl InstanceModel {
-    /// Tries to create a InstanceModel from the given visualisation class.
-    pub fn from_class(class:&JsValue) -> result::Result<Self, Error> {
+
+    fn create_root() -> result::Result<DomSymbol, Error> {
         let div       = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node.dom().set_attribute("id","vis")
             .map_err(|js_error|Error::ConstructorError{js_error})?;
+        Ok(root_node)
+    }
 
+    /// We need to provide a closure to the Visualisation on the JS side, which we then later
+    /// can hook up to the FRP. Here we create a `PreprocessorCallbackCell`, which can hold a closure,
+    /// and a `PreprocessorCallback` which holds a weak reference to the closure inside of the
+    /// PreprocessorCallbackCell. This allows us to pass the `PreprocessorCallback` to the
+    /// javascript code, and call from there the closure stored in the `PreprocessorCallbackCell`.
+    /// We will later on set the closure inside of the `PreprocessorCallbackCell` to emit an FRP
+    /// event.
+    fn create_preprocessor_change_callback() -> (PreprocessorCallbackCell,impl PreprocessorCallback)  {
+        let preprocessor_closure_cell:PreprocessorCallbackCell = default();
+        let weak_preprocessor_closure_cell = Rc::downgrade(&preprocessor_closure_cell);
+        let preprocessor_closure = move |s:String| {
+            if let Some(callback) = weak_preprocessor_closure_cell.upgrade() {
+                callback.borrow().map_ref(|f| {
+                    f(s);
+                });
+            }
+        };
+        (preprocessor_closure_cell, preprocessor_closure)
+    }
+
+    fn instantiate_class_with_args(class:&JsValue, args:VisualisationInitialisationData)
+        -> result::Result<js_sys::Object,Error> {
         let js_new   = js_sys::Function::new_with_args(constructor::ARG, constructor::BODY);
         let context  = JsValue::NULL;
-        let object   = js_new.call2(&context,&class, &root_node)
+        let object   = js_new.call2(&context,&class,&args.into())
             .map_err(|js_error|Error::ConstructorError {js_error})?;
         if !object.is_object() {
             return Err(Error::ValueIsNotAnObject { object } )
         }
         let object:js_sys::Object = object.into();
+        Ok(object)
+    }
 
-        let on_data_received = get_method(&object, method::ON_DATA_RECEIVED).ok();
+    /// Tries to create a InstanceModel from the given visualisation class.
+    pub fn from_class(class:&JsValue) -> result::Result<Self, Error> {
+        let root_node = Self::create_root()?;
+        let (preprocessor_change_callback, on_preprocessor_change) = Self::create_preprocessor_change_callback();
+        let init_data = VisualisationInitialisationData::new(root_node.clone_ref(),
+                                                             on_preprocessor_change);
+        let object = Self::instantiate_class_with_args(class, init_data)?;
+
+        let on_data_received = get_method(&object,method::ON_DATA_RECEIVED).ok();
         let on_data_received = Rc::new(on_data_received);
-        let set_size         = get_method(&object, method::SET_SIZE).ok();
+        let set_size         = get_method(&object,method::SET_SIZE).ok();
         let set_size         = Rc::new(set_size);
         let logger           = Logger::new("Instance");
         let object           = Rc::new(object);
 
-        Ok(InstanceModel{object,on_data_received,set_size,root_node,logger}.init())
-    }
-
-    fn init(self) -> Self {
-        let init_dom = get_method(&self.object,method::INIT_DOM).ok();
-        let _ = self.try_call1(&init_dom, &self.root_node.dom());
-        self
+        Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,
+            preprocessor_change_callback
+        })
     }
 
     /// Hooks the root node into the given scene.
@@ -194,7 +233,7 @@ impl Instance {
         let model   = InstanceModel::from_class(class)?;
         model.set_dom_layer(&scene.dom.layers.main);
 
-        Ok(Instance{model,frp,network}.init_frp())
+        Ok(Instance{model,frp,network}.init_frp().inti_preprocessor_callback())
     }
 
     fn init_frp(self) -> Self {
@@ -211,6 +250,18 @@ impl Instance {
         }
         self
     }
+
+    fn inti_preprocessor_callback(self) -> Self {
+        // FIXME This leaks memory. Is there a way to get a weak reference to the frp node here?
+        let on_change  = self.frp.on_change.clone_ref();
+        let callback = move |s:String| {
+            on_change.emit_event(&s.into());
+        };
+        let callback = Box::new(callback);
+        self.model.preprocessor_change_callback.borrow_mut().replace(callback);
+        self
+    }
+
 }
 
 impl From<Instance> for visualization::Instance {

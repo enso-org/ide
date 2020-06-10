@@ -12,6 +12,8 @@ pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition 
             static inputType = "Any"
 
             onDataReceived(data) {
+                this.setPreprocessor("None");
+
                 const xmlns = "http://www.w3.org/2000/svg";
                 while (this.dom.firstChild) {
                     this.dom.removeChild(this.dom.lastChild);

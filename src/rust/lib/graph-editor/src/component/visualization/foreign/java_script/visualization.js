@@ -1,8 +1,11 @@
 export class Visualization {
-    constructor(root) {
-        this.dom = root
+    constructor(init) {
+        this.dom = init.root();
+        this.inner = init;
     }
-    setPreprocessor () {}
+    setPreprocessor (code) {
+        this.inner.emit_preprocessor_change(code)
+    }
 }
 
 export function cls() {
