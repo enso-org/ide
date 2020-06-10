@@ -101,6 +101,12 @@ impl Display for Size {
     }
 }
 
+impl From<&str> for Size {
+    fn from(text:&str) -> Self {
+        Size::new(text.len())
+    }
+}
+
 
 // === Span ===
 
@@ -154,6 +160,42 @@ impl Span {
         let end   = self.end().value;
         start .. end
     }
+
+    pub fn extend_left(&mut self, size:Size) {
+        self.index -= size;
+        self.size += size;
+    }
+
+    pub fn extend_right(&mut self, size:Size) {
+        self.size += size;
+    }
+
+    pub fn shrink_left(&mut self, size:Size) {
+        self.index += size;
+        self.size -= size;
+    }
+
+    pub fn shrink_right(&mut self, size:Size) {
+        self.size -= size;
+    }
+
+    pub fn move_left(&mut self, size:Size) {
+        self.index -= size;
+    }
+
+    pub fn move_right(&mut self, size:Size) {
+        self.index += size;
+    }
+
+    pub fn set_left(&mut self, new_left:Index) {
+        let end = self.end();
+        self.index = new_left;
+        self.size = end - new_left;
+    }
+
+    pub fn set_right(&mut self, new_right:Index) {
+        self.size = new_right - self.index;
+    }
 }
 
 impls! { From + &From <Range<usize>> for Span { |range|
@@ -181,6 +223,14 @@ impl std::ops::Index<Span> for str {
 
     fn index(&self, index:Span) -> &Self::Output {
         &self[index.range()]
+    }
+}
+
+impl std::ops::Index<Span> for String {
+    type Output = str;
+
+    fn index(&self, index:Span) -> &Self::Output {
+        &self.as_str()[index]
     }
 }
 
