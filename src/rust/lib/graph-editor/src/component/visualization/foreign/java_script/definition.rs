@@ -122,9 +122,9 @@ use std::str::FromStr;
 
 #[allow(missing_docs)]
 pub mod field {
-    pub const LABEL         : &str = "label";
-    pub const INPUT_TYPE    : &str = "inputType";
-    pub const INPUT_FORMAT  : &str = "inputFormat";
+    pub const LABEL        : &str = "label";
+    pub const INPUT_TYPE   : &str = "inputType";
+    pub const INPUT_FORMAT : &str = "inputFormat";
 }
 
 #[allow(missing_docs)]

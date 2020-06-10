@@ -95,17 +95,18 @@ impl BubbleChartModel {
 #[derive(Debug,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct BubbleChart {
-    network            : frp::Network,
-    frp                : visualization::instance::Frp,
     #[shrinkwrap(main_field)]
-    model              : BubbleChartModel
+    model   : BubbleChartModel,
+    network : frp::Network,
+    frp     : visualization::instance::Frp,
 }
 
 #[allow(missing_docs)]
 impl BubbleChart {
     pub fn definition() -> Definition {
+        let path = Path::builtin("[Demo] Bubble Visualization");
         Definition::new(
-            Signature::new_for_any_type(Path::builtin("[Demo] Bubble Visualization"), Format::Json),
+            Signature::new_for_any_type(path,Format::Json),
             |scene| { Ok(Self::new(scene).into()) }
         )
     }

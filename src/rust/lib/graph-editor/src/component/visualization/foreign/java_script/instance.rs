@@ -135,9 +135,9 @@ impl InstanceModel {
 
     fn instantiate_class_with_args(class:&JsValue, args:VisualisationInitialisationData)
         -> result::Result<js_sys::Object,Error> {
-        let js_new   = js_sys::Function::new_with_args(constructor::ARG, constructor::BODY);
-        let context  = JsValue::NULL;
-        let object   = js_new.call2(&context,&class,&args.into())
+        let js_new  = js_sys::Function::new_with_args(constructor::ARG, constructor::BODY);
+        let context = JsValue::NULL;
+        let object  = js_new.call2(&context,&class,&args.into())
             .map_err(|js_error|Error::ConstructorError {js_error})?;
         if !object.is_object() {
             return Err(Error::ValueIsNotAnObject { object } )

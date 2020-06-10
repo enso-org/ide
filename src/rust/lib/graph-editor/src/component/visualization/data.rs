@@ -53,7 +53,7 @@ impl FromStr for Format {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        match s.to_lowercase().as_str() {
             "json"   => Ok(Format::Json),
             "binary" => Ok(Format::Binary),
             _ => Err(ParseError::NotAValidFormat(s.to_string()))

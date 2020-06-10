@@ -21,7 +21,7 @@ extern "C" {
 
     #[allow(unsafe_code)]
     #[wasm_bindgen(method)]
-    fn setPreprocessor(this: &Visualization);
+    fn setPreprocessor(this:&Visualization, code:String);
 }
 
 

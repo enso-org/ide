@@ -38,8 +38,9 @@ impl Signature {
     }
 
     /// Constructor of signature valid for any Enso type.
-    pub fn new_for_any_type(path:impl Into<visualization::Path>,
-                            input_format:impl Into<visualization::data::Format>) -> Self {
+    pub fn new_for_any_type(
+        path:impl Into<visualization::Path>,
+        input_format:impl Into<visualization::data::Format>) -> Self {
         let input_type = EnsoType::any();
         Self::new(path,input_type,input_format)
     }
