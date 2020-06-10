@@ -28,7 +28,7 @@ mod js {
 
         export function set_object_transform(dom, matrix_array) {
             let css = arr_to_css_matrix3d(matrix_array);
-            dom.style.transform = 'translate(-50%, -50%)' + css;
+            dom.style.transform = css + 'translate(-50%, -50%) scale(1.0,-1.0)';
         }
     ")]
     extern "C" {
@@ -87,10 +87,11 @@ impl Drop for Guard {
 // =================
 
 /// A DOM element which is managed by the rendering engine.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct DomSymbol {
-    display_object : display::object::Instance,
+    #[shrinkwrap(main_field)]
     dom            : HtmlDivElement,
+    display_object : display::object::Instance,
     size           : Rc<Cell<Vector2<f32>>>,
     guard          : Rc<Guard>,
 }

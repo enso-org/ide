@@ -56,10 +56,10 @@ pub mod data;
 pub mod debug;
 pub mod display;
 pub mod gui;
-pub mod math;
 pub mod system;
 
-pub use enso_frp as frp;
+pub use enso_frp  as frp;
+pub use enso_math as math;
 
 /// Prelude - commonly used utilities.
 pub mod prelude {
@@ -70,6 +70,7 @@ pub mod prelude {
     pub use shapely::CloneRef;
     pub use shapely::newtype_copy;
     pub use shapely::shared;
+    pub use super::display::traits::*;
     pub use super::data::container::AddMut;
     pub use super::math::types::*;
 }

@@ -14,6 +14,7 @@ use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::world::*;
 use ensogl::display;
+use ensogl::system::web::platform::Platform;
 use nalgebra::Vector2;
 use nalgebra::zero;
 use utils::channel::process_stream_with_handle;
@@ -88,8 +89,16 @@ impl TextEditor {
         Self::new_from_data(data).initialize(keyboard_actions)
     }
 
+    fn get_save_keys_mask() -> KeyMask {
+        if let Platform::MacOS = Platform::query() {
+            KeyMask::meta_plus('s')
+        } else {
+            KeyMask::control_plus('s')
+        }
+    }
+
     fn initialize(self, keyboard_actions:&mut keyboard::Actions) -> Self {
-        let save_keys   = KeyMask::control_plus('s');
+        let save_keys   = Self::get_save_keys_mask();
         let text_editor = Rc::downgrade(&self.rc);
         keyboard_actions.add_action_for_key_mask(save_keys,enclose!((text_editor) move || {
             if let Some(text_editor) = text_editor.upgrade() {
@@ -165,10 +174,8 @@ impl TextEditor {
         let position = data.position;
         let position = Vector3::new(position.x + padding.left,position.y + padding.bottom,z_origin);
         data.text_field.set_position(position);
-        // TODO: Set text field size once the size change gets supported.
-        // https://app.zenhub.com/workspaces/enso-5b57093c92e09f0d21193695/issues/luna/ide/217
-        // let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
-        // self.text_field.set_size(self.dimensions - padding);
+        let padding  = Vector2::new(padding.left + padding.right, padding.top + padding.bottom);
+        data.text_field.set_size(data.size - padding);
     }
 }
 

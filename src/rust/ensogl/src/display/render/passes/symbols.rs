@@ -13,7 +13,7 @@ use crate::display::scene;
 // === SymbolsRenderPass ===
 // =========================
 
-/// Pass for rendering all symbols. The results are stored in a `'color'` variable.
+/// Pass for rendering all symbols. The results are stored in the 'color' and 'id' outputs.
 #[derive(Clone,Debug)]
 pub struct SymbolsRenderPass {
     target : SymbolRegistry,
@@ -37,8 +37,8 @@ impl RenderPass for SymbolsRenderPass {
             mag_filter : texture::MagFilter::Nearest,
             ..default()
         };
-        vec![ RenderPassOutput::new("color",texture::Rgba,texture::item_type::u8,color_parameters)
-            , RenderPassOutput::new("id",texture::Rgba,texture::item_type::u8,id_parameters)
+        vec![ RenderPassOutput::new("color" , texture::Rgba,texture::item_type::u8,color_parameters)
+            , RenderPassOutput::new("id"    , texture::Rgba,texture::item_type::u8,id_parameters)
             ]
     }
 
@@ -46,13 +46,12 @@ impl RenderPass for SymbolsRenderPass {
         let arr = vec![0.0,0.0,0.0,0.0];
         context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
         context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
-        self.target.set_camera(&self.views.main.camera);
-        self.target.render_by_ids(&self.views.main.symbols());
 
-        self.target.set_camera(&self.views.cursor.camera);
-        self.target.render_by_ids(&self.views.cursor.symbols());
-
-        self.target.set_camera(&self.views.label.camera);
-        self.target.render_by_ids(&self.views.label.symbols());
+        for view in self.views.all().iter() {
+            if let Some(view) = view.upgrade() {
+                self.target.set_camera(&view.camera);
+                self.target.render_by_ids(&view.symbols());
+            }
+        }
     }
 }

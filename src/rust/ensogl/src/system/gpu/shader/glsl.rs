@@ -7,11 +7,13 @@ use crate::prelude::*;
 
 use crate::system::gpu::data::buffer::item::MatrixCtx;
 use crate::data::color;
+use crate::math::topology::unit::*;
 
 use code_builder::CodeBuilder;
 use code_builder::HasCodeRepr;
 use nalgebra::*;
 use shapely::derive_clone_plus;
+
 
 
 
@@ -105,6 +107,51 @@ where [ T1:Into<Glsl>, T2:Into<Glsl>, T3:Into<Glsl>, T4:Into<Glsl> ] { |t| {
 }}}
 
 
+// === From Vectors to Glsl ===
+
+impls! {[T:Into<Glsl>] From <V2<T>> for Glsl { |t| {
+    let x = t.x.into();
+    let y = t.y.into();
+    iformat!("vec2({x},{y})").into()
+}}}
+
+impls! {[T:Into<Glsl>] From <V3<T>> for Glsl { |t| {
+    let x = t.x.into();
+    let y = t.y.into();
+    let z = t.z.into();
+    iformat!("vec2({x},{y},{z})").into()
+}}}
+
+impls! {[T:Into<Glsl>] From <V4<T>> for Glsl { |t| {
+    let x = t.x.into();
+    let y = t.y.into();
+    let z = t.z.into();
+    let w = t.w.into();
+    iformat!("vec2({x},{y},{z},{w})").into()
+}}}
+
+impls! {[T:RefInto<Glsl>] From <&V2<T>> for Glsl { |t| {
+    let x = t.x.glsl();
+    let y = t.y.glsl();
+    iformat!("vec2({x},{y})").into()
+}}}
+
+impls! {[T:RefInto<Glsl>] From <&V3<T>> for Glsl { |t| {
+    let x = t.x.glsl();
+    let y = t.y.glsl();
+    let z = t.z.glsl();
+    iformat!("vec2({x},{y},{z})").into()
+}}}
+
+impls! {[T:RefInto<Glsl>] From <&V4<T>> for Glsl { |t| {
+    let x = t.x.glsl();
+    let y = t.y.glsl();
+    let z = t.z.glsl();
+    let w = t.w.glsl();
+    iformat!("vec2({x},{y},{z},{w})").into()
+}}}
+
+
 // === From Prim Types to Glsl ===
 
 impls! { From + &From <bool> for Glsl { |t| t.to_string().into() } }
@@ -148,6 +195,36 @@ impls! { From + &From <color::LinearRgb> for Glsl {
 impls! { From + &From <color::LinearRgba> for Glsl {
     |t| iformat!("rgba({t.red.glsl()},{t.green.glsl()},{t.blue.glsl()},{t.alpha.glsl()})").into()
 } }
+
+
+// === Units ===
+
+impls! { From + &From <Distance<Pixels>> for Glsl { |t| { t.value.into() } }}
+
+impls! { From<PhantomData<Distance<Pixels>>> for PrimType {
+    |_|  { PhantomData::<f32>.into() }
+}}
+
+impls! { From<PhantomData<Vector2<Distance<Pixels>>>> for PrimType {
+    |_|  { PhantomData::<Vector2<f32>>.into() }
+}}
+
+impls! { From<PhantomData<Vector3<Distance<Pixels>>>> for PrimType {
+    |_|  { PhantomData::<Vector3<f32>>.into() }
+}}
+
+impls! { From<PhantomData<Vector4<Distance<Pixels>>>> for PrimType {
+    |_|  { PhantomData::<Vector4<f32>>.into() }
+}}
+
+
+impls! { From< Angle<Radians>> for Glsl { |t| { f32_to_rad(&t.value.glsl()) } }}
+impls! { From<&Angle<Radians>> for Glsl { |t| { f32_to_rad(&t.value.glsl()) } }}
+impls! { From< Angle<Degrees>> for Glsl { |t| { deg_to_f32(&f32_to_deg(&t.value.glsl())) } }}
+impls! { From<&Angle<Degrees>> for Glsl { |t| { deg_to_f32(&f32_to_deg(&t.value.glsl())) } }}
+impls! { From<PhantomData<Angle<Radians>>> for PrimType {
+    |_|  { "Radians".into() }
+}}
 
 
 
@@ -856,6 +933,10 @@ define_glsl_prim_type_conversions! {
     i32            => Int,
     u32            => UInt,
     f32            => Float,
+
+    V2<f32>        => Vec2,
+    V3<f32>        => Vec3,
+    V4<f32>        => Vec4,
 
     Vector2<f32>   => Vec2,
     Vector3<f32>   => Vec3,
