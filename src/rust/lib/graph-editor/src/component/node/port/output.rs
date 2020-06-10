@@ -163,12 +163,13 @@ impl OutputPortsData {
     }
 
     fn update_shape_layout_based_on_size(&self) {
-        let port_num   = self.ports.borrow().len() as f32;
-        let width      = self.size.get().x;
-        let height     = self.size.get().y;
-        let port_width = (width - node::NODE_SHAPE_PADDING) / port_num;
-        let port_size  = Vector2::new(port_width, height);
-        let gap_width  = self.gap_width.get();
+        let port_num    = self.ports.borrow().len() as f32;
+        let width       = self.size.get().x;
+        let width_inner = width - 2.0 * node::NODE_SHAPE_PADDING + 2.0 * node::SHADOW_SIZE;
+        let height      = self.size.get().y;
+        let port_width  = (width_inner) / port_num;
+        let port_size   = Vector2::new(port_width, height);
+        let gap_width   = self.gap_width.get();
 
         // Align shapes along width.
         let x_start = -width / 2.0 + node::NODE_SHAPE_PADDING;
