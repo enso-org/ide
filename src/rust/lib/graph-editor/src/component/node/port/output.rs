@@ -101,7 +101,10 @@ pub mod port_area {
 // ===========
 
 /// Id of a specific port inside of `OutPutPortsData`.
-type PortId = usize;
+#[derive(Clone,Copy,Default,Debug)]
+pub struct PortId {
+    index: usize,
+}
 
 /// Frp API of the `OutPutPorts`.
 #[derive(Clone,CloneRef,Debug)]
@@ -305,9 +308,9 @@ impl OutputPorts {
 
                 // === Mouse Event Handling == ///
 
-                eval_ view.events.mouse_over(port_mouse_over.emit(index));
-                eval_ view.events.mouse_out(port_mouse_out.emit(index));
-                eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
+                eval_ view.events.mouse_over(port_mouse_over.emit(PortId{index}));
+                eval_ view.events.mouse_out(port_mouse_out.emit(PortId{index}));
+                eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(PortId{index}));
 
 
                  // === Animation Handling == ///
@@ -324,7 +327,7 @@ impl OutputPorts {
                  }));
 
                 // Through the provided ID we can infer whether this port should be highlighted.
-                is_selected      <- activate_ports_with_selected.map(move |id| *id == index);
+                is_selected      <- activate_ports_with_selected.map(move |id| id.index == index);
                 show_normal      <- activate_ports_with_selected.gate_not(&is_selected);
                 show_highlighted <- activate_ports_with_selected.gate(&is_selected);
 
