@@ -234,7 +234,7 @@ mod test {
         let expression_id       = model::execution_context::ExpressionId::new_v4();
         let path                = model::module::Path::from_mock_module_name("Test");
         let root_def            = DefinitionName::new_plain("main");
-        let model               = model::ExecutionContext::new(&default(),root_def);
+        let model               = model::ExecutionContext::new(Logger::default(),root_def);
         let ls                  = language_server::MockClient::default();
         let expected_call_frame = language_server::LocalCall{expression_id};
         let expected_stack_item = language_server::StackItem::LocalCall(expected_call_frame);
