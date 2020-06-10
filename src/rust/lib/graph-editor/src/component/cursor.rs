@@ -28,6 +28,7 @@ const DEFAULT_COLOR_ALPHA : f32 = 0.2;
 
 
 
+
 // ==================
 // === StyleValue ===
 // ==================
@@ -39,7 +40,7 @@ const DEFAULT_COLOR_ALPHA : f32 = 0.2;
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct StyleValue<T> {
-    pub value   : T,
+    pub value   : Option<T>,
     pub animate : bool,
 }
 
@@ -54,21 +55,19 @@ impl<T:Default> Default for StyleValue<T> {
 impl<T> StyleValue<T> {
     /// Constructor.
     pub fn new(value:T) -> Self {
+        let value   = Some(value);
         let animate = true;
         Self {value,animate}
     }
 
     /// Constructor with disabled animation.
     pub fn new_no_animation(value:T) -> Self {
+        let value   = Some(value);
         let animate = false;
         Self {value,animate}
     }
 }
 
-
-pub enum Value<T> {
-    Default, Provided(T)
-}
 
 
 // =============
@@ -83,7 +82,7 @@ macro_rules! define_style {( $( $(#$meta:tt)* $field:ident : $field_type:ty),* $
     /// it in FRP.
     #[derive(Debug,Clone,Default)]
     pub struct Style {
-        $($(#$meta)? $field : Option<$field_type>),*
+        $($(#$meta)? $field : Option<StyleValue<$field_type>>),*
     }
 
     impl PartialSemigroup<&Style> for Style {
@@ -104,12 +103,12 @@ define_style! {
     /// Host defines an object which the cursor position is bound to. It is used to implement
     /// label selection. After setting the host to the label, cursor will not follow mouse anymore,
     /// it will inherit its position from the label instead.
-    host   : StyleValue<display::object::Instance>,
-    size   : StyleValue<Vector2<f32>>,
-    offset : StyleValue<Vector2<f32>>,
-    color  : StyleValue<color::Lcha>,
-    radius : StyleValue<f32>,
-    press  : StyleValue<f32>,
+    host   : display::object::Instance,
+    size   : Vector2<f32>,
+    offset : Vector2<f32>,
+    color  : color::Lcha,
+    radius : f32,
+    press  : f32,
 }
 
 
@@ -166,7 +165,7 @@ impl Style {
 #[allow(missing_docs)]
 impl Style {
     pub fn host_position(&self) -> Option<Vector3<f32>> {
-        self.host.as_ref().map(|t| t.value.position())
+        self.host.as_ref().and_then(|t| t.value.as_ref().map(|t| t.position()))
     }
 }
 
@@ -348,53 +347,59 @@ impl Cursor {
                 host_attached_weight.stop_and_rewind();
                 if new_style.host.is_some() { host_attached_weight.start() }
 
+                let def = 0.0;
                 match &new_style.press {
-                    None => press.set_target_value(0.0),
-                    Some(new_press) => {
-                        press.set_target_value(new_press.value);
-                        if !new_press.animate {
+                    None => press.set_target_value(def),
+                    Some(t) => {
+                        let value = t.value.unwrap_or(def);
+                        press.set_target_value(value);
+                        if !t.animate {
                             press.skip();
                         }
                     }
                 }
 
-                match &new_style.color {
-                    None => {
-                        color_lab.set_target_value(DEFAULT_COLOR_LAB);
-                        color_alpha.set_target_value(DEFAULT_COLOR_ALPHA);
-                    }
-                    Some(new_color) => {
-                        let lab = color::Laba::from(new_color.value);
-                        color_lab.set_target_value(V3(lab.lightness,lab.a,lab.b));
-                        color_alpha.set_target_value(lab.alpha);
-                        if !new_color.animate {
-                            color_lab.skip();
-                            color_alpha.skip();
-                        }
-                    }
-                }
+//                match &new_style.color {
+//                    None => {
+//                        color_lab.set_target_value(DEFAULT_COLOR_LAB);
+//                        color_alpha.set_target_value(DEFAULT_COLOR_ALPHA);
+//                    }
+//                    Some(t) => {
+//                        let value = t.value.unwrap_or_else(||);
+//                        let lab = color::Laba::from(t.value);
+//                        color_lab.set_target_value(V3(lab.lightness,lab.a,lab.b));
+//                        color_alpha.set_target_value(lab.alpha);
+//                        if !t.animate {
+//                            color_lab.skip();
+//                            color_alpha.skip();
+//                        }
+//                    }
+//                }
 
                 match &new_style.size {
                     None => size.set_target_value(DEFAULT_SIZE),
-                    Some(new_size) => {
-                        size.set_target_value(V2::new(new_size.value.x,new_size.value.y));
-                        if !new_size.animate { size.skip() }
+                    Some(t) => {
+                        let value = t.value.unwrap_or(DEFAULT_SIZE.into()); // fixme
+                        size.set_target_value(V2::new(value.x,value.y));
+                        if !t.animate { size.skip() }
                     }
                 }
 
                 match &new_style.offset {
                     None => offset.set_target_value(default()),
-                    Some(new_offset) => {
-                        offset.set_target_value(V2::new(new_offset.value.x,new_offset.value.y));
-                        if !new_offset.animate { offset.skip() }
+                    Some(t) => {
+                        let value = t.value.unwrap_or_default();
+                        offset.set_target_value(V2::new(value.x,value.y));
+                        if !t.animate { offset.skip() }
                     }
                 }
 
                 match &new_style.radius {
                     None => radius.set_target_value(DEFAULT_RADIUS),
-                    Some(new_radius) => {
-                        radius.set_target_value(new_radius.value);
-                        if !new_radius.animate { radius.skip() }
+                    Some(t) => {
+                        let value = t.value.unwrap_or(DEFAULT_RADIUS);
+                        radius.set_target_value(value);
+                        if !t.animate { radius.skip() }
                     }
                 }
 
@@ -407,13 +412,13 @@ impl Cursor {
             mouse_pos_rt    <- mouse.position.gate(&is_not_hosted);
 
             eval_ host_changed([model,host_position,host_follow_weight] {
-                match &model.style.borrow().host {
+                match model.style.borrow().host.as_ref().and_then(|t|t.value.as_ref()) {
                     None       => host_follow_weight.set_target_value(0.0),
                     Some(host) => {
                         host_follow_weight.set_target_value(1.0);
                         let m1       = model.scene.views.cursor.camera.inversed_view_matrix();
                         let m2       = model.scene.camera().view_matrix();
-                        let position = host.value.global_position();
+                        let position = host.global_position();
                         let position = Vector4::new(position.x,position.y,position.z,1.0);
                         let position = m2 * (m1 * position);
                         host_position.set_target_value(V3(position.x,position.y,position.z));
