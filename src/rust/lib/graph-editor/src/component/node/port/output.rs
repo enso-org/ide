@@ -28,7 +28,7 @@ const HIGHLIGHT_SIZE      : f32 = 1.0;
 const SEGMENT_GAP_WIDTH   : f32 = 2.0;
 
 const SHOW_DELAY_DURATION : f32 = 150.0;
-const HIDE_DELAY_DURATION : f32 = 25.0;
+const HIDE_DELAY_DURATION : f32 = 150.0;
 
 
 
@@ -254,7 +254,6 @@ impl OutputPorts {
 
         frp::extend! { network
 
-
             // === Size Change Handling == ///
 
             eval frp.set_size ((size) data.set_size(size.into()));
@@ -262,44 +261,36 @@ impl OutputPorts {
 
             // === Hover Event Handling == ///
 
-            port_mouse_over           <- source::<PortId>();
-            port_mouse_out            <- source::<PortId>();
+            port_mouse_over      <- source::<PortId>();
+            port_mouse_out       <- source::<PortId>();
 
-            on_show_delay_finish <- source::<()>();
-            on_hide_delay_finish <- source::<()>();
-            is_visible           <- source::<bool>();
+            delay_show_finished    <- delay_show.value.map(|t| *t>=TWEEN_END_VALUE );
+            delay_hide_finished    <- delay_hide.value.map(|t| *t>=TWEEN_END_VALUE );
+            on_delay_show_finished <- delay_show_finished.gate(&delay_show_finished).constant(());
+            on_delay_hide_finished <- delay_hide_finished.gate(&delay_hide_finished).constant(());
 
-            mouse_over_while_inactive  <- port_mouse_over.gate_not(&is_visible).constant(());
-            mouse_over_while_active    <- port_mouse_over.gate(&is_visible).constant(());
+            visible                <- delay_show_finished.map(|v| *v);
 
-            eval mouse_over_while_inactive ([delay_show](_){
-                delay_show.set_end_value(TWEEN_END_VALUE)
+            mouse_over_while_inactive  <- port_mouse_over.gate_not(&visible).constant(());
+            mouse_over_while_active    <- port_mouse_over.gate(&visible).constant(());
+
+            eval mouse_over_while_inactive ([delay_show,delay_hide](_){
+                delay_hide.stop();
+                delay_show.rewind();
+                delay_show.set_end_value(TWEEN_END_VALUE);
             });
-            eval port_mouse_out ([delay_hide](_){
-                delay_hide.set_end_value(TWEEN_END_VALUE)
+            eval port_mouse_out ([delay_hide,delay_show](_){
+                delay_show.stop();
+                delay_hide.rewind();
+                delay_hide.set_end_value(TWEEN_END_VALUE);
             });
 
-            eval delay_show.value ([on_show_delay_finish](value) {
-                if *value == TWEEN_END_VALUE{on_show_delay_finish.emit(())}
-            });
+            activate_ports <- any(mouse_over_while_active,on_delay_show_finished);
+            eval_ activate_ports (delay_hide.rewind());
 
-            eval delay_hide.value ([on_hide_delay_finish](value) {
-                if *value == TWEEN_END_VALUE {on_hide_delay_finish.emit(())}
-            });
+            activate_ports_with_selected <- port_mouse_over.sample(&activate_ports);
 
-            // Ports need to be visible either because we had the delay_show timer run out (that
-            // means there is an active hover) or because we had a MouseOver event before the
-            // delay_hide ran out (that means that we probably switched between ports).
-            activate_ports <- any(mouse_over_while_active,on_show_delay_finish);
-            eval_ activate_ports (is_visible.emit(true);delay_hide.stop());
-
-            // This is provided for ports to act on their activation and will be used further down
-            // in the ports initialisation code.
-            activate_ports_with_selected <- port_mouse_over.sample(&is_visible);
-
-            // This is provided for ports to hide themselves. This is used in the port
-            // Initialisation code further down.
-            hide_all <- on_hide_delay_finish.map(f_!(delay_show.rewind();is_visible.emit(false)));
+            hide_all <- on_delay_hide_finished.map(f_!(delay_show.rewind()));
 
         }
 
@@ -353,7 +344,7 @@ impl OutputPorts {
         // Right now we get some of FRP mouse events on startup that leave the
         // ports visible by default.
         // Once that is fixed, remove this line.
-        on_hide_delay_finish.emit(());
+        delay_hide.finish();
     }
 
     // TODO: Implement proper sorting and remove.
