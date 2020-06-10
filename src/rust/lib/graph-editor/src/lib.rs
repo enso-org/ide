@@ -1650,7 +1650,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Move Nodes ===
     // ==================
 
-    mouse_pos_fix <- mouse.position.map(|p| Vector2::new(p.x,p.y));
+    mouse_pos_fix <- mouse.position.map(|p| Vector2(p.x,p.y));
 
 
     // === Discovering drag targets ===

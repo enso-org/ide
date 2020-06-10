@@ -1,8 +1,7 @@
 //! This module gathers common math types which are widely used in this project.
 
-pub use nalgebra::Vector2;
-pub use nalgebra::Vector3;
-pub use nalgebra::Vector4;
+#![allow(non_snake_case)]
+
 
 pub use nalgebra::Matrix2;
 pub use nalgebra::Matrix3;
@@ -14,6 +13,7 @@ pub use nalgebra::Matrix3x2;
 pub use nalgebra::Matrix3x4;
 pub use nalgebra::Matrix4x2;
 pub use nalgebra::Matrix4x3;
+pub use nalgebra::MatrixMN;
 
 use nalgebra;
 use nalgebra::Scalar;
@@ -28,6 +28,20 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Neg;
 use std::ops::Sub;
+
+
+
+// ==========================
+// === Smart Constructors ===
+// ==========================
+
+pub type Vector2<T=f32> = nalgebra::Vector2<T>;
+pub type Vector3<T=f32> = nalgebra::Vector3<T>;
+pub type Vector4<T=f32> = nalgebra::Vector4<T>;
+
+pub fn Vector2<T:Scalar>(t1:T,t2:T)           -> Vector2<T> { Vector2::new(t1,t2) }
+pub fn Vector3<T:Scalar>(t1:T,t2:T,t3:T)      -> Vector3<T> { Vector3::new(t1,t2,t3) }
+pub fn Vector4<T:Scalar>(t1:T,t2:T,t3:T,t4:T) -> Vector4<T> { Vector4::new(t1,t2,t3,t4) }
 
 
 
@@ -520,6 +534,33 @@ macro_rules! define_vector {
             }
         }
 
+        impl<T,S> Sub<&$name<S>> for &$name<T>
+        where T:Sub<S>, T:Clone, S:Clone {
+            type Output = $name<<T as Sub<S>>::Output>;
+            fn sub(self,rhs:&$name<S>) -> Self::Output {
+                $(let $field = self.$field.clone().sub(rhs.$field.clone());)*
+                $name {$($field),*}
+            }
+        }
+
+        impl<T,S> Sub<$name<S>> for &$name<T>
+        where T:Sub<S>, T:Clone, S:Clone {
+            type Output = $name<<T as Sub<S>>::Output>;
+            fn sub(self,rhs:$name<S>) -> Self::Output {
+                $(let $field = self.$field.clone().sub(rhs.$field);)*
+                $name {$($field),*}
+            }
+        }
+
+        impl<T,S> Sub<&$name<S>> for $name<T>
+        where T:Sub<S>, T:Clone, S:Clone {
+            type Output = $name<<T as Sub<S>>::Output>;
+            fn sub(self,rhs:&$name<S>) -> Self::Output {
+                $(let $field = self.$field.sub(rhs.$field.clone());)*
+                $name {$($field),*}
+            }
+        }
+
         impl<T> Neg for $name<T>
         where T:Neg {
             type Output = $name<<T as Neg>::Output>;
@@ -635,6 +676,8 @@ macro_rules! define_vector {
     };
 }
 
+
+pub type VV2<T=f32> = Vector2<T>;
 define_vector! {V2 {x,y}}
 define_vector! {V3 {x,y,z}}
 define_vector! {V4 {x,y,z,w}}

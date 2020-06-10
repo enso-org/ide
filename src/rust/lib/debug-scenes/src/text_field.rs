@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use ensogl::traits::*;
+use ensogl::prelude::*;
 
 use ensogl::data::color;
 use ensogl::display::world::World;
