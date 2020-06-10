@@ -261,55 +261,44 @@ impl OutputPorts {
 
             // === Hover Event Handling == ///
 
-            // Is emitted by the ports when they receive a MouseOver event.
-            def mouse_over           = source::<PortId>();
-            // Is emitted by the ports when they receive a MouseOut event.
-            def mouse_out            = source::<PortId>();
+            port_mouse_over           <- source::<PortId>();
+            port_mouse_out            <- source::<PortId>();
 
-            // Is emitted by the delay_show timer when it has finished running.
-            def on_show_delay_finish = source::<()>();
-            // Is emitted by the delay_hide timer when it has finished running.
-            def on_hide_delay_finish = source::<()>();
-            // Status indicates whether the shapes are visible or not.
-            def is_active            = source::<bool>();
+            on_show_delay_finish <- source::<()>();
+            on_hide_delay_finish <- source::<()>();
+            is_visible           <- source::<bool>();
 
-            // We map to (), so we can easier integrate with other events that also provide ().
-            // The actual ID of the hovered port will later again be sampled from mouse_over.
-            mouse_over_while_inactive  <- mouse_over.gate_not(&is_active).map(|_|());
-            mouse_over_while_active    <- mouse_over.gate(&is_active).map(|_|());
+            mouse_over_while_inactive  <- port_mouse_over.gate_not(&is_visible).constant(());
+            mouse_over_while_active    <- port_mouse_over.gate(&is_visible).constant(());
 
-            def _activate_show_delay = mouse_over_while_inactive.map(f_!({
+            eval mouse_over_while_inactive ([delay_show](_){
                 delay_show.set_end_value(TWEEN_END_VALUE)
-            }));
-            def _activate_hide_delay = mouse_out.map(f_!({
+            });
+            eval port_mouse_out ([delay_hide](_){
                 delay_hide.set_end_value(TWEEN_END_VALUE)
-            }));
-
-            /// FIXME f! macros don't seem to support `if` statements. So this code doesn't use them
-            /// at the moment. Use them once this works.
-            let on_show_delay_finish_ref = on_show_delay_finish.clone_ref();
-            def _delay_show = delay_show.value.map(move |value| {
-                if *value == TWEEN_END_VALUE{on_show_delay_finish_ref.emit(())}
             });
 
-            let on_hide_delay_finish_ref = on_hide_delay_finish.clone_ref();
-            def _delay_hide = delay_hide.value.map(move |value| {
-                if *value == TWEEN_END_VALUE {on_hide_delay_finish_ref.emit(())}
+            eval delay_show.value ([on_show_delay_finish](value) {
+                if *value == TWEEN_END_VALUE{on_show_delay_finish.emit(())}
+            });
+
+            eval delay_hide.value ([on_hide_delay_finish](value) {
+                if *value == TWEEN_END_VALUE {on_hide_delay_finish.emit(())}
             });
 
             // Ports need to be visible either because we had the delay_show timer run out (that
             // means there is an active hover) or because we had a MouseOver event before the
             // delay_hide ran out (that means that we probably switched between ports).
             activate_ports <- any(mouse_over_while_active,on_show_delay_finish);
-            def set_active = activate_ports.map(f_!(is_active.emit(true);delay_hide.stop()));
+            eval_ activate_ports (is_visible.emit(true);delay_hide.stop());
 
             // This is provided for ports to act on their activation and will be used further down
             // in the ports initialisation code.
-            def activate_ports_with_selected = mouse_over.sample(&set_active);
+            activate_ports_with_selected <- port_mouse_over.sample(&is_visible);
 
             // This is provided for ports to hide themselves. This is used in the port
             // Initialisation code further down.
-            def hide_all = on_hide_delay_finish.map(f_!(delay_show.rewind();is_active.emit(false)));
+            hide_all <- on_hide_delay_finish.map(f_!(delay_show.rewind();is_visible.emit(false)));
 
         }
 
@@ -324,8 +313,8 @@ impl OutputPorts {
 
                 // === Mouse Event Handling == ///
 
-                eval_ view.events.mouse_over(mouse_over.emit(index));
-                eval_ view.events.mouse_out(mouse_out.emit(index));
+                eval_ view.events.mouse_over(port_mouse_over.emit(index));
+                eval_ view.events.mouse_out(port_mouse_out.emit(index));
                 eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
 
 
@@ -347,20 +336,20 @@ impl OutputPorts {
                 show_normal      <- activate_ports_with_selected.gate_not(&is_selected);
                 show_highlighted <- activate_ports_with_selected.gate(&is_selected);
 
-                def _show_highlighted = show_highlighted.map(f_!([port_opacity,port_size]{
+                eval_ show_highlighted ([port_opacity,port_size]{
                     port_opacity.set_target_value(1.0);
                     port_size.set_target_value(HIGHLIGHT_SIZE);
-                }));
+                });
 
-                def _show_highlighted = show_normal.map(f_!([port_opacity,port_size]
+                eval_ show_normal ([port_opacity,port_size]
                     port_opacity.set_target_value(0.5);
                     port_size.set_target_value(BASE_SIZE);
-                ));
+                );
             }
         }
 
         // FIXME this is a hack to ensure the ports are invisible at startup.
-        // Right noe we get some of FRP mouse events on startup that leave the
+        // Right now we get some of FRP mouse events on startup that leave the
         // ports visible by default.
         // Once that is fixed, remove this line.
         on_hide_delay_finish.emit(());
