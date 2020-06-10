@@ -150,13 +150,6 @@ impl Style {
         Self {color,..default()}
     }
 
-    pub fn new_box_selection(size:Vector2<f32>) -> Self {
-        let def_size = Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1);
-        let offset   = Some(StyleValue::new_no_animation(-size / 2.0));
-        let size     = Some(StyleValue::new_no_animation(size.abs() + def_size));
-        Self {size,offset,..default()}
-    }
-
     pub fn new_press() -> Self {
         let press = Some(StyleValue::new(1.0));
         Self {press,..default()}
@@ -170,6 +163,13 @@ impl Style {
 impl Style {
     pub fn press(mut self) -> Self {
         self.press = Some(StyleValue::new(1.0));
+        self
+    }
+
+    pub fn box_selection(mut self, size:Vector2<f32>) -> Self {
+        let def_size = Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1);
+        self.offset  = Some(StyleValue::new_no_animation(-size / 2.0));
+        self.size    = Some(StyleValue::new_no_animation(size.abs() + def_size));
         self
     }
 }

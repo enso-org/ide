@@ -1458,10 +1458,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     on_release_style <- mouse.release . constant(cursor::Style::default());
 
 
-    cursor_selection_start <- selection_size.map(|p| cursor::Style::new_box_selection(Vector2::new(p.x,p.y)));
+    cursor_selection_start <- selection_size.map(|p| cursor::Style::new_with_all_fields_default().press().box_selection(Vector2::new(p.x,p.y)));
     cursor_selection_end   <- mouse.release . constant(cursor::Style::default());
-
-    cursor_selection <- any (cursor_selection_start, cursor_selection_end);
+    cursor_selection       <- any (cursor_selection_start, cursor_selection_end);
 
     cursor_press     <- any (on_press_style, on_release_style);
 
