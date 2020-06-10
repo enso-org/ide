@@ -12,6 +12,7 @@ use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::gui::component::Animation;
+use ensogl::gui::component::Tween;
 use ensogl::gui::component;
 
 use crate::node;
@@ -25,6 +26,9 @@ use crate::node;
 const BASE_SIZE           : f32 = 0.5;
 const HIGHLIGHT_SIZE      : f32 = 1.0;
 const SEGMENT_GAP_WIDTH   : f32 = 2.0;
+
+const SHOW_DELAY_DURATION : f32 = 150.0;
+const HIDE_DELAY_DURATION : f32 = 25.0;
 
 
 
@@ -235,29 +239,67 @@ impl OutputPorts {
         let frp     = &self.frp;
         let data    = &self.data;
 
+        // Used to set and detect the end of the tweens. The actual value is irrelevant, only the
+        // duration of the tween matters and that this value is reached after that time.
+        const TWEEN_END_VALUE:f32 = 1.0;
+
+        // Timer used to measure whether the hover has been long enough to show the ports.
+        let delay_show = Tween::new(&network);
+        delay_show.set_duration(SHOW_DELAY_DURATION);
+
+        // Timer used to measure whether the mouse has been gone long enough to hide all ports.
+        let delay_hide = Tween::new(&network);
+        delay_hide.set_duration(HIDE_DELAY_DURATION);
+
         frp::extend! { network
-            eval  frp.set_size ((size) data.set_size(size.into()));
 
-            set_port_size      <- source::<(PortId,f32)>();
-            set_port_sizes_all <- source::<f32>();
 
-            eval set_port_sizes_all ([set_port_size,data](size) {
-                let port_num = data.ports.borrow().len();
-                for index in 0..port_num {
-                    set_port_size.emit((index,*size));
-                };
+            // === Size Change Handling == ///
+
+            eval frp.set_size ((size) data.set_size(size.into()));
+
+
+            // === Hover Event Handling == ///
+
+            port_mouse_over           <- source::<PortId>();
+            port_mouse_out            <- source::<PortId>();
+
+            on_show_delay_finish <- source::<()>();
+            on_hide_delay_finish <- source::<()>();
+            is_visible           <- source::<bool>();
+
+            mouse_over_while_inactive  <- port_mouse_over.gate_not(&is_visible).constant(());
+            mouse_over_while_active    <- port_mouse_over.gate(&is_visible).constant(());
+
+            eval mouse_over_while_inactive ([delay_show](_){
+                delay_show.set_end_value(TWEEN_END_VALUE)
+            });
+            eval port_mouse_out ([delay_hide](_){
+                delay_hide.set_end_value(TWEEN_END_VALUE)
             });
 
-            set_port_opacity     <- source::<(PortId,f32)>();
-            set_port_opacity_all <- source::<f32>();
-
-            port_ix_to_change   <= set_port_opacity_all.map(f_!([data] {
-                Vec::<usize>::from_iter(0..data.ports.borrow().len())
-            }));
-            set_port_opacity_for_port    <- all(&port_ix_to_change,&set_port_opacity_all);
-            eval set_port_opacity_for_port ([set_port_opacity]((index, opacity)) {
-               set_port_opacity.emit((*index,*opacity));
+            eval delay_show.value ([on_show_delay_finish](value) {
+                if *value == TWEEN_END_VALUE{on_show_delay_finish.emit(())}
             });
+
+            eval delay_hide.value ([on_hide_delay_finish](value) {
+                if *value == TWEEN_END_VALUE {on_hide_delay_finish.emit(())}
+            });
+
+            // Ports need to be visible either because we had the delay_show timer run out (that
+            // means there is an active hover) or because we had a MouseOver event before the
+            // delay_hide ran out (that means that we probably switched between ports).
+            activate_ports <- any(mouse_over_while_active,on_show_delay_finish);
+            eval_ activate_ports (is_visible.emit(true);delay_hide.stop());
+
+            // This is provided for ports to act on their activation and will be used further down
+            // in the ports initialisation code.
+            activate_ports_with_selected <- port_mouse_over.sample(&is_visible);
+
+            // This is provided for ports to hide themselves. This is used in the port
+            // Initialisation code further down.
+            hide_all <- on_hide_delay_finish.map(f_!(delay_show.rewind();is_visible.emit(false)));
+
         }
 
         // Init ports
@@ -265,34 +307,52 @@ impl OutputPorts {
             let shape        = &view.shape;
             let port_size    = Animation::<f32>::new(&network);
             let port_opacity = Animation::<f32>::new(&network);
+
             frp::extend! { network
+
+
+                // === Mouse Event Handling == ///
+
+                eval_ view.events.mouse_over(port_mouse_over.emit(index));
+                eval_ view.events.mouse_out(port_mouse_out.emit(index));
+                eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
+
+
+                 // === Animation Handling == ///
+
                  eval port_size.value    ((size) shape.grow.set(*size));
                  eval port_opacity.value ((size) shape.opacity.set(*size));
 
-                is_resize_target <- set_port_size.map(move |(id,_)| *id == index);
-                size_change      <- set_port_size.gate(&is_resize_target);
-                eval size_change (((_, size)) port_size.set_target_value(*size));
 
-                is_opacity_target <- set_port_opacity.map(move |(id, _)| *id==index);
-                opacity_change    <- set_port_opacity.gate(&is_opacity_target);
-                eval opacity_change (((_, opacity)) port_opacity.set_target_value(*opacity));
+                // === Visibility and Highlight Handling == ///
 
-                eval_ view.events.mouse_over ([port_size,set_port_sizes_all,port_opacity,
-                                              set_port_opacity_all] {
-                    set_port_sizes_all.emit(BASE_SIZE);
-                    set_port_opacity_all.emit(0.5);
-                    port_size.set_target_value(HIGHLIGHT_SIZE);
+                 def _hide_all = hide_all.map(f_!([port_size,port_opacity]{
+                     port_size.set_target_value(0.0);
+                     port_opacity.set_target_value(0.0);
+                 }));
+
+                // Through the provided ID we can infer whether this port should be highlighted.
+                is_selected      <- activate_ports_with_selected.map(move |id| *id == index);
+                show_normal      <- activate_ports_with_selected.gate_not(&is_selected);
+                show_highlighted <- activate_ports_with_selected.gate(&is_selected);
+
+                eval_ show_highlighted ([port_opacity,port_size]{
                     port_opacity.set_target_value(1.0);
+                    port_size.set_target_value(HIGHLIGHT_SIZE);
                 });
 
-                eval_ view.events.mouse_out ([set_port_sizes_all,set_port_opacity_all] {
-                     set_port_sizes_all.emit(0.0);
-                     set_port_opacity_all.emit(0.0);
-                });
-
-                eval_ view.events.mouse_down(frp.on_port_mouse_down.emit(index));
+                eval_ show_normal ([port_opacity,port_size]
+                    port_opacity.set_target_value(0.5);
+                    port_size.set_target_value(BASE_SIZE);
+                );
             }
         }
+
+        // FIXME this is a hack to ensure the ports are invisible at startup.
+        // Right now we get some of FRP mouse events on startup that leave the
+        // ports visible by default.
+        // Once that is fixed, remove this line.
+        on_hide_delay_finish.emit(());
     }
 
     // TODO: Implement proper sorting and remove.
