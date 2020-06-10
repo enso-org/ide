@@ -1589,14 +1589,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.node_position_set         <+ node_with_position;
     outputs.node_position_set_batched <+ node_with_position;
 
-    cursor_style <- all
-        [ cursor_selection
-        , cursor_press
-        , cursor_style_edge_drag
-        , node_cursor_style
-        ].fold();
 
-    eval cursor_style ((style) cursor.frp.set_style.emit(style));
     }
 
 
@@ -1652,6 +1645,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     frp::extend! { network
 
     outputs.node_expression_set <+ inputs.set_node_expression;
+
 
 
     // ==================
@@ -1715,6 +1709,20 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // TEST
     new_pos <- main_tgt_pos.map2(&main,|p,id| (*id,Position::new(p.x,p.y)));
     outputs.node_position_set <+ new_pos;
+
+    cursor_on_drag_down <- main.map(|_| cursor::Style::new_with_all_fields_default().press());
+    cursor_on_drag_up   <- touch.nodes.up.map(|_| cursor::Style::default());
+    cursor_on_drag      <- any (&cursor_on_drag_down,&cursor_on_drag_up);
+
+    cursor_style <- all
+        [ cursor_on_drag
+        , cursor_selection
+        , cursor_press
+        , cursor_style_edge_drag
+        , node_cursor_style
+        ].fold();
+
+    eval cursor_style ((style) cursor.frp.set_style.emit(style));
 
 //    drag_pos_diff     <- mouse.translation.gate(&touch.nodes.is_down);
 //    was_selected      <- touch.nodes.down.map(f!((id) model.nodes.selected.contains(id)));
