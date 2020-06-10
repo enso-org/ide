@@ -133,7 +133,7 @@ impl TextFieldKeyboardFrp {
         }
     }
 
-    fn enable_writing(mask:&keyboard::KeyMask) -> bool {
+    fn enables_writing(mask:&keyboard::KeyMask) -> bool {
         let modifiers = &[keyboard::Key::Control,keyboard::Key::Alt,keyboard::Key::Meta];
         let is_modifier  = modifiers.iter().any(|key| mask.contains(key));
         let is_alt_graph = mask.contains(&keyboard::Key::AltGraph);
@@ -141,7 +141,6 @@ impl TextFieldKeyboardFrp {
             // On Windows AltGraph is emitted as both AltGraph and Ctrl. Therefore we don't
             // care about modifiers when AltGraph is pressed.
             Platform::Windows => !is_modifier || is_alt_graph,
-            //TODO[dg]: Test on Linux.
             _                 => !is_modifier
         }
     }
@@ -150,7 +149,7 @@ impl TextFieldKeyboardFrp {
         move |key,mask| {
             text_field.upgrade().for_each(|text_field| {
                 if let keyboard::Key::Character(string) = key {
-                    if Self::enable_writing(mask) {
+                    if Self::enables_writing(mask) {
                         text_field.write(string);
                     }
                 }
