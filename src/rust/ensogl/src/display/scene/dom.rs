@@ -192,7 +192,7 @@ impl DomScene {
         let trans_cam  = camera.transform_matrix().try_inverse();
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam  = trans_cam.map(eps);
-        let trans_cam  = invert_y(trans_cam);
+        let trans_cam  = inverse_y_translation(trans_cam);
         let half_dim   = camera.screen().height / 2.0;
         let fovy_slope = camera.half_fovy_slope();
         let near       = half_dim / fovy_slope;
@@ -218,4 +218,11 @@ impl DomScene {
 /// eps is used to round very small values to 0.0 for numerical stability
 pub fn eps(value: f32) -> f32 {
     if value.abs() < 1e-10 { 0.0 } else { value }
+}
+
+fn inverse_y_translation(mut transform:Matrix4<f32>) -> Matrix4<f32> {
+    let y_translation_index = (1,3);
+    let y_translation       = transform.index_mut(y_translation_index);
+    *y_translation          = -*y_translation;
+    transform
 }
