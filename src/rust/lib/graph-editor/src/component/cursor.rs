@@ -19,13 +19,11 @@ use ensogl::gui::component;
 // === Constants ===
 // =================
 
-const PADDING             : f32 = 2.0;
-const SIDES_PADDING       : f32 = PADDING * 2.0;
-const DEFAULT_SIZE        : V2  = V2(16.0,16.0);
-const DEFAULT_RADIUS      : f32 = 8.0;
-const DEFAULT_COLOR_LAB   : V3  = V3(1.0,0.0,0.0);
-const DEFAULT_COLOR_ALPHA : f32 = 0.2;
-
+const PADDING        : f32 = 2.0;
+const SIDES_PADDING  : f32 = PADDING * 2.0;
+const DEFAULT_SIZE   : V2  = V2(16.0,16.0);
+const DEFAULT_RADIUS : f32 = 8.0;
+const DEFAULT_COLOR  : color::Lcha = color::Lcha::new(1.0,0.0,0.0,0.2);
 
 
 
@@ -60,6 +58,13 @@ impl<T> StyleValue<T> {
         Self {value,animate}
     }
 
+    /// Constructor.
+    pub fn new_default() -> Self {
+        let value   = None;
+        let animate = true;
+        Self {value,animate}
+    }
+
     /// Constructor with disabled animation.
     pub fn new_no_animation(value:T) -> Self {
         let value   = Some(value);
@@ -83,6 +88,16 @@ macro_rules! define_style {( $( $(#$meta:tt)* $field:ident : $field_type:ty),* $
     #[derive(Debug,Clone,Default)]
     pub struct Style {
         $($(#$meta)? $field : Option<StyleValue<$field_type>>),*
+    }
+
+    impl Style {
+        /// Create a new style with all fields set to default value. Please note that it is
+        /// different than empty style, as this one overrides fields with default values when
+        /// used in a semigroup operation.
+        pub fn new_with_all_fields_default() -> Self {
+            $(let $field = Some(StyleValue::new_default());)*
+            Self {$($field),*}
+        }
     }
 
     impl PartialSemigroup<&Style> for Style {
@@ -179,9 +194,9 @@ impl Style {
 pub mod shape {
     use super::*;
     ensogl::define_shape_system! {
-        ( press          : f32
-        , radius         : f32
-        , color          : Vector4<f32>
+        ( press  : f32
+        , radius : f32
+        , color  : Vector4<f32>
         ) {
             let width  : Var<Distance<Pixels>> = "input_size.x".into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
@@ -319,15 +334,15 @@ impl Cursor {
         let radius               = Animation :: <f32> :: new(&network);
         let size                 = Animation :: <V2>  :: new(&network);
         let offset               = Animation :: <V2>  :: new(&network);
-        let color_lab            = Animation :: <V3>  :: new(&network);
+        let color_lab            = Animation :: <Vector3<f32>> :: new(&network);
         let color_alpha          = Animation :: <f32> :: new(&network);
         let host_position        = Animation :: <V3>  :: new(&network);
         let host_follow_weight   = Animation :: <f32> :: new(&network);
         let host_attached_weight = Tween     :: new(&network);
 
         host_attached_weight.set_duration(300.0);
-        color_lab.set_target_value(DEFAULT_COLOR_LAB);
-        color_alpha.set_target_value(DEFAULT_COLOR_ALPHA);
+        color_lab.set_target_value(DEFAULT_COLOR.opaque.into());
+        color_alpha.set_target_value(DEFAULT_COLOR.alpha);
         radius.set_target_value(DEFAULT_RADIUS);
         size.set_target_value(DEFAULT_SIZE);
 
@@ -359,27 +374,27 @@ impl Cursor {
                     }
                 }
 
-//                match &new_style.color {
-//                    None => {
-//                        color_lab.set_target_value(DEFAULT_COLOR_LAB);
-//                        color_alpha.set_target_value(DEFAULT_COLOR_ALPHA);
-//                    }
-//                    Some(t) => {
-//                        let value = t.value.unwrap_or_else(||);
-//                        let lab = color::Laba::from(t.value);
-//                        color_lab.set_target_value(V3(lab.lightness,lab.a,lab.b));
-//                        color_alpha.set_target_value(lab.alpha);
-//                        if !t.animate {
-//                            color_lab.skip();
-//                            color_alpha.skip();
-//                        }
-//                    }
-//                }
+                match &new_style.color {
+                    None => {
+                        color_lab.set_target_value(DEFAULT_COLOR.opaque.into());
+                        color_alpha.set_target_value(DEFAULT_COLOR.alpha);
+                    }
+                    Some(t) => {
+                        let value = t.value.unwrap_or(DEFAULT_COLOR);
+                        let lab = color::Laba::from(value);
+                        color_lab.set_target_value(Vector3::new(lab.lightness,lab.a,lab.b));
+                        color_alpha.set_target_value(lab.alpha);
+                        if !t.animate {
+                            color_lab.skip();
+                            color_alpha.skip();
+                        }
+                    }
+                }
 
                 match &new_style.size {
                     None => size.set_target_value(DEFAULT_SIZE),
                     Some(t) => {
-                        let value = t.value.unwrap_or(DEFAULT_SIZE.into()); // fixme
+                        let value = t.value.unwrap_or(DEFAULT_SIZE.into());
                         size.set_target_value(V2::new(value.x,value.y));
                         if !t.animate { size.skip() }
                     }
