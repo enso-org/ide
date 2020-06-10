@@ -18,6 +18,7 @@ use nalgebra::Perspective3;
 
 /// Camera's frustum screen dimensions.
 #[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
 pub struct Screen {
     pub width  : f32,
     pub height : f32,
@@ -112,6 +113,7 @@ impl Dirty {
 
 /// Camera matrix properties.
 #[derive(Debug)]
+#[allow(missing_copy_implementations)]
 pub struct Matrix {
     view            : Matrix4<f32>,
     view_inversed   : Matrix4<f32>,

@@ -71,15 +71,9 @@ impl Into<Vector2<f32>> for Shape {
     }
 }
 
-impl Into<V2> for Shape {
-    fn into(self) -> V2<f32> {
-        V2(self.width,self.height)
-    }
-}
-
-impl Into<V2> for &Shape {
-    fn into(self) -> V2<f32> {
-        V2(self.width,self.height)
+impl Into<Vector2<f32>> for &Shape {
+    fn into(self) -> Vector2<f32> {
+        Vector2::new(self.width,self.height)
     }
 }
 

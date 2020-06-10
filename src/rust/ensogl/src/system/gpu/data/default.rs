@@ -39,10 +39,6 @@ define_gpu_defaults! {
     f32            = 0.0,
     bool           = false,
 
-    V2<f32>        = V2::new(0.0,0.0),
-    V3<f32>        = V3::new(0.0,0.0,0.0),
-    V4<f32>        = V4::new(0.0,0.0,0.0,0.0),
-
     Vector2<f32>   = Vector2::new(0.0,0.0),
     Vector3<f32>   = Vector3::new(0.0,0.0,0.0),
     Vector4<f32>   = Vector4::new(0.0,0.0,0.0,1.0),

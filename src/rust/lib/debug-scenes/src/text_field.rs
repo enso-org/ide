@@ -7,7 +7,6 @@ use ensogl::display::world::World;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
-use ensogl::display::world::*;
 use ensogl::system::web;
 use nalgebra::Vector2;
 use wasm_bindgen::prelude::*;

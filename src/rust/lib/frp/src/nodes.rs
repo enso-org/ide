@@ -2,8 +2,10 @@
 //!
 //! Please note that the documentation is provided for methods of `Network`, as this is considered
 //! to be the public API. The same documentation applies to node definitions below.
+
 #![allow(missing_docs)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 use crate::prelude::*;
 
