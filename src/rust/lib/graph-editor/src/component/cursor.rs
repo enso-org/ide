@@ -66,6 +66,10 @@ impl<T> StyleValue<T> {
 }
 
 
+pub enum Value<T> {
+    Default, Provided(T)
+}
+
 
 // =============
 // === Style ===
@@ -100,7 +104,7 @@ define_style! {
     /// Host defines an object which the cursor position is bound to. It is used to implement
     /// label selection. After setting the host to the label, cursor will not follow mouse anymore,
     /// it will inherit its position from the label instead.
-    host   : display::object::Instance,
+    host   : StyleValue<display::object::Instance>,
     size   : StyleValue<Vector2<f32>>,
     offset : StyleValue<Vector2<f32>>,
     color  : StyleValue<color::Lcha>,
@@ -116,7 +120,7 @@ impl Style {
     pub fn new_highlight<H>
     (host:H, size:Vector2<f32>, color:Option<color::Lcha>) -> Self
     where H:display::Object {
-        let host  = Some(host.display_object().clone_ref());
+        let host  = Some(StyleValue::new(host.display_object().clone_ref()));
         let size  = Some(StyleValue::new(size));
         let color = color.map(StyleValue::new);
         Self {host,size,color,..default()}
@@ -162,7 +166,7 @@ impl Style {
 #[allow(missing_docs)]
 impl Style {
     pub fn host_position(&self) -> Option<Vector3<f32>> {
-        self.host.as_ref().map(|t| t.position())
+        self.host.as_ref().map(|t| t.value.position())
     }
 }
 
@@ -409,7 +413,7 @@ impl Cursor {
                         host_follow_weight.set_target_value(1.0);
                         let m1       = model.scene.views.cursor.camera.inversed_view_matrix();
                         let m2       = model.scene.camera().view_matrix();
-                        let position = host.global_position();
+                        let position = host.value.global_position();
                         let position = Vector4::new(position.x,position.y,position.z,1.0);
                         let position = m2 * (m1 * position);
                         host_position.set_target_value(V3(position.x,position.y,position.z));

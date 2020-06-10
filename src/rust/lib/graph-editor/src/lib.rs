@@ -1672,8 +1672,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     mouse_pos_on_press      <- mouse_pos_fix.sample(&main);
     mouse_pos_diff          <- mouse_pos_fix.map2(&mouse_pos_on_press,|t,s|t-s).gate(&main_pressed);
     main_tgt_pos_rt_changed <- mouse_pos_diff.map2(&main_pos_on_press,|t,s|t+s);
-    main_tgt_pos_rt         <- any(&main_tgt_pos_rt_changed,&main_pos_on_press);
-    just_pressed            <- bool(&main_tgt_pos_rt_changed,&main_pos_on_press);
+    main_tgt_pos_rt         <- any  (&main_tgt_pos_rt_changed,&main_pos_on_press);
+    just_pressed            <- bool (&main_tgt_pos_rt_changed,&main_pos_on_press);
 
     let main_tgt_pos_follow = Animation::<Vector2<f32>>::new(&network);
     let x_snap_strength     = Tween::new(&network);
@@ -1686,8 +1686,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             let snapped = model.nodes.check_grid_magnet(*pos);
             let x = snapped.x.unwrap_or(pos.x);
             let y = snapped.y.unwrap_or(pos.y);
-            x_snap_strength.from_now_to(if snapped.x.is_none() { 0.0 } else { 1.0 });
-            y_snap_strength.from_now_to(if snapped.y.is_none() { 0.0 } else { 1.0 });
+            x_snap_strength.set_target2(if snapped.x.is_none() { 0.0 } else { 1.0 });
+            y_snap_strength.set_target2(if snapped.y.is_none() { 0.0 } else { 1.0 });
             main_tgt_pos_follow.set_target_value(Vector2::new(x,y));
             if *just_pressed {
                 x_snap_strength.skip();

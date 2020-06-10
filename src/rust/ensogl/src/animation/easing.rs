@@ -274,7 +274,13 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         self.data.end_value.set(tgt);
         if current != tgt {
             (self.data.callback)(self.start_value());
-            self.start();
+            self.reset();
+        }
+    }
+
+    pub fn set_target2(&self, tgt:T) {
+        if self.data.end_value.get() != tgt {
+            self.from_now_to(tgt)
         }
     }
 
