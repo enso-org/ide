@@ -10,13 +10,12 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::visualization::java_script::base_class::VisualisationInitialisationData;
+use crate::component::visualization::java_script::binding::JsConsArgs;
 use crate::component::visualization::java_script::method;
 use crate::component::visualization;
 use crate::frp;
 
 use core::result;
-use enso_frp::stream::EventEmitter;
 use ensogl::display::DomScene;
 use ensogl::display::DomSymbol;
 use ensogl::display::Scene;
@@ -25,17 +24,6 @@ use ensogl::system::web::JsValue;
 use ensogl::system::web;
 use js_sys;
 use std::fmt::Formatter;
-
-
-// =================
-// === Constants ===
-// =================
-
-#[allow(missing_docs)]
-pub mod constructor {
-    pub const ARG: &str = "cls, root";
-    pub const BODY : &str = "return new cls(root)";
-}
 
 
 
@@ -52,19 +40,19 @@ pub enum Error {
     /// The object was expected to have the named property but does not.
     PropertyNotFoundOnObject { object:JsValue, property:String },
     /// An error occurred on the javascript side when calling the class constructor.
-    ConstructorError   { js_error:JsValue },
+    ConstructorError { js_error:JsValue },
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Error::ValueIsNotAnObject { object }  => {
-                f.write_fmt(format_args!("JsValue was expected to be of type `object`, but was \
-                                          not: {:?}",object))
+                f.write_fmt(format_args!
+                    ("JsValue was expected to be of type `object`, but was not: {:?}",object))
             },
             Error::PropertyNotFoundOnObject  { object, property }  => {
-                f.write_fmt(format_args!("Object was expected to have property {:?} \
-                                          but has not: {:?}",property,object))
+                f.write_fmt(format_args!
+                    ("Object was expected to have property {:?} but has not: {:?}",property,object))
             },
             Error::ConstructorError { js_error }  => {
                 f.write_fmt(format_args!("Error while constructing object: {:?}",js_error))
@@ -77,10 +65,6 @@ impl std::error::Error for Error {}
 
 /// Internal helper type to propagate results that can fail due to `JsVisualizationError`s.
 pub type Result<T> = result::Result<T, Error>;
-/// Helper type for the callback used to set the preprocessor code.
-pub trait PreprocessorCallback = Fn(String);
-/// Internal helper type to store the preprocessor callback.
-type PreprocessorCallbackCell = Rc<RefCell<Option<Box<dyn PreprocessorCallback>>>>;
 
 
 
@@ -88,19 +72,25 @@ type PreprocessorCallbackCell = Rc<RefCell<Option<Box<dyn PreprocessorCallback>>
 // === InstanceModel ===
 // =====================
 
+/// Helper type for the callback used to set the preprocessor code.
+pub trait PreprocessorCallback = Fn(String);
+
+/// Internal helper type to store the preprocessor callback.
+type PreprocessorCallbackCell = Rc<RefCell<Option<Box<dyn PreprocessorCallback>>>>;
+
 /// `JsVisualizationGeneric` allows the use of arbitrary javascript to create visualizations. It
 /// takes function definitions as strings and proved those functions with data.
 #[derive(Clone,CloneRef,Derivative)]
 #[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct InstanceModel {
-    pub root_node                    : DomSymbol,
-    pub logger                       : Logger,
-        on_data_received             : Rc<Option<js_sys::Function>>,
-        set_size                     : Rc<Option<js_sys::Function>>,
-        object                       : Rc<js_sys::Object>,
+    pub root_node           : DomSymbol,
+    pub logger              : Logger,
+        on_data_received    : Rc<Option<js_sys::Function>>,
+        set_size            : Rc<Option<js_sys::Function>>,
+        object              : Rc<js_sys::Object>,
         #[derivative(Debug="ignore")]
-        preprocessor_change_callback : PreprocessorCallbackCell,
+        preprocessor_change : PreprocessorCallbackCell,
 }
 
 impl InstanceModel {
@@ -114,28 +104,27 @@ impl InstanceModel {
     }
 
     /// We need to provide a closure to the Visualisation on the JS side, which we then later
-    /// can hook up to the FRP. Here we create a `PreprocessorCallbackCell`, which can hold a closure,
-    /// and a `PreprocessorCallback` which holds a weak reference to the closure inside of the
-    /// PreprocessorCallbackCell. This allows us to pass the `PreprocessorCallback` to the
+    /// can hook up to the FRP. Here we create a `PreprocessorCallbackCell`, which can hold a
+    /// closure, and a `PreprocessorCallback` which holds a weak reference to the closure inside of
+    /// the `PreprocessorCallbackCell`. This allows us to pass the `PreprocessorCallback` to the
     /// javascript code, and call from there the closure stored in the `PreprocessorCallbackCell`.
     /// We will later on set the closure inside of the `PreprocessorCallbackCell` to emit an FRP
     /// event.
-    fn create_preprocessor_change_callback() -> (PreprocessorCallbackCell,impl PreprocessorCallback)  {
-        let preprocessor_closure_cell:PreprocessorCallbackCell = default();
-        let weak_preprocessor_closure_cell = Rc::downgrade(&preprocessor_closure_cell);
-        let preprocessor_closure = move |s:String| {
-            if let Some(callback) = weak_preprocessor_closure_cell.upgrade() {
-                callback.borrow().map_ref(|f| {
-                    f(s);
-                });
+    fn preprocessor_change_callback
+    () -> (PreprocessorCallbackCell,impl PreprocessorCallback) {
+        let closure_cell      = PreprocessorCallbackCell::default();
+        let weak_closure_cell = Rc::downgrade(&closure_cell);
+        let closure = move |s:String| {
+            if let Some(callback) = weak_closure_cell.upgrade() {
+                callback.borrow().map_ref(|f|f(s));
             }
         };
-        (preprocessor_closure_cell, preprocessor_closure)
+        (closure_cell,closure)
     }
 
-    fn instantiate_class_with_args(class:&JsValue, args:VisualisationInitialisationData)
-        -> result::Result<js_sys::Object,Error> {
-        let js_new  = js_sys::Function::new_with_args(constructor::ARG, constructor::BODY);
+    fn instantiate_class_with_args(class:&JsValue, args:JsConsArgs)
+    -> result::Result<js_sys::Object,Error> {
+        let js_new  = js_sys::Function::new_with_args("cls,arg", "return new cls(arg)");
         let context = JsValue::NULL;
         let object  = js_new.call2(&context,&class,&args.into())
             .map_err(|js_error|Error::ConstructorError {js_error})?;
@@ -149,21 +138,16 @@ impl InstanceModel {
     /// Tries to create a InstanceModel from the given visualisation class.
     pub fn from_class(class:&JsValue) -> result::Result<Self, Error> {
         let root_node = Self::create_root()?;
-        let (preprocessor_change_callback, on_preprocessor_change) = Self::create_preprocessor_change_callback();
-        let init_data = VisualisationInitialisationData::new(root_node.clone_ref(),
-                                                             on_preprocessor_change);
-        let object = Self::instantiate_class_with_args(class, init_data)?;
-
+        let (preprocessor_change,closure) = Self::preprocessor_change_callback();
+        let init_data        = JsConsArgs::new(root_node.clone_ref(), closure);
+        let object           = Self::instantiate_class_with_args(class,init_data)?;
         let on_data_received = get_method(&object,method::ON_DATA_RECEIVED).ok();
         let on_data_received = Rc::new(on_data_received);
         let set_size         = get_method(&object,method::SET_SIZE).ok();
         let set_size         = Rc::new(set_size);
         let logger           = Logger::new("Instance");
         let object           = Rc::new(object);
-
-        Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,
-            preprocessor_change_callback
-        })
+        Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change})
     }
 
     /// Hooks the root node into the given scene.
@@ -174,9 +158,9 @@ impl InstanceModel {
     }
 
     fn set_size(&self, size:V2) {
-        let size          = Vector2::new(size.x,size.y);
-        let data_json     = JsValue::from_serde(&size).unwrap();
-        let _             = self.try_call1(&self.set_size, &data_json);
+        let size      = Vector2::new(size.x,size.y);
+        let data_json = JsValue::from_serde(&size).unwrap();
+        let _         = self.try_call1(&self.set_size,&data_json);
         self.root_node.set_size(size);
     }
 
@@ -232,7 +216,6 @@ impl Instance {
         let frp     = visualization::instance::Frp::new(&network);
         let model   = InstanceModel::from_class(class)?;
         model.set_dom_layer(&scene.dom.layers.main);
-
         Ok(Instance{model,frp,network}.init_frp().inti_preprocessor_callback())
     }
 
@@ -252,13 +235,11 @@ impl Instance {
     }
 
     fn inti_preprocessor_callback(self) -> Self {
-        // FIXME This leaks memory. Is there a way to get a weak reference to the frp node here?
-        let on_change  = self.frp.on_change.clone_ref();
-        let callback = move |s:String| {
-            on_change.emit_event(&s.into());
-        };
+        // FIXME Does it leak memory? To be checked.
+        let change   = &self.frp.change;
+        let callback = f!((s:String) change.emit(&s.into()));
         let callback = Box::new(callback);
-        self.model.preprocessor_change_callback.borrow_mut().replace(callback);
+        self.model.preprocessor_change.borrow_mut().replace(callback);
         self
     }
 

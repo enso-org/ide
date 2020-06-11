@@ -104,7 +104,7 @@ use crate::component::visualization::InstantiationError;
 use crate::component::visualization::InstantiationResult;
 use crate::component::visualization;
 use crate::data::*;
-use super::base_class;
+use super::binding;
 use super::instance::Instance;
 
 use ensogl::display::Scene;
@@ -154,8 +154,9 @@ impl Definition {
         let source       = source.as_ref();
         let source       = source;
         let context      = JsValue::NULL;
-        let function     = js_sys::Function::new_with_args("Visualization", &source);
-        let class        = function.call1(&context, &base_class::cls()).map_err(Error::InvalidFunction)?;
+        let function     = js_sys::Function::new_with_args(binding::JS_CLASS_NAME,&source);
+        let js_class     = binding::js_class();
+        let class        = function.call1(&context,&js_class).map_err(Error::InvalidFunction)?;
 
         let library      = library.into();
         let input_type   = try_str_field(&class,field::INPUT_TYPE).unwrap_or_default();

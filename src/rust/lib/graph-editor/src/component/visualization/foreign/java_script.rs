@@ -2,7 +2,7 @@
 
 pub mod definition;
 pub mod instance;
-pub mod base_class;
+pub mod binding;
 
 pub use definition::*;
 pub use instance::*;

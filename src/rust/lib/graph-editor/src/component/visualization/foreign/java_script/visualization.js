@@ -1,13 +1,13 @@
 export class Visualization {
-    constructor(init) {
-        this.dom = init.root();
-        this.inner = init;
+    constructor(api) {
+        this.dom     = api.root();
+        this.__api__ = api;
     }
-    setPreprocessor (code) {
-        this.inner.emit_preprocessor_change(code)
+    setPreprocessor(code) {
+        this.__api__.emit_preprocessor_change(code)
     }
 }
 
-export function cls() {
+export function __Visualization__() {
     return Visualization
 }
