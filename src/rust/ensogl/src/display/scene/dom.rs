@@ -6,6 +6,8 @@ use crate::display::object::traits::*;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
 use crate::display::symbol::DomSymbol;
+use crate::display::symbol::dom::eps;
+use crate::display::symbol::dom::inverse_y_translation;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::NodeInserter;
@@ -39,7 +41,7 @@ mod js {
         (dom, near, matrix_array) {
             let translateZ  = 'translateZ(' + near + 'px)';
             let matrix3d    = arr_to_css_matrix3d(matrix_array);
-            let transform   = translateZ + matrix3d;
+            let transform   = translateZ + matrix3d + 'translate(50%,50%)';
             dom.style.transform = transform;
         }
     ")]
@@ -207,22 +209,4 @@ impl DomScene {
             }
         }
     }
-}
-
-
-
-// =============
-// === Utils ===
-// =============
-
-/// eps is used to round very small values to 0.0 for numerical stability
-pub fn eps(value: f32) -> f32 {
-    if value.abs() < 1e-10 { 0.0 } else { value }
-}
-
-fn inverse_y_translation(mut transform:Matrix4<f32>) -> Matrix4<f32> {
-    let y_translation_index = (1,3);
-    let y_translation       = transform.index_mut(y_translation_index);
-    *y_translation          = -*y_translation;
-    transform
 }
