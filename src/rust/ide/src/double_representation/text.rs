@@ -14,20 +14,25 @@ use data::text::Span;
 
 /// Update IdMap to reflect the recent code change.
 pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextChange, code:&str) {
-    let removed   = change.replaced_span();
-    let inserted  = change.inserted.as_str();
-    let new_code  = change.applied(code);
-    let non_white = |c:char| !c.is_whitespace();
+    // TODO [mwu]
+    //   The initial provisional algorithm received some changes to better behave in our typical
+    //   editor use-cases, i.e. to keep node ids when editing its expression. However, this came
+    //   at price of not properly keeping other sub-ids on parts of the node line.
+    //   In future, better and cleaner algorithm will need to be provided.
+    let removed       = change.replaced_span();
+    let inserted      = change.inserted.as_str();
+    let new_code      = change.applied(code);
+    let non_white     = |c:char| !c.is_whitespace();
+    let logger        = logger::disabled::Logger::new("apply_code_change_to_id_map");
+    let vector        = &mut id_map.vec;
+    let inserted_size = Size::from(inserted);
 
-    println!("Old code:\n```\n{}\n```",code);
-    println!("New code:\n```\n{}\n```",new_code);
+    info!(logger,"Old code:\n```\n{code}\n```");
+    info!(logger,"New code:\n```\n{new_code}\n```");
+    info!(logger,"Updating the ID map with the following text edit: {change:?}.");
 
-    let vector = &mut id_map.vec;
-    let inserted_size = Size::new(inserted.chars().count());
-    // Remove all entries covered by the removed span.
+    // Remove all entries fully covered by the removed span.
     vector.drain_filter(|(span,_)| removed.contains_span(&span));
-
-    let logger = Logger::new("IdMapUpdate");
 
     // If the edited section ends up being the trailing part of AST node, how many bytes should be
     // trimmed from the id. Precalculated, as is constant in the loop below.
@@ -40,7 +45,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
     // As above but for the front side.
     let to_trim_front = {
         let first_non_white = inserted.find(non_white);
-        let ret             = first_non_white.unwrap_or(inserted.len());
+        let ret             = first_non_white.unwrap_or_else(|| inserted.len());
         Size::new(ret)
     };
 
@@ -54,14 +59,13 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
     // expression.
     let mut preferred : HashMap<Span,ast::Id> = default();
 
-    debug!(logger,"Removed: {removed}, inserted length: {inserted_size}");
-    debug!(logger,"To trim back {to_trim_back}; inserting {inserted}");
     for (span, id) in vector.iter_mut() {
         let mut trim_front = false;
         let mut trim_back  = false;
         let initial_span   = *span;
+        info!(logger,"Processing @{span}: `{&code[*span]}`.");
         if span.index > removed.end() {
-            debug!(logger,"After");
+            debug!(logger,"Node after the edited region.");
             // AST node starts after edited region — it will be simply shifted.
             let code_between = &code[Span::from(removed.end() .. span.index)];
             span.move_left(removed.size);
@@ -69,53 +73,57 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
 
             // If there are only spaces between current AST symbol and insertion, extend the symbol.
             // This is for cases like line with `foo ` being changed into `foo j`.
-            debug!(logger,"Between: `{code_between}`");
+            debug!(logger,"Between: `{code_between}`.");
             if all_spaces(code_between) && inserted_non_white {
-                debug!(logger,"Will extend front");
+                debug!(logger,"Will extend the node leftwards.");
                 span.extend_left(inserted_size);
                 span.extend_left(Size::from(code_between));
                 trim_front = true;
             }
         } else if span.index >= removed.index {
             // AST node starts inside the edited region. It doesn't end strictly inside it.
+            debug!(logger,"Node overlapping with the end of the edited region.");
             let removed_before = span.index - removed.index;
-            debug!(logger, "Trailing overlap of length {removed_before}");
             span.move_left(removed_before);
             span.shrink_right(removed.size - removed_before);
             span.extend_right(inserted_size);
             trim_front = true;
         } else if span.end() >= removed.index {
-            debug!(logger,"Leading overlap");
-            // AST node ends before the edit starts.
+            debug!(logger,"Node overlapping with the beginning of the edited region.");
+            // AST node ends in the edited region.
             span.set_right(removed.index);
             span.extend_right(inserted_size);
             trim_back = true;
         } else {
+            debug!(logger,"Node before the edited region.");
             // If there are only spaces between current AST symbol and insertion, extend the symbol.
             // This is for cases like line with `foo ` being changed into `foo j`.
             let between = &code[Span::from(span.end() .. removed.index)];
             if all_spaces(between) && inserted_non_white {
                 debug!(logger,"Will extend ");
-                span.size += Size::new(between.len()) + inserted_size;
+                span.size += Size::from(between) + inserted_size;
                 trim_back = true;
             }
         }
 
-        if trim_front {
-            span.index += to_trim_front;
-            span.size -= to_trim_front;
-            debug!(logger,"Will trim front {to_trim_front}");
+        if trim_front && to_trim_front.non_empty() {
+            span.shrink_left(to_trim_front);
+            debug!(logger,"Trimming front {to_trim_front} bytes.");
         }
 
         if trim_back {
-            span.size -= to_trim_back;
-
+            if to_trim_back.non_empty() {
+                span.shrink_right(to_trim_back);
+                debug!(logger, "Trimming back {to_trim_back} bytes.");
+            }
             let new_repr = &new_code[*span];
             // Trim trailing spaces
-            let space_count = spaces_size(new_repr.chars().rev());
-            debug!(logger,"Will trim back {to_trim_back} and {space_count} spaces");
-            debug!(logger,"The would-be code: `{new_repr}`");
-            span.size -= Size::new(space_count);
+            let spaces = spaces_size(new_repr.chars().rev());
+            if spaces.non_empty() {
+                debug!(logger,"Additionally trimming {spaces} trailing spaces.");
+                debug!(logger,"The would-be code: `{new_repr}`.");
+                span.shrink_right(spaces);
+            }
         }
 
         // If we edited front or end of an AST node, its extended (or shrunk) span will be
@@ -124,7 +132,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
             preferred.insert(*span,*id);
         }
 
-        debug!(logger, "Processing for id {id}: {initial_span} ->\t{span}.\n\
+        info!(logger,"Processing for id {id}: {initial_span} ->\t{span}.\n\
         Code: `{&code[initial_span]}` => `{&new_code[*span]}`");
     }
 
@@ -141,8 +149,8 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
 // ===============
 
 /// Returns the byte length of leading space characters sequence.
-fn spaces_size(itr:impl Iterator<Item=char>) -> usize {
-    itr.take_while(|c| *c == ' ').fold(0, |acc, c| acc + c.len_utf8())
+fn spaces_size(itr:impl Iterator<Item=char>) -> Size {
+    Size::new(itr.take_while(|c| *c == ' ').fold(0, |acc, c| acc + c.len_utf8()))
 }
 
 /// Checks if the given string slice contains only space charactesr.
@@ -160,21 +168,20 @@ fn all_spaces(text:&str) -> bool {
 mod test {
     use super::*;
 
-    use ast::{IdMap, Id, HasIdMap};
-    use data::text::{Index, TextChange};
-    use data::text::Size;
-    use data::text::Span;
+    use ast::HasIdMap;
+    use data::text::Index;
+    use data::text::TextChange;
     use uuid::Uuid;
     use parser::Parser;
     use enso_prelude::default;
-    use crate::double_representation::test_utils::MarkdownProcessor;
 
-    use regex::Captures;
-    use regex::Replacer;
-
-
+    /// A sample text edit used to test "text api" properties.
+    ///
+    /// See `from_markdown` constructor function for helper markdown description.
     struct Case {
+        /// The initial enso program code.
         pub code   : String,
+        /// The edit made to the initial code.
         pub change : TextChange,
     }
 
@@ -191,7 +198,7 @@ mod test {
 
             match (index_of(START),index_of(INSERTION),index_of(END)) {
                 (Some(start),insertion,Some(end)) => {
-                    assert!(start < end,"Markdown markers discovered in wrong order");
+                    assert!(start < end,"Markdown markers discovered in wrong order.");
                     let erased_finish = insertion.unwrap_or(end);
                     let code          = {
                         let prefix = &marked_code[..start];
@@ -210,7 +217,7 @@ mod test {
                     let change = TextChange::replace(removed_span,inserted_code.to_string());
                     Case {code,change}
                 }
-                _ => panic!("Invalid markdown in code: {}",marked_code),
+                _ => panic!("Invalid markdown in the marked code: {}.",marked_code),
             }
         }
 
@@ -219,8 +226,10 @@ mod test {
             self.change.applied(&self.code)
         }
 
-
-        fn assert_edit_keeps_node_ids(&self, parser:&Parser) {
+        /// Checks if the text operation described by this case keeps the node IDs intact.
+        ///
+        /// See `assert_same_node_ids` for details.
+        fn assert_edit_keeps_main_node_ids(&self, parser:&Parser) {
             let ast1       = parser.parse_module(&self.code,default()).unwrap();
             let mut id_map = ast1.id_map();
 
@@ -232,8 +241,39 @@ mod test {
         }
     }
 
+    /// Pretty prints the code of module with a single function named `main`. The lines should
+    /// contain unindented main function's block lines.
+    fn to_main(lines:impl IntoIterator<Item:AsRef<str>>) -> String {
+        let mut ret = "main = ".to_string();
+        for line in lines {
+            ret.push_str(&format!("\n    {}", line.as_ref()))
+        }
+        ret
+    }
+
+    /// Returns the IDs of nodes in the `main` function in their order of line appearance.
+    fn main_nodes(module:&ast::known::Module) -> Vec<Uuid> {
+        use double_representation::definition::*;
+        use double_representation::graph::GraphInfo;
+        let id         = Id::new_plain_name("main");
+        let definition = traverse_for_definition(module,&id).unwrap();
+        let graph      = GraphInfo::from_definition(definition);
+        let nodes      = graph.nodes();
+        nodes.into_iter().map(|node| node.id()).collect()
+    }
+
+    /// Checks that both module AST contain `main` function that has the same sequence of node IDs,
+    /// as described by the `main_nodes` function.
+    fn assert_same_node_ids(ast1:&ast::known::Module,ast2:&ast::known::Module) {
+        let ids1 = main_nodes(ast1);
+        let ids2 = main_nodes(ast2);
+        println!("IDs1: {:?}", ids1);
+        println!("IDs2: {:?}", ids2);
+        assert_eq!(ids1,ids2);
+    }
+
     #[test]
-    fn test_markdown() {
+    fn test_case_markdown() {
         let case = Case::from_markdown("foo«aa⎀bb»c");
         assert_eq!(case.code, "fooaac");
         assert_eq!(case.change.inserted, "bb");
@@ -245,32 +285,6 @@ mod test {
         assert_eq!(case.change.inserted, "");
         assert_eq!(case.change.replaced, Index::new(3)..Index::new(5));
         assert_eq!(case.resulting_code(), "fooc");
-    }
-
-    fn to_main(lines:impl IntoIterator<Item:AsRef<str>>) -> String {
-        let mut ret = "main = ".to_string();
-        for line in lines {
-            ret.push_str(&format!("\n    {}", line.as_ref()))
-        }
-        ret
-    }
-
-    fn main_nodes(module:&ast::known::Module) -> Vec<Uuid> {
-        use double_representation::definition::*;
-        use double_representation::graph::GraphInfo;
-        let id = Id::new_plain_name("main");
-        let definition = traverse_for_definition(module,&id).unwrap();
-        let graph = GraphInfo::from_definition(definition);
-        let nodes = graph.nodes();
-        nodes.into_iter().map(|node| node.id()).collect()
-    }
-
-    fn assert_same_node_ids(ast1:&ast::known::Module,ast2:&ast::known::Module) {
-        let ids1 = main_nodes(ast1);
-        let ids2 = main_nodes(ast2);
-        println!("IDs1: {:?}", ids1);
-        println!("IDs2: {:?}", ids2);
-        assert_eq!(ids1,ids2);
     }
 
     #[test]
@@ -311,7 +325,7 @@ mod test {
             let all_nodes = ["previous",case,"next"];
             let main_def = to_main(all_nodes.iter());
             let case = Case::from_markdown(main_def);
-            case.assert_edit_keeps_node_ids(&parser);
+            case.assert_edit_keeps_main_node_ids(&parser);
         }
     }
 }

@@ -286,14 +286,14 @@ impl Ast {
         Ast::new(shape.into(),self.id)
     }
 
-    /// Finds a node in the tree with id equal to the given argument.
+    /// Find a node in the AST with id equal to the given argument.
     pub fn find_by_id(&self, id:Id) -> Option<&Ast> {
         self.iter_recursive().find(|ast| ast.id == Some(id))
     }
 
-    /// Finds ast with text representation equal to given string.
+    /// Find a node in the AST with text representation equal to given string.
     ///
-    /// Warning: not effective, will construct a string for each node.
+    /// If multiple nodes match, it is unspecified which one of them will be returned.
     pub fn find_by_repr(&self, repr:&str) -> Option<&Ast> {
         // TODO: [mwu]
         //   We could do much better with HasTokens and iterative matching.
