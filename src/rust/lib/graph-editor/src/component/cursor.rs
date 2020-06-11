@@ -31,10 +31,20 @@ const DEFAULT_COLOR  : color::Lcha = color::Lcha::new(1.0,0.0,0.0,0.2);
 // === StyleValue ===
 // ==================
 
-/// Defines a value of the cursor style and also information if the value should be animated.
-/// Sometimes disabling animation is required. A good example is the implementation of a selection
-/// box. When drawing selection box with the mouse, the user wants to see it in real-time, without
-/// it growing over time.
+/// Defines a value of the cursor style.
+///
+/// Design notes:
+///
+///   - **The `value` field**
+///     Defines the value of the style. In case it is set to `None`, the default value will be used.
+///     Please note that setting it to `None` has a different effect than not providing the value
+///     in the `Style` at all. If the value is provided it can override the existing values when
+///     used in a semigroup operation.
+///
+///   - **The `animate` field**
+///     Defines if the state transition should be used. Sometimes disabling animation is required.
+///     A good example is the implementation of a selection box. When drawing selection box with the
+///     mouse, the user wants to see it in real-time, without it growing over time.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct StyleValue<T> {

@@ -8,7 +8,6 @@ pub mod event;
 use crate::control::callback;
 use crate::system::web;
 
-use enso_frp::Position;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
@@ -143,7 +142,7 @@ pub fn bind_frp_to_mouse(frp:&enso_frp::io::Mouse, mouse_manager:&MouseManager)
 -> MouseFrpCallbackHandles {
     // TODO: This does not seem to be ever used. Can it be removed?
     let on_move = enclose!((frp.position => frp) move |e:&OnMove| {
-        frp.emit(Position::new(e.client_x() as f32,e.client_y() as f32));
+        frp.emit(Vector2(e.client_x() as f32,e.client_y() as f32));
     });
     let on_down  = enclose!((frp.press   => frp) move |_:&OnDown | frp.emit(()));
     let on_up    = enclose!((frp.release => frp) move |_:&OnUp   | frp.emit(()));

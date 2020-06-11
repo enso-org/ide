@@ -352,7 +352,8 @@ impl Mouse {
                 last_position.set(new_position);
                 let new_canvas_position = new_position * pixel_ratio;
                 position.set(new_canvas_position);
-                let position = enso_frp::Position::new(new_position.x as f32 - shape.width/2.0,new_position.y as f32 - shape.height/2.0);
+                let center   = Vector2(shape.width/2.0,shape.height/2.0);
+                let position = Vector2(new_position.x as f32,new_position.y as f32) - center;
                 frp.position.emit(position);
             }
         }));
@@ -404,11 +405,10 @@ impl Mouse {
     /// and you can assume that it is synchronous. Whenever mouse moves, it is discovered what
     /// element it hovers, and its position change event is emitted as well.
     pub fn reemit_position_event(&self) {
-        let shape       = self.scene_frp.shape.value();
-
-        let position = self.last_position.get();
-        let position = enso_frp::Position::new(position.x as f32 - shape.width/2.0,position.y as f32 - shape.height/2.0);
-
+        let shape        = self.scene_frp.shape.value();
+        let new_position = self.last_position.get();
+        let center       = Vector2(shape.width/2.0,shape.height/2.0);
+        let position     = Vector2(new_position.x as f32,new_position.y as f32) - center;
         self.frp.position.emit(position);
     }
 }
