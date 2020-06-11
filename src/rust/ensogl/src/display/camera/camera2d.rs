@@ -99,8 +99,8 @@ pub struct Dirty {
 
 impl Dirty {
     fn new(logger:&Logger) -> Self {
-        let projection = ProjectionDirty::new(logger.sub("projection"),());
-        let transform  = TransformDirty::new(logger.sub("transform"),());
+        let projection = ProjectionDirty::new(Logger::sub(&logger,"projection"),());
+        let transform  = TransformDirty::new(Logger::sub(&logger,"transform"),());
         Self {projection,transform}
     }
 }
@@ -176,7 +176,7 @@ impl Camera2dData {
         let zoom                   = 1.0;
         let z_zoom_1               = 1.0;
         let matrix                 = default();
-        let dirty                  = Dirty::new(&logger.sub("dirty"));
+        let dirty                  = Dirty::new(&Logger::sub(&logger,"dirty"));
         let display_object         = display_object.clone2();
         let zoom_update_registry   = default();
         let screen_update_registry = default();
@@ -344,8 +344,8 @@ pub struct Camera2d {
 
 impl Camera2d {
     /// Creates new Camera instance.
-    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let logger         = logger.sub("camera");
+    pub fn new(logger:impl AnyLogger, width:f32, height:f32) -> Self {
+        let logger         = Logger::sub(logger,"camera");
         let display_object = display::object::Instance::new(&logger);
         let data           = Camera2dData::new(logger,&display_object,width,height);
         let data           = Rc::new(RefCell::new(data));

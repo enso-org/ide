@@ -14,6 +14,7 @@ use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::world::*;
 use ensogl::display;
+use ensogl::system::web::platform::Platform;
 use nalgebra::Vector2;
 use nalgebra::zero;
 use utils::channel::process_stream_with_handle;
@@ -64,13 +65,13 @@ impl {
 impl TextEditor {
     /// Creates a new TextEditor.
     pub fn new
-    ( logger           : &Logger
+    ( logger           : impl AnyLogger
     , world            : &World
     , controller       : controller::Text
     , keyboard_actions : &mut keyboard::Actions
     , fonts            : &mut font::Registry
     ) -> Self {
-        let logger     = logger.sub("TextEditor");
+        let logger     = Logger::sub(logger,"TextEditor");
         let scene      = world.scene();
         let camera     = scene.camera();
         let screen     = camera.screen();
@@ -88,8 +89,16 @@ impl TextEditor {
         Self::new_from_data(data).initialize(keyboard_actions)
     }
 
+    fn get_save_keys_mask() -> KeyMask {
+        if let Platform::MacOS = Platform::query() {
+            KeyMask::meta_plus('s')
+        } else {
+            KeyMask::control_plus('s')
+        }
+    }
+
     fn initialize(self, keyboard_actions:&mut keyboard::Actions) -> Self {
-        let save_keys   = KeyMask::control_plus('s');
+        let save_keys   = Self::get_save_keys_mask();
         let text_editor = Rc::downgrade(&self.rc);
         keyboard_actions.add_action_for_key_mask(save_keys,enclose!((text_editor) move || {
             if let Some(text_editor) = text_editor.upgrade() {
