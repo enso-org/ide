@@ -478,7 +478,7 @@ impl Cursor {
 
             move_time            <- scene.frp.frame_time.sample(&mouse.position);
             time_since_last_move <- scene.frp.frame_time.map2(&move_time,|t,s|t-s);
-            check_fade_time      <- time_since_last_move.gate(&is_not_hosted);
+            check_fade_time      <- time_since_last_move.gate(&is_not_hosted).gate(&mouse.ever_moved);
             eval check_fade_time ([inactive_fade](time) {
                 if *time > FADE_OUT_TIME {
                     inactive_fade.set_spring(fade_out_spring);
@@ -488,8 +488,6 @@ impl Cursor {
                     inactive_fade.set_target_value(1.0)
                 }
             });
-
-            trace inactive_fade.value;
 
 
             // === Evals ===

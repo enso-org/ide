@@ -29,11 +29,11 @@ pub struct Navigator {
 
 impl Navigator {
     pub fn new(scene:&Scene, camera:&Camera2d) -> Self {
-        let dom                       = scene.dom.root.clone_ref();
-        let zoom_speed                = 10.0;
-        let min_zoom                  = 10.0;
-        let max_zoom                  = 10000.0;
-        let scaled_down_zoom_speed    = zoom_speed / 1000.0;
+        let dom                    = scene.dom.root.clone_ref();
+        let zoom_speed             = 10.0;
+        let min_zoom               = 10.0;
+        let max_zoom               = 10000.0;
+        let scaled_down_zoom_speed = zoom_speed / 1000.0;
         let (simulator,resize_callback,_events) = Self::start_navigator_events
             (&dom.into(),camera,min_zoom,max_zoom,scaled_down_zoom_speed);
         Self {simulator,_events,resize_callback}
@@ -62,8 +62,10 @@ impl Navigator {
             let distance_to_show_full_ui    = dom.shape().height / 2.0 / fovy_slope;
             let movement_scale_for_distance = distance / distance_to_show_full_ui;
 
-            let dx   = pan.movement.x * movement_scale_for_distance;
-            let dy   = pan.movement.y * movement_scale_for_distance;
+            // FIXME: Adding - here as panning was accidentally inverted by some recent changes.
+            //        Issue tracked by wdanilo and notdanilo.
+            let dx   = - pan.movement.x * movement_scale_for_distance;
+            let dy   = - pan.movement.y * movement_scale_for_distance;
             let diff = Vector3::new(dx,dy,0.0);
             simulator.update_target_value(|p| p - diff);
         });
