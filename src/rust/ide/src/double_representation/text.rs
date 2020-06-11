@@ -287,8 +287,8 @@ mod test {
         assert_eq!(case.resulting_code(), "fooc");
     }
 
-    #[test]
-    fn applying_code_changes_to_id_map3() {
+    #[wasm_bindgen_test]
+    fn applying_code_changes_to_id_map() {
         let parser = Parser::new_or_panic();
 
         // All the cases describe edit to a middle line in three line main definition.
