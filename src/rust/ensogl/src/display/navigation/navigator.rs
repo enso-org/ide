@@ -65,7 +65,7 @@ impl Navigator {
             let dx   = pan.movement.x * movement_scale_for_distance;
             let dy   = pan.movement.y * movement_scale_for_distance;
             let diff = V3::new(dx,dy,0.0);
-            simulator.update_target_value(|p| p + diff);
+            simulator.update_target_value(|p| p - diff);
         });
 
         let resize_callback = camera.add_screen_update_callback(

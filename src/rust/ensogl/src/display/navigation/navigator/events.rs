@@ -290,7 +290,7 @@ impl NavigatorEvents {
             if let Some(data) = data.upgrade() {
                 let position = Vector2::new(event.offset_x() as f32, event.offset_y() as f32);
                 data.set_mouse_position(position);
-                let movement = data.last_mouse_position() - data.mouse_position();
+                let movement = data.mouse_position() - data.last_mouse_position();
 
                 if let Some(movement_type) = data.movement_type() {
                     match movement_type {
