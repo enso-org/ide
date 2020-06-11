@@ -19,13 +19,11 @@ use ensogl::gui::component;
 // === Constants ===
 // =================
 
-const PADDING             : f32 = 2.0;
-const SIDES_PADDING       : f32 = PADDING * 2.0;
-const DEFAULT_SIZE        : V2  = V2(16.0,16.0);
-const DEFAULT_RADIUS      : f32 = 8.0;
-const DEFAULT_COLOR_LAB   : V3  = V3(1.0,0.0,0.0);
-const DEFAULT_COLOR_ALPHA : f32 = 0.2;
-
+const PADDING        : f32 = 2.0;
+const SIDES_PADDING  : f32 = PADDING * 2.0;
+const DEFAULT_SIZE   : (f32,f32) = (16.0,16.0);
+const DEFAULT_RADIUS : f32 = 8.0;
+const DEFAULT_COLOR  : color::Lcha = color::Lcha::new(1.0,0.0,0.0,0.2);
 
 
 
@@ -60,6 +58,13 @@ impl<T> StyleValue<T> {
         Self {value,animate}
     }
 
+    /// Constructor.
+    pub fn new_default() -> Self {
+        let value   = None;
+        let animate = true;
+        Self {value,animate}
+    }
+
     /// Constructor with disabled animation.
     pub fn new_no_animation(value:T) -> Self {
         let value   = Some(value);
@@ -83,6 +88,16 @@ macro_rules! define_style {( $( $(#$meta:tt)* $field:ident : $field_type:ty),* $
     #[derive(Debug,Clone,Default)]
     pub struct Style {
         $($(#$meta)? $field : Option<StyleValue<$field_type>>),*
+    }
+
+    impl Style {
+        /// Create a new style with all fields set to default value. Please note that it is
+        /// different than empty style, as this one overrides fields with default values when
+        /// used in a semigroup operation.
+        pub fn new_with_all_fields_default() -> Self {
+            $(let $field = Some(StyleValue::new_default());)*
+            Self {$($field),*}
+        }
     }
 
     impl PartialSemigroup<&Style> for Style {
@@ -135,13 +150,6 @@ impl Style {
         Self {color,..default()}
     }
 
-    pub fn new_box_selection(size:Vector2<f32>) -> Self {
-        let def_size = Vector2::new(DEFAULT_SIZE.x,DEFAULT_SIZE.y);
-        let offset   = Some(StyleValue::new_no_animation(-size / 2.0));
-        let size     = Some(StyleValue::new_no_animation(size.abs() + def_size));
-        Self {size,offset,..default()}
-    }
-
     pub fn new_press() -> Self {
         let press = Some(StyleValue::new(1.0));
         Self {press,..default()}
@@ -155,6 +163,13 @@ impl Style {
 impl Style {
     pub fn press(mut self) -> Self {
         self.press = Some(StyleValue::new(1.0));
+        self
+    }
+
+    pub fn box_selection(mut self, size:Vector2<f32>) -> Self {
+        let def_size = Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1);
+        self.offset  = Some(StyleValue::new_no_animation(-size / 2.0));
+        self.size    = Some(StyleValue::new_no_animation(size.abs() + def_size));
         self
     }
 }
@@ -179,9 +194,9 @@ impl Style {
 pub mod shape {
     use super::*;
     ensogl::define_shape_system! {
-        ( press          : f32
-        , radius         : f32
-        , color          : Vector4<f32>
+        ( press  : f32
+        , radius : f32
+        , color  : Vector4<f32>
         ) {
             let width  : Var<Distance<Pixels>> = "input_size.x".into();
             let height : Var<Distance<Pixels>> = "input_size.y".into();
@@ -210,7 +225,7 @@ pub mod shape {
 pub struct Frp {
     pub network  : frp::Network,
     pub input    : FrpInputs,
-    pub position : frp::Stream<V3>,
+    pub position : frp::Stream<Vector3>,
 }
 
 impl Deref for Frp {
@@ -315,27 +330,27 @@ impl Cursor {
         //     host during the movement. After it is fully attached, cursor moves with the same
         //     speed as the scene when panning.
         //
-        let press                = Animation :: <f32> :: new(&network);
-        let radius               = Animation :: <f32> :: new(&network);
-        let size                 = Animation :: <V2>  :: new(&network);
-        let offset               = Animation :: <V2>  :: new(&network);
-        let color_lab            = Animation :: <V3>  :: new(&network);
-        let color_alpha          = Animation :: <f32> :: new(&network);
-        let host_position        = Animation :: <V3>  :: new(&network);
-        let host_follow_weight   = Animation :: <f32> :: new(&network);
+        let press                = Animation :: <f32>     :: new(&network);
+        let radius               = Animation :: <f32>     :: new(&network);
+        let size                 = Animation :: <Vector2> :: new(&network);
+        let offset               = Animation :: <Vector2> :: new(&network);
+        let color_lab            = Animation :: <Vector3> :: new(&network);
+        let color_alpha          = Animation :: <f32>     :: new(&network);
+        let host_position        = Animation :: <Vector3> :: new(&network);
+        let host_follow_weight   = Animation :: <f32>     :: new(&network);
         let host_attached_weight = Tween     :: new(&network);
 
         host_attached_weight.set_duration(300.0);
-        color_lab.set_target_value(DEFAULT_COLOR_LAB);
-        color_alpha.set_target_value(DEFAULT_COLOR_ALPHA);
+        color_lab.set_target_value(DEFAULT_COLOR.opaque.into());
+        color_alpha.set_target_value(DEFAULT_COLOR.alpha);
         radius.set_target_value(DEFAULT_RADIUS);
-        size.set_target_value(DEFAULT_SIZE);
+        size.set_target_value(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
 
         frp::extend! { network
             eval press.value  ((v) model.view.shape.press.set(*v));
             eval radius.value ((v) model.view.shape.radius.set(*v));
             eval size.value   ([model] (v) {
-                let dim = Vector2::new(v.x+SIDES_PADDING,v.y+SIDES_PADDING);
+                let dim = Vector2(v.x+SIDES_PADDING,v.y+SIDES_PADDING);
                 model.view.shape.sprite.size.set(dim);
             });
 
@@ -359,28 +374,28 @@ impl Cursor {
                     }
                 }
 
-//                match &new_style.color {
-//                    None => {
-//                        color_lab.set_target_value(DEFAULT_COLOR_LAB);
-//                        color_alpha.set_target_value(DEFAULT_COLOR_ALPHA);
-//                    }
-//                    Some(t) => {
-//                        let value = t.value.unwrap_or_else(||);
-//                        let lab = color::Laba::from(t.value);
-//                        color_lab.set_target_value(V3(lab.lightness,lab.a,lab.b));
-//                        color_alpha.set_target_value(lab.alpha);
-//                        if !t.animate {
-//                            color_lab.skip();
-//                            color_alpha.skip();
-//                        }
-//                    }
-//                }
+                match &new_style.color {
+                    None => {
+                        color_lab.set_target_value(DEFAULT_COLOR.opaque.into());
+                        color_alpha.set_target_value(DEFAULT_COLOR.alpha);
+                    }
+                    Some(t) => {
+                        let value = t.value.unwrap_or(DEFAULT_COLOR);
+                        let lab = color::Laba::from(value);
+                        color_lab.set_target_value(Vector3::new(lab.lightness,lab.a,lab.b));
+                        color_alpha.set_target_value(lab.alpha);
+                        if !t.animate {
+                            color_lab.skip();
+                            color_alpha.skip();
+                        }
+                    }
+                }
 
                 match &new_style.size {
-                    None => size.set_target_value(DEFAULT_SIZE),
+                    None => size.set_target_value(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1)),
                     Some(t) => {
-                        let value = t.value.unwrap_or(DEFAULT_SIZE.into()); // fixme
-                        size.set_target_value(V2::new(value.x,value.y));
+                        let value = t.value.unwrap_or_else(||Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
+                        size.set_target_value(Vector2(value.x,value.y));
                         if !t.animate { size.skip() }
                     }
                 }
@@ -389,7 +404,7 @@ impl Cursor {
                     None => offset.set_target_value(default()),
                     Some(t) => {
                         let value = t.value.unwrap_or_default();
-                        offset.set_target_value(V2::new(value.x,value.y));
+                        offset.set_target_value(Vector2(value.x,value.y));
                         if !t.animate { offset.skip() }
                     }
                 }
@@ -421,28 +436,29 @@ impl Cursor {
                         let position = host.global_position();
                         let position = Vector4::new(position.x,position.y,position.z,1.0);
                         let position = m2 * (m1 * position);
-                        host_position.set_target_value(V3(position.x,position.y,position.z));
+                        host_position.set_target_value(Vector3(position.x,position.y,position.z));
                     }
                 }
             });
 
             host_attached <- host_changed.all_with3
                 (&host_attached_weight.value,&host_position.value, f!((_,weight,pos_anim) {
-                    host_position.target_value() * weight + pos_anim * (1.0 - weight)
+                    host_position.target_value() * *weight + pos_anim * (1.0 - weight)
                 })
             );
 
             position <- mouse.position.all_with4
                 (&host_attached,&host_follow_weight.value,&offset.value,
                 |pos_rt,pos_attached,weight,offset| {
-                    let pos_rt : V3 = (V2(pos_rt.x,pos_rt.y) + *offset).into();
-                    pos_attached * weight + pos_rt * (1.0 - weight)
+                    let pos_rt = Vector2(pos_rt.x,pos_rt.y) + *offset;
+                    let pos_rt = Vector3(pos_rt.x,pos_rt.y,0.0);
+                    *pos_attached * *weight + pos_rt * (1.0 - weight)
                 }
             );
 
-            eval mouse_pos_rt ((t) host_position.set_target_value(V3(t.x,t.y,0.0)));
+            eval mouse_pos_rt ((t) host_position.set_target_value(Vector3(t.x,t.y,0.0)));
             eval anim_color   ((t) model.view.shape.color.set(t.into()));
-            eval position     ((t) model.view.set_position(t.into()));
+            eval position     ((t) model.view.set_position(*t));
         }
 
         input.set_style.emit(Style::default());

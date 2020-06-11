@@ -213,6 +213,7 @@ impl<T:Value> SimulationData<T> {
         self.set_thresholds(f(self.thresholds()));
     }
 
+    /// Stop the animator and set it to the target value.
     pub fn skip(&mut self) {
         self.active   = false;
         self.value    = self.target_value;

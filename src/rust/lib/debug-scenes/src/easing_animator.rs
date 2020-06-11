@@ -193,8 +193,8 @@ impl Sampler {
         if self.time > 3000.0 {
             self.time = 0.0;
             let animator = &self.easing_animator;
-            animator.set_start_value(animator.end_value());
-            animator.set_end_value(SpriteData::random());
+            animator.set_start_value_no_restart(animator.target_value());
+            animator.set_target_value_no_restart(SpriteData::random());
             animator.reset();
         }
         self.left_canvas.draw_graph(&self.easing_function,self.color,self.time);

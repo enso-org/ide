@@ -51,7 +51,7 @@ pub struct BubbleChart {
         frp            : visualization::instance::Frp,
         views          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
         logger         : Logger,
-        size           : Rc<Cell<V2>>,
+        size           : Rc<Cell<Vector2>>,
 }
 
 #[allow(missing_docs)]
@@ -164,7 +164,7 @@ impl RawText {
 pub struct RawTextModel {
     logger : Logger,
     dom    : DomSymbol,
-    size   : Rc<Cell<V2>>,
+    size   : Rc<Cell<Vector2>>,
 }
 
 impl RawTextModel {
@@ -173,7 +173,7 @@ impl RawTextModel {
         let logger  = Logger::new("RawText");
         let div     = web::create_div();
         let dom     = DomSymbol::new(&div);
-        let size    = Rc::new(Cell::new(V2(200.0,200.0)));
+        let size    = Rc::new(Cell::new(Vector2(200.0,200.0)));
 
         dom.dom().set_style_or_warn("white-space"   ,"pre"                  ,&logger);
         dom.dom().set_style_or_warn("overflow-y"    ,"auto"                 ,&logger);
@@ -193,7 +193,7 @@ impl RawTextModel {
         self
     }
 
-    fn set_size(&self, size:V2) {
+    fn set_size(&self, size:Vector2) {
         self.size.set(size);
         self.reload_style();
     }

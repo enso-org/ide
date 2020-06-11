@@ -31,8 +31,8 @@ use ensogl::gui::component;
 // === Constants ===
 // =================
 
-const DEFAULT_SIZE  : V2  = V2(200.0,200.0);
-const CORNER_RADIUS : f32 = super::super::node::CORNER_RADIUS;
+const DEFAULT_SIZE  : (f32,f32) = (200.0,200.0);
+const CORNER_RADIUS : f32       = super::super::node::CORNER_RADIUS;
 
 
 
@@ -121,13 +121,13 @@ pub struct Frp {
     pub set_data           : frp::Source<visualization::Data>,
     pub select             : frp::Source,
     pub deselect           : frp::Source,
-    pub set_size           : frp::Source<V2>,
+    pub set_size           : frp::Source<Vector2>,
     pub enable_fullscreen  : frp::Source,
     pub disable_fullscreen : frp::Source,
     pub clicked            : frp::Stream,
     on_click               : frp::Source,
     scene_shape            : frp::Sampler<scene::Shape>,
-    size                   : frp::Sampler<V2>,
+    size                   : frp::Sampler<Vector2>,
 }
 
 impl Frp {
@@ -324,18 +324,18 @@ impl ContainerModel {
         self.set_size(size);
     }
 
-    fn set_size(&self, size:impl Into<V2>) {
+    fn set_size(&self, size:impl Into<Vector2>) {
         let size = size.into();
         if self.is_fullscreen.get() {
             self.fullscreen_view.background . shape.radius.set(CORNER_RADIUS);
-            self.fullscreen_view.background . shape.sprite.size.set(size.into());
+            self.fullscreen_view.background . shape.sprite.size.set(size);
             self.view.background   . shape.sprite.size.set(zero());
             self.view.overlay . shape.sprite.size.set(zero());
         } else {
             self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.background.shape.sprite.size.set(size.into());
-            self.view.overlay.shape.sprite.size.set(size.into());
+            self.view.background.shape.sprite.size.set(size);
+            self.view.overlay.shape.sprite.size.set(size);
             self.fullscreen_view.background . shape.sprite.size.set(zero());
         }
 
@@ -395,8 +395,8 @@ impl Container {
         let network    = &self.network;
         let model      = &self.model;
         let fullscreen = Animation::new(network);
-        let size       = Animation::<V2>::new(network);
-        let fullscreen_position = Animation::<V3>::new(network);
+        let size       = Animation::<Vector2>::new(network);
+        let fullscreen_position = Animation::<Vector3>::new(network);
 
         frp::extend! { network
             eval  inputs.set_visibility    ((v) model.set_visibility(*v));
@@ -406,13 +406,13 @@ impl Container {
             eval_ inputs.enable_fullscreen (model.set_visibility(true));
             eval_ inputs.enable_fullscreen (model.enable_fullscreen());
             eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
-            eval  inputs.set_size          ((s) size.set_target_value(s.into()));
+            eval  inputs.set_size          ((s) size.set_target_value(*s));
 
             _eval <- fullscreen.value.all_with3(&size.value,&inputs.scene_shape,
                 f!([model] (weight,viz_size,scene_size) {
                     let weight_inv      = 1.0 - weight;
-                    let scene_size : V2 = scene_size.into();
-                    let current_size    = weight_inv * viz_size + weight * scene_size;
+                    let scene_size : Vector2 = scene_size.into();
+                    let current_size    = viz_size * weight_inv + scene_size * *weight;
                     model.set_corner_roundness(weight_inv);
                     model.set_size(current_size);
 
@@ -421,16 +421,16 @@ impl Container {
                     let pos = model.global_position();
                     let pos = Vector4::new(pos.x,pos.y,pos.z,1.0);
                     let pos = m2 * (m1 * pos);
-                    let pp = V3(pos.x,pos.y,pos.z);
+                    let pp = Vector3(pos.x,pos.y,pos.z);
                     let current_pos = pp * weight_inv;
-                    model.fullscreen_view.set_position(current_pos.into());
+                    model.fullscreen_view.set_position(current_pos);
 
             }));
 
-            eval fullscreen_position.value ((p) model.fullscreen_view.set_position(p.into()));
+            eval fullscreen_position.value ((p) model.fullscreen_view.set_position(*p));
         }
 
-        inputs.set_size.emit(DEFAULT_SIZE);
+        inputs.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
         size.skip();
         model.set_visualization(Some(visualization::Registry::default_visualisation(scene)));
         self

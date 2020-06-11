@@ -27,7 +27,6 @@ use crate::display;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
-use crate::system::gpu::types::*;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web;

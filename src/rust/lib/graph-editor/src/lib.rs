@@ -431,7 +431,6 @@ pub struct FrpInputs {
     pub remove_node                  : frp::Source<NodeId>,
     pub set_node_expression          : frp::Source<(NodeId,node::Expression)>,
     pub set_node_position            : frp::Source<(NodeId,Position)>,
-    pub translate_selected_nodes     : frp::Source<Position>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Instance>)>,
     pub register_visualization : frp::Source<Option<visualization::Definition>>,
@@ -462,7 +461,6 @@ impl FrpInputs {
             def set_node_expression          = source();
             def set_node_position            = source();
             def set_visualization_data       = source();
-            def translate_selected_nodes     = source();
             def cycle_visualization          = source();
             def set_visualization            = source();
             def register_visualization = source();
@@ -476,7 +474,7 @@ impl FrpInputs {
              ,remove_all_node_input_edges,remove_all_node_output_edges,set_visualization_data
              ,set_detached_edge_targets,set_edge_source,set_edge_target
              ,unset_edge_source,unset_edge_target
-             ,set_node_position,select_node,remove_node,translate_selected_nodes,set_node_expression
+             ,set_node_position,select_node,remove_node,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
              ,register_visualization,some_edge_targets_detached,all_edge_targets_attached
              ,hover_node_input
@@ -717,7 +715,7 @@ impl Grid {
     pub fn close_to(&self, position:Vector2<f32>, threshold:f32) -> Vector2<Option<f32>> {
         let x = Self::axis_close_to(&self.sorted_xs,position.x,threshold);
         let y = Self::axis_close_to(&self.sorted_ys,position.y,threshold);
-        Vector2::new(x,y)
+        Vector2(x,y)
     }
 
     fn axis_close_to(axis:&[f32], pos:f32, threshold:f32) -> Option<f32> {
@@ -1223,13 +1221,15 @@ impl GraphEditorModel {
         self.nodes.recompute_grid(node_ids.iter().cloned().collect());
     }
 
-    fn recompute_grid_snapping(&self) {
-        self.nodes.recompute_grid(default());
-    }
-
     pub fn node_position(&self, node_id:impl Into<NodeId>) -> Vector2<f32> {
         let node_id = node_id.into();
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position().xy()).unwrap_or_default()
+    }
+
+    /// The Position type should be removed.
+    pub fn node_position_hack(&self, node_id:impl Into<NodeId>) -> Position {
+        let position = self.node_position(node_id);
+        Position::new(position.x,position.y)
     }
 
     pub fn node_pos_mod
@@ -1460,10 +1460,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     on_release_style <- mouse.release . constant(cursor::Style::default());
 
 
-    cursor_selection_start <- selection_size.map(|p| cursor::Style::new_box_selection(Vector2::new(p.x,p.y)));
+    cursor_selection_start <- selection_size.map(|p| cursor::Style::new_with_all_fields_default().press().box_selection(Vector2::new(p.x,p.y)));
     cursor_selection_end   <- mouse.release . constant(cursor::Style::default());
-
-    cursor_selection <- any (cursor_selection_start, cursor_selection_end);
+    cursor_selection       <- any (cursor_selection_start, cursor_selection_end);
 
     cursor_press     <- any (on_press_style, on_release_style);
 
@@ -1589,14 +1588,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.node_position_set         <+ node_with_position;
     outputs.node_position_set_batched <+ node_with_position;
 
-    cursor_style <- all
-        [ cursor_selection
-        , cursor_press
-        , cursor_style_edge_drag
-        , node_cursor_style
-        ].fold();
 
-    eval cursor_style ((style) cursor.frp.set_style.emit(style));
     }
 
 
@@ -1654,11 +1646,15 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.node_expression_set <+ inputs.set_node_expression;
 
 
+
     // ==================
     // === Move Nodes ===
     // ==================
 
-    mouse_pos_fix <- mouse.position.map(|p| Vector2::new(p.x,p.y));
+    mouse_pos_fix <- mouse.position.map(|p| Vector2(p.x,p.y));
+
+
+    // === Discovering drag targets ===
 
     let main            = touch.nodes.down.clone_ref();
     let main_pressed    = touch.nodes.is_down.clone_ref();
@@ -1675,6 +1671,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     just_pressed            <- bool (&main_tgt_pos_rt_changed,&main_pos_on_press);
     main_tgt_pos_rt         <- any  (&main_tgt_pos_rt_changed,&main_pos_on_press);
 
+
+    // === Snapping ===
+
     let main_tgt_pos_anim = Animation::<Vector2<f32>>::new(&network);
     let x_snap_strength     = Tween::new(&network);
     let y_snap_strength     = Tween::new(&network);
@@ -1686,8 +1685,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             let snapped = model.nodes.check_grid_magnet(*pos);
             let x = snapped.x.unwrap_or(pos.x);
             let y = snapped.y.unwrap_or(pos.y);
-            x_snap_strength.set_target2(if snapped.x.is_none() { 0.0 } else { 1.0 });
-            y_snap_strength.set_target2(if snapped.y.is_none() { 0.0 } else { 1.0 });
+            x_snap_strength.set_target_value(if snapped.x.is_none() { 0.0 } else { 1.0 });
+            y_snap_strength.set_target_value(if snapped.y.is_none() { 0.0 } else { 1.0 });
             main_tgt_pos_anim.set_target_value(Vector2::new(x,y));
             if *just_pressed {
                 main_tgt_pos_anim.set_target_value(*pos);
@@ -1703,64 +1702,34 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         , &x_snap_strength.value
         , &y_snap_strength.value
         , |rt,snap,xw,yw| {
-            let one   = Vector2::new(1.0,1.0);
-            let w     = Vector2::new(*xw,*yw);
-            let w_inv = one - w;
-            let x     = rt.x * w_inv.x + snap.x * w.x;
-            let y     = rt.y * w_inv.y + snap.y * w.y;
-            Vector2::new(x,y)
+            let w     = Vector2(*xw,*yw);
+            let w_inv = Vector2(1.0,1.0) - w;
+            rt.component_mul(&w_inv) + snap.component_mul(&w)
         });
 
 
-    // TEST
-    new_pos <- main_tgt_pos.map2(&main,|p,id| (*id,Position::new(p.x,p.y)));
-    outputs.node_position_set <+ new_pos;
+    // === Update All Target Nodes Positions ===
 
-//    drag_pos_diff     <- mouse.translation.gate(&touch.nodes.is_down);
-//    was_selected      <- touch.nodes.down.map(f!((id) model.nodes.selected.contains(id)));
-//    tx_sel_nodes      <- any (drag_pos_diff, inputs.translate_selected_nodes);
-//    non_selected_drag <- tx_sel_nodes.map2(&touch.nodes.down,|_,id|vec![*id]).gate_not(&was_selected);
-//    selected_drag     <- tx_sel_nodes.map(f_!(model.nodes.selected.items())).gate(&was_selected);
-//    nodes_to_drag     <- any (non_selected_drag,selected_drag);
-//    eval nodes_to_drag ((ids) model.disable_grid_snapping_for(ids));
-//    main_node_to_drag <- nodes_to_drag.map(|nodes| nodes[0]);
-//    main_node_new_pos <- main_node_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
-//    node_to_drag      <= nodes_to_drag;
-//    node_new_pos      <- node_to_drag.map2(&tx_sel_nodes,f!((id,tx) model.node_pos_mod(id,tx)));
-//
-//
-//    let new_pos        = Animation::<V2<f32>>::new(&network);
-//    eval main_node_new_pos(((_,pos)) new_pos.set_target_value(V2(pos.x,pos.y)));
-//
-//
-//    snap_position     <- main_node_new_pos.map(f!(((_,pos)) model.nodes.check_grid_magnet(pos)));
-//    pos_snap_diff     <- node_new_pos.map2(&snap_position,|(_,p1),p2| {
-//        let x = p2.x.map(|t| t-p1.x).unwrap_or_default();
-//        let y = p2.y.map(|t| t-p1.y).unwrap_or_default();
-//        Position::new(x,y)
-//    });
-//    main_node_new_pos_snapped <- main_node_new_pos.map2(&pos_snap_diff,|(id,p),p2| (*id,Position::new(p.x+p2.x,p.y+p2.y)));
-//
-//
-////    eval snap_position ([snapping](p) {
-////        let tgt = if p.x.is_none() && p.y.is_none() { 0.0 } else { 1.0 };
-////        snapping.set_target_value(tgt);
-////    });
-////    trace snapping.value;
-//
-////    outputs.node_position_set <+ node_new_pos;
-//    outputs.node_position_set <+ main_node_new_pos_snapped;
-//
-//
-//    was_drag_false        <- touch.nodes.down.constant(false);
-//    was_drag_true         <- drag_pos_diff.constant(true);
-//    was_drag              <- any (was_drag_false,was_drag_true);
-//    drag_finish           <- touch.nodes.up.gate(&was_drag);
-//    dragged_node          <= nodes_to_drag.sample(&drag_finish);
-//    dragged_node_pos      <- dragged_node.map(f!([model] (id) (*id,model.node_position(id))));
-//    outputs.node_position_set_batched <+ dragged_node_pos;
-//
-//    eval_ outputs.node_position_set_batched (model.recompute_grid_snapping());
+    main_tgt_pos_prev <- main_tgt_pos.previous();
+    main_tgt_pos_diff <- main_tgt_pos.map2(&main_tgt_pos_prev,|t,s|t-s).gate_not(&just_pressed);
+    tgt               <= tgts.sample(&main_tgt_pos_diff);
+    tgt_new_pos       <- tgt.map2(&main_tgt_pos_diff,f!((id,tx) model.node_pos_mod(id,Position::new(tx.x,tx.y))));
+    outputs.node_position_set <+ tgt_new_pos;
+
+
+    // === Batch Update ===
+
+    after_drag             <- touch.nodes.up.gate_not(&just_pressed);
+    tgt_after_drag         <= tgts.sample(&after_drag);
+    tgt_after_drag_new_pos <- tgt_after_drag.map(f!([model] (id) (*id,model.node_position_hack(id))));
+    outputs.node_position_set_batched <+ tgt_after_drag_new_pos;
+
+
+    // === Mouse style ===
+
+    cursor_on_drag_down <- main.map(|_| cursor::Style::new_with_all_fields_default().press());
+    cursor_on_drag_up   <- touch.nodes.up.map(|_| cursor::Style::default());
+    cursor_on_drag      <- any (&cursor_on_drag_down,&cursor_on_drag_up);
 
 
     // === Set Node Position ===
@@ -1781,6 +1750,22 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             }
         })
     });
+
+
+
+    // ====================
+    // === Cursor Style ===
+    // ====================
+
+    cursor_style <- all
+        [ cursor_on_drag
+        , cursor_selection
+        , cursor_press
+        , cursor_style_edge_drag
+        , node_cursor_style
+        ].fold();
+
+    eval cursor_style ((style) cursor.frp.set_style.emit(style));
 
 
      // === Activate Visualisation ===

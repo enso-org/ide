@@ -150,9 +150,9 @@ impl InstanceModel {
        Ok(())
    }
 
-   fn set_size(&self, size:V2) {
+   fn set_size(&self, size:Vector2) {
        if let Some(set_size) = &self.set_size.deref() {
-           let size          = Vector2::new(size.x,size.y);
+           let size          = Vector2(size.x,size.y);
            let context       = JsValue::NULL;
            let data_json     = JsValue::from_serde(&size).unwrap();
            if let Err(error) = set_size.call2(&context, &self.root_node.dom(), &data_json) {
