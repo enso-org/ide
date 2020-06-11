@@ -16,9 +16,9 @@ use std::fmt::Debug;
 
 /// Trivial logger that discards all messages except warnings and errors.
 #[derive(Clone,CloneRef,Debug,Default)]
-pub struct Logger{
+pub struct Logger {
     /// Path that is used as an unique identifier of this logger.
-    pub path:Rc<String>,
+    pub path:ImString,
 }
 
 
@@ -39,18 +39,19 @@ impl AnyLogger for Logger {
     type This = Self;
 
     fn path(&self) -> &str {
-        self.path.as_str()
+        &self.path
     }
 
-    fn new(path:impl Str) -> Self {
-        Self {path:Rc::new(path.into())}
+    fn new(path:impl Into<ImString>) -> Self {
+        let path = path.into();
+        Self {path}
     }
 
-    fn trace      <M: LogMsg>(&self,   _:M) {                                                 }
-    fn debug      <M: LogMsg>(&self,   _:M) {                                                 }
-    fn info       <M: LogMsg>(&self,   _:M) {                                                 }
-    fn warning    <M: LogMsg>(&self, msg:M) { crate::enabled::Logger::warning(&self.path,msg) }
-    fn error      <M: LogMsg>(&self, msg:M) { crate::enabled::Logger::error  (&self.path,msg) }
-    fn group_begin<M: LogMsg>(&self,   _:M) {                                                 }
-    fn group_end             (&self       ) {                                                 }
+    fn trace       <Msg:LogMsg> (&self, _:Msg) {}
+    fn debug       <Msg:LogMsg> (&self, _:Msg) {}
+    fn info        <Msg:LogMsg> (&self, _:Msg) {}
+    fn warning     <Msg:LogMsg> (&self, m:Msg) { crate::enabled::Logger::warning(&self.path,m) }
+    fn error       <Msg:LogMsg> (&self, m:Msg) { crate::enabled::Logger::error  (&self.path,m) }
+    fn group_begin <Msg:LogMsg> (&self, _:Msg) {}
+    fn group_end                (&self       ) {}
 }

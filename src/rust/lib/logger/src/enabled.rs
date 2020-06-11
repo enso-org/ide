@@ -23,7 +23,7 @@ use wasm_bindgen::JsValue;
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct Logger {
     /// Path that is used as an unique identifier of this logger.
-    pub path:Rc<String>,
+    pub path:ImString,
 }
 
 
@@ -115,11 +115,12 @@ impl AnyLogger for Logger {
     type This = Self;
 
     fn path(&self) -> &str {
-        self.path.as_str()
+        &self.path
     }
 
-    fn new(path:impl Str) -> Self {
-        Self {path:Rc::new(path.into())}
+    fn new(path:impl Into<ImString>) -> Self {
+        let path = path.into();
+        Self {path}
     }
 
     fn trace      <M:LogMsg>(&self, msg:M) { Self::trace      (&self.path,msg) }

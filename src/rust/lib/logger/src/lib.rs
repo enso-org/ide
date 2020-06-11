@@ -23,17 +23,17 @@ use enso_prelude::*;
 /// Message that can be logged.
 pub trait LogMsg {
     /// Turns message into `&str` and passes it to input function.
-    fn with_log_msg<F: FnOnce(&str) -> T, T>(&self, f:F) -> T;
+    fn with_log_msg<T,F:FnOnce(&str)->T>(&self, f:F) -> T;
 }
 
 impl LogMsg for &str {
-    fn with_log_msg<F: FnOnce(&str) -> T, T>(&self, f:F) -> T {
+    fn with_log_msg<T,F:FnOnce(&str)->T>(&self, f:F) -> T {
         f(self)
     }
 }
 
-impl<F: Fn() -> S, S:Str> LogMsg for F {
-    fn with_log_msg<G: FnOnce(&str) -> T, T>(&self, f:G) -> T {
+impl<G:Fn()->S, S:AsRef<str>> LogMsg for G {
+    fn with_log_msg<T,F:FnOnce(&str)->T>(&self, f:F) -> T {
         f(self().as_ref())
     }
 }
@@ -53,13 +53,14 @@ pub trait AnyLogger : Sized {
     fn path(&self) -> &str;
 
     /// Creates a new logger. Path should be a unique identifier for this logger.
-    fn new(path:impl Str) -> Self::This;
+    fn new(path:impl Into<ImString>) -> Self::This;
 
     /// Creates a new logger with this logger as a parent.
-    fn sub(logger:impl AnyLogger, path:impl Str) -> Self::This {
-        if logger.path().is_empty() {Self::new(path)} else {
-            Self::new(format!("{}.{}", logger.path(), path.as_ref()))
-        }
+    fn sub(logger:impl AnyLogger, path:impl Into<ImString>) -> Self::This {
+        let path       = path.into();
+        let super_path = logger.path();
+        if super_path.is_empty() { Self::new(path) }
+        else                     { Self::new(iformat!("{super_path}.{path}")) }
     }
 
     /// Creates a logger from AnyLogger.
@@ -98,7 +99,7 @@ impl<T:AnyLogger> AnyLogger for &T {
         T::path(self)
     }
 
-    fn new(path:impl Str) -> Self::This {
+    fn new(path:impl Into<ImString>) -> Self::This {
         T::new(path)
     }
 
