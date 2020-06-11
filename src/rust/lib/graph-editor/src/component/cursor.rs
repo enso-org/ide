@@ -24,6 +24,7 @@ const SIDES_PADDING  : f32 = PADDING * 2.0;
 const DEFAULT_SIZE   : (f32,f32) = (16.0,16.0);
 const DEFAULT_RADIUS : f32 = 8.0;
 const DEFAULT_COLOR  : color::Lcha = color::Lcha::new(1.0,0.0,0.0,0.2);
+const FADE_OUT_TIME  : f32 = 3000.0;
 
 
 
@@ -346,6 +347,7 @@ impl Cursor {
         let offset               = Animation :: <Vector2> :: new(&network);
         let color_lab            = Animation :: <Vector3> :: new(&network);
         let color_alpha          = Animation :: <f32>     :: new(&network);
+        let inactive_fade        = Animation :: <f32>     :: new(&network);
         let host_position        = Animation :: <Vector3> :: new(&network);
         let host_follow_weight   = Animation :: <f32>     :: new(&network);
         let host_attached_weight = Tween     :: new(&network);
@@ -356,6 +358,9 @@ impl Cursor {
         radius.set_target_value(DEFAULT_RADIUS);
         size.set_target_value(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
 
+        let fade_out_spring = inactive_fade.spring() * 0.2;
+        let fade_in_spring  = inactive_fade.spring();
+
         frp::extend! { network
             eval press.value  ((v) model.view.shape.press.set(*v));
             eval radius.value ((v) model.view.shape.radius.set(*v));
@@ -364,7 +369,9 @@ impl Cursor {
                 model.view.shape.sprite.size.set(dim);
             });
 
-            anim_color <- all_with(&color_lab.value,&color_alpha.value,
+            alpha <- all_with(&color_alpha.value,&inactive_fade.value,|s,t| s*t);
+
+            anim_color <- all_with(&color_lab.value,&alpha,
                 |lab,alpha| color::Rgba::from(color::Laba::new(lab.x,lab.y,lab.z,*alpha))
             );
 
@@ -466,10 +473,35 @@ impl Cursor {
                 }
             );
 
+
+            // === Fade-out when not moved ===
+
+            move_time            <- scene.frp.frame_time.sample(&mouse.position);
+            time_since_last_move <- scene.frp.frame_time.map2(&move_time,|t,s|t-s);
+            check_fade_time      <- time_since_last_move.gate(&is_not_hosted);
+            eval check_fade_time ([inactive_fade](time) {
+                if *time > FADE_OUT_TIME {
+                    inactive_fade.set_spring(fade_out_spring);
+                    inactive_fade.set_target_value(0.0)
+                } else {
+                    inactive_fade.set_spring(fade_in_spring);
+                    inactive_fade.set_target_value(1.0)
+                }
+            });
+
+            trace inactive_fade.value;
+
+
+            // === Evals ===
+
             eval mouse_pos_rt ((t) host_position.set_target_value(Vector3(t.x,t.y,0.0)));
             eval anim_color   ((t) model.view.shape.color.set(t.into()));
             eval position     ((t) model.view.set_position(*t));
         }
+
+        // Hide on init.
+        inactive_fade.set_target_value(0.0);
+        inactive_fade.skip();
 
         input.set_style.emit(Style::default());
         let input = input.clone_ref();

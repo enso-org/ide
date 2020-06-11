@@ -8,6 +8,7 @@ pub use crate::system::web::dom::Shape;
 
 use crate::prelude::*;
 
+use crate::animation;
 use crate::control::callback;
 use crate::control::io::mouse::MouseManager;
 use crate::control::io::mouse;
@@ -755,7 +756,10 @@ pub struct Frp {
     pub network        : frp::Network,
     pub shape          : frp::Sampler<Shape>,
     pub camera_changed : frp::Stream,
+    pub frame_time     : frp::Stream<f32>,
+
     camera_changed_source : frp::Source,
+    frame_time_source     : frp::Source<f32>,
 }
 
 impl Frp {
@@ -763,10 +767,12 @@ impl Frp {
     pub fn new(shape:&frp::Sampler<Shape>) -> Self {
         frp::new_network! { network
             camera_changed_source <- source();
+            frame_time_source     <- source();
         }
         let shape          = shape.clone_ref();
         let camera_changed = camera_changed_source.clone_ref().into();
-        Self {network,shape,camera_changed,camera_changed_source}
+        let frame_time     = frame_time_source.clone_ref().into();
+        Self {network,shape,camera_changed,frame_time,camera_changed_source,frame_time_source}
     }
 }
 
@@ -978,8 +984,9 @@ impl Deref for Scene {
 }
 
 impl Scene {
-    pub fn update(&self) {
+    pub fn update(&self, t:animation::TimeInfo) {
         group!(self.logger, "Updating.", {
+            self.frp.frame_time_source.emit(t.local);
             // Please note that `update_camera` is called first as it may trigger FRP events which
             // may change display objects layout.
             self.update_camera();
