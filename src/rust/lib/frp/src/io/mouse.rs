@@ -3,47 +3,7 @@
 use crate::prelude::*;
 
 use crate as frp;
-
-
-
-// ================
-// === Position ===
-// ================
-
-/// A 2-dimensional position. Used for storing the mouse position on the screen.
-#[derive(Clone,Copy,Debug,Default,PartialEq)]
-#[allow(missing_docs)]
-pub struct Position {
-    pub x:f32,
-    pub y:f32,
-}
-
-impl Position {
-    /// Constructor.
-    pub fn new(x:f32, y:f32) -> Self {
-        Self {x,y}
-    }
-
-    /// Length of a vector from the origin to a point of the position.
-    pub fn length(self) -> f32 {
-        (self.x * self.x + self.y * self.y).sqrt()
-    }
-}
-
-impl Sub<&Position> for &Position {
-    type Output = Position;
-    fn sub(self, rhs: &Position) -> Self::Output {
-        let x = self.x - rhs.x;
-        let y = self.y - rhs.y;
-        Position {x,y}
-    }
-}
-
-impl From<&Position> for Position {
-    fn from(t:&Position) -> Self {
-        *t
-    }
-}
+use nalgebra::Vector2;
 
 
 
@@ -62,29 +22,26 @@ pub struct Mouse {
     pub leave         : frp::Source,
     pub down          : frp::Stream<bool>,
     pub up            : frp::Stream<bool>,
-    pub position      : frp::Source<Position>,
-    pub prev_position : frp::Stream<Position>,
-    pub translation   : frp::Stream<Position>,
+    pub position      : frp::Source<Vector2<f32>>,
+    pub prev_position : frp::Stream<Vector2<f32>>,
+    pub translation   : frp::Stream<Vector2<f32>>,
     pub distance      : frp::Stream<f32>,
 }
 
 impl Default for Mouse {
     fn default() -> Self {
-        frp::new_network! { mouse
+        frp::new_network! { network
             release       <- source_();
             press         <- source_();
             wheel         <- source_();
             leave         <- source_();
             position      <- source();
-            down_const    <- press.constant(true);
-            up_const      <- release.constant(false);
-            down          <- any (down_const,up_const);
-            up            <- down.map(|t| !t);
+            down          <- bool(&release,&press);
+            up            <- down.map(|t|!t);
             prev_position <- position.previous();
-            translation   <- position.map2(&prev_position,|t,s| t - s);
-            distance      <- translation.map(|t:&Position| t.length());
+            translation   <- position.map2(&prev_position,|t,s|t-s);
+            distance      <- translation.map(|t:&Vector2<f32>|t.norm());
         };
-        let network = mouse;
         Self {network,release,press,leave,wheel,down,up,position,prev_position,translation,distance}
     }
 }

@@ -6,6 +6,8 @@ use crate::display::object::traits::*;
 use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
 use crate::display::symbol::DomSymbol;
+use crate::display::symbol::dom::eps;
+use crate::display::symbol::dom::inverse_y_translation;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::NodeInserter;
@@ -39,7 +41,7 @@ mod js {
         (dom, near, matrix_array) {
             let translateZ  = 'translateZ(' + near + 'px)';
             let matrix3d    = arr_to_css_matrix3d(matrix_array);
-            let transform   = translateZ + matrix3d;
+            let transform   = translateZ + matrix3d + 'translate(50%,50%)';
             dom.style.transform = transform;
         }
     ")]
@@ -137,8 +139,8 @@ pub struct DomScene {
 
 impl DomScene {
     /// Constructor.
-    pub fn new(logger:&Logger) -> Self {
-        let logger              = logger.sub("DomScene");
+    pub fn new(logger:impl AnyLogger) -> Self {
+        let logger              = Logger::sub(logger,"DomScene");
         let dom                 = web::create_div();
         let view_projection_dom = web::create_div();
 
@@ -192,7 +194,7 @@ impl DomScene {
         let trans_cam  = camera.transform_matrix().try_inverse();
         let trans_cam  = trans_cam.expect("Camera's matrix is not invertible.");
         let trans_cam  = trans_cam.map(eps);
-        let trans_cam  = invert_y(trans_cam);
+        let trans_cam  = inverse_y_translation(trans_cam);
         let half_dim   = camera.screen().height / 2.0;
         let fovy_slope = camera.half_fovy_slope();
         let near       = half_dim / fovy_slope;
@@ -207,15 +209,4 @@ impl DomScene {
             }
         }
     }
-}
-
-
-
-// =============
-// === Utils ===
-// =============
-
-/// eps is used to round very small values to 0.0 for numerical stability
-pub fn eps(value: f32) -> f32 {
-    if value.abs() < 1e-10 { 0.0 } else { value }
 }

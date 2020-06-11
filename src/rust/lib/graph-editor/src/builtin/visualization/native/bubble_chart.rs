@@ -51,7 +51,7 @@ pub struct BubbleChartModel {
     signature          : Signature,
     views              : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
     logger             : Logger,
-    size               : Rc<Cell<V2>>,
+    size               : Rc<Cell<Vector2>>,
 }
 
 impl BubbleChartModel {
@@ -75,11 +75,11 @@ impl BubbleChartModel {
         // But this ensures that we can get a cropped view area and avoids an issue with the data
         // and position not matching up.
         views.iter().zip(data_inner.iter()).for_each(|(view,item)| {
-            let size : Vector2<f32> = self.size.get().into();
+            let size = self.size.get();
             view.display_object.set_parent(&self.display_object);
             view.shape.sprite.size.set(size);
             view.shape.radius.set(item.z);
-            view.shape.position.set(Vector2::new(item.x,item.y) - size / 2.0);
+            view.shape.position.set(Vector2(item.x,item.y) - size / 2.0);
         });
         Ok(())
     }

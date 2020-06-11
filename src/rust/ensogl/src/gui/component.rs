@@ -104,9 +104,9 @@ impl<Shape> Drop for ShapeViewModel<Shape> {
 
 impl<S:Shape> ShapeView<S> {
     /// Constructor.
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
-        let logger = logger.sub("shape_view");
-        let display_object = display::object::Instance::new(&logger);
+    pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
+        let logger         = Logger::sub(logger,"shape_view");
+        let display_object = display::object::Instance::new(logger);
 //        let data           = default();
         let shape_registry: &ShapeRegistry = &scene.shapes;
         let shape          = shape_registry.new_instance::<S>();
@@ -239,7 +239,7 @@ impl Tween {
             def target = source::<f32>();
         }
         let f        = easing::quad_in_out();
-        let animator = easing::DynAnimator::new(0.0,1.0,f,Box::new(f!((t) target.emit(t))));
+        let animator = easing::DynAnimator::new_not_started(0.0,1.0,f,Box::new(f!((t) target.emit(t))));
         let value    = target.into();
         Self {animator,value}
     }

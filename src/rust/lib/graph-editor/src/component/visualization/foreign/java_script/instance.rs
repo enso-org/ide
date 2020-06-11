@@ -157,8 +157,7 @@ impl InstanceModel {
         scene.manage(&self.root_node);
     }
 
-    fn set_size(&self, size:V2) {
-        let size      = Vector2::new(size.x,size.y);
+    fn set_size(&self, size:Vector2) {
         let data_json = JsValue::from_serde(&size).unwrap();
         let _         = self.try_call1(&self.set_size,&data_json);
         self.root_node.set_size(size);
@@ -216,7 +215,7 @@ impl Instance {
         let frp     = visualization::instance::Frp::new(&network);
         let model   = InstanceModel::from_class(class)?;
         model.set_dom_layer(&scene.dom.layers.main);
-        Ok(Instance{model,frp,network}.init_frp().inti_preprocessor_callback())
+        Ok(Instance{model,frp,network}.init_frp().inti_preprocessor_change_callback())
     }
 
     fn init_frp(self) -> Self {
@@ -234,7 +233,7 @@ impl Instance {
         self
     }
 
-    fn inti_preprocessor_callback(self) -> Self {
+    fn inti_preprocessor_change_callback(self) -> Self {
         // FIXME Does it leak memory? To be checked.
         let change   = &self.frp.change;
         let callback = f!((s:String) change.emit(&s.into()));

@@ -1,146 +1,131 @@
-#![feature(trait_alias)]
-#![feature(set_stdio)]
-#![warn(unsafe_code)]
+//! This crate contains implementation of logging interface.
+
+#![feature(cell_update)]
+
+#![deny(unconditional_recursion)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
+#![warn(missing_docs)]
+#![warn(trivial_casts)]
+#![warn(trivial_numeric_casts)]
+#![warn(unsafe_code)]
+#![warn(unused_import_braces)]
+
+pub mod disabled;
+pub mod enabled;
 
 use enso_prelude::*;
-use shapely::CloneRef;
-use std::fmt::Debug;
-use wasm_bindgen::JsValue;
-
-#[cfg(target_arch = "wasm32")]
-use web_sys::console;
 
 
 
 // ==============
-// === LogMsg ===
+// === Message ===
 // ==============
 
-pub trait LogMsg {
-    fn with_log_msg<F: FnOnce(&str) -> T, T>(&self, f:F) -> T;
+/// Message that can be logged.
+pub trait Message {
+    /// Turns message into `&str` and passes it to input function.
+    fn with<T,F:FnOnce(&str)->T>(&self, f:F) -> T;
 }
 
-impl LogMsg for &str {
-    fn with_log_msg<F: FnOnce(&str) -> T, T>(&self, f:F) -> T {
+impl Message for &str {
+    fn with<T,F:FnOnce(&str)->T>(&self, f:F) -> T {
         f(self)
     }
 }
 
-impl<F: Fn() -> S, S:Str> LogMsg for F {
-    fn with_log_msg<G: FnOnce(&str) -> T, T>(&self, f:G) -> T {
+impl<G:Fn()->S, S:AsRef<str>> Message for G {
+    fn with<T,F:FnOnce(&str)->T>(&self, f:F) -> T {
         f(self().as_ref())
     }
 }
 
 
-// ==============
-// === Logger ===
-// ==============
 
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct Logger {
-    pub path: Rc<String>,
-}
+// =================
+// === AnyLogger ===
+// =================
 
-#[allow(dead_code)]
-impl Logger {
-    pub fn new<T:Str>(path:T) -> Self {
-        let path = Rc::new(path.into());
-        Self {path}
+/// Interface common to all loggers.
+pub trait AnyLogger {
+    /// Owned type of the logger.
+    type Owned;
+
+    /// Creates a new logger. Path should be a unique identifier for this logger.
+    fn new(path:impl Into<ImString>) -> Self::Owned;
+
+    /// Path that is used as an unique identifier of this logger.
+    fn path(&self) -> &str;
+
+    /// Creates a new logger with this logger as a parent.
+    fn sub(logger:impl AnyLogger, path:impl Into<ImString>) -> Self::Owned {
+        let path       = path.into();
+        let super_path = logger.path();
+        if super_path.is_empty() { Self::new(path) }
+        else                     { Self::new(iformat!("{super_path}.{path}")) }
     }
 
-    pub fn sub<T:Str>(&self, path: T) -> Self {
-        if self.path.is_empty() {
-            Self::new(path)
-        } else {
-            Self::new(format!("{}.{}", self.path, path.as_ref()))
-        }
+    /// Creates a logger from AnyLogger.
+    fn from_logger(logger:impl AnyLogger) -> Self::Owned {
+        Self::new(logger.path())
     }
 
-    pub fn group<M: LogMsg, T, F: FnOnce() -> T>(&self, msg: M, f: F) -> T {
+    /// Evaluates function `f` and visually groups all logs will occur during its execution.
+    fn group<T,F:FnOnce() -> T>(&self, msg:impl Message, f:F) -> T {
         self.group_begin(msg);
         let out = f();
         self.group_end();
         out
     }
 
-    fn format<M: LogMsg>(&self, msg: M) -> JsValue {
-        msg.with_log_msg(|s| format!("[{}] {}", self.path, s)).into()
-    }
+    /// Log with stacktrace and info level verbosity.
+    fn trace(&self, _msg:impl Message) {}
 
-    fn format2<M: LogMsg>(&self, msg: M) -> String {
-        msg.with_log_msg(|s| format!("[{}] {}", self.path, s))
-    }
+    /// Log with debug level verbosity
+    fn debug(&self, _msg:impl Message) {}
+
+    /// Log with info level verbosity.
+    fn info(&self, _msg:impl Message) {}
+
+    /// Log with warning level verbosity.
+    fn warning(&self, _msg:impl Message) {}
+
+    /// Log with error level verbosity.
+    fn error(&self, _msg:impl Message) {}
+
+    /// Visually groups all logs between group_begin and group_end.
+    fn group_begin(&self, _msg:impl Message) {}
+
+    /// Visually groups all logs between group_begin and group_end.
+    fn group_end(&self) {}
 }
 
-#[cfg(target_arch = "wasm32")]
-impl Logger {
-    pub fn trace<M: LogMsg>(&self, _msg: M) {
-        //console::trace_1(&self.format(msg));
-    }
-
-    pub fn debug<M: LogMsg>(&self, msg: M) {
-        console::debug_1(&self.format(msg));
-    }
-
-    pub fn info<M: LogMsg>(&self, _msg: M) {
-        //console::info_1(&self.format(msg));
-    }
-
-    pub fn warning<M: LogMsg>(&self, msg: M) {
-        console::warn_1(&self.format(msg));
-    }
-
-    pub fn error<M: LogMsg>(&self, msg: M) {
-        console::error_1(&self.format(msg));
-    }
-
-    pub fn group_begin<M: LogMsg>(&self, _msg: M) {
-        //console::group_1(&self.format(msg));
-    }
-
-    pub fn group_end(&self) {
-        //console::group_end();
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl Logger {
-    pub fn trace<M: LogMsg>(&self, msg:M) {
-        println!("{}",self.format2(msg));
-    }
-    pub fn debug<M: LogMsg>(&self, msg:M) {
-        println!("{}",self.format2(msg));
-    }
-    pub fn info<M: LogMsg>(&self, msg: M) {
-        println!("{}",self.format2(msg));
-    }
-    pub fn warning<M: LogMsg>(&self, msg: M) {
-        println!("[WARNING] {}",self.format2(msg));
-    }
-    pub fn error<M: LogMsg>(&self, msg: M) {
-        println!("[ERROR] {}",self.format2(msg));
-    }
-    pub fn group_begin<M: LogMsg>(&self, msg: M) {
-        println!(">>> {}",self.format2(msg));
-    }
-    pub fn group_end(&self) {
-        println!("<<<")
-    }
+impl<T:AnyLogger> AnyLogger for &T {
+    type Owned = T::Owned;
+    fn path        (&self) -> &str { T::path(self) }
+    fn new         (path:impl Into<ImString>) -> Self::Owned { T::new(path) }
+    fn trace       (&self, msg:impl Message) { T::trace       (self,msg) }
+    fn debug       (&self, msg:impl Message) { T::debug       (self,msg) }
+    fn info        (&self, msg:impl Message) { T::info        (self,msg) }
+    fn warning     (&self, msg:impl Message) { T::warning     (self,msg) }
+    fn error       (&self, msg:impl Message) { T::error       (self,msg) }
+    fn group_begin (&self, msg:impl Message) { T::group_begin (self,msg) }
+    fn group_end   (&self)                   { T::group_end   (self)     }
 }
 
 
-// ====================
-// === Logger Utils ===
-// ====================
 
+// ==============
+// === Macros ===
+// ==============
+
+/// Shortcut for `|| format!(..)`.
 #[macro_export]
 macro_rules! fmt {
     ($($arg:tt)*) => (||(format!($($arg)*)))
 }
 
+/// Evaluates expression and visually groups all logs will occur during its execution.
 #[macro_export]
 macro_rules! group {
     ($logger:expr, $message:tt, {$($body:tt)*}) => {{
@@ -152,6 +137,7 @@ macro_rules! group {
     }};
 }
 
+/// Logs a message on on given level.
 #[macro_export]
 macro_rules! log_template {
     ($method:ident $logger:expr, $message:tt $($rest:tt)*) => {
@@ -159,7 +145,7 @@ macro_rules! log_template {
     };
 }
 
-
+/// Logs a message on on given level.
 #[macro_export]
 macro_rules! log_template_impl {
     ($method:ident $logger:expr, $expr:expr) => {{
@@ -174,6 +160,7 @@ macro_rules! log_template_impl {
     }};
 }
 
+/// Logs an internal error with descriptive message.
 #[macro_export]
 macro_rules! with_internal_bug_message { ($f:ident $($args:tt)*) => { $crate::$f! {
 "This is a bug. Please report it and and provide us with as much information as \
@@ -181,6 +168,7 @@ possible at https://github.com/luna/enso/issues. Thank you!"
 $($args)*
 }};}
 
+/// Logs an internal error.
 #[macro_export]
 macro_rules! log_internal_bug_template {
     ($($toks:tt)*) => {
@@ -188,6 +176,7 @@ macro_rules! log_internal_bug_template {
     };
 }
 
+/// Logs an internal error.
 #[macro_export]
 macro_rules! log_internal_bug_template_impl {
     ($note:tt $method:ident $logger:expr, $message:tt $($rest:tt)*) => {
@@ -197,6 +186,7 @@ macro_rules! log_internal_bug_template_impl {
     };
 }
 
+/// Log with stacktrace and level:info.
 #[macro_export]
 macro_rules! trace {
     ($($toks:tt)*) => {
@@ -204,6 +194,7 @@ macro_rules! trace {
     };
 }
 
+/// Log with level:debug
 #[macro_export]
 macro_rules! debug {
     ($($toks:tt)*) => {
@@ -211,6 +202,7 @@ macro_rules! debug {
     };
 }
 
+/// Log with level:info.
 #[macro_export]
 macro_rules! info {
     ($($toks:tt)*) => {
@@ -218,6 +210,7 @@ macro_rules! info {
     };
 }
 
+/// Log with level:warning.
 #[macro_export]
 macro_rules! warning {
     ($($toks:tt)*) => {
@@ -225,6 +218,7 @@ macro_rules! warning {
     };
 }
 
+/// Log with level:error.
 #[macro_export]
 macro_rules! error {
     ($($toks:tt)*) => {
@@ -232,6 +226,7 @@ macro_rules! error {
     };
 }
 
+/// Logs an internal warning.
 #[macro_export]
 macro_rules! internal_warning {
     ($($toks:tt)*) => {

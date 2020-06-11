@@ -21,7 +21,7 @@ use crate::data::EnsoCode;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct FrpInputs {
-    pub set_size  : frp::Source<V2>,
+    pub set_size  : frp::Source<Vector2>,
     pub send_data : frp::Source<Data>,
 }
 
