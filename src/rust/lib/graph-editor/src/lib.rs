@@ -715,7 +715,7 @@ impl Grid {
     pub fn close_to(&self, position:Vector2<f32>, threshold:f32) -> Vector2<Option<f32>> {
         let x = Self::axis_close_to(&self.sorted_xs,position.x,threshold);
         let y = Self::axis_close_to(&self.sorted_ys,position.y,threshold);
-        Vector2::new(x,y)
+        Vector2(x,y)
     }
 
     fn axis_close_to(axis:&[f32], pos:f32, threshold:f32) -> Option<f32> {
@@ -1221,13 +1221,15 @@ impl GraphEditorModel {
         self.nodes.recompute_grid(node_ids.iter().cloned().collect());
     }
 
-    fn recompute_grid_snapping(&self) {
-        self.nodes.recompute_grid(default());
-    }
-
     pub fn node_position(&self, node_id:impl Into<NodeId>) -> Vector2<f32> {
         let node_id = node_id.into();
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position().xy()).unwrap_or_default()
+    }
+
+    /// The Position type should be removed.
+    pub fn node_position_hack(&self, node_id:impl Into<NodeId>) -> Position {
+        let position = self.node_position(node_id);
+        Position::new(position.x,position.y)
     }
 
     pub fn node_pos_mod
@@ -1683,8 +1685,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             let snapped = model.nodes.check_grid_magnet(*pos);
             let x = snapped.x.unwrap_or(pos.x);
             let y = snapped.y.unwrap_or(pos.y);
-            x_snap_strength.set_target2(if snapped.x.is_none() { 0.0 } else { 1.0 });
-            y_snap_strength.set_target2(if snapped.y.is_none() { 0.0 } else { 1.0 });
+            x_snap_strength.set_target_value(if snapped.x.is_none() { 0.0 } else { 1.0 });
+            y_snap_strength.set_target_value(if snapped.y.is_none() { 0.0 } else { 1.0 });
             main_tgt_pos_anim.set_target_value(Vector2::new(x,y));
             if *just_pressed {
                 main_tgt_pos_anim.set_target_value(*pos);
@@ -1700,22 +1702,27 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         , &x_snap_strength.value
         , &y_snap_strength.value
         , |rt,snap,xw,yw| {
-            let one   = Vector2::new(1.0,1.0);
-            let w     = Vector2::new(*xw,*yw);
-            let w_inv = one - w;
-            let x     = rt.x * w_inv.x + snap.x * w.x;
-            let y     = rt.y * w_inv.y + snap.y * w.y;
-            Vector2::new(x,y)
+            let w     = Vector2(*xw,*yw);
+            let w_inv = Vector2(1.0,1.0) - w;
+            rt.component_mul(&w_inv) + snap.component_mul(&w)
         });
 
 
-    // === Dragging all target nodes ===
+    // === Update All Target Nodes Positions ===
 
     main_tgt_pos_prev <- main_tgt_pos.previous();
     main_tgt_pos_diff <- main_tgt_pos.map2(&main_tgt_pos_prev,|t,s|t-s).gate_not(&just_pressed);
     tgt               <= tgts.sample(&main_tgt_pos_diff);
     tgt_new_pos       <- tgt.map2(&main_tgt_pos_diff,f!((id,tx) model.node_pos_mod(id,Position::new(tx.x,tx.y))));
     outputs.node_position_set <+ tgt_new_pos;
+
+
+    // === Batch Update ===
+
+    after_drag             <- touch.nodes.up.gate_not(&just_pressed);
+    tgt_after_drag         <= tgts.sample(&after_drag);
+    tgt_after_drag_new_pos <- tgt_after_drag.map(f!([model] (id) (*id,model.node_position_hack(id))));
+    outputs.node_position_set_batched <+ tgt_after_drag_new_pos;
 
 
     // === Mouse style ===
