@@ -87,7 +87,7 @@ pub mod shape {
             let select         = select2 - select;
             let select         = select.fill(color::Rgba::from(selection_color));
 
-            let out = select + shadow + shape;
+            let out = select + shape;
             out.into()
         }
     }

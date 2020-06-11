@@ -30,7 +30,7 @@ const SEGMENT_GAP_WIDTH   : f32 = 2.0;
 const SHOW_DELAY_DURATION : f32 = 150.0;
 const HIDE_DELAY_DURATION : f32 = 150.0;
 
-
+const PORT_AREA_WIDTH     : f32  = 4.0;
 
 // ==============
 // === Shapes ===
@@ -44,9 +44,10 @@ pub mod port_area {
 
     ensogl::define_shape_system! {
         (style:Style, grow:f32, shape_width:f32, offset_x:f32, padding:f32, opacity:f32) {
-            let width  : Var<Distance<Pixels>> = shape_width.into();
-            let height : Var<Distance<Pixels>> = "input_size.y".into();
-            let width  = width  - node::NODE_SHAPE_PADDING.px() * 2.0;
+            let canvas_width : Var<Distance<Pixels>> = "input_size.x".into();
+            let width        : Var<Distance<Pixels>> = shape_width.clone().into();
+            let height       : Var<Distance<Pixels>> = "input_size.y".into();
+            let width  = &width - node::NODE_SHAPE_PADDING.px() * 2.0;
             let height = height - node::NODE_SHAPE_PADDING.px() * 2.0;
 
             let hover_area_size   = 20.0.px();
@@ -58,9 +59,9 @@ pub mod port_area {
 
             let shrink           = 1.px() - 1.px() * &grow;
             let radius           = node::NODE_SHAPE_RADIUS.px();
-            let port_area_size   = 4.0.px() * &grow;
-            let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
-            let port_area_height = &height + (&port_area_size - &shrink) * 2.0;
+            let port_area_size   = PORT_AREA_WIDTH.px() * &grow;
+            let port_area_width  = width.clone()  + (&port_area_size - &shrink) * 2.0;
+            let port_area_height = height.clone() + (&port_area_size - &shrink) * 2.0;
             let bottom_radius    = &radius + &port_area_size;
             let port_area        = Rect((&port_area_width,&port_area_height));
             let port_area        = port_area.corners_radius(&bottom_radius);
@@ -78,12 +79,23 @@ pub mod port_area {
             let port_area_aligned = port_area.translate_x(offset_x);
 
             // Crop the sides of the visible area to show a gap between segments.
-            let overall_width     = Var::<Distance<Pixels>>::from("input_size.x");
-            let padding           = Var::<Distance<Pixels>>::from(&padding * 2.0);
-            let crop_window_width = &overall_width - &padding;
-            let crop_window       = Rect((&crop_window_width,&height));
-            let crop_window       = crop_window.translate_y(-height * 0.5);
-            let port_area_cropped = crop_window.intersection(port_area_aligned);
+            let crop_base_pos     = Var::<f32>::from("input_offset_x + input_size.x * 0.5") ;
+            let padding           = Var::<Distance<Pixels>>::from(&padding * 1.0);
+            let crop_window_base  = Rect((&padding,&(&height * 2.0)));
+
+            let crop_window_center = crop_base_pos.clone();
+            let crop_window_angle  = compute_angle(&width.into(), &radius.clone().into(), &crop_window_center.into());
+
+            let crop_window_right   = crop_window_base.rotate(&crop_window_angle);
+            let crop_window_right   = crop_window_right.translate_y(&height * -0.5);
+            let crop_window_right   = crop_window_right.translate_x(-&canvas_width * 0.5);
+
+            let crop_window_left   = crop_window_base.rotate(&crop_window_angle);
+            let crop_window_left   = crop_window_left.translate_y(&height * -0.5);
+            let crop_window_left   = crop_window_left.translate_x(&canvas_width * 0.5);
+
+            let port_area_cropped = port_area_aligned.difference(crop_window_right);
+            let port_area_cropped = port_area_cropped.difference(crop_window_left);
 
             // FIXME: Use colour from style and apply transparency there.
             let color             = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
@@ -168,14 +180,13 @@ impl OutputPortsData {
     fn update_shape_layout_based_on_size(&self) {
         let port_num    = self.ports.borrow().len() as f32;
         let width       = self.size.get().x;
-        let width_inner = width - 2.0 * node::NODE_SHAPE_PADDING + 2.0 * node::SHADOW_SIZE;
+        let width_inner = width - 2.0 * node::NODE_SHAPE_PADDING ;
         let height      = self.size.get().y;
         let port_width  = (width_inner) / port_num;
         let port_size   = Vector2::new(port_width, height);
         let gap_width   = self.gap_width.get();
-
         // Align shapes along width.
-        let x_start = -width / 2.0 + node::NODE_SHAPE_PADDING;
+        let x_start = -width / 2.0 + node::NODE_SHAPE_PADDING + 0.5 * port_width;
         let x_delta = port_width;
         for (index, view) in self.ports.borrow().iter().enumerate(){
             view.display_object().set_parent(&self.display_object);
