@@ -194,7 +194,7 @@ mod test {
             let controller = Handle::new_mock(location,module,id_map,ls,parser).unwrap();
 
             // Change code from "2+2" to "22+2"
-            let change = TextChange::insert(Index::new(1),"2".to_string());
+            let change = TextChange::insert(Index::new(0),"2".to_string());
             controller.apply_code_change(change).unwrap();
             let expected_ast = Ast::new_no_id(ast::Module {
                 lines: vec![BlockLine {

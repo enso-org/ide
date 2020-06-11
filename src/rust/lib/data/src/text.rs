@@ -69,12 +69,12 @@ impl Size {
     }
 
     /// Checks if this is a non-empty size (more than zero elements).
-    pub fn non_empty(&self) -> bool {
+    pub fn non_empty(self) -> bool {
         self.value > 0
     }
 
     /// Checks if this is an empty size (zero elements).
-    pub fn is_empty(&self) -> bool {
+    pub fn is_empty(self) -> bool {
         self.value == 0
     }
 }
