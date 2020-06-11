@@ -2,8 +2,9 @@
 
 use enso_prelude::*;
 
-use crate::LogMsg;
+use crate::Message;
 use crate::AnyLogger;
+use crate::enabled;
 
 use shapely::CloneRef;
 use std::fmt::Debug;
@@ -17,41 +18,18 @@ use std::fmt::Debug;
 /// Trivial logger that discards all messages except warnings and errors.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct Logger {
-    /// Path that is used as an unique identifier of this logger.
-    pub path:ImString,
+    enabled : enabled::Logger,
 }
 
 
+// === Impls ===
 
-// ===================
-// === Conversions ===
-// ===================
-
-impls!{ From + &From <crate::enabled::Logger> for Logger { |logger| Self::new(logger.path()) }}
-
-
-
-// ======================
-// === AnyLogger Impl ===
-// ======================
+impls!{ From + &From <enabled::Logger> for Logger { |logger| Self::new(logger.path()) }}
 
 impl AnyLogger for Logger {
-    type This = Self;
-
-    fn path(&self) -> &str {
-        &self.path
-    }
-
-    fn new(path:impl Into<ImString>) -> Self {
-        let path = path.into();
-        Self {path}
-    }
-
-    fn trace       <Msg:LogMsg> (&self, _:Msg) {}
-    fn debug       <Msg:LogMsg> (&self, _:Msg) {}
-    fn info        <Msg:LogMsg> (&self, _:Msg) {}
-    fn warning     <Msg:LogMsg> (&self, m:Msg) { crate::enabled::Logger::warning(&self.path,m) }
-    fn error       <Msg:LogMsg> (&self, m:Msg) { crate::enabled::Logger::error  (&self.path,m) }
-    fn group_begin <Msg:LogMsg> (&self, _:Msg) {}
-    fn group_end                (&self       ) {}
+    type Owned = Self;
+    fn new     (path:impl Into<ImString>) -> Self { Self {enabled : enabled::Logger::new(path) } }
+    fn path    (&self) -> &str { self.enabled.path() }
+    fn warning (&self, msg:impl Message) { self.enabled.warning (msg) }
+    fn error   (&self, msg:impl Message) { self.enabled.error   (msg) }
 }
