@@ -436,7 +436,7 @@ pub struct FrpInputs {
     pub set_node_expression          : frp::Source<(NodeId,node::Expression)>,
     pub set_node_position            : frp::Source<(NodeId,Vector2)>,
     pub cycle_visualization          : frp::Source<NodeId>,
-    pub set_visualization            : frp::Source<(NodeId,Option<visualization::Instance>)>,
+    pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
     pub register_visualization : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
@@ -1797,13 +1797,30 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 //        visualizations.toggle_fullscreen_for_selected_visualization();
 //    }));
 //
-//    // === Vis Set ===
-//
-//    def _update_vis_data = inputs.set_visualization.map(f!([nodes]((node_id,vis)) {
-//        if let Some(node) = nodes.get_cloned_ref(node_id) {
-//            node.visualization.frp.set_visualization.emit(vis)
-//        }
-//    }));
+   // === Vis Set ===
+
+   def _update_vis_data = inputs.set_visualization.map(f!([logger,nodes,scene,visualizations]((node_id,vis_path)) {
+       match (&nodes.get_cloned_ref(node_id), vis_path) {
+            (Some(node), Some(vis_path)) => {
+                let vis_definition = visualizations.definition_from_path(vis_path);
+                if let Some(definition) = vis_definition {
+                    match definition.new_instance(&scene) {
+                        Ok(vis)  => node.visualization.frp.set_visualization.emit(Some(vis)),
+                        Err(err) => {
+                            logger.warning(
+                                || format!("Failed to instantiate visualisation: {:?}",err));
+                        },
+                    };
+                } else {
+                    logger.warning(|| format!("Failed to get visualisation: {:?}",vis_path));
+                }
+            },
+            (Some(node), None) => node.visualization.frp.set_visualization.emit(None),
+             _                 => logger.warning(|| format!("Failed to get node: {:?}",node_id)),
+
+       }
+
+   }));
 
     // === Vis Update Data ===
 

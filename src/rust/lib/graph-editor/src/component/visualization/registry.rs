@@ -71,11 +71,18 @@ impl Registry {
         type_map.get(tp).cloned().unwrap_or_default()
     }
 
+    /// Return the `visualization::Definition` registered for the given `visualization::Path`.
+    pub fn definition_from_path(&self, path:&visualization::Path)
+                                -> Option<visualization::Definition> {
+        self.path_map.borrow().get(path).cloned()
+    }
+
     /// Return a default visualisation class.
     pub fn default_visualisation(scene:&Scene) -> visualization::Instance {
         let instance = builtin::visualization::native::RawText::new(scene);
         instance.into()
     }
+
 }
 
 impl Default for Registry {
