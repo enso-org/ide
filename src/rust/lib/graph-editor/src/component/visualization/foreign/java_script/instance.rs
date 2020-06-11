@@ -137,16 +137,16 @@ impl InstanceModel {
 
     /// Tries to create a InstanceModel from the given visualisation class.
     pub fn from_class(class:&JsValue) -> result::Result<Self, Error> {
-        let root_node = Self::create_root()?;
+        let root_node                     = Self::create_root()?;
         let (preprocessor_change,closure) = Self::preprocessor_change_callback();
-        let init_data        = JsConsArgs::new(root_node.clone_ref(), closure);
-        let object           = Self::instantiate_class_with_args(class,init_data)?;
-        let on_data_received = get_method(&object,method::ON_DATA_RECEIVED).ok();
-        let on_data_received = Rc::new(on_data_received);
-        let set_size         = get_method(&object,method::SET_SIZE).ok();
-        let set_size         = Rc::new(set_size);
-        let logger           = Logger::new("Instance");
-        let object           = Rc::new(object);
+        let init_data                     = JsConsArgs::new(root_node.clone_ref(), closure);
+        let object                        = Self::instantiate_class_with_args(class,init_data)?;
+        let on_data_received              = get_method(&object,method::ON_DATA_RECEIVED).ok();
+        let on_data_received              = Rc::new(on_data_received);
+        let set_size                      = get_method(&object,method::SET_SIZE).ok();
+        let set_size                      = Rc::new(set_size);
+        let logger                        = Logger::new("Instance");
+        let object                        = Rc::new(object);
         Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change})
     }
 

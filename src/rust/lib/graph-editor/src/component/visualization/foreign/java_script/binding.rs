@@ -5,8 +5,9 @@ use crate::prelude::*;
 use super::PreprocessorCallback;
 
 use ensogl::display::DomSymbol;
-use wasm_bindgen::__rt::core::fmt::Formatter;
+use fmt::Formatter;
 use wasm_bindgen::prelude::*;
+use web_sys::HtmlDivElement;
 
 
 
@@ -56,7 +57,7 @@ pub fn js_class() -> JsValue {
 #[wasm_bindgen]
 pub struct JsConsArgs {
     #[wasm_bindgen(skip)]
-    pub root : DomSymbol,
+    pub root : HtmlDivElement,
     #[wasm_bindgen(skip)]
     pub set_preprocessor : Box<dyn PreprocessorCallback>,
 }
@@ -71,6 +72,7 @@ impl JsConsArgs {
     /// Constructor.
     pub fn new<F:'static+PreprocessorCallback>(root:DomSymbol, closure:F) -> Self {
         let set_preprocessor = Box::new(closure);
+        let root = root.dom().clone();
         JsConsArgs {root,set_preprocessor}
     }
 }
@@ -79,7 +81,7 @@ impl JsConsArgs {
 impl JsConsArgs {
     /// Getter for the root element for the visualization.
     pub fn root(&self) -> JsValue {
-        self.root.dom().into()
+        self.root.clone().into()
     }
 
     /// Helper method to emit an preprocessor change event from the visualisation.
