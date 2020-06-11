@@ -186,7 +186,7 @@ impl OutputPortsData {
             view.set_position_xy(pos);
 
             let shape = &view.shape;
-            shape.sprite.size().set(port_size);
+            shape.sprite.size.set(port_size);
             shape.shape_width.set(width);
             shape.padding.set(gap_width);
             shape.offset_x.set(x_delta * index as f32);

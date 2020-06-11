@@ -24,7 +24,7 @@ use ensogl::gui::component;
 
 use super::edge;
 use crate::component::visualization;
-use crate::component::node::port::output::OutPutPorts;
+use crate::component::node::port::output::OutputPorts;
 
 
 pub const NODE_SHAPE_PADDING : f32 = 40.0;
@@ -215,7 +215,7 @@ impl NodeModel {
         let logger  = Logger::new("node");
         edge::sort_hack_1(scene);
 
-        OutPutPorts::order_hack(&scene);
+        OutputPorts::order_hack(&scene);
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape      ::Shape>::new(&main_logger  ,scene);
@@ -283,8 +283,8 @@ impl NodeModel {
         let height = self.height();
 
         let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
-        self.main_area.shape.sprite.size().set(size);
-        self.drag_area.shape.sprite.size().set(size);
+        self.main_area.shape.sprite.size.set(size);
+        self.drag_area.shape.sprite.size.set(size);
         self.main_area.mod_position(|t| t.x = width/2.0);
         self.main_area.mod_position(|t| t.y = height/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
