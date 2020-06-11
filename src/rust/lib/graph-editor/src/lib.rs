@@ -857,11 +857,9 @@ impl<T:frp::Data> TouchNetwork<T> {
     pub fn new(network:&frp::Network, mouse:&frp::io::Mouse) -> Self {
         frp::extend! { network
             down          <- source::<T> ();
-            down_bool     <- down.map(|_| true);
-            up_bool       <- mouse.release.map(|_| false);
-            is_down       <- any (down_bool,up_bool);
+            is_down       <- bool(&mouse.up,&down);
             was_down      <- is_down.previous();
-            mouse_up      <- mouse.release.gate(&was_down);
+            mouse_up      <- mouse.up.gate(&was_down);
             pos_on_down   <- mouse.position.sample(&down);
             pos_on_up     <- mouse.position.sample(&mouse_up);
             should_select <- pos_on_up.map3(&pos_on_down,&mouse.distance,Self::check);
@@ -1430,8 +1428,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Selection Target Redirection ===
     frp::extend! { network
-    mouse_down_target <- mouse.press.map(f_!(model.scene.mouse.target.get()));
-    mouse_up_target   <- mouse.release.map(f_!(model.scene.mouse.target.get()));
+    mouse_down_target <- mouse.down.map(f_!(model.scene.mouse.target.get()));
+    mouse_up_target   <- mouse.up.map(f_!(model.scene.mouse.target.get()));
     background_up     <- mouse_up_target.map(|t| if t==&display::scene::Target::Background {Some(())} else {None}).unwrap();
 
     eval mouse_down_target([touch,model](target) {
@@ -1450,16 +1448,16 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Cursor Selection ===
     frp::extend! { network
 
-    mouse_on_down_position <- mouse.position.sample(&mouse.press);
+    mouse_on_down_position <- mouse.position.sample(&mouse.down);
     selection_size_down    <- mouse.position.map2(&mouse_on_down_position,|m,n|{m-n});
     selection_size         <- selection_size_down.gate(&touch.background.is_down);
 
-    on_press_style   <- mouse.press   . constant(cursor::Style::new_press());
-    on_release_style <- mouse.release . constant(cursor::Style::default());
+    on_press_style   <- mouse.down . constant(cursor::Style::new_press());
+    on_release_style <- mouse.up   . constant(cursor::Style::default());
 
 
     cursor_selection_start <- selection_size.map(|p| cursor::Style::new_with_all_fields_default().press().box_selection(Vector2::new(p.x,p.y)));
-    cursor_selection_end   <- mouse.release . constant(cursor::Style::default());
+    cursor_selection_end   <- mouse.up . constant(cursor::Style::default());
     cursor_selection       <- any (cursor_selection_start, cursor_selection_end);
 
     cursor_press     <- any (on_press_style, on_release_style);
@@ -1607,7 +1605,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.edge_target_set <+ new_edge_target;
 
 
-    port_mouse_up <- inputs.hover_node_input.sample(&mouse.release).unwrap();
+    port_mouse_up <- inputs.hover_node_input.sample(&mouse.up).unwrap();
 
     attach_all_edges        <- any (port_mouse_up, inputs.press_node_input, inputs.set_detached_edge_targets);
     detached_edge           <= attach_all_edges.map(f_!(model.take_edges_with_detached_targets()));

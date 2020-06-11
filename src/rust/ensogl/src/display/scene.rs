@@ -367,7 +367,7 @@ impl Mouse {
                 mouse::Button3 => button_state.button3_pressed.set(true),
                 mouse::Button4 => button_state.button4_pressed.set(true),
             }
-            frp.press.emit(());
+            frp.down.emit(());
         }));
 
         let on_up = mouse_manager.on_up.add(f!([frp,button_state](event:&mouse::OnUp) {
@@ -378,7 +378,7 @@ impl Mouse {
                 mouse::Button3 => button_state.button3_pressed.set(false),
                 mouse::Button4 => button_state.button4_pressed.set(false),
             }
-            frp.release.emit(());
+            frp.up.emit(());
         }));
 
         let handles = Rc::new(vec![on_move,on_down,on_up]);
