@@ -21,10 +21,12 @@ use ensogl::gui::component;
 
 const PADDING        : f32 = 2.0;
 const SIDES_PADDING  : f32 = PADDING * 2.0;
-const DEFAULT_SIZE   : (f32,f32) = (16.0,16.0);
 const DEFAULT_RADIUS : f32 = 8.0;
 const DEFAULT_COLOR  : color::Lcha = color::Lcha::new(1.0,0.0,0.0,0.2);
 const FADE_OUT_TIME  : f32 = 3000.0;
+
+#[allow(non_snake_case)]
+fn DEFAULT_SIZE() -> Vector2<f32> { Vector2(16.0,16.0) }
 
 
 
@@ -33,23 +35,18 @@ const FADE_OUT_TIME  : f32 = 3000.0;
 // ==================
 
 /// Defines a value of the cursor style.
-///
-/// Design notes:
-///
-///   - **The `value` field**
-///     Defines the value of the style. In case it is set to `None`, the default value will be used.
-///     Please note that setting it to `None` has a different effect than not providing the value
-///     in the `Style` at all. If the value is provided it can override the existing values when
-///     used in a semigroup operation.
-///
-///   - **The `animate` field**
-///     Defines if the state transition should be used. Sometimes disabling animation is required.
-///     A good example is the implementation of a selection box. When drawing selection box with the
-///     mouse, the user wants to see it in real-time, without it growing over time.
 #[derive(Debug,Clone)]
 #[allow(missing_docs)]
 pub struct StyleValue<T> {
-    pub value   : Option<T>,
+    /// Defines the value of the style. In case it is set to `None`, the default value will be used.
+    /// Please note that setting it to `None` has a different effect than not providing the value
+    /// in the `Style` at all. If the value is provided it can override the existing values when
+    /// used in a semigroup operation.
+    pub value : Option<T>,
+
+    /// Defines if the state transition should be used. Sometimes disabling animation is required.
+    /// A good example is the implementation of a selection box. When drawing selection box with the
+    /// mouse, the user wants to see it in real-time, without it growing over time.
     pub animate : bool,
 }
 
@@ -69,7 +66,9 @@ impl<T> StyleValue<T> {
         Self {value,animate}
     }
 
-    /// Constructor.
+    /// Constructor for a default value setter. Please note that this is not made a `Default` impl
+    /// on purpose. This method creates a non-empty value setter which sets the target to its
+    /// default value. Read `Style` docs to learn more.
     pub fn new_default() -> Self {
         let value   = None;
         let animate = true;
@@ -178,7 +177,7 @@ impl Style {
     }
 
     pub fn box_selection(mut self, size:Vector2<f32>) -> Self {
-        let def_size = Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1);
+        let def_size = DEFAULT_SIZE();
         self.offset  = Some(StyleValue::new_no_animation(-size / 2.0));
         self.size    = Some(StyleValue::new_no_animation(size.abs() + def_size));
         self
@@ -356,7 +355,7 @@ impl Cursor {
         color_lab.set_target_value(DEFAULT_COLOR.opaque.into());
         color_alpha.set_target_value(DEFAULT_COLOR.alpha);
         radius.set_target_value(DEFAULT_RADIUS);
-        size.set_target_value(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
+        size.set_target_value(DEFAULT_SIZE());
 
         let fade_out_spring = inactive_fade.spring() * 0.2;
         let fade_in_spring  = inactive_fade.spring();
@@ -409,9 +408,9 @@ impl Cursor {
                 }
 
                 match &new_style.size {
-                    None => size.set_target_value(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1)),
+                    None => size.set_target_value(DEFAULT_SIZE()),
                     Some(t) => {
-                        let value = t.value.unwrap_or_else(||Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
+                        let value = t.value.unwrap_or_else(DEFAULT_SIZE);
                         size.set_target_value(Vector2(value.x,value.y));
                         if !t.animate { size.skip() }
                     }

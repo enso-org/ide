@@ -248,7 +248,7 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         self.start();
     }
 
-    /// Stop the animation, rewinds it to the provided value and calls the callback.
+    /// Stop the animation, rewind it to the provided value and call the callback.
     pub fn stop_and_rewind_to(&self, value:T) {
         self.stop();
         self.set_start_value_no_restart(value);
@@ -256,17 +256,17 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         (self.data.callback)(value);
     }
 
-    /// Stop the animation, rewinds it to the initial value and calls the callback.
+    /// Stop the animation, rewind it to the initial value and call the callback.
     pub fn stop_and_rewind(&self) {
         self.stop_and_rewind_to(self.start_value());
     }
 
-    /// Checks whether the animator is running.
+    /// Check whether the animator is running.
     pub fn active(&self) -> bool {
         self.data.active.get()
     }
 
-    /// Restarts the animation using the current value as the new start value.
+    /// Restart the animation using the current value as the new start value.
     pub fn from_now_to(&self, tgt:T) {
         let current = self.value();
         self.data.start_value.set(current);
@@ -277,7 +277,7 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         }
     }
 
-    /// Sets the new target value. In case the target value is different then the current target
+    /// Set the new target value. In case the target value is different from the current target
     /// value, the animation will be restarted with the current value being the new start value.
     pub fn set_target_value(&self, tgt:T) {
         if self.data.target_value.get() != tgt {

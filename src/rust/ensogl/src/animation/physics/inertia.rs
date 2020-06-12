@@ -29,36 +29,15 @@ pub trait Value
 // === Properties ===
 // ==================
 
-macro_rules! define_opr_mods {
+macro_rules! define_f32_opr_mods {
     ($name:ident $opr:ident $f:ident) => {
-        impl $opr<f32> for $name {
-            type Output = $name;
-            fn $f(self, rhs:f32) -> $name {
-                $name{value : self.value.$f(rhs)}
-            }
-        }
+        define_f32_opr_mods_lhs! {$name $opr $f}
+        define_f32_opr_mods_rhs! {$name $opr $f}
+    }
+}
 
-        impl $opr<&f32> for $name {
-            type Output = $name;
-            fn $f(self, rhs:&f32) -> $name {
-                $name{value : self.value.$f(rhs)}
-            }
-        }
-
-        impl $opr<f32> for &$name {
-            type Output = $name;
-            fn $f(self, rhs:f32) -> $name {
-                $name{value : self.value.$f(rhs)}
-            }
-        }
-
-        impl $opr<&f32> for &$name {
-            type Output = $name;
-            fn $f(self, rhs:&f32) -> $name {
-                $name{value : self.value.$f(rhs)}
-            }
-        }
-
+macro_rules! define_f32_opr_mods_lhs {
+    ($name:ident $opr:ident $f:ident) => {
         impl $opr<$name> for f32 {
             type Output = $name;
             fn $f(self, rhs:$name) -> $name {
@@ -89,6 +68,70 @@ macro_rules! define_opr_mods {
     }
 }
 
+macro_rules! define_f32_opr_mods_rhs {
+    ($name:ident $opr:ident $f:ident) => {
+        impl $opr<f32> for $name {
+            type Output = $name;
+            fn $f(self, rhs:f32) -> $name {
+                $name{value : self.value.$f(rhs)}
+            }
+        }
+
+        impl $opr<&f32> for $name {
+            type Output = $name;
+            fn $f(self, rhs:&f32) -> $name {
+                $name{value : self.value.$f(rhs)}
+            }
+        }
+
+        impl $opr<f32> for &$name {
+            type Output = $name;
+            fn $f(self, rhs:f32) -> $name {
+                $name{value : self.value.$f(rhs)}
+            }
+        }
+
+        impl $opr<&f32> for &$name {
+            type Output = $name;
+            fn $f(self, rhs:&f32) -> $name {
+                $name{value : self.value.$f(rhs)}
+            }
+        }
+    }
+}
+
+macro_rules! define_self_opr_mods {
+    ($name:ident $opr:ident $f:ident) => {
+        impl $opr<$name> for $name {
+            type Output = $name;
+            fn $f(self, rhs:$name) -> $name {
+                $name{value : self.value.$f(rhs.value)}
+            }
+        }
+
+        impl $opr<&$name> for $name {
+            type Output = $name;
+            fn $f(self, rhs:&$name) -> $name {
+                $name{value : self.value.$f(rhs.value)}
+            }
+        }
+
+        impl $opr<$name> for &$name {
+            type Output = $name;
+            fn $f(self, rhs:$name) -> $name {
+                $name{value : self.value.$f(rhs.value)}
+            }
+        }
+
+        impl $opr<&$name> for &$name {
+            type Output = $name;
+            fn $f(self, rhs:&$name) -> $name {
+                $name{value : self.value.$f(rhs.value)}
+            }
+        }
+    }
+}
+
 macro_rules! define_property {
     ($name:ident = $default:expr) => {
         /// Simulation property.
@@ -112,10 +155,10 @@ macro_rules! define_property {
             }
         }
 
-        define_opr_mods! {$name Add add}
-        define_opr_mods! {$name Sub sub}
-        define_opr_mods! {$name Mul mul}
-        define_opr_mods! {$name Div div}
+        define_self_opr_mods!    {$name Add add}
+        define_self_opr_mods!    {$name Sub sub}
+        define_f32_opr_mods!     {$name Mul mul}
+        define_f32_opr_mods_rhs! {$name Div div}
     };
 }
 

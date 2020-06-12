@@ -54,6 +54,11 @@ impl Shape {
         let height = self.height * self.pixel_ratio;
         Self {width,height,..*self}
     }
+
+    /// Center of the shape.
+    pub fn center(&self) -> Vector2<f32> {
+        Vector2::new(self.width/2.0,self.height/2.0)
+    }
 }
 
 impl Default for Shape {

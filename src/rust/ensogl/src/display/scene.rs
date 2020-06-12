@@ -347,14 +347,13 @@ impl Mouse {
             let screen_x    = event.client_x();
             let screen_y    = event.client_y();
 
-            let new_position = Vector2::new(screen_x,screen_y);
-            let pos_changed  = new_position != last_position.get();
+            let new_pos     = Vector2::new(screen_x,screen_y);
+            let pos_changed = new_pos != last_position.get();
             if pos_changed {
-                last_position.set(new_position);
-                let new_canvas_position = new_position * pixel_ratio;
+                last_position.set(new_pos);
+                let new_canvas_position = new_pos * pixel_ratio;
                 position.set(new_canvas_position);
-                let center   = Vector2(shape.width/2.0,shape.height/2.0);
-                let position = Vector2(new_position.x as f32,new_position.y as f32) - center;
+                let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
                 frp.position.emit(position);
             }
         }));
@@ -382,7 +381,8 @@ impl Mouse {
         }));
 
         let handles = Rc::new(vec![on_move,on_down,on_up]);
-        Self {mouse_manager,last_position,position,hover_ids,button_state,target,handles,frp,scene_frp,logger}
+        Self {mouse_manager,last_position,position,hover_ids,button_state,target,handles,frp
+             ,scene_frp,logger}
     }
 
     /// Reemits FRP mouse changed position event with the last mouse position value.
@@ -406,10 +406,9 @@ impl Mouse {
     /// and you can assume that it is synchronous. Whenever mouse moves, it is discovered what
     /// element it hovers, and its position change event is emitted as well.
     pub fn reemit_position_event(&self) {
-        let shape        = self.scene_frp.shape.value();
-        let new_position = self.last_position.get();
-        let center       = Vector2(shape.width/2.0,shape.height/2.0);
-        let position     = Vector2(new_position.x as f32,new_position.y as f32) - center;
+        let shape    = self.scene_frp.shape.value();
+        let new_pos  = self.last_position.get();
+        let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
         self.frp.position.emit(position);
     }
 }
