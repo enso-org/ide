@@ -14,6 +14,7 @@ use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::component;
+use ensogl::math::algebra::Clamp;
 
 use crate::node;
 
@@ -53,11 +54,6 @@ pub mod port_area {
         Var::<f32>::from(format!("(step(float({1}),float({0})) * step(float({0}),float({2})))", value, lower_bound, upper_bound))
     }
 
-    /// Return value clamped to given range.
-    fn clamp(value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
-        Var::<f32>::from(format!("clamp(float({0}),float({1}),float({2}))", value, lower_bound, upper_bound))
-    }
-
     fn compute_crop_plane_angle(full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position:&Var<f32>) ->Var<f32> {
         // TODO implement proper abstraction for non-branching "if/then/else" or "case" ins shaderland
         let start                      = 0.0.into();
@@ -65,13 +61,11 @@ pub mod port_area {
         let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
         let end                        = full_shape_border_length;
 
-        let one  = Var::<f32>::from(1.0);
-        let zero = Var::<f32>::from(0.0);
         let base_rotation = Var::<f32>::from(90.0_f32.to_radians());
 
         // Case 1:
         let case_1            = in_range(position, &start, &middle_segment_start_point);
-        let case_1_value_base = &one - clamp(&(position / corner_segment_length), &zero, &one);
+        let case_1_value_base = Var::<f32>::from(1.0) - (position / corner_segment_length).clamp(0.0.into(), 1.0.into());
         let case_1_scale      = 90.0_f32.to_radians();
         let case_1_value      = case_1 * (case_1_value_base * case_1_scale + &base_rotation);
 
@@ -82,7 +76,7 @@ pub mod port_area {
 
         // Case 3
         let case_3            = in_range_inclusive(position, &middle_segment_end_point, &end);
-        let case_3_value_base = clamp(&((position - middle_segment_end_point) / corner_segment_length), &zero, &one);
+        let case_3_value_base = ((position - middle_segment_end_point) / corner_segment_length).clamp(0.0.into(), 1.0.into());
         let case_3_scale      = -90.0_f32.to_radians();
         let case_3_value      = case_3 * (case_3_value_base * case_3_scale + &base_rotation);
 

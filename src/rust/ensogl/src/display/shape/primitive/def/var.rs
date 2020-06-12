@@ -6,6 +6,7 @@ use crate::data::color;
 use crate::display::shape::primitive::def::unit::PixelDistance;
 use crate::math::algebra::Acos;
 use crate::math::algebra::Asin;
+use crate::math::algebra::Clamp;
 use crate::math::algebra::Cos;
 use crate::math::algebra::Sin;
 use crate::math::algebra::Sqrt;
@@ -20,7 +21,6 @@ use crate::system::gpu::types::*;
 
 use nalgebra::Scalar;
 use std::ops::*;
-
 
 
 // ======================
@@ -508,6 +508,31 @@ where T: Sqrt<Output=T> {
         match self {
             Self::Static  (t) => Var::Static(t.sqrt()),
             Self::Dynamic (t) => Var::Dynamic(format!("sqrt({})",t).into())
+        }
+    }
+}
+
+
+
+// =============
+// === Clamp ===
+// =============
+
+impl<T> Clamp for Var<T>
+where T: Clamp<Output=T>+Into<Glsl> {
+    type Output = Var<T>;
+    fn clamp(self, lower:Var<T>, upper:Var<T>) -> Var<T> {
+        use Var::Static;
+        use Var::Dynamic;
+
+        match (self, lower, upper) {
+            (Static(value),Static(lower),Static(upper)) => Static(value.clamp(lower, upper)),
+            (value, lower, upper)                       => Dynamic({
+                let value:Glsl = value.into();
+                let lower:Glsl = lower.into();
+                let upper:Glsl = upper.into();
+                format!("clamp({},{},{})", value.glsl(), lower.glsl(), upper.glsl()).into()
+            })
         }
     }
 }
