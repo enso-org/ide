@@ -41,6 +41,96 @@ const PORT_AREA_WIDTH     : f32  = 4.0;
 pub mod port_area {
     use super::*;
     use ensogl::display::shape::*;
+    use std::f32::consts::PI;
+
+    /// Return 1.0 if `lower_bound` < `value` <= `upper_bound`, 0.0 otherwise.
+    fn in_range(value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
+        Var::<f32>::from(format!("(step(float({1}),float({0})) - step(float({2}),float({0})))", value, lower_bound, upper_bound))
+    }
+
+    /// Return 1.0 if `lower_bound` < `value` <, `upper_bound`, 0.0 otherwise.
+    fn in_range_inclusive(value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
+        Var::<f32>::from(format!("(step(float({1}),float({0})) * step(float({0}),float({2})))", value, lower_bound, upper_bound))
+    }
+
+    /// Return value clamped to given range.
+    fn clamp(value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
+        Var::<f32>::from(format!("clamp(float({0}),float({1}),float({2}))", value, lower_bound, upper_bound))
+    }
+
+    fn compute_crop_plane_angle(full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position:&Var<f32>) ->Var<f32> {
+        // TODO implement proper abstraction for non-branching "if/then/else" or "case" ins shaderland
+        let start                      = 0.0.into();
+        let middle_segment_start_point = corner_segment_length;
+        let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
+        let end                        = full_shape_border_length;
+
+        let one  = Var::<f32>::from(1.0);
+        let zero = Var::<f32>::from(0.0);
+        let base_rotation = Var::<f32>::from(90.0_f32.to_radians());
+
+        // Case 1:
+        let case_1            = in_range(position, &start, &middle_segment_start_point);
+        let case_1_value_base = &one - clamp(&(position / corner_segment_length), &zero, &one);
+        let case_1_scale      = 90.0_f32.to_radians();
+        let case_1_value      = case_1 * (case_1_value_base * case_1_scale + &base_rotation);
+
+        // Case 2
+        let case_2            = in_range_inclusive(position, &middle_segment_start_point, &middle_segment_end_point);
+        let case_2_value_base = &base_rotation;
+        let case_2_value      = case_2 * case_2_value_base;
+
+        // Case 3
+        let case_3            = in_range_inclusive(position, &middle_segment_end_point, &end);
+        let case_3_value_base = clamp(&((position - middle_segment_end_point) / corner_segment_length), &zero, &one);
+        let case_3_scale      = -90.0_f32.to_radians();
+        let case_3_value      = case_3 * (case_3_value_base * case_3_scale + &base_rotation);
+
+        (case_1_value + case_2_value + case_3_value).into()
+    }
+
+    /// Returns a value between 0 and 1 that indicates the position along the straight center segment.
+    fn calculate_crop_plane_position_relative_to_center_segment(full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position:&Var<f32>) -> Var<f32> {
+        // let start                      = 0.0.into();
+        let middle_segment_start_point = corner_segment_length;
+        let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
+        let end                        = full_shape_border_length;
+
+        let one  = Var::<f32>::from(1.0);
+
+        // Case 1: always zero can be ignored
+
+        // Case 2
+        let case_2            = in_range_inclusive(position, &middle_segment_start_point, &middle_segment_end_point);
+        let case_2_value_base = (position - middle_segment_start_point) / (&middle_segment_end_point - middle_segment_start_point);
+        let case_2_value      = case_2 * case_2_value_base;
+
+        // Case 3: always 1.0
+        let case_3            = in_range_inclusive(position, &middle_segment_end_point, &end);
+        let case_3_value      = case_3 * one;
+
+        (case_2_value + case_3_value).into()
+
+    }
+
+    fn compute_crop_plane(index:&Var<f32>, port_num: &Var<f32>, width: &Var<f32>, corner_radius:&Var<f32>, position_offset:&Var<f32>) -> AnyShape {
+        let corner_circumference     = corner_radius * 2.0 * PI;
+        let corner_segment_length    = &corner_circumference * 0.25;
+        let center_segment_length    = width - corner_radius * 2.0;
+        let full_shape_border_length = &center_segment_length + &corner_segment_length * 2.0;
+
+
+        let position_relative    = (index / port_num);
+        let crop_segment_pos = &position_relative * &full_shape_border_length + position_offset;
+
+        let crop_plane_pos_relative = calculate_crop_plane_position_relative_to_center_segment(&full_shape_border_length, &corner_segment_length, &crop_segment_pos);
+        let crop_plane_pos          = crop_plane_pos_relative * &center_segment_length + corner_radius;
+
+        let plane_rotation_angle  = compute_crop_plane_angle(&full_shape_border_length, &corner_segment_length, &crop_segment_pos);
+        let plane_shape_offset     = Var::<Distance<Pixels>>::from(&crop_plane_pos - width * 0.5);
+        let crop_shape       = HalfPlane().rotate(plane_rotation_angle).translate_x(plane_shape_offset);
+        crop_shape.into()
+    }
 
     ensogl::define_shape_system! {
         (style:Style, grow:f32, shape_width:f32, offset_x:f32, padding:f32, opacity:f32) {
@@ -55,7 +145,6 @@ pub mod port_area {
             let hover_area_height = &height / 2.0 + &hover_area_size;
             let hover_area        = Rect((&hover_area_width,&hover_area_height));
             let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
-            let hover_area        = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
             let shrink           = 1.px() - 1.px() * &grow;
             let radius           = node::NODE_SHAPE_RADIUS.px();
@@ -101,7 +190,7 @@ pub mod port_area {
             let color             = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
             let port_area_colored = port_area_cropped.fill(color);
 
-            (port_area_colored + hover_area).into()
+            (port_area + hover_area).into()
         }
     }
 }

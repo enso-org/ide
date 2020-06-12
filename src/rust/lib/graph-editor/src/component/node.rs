@@ -87,7 +87,7 @@ pub mod shape {
             let select         = select2 - select;
             let select         = select.fill(color::Rgba::from(selection_color));
 
-            let out = select + shape;
+            let out = select + shape + shadow;
             out.into()
         }
     }
@@ -254,7 +254,7 @@ impl NodeModel {
 
 
         // TODO: Determine number of output ports based on node semantics.
-        let output_ports = OutputPorts::new(&scene, 4);
+        let output_ports = OutputPorts::new(&scene, 1);
         display_object.add_child(&output_ports);
 
 
