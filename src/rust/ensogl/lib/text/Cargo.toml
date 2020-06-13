@@ -9,6 +9,6 @@ crate-type = ["rlib", "cdylib"]
 
 
 [dependencies]
-enso-prelude               = { version = "0.1.0"  , path = "../../../lib/prelude"   }
-ensogl                     = { version = "0.1.0"  , path = "../../../ensogl"   }
-xi-rope                    = { version = "0.3.0"                                 }
+enso-prelude = { version = "0.1.0"  , path = "../../../lib/prelude" }
+ensogl       = { version = "0.1.0"  , path = "../../../ensogl"      }
+xi-rope      = { version = "0.3.0"                                  }
