@@ -1,6 +1,8 @@
 use std::{path, env, fs, io};
 use std::io::Write;
 
+
+
 // =====================
 // === FillMapRsFile ===
 // =====================
@@ -30,9 +32,11 @@ impl FillMapRsFile {
     }
 }
 
-// ====================
-// === DejaVu fonts ===
-// ====================
+
+
+// ===================
+// === DejaVu Font ===
+// ===================
 
 mod deja_vu {
     use crate::FillMapRsFile;
@@ -43,7 +47,7 @@ mod deja_vu {
     pub const PACKAGE : GithubRelease<&str> = GithubRelease {
         project_url : "https://github.com/dejavu-fonts/dejavu-fonts/",
         version     : "version_2_37",
-        filename    : "dejavu-fonts-ttf-2.37.zip"
+        filename    : "dejavu-fonts-ttf-2.37.zip",
     };
 
     pub const PACKAGE_FONTS_PREFIX : &str = "dejavu-fonts-ttf-2.37/ttf";
@@ -101,7 +105,6 @@ fn main() {
     let out                  = env::var("OUT_DIR").unwrap();
     let out_dir              = path::Path::new(&out);
     let fill_map_rs_path     = out_dir.join("fill_map.rs");
-
     let mut fill_map_rs_file = FillMapRsFile::create(fill_map_rs_path).unwrap();
 
     deja_vu::download_and_extract_all_fonts(out_dir);

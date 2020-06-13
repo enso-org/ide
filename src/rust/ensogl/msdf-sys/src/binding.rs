@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
-#[wasm_bindgen(module = "/msdfgen_wasm.js")]
+#[wasm_bindgen(module="/msdfgen_wasm.js")]
 extern {
     #[wasm_bindgen(js_name="addInitializationCb")]
     pub fn on_emscripten_runtime_initialized(callback:JsValue);
@@ -27,15 +27,15 @@ extern {
 
     #[wasm_bindgen(js_name="_msdfgen_generateAutoframedMSDF")]
     pub fn msdfgen_generate_msdf
-    ( width                           : usize
-    , height                          : usize
-    , font_handle                     : JsValue
-    , unicode                         : u32
-    , edge_coloring_angle_threshold   : f64
-    , range                           : f64
-    , max_scale                       : f64
-    , edge_threshold                  : f64
-    , overlap_support                 : bool
+    ( width                         : usize
+    , height                        : usize
+    , font_handle                   : JsValue
+    , unicode                       : u32
+    , edge_coloring_angle_threshold : f64
+    , range                         : f64
+    , max_scale                     : f64
+    , edge_threshold                : f64
+    , overlap_support               : bool
     ) -> JsValue;
 
     #[wasm_bindgen(js_name="_msdfgen_result_getMSDFData")]

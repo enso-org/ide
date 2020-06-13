@@ -13,7 +13,7 @@ use ensogl::system::gpu::texture;
 use ensogl::system::gpu::texture::Texture;
 use ensogl::system::gpu::types::*;
 use crate::display::shape::text::glyph::font;
-use crate::display::shape::text::glyph::msdf::MsdfTexture;
+use crate::display::shape::text::glyph::msdf;
 use crate::display::world::*;
 use crate::display::layout::Alignment;
 use crate::display::shape::text::glyph::font::GlyphRenderInfo;
@@ -35,6 +35,9 @@ use xi_rope::tree::*;
 // === Glyph ===
 // =============
 
+
+pub type GlyphsTexture = Texture<texture::GpuOnly,texture::Rgb,u8>;
+
 /// A glyph rendered on screen. The displayed character will be stretched to fit the entire size of
 /// underlying sprite.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
@@ -45,7 +48,7 @@ pub struct Glyph {
     font            : font::Handle,
     color_attr      : Attribute<Vector4<f32>>,
     msdf_index_attr : Attribute<f32>,
-    msdf_uniform    : Uniform<Texture<texture::GpuOnly,texture::Rgb,u8>>,
+    glyphs_texture  : Uniform<GlyphsTexture>,
 }
 
 impl Glyph {
@@ -62,17 +65,15 @@ impl Glyph {
     }
 
     fn update_msdf_texture(&self) {
-        let texture_changed = self.msdf_uniform.with_content(|texture| {
+        let texture_changed = self.glyphs_texture.with_content(|texture| {
             texture.storage().height != self.font.msdf_texture_rows() as i32
         });
         if texture_changed {
-            let width   = MsdfTexture::WIDTH as i32;
+            let width   = msdf::Texture::WIDTH as i32;
             let height  = self.font.msdf_texture_rows() as i32;
-            let texture = Texture::<texture::GpuOnly,texture::Rgb,u8>::new(&self.context,(width,height));
-            self.font.with_borrowed_msdf_texture_data(|data| {
-                texture.reload_with_content(data);
-            });
-            self.msdf_uniform.set(texture);
+            let texture = GlyphsTexture::new(&self.context,(width,height));
+            self.font.with_borrowed_msdf_texture_data(|data| texture.reload_with_content(data));
+            self.glyphs_texture.set(texture);
         }
     }
 }
@@ -99,7 +100,7 @@ pub struct GlyphSystem {
     font             : font::Handle,
     color            : Buffer<Vector4<f32>>,
     glyph_msdf_index : Buffer<f32>,
-    msdf_uniform     : Uniform<Texture<texture::GpuOnly,texture::Rgb,u8>>,
+    glyphs_texture     : Uniform<GlyphsTexture>,
 }
 
 impl GlyphSystem {
@@ -107,13 +108,13 @@ impl GlyphSystem {
     pub fn new<S>(scene:&S, font:font::Handle) -> Self
     where for<'t> &'t S : Into<&'t Scene> {
         let logger        = Logger::new("glyph_system");
-        let msdf_width    = MsdfTexture::WIDTH as f32;
-        let msdf_height   = MsdfTexture::ONE_GLYPH_HEIGHT as f32;
+        let msdf_width    = msdf::Texture::WIDTH as f32;
+        let msdf_height   = msdf::Texture::ONE_GLYPH_HEIGHT as f32;
         let scene         = scene.into();
         let context       = scene.context.clone_ref();
         let sprite_system = SpriteSystem::new(scene);
         let symbol        = sprite_system.symbol();
-        let texture       = Texture::<texture::GpuOnly,texture::Rgb,u8>::new(&context,(0,0));
+        let texture       = GlyphsTexture::new(&context,(0,0));
         let mesh          = symbol.surface();
 
         sprite_system.set_material(Self::material());
@@ -121,7 +122,7 @@ impl GlyphSystem {
         scene.variables.add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables.add("msdf_size",Vector2::new(msdf_width,msdf_height));
         Self {logger,context,sprite_system,font,
-            msdf_uniform     : symbol.variables().add_or_panic("msdf_texture",texture),
+            glyphs_texture     : symbol.variables().add_or_panic("msdf_texture",texture),
             color            : mesh.instance_scope().add_buffer("color"),
             glyph_msdf_index : mesh.instance_scope().add_buffer("glyph_msdf_index"),
         }
@@ -136,10 +137,10 @@ impl GlyphSystem {
         let color_attr      = self.color.at(instance_id);
         let msdf_index_attr = self.glyph_msdf_index.at(instance_id);
         let font            = self.font.clone_ref();
-        let msdf_uniform    = self.msdf_uniform.clone();
+        let glyphs_texture    = self.glyphs_texture.clone();
         color_attr.set(Vector4::new(0.0,0.0,0.0,0.0));
         msdf_index_attr.set(0.0);
-        Glyph {context,sprite,msdf_index_attr,color_attr,font,msdf_uniform}
+        Glyph {context,sprite,msdf_index_attr,color_attr,font,glyphs_texture}
     }
 
 //    /// Create a new `Line` of text.
