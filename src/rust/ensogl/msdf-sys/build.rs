@@ -22,6 +22,7 @@ mod msdfgen_wasm {
     /// If you find and implement a better way to downloading js snippets, please
     /// remember to remove msdfgen_wasm.js entry from the .gitignore file.
     pub fn download() {
+        println!("cargo:warning=Downloading msdfgen distribution.");
         PACKAGE.download(path::Path::new("."))
     }
 
@@ -45,8 +46,8 @@ mod msdfgen_wasm {
 }
 
 fn main() {
-    msdfgen_wasm::download();
-    msdfgen_wasm::patch_for_wasm_bindgen_test();
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:warning=Downloading msdfgen distribution.");
+    // FIXME
+    // msdfgen_wasm::download();
+    // msdfgen_wasm::patch_for_wasm_bindgen_test();
 }

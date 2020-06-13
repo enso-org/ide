@@ -45,6 +45,10 @@ impl Glyph {
         self.color.get().into()
     }
 
+    pub fn set_color(&self,color:impl Into<Rgba>) {
+        self.color.set(color.into().into())
+    }
+
     /// Change the displayed character.
     pub fn set_glyph(&self, ch:char) {
         let glyph_info = self.font.get_glyph_info(ch);
@@ -75,18 +79,18 @@ impl display::Object for Glyph {
 
 
 
-
 // ==============
 // === System ===
 // ==============
 
 /// A system for displaying glyphs.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct System {
     logger           : Logger,
     context          : Context,
     sprite_system    : SpriteSystem,
-    font             : font::Handle,
+    pub font         : font::Handle,
     color            : Buffer<Vector4<f32>>,
     msdf_glyph_index : Buffer<f32>,
     msdf_texture     : Uniform<Texture>,
