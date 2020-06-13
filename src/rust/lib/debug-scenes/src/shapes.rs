@@ -16,6 +16,8 @@ use ensogl_core_msdf_sys::run_once_initialized;
 use ensogl::display::style::theme;
 use ensogl::data::color;
 use enso_frp as frp;
+use ensogl::display::shape::text;
+use ensogl_text;
 
 
 #[wasm_bindgen]
@@ -121,6 +123,9 @@ fn init(app:&Application) {
         }
         was_rendered = true;
     }).forget();
+
+    ensogl_text::main();
+    println!("ooo");
 }
 
 

@@ -1,0 +1,14 @@
+[package]
+name    = "ensogl-text"
+version = "0.1.0"
+authors = ["Enso Team <contact@luna-lang.org>"]
+edition = "2018"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+
+[dependencies]
+enso-prelude               = { version = "0.1.0"  , path = "../../../lib/prelude"   }
+ensogl                     = { version = "0.1.0"  , path = "../../../ensogl"   }
+xi-rope                    = { version = "0.3.0"                                 }
