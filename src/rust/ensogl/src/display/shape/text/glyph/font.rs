@@ -7,7 +7,7 @@ use crate::display::shape::text::glyph::msdf;
 use ensogl_core_msdf_sys as msdf_sys;
 use ensogl_core_embedded_fonts::EmbeddedFonts;
 use msdf_sys::MsdfParameters;
-use msdf_sys::MultichannelSignedDistanceField;
+use msdf_sys::Msdf;
 use std::collections::hash_map::Entry;
 
 
@@ -69,35 +69,39 @@ impl<K:Eq+Hash, V> Default for Cache<K,V> {
 // === Font render info ===
 // ========================
 
-/// Data used for rendering a single glyph
+/// Data used for rendering a single glyph.
 ///
 /// Each distance and transformation values are expressed in normalized coordinates, where
 /// (0.0, 0.0) is initial pen position for an character, and `y` = 1.0 is _ascender_.
 ///
-/// `offset` and `scale` transforms the _base square_ for a character, such the glyph will be
-/// rendered correctly with assigned MSDF texture. The _base square_ corners are (0.0, 0.0),
+/// The `offset` and `scale` fields transforms the _base square_ for a character, such the glyph
+/// will be rendered correctly with assigned MSDF texture. The _base square_ corners are (0.0, 0.0),
 /// (1.0, 1.0).
 ///
-/// For explanation of various font-rendering terms, see
+/// For explanation of various font-rendering terms, see the
 /// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
 #[derive(Copy,Clone,Debug)]
 pub struct GlyphRenderInfo {
     /// An index of glyph in a msdf texture (counted from the top of column. For details, see
     /// msdf::Texture documentation.
     pub msdf_texture_glyph_id: usize,
+
     /// A required offset of the _base square_ see structure documentation for details.
     pub offset: Vector2<f32>,
+
     /// A required scale of the _base square_ see structure documentation for details.
     pub scale: Vector2<f32>,
+
     /// An advance. Advance is the distance between two successive pen positions for specific glyph.
     pub advance: f32
 }
 
 impl GlyphRenderInfo {
     /// See `MSDF_PARAMS` docs.
-    pub const MAX_MSDF_SHRINK_FACTOR : f64 = 4.;
+    pub const MAX_MSDF_SHRINK_FACTOR : f64 = 4.0;
+
     /// See `MSDF_PARAMS` docs.
-    pub const MAX_MSDF_GLYPH_SCALE   : f64 = 2.;
+    pub const MAX_MSDF_GLYPH_SCALE : f64 = 2.0;
 
     /// Parameters used for MSDF generation.
     ///
@@ -123,7 +127,7 @@ impl GlyphRenderInfo {
         let unicode        = ch as u32;
         let params         = Self::MSDF_PARAMS;
 
-        let msdf           = MultichannelSignedDistanceField::generate(handle,unicode,&params);
+        let msdf           = Msdf::generate(handle,unicode,&params);
         let inversed_scale = Vector2::new(1.0/msdf.scale.x, 1.0/msdf.scale.y);
         let translation    = msdf::convert_msdf_translation(&msdf);
         let glyph_id       = msdf_texture.rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
@@ -362,7 +366,7 @@ mod tests {
         let chars      = 2;
         let tex_width  = msdf::Texture::WIDTH;
         let tex_height = msdf::Texture::ONE_GLYPH_HEIGHT * chars;
-        let channels   = MultichannelSignedDistanceField::CHANNELS_COUNT;
+        let channels   = Msdf::CHANNELS_COUNT;
         let tex_size   = tex_width * tex_height * channels;
 
         assert_eq!(tex_height , font_render_info.msdf_texture_rows());

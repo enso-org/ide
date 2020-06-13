@@ -11,7 +11,7 @@ highp vec2 get_scaled_uv() {
 
 highp vec2 get_texture_coord() {
     highp vec2 msdf_fragment_size = input_msdf_size / vec2(textureSize(input_msdf_texture,0));
-    highp vec2 offset             = vec2(0.0, input_glyph_msdf_index) * msdf_fragment_size;
+    highp vec2 offset             = vec2(0.0, input_msdf_glyph_index) * msdf_fragment_size;
     return offset + get_scaled_uv() * msdf_fragment_size;
 }
 

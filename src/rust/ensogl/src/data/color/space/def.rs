@@ -59,7 +59,7 @@ macro_rules! define_color_space {
         }
 
         impl From<ComponentsOf<$data_name>> for $data_name {
-            fn from(Components(($($comp),*,)):ComponentsOf<Self>) -> Self {
+            fn from(Components{tuple:($($comp),*,)}:ComponentsOf<Self>) -> Self {
                 Self {$($comp),*}
             }
         }

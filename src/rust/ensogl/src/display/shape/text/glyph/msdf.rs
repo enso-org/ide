@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use ensogl_core_msdf_sys::MultichannelSignedDistanceField;
+use ensogl_core_msdf_sys::Msdf;
 
 
 
@@ -23,7 +23,7 @@ pub struct Texture {
 
 impl Texture {
     /// Number of channels per cell in MSDF texture
-    pub const CHANNELS_COUNT : usize = MultichannelSignedDistanceField::CHANNELS_COUNT;
+    pub const CHANNELS_COUNT : usize = Msdf::CHANNELS_COUNT;
 
     /// Width of single MSDF in cells.
     pub const WIDTH : usize = 32;
@@ -40,6 +40,13 @@ impl Texture {
     /// Number of rows in texture
     pub fn rows(&self) -> usize {
         self.data.borrow().len() / Self::ROW_SIZE
+    }
+
+    /// The size of the `msdf` texture.
+    pub fn size() -> Vector2<f32> {
+        let width  = Self::WIDTH as f32;
+        let height = Self::ONE_GLYPH_HEIGHT as f32;
+        Vector2(width,height)
     }
 
     /// Do operation on borrowed texture data. Panics, if inside `operation` the texture data will
@@ -95,7 +102,7 @@ pub fn y_distance_from_msdf_value(msdf_value:f64) -> f32 {
 /// This function get the transformation obtained from `msdf_sys` which is expressed in MSDF units,
 /// and convert it to  normalized coordinates, where (0.0, 0.0) is initial pen position for an
 /// character, and `y` = 1.0 is _ascender_.
-pub fn convert_msdf_translation(msdf:&MultichannelSignedDistanceField)
+pub fn convert_msdf_translation(msdf:&Msdf)
 -> Vector2<f32> {
     let translate_converted_x = x_distance_from_msdf_value(msdf.translation.x);
     let translate_converted_y = y_distance_from_msdf_value(msdf.translation.y);
@@ -138,7 +145,7 @@ mod test {
     #[wasm_bindgen_test(async)]
     async fn msdf_translation_converting() {
         ensogl_core_msdf_sys::initialized().await;
-        let mut msdf = MultichannelSignedDistanceField::mock_results();
+        let mut msdf = Msdf::mock_results();
         msdf.translation = Vector2::new(16.0, 4.0);
 
         let converted = convert_msdf_translation(&msdf);

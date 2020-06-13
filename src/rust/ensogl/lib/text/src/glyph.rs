@@ -1,9 +1,12 @@
+//! This module defines glyphs and glyphs systems. All glyphs in a glyph system share the same font,
+//! but can differ in all other aspects.
 
 use crate::prelude::*;
 
 use ensogl::system::gpu;
 use ensogl::system::gpu::texture;
 use ensogl::system::gpu::types::*;
+use ensogl::data::color::Rgba;
 use crate::display;
 use crate::display::shape::text::glyph::font;
 use crate::display::shape::text::glyph::msdf;
@@ -20,7 +23,7 @@ use crate::display::scene::Scene;
 // === Glyph ===
 // =============
 
-
+/// Glyph texture. Contains all letters encoded in MSDF format.
 pub type Texture = gpu::Texture<texture::GpuOnly,texture::Rgb,u8>;
 
 /// A glyph rendered on screen. The displayed character will be stretched to fit the entire size of
@@ -28,29 +31,29 @@ pub type Texture = gpu::Texture<texture::GpuOnly,texture::Rgb,u8>;
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Glyph {
     #[shrinkwrap(main_field)]
-    sprite       : Sprite,
-    context      : Context,
-    font         : font::Handle,
-    color_attr   : Attribute<Vector4<f32>>,
-    msdf_index   : Attribute<f32>,
-    msdf_texture : Uniform<Texture>,
+    sprite           : Sprite,
+    context          : Context,
+    font             : font::Handle,
+    color            : Attribute<Vector4<f32>>,
+    msdf_glyph_index : Attribute<f32>,
+    msdf_texture     : Uniform<Texture>,
 }
 
 impl Glyph {
     /// Glyph color attribute accessor.
-    pub fn color(&self) -> Attribute<Vector4<f32>> {
-        self.color_attr.clone_ref()
+    pub fn color(&self) -> Rgba {
+        self.color.get().into()
     }
 
     /// Change the displayed character.
     pub fn set_glyph(&self, ch:char) {
         let glyph_info = self.font.get_glyph_info(ch);
-        self.msdf_index.set(glyph_info.msdf_texture_glyph_id as f32);
+        self.msdf_glyph_index.set(glyph_info.msdf_texture_glyph_id as f32);
         self.update_msdf_texture();
     }
 
+    // FIXME: How does it work? Replace with better checking.
     fn update_msdf_texture(&self) {
-        /// FIXME: How does it work? Replace with better checking.
         let texture_changed = self.msdf_texture.with_content(|texture| {
             texture.storage().height != self.font.msdf_texture_rows() as i32
         });
@@ -85,18 +88,16 @@ pub struct System {
     sprite_system    : SpriteSystem,
     font             : font::Handle,
     color            : Buffer<Vector4<f32>>,
-    glyph_msdf_index : Buffer<f32>,
+    msdf_glyph_index : Buffer<f32>,
     msdf_texture     : Uniform<Texture>,
 }
 
 impl System {
     /// Constructor.
-    pub fn new<S>(scene:&S, font:font::Handle) -> Self
-    where for<'t> &'t S : Into<&'t Scene> {
+    pub fn new<S>(scene:impl AsRef<Scene>, font:font::Handle) -> Self {
         let logger        = Logger::new("glyph_system");
-        let msdf_width    = msdf::Texture::WIDTH as f32;
-        let msdf_height   = msdf::Texture::ONE_GLYPH_HEIGHT as f32;
-        let scene         = scene.into();
+        let size          = msdf::Texture::size();
+        let scene         = scene.as_ref();
         let context       = scene.context.clone_ref();
         let sprite_system = SpriteSystem::new(scene);
         let symbol        = sprite_system.symbol();
@@ -106,27 +107,27 @@ impl System {
         sprite_system.set_material(Self::material());
         sprite_system.set_alignment(Alignment::bottom_left());
         scene.variables.add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
-        scene.variables.add("msdf_size",Vector2::new(msdf_width,msdf_height));
+        scene.variables.add("msdf_size",size);
         Self {logger,context,sprite_system,font,
             msdf_texture     : symbol.variables().add_or_panic("msdf_texture",texture),
             color            : mesh.instance_scope().add_buffer("color"),
-            glyph_msdf_index : mesh.instance_scope().add_buffer("glyph_msdf_index"),
+            msdf_glyph_index : mesh.instance_scope().add_buffer("msdf_glyph_index"),
         }
     }
 
-    /// Create new glyph. In the returned glyph the further parameters (position, size, character)
+    /// Create new glyph. In the returned glyph the further parameters (position,size,character)
     /// may be set.
     pub fn new_glyph(&self) -> Glyph {
-        let context         = self.context.clone();
-        let sprite          = self.sprite_system.new_instance();
-        let instance_id     = sprite.instance_id;
-        let color_attr      = self.color.at(instance_id);
-        let msdf_index = self.glyph_msdf_index.at(instance_id);
-        let font            = self.font.clone_ref();
-        let msdf_texture    = self.msdf_texture.clone();
-        color_attr.set(Vector4::new(0.0,0.0,0.0,0.0));
-        msdf_index.set(0.0);
-        Glyph {context,sprite,msdf_index,color_attr,font,msdf_texture}
+        let context          = self.context.clone();
+        let sprite           = self.sprite_system.new_instance();
+        let instance_id      = sprite.instance_id;
+        let color            = self.color.at(instance_id);
+        let msdf_glyph_index = self.msdf_glyph_index.at(instance_id);
+        let font             = self.font.clone_ref();
+        let msdf_texture     = self.msdf_texture.clone();
+        color.set(Vector4::new(0.0,0.0,0.0,0.0));
+        msdf_glyph_index.set(0.0);
+        Glyph {context,sprite,msdf_glyph_index,color,font,msdf_texture}
     }
 
 //    /// Create a new `Line` of text.
@@ -158,7 +159,7 @@ impl System {
         let mut material = Material::new();
         material.add_input_def::<texture::FloatSampler> ("msdf_texture");
         material.add_input_def::<Vector2<f32>>          ("msdf_size");
-        material.add_input_def::<f32>                   ("glyph_msdf_index");
+        material.add_input_def::<f32>                   ("msdf_glyph_index");
         material.add_input("pixel_ratio", 1.0);
         material.add_input("z_zoom_1"   , 1.0);
         material.add_input("msdf_range" , GlyphRenderInfo::MSDF_PARAMS.range as f32);

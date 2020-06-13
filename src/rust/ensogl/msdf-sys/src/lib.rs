@@ -133,7 +133,7 @@ pub struct MsdfParameters {
 }
 
 #[derive(Debug)]
-pub struct MultichannelSignedDistanceField {
+pub struct Msdf {
     handle          : JsValue,
     pub advance     : f64,
     pub translation : nalgebra::Vector2<f64>,
@@ -141,13 +141,13 @@ pub struct MultichannelSignedDistanceField {
     pub data        : ArrayMemoryView<f32>
 }
 
-impl Drop for MultichannelSignedDistanceField {
+impl Drop for Msdf {
     fn drop(&mut self) {
         msdfgen_free_result(self.handle.clone());
     }
 }
 
-impl MultichannelSignedDistanceField {
+impl Msdf {
     pub const CHANNELS_COUNT : usize = 3;
 
     /// Generate Mutlichannel Signed Distance Field (MSDF) for one glyph.
@@ -155,7 +155,7 @@ impl MultichannelSignedDistanceField {
     /// For more information about MSDF see
     /// [https://github.com/Chlumsky/msdfgen].
     pub fn generate(font:&Font, unicode:u32, params:&MsdfParameters)
-    -> MultichannelSignedDistanceField {
+    -> Msdf {
         let handle = msdfgen_generate_msdf
             ( params.width
             , params.height
@@ -172,7 +172,7 @@ impl MultichannelSignedDistanceField {
         let data_adress = msdfgen_result_get_msdf_data(handle.clone());
         let data_size   = params.width * params.height * Self::CHANNELS_COUNT;
         let data        = ArrayMemoryView::new(data_adress,data_size);
-        MultichannelSignedDistanceField{handle,advance,translation,scale,data}
+        Msdf{handle,advance,translation,scale,data}
     }
 
     const DIMENSIONS: usize = 2;
@@ -195,8 +195,8 @@ impl MultichannelSignedDistanceField {
         nalgebra::Vector2::new(scale_x, scale_y)
     }
 
-    pub fn mock_results() -> MultichannelSignedDistanceField {
-        MultichannelSignedDistanceField {
+    pub fn mock_results() -> Msdf {
+        Msdf {
             handle      : JsValue::from_f64(0.0),
             advance     : 0.0,
             translation : nalgebra::Vector2::new(0.0, 0.0),
@@ -241,7 +241,7 @@ mod tests {
             overlap_support               : true
         };
         // when
-        let msdf = MultichannelSignedDistanceField::generate(
+        let msdf = Msdf::generate(
             &font,
             'A' as u32,
             &params,

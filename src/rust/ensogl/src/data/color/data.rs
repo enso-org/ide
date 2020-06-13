@@ -121,6 +121,34 @@ where Color<D> : Copy + HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
     }
 }
 
+impl<D> From<Vector3<f32>> for Color<D>
+    where D : HasComponents<ComponentsRepr=(f32,f32,f32)> {
+    fn from(t:Vector3<f32>) -> Self {
+        Self::from(t.into_components())
+    }
+}
+
+impl<D> From<Vector4<f32>> for Color<D>
+    where D : HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
+    fn from(t:Vector4<f32>) -> Self {
+        Self::from(t.into_components())
+    }
+}
+
+impl<D> From<&Vector3<f32>> for Color<D>
+    where D : Copy + HasComponents<ComponentsRepr=(f32,f32,f32)> {
+    fn from(t:&Vector3<f32>) -> Self {
+        Self::from((*t).into_components())
+    }
+}
+
+impl<D> From<&Vector4<f32>> for Color<D>
+    where D : Copy + HasComponents<ComponentsRepr=(f32,f32,f32,f32)> {
+    fn from(t:&Vector4<f32>) -> Self {
+        Self::from((*t).into_components())
+    }
+}
+
 
 // === Operators ===
 
