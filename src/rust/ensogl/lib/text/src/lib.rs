@@ -45,13 +45,21 @@ use std::cmp::min;
 
 
 pub fn main() {
-    let mut txt = Buffer::from("Test text!");
-    txt.set_color(1..3,color::Rgba::new(1.0,0.0,0.0,1.0));
+    let mut buffer = Buffer::from("Test text!");
+    buffer.set_color(1..3,color::Rgba::new(1.0,0.0,0.0,1.0));
+    let mut view = View::new();
 
-//    let foo = txt.color.iter().collect_vec();
-    let foo = txt.color.subseq(2..5);
+
+//    let foo = buffer.color.iter().collect_vec();
+    let foo = buffer.color.subseq(2..5);
     let foo = foo.iter().collect_vec();
     println!("{:#?}",foo);
+
+    println!("{:#?}",view.selection);
+
+    view.do_move(&buffer.rope,Movement::Right,false);
+
+    println!("{:#?}",view.selection);
 }
 
 
@@ -69,7 +77,7 @@ pub struct BufferMap {
 // === Buffer ===
 // ==============
 
-#[derive(Debug,Clone,Default)]
+#[derive(Debug,Default)]
 pub struct Buffer {
     /// The contents of the buffer.
     pub rope: Rope,
@@ -173,6 +181,16 @@ impl LineOffset for View {
 
 
 impl View {
+    pub fn new() -> Self {
+        let buffer_id = BufferId(0);
+        let first_line = 0;
+        let height = 10;
+        let mut selection = Selection::default();
+        let scroll_to = None;
+        selection.regions.push(SelRegion::new(0,0));
+        Self {buffer_id,first_line,height,selection,scroll_to}
+    }
+
     /// If `modify` is `true`, the selections are modified, otherwise the results
     /// of individual region movements become carets.
     pub fn do_move(&mut self, text: &Rope, movement: Movement, modify: bool) {
@@ -194,7 +212,7 @@ impl View {
     /// Set the selection to a new value.
     pub fn set_selection<S: Into<Selection>>(&mut self, text: &Rope, sel: S) {
         self.set_selection_raw(text, sel.into());
-        self.scroll_to_cursor(text);
+//        self.scroll_to_cursor(text);
     }
 
     /// Sets the selection to a new value, invalidating the line cache as needed.
@@ -205,19 +223,19 @@ impl View {
         self.invalidate_selection(text);
     }
 
-    fn scroll_to_cursor(&mut self, text: &Rope) {
-        let end = self.sel_regions().last().unwrap().end;
-        let line = self.line_of_offset(text, end);
-        if line < self.first_line {
-            self.first_line = line;
-        } else if self.first_line + self.height <= line {
-            self.first_line = line - (self.height - 1);
-        }
-        // We somewhat arbitrarily choose the last region for setting the old-style
-        // selection state, and for scrolling it into view if needed. This choice can
-        // likely be improved.
-        self.scroll_to = Some(end);
-    }
+//    fn scroll_to_cursor(&mut self, text: &Rope) {
+//        let end = self.sel_regions().last().unwrap().end;
+//        let line = self.line_of_offset(text, end);
+//        if line < self.first_line {
+//            self.first_line = line;
+//        } else if self.first_line + self.height <= line {
+//            self.first_line = line - (self.height - 1);
+//        }
+//        // We somewhat arbitrarily choose the last region for setting the old-style
+//        // selection state, and for scrolling it into view if needed. This choice can
+//        // likely be improved.
+//        self.scroll_to = Some(end);
+//    }
 
     /// Invalidate the current selection. Note that we could be even more
     /// fine-grained in the case of multiple cursors, but we also want this
@@ -527,31 +545,61 @@ impl Selection {
     /// Performance note: should be O(1) if the new region strictly comes
     /// after all the others in the selection, otherwise O(n).
     pub fn add_region(&mut self, region: SelRegion) {
-//        let mut ix = self.search(region.min());
-//        if ix == self.regions.len() {
-//            self.regions.push(region);
-//            return;
-//        }
-//        let mut region = region;
-//        let mut end_ix = ix;
-//        if self.regions[ix].min() <= region.min() {
-//            if self.regions[ix].should_merge(region) {
-//                region = region.merge_with(self.regions[ix]);
-//            } else {
-//                ix += 1;
-//            }
-//            end_ix += 1;
-//        }
-//        while end_ix < self.regions.len() && region.should_merge(self.regions[end_ix]) {
-//            region = region.merge_with(self.regions[end_ix]);
-//            end_ix += 1;
-//        }
-//        if ix == end_ix {
-//            self.regions.insert(ix, region);
-//        } else {
-//            self.regions[ix] = region;
-//            remove_n_at(&mut self.regions, ix + 1, end_ix - ix - 1);
-//        }
+        let mut ix = self.search(region.min());
+        if ix == self.regions.len() {
+            self.regions.push(region);
+            return;
+        }
+        let mut region = region;
+        let mut end_ix = ix;
+        if self.regions[ix].min() <= region.min() {
+            if self.regions[ix].should_merge(region) {
+                region = region.merge_with(self.regions[ix]);
+            } else {
+                ix += 1;
+            }
+            end_ix += 1;
+        }
+        while end_ix < self.regions.len() && region.should_merge(self.regions[end_ix]) {
+            region = region.merge_with(self.regions[end_ix]);
+            end_ix += 1;
+        }
+        if ix == end_ix {
+            self.regions.insert(ix, region);
+        } else {
+            self.regions[ix] = region;
+            remove_n_at(&mut self.regions, ix + 1, end_ix - ix - 1);
+        }
+    }
+
+
+    // The smallest index so that offset > region.max() for all preceding
+    // regions.
+    pub fn search(&self, offset: usize) -> usize {
+        if self.regions.is_empty() || offset > self.regions.last().unwrap().max() {
+            return self.regions.len();
+        }
+        match self.regions.binary_search_by(|r| r.max().cmp(&offset)) {
+            Ok(ix) => ix,
+            Err(ix) => ix,
+        }
+    }
+}
+
+
+pub fn remove_n_at<T: Clone>(v: &mut Vec<T>, index: usize, n: usize) {
+    match n.cmp(&1) {
+        std::cmp::Ordering::Equal => {
+            v.remove(index);
+        }
+        std::cmp::Ordering::Greater => {
+            let new_len = v.len() - n;
+            for i in index..new_len {
+                v[i] = v[i + n].clone();
+            }
+            v.truncate(new_len);
+        }
+        std::cmp::Ordering::Less => (),
     }
 }
 
@@ -596,6 +644,25 @@ impl SelRegion {
     /// Returns a region with the given horizontal position.
     pub fn with_horiz(self, horiz: Option<HorizPos>) -> Self {
         Self { horiz, ..self }
+    }
+
+    // Indicate whether this region should merge with the next.
+    // Assumption: regions are sorted (self.min() <= other.min())
+    fn should_merge(self, other: SelRegion) -> bool {
+        other.min() < self.max()
+            || ((self.is_caret() || other.is_caret()) && other.min() == self.max())
+    }
+
+    // Merge self with an overlapping region.
+    // Retains direction of self.
+    fn merge_with(self, other: SelRegion) -> SelRegion {
+        let is_forward = self.end >= self.start;
+        let new_min = min(self.min(), other.min());
+        let new_max = max(self.max(), other.max());
+        let (start, end) = if is_forward { (new_min, new_max) } else { (new_max, new_min) };
+        // Could try to preserve horiz/affinity from one of the
+        // sources, but very likely not worth it.
+        SelRegion::new(start, end)
     }
 
 }
