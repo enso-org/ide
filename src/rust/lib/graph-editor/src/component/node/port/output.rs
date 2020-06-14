@@ -105,7 +105,6 @@ fn port_base_shape_data
         radius,
         width
     }
-
 }
 
 /// Helper trait that allows us to abstract the API of the `multi_port_area::Shape` and the
@@ -181,8 +180,7 @@ pub mod multi_port_area {
         case_1 + case_2 + case_3
     }
 
-    /// Returns a value between 0 and 1 that indicates the position along the straight center
-    /// segment.
+    /// Returns the position of the crop plane as a fraction of the straight center segment length.
     fn calculate_crop_plane_position_relative_to_center_segment
     (full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position:&Var<f32>)
     -> Var<f32> {
@@ -209,7 +207,8 @@ pub mod multi_port_area {
 
     }
 
-    /// Compute the plane at the location of the given port index.
+    /// Compute the crop plane at the location of the given port index. Also takes into account an
+    /// `position_offset` that is given as an offset along the shape boundary.
     fn compute_crop_plane
     (index:&Var<f32>, port_num: &Var<f32>, width: &Var<f32>, corner_radius:&Var<f32>,
      position_offset:&Var<f32>) -> AnyShape {
@@ -238,62 +237,39 @@ pub mod multi_port_area {
     }
 
     ensogl::define_shape_system! {
-        (style:Style, grow:f32, shape_width:f32, offset_x:f32, padding:f32, opacity:f32) {
-            let canvas_width : Var<Distance<Pixels>> = "input_size.x".into();
-            let width        : Var<Distance<Pixels>> = shape_width.clone().into();
-            let height       : Var<Distance<Pixels>> = "input_size.y".into();
-            let width  = &width - node::NODE_SHAPE_PADDING.px() * 2.0;
-            let height = height - node::NODE_SHAPE_PADDING.px() * 2.0;
+        (style:Style, grow:f32, index:f32, port_num:f32, padding:f32, opacity:f32) {
+            let overall_width  : Var<Distance<Pixels>> = "input_size.x".into();
+            let overall_height : Var<Distance<Pixels>> = "input_size.y".into();
 
-            let hover_area_size   = 20.0.px();
-            let hover_area_width  = &width  + &hover_area_size * 2.0;
-            let hover_area_height = &height / 2.0 + &hover_area_size;
-            let hover_area        = Rect((&hover_area_width,&hover_area_height));
-            let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
+            let base_shape_data = port_base_shape_data(&overall_width, &overall_height, &grow);
+            let BaseShapeData{ port_area,hover_area,radius,width } = base_shape_data;
 
-            let shrink           = 1.px() - 1.px() * &grow;
-            let radius           = node::NODE_SHAPE_RADIUS.px();
-            let port_area_size   = PORT_AREA_WIDTH.px() * &grow;
-            let port_area_width  = width.clone()  + (&port_area_size - &shrink) * 2.0;
-            let port_area_height = height.clone() + (&port_area_size - &shrink) * 2.0;
-            let bottom_radius    = &radius + &port_area_size;
-            let port_area        = Rect((&port_area_width,&port_area_height));
-            let port_area        = port_area.corners_radius(&bottom_radius);
-            let port_area        = port_area - BottomHalfPlane();
-            let corner_radius    = &port_area_size / 2.0;
-            let corner_offset    = &port_area_width / 2.0 - &corner_radius;
-            let corner           = Circle(&corner_radius);
-            let left_corner      = corner.translate_x(-&corner_offset);
-            let right_corner     = corner.translate_x(&corner_offset);
-            let port_area        = port_area + left_corner + right_corner;
+            let left_shape_crop  = compute_crop_plane(&index,
+                                                      &port_num,
+                                                      &width.clone().into(),
+                                                      &radius.clone().into(),
+                                                      &(&padding * 0.5));
+            let right_shape_crop = compute_crop_plane(&(Var::<f32>::from(1.0) + &index),
+                                                      &port_num,
+                                                      &width.clone().into(),
+                                                      &radius.clone().into(),
+                                                      &(-&padding * 0.5));
 
-            // Move the shape so it shows the correct slice, as indicated by `offset_x`.
-            let offset_x          = Var::<Distance<Pixels>>::from(offset_x);
-            let offset_x          = width/2.0 - offset_x;
-            let port_area_aligned = port_area.translate_x(offset_x);
+            let port_area  = port_area.difference(&left_shape_crop);
+            let port_area  = port_area.intersection(&right_shape_crop);
 
-            // Crop the sides of the visible area to show a gap between segments.
-            let crop_base_pos     = Var::<f32>::from("input_offset_x + input_size.x * 0.5") ;
-            let padding           = Var::<Distance<Pixels>>::from(&padding * 1.0);
-            let crop_window_base  = Rect((&padding,&(&height * 2.0)));
+            let left_hover_crop  = compute_crop_plane(&index, &port_num, &width.clone().into(),
+                                                      &radius.clone().into(), &0.0.into());
+            let right_hover_crop = compute_crop_plane(&(Var::<f32>::from(1.0) + &index), &port_num,
+                                                      &width.into(), &radius.into(), &0.0.into());
 
-            let crop_window_center = crop_base_pos.clone();
-            let crop_window_angle  = compute_angle(&width.into(), &radius.clone().into(), &crop_window_center.into());
-
-            let crop_window_right   = crop_window_base.rotate(&crop_window_angle);
-            let crop_window_right   = crop_window_right.translate_y(&height * -0.5);
-            let crop_window_right   = crop_window_right.translate_x(-&canvas_width * 0.5);
-
-            let crop_window_left   = crop_window_base.rotate(&crop_window_angle);
-            let crop_window_left   = crop_window_left.translate_y(&height * -0.5);
-            let crop_window_left   = crop_window_left.translate_x(&canvas_width * 0.5);
-
-            let port_area_cropped = port_area_aligned.difference(crop_window_right);
-            let port_area_cropped = port_area_cropped.difference(crop_window_left);
+            let hover_area = hover_area.difference(&left_hover_crop);
+            let hover_area = hover_area.intersection(&right_hover_crop);
+            let hover_area = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
             // FIXME: Use colour from style and apply transparency there.
-            let color             = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
-            let port_area_colored = port_area_cropped.fill(color);
+            let color     = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
+            let port_area = port_area.fill(color);
 
             (port_area + hover_area).into()
         }
@@ -409,6 +385,8 @@ impl ShapeView {
         }
     }
 }
+
+
 
 // =============================
 // === Port Frp Setup Helper ===
@@ -551,31 +529,10 @@ impl OutputPortsData {
         self
     }
 
-    fn update_shape_layout_based_on_size(&self) {
-        let port_num    = self.ports.borrow().len() as f32;
-        let width       = self.size.get().x;
-        let width_inner = width - 2.0 * node::NODE_SHAPE_PADDING ;
-        let height      = self.size.get().y;
-        let port_width  = (width_inner) / port_num;
-        let port_size   = Vector2::new(port_width, height);
-        let gap_width   = self.gap_width.get();
-        // Align shapes along width.
-        let x_start = -width / 2.0 + node::NODE_SHAPE_PADDING + 0.5 * port_width;
-        let x_delta = port_width;
-        for (index, view) in self.ports.borrow().iter().enumerate(){
-            view.display_object().set_parent(&self.display_object);
-
-            let pos_x = x_start + x_delta * index as f32;
-            let pos_y = 0.0;
-            let pos   = Vector2::new(pos_x,pos_y);
-            view.set_position_xy(pos);
-
-            let shape = &view.shape;
-            shape.sprite.size.set(port_size);
-            shape.shape_width.set(width);
-            shape.padding.set(gap_width);
-            shape.offset_x.set(x_delta * index as f32);
-        }
+    fn update_shape_layout_based_on_size_and_gap(&self) {
+        let size      = self.size.get();
+        let gap_width = self.gap_width.get();
+        self.ports.borrow().update_shape_layout_based_on_size_and_gap(size, gap_width);
     }
 
     fn set_size(&self, size:Vector2<f32>) {
