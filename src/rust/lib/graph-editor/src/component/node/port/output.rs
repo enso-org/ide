@@ -656,7 +656,7 @@ impl OutputPorts {
         // // Right now we get some of FRP mouse events on startup that leave the
         // // ports visible by default.
         // // Once that is fixed, remove this line.
-        // delay_hide.finish();
+        delay_hide.finish();
     }
 
     // TODO: Implement proper sorting and remove.
