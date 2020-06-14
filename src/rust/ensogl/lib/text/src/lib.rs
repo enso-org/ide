@@ -21,13 +21,16 @@ pub use ensogl::display;
 //use prelude::*;
 //
 //
-use xi_rope::spans::Spans;
-use xi_rope::spans::SpansBuilder;
-use xi_rope::breaks::{BreakBuilder, Breaks, BreaksInfo, BreaksMetric};
-use xi_rope::{Cursor, Interval, LinesMetric, Rope, RopeDelta, RopeInfo};
-//use xi_rope::LinesMetric;
-//use xi_rope::rope::BaseMetric;
-//use xi_rope::tree::*;
+
+use xi_rope as rope;
+
+use rope::spans::Spans;
+use rope::spans::SpansBuilder;
+use rope::breaks::{BreakBuilder, Breaks, BreaksInfo, BreaksMetric};
+use rope::{Interval, LinesMetric, Rope, RopeDelta, RopeInfo};
+//use rope::LinesMetric;
+//use rope::rope::BaseMetric;
+//use rope::tree::*;
 //
 //
 //
@@ -165,7 +168,7 @@ pub struct View {
     first_line: usize,
     /// height of visible portion
     height: usize,
-    selection: Selection,
+    selection: SelectionGroup,
     /// New offset to be scrolled into position after an edit.
     scroll_to: Option<usize>,
 }
@@ -187,14 +190,18 @@ impl LineOffset for View {
 }
 
 
+/// When paging through a file, the number of lines from the previous page
+/// that will also be visible in the next.
+const SCROLL_OVERLAP: isize = 2;
+
 impl View {
     fn new(buffer:impl Into<Buffer>) -> Self {
         let buffer = buffer.into();
         let first_line = 0;
         let height = 10;
-        let mut selection = Selection::default();
+        let mut selection = SelectionGroup::default();
         let scroll_to = None;
-        selection.regions.push(SelRegion::new(0,0));
+        selection.regions.push(Selection::new(0,0));
         Self {buffer,first_line,height,selection,scroll_to}
     }
 
@@ -203,18 +210,24 @@ impl View {
     pub fn move_selection(&mut self, movement: Movement, modify: bool) {
         self.set_selection(self.moved_selection(movement,modify));
     }
-
-    pub fn scroll_height(&self) -> usize {
-        self.height
+//
+//    pub fn scroll_height(&self) -> usize {
+//        self.height
+//    }
+//
+    /// Computes the actual desired amount of scrolling (generally slightly
+    /// less than the height of the viewport, to allow overlap).
+    fn page_scroll_height(&self) -> isize {
+        max(self.height as isize - SCROLL_OVERLAP, 1)
     }
 
     /// Returns the regions of the current selection.
-    pub fn sel_regions(&self) -> &[SelRegion] {
+    pub fn sel_regions(&self) -> &[Selection] {
         &self.selection
     }
 
     /// Set the selection to a new value.
-    pub fn set_selection(&mut self, selection:impl Into<Selection>) {
+    pub fn set_selection(&mut self, selection:impl Into<SelectionGroup>) {
         //self.invalidate_selection();
         self.selection = selection.into();
         //self.invalidate_selection();
@@ -223,7 +236,7 @@ impl View {
 
     /// Sets the selection to a new value, invalidating the line cache as needed.
     /// This function does not perform any scrolling.
-    fn set_selection_raw(&mut self, sel: Selection) {
+    fn set_selection_raw(&mut self, sel: SelectionGroup) {
 
     }
 
@@ -263,8 +276,7 @@ impl View {
     /// Based on the current selection position this will return the cursor position, the current line, and the
 /// total number of lines of the file.
     fn selection_position(&self,
-        r: SelRegion,
-        text: &Rope,
+        r: Selection,
         move_up: bool,
         modify: bool,
     ) -> (HorizPos, usize) {
@@ -288,13 +300,12 @@ impl View {
 /// Note: in non-exceptional cases, this function preserves the `horiz`
 /// field of the selection region.
     fn vertical_motion(&self,
-        r: SelRegion,
-        text: &Rope,
+        region: Selection,
         line_delta: isize,
         modify: bool,
     ) -> (usize, Option<HorizPos>) {
-        let (col, line) = self.selection_position(r, text, line_delta < 0, modify);
-        let n_lines = self.line_of_offset(text.len());
+        let (col, line) = self.selection_position(region, line_delta < 0, modify);
+        let n_lines = self.line_of_offset(self.text().len());
 
         // This code is quite careful to avoid integer overflow.
         // TODO: write tests to verify
@@ -307,7 +318,7 @@ impl View {
             line.saturating_add(line_delta as usize)
         };
         if line > n_lines {
-            return (text.len(), Some(col));
+            return (self.text().len(), Some(col));
         }
         let new_offset = self.line_col_to_offset(line, col);
         (new_offset, Some(col))
@@ -316,13 +327,12 @@ impl View {
     /// Compute movement based on vertical motion by the given number of lines skipping
 /// any line that is shorter than the current cursor position.
     fn vertical_motion_exact_pos(&self,
-        r: SelRegion,
-        text: &Rope,
+        region: Selection,
         move_up: bool,
         modify: bool,
     ) -> (usize, Option<HorizPos>) {
-        let (col, init_line) = self.selection_position(r, text, move_up, modify);
-        let n_lines = self.line_of_offset(text.len());
+        let (col, init_line) = self.selection_position(region, move_up, modify);
+        let n_lines = self.line_of_offset(self.text().len());
 
         let mut line_length =
             self.offset_of_line(init_line.saturating_add(1)) - self.offset_of_line(init_line);
@@ -359,24 +369,16 @@ impl View {
 
 
 
-/// When paging through a file, the number of lines from the previous page
-/// that will also be visible in the next.
-const SCROLL_OVERLAP: isize = 2;
 
-/// Computes the actual desired amount of scrolling (generally slightly
-/// less than the height of the viewport, to allow overlap).
-fn scroll_height(height: usize) -> isize {
-    max(height as isize - SCROLL_OVERLAP, 1)
-}
-
+use Movement::*;
 
 impl View {
     /// Apply the movement to each region in the selection, and returns the union of the results.
     ///
     /// If `modify` is `true`, the selections are modified, otherwise the results of individual region
     /// movements become carets. Modify is often mapped to the `shift` button in text editors.
-    pub fn moved_selection(&self, movement:Movement, modify:bool) -> Selection {
-        let mut result = Selection::new();
+    pub fn moved_selection(&self, movement:Movement, modify:bool) -> SelectionGroup {
+        let mut result = SelectionGroup::new();
         for &region in self.selection.iter() {
             let new_region = self.moved_selection_region(movement,region,modify);
             result.add_region(new_region);
@@ -386,120 +388,118 @@ impl View {
 
     /// Compute the result of movement on one selection region.
     pub fn moved_selection_region
-    (&self, movement:Movement, region:SelRegion, modify:bool) -> SelRegion {
-        let text           = &self.buffer.rope;
-        let end            = region.end;
-        let no_horiz       = |t|(t,None);
-        let (offset,horiz) = match movement {
+    (&self, movement:Movement, region:Selection, modify:bool) -> Selection {
+        let text        = self.text();
+        let no_horiz    = |t|(t,None);
+        let (end,horiz) = match movement {
+
+            Up                => self.vertical_motion(region, -1, modify),
+            Down              => self.vertical_motion(region,  1, modify),
+            UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),
+            DownExactPosition => self.vertical_motion_exact_pos(region, false, modify),
+            UpPage            => self.vertical_motion(region, -self.page_scroll_height(), modify),
+            DownPage          => self.vertical_motion(region,  self.page_scroll_height(), modify),
+            StartOfDocument   => no_horiz(0),
+            EndOfDocument     => no_horiz(text.len()),
 
             Movement::Left => {
                 let def     = (0,region.horiz);
                 let do_move = region.is_caret() || modify;
-                if  do_move { text.prev_grapheme_offset(end).map(no_horiz).unwrap_or(def) }
+                if  do_move { text.prev_grapheme_offset(region.end).map(no_horiz).unwrap_or(def) }
                 else        { no_horiz(region.min()) }
             }
 
             Movement::Right => {
-                let def     = (end,region.horiz);
+                let def     = (region.end,region.horiz);
                 let do_move = region.is_caret() || modify;
-                if  do_move { text.next_grapheme_offset(end).map(no_horiz).unwrap_or(def) }
+                if  do_move { text.next_grapheme_offset(region.end).map(no_horiz).unwrap_or(def) }
                 else        { no_horiz(region.max()) }
             }
 
             Movement::LeftOfLine => {
-                let line   = self.line_of_offset(end);
+                let line   = self.line_of_offset(region.end);
                 let offset = self.offset_of_line(line);
                 no_horiz(offset)
             }
-            
-            Movement::RightOfLine => {
-                let line = self.line_of_offset(end);
-                let mut offset = text.len();
 
-                // calculate end of line
-                let next_line_offset = self.offset_of_line(line + 1);
-                if line < self.line_of_offset(offset) {
-                    if let Some(prev) = text.prev_grapheme_offset(next_line_offset) {
-                        offset = prev;
-                    }
-                }
-                (offset, None)
+            Movement::RightOfLine => {
+                let line             = self.line_of_offset(region.end);
+                let text_len         = text.len();
+                let last_line        = line == self.line_of_offset(text_len);
+                let next_line_offset = self.offset_of_line(line+1);
+                let offset           = if last_line { text_len } else {
+                    text.prev_grapheme_offset(next_line_offset).unwrap_or(text_len)
+                };
+                no_horiz(offset)
             }
-            Movement::Up => self.vertical_motion(region,text, -1, modify),
-            Movement::Down => self.vertical_motion(region,text, 1, modify),
-            Movement::UpExactPosition => self.vertical_motion_exact_pos(region,text, true, modify),
-            Movement::DownExactPosition => self.vertical_motion_exact_pos(region,text, false, modify),
+
             Movement::StartOfParagraph => {
-                // Note: TextEdit would start at modify ? end : region.min()
-                let mut cursor = Cursor::new(&text, end);
-                let offset = cursor.prev::<LinesMetric>().unwrap_or(0);
-                (offset, None)
+                // Note: TextEdit would start at modify ? region.end : region.min()
+                let mut cursor = rope::Cursor::new(&text,region.end);
+                let offset     = cursor.prev::<LinesMetric>().unwrap_or(0);
+                no_horiz(offset)
             }
+
             Movement::EndOfParagraph => {
-                // Note: TextEdit would start at modify ? end : region.max()
-                let mut offset = end;
-                let mut cursor = Cursor::new(&text, offset);
-                if let Some(next_para_offset) = cursor.next::<LinesMetric>() {
-                    if cursor.is_boundary::<LinesMetric>() {
-                        if let Some(eol) = text.prev_grapheme_offset(next_para_offset) {
-                            offset = eol;
+                // Note: TextEdit would start at modify ? region.end : region.max()
+                let mut cursor = rope::Cursor::new(&text,region.end);
+                let     offset = match cursor.next::<LinesMetric>() {
+                    None            => text.len(),
+                    Some(next_line) => {
+                        if cursor.is_boundary::<LinesMetric>() {
+                            text.prev_grapheme_offset(next_line).unwrap_or(region.end)
+                        } else if cursor.pos() == text.len() {
+                            text.len()
+                        } else {
+                            region.end
                         }
-                    } else if cursor.pos() == text.len() {
-                        offset = text.len();
                     }
-                    (offset, None)
-                } else {
-                    //in this case we are already on a last line so just moving to EOL
-                    (text.len(), None)
-                }
+                };
+                no_horiz(offset)
             }
+
             Movement::EndOfParagraphKill => {
-                // Note: TextEdit would start at modify ? end : region.max()
-                let mut offset = end;
-                let mut cursor = Cursor::new(&text, offset);
-                if let Some(next_para_offset) = cursor.next::<LinesMetric>() {
-                    offset = next_para_offset;
-                    if cursor.is_boundary::<LinesMetric>() {
-                        if let Some(eol) = text.prev_grapheme_offset(next_para_offset) {
-                            if eol != end {
-                                offset = eol;
-                            }
-                        }
+                // Note: TextEdit would start at modify ? region.end : region.max()
+                let mut cursor = rope::Cursor::new(&text,region.end);
+                let     offset = match cursor.next::<LinesMetric>() {
+                    None            => region.end,
+                    Some(next_line) => {
+                        if cursor.is_boundary::<LinesMetric>() {
+                            let eol = text.prev_grapheme_offset(next_line);
+                            eol.and_then(|t|(t!=region.end).as_some(t)).unwrap_or(next_line)
+                        } else { next_line }
                     }
-                }
-                (offset, None)
+                };
+                no_horiz(offset)
             }
-            Movement::UpPage => self.vertical_motion(region,text, -scroll_height(self.scroll_height()), modify),
-            Movement::DownPage => self.vertical_motion(region,text, scroll_height(self.scroll_height()), modify),
-            Movement::StartOfDocument => (0, None),
-            Movement::EndOfDocument => (text.len(), None),
         };
-        SelRegion::new(if modify { region.start } else { offset }, offset).with_horiz(horiz)
+        let start = if modify { region.start } else { end };
+        Selection::new(start,end).with_horiz(horiz)
     }
 }
 
 
 /// A set of zero or more selection regions, representing a selection state.
 #[derive(Default, Debug, Clone)]
-pub struct Selection {
+pub struct SelectionGroup {
     // An invariant: regions[i].max() <= regions[i+1].min()
     // and < if either is_caret()
-    regions: Vec<SelRegion>,
+    regions: Vec<Selection>,
 }
 
 /// Implementing the Deref trait allows callers to easily test `is_empty`, iterate
 /// through all ranges, etc.
-impl Deref for Selection {
-    type Target = [SelRegion];
-    fn deref(&self) -> &[SelRegion] {
+impl Deref for SelectionGroup {
+    type Target = [Selection];
+    fn deref(&self) -> &[Selection] {
         &self.regions
     }
 }
 
-impl Selection {
+impl SelectionGroup {
     /// Creates a new empty selection.
-    pub fn new() -> Selection {
-        Selection::default()
+    pub fn new() -> SelectionGroup {
+        SelectionGroup::default()
     }
 
     /// Add a region to the selection. This method implements merging logic.
@@ -511,7 +511,7 @@ impl Selection {
     ///
     /// Performance note: should be O(1) if the new region strictly comes
     /// after all the others in the selection, otherwise O(n).
-    pub fn add_region(&mut self, region: SelRegion) {
+    pub fn add_region(&mut self, region: Selection) {
         let mut ix = self.search(region.min());
         if ix == self.regions.len() {
             self.regions.push(region);
@@ -571,7 +571,7 @@ pub fn remove_n_at<T: Clone>(v: &mut Vec<T>, index: usize, n: usize) {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct SelRegion {
+pub struct Selection {
     /// The inactive edge of a selection, as a byte offset. When
     /// equal to end, the selection range acts as a caret.
     pub start: usize,
@@ -586,7 +586,7 @@ pub struct SelRegion {
 //    pub affinity: Affinity,
 }
 
-impl SelRegion {
+impl Selection {
 
     /// Returns a new region.
     pub fn new(start: usize, end: usize) -> Self {
@@ -615,21 +615,21 @@ impl SelRegion {
 
     // Indicate whether this region should merge with the next.
     // Assumption: regions are sorted (self.min() <= other.min())
-    fn should_merge(self, other: SelRegion) -> bool {
+    fn should_merge(self, other: Selection) -> bool {
         other.min() < self.max()
             || ((self.is_caret() || other.is_caret()) && other.min() == self.max())
     }
 
     // Merge self with an overlapping region.
     // Retains direction of self.
-    fn merge_with(self, other: SelRegion) -> SelRegion {
+    fn merge_with(self, other: Selection) -> Selection {
         let is_forward = self.end >= self.start;
         let new_min = min(self.min(), other.min());
         let new_max = max(self.max(), other.max());
         let (start, end) = if is_forward { (new_min, new_max) } else { (new_max, new_min) };
         // Could try to preserve horiz/affinity from one of the
         // sources, but very likely not worth it.
-        SelRegion::new(start, end)
+        Selection::new(start, end)
     }
 
 }
@@ -741,7 +741,7 @@ pub trait LineOffset {
     }
 
 //    /// Get the line range of a selected region.
-//    fn get_line_range(&self, text: &Rope, region: &SelRegion) -> Range<usize> {
+//    fn get_line_range(&self, text: &Rope, region: &Selection) -> Range<usize> {
 //        let (first_line, _) = self.offset_to_line_col(text, region.min());
 //        let (mut last_line, last_col) = self.offset_to_line_col(text, region.max());
 //        if last_col == 0 && last_line > first_line {
