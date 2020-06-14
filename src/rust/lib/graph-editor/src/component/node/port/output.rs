@@ -344,10 +344,10 @@ impl ShapeView {
     /// Set up the frp for all ports.
     fn init_frp(&self, port_frp:PortFrp) {
         match self {
-            ShapeView::Single {view}  => init_port_frp(&view, PortId{index:0},port_frp),
+            ShapeView::Single {view}  => init_port_frp(&view, PortId::new(0),port_frp),
             ShapeView::Multi  {views} => {
                 views.iter().enumerate().for_each(|(index,view)| {
-                    init_port_frp(&view, PortId{index},port_frp.clone_ref())
+                    init_port_frp(&view, PortId::new(index),port_frp.clone_ref())
                 })
             }
         }
@@ -467,6 +467,12 @@ fn init_port_frp<Shape:PortShapeApi+CloneRef+'static>
 #[derive(Clone,Copy,Default,Debug,Eq,PartialEq)]
 pub struct PortId {
     index: usize,
+}
+
+impl PortId {
+    fn new(index:usize) -> Self {
+        Self{index}
+    }
 }
 
 /// Frp API of the `OutPutPorts`.
