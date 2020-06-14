@@ -418,7 +418,7 @@ fn init_port_frp<Shape:PortShapeApi+CloneRef+'static>
     let port_size    = Animation::<f32>::new(&network);
     let port_opacity = Animation::<f32>::new(&network);
 
-    frp::extend! { network
+    frp::extend! { TRACE_ALL network
 
             // === Mouse Event Handling == ///
 
@@ -603,7 +603,7 @@ impl OutputPorts {
         let delay_hide = Tween::new(&network);
         delay_hide.set_duration(HIDE_DELAY_DURATION);
 
-        frp::extend! { network
+        frp::extend! { TRACE_ALL network
 
             // === Size Change Handling == ///
 
@@ -625,12 +625,12 @@ impl OutputPorts {
             mouse_over_while_inactive  <- port_mouse_over.gate_not(&visible).constant(());
             mouse_over_while_active    <- port_mouse_over.gate(&visible).constant(());
 
-            eval mouse_over_while_inactive ([delay_show,delay_hide](_){
+            eval_ mouse_over_while_inactive ([delay_show,delay_hide]{
                 delay_hide.stop();
                 delay_show.rewind();
                 delay_show.set_end_value(TWEEN_END_VALUE);
             });
-            eval port_mouse_out ([delay_hide,delay_show](_){
+            eval_ port_mouse_out ([delay_hide,delay_show]{
                 delay_show.stop();
                 delay_hide.rewind();
                 delay_hide.set_end_value(TWEEN_END_VALUE);
@@ -652,11 +652,11 @@ impl OutputPorts {
 
         data.ports.borrow().init_frp(port_frp);
 
-        // FIXME this is a hack to ensure the ports are invisible at startup.
-        // Right now we get some of FRP mouse events on startup that leave the
-        // ports visible by default.
-        // Once that is fixed, remove this line.
-        delay_hide.finish();
+        // // FIXME this is a hack to ensure the ports are invisible at startup.
+        // // Right now we get some of FRP mouse events on startup that leave the
+        // // ports visible by default.
+        // // Once that is fixed, remove this line.
+        // delay_hide.finish();
     }
 
     // TODO: Implement proper sorting and remove.
