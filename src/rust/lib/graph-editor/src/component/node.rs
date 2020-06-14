@@ -9,8 +9,8 @@ pub use port::Expression;
 
 use crate::prelude::*;
 
-use enso_frp;
 use enso_frp as frp;
+use enso_frp;
 use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
@@ -21,14 +21,21 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
+use std::num::NonZeroU32;
 
 use super::edge;
 use crate::component::visualization;
 use crate::component::node::port::output::OutputPorts;
 
 
+
+// =================
+// === Constants ===
+// =================
+
 pub const NODE_SHAPE_PADDING : f32 = 40.0;
 pub const NODE_SHAPE_RADIUS  : f32 = 14.0;
+
 
 
 // ============
@@ -254,7 +261,7 @@ impl NodeModel {
 
 
         // TODO: Determine number of output ports based on node semantics.
-        let output_ports = OutputPorts::new(&scene, 20);
+        let output_ports = OutputPorts::new(&scene, NonZeroU32::new(10).unwrap());
         display_object.add_child(&output_ports);
 
 
