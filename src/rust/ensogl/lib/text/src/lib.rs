@@ -10,6 +10,7 @@
 #![warn(unused_qualifications)]
 
 pub mod glyph;
+pub mod model;
 
 /// Commonly used types and functions.
 pub mod prelude {
@@ -17,6 +18,10 @@ pub mod prelude {
 }
 
 pub use ensogl::display;
+
+use model::*;
+
+use selection::Selection;
 
 //use prelude::*;
 //
@@ -279,7 +284,7 @@ impl View {
         r: Selection,
         move_up: bool,
         modify: bool,
-    ) -> (HorizPos, usize) {
+    ) -> (location::Column, usize) {
         // The active point of the selection
         let active = if modify {
             r.end
@@ -288,7 +293,7 @@ impl View {
         } else {
             r.max()
         };
-        let col = if let Some(col) = r.horiz { col } else { self.offset_to_line_col(active).1 };
+        let col = if let Some(col) = r.horiz { col } else { self.offset_to_line_col(active).1.into() };
         let line = self.line_of_offset(active);
 
         (col, line)
@@ -303,7 +308,7 @@ impl View {
         region: Selection,
         line_delta: isize,
         modify: bool,
-    ) -> (usize, Option<HorizPos>) {
+    ) -> (usize, Option<location::Column>) {
         let (col, line) = self.selection_position(region, line_delta < 0, modify);
         let n_lines = self.line_of_offset(self.text().len());
 
@@ -320,7 +325,7 @@ impl View {
         if line > n_lines {
             return (self.text().len(), Some(col));
         }
-        let new_offset = self.line_col_to_offset(line, col);
+        let new_offset = self.line_col_to_offset(line, col.into());
         (new_offset, Some(col))
     }
 
@@ -330,26 +335,27 @@ impl View {
         region: Selection,
         move_up: bool,
         modify: bool,
-    ) -> (usize, Option<HorizPos>) {
+    ) -> (usize, Option<location::Column>) {
         let (col, init_line) = self.selection_position(region, move_up, modify);
         let n_lines = self.line_of_offset(self.text().len());
 
         let mut line_length =
             self.offset_of_line(init_line.saturating_add(1)) - self.offset_of_line(init_line);
         if move_up && init_line == 0 {
-            return (self.line_col_to_offset(init_line, col), Some(col));
+            return (self.line_col_to_offset(init_line, col.into()), Some(col));
         }
         let mut line = if move_up { init_line - 1 } else { init_line.saturating_add(1) };
 
         // If the active columns is longer than the current line, use the current line length.
-        let col = if line_length < col { line_length - 1 } else { col };
+        let line_last_column = location::Column(line_length);
+        let col = if line_last_column < col { line_last_column - 1 } else { col };
 
         loop {
-            line_length = self.offset_of_line(line + 1) - self.offset_of_line(line);
+            let line_len = self.offset_of_line(line + 1) - self.offset_of_line(line);
 
             // If the line is longer than the current cursor position, break.
             // We use > instead of >= because line_length includes newline.
-            if line_length > col {
+            if line_len > col.raw {
                 break;
             }
 
@@ -570,75 +576,9 @@ pub fn remove_n_at<T: Clone>(v: &mut Vec<T>, index: usize, n: usize) {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Selection {
-    /// The inactive edge of a selection, as a byte offset. When
-    /// equal to end, the selection range acts as a caret.
-    pub start: usize,
-
-    /// The active edge of a selection, as a byte offset.
-    pub end: usize,
-
-    /// A saved horizontal position (used primarily for line up/down movement).
-    pub horiz: Option<HorizPos>,
-
-//    /// The affinity of the cursor.
-//    pub affinity: Affinity,
-}
-
-impl Selection {
-
-    /// Returns a new region.
-    pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end, horiz: None }//, affinity: Affinity::default() }
-    }
-
-    /// Gets the earliest offset within the region, ie the minimum of both edges.
-    pub fn min(self) -> usize {
-        min(self.start, self.end)
-    }
-
-    /// Gets the latest offset within the region, ie the maximum of both edges.
-    pub fn max(self) -> usize {
-        max(self.start, self.end)
-    }
-
-    /// Determines whether the region is a caret (ie has an empty interior).
-    pub fn is_caret(self) -> bool {
-        self.start == self.end
-    }
-
-    /// Returns a region with the given horizontal position.
-    pub fn with_horiz(self, horiz: Option<HorizPos>) -> Self {
-        Self { horiz, ..self }
-    }
-
-    // Indicate whether this region should merge with the next.
-    // Assumption: regions are sorted (self.min() <= other.min())
-    fn should_merge(self, other: Selection) -> bool {
-        other.min() < self.max()
-            || ((self.is_caret() || other.is_caret()) && other.min() == self.max())
-    }
-
-    // Merge self with an overlapping region.
-    // Retains direction of self.
-    fn merge_with(self, other: Selection) -> Selection {
-        let is_forward = self.end >= self.start;
-        let new_min = min(self.min(), other.min());
-        let new_max = max(self.max(), other.max());
-        let (start, end) = if is_forward { (new_min, new_max) } else { (new_max, new_min) };
-        // Could try to preserve horiz/affinity from one of the
-        // sources, but very likely not worth it.
-        Selection::new(start, end)
-    }
-
-}
 
 
-/// A type representing horizontal measurements. This is currently in units
-/// that are not very well defined except that ASCII characters count as
-/// 1 each. It will change.
-pub type HorizPos = usize;
+
 
 
 /// The specification of a movement.
@@ -718,8 +658,8 @@ pub trait LineOffset {
         (line,col)
     }
 
-    fn line_col_to_offset(&self, line:usize, col:usize) -> usize {
-        let mut offset = self.offset_of_line(line).saturating_add(col);
+    fn line_col_to_offset(&self, line:usize, col:location::Column) -> usize {
+        let mut offset = self.offset_of_line(line).saturating_add(col.raw);
         if offset >= self.text().len() {
             offset = self.text().len();
             if self.line_of_offset(offset) <= line {
