@@ -426,7 +426,7 @@ fn init_port_frp<Shape:PortShapeApi+CloneRef+'static>
     let port_size    = Animation::<f32>::new(&network);
     let port_opacity = Animation::<f32>::new(&network);
 
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
             // === Mouse Event Handling == ///
 
@@ -488,7 +488,7 @@ impl PortId {
 pub struct Frp {
     /// Update the size of the `OutPutPorts`. Should match the size of the parent node for visual
     /// correctness.
-    pub set_size        : frp::Source<V2<f32>>,
+    pub set_size        : frp::Source<Vector2<f32>>,
     /// Emitted whenever one of the ports receives a `MouseDown` event. The `PortId` indicates the
     /// source port.
     pub port_mouse_down : frp::Stream<PortId>,
@@ -611,11 +611,11 @@ impl OutputPorts {
         let delay_hide = Tween::new(&network);
         delay_hide.set_duration(HIDE_DELAY_DURATION);
 
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
 
             // === Size Change Handling == ///
 
-            eval frp.set_size ((size) data.set_size(size.into()));
+            eval frp.set_size ((size) data.set_size(*size));
 
 
             // === Hover Event Handling == ///
@@ -635,21 +635,21 @@ impl OutputPorts {
 
             eval_ mouse_over_while_inactive ([delay_show,delay_hide]{
                 delay_hide.stop();
-                delay_show.rewind();
-                delay_show.set_end_value(TWEEN_END_VALUE);
+                delay_show.reset();
+                delay_show.set_target_value(TWEEN_END_VALUE);
             });
             eval_ port_mouse_out ([delay_hide,delay_show]{
                 delay_show.stop();
-                delay_hide.rewind();
-                delay_hide.set_end_value(TWEEN_END_VALUE);
+                delay_hide.reset();
+                delay_hide.set_target_value(TWEEN_END_VALUE);
             });
 
             activate_ports <- any(mouse_over_while_active,on_delay_show_finished);
-            eval_ activate_ports (delay_hide.rewind());
+            eval_ activate_ports (delay_hide.stop());
 
             activate_ports_with_selected <- port_mouse_over.sample(&activate_ports);
 
-            hide_all <- on_delay_hide_finished.map(f_!(delay_show.rewind()));
+            hide_all <- on_delay_hide_finished.map(f_!(delay_show.stop()));
 
         }
 
@@ -664,7 +664,7 @@ impl OutputPorts {
         // // Right now we get some of FRP mouse events on startup that leave the
         // // ports visible by default.
         // // Once that is fixed, remove this line.
-        delay_hide.finish();
+        delay_hide.from_now_to(TWEEN_END_VALUE);
     }
 
     // TODO: Implement proper sorting and remove.
