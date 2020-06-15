@@ -237,7 +237,8 @@ pub mod multi_port_area {
     }
 
     ensogl::define_shape_system! {
-        (style:Style, grow:f32, index:f32, port_num:f32, padding:f32, opacity:f32) {
+        (style:Style, grow:f32, index:f32, port_num:f32, opacity:f32, padding_left:f32,
+        padding_right:f32) {
             let overall_width  : Var<Distance<Pixels>> = "input_size.x".into();
             let overall_height : Var<Distance<Pixels>> = "input_size.y".into();
 
@@ -248,12 +249,12 @@ pub mod multi_port_area {
                                                       &port_num,
                                                       &width.clone().into(),
                                                       &radius.clone().into(),
-                                                      &(&padding * 0.5));
+                                                      &padding_left);
             let right_shape_crop = compute_crop_plane(&(Var::<f32>::from(1.0) + &index),
                                                       &port_num,
                                                       &width.clone().into(),
                                                       &radius.clone().into(),
-                                                      &(-&padding * 0.5));
+                                                      &padding_right);
 
             let port_area  = port_area.difference(&left_shape_crop);
             let port_area  = port_area.intersection(&right_shape_crop);
@@ -368,8 +369,11 @@ impl ShapeView {
                     shape.sprite.size.set(size);
                     shape.index.set(index as f32);
                     shape.port_num.set(port_num);
-                    shape.padding.set(gap_width);
+                    shape.padding_left.set(gap_width * 0.5);
+                    shape.padding_right.set(-gap_width * 0.5);
                 }
+                views[0]              .shape.padding_left .set(0.0);
+                views[views.len() - 1].shape.padding_right.set(0.0);
             }
         }
     }
