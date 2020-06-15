@@ -645,11 +645,11 @@ impl OutputPorts {
             });
 
             activate_ports <- any(mouse_over_while_active,on_delay_show_finished);
-            eval_ activate_ports (delay_hide.stop());
+            eval_ activate_ports (delay_hide.stop_and_rewind());
 
             activate_ports_with_selected <- port_mouse_over.sample(&activate_ports);
 
-            hide_all <- on_delay_hide_finished.map(f_!(delay_show.stop()));
+            hide_all <- on_delay_hide_finished.map(f_!(delay_show.stop_and_rewind()));
 
         }
 
