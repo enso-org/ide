@@ -1534,7 +1534,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     let style = cursor::Style::new_color_no_animation(color::Lcha::new(0.6,0.5,0.76,1.0)).press();
     cursor_style_source_drag       <- outputs.some_edge_sources_detached.constant(style.clone());
-    cursor_style_target_drag       <- outputs.some_edge_targets_detached.constant(style.clone());
+    cursor_style_target_drag       <- outputs.some_edge_targets_detached.constant(style);
     cursor_style_on_edge_drag_stop <- outputs.all_edges_attached.constant(default());
     cursor_style_edge_drag         <- any (cursor_style_source_drag,cursor_style_target_drag,
                                            cursor_style_on_edge_drag_stop);
