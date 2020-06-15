@@ -65,7 +65,7 @@ impl ViewLayoutData {
 
     fn update_text_editor(&mut self) {
         let screen_size = self.size;
-        let position    = Vector2::new(0.0,screen_size.y / 2.0);
+        let position    = Vector2::new(-screen_size.x / 2.0,0.0);
         let size        = Vector2::new(screen_size.x,screen_size.y / 2.0);
         let padding     = TemporaryPadding {
             left   : 10.0,
@@ -80,7 +80,7 @@ impl ViewLayoutData {
 
     fn update_graph_editor(&mut self) {
         let screen_size  = self.size;
-        let position     = Vector3::new(50.0, screen_size.y * 3.0 / 4.0, 0.0);
+        let position     = Vector3::new(50.0 - screen_size.x / 2.0, screen_size.y / 4.0, 0.0);
         self.node_editor.set_position(position);
     }
 
