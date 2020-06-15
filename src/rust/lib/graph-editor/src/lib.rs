@@ -420,6 +420,7 @@ pub struct FrpInputs {
     #[shrinkwrap(main_field)]
     commands                         : Commands,
     pub set_detached_edge_targets    : frp::Source<EdgeTarget>,
+    pub set_detached_edge_sources    : frp::Source<EdgeTarget>,
     pub set_edge_source              : frp::Source<(EdgeId,EdgeTarget)>,
     pub set_edge_target              : frp::Source<(EdgeId,EdgeTarget)>,
     pub unset_edge_source            : frp::Source<EdgeId>,
@@ -427,6 +428,7 @@ pub struct FrpInputs {
     pub connect_nodes                : frp::Source<(EdgeTarget,EdgeTarget)>,
     pub deselect_all_nodes           : frp::Source,
     pub press_node_input             : frp::Source<EdgeTarget>,
+    pub press_node_output            : frp::Source<EdgeTarget>,
     pub remove_all_node_edges        : frp::Source<NodeId>,
     pub remove_all_node_input_edges  : frp::Source<NodeId>,
     pub remove_all_node_output_edges : frp::Source<NodeId>,
@@ -441,14 +443,20 @@ pub struct FrpInputs {
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
+    hover_node_output          : frp::Source<Option<EdgeTarget>>,
     some_edge_targets_detached : frp::Source,
+    some_edge_sources_detached : frp::Source,
     all_edge_targets_attached  : frp::Source,
+    all_edge_sources_attached  : frp::Source,
+    all_edges_attached         : frp::Source,
+
 }
 
 impl FrpInputs {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def set_detached_edge_targets    = source();
+            def set_detached_edge_sources    = source();
             def set_edge_source              = source();
             def set_edge_target              = source();
             def unset_edge_source            = source();
@@ -456,6 +464,7 @@ impl FrpInputs {
             def connect_nodes                = source();
             def deselect_all_nodes           = source();
             def press_node_input             = source();
+            def press_node_output            = source();
             def remove_all_node_edges        = source();
             def remove_all_node_input_edges  = source();
             def remove_all_node_output_edges = source();
@@ -470,8 +479,12 @@ impl FrpInputs {
             def register_visualization = source();
 
             def hover_node_input           = source();
+            def hover_node_output          = source();
             def some_edge_targets_detached = source();
+            def some_edge_sources_detached = source();
             def all_edge_targets_attached  = source();
+            def all_edge_sources_attached  = source();
+            def all_edges_attached  = source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -480,8 +493,9 @@ impl FrpInputs {
              ,unset_edge_source,unset_edge_target
              ,set_node_position,select_node,remove_node,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
-             ,register_visualization,some_edge_targets_detached,all_edge_targets_attached
-             ,hover_node_input
+             ,register_visualization,some_edge_targets_detached,some_edge_sources_detached
+             ,all_edge_targets_attached,hover_node_input,all_edge_sources_attached
+             ,hover_node_output,press_node_output,set_detached_edge_sources,all_edges_attached
              }
     }
 }
@@ -570,7 +584,10 @@ generate_frp_outputs! {
     edge_target_unset : EdgeId,
 
     some_edge_targets_detached : (),
+    some_edge_sources_detached : (),
     all_edge_targets_attached  : (),
+    all_edge_sources_attached  : (),
+    all_edges_attached         : (),
 
     connection_added    : EdgeId,
     connection_removed  : EdgeId,
@@ -936,6 +953,7 @@ impl GraphEditorModelWithNetwork {
     ( &self
     , cursor_style : &frp::Source<cursor::Style>
     , output_press : &frp::Source<NodeId>
+    , input_press  : &frp::Source<(NodeId,span_tree::Crumbs)>
     ) -> NodeId {
         let view = component::Node::new(&self.scene);
         let node = Node::new(view);
@@ -950,13 +968,22 @@ impl GraphEditorModelWithNetwork {
             eval  node.ports.frp.cursor_style ((style) cursor_style.emit(style));
             eval_ node.frp.output_ports.mouse_down (output_press.emit(node_id));
             eval  node.ports.frp.press ((crumbs)
-                model.frp.press_node_input.emit(EdgeTarget::new(node_id,crumbs.clone()))
+                input_press.emit((node_id,crumbs.clone()));
             );
 
             eval node.ports.frp.hover ([model](crumbs) {
                 let target = crumbs.as_ref().map(|c| EdgeTarget::new(node_id,c.clone()));
                 model.frp.hover_node_input.emit(target);
             });
+
+             eval node.frp.output_ports.mouse_over ([model](_) {
+                let target = EdgeTarget::new(node_id,default());
+                model.frp.hover_node_output.emit(Some(target));
+             });
+
+             eval node.frp.output_ports.mouse_out ([model](_) {
+                model.frp.hover_node_output.emit(None);
+             });
         }
 
 //        self.visualizations.push(node.visualization().clone_ref());
@@ -1004,7 +1031,7 @@ impl GraphEditorModel {
         Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp}//visualizations }
     }
 
-    fn new_edge(&self) -> EdgeId {
+    fn new_edge_from_output(&self) -> EdgeId {
         let edge    = Edge::new(component::Edge::new(&self.scene));
         let edge_id = edge.id();
         self.add_child(&edge);
@@ -1014,6 +1041,22 @@ impl GraphEditorModel {
         self.edges.detached_target.insert(edge_id);
         if first_detached {
             self.frp.some_edge_targets_detached.emit(());
+        }
+
+        edge_id
+    }
+
+    fn new_edge_from_input(&self) -> EdgeId {
+        let edge    = Edge::new(component::Edge::new(&self.scene));
+
+        let edge_id = edge.id();
+        self.add_child(&edge);
+        self.edges.insert(edge.clone_ref());
+
+        let first_detached = self.edges.detached_source.is_empty();
+        self.edges.detached_source.insert(edge_id);
+        if first_detached {
+            self.frp.some_edge_sources_detached.emit(());
         }
 
         edge_id
@@ -1184,10 +1227,28 @@ impl GraphEditorModel {
 
     fn take_edges_with_detached_targets(&self) -> HashSet<EdgeId> {
         let edges = self.edges.detached_target.mem_take();
-        if !edges.is_empty() {
+        self.check_edge_attachment_status_and_emit_events();
+        edges
+    }
+
+    fn take_edges_with_detached_sources(&self) -> HashSet<EdgeId> {
+        let edges = self.edges.detached_source.mem_take();
+        self.check_edge_attachment_status_and_emit_events();
+        edges
+    }
+
+    fn check_edge_attachment_status_and_emit_events(&self) {
+        let has_detached_sources = self.edges.detached_source.is_empty();
+        let has_detached_targets = self.edges.detached_target.is_empty();
+        if !has_detached_targets {
             self.frp.all_edge_targets_attached.emit(());
         }
-        edges
+        if !has_detached_sources {
+            self.frp.all_edge_sources_attached.emit(());
+        }
+        if !has_detached_targets &&  !has_detached_sources {
+            self.frp.all_edges_attached.emit(());
+        }
     }
 
     fn overlapping_edges(&self, target:&EdgeTarget) -> Vec<EdgeId> {
@@ -1472,13 +1533,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     frp::extend! { network
 
     let style = cursor::Style::new_color_no_animation(color::Lcha::new(0.6,0.5,0.76,1.0)).press();
-    cursor_style_on_edge_drag      <- outputs.some_edge_targets_detached.constant(style);
-    cursor_style_on_edge_drag_stop <- outputs.all_edge_targets_attached.constant(default());
-    cursor_style_edge_drag         <- any (cursor_style_on_edge_drag,cursor_style_on_edge_drag_stop);
-
-
-
-
+    cursor_style_source_drag       <- outputs.some_edge_sources_detached.constant(style.clone());
+    cursor_style_target_drag       <- outputs.some_edge_targets_detached.constant(style.clone());
+    cursor_style_on_edge_drag_stop <- outputs.all_edges_attached.constant(default());
+    cursor_style_edge_drag         <- any (cursor_style_source_drag,cursor_style_target_drag,
+                                           cursor_style_on_edge_drag_stop);
 
     }
 
@@ -1564,22 +1623,40 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     node_cursor_style <- source::<cursor::Style>();
 
-
+    let node_input_touch  = TouchNetwork::<(NodeId,span_tree::Crumbs)>::new(&network,&mouse);
     let node_output_touch = TouchNetwork::<NodeId>::new(&network,&mouse);
-    on_connect_drag_mode   <- node_output_touch.down.constant(true);
-    on_connect_follow_mode <- node_output_touch.selected.constant(false);
+
+    on_output_connect_drag_mode   <- node_output_touch.down.constant(true);
+    on_output_connect_follow_mode <- node_output_touch.selected.constant(false);
+    on_input_connect_drag_mode    <- node_input_touch.down.constant(true);
+    on_input_connect_follow_mode  <- node_input_touch.selected.constant(false);
+
+    eval node_input_touch.down (((node_id,crumbs)) {
+        model.frp.press_node_input.emit(EdgeTarget::new(node_id,crumbs.clone()))
+    });
+
+    eval node_output_touch.down ([model](node_id) {
+        model.frp.press_node_output.emit(EdgeTarget::new(node_id,default()));
+    });
+
+    on_connect_drag_mode   <- any(on_output_connect_drag_mode,on_input_connect_drag_mode);
+    on_connect_follow_mode <- any(on_output_connect_follow_mode,on_input_connect_follow_mode);
     connect_drag_mode      <- any (on_connect_drag_mode,on_connect_follow_mode);
 
-    new_edge <- node_output_touch.down.map(f_!(model.new_edge()));
+    new_output_edge <- node_output_touch.down.map(f_!(model.new_edge_from_output()));
+    new_input_edge  <- node_input_touch.down.map(f_!(model.new_edge_from_input()));
 
-    outputs.edge_added <+ new_edge;
-    new_edge_source <- new_edge.map2(&node_output_touch.down, move |id,node_id| (*id,EdgeTarget::new(node_id,default())));
+    outputs.edge_added <+ new_output_edge;
+    new_edge_source <- new_output_edge.map2(&node_output_touch.down, move |id,node_id| (*id,EdgeTarget::new(node_id,default())));
     outputs.edge_source_set <+ new_edge_source;
 
+    outputs.edge_added <+ new_input_edge;
+    new_edge_target <- new_input_edge.map2(&node_input_touch.down, move |id,(node_id,crumbs)| (*id,EdgeTarget::new(node_id,crumbs.clone())));
+    outputs.edge_target_set <+ new_edge_target;
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
     add_node           <- any (inputs.add_node, add_node_at_cursor);
-    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down)));
+    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down)));
     outputs.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
@@ -1599,27 +1676,35 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.edge_target_set <+ inputs.set_edge_target;
 
     let endpoints            = inputs.connect_nodes.clone_ref();
-    edge                    <- endpoints . map(f_!(model.new_edge()));
+    edge                    <- endpoints . map(f_!(model.new_edge_from_output()));
     new_edge_source         <- endpoints . _0() . map2(&edge, |t,id| (*id,t.clone()));
     new_edge_target         <- endpoints . _1() . map2(&edge, |t,id| (*id,t.clone()));
     outputs.edge_added      <+ edge;
     outputs.edge_source_set <+ new_edge_source;
     outputs.edge_target_set <+ new_edge_target;
 
+    port_input_mouse_up  <- inputs.hover_node_input.sample(&mouse.up).unwrap();
+    port_output_mouse_up <- inputs.hover_node_output.sample(&mouse.up).unwrap();
 
-    port_mouse_up <- inputs.hover_node_input.sample(&mouse.up).unwrap();
+    attach_all_edge_inputs  <- any (port_input_mouse_up, inputs.press_node_input, inputs.set_detached_edge_targets);
+    attach_all_edge_outputs <- any (port_output_mouse_up, inputs.press_node_output, inputs.set_detached_edge_sources);
 
-    attach_all_edges        <- any (port_mouse_up, inputs.press_node_input, inputs.set_detached_edge_targets);
-    detached_edge           <= attach_all_edges.map(f_!(model.take_edges_with_detached_targets()));
-    new_edge_target         <- detached_edge.map2(&attach_all_edges, |id,t| (*id,t.clone()));
+    detached_edges_without_targets <= attach_all_edge_inputs.map(f_!(model.take_edges_with_detached_targets()));
+    detached_edges_without_sources <= attach_all_edge_outputs.map(f_!(model.take_edges_with_detached_sources()));
+
+    new_edge_target <- detached_edges_without_targets.map2(&attach_all_edge_inputs, |id,t| (*id,t.clone()));
     outputs.edge_target_set <+ new_edge_target;
+    new_edge_source <- detached_edges_without_sources.map2(&attach_all_edge_outputs, |id,t| (*id,t.clone()));
+    outputs.edge_source_set <+ new_edge_source;
 
     overlapping_edges       <= outputs.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
     outputs.edge_removed    <+ overlapping_edges;
 
     drop_on_bg_up  <- background_up.gate(&connect_drag_mode);
     drop_edges     <- any (drop_on_bg_up,touch.background.down);
-    edge_to_drop   <= drop_edges.map(f_!(model.take_edges_with_detached_targets()));
+    edge_to_drop_without_targets <= drop_edges.map(f_!(model.take_edges_with_detached_targets()));
+    edge_to_drop_without_sources <= drop_edges.map(f_!(model.take_edges_with_detached_sources()));
+    edge_to_drop <- any(edge_to_drop_without_targets,edge_to_drop_without_sources);
     eval edge_to_drop ((id) model.remove_edge(id));
 
     }
@@ -1738,17 +1823,55 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
 
     // === Move Edges ===
-
-    cursor_pos_on_detach    <- cursor.frp.position.sample(&inputs.some_edge_targets_detached);
+    detached_edge           <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
+    cursor_pos_on_detach    <- cursor.frp.position.sample(&detached_edge);
     edge_refresh_cursor_pos <- any (cursor_pos_on_detach,cursor.frp.position);
-    eval edge_refresh_cursor_pos ([edges](position) {
+
+    is_hovering_output <- inputs.hover_node_output.map(|target| target.is_some());
+    hover_node         <- inputs.hover_node_output.unwrap();
+
+    edge_refresh_cursor_pos_on_node_hover <- edge_refresh_cursor_pos.gate(&is_hovering_output);
+    edge_refresh_on_node_hover            <- all(edge_refresh_cursor_pos,hover_node);
+    edge_refresh_cursor_pos_no_hover      <- edge_refresh_cursor_pos.gate_not(&is_hovering_output);
+
+    eval edge_refresh_cursor_pos_no_hover ([edges,model](position) {
         edges.detached_target.for_each(|id| {
             if let Some(edge) = edges.get_cloned_ref(id) {
                 edge.view.frp.target_position.emit(position.xy())
             }
-        })
+        });
+        edges.detached_source.for_each(|edge_id| {
+            if let Some(edge) = edges.get_cloned_ref(edge_id) {
+                edge.view.frp.source_width.emit(cursor::DEFAULT_RADIUS);
+                edge.view.frp.target_position.emit(-position.xy());
+                edge.mod_position(|p| {
+                    p.x = position.x;
+                    p.y = position.y;
+                });
+                model.refresh_edge_position(*edge_id);
+            }
+        });
     });
 
+    // Snap t
+    eval edge_refresh_on_node_hover ([nodes,edges,model]((position,target)) {
+        edges.detached_source.for_each(|edge_id| {
+            if let Some(node) = nodes.get_cloned_ref(&target.node_id) {
+                if let Some(edge) = edges.get_cloned_ref(edge_id) {
+                    let node_width = node.view.model.width();
+                    let node_pos = node.position();
+
+                    edge.view.frp.source_width.emit(node_width);
+                    edge.view.frp.target_position.emit(-node_pos.xy());
+                    edge.mod_position(|p| {
+                        p.x = node_pos.x + node_width / 2.0;
+                        p.y = node_pos.y + node::NODE_HEIGHT/2.0;
+                    });
+                    model.refresh_edge_position(*edge_id);
+                }
+            }
+        });
+    });
 
 
     // ====================
@@ -1912,7 +2035,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === OUTPUTS REBIND ===
 
     outputs.some_edge_targets_detached <+ inputs.some_edge_targets_detached;
+    outputs.some_edge_sources_detached <+ inputs.some_edge_sources_detached;
     outputs.all_edge_targets_attached  <+ inputs.all_edge_targets_attached;
+     outputs.all_edges_attached        <+ inputs.all_edges_attached;
 
     eval outputs.edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
     eval outputs.edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));

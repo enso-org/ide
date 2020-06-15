@@ -21,7 +21,7 @@ use ensogl::gui::component;
 
 const PADDING        : f32 = 2.0;
 const SIDES_PADDING  : f32 = PADDING * 2.0;
-const DEFAULT_RADIUS : f32 = 8.0;
+pub(crate) const DEFAULT_RADIUS : f32 = 8.0;
 const DEFAULT_COLOR  : color::Lcha = color::Lcha::new(1.0,0.0,0.0,0.2);
 const FADE_OUT_TIME  : f32 = 3000.0;
 
