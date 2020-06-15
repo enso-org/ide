@@ -59,7 +59,7 @@ struct BaseShapeData {
     width        : Var<Distance<Pixels>>,
 }
 
-/// Computes the base port  shape for the output port shape. This shape is later on used to create a
+/// Computes the base port shape for the output port shape. This shape is later on used to create a
 /// simple single output port shape and a more complex multi-output port shape.
 ///
 /// The base shape looks roughly like this:
@@ -135,10 +135,8 @@ pub mod multi_port_area {
                                  value, lower_bound, upper_bound))
     }
 
-    /// Compute the rotation of the plane along the shape border. The plane needs to be rotated
-    /// to be perpendicular with the outer shape border. That means, it needs to be rotate in the
-    /// segments that have a curved path, and needs to be perpendicular in the inner segment.
-    fn compute_crop_plane_angle(
+    /// Compute the angle perpendicular to the shape border.
+    fn compute_border_perpendicular_angle(
         full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position:&Var<f32>)
         -> Var<f32> {
         // TODO implement proper abstraction for non-branching "if/then/else" or "case" in
@@ -154,6 +152,7 @@ pub mod multi_port_area {
 
         let default_rotation           = Var::<f32>::from(90.0_f32.to_radians());
 
+        // Case 1: the left circle segment.
         let case_1_pseudo_bool      = in_range(position, &start, &middle_segment_start_point);
         let case_1_value_normalised = Var::<f32>::from(1.0) - (position / corner_segment_length);
         let case_1_value_normalised = case_1_value_normalised.clamp(0.0.into(), 1.0.into());
@@ -162,13 +161,14 @@ pub mod multi_port_area {
         let case_1_output_value = case_1_value_normalised * case_1_scale + &default_rotation;
         let case_1              = case_1_pseudo_bool * case_1_output_value;
 
+        // Case 2: The middle segment.
         let case_2_pseudo_bool          = in_range_inclusive(position,
                                                              &middle_segment_start_point,
                                                              &middle_segment_end_point);
         let case_2_value_base           = &default_rotation;
         let case_2 = case_2_pseudo_bool * case_2_value_base;
 
-        // Case 3
+        // Case 3: The right circle segment.
         let case_3_pseudo_bool      = in_range_inclusive(position, &middle_segment_end_point, &end);
         let case_3_value_normalised = (position - middle_segment_end_point)
                                       / corner_segment_length;
@@ -191,8 +191,9 @@ pub mod multi_port_area {
         let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
         let end                        = full_shape_border_length;
 
-        // Case 1: always zero can be ignored
+        // Case 1: Always zero. Can be omitted.
 
+        // Case 2: The middle segment.
         let case_2_pseudo_bool      = in_range_inclusive(position,
                                                          &middle_segment_start_point,
                                                          &middle_segment_end_point);
@@ -200,15 +201,18 @@ pub mod multi_port_area {
                                       / (&middle_segment_end_point - middle_segment_start_point);
         let case_2_value            = case_2_pseudo_bool * case_2_value_normalised;
 
+        // Case 3: The right circle segment. Always one, if we are in this segment.
         let case_3_pseudo_bool = in_range_inclusive(position, &middle_segment_end_point, &end);
         let case_3_value       = case_3_pseudo_bool * 1.0;
 
         case_2_value + case_3_value
-
     }
 
     /// Compute the crop plane at the location of the given port index. Also takes into account an
     /// `position_offset` that is given as an offset along the shape boundary.
+    ///
+    /// The crop plane is a HalfPlane that is perpendicular to the border of the shape and can be
+    /// used to crop the shape at the specified port index.
     fn compute_crop_plane
     (index:&Var<f32>, port_num: &Var<f32>, width: &Var<f32>, corner_radius:&Var<f32>,
      position_offset:&Var<f32>) -> AnyShape {
@@ -225,9 +229,9 @@ pub mod multi_port_area {
         let crop_plane_pos          = crop_plane_pos_relative * &center_segment_length
                                       + corner_radius;
 
-        let plane_rotation_angle = compute_crop_plane_angle(&full_shape_border_length,
-                                                            &corner_segment_length,
-                                                            &crop_segment_pos);
+        let plane_rotation_angle = compute_border_perpendicular_angle(&full_shape_border_length,
+                                                                      &corner_segment_length,
+                                                                      &crop_segment_pos);
         let plane_shape_offset = Var::<Distance<Pixels>>::from(&crop_plane_pos - width * 0.5);
         let crop_shape         = HalfPlane();
         let crop_shape         = crop_shape.rotate(plane_rotation_angle);
@@ -277,11 +281,11 @@ pub mod multi_port_area {
     }
 
     impl PortShapeApi for Shape {
-        fn set_grow(&self, grow_value: f32) {
+        fn set_grow(&self, grow_value:f32) {
             self.grow.set(grow_value)
         }
 
-        fn set_opacity(&self, opacity: f32) {
+        fn set_opacity(&self, opacity:f32) {
             self.opacity.set(opacity)
         }
     }
@@ -310,11 +314,11 @@ pub mod single_port_area {
     }
 
     impl PortShapeApi for Shape {
-        fn set_grow(&self, grow_value: f32) {
+        fn set_grow(&self, grow_value:f32) {
             self.grow.set(grow_value)
         }
 
-        fn set_opacity(&self, opacity: f32) {
+        fn set_opacity(&self, opacity:f32) {
             self.opacity.set(opacity)
         }
     }
@@ -415,8 +419,8 @@ struct PortFrp {
 /// `single_port_area::Shape`.
 fn init_port_frp<Shape:PortShapeApi+CloneRef+'static>
 (view:&component::ShapeView<Shape>, port_id:PortId,frp:PortFrp) {
-    let PortFrp { network, port_mouse_over, port_mouse_out, port_mouse_down,
-        hide_all, activate_ports_with_selected } = frp;
+    let PortFrp { network,port_mouse_over,port_mouse_out,port_mouse_down,
+        hide_all,activate_ports_with_selected } = frp;
 
     let shape        = &view.shape;
     let port_size    = Animation::<f32>::new(&network);
