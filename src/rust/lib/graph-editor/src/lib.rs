@@ -1830,16 +1830,18 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     is_hovering_output <- inputs.hover_node_output.map(|target| target.is_some());
     hover_node         <- inputs.hover_node_output.unwrap();
 
-    edge_refresh_cursor_pos_on_node_hover <- edge_refresh_cursor_pos.gate(&is_hovering_output);
-    edge_refresh_on_node_hover            <- all(edge_refresh_cursor_pos,hover_node);
-    edge_refresh_cursor_pos_no_hover      <- edge_refresh_cursor_pos.gate_not(&is_hovering_output);
+    edge_refresh_on_node_hover       <- all(edge_refresh_cursor_pos,hover_node);
+    edge_refresh_cursor_pos_no_hover <- edge_refresh_cursor_pos.gate_not(&is_hovering_output);
 
-    eval edge_refresh_cursor_pos_no_hover ([edges,model](position) {
+    eval edge_refresh_cursor_pos ((position) {
         edges.detached_target.for_each(|id| {
             if let Some(edge) = edges.get_cloned_ref(id) {
                 edge.view.frp.target_position.emit(position.xy())
             }
         });
+    });
+
+    eval edge_refresh_cursor_pos_no_hover ([edges,model](position) {
         edges.detached_source.for_each(|edge_id| {
             if let Some(edge) = edges.get_cloned_ref(edge_id) {
                 edge.view.frp.source_width.emit(cursor::DEFAULT_RADIUS);
@@ -1853,8 +1855,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         });
     });
 
-    // Snap t
-    eval edge_refresh_on_node_hover ([nodes,edges,model]((position,target)) {
+    eval edge_refresh_on_node_hover ([nodes,edges,model]((_,target)) {
         edges.detached_source.for_each(|edge_id| {
             if let Some(node) = nodes.get_cloned_ref(&target.node_id) {
                 if let Some(edge) = edges.get_cloned_ref(edge_id) {
