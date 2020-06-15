@@ -3,12 +3,14 @@
 use crate::prelude::*;
 
 use crate::double_representation::definition::DefinitionName;
+use crate::model::execution_context::ExpressionInfoRegistry;
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
+use enso_protocol::language_server::ExpressionValuesComputed;
 use json_rpc::error::RpcError;
 
 
@@ -138,6 +140,17 @@ impl ExecutionContext {
         debug!(self.logger, "Dispatching visualization update through the context {self.id()}");
         self.model.dispatch_visualization_update(visualization_id,data)
     }
+
+    /// Handles the update about expressions being computed.
+    pub fn handle_expression_values_computed
+    (&self, notification:ExpressionValuesComputed) -> FallibleResult<()> {
+        self.model.handle_expression_values_computed(notification)
+    }
+
+    pub fn expression_info_registry(&self) -> &ExpressionInfoRegistry {
+        &self.model.expression_info
+    }
+
 
     /// Create a mock which does no call on `language_server` during construction.
     #[cfg(test)]

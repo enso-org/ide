@@ -5,6 +5,7 @@
 //! visualisations, retrieving types on ports, etc.
 use crate::prelude::*;
 
+use crate::model::execution_context::ExpressionInfoRegistry;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
@@ -47,7 +48,10 @@ impl Handle {
         self.execution_ctx.detach_visualization(id).await
     }
 
-    // TODO [mwu] Here goes the type/short_rep value access API
+    /// See `expression_info_registry` in `ExecutionContext`.
+    pub fn expression_info_registry(&self) -> &ExpressionInfoRegistry {
+        self.execution_ctx.expression_info_registry()
+    }
 }
 
 impl Deref for Handle {

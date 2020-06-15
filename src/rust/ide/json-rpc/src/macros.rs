@@ -43,6 +43,11 @@ macro_rules! make_rpc_methods {
                 fn $method<'a>(&'a self $(,$param_name:&'a $param_ty)*)
                 -> std::pin::Pin<Box<dyn Future<Output=Result<$result>>>>;
             )*
+
+            /// Asynchronous event stream with notification and errors.
+            ///
+            /// On a repeated call, previous stream is closed.
+            fn events(&self) -> futures::stream::LocalBoxStream<'static,Event>;
         }
 
 
@@ -63,13 +68,6 @@ macro_rules! make_rpc_methods {
             pub fn new(transport:impl json_rpc::Transport + 'static) -> Self {
                 let handler = RefCell::new(Handler::new(transport));
                 Self { handler }
-            }
-
-            /// Asynchronous event stream with notification and errors.
-            ///
-            /// On a repeated call, previous stream is closed.
-            pub fn events(&self) -> impl Stream<Item = Event> {
-                self.handler.borrow_mut().handler_event_stream()
             }
 
             /// Returns a future that performs any background, asynchronous work needed
@@ -96,6 +94,10 @@ macro_rules! make_rpc_methods {
                 let result_fut = self.handler.borrow().open_request_with_json(name,&input_json);
                 Box::pin(result_fut)
             })*
+
+            fn events(&self) -> futures::stream::LocalBoxStream<'static,Event> {
+                self.handler.borrow_mut().handler_event_stream().boxed_local()
+            }
         }
 
         $(
@@ -149,6 +151,10 @@ macro_rules! make_rpc_methods {
                     let result       = handler($($param_name),*);
                     Box::pin(futures::future::ready(result))
                 })*
+
+                fn events(&self) -> futures::stream::LocalBoxStream<'static,Event> {
+                    futures::stream::empty().boxed_local()
+                }
             }
 
             impl Client {

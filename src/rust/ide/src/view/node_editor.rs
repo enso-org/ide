@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NodeTrees;
-use crate::model::execution_context::Visualization;
+use crate::model::execution_context::{Visualization, ExpressionInfosUpdate};
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 
@@ -18,7 +18,7 @@ use graph_editor::EdgeTarget;
 use graph_editor::GraphEditor;
 use graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
-
+use flo_stream::Subscriber;
 
 
 // ==============
@@ -201,6 +201,13 @@ impl GraphEditorIntegratedWithController {
             futures::future::ready(())
         });
         executor::global::spawn(handler);
+
+
+        // The execution context notifications
+        executor::global::spawn(self.expression_computed_updates().for_each(|item| {
+            warning!(&Logger::new("NodeEditorStream"), "Hello!!!!!!!!!!!! {item:?}");
+            futures::future::ready(())
+        }));
     }
 
     /// Convert a function being a method of GraphEditorIntegratedWithControllerModel to a closure
@@ -591,6 +598,7 @@ impl GraphEditorIntegratedWithControllerModel {
 /// Node Editor Panel integrated with Graph Controller.
 #[derive(Clone,CloneRef,Debug)]
 pub struct NodeEditor {
+    logger         : Logger,
     display_object : display::object::Instance,
     #[allow(missing_docs)]
     pub graph     : Rc<GraphEditorIntegratedWithController>,
@@ -606,11 +614,13 @@ impl NodeEditor {
     , controller    : controller::ExecutedGraph
     , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = Logger::sub(logger,"NodeEditor");
+        info!(logger, "Created");
         let display_object = display::object::Instance::new(&logger);
-        let graph          = GraphEditorIntegratedWithController::new(logger,app,controller.clone_ref());
+        let graph          = GraphEditorIntegratedWithController::new(logger.clone_ref(),app,
+            controller.clone_ref());
         let graph          = Rc::new(graph);
         display_object.add_child(&graph.model.editor);
-        Ok(NodeEditor {display_object,graph,controller,visualization}.init().await?)
+        Ok(NodeEditor {logger,display_object,graph,controller,visualization}.init().await?)
     }
 
     async fn init(self) -> FallibleResult<Self> {
@@ -624,7 +634,12 @@ impl NodeEditor {
             });
             visualization?;
         }
+        info!(self.logger, "Initialized");
         Ok(self)
+    }
+
+    fn expression_computed_updates(&self) -> impl Stream<Item=ExpressionInfosUpdate> {
+        self.controller.expression_info_registry().subscribe()
     }
 }
 

@@ -6,10 +6,11 @@ use crate::model::module::QualifiedName as ModuleQualifiedName;
 use crate::double_representation::definition::DefinitionName;
 
 use enso_protocol::language_server;
-use enso_protocol::language_server::VisualisationConfiguration;
+use enso_protocol::language_server::{VisualisationConfiguration, MethodPointer, ExpressionValueUpdate, ExpressionValuesComputed};
 use std::collections::HashMap;
 use uuid::Uuid;
-
+use flo_stream::{MessagePublisher, Subscriber};
+use crate::notification::Publisher;
 
 
 // ===============
@@ -21,6 +22,76 @@ pub type DefinitionId = crate::double_representation::definition::Id;
 
 /// An identifier of expression.
 pub type ExpressionId = ast::Id;
+
+
+
+// ========================
+// === ValueInformation ===
+// ========================
+
+/// Information about given expression part in some execution context.
+#[derive(Clone,Debug)]
+struct ExpressionInfo {
+    typename    : Option<String>,
+    method_call : Option<MethodPointer>,
+}
+
+impl From<ExpressionValueUpdate> for ExpressionInfo {
+    fn from(update:ExpressionValueUpdate) -> Self {
+        ExpressionInfo {
+            typename    : update.typename,
+            method_call : update.method_call,
+        }
+    }
+}
+
+pub type ExpressionInfosUpdate = Vec<ExpressionId>;
+
+
+
+// =========================
+// === ExpressionInfoMap ===
+// =========================
+
+#[derive(Clone,Default,Derivative)]
+#[derivative(Debug)]
+pub struct ExpressionInfoRegistry {
+    map : RefCell<HashMap<ExpressionId,Rc<ExpressionInfo>>>,
+    /// A publisher that emits an update every time a new batch of updates is received from language
+    /// server.
+    #[derivative(Debug="ignore")]
+    updates : RefCell<Publisher<ExpressionInfosUpdate>>,
+}
+
+impl ExpressionInfoRegistry {
+    fn emit(&self, update:ExpressionInfosUpdate) {
+        let future = self.updates.borrow_mut().0.publish(update);
+        executor::global::spawn(future);
+    }
+
+    fn clear(&self)  {
+        let update = self.map.borrow().keys().copied().collect();
+        self.map.borrow_mut().clear();
+        self.emit(update);
+    }
+
+    pub fn apply_update(&self, values_computed:ExpressionValuesComputed) {
+        let update = values_computed.updates.iter().map(|update| update.id).collect();
+        with(self.map.borrow_mut(), |mut map| {
+            for update in values_computed.updates {
+                let id   = update.id;
+                let info = Rc::new(ExpressionInfo::from(update));
+                map.insert(id,info);
+            };
+        });
+        self.emit(update);
+    }
+
+    pub fn subscribe(&self) -> Subscriber<ExpressionInfosUpdate> {
+        self.updates.borrow_mut().subscribe()
+    }
+}
+
 
 
 
@@ -173,26 +244,31 @@ pub struct ExecutionContext {
     stack:RefCell<Vec<LocalCall>>,
     /// Set of active visualizations.
     visualizations: RefCell<HashMap<VisualizationId,AttachedVisualization>>,
+    /// Set of active visualizations.
+    pub expression_info : ExpressionInfoRegistry,
 }
 
 impl ExecutionContext {
     /// Create new execution context
     pub fn new(logger:impl Into<Logger>, entry_point:DefinitionName) -> Self {
-        let logger         = logger.into();
-        let stack          = default();
-        let visualizations = default();
-        Self {logger,entry_point,stack,visualizations}
+        let logger             = logger.into();
+        let stack              = default();
+        let visualizations     = default();
+        let expression_info    = default();
+        Self {logger,entry_point,stack,visualizations,expression_info}
     }
 
     /// Push a new stack item to execution context.
     pub fn push(&self, stack_item:LocalCall) {
         self.stack.borrow_mut().push(stack_item);
+        self.expression_info.clear();
     }
 
     /// Pop the last stack item from this context. It returns error when only root call
     /// remains.
     pub fn pop(&self) -> FallibleResult<()> {
         self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
+        self.expression_info.clear();
         Ok(())
     }
 
@@ -240,5 +316,12 @@ impl ExecutionContext {
             Failed to found such visualization.");
             Err(InvalidVisualizationId(visualization_id).into())
         }
+    }
+
+    /// Handles the update about expressions being computed.
+    pub fn handle_expression_values_computed
+    (&self, notification:ExpressionValuesComputed) -> FallibleResult<()> {
+        self.expression_info.apply_update(notification);
+        Ok(())
     }
 }

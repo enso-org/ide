@@ -18,7 +18,7 @@ use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
 use parser::Parser;
 use uuid::Uuid;
-
+use enso_protocol::language_server::ExpressionValuesComputed;
 
 
 // ===============
@@ -54,17 +54,34 @@ type ExecutionContextWeakMap = WeakValueHashMap<ExecutionContextId,Weak<Executio
 pub struct ExecutionContextsRegistry(RefCell<ExecutionContextWeakMap>);
 
 impl ExecutionContextsRegistry {
-    /// Routes the visualization update into the appropriate execution context.
+    /// Retrieve the execution context with given Id and calls the given function with it.
+    ///
+    /// Handles the error of context not being present in the registry.
+    pub fn with_context<R>
+    (&self, id:ExecutionContextId, f:impl FnOnce(Rc<ExecutionContext>) -> FallibleResult<R>)
+    -> FallibleResult<R> {
+        let ctx = self.0.borrow_mut().get(&id);
+        let ctx = ctx.ok_or_else(|| NoSuchVisualization(id))?;
+        f(ctx)
+    }
+
+    /// Route the visualization update into the appropriate execution context.
     pub fn dispatch_visualization_update
     (&self
     , context : VisualisationContext
     , data    : VisualizationUpdateData
     ) -> FallibleResult<()> {
-        let context_id       = context.context_id;
-        let visualization_id = context.visualization_id;
-        let ctx = self.0.borrow_mut().get(&context_id);
-        let ctx = ctx.ok_or_else(|| NoSuchVisualization(context_id))?;
-        ctx.dispatch_visualization_update(visualization_id,data)
+        self.with_context(context.context_id, |ctx| {
+            ctx.dispatch_visualization_update(context.visualization_id,data)
+        })
+    }
+
+    /// Handles the update about expressions being computed.
+    pub fn handle_expression_values_computed
+    (&self, update:ExpressionValuesComputed) -> FallibleResult<()> {
+        self.with_context(update.context_id, |ctx| {
+            ctx.handle_expression_values_computed(update)
+        })
     }
 
     /// Registers a new ExecutionContext. It will be eligible for receiving future updates routed
@@ -105,6 +122,7 @@ impl Handle {
         let logger = Logger::sub(parent,"Project Controller");
         info!(logger,"Creating a project controller for project {project_name.as_ref()}");
         let binary_protocol_events  = language_server_binary.event_stream();
+        let json_rpc_events         = language_server_client.events();
         let embedded_visualizations = default();
         let language_server_rpc     = Rc::new(language_server_client);
         let language_server_bin     = Rc::new(language_server_binary);
@@ -120,6 +138,10 @@ impl Handle {
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
+
+        let json_rpc_handler = ret.json_event_handler();
+        crate::executor::global::spawn(json_rpc_events.for_each(json_rpc_handler));
+
         ret
     }
 
@@ -153,7 +175,7 @@ impl Handle {
                     }
                 }
                 Event::Closed => {
-                    error!(logger,"Lost binary data connection!");
+                    error!(logger,"Lost binary connection with the Language Server!");
                     // TODO [wmu]
                     //  The problem should be reported to the user and the connection should be
                     //  reestablished, see https://github.com/luna/ide/issues/145
@@ -161,6 +183,45 @@ impl Handle {
                 Event::Error(error) => {
                     error!(logger,"Error emitted by the binary data connection: {error}.");
                 }
+            }
+            futures::future::ready(())
+        }
+    }
+
+    /// Returns a handling function capable of processing updates from the json-rpc protocol.
+    /// Such function will be then typically used to process events stream from the json-rpc
+    /// connection handler.
+    pub fn json_event_handler
+    (&self) -> impl Fn(enso_protocol::language_server::Event) -> futures::future::Ready<()> {
+        let logger                  = self.logger.clone_ref();
+        let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
+        move |event| {
+            warning!(logger, "Received an event from the json-rpc protocol: {event:?}");
+            use enso_protocol::language_server::Event;
+            use enso_protocol::language_server::Notification;
+            match event {
+                Event::Notification(Notification::ExpressionValuesComputed(update)) => {
+                    if let Some(execution_contexts) = weak_execution_contexts.upgrade() {
+                        let result = execution_contexts.handle_expression_values_computed(update);
+                        if let Err(error) = result {
+                            error!(logger,"Failed to handle the expression values computed update: \
+                            {error}.");
+                        }
+                    } else {
+                        error!(logger,"Received a `ExpressionValuesComputed` update despite \
+                        execution context being already dropped.");
+                    }
+                }
+                Event::Closed => {
+                    error!(logger,"Lost JSON-RPC connection with the Language Server!");
+                    // TODO [wmu]
+                    //  The problem should be reported to the user and the connection should be
+                    //  reestablished, see https://github.com/luna/ide/issues/145
+                }
+                Event::Error(error) => {
+                    error!(logger,"Error emitted by the binary data connection: {error}.");
+                }
+                _ => {}
             }
             futures::future::ready(())
         }
