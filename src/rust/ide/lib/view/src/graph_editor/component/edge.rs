@@ -243,6 +243,18 @@ pub mod back {
     define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
 }
 
+trait MultiShape {
+    fn events(&self) -> Vec<component::ShapeViewEvents>;
+
+    fn register_on_mouse_down(&self, network:&frp::Network, on_mouse_down:frp::Source<()>) {
+        let events = self.events();
+        for event in &events {
+            frp::extend! { network
+                eval_ event.mouse_down (on_mouse_down.emit(()));
+            }
+        }
+    }
+}
 
 
 // ===========================
@@ -256,8 +268,9 @@ macro_rules! define_components {
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]
         pub struct $name {
-            pub logger         : Logger,
-            pub display_object : display::object::Instance,
+            pub logger            : Logger,
+            pub display_object    : display::object::Instance,
+            pub shape_view_events : Rc<Vec<component::ShapeViewEvents>>,
             $(pub $field : component::ShapeView<$field_type>),*
         }
 
@@ -267,8 +280,14 @@ macro_rules! define_components {
                 let display_object = display::object::Instance::new(&logger);
                 $(let $field = component::ShapeView::new(Logger::sub(&logger,stringify!($field)),scene);)*
                 $(display_object.add_child(&$field);)*
-                Self {logger,display_object,$($field),*}
+                let mut shape_view_events:Vec<component::ShapeViewEvents> = Vec::default();
+                $(shape_view_events.push($field.events.clone_ref());)*
+                let shape_view_events = Rc::new(shape_view_events);
+
+                Self {logger,display_object,shape_view_events,$($field),*}
             }
+
+
         }
 
         impl display::Object for $name {
@@ -276,6 +295,13 @@ macro_rules! define_components {
                 &self.display_object
             }
         }
+
+        impl MultiShape for $name {
+            fn events(&self) -> Vec<component::ShapeViewEvents> {
+                self.shape_view_events.to_vec()
+            }
+        }
+
     }
 }
 
@@ -337,6 +363,9 @@ pub struct Frp {
     pub target_position           : frp::Source<Vector2>,
     pub target_attached           : frp::Source<bool>,
     pub redraw                    : frp::Source<()>,
+
+    pub mouse_down       : frp::Stream<()>,
+    on_mouse_down        : frp::Source<()>,
 }
 
 impl Frp {
@@ -348,7 +377,9 @@ impl Frp {
             def target_position           = source();
             def target_attached           = source();
             def redraw                    = source();
+            def on_mouse_down   = source();
         }
+        let mouse_down = on_mouse_down.clone_ref().into();
         Self {source_width,source_height,target_position,target_attached,redraw}
     }
 }
@@ -435,6 +466,10 @@ impl Edge {
         let source_width    = &self.source_width;
         let source_height   = &self.source_height;
         let model           = &self.model;
+
+        model.data.front.register_on_mouse_down(network, input.on_mouse_down.clone_ref());
+        model.data.back.register_on_mouse_down(network, input.on_mouse_down.clone_ref());
+
         frp::extend! { network
             eval input.target_position           ((t) target_position.set(*t));
             eval input.target_attached           ((t) target_attached.set(*t));
@@ -442,6 +477,7 @@ impl Edge {
             eval input.source_height             ((t) source_height.set(*t));
             eval_ input.redraw (model.redraw());
         }
+
         self
     }
 }
@@ -503,6 +539,16 @@ impl EdgeModelData {
 
         Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
               target_attached}
+    }
+
+    pub fn is_in_front_half(&self, point:Vector2<f32>) -> bool {
+        let start = nalgebra::Point2::from(self.display_object.position().xy());
+        let end   = nalgebra::Point2::from(self.target_position.get());
+        let point = nalgebra::Point2::from(point);
+        let start_distance = nalgebra::distance_squared(&start,&point);
+        let end_distance   = nalgebra::distance_squared(&end,&point);
+
+        start_distance < end_distance
     }
 
     /// Redraws the connection.
