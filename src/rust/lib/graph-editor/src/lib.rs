@@ -1238,15 +1238,15 @@ impl GraphEditorModel {
     }
 
     fn check_edge_attachment_status_and_emit_events(&self) {
-        let has_detached_sources = self.edges.detached_source.is_empty();
-        let has_detached_targets = self.edges.detached_target.is_empty();
-        if !has_detached_targets {
+        let no_detached_sources = self.edges.detached_source.is_empty();
+        let no_detached_targets = self.edges.detached_target.is_empty();
+        if no_detached_targets {
             self.frp.all_edge_targets_attached.emit(());
         }
-        if !has_detached_sources {
+        if no_detached_sources {
             self.frp.all_edge_sources_attached.emit(());
         }
-        if !has_detached_targets &&  !has_detached_sources {
+        if no_detached_targets &&  no_detached_sources {
             self.frp.all_edges_attached.emit(());
         }
     }
