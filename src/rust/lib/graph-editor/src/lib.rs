@@ -1176,7 +1176,7 @@ impl GraphEditorModel {
             node.frp.set_expression.emit(expr);
         }
         for edge_id in self.node_out_edges(node_id) {
-            self.refresh_edge_source_width(edge_id);
+            self.refresh_edge_source_size(edge_id);
         }
     }
 
@@ -1201,7 +1201,7 @@ impl GraphEditorModel {
                 edge.set_source(target);
                 // FIXME: both lines require edge to refresh. Let's make it more efficient.
                 self.refresh_edge_position(edge_id);
-                self.refresh_edge_source_width(edge_id);
+                self.refresh_edge_source_size(edge_id);
             }
         }
     }
@@ -1310,11 +1310,12 @@ impl GraphEditorModel {
         self.refresh_edge_target_position(edge_id);
     }
 
-    pub fn refresh_edge_source_width(&self, edge_id:EdgeId) {
+    pub fn refresh_edge_source_size(&self, edge_id:EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_source) = edge.source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
                     edge.view.frp.source_width.emit(node.width());
+                    edge.view.frp.source_height.emit(node.height());
                 }
             }
         };
@@ -1845,6 +1846,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         edges.detached_source.for_each(|edge_id| {
             if let Some(edge) = edges.get_cloned_ref(edge_id) {
                 edge.view.frp.source_width.emit(cursor::DEFAULT_RADIUS);
+                edge.view.frp.source_height.emit(cursor::DEFAULT_RADIUS);
                 edge.view.frp.target_position.emit(-position.xy());
                 edge.mod_position(|p| {
                     p.x = position.x;
@@ -1859,10 +1861,12 @@ fn new_graph_editor(world:&World) -> GraphEditor {
         edges.detached_source.for_each(|edge_id| {
             if let Some(node) = nodes.get_cloned_ref(&target.node_id) {
                 if let Some(edge) = edges.get_cloned_ref(edge_id) {
-                    let node_width = node.view.model.width();
-                    let node_pos = node.position();
+                    let node_width  = node.view.model.width();
+                    let node_height = node.view.model.height();
+                    let node_pos    = node.position();
 
                     edge.view.frp.source_width.emit(node_width);
+                    edge.view.frp.source_height.emit(node_height);
                     edge.view.frp.target_position.emit(-node_pos.xy());
                     edge.mod_position(|p| {
                         p.x = node_pos.x + node_width / 2.0;

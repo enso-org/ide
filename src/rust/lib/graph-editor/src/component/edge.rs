@@ -40,8 +40,6 @@ const LINE_SIDE_OVERLAP  : f32 = 1.0;
 const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
 const LINE_WIDTH         : f32 = 4.0;
 const MOUSE_OFFSET       : f32 = 2.0;
-const NODE_HALF_HEIGHT   : f32 = NODE_HEIGHT / 2.0;
-const NODE_HEIGHT        : f32 = node::NODE_HEIGHT;
 const NODE_PADDING       : f32 = node::SHADOW_SIZE;
 const PADDING            : f32 = 4.0;
 const RIGHT_ANGLE        : f32 = std::f32::consts::PI / 2.0;
@@ -335,6 +333,7 @@ pub fn sort_hack_2(scene:&Scene) {
 #[allow(missing_docs)]
 pub struct Frp {
     pub source_width    : frp::Source<f32>,
+    pub source_height   : frp::Source<f32>,
     pub target_position : frp::Source<Vector2>,
     pub target_attached : frp::Source<bool>,
 }
@@ -344,10 +343,11 @@ impl Frp {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def source_width    = source();
+            def source_height   = source();
             def target_position = source();
             def target_attached = source();
         }
-        Self {source_width,target_position,target_attached}
+        Self {source_width,source_height,target_position,target_attached}
     }
 }
 
@@ -431,11 +431,13 @@ impl Edge {
         let target_position = &self.target_position;
         let target_attached = &self.target_attached;
         let source_width    = &self.source_width;
+        let source_height   = &self.source_height;
         let model           = &self.model;
         frp::extend! { network
             eval input.target_position ((t) target_position.set(*t));
             eval input.target_attached ((t) target_attached.set(*t));
             eval input.source_width    ((t) source_width.set(*t));
+            eval input.source_height   ((t) source_height.set(*t));
             on_change <- any_ (input.source_width, input.target_position, input.target_attached);
             eval_ on_change (model.redraw());
         }
@@ -471,6 +473,7 @@ pub struct EdgeModelData {
     pub front           : Front,
     pub back            : Back,
     pub source_width    : Rc<Cell<f32>>,
+    pub source_height   : Rc<Cell<f32>>,
     pub target_position : Rc<Cell<Vector2>>,
     pub target_attached : Rc<Cell<bool>>,
 }
@@ -492,11 +495,13 @@ impl EdgeModelData {
         back  . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
 
         let frp             = Frp::new(&network);
-        let source_width    = Rc::new(Cell::new(100.0));
+        let source_height   = default();
+        let source_width    = default();
         let target_position = default();
         let target_attached = Rc::new(Cell::new(false));
 
-        Self {display_object,logger,frp,front,back,source_width,target_position,target_attached}
+        Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
+              target_attached}
     }
 
     /// Redraws the connection.
@@ -505,12 +510,13 @@ impl EdgeModelData {
 
         // === Variables ===
 
-        let fg              = &self.front;
-        let bg              = &self.back;
-        let target_attached = self.target_attached.get();
-        let node_half_width = self.source_width.get() / 2.0;
-        let node_circle     = Vector2::new(node_half_width-NODE_HALF_HEIGHT,0.0);
-        let node_radius     = NODE_HALF_HEIGHT;
+        let fg               = &self.front;
+        let bg               = &self.back;
+        let target_attached  = self.target_attached.get();
+        let node_half_width  = self.source_width.get() / 2.0;
+        let node_half_height = self.source_height.get() / 2.0;
+        let node_circle      = Vector2::new(node_half_width-node_half_height,0.0);
+        let node_radius      = node_half_height;
 
 
         // === Target ===
@@ -532,9 +538,9 @@ impl EdgeModelData {
         let target_x               = target_x.abs();
         let target                 = Vector2::new(target_x,target_y);
         let target_is_below_node_x = target.x < node_half_width;
-        let target_is_below_node_y = target.y < (-NODE_HALF_HEIGHT);
+        let target_is_below_node_y = target.y < (-node_half_height);
         let target_is_below_node   = target_is_below_node_x && target_is_below_node_y;
-        let port_line_len_max      = NODE_HALF_HEIGHT + NODE_PADDING;
+        let port_line_len_max      = node_half_height + NODE_PADDING;
         let side_right_angle       = side * RIGHT_ANGLE;
 
 
@@ -577,7 +583,7 @@ impl EdgeModelData {
         //     ╰─────╯    connection is being dragged, in order not to overlap with the source node.
 
         let port_line_start    = Vector2::new(side * target.x, target.y + MOUSE_OFFSET);
-        let space_attached     = -port_line_start.y - NODE_HALF_HEIGHT - LINE_SIDE_OVERLAP;
+        let space_attached     = -port_line_start.y - node_half_height - LINE_SIDE_OVERLAP;
         let space              = space_attached - NODE_PADDING;
         let len_below_free     = max(0.0,min(port_line_len_max,space));
         let len_below_attached = max(0.0,min(port_line_len_max,space_attached));
@@ -635,13 +641,13 @@ impl EdgeModelData {
         bg.corner.shape.pos.set(corner1);
         bg.corner.set_position_xy(corner1);
         if !target_attached {
-            bg.corner.shape.dim.set(Vector2::new(node_half_width,NODE_HALF_HEIGHT));
+            bg.corner.shape.dim.set(Vector2::new(node_half_width,node_half_height));
             fg.corner.shape.sprite.size.set(corner1_size);
             fg.corner.shape.start_angle.set(corner1_start_angle);
             fg.corner.shape.angle.set(corner1_angle);
             fg.corner.shape.radius.set(corner1_radius);
             fg.corner.shape.pos.set(corner1);
-            fg.corner.shape.dim.set(Vector2::new(node_half_width,NODE_HALF_HEIGHT));
+            fg.corner.shape.dim.set(Vector2::new(node_half_width,node_half_height));
             fg.corner.set_position_xy(corner1);
         } else {
             fg.corner.shape.sprite.size.set(zero());
@@ -700,7 +706,7 @@ impl EdgeModelData {
             let main_line_end_y = corner1.y;
             let main_line_len   = main_line_end_y - port_line_start.y;
             if !target_attached && target_is_below_node {
-                let back_line_start_y = max(-NODE_HALF_HEIGHT - NODE_PADDING, port_line_start.y);
+                let back_line_start_y = max(-node_half_height - NODE_PADDING, port_line_start.y);
                 let back_line_start = Vector2::new(port_line_start.x, back_line_start_y);
                 let back_line_len = main_line_end_y - back_line_start_y;
                 let front_line_len = main_line_len - back_line_len;
