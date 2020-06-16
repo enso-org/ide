@@ -3,7 +3,8 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NodeTrees;
-use crate::model::execution_context::{Visualization, ExpressionInfosUpdate};
+use crate::model::execution_context::ComputedValueExpressions;
+use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 
@@ -18,7 +19,7 @@ use graph_editor::EdgeTarget;
 use graph_editor::GraphEditor;
 use graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
-use flo_stream::Subscriber;
+
 
 
 // ==============
@@ -172,8 +173,8 @@ impl GraphEditorIntegratedWithController {
         frp::extend! {network
             // Notifications from controller
             let handle_notification = FencedAction::fence(&network,
-                f!((notification:&Option<controller::graph::Notification>)
-                    model.handle_controller_notification(*notification);
+                f!((notification:&Option<controller::graph::executed::Notification>)
+                    model.handle_controller_notification(notification);
             ));
 
             // Changes in Graph Editor
@@ -192,22 +193,15 @@ impl GraphEditorIntegratedWithController {
 
     fn connect_frp_to_controller_notifications
     ( model        : &Rc<GraphEditorIntegratedWithControllerModel>
-    , frp_endpoint : frp::Source<Option<controller::graph::Notification>>
+    , frp_endpoint : frp::Source<Option<controller::graph::executed::Notification>>
     ) {
-        let stream  = model.controller.graph.subscribe();
+        let stream  = model.controller.subscribe();
         let weak    = Rc::downgrade(model);
         let handler = process_stream_with_handle(stream,weak,move |notification,_model| {
             frp_endpoint.emit_event(&Some(notification));
             futures::future::ready(())
         });
         executor::global::spawn(handler);
-
-
-        // The execution context notifications
-        executor::global::spawn(self.expression_computed_updates().for_each(|item| {
-            warning!(&Logger::new("NodeEditorStream"), "Hello!!!!!!!!!!!! {item:?}");
-            futures::future::ready(())
-        }));
     }
 
     /// Convert a function being a method of GraphEditorIntegratedWithControllerModel to a closure
@@ -261,6 +255,25 @@ impl GraphEditorIntegratedWithControllerModel {
         let Connections{trees,connections} = self.controller.graph.connections()?;
         self.update_node_views(trees)?;
         self.update_connection_views(connections)?;
+        self.update_all_type_information()?;
+        Ok(())
+    }
+
+    pub fn update_all_type_information(&self) -> FallibleResult<()> {
+        let registry = self.controller.computed_value_info_registry().borrow();
+        let count    = registry.len();
+        group!(self.logger, "TODO: feed this {count} type information to the graph editor view:", {
+            for elem in self.controller.computed_value_info_registry().borrow().iter() {
+                let typename = elem.1.typename.as_ref().map(|ty| ty.as_str()).unwrap_or("");
+                debug!(self.logger, "Expression {elem.0} => {typename}");
+            }
+        });
+        Ok(())
+    }
+
+    pub fn update_relevant_type_information
+    (&self, notification:&ComputedValueExpressions) -> FallibleResult<()> {
+        debug!(self.logger, "Will update type information: {notification:?}");
         Ok(())
     }
 
@@ -400,9 +413,14 @@ impl GraphEditorIntegratedWithControllerModel {
 impl GraphEditorIntegratedWithControllerModel {
     /// Handle notification received from controller.
     pub fn handle_controller_notification
-    (&self, notification:Option<controller::graph::Notification>) {
+    (&self, notification:&Option<controller::graph::executed::Notification>) {
+        use controller::graph::executed::Notification;
+        use controller::graph::Notification::Invalidate;
+
         let result = match notification {
-            Some(controller::graph::Notification::Invalidate) => self.update_graph_view(),
+            Some(Notification::Graph(Invalidate))         => self.update_graph_view(),
+            Some(Notification::ComputedValueInfo(update)) =>
+                self.update_relevant_type_information(update),
             other => {
                 warning!(self.logger,"Handling notification {other:?} is not implemented; \
                     performing full invalidation");
@@ -614,7 +632,7 @@ impl NodeEditor {
     , controller    : controller::ExecutedGraph
     , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = Logger::sub(logger,"NodeEditor");
-        info!(logger, "Created");
+        info!(logger, "Created.");
         let display_object = display::object::Instance::new(&logger);
         let graph          = GraphEditorIntegratedWithController::new(logger.clone_ref(),app,
             controller.clone_ref());
@@ -634,12 +652,8 @@ impl NodeEditor {
             });
             visualization?;
         }
-        info!(self.logger, "Initialized");
+        info!(self.logger, "Initialized.");
         Ok(self)
-    }
-
-    fn expression_computed_updates(&self) -> impl Stream<Item=ExpressionInfosUpdate> {
-        self.controller.expression_info_registry().subscribe()
     }
 }
 

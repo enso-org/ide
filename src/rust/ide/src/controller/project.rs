@@ -193,10 +193,15 @@ impl Handle {
     /// connection handler.
     pub fn json_event_handler
     (&self) -> impl Fn(enso_protocol::language_server::Event) -> futures::future::Ready<()> {
+    // TODO [mwu]
+    //  This handler for JSON-RPC notifications is very similar to the function above that handles
+    //  binary protocol notifications. However, it is not practical to generalize them, as the
+    //  underlying RPC handlers and their types are separate.
+    //  This generalization should be reconsidered once the old JSON-RPC handler is phased out.
         let logger                  = self.logger.clone_ref();
         let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
         move |event| {
-            warning!(logger, "Received an event from the json-rpc protocol: {event:?}");
+            debug!(logger, "Received an event from the json-rpc protocol: {event:?}");
             use enso_protocol::language_server::Event;
             use enso_protocol::language_server::Notification;
             match event {

@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::double_representation::definition::DefinitionName;
-use crate::model::execution_context::ExpressionInfoRegistry;
+use crate::model::execution_context::ComputedValueInfoRegistry;
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationUpdateData;
@@ -147,8 +147,9 @@ impl ExecutionContext {
         self.model.handle_expression_values_computed(notification)
     }
 
-    pub fn expression_info_registry(&self) -> &ExpressionInfoRegistry {
-        &self.model.expression_info
+    /// Access the registry of computed values information, like types or called method pointers.
+    pub fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry {
+        &self.model.computed_value_info_registry
     }
 
 

@@ -25,73 +25,90 @@ pub type ExpressionId = ast::Id;
 
 
 
-// ========================
-// === ValueInformation ===
-// ========================
+// =========================
+// === ComputedValueInfo ===
+// =========================
 
-/// Information about given expression part in some execution context.
+/// Information about some computed value.
+///
+/// Contains "meta-data" like type or method pointer, not the computed value representation itself.
 #[derive(Clone,Debug)]
-struct ExpressionInfo {
-    typename    : Option<String>,
-    method_call : Option<MethodPointer>,
+pub struct ComputedValueInfo {
+    /// The string representing the typename of the computed value, e.g. "Number" or "Unit".
+    pub typename    : Option<String>,
+    /// If the expression is a method call (i.e. can be entered), this points to the target method.
+    pub method_call : Option<MethodPointer>,
 }
 
-impl From<ExpressionValueUpdate> for ExpressionInfo {
+impl From<ExpressionValueUpdate> for ComputedValueInfo {
     fn from(update:ExpressionValueUpdate) -> Self {
-        ExpressionInfo {
+        ComputedValueInfo {
             typename    : update.typename,
             method_call : update.method_call,
         }
     }
 }
 
-pub type ExpressionInfosUpdate = Vec<ExpressionId>;
+/// Ids of expressions that were computed and received updates in this batch.
+pub type ComputedValueExpressions = Vec<ExpressionId>;
 
 
 
-// =========================
-// === ExpressionInfoMap ===
-// =========================
+// =================================
+// === ComputedValueInfoRegistry ===
+// =================================
 
+/// Registry that receives the `executionContext/expressionValuesComputed` notifications from the
+/// Language Server. Caches the received data. Emits notifications when the data is changed.
 #[derive(Clone,Default,Derivative)]
 #[derivative(Debug)]
-pub struct ExpressionInfoRegistry {
-    map : RefCell<HashMap<ExpressionId,Rc<ExpressionInfo>>>,
+pub struct ComputedValueInfoRegistry {
+    map : RefCell<HashMap<ExpressionId,Rc<ComputedValueInfo>>>,
     /// A publisher that emits an update every time a new batch of updates is received from language
     /// server.
     #[derivative(Debug="ignore")]
-    updates : RefCell<Publisher<ExpressionInfosUpdate>>,
+    updates : RefCell<Publisher<ComputedValueExpressions>>,
 }
 
-impl ExpressionInfoRegistry {
-    fn emit(&self, update:ExpressionInfosUpdate) {
+impl ComputedValueInfoRegistry {
+    fn emit(&self, update: ComputedValueExpressions) {
         let future = self.updates.borrow_mut().0.publish(update);
         executor::global::spawn(future);
     }
 
+    /// Clear the stored values.
+    ///
+    /// When change is made to execution context (like adding or removing the call stack frame), the
+    /// cache should be cleaned.
     fn clear(&self)  {
         let update = self.map.borrow().keys().copied().collect();
         self.map.borrow_mut().clear();
         self.emit(update);
     }
 
+    /// Store the information from the given update received from the Language Server.
     pub fn apply_update(&self, values_computed:ExpressionValuesComputed) {
         let update = values_computed.updates.iter().map(|update| update.id).collect();
         with(self.map.borrow_mut(), |mut map| {
             for update in values_computed.updates {
                 let id   = update.id;
-                let info = Rc::new(ExpressionInfo::from(update));
+                let info = Rc::new(ComputedValueInfo::from(update));
                 map.insert(id,info);
             };
         });
         self.emit(update);
     }
 
-    pub fn subscribe(&self) -> Subscriber<ExpressionInfosUpdate> {
+    /// Subscribe to notifications about changes in the registry.
+    pub fn subscribe(&self) -> Subscriber<ComputedValueExpressions> {
         self.updates.borrow_mut().subscribe()
     }
-}
 
+    /// Borrows the immutable cache reference.
+    pub fn borrow(&self) -> Ref<HashMap<ExpressionId,Rc<ComputedValueInfo>>> {
+        self.map.borrow()
+    }
+}
 
 
 
@@ -245,7 +262,7 @@ pub struct ExecutionContext {
     /// Set of active visualizations.
     visualizations: RefCell<HashMap<VisualizationId,AttachedVisualization>>,
     /// Set of active visualizations.
-    pub expression_info : ExpressionInfoRegistry,
+    pub computed_value_info_registry: ComputedValueInfoRegistry,
 }
 
 impl ExecutionContext {
@@ -255,20 +272,20 @@ impl ExecutionContext {
         let stack              = default();
         let visualizations     = default();
         let expression_info    = default();
-        Self {logger,entry_point,stack,visualizations,expression_info}
+        Self {logger,entry_point,stack,visualizations, computed_value_info_registry: expression_info }
     }
 
     /// Push a new stack item to execution context.
     pub fn push(&self, stack_item:LocalCall) {
         self.stack.borrow_mut().push(stack_item);
-        self.expression_info.clear();
+        self.computed_value_info_registry.clear();
     }
 
     /// Pop the last stack item from this context. It returns error when only root call
     /// remains.
     pub fn pop(&self) -> FallibleResult<()> {
         self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
-        self.expression_info.clear();
+        self.computed_value_info_registry.clear();
         Ok(())
     }
 
@@ -321,7 +338,7 @@ impl ExecutionContext {
     /// Handles the update about expressions being computed.
     pub fn handle_expression_values_computed
     (&self, notification:ExpressionValuesComputed) -> FallibleResult<()> {
-        self.expression_info.apply_update(notification);
+        self.computed_value_info_registry.apply_update(notification);
         Ok(())
     }
 }
