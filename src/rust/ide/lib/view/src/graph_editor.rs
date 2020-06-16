@@ -569,6 +569,10 @@ impl Node {
     pub fn id(&self) -> NodeId {
         self.view.id().into()
     }
+
+    pub fn has_out_edges(&self) -> bool {
+        !self.out_edges.is_empty()
+    }
 }
 
 impl display::Object for Node {
@@ -960,6 +964,20 @@ impl GraphEditorModelWithNetwork {
         node_id
     }
 
+    fn is_node_connected_at_input(&self, node_id:&NodeId, crumbs:&span_tree::Crumbs) -> bool {
+        if let Some(node) = self.nodes.get_cloned(node_id) {
+            for in_edge_id in node.in_edges.raw.borrow().iter() {
+                if let Some(edge) = self.edges.get_cloned(in_edge_id) {
+                    if let Some(target) = edge.target() {
+                        if target.node_id == *node_id && target.port.as_ref() == crumbs {
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
 
     pub fn get_node_position(&self, node_id:NodeId) -> Option<Vector3<f32>> {
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position())
@@ -1723,14 +1741,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval edge_source_click ((edge_id) model.remove_edge_source(*edge_id));
     eval edge_target_click ((edge_id) model.remove_edge_target(*edge_id));
 
-    new_output_edge <- node_output_touch.down.map(f_!([model,edge_mouse_down]{
-        model.new_edge_from_output(&edge_mouse_down)
-    }));
-    new_input_edge  <- node_input_touch.down.map(f_!([model,edge_mouse_down]{
-        model.new_edge_from_input(&edge_mouse_down)
-    }));
-
-
+    new_output_edge <- node_output_touch.down.map(f!([model,edge_mouse_down](node_id){
+        if let Some(node) = model.nodes.get_cloned(node_id) {
+            if node.has_out_edges() {
+                return None;
+            }
+        }
+        Some(model.new_edge_from_output(&edge_mouse_down))
+    })).unwrap();
+    new_input_edge  <- node_input_touch.down.map(f!([model,edge_mouse_down]((node_id,crumbs)){
+        if model.is_node_connected_at_input(node_id, crumbs) {
+            return None
+        };
+        Some(model.new_edge_from_input(&edge_mouse_down))
+    })).unwrap();
 
     outputs.edge_added <+ new_output_edge;
     new_edge_source <- new_output_edge.map2(&node_output_touch.down, move |id,node_id| (*id,EdgeTarget::new(node_id,default())));
