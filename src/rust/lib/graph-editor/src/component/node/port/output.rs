@@ -251,6 +251,7 @@ pub mod multi_port_area {
             let radius:Var::<f32> = radius.into();
             let width:Var::<f32>  = width.into();
 
+            // Crop planes for the visible port area. Includes padding.
             let left_shape_crop  = compute_crop_plane
                 (&index,&port_num,&width,&radius,&padding_left);
             let right_shape_crop = compute_crop_plane
@@ -259,6 +260,7 @@ pub mod multi_port_area {
             let port_area  = port_area.difference(&left_shape_crop);
             let port_area  = port_area.intersection(&right_shape_crop);
 
+            // Crop planes for the invisible hover area. No padding.
             let left_hover_crop  = compute_crop_plane(&index,&port_num,&width,&radius,&0.0.into());
             let right_hover_crop = compute_crop_plane
                 (&(Var::<f32>::from(1.0) + &index),&port_num,&width,&radius,&0.0.into());
