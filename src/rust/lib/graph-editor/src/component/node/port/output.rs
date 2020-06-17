@@ -24,6 +24,7 @@ use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::component;
 use ensogl::math::algebra::Clamp;
+use ensogl::math::algebra::Signum;
 use std::num::NonZeroU32;
 
 use crate::node;
@@ -128,12 +129,6 @@ pub mod multi_port_area {
     use ensogl::display::shape::*;
     use std::f32::consts::PI;
 
-    /// Return 1.0 if `lower_bound` < `value` <= `upper_bound`, 0.0 otherwise.
-    fn in_range(value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
-        Var::<f32>::from(format!("(step(float({1}),float({0})) - step(float({2}),float({0})))",
-                                 value, lower_bound, upper_bound))
-    }
-
     /// Return 1.0 if `lower_bound` < `value` <, `upper_bound`, 0.0 otherwise.
     fn in_range_inclusive
     (value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
@@ -151,38 +146,28 @@ pub mod multi_port_area {
         // value that should be returned, iff it's case is true. That way we can add return values
         // of different "branches" of which exactly one will be non-zero.
 
-        let start                      = 0.0.into();
-        let middle_segment_start_point = corner_segment_length;
-        let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
-        let end                        = full_shape_border_length;
+        // Transform coordinate system to be centered in the shape
+        let center_distance          = position - full_shape_border_length  / 2.0;
+        let center_distance_absolute = center_distance.abs();
+        let center_distance_sign     = center_distance.signum();
 
-        let default_rotation           = Var::<f32>::from(90.0_f32.to_radians());
+        let end                = full_shape_border_length / 2.0;
+        let center_segment_end = &end - corner_segment_length;
+        let default_rotation   = Var::<f32>::from(90.0_f32.to_radians());
 
-        // Case 1: the left circle segment.
-        let case_1_pseudo_bool      = in_range(position,&start,&middle_segment_start_point);
-        let case_1_value_normalised = Var::<f32>::from(1.0) - (position / corner_segment_length);
-        let case_1_value_normalised = case_1_value_normalised.clamp(0.0.into(),1.0.into());
+        // Case 1: The center segment, always zero, so not needed
 
-        let case_1_scale        = 90.0_f32.to_radians();
-        let case_1_output_value = case_1_value_normalised * case_1_scale + &default_rotation;
-        let case_1              = case_1_pseudo_bool * case_1_output_value;
+        // Case 2: The right circle segment.
+        let is_corner_circle_case = in_range_inclusive
+            (&center_distance_absolute, &center_segment_end, &end);
+        let relative_position     = (center_distance_absolute - center_segment_end)
+                                    / corner_segment_length;
+        let relative_position     = relative_position.clamp(0.0.into(), 1.0.into());
+        let corner_base_rotation  = (-90.0_f32).to_radians();
+        let corner_rotation_delta = relative_position * corner_base_rotation;
+        let rotation_delta        = is_corner_circle_case * corner_rotation_delta;
 
-        // Case 2: The middle segment.
-        let case_2_pseudo_bool          = in_range_inclusive
-            (position,&middle_segment_start_point,&middle_segment_end_point);
-        let case_2_value_base           = &default_rotation;
-        let case_2 = case_2_pseudo_bool * case_2_value_base;
-
-        // Case 3: The right circle segment.
-        let case_3_pseudo_bool      = in_range_inclusive(position,&middle_segment_end_point,&end);
-        let case_3_value_normalised = (position - middle_segment_end_point)
-                                      / corner_segment_length;
-        let case_3_value_normalised = case_3_value_normalised.clamp(0.0.into(),1.0.into());
-        let case_3_scale            = (-90.0_f32).to_radians();
-        let case_3_output_value     = case_3_value_normalised * case_3_scale + &default_rotation;
-        let case_3                  = case_3_pseudo_bool * case_3_output_value;
-
-        case_1 + case_2 + case_3
+        rotation_delta * center_distance_sign + default_rotation
     }
 
     /// Returns the position of the crop plane as a fraction of the straight center segment length.
@@ -192,25 +177,25 @@ pub mod multi_port_area {
         // TODO implement proper abstraction for non-branching "if/then/else" or "case" in
         // shaderland. See function above for explanation of the branching.
 
-        let middle_segment_start_point = corner_segment_length;
-        let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
-        let end                        = full_shape_border_length;
-
-        // Case 1: Always zero. Can be omitted.
+        // Case 1: The left circle segment. Always zero. Can be omitted.
 
         // Case 2: The middle segment.
-        let case_2_pseudo_bool      = in_range_inclusive(position,
-                                                         &middle_segment_start_point,
-                                                         &middle_segment_end_point);
-        let case_2_value_normalised = (position - middle_segment_start_point)
-                                      / (&middle_segment_end_point - middle_segment_start_point);
-        let case_2_value            = case_2_pseudo_bool * case_2_value_normalised;
+        let middle_segment_start_point = corner_segment_length;
+        let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
+
+        // Case 2: The middle segment.
+        let is_middle_segment               = in_range_inclusive
+            (position,&middle_segment_start_point,&middle_segment_end_point);
+        let middle_segment_plane_position_x = (position - middle_segment_start_point)
+            / (&middle_segment_end_point - middle_segment_start_point);
+        let case_middle_segment_output      = is_middle_segment * middle_segment_plane_position_x;
 
         // Case 3: The right circle segment. Always one, if we are in this segment.
-        let case_3_pseudo_bool = in_range_inclusive(position, &middle_segment_end_point, &end);
-        let case_3_value       = case_3_pseudo_bool * 1.0;
+        let is_circle_segment          = in_range_inclusive
+            (position, &middle_segment_end_point, &full_shape_border_length);
+        let case_circle_segment_output = is_circle_segment * 1.0;
 
-        case_2_value + case_3_value
+        case_middle_segment_output + case_circle_segment_output
     }
 
     /// Compute the crop plane at the location of the given port index. Also takes into account an
@@ -236,10 +221,10 @@ pub mod multi_port_area {
 
         let plane_rotation_angle = compute_border_perpendicular_angle
             (&full_shape_border_length,&corner_segment_length,&crop_segment_pos);
-        let plane_shape_offset = Var::<Distance<Pixels>>::from(&crop_plane_pos - width * 0.5);
-        let crop_shape         = HalfPlane();
-        let crop_shape         = crop_shape.rotate(plane_rotation_angle);
-        let crop_shape         = crop_shape.translate_x(plane_shape_offset);
+        let plane_shape_offset  = Var::<Distance<Pixels>>::from(&crop_plane_pos - width * 0.5);
+        let crop_shape          = HalfPlane();
+        let crop_shape          = crop_shape.rotate(plane_rotation_angle);
+        let crop_shape          = crop_shape.translate_x(plane_shape_offset);
 
         crop_shape.into()
     }

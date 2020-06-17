@@ -8,6 +8,7 @@ use crate::math::algebra::Acos;
 use crate::math::algebra::Asin;
 use crate::math::algebra::Clamp;
 use crate::math::algebra::Cos;
+use crate::math::algebra::Signum;
 use crate::math::algebra::Sin;
 use crate::math::algebra::Sqrt;
 use crate::math::topology::unit::Angle;
@@ -533,6 +534,23 @@ where T: Clamp<Output=T>+Into<Glsl> {
                 let upper:Glsl = upper.into();
                 Dynamic(format!("clamp({},{},{})", value.glsl(), lower.glsl(), upper.glsl()).into())
             }
+        }
+    }
+}
+
+
+
+// ==============
+// === Signum ===
+// ==============
+
+impl<T> Signum for Var<T>
+    where T: Signum<Output=T> {
+    type Output = Var<T>;
+    fn signum(self) -> Self {
+        match self {
+            Self::Static  (t) => Var::Static(t.signum()),
+            Self::Dynamic (t) => Var::Dynamic(format!("sign({})",t).into())
         }
     }
 }
