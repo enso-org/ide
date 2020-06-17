@@ -336,10 +336,6 @@ pub struct Frp {
     pub source_height             : frp::Source<f32>,
     pub target_position           : frp::Source<Vector2>,
     pub target_attached           : frp::Source<bool>,
-    pub source_width_no_redraw    : frp::Source<f32>,
-    pub source_height_no_redraw   : frp::Source<f32>,
-    pub target_position_no_redraw : frp::Source<Vector2>,
-    pub target_attached_no_redraw : frp::Source<bool>,
     pub redraw                    : frp::Source<()>,
 }
 
@@ -351,15 +347,9 @@ impl Frp {
             def source_height             = source();
             def target_position           = source();
             def target_attached           = source();
-            def source_width_no_redraw    = source();
-            def source_height_no_redraw   = source();
-            def target_position_no_redraw = source();
-            def target_attached_no_redraw = source();
             def redraw                    = source();
         }
-        Self {source_width,source_height,target_position,target_attached,redraw,
-              source_width_no_redraw,source_height_no_redraw,target_position_no_redraw,
-              target_attached_no_redraw}
+        Self {source_width,source_height,target_position,target_attached,redraw}
     }
 }
 
@@ -446,17 +436,11 @@ impl Edge {
         let source_height   = &self.source_height;
         let model           = &self.model;
         frp::extend! { network
-            eval input.target_position_no_redraw ((t) target_position.set(*t));
-            eval input.target_attached_no_redraw ((t) target_attached.set(*t));
-            eval input.source_width_no_redraw    ((t) source_width.set(*t));
-            eval input.source_height_no_redraw   ((t) source_height.set(*t));
             eval input.target_position           ((t) target_position.set(*t));
             eval input.target_attached           ((t) target_attached.set(*t));
             eval input.source_width              ((t) source_width.set(*t));
             eval input.source_height             ((t) source_height.set(*t));
-            on_change <- any_ (input.redraw, input.source_width, input.target_position,
-                               input.target_attached);
-            eval_ on_change (model.redraw());
+            eval_ input.redraw (model.redraw());
         }
         self
     }

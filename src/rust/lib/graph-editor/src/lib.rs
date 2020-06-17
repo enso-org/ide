@@ -1220,6 +1220,7 @@ impl GraphEditorModel {
                 }
 
                 edge.view.frp.target_attached.emit(true);
+                edge.view.frp.redraw.emit(());
                 self.refresh_edge_position(edge_id);
             };
         }
@@ -1316,6 +1317,7 @@ impl GraphEditorModel {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
                     edge.view.frp.source_width.emit(node.width());
                     edge.view.frp.source_height.emit(node.height());
+                    edge.view.frp.redraw.emit(());
                 }
             }
         };
@@ -1341,6 +1343,7 @@ impl GraphEditorModel {
                     let offset = node.ports.get_port_offset(&edge_target.port).unwrap_or_default();
                     let pos = node.position().xy() + offset;
                     edge.view.frp.target_position.emit(pos);
+                    edge.view.frp.redraw.emit(());
                 }
             }
         };
@@ -1835,7 +1838,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval edge_refresh_cursor_pos ((position) {
         edges.detached_target.for_each(|id| {
             if let Some(edge) = edges.get_cloned_ref(id) {
-                edge.view.frp.target_position.emit(position.xy())
+                edge.view.frp.target_position.emit(position.xy());
+                edge.view.frp.redraw.emit(());
             }
         });
     });
@@ -1843,9 +1847,10 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval edge_refresh_cursor_pos_no_hover ([edges,model](position) {
         edges.detached_source.for_each(|edge_id| {
             if let Some(edge) = edges.get_cloned_ref(edge_id) {
-                edge.view.frp.source_width_no_redraw.emit(cursor::DEFAULT_RADIUS);
-                edge.view.frp.source_height_no_redraw.emit(cursor::DEFAULT_RADIUS);
-                edge.view.frp.target_position_no_redraw.emit(-position.xy());
+                edge.view.frp.source_width.emit(cursor::DEFAULT_RADIUS);
+                edge.view.frp.source_height.emit(cursor::DEFAULT_RADIUS);
+                edge.view.frp.target_position.emit(-position.xy());
+                edge.view.frp.redraw.emit(());
                 edge.mod_position(|p| {
                     p.x = position.x;
                     p.y = position.y;
@@ -1866,6 +1871,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
                     edge.view.frp.source_width.emit(node_width);
                     edge.view.frp.source_height.emit(node_height);
                     edge.view.frp.target_position.emit(-node_pos.xy());
+                    edge.view.frp.redraw.emit(());
                     edge.mod_position(|p| {
                         p.x = node_pos.x + node_width / 2.0;
                         p.y = node_pos.y + node::NODE_HEIGHT/2.0;
