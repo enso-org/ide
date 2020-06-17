@@ -1014,7 +1014,9 @@ impl GraphEditorModelWithNetwork {
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position())
     }
 
-    fn create_edge(&self, edge_click:&frp::Source<EdgeId>) -> EdgeId {
+    fn create_edge
+    (&self, edge_click:&frp::Source<EdgeId>,edge_over:&frp::Source<EdgeId>,
+     edge_out:&frp::Source<EdgeId>) -> EdgeId {
         let edge    = Edge::new(component::Edge::new(&self.scene));
         let edge_id = edge.id();
         self.add_child(&edge);
@@ -1022,15 +1024,20 @@ impl GraphEditorModelWithNetwork {
 
         let network = &self.network;
 
+        // TODO implement abstraction for mouse events on components, also with cursor pos.
         frp::extend! { network
-            eval_ edge.view.frp.mouse_down ( edge_click.emit(edge_id));
+            eval_ edge.view.frp.shape_events.mouse_down ( edge_click.emit(edge_id));
+            eval_ edge.view.frp.shape_events.mouse_over ( edge_over.emit(edge_id));
+            eval_ edge.view.frp.shape_events.mouse_out ( edge_out.emit(edge_id));
         }
 
         edge_id
     }
 
-    fn new_edge_from_output(&self,edge_click:&frp::Source<EdgeId>) -> EdgeId {
-        let edge_id = self.create_edge(edge_click);
+    fn new_edge_from_output
+    (&self,edge_click:&frp::Source<EdgeId>,edge_over:&frp::Source<EdgeId>,
+     edge_out:&frp::Source<EdgeId>) -> EdgeId {
+        let edge_id = self.create_edge(edge_click,edge_over,edge_out);
         let first_detached = self.edges.detached_target.is_empty();
         self.edges.detached_target.insert(edge_id);
         if first_detached {
@@ -1039,8 +1046,10 @@ impl GraphEditorModelWithNetwork {
         edge_id
     }
 
-    fn new_edge_from_input(&self,edge_click:&frp::Source<EdgeId>) -> EdgeId {
-        let edge_id = self.create_edge(edge_click);
+    fn new_edge_from_input
+     (&self,edge_click:&frp::Source<EdgeId>,edge_over:&frp::Source<EdgeId>,
+      edge_out:&frp::Source<EdgeId>) -> EdgeId {
+        let edge_id = self.create_edge(edge_click,edge_over,edge_out);
         let first_detached = self.edges.detached_source.is_empty();
         self.edges.detached_source.insert(edge_id);
         if first_detached {
@@ -1750,12 +1759,32 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval_ deselect_edges ( model.clear_all_detached_edges() );
 
     edge_mouse_down <- source::<EdgeId>();
+    edge_over       <- source::<EdgeId>();
+    edge_out        <- source::<EdgeId>();
+    edge_hover      <- source::<Option<EdgeId>>();
 
+    eval edge_over ((edge_id) edge_hover.emit(Some(*edge_id)));
+    eval_ edge_out ( edge_hover.emit(None) );
+
+    edge_over_pos <- map2(&mouse.position, &edge_hover, |pos, edge_id| {
+        edge_id.map(|id| (id, *pos))
+    }).unwrap();
+
+    eval edge_over_pos ([model]((edge_id,pos)) {
+         if let Some(edge) = model.edges.get_cloned_ref(edge_id){
+            edge.frp.hover_position.emit(Some(*pos))
+        }
+    });
+    eval edge_out ([model](edge_id) {
+         if let Some(edge) = model.edges.get_cloned_ref(edge_id){
+            edge.frp.hover_position.emit(None)
+        }
+    });
     edge_click <- map2(&edge_mouse_down, &mouse.position, f!([](edge_id,pos) (*edge_id,*pos)));
 
     edge_is_source_click <- edge_click.map(f!([model]((edge_id,pos)) {
         if let Some(edge) = model.edges.get_cloned_ref(edge_id){
-            edge.is_in_front_half(*pos)
+            edge.disconnect_target_for_position(*pos) == component::edge::Connector::Input
         } else {
             false
         }
@@ -1767,19 +1796,19 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval edge_source_click ((edge_id) model.remove_edge_source(*edge_id));
     eval edge_target_click ((edge_id) model.remove_edge_target(*edge_id));
 
-    new_output_edge <- node_output_touch.down.map(f!([model,edge_mouse_down](node_id){
+    new_output_edge <- node_output_touch.down.map(f!([model,edge_mouse_down,edge_over,edge_out](node_id){
         if let Some(node) = model.nodes.get_cloned(node_id) {
             if node.has_out_edges() {
                 return None;
             }
         }
-        Some(model.new_edge_from_output(&edge_mouse_down))
+        Some(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
-    new_input_edge  <- node_input_touch.down.map(f!([model,edge_mouse_down]((node_id,crumbs)){
+    new_input_edge  <- node_input_touch.down.map(f!([model,edge_mouse_down,edge_over,edge_out]((node_id,crumbs)){
         if model.is_node_connected_at_input(node_id, crumbs) {
             return None
         };
-        Some(model.new_edge_from_input(&edge_mouse_down))
+        Some(model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
 
     outputs.edge_added <+ new_output_edge;
@@ -1813,7 +1842,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.edge_target_set <+ inputs.set_edge_target;
 
     let endpoints            = inputs.connect_nodes.clone_ref();
-    edge                    <- endpoints . map(f_!(model.new_edge_from_output(&edge_mouse_down)));
+    edge                    <- endpoints . map(f_!(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out)));
     new_edge_source         <- endpoints . _0() . map2(&edge, |t,id| (*id,t.clone()));
     new_edge_target         <- endpoints . _1() . map2(&edge, |t,id| (*id,t.clone()));
     outputs.edge_added      <+ edge;
