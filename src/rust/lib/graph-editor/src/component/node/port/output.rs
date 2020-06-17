@@ -47,9 +47,9 @@ const SHAPE_MAX_WIDTH       : f32 = 4.0;
 
 
 
-// ==============
-// === Shapes ===
-// ==============
+// ==================
+// === Base Shape ===
+// ==================
 
 /// The base port shape for the output port shape. This shape is later on used to create a
 /// simple single output port shape and a more complex multi-output port shape.
@@ -115,6 +115,12 @@ trait PortShape {
     fn set_grow(&self, grow_value:f32);
     fn set_opacity(&self, opacity:f32);
 }
+
+
+
+// ========================
+// === Multi Port Shape ===
+// ========================
 
 /// Implements the shape for a segment of the OutputPort with multiple output ports.
 pub mod multi_port_area {
@@ -284,6 +290,12 @@ pub mod multi_port_area {
     }
 }
 
+
+
+// =========================
+// === Single Port Shape ===
+// =========================
+
 /// Implements a simplified version of the multi_port_area::Shape shape for the case where there is
 /// only a single output port.
 pub mod single_port_area {
@@ -316,6 +328,12 @@ pub mod single_port_area {
         }
     }
 }
+
+
+
+// ==================
+// === Shape View ===
+// ==================
 
 /// Helper enum that handles the distinction between a single shape output area and a multi port
 /// output area.
@@ -389,9 +407,9 @@ impl ShapeView {
 
 
 
-// =============================
-// === Port Frp Setup Helper ===
-// =============================
+// =================
+// === Port Frp  ===
+// =================
 
 /// Helper struct to pass the required FRP endpoints to set up the FRP of a port shape view.
 #[derive(Clone,CloneRef,Debug)]
