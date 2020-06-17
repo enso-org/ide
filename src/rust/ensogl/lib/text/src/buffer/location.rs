@@ -10,7 +10,7 @@ use crate::prelude::*;
 macro_rules! num_newtype {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
         $(#$meta)*
-        #[derive(Clone,Copy,Debug,Eq,From,Hash,Ord,PartialEq,PartialOrd)]
+        #[derive(Clone,Copy,Debug,Default,Eq,From,Hash,Ord,PartialEq,PartialOrd)]
         pub struct $name { $(pub $field : $field_type),* }
 
         /// Smart constructor.

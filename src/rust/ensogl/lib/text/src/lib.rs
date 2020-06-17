@@ -30,10 +30,10 @@ use selection::Selection;
 use crate::buffer::location::*;
 
 
-use rope::spans::Spans;
-use rope::spans::SpansBuilder;
-use rope::breaks::{BreakBuilder, Breaks, BreaksInfo, BreaksMetric};
-use rope::{Interval, LinesMetric, Rope, RopeDelta, RopeInfo};
+use text::rope::spans::Spans;
+use text::rope::spans::SpansBuilder;
+use text::rope::breaks::{BreakBuilder, Breaks, BreaksInfo, BreaksMetric};
+use text::rope::{Interval, LinesMetric, Rope, RopeDelta, RopeInfo};
 //use rope::LinesMetric;
 //use rope::rope::BaseMetric;
 //use rope::tree::*;
@@ -56,15 +56,15 @@ use std::cmp::min;
 
 pub fn main() {
     let buffer = Buffer::from("Test text!");
-    buffer.set_color(1..3,color::Rgba::new(1.0,0.0,0.0,1.0));
-    let mut view = buffer.view();
+    buffer.color.set(1..3,color::Rgba::new(1.0,0.0,0.0,1.0));
+    let mut view = buffer.new_view();
 
     view.add_selection(Selection::new(ByteOffset(0),ByteOffset(0)));
 
 
 //    let foo = buffer.color.iter().collect_vec();
-    let foo = buffer.color.borrow().subseq(2..5);
-    let foo = foo.iter().collect_vec();
+    let foo = buffer.color.subseq(2..5);
+//    let foo = foo.iter().collect_vec();
     println!("{:#?}",foo);
 
     println!("{:#?}",view.selections());

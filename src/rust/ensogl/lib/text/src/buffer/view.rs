@@ -80,7 +80,7 @@ impl View {
         std::cmp::max(self.line_count.get() as isize - SCROLL_OVERLAP, 1)
     }
 
-//    fn scroll_to_cursor(&mut self, text: &Rope) {
+//    fn scroll_to_cursor(&mut self, text: &Text) {
 //        let end = self.sel_regions().last().unwrap().end;
 //        let line = self.line_of_offset(text, end);
 //        if line < self.first_line_number {
@@ -218,14 +218,14 @@ impl View {
             Movement::Left => {
                 let def     = (ByteOffset(0),region.column);
                 let do_move = region.is_caret() || modify;
-                if  do_move { text.prev_grapheme_offset(region.end.raw).map(ByteOffset).map(no_horiz).unwrap_or(def) }
+                if  do_move { text.prev_grapheme_offset(region.end).map(no_horiz).unwrap_or(def) }
                 else        { no_horiz(region.min()) }
             }
 
             Movement::Right => {
                 let def     = (region.end,region.column);
                 let do_move = region.is_caret() || modify;
-                if  do_move { text.next_grapheme_offset(region.end.raw).map(ByteOffset).map(no_horiz).unwrap_or(def) }
+                if  do_move { text.next_grapheme_offset(region.end).map(no_horiz).unwrap_or(def) }
                 else        { no_horiz(region.max()) }
             }
 
@@ -241,26 +241,27 @@ impl View {
                 let last_line        = line == self.line_of_offset(text_len);
                 let next_line_offset = self.offset_of_line(line+1);
                 let offset           = if last_line { text_len } else {
-                    text.prev_grapheme_offset(next_line_offset.raw).map(ByteOffset).unwrap_or(text_len)
+                    text.prev_grapheme_offset(next_line_offset).unwrap_or(text_len)
                 };
                 no_horiz(offset)
             }
 
             Movement::StartOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.min()
-                let mut cursor = rope::Cursor::new(&text,region.end.raw);
-                let offset     = ByteOffset(cursor.prev::<rope::LinesMetric>().unwrap_or(0));
+                let mut cursor = text::Cursor::new(&text,region.end.raw);
+                let offset     = ByteOffset(cursor.prev::<text::LinesMetric>().unwrap_or(0));
                 no_horiz(offset)
             }
 
             Movement::EndOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.max()
-                let mut cursor = rope::Cursor::new(&text,region.end.raw);
-                let     offset = match cursor.next::<rope::LinesMetric>() {
+                let mut cursor = text::Cursor::new(&text,region.end.raw);
+                let     offset = match cursor.next::<text::LinesMetric>() {
                     None            => ByteOffset(text.len()),
-                    Some(next_line) => {
-                        if cursor.is_boundary::<rope::LinesMetric>() {
-                            text.prev_grapheme_offset(next_line).map(ByteOffset).unwrap_or(region.end)
+                    Some(next_line_offset) => {
+                        let next_line_offset = ByteOffset(next_line_offset);
+                        if cursor.is_boundary::<text::LinesMetric>() {
+                            text.prev_grapheme_offset(next_line_offset).unwrap_or(region.end)
                         } else if cursor.pos() == text.len() {
                             ByteOffset(text.len())
                         } else {
@@ -273,16 +274,16 @@ impl View {
 
             Movement::EndOfParagraphKill => {
                 // Note: TextEdit would start at modify ? region.end : region.max()
-                let mut cursor = rope::Cursor::new(&text,region.end.raw);
-                let     offset = match cursor.next::<rope::LinesMetric>() {
+                let mut cursor = text::Cursor::new(&text,region.end.raw);
+                let     offset = match cursor.next::<text::LinesMetric>() {
                     None            => region.end,
-                    Some(next_line) => {
-                        if cursor.is_boundary::<rope::LinesMetric>() {
-                            let eol = text.prev_grapheme_offset(next_line);
-                            let opt = eol.and_then(|t|(t!=region.end.raw).as_some(t));
-                            let off = opt.unwrap_or(next_line);
-                            ByteOffset(off)
-                        } else { ByteOffset(next_line) }
+                    Some(next_line_offset) => {
+                        let next_line_offset = ByteOffset(next_line_offset);
+                        if cursor.is_boundary::<text::LinesMetric>() {
+                            let eol = text.prev_grapheme_offset(next_line_offset);
+                            let opt = eol.and_then(|t|(t!=region.end).as_some(t));
+                            opt.unwrap_or(next_line_offset)
+                        } else { next_line_offset }
                     }
                 };
                 no_horiz(offset)
@@ -295,12 +296,12 @@ impl View {
 
 
 impl LineOffset for View {
-    fn text(&self) -> &Rope {
-        &self.buffer.rope
+    fn text(&self) -> &Text {
+        &self.buffer.text
     }
 
     fn offset_of_line(&self,line:Line) -> ByteOffset {
-        let line = std::cmp::min(line.raw,self.text().measure::<rope::LinesMetric>() + 1);
+        let line = std::cmp::min(line.raw,self.text().measure::<text::LinesMetric>() + 1);
         ByteOffset(self.text().offset_of_line(line))
     }
 
@@ -318,11 +319,11 @@ impl LineOffset for View {
 // ==================
 
 /// A trait from which lines and columns in a document can be calculated
-/// into offsets inside a rope an vice versa.
+/// into offsets inside a text an vice versa.
 pub trait LineOffset {
     // use own breaks if present, or text if not (no line wrapping)
 
-    fn text(&self) -> &Rope;
+    fn text(&self) -> &Text;
 
     /// Returns the byte offset corresponding to the given line.
     fn offset_of_line(&self, line:Line) -> ByteOffset {
@@ -360,21 +361,21 @@ pub trait LineOffset {
             }
         } else {
             // Snap to grapheme cluster boundary
-            offset = ByteOffset(self.text().prev_grapheme_offset(offset.raw + 1).unwrap());
+            offset = self.text().prev_grapheme_offset(offset + 1).unwrap_or_default();
         }
 
         // clamp to end of line
         let next_line_offset = self.offset_of_line(line + 1);
         if offset >= next_line_offset {
-            if let Some(prev) = self.text().prev_grapheme_offset(next_line_offset.raw) {
-                offset = ByteOffset(prev);
+            if let Some(prev) = self.text().prev_grapheme_offset(next_line_offset) {
+                offset = prev;
             }
         }
         offset
     }
 
 //    /// Get the line range of a selected region.
-//    fn get_line_range(&self, text: &Rope, region: &Selection) -> Range<usize> {
+//    fn get_line_range(&self, text: &Text, region: &Selection) -> Range<usize> {
 //        let (first_line_number, _) = self.offset_to_line_col(text, region.min());
 //        let (mut last_line, last_col) = self.offset_to_line_col(text, region.max());
 //        if last_col == 0 && last_line > first_line_number {
