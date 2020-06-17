@@ -1,3 +1,5 @@
+//! This module contains the IDE object implementation.
+
 use crate::prelude::*;
 
 use crate::transport::web::ConnectingError;
@@ -12,19 +14,32 @@ use enso_protocol::project_manager::ProjectMetadata;
 use enso_protocol::project_manager::ProjectName;
 use uuid::Uuid;
 
+/// The IDE structure containing its configuration and its components instances.
+#[derive(Debug)]
 pub struct IDE {
+    _executor       : executor::web::EventLoopExecutor,
+    logger          : Logger,
+    config          : SetupConfig,
+    project_manager : Option<project_manager::Client>,
+    project_view    : Option<ProjectView>
 }
 
 impl IDE {
+    /// Creates a new IDE instance.
     pub fn new() -> Self {
-        Self {}
+        let config          = SetupConfig::new_local();
+        let logger          = Logger::new("IDE");
+        let _executor       = Self::setup_global_executor();
+        let project_view    = None;
+        let project_manager = None;
+        Self {_executor,logger,config,project_view,project_manager}
     }
 
     /// Creates a new running executor with its own event loop. Registers them
-/// as a global executor.
-///
-/// Note: Caller should store or leak this `JsExecutor` so the global
-/// spawner won't be dangling.
+    /// as a global executor.
+    ///
+    /// Note: Caller should store or leak this `JsExecutor` so the global
+    /// spawner won't be dangling.
     pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
         let executor = executor::web::EventLoopExecutor::new_running();
         executor::global::set_spawner(executor.spawner.clone());
@@ -32,9 +47,8 @@ impl IDE {
     }
 
     /// Establishes transport to the file manager server websocket endpoint.
-    pub async fn connect_to_project_manager
-    (logger:Logger, config:SetupConfig) -> Result<WebSocket,ConnectingError> {
-        WebSocket::new_opened(logger,config.project_manager_endpoint).await
+    pub async fn connect_to_project_manager(&self) -> Result<WebSocket,ConnectingError> {
+        WebSocket::new_opened(self.logger.clone_ref(),&self.config.project_manager_endpoint).await
     }
 
     /// Wraps the transport to the project manager server into the client type and registers it within
@@ -49,7 +63,7 @@ impl IDE {
     /// Creates a new websocket transport and waits until the connection is properly opened.
     pub async fn new_opened_ws
     (logger:Logger, address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
-        let endpoint   = format!("ws://{}:{}", address.host, address.port);
+        let endpoint = format!("ws://{}:{}", address.host, address.port);
         WebSocket::new_opened(logger,endpoint).await
     }
 
@@ -101,33 +115,39 @@ impl IDE {
                      endpoints.language_server_binary_address,&project_metadata.name.name).await
     }
 
+    async fn initialize_project_manager(&mut self) -> FallibleResult<()> {
+        let transport        = self.connect_to_project_manager().await?;
+        self.project_manager = Some(Self::setup_project_manager(transport));
+        Ok(())
+    }
+
     /// Sets up the project view, including the controller it uses.
-    pub async fn setup_project_view(logger:&Logger,config:SetupConfig)
-                                    -> Result<ProjectView,failure::Error> {
-        let transport    = Self::connect_to_project_manager(logger.clone_ref(),config).await?;
-        let pm           = Self::setup_project_manager(transport);
-        let project      = Self::open_most_recent_project_or_create_new(logger,&pm).await?;
+    pub async fn setup_project_view(&self) -> Result<ProjectView,failure::Error> {
+        let logger       = &self.logger;
+        let pm           = self.project_manager.as_ref().expect("Couldn't get Project Manager.");
+        let project      = Self::open_most_recent_project_or_create_new(logger,pm).await?;
         let project_view = ProjectView::new(logger,project).await?;
         Ok(project_view)
     }
 
-    /// This function is the IDE entry point responsible for setting up all views and controllers.
-    pub fn run(&self) {
-        let logger          = Logger::new("IDE");
-        let global_executor = Self::setup_global_executor();
-        // We want global executor to live indefinitely.
-        std::mem::forget(global_executor);
+    async fn initialize_project_view(&mut self) -> FallibleResult<()> {
+        let project_view = self.setup_project_view().await?;
+        self.project_view = Some(project_view);
+        Ok(())
+    }
 
-        let config = SetupConfig::new_local();
-        info!(logger, "Starting IDE with the following config: {config:?}");
+    /// This function initializes the project manager, creates the project view and forget IDE
+    /// to indefinitely keep it alive.
+    pub fn run_and_forget(mut self) {
+        info!(self.logger, "Starting IDE with the following config: {self.config:?}");
         executor::global::spawn(async move {
-            let error_msg = "Failed to setup initial project view.";
             // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
             //      issues to user, such information should be properly passed
             //      in case of setup failure.
-            let project_view = Self::setup_project_view(&logger,config).await.expect(error_msg);
-            logger.info("Setup done.");
-            project_view.forget();
+            self.initialize_project_manager().await.expect("Failed to initialize Project Manager.");
+            self.initialize_project_view().await.expect("Failed to setup initial project view.");
+            self.logger.info("Setup done.");
+            std::mem::forget(self);
         });
     }
 }

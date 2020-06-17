@@ -65,8 +65,3 @@ pub mod prelude {
     #[cfg(test)] pub use wasm_bindgen_test::wasm_bindgen_test;
     #[cfg(test)] pub use wasm_bindgen_test::wasm_bindgen_test_configure;
 }
-
-pub fn run_ide() {
-    let ide = IDE::new();
-    ide.run();
-}
