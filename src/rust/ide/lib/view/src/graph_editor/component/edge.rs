@@ -3,8 +3,8 @@
 
 use crate::prelude::*;
 
-use enso_frp;
 use enso_frp as frp;
+use enso_frp;
 use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
@@ -14,9 +14,9 @@ use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
+use nalgebra::UnitComplex;
 
 use super::node;
-
 
 
 fn min(a:f32,b:f32) -> f32 {
@@ -48,16 +48,145 @@ const INFINITE : f32 = 99999.0;
 
 
 
+// ========================
+// === Edge Shape Trait ===
+// ========================
+
+/// Edge shape defines the common behaviour of the sub-shapes used to create a Edge.
+trait EdgeShape: ensogl::display::Object {
+    fn set_highlight_offset(&self, offset:Vector2<f32>);
+    fn set_highlight_rotation(&self, angle:f32);
+
+    /// Set the highlight for this shape. The `hover_pos` is the global position at which the shape
+    /// should be split into the highlighted and not highlighted part, and the `area` indicates,
+    /// which of the two parts (Upper/Lower) should be highlighted.
+    fn set_highlight_split_position(&self, hover_pos:Vector2<f32>, area:HighlightArea) {
+        // Compute rotation in shape local coordinate system.
+        let rotation = self.display_object().rotation().z;
+        match area {
+            HighlightArea::Above => self.set_highlight_rotation(rotation),
+            HighlightArea::Below => self.set_highlight_rotation(rotation + 2.0 * RIGHT_ANGLE),
+        }
+        // Compute position in shape local coordinate system.
+        let delta_y = hover_pos.y - self.display_object().global_position().y;
+        let offset  = Vector2::new(0.0,delta_y);
+        let offset  = UnitComplex::new(-rotation) * offset;
+        self.set_highlight_offset(offset)
+    }
+
+    /// Disable the highlight on this shape.
+    fn remove_highlight(&self) {
+        self.set_highlight_offset(Vector2::new(INFINITE, INFINITE));
+        self.set_highlight_rotation(RIGHT_ANGLE);
+    }
+}
+
+
+
+// ========================
+// === Edge Shape Trait ===
+// ========================
+
+/// Indicates which area should be highlighted.
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+enum HighlightArea {
+    Above,
+    Below,
+}
+
+/// Holds the data required to highlight shapes.
+#[derive(Clone,Copy,Debug)]
+struct HighlightData {
+    split_position : Vector2<f32>,
+    area           : HighlightArea,
+}
+
+impl HighlightData {
+    fn new(split_position:Vector2<f32>, area:HighlightArea) -> Self {
+        HighlightData{split_position,area}
+    }
+}
+
+
+/// The MultiShape trait allows operations on a collection of `EdgeShape`.
+trait MultiShape {
+    /// Return the `ShapeViewEvents` of all sub-shapes.
+    fn events(&self) -> Vec<component::ShapeViewEvents>;
+
+    /// Connect the given `ShapeViewEventsProxy` to the mouse events of all sub-shapes.
+    fn register_proxy_frp(&self, network:&frp::Network, frp:&ShapeViewEventsProxy) {
+        let events = self.events();
+        for event in &events {
+            frp::extend! { network
+                eval_ event.mouse_down (frp.on_mouse_down.emit(()));
+                eval_ event.mouse_over (frp.on_mouse_over.emit(()));
+                eval_ event.mouse_out (frp.on_mouse_out.emit(()));
+            }
+        }
+    }
+
+    /// Return references to all `EdgeShape`s in this MultiShape.
+    fn edge_shape_views(&self) -> Vec<&dyn EdgeShape>;
+
+    /// Apply the provided `HighlightData` to all sub-shapes, or disable highlighting, if None
+    /// is given.
+    fn set_highlight_split_position(&self, highlight_data:Option<HighlightData>) {
+        for shape in self.edge_shape_views() {
+            if let Some(highlight_data) = highlight_data {
+                let split_position = highlight_data.split_position;
+                let area           = highlight_data.area;
+                shape.set_highlight_split_position(split_position,area);
+            } else {
+                shape.remove_highlight()
+            }
+        }
+    }
+}
+
+
 // =========================
 // === Shape Definitions ===
 // =========================
 
-macro_rules! define_corner_start {($($color:tt)*) => {
+/// SplitShape allows a shape to be split along a line and each sub-shape to be colored separately.
+struct SplitShape {
+    part_a        : AnyShape,
+    part_b        : AnyShape,
+}
+
+impl SplitShape {
+    /// Splits the shape in two at the line given by the offset and rotation.
+    fn new
+    (base_shape:AnyShape, offset:&Var<Vector2<f32>>,rotation:&Var<f32>) -> Self {
+        let offset_x    = Var::<Distance<Pixels>>::from(offset.x());
+        let offset_y    = Var::<Distance<Pixels>>::from(offset.y());
+        let rotation    = Var::<Angle<Radians>>::from(rotation.clone());
+        let split_plane = HalfPlane()
+            .rotate(&rotation)
+            .translate_x(&offset_x)
+            .translate_y(&offset_y);
+
+        let part_a = base_shape.intersection(&split_plane).into();
+        let part_b = base_shape.difference(&split_plane).into();
+
+        SplitShape { part_a,part_b}
+    }
+
+    /// Fill the two parts and return the combined shape.
+    fn fill<Color:Into<color::Rgba>>(&self, highlight_color:Color, default_color:Color ) -> AnyShape {
+        let filled_highlight = self.part_a.fill(highlight_color.into());
+        let filled_default   = self.part_b.fill(default_color.into());
+        (filled_highlight + filled_default) .into()
+    }
+}
+
+macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod corner {
         use super::*;
         ensogl::define_shape_system! {
-            (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>) {
+            (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
+             highlight_offset:Vector2<f32>,highlight_rotation:f32) {
                 let radius = 1.px() * radius;
                 let width  = LINE_WIDTH.px();
                 let width2 = width / 2.0;
@@ -75,21 +204,33 @@ macro_rules! define_corner_start {($($color:tt)*) => {
                 let ty       = - 1.px() * pos.y();
                 let n_shape  = n_shape.translate((tx,ty));
 
-                let shape = shape - n_shape;
-                let shape = shape.fill(color::Rgba::from($($color)*));
+                let shape           = shape - n_shape;
 
+                let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let shape           = highlight_shape.fill($color, $highlight_color);
                 shape.into()
+            }
+        }
+
+         impl EdgeShape for component::ShapeView<Shape> {
+            fn set_highlight_offset(&self, offset:Vector2<f32>) {
+                self.shape.highlight_offset.set(offset);
+            }
+
+            fn set_highlight_rotation(&self, angle:f32) {
+                 self.shape.highlight_rotation.set(angle);
             }
         }
     }
 }}
 
-macro_rules! define_corner_end {($($color:tt)*) => {
+macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod corner {
         use super::*;
         ensogl::define_shape_system! {
-            (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>) {
+            (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
+             highlight_offset:Vector2<f32>,highlight_rotation:f32) {
                 let radius = 1.px() * radius;
                 let width  = LINE_WIDTH.px();
                 let width2 = width / 2.0;
@@ -108,36 +249,58 @@ macro_rules! define_corner_end {($($color:tt)*) => {
                 let n_shape  = n_shape.translate((tx,ty));
 
                 let shape = shape * n_shape;
-                let shape = shape.fill(color::Rgba::from($($color)*));
-
+                let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let shape           = highlight_shape.fill($color, $highlight_color);
                 shape.into()
+            }
+        }
+
+        impl EdgeShape for component::ShapeView<Shape> {
+            fn set_highlight_offset(&self, offset:Vector2<f32>) {
+                self.shape.highlight_offset.set(offset);
+            }
+
+            fn set_highlight_rotation(&self, angle:f32) {
+                 self.shape.highlight_rotation.set(angle);
             }
         }
     }
 }}
 
-macro_rules! define_line {($($color:tt)*) => {
+macro_rules! define_line {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod line {
         use super::*;
         ensogl::define_shape_system! {
-            () {
+            (highlight_offset:Vector2<f32>,highlight_rotation:f32) {
                 let width  = LINE_WIDTH.px();
                 let height : Var<Pixels> = "input_size.y".into();
                 let shape  = Rect((width,height));
-                let shape  = shape.fill(color::Rgba::from($($color)*));
+
+                let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let shape           = highlight_shape.fill($color, $highlight_color);
                 shape.into()
+            }
+        }
+
+         impl EdgeShape for component::ShapeView<Shape> {
+            fn set_highlight_offset(&self, offset:Vector2<f32>) {
+                self.shape.highlight_offset.set(offset);
+            }
+
+            fn set_highlight_rotation(&self, angle:f32) {
+                 self.shape.highlight_rotation.set(angle);
             }
         }
     }
 }}
 
-macro_rules! define_arrow {($($color:tt)*) => {
+macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod arrow {
         use super::*;
         ensogl::define_shape_system! {
-            () {
+            (highlight_offset:Vector2<f32>,highlight_rotation:f32) {
                 let width  : Var<Pixels> = "input_size.x".into();
                 let height : Var<Pixels> = "input_size.y".into();
                 let width      = width  - (2.0 * PADDING).px();
@@ -147,8 +310,19 @@ macro_rules! define_arrow {($($color:tt)*) => {
                 let triangle_l = triangle.translate_x(-&offset);
                 let triangle_r = triangle.translate_x(&offset);
                 let shape      = triangle_l + triangle_r;
-                let shape      = shape.fill(color::Rgba::from($($color)*));
+                let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let shape           = highlight_shape.fill($color, $highlight_color);
                 shape.into()
+            }
+        }
+
+        impl EdgeShape for component::ShapeView<Shape> {
+            fn set_highlight_offset(&self, offset:Vector2<f32>) {
+                self.shape.highlight_offset.set(offset);
+            }
+
+            fn set_highlight_rotation(&self, angle:f32) {
+                 self.shape.highlight_rotation.set(angle);
             }
         }
     }
@@ -230,31 +404,19 @@ impl LayoutLine for component::ShapeView<back::line::Shape> {
 /// Shape definitions which will be rendered in the front layer (on top of nodes).
 pub mod front {
     use super::*;
-    define_corner_start!(color::Lcha::new(0.6,0.5,0.76,1.0));
-    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0));
-    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_corner_start!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
+    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
+    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
 }
 
 /// Shape definitions which will be rendered in the bottom layer (below nodes).
 pub mod back {
     use super::*;
-    define_corner_end!(color::Lcha::new(0.6,0.5,0.76,1.0));
-    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0));
-    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0));
+    define_corner_end!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
+    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
+    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
 }
 
-trait MultiShape {
-    fn events(&self) -> Vec<component::ShapeViewEvents>;
-
-    fn register_on_mouse_down(&self, network:&frp::Network, on_mouse_down:frp::Source<()>) {
-        let events = self.events();
-        for event in &events {
-            frp::extend! { network
-                eval_ event.mouse_down (on_mouse_down.emit(()));
-            }
-        }
-    }
-}
 
 
 // ===========================
@@ -300,8 +462,13 @@ macro_rules! define_components {
             fn events(&self) -> Vec<component::ShapeViewEvents> {
                 self.shape_view_events.to_vec()
             }
-        }
 
+            fn edge_shape_views(&self) -> Vec<&dyn EdgeShape> {
+                let mut output = Vec::<&dyn EdgeShape>::default();
+                $(output.push(&self.$field);)*
+                output
+            }
+        }
     }
 }
 
@@ -354,6 +521,35 @@ pub fn sort_hack_2(scene:&Scene) {
 // === FRP ===
 // ===========
 
+/// FRP endpoints for aggregated mouse events.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct ShapeViewEventsProxy {
+    pub mouse_down       : frp::Stream<()>,
+    pub mouse_over       : frp::Stream<()>,
+    pub mouse_out        : frp::Stream<()>,
+
+    on_mouse_down        : frp::Source<()>,
+    on_mouse_over        : frp::Source<()>,
+    on_mouse_out         : frp::Source<()>,
+}
+
+#[allow(missing_docs)]
+impl ShapeViewEventsProxy {
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def on_mouse_over   = source();
+            def on_mouse_out    = source();
+            def on_mouse_down   = source();
+        }
+        let mouse_down = on_mouse_down.clone_ref().into();
+        let mouse_over = on_mouse_over.clone_ref().into();
+        let mouse_out  = on_mouse_out.clone_ref().into();
+        Self {on_mouse_down,mouse_down,mouse_over,mouse_out,on_mouse_out,on_mouse_over}
+    }
+}
+
+
 /// FRP endpoints of the edge.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
@@ -364,8 +560,8 @@ pub struct Frp {
     pub target_attached           : frp::Source<bool>,
     pub redraw                    : frp::Source<()>,
 
-    pub mouse_down       : frp::Stream<()>,
-    on_mouse_down        : frp::Source<()>,
+    pub hover_position  : frp::Source<Option<Vector2<f32>>>,
+    pub shape_events    : ShapeViewEventsProxy
 }
 
 impl Frp {
@@ -377,10 +573,11 @@ impl Frp {
             def target_position           = source();
             def target_attached           = source();
             def redraw                    = source();
-            def on_mouse_down   = source();
+            def hover_position  = source();
         }
-        let mouse_down = on_mouse_down.clone_ref().into();
-        Self {source_width,source_height,target_position,target_attached,redraw}
+        let shape_events = ShapeViewEventsProxy::new(&network);
+        Self {source_width,source_height,target_position,target_attached,redraw,
+              hover_position,shape_events}
     }
 }
 
@@ -439,10 +636,6 @@ impl AsRef<Edge> for Edge {
     }
 }
 
-
-
-
-
 impl display::Object for EdgeModelData {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
@@ -465,16 +658,18 @@ impl Edge {
         let target_attached = &self.target_attached;
         let source_width    = &self.source_width;
         let source_height   = &self.source_height;
+        let hover_position  = &self.hover_position;
         let model           = &self.model;
 
-        model.data.front.register_on_mouse_down(network, input.on_mouse_down.clone_ref());
-        model.data.back.register_on_mouse_down(network, input.on_mouse_down.clone_ref());
+        model.data.front.register_proxy_frp(network, &input.shape_events);
+        model.data.back.register_proxy_frp(network, &input.shape_events);
 
         frp::extend! { network
-            eval input.target_position           ((t) target_position.set(*t));
-            eval input.target_attached           ((t) target_attached.set(*t));
-            eval input.source_width              ((t) source_width.set(*t));
-            eval input.source_height             ((t) source_height.set(*t));
+            eval input.target_position ((t) target_position.set(*t));
+            eval input.target_attached ((t) target_attached.set(*t));
+            eval input.source_width    ((t) source_width.set(*t));
+            eval input.source_height   ((t) source_height.set(*t));
+            eval input.hover_position  ((t) hover_position.set(*t));
             eval_ input.redraw (model.redraw());
         }
 
@@ -493,6 +688,14 @@ impl display::Object for Edge {
 // =================
 // === EdgeModel ===
 // =================
+
+/// Indicates the type of end connection of the Edge.
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+#[allow(missing_docs)]
+pub enum Connector {
+    Input,
+    Output
+}
 
 /// Edge definition.
 #[derive(AsRef,Clone,CloneRef,Debug,Deref)]
@@ -513,6 +716,7 @@ pub struct EdgeModelData {
     pub source_height   : Rc<Cell<f32>>,
     pub target_position : Rc<Cell<Vector2>>,
     pub target_attached : Rc<Cell<bool>>,
+    hover_position      : Rc<Cell<Option<Vector2<f32>>>>,
 }
 
 impl EdgeModelData {
@@ -536,19 +740,44 @@ impl EdgeModelData {
         let source_width    = default();
         let target_position = default();
         let target_attached = Rc::new(Cell::new(false));
+        let hover_position  = default();
 
         Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
-              target_attached}
+              target_attached,hover_position}
     }
 
-    pub fn is_in_front_half(&self, point:Vector2<f32>) -> bool {
+    fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
         let start = nalgebra::Point2::from(self.display_object.position().xy());
         let end   = nalgebra::Point2::from(self.target_position.get());
         let point = nalgebra::Point2::from(point);
-        let start_distance = nalgebra::distance_squared(&start,&point);
-        let end_distance   = nalgebra::distance_squared(&end,&point);
+        let mid_y = (start.y + end.y) / 2.0;
+        point.y > mid_y
+    }
 
-        start_distance < end_distance
+    /// Returns whether the given hover position should disconnect the Input or Output part of the
+    /// edge.
+    pub fn disconnect_target_for_position(&self, point:Vector2<f32>) -> Connector {
+        let target_y        = self.display_object.position().y;
+        let source_y        = self.target_position.get().y;
+        let delta_y         = target_y - source_y;
+        let input_above_mid = delta_y > 0.0;
+        let point_area      = self.highlight_area_for_position(point);
+
+        match (point_area, input_above_mid) {
+            (HighlightArea::Above, true)  => Connector::Input,
+            (HighlightArea::Above, false) => Connector::Output,
+            (HighlightArea::Below, true)  => Connector::Output,
+            (HighlightArea::Below, false) => Connector::Input,
+        }
+    }
+
+    /// Returns whether the given positions should highlight the area above or below.
+    fn highlight_area_for_position(&self, point:Vector2<f32>) -> HighlightArea {
+        if self.is_in_upper_half(point) {
+            HighlightArea::Above
+        } else {
+            HighlightArea::Below
+        }
     }
 
     /// Redraws the connection.
@@ -564,6 +793,13 @@ impl EdgeModelData {
         let node_half_height = self.source_height.get() / 2.0;
         let node_circle      = Vector2::new(node_half_width-node_half_height,0.0);
         let node_radius      = node_half_height;
+
+        // === Update Highlights ===
+        let hover_pos  = self.hover_position.get();
+        let hover_data = hover_pos.map(|pos| HighlightData::new(pos, self.highlight_area_for_position(pos)));
+
+        self.front.set_highlight_split_position(hover_data);
+        self.back.set_highlight_split_position(hover_data);
 
 
         // === Target ===
