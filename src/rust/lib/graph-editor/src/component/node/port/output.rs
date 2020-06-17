@@ -146,7 +146,9 @@ pub mod multi_port_area {
         // value that should be returned, iff it's case is true. That way we can add return values
         // of different "branches" of which exactly one will be non-zero.
 
-        // Transform coordinate system to be centered in the shape
+        // Transform coordinate system to be centered in the shape.
+        // The `distance`s here describe the distance along the shape border, so not straight line
+        // x coordinate, but the length of the path along the shape.
         let center_distance          = position - full_shape_border_length  / 2.0;
         let center_distance_absolute = center_distance.abs();
         let center_distance_sign     = center_distance.signum();
@@ -170,10 +172,18 @@ pub mod multi_port_area {
         rotation_delta * center_distance_sign + default_rotation
     }
 
-    /// Returns the position of the crop plane as a fraction of the straight center segment length.
+    /// Returns the x position of the crop plane as a fraction of the base shapes center segment.
+    /// To get the actual x position of the plane, multiply this value by the length of the center
+    /// segment and apply the appropriate x-offset.
+    ///
+    /// * `full_shape_border_length` should be the length of the shapes border path.
+    /// * `corner_segment_length`    should be the quarter circumference of the circles on the sides of
+    ///                              base shape.
+    /// * `position_on_path`         should be the position along the shape border
+    ///                              (not the pure x-coordinate).
     fn calculate_crop_plane_position_relative_to_center_segment
-    (full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position:&Var<f32>)
-    -> Var<f32> {
+    (full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position_on_path:&Var<f32>)
+     -> Var<f32> {
         // TODO implement proper abstraction for non-branching "if/then/else" or "case" in
         // shaderland. See function above for explanation of the branching.
 
@@ -185,14 +195,14 @@ pub mod multi_port_area {
 
         // Case 2: The middle segment.
         let is_middle_segment               = in_range_inclusive
-            (position,&middle_segment_start_point,&middle_segment_end_point);
-        let middle_segment_plane_position_x = (position - middle_segment_start_point)
+            (position_on_path, &middle_segment_start_point, &middle_segment_end_point);
+        let middle_segment_plane_position_x = (position_on_path - middle_segment_start_point)
             / (&middle_segment_end_point - middle_segment_start_point);
         let case_middle_segment_output      = is_middle_segment * middle_segment_plane_position_x;
 
         // Case 3: The right circle segment. Always one, if we are in this segment.
         let is_circle_segment          = in_range_inclusive
-            (position, &middle_segment_end_point, &full_shape_border_length);
+            (position_on_path, &middle_segment_end_point, &full_shape_border_length);
         let case_circle_segment_output = is_circle_segment * 1.0;
 
         case_middle_segment_output + case_circle_segment_output
