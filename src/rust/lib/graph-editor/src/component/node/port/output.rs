@@ -538,7 +538,7 @@ pub struct OutputPortsData {
 impl OutputPortsData {
 
     fn new(scene:Scene, number_of_ports:NonZeroU32) -> Self {
-        let logger         = Logger::new("OutPutPorts");
+        let logger         = Logger::new("OutputPorts");
         let display_object = display::object::Instance::new(&logger);
         let size           = Cell::new(Vector2::zero());
         let gap_width      = Cell::new(SEGMENT_GAP_WIDTH);
@@ -681,7 +681,7 @@ impl OutputPorts {
     // TODO: Implement proper sorting and remove.
     /// Hack function used to register the elements for the sorting purposes. To be removed.
     pub(crate) fn order_hack(scene:&Scene) {
-        let logger = Logger::new("hack");
+        let logger = Logger::new("output shape order hack");
         component::ShapeView::<multi_port_area::Shape>::new(&logger, scene);
     }
 }
