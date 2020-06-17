@@ -410,6 +410,24 @@ impl display::Object for ShapeView {
 
 
 
+// ===============
+// === PortId  ===
+// ===============
+
+/// Id of a specific port inside of `OutPutPortsData`.
+#[derive(Clone,Copy,Default,Debug,Eq,PartialEq)]
+pub struct PortId {
+    index: usize,
+}
+
+impl PortId {
+    fn new(index:usize) -> Self {
+        Self{index}
+    }
+}
+
+
+
 // =================
 // === Port Frp  ===
 // =================
@@ -484,18 +502,6 @@ fn init_port_frp<Shape: PortShape +CloneRef+'static>
 // ===========
 // === Frp ===
 // ===========
-
-/// Id of a specific port inside of `OutPutPortsData`.
-#[derive(Clone,Copy,Default,Debug,Eq,PartialEq)]
-pub struct PortId {
-    index: usize,
-}
-
-impl PortId {
-    fn new(index:usize) -> Self {
-        Self{index}
-    }
-}
 
 /// Frp API of the `OutPutPorts`.
 #[derive(Clone,CloneRef,Debug)]
