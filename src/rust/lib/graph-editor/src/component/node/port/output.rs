@@ -108,7 +108,7 @@ impl BaseShapeData {
     }
 }
 
-/// Helper trait that allows us to abstract the API of the `multi_port_area::Shape` and the
+/// Trait that allows us to abstract the API of the `multi_port_area::Shape` and the
 /// `single_port_area::Shape`. This is needed to avoid code duplication for functionality that can
 /// work with either shape.
 #[allow(missing_docs)]
@@ -133,7 +133,7 @@ pub mod multi_port_area {
     fn in_range_inclusive
     (value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
         Var::<f32>::from(format!("(step(float({1}),float({0})) * step(float({0}),float({2})))",
-                                 value, ower_bound,upper_bound))
+                                 value, lower_bound,upper_bound))
     }
 
     /// Compute the angle perpendicular to the shape border.
@@ -330,11 +330,11 @@ pub mod single_port_area {
 // === Shape View ===
 // ==================
 
-/// Helper enum that handles the distinction between a single shape output area and a multi port
-/// output area.
+/// Wrapper that handles the distinction between a single ShapeView<single_port_area::Shape>
+/// and collection of component::ShapeView<multi_port_area::Shape>.
 #[derive(Clone,Debug)]
 enum ShapeView {
-    Single { view  : component::ShapeView<multi_port_area::Shape>      },
+    Single { view  : component::ShapeView<single_port_area::Shape> },
     Multi  {
         display_object: display::object::Instance,
         views : Vec<component::ShapeView<multi_port_area::Shape>>,
@@ -427,7 +427,7 @@ impl PortId {
 // === Port Frp  ===
 // =================
 
-/// Helper struct to pass the required FRP endpoints to set up the FRP of a port shape view.
+/// Struct that contains all required FRP endpoints to set up the FRP of a port shape view.
 #[derive(Clone,CloneRef,Debug)]
 struct PortFrp {
     mouse_over                            : frp::Source<PortId>,
