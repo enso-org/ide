@@ -474,10 +474,10 @@ fn init_port_frp<Shape: PortShape +CloneRef+'static>
 
         // === Visibility and Highlight Handling == ///
 
-         def _hide_all = hide_all.map(f_!([port_size,port_opacity]{
+         eval_ hide_all ([port_size,port_opacity]{
              port_size.set_target_value(0.0);
              port_opacity.set_target_value(0.0);
-         }));
+         });
 
         // Through the provided ID we can infer whether this port should be highlighted.
         is_selected      <- activate_and_highlight_selected.map(move |id| *id == port_id);
@@ -489,10 +489,10 @@ fn init_port_frp<Shape: PortShape +CloneRef+'static>
             port_size.set_target_value(HIGHLIGHT_SIZE);
         });
 
-        eval_ show_normal ([port_opacity,port_size]
+        eval_ show_normal ([port_opacity,port_size] {
             port_opacity.set_target_value(0.5);
             port_size.set_target_value(BASE_SIZE);
-        );
+        });
     }
 }
 
