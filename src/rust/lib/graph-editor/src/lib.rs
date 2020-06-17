@@ -1843,9 +1843,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval edge_refresh_cursor_pos_no_hover ([edges,model](position) {
         edges.detached_source.for_each(|edge_id| {
             if let Some(edge) = edges.get_cloned_ref(edge_id) {
-                edge.view.frp.source_width.emit(cursor::DEFAULT_RADIUS);
-                edge.view.frp.source_height.emit(cursor::DEFAULT_RADIUS);
-                edge.view.frp.target_position.emit(-position.xy());
+                edge.view.frp.source_width_no_redraw.emit(cursor::DEFAULT_RADIUS);
+                edge.view.frp.source_height_no_redraw.emit(cursor::DEFAULT_RADIUS);
+                edge.view.frp.target_position_no_redraw.emit(-position.xy());
                 edge.mod_position(|p| {
                     p.x = position.x;
                     p.y = position.y;
