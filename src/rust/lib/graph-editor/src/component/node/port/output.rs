@@ -608,12 +608,7 @@ impl OutputPorts {
         OutputPorts {data,network,frp}.init()
     }
 
-    fn init(mut self) -> Self {
-        self.init_frp();
-        self
-    }
-
-    fn init_frp(&mut self) {
+    fn init(self) -> Self {
         let network = &self.network;
         let frp     = &self.frp;
         let data    = &self.data;
@@ -685,6 +680,8 @@ impl OutputPorts {
         // // ports visible by default.
         // // Once that is fixed, remove this line.
         delay_hide.from_now_to(TWEEN_END_VALUE);
+
+        self
     }
 
     // TODO: Implement proper sorting and remove.
