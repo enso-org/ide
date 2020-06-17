@@ -545,12 +545,12 @@ pub struct OutputPortsData {
 
 impl OutputPortsData {
 
-    fn new(scene:Scene, number_of_ports:NonZeroU32) -> Self {
+    fn new(scene:&Scene, number_of_ports:NonZeroU32) -> Self {
         let logger         = Logger::new("OutputPorts");
         let display_object = display::object::Instance::new(&logger);
         let size           = Cell::new(Vector2::zero());
         let gap_width      = Cell::new(SEGMENT_GAP_WIDTH);
-        let ports          = ShapeView::new(number_of_ports, &logger, &scene);
+        let ports          = ShapeView::new(number_of_ports, &logger, scene);
         let ports          = RefCell::new(ports);
 
         OutputPortsData {display_object,logger,size,ports,gap_width}.init()
@@ -603,7 +603,7 @@ impl OutputPorts {
     pub fn new(scene:&Scene, number_of_ports:NonZeroU32) -> Self {
         let network = default();
         let frp     = Frp::new(&network);
-        let data    = OutputPortsData::new(scene.clone_ref(), number_of_ports);
+        let data    = OutputPortsData::new(scene, number_of_ports);
         let data    = Rc::new(data);
         OutputPorts {data,network,frp}.init()
     }
