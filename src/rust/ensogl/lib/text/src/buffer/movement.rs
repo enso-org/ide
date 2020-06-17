@@ -1,7 +1,7 @@
 
 /// Possible navigation patterns.
 #[derive(Clone,Copy,Debug,PartialEq)]
-pub enum Navigation {
+pub enum Movement {
     /// Move to the left by one grapheme cluster.
     Left,
     /// Move to the right by one grapheme cluster.

@@ -69,7 +69,7 @@ pub fn main() {
 
     println!("{:#?}",view.selections());
 
-    view.navigate(Navigation::Right,false);
+    view.move_carets(Movement::Right);
 
     println!("{:#?}",view.selections());
 }

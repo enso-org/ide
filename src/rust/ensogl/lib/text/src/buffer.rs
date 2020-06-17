@@ -1,7 +1,7 @@
 
 
 pub mod location;
-pub mod navigation;
+pub mod movement;
 pub mod selection;
 pub mod view;
 
@@ -11,7 +11,7 @@ pub mod rope {
     pub use xi_rope::spans::SpansBuilder;
 }
 
-pub use navigation::Navigation;
+pub use movement::Movement;
 pub use selection::Selection;
 pub use view::View;
 
