@@ -435,12 +435,13 @@ impl PortId {
 /// Helper struct to pass the required FRP endpoints to set up the FRP of a port shape view.
 #[derive(Clone,CloneRef,Debug)]
 struct PortFrp {
-    port_mouse_over              : frp::Source<PortId>,
-    port_mouse_out               : frp::Source<PortId>,
-    port_mouse_down              : frp::Source<PortId>,
+    mouse_over                            : frp::Source<PortId>,
+    mouse_out                             : frp::Source<PortId>,
+    mouse_down                            : frp::Source<PortId>,
 
-    hide_all                     : frp::Stream<()>,
-    activate_ports_with_selected : frp::Stream<PortId>
+    hide_all                              : frp::Stream<()>,
+    /// Activate the port and if it has the given PortId, show it highlighted.
+    activate_and_highlight_selected : frp::Stream<PortId>
 }
 
 /// Set up the FRP system for a ShapeView of a shape that implements the PortShapeApi.
@@ -449,8 +450,8 @@ struct PortFrp {
 /// `single_port_area::Shape`.
 fn init_port_frp<Shape: PortShape +CloneRef+'static>
 (view:&component::ShapeView<Shape>, port_id:PortId, frp:PortFrp, network:&frp::Network) {
-    let PortFrp { port_mouse_over,port_mouse_out,port_mouse_down,
-        hide_all,activate_ports_with_selected } = frp;
+    let PortFrp { mouse_over,mouse_out,mouse_down,
+        hide_all, activate_and_highlight_selected} = frp;
 
     let shape        = &view.shape;
     let port_size    = Animation::<f32>::new(&network);
@@ -460,9 +461,9 @@ fn init_port_frp<Shape: PortShape +CloneRef+'static>
 
         // === Mouse Event Handling == ///
 
-        eval_ view.events.mouse_over(port_mouse_over.emit(port_id));
-        eval_ view.events.mouse_out(port_mouse_out.emit(port_id));
-        eval_ view.events.mouse_down(port_mouse_down.emit(port_id));
+        eval_ view.events.mouse_over(mouse_over.emit(port_id));
+        eval_ view.events.mouse_out(mouse_out.emit(port_id));
+        eval_ view.events.mouse_down(mouse_down.emit(port_id));
 
 
          // === Animation Handling == ///
@@ -479,9 +480,9 @@ fn init_port_frp<Shape: PortShape +CloneRef+'static>
          }));
 
         // Through the provided ID we can infer whether this port should be highlighted.
-        is_selected      <- activate_ports_with_selected.map(move |id| *id == port_id);
-        show_normal      <- activate_ports_with_selected.gate_not(&is_selected);
-        show_highlighted <- activate_ports_with_selected.gate(&is_selected);
+        is_selected      <- activate_and_highlight_selected.map(move |id| *id == port_id);
+        show_normal      <- activate_and_highlight_selected.gate_not(&is_selected);
+        show_highlighted <- activate_and_highlight_selected.gate(&is_selected);
 
         eval_ show_highlighted ([port_opacity,port_size]{
             port_opacity.set_target_value(1.0);
@@ -638,8 +639,8 @@ impl OutputPorts {
 
             // === Hover Event Handling == ///
 
-            port_mouse_over <- source::<PortId>();
-            port_mouse_out  <- source::<PortId>();
+            mouse_over <- source::<PortId>();
+            mouse_out  <- source::<PortId>();
 
             delay_show_finished    <- delay_show.value.map(|t| *t>=TWEEN_END_VALUE );
             delay_hide_finished    <- delay_hide.value.map(|t| *t>=TWEEN_END_VALUE );
@@ -648,15 +649,15 @@ impl OutputPorts {
 
             visible                <- delay_show_finished.map(|v| *v);
 
-            mouse_over_while_inactive  <- port_mouse_over.gate_not(&visible).constant(());
-            mouse_over_while_active    <- port_mouse_over.gate(&visible).constant(());
+            mouse_over_while_inactive  <- mouse_over.gate_not(&visible).constant(());
+            mouse_over_while_active    <- mouse_over.gate(&visible).constant(());
 
             eval_ mouse_over_while_inactive ([delay_show,delay_hide]{
                 delay_hide.stop();
                 delay_show.reset();
                 delay_show.set_target_value(TWEEN_END_VALUE);
             });
-            eval_ port_mouse_out ([delay_hide,delay_show]{
+            eval_ mouse_out ([delay_hide,delay_show]{
                 delay_show.stop();
                 delay_hide.reset();
                 delay_hide.set_target_value(TWEEN_END_VALUE);
@@ -665,16 +666,17 @@ impl OutputPorts {
             activate_ports <- any(mouse_over_while_active,on_delay_show_finished);
             eval_ activate_ports (delay_hide.stop_and_rewind());
 
-            activate_ports_with_selected <- port_mouse_over.sample(&activate_ports);
+            activate_and_highlight_selected <- mouse_over.sample(&activate_ports);
 
             hide_all <- on_delay_hide_finished.map(f_!(delay_show.stop_and_rewind()));
 
         }
 
         let network         = network.clone_ref();
-        let port_mouse_down = frp.on_port_mouse_down.clone_ref();
-        let port_frp = PortFrp {port_mouse_down,port_mouse_over,port_mouse_out,hide_all,
-                                activate_ports_with_selected};
+        let mouse_down = frp.on_port_mouse_down.clone_ref();
+        let port_frp = PortFrp {mouse_down,mouse_over,mouse_out,hide_all,
+            activate_and_highlight_selected
+        };
 
         data.ports.borrow().init_frp(&network, port_frp);
 
