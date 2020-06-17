@@ -953,7 +953,7 @@ impl GraphEditorModelWithNetwork {
     ( &self
     , cursor_style : &frp::Source<cursor::Style>
     , output_press : &frp::Source<NodeId>
-    , input_press  : &frp::Source<(NodeId,span_tree::Crumbs)>
+    , input_press  : &frp::Source<EdgeTarget>
     ) -> NodeId {
         let view = component::Node::new(&self.scene);
         let node = Node::new(view);
@@ -967,8 +967,9 @@ impl GraphEditorModelWithNetwork {
             eval_ node.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
             eval  node.ports.frp.cursor_style ((style) cursor_style.emit(style));
             eval_ node.frp.output_ports.mouse_down (output_press.emit(node_id));
-            eval  node.ports.frp.press ((crumbs)
-                input_press.emit((node_id,crumbs.clone()));
+            eval  node.ports.frp.press ([input_press](crumbs)
+                let target = EdgeTarget::new(node_id,crumbs.clone());
+                input_press.emit(target);
             );
 
             eval node.ports.frp.hover ([model](crumbs) {
@@ -1624,7 +1625,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     node_cursor_style <- source::<cursor::Style>();
 
-    let node_input_touch  = TouchNetwork::<(NodeId,span_tree::Crumbs)>::new(&network,&mouse);
+    let node_input_touch  = TouchNetwork::<EdgeTarget>::new(&network,&mouse);
     let node_output_touch = TouchNetwork::<NodeId>::new(&network,&mouse);
 
     on_output_connect_drag_mode   <- node_output_touch.down.constant(true);
@@ -1632,8 +1633,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     on_input_connect_drag_mode    <- node_input_touch.down.constant(true);
     on_input_connect_follow_mode  <- node_input_touch.selected.constant(false);
 
-    eval node_input_touch.down (((node_id,crumbs)) {
-        model.frp.press_node_input.emit(EdgeTarget::new(node_id,crumbs.clone()))
+    eval node_input_touch.down ((target) {
+        model.frp.press_node_input.emit(target)
     });
 
     eval node_output_touch.down ([model](node_id) {
@@ -1652,7 +1653,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.edge_source_set <+ new_edge_source;
 
     outputs.edge_added <+ new_input_edge;
-    new_edge_target <- new_input_edge.map2(&node_input_touch.down, move |id,(node_id,crumbs)| (*id,EdgeTarget::new(node_id,crumbs.clone())));
+    new_edge_target <- new_input_edge.map2(&node_input_touch.down, move |id,target| (*id,target.clone()));
     outputs.edge_target_set <+ new_edge_target;
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
