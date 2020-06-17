@@ -1248,7 +1248,7 @@ impl GraphEditorModel {
         if no_detached_sources {
             self.frp.all_edge_sources_attached.emit(());
         }
-        if no_detached_targets &&  no_detached_sources {
+        if no_detached_targets && no_detached_sources {
             self.frp.all_edges_attached.emit(());
         }
     }
