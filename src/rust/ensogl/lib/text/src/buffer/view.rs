@@ -113,50 +113,50 @@ impl View {
 
     /// Compute movement based on vertical motion by the given number of lines.
     ///
-    /// Note: in non-exceptional cases, this function preserves the `horiz`
-    /// field of the selection region.
+    /// Note: in non-exceptional cases, this function preserves the `column` field of the selection
+    /// region.
+    ///
+    /// Note: This code is quite careful to avoid integer overflow.
+    // TODO: Write tests to verify that it's safe regarding integer ovewrflow.
     fn vertical_motion
-    (&self, region:Selection, line_delta:isize, modify:bool) -> (ByteOffset, Option<Column>) {
-        let location  = self.vertical_motion_selection_to_caret(region, line_delta < 0, modify);
-        let n_lines = self.line_of_offset(ByteOffset(self.text().len()));
+    (&self, region:Selection, line_delta:isize, modify:bool) -> (Bytes,Option<Column>) {
+        let move_up    = line_delta < 0;
+        let line_delta = line_delta.saturating_abs() as usize;
+        let location   = self.vertical_motion_selection_to_caret(region,move_up,modify);
+        let n_lines    = self.line_of_offset(self.text().len());
 
-        // This code is quite careful to avoid integer overflow.
-        // TODO: write tests to verify
-        if line_delta < 0 && (-line_delta as usize) > location.line.raw {
-            return (ByteOffset(0), Some(location.column));
+        if move_up && line_delta > location.line.raw {
+            return (Bytes(0), Some(location.column));
         }
-        let line = if line_delta < 0 {
-            location.line.raw - (-line_delta as usize)
-        } else {
-            location.line.raw.saturating_add(line_delta as usize)
-        };
+
+        let line = if move_up { location.line.raw - line_delta }
+                   else       { location.line.raw.saturating_add(line_delta) };
+
         if line > n_lines.raw {
-            return (ByteOffset(self.text().len()), Some(location.column));
+            return (self.text().len(),Some(location.column));
         }
+
         let line = Line(line);
-        let new_offset = self.line_col_to_offset(line, location.column);
-        (new_offset, Some(location.column))
+        let new_offset = self.line_col_to_offset(line,location.column);
+        (new_offset,Some(location.column))
     }
 
     /// Compute movement based on vertical motion by the given number of lines skipping
-/// any line that is shorter than the current cursor position.
-    fn vertical_motion_exact_pos(&self,
-                                 region: Selection,
-                                 move_up: bool,
-                                 modify: bool,
-    ) -> (ByteOffset,Option<Column>) {
-        let loc = self.vertical_motion_selection_to_caret(region, move_up, modify);
-        let n_lines = self.line_of_offset(ByteOffset(self.text().len()));
+    /// any line that is shorter than the current cursor position.
+    fn vertical_motion_exact_pos
+    (&self, region:Selection, move_up:bool, modify:bool) -> (Bytes,Option<Column>) {
+        let location    = self.vertical_motion_selection_to_caret(region, move_up, modify);
+        let lines_count = self.line_of_offset(self.text().len());
 
-        let line_len = self.offset_of_line(loc.line.saturating_add(1)) - self.offset_of_line(loc.line);
-        if move_up && loc.line == Line(0) {
-            return (self.line_col_to_offset(loc.line, loc.column), Some(loc.column));
+        let line_len = self.offset_of_line(location.line.saturating_add(1)) - self.offset_of_line(location.line);
+        if move_up && location.line == Line(0) {
+            return (self.line_col_to_offset(location.line, location.column), Some(location.column));
         }
-        let mut line = if move_up { loc.line - 1 } else { loc.line.saturating_add(1) };
+        let mut line = if move_up { location.line - 1 } else { location.line.saturating_add(1) };
 
         // If the active columns is longer than the current line, use the current line length.
         let line_last_column = Column(line_len.raw);
-        let col = if line_last_column < loc.column { line_last_column - 1 } else { loc.column };
+        let col = if line_last_column < location.column { line_last_column - 1 } else { location.column };
 
         loop {
             let line_len = self.offset_of_line(line + 1) - self.offset_of_line(line);
@@ -168,8 +168,8 @@ impl View {
             }
 
             // If you are trying to add a selection past the end of the file or before the first line, return original selection
-            if line >= n_lines || (line == Line(0) && move_up) {
-                line = loc.line;
+            if line >= lines_count || (line == Line(0) && move_up) {
+                line = location.line;
                 break;
             }
 
@@ -204,7 +204,7 @@ impl View {
     (&self, movement:Movement, region:Selection, modify:bool) -> Selection {
         let text        = self.text();
         let no_horiz    = |t|(t,None);
-        let (end,horiz) : (ByteOffset,Option<Column>) = match movement {
+        let (end,horiz) : (Bytes,Option<Column>) = match movement {
 
             Movement::Up                => self.vertical_motion(region, -1, modify),
             Movement::Down              => self.vertical_motion(region,  1, modify),
@@ -212,11 +212,11 @@ impl View {
             Movement::DownExactPosition => self.vertical_motion_exact_pos(region, false, modify),
             Movement::UpPage            => self.vertical_motion(region, -self.page_scroll_height(), modify),
             Movement::DownPage          => self.vertical_motion(region,  self.page_scroll_height(), modify),
-            Movement::StartOfDocument   => no_horiz(ByteOffset(0)),
-            Movement::EndOfDocument     => no_horiz(ByteOffset(text.len())),
+            Movement::StartOfDocument   => no_horiz(Bytes(0)),
+            Movement::EndOfDocument     => no_horiz(text.len()),
 
             Movement::Left => {
-                let def     = (ByteOffset(0),region.column);
+                let def     = (Bytes(0),region.column);
                 let do_move = region.is_caret() || modify;
                 if  do_move { text.prev_grapheme_offset(region.end).map(no_horiz).unwrap_or(def) }
                 else        { no_horiz(region.min()) }
@@ -237,7 +237,7 @@ impl View {
 
             Movement::RightOfLine => {
                 let line             = self.line_of_offset(region.end);
-                let text_len         = ByteOffset(text.len());
+                let text_len         = text.len();
                 let last_line        = line == self.line_of_offset(text_len);
                 let next_line_offset = self.offset_of_line(line+1);
                 let offset           = if last_line { text_len } else {
@@ -249,7 +249,7 @@ impl View {
             Movement::StartOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.min()
                 let mut cursor = text::Cursor::new(&text,region.end.raw);
-                let offset     = ByteOffset(cursor.prev::<text::LinesMetric>().unwrap_or(0));
+                let offset     = Bytes(cursor.prev::<text::LinesMetric>().unwrap_or(0));
                 no_horiz(offset)
             }
 
@@ -257,13 +257,13 @@ impl View {
                 // Note: TextEdit would start at modify ? region.end : region.max()
                 let mut cursor = text::Cursor::new(&text,region.end.raw);
                 let     offset = match cursor.next::<text::LinesMetric>() {
-                    None            => ByteOffset(text.len()),
+                    None            => text.len(),
                     Some(next_line_offset) => {
-                        let next_line_offset = ByteOffset(next_line_offset);
+                        let next_line_offset = Bytes(next_line_offset);
                         if cursor.is_boundary::<text::LinesMetric>() {
                             text.prev_grapheme_offset(next_line_offset).unwrap_or(region.end)
-                        } else if cursor.pos() == text.len() {
-                            ByteOffset(text.len())
+                        } else if Bytes(cursor.pos()) == text.len() {
+                            text.len()
                         } else {
                             region.end
                         }
@@ -278,7 +278,7 @@ impl View {
                 let     offset = match cursor.next::<text::LinesMetric>() {
                     None            => region.end,
                     Some(next_line_offset) => {
-                        let next_line_offset = ByteOffset(next_line_offset);
+                        let next_line_offset = Bytes(next_line_offset);
                         if cursor.is_boundary::<text::LinesMetric>() {
                             let eol = text.prev_grapheme_offset(next_line_offset);
                             let opt = eol.and_then(|t|(t!=region.end).as_some(t));
@@ -300,12 +300,12 @@ impl LineOffset for View {
         &self.buffer.text
     }
 
-    fn offset_of_line(&self,line:Line) -> ByteOffset {
+    fn offset_of_line(&self,line:Line) -> Bytes {
         let line = std::cmp::min(line.raw,self.text().measure::<text::LinesMetric>() + 1);
-        ByteOffset(self.text().offset_of_line(line))
+        Bytes(self.text().offset_of_line(line))
     }
 
-    fn line_of_offset(&self,offset:ByteOffset) -> Line {
+    fn line_of_offset(&self,offset:Bytes) -> Line {
         Line(self.text().line_of_offset(offset.raw))
     }
 }
@@ -326,12 +326,12 @@ pub trait LineOffset {
     fn text(&self) -> &Text;
 
     /// Returns the byte offset corresponding to the given line.
-    fn offset_of_line(&self, line:Line) -> ByteOffset {
-        ByteOffset(self.text().offset_of_line(line.raw))
+    fn offset_of_line(&self, line:Line) -> Bytes {
+        Bytes(self.text().offset_of_line(line.raw))
     }
 
     /// Returns the visible line number containing the given offset.
-    fn line_of_offset(&self, offset:ByteOffset) -> Line {
+    fn line_of_offset(&self, offset:Bytes) -> Line {
         Line(self.text().line_of_offset(offset.raw))
     }
 
@@ -345,15 +345,15 @@ pub trait LineOffset {
     // Of course, all these are identical for ASCII. For now we use UTF-8 code units
     // for simplicity.
 
-    fn offset_to_line_col(&self, offset:ByteOffset) -> Location {
+    fn offset_to_line_col(&self, offset:Bytes) -> Location {
         let line = self.line_of_offset(offset);
         let col  = (offset - self.offset_of_line(line)).as_column();
         Location(line,col)
     }
 
-    fn line_col_to_offset(&self, line:Line, col:Column) -> ByteOffset {
+    fn line_col_to_offset(&self, line:Line, col:Column) -> Bytes {
         let mut offset = self.offset_of_line(line).saturating_add(col.raw);
-        let len = ByteOffset(self.text().len());
+        let len = self.text().len();
         if offset >= len {
             offset = len;
             if self.line_of_offset(offset) <= line {

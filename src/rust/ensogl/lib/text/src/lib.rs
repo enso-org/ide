@@ -1,5 +1,7 @@
 //! Ensogl text rendering implementation.
 
+#![feature(saturating_neg)]
+
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
@@ -56,15 +58,16 @@ use std::cmp::min;
 
 pub fn main() {
     let buffer = Buffer::from("Test text!");
-    buffer.color.set(1..3,color::Rgba::new(1.0,0.0,0.0,1.0));
+    buffer.style.color.set(1..2,color::Rgba::new(1.0,0.0,0.0,1.0));
+    buffer.style.color.set(5..6,color::Rgba::new(1.0,0.0,0.0,1.0));
     let mut view = buffer.new_view();
 
-    view.add_selection(Selection::new(ByteOffset(0),ByteOffset(0)));
+    view.add_selection(Selection::new(Bytes(0),Bytes(0)));
 
 
 //    let foo = buffer.color.iter().collect_vec();
-    let foo = buffer.color.subseq(2..5);
-//    let foo = foo.iter().collect_vec();
+    let foo = buffer.style.color.subseq(0..15);
+    let foo = foo.iter().collect_vec();
     println!("{:#?}",foo);
 
     println!("{:#?}",view.selections());
@@ -72,6 +75,23 @@ pub fn main() {
     view.move_carets(Movement::Right);
 
     println!("{:#?}",view.selections());
+
+
+    // ERROR: https://github.com/xi-editor/xi-editor/issues/1276
+    //
+    // let mut spans : text::rope::Spans<bool> = default();
+    //
+    // let interval : text::rope::Interval = (0..3).into();
+    // let mut builder = text::rope::SpansBuilder::new(20);
+    // builder.add_span(interval,true);
+    // spans.edit(interval,builder.build());
+    //
+    // let interval : text::rope::Interval = (10..15).into();
+    // let mut builder = text::rope::SpansBuilder::new(20);
+    // builder.add_span(interval,true);
+    // spans.edit(interval,builder.build());
+    //
+    // println!("{:?}",spans.subseq(0..100).iter().collect_vec());
 }
 
 

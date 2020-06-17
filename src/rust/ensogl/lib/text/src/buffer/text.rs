@@ -32,19 +32,19 @@ pub struct Text {
 }
 
 impl Text {
-    /// Return the len of the text.
-    pub fn len(&self) -> usize {
-        self.rope.len()
+    /// Return the len of the text in bytes.
+    pub fn len(&self) -> Bytes {
+        Bytes(self.rope.len())
     }
 
     /// Return the offset to the previous grapheme if any.
-    pub fn prev_grapheme_offset(&self, offset:ByteOffset) -> Option<ByteOffset> {
-        self.rope.prev_grapheme_offset(offset.raw).map(ByteOffset)
+    pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
+        self.rope.prev_grapheme_offset(offset.raw).map(Bytes)
     }
 
     /// Return the offset to the next grapheme if any.
-    pub fn next_grapheme_offset(&self, offset:ByteOffset) -> Option<ByteOffset> {
-        self.rope.next_grapheme_offset(offset.raw).map(ByteOffset)
+    pub fn next_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
+        self.rope.next_grapheme_offset(offset.raw).map(Bytes)
     }
 }
 

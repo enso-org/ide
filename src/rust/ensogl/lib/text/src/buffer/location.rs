@@ -58,7 +58,7 @@ macro_rules! num_newtype_opr {
 
 num_newtype! {
 /// An offset in the buffer in bytes.
-ByteOffset { raw : usize }
+Bytes { raw : usize }
 }
 
 num_newtype! {
@@ -82,7 +82,7 @@ Location {
     column : Column,
 }}
 
-impl ByteOffset {
+impl Bytes {
     pub fn as_line(self) -> Line {
         Line(self.raw)
     }

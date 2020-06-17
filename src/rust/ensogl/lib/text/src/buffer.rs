@@ -19,17 +19,31 @@ use crate::text::Text;
 
 
 
+// =============
+// === Style ===
+// =============
+
+#[derive(Clone,CloneRef,Debug,Default)]
+pub struct Style {
+    pub color     : text::Spans<color::Rgba>,
+    pub bold      : text::Spans<bool>,
+    pub italics   : text::Spans<bool>,
+    pub underline : text::Spans<bool>,
+}
+
+
+
 // ==============
 // === Buffer ===
 // ==============
 
+/// Text container with applied styles.
 #[derive(Clone,CloneRef,Debug,Default)]
 #[allow(missing_docs)]
 pub struct Buffer {
     pub text  : Text,
-    pub color : text::Spans<color::Rgba>,
+    pub style : Style,
 }
-
 
 impl Buffer {
     /// Constructor.

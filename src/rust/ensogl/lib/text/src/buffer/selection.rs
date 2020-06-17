@@ -4,6 +4,7 @@ use crate::prelude::*;
 use crate::buffer::location::*;
 
 
+
 // =================
 // === Selection ===
 // =================
@@ -12,29 +13,29 @@ use crate::buffer::location::*;
 /// a caret. The `column` field is a saved horizontal position used primarily for line up/down
 /// movement. Please note that the start of the selection is not always smaller then its end.
 /// If the selection was dragged from right to left, the start byte offset will be bigger than the
-/// end. Use the `left` and `right` methods to discover the edges.
+/// end. Use the `min` and `max` methods to discover the edges.
 #[derive(Clone,Copy,PartialEq,Eq,Debug)]
 #[allow(missing_docs)]
 pub struct Selection {
-    pub start  : ByteOffset,
-    pub end    : ByteOffset,
+    pub start  : Bytes,
+    pub end    : Bytes,
     pub column : Option<Column>,
 }
 
 impl Selection {
     /// Constructor.
-    pub fn new(start:ByteOffset, end:ByteOffset) -> Self {
+    pub fn new(start:Bytes, end:Bytes) -> Self {
         let column = default();
         Self {start,end,column}
     }
 
     /// Gets the earliest offset within the selection, ie the minimum of both edges.
-    pub fn min(self) -> ByteOffset {
+    pub fn min(self) -> Bytes {
         std::cmp::min(self.start, self.end)
     }
 
     /// Gets the latest offset within the selection, ie the maximum of both edges.
-    pub fn max(self) -> ByteOffset {
+    pub fn max(self) -> Bytes {
         std::cmp::max(self.start, self.end)
     }
 
@@ -48,25 +49,22 @@ impl Selection {
         Self {column,..self}
     }
 
-    // Indicate whether this region should merge with the next.
-    // Assumption: regions are sorted (self.min() <= other.min())
-    pub fn should_merge(self, other: Selection) -> bool {
-        other.min() < self.max()
-            || ((self.is_caret() || other.is_caret()) && other.min() == self.max())
+    /// Indicate whether this region should merge with the next.
+    /// Assumption: regions are sorted (self.min() <= other.min())
+    pub fn should_merge_sorted(self, other:Selection) -> bool {
+        let non_zero_overlap = other.min() < self.max();
+        let zero_overlap     = (self.is_caret() || other.is_caret()) && other.min() == self.max();
+        non_zero_overlap || zero_overlap
     }
 
-    // Merge self with an overlapping region.
-    // Retains direction of self.
+    /// Merge self with an overlapping region. Retains direction of self.
     pub fn merge_with(self, other: Selection) -> Selection {
-        let is_forward = self.end >= self.start;
-        let new_min = std::cmp::min(self.min(), other.min());
-        let new_max = std::cmp::max(self.max(), other.max());
-        let (start, end) = if is_forward { (new_min, new_max) } else { (new_max, new_min) };
-        // Could try to preserve horiz/affinity from one of the
-        // sources, but very likely not worth it.
-        Selection::new(start, end)
+        let is_forward  = self.end >= self.start;
+        let new_min     = std::cmp::min(self.min(), other.min());
+        let new_max     = std::cmp::max(self.max(), other.max());
+        let (start,end) = if is_forward { (new_min,new_max) } else { (new_max,new_min) };
+        Selection::new(start,end)
     }
-
 }
 
 
@@ -78,90 +76,70 @@ impl Selection {
 /// A set of zero or more selection regions, representing a selection state.
 #[derive(Clone,Debug,Default)]
 pub struct Group {
-    // An invariant: regions[i].max() <= regions[i+1].min()
-    // and < if either is_caret()
-    regions: Vec<Selection>,
+    sorted_regions: Vec<Selection>,
 }
 
-/// Implementing the Deref trait allows callers to easily test `is_empty`, iterate
-/// through all ranges, etc.
 impl Deref for Group {
     type Target = [Selection];
     fn deref(&self) -> &[Selection] {
-        &self.regions
+        &self.sorted_regions
     }
 }
 
 impl Group {
-    /// Creates a new empty selection.
+    /// Constructor.
     pub fn new() -> Group {
         Group::default()
     }
 
     /// Add a region to the selection. This method implements merging logic.
     ///
-    /// Two non-caret regions merge if their interiors intersect; merely
-    /// touching at the edges does not cause a merge. A caret merges with
-    /// a non-caret if it is in the interior or on either edge. Two carets
-    /// merge if they are the same offset.
+    /// Two non-caret regions merge if their interiors intersect. Merely touching at the edges does
+    /// not cause a merge. A caret merges with a non-caret if it is in the interior or on either
+    /// edge. Two carets merge if they are the same offset.
     ///
-    /// Performance note: should be O(1) if the new region strictly comes
-    /// after all the others in the selection, otherwise O(n).
-    pub fn add_region(&mut self, region: Selection) {
-        let mut ix = self.search(region.min());
-        if ix == self.regions.len() {
-            self.regions.push(region);
+    /// Performance note: should be O(1) if the new region strictly comes after all the others in
+    /// the selection, otherwise O(n).
+    pub fn add_region(&mut self, region:Selection) {
+        let mut ix = self.selection_on_the_left_to(region.min());
+        if ix == self.sorted_regions.len() {
+            self.sorted_regions.push(region);
             return;
         }
         let mut region = region;
         let mut end_ix = ix;
-        if self.regions[ix].min() <= region.min() {
-            if self.regions[ix].should_merge(region) {
-                region = region.merge_with(self.regions[ix]);
+        if self.sorted_regions[ix].min() <= region.min() {
+            if self.sorted_regions[ix].should_merge_sorted(region) {
+                region = region.merge_with(self.sorted_regions[ix]);
             } else {
                 ix += 1;
             }
             end_ix += 1;
         }
-        while end_ix < self.regions.len() && region.should_merge(self.regions[end_ix]) {
-            region = region.merge_with(self.regions[end_ix]);
+
+        let max_ix = self.sorted_regions.len();
+        while end_ix < max_ix && region.should_merge_sorted(self.sorted_regions[end_ix]) {
+            region = region.merge_with(self.sorted_regions[end_ix]);
             end_ix += 1;
         }
+
         if ix == end_ix {
-            self.regions.insert(ix, region);
+            self.sorted_regions.insert(ix,region);
         } else {
-            self.regions[ix] = region;
-            remove_n_at(&mut self.regions, ix + 1, end_ix - ix - 1);
+            let start = ix + 1;
+            let len   = end_ix - ix - 1;
+            self.sorted_regions[ix] = region;
+            self.sorted_regions.remove_many(start,len);
         }
     }
 
-
-    // The smallest index so that offset > region.max() for all preceding
-    // regions.
-    pub fn search(&self, offset:ByteOffset) -> usize {
-        if self.regions.is_empty() || offset > self.regions.last().unwrap().max() {
-            return self.regions.len();
+    /// The smallest index so that offset > region.max() for all preceding
+    /// regions.
+    pub fn selection_on_the_left_to(&self, offset:Bytes) -> usize {
+        if self.sorted_regions.is_empty() || offset > self.sorted_regions.last().unwrap().max() {
+            self.sorted_regions.len()
+        } else {
+            self.sorted_regions.binary_search_by(|r| r.max().cmp(&offset)).unwrap_both()
         }
-        match self.regions.binary_search_by(|r| r.max().cmp(&offset)) {
-            Ok(ix) => ix,
-            Err(ix) => ix,
-        }
-    }
-}
-
-
-pub fn remove_n_at<T: Clone>(v: &mut Vec<T>, index: usize, n: usize) {
-    match n.cmp(&1) {
-        std::cmp::Ordering::Equal => {
-            v.remove(index);
-        }
-        std::cmp::Ordering::Greater => {
-            let new_len = v.len() - n;
-            for i in index..new_len {
-                v[i] = v[i + n].clone();
-            }
-            v.truncate(new_len);
-        }
-        std::cmp::Ordering::Less => (),
     }
 }
