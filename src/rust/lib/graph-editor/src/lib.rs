@@ -977,12 +977,12 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_input.emit(target);
             });
 
-             eval node.frp.output_ports.mouse_over ([model](_) {
+             eval_ node.frp.output_ports.mouse_over ([model] {
                 let target = EdgeTarget::new(node_id,default());
                 model.frp.hover_node_output.emit(Some(target));
              });
 
-             eval node.frp.output_ports.mouse_out ([model](_) {
+             eval_ node.frp.output_ports.mouse_out ({Simpligy
                 model.frp.hover_node_output.emit(None);
              });
         }
