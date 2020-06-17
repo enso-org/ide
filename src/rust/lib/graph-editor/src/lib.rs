@@ -1751,7 +1751,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     edge_mouse_down <- source::<EdgeId>();
 
-    edge_click <- map2(&edge_mouse_down, &mouse.position, f!([model](edge_id,pos)  (*edge_id,*pos)));
+    edge_click <- map2(&edge_mouse_down, &mouse.position, f!([](edge_id,pos) (*edge_id,*pos)));
 
     edge_is_source_click <- edge_click.map(f!([model]((edge_id,pos)) {
         if let Some(edge) = model.edges.get_cloned_ref(edge_id){
