@@ -982,9 +982,7 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_output.emit(Some(target));
              });
 
-             eval_ node.frp.output_ports.mouse_out ({Simpligy
-                model.frp.hover_node_output.emit(None);
-             });
+             eval_ node.frp.output_ports.mouse_out ( model.frp.hover_node_output.emit(None));
         }
 
 //        self.visualizations.push(node.visualization().clone_ref());
@@ -1634,11 +1632,9 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     on_input_connect_drag_mode    <- node_input_touch.down.constant(true);
     on_input_connect_follow_mode  <- node_input_touch.selected.constant(false);
 
-    eval node_input_touch.down ((target) {
-        model.frp.press_node_input.emit(target)
-    });
+    eval node_input_touch.down ((target) model.frp.press_node_input.emit(target));
 
-    eval node_output_touch.down ([model](node_id) {
+    eval node_output_touch.down ((node_id) {
         model.frp.press_node_output.emit(EdgeTarget::new(node_id,default()));
     });
 
