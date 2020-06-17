@@ -51,16 +51,7 @@ const SHAPE_MAX_WIDTH       : f32 = 4.0;
 // === Shapes ===
 // ==============
 
-/// Helper struct that contains the port base shapes, and some information about the shapes that is
-/// required for the computation of segments.
-struct BaseShapeData {
-    port_area  : AnyShape,
-    hover_area : AnyShape,
-    radius     : Var<Distance<Pixels>>,
-    width      : Var<Distance<Pixels>>,
-}
-
-/// Computes the base port shape for the output port shape. This shape is later on used to create a
+/// The base port shape for the output port shape. This shape is later on used to create a
 /// simple single output port shape and a more complex multi-output port shape.
 ///
 /// The base shape looks roughly like this:
@@ -74,34 +65,46 @@ struct BaseShapeData {
 ///     |            width             |
 /// ```
 /// where r is the radius of the left and right quarter circle shapes.
-fn port_base_shape_data
-(width:&Var<Distance<Pixels>>, height:&Var<Distance<Pixels>>, grow:&Var<f32>) -> BaseShapeData {
-    let width  = width  - node::NODE_SHAPE_PADDING.px() * 2.0;
-    let height = height - node::NODE_SHAPE_PADDING.px() * 2.0;
+///
+/// The struct that contains the port base shapes, and some information about the shapes that is
+/// required for the computation of segments.
+struct BaseShapeData {
+    port_area  : AnyShape,
+    hover_area : AnyShape,
+    radius     : Var<Distance<Pixels>>,
+    width      : Var<Distance<Pixels>>,
+}
 
-    let hover_area_width  = &width  + &SHAPE_HOVER_AREA_SIZE.px() * 2.0;
-    let hover_area_height = &height / 2.0 + &SHAPE_HOVER_AREA_SIZE.px();
-    let hover_area        = Rect((&hover_area_width,&hover_area_height));
-    let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
+impl BaseShapeData {
+    fn new
+    (width:&Var<Distance<Pixels>>, height:&Var<Distance<Pixels>>, grow:&Var<f32>) -> Self {
+        let width  = width  - node::NODE_SHAPE_PADDING.px() * 2.0;
+        let height = height - node::NODE_SHAPE_PADDING.px() * 2.0;
 
-    let shrink           = 1.px() - 1.px() * grow;
-    let radius           = node::NODE_SHAPE_RADIUS.px();
-    let port_area_size   = SHAPE_MAX_WIDTH.px() * grow;
-    let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
-    let port_area_height = &height + (&port_area_size - &shrink) * 2.0;
-    let bottom_radius    = &radius + &port_area_size;
-    let port_area        = Rect((&port_area_width,&port_area_height));
-    let port_area        = port_area.corners_radius(&bottom_radius);
-    let port_area        = port_area - BottomHalfPlane();
-    let corner_radius    = &port_area_size / 2.0;
-    let corner_offset    = &port_area_width / 2.0 - &corner_radius;
-    let corner           = Circle(&corner_radius);
-    let left_corner      = corner.translate_x(-&corner_offset);
-    let right_corner     = corner.translate_x(&corner_offset);
-    let port_area        = port_area + left_corner + right_corner;
-    let port_area        = port_area.into();
-    let hover_area       = hover_area.into();
-    BaseShapeData{port_area,hover_area,radius,width}
+        let hover_area_width  = &width  + &SHAPE_HOVER_AREA_SIZE.px() * 2.0;
+        let hover_area_height = &height / 2.0 + &SHAPE_HOVER_AREA_SIZE.px();
+        let hover_area        = Rect((&hover_area_width,&hover_area_height));
+        let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
+
+        let shrink           = 1.px() - 1.px() * grow;
+        let radius           = node::NODE_SHAPE_RADIUS.px();
+        let port_area_size   = SHAPE_MAX_WIDTH.px() * grow;
+        let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
+        let port_area_height = &height + (&port_area_size - &shrink) * 2.0;
+        let bottom_radius    = &radius + &port_area_size;
+        let port_area        = Rect((&port_area_width,&port_area_height));
+        let port_area        = port_area.corners_radius(&bottom_radius);
+        let port_area        = port_area - BottomHalfPlane();
+        let corner_radius    = &port_area_size / 2.0;
+        let corner_offset    = &port_area_width / 2.0 - &corner_radius;
+        let corner           = Circle(&corner_radius);
+        let left_corner      = corner.translate_x(-&corner_offset);
+        let right_corner     = corner.translate_x(&corner_offset);
+        let port_area        = port_area + left_corner + right_corner;
+        let port_area        = port_area.into();
+        let hover_area       = hover_area.into();
+        BaseShapeData{port_area,hover_area,radius,width}
+    }
 }
 
 /// Helper trait that allows us to abstract the API of the `multi_port_area::Shape` and the
@@ -241,7 +244,7 @@ pub mod multi_port_area {
             let overall_width  : Var<Distance<Pixels>> = "input_size.x".into();
             let overall_height : Var<Distance<Pixels>> = "input_size.y".into();
 
-            let base_shape_data = port_base_shape_data(&overall_width, &overall_height, &grow);
+            let base_shape_data = BaseShapeData::new(&overall_width, &overall_height, &grow);
             let BaseShapeData{ port_area,hover_area,radius,width } = base_shape_data;
 
             let left_shape_crop  = compute_crop_plane
@@ -292,7 +295,7 @@ pub mod single_port_area {
             let overall_width  : Var<Distance<Pixels>> = "input_size.x".into();
             let overall_height : Var<Distance<Pixels>> = "input_size.y".into();
 
-            let base_shape_data = port_base_shape_data(&overall_width,&overall_height,&grow);
+            let base_shape_data = BaseShapeData::new(&overall_width,&overall_height,&grow);
             let BaseShapeData{ port_area,hover_area, .. } = base_shape_data;
 
             // FIXME: Use colour from style and apply transparency there.
