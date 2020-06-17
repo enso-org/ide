@@ -340,7 +340,10 @@ pub mod single_port_area {
 #[derive(Clone,Debug)]
 enum ShapeView {
     Single { view  : component::ShapeView<multi_port_area::Shape>      },
-    Multi  { views : Vec<component::ShapeView<multi_port_area::Shape>> },
+    Multi  {
+        display_object: display::object::Instance,
+        views : Vec<component::ShapeView<multi_port_area::Shape>>,
+    },
 }
 
 impl ShapeView {
@@ -350,10 +353,12 @@ impl ShapeView {
         if number_of_ports == 1 {
             ShapeView::Single { view: component::ShapeView::new(&logger,&scene) }
         } else {
+            let display_object = display::object::Instance::new(logger);
             let mut views = Vec::default();
             let number_of_ports = number_of_ports as usize;
             views.resize_with(number_of_ports,|| component::ShapeView::new(&logger,&scene));
-            ShapeView::Multi { views }
+            views.iter().for_each(|view|  view.display_object().set_parent(&display_object));
+            ShapeView::Multi { display_object, views }
         }
     }
 
@@ -361,7 +366,7 @@ impl ShapeView {
     fn init_frp(&self, port_frp:PortFrp) {
         match self {
             ShapeView::Single {view}  => init_port_frp(&view,PortId::new(0),port_frp),
-            ShapeView::Multi  {views} => {
+            ShapeView::Multi  {views, ..} => {
                 views.iter().enumerate().for_each(|(index,view)| {
                     init_port_frp(&view, PortId::new(index),port_frp.clone_ref())
                 })
@@ -377,7 +382,7 @@ impl ShapeView {
                 let shape = &view.shape;
                 shape.sprite.size.set(size);
             }
-            ShapeView::Multi { views } => {
+            ShapeView::Multi { views, .. } => {
                 let port_num  = views.len() as f32;
                 for (index, view) in views.iter().enumerate(){
                     let shape = &view.shape;
@@ -392,15 +397,13 @@ impl ShapeView {
             }
         }
     }
+}
 
-    fn set_parent<T:display::object::Object>(&self, parent:&T) {
+impl display::Object for ShapeView {
+    fn display_object(&self) -> &display::object::Instance {
         match self {
-            ShapeView::Single { view }   => {
-                view.display_object().set_parent(parent);
-            }
-            ShapeView::Multi { views }   => {
-                views.iter().for_each(|view|  view.display_object().set_parent(parent))
-            }
+            ShapeView::Single { view }               => view.display_object(),
+            ShapeView::Multi { display_object, .. }  => display_object,
         }
     }
 }
@@ -549,7 +552,7 @@ impl OutputPortsData {
     }
 
     fn init(self) -> Self {
-        self.ports.borrow().set_parent(&self.display_object);
+        self.ports.borrow().display_object().set_parent(&self.display_object);
         self.update_shape_layout_based_on_size_and_gap();
         self
     }
