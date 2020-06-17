@@ -527,12 +527,12 @@ where T: Clamp<Output=T>+Into<Glsl> {
 
         match (self, lower, upper) {
             (Static(value),Static(lower),Static(upper)) => Static(value.clamp(lower, upper)),
-            (value, lower, upper)                       => Dynamic({
+            (value, lower, upper)                       => {
                 let value:Glsl = value.into();
                 let lower:Glsl = lower.into();
                 let upper:Glsl = upper.into();
-                format!("clamp({},{},{})", value.glsl(), lower.glsl(), upper.glsl()).into()
-            })
+                Dynamic(format!("clamp({},{},{})", value.glsl(), lower.glsl(), upper.glsl()).into())
+            }
         }
     }
 }
