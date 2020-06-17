@@ -1,51 +1,51 @@
 
 use crate::prelude::*;
 
-use crate::buffer::location;
+use crate::buffer::location::*;
 
 
 // =================
 // === Selection ===
 // =================
 
+/// Text selection. In case the `start` and `end` offsets are equal, the selection is interpreted as
+/// a caret. The `column` field is a saved horizontal position used primarily for line up/down
+/// movement. Please note that the start of the selection is not always smaller then its end.
+/// If the selection was dragged from right to left, the start byte offset will be bigger than the
+/// end. Use the `left` and `right` methods to discover the edges.
 #[derive(Clone,Copy,PartialEq,Eq,Debug)]
+#[allow(missing_docs)]
 pub struct Selection {
-    /// The inactive edge of a selection, as a byte offset. When
-    /// equal to end, the selection range acts as a caret.
-    pub start: usize,
-
-    /// The active edge of a selection, as a byte offset.
-    pub end: usize,
-
-    /// A saved horizontal position (used primarily for line up/down movement).
-    pub horiz: Option<location::Column>,
+    pub start  : ByteOffset,
+    pub end    : ByteOffset,
+    pub column : Option<Column>,
 }
 
 impl Selection {
-
-    /// Returns a new region.
-    pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end, horiz: None }//, affinity: Affinity::default() }
+    /// Constructor.
+    pub fn new(start:ByteOffset, end:ByteOffset) -> Self {
+        let column = default();
+        Self {start,end,column}
     }
 
-    /// Gets the earliest offset within the region, ie the minimum of both edges.
-    pub fn min(self) -> usize {
+    /// Gets the earliest offset within the selection, ie the minimum of both edges.
+    pub fn min(self) -> ByteOffset {
         std::cmp::min(self.start, self.end)
     }
 
-    /// Gets the latest offset within the region, ie the maximum of both edges.
-    pub fn max(self) -> usize {
+    /// Gets the latest offset within the selection, ie the maximum of both edges.
+    pub fn max(self) -> ByteOffset {
         std::cmp::max(self.start, self.end)
     }
 
-    /// Determines whether the region is a caret (ie has an empty interior).
+    /// Determines whether the selection is a caret (ie has an empty interior).
     pub fn is_caret(self) -> bool {
         self.start == self.end
     }
 
-    /// Returns a region with the given horizontal position.
-    pub fn with_horiz(self, horiz: Option<location::Column>) -> Self {
-        Self { horiz, ..self }
+    /// Returns a selection with the given horizontal position.
+    pub fn with_column(self, column:Option<Column>) -> Self {
+        Self {column,..self}
     }
 
     // Indicate whether this region should merge with the next.
@@ -138,7 +138,7 @@ impl Group {
 
     // The smallest index so that offset > region.max() for all preceding
     // regions.
-    pub fn search(&self, offset: usize) -> usize {
+    pub fn search(&self, offset:ByteOffset) -> usize {
         if self.regions.is_empty() || offset > self.regions.last().unwrap().max() {
             return self.regions.len();
         }

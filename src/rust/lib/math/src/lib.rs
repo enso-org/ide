@@ -49,4 +49,5 @@ pub mod types {
     pub use super::algebra::Abs;
     pub use super::algebra::Magnitude;
     pub use super::algebra::Normalize;
+    pub use super::algebra::SaturatingAdd;
 }

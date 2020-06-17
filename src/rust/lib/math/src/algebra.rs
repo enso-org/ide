@@ -441,6 +441,17 @@ impl Acos for f32 {
 
 
 
+// =====================
+// === SaturatingAdd ===
+// =====================
+
+pub trait SaturatingAdd<Rhs=Self> {
+    type Output;
+    fn saturating_add(self, rhs:Rhs) -> Self::Output;
+}
+
+
+
 // ============================
 // === Algebraic Structures ===
 // ============================

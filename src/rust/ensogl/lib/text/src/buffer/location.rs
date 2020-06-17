@@ -23,8 +23,9 @@ macro_rules! num_newtype {
         impl From<&$name> for $field_type { fn from(t:&$name) -> Self { t.$field } }
         )*
 
-        num_newtype_opr! {Sub sub $name {$($field:$field_type),*}}
-        num_newtype_opr! {Add add $name {$($field:$field_type),*}}
+        num_newtype_opr! {Sub           sub            $name {$($field:$field_type),*}}
+        num_newtype_opr! {Add           add            $name {$($field:$field_type),*}}
+        num_newtype_opr! {SaturatingAdd saturating_add $name {$($field:$field_type),*}}
     };
 }
 
@@ -56,6 +57,11 @@ macro_rules! num_newtype_opr {
 // ================
 
 num_newtype! {
+/// An offset in the buffer in bytes.
+ByteOffset { raw : usize }
+}
+
+num_newtype! {
 /// A type representing vertical measurements.
 Line { raw : usize }
 }
@@ -75,3 +81,13 @@ Location {
     line   : Line,
     column : Column,
 }}
+
+impl ByteOffset {
+    pub fn as_line(self) -> Line {
+        Line(self.raw)
+    }
+
+    pub fn as_column(self) -> Column {
+        Column(self.raw)
+    }
+}

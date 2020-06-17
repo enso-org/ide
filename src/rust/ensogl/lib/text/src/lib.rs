@@ -27,7 +27,7 @@ use selection::Selection;
 //use prelude::*;
 //
 //
-
+use crate::buffer::location::*;
 
 
 use rope::spans::Spans;
@@ -59,17 +59,19 @@ pub fn main() {
     buffer.set_color(1..3,color::Rgba::new(1.0,0.0,0.0,1.0));
     let mut view = buffer.view();
 
+    view.add_selection(Selection::new(ByteOffset(0),ByteOffset(0)));
+
 
 //    let foo = buffer.color.iter().collect_vec();
     let foo = buffer.color.borrow().subseq(2..5);
     let foo = foo.iter().collect_vec();
     println!("{:#?}",foo);
 
-    println!("{:#?}",view.selection);
+    println!("{:#?}",view.selections());
 
-    view.move_selection(Navigation::Right,false);
+    view.navigate(Navigation::Right,false);
 
-    println!("{:#?}",view.selection);
+    println!("{:#?}",view.selections());
 }
 
 
