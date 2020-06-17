@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NodeTrees;
-use crate::model::execution_context::ComputedValueExpressions;
+use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
@@ -272,8 +272,8 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     pub fn update_relevant_type_information
-    (&self, notification:&ComputedValueExpressions) -> FallibleResult<()> {
-        debug!(self.logger, "Will update type information: {notification:?}");
+    (&self, affected_asts:&[ExpressionId]) -> FallibleResult<()> {
+        debug!(self.logger, "Will update type information: {affected_asts:?}");
         Ok(())
     }
 

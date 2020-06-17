@@ -18,7 +18,7 @@ use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
 use parser::Parser;
 use uuid::Uuid;
-use enso_protocol::language_server::ExpressionValuesComputed;
+
 
 
 // ===============
@@ -78,7 +78,7 @@ impl ExecutionContextsRegistry {
 
     /// Handles the update about expressions being computed.
     pub fn handle_expression_values_computed
-    (&self, update:ExpressionValuesComputed) -> FallibleResult<()> {
+    (&self, update:language_server::ExpressionValuesComputed) -> FallibleResult<()> {
         self.with_context(update.context_id, |ctx| {
             ctx.handle_expression_values_computed(update)
         })

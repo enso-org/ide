@@ -2,15 +2,19 @@
 
 use crate::prelude::*;
 
-use crate::model::module::QualifiedName as ModuleQualifiedName;
 use crate::double_representation::definition::DefinitionName;
+use crate::model::module::QualifiedName as ModuleQualifiedName;
+use crate::notification::Publisher;
 
 use enso_protocol::language_server;
-use enso_protocol::language_server::{VisualisationConfiguration, MethodPointer, ExpressionValueUpdate, ExpressionValuesComputed};
+use enso_protocol::language_server::ExpressionValueUpdate;
+use enso_protocol::language_server::ExpressionValuesComputed;
+use enso_protocol::language_server::MethodPointer;
+use enso_protocol::language_server::VisualisationConfiguration;
+use flo_stream::MessagePublisher;
+use flo_stream::Subscriber;
 use std::collections::HashMap;
 use uuid::Uuid;
-use flo_stream::{MessagePublisher, Subscriber};
-use crate::notification::Publisher;
 
 
 // ===============
@@ -81,9 +85,11 @@ impl ComputedValueInfoRegistry {
     /// When change is made to execution context (like adding or removing the call stack frame), the
     /// cache should be cleaned.
     fn clear(&self)  {
-        let update = self.map.borrow().keys().copied().collect();
+        let update = self.map.borrow().keys().copied();
         self.map.borrow_mut().clear();
-        self.emit(update);
+        if !update.is_empty() {
+            self.emit(update.collect());
+        }
     }
 
     /// Store the information from the given update received from the Language Server.
