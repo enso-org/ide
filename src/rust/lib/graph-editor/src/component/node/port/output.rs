@@ -309,6 +309,8 @@ pub mod single_port_area {
             let color     = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
             let port_area = port_area.fill(color);
 
+            let hover_area = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
+
             (port_area + hover_area).into()
         }
     }
@@ -684,6 +686,7 @@ impl OutputPorts {
     pub(crate) fn order_hack(scene:&Scene) {
         let logger = Logger::new("output shape order hack");
         component::ShapeView::<multi_port_area::Shape>::new(&logger,scene);
+        component::ShapeView::<single_port_area::Shape>::new(&logger,scene);
     }
 }
 
