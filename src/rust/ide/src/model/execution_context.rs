@@ -85,10 +85,10 @@ impl ComputedValueInfoRegistry {
     /// When change is made to execution context (like adding or removing the call stack frame), the
     /// cache should be cleaned.
     fn clear(&self)  {
-        let update = self.map.borrow().keys().copied();
+        let removed_keys = self.map.borrow().keys().copied().collect_vec();
         self.map.borrow_mut().clear();
-        if !update.is_empty() {
-            self.emit(update.collect());
+        if !removed_keys.is_empty() {
+            self.emit(removed_keys);
         }
     }
 
@@ -111,8 +111,8 @@ impl ComputedValueInfoRegistry {
     }
 
     /// Borrows the immutable cache reference.
-    pub fn borrow(&self) -> Ref<HashMap<ExpressionId,Rc<ComputedValueInfo>>> {
-        self.map.borrow()
+    pub fn get(&self, id:&ExpressionId) -> Option<Rc<ComputedValueInfo>> {
+        self.map.borrow_mut().get(id).cloned()
     }
 }
 

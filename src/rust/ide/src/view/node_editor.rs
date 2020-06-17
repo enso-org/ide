@@ -255,19 +255,6 @@ impl GraphEditorIntegratedWithControllerModel {
         let Connections{trees,connections} = self.controller.graph.connections()?;
         self.update_node_views(trees)?;
         self.update_connection_views(connections)?;
-        self.update_all_type_information()?;
-        Ok(())
-    }
-
-    pub fn update_all_type_information(&self) -> FallibleResult<()> {
-        let registry = self.controller.computed_value_info_registry().borrow();
-        let count    = registry.len();
-        group!(self.logger, "TODO: feed this {count} type information to the graph editor view:", {
-            for elem in self.controller.computed_value_info_registry().borrow().iter() {
-                let typename = elem.1.typename.as_ref().map(|ty| ty.as_str()).unwrap_or("");
-                debug!(self.logger, "Expression {elem.0} => {typename}");
-            }
-        });
         Ok(())
     }
 
