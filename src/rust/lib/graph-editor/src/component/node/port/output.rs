@@ -133,7 +133,7 @@ pub mod multi_port_area {
     fn in_range_inclusive
     (value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
         Var::<f32>::from(format!("(step(float({1}),float({0})) * step(float({0}),float({2})))",
-                                 value, lower_bound, upper_bound))
+                                 value, ower_bound,upper_bound))
     }
 
     /// Compute the angle perpendicular to the shape border.
@@ -161,10 +161,10 @@ pub mod multi_port_area {
 
         // Case 2: The right circle segment.
         let is_corner_circle_case = in_range_inclusive
-            (&center_distance_absolute, &center_segment_end, &end);
+            (&center_distance_absolute,&center_segment_end,&end);
         let relative_position     = (center_distance_absolute - center_segment_end)
                                     / corner_segment_length;
-        let relative_position     = relative_position.clamp(0.0.into(), 1.0.into());
+        let relative_position     = relative_position.clamp(0.0.into(),1.0.into());
         let corner_base_rotation  = (-90.0_f32).to_radians();
         let corner_rotation_delta = relative_position * corner_base_rotation;
         let rotation_delta        = is_corner_circle_case * corner_rotation_delta;
@@ -195,14 +195,14 @@ pub mod multi_port_area {
 
         // Case 2: The middle segment.
         let is_middle_segment               = in_range_inclusive
-            (position_on_path, &middle_segment_start_point, &middle_segment_end_point);
+            (position_on_path,&middle_segment_start_point,&middle_segment_end_point);
         let middle_segment_plane_position_x = (position_on_path - middle_segment_start_point)
             / (&middle_segment_end_point - middle_segment_start_point);
         let case_middle_segment_output      = is_middle_segment * middle_segment_plane_position_x;
 
         // Case 3: The right circle segment. Always one, if we are in this segment.
         let is_circle_segment          = in_range_inclusive
-            (position_on_path, &middle_segment_end_point, &full_shape_border_length);
+            (position_on_path,&middle_segment_end_point,&full_shape_border_length);
         let case_circle_segment_output = is_circle_segment * 1.0;
 
         case_middle_segment_output + case_circle_segment_output
@@ -245,7 +245,7 @@ pub mod multi_port_area {
             let overall_width  : Var<Distance<Pixels>> = "input_size.x".into();
             let overall_height : Var<Distance<Pixels>> = "input_size.y".into();
 
-            let base_shape_data = BaseShapeData::new(&overall_width, &overall_height, &grow);
+            let base_shape_data = BaseShapeData::new(&overall_width,&overall_height,&grow);
             let BaseShapeData{ port_area,hover_area,radius,width } = base_shape_data;
 
             let left_shape_crop  = compute_crop_plane
@@ -353,7 +353,7 @@ impl ShapeView {
             let number_of_ports = number_of_ports as usize;
             views.resize_with(number_of_ports,|| component::ShapeView::new(&logger,&scene));
             views.iter().for_each(|view|  view.display_object().set_parent(&display_object));
-            ShapeView::Multi { display_object, views }
+            ShapeView::Multi {display_object,views}
         }
     }
 
@@ -363,7 +363,7 @@ impl ShapeView {
             ShapeView::Single {view}  => init_port_frp(&view,PortId::new(0),port_frp,network),
             ShapeView::Multi  {views, ..} => {
                 views.iter().enumerate().for_each(|(index,view)| {
-                    init_port_frp(&view, PortId::new(index),port_frp.clone_ref(),network)
+                    init_port_frp(&view,PortId::new(index),port_frp.clone_ref(),network)
                 })
             }
         }
@@ -379,7 +379,7 @@ impl ShapeView {
             }
             ShapeView::Multi { views, .. } => {
                 let port_num  = views.len() as f32;
-                for (index, view) in views.iter().enumerate(){
+                for (index,view) in views.iter().enumerate(){
                     let shape = &view.shape;
                     shape.sprite.size.set(size);
                     shape.index.set(index as f32);
@@ -446,7 +446,7 @@ struct PortFrp {
 fn init_port_frp<Shape: PortShape +CloneRef+'static>
 (view:&component::ShapeView<Shape>, port_id:PortId, frp:PortFrp, network:&frp::Network) {
     let PortFrp { mouse_over,mouse_out,mouse_down,
-        hide_all, activate_and_highlight_selected} = frp;
+        hide_all,activate_and_highlight_selected} = frp;
 
     let shape        = &view.shape;
     let port_size    = Animation::<f32>::new(&network);
@@ -545,7 +545,7 @@ impl OutputPortsData {
         let display_object = display::object::Instance::new(&logger);
         let size           = Cell::new(Vector2::zero());
         let gap_width      = Cell::new(SEGMENT_GAP_WIDTH);
-        let ports          = ShapeView::new(number_of_ports, &logger, scene);
+        let ports          = ShapeView::new(number_of_ports,&logger,scene);
         let ports          = RefCell::new(ports);
 
         OutputPortsData {display_object,logger,size,ports,gap_width}.init()
@@ -598,7 +598,7 @@ impl OutputPorts {
     pub fn new(scene:&Scene, number_of_ports:NonZeroU32) -> Self {
         let network = default();
         let frp     = Frp::new(&network);
-        let data    = OutputPortsData::new(scene, number_of_ports);
+        let data    = OutputPortsData::new(scene,number_of_ports);
         let data    = Rc::new(data);
         OutputPorts {data,network,frp}.init()
     }
@@ -668,7 +668,7 @@ impl OutputPorts {
             activate_and_highlight_selected
         };
 
-        data.ports.borrow().init_frp(&network, port_frp);
+        data.ports.borrow().init_frp(&network,port_frp);
 
         // // FIXME this is a hack to ensure the ports are invisible at startup.
         // // Right now we get some of FRP mouse events on startup that leave the
@@ -683,7 +683,7 @@ impl OutputPorts {
     /// Hack function used to register the elements for the sorting purposes. To be removed.
     pub(crate) fn order_hack(scene:&Scene) {
         let logger = Logger::new("output shape order hack");
-        component::ShapeView::<multi_port_area::Shape>::new(&logger, scene);
+        component::ShapeView::<multi_port_area::Shape>::new(&logger,scene);
     }
 }
 
