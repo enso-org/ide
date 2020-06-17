@@ -466,7 +466,7 @@ impl GraphEditorIntegratedWithControllerModel {
         //   Because of that for now we will just hardcode the `visualization_module` using
         //   fixed defaults. In future this will be changed, then the editor will also get access
         //   to the customised values.
-        let project_name         = crate::DEFAULT_PROJECT_NAME;
+        let project_name         = crate::constants::DEFAULT_PROJECT_NAME;
         let module_name          = crate::view::project::INITIAL_MODULE_NAME;
         let visualisation_module = QualifiedName::from_module_segments(&[module_name],project_name);
         let id                   = VisualizationId::new_v4();

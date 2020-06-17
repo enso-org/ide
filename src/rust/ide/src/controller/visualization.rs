@@ -5,7 +5,7 @@
 
 use crate::prelude::*;
 
-use crate::config::PROJECT_VISUALIZATION_FOLDER;
+use crate::constants::PROJECT_VISUALIZATION_FOLDER;
 
 use enso_protocol::language_server;
 use graph_editor::data;

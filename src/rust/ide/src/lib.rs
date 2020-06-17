@@ -26,6 +26,9 @@ pub mod model;
 pub mod notification;
 pub mod transport;
 pub mod view;
+pub mod constants;
+#[cfg(test)]
+mod tests;
 
 /// Common types that should be visible across the whole IDE crate.
 pub mod prelude {
@@ -64,6 +67,7 @@ use crate::prelude::*;
 use crate::transport::web::ConnectingError;
 use crate::transport::web::WebSocket;
 use crate::view::project::ProjectView;
+use crate::config::SetupConfig;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
@@ -75,61 +79,8 @@ use uuid::Uuid;
 
 
 // =================
-// === Constants ===
-// =================
-
-/// Global constants used across whole application.
-pub mod constants {
-    /// A name of language this IDE supports
-    pub const LANGUAGE_NAME:&str = "Enso";
-
-    /// A file extension of modules of language this IDE supports without leading dot.
-    pub const LANGUAGE_FILE_EXTENSION:&str = "enso";
-
-    /// A file extension of modules of language this IDE supports with leading dot.
-    pub const LANGUAGE_FILE_DOT_EXTENSION:&str = ".enso";
-
-    /// The directory in the project that contains all the source files.
-    pub const SOURCE_DIRECTORY:&str = "src";
-
-    /// An invocable language expression that serialize given input into JSON.
-    pub const SERIALIZE_TO_JSON_EXPRESSION:&str = "x -> x.json_serialize";
-}
-
-
-
-// ===================
-// === SetupConfig ===
-// ===================
-
-/// Endpoint used by default by a locally run Project Manager.
-pub const PROJECT_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30535";
-
-/// Configuration data necessary to initialize IDE.
-///
-/// Eventually we expect it to be passed to IDE from an external source.
-#[derive(Clone,Debug)]
-pub struct SetupConfig {
-    /// WebSocket endpoint of the project manager service.
-    pub project_manager_endpoint:String
-}
-
-impl SetupConfig {
-    /// Provisional initial configuration that can be used during local deployments.
-    pub fn new_local() -> SetupConfig {
-        SetupConfig {
-            project_manager_endpoint:PROJECT_MANAGER_ENDPOINT.into()
-        }
-    }
-}
-
-
-
-// =================
 // === IDE Setup ===
 // =================
-
-const DEFAULT_PROJECT_NAME:&str = "Project";
 
 /// Creates a new running executor with its own event loop. Registers them
 /// as a global executor.
@@ -187,7 +138,7 @@ pub async fn open_project
 /// Creates a new project and returns its metadata, so the newly connected project can be opened.
 pub async fn create_project
 (logger:&Logger, project_manager:&impl project_manager::API) -> FallibleResult<ProjectMetadata> {
-    let name = DEFAULT_PROJECT_NAME.to_string();
+    let name = constants::DEFAULT_PROJECT_NAME.to_string();
     info!(logger, "Creating a new project named `{name}`.");
     let id = project_manager.create_project(&name).await?.project_id;
     Ok(ProjectMetadata {
@@ -240,37 +191,4 @@ pub fn run_ide() {
         logger.info("Setup done.");
         project_view.forget();
     });
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    use crate::transport::test_utils::TestWithMockedTransport;
-
-    use json_rpc::test_util::transport::mock::MockTransport;
-    use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use wasm_bindgen_test::wasm_bindgen_test;
-    use serde_json::json;
-
-    wasm_bindgen_test_configure!(run_in_browser);
-
-    #[wasm_bindgen_test(async)]
-    async fn failure_to_open_project_is_reported() {
-        let transport   = MockTransport::new();
-        let mut fixture = TestWithMockedTransport::set_up(&transport);
-        fixture.run_test(async move {
-            let client  = setup_project_manager(transport);
-            let project = open_most_recent_project_or_create_new(&default(),&client).await;
-            project.expect_err("error should have been reported");
-        });
-        fixture.when_stalled_send_response(json!({
-            "projects": [{
-                "name"       : "Project",
-                "id"         : "4b871393-eef2-4970-8765-4f3c1ea83d09",
-                "lastOpened" : "2020-05-08T11:04:07.28738Z"
-            }]
-        }));
-        fixture.when_stalled_send_error(1,"Service error");
-    }
 }
