@@ -265,7 +265,7 @@ pub mod multi_port_area {
             let hover_area = hover_area.intersection(&right_hover_crop);
             let hover_area = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
-            // FIXME: Use colour from style and apply transparency there.
+            // FIXME: Use color from style and apply transparency there.
             let color     = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
             let port_area = port_area.fill(color);
 
@@ -298,7 +298,7 @@ pub mod single_port_area {
             let base_shape_data = BaseShapeData::new(&overall_width,&overall_height,&grow);
             let BaseShapeData{ port_area,hover_area, .. } = base_shape_data;
 
-            // FIXME: Use colour from style and apply transparency there.
+            // FIXME: Use color from style and apply transparency there.
             let color     = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
             let port_area = port_area.fill(color);
 
