@@ -363,12 +363,12 @@ impl ShapeView {
     }
 
     /// Set up the frp for all ports.
-    fn init_frp(&self, port_frp:PortFrp) {
+    fn init_frp(&self, network:&frp::Network, port_frp:PortFrp) {
         match self {
-            ShapeView::Single {view}  => init_port_frp(&view,PortId::new(0),port_frp),
+            ShapeView::Single {view}  => init_port_frp(&view,PortId::new(0),port_frp,network),
             ShapeView::Multi  {views, ..} => {
                 views.iter().enumerate().for_each(|(index,view)| {
-                    init_port_frp(&view, PortId::new(index),port_frp.clone_ref())
+                    init_port_frp(&view, PortId::new(index),port_frp.clone_ref(),network)
                 })
             }
         }
@@ -435,8 +435,6 @@ impl PortId {
 /// Helper struct to pass the required FRP endpoints to set up the FRP of a port shape view.
 #[derive(Clone,CloneRef,Debug)]
 struct PortFrp {
-    network                      : frp::Network,
-
     port_mouse_over              : frp::Source<PortId>,
     port_mouse_out               : frp::Source<PortId>,
     port_mouse_down              : frp::Source<PortId>,
@@ -450,8 +448,8 @@ struct PortFrp {
 /// This allows us to use the same setup code for bot the `multi_port_area::Shape` and the
 /// `single_port_area::Shape`.
 fn init_port_frp<Shape: PortShape +CloneRef+'static>
-(view:&component::ShapeView<Shape>, port_id:PortId,frp:PortFrp) {
-    let PortFrp { network,port_mouse_over,port_mouse_out,port_mouse_down,
+(view:&component::ShapeView<Shape>, port_id:PortId, frp:PortFrp, network:&frp::Network) {
+    let PortFrp { port_mouse_over,port_mouse_out,port_mouse_down,
         hide_all,activate_ports_with_selected } = frp;
 
     let shape        = &view.shape;
@@ -675,10 +673,10 @@ impl OutputPorts {
 
         let network         = network.clone_ref();
         let port_mouse_down = frp.on_port_mouse_down.clone_ref();
-        let port_frp = PortFrp {network,port_mouse_down,port_mouse_over,port_mouse_out,hide_all,
+        let port_frp = PortFrp {port_mouse_down,port_mouse_over,port_mouse_out,hide_all,
                                 activate_ports_with_selected};
 
-        data.ports.borrow().init_frp(port_frp);
+        data.ports.borrow().init_frp(&network, port_frp);
 
         // // FIXME this is a hack to ensure the ports are invisible at startup.
         // // Right now we get some of FRP mouse events on startup that leave the
