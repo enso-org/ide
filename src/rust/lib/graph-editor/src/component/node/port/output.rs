@@ -248,19 +248,20 @@ pub mod multi_port_area {
             let base_shape_data = BaseShapeData::new(&overall_width,&overall_height,&grow);
             let BaseShapeData{ port_area,hover_area,radius,width } = base_shape_data;
 
+            let radius:Var::<f32> = radius.into();
+            let width:Var::<f32>  = width.into();
+
             let left_shape_crop  = compute_crop_plane
-                (&index,&port_num,&width.clone().into(),&radius.clone().into(),&padding_left);
-            let right_shape_crop = compute_crop_plane(
-                &(Var::<f32>::from(1.0) + &index),&port_num,&width.clone().into(),
-                &radius.clone().into(),&padding_right);
+                (&index,&port_num,&width,&radius,&padding_left);
+            let right_shape_crop = compute_crop_plane
+                (&(Var::<f32>::from(1.0) + &index),&port_num,&width,&radius,&padding_right);
 
             let port_area  = port_area.difference(&left_shape_crop);
             let port_area  = port_area.intersection(&right_shape_crop);
 
-            let left_hover_crop  = compute_crop_plane(&index,&port_num,&width.clone().into(),
-                                                      &radius.clone().into(),&0.0.into());
-            let right_hover_crop = compute_crop_plane(&(Var::<f32>::from(1.0) + &index),&port_num,
-                                                      &width.into(),&radius.into(),&0.0.into());
+            let left_hover_crop  = compute_crop_plane(&index,&port_num,&width,&radius,&0.0.into());
+            let right_hover_crop = compute_crop_plane
+                (&(Var::<f32>::from(1.0) + &index),&port_num,&width,&radius,&0.0.into());
 
             let hover_area = hover_area.difference(&left_hover_crop);
             let hover_area = hover_area.intersection(&right_hover_crop);
