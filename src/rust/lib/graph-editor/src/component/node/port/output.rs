@@ -251,23 +251,23 @@ pub mod multi_port_area {
             let radius:Var::<f32> = radius.into();
             let width:Var::<f32>  = width.into();
 
-            // Crop planes for the visible port area. Includes padding.
             let left_shape_crop  = compute_crop_plane
-                (&index,&port_num,&width,&radius,&padding_left);
+                (&index,&port_num,&width,&radius,&0.0.into());
             let right_shape_crop = compute_crop_plane
-                (&(Var::<f32>::from(1.0) + &index),&port_num,&width,&radius,&padding_right);
+                (&(Var::<f32>::from(1.0) + &index),&port_num,&width,&radius,&0.0.into());
+
+            let hover_area = hover_area.difference(&left_shape_crop);
+            let hover_area = hover_area.intersection(&right_shape_crop);
+            let hover_area = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
+
+            let padding_left = Var::<Distance<Pixels>>::from(padding_left);
+            let padding_right = Var::<Distance<Pixels>>::from(padding_right);
+
+            let left_shape_crop  = left_shape_crop.grow(padding_left);
+            let right_shape_crop = right_shape_crop.grow(padding_right);
 
             let port_area  = port_area.difference(&left_shape_crop);
             let port_area  = port_area.intersection(&right_shape_crop);
-
-            // Crop planes for the invisible hover area. No padding.
-            let left_hover_crop  = compute_crop_plane(&index,&port_num,&width,&radius,&0.0.into());
-            let right_hover_crop = compute_crop_plane
-                (&(Var::<f32>::from(1.0) + &index),&port_num,&width,&radius,&0.0.into());
-
-            let hover_area = hover_area.difference(&left_hover_crop);
-            let hover_area = hover_area.intersection(&right_hover_crop);
-            let hover_area = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
             // FIXME: Use color from style and apply transparency there.
             let color     = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
