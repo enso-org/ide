@@ -129,13 +129,6 @@ pub mod multi_port_area {
     use ensogl::display::shape::*;
     use std::f32::consts::PI;
 
-    /// Return 1.0 if `lower_bound` < `value` <, `upper_bound`, 0.0 otherwise.
-    fn in_range_inclusive
-    (value:&Var<f32>, lower_bound:&Var<f32>, upper_bound:&Var<f32>) -> Var<f32> {
-        Var::<f32>::from(format!("(step(float({1}),float({0})) * step(float({0}),float({2})))",
-                                 value, lower_bound,upper_bound))
-    }
-
     /// Compute the angle perpendicular to the shape border.
     fn compute_border_perpendicular_angle
     (full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position:&Var<f32>)
@@ -157,19 +150,15 @@ pub mod multi_port_area {
         let center_segment_end = &end - corner_segment_length;
         let default_rotation   = Var::<f32>::from(90.0_f32.to_radians());
 
-        // Case 1: The center segment, always zero, so not needed
-
+        // Case 1: The center segment, always zero, so not needed, due to clamping.
         // Case 2: The right circle segment.
-        let is_corner_circle_case = in_range_inclusive
-            (&center_distance_absolute,&center_segment_end,&end);
         let relative_position     = (center_distance_absolute - center_segment_end)
                                     / corner_segment_length;
         let relative_position     = relative_position.clamp(0.0.into(),1.0.into());
         let corner_base_rotation  = (-90.0_f32).to_radians();
         let corner_rotation_delta = relative_position * corner_base_rotation;
-        let rotation_delta        = is_corner_circle_case * corner_rotation_delta;
 
-        rotation_delta * center_distance_sign + default_rotation
+        corner_rotation_delta * center_distance_sign + default_rotation
     }
 
     /// Returns the x position of the crop plane as a fraction of the base shapes center segment.
@@ -177,35 +166,23 @@ pub mod multi_port_area {
     /// segment and apply the appropriate x-offset.
     ///
     /// * `full_shape_border_length` should be the length of the shapes border path.
-    /// * `corner_segment_length`    should be the quarter circumference of the circles on the sides of
-    ///                              base shape.
+    /// * `corner_segment_length`    should be the quarter circumference of the circles on the
+    ///                              sides of base shape.
     /// * `position_on_path`         should be the position along the shape border
     ///                              (not the pure x-coordinate).
     fn calculate_crop_plane_position_relative_to_center_segment
     (full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position_on_path:&Var<f32>)
      -> Var<f32> {
-        // TODO implement proper abstraction for non-branching "if/then/else" or "case" in
-        // shaderland. See function above for explanation of the branching.
-
-        // Case 1: The left circle segment. Always zero. Can be omitted.
-
-        // Case 2: The middle segment.
         let middle_segment_start_point = corner_segment_length;
         let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
 
+        // Case 1: The left circle, always 0, achieved through clamping.
         // Case 2: The middle segment.
-        let is_middle_segment               = in_range_inclusive
-            (position_on_path,&middle_segment_start_point,&middle_segment_end_point);
         let middle_segment_plane_position_x = (position_on_path - middle_segment_start_point)
             / (&middle_segment_end_point - middle_segment_start_point);
-        let case_middle_segment_output      = is_middle_segment * middle_segment_plane_position_x;
+        // Case 2: The right circle, always 1, achieved through clamping.
 
-        // Case 3: The right circle segment. Always one, if we are in this segment.
-        let is_circle_segment          = in_range_inclusive
-            (position_on_path,&middle_segment_end_point,&full_shape_border_length);
-        let case_circle_segment_output = is_circle_segment * 1.0;
-
-        case_middle_segment_output + case_circle_segment_output
+        middle_segment_plane_position_x.clamp(0.0.into(), 1.0.into())
     }
 
     /// Compute the crop plane at the location of the given port index. Also takes into account an
@@ -232,6 +209,7 @@ pub mod multi_port_area {
         let plane_rotation_angle = compute_border_perpendicular_angle
             (&full_shape_border_length,&corner_segment_length,&crop_segment_pos);
         let plane_shape_offset  = Var::<Distance<Pixels>>::from(&crop_plane_pos - width * 0.5);
+
         let crop_shape          = HalfPlane();
         let crop_shape          = crop_shape.rotate(plane_rotation_angle);
         let crop_shape          = crop_shape.translate_x(plane_shape_offset);
