@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::view::glyph::msdf;
+pub mod msdf;
 
 use ensogl_core_msdf_sys as msdf_sys;
 use ensogl_core_embedded_fonts::EmbeddedFonts;

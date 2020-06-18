@@ -12,7 +12,7 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
-pub mod view;
+pub mod typeface;
 pub mod buffer;
 
 /// Commonly used types and functions.
@@ -129,10 +129,10 @@ pub fn main() {
 
 use crate::prelude::*;
 use ensogl::data::color;
-use crate::view::glyph::font;
-use crate::view::glyph::pen::PenIterator;
-use view::glyph;
-use view::glyph::Glyph;
+use crate::typeface::font;
+use crate::typeface::pen::PenIterator;
+use typeface::glyph;
+use typeface::glyph::Glyph;
 
 
 // ============

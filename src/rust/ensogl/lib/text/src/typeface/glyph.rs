@@ -3,10 +3,7 @@
 
 use crate::prelude::*;
 
-pub mod font;
-pub mod msdf;
-pub mod pen;
-
+use super::font;
 use font::GlyphRenderInfo;
 
 use ensogl::system::gpu;
@@ -65,7 +62,7 @@ impl Glyph {
             texture.storage().height != self.font.msdf_texture_rows() as i32
         });
         if texture_changed {
-            let width   = msdf::Texture::WIDTH as i32;
+            let width   = font::msdf::Texture::WIDTH as i32;
             let height  = self.font.msdf_texture_rows() as i32;
             let texture = Texture::new(&self.context,(width,height));
             self.font.with_borrowed_msdf_texture_data(|data| texture.reload_with_content(data));
@@ -103,7 +100,7 @@ impl System {
     /// Constructor.
     pub fn new<S>(scene:impl AsRef<Scene>, font:font::Handle) -> Self {
         let logger        = Logger::new("glyph_system");
-        let size          = msdf::Texture::size();
+        let size          = font::msdf::Texture::size();
         let scene         = scene.as_ref();
         let context       = scene.context.clone_ref();
         let sprite_system = SpriteSystem::new(scene);
