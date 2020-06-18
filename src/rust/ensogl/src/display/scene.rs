@@ -997,6 +997,12 @@ impl Scene {
     }
 }
 
+impl AsRef<Scene> for Scene {
+    fn as_ref(&self) -> &Scene {
+        self
+    }
+}
+
 impl display::Object for Scene {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object

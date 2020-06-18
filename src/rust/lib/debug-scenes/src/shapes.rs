@@ -16,7 +16,7 @@ use ensogl_core_msdf_sys::run_once_initialized;
 use ensogl::display::style::theme;
 use ensogl::data::color;
 use enso_frp as frp;
-use ensogl_text;
+use ensogl_text as text;
 
 
 #[wasm_bindgen]
@@ -102,6 +102,13 @@ fn init(app:&Application) {
 
 //    trigger.emit(());
 
+
+    let fonts         = text::typeface::font::Registry::init_and_load_default();
+    let font          = fonts.load("DejaVuSansMono").unwrap();
+    let glyph_system  = text::typeface::glyph::System::new(scene,font);
+    let symbol        = &glyph_system.sprite_system().symbol;
+    scene.views.main.remove(symbol);
+    scene.views.label.add(symbol);
 
     let mut was_rendered = false;
     let mut loader_hidden = false;

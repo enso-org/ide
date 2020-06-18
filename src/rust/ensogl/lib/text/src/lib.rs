@@ -13,8 +13,9 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
-pub mod typeface;
 pub mod buffer;
+pub mod component;
+pub mod typeface;
 
 /// Commonly used types and functions.
 pub mod prelude {

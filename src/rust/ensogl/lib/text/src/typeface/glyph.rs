@@ -32,12 +32,12 @@ pub type Texture = gpu::Texture<texture::GpuOnly,texture::Rgb,u8>;
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct Glyph {
     #[shrinkwrap(main_field)]
-    sprite           : Sprite,
-    context          : Context,
-    font             : Font,
-    color            : Attribute<Vector4<f32>>,
-    msdf_glyph_index : Attribute<f32>,
-    msdf_texture     : Uniform<Texture>,
+    sprite      : Sprite,
+    context     : Context,
+    font        : Font,
+    color       : Attribute<Vector4<f32>>,
+    atlas_index : Attribute<f32>,
+    atlas       : Uniform<Texture>,
 }
 
 impl Glyph {
@@ -53,13 +53,13 @@ impl Glyph {
     /// Change the displayed character.
     pub fn set_glyph(&self, ch:char) {
         let glyph_info = self.font.get_glyph_info(ch);
-        self.msdf_glyph_index.set(glyph_info.msdf_texture_glyph_id as f32);
+        self.atlas_index.set(glyph_info.msdf_texture_glyph_id as f32);
         self.update_msdf_texture();
     }
 
     // FIXME: How does it work? Replace with better checking.
     fn update_msdf_texture(&self) {
-        let texture_changed = self.msdf_texture.with_content(|texture| {
+        let texture_changed = self.atlas.with_content(|texture| {
             texture.storage().height != self.font.msdf_texture_rows() as i32
         });
         if texture_changed {
@@ -67,7 +67,7 @@ impl Glyph {
             let height  = self.font.msdf_texture_rows() as i32;
             let texture = Texture::new(&self.context,(width,height));
             self.font.with_borrowed_msdf_texture_data(|data| texture.reload_with_content(data));
-            self.msdf_texture.set(texture);
+            self.atlas.set(texture);
         }
     }
 }
@@ -88,18 +88,18 @@ impl display::Object for Glyph {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct System {
-    logger           : Logger,
-    context          : Context,
-    sprite_system    : SpriteSystem,
-    pub font         : Font,
-    color            : Buffer<Vector4<f32>>,
-    msdf_glyph_index : Buffer<f32>,
-    msdf_texture     : Uniform<Texture>,
+    logger        : Logger,
+    context       : Context,
+    sprite_system : SpriteSystem,
+    pub font      : Font,
+    color         : Buffer<Vector4<f32>>,
+    atlas_index   : Buffer<f32>,
+    atlas         : Uniform<Texture>,
 }
 
 impl System {
     /// Constructor.
-    pub fn new<S>(scene:impl AsRef<Scene>, font:Font) -> Self {
+    pub fn new(scene:impl AsRef<Scene>, font:Font) -> Self {
         let logger        = Logger::new("glyph_system");
         let size          = font::msdf::Texture::size();
         let scene         = scene.as_ref();
@@ -114,9 +114,9 @@ impl System {
         scene.variables.add("msdf_range",GlyphRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables.add("msdf_size",size);
         Self {logger,context,sprite_system,font,
-            msdf_texture     : symbol.variables().add_or_panic("msdf_texture",texture),
-            color            : mesh.instance_scope().add_buffer("color"),
-            msdf_glyph_index : mesh.instance_scope().add_buffer("msdf_glyph_index"),
+            atlas       : symbol.variables().add_or_panic("atlas",texture),
+            color       : mesh.instance_scope().add_buffer("color"),
+            atlas_index : mesh.instance_scope().add_buffer("atlas_index"),
         }
     }
 
@@ -127,12 +127,12 @@ impl System {
         let sprite           = self.sprite_system.new_instance();
         let instance_id      = sprite.instance_id;
         let color            = self.color.at(instance_id);
-        let msdf_glyph_index = self.msdf_glyph_index.at(instance_id);
+        let atlas_index = self.atlas_index.at(instance_id);
         let font             = self.font.clone_ref();
-        let msdf_texture     = self.msdf_texture.clone();
+        let atlas     = self.atlas.clone();
         color.set(Vector4::new(0.0,0.0,0.0,0.0));
-        msdf_glyph_index.set(0.0);
-        Glyph {context,sprite,msdf_glyph_index,color,font,msdf_texture}
+        atlas_index.set(0.0);
+        Glyph {context,sprite,atlas_index,color,font,atlas}
     }
 
 //    /// Create a new `Line` of text.
@@ -162,9 +162,9 @@ impl System {
     /// Defines a default material of this system.
     fn material() -> Material {
         let mut material = Material::new();
-        material.add_input_def::<texture::FloatSampler> ("msdf_texture");
+        material.add_input_def::<texture::FloatSampler> ("atlas");
         material.add_input_def::<Vector2<f32>>          ("msdf_size");
-        material.add_input_def::<f32>                   ("msdf_glyph_index");
+        material.add_input_def::<f32>                   ("atlas_index");
         material.add_input("pixel_ratio", 1.0);
         material.add_input("z_zoom_1"   , 1.0);
         material.add_input("msdf_range" , GlyphRenderInfo::MSDF_PARAMS.range as f32);

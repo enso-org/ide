@@ -10,8 +10,8 @@ highp vec2 get_scaled_uv() {
 }
 
 highp vec2 get_texture_coord() {
-    highp vec2 msdf_fragment_size = input_msdf_size / vec2(textureSize(input_msdf_texture,0));
-    highp vec2 offset             = vec2(0.0, input_msdf_glyph_index) * msdf_fragment_size;
+    highp vec2 msdf_fragment_size = input_msdf_size / vec2(textureSize(input_atlas,0));
+    highp vec2 offset             = vec2(0.0, input_atlas_index) * msdf_fragment_size;
     return offset + get_scaled_uv() * msdf_fragment_size;
 }
 
@@ -22,7 +22,7 @@ highp vec2 get_texture_coord() {
 // revisited, generalized, and refactored out in the future.
 highp float msdf_alpha() {
     highp vec2  tex_coord        = get_texture_coord();
-    highp vec2  msdf_unit_tex    = input_msdf_range / vec2(textureSize(input_msdf_texture,0));
+    highp vec2  msdf_unit_tex    = input_msdf_range / vec2(textureSize(input_atlas,0));
     highp vec2  msdf_unit_px     = msdf_unit_tex / fwidth(tex_coord);
     highp float avg_msdf_unit_px = (msdf_unit_px.x + msdf_unit_px.y) / 2.0;
 
@@ -30,7 +30,7 @@ highp float msdf_alpha() {
     // value of this fattening was picked by trial an error, searching for best rendering effect.
     highp float dpi_dilate       = avg_msdf_unit_px < input_msdf_range*0.49 ? 1.0 : 0.0;
 
-    highp vec3  msdf_sample      = texture(input_msdf_texture,tex_coord).rgb;
+    highp vec3  msdf_sample      = texture(input_atlas,tex_coord).rgb;
     highp float sig_dist         = median(msdf_sample) - 0.5;
     highp float sig_dist_px      = sig_dist * avg_msdf_unit_px;
     highp float opacity          = 0.5 + sig_dist_px + dpi_dilate * 0.08;

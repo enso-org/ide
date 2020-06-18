@@ -26,7 +26,9 @@ const DEFAULT_LINE_COUNT : usize = 10;
 /// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
 /// same file (keeping a view per user and merging them visually).
 #[allow(missing_docs)]
+#[derive(Debug,Clone,CloneRef,Deref)]
 pub struct View {
+    #[deref]
     buffer            : Buffer,
     first_line_number : Rc<Cell<usize>>,
     line_count        : Rc<Cell<usize>>,

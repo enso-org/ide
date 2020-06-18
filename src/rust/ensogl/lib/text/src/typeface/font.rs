@@ -269,7 +269,7 @@ pub struct RegistryData {
 
 impl RegistryData {
     /// Create empty `Fonts` structure (however it contains raw data of embedded fonts).
-    pub fn create_and_load_embedded() -> RegistryData {
+    pub fn init_and_load_default() -> RegistryData {
         let embedded = EmbeddedFonts::create_and_fill();
         let fonts    = HashMap::new();
         Self {embedded,fonts}
@@ -277,7 +277,7 @@ impl RegistryData {
 
     /// Get render font info from loaded fonts, and if it does not exists, load data from one of
     /// embedded fonts. Returns None if the name is missing in both loaded and embedded font list.
-    pub fn get_or_load(&mut self, name:&str) -> Option<Font> {
+    pub fn load(&mut self, name:&str) -> Option<Font> {
         match self.fonts.entry(name.to_string()) {
             Entry::Occupied (entry) => Some(entry.get().clone_ref()),
             Entry::Vacant   (entry) => Font::try_from_embedded(&self.embedded,name).map(|font| {
@@ -302,15 +302,15 @@ pub struct Registry {
 
 impl Registry {
     /// Constructor.
-    pub fn create_and_load_embedded() -> Registry {
-        let model = Rc::new(RefCell::new(RegistryData::create_and_load_embedded()));
+    pub fn init_and_load_default() -> Registry {
+        let model = Rc::new(RefCell::new(RegistryData::init_and_load_default()));
         Self {model}
     }
 
     /// Get render font info from loaded fonts, and if it does not exists, load data from one of
     /// embedded fonts. Returns None if the name is missing in both loaded and embedded font list.
-    pub fn get_or_load(&self, name:&str) -> Option<Font> {
-        self.model.borrow_mut().get_or_load(name)
+    pub fn load(&self, name:&str) -> Option<Font> {
+        self.model.borrow_mut().load(name)
     }
 }
 
