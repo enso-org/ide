@@ -60,17 +60,20 @@ trait EdgeShape: ensogl::display::Object {
     /// Set the highlight for this shape. The `hover_pos` is the global position at which the shape
     /// should be split into the highlighted and not highlighted part, and the `area` indicates,
     /// which of the two parts (Upper/Lower) should be highlighted.
-    fn enable_highlight(&self, split_pos:Vector2<f32>, area:HighlightArea) {
+    fn enable_highlight(&self, highlight_data:HighlightData) {
+        let HighlightData{ split_position, area, cut_angle } = highlight_data;
         // Compute rotation in shape local coordinate system.
-        let rotation = self.display_object().rotation().z;
+        let base_rotation      = self.display_object().rotation().z;
+        let highlight_rotation = base_rotation + cut_angle;
         match area {
-            HighlightArea::Above => self.set_highlight_rotation(rotation),
-            HighlightArea::Below => self.set_highlight_rotation(rotation + 2.0 * RIGHT_ANGLE),
+            HighlightArea::Above => self.set_highlight_rotation(highlight_rotation),
+            HighlightArea::Below => {
+                self.set_highlight_rotation(highlight_rotation + 2.0 * RIGHT_ANGLE)
+            },
         }
         // Compute position in shape local coordinate system.
-        let delta_y = split_pos.y - self.display_object().global_position().y;
-        let offset  = Vector2::new(0.0,delta_y);
-        let offset  = UnitComplex::new(-rotation) * offset;
+        let delta  = split_position - self.display_object().global_position().xy();
+        let offset = UnitComplex::new(-base_rotation) * delta;
         self.set_highlight_offset(offset)
     }
 
@@ -99,11 +102,12 @@ enum HighlightArea {
 struct HighlightData {
     split_position : Vector2<f32>,
     area           : HighlightArea,
+    cut_angle      : f32
 }
 
 impl HighlightData {
-    fn new(split_position:Vector2<f32>, area:HighlightArea) -> Self {
-        HighlightData{split_position,area}
+    fn new(split_position:Vector2<f32>, area:HighlightArea, cut_angle:f32) -> Self {
+        HighlightData{split_position,area,cut_angle}
     }
 }
 
@@ -133,9 +137,7 @@ trait MultiShape {
     fn set_highlight_split_position(&self, highlight_data:Option<HighlightData>) {
         for shape in self.edge_shape_views() {
             if let Some(highlight_data) = highlight_data {
-                let split_position = highlight_data.split_position;
-                let area           = highlight_data.area;
-                shape.enable_highlight(split_position, area);
+                shape.enable_highlight(highlight_data);
             } else {
                 shape.disable_highlightt()
             }
@@ -781,6 +783,22 @@ impl EdgeModelData {
         }
     }
 
+    /// Return the cut angle of the highlight area based on the quadrant in which the edge is
+    /// located relative to its source.
+    fn highlight_cut_angle(&self) -> f32 {
+        let target_pos = self.target_position.get();
+        let source_pos = self.display_object.position();
+        let is_below = target_pos.y <source_pos.y;
+        let is_left  = target_pos.x < source_pos.x;
+        match (is_below, is_left) {
+            (true, true)   => 0.5 * RIGHT_ANGLE,
+            (true, false)  => -0.5 * RIGHT_ANGLE,
+            (false, true)  => -0.5 * RIGHT_ANGLE,
+            (false, false) => 0.5 * RIGHT_ANGLE,
+
+        }
+    }
+
     /// Redraws the connection.
     #[allow(clippy::cognitive_complexity)]
     pub fn redraw(&self) {
@@ -797,7 +815,11 @@ impl EdgeModelData {
 
         // === Update Highlights ===
         let hover_pos  = self.hover_position.get();
-        let hover_data = hover_pos.map(|pos| HighlightData::new(pos,self.highlight_area_for_position(pos)));
+        let hover_data = hover_pos.map(|position| {
+            let area      = self.highlight_area_for_position(position);
+            let cut_angle = self.highlight_cut_angle();
+            HighlightData::new(position, area, cut_angle)
+        });
 
         self.front.set_highlight_split_position(hover_data);
         self.back.set_highlight_split_position(hover_data);
