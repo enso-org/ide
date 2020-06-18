@@ -153,8 +153,8 @@ trait MultiShape {
 
 /// SplitShape allows a shape to be split along a line and each sub-shape to be colored separately.
 struct SplitShape {
-    part_a        : AnyShape,
-    part_b        : AnyShape,
+    part_a : AnyShape,
+    part_b : AnyShape,
 }
 
 impl SplitShape {
