@@ -42,7 +42,7 @@ impl Texture {
         self.data.borrow().len() / Self::ROW_SIZE
     }
 
-    /// The size of the `msdf` texture.
+    /// The size of the MSDF texture.
     pub fn size() -> Vector2<f32> {
         let width  = Self::WIDTH as f32;
         let height = Self::ONE_GLYPH_HEIGHT as f32;
@@ -104,9 +104,9 @@ pub fn y_distance_from_msdf_value(msdf_value:f64) -> f32 {
 /// character, and `y` = 1.0 is _ascender_.
 pub fn convert_msdf_translation(msdf:&Msdf)
 -> Vector2<f32> {
-    let translate_converted_x = x_distance_from_msdf_value(msdf.translation.x);
-    let translate_converted_y = y_distance_from_msdf_value(msdf.translation.y);
-    Vector2::new(translate_converted_x, translate_converted_y)
+    let x = x_distance_from_msdf_value(msdf.translation.x);
+    let y = y_distance_from_msdf_value(msdf.translation.y);
+    Vector2(x, y)
 }
 
 

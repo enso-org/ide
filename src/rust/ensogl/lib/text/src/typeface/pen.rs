@@ -4,65 +4,77 @@
 
 use crate::prelude::*;
 
-use super::font;
+use super::font::Font;
 
 
 
-// ===================
-// === PenIterator ===
-// ===================
+// ================
+// === CharInfo ===
+// ================
 
-/// Iterator over chars producing also the pen position for a given char.
+/// Information about the current char pointed by the pen.
+#[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
+pub struct CharInfo {
+    pub char   : char,
+    pub offset : f32,
+}
+
+
+
+// ================
+// === Iterator ===
+// ================
+
+pub trait CharIterator = std::iter::Iterator<Item=char>;
+
+/// Iterator over chars producing the pen position for a given char.
 ///
 /// The pen is a font-specific term (see
 /// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
 /// for details).
 #[derive(Debug)]
-pub struct PenIterator<CharIterator> {
-    x_offset     : f32,
-    line_height  : f32,
+pub struct Iterator<I> {
+    offset       : f32,
+    font_size    : f32,
     current_char : Option<char>,
-    next_chars   : CharIterator,
-    next_advance : f32,
-    font         : font::Handle,
+    next_chars   : I,
+    font         : Font,
 }
 
-impl<CharIterator> Iterator for PenIterator<CharIterator>
-where CharIterator : Iterator<Item=char> {
-    type Item = (char,f32);
+impl<I:CharIterator> std::iter::Iterator for Iterator<I> {
+    type Item = CharInfo;
     fn next(&mut self) -> Option<Self::Item> {
-        self.next_chars.next().map(|ch| self.next_char(ch))
+        self.next_chars.next().map(|t| self.advance(t))
     }
 }
 
-impl<I> PenIterator<I>
-where I : Iterator<Item=char> {
+impl<I:CharIterator> Iterator<I> {
     /// Create iterator wrapping `chars`, with pen starting from given position.
-    pub fn new (line_height:f32, next_chars:I, font:font::Handle) -> Self {
-        let x_offset     = 0.0;
-        let next_advance = 0.0;
+    pub fn new (font_size:f32, next_chars:I, font:Font) -> Self {
+        let offset       = 0.0;
         let current_char = None;
-        Self {x_offset,line_height,current_char,next_chars,next_advance,font}
+        Self {offset,font_size,current_char,next_chars,font}
     }
 
-    fn next_char(&mut self, ch:char) -> (char,f32) {
-        if let Some(current_ch) = self.current_char {
-            self.move_pen(current_ch,ch)
+    fn advance(&mut self, next_char:char) -> CharInfo {
+        if let Some(current_char) = self.current_char {
+            let kerning = self.font.get_kerning(current_char,next_char);
+            let advance = self.font.get_glyph_info(current_char).advance + kerning;
+            let offset  = advance * self.font_size;
+            self.offset += offset;
         }
-        self.next_advance = self.font.get_glyph_info(ch).advance;
-        self.current_char = Some(ch);
-        (ch,self.x_offset)
-    }
-
-    fn move_pen(&mut self, current:char, next:char) {
-        let kerning    = self.font.get_kerning(current,next);
-        let advance    = self.next_advance + kerning;
-        let offset     = advance * self.line_height;
-        self.x_offset += offset;
+        self.current_char = Some(next_char);
+        let offset        = self.offset;
+        CharInfo {char:next_char,offset}
     }
 }
 
 
+
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod tests {
@@ -76,14 +88,14 @@ mod tests {
     #[wasm_bindgen_test(async)]
     async fn moving_pen(){
         ensogl_core_msdf_sys::initialized().await;
-        let font = font::Handle::new(font::RenderInfo::mock_font("Test font".to_string()));
+        let font = Font::new(font::RenderInfo::mock_font("Test font".to_string()));
         mock_a_glyph_info(font.clone_ref());
         mock_w_glyph_info(font.clone_ref());
         font.mock_kerning_info('A', 'W', -0.16);
         font.mock_kerning_info('W', 'A', 0.0);
 
         let chars    = "AWA".chars();
-        let iter     = PenIterator::new(1.0,chars,font);
+        let iter     = Iterator::new(1.0,chars,font);
         let result   = iter.collect_vec();
         let expected = vec!
             [ ('A', 0.0)
@@ -93,14 +105,14 @@ mod tests {
         assert_eq!(expected,result);
     }
 
-    fn mock_a_glyph_info(font:font::Handle) -> GlyphRenderInfo {
+    fn mock_a_glyph_info(font:Font) -> GlyphRenderInfo {
         let advance = 0.56;
         let scale   = Vector2::new(0.5, 0.8);
         let offset  = Vector2::new(0.1, 0.2);
         font.mock_char_info('A',scale,offset,advance)
     }
 
-    fn mock_w_glyph_info(font:font::Handle) -> GlyphRenderInfo {
+    fn mock_w_glyph_info(font:Font) -> GlyphRenderInfo {
         let advance = 0.7;
         let scale   = Vector2::new(0.6, 0.9);
         let offset  = Vector2::new(0.1, 0.2);

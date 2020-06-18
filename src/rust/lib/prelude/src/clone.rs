@@ -18,6 +18,9 @@ pub trait CloneRef: Sized {
     fn clone_ref(&self) -> Self;
 }
 
+
+// === Macros ===
+
 #[macro_export]
 macro_rules! impl_clone_ref_as_clone {
     ([$($bounds:tt)*] $($toks:tt)*) => {
@@ -68,6 +71,9 @@ macro_rules! impl_clone_ref_as_clone_no_from {
     };
 }
 
+
+// === Prim Impls ===
+
 impl_clone_ref_as_clone_no_from!(());
 impl_clone_ref_as_clone_no_from!(f32);
 impl_clone_ref_as_clone_no_from!(f64);
@@ -85,3 +91,27 @@ impl_clone_ref_as_clone_no_from!(web_sys::Performance);
 impl_clone_ref_as_clone_no_from!(web_sys::WebGl2RenderingContext);
 impl_clone_ref_as_clone_no_from!(web_sys::HtmlCanvasElement);
 impl_clone_ref_as_clone_no_from!(web_sys::EventTarget);
+
+
+// === Option ===
+
+/// Trait for types that can be internally cloned using `CloneRef`, like `Option<&T>`.
+#[allow(missing_docs)]
+pub trait ClonedRef {
+    type Output;
+    fn cloned_ref(&self) -> Self::Output;
+}
+
+impl<T:CloneRef> ClonedRef for Option<&T> {
+    type Output = Option<T>;
+    fn cloned_ref(&self) -> Self::Output {
+        self.map(|t| t.clone_ref())
+    }
+}
+
+impl<T:CloneRef> ClonedRef for Option<&mut T> {
+    type Output = Option<T>;
+    fn cloned_ref(&self) -> Self::Output {
+        self.as_ref().map(|t| t.clone_ref())
+    }
+}

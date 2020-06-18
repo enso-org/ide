@@ -82,18 +82,18 @@ impl<K:Eq+Hash, V> Default for Cache<K,V> {
 /// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
 #[derive(Copy,Clone,Debug)]
 pub struct GlyphRenderInfo {
-    /// An index of glyph in a msdf texture (counted from the top of column. For details, see
+    /// An index of glyph in a msdf texture (counted from the top of column). For details, see
     /// msdf::Texture documentation.
-    pub msdf_texture_glyph_id: usize,
+    pub msdf_texture_glyph_id : usize,
 
-    /// A required offset of the _base square_ see structure documentation for details.
-    pub offset: Vector2<f32>,
+    /// A required offset of the _base square_. See structure documentation for details.
+    pub offset : Vector2<f32>,
 
-    /// A required scale of the _base square_ see structure documentation for details.
-    pub scale: Vector2<f32>,
+    /// A required scale of the _base square_. See structure documentation for details.
+    pub scale : Vector2<f32>,
 
-    /// An advance. Advance is the distance between two successive pen positions for specific glyph.
-    pub advance: f32
+    /// Distance between two successive pen positions for specific glyph.
+    pub advance : f32
 }
 
 impl GlyphRenderInfo {
@@ -121,17 +121,16 @@ impl GlyphRenderInfo {
         overlap_support               : true
     };
 
-    /// Load new GlyphRenderInfo from msdf_sys font handle. This also extends the msdf_texture with
+    /// Load new GlyphRenderInfo from msdf_sys font handle. This also extends the atlas with
     /// MSDF generated for this character.
-    pub fn load(handle:&msdf_sys::Font, ch:char, msdf_texture:&msdf::Texture) -> Self {
+    pub fn load(handle:&msdf_sys::Font, ch:char, atlas:&msdf::Texture) -> Self {
         let unicode        = ch as u32;
         let params         = Self::MSDF_PARAMS;
-
         let msdf           = Msdf::generate(handle,unicode,&params);
         let inversed_scale = Vector2::new(1.0/msdf.scale.x, 1.0/msdf.scale.y);
         let translation    = msdf::convert_msdf_translation(&msdf);
-        let glyph_id       = msdf_texture.rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
-        msdf_texture.extend_with_raw_data(msdf.data.iter());
+        let glyph_id       = atlas.rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
+        atlas.extend_with_raw_data(msdf.data.iter());
         GlyphRenderInfo {
             msdf_texture_glyph_id : glyph_id,
             offset                : -Vector2(translation.x as f32, translation.y as f32),
@@ -141,51 +140,79 @@ impl GlyphRenderInfo {
     }
 }
 
-/// A single font data used for rendering
+
+
+// ============
+// === Font ===
+// ============
+
+/// A single font data used for rendering.
 ///
 /// The data for individual characters and kerning are load on demand.
 ///
 /// Each distance and transformation values are expressed in normalized coordinates, where `y` = 0.0
 /// is _baseline_ and `y` = 1.0 is _ascender_. For explanation of various font-rendering terms, see
 /// [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
-#[derive(Debug)]
-pub struct RenderInfo {
-    /// Name of the font.
-    pub name      : String,
-    msdf_sys_font : msdf_sys::Font,
-    msdf_texture  : msdf::Texture,
-    glyphs        : Cache<char,GlyphRenderInfo>,
-    kerning       : Cache<(char,char),f32>
+
+#[derive(Debug,Clone,CloneRef,Deref)]
+pub struct Font {
+    rc : Rc<FontData>
 }
 
-impl RenderInfo {
-    /// Create render info based on font data in memory
-    pub fn new(name:String, font_data:&[u8]) -> RenderInfo {
-        RenderInfo {name,
-            msdf_sys_font : msdf_sys::Font::load_from_memory(font_data),
-            msdf_texture  : default(),
-            glyphs        : default(),
-            kerning       : default(),
-        }
+impl From<FontData> for Font {
+    fn from(t:FontData) -> Self {
+        let rc = Rc::new(t);
+        Self {rc}
+    }
+}
+
+
+
+// ================
+// === FontData ===
+// ================
+
+/// Internal representation of `Font`.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct FontData {
+    pub name  : String,
+    msdf_font : msdf_sys::Font,
+    atlas     : msdf::Texture,
+    glyphs    : Cache<char,GlyphRenderInfo>,
+    kerning   : Cache<(char,char),f32>
+}
+
+impl Font {
+    /// Constructor.
+    pub fn from_msdf_font(name:String, msdf_font:msdf_sys::Font) -> Self {
+        let atlas   = default();
+        let glyphs  = default();
+        let kerning = default();
+        FontData {name,msdf_font,atlas,glyphs,kerning}.into()
+    }
+
+    /// Constructor.
+    pub fn from_raw_data(name:String, font_data:&[u8]) -> Self {
+        Self::from_msdf_font(name,msdf_sys::Font::load_from_memory(font_data))
     }
 
     /// Create render info for one of embedded fonts
-    pub fn from_embedded(base:&EmbeddedFonts, name:&str)
-    -> Option<RenderInfo> {
+    pub fn try_from_embedded(base:&EmbeddedFonts, name:&str) -> Option<Self> {
         let font_data_opt = base.font_data_by_name.get(name);
-        font_data_opt.map(|data| RenderInfo::new(name.to_string(),data))
+        font_data_opt.map(|data| Self::from_raw_data(name.to_string(),data))
     }
 
     /// Get render info for one character, generating one if not found
     pub fn get_glyph_info(&self, ch:char) -> GlyphRenderInfo {
-        let handle = &self.msdf_sys_font;
-        self.glyphs.get_or_create(ch, move || GlyphRenderInfo::load(handle,ch,&self.msdf_texture))
+        let handle = &self.msdf_font;
+        self.glyphs.get_or_create(ch, move || GlyphRenderInfo::load(handle,ch,&self.atlas))
     }
 
     /// Get kerning between two characters
     pub fn get_kerning(&self, left:char, right:char) -> f32 {
         self.kerning.get_or_create((left,right), || {
-            let msdf_val = self.msdf_sys_font.retrieve_kerning(left, right);
+            let msdf_val = self.msdf_font.retrieve_kerning(left, right);
             msdf::x_distance_from_msdf_value(msdf_val)
         })
     }
@@ -193,22 +220,17 @@ impl RenderInfo {
     /// A whole msdf texture bound for this font.
     pub fn with_borrowed_msdf_texture_data<F,R>(&self, operation:F) -> R
     where F : FnOnce(&[u8]) -> R {
-        self.msdf_texture.with_borrowed_data(operation)
+        self.atlas.with_borrowed_data(operation)
     }
 
     /// Get number of rows in msdf texture.
     pub fn msdf_texture_rows(&self) -> usize {
-        self.msdf_texture.rows()
+        self.atlas.rows()
     }
 
     #[cfg(test)]
-    pub fn mock_font(name : String) -> RenderInfo {
-        RenderInfo { name,
-            msdf_sys_font : msdf_sys::Font::mock_font(),
-            msdf_texture  : default(),
-            glyphs        : default(),
-            kerning       : default(),
-        }
+    pub fn mock_font(name:String) -> Self {
+        Self::from_msdf_font(name,msdf_sys::Font::mock_font())
     }
 
     #[cfg(test)]
@@ -219,7 +241,7 @@ impl RenderInfo {
         let msdf_data             = (0..data_size).map(|_| 0.12345);
         let msdf_texture_glyph_id = self.msdf_texture_rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
 
-        self.msdf_texture.extend_f32(msdf_data);
+        self.atlas.extend_f32(msdf_data);
         self.glyphs.get_or_create(ch, move || {
             GlyphRenderInfo {offset,scale,advance,msdf_texture_glyph_id}
         })
@@ -234,12 +256,37 @@ impl RenderInfo {
 
 
 
-// ==============
-// === Handle ===
-// ==============
+// ====================
+// === RegistryData ===
+// ====================
 
-/// A handle for fonts loaded into memory.
-pub type Handle = Rc<RenderInfo>;
+/// Structure keeping all fonts loaded from different sources.
+#[derive(Debug)]
+pub struct RegistryData {
+    embedded : EmbeddedFonts,
+    fonts    : HashMap<String,Font>,
+}
+
+impl RegistryData {
+    /// Create empty `Fonts` structure (however it contains raw data of embedded fonts).
+    pub fn create_and_load_embedded() -> RegistryData {
+        let embedded = EmbeddedFonts::create_and_fill();
+        let fonts    = HashMap::new();
+        Self {embedded,fonts}
+    }
+
+    /// Get render font info from loaded fonts, and if it does not exists, load data from one of
+    /// embedded fonts. Returns None if the name is missing in both loaded and embedded font list.
+    pub fn get_or_load(&mut self, name:&str) -> Option<Font> {
+        match self.fonts.entry(name.to_string()) {
+            Entry::Occupied (entry) => Some(entry.get().clone_ref()),
+            Entry::Vacant   (entry) => Font::try_from_embedded(&self.embedded,name).map(|font| {
+                entry.insert(font.clone_ref());
+                font
+            })
+        }
+    }
+}
 
 
 
@@ -247,74 +294,23 @@ pub type Handle = Rc<RenderInfo>;
 // === Registry ===
 // ================
 
-/// Structure keeping all fonts loaded from different sources.
-#[derive(Debug)]
+/// Shared version of `RegistryData`.
+#[derive(Clone,CloneRef,Debug)]
 pub struct Registry {
-    embedded : EmbeddedFonts,
-    fonts    : HashMap<String,Handle>,
+    model : Rc<RefCell<RegistryData>>
 }
 
 impl Registry {
-    /// Create empty `Fonts` structure (however it contains raw data of embedded fonts).
-    pub fn new() -> Registry {
-        Registry {
-            embedded : EmbeddedFonts::create_and_fill(),
-            fonts    : HashMap::new(),
-        }
-    }
-
-    /// Get render font info from loaded fonts, and if it does not exists, load data from one of
-    /// embedded fonts. Returns None if the name is missing in both loaded and embedded font list.
-    pub fn get_or_load_embedded_font(&mut self, name:&str) -> Option<Handle> {
-        match self.fonts.entry(name.to_string()) {
-            Entry::Occupied(entry) => Some(entry.get().clone()),
-            Entry::Vacant(entry)   => {
-                let font_opt = RenderInfo::from_embedded(&self.embedded,name);
-                font_opt.map(|font| {
-                    let rc = Rc::new(font);
-                    entry.insert(rc.clone_ref());
-                    rc
-                })
-            }
-        }
-    }
-
-    /// Get handle one of loaded fonts.
-    pub fn get_render_info(&mut self, name:&str) -> Option<Handle> {
-        self.fonts.get_mut(name).cloned()
-    }
-}
-
-impl Default for Registry {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-
-
-// ======================
-// === SharedRegistry ===
-// ======================
-
-/// Shared version of `Registry`.
-#[derive(Clone,CloneRef,Debug)]
-pub struct SharedRegistry {
-    model : Rc<RefCell<Registry>>
-}
-
-impl SharedRegistry {
     /// Constructor.
-    #[allow(clippy::new_without_default)] // FIXME rename new to something more explicit
-    pub fn new() -> SharedRegistry {
-        let model = Rc::new(RefCell::new(Registry::new()));
+    pub fn create_and_load_embedded() -> Registry {
+        let model = Rc::new(RefCell::new(RegistryData::create_and_load_embedded()));
         Self {model}
     }
 
     /// Get render font info from loaded fonts, and if it does not exists, load data from one of
     /// embedded fonts. Returns None if the name is missing in both loaded and embedded font list.
-    pub fn get_or_load_embedded_font(&self, name:&str) -> Option<Handle> {
-        self.model.borrow_mut().get_or_load_embedded_font(name)
+    pub fn get_or_load(&self, name:&str) -> Option<Font> {
+        self.model.borrow_mut().get_or_load(name)
     }
 }
 
@@ -335,12 +331,9 @@ mod tests {
 
     const TEST_FONT_NAME : &str = "DejaVuSansMono-Bold";
 
-    fn create_test_font_render_info() -> RenderInfo {
+    fn create_test_font_render_info() -> FontData {
         let mut embedded_fonts = EmbeddedFonts::create_and_fill();
-        RenderInfo::from_embedded(
-            &mut embedded_fonts,
-            TEST_FONT_NAME
-        ).unwrap()
+        FontData::try_from_embedded(&mut embedded_fonts,TEST_FONT_NAME).unwrap()
     }
 
     wasm_bindgen_test_configure!(run_in_browser);
@@ -351,8 +344,8 @@ mod tests {
         let font_render_info = create_test_font_render_info();
 
         assert_eq!(TEST_FONT_NAME, font_render_info.name);
-        assert_eq!(0, font_render_info.msdf_texture.with_borrowed_data(Vec::len));
-        assert_eq!(0, font_render_info.glyphs.len());
+        assert_eq!(0,font_render_info.atlas.with_borrowed_data(Vec::len));
+        assert_eq!(0,font_render_info.glyphs.len());
     }
 
     #[wasm_bindgen_test(async)]
@@ -370,7 +363,7 @@ mod tests {
         let tex_size   = tex_width * tex_height * channels;
 
         assert_eq!(tex_height , font_render_info.msdf_texture_rows());
-        assert_eq!(tex_size   , font_render_info.msdf_texture.with_borrowed_data(Vec::len));
+        assert_eq!(tex_size   , font_render_info.atlas.with_borrowed_data(Vec::len));
         assert_eq!(chars      , font_render_info.glyphs.len());
 
         let first_char  = font_render_info.glyphs.get_or_create('A', || panic!("Expected value"));

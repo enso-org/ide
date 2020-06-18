@@ -2,6 +2,7 @@
 
 #![feature(clamp)]
 #![feature(saturating_neg)]
+#![feature(trait_alias)]
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
@@ -130,7 +131,7 @@ pub fn main() {
 use crate::prelude::*;
 use ensogl::data::color;
 use crate::typeface::font;
-use crate::typeface::pen::PenIterator;
+use crate::typeface::pen;
 use typeface::glyph;
 use typeface::glyph::Glyph;
 
@@ -259,18 +260,18 @@ impl Line {
         let font        = self.glyph_system.font.clone_ref();
         let font_size   = self.font_size.get();
         let chars       = content.chars();
-        let pen         = PenIterator::new(font_size,chars,font);
+        let pen         = pen::Iterator::new(font_size,chars,font);
         let content_len = content.len();
         let color       = self.font_color.get();
 
-        for (glyph,(chr,x_offset)) in self.glyphs.borrow().iter().zip(pen) {
-            let glyph_info   = self.glyph_system.font.get_glyph_info(chr);
+        for (glyph,info) in self.glyphs.borrow().iter().zip(pen) {
+            let glyph_info   = self.glyph_system.font.get_glyph_info(info.char);
             let size         = glyph_info.scale.scale(font_size);
             let glyph_offset = glyph_info.offset.scale(font_size);
-            let glyph_x      = x_offset + glyph_offset.x;
+            let glyph_x      = info.offset + glyph_offset.x;
             let glyph_y      = glyph_offset.y;
             glyph.set_position(Vector3::new(glyph_x,glyph_y,0.0));
-            glyph.set_glyph(chr);
+            glyph.set_glyph(info.char);
             glyph.set_color(color);
             glyph.size.set(size);
         }

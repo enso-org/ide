@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use super::font;
 use font::GlyphRenderInfo;
+use font::Font;
 
 use ensogl::system::gpu;
 use ensogl::system::gpu::texture;
@@ -33,7 +34,7 @@ pub struct Glyph {
     #[shrinkwrap(main_field)]
     sprite           : Sprite,
     context          : Context,
-    font             : font::Handle,
+    font             : Font,
     color            : Attribute<Vector4<f32>>,
     msdf_glyph_index : Attribute<f32>,
     msdf_texture     : Uniform<Texture>,
@@ -90,7 +91,7 @@ pub struct System {
     logger           : Logger,
     context          : Context,
     sprite_system    : SpriteSystem,
-    pub font         : font::Handle,
+    pub font         : Font,
     color            : Buffer<Vector4<f32>>,
     msdf_glyph_index : Buffer<f32>,
     msdf_texture     : Uniform<Texture>,
@@ -98,7 +99,7 @@ pub struct System {
 
 impl System {
     /// Constructor.
-    pub fn new<S>(scene:impl AsRef<Scene>, font:font::Handle) -> Self {
+    pub fn new<S>(scene:impl AsRef<Scene>, font:Font) -> Self {
         let logger        = Logger::new("glyph_system");
         let size          = font::msdf::Texture::size();
         let scene         = scene.as_ref();
