@@ -978,12 +978,12 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_input.emit(target);
             });
 
-             eval_ node.frp.output_ports.mouse_over ([model] {
+             eval_ node.view.output_ports.frp.port_mouse_over ([model] {
                 let target = EdgeTarget::new(node_id,default());
                 model.frp.hover_node_output.emit(Some(target));
              });
 
-             eval_ node.frp.output_ports.mouse_out ( model.frp.hover_node_output.emit(None));
+             eval_ node.view.output_ports.frp.port_mouse_out ( model.frp.hover_node_output.emit(None));
         }
 
 //        self.visualizations.push(node.visualization().clone_ref());

@@ -426,7 +426,7 @@ struct PortFrp {
 ///
 /// This allows us to use the same setup code for bot the `multi_port_area::Shape` and the
 /// `single_port_area::Shape`.
-fn init_port_frp<Shape: PortShape +CloneRef+'static>
+fn init_port_frp<Shape: PortShape + CloneRef + 'static>
 (view:&component::ShapeView<Shape>, port_id:PortId, frp:PortFrp, network:&frp::Network) {
     let PortFrp { mouse_over,mouse_out,mouse_down,
         hide_all,activate_and_highlight_selected} = frp;
@@ -489,8 +489,16 @@ pub struct Frp {
     /// Emitted whenever one of the ports receives a `MouseDown` event. The `PortId` indicates the
     /// source port.
     pub port_mouse_down : frp::Stream<PortId>,
+    /// Emitted whenever one of the ports receives a `MouseOver` event. The `PortId` indicates the
+    /// source port.
+    pub port_mouse_over : frp::Stream<PortId>,
+    /// Emitted whenever one of the ports receives a `MouseOut` event. The `PortId` indicates the
+    /// source port.
+    pub port_mouse_out  : frp::Stream<PortId>,
 
     on_port_mouse_down  : frp::Source<PortId>,
+    on_port_mouse_over  : frp::Source<PortId>,
+    on_port_mouse_out   : frp::Source<PortId>,
 }
 
 impl Frp {
@@ -498,10 +506,15 @@ impl Frp {
         frp::extend! { network
             def set_size           = source();
             def on_port_mouse_down = source();
+            def on_port_mouse_over = source();
+            def on_port_mouse_out  = source();
 
             let port_mouse_down = on_port_mouse_down.clone_ref().into();
+            let port_mouse_over = on_port_mouse_over.clone_ref().into();
+            let port_mouse_out  = on_port_mouse_out.clone_ref().into();
         }
-        Self{set_size,port_mouse_down,on_port_mouse_down}
+        Self{set_size,on_port_mouse_down,on_port_mouse_over,on_port_mouse_out,
+             port_mouse_down,port_mouse_over,port_mouse_out}
     }
 }
 
@@ -603,6 +616,10 @@ impl OutputPorts {
         let delay_hide = Tween::new(&network);
         delay_hide.set_duration(HIDE_DELAY_DURATION);
 
+        let mouse_down = frp.on_port_mouse_down.clone_ref();
+        let mouse_over = frp.on_port_mouse_over.clone_ref();
+        let mouse_out  = frp.on_port_mouse_out.clone_ref();
+
         frp::extend! { network
 
             // === Size Change Handling == ///
@@ -611,9 +628,6 @@ impl OutputPorts {
 
 
             // === Hover Event Handling == ///
-
-            mouse_over <- source::<PortId>();
-            mouse_out  <- source::<PortId>();
 
             delay_show_finished    <- delay_show.value.map(|t| *t>=TWEEN_END_VALUE );
             delay_hide_finished    <- delay_hide.value.map(|t| *t>=TWEEN_END_VALUE );
@@ -646,7 +660,7 @@ impl OutputPorts {
         }
 
         let network         = network.clone_ref();
-        let mouse_down = frp.on_port_mouse_down.clone_ref();
+
         let port_frp = PortFrp {mouse_down,mouse_over,mouse_out,hide_all,
             activate_and_highlight_selected
         };
