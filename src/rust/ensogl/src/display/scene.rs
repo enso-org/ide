@@ -933,6 +933,10 @@ impl SceneData {
             self.context.viewport(0,0,canvas.width as i32, canvas.height as i32);
         });
     }
+
+    pub fn transform_screen_to_scene_coordinates(&self, pos:Vector2<f32>) -> Vector2<f32> {
+       self.camera().position().xy() +  (pos.xy() / self.camera().zoom())
+    }
 }
 
 impl display::Object for SceneData {
