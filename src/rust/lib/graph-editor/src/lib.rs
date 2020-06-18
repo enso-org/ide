@@ -1754,7 +1754,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     edge_is_source_click <- edge_click.map(f!([model]((edge_id,pos)) {
         if let Some(edge) = model.edges.get_cloned_ref(edge_id){
-            edge.disconnect_target_for_position(*pos) == component::edge::Connector::Input
+            edge.end_designation_for_position(*pos) == component::edge::EndDesignation::Input
         } else {
             false
         }
