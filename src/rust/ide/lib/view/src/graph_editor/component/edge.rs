@@ -528,22 +528,22 @@ pub fn sort_hack_2(scene:&Scene) {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ShapeViewEventsProxy {
-    pub mouse_down       : frp::Stream<()>,
-    pub mouse_over       : frp::Stream<()>,
-    pub mouse_out        : frp::Stream<()>,
+    pub mouse_down : frp::Stream<()>,
+    pub mouse_over : frp::Stream<()>,
+    pub mouse_out  : frp::Stream<()>,
 
-    on_mouse_down        : frp::Source<()>,
-    on_mouse_over        : frp::Source<()>,
-    on_mouse_out         : frp::Source<()>,
+    on_mouse_down : frp::Source<()>,
+    on_mouse_over : frp::Source<()>,
+    on_mouse_out  : frp::Source<()>,
 }
 
 #[allow(missing_docs)]
 impl ShapeViewEventsProxy {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def on_mouse_over   = source();
-            def on_mouse_out    = source();
-            def on_mouse_down   = source();
+            def on_mouse_over  = source();
+            def on_mouse_out   = source();
+            def on_mouse_down  = source();
         }
         let mouse_down = on_mouse_down.clone_ref().into();
         let mouse_over = on_mouse_over.clone_ref().into();
@@ -557,11 +557,11 @@ impl ShapeViewEventsProxy {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub source_width              : frp::Source<f32>,
-    pub source_height             : frp::Source<f32>,
-    pub target_position           : frp::Source<Vector2>,
-    pub target_attached           : frp::Source<bool>,
-    pub redraw                    : frp::Source<()>,
+    pub source_width    : frp::Source<f32>,
+    pub source_height   : frp::Source<f32>,
+    pub target_position : frp::Source<Vector2>,
+    pub target_attached : frp::Source<bool>,
+    pub redraw          : frp::Source<()>,
 
     pub hover_position  : frp::Source<Option<Vector2<f32>>>,
     pub shape_events    : ShapeViewEventsProxy
@@ -571,12 +571,12 @@ impl Frp {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def source_width     = source();
-            def source_height    = source();
-            def target_position  = source();
-            def target_attached  = source();
-            def redraw           = source();
-            def hover_position   = source();
+            def source_width    = source();
+            def source_height   = source();
+            def target_position = source();
+            def target_attached = source();
+            def redraw          = source();
+            def hover_position  = source();
         }
         let shape_events = ShapeViewEventsProxy::new(&network);
         Self {source_width,source_height,target_position,target_attached,redraw,
