@@ -410,7 +410,7 @@ mod test {
     /// * created execution context appears in the registry
     /// * project controller correctly dispatches the LS notification with type information
     /// * the type information is correctly recorded and available in the execution context
-    #[test]
+    #[wasm_bindgen_test]
     fn execution_context_management() {
         // Setup project controller and mock LS client expectations.
         let mut test   = TestWithLocalPoolExecutor::set_up();
