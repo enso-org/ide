@@ -132,14 +132,14 @@ pub mod multi_port_area {
     /// Compute the angle perpendicular to the shape border.
     fn compute_border_perpendicular_angle
     (full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position:&Var<f32>)
-        -> Var<f32> {
+    -> Var<f32> {
         // TODO implement proper abstraction for non-branching "if/then/else" or "case" in
         // shaderland
         // Here we use a trick to use a pseudo-boolean float that is either 0 or 1 to multiply a
         // value that should be returned, iff it's case is true. That way we can add return values
         // of different "branches" of which exactly one will be non-zero.
 
-        // Transform coordinate system to be centered in the shape.
+        // Transform position to be centered in the shape.
         // The `distance`s here describe the distance along the shape border, so not straight line
         // x coordinate, but the length of the path along the shape.
         let center_distance          = position - full_shape_border_length  / 2.0;
@@ -172,7 +172,7 @@ pub mod multi_port_area {
     ///                              (not the pure x-coordinate).
     fn calculate_crop_plane_position_relative_to_center_segment
     (full_shape_border_length:&Var<f32>, corner_segment_length:&Var<f32>, position_on_path:&Var<f32>)
-     -> Var<f32> {
+    -> Var<f32> {
         let middle_segment_start_point = corner_segment_length;
         let middle_segment_end_point   = full_shape_border_length - corner_segment_length;
 
@@ -180,7 +180,7 @@ pub mod multi_port_area {
         // Case 2: The middle segment.
         let middle_segment_plane_position_x = (position_on_path - middle_segment_start_point)
             / (&middle_segment_end_point - middle_segment_start_point);
-        // Case 2: The right circle, always 1, achieved through clamping.
+        // Case 3: The right circle, always 1, achieved through clamping.
 
         middle_segment_plane_position_x.clamp(0.0.into(), 1.0.into())
     }
@@ -188,7 +188,7 @@ pub mod multi_port_area {
     /// Compute the crop plane at the location of the given port index. Also takes into account an
     /// `position_offset` that is given as an offset along the shape boundary.
     ///
-    /// The crop plane is a HalfPlane that is perpendicular to the border of the shape and can be
+    /// The crop plane is a `HalfPlane` that is perpendicular to the border of the shape and can be
     /// used to crop the shape at the specified port index.
     fn compute_crop_plane
     (index:&Var<f32>, port_num: &Var<f32>, width: &Var<f32>, corner_radius:&Var<f32>,
@@ -210,9 +210,9 @@ pub mod multi_port_area {
             (&full_shape_border_length,&corner_segment_length,&crop_segment_pos);
         let plane_shape_offset  = Var::<Distance<Pixels>>::from(&crop_plane_pos - width * 0.5);
 
-        let crop_shape          = HalfPlane();
-        let crop_shape          = crop_shape.rotate(plane_rotation_angle);
-        let crop_shape          = crop_shape.translate_x(plane_shape_offset);
+        let crop_shape = HalfPlane();
+        let crop_shape = crop_shape.rotate(plane_rotation_angle);
+        let crop_shape = crop_shape.translate_x(plane_shape_offset);
 
         crop_shape.into()
     }
@@ -238,14 +238,14 @@ pub mod multi_port_area {
             let hover_area = hover_area.intersection(&right_shape_crop);
             let hover_area = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
 
-            let padding_left = Var::<Distance<Pixels>>::from(padding_left);
+            let padding_left  = Var::<Distance<Pixels>>::from(padding_left);
             let padding_right = Var::<Distance<Pixels>>::from(padding_right);
 
             let left_shape_crop  = left_shape_crop.grow(padding_left);
             let right_shape_crop = right_shape_crop.grow(padding_right);
 
-            let port_area  = port_area.difference(&left_shape_crop);
-            let port_area  = port_area.intersection(&right_shape_crop);
+            let port_area = port_area.difference(&left_shape_crop);
+            let port_area = port_area.intersection(&right_shape_crop);
 
             // FIXME: Use color from style and apply transparency there.
             let color     = Var::<color::Rgba>::from("srgba(0.25,0.58,0.91,input_opacity)");
@@ -331,11 +331,11 @@ impl ShapeView {
         if number_of_ports == 1 {
             ShapeView::Single { view: component::ShapeView::new(&logger,&scene) }
         } else {
-            let display_object = display::object::Instance::new(logger);
-            let mut views = Vec::default();
+            let display_object  = display::object::Instance::new(logger);
+            let mut views       = Vec::default();
             let number_of_ports = number_of_ports as usize;
             views.resize_with(number_of_ports,|| component::ShapeView::new(&logger,&scene));
-            views.iter().for_each(|view|  view.display_object().set_parent(&display_object));
+            views.iter().for_each(|view| view.display_object().set_parent(&display_object));
             ShapeView::Multi {display_object,views}
         }
     }
@@ -343,7 +343,7 @@ impl ShapeView {
     /// Set up the frp for all ports.
     fn init_frp(&self, network:&frp::Network, port_frp:PortFrp) {
         match self {
-            ShapeView::Single {view}  => init_port_frp(&view,PortId::new(0),port_frp,network),
+            ShapeView::Single {view}      => init_port_frp(&view,PortId::new(0),port_frp,network),
             ShapeView::Multi  {views, ..} => {
                 views.iter().enumerate().for_each(|(index,view)| {
                     init_port_frp(&view,PortId::new(index),port_frp.clone_ref(),network)
@@ -381,7 +381,7 @@ impl display::Object for ShapeView {
     fn display_object(&self) -> &display::object::Instance {
         match self {
             ShapeView::Single { view }               => view.display_object(),
-            ShapeView::Multi { display_object, .. }  => display_object,
+            ShapeView::Multi  { display_object, .. } => display_object,
         }
     }
 }
@@ -413,11 +413,11 @@ impl PortId {
 /// Struct that contains all required FRP endpoints to set up the FRP of a port shape view.
 #[derive(Clone,CloneRef,Debug)]
 struct PortFrp {
-    mouse_over                            : frp::Source<PortId>,
-    mouse_out                             : frp::Source<PortId>,
-    mouse_down                            : frp::Source<PortId>,
+    mouse_over : frp::Source<PortId>,
+    mouse_out  : frp::Source<PortId>,
+    mouse_down : frp::Source<PortId>,
 
-    hide_all                              : frp::Stream<()>,
+    hide       : frp::Stream<()>,
     /// Activate the port and if it has the given PortId, show it highlighted.
     activate_and_highlight_selected : frp::Stream<PortId>
 }
@@ -429,7 +429,7 @@ struct PortFrp {
 fn init_port_frp<Shape: PortShape + CloneRef + 'static>
 (view:&component::ShapeView<Shape>, port_id:PortId, frp:PortFrp, network:&frp::Network) {
     let PortFrp { mouse_over,mouse_out,mouse_down,
-        hide_all,activate_and_highlight_selected} = frp;
+        hide,activate_and_highlight_selected} = frp;
 
     let shape        = &view.shape;
     let port_size    = Animation::<f32>::new(&network);
@@ -444,15 +444,15 @@ fn init_port_frp<Shape: PortShape + CloneRef + 'static>
         eval_ view.events.mouse_down(mouse_down.emit(port_id));
 
 
-         // === Animation Handling == ///
+        // === Animation Handling == ///
 
-         eval port_size.value    ((size) shape.set_grow(*size));
-         eval port_opacity.value ((size) shape.set_opacity(*size));
+        eval port_size.value    ((size) shape.set_grow(*size));
+        eval port_opacity.value ((size) shape.set_opacity(*size));
 
 
         // === Visibility and Highlight Handling == ///
 
-         eval_ hide_all ([port_size,port_opacity]{
+         eval_ hide ([port_size,port_opacity]{
              port_size.set_target_value(0.0);
              port_opacity.set_target_value(0.0);
          });
@@ -659,9 +659,8 @@ impl OutputPorts {
 
         }
 
-        let network         = network.clone_ref();
-
-        let port_frp = PortFrp {mouse_down,mouse_over,mouse_out,hide_all,
+        let port_frp = PortFrp {mouse_down,mouse_over,mouse_out,
+            hide: hide_all,
             activate_and_highlight_selected
         };
 
