@@ -95,3 +95,21 @@ impl DerefMut for Connection {
         self.client.deref_mut()
     }
 }
+
+
+
+pub trait ShareableConnection {
+    fn connection(self) -> Rc<Connection>;
+}
+
+impl ShareableConnection for Rc<Connection> {
+    fn connection(self) -> Rc<Connection> {
+        self
+    }
+}
+
+impl ShareableConnection for MockClient {
+    fn connection(self) -> Rc<Connection> {
+        Connection::new_mock_rc(self)
+    }
+}

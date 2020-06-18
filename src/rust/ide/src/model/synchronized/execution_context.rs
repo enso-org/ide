@@ -11,6 +11,8 @@ use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
 use enso_protocol::language_server::ExpressionValuesComputed;
+#[cfg(test)]
+use enso_protocol::language_server::connection::ShareableConnection;
 use json_rpc::error::RpcError;
 
 
@@ -159,11 +161,11 @@ impl ExecutionContext {
     ( id              : model::execution_context::Id
     , path            : model::module::Path
     , model           : model::ExecutionContext
-    , language_server : language_server::MockClient
+    , language_server : impl ShareableConnection
     ) -> Self {
         let module_path     = Rc::new(path);
-        let language_server = language_server::Connection::new_mock_rc(language_server);
         let logger          = Logger::new("ExecuctionContext mock");
+        let language_server = language_server.connection();
         ExecutionContext {id,model,module_path,language_server,logger}
     }
 }
@@ -201,13 +203,25 @@ pub mod tests {
     use utils::test::ExpectTuple;
     use utils::test::stream::StreamTestExt;
 
+    trait ModelCustomizer = Fn(&mut model::ExecutionContext, &MockData) + 'static;
+    //trait ContextProvider = FnOnce(&mut model::ExecutionContext, &MockData) + 'static;
+
     /// Set of data needed to create and operate mock execution context.
-    #[derive(Clone,Debug)]
+    #[derive(Clone,Derivative)]
+    #[derivative(Debug)]
     pub struct MockData {
         pub module_path     : model::module::Path,
         pub context_id      : model::execution_context::Id,
         pub root_definition : DefinitionName,
         pub project_name    : String,
+        #[derivative(Debug="ignore")]
+        pub customize_model : Rc<dyn ModelCustomizer>,
+    }
+
+    impl Default for MockData {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl MockData {
@@ -217,7 +231,13 @@ pub mod tests {
                 module_path     : model::module::Path::from_mock_module_name("Test"),
                 root_definition : DefinitionName::new_plain("main"),
                 project_name    : "MockProject".to_string(),
+                customize_model : Rc::new(|_,_| {})
             }
+        }
+
+        /// Allows customizing initial state of the context's model.
+        pub fn customize_model(&mut self, f:impl Fn(&mut model::ExecutionContext, &MockData) + 'static) {
+            self.customize_model = Rc::new(f);
         }
 
         pub fn create_model(&self) -> model::ExecutionContext {
@@ -225,25 +245,22 @@ pub mod tests {
             model::ExecutionContext::new(logger, self.root_definition.clone())
         }
 
-        pub fn create_context(&self, ls:language_server::MockClient) -> ExecutionContext {
-            self.create_mock_context_custom_model(ls, |_| {})
+        pub fn create_context(&self, mut ls:language_server::MockClient) -> ExecutionContext {
+            self.context_provider(&mut ls)(ls.connection())
         }
 
-        pub fn create_mock_context(&self, ls:language_server::MockClient) -> ExecutionContext {
-            self.create_mock_context_custom_model(ls, |_| {})
-        }
-
-        pub fn create_mock_context_custom_model
-        ( &self
-        , ls : language_server::MockClient
-        , f  : impl FnOnce(&mut model::ExecutionContext)
-        ) -> ExecutionContext {
+        pub fn context_provider
+        (&self, ls:&mut language_server::MockClient)
+        -> impl FnOnce(Rc<language_server::Connection>) -> ExecutionContext {
             let id = self.context_id;
             expect_call!(ls.destroy_execution_context(id) => Ok(()));
 
-            let mut model = self.create_model();
-            f(&mut model);
-            ExecutionContext::new_mock(self.context_id,self.module_path.clone(),model,ls)
+            let data = self.clone();
+            move |ls| {
+                let mut model = data.create_model();
+                (data.customize_model)(&mut model,&data);
+                ExecutionContext::new_mock(data.context_id, data.module_path.clone(), model, ls)
+            }
         }
 
         pub fn module_qualified_name(&self) -> ModuleQualifiedName {
@@ -308,7 +325,7 @@ pub mod tests {
         let expected_call_frame = language_server::LocalCall{expression_id};
         let expected_stack_item = language_server::StackItem::LocalCall(expected_call_frame);
         expect_call!(ls.push_to_execution_context(id,expected_stack_item) => Ok(()));
-        let context = mock_data.create_mock_context(ls);
+        let context = mock_data.create_context(ls);
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
             let item = LocalCall {
@@ -322,17 +339,21 @@ pub mod tests {
 
     #[test]
     fn popping_stack_item() {
-        let mock_data = MockData::new();
-        let id        = mock_data.context_id;
+        let mock_data = MockData {
+            customize_model : Rc::new(|model,data| {
+                let item = LocalCall {
+                    call       : model::execution_context::ExpressionId::new_v4(),
+                    definition : data.definition_id(),
+                };
+                model.push(item);
+            }),
+            ..default()
+        };
+
         let ls        = language_server::MockClient::default();
+        let id        = mock_data.context_id;
         expect_call!(ls.pop_from_execution_context(id) => Ok(()));
-        let context  = mock_data.create_mock_context_custom_model(ls, |model| {
-            let item = LocalCall {
-                call       : model::execution_context::ExpressionId::new_v4(),
-                definition : mock_data.definition_id(),
-            };
-            model.push(item);
-        });
+        let context  = mock_data.create_context(ls);
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
@@ -361,7 +382,7 @@ pub mod tests {
         expect_call!(ls.attach_visualisation(vis_id,ast_id,config) => Ok(()));
         expect_call!(ls.detach_visualisation(exe_id,vis_id,ast_id) => Ok(()));
 
-        let context   = mock_data.create_mock_context(ls);
+        let context   = mock_data.create_context(ls);
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {

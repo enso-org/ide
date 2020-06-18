@@ -61,6 +61,11 @@ impl TestWithLocalPoolExecutor {
             self.run_task(task);
         }
     }
+
+    /// Runs all tasks in the pool and returns if no more progress can be made on any task.
+    pub fn run_until_stalled(&mut self) {
+        self.executor.run_until_stalled();
+    }
 }
 
 impl Drop for TestWithLocalPoolExecutor {

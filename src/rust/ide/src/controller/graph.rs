@@ -752,6 +752,7 @@ mod tests {
     use ast::test_utils::expect_shape;
 
     /// All the data needed to set up and run the graph controller in mock environment.
+    #[derive(Clone,Debug)]
     pub struct MockData {
         pub module_path     : model::module::Path,
         pub graph_id        : Id,
@@ -770,14 +771,23 @@ mod tests {
         }
 
         pub fn create_controllers(&self) -> (controller::Module,Handle) {
-            let path     = self.module_path.clone();
-            let code     = self.code.as_str();
-            let id_map   = default();
-            let ls       = language_server::Connection::new_mock_rc(default());
-            let parser   = Parser::new_or_panic();
-            let module   = controller::Module::new_mock(path,code,id_map,ls,parser).unwrap();
-            let graph    = module.graph_controller(self.graph_id.clone()).unwrap();
-            (module,graph)
+            let ls = language_server::Connection::new_mock_rc(default());
+            self.controllers_provider()(ls)
+        }
+
+        pub fn controllers_provider
+        (&self) -> impl FnOnce(Rc<language_server::Connection>) -> (controller::Module,Handle) {
+            let data = self.clone();
+            |ls| {
+                let id     = data.graph_id;
+                let path   = data.module_path;
+                let code   = &data.code;
+                let id_map = default();
+                let parser = Parser::new_or_panic();
+                let module = controller::Module::new_mock(path,code,id_map,ls,parser).unwrap();
+                let graph  = module.graph_controller(id).unwrap();
+                (module,graph)
+            }
         }
     }
 

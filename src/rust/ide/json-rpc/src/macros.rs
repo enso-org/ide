@@ -139,7 +139,8 @@ macro_rules! make_rpc_methods {
             pub struct Client {
                 require_all_calls : Cell<bool>,
                 /// Expected calls handlers.
-                pub expect        : ExpectedCalls,
+                pub expect : ExpectedCalls,
+                events     : RefCell<Option<futures::channel::mpsc::UnboundedReceiver<Event>>>,
             }
 
             impl API for Client {
@@ -153,7 +154,11 @@ macro_rules! make_rpc_methods {
                 })*
 
                 fn events(&self) -> futures::stream::LocalBoxStream<'static,Event> {
-                    futures::stream::empty().boxed_local()
+                    if let Some(receiver) = self.events.borrow_mut().take() {
+                        receiver.boxed_local()
+                    } else {
+                        futures::stream::empty().boxed_local()
+                    }
                 }
             }
 
@@ -162,6 +167,13 @@ macro_rules! make_rpc_methods {
                 /// dropped without calling the test will fail.
                 pub fn require_all_calls(&self) {
                     self.require_all_calls.set(true);
+                }
+
+                /// Set up a channel that will feed `events` stream with events.
+                pub fn setup_events(&self) -> futures::channel::mpsc::UnboundedSender<Event> {
+                    let (sender,receiver) = futures::channel::mpsc::unbounded();
+                    *self.events.borrow_mut() = Some(receiver);
+                    sender
                 }
             }
 

@@ -14,7 +14,7 @@ use crate::model::synchronized::ExecutionContext;
 /// Notification about change in the executed graph.
 ///
 /// It may pertain either the state of the graph itself or the notifications from the execution.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum Notification {
     /// The notification passed from the graph controller.
     Graph(crate::controller::graph::Notification),
@@ -84,3 +84,55 @@ impl Deref for Handle {
         &self.graph
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::execution_context::ExpressionId;
+
+    use enso_protocol::language_server::connection::ShareableConnection;
+    use enso_protocol::language_server::ExpressionValuesComputed;
+    use enso_protocol::language_server::ExpressionValueUpdate;
+
+    use utils::test::traits::*;
+
+    /// Test that checks that value computed notification is properly relayed by the executed graph
+    /// and that its information is stored in the registry.
+    #[test]
+    fn dispatching_value_computed_notification() {
+        let mut fixture    = TestWithLocalPoolExecutor::set_up();
+        let mut ls         = enso_protocol::language_server::MockClient::default();
+        let execution_data = model::synchronized::execution_context::tests::MockData::new();
+        let execution      = execution_data.context_provider(&mut ls);
+        let graph_data     = controller::graph::tests::MockData::new("main = 1+2");
+        let connection     = ls.connection();
+        let (_,graph)      = graph_data.controllers_provider()(connection.clone_ref());
+        let execution      = Rc::new(execution(connection.clone_ref()));
+        let executed       = Handle::new(graph,execution.clone_ref());
+        let registry       = executed.computed_value_info_registry();
+        let context_id     = Uuid::new_v4();
+        let update         = ExpressionValueUpdate {
+            id          : ExpressionId::new_v4(),
+            typename    : Some("typename".into()),
+            short_value : None,
+            method_call : None,
+        };
+        let updates           = vec![update.clone()];
+        let value_computed    = ExpressionValuesComputed {context_id,updates};
+        let mut notifications = executed.subscribe().boxed_local();
+        notifications.expect_pending();
+        assert!(registry.get(&update.id).is_none());
+
+        execution.handle_expression_values_computed(value_computed).unwrap();
+        fixture.run_until_stalled();
+
+        let observed_notification = notifications.expect_next();
+        assert_eq!(observed_notification, Notification::ComputedValueInfo(vec![update.id]));
+        assert_eq!(registry.get(&update.id).unwrap().typename, update.typename);
+        dbg!(observed_notification);
+        notifications.expect_pending();
+    }
+}
+
