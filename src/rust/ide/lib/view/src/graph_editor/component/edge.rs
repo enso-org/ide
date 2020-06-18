@@ -60,7 +60,7 @@ trait EdgeShape: ensogl::display::Object {
     /// Set the highlight for this shape. The `hover_pos` is the global position at which the shape
     /// should be split into the highlighted and not highlighted part, and the `area` indicates,
     /// which of the two parts (Upper/Lower) should be highlighted.
-    fn set_highlight_split_position(&self, hover_pos:Vector2<f32>, area:HighlightArea) {
+    fn enable_highlight(&self, split_pos:Vector2<f32>, area:HighlightArea) {
         // Compute rotation in shape local coordinate system.
         let rotation = self.display_object().rotation().z;
         match area {
@@ -68,14 +68,14 @@ trait EdgeShape: ensogl::display::Object {
             HighlightArea::Below => self.set_highlight_rotation(rotation + 2.0 * RIGHT_ANGLE),
         }
         // Compute position in shape local coordinate system.
-        let delta_y = hover_pos.y - self.display_object().global_position().y;
+        let delta_y = split_pos.y - self.display_object().global_position().y;
         let offset  = Vector2::new(0.0,delta_y);
         let offset  = UnitComplex::new(-rotation) * offset;
         self.set_highlight_offset(offset)
     }
 
     /// Disable the highlight on this shape.
-    fn remove_highlight(&self) {
+    fn disable_highlightt(&self) {
         self.set_highlight_offset(Vector2::new(INFINITE, INFINITE));
         self.set_highlight_rotation(RIGHT_ANGLE);
     }
@@ -112,6 +112,9 @@ impl HighlightData {
 trait MultiShape {
     /// Return the `ShapeViewEvents` of all sub-shapes.
     fn events(&self) -> Vec<component::ShapeViewEvents>;
+    /// Return references to all `EdgeShape`s in this MultiShape.
+    fn edge_shape_views(&self) -> Vec<&dyn EdgeShape>;
+
 
     /// Connect the given `ShapeViewEventsProxy` to the mouse events of all sub-shapes.
     fn register_proxy_frp(&self, network:&frp::Network, frp:&ShapeViewEventsProxy) {
@@ -125,9 +128,6 @@ trait MultiShape {
         }
     }
 
-    /// Return references to all `EdgeShape`s in this MultiShape.
-    fn edge_shape_views(&self) -> Vec<&dyn EdgeShape>;
-
     /// Apply the provided `HighlightData` to all sub-shapes, or disable highlighting, if None
     /// is given.
     fn set_highlight_split_position(&self, highlight_data:Option<HighlightData>) {
@@ -135,13 +135,14 @@ trait MultiShape {
             if let Some(highlight_data) = highlight_data {
                 let split_position = highlight_data.split_position;
                 let area           = highlight_data.area;
-                shape.set_highlight_split_position(split_position,area);
+                shape.enable_highlight(split_position, area);
             } else {
-                shape.remove_highlight()
+                shape.disable_highlightt()
             }
         }
     }
 }
+
 
 
 // =========================
@@ -173,10 +174,10 @@ impl SplitShape {
     }
 
     /// Fill the two parts and return the combined shape.
-    fn fill<Color:Into<color::Rgba>>(&self, highlight_color:Color, default_color:Color ) -> AnyShape {
-        let filled_highlight = self.part_a.fill(highlight_color.into());
-        let filled_default   = self.part_b.fill(default_color.into());
-        (filled_highlight + filled_default) .into()
+    fn fill<Color:Into<color::Rgba>>(&self, color_a:Color, color_b:Color) -> AnyShape {
+        let part_a_filled = self.part_a.fill(color_a.into());
+        let part_b_filled = self.part_b.fill(color_b.into());
+        (part_a_filled + part_b_filled) .into()
     }
 }
 
@@ -692,7 +693,7 @@ impl display::Object for Edge {
 /// Indicates the type of end connection of the Edge.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
-pub enum Connector {
+pub enum EndDesignation {
     Input,
     Output
 }
@@ -754,9 +755,9 @@ impl EdgeModelData {
         point.y > mid_y
     }
 
-    /// Returns whether the given hover position should disconnect the Input or Output part of the
+    /// Returns whether the given hover position belongs to the Input or Output part of the
     /// edge.
-    pub fn disconnect_target_for_position(&self, point:Vector2<f32>) -> Connector {
+    pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
         let target_y        = self.display_object.position().y;
         let source_y        = self.target_position.get().y;
         let delta_y         = target_y - source_y;
@@ -764,10 +765,10 @@ impl EdgeModelData {
         let point_area      = self.highlight_area_for_position(point);
 
         match (point_area, input_above_mid) {
-            (HighlightArea::Above, true)  => Connector::Input,
-            (HighlightArea::Above, false) => Connector::Output,
-            (HighlightArea::Below, true)  => Connector::Output,
-            (HighlightArea::Below, false) => Connector::Input,
+            (HighlightArea::Above, true)  => EndDesignation::Input,
+            (HighlightArea::Above, false) => EndDesignation::Output,
+            (HighlightArea::Below, true)  => EndDesignation::Output,
+            (HighlightArea::Below, false) => EndDesignation::Input,
         }
     }
 
@@ -796,7 +797,7 @@ impl EdgeModelData {
 
         // === Update Highlights ===
         let hover_pos  = self.hover_position.get();
-        let hover_data = hover_pos.map(|pos| HighlightData::new(pos, self.highlight_area_for_position(pos)));
+        let hover_data = hover_pos.map(|pos| HighlightData::new(pos,self.highlight_area_for_position(pos)));
 
         self.front.set_highlight_split_position(hover_data);
         self.back.set_highlight_split_position(hover_data);
