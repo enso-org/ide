@@ -7,7 +7,6 @@ use crate::prelude::*;
 
 use crate::controller::FilePath;
 use crate::controller::Visualization;
-use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::module::QualifiedName as ModuleQualifiedName;
 use crate::model::module::Path          as ModulePath;
@@ -37,8 +36,8 @@ type ExecutionContextId = model::execution_context::Id;
 
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="No visualization with id {} was found in the registry.", _0)]
-pub struct NoSuchVisualization(VisualizationId);
+#[fail(display="No execution context with id {} was found in the registry.", _0)]
+pub struct NoSuchExecutionContext(ExecutionContextId);
 
 
 // === Aliases ===
@@ -61,7 +60,7 @@ impl ExecutionContextsRegistry {
     (&self, id:ExecutionContextId, f:impl FnOnce(Rc<ExecutionContext>) -> FallibleResult<R>)
     -> FallibleResult<R> {
         let ctx = self.0.borrow_mut().get(&id);
-        let ctx = ctx.ok_or_else(|| NoSuchVisualization(id))?;
+        let ctx = ctx.ok_or_else(|| NoSuchExecutionContext(id))?;
         f(ctx)
     }
 
@@ -323,7 +322,7 @@ mod test {
     use language_server::response;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use enso_protocol::language_server::CapabilityRegistration;
+    use enso_protocol::language_server::{CapabilityRegistration, Event, Notification};
     use enso_protocol::types::Sha3_224;
 
 
@@ -404,6 +403,56 @@ mod test {
             let content   = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());
         });
+    }
+
+    /// This tests checks mainly if:
+    /// * project controller correctly creates execution context
+    /// * created execution context appears in the registry
+    /// * project controller correctly dispatches the LS notification with type information
+    /// * the type information is correctly recorded and available in the execution context
+    #[test]
+    fn execution_context_management() {
+        // Setup project controller and mock LS client expectations.
+        let mut test   = TestWithLocalPoolExecutor::set_up();
+        let data       = model::synchronized::execution_context::tests::MockData::new();
+        let mut sender = futures::channel::mpsc::unbounded().0;
+        let project    = setup_mock_project(|mock_json_client| {
+            data.mock_create_push_destroy_calls(mock_json_client);
+            sender = mock_json_client.setup_events();
+            mock_json_client.require_all_calls();
+        }, |_| {});
+
+        // No context present yet.
+        let no_op = |_| Ok(());
+        let result1 = project.execution_contexts.with_context(data.context_id,no_op);
+        assert!(result1.is_err());
+
+        // Create execution context.
+        let module_path = Rc::new(data.module_path.clone());
+        let definition  = data.root_definition.clone();
+        let execution   = project.create_execution_context(module_path,definition);
+        let execution   = test.expect_completion(execution).unwrap();
+
+        // Now context is in registry.
+        let result1 = project.execution_contexts.with_context(data.context_id,no_op);
+        assert!(result1.is_ok());
+
+        // Context has no information about type.
+        let notification   = data.mock_values_computed_update();
+        let value_update   = &notification.updates[0];
+        let expression_id  = value_update.id;
+        let value_registry = execution.computed_value_info_registry();
+        assert!(value_registry.get(&expression_id).is_none());
+
+        // Send notification with type information.
+        let event = Event::Notification(Notification::ExpressionValuesComputed(notification.clone()));
+        sender.unbounded_send(event).unwrap();
+        test.run_until_stalled();
+
+        // Context now has the information about type.
+        let value_info = value_registry.get(&expression_id).unwrap();
+        assert_eq!(value_info.typename,value_update.typename);
+        assert_eq!(value_info.method_call,value_update.method_call);
     }
 
     fn mock_calls_for_opening_text_file

@@ -770,6 +770,10 @@ mod tests {
             }
         }
 
+        pub fn new_inline(main_body:impl Str) -> Self {
+            Self::new(format!("main = {}", main_body.as_ref()))
+        }
+
         pub fn create_controllers(&self) -> (controller::Module,Handle) {
             let ls = language_server::Connection::new_mock_rc(default());
             self.controllers_provider()(ls)

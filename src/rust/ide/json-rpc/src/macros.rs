@@ -220,6 +220,10 @@ macro_rules! make_rpc_methods {
 /// ```
 #[macro_export]
 macro_rules! expect_call {
+    ($mock:ident.$method:ident() => $result:expr) => {
+        let result = $result;
+        $mock.expect.$method(move || result)
+    };
     ($mock:ident.$method:ident($($param:ident),*) => $result:expr) => {
         expect_call!($mock.$method($($param=$param),*) => $result)
     };

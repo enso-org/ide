@@ -2,9 +2,11 @@
 
 use crate::prelude::*;
 
-use futures::executor;
 use crate::executor::global::set_spawner;
 use crate::executor::global::spawn;
+
+use futures::executor;
+use utils::test::traits::*;
 
 
 
@@ -66,12 +68,24 @@ impl TestWithLocalPoolExecutor {
     pub fn run_until_stalled(&mut self) {
         self.executor.run_until_stalled();
     }
+
+    /// Runs all tasks until stalled. Panics, if some tasks remains then unfinished.
+    pub fn expect_finished(&mut self) {
+        self.executor.run_until_stalled();
+        assert_eq!(0,self.running_task_count.get(),"The tasks are not complete!");
+    }
+
+    /// Runs all tasks until stalled and tries retrieving value from the future.
+    /// If the future cannot complete, panics.
+    pub fn expect_completion<R>(&mut self, fut:impl Future<Output=R>) -> R {
+        self.run_until_stalled();
+        fut.boxed_local().expect_ready()
+    }
 }
 
 impl Drop for TestWithLocalPoolExecutor {
     fn drop(&mut self) {
         // We should be able to finish test.
-        self.executor.run_until_stalled();
-        assert_eq!(0,self.running_task_count.get(),"Executor dropped before tasks are complete!");
+        self.expect_finished();
     }
 }

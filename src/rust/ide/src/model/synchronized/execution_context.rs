@@ -10,9 +10,6 @@ use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
-use enso_protocol::language_server::ExpressionValuesComputed;
-#[cfg(test)]
-use enso_protocol::language_server::connection::ShareableConnection;
 use json_rpc::error::RpcError;
 
 
@@ -145,7 +142,7 @@ impl ExecutionContext {
 
     /// Handles the update about expressions being computed.
     pub fn handle_expression_values_computed
-    (&self, notification:ExpressionValuesComputed) -> FallibleResult<()> {
+    (&self, notification:language_server::ExpressionValuesComputed) -> FallibleResult<()> {
         self.model.handle_expression_values_computed(notification)
     }
 
@@ -161,11 +158,10 @@ impl ExecutionContext {
     ( id              : model::execution_context::Id
     , path            : model::module::Path
     , model           : model::ExecutionContext
-    , language_server : impl ShareableConnection
+    , language_server : Rc<language_server::Connection>
     ) -> Self {
         let module_path     = Rc::new(path);
         let logger          = Logger::new("ExecuctionContext mock");
-        let language_server = language_server.connection();
         ExecutionContext {id,model,module_path,language_server,logger}
     }
 }
@@ -194,17 +190,17 @@ impl Drop for ExecutionContext {
 pub mod tests {
     use super::*;
 
+    use crate::DEFAULT_PROJECT_NAME;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::model::module::QualifiedName as ModuleQualifiedName;
 
     use enso_protocol::language_server::CapabilityRegistration;
+    use enso_protocol::language_server::response::CreateExecutionContext;
     use json_rpc::expect_call;
-    use language_server::response;
     use utils::test::ExpectTuple;
     use utils::test::stream::StreamTestExt;
 
     trait ModelCustomizer = Fn(&mut model::ExecutionContext, &MockData) + 'static;
-    //trait ContextProvider = FnOnce(&mut model::ExecutionContext, &MockData) + 'static;
 
     /// Set of data needed to create and operate mock execution context.
     #[derive(Clone,Derivative)]
@@ -230,25 +226,84 @@ pub mod tests {
                 context_id      : model::execution_context::Id::new_v4(),
                 module_path     : model::module::Path::from_mock_module_name("Test"),
                 root_definition : DefinitionName::new_plain("main"),
-                project_name    : "MockProject".to_string(),
+                project_name    : DEFAULT_PROJECT_NAME.to_string(),
                 customize_model : Rc::new(|_,_| {})
             }
         }
 
+        /// WHat is expected server's response to a successful creation of this context.
+        pub fn expected_creation_response(&self) -> CreateExecutionContext {
+            let context_id = self.context_id;
+            let can_modify =
+                CapabilityRegistration::create_can_modify_execution_context(context_id);
+            let receives_updates =
+                CapabilityRegistration::create_receives_execution_context_updates(context_id);
+            CreateExecutionContext {context_id,can_modify,receives_updates}
+        }
+
+        /// Sets up mock client expectations for context creation and destruction.
+        pub fn mock_create_destroy_calls(&self, ls:&mut language_server::MockClient) {
+            let id     = self.context_id;
+            let result = self.expected_creation_response();
+            expect_call!(ls.create_execution_context()    => Ok(result));
+            expect_call!(ls.destroy_execution_context(id) => Ok(()));
+        }
+
+        /// Sets up mock client expectations for context creation, initial frame push
+        /// and destruction.
+        pub fn mock_create_push_destroy_calls(&self, ls:&mut language_server::MockClient) {
+            self.mock_create_destroy_calls(ls);
+            let id = self.context_id;
+            let root_frame = language_server::ExplicitCall {
+                method_pointer                   : self.main_method_pointer(),
+                this_argument_expression         : None,
+                positional_arguments_expressions : vec![]
+            };
+            let stack_item = language_server::StackItem::ExplicitCall(root_frame);
+            expect_call!(ls.push_to_execution_context(id,stack_item) => Ok(()));
+        }
+
+        /// Generates a mock update for a random expression id.
+        pub fn mock_expression_value_update() -> language_server::ExpressionValueUpdate {
+            language_server::ExpressionValueUpdate {
+                id          : model::execution_context::ExpressionId::new_v4(),
+                typename    : Some("typename".into()),
+                short_value : None,
+                method_call : None,
+            }
+        }
+
+        /// Generates a mock update for a single expression.
+        pub fn mock_values_computed_update(&self) -> language_server::ExpressionValuesComputed {
+            language_server::ExpressionValuesComputed {
+                context_id : self.context_id,
+                updates    : vec![Self::mock_expression_value_update()],
+            }
+        }
+
         /// Allows customizing initial state of the context's model.
+        ///
+        /// Call and pass a function, and it will be called when setting up the model.
         pub fn customize_model(&mut self, f:impl Fn(&mut model::ExecutionContext, &MockData) + 'static) {
             self.customize_model = Rc::new(f);
         }
 
+        /// Create an exeuction context's model.
         pub fn create_model(&self) -> model::ExecutionContext {
             let logger = Logger::new("MockExecutionContextModel");
             model::ExecutionContext::new(logger, self.root_definition.clone())
         }
 
+        /// Create an exeuction context's controller.
         pub fn create_context(&self, mut ls:language_server::MockClient) -> ExecutionContext {
-            self.context_provider(&mut ls)(ls.connection())
+            self.context_provider(&mut ls)(language_server::Connection::new_mock_rc(ls))
         }
 
+        /// Generate a method that when called will generate the execution context.
+        ///
+        /// Purpose of this method is to be able obtain provider without losing ownership of the
+        /// MockClient. This allows setting up multiple mock controllers that share a single mocked
+        /// client.
         pub fn context_provider
         (&self, ls:&mut language_server::MockClient)
         -> impl FnOnce(Rc<language_server::Connection>) -> ExecutionContext {
@@ -282,24 +337,10 @@ pub mod tests {
 
     #[test]
     fn creating_context() {
-        let mock_data  = MockData::new();
-        let context_id = mock_data.context_id;
-        let ls_client  = language_server::MockClient::default();
-        let can_modify =
-            CapabilityRegistration::create_can_modify_execution_context(context_id);
-        let receives_updates =
-            CapabilityRegistration::create_receives_execution_context_updates(context_id);
-        ls_client.expect.create_execution_context(move || Ok(response::CreateExecutionContext {
-            context_id,can_modify,receives_updates,
-        }));
-        let root_frame = language_server::ExplicitCall {
-            method_pointer                   : mock_data.main_method_pointer(),
-            this_argument_expression         : None,
-            positional_arguments_expressions : vec![]
-        };
-        let stack_item = language_server::StackItem::ExplicitCall(root_frame);
-        expect_call!(ls_client.push_to_execution_context(context_id,stack_item) => Ok(()));
-        expect_call!(ls_client.destroy_execution_context(context_id) => Ok(()));
+        let mock_data      = MockData::new();
+        let context_id     = mock_data.context_id;
+        let mut ls_client  = language_server::MockClient::default();
+        mock_data.mock_create_push_destroy_calls(&mut ls_client);
         ls_client.require_all_calls();
         let connection = language_server::Connection::new_mock_rc(ls_client);
 
