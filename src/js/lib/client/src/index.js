@@ -53,6 +53,11 @@ optParser.options('port', {
     describe : `Port to use [${Server.DEFAULT_PORT}]`,
 })
 
+optParser.options('project', {
+    group    : configOptionsGroup,
+    describe : 'Open the named project when running IDE',
+})
+
 optParser.options('server', {
     group    : configOptionsGroup,
     describe : 'Run the server [true]',
@@ -342,6 +347,7 @@ function createWindow() {
         desktop      : true,
         dark         : Electron.nativeTheme.shouldUseDarkColors,
         highContrast : Electron.nativeTheme.shouldUseHighContrastColors,
+        project      : args.project || false
     }
 
     let params      = urlParamsFromObject(urlCfg)
