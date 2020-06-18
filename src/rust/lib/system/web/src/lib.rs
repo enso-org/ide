@@ -37,7 +37,7 @@ pub use web_sys::WebGl2RenderingContext;
 pub use web_sys::Window;
 pub use std::time::Duration;
 pub use std::time::Instant;
-
+use std::collections::HashMap;
 
 
 // =============
@@ -503,7 +503,35 @@ pub async fn sleep(duration:Duration) {
 #[cfg(not(target_arch = "wasm32"))]
 pub use async_std::task::sleep;
 
+/// Stores arguments extracted from Location search. e.g. http://localhost/?arg0=value0&arg1=value1.
+#[derive(Shrinkwrap,Debug)]
+pub struct Arguments {
+    pub hash_map : HashMap<String,String>
+}
 
+impl Arguments {
+    fn args_from_search(search:&str) -> HashMap<String,String> {
+        if search.chars().nth(0) == Some('?') {
+            search[1..].split("&").filter_map(|arg| {
+                let x : Vec<&str> = arg.split("=").collect();
+                match x.len() {
+                    1 => Some((x[0].to_string(), "".to_string())),
+                    2 => Some((x[0].to_string(), x[1].to_string())),
+                    _ => None
+                }
+            }).collect()
+        } else {
+            default()
+        }
+    }
+
+    /// Creates a new arguments map from location search.
+    pub fn new() -> Self {
+        let search   = window().location().search().unwrap_or_else(|_| String::from(""));
+        let hash_map = Self::args_from_search(&search);
+        Self{hash_map}
+    }
+}
 
 // ============
 // === Test ===
@@ -529,6 +557,29 @@ mod tests {
         pub fn elapsed(instant: Instant) -> f64 {
             super::performance().now() - instant
         }
+    }
+
+    #[test]
+    fn args() {
+        let search = String::from("?project=HelloWorld&arg0=value0");
+        let args   = Arguments::args_from_search(&search);
+        assert_eq!(args.len(), 2);
+        assert_eq!(args.get("project"), Some(&"HelloWorld".to_string()));
+        assert_eq!(args.get("arg0"), Some(&"value0".to_string()));
+
+        let search = String::from("project=HelloWorld&arg0=value0");
+        let args   = Arguments::args_from_search(&search);
+        assert_eq!(args.len(), 0);
+
+        let search = String::from("");
+        let args   = Arguments::args_from_search(&search);
+        assert_eq!(args.len(), 0);
+
+        let search = String::from("?project&arg0=value0");
+        let args   = Arguments::args_from_search(&search);
+        assert_eq!(args.len(), 2);
+        assert_eq!(args.get("project"), Some(&"".to_string()));
+        assert_eq!(args.get("arg0"), Some(&"value0".to_string()));
     }
 
     #[cfg(not(target_arch = "wasm32"))]

@@ -23,3 +23,6 @@ pub const DEFAULT_PROJECT_NAME:&str = "Project";
 
 /// Visualization folder where IDE can look for user-defined visualizations per project.
 pub const PROJECT_VISUALIZATION_FOLDER:&str = "visualization";
+
+/// This is the maximum number of listable projects, used in `ProjectManager::list_recent_projects`.
+pub const MAXIMUM_LISTABLE_PROJECTS : u32 = std::i32::MAX as u32 - 1;
