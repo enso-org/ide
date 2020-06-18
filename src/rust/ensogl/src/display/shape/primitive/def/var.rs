@@ -6,7 +6,9 @@ use crate::data::color;
 use crate::display::shape::primitive::def::unit::PixelDistance;
 use crate::math::algebra::Acos;
 use crate::math::algebra::Asin;
+use crate::math::algebra::Clamp;
 use crate::math::algebra::Cos;
+use crate::math::algebra::Signum;
 use crate::math::algebra::Sin;
 use crate::math::algebra::Sqrt;
 use crate::math::topology::unit::Angle;
@@ -20,7 +22,6 @@ use crate::system::gpu::types::*;
 
 use nalgebra::Scalar;
 use std::ops::*;
-
 
 
 // ======================
@@ -56,14 +57,6 @@ impl<T,U,V> VarInitializerMarker<Var<Unit<T,Anything,V>>> for Unit<T,U,V> where 
 
 impl<T,S1,S2> VarInitializerMarker<Var<Vector2<T>>> for (S1,S2)
     where T:Scalar, S1:VarInitializerMarkerNested<Var<T>>, S2:VarInitializerMarkerNested<Var<T>> {}
-
-impl<T:Scalar> VarInitializerMarker<Var<Vector2<T>>> for Var<V2<T>> {}
-impl<T:Scalar> VarInitializerMarker<Var<Vector3<T>>> for Var<V3<T>> {}
-impl<T:Scalar> VarInitializerMarker<Var<Vector4<T>>> for Var<V4<T>> {}
-
-impl<T:Scalar> VarInitializerMarker<Var<Vector2<T>>> for &Var<V2<T>> {}
-impl<T:Scalar> VarInitializerMarker<Var<Vector3<T>>> for &Var<V3<T>> {}
-impl<T:Scalar> VarInitializerMarker<Var<Vector4<T>>> for &Var<V4<T>> {}
 
 
 
@@ -159,7 +152,7 @@ impl<T:Scalar> HasComponents for Var<Vector3<T>> {
 impl<T:Scalar> Dim1 for Var<Vector2<T>> {
     fn x(&self) -> Var<T> {
         match self {
-            Self::Static  (t) => Var::Static(t.x),
+            Self::Static  (t) => Var::Static(t.x.clone()),
             Self::Dynamic (t) => Var::Dynamic(format!("{}.x",t).into())
         }
     }
@@ -168,7 +161,7 @@ impl<T:Scalar> Dim1 for Var<Vector2<T>> {
 impl<T:Scalar> Dim2 for Var<Vector2<T>> {
     fn y(&self) -> Var<T> {
         match self {
-            Self::Static  (t) => Var::Static(t.y),
+            Self::Static  (t) => Var::Static(t.y.clone()),
             Self::Dynamic (t) => Var::Dynamic(format!("{}.y",t).into())
         }
     }
@@ -177,7 +170,7 @@ impl<T:Scalar> Dim2 for Var<Vector2<T>> {
 impl<T:Scalar> Dim1 for Var<Vector3<T>> {
     fn x(&self) -> Var<T> {
         match self {
-            Self::Static  (t) => Var::Static(t.x),
+            Self::Static  (t) => Var::Static(t.x.clone()),
             Self::Dynamic (t) => Var::Dynamic(format!("{}.x",t).into())
         }
     }
@@ -186,7 +179,7 @@ impl<T:Scalar> Dim1 for Var<Vector3<T>> {
 impl<T:Scalar> Dim2 for Var<Vector3<T>> {
     fn y(&self) -> Var<T> {
         match self {
-            Self::Static  (t) => Var::Static(t.y),
+            Self::Static  (t) => Var::Static(t.y.clone()),
             Self::Dynamic (t) => Var::Dynamic(format!("{}.y",t).into())
         }
     }
@@ -195,82 +188,28 @@ impl<T:Scalar> Dim2 for Var<Vector3<T>> {
 impl<T:Scalar> Dim3 for Var<Vector3<T>> {
     fn z(&self) -> Var<T> {
         match self {
-            Self::Static  (t) => Var::Static(t.z),
+            Self::Static  (t) => Var::Static(t.z.clone()),
             Self::Dynamic (t) => Var::Dynamic(format!("{}.z",t).into())
         }
     }
 }
 
 
-
-impl<T:Scalar> HasComponents for Var<V2<T>> {
-    type Component = Var<T>;
-}
-
-impl<T:Scalar> HasComponents for Var<V3<T>> {
-    type Component = Var<T>;
-}
-
-impl<T:Scalar> Dim1 for Var<V2<T>> {
-    fn x(&self) -> Var<T> {
-        match self {
-            Self::Static  (t) => Var::Static(t.x),
-            Self::Dynamic (t) => Var::Dynamic(format!("{}.x",t).into())
-        }
-    }
-}
-
-impl<T:Scalar> Dim2 for Var<V2<T>> {
-    fn y(&self) -> Var<T> {
-        match self {
-            Self::Static  (t) => Var::Static(t.y),
-            Self::Dynamic (t) => Var::Dynamic(format!("{}.y",t).into())
-        }
-    }
-}
-
-impl<T:Scalar> Dim1 for Var<V3<T>> {
-    fn x(&self) -> Var<T> {
-        match self {
-            Self::Static  (t) => Var::Static(t.x),
-            Self::Dynamic (t) => Var::Dynamic(format!("{}.x",t).into())
-        }
-    }
-}
-
-impl<T:Scalar> Dim2 for Var<V3<T>> {
-    fn y(&self) -> Var<T> {
-        match self {
-            Self::Static  (t) => Var::Static(t.y),
-            Self::Dynamic (t) => Var::Dynamic(format!("{}.y",t).into())
-        }
-    }
-}
-
-impl<T:Scalar> Dim3 for Var<V3<T>> {
-    fn z(&self) -> Var<T> {
-        match self {
-            Self::Static  (t) => Var::Static(t.z),
-            Self::Dynamic (t) => Var::Dynamic(format!("{}.z",t).into())
-        }
-    }
-}
-
-impl PixelDistance for Var<V2<f32>> {
-    type Output = Var<V2<Distance<Pixels>>>;
+impl PixelDistance for Var<Vector2<f32>> {
+    type Output = Var<Vector2<Distance<Pixels>>>;
     fn px(&self) -> Self::Output {
         match self {
-            Self::Static  (t) => Var::Static(V2(Distance::new(t.x),Distance::new(t.y))),
+            Self::Static  (t) => Var::Static(Vector2(Distance::new(t.x),Distance::new(t.y))),
             Self::Dynamic (t) => Var::Dynamic(t.clone())
         }
     }
 }
 
-impl PixelDistance for Var<V3<f32>> {
-    type Output = Var<V3<Distance<Pixels>>>;
+impl PixelDistance for Var<Vector3<f32>> {
+    type Output = Var<Vector3<Distance<Pixels>>>;
     fn px(&self) -> Self::Output {
         match self {
-            Self::Static  (t) => Var::Static(V3(Distance::new(t.x),Distance::new(t.y),Distance::new(t.z))),
+            Self::Static  (t) => Var::Static(Vector3(Distance::new(t.x),Distance::new(t.y),Distance::new(t.z))),
             Self::Dynamic (t) => Var::Dynamic(t.clone())
         }
     }
@@ -570,6 +509,48 @@ where T: Sqrt<Output=T> {
         match self {
             Self::Static  (t) => Var::Static(t.sqrt()),
             Self::Dynamic (t) => Var::Dynamic(format!("sqrt({})",t).into())
+        }
+    }
+}
+
+
+
+// =============
+// === Clamp ===
+// =============
+
+impl<T> Clamp for Var<T>
+where T: Clamp<Output=T>+Into<Glsl> {
+    type Output = Var<T>;
+    fn clamp(self, lower:Var<T>, upper:Var<T>) -> Var<T> {
+        use Var::Static;
+        use Var::Dynamic;
+
+        match (self, lower, upper) {
+            (Static(value),Static(lower),Static(upper)) => Static(value.clamp(lower, upper)),
+            (value, lower, upper)                       => {
+                let value:Glsl = value.into();
+                let lower:Glsl = lower.into();
+                let upper:Glsl = upper.into();
+                Dynamic(format!("clamp({},{},{})", value.glsl(), lower.glsl(), upper.glsl()).into())
+            }
+        }
+    }
+}
+
+
+
+// ==============
+// === Signum ===
+// ==============
+
+impl<T> Signum for Var<T>
+    where T: Signum<Output=T> {
+    type Output = Var<T>;
+    fn signum(self) -> Self {
+        match self {
+            Self::Static  (t) => Var::Static(t.signum()),
+            Self::Dynamic (t) => Var::Dynamic(format!("sign({})",t).into())
         }
     }
 }

@@ -8,7 +8,6 @@ use super::modifier::*;
 use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::def::var::Var;
-use crate::system::gpu::types::*;
 use crate::data::color;
 
 
@@ -147,6 +146,16 @@ pub trait ShapeOps : Sized where for<'t> &'t Self : IntoOwned<Owned=Self> {
     /// and can cause distortions especially with round surfaces.
     fn pixel_snap(&self) -> PixelSnap<Self> {
         PixelSnap(self)
+    }
+
+    /// Grows the shape by the given amount.
+    fn grow<T:Into<Var<Distance<Pixels>>>>(&self, value:T) -> Grow<Self> {
+        Grow(self, value.into())
+    }
+
+    /// Shrinks the shape by the given amount.
+    fn shrink<T:Into<Var<Distance<Pixels>>>>(&self, value:T) -> Shrink<Self> {
+        Shrink(self, value.into())
     }
 }
 

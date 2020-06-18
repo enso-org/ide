@@ -84,7 +84,7 @@ impl LanguageServerContent {
 /// changes done to it. On drop the module is closed in Language Server.
 ///
 /// See also (enso protocol documentation)
-/// [https://github.com/luna/enso/blob/master/docs/language-server/protocol-language-server.md].
+/// [https://github.com/luna/enso/blob/main/docs/language-server/protocol-language-server.md].
 #[derive(Debug)]
 pub struct Module {
     path            : model::module::Path,
@@ -184,6 +184,7 @@ impl Module {
     async fn handle_notification
     (&self, content:&LanguageServerContent, notification:Notification)
     -> FallibleResult<ParsedContentSummary> {
+        debug!(self.logger,"Handling notification: {content:?}.");
         match content {
             LanguageServerContent::Desynchronized(summary) => self.full_invalidation(summary).await,
             LanguageServerContent::Synchronized(summary)   => match notification {
@@ -214,6 +215,7 @@ impl Module {
     /// of Language Server state.
     async fn full_invalidation
     (&self, ls_content:&ContentSummary) -> FallibleResult<ParsedContentSummary> {
+        debug!(self.logger,"Handling full invalidation: {ls_content:?}.");
         let range = TextLocation::at_document_begin()..ls_content.end_of_file;
         self.notify_language_server(ls_content,|content| vec![TextEdit {
             range : range.into(),
@@ -236,6 +238,7 @@ impl Module {
             old_version : ls_content.digest.clone(),
             new_version : summary.digest.clone()
         };
+        debug!(self.logger,"Notifying LS with edit: {edit:?}.");
         self.language_server.client.apply_text_file_edit(&edit).await?;
         Ok(summary)
     }

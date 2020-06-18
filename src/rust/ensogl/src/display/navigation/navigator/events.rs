@@ -232,8 +232,8 @@ impl NavigatorEvents {
                     let zoom_event = ZoomEvent::new(position,amount,zoom_speed);
                     data.on_zoom(zoom_event);
                 } else {
-                    let x         =  event.delta_x() as f32;
-                    let y         = -event.delta_y() as f32;
+                    let x         = -event.delta_x() as f32;
+                    let y         =  event.delta_y() as f32;
                     let movement  = Vector2::new(x,y);
                     let pan_event = PanEvent::new(movement);
                     data.on_pan(pan_event);
@@ -290,13 +290,11 @@ impl NavigatorEvents {
             if let Some(data) = data.upgrade() {
                 let position = Vector2::new(event.offset_x() as f32, event.offset_y() as f32);
                 data.set_mouse_position(position);
-                let mut movement = data.mouse_position() - data.last_mouse_position();
-                movement.x = -movement.x;
+                let movement = data.mouse_position() - data.last_mouse_position();
 
                 if let Some(movement_type) = data.movement_type() {
                     match movement_type {
                         MovementType::Zoom { focus } => {
-                            movement.y = -movement.y;
                             let zoom_speed  = data.zoom_speed();
                             let zoom_amount = movement_to_zoom(movement);
                             let zoom_event  = ZoomEvent::new(focus,zoom_amount,zoom_speed);

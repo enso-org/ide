@@ -13,7 +13,6 @@ use crate::display::shape::primitive::def::var::Var;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas;
 use crate::math::topology::unit::*;
-use crate::system::gpu::types::*;
 
 
 
@@ -124,4 +123,6 @@ define_modifiers! {
     Intersection intersection  (child1,child2) ()
     Fill         fill          (child)         (color:Rgba)
     PixelSnap    pixel_snap    (child)         ()
+    Grow         grow          (child)         (value:f32)
+    Shrink       shrink        (child)         (value:f32)
 }
