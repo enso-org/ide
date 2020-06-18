@@ -568,12 +568,12 @@ impl Frp {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def source_width              = source();
-            def source_height             = source();
-            def target_position           = source();
-            def target_attached           = source();
-            def redraw                    = source();
-            def hover_position  = source();
+            def source_width     = source();
+            def source_height    = source();
+            def target_position  = source();
+            def target_attached  = source();
+            def redraw           = source();
+            def hover_position   = source();
         }
         let shape_events = ShapeViewEventsProxy::new(&network);
         Self {source_width,source_height,target_position,target_attached,redraw,
