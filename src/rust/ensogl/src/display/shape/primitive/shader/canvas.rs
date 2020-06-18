@@ -292,6 +292,18 @@ impl Canvas {
             shape
         })
     }
+
+    /// Shrink the shape by the given value.
+    pub fn shrink<T:Into<Var<f32>>>
+    (&mut self, num:usize, s:Shape, value:T) -> Shape {
+        self.if_not_defined(num, |this| {
+            let value:Glsl = value.into().glsl();
+            let expr = iformat!("return grow({s.getter()},-{value});");
+            let mut shape = this.new_shape_from_expr(num,&expr);
+            shape.add_ids(&s.ids);
+            shape
+        })
+    }
 }
 
 

@@ -124,4 +124,5 @@ define_modifiers! {
     Fill         fill          (child)         (color:Rgba)
     PixelSnap    pixel_snap    (child)         ()
     Grow         grow          (child)         (value:f32)
+    Shrink       shrink        (child)         (value:f32)
 }
