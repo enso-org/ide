@@ -3,19 +3,22 @@
 
 use crate::prelude::*;
 
+pub mod font;
+pub mod msdf;
+pub mod pen;
+
+use font::GlyphRenderInfo;
+
 use ensogl::system::gpu;
 use ensogl::system::gpu::texture;
 use ensogl::system::gpu::types::*;
 use ensogl::data::color::Rgba;
-use crate::display;
-use crate::display::shape::text::glyph::font;
-use crate::display::shape::text::glyph::msdf;
-use crate::display::world::*;
-use crate::display::layout::Alignment;
-use crate::display::shape::text::glyph::font::GlyphRenderInfo;
-use crate::display::symbol::material::Material;
-use crate::display::symbol::shader::builder::CodeTemplate;
-use crate::display::scene::Scene;
+use ensogl::display;
+use ensogl::display::world::*;
+use ensogl::display::layout::Alignment;
+use ensogl::display::symbol::material::Material;
+use ensogl::display::symbol::shader::builder::CodeTemplate;
+use ensogl::display::scene::Scene;
 
 
 
@@ -154,7 +157,7 @@ impl display::Object for System {
 
 // === Material ===
 
-const FUNCTIONS : &str = include_str!("../glsl/glyph.glsl");
+const FUNCTIONS : &str = include_str!("glsl/glyph.glsl");
 const MAIN      : &str = "output_color = color_from_msdf(); output_id=vec4(0.0,0.0,0.0,0.0);";
 
 impl System {

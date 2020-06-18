@@ -645,6 +645,8 @@ version = "0.1.0"
 dependencies = [
  "enso-prelude 0.1.0",
  "ensogl 0.1.0",
+ "ensogl-core-embedded-fonts 0.1.0",
+ "ensogl-core-msdf-sys 0.1.0",
  "xi-rope 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

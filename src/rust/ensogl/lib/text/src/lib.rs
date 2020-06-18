@@ -1,5 +1,6 @@
 //! Ensogl text rendering implementation.
 
+#![feature(clamp)]
 #![feature(saturating_neg)]
 
 #![warn(missing_copy_implementations)]
@@ -11,7 +12,7 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
-pub mod glyph;
+pub mod view;
 pub mod buffer;
 
 /// Commonly used types and functions.
@@ -19,7 +20,8 @@ pub mod prelude {
     pub use ensogl::prelude::*;
 }
 
-pub use ensogl::display;
+//pub use ensogl::display;
+use ensogl::display;
 pub use ensogl::data;
 
 use buffer::*;
@@ -127,9 +129,10 @@ pub fn main() {
 
 use crate::prelude::*;
 use ensogl::data::color;
-use crate::display::shape::text::glyph::font;
-use crate::display::shape::text::glyph::pen::PenIterator;
-use glyph::Glyph;
+use crate::view::glyph::font;
+use crate::view::glyph::pen::PenIterator;
+use view::glyph;
+use view::glyph::Glyph;
 
 
 // ============
