@@ -149,7 +149,7 @@ impl GraphEditorIntegratedWithController {
     , app        : &Application
     , controller : controller::ExecutedGraph
     , project    : controller::Project) -> Self {
-        let model       = GraphEditorIntegratedWithControllerModel::new(logger,app,controller,project);
+        let model = GraphEditorIntegratedWithControllerModel::new(logger,app,controller,project);
         let model       = Rc::new(model);
         let editor_outs = &model.editor.frp.outputs;
         frp::new_network! {network

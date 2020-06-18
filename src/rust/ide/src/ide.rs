@@ -51,8 +51,8 @@ impl IDE {
         WebSocket::new_opened(self.logger.clone_ref(),&self.config.project_manager_endpoint).await
     }
 
-    /// Wraps the transport to the project manager server into the client type and registers it within
-    /// the global executor.
+    /// Wraps the transport to the project manager server into the client type and registers it
+    /// within the global executor.
     pub fn setup_project_manager
     (transport:impl json_rpc::Transport + 'static) -> project_manager::Client {
         let project_manager = project_manager::Client::new(transport);
@@ -87,9 +87,12 @@ impl IDE {
         Ok(controller::Project::new(logger,connection_json,connection_binary,project_name))
     }
 
-    /// Creates a new project and returns its metadata, so the newly connected project can be opened.
+    /// Creates a new project and returns its metadata, so the newly connected project can be
+    /// opened.
     pub async fn create_project
-    (logger:&Logger, project_manager:&impl project_manager::API, name:&String) -> FallibleResult<ProjectMetadata> {
+    ( logger          : &Logger
+    , project_manager : &impl project_manager::API
+    , name            : &String) -> FallibleResult<ProjectMetadata> {
         info!(logger, "Creating a new project named `{name}`.");
         let id = project_manager.create_project(name).await?.project_id;
         Ok(ProjectMetadata {
@@ -123,7 +126,8 @@ impl IDE {
 
     /// Open most recent project or create a new project if none exists.
     pub async fn open_most_recent_project_or_create_new
-    (logger:&Logger, project_manager:&impl project_manager::API) -> FallibleResult<controller::Project> {
+    ( logger          : &Logger
+    , project_manager : &impl project_manager::API) -> FallibleResult<controller::Project> {
         let projects_to_list = 1;
         let mut response     = project_manager.list_recent_projects(&projects_to_list).await?;
         let project_metadata = if let Some(project) = response.projects.pop() {
