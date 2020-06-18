@@ -207,7 +207,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 let ty       = - 1.px() * pos.y();
                 let n_shape  = n_shape.translate((tx,ty));
 
-                let shape           = shape - n_shape;
+                let shape    = shape - n_shape;
 
                 let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
                 let shape           = highlight_shape.fill($color, $highlight_color);
@@ -313,6 +313,7 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let triangle_l = triangle.translate_x(-&offset);
                 let triangle_r = triangle.translate_x(&offset);
                 let shape      = triangle_l + triangle_r;
+
                 let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
                 let shape           = highlight_shape.fill($color, $highlight_color);
                 shape.into()
