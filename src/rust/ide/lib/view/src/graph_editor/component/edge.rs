@@ -54,33 +54,32 @@ const INFINITE : f32 = 99999.0;
 
 /// Edge shape defines the common behaviour of the sub-shapes used to create a Edge.
 trait EdgeShape: ensogl::display::Object {
-    fn set_highlight_offset(&self, offset:Vector2<f32>);
-    fn set_highlight_rotation(&self, angle:f32);
+    fn set_hover_split_offset(&self, offset:Vector2<f32>);
+    fn set_hover_split_rotation(&self, angle:f32);
 
-    /// Set the highlight for this shape. The `hover_pos` is the global position at which the shape
-    /// should be split into the highlighted and not highlighted part, and the `area` indicates,
-    /// which of the two parts (Upper/Lower) should be highlighted.
-    fn enable_highlight(&self, highlight_data:SplitData) {
-        let SplitData { split_position, area, cut_angle } = highlight_data;
+    /// Set the hover split for this shape. The `split_data` indicates where the shape should be
+    /// split and which side should be recolored.
+    fn enable_hover_split(&self, split_data:SplitData) {
+        let SplitData { split_position, area, cut_angle } = split_data;
         // Compute rotation in shape local coordinate system.
         let base_rotation      = self.display_object().rotation().z;
-        let highlight_rotation = base_rotation + cut_angle;
+        let hover_split_rotation = base_rotation + cut_angle;
         match area {
-            Area::Above => self.set_highlight_rotation(highlight_rotation),
+            Area::Above => self.set_hover_split_rotation(hover_split_rotation),
             Area::Below => {
-                self.set_highlight_rotation(highlight_rotation + 2.0 * RIGHT_ANGLE)
+                self.set_hover_split_rotation(hover_split_rotation + 2.0 * RIGHT_ANGLE)
             },
         }
         // Compute position in shape local coordinate system.
         let delta  = split_position - self.display_object().global_position().xy();
         let offset = UnitComplex::new(-base_rotation) * delta;
-        self.set_highlight_offset(offset)
+        self.set_hover_split_offset(offset)
     }
 
-    /// Disable the highlight on this shape.
-    fn disable_highlight(&self) {
-        self.set_highlight_offset(Vector2::new(INFINITE, INFINITE));
-        self.set_highlight_rotation(RIGHT_ANGLE);
+    /// Disable the hover split on this shape.
+    fn disable_hover_split(&self) {
+        self.set_hover_split_offset(Vector2::new(INFINITE, INFINITE));
+        self.set_hover_split_rotation(RIGHT_ANGLE);
     }
 }
 
@@ -90,7 +89,7 @@ trait EdgeShape: ensogl::display::Object {
 // === Edge Shape Trait ===
 // ========================
 
-/// Indicates which area should be highlighted.
+/// Indicates which area should be recolored.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 enum Area {
     Above,
@@ -136,12 +135,12 @@ trait MultiShape {
 
     /// Apply the provided `SplitData` to all sub-shapes, or disable splitting, if None
     /// is given.
-    fn set_split_position(&self, split_data:Option<SplitData>) {
+    fn set_hover_split(&self, split_data:Option<SplitData>) {
         for shape in self.edge_shape_views() {
-            if let Some(highlight_data) = split_data {
-                shape.enable_highlight(highlight_data);
+            if let Some(split_data) = split_data {
+                shape.enable_hover_split(split_data);
             } else {
-                shape.disable_highlight()
+                shape.disable_hover_split()
             }
         }
     }
@@ -191,7 +190,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
         use super::*;
         ensogl::define_shape_system! {
             (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
-             highlight_offset:Vector2<f32>,highlight_rotation:f32) {
+             hover_split_offset:Vector2<f32>,hover_split_rotation:f32) {
                 let radius = 1.px() * radius;
                 let width  = LINE_WIDTH.px();
                 let width2 = width / 2.0;
@@ -203,7 +202,8 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
                 let shadow_size = 10.px();
                 let n_radius = &shadow_size + 1.px() * dim.y();
-                let n_shape  = Rect((&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
+                let n_shape  = Rect(
+                    (&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
                 let n_shape  = n_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
                 let tx       = - 1.px() * pos.x();
                 let ty       = - 1.px() * pos.y();
@@ -211,19 +211,20 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
                 let shape    = shape - n_shape;
 
-                let split_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let split_shape = SplitShape::new(
+                    shape.into(),&hover_split_offset.into(),&hover_split_rotation.into());
                 let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
 
          impl EdgeShape for component::ShapeView<Shape> {
-            fn set_highlight_offset(&self, offset:Vector2<f32>) {
-                self.shape.highlight_offset.set(offset);
+            fn set_hover_split_offset(&self, offset:Vector2<f32>) {
+                self.shape.hover_split_offset.set(offset);
             }
 
-            fn set_highlight_rotation(&self, angle:f32) {
-                 self.shape.highlight_rotation.set(angle);
+            fn set_hover_split_rotation(&self, angle:f32) {
+                 self.shape.hover_split_rotation.set(angle);
             }
         }
     }
@@ -235,7 +236,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
         use super::*;
         ensogl::define_shape_system! {
             (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
-             highlight_offset:Vector2<f32>,highlight_rotation:f32) {
+             hover_split_offset:Vector2<f32>,hover_split_rotation:f32) {
                 let radius = 1.px() * radius;
                 let width  = LINE_WIDTH.px();
                 let width2 = width / 2.0;
@@ -247,26 +248,28 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
 
                 let shadow_size = 10.px() + 1.px();
                 let n_radius = &shadow_size + 1.px() * dim.y();
-                let n_shape  = Rect((&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
+                let n_shape  = Rect(
+                (&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
                 let n_shape  = n_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
                 let tx       = - 1.px() * pos.x();
                 let ty       = - 1.px() * pos.y();
                 let n_shape  = n_shape.translate((tx,ty));
 
                 let shape = shape * n_shape;
-                let split_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let split_shape = SplitShape::new(
+                shape.into(),&hover_split_offset.into(),&hover_split_rotation.into());
                 let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
 
         impl EdgeShape for component::ShapeView<Shape> {
-            fn set_highlight_offset(&self, offset:Vector2<f32>) {
-                self.shape.highlight_offset.set(offset);
+            fn set_hover_split_offset(&self, offset:Vector2<f32>) {
+                self.shape.hover_split_offset.set(offset);
             }
 
-            fn set_highlight_rotation(&self, angle:f32) {
-                 self.shape.highlight_rotation.set(angle);
+            fn set_hover_split_rotation(&self, angle:f32) {
+                 self.shape.hover_split_rotation.set(angle);
             }
         }
     }
@@ -277,24 +280,25 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
     pub mod line {
         use super::*;
         ensogl::define_shape_system! {
-            (highlight_offset:Vector2<f32>,highlight_rotation:f32) {
+            (hover_split_offset:Vector2<f32>,hover_split_rotation:f32) {
                 let width  = LINE_WIDTH.px();
                 let height : Var<Pixels> = "input_size.y".into();
                 let shape  = Rect((width,height));
 
-                let split_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let split_shape = SplitShape::new(
+                shape.into(),&hover_split_offset.into(),&hover_split_rotation.into());
                 let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
 
          impl EdgeShape for component::ShapeView<Shape> {
-            fn set_highlight_offset(&self, offset:Vector2<f32>) {
-                self.shape.highlight_offset.set(offset);
+            fn set_hover_split_offset(&self, offset:Vector2<f32>) {
+                self.shape.hover_split_offset.set(offset);
             }
 
-            fn set_highlight_rotation(&self, angle:f32) {
-                 self.shape.highlight_rotation.set(angle);
+            fn set_hover_split_rotation(&self, angle:f32) {
+                 self.shape.hover_split_rotation.set(angle);
             }
         }
     }
@@ -305,7 +309,7 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
     pub mod arrow {
         use super::*;
         ensogl::define_shape_system! {
-            (highlight_offset:Vector2<f32>,highlight_rotation:f32) {
+            (hover_split_offset:Vector2<f32>,hover_split_rotation:f32) {
                 let width  : Var<Pixels> = "input_size.x".into();
                 let height : Var<Pixels> = "input_size.y".into();
                 let width      = width  - (2.0 * PADDING).px();
@@ -316,19 +320,20 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let triangle_r = triangle.translate_x(&offset);
                 let shape      = triangle_l + triangle_r;
 
-                let split_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let split_shape = SplitShape::new(
+                shape.into(),&hover_split_offset.into(),&hover_split_rotation.into());
                 let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
 
         impl EdgeShape for component::ShapeView<Shape> {
-            fn set_highlight_offset(&self, offset:Vector2<f32>) {
-                self.shape.highlight_offset.set(offset);
+            fn set_hover_split_offset(&self, offset:Vector2<f32>) {
+                self.shape.hover_split_offset.set(offset);
             }
 
-            fn set_highlight_rotation(&self, angle:f32) {
-                 self.shape.highlight_rotation.set(angle);
+            fn set_hover_split_rotation(&self, angle:f32) {
+                 self.shape.hover_split_rotation.set(angle);
             }
         }
     }
@@ -446,8 +451,9 @@ macro_rules! define_components {
             /// Constructor.
             pub fn new(logger:Logger, scene:&Scene) -> Self {
                 let display_object = display::object::Instance::new(&logger);
-                $(let $field = component::ShapeView::new(Logger::sub(&logger,stringify!($field)),scene);)*
-                $(display_object.add_child(&$field);)*
+                $(let $field = component::ShapeView::new(
+                    Logger::sub(&logger,stringify!($field)),scene);)*
+                    $(display_object.add_child(&$field);)*
                 let mut shape_view_events:Vec<component::ShapeViewEvents> = Vec::default();
                 $(shape_view_events.push($field.events.clone_ref());)*
                 let shape_view_events = Rc::new(shape_view_events);
@@ -767,7 +773,7 @@ impl EdgeModelData {
         let source_y        = self.target_position.get().y;
         let delta_y         = target_y - source_y;
         let input_above_mid = delta_y > 0.0;
-        let point_area      = self.highlight_area_for_position(point);
+        let point_area      = self.hover_split_area_for_position(point);
 
         match (point_area, input_above_mid) {
             (Area::Above, true)  => EndDesignation::Input,
@@ -777,8 +783,8 @@ impl EdgeModelData {
         }
     }
 
-    /// Returns whether the given positions should highlight the area above or below.
-    fn highlight_area_for_position(&self, point:Vector2<f32>) -> Area {
+    /// Returns whether the given positions should change the color of the area above or below.
+    fn hover_split_area_for_position(&self, point:Vector2<f32>) -> Area {
         if self.is_in_upper_half(point) {
             Area::Above
         } else {
@@ -786,9 +792,9 @@ impl EdgeModelData {
         }
     }
 
-    /// Return the cut angle of the highlight area based on the quadrant in which the edge is
+    /// Return the cut angle of the hover split based on the quadrant in which the edge is
     /// located relative to its source.
-    fn highlight_cut_angle(&self) -> f32 {
+    fn hover_split_cut_angle(&self) -> f32 {
         let target_pos = self.target_position.get();
         let source_pos = self.display_object.position();
         let is_below = target_pos.y <source_pos.y;
@@ -819,13 +825,13 @@ impl EdgeModelData {
         // === Update Highlights ===
         let hover_pos  = self.hover_position.get();
         let hover_data = hover_pos.map(|position| {
-            let area      = self.highlight_area_for_position(position);
-            let cut_angle = self.highlight_cut_angle();
+            let area      = self.hover_split_area_for_position(position);
+            let cut_angle = self.hover_split_cut_angle();
             SplitData::new(position, area, cut_angle)
         });
 
-        self.front.set_split_position(hover_data);
-        self.back.set_split_position(hover_data);
+        self.front.set_hover_split(hover_data);
+        self.back.set_hover_split(hover_data);
 
 
         // === Target ===
