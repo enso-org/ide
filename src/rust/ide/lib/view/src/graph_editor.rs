@@ -964,6 +964,21 @@ impl GraphEditorModelWithNetwork {
         node_id
     }
 
+    fn is_node_connected_at_input(&self, node_id:NodeId, crumbs:span_tree::Crumbs) -> bool {
+        if let Some(node) = self.nodes.get_cloned(&node_id) {
+            for in_edge_id in node.in_edges.raw.borrow().iter() {
+                if let Some(edge) = self.edges.get_cloned(in_edge_id) {
+                    if let Some(target) = edge.target() {
+                        if target.node_id == node_id && target.port.as_ref() == &crumbs {
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
     pub fn get_node_position(&self, node_id:NodeId) -> Option<Vector3<f32>> {
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position())
     }
@@ -1749,9 +1764,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     new_output_edge <- node_output_touch.down.map(f_!([model,edge_mouse_down,edge_over,edge_out]{
         model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out)
     }));
-    new_input_edge  <- node_input_touch.down.map(f_!([model,edge_mouse_down,edge_over,edge_out]{
-        model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out)
-    }));
+    new_input_edge <- node_input_touch.down.map(f!([model,edge_mouse_down,edge_over,edge_out]((target)){
+        if model.is_node_connected_at_input(target.node_id,target.port.to_vec()) {
+            return None
+        };
+        Some(model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out))
+    })).unwrap();
 
     outputs.edge_added <+ new_output_edge;
     new_edge_source <- new_output_edge.map2(&node_output_touch.down, move |id,node_id| (*id,EdgeTarget::new(node_id,default())));
