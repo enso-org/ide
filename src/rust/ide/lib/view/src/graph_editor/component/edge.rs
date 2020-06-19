@@ -60,14 +60,14 @@ trait EdgeShape: ensogl::display::Object {
     /// Set the highlight for this shape. The `hover_pos` is the global position at which the shape
     /// should be split into the highlighted and not highlighted part, and the `area` indicates,
     /// which of the two parts (Upper/Lower) should be highlighted.
-    fn enable_highlight(&self, highlight_data:HighlightData) {
-        let HighlightData{ split_position, area, cut_angle } = highlight_data;
+    fn enable_highlight(&self, highlight_data:SplitData) {
+        let SplitData { split_position, area, cut_angle } = highlight_data;
         // Compute rotation in shape local coordinate system.
         let base_rotation      = self.display_object().rotation().z;
         let highlight_rotation = base_rotation + cut_angle;
         match area {
-            HighlightArea::Above => self.set_highlight_rotation(highlight_rotation),
-            HighlightArea::Below => {
+            Area::Above => self.set_highlight_rotation(highlight_rotation),
+            Area::Below => {
                 self.set_highlight_rotation(highlight_rotation + 2.0 * RIGHT_ANGLE)
             },
         }
@@ -78,7 +78,7 @@ trait EdgeShape: ensogl::display::Object {
     }
 
     /// Disable the highlight on this shape.
-    fn disable_highlightt(&self) {
+    fn disable_highlight(&self) {
         self.set_highlight_offset(Vector2::new(INFINITE, INFINITE));
         self.set_highlight_rotation(RIGHT_ANGLE);
     }
@@ -92,22 +92,24 @@ trait EdgeShape: ensogl::display::Object {
 
 /// Indicates which area should be highlighted.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
-enum HighlightArea {
+enum Area {
     Above,
     Below,
 }
 
-/// Holds the data required to highlight shapes.
+/// Holds the data required to split a shape into two parts.
+///
+/// The `area` indicates which side of the split will receive special coloring.
 #[derive(Clone,Copy,Debug)]
-struct HighlightData {
+struct SplitData {
     split_position : Vector2<f32>,
-    area           : HighlightArea,
+    area           : Area,
     cut_angle      : f32
 }
 
-impl HighlightData {
-    fn new(split_position:Vector2<f32>, area:HighlightArea, cut_angle:f32) -> Self {
-        HighlightData{split_position,area,cut_angle}
+impl SplitData {
+    fn new(split_position:Vector2<f32>, area: Area, cut_angle:f32) -> Self {
+        SplitData {split_position,area,cut_angle}
     }
 }
 
@@ -132,14 +134,14 @@ trait MultiShape {
         }
     }
 
-    /// Apply the provided `HighlightData` to all sub-shapes, or disable highlighting, if None
+    /// Apply the provided `SplitData` to all sub-shapes, or disable splitting, if None
     /// is given.
-    fn set_highlight_split_position(&self, highlight_data:Option<HighlightData>) {
+    fn set_split_position(&self, split_data:Option<SplitData>) {
         for shape in self.edge_shape_views() {
-            if let Some(highlight_data) = highlight_data {
+            if let Some(highlight_data) = split_data {
                 shape.enable_highlight(highlight_data);
             } else {
-                shape.disable_highlightt()
+                shape.disable_highlight()
             }
         }
     }
@@ -209,8 +211,8 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
                 let shape    = shape - n_shape;
 
-                let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
-                let shape           = highlight_shape.fill($color, $highlight_color);
+                let split_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
@@ -252,8 +254,8 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 let n_shape  = n_shape.translate((tx,ty));
 
                 let shape = shape * n_shape;
-                let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
-                let shape           = highlight_shape.fill($color, $highlight_color);
+                let split_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
@@ -280,8 +282,8 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 let height : Var<Pixels> = "input_size.y".into();
                 let shape  = Rect((width,height));
 
-                let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
-                let shape           = highlight_shape.fill($color, $highlight_color);
+                let split_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
@@ -314,8 +316,8 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let triangle_r = triangle.translate_x(&offset);
                 let shape      = triangle_l + triangle_r;
 
-                let highlight_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
-                let shape           = highlight_shape.fill($color, $highlight_color);
+                let split_shape = SplitShape::new(shape.into(),&highlight_offset.into(),&highlight_rotation.into());
+                let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
@@ -768,19 +770,19 @@ impl EdgeModelData {
         let point_area      = self.highlight_area_for_position(point);
 
         match (point_area, input_above_mid) {
-            (HighlightArea::Above, true)  => EndDesignation::Input,
-            (HighlightArea::Above, false) => EndDesignation::Output,
-            (HighlightArea::Below, true)  => EndDesignation::Output,
-            (HighlightArea::Below, false) => EndDesignation::Input,
+            (Area::Above, true)  => EndDesignation::Input,
+            (Area::Above, false) => EndDesignation::Output,
+            (Area::Below, true)  => EndDesignation::Output,
+            (Area::Below, false) => EndDesignation::Input,
         }
     }
 
     /// Returns whether the given positions should highlight the area above or below.
-    fn highlight_area_for_position(&self, point:Vector2<f32>) -> HighlightArea {
+    fn highlight_area_for_position(&self, point:Vector2<f32>) -> Area {
         if self.is_in_upper_half(point) {
-            HighlightArea::Above
+            Area::Above
         } else {
-            HighlightArea::Below
+            Area::Below
         }
     }
 
@@ -819,11 +821,11 @@ impl EdgeModelData {
         let hover_data = hover_pos.map(|position| {
             let area      = self.highlight_area_for_position(position);
             let cut_angle = self.highlight_cut_angle();
-            HighlightData::new(position, area, cut_angle)
+            SplitData::new(position, area, cut_angle)
         });
 
-        self.front.set_highlight_split_position(hover_data);
-        self.back.set_highlight_split_position(hover_data);
+        self.front.set_split_position(hover_data);
+        self.back.set_split_position(hover_data);
 
 
         // === Target ===
