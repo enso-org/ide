@@ -11,6 +11,12 @@ use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::synchronized::ExecutionContext;
 
+
+
+// ====================
+// === Notification ===
+// ====================
+
 /// Notification about change in the executed graph.
 ///
 /// It may pertain either the state of the graph itself or the notifications from the execution.
@@ -23,6 +29,11 @@ pub enum Notification {
     ComputedValueInfo(crate::model::execution_context::ComputedValueExpressions),
 }
 
+
+
+// ==============
+// === Handle ===
+// ==============
 /// Handle providing executed graph controller interface.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
@@ -85,6 +96,12 @@ impl Deref for Handle {
     }
 }
 
+
+
+// ============
+// === Test ===
+// ============
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,4 +150,3 @@ mod tests {
         notifications.expect_pending();
     }
 }
-

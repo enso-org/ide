@@ -754,19 +754,19 @@ mod tests {
     /// All the data needed to set up and run the graph controller in mock environment.
     #[derive(Clone,Debug)]
     pub struct MockData {
-        pub module_path     : model::module::Path,
-        pub graph_id        : Id,
-        pub project_name    : String,
-        pub code            : String,
+        pub module_path  : model::module::Path,
+        pub graph_id     : Id,
+        pub project_name : String,
+        pub code         : String,
     }
 
     impl MockData {
         pub fn new(code:impl Str) -> Self {
             MockData {
-                module_path     : model::module::Path::from_mock_module_name("Main"),
-                graph_id        :  Id::new_plain_name("main"),
-                project_name    : "MockProject".to_string(),
-                code            : code.into(),
+                module_path  : model::module::Path::from_mock_module_name("Main"),
+                graph_id     :  Id::new_plain_name("main"),
+                project_name : "MockProject".to_string(),
+                code         : code.into(),
             }
         }
 
@@ -808,8 +808,7 @@ mod tests {
         ( &mut self
         , data : MockData
         , test : impl FnOnce(controller::Module,Handle) -> Fut + 'static
-        )
-        where Fut : Future<Output=()> {
+        ) where Fut : Future<Output=()> {
             let (module,graph) = data.create_controllers();
             self.run_task(async move {
                 test(module,graph).await
@@ -820,7 +819,7 @@ mod tests {
         (&mut self, code:impl Str, test:Test)
         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
               Fut  : Future<Output=()> {
-            let data  = MockData::new(code);
+            let data = MockData::new(code);
             self.run(data,test)
         }
 

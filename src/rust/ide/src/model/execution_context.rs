@@ -274,11 +274,11 @@ pub struct ExecutionContext {
 impl ExecutionContext {
     /// Create new execution context
     pub fn new(logger:impl Into<Logger>, entry_point:DefinitionName) -> Self {
-        let logger             = logger.into();
-        let stack              = default();
-        let visualizations     = default();
-        let expression_info    = default();
-        Self {logger,entry_point,stack,visualizations, computed_value_info_registry: expression_info }
+        let logger                       = logger.into();
+        let stack                        = default();
+        let visualizations               = default();
+        let computed_value_info_registry = default();
+        Self {logger,entry_point,stack,visualizations, computed_value_info_registry }
     }
 
     /// Push a new stack item to execution context.
