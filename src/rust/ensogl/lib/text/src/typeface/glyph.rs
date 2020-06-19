@@ -51,7 +51,7 @@ impl Glyph {
     }
 
     /// Change the displayed character.
-    pub fn set_glyph(&self, ch:char) {
+    pub fn set_char(&self, ch:char) {
         let glyph_info = self.font.get_glyph_info(ch);
         self.atlas_index.set(glyph_info.msdf_texture_glyph_id as f32);
         self.update_msdf_texture();

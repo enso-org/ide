@@ -1,6 +1,7 @@
 
 pub mod rope {
     pub use xi_rope::*;
+    pub use xi_rope::rope::Lines;
     pub use xi_rope::spans::Spans;
     pub use xi_rope::spans::SpansBuilder;
     pub use xi_rope::spans::SpansInfo;
@@ -12,6 +13,7 @@ pub use rope::Cursor;
 pub use rope::LinesMetric;
 pub use rope::Interval;
 pub use rope::IntervalBounds;
+pub use rope::Lines;
 
 use crate::prelude::*;
 use crate::buffer::location::*;

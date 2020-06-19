@@ -1,5 +1,6 @@
 
 use crate::prelude::*;
+use crate::buffer;
 use crate::buffer::*;
 use crate::buffer::location::*;
 
@@ -29,8 +30,8 @@ const DEFAULT_LINE_COUNT : usize = 10;
 #[derive(Debug,Clone,CloneRef,Deref)]
 pub struct View {
     #[deref]
-    buffer            : Buffer,
-    first_line_number : Rc<Cell<usize>>,
+    pub buffer        : Buffer,
+    first_line_number : Rc<Cell<Line>>,
     line_count        : Rc<Cell<usize>>,
     selections        : Rc<RefCell<selection::Group>>,
 }
@@ -80,6 +81,40 @@ impl View {
     /// the viewport, to allow overlap).
     fn page_scroll_height(&self) -> isize {
         std::cmp::max(self.line_count.get() as isize - SCROLL_OVERLAP, 1)
+    }
+
+    pub fn first_line_number(&self) -> Line {
+        self.first_line_number.get()
+    }
+
+    pub fn line_count(&self) -> usize {
+        self.line_count.get()
+    }
+
+    pub fn line_range(&self) -> Range<Line> {
+        let first = self.first_line_number();
+        let last  = first + self.line_count();
+        first .. last
+    }
+
+    pub fn line_offset_range(&self) -> Range<Bytes> {
+        let lines = self.line_range();
+        self.offset_of_line(lines.start) .. self.offset_of_line(lines.end)
+    }
+
+//    pub fn get(&self, line:Line) -> String {
+//        let last_line_number = self.line_of_offset(self.text().len());
+//        let start   = self.offset_of_line(line);
+//        let end     = self.offset_of_line(line+1);
+//        let end     = self.buffer.text.prev_grapheme_offset(end).unwrap_or(end);
+//        let content = self.buffer.text.rope.subseq(start.raw .. end.raw);
+//        println!("buffer line count: {}", last_line_number.raw);
+//        content.into()
+//    }
+
+    pub fn lines(&self) -> buffer::Lines {
+        let range = self.line_offset_range();
+        self.buffer.text.rope.lines(range.start.raw .. range.end.raw)
     }
 
 //    fn scroll_to_cursor(&mut self, text: &Text) {

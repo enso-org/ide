@@ -1,5 +1,6 @@
 
 use crate::prelude::*;
+use crate::buffer::text::rope;
 
 
 
@@ -91,3 +92,10 @@ impl Bytes {
         Column(self.raw)
     }
 }
+
+// TODO: Uncomment after updating rutc.
+// impl From<Range<Bytes>> for rope::Interval {
+//     fn from(t:Range<Bytes>) -> Self {
+//         (t.start.raw .. t.end.raw).into()
+//     }
+// }

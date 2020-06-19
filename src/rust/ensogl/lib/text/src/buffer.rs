@@ -9,6 +9,10 @@ pub mod text;
 pub use movement::Movement;
 pub use selection::Selection;
 pub use view::View;
+pub use location::Column;
+pub use location::Bytes;
+pub use location::Line;
+pub use text::Lines;
 
 
 use crate::prelude::*;

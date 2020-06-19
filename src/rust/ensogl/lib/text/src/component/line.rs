@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 use crate::typeface::glyph;
+use crate::typeface::pen;
 use crate::typeface::glyph::Glyph;
 use crate::buffer;
 
@@ -13,11 +14,35 @@ use ensogl::display;
 // === Line ===
 // ============
 
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Debug)]
 pub struct Line {
-    glyphs : Rc<RefCell<Vec<Glyph>>>,
+    display_object : display::object::Instance,
+    glyphs         : Vec<Glyph>,
 }
 
+impl Line {
+    fn new(logger:impl AnyLogger) -> Self {
+        let logger         = Logger::sub(logger,"line");
+        let display_object = display::object::Instance::new(logger);
+        let glyphs         = default();
+        Self {display_object,glyphs}
+    }
+
+    fn resize_with(&mut self, size:usize, cons:impl Fn()->Glyph) {
+        let display_object = self.display_object().clone_ref();
+        self.glyphs.resize_with(size,move || {
+            let glyph = cons();
+            display_object.add_child(&glyph);
+            glyph
+        });
+    }
+}
+
+impl display::Object for Line {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
 
 
 // ============
@@ -32,21 +57,68 @@ pub struct Line {
 /// method.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
+    logger         : Logger,
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
-    buffer         : buffer::View,
+    buffer_view    : buffer::View,
     lines          : Rc<RefCell<Vec<Line>>>,
 
 }
 
 impl Area {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger, buffer:&buffer::View, glyph_system:&glyph::System) -> Self {
-        let display_object = display::object::Instance::new(Logger::sub(logger,"line"));
+    pub fn new
+    (logger:impl AnyLogger, buffer_view:&buffer::View, glyph_system:&glyph::System) -> Self {
+        let logger         = Logger::sub(logger,"text_area");
+        let display_object = display::object::Instance::new(&logger);
         let glyph_system   = glyph_system.clone_ref();
-        let buffer         = buffer.clone_ref();
+        let buffer_view    = buffer_view.clone_ref();
         let lines          = default();
-        Self {display_object,glyph_system,buffer,lines}
+        Self {logger,display_object,glyph_system,buffer_view,lines} . init()
+    }
+
+    fn init(self) -> Self {
+        self.redraw();
+        self
+    }
+
+    fn redraw(&self) {
+        let line_count = self.buffer_view.line_count();
+        self.lines.borrow_mut().resize_with(line_count,||self.new_line());
+        for (line_number,content) in self.buffer_view.lines().enumerate() {
+            self.redraw_line(line_number,content)
+        }
+    }
+
+    fn redraw_line(&self, line_number:usize, content:Cow<str>) {
+        let font_size = 10.0; // FIXME
+        let color     = color::Rgba::new(1.0,0.0,0.0,1.0);
+        let line      = &mut self.lines.borrow_mut()[line_number];
+        let pen       = pen::Iterator::new(10.0,content.chars(),self.glyph_system.font.clone_ref()); // FIXME clone
+        line.resize_with(content.len(),||self.glyph_system.new_glyph());
+        for (glyph,info) in line.glyphs.iter().zip(pen) {
+            let glyph_info   = self.glyph_system.font.get_glyph_info(info.char);
+            let size         = glyph_info.scale.scale(font_size);
+            let glyph_offset = glyph_info.offset.scale(font_size);
+            let glyph_x      = info.offset + glyph_offset.x;
+            let glyph_y      = glyph_offset.y;
+            glyph.set_position_xy(Vector2(glyph_x,glyph_y));
+            glyph.set_char(info.char);
+            glyph.set_color(color);
+            glyph.size.set(size);
+        }
+    }
+
+    fn new_line(&self) -> Line {
+        let line = Line::new(&self.logger);
+        self.add_child(&line);
+        line
+    }
+}
+
+impl display::Object for Area {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }
 
@@ -103,10 +175,5 @@ impl Area {
 //}
 //
 //
-//// === Display Object ===
-//
-//impl display::Object for Line {
-//    fn display_object(&self) -> &display::object::Instance {
-//        &self.display_object
-//    }
-//}
+// === Display Object ===
+

@@ -107,14 +107,23 @@ fn init(app:&Application) {
     let font          = fonts.load("DejaVuSansMono").unwrap();
     let glyph_system  = text::typeface::glyph::System::new(scene,font);
     let symbol        = &glyph_system.sprite_system().symbol;
-    scene.views.main.remove(symbol);
-    scene.views.label.add(symbol);
+//    scene.views.main.remove(symbol);
+//    scene.views.label.add(symbol);
+
+    let buffer = text::Buffer::from("Test text!\nline2\nline3\nline4");
+    let buffer_view = buffer.new_view();
+
+    let area = text::Area::new(Logger::new("test"),&buffer_view,&glyph_system);
+    world.add_child(&area);
+
+    println!("!!! {}", buffer.text.rope.subseq(0..10));
 
     let mut was_rendered = false;
     let mut loader_hidden = false;
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
         let _keep_alive = &graph_editor;
+        let _keep_alive = &area;
 //        let _keep_alive = &network;
 
         // Temporary code removing the web-loader instance.
