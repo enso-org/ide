@@ -275,7 +275,7 @@ mod test {
         assert_eq!(ids1,ids2);
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn test_case_markdown() {
         let case = Case::from_markdown("foo«aa⎀bb»c");
         assert_eq!(case.code, "fooaac");
@@ -290,7 +290,7 @@ mod test {
         assert_eq!(case.resulting_code(), "fooc");
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn applying_code_changes_to_id_map() {
         let parser = Parser::new_or_panic();
 
