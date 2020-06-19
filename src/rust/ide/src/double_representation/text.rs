@@ -23,7 +23,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
     let inserted      = change.inserted.as_str();
     let new_code      = change.applied(code);
     let non_white     = |c:char| !c.is_whitespace();
-    let logger        = Logger::new("apply_code_change_to_id_map");
+    let logger        = logger::disabled::Logger::new("apply_code_change_to_id_map");
     let vector        = &mut id_map.vec;
     let inserted_size = Size::from(inserted);
 
@@ -275,7 +275,7 @@ mod test {
         assert_eq!(ids1,ids2);
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn test_case_markdown() {
         let case = Case::from_markdown("foo«aa⎀bb»c");
         assert_eq!(case.code, "fooaac");
