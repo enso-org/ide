@@ -1406,9 +1406,9 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         use keyboard::Key;
         vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Character("n".into())])               , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Backspace])                           , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character(" ".into())])               , "press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::double_press (&[Key::Character(" ".into())])               , "double_press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Character(" ".into())])               , "release_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())])  , "press_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())])  , "double_press_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())])  , "release_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta])                                , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta])                                , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control])                             , "toggle_node_multi_select")
@@ -1501,6 +1501,12 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let outputs        = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
+    // === Mouse Cursor Transform ===
+    frp::extend! { network
+        cursor_pos_in_scene <- cursor.frp.position.map(f!((position) {
+            scene.screen_to_scene_coordinates(*position).xy()
+        }));
+    }
 
     // === Selection Target Redirection ===
     frp::extend! { network
@@ -1842,8 +1848,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Move Edges ===
     detached_edge           <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
-    cursor_pos_on_detach    <- cursor.frp.position.sample(&detached_edge);
-    edge_refresh_cursor_pos <- any (cursor_pos_on_detach,cursor.frp.position);
+    cursor_pos_on_detach    <- cursor_pos_in_scene.sample(&detached_edge);
+    edge_refresh_cursor_pos <- any (cursor_pos_on_detach,cursor_pos_in_scene);
 
     is_hovering_output <- inputs.hover_node_output.map(|target| target.is_some());
     hover_node         <- inputs.hover_node_output.unwrap();
