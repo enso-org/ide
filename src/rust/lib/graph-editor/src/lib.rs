@@ -1504,7 +1504,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     // === Mouse Cursor Transform ===
     frp::extend! { network
         cursor_pos_in_scene <- cursor.frp.position.map(f!((position) {
-            scene.transform_screen_to_scene_coordinates(*position).xy()
+            scene.screen_to_scene_coordinates(*position).xy()
         }));
     }
 

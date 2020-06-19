@@ -934,7 +934,7 @@ impl SceneData {
         });
     }
 
-    pub fn transform_screen_to_scene_coordinates(&self, position:Vector3<f32>) -> Vector3<f32> {
+    pub fn screen_to_scene_coordinates(&self, position:Vector3<f32>) -> Vector3<f32> {
         let position = position / self.camera().zoom();
         let position = Vector4::new(position.x, position.y, position.z, 1.0);
         (self.camera().inversed_view_matrix() * position).xyz()
