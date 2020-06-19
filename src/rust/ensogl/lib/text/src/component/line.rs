@@ -45,6 +45,34 @@ impl display::Object for Line {
 }
 
 
+
+// =============
+// === Lines ===
+// =============
+
+#[derive(Clone,CloneRef,Debug,Default)]
+struct Lines {
+    rc : Rc<RefCell<Vec<Line>>>
+}
+
+impl Lines {
+    pub fn len(&self) -> usize {
+        self.rc.borrow().len()
+    }
+
+    pub fn resize_with(&self, size:usize, cons:impl Fn(usize)->Line) {
+        let vec    = &mut self.rc.borrow_mut();
+        let mut ix = vec.len();
+        vec.resize_with(size,|| {
+            let line = cons(ix);
+            ix += 1;
+            line
+        })
+    }
+}
+
+
+
 // ============
 // === Area ===
 // ============
@@ -61,7 +89,7 @@ pub struct Area {
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
     buffer_view    : buffer::View,
-    lines          : Rc<RefCell<Vec<Line>>>,
+    lines          : Lines,
 
 }
 
@@ -77,6 +105,10 @@ impl Area {
         Self {logger,display_object,glyph_system,buffer_view,lines} . init()
     }
 
+    pub fn line_count(&self) -> usize {
+        self.lines.len()
+    }
+
     fn init(self) -> Self {
         self.redraw();
         self
@@ -84,7 +116,7 @@ impl Area {
 
     fn redraw(&self) {
         let line_count = self.buffer_view.line_count();
-        self.lines.borrow_mut().resize_with(line_count,||self.new_line());
+        self.lines.resize_with(line_count,|ix| self.new_line(ix));
         for (line_number,content) in self.buffer_view.lines().enumerate() {
             self.redraw_line(line_number,content)
         }
@@ -93,8 +125,9 @@ impl Area {
     fn redraw_line(&self, line_number:usize, content:Cow<str>) {
         let font_size = 10.0; // FIXME
         let color     = color::Rgba::new(1.0,0.0,0.0,1.0);
-        let line      = &mut self.lines.borrow_mut()[line_number];
-        let pen       = pen::Iterator::new(10.0,content.chars(),self.glyph_system.font.clone_ref()); // FIXME clone
+        let line      = &mut self.lines.rc.borrow_mut()[line_number];
+        // FIXME clone:
+        let pen       = pen::Iterator::new(10.0,content.chars(),self.glyph_system.font.clone_ref());
         line.resize_with(content.len(),||self.glyph_system.new_glyph());
         for (glyph,info) in line.glyphs.iter().zip(pen) {
             let glyph_info   = self.glyph_system.font.get_glyph_info(info.char);
@@ -109,8 +142,10 @@ impl Area {
         }
     }
 
-    fn new_line(&self) -> Line {
-        let line = Line::new(&self.logger);
+    fn new_line(&self, index:usize) -> Line {
+        let line     = Line::new(&self.logger);
+        let y_offset = - (index as f32) * 12.0; // FIXME line height?
+        line.set_position_y(y_offset);
         self.add_child(&line);
         line
     }
