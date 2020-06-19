@@ -1671,7 +1671,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // === Add Node ===
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
     node_cursor_style <- source::<cursor::Style>();
 
