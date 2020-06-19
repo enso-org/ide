@@ -197,6 +197,7 @@ impl Handle {
     //  binary protocol notifications. However, it is not practical to generalize them, as the
     //  underlying RPC handlers and their types are separate.
     //  This generalization should be reconsidered once the old JSON-RPC handler is phased out.
+    //  See: https://github.com/luna/ide/issues/587
         let logger                  = self.logger.clone_ref();
         let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
         move |event| {

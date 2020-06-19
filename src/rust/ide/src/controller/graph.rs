@@ -770,28 +770,31 @@ mod tests {
             }
         }
 
+        /// Creates a mock data with the main function being an inline definition.
+        ///
+        /// The single node's expression is taken as the argument.
         pub fn new_inline(main_body:impl Str) -> Self {
             Self::new(format!("main = {}", main_body.as_ref()))
         }
 
+        /// Creates module and graph controllers.
         pub fn create_controllers(&self) -> (controller::Module,Handle) {
             let ls = language_server::Connection::new_mock_rc(default());
-            self.controllers_provider()(ls)
+            self.create_controllers_with_ls(ls)
         }
 
-        pub fn controllers_provider
-        (&self) -> impl FnOnce(Rc<language_server::Connection>) -> (controller::Module,Handle) {
-            let data = self.clone();
-            |ls| {
-                let id     = data.graph_id;
-                let path   = data.module_path;
-                let code   = &data.code;
-                let id_map = default();
-                let parser = Parser::new_or_panic();
-                let module = controller::Module::new_mock(path,code,id_map,ls,parser).unwrap();
-                let graph  = module.graph_controller(id).unwrap();
-                (module,graph)
-            }
+        /// Like `create_controllers`, but allows  passing a custom LS client (e.g. with some
+        /// expectations already set or shared with other controllers).
+        pub fn create_controllers_with_ls
+        (&self, ls:Rc<language_server::Connection>) -> (controller::Module,Handle) {
+            let id     = self.graph_id.clone();
+            let path   = self.module_path.clone();
+            let code   = &self.code;
+            let id_map = default();
+            let parser = Parser::new_or_panic();
+            let module = controller::Module::new_mock(path,code,id_map,ls,parser).unwrap();
+            let graph  = module.graph_controller(id).unwrap();
+            (module,graph)
         }
     }
 

@@ -125,7 +125,7 @@ mod tests {
         let execution      = execution_data.context_provider(&mut ls);
         let graph_data     = controller::graph::tests::MockData::new_inline("1 + 2");
         let connection     = language_server::Connection::new_mock_rc(ls);
-        let (_,graph)      = graph_data.controllers_provider()(connection.clone_ref());
+        let (_,graph)      = graph_data.create_controllers_with_ls(connection.clone_ref());
         let execution      = Rc::new(execution(connection.clone_ref()));
         let executed_graph = Handle::new(graph,execution.clone_ref());
 

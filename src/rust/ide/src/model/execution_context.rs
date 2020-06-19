@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 
+
 // ===============
 // === Aliases ===
 // ===============
@@ -94,7 +95,7 @@ impl ComputedValueInfoRegistry {
 
     /// Store the information from the given update received from the Language Server.
     pub fn apply_update(&self, values_computed:ExpressionValuesComputed) {
-        let update = values_computed.updates.iter().map(|update| update.id).collect();
+        let updated_expressions = values_computed.updates.iter().map(|update| update.id).collect();
         with(self.map.borrow_mut(), |mut map| {
             for update in values_computed.updates {
                 let id   = update.id;
@@ -102,7 +103,7 @@ impl ComputedValueInfoRegistry {
                 map.insert(id,info);
             };
         });
-        self.emit(update);
+        self.emit(updated_expressions);
     }
 
     /// Subscribe to notifications about changes in the registry.
@@ -110,7 +111,7 @@ impl ComputedValueInfoRegistry {
         self.updates.borrow_mut().subscribe()
     }
 
-    /// Borrows the immutable cache reference.
+    /// Look up the registry for information about given expression.
     pub fn get(&self, id:&ExpressionId) -> Option<Rc<ComputedValueInfo>> {
         self.map.borrow_mut().get(id).cloned()
     }
@@ -267,7 +268,7 @@ pub struct ExecutionContext {
     stack:RefCell<Vec<LocalCall>>,
     /// Set of active visualizations.
     visualizations: RefCell<HashMap<VisualizationId,AttachedVisualization>>,
-    /// Set of active visualizations.
+    /// Storage for information about computed values (like their types).
     pub computed_value_info_registry: ComputedValueInfoRegistry,
 }
 
