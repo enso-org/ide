@@ -23,7 +23,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
     let inserted      = change.inserted.as_str();
     let new_code      = change.applied(code);
     let non_white     = |c:char| !c.is_whitespace();
-    let logger        = logger::disabled::Logger::new("apply_code_change_to_id_map");
+    let logger        = Logger::new("apply_code_change_to_id_map");
     let vector        = &mut id_map.vec;
     let inserted_size = Size::from(inserted);
 
@@ -89,11 +89,14 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
             span.extend_right(inserted_size);
             trim_front = true;
         } else if span.end() >= removed.index {
+            // AST node starts before the edited region and reaches (or possibly goes past) its end.
             debug!(logger,"Node overlapping with the beginning of the edited region.");
-            // AST node ends in the edited region.
-            span.set_right(removed.index);
+            if span.end() <= removed.end() {
+                trim_back = true;
+            }
+            let removed_chars = (span.end() - removed.index).min(removed.size);
+            span.shrink_right(removed_chars);
             span.extend_right(inserted_size);
-            trim_back = true;
         } else {
             debug!(logger,"Node before the edited region.");
             // If there are only spaces between current AST symbol and insertion, extend the symbol.
@@ -287,12 +290,21 @@ mod test {
         assert_eq!(case.resulting_code(), "fooc");
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn applying_code_changes_to_id_map() {
         let parser = Parser::new_or_panic();
 
         // All the cases describe edit to a middle line in three line main definition.
         let cases = [
+            "a = \"«⎀f»foo\"",
+            "a = \"«⎀ »foo\"",
+            "a = \"foo«⎀ »\"",
+            "a = \"foo«⎀f»\"",
+            "a = \"«f»foo\"",
+            "a = \"« »foo\"",
+            "a = \"foo« »\"",
+            "a = \"foo«f»\"",
+            "a = «f»foo",
             "a = «⎀f»foo",
             "a = «f»foo",
             "a = «⎀ »foo",
@@ -306,6 +318,14 @@ mod test {
             "a = foo«⎀j»",
 
             // Same as above but not in an assignment form
+            "\"«⎀f»foo\"",
+            "\"«⎀ »foo\"",
+            "\"foo«⎀ »\"",
+            "\"foo«⎀f»\"",
+            "\"«f»foo\"",
+            "\"« »foo\"",
+            "\"foo« »\"",
+            "\"foo«f»\"",
             "«⎀f»foo",
             "«f»foo",
             // Commented out tests below would fail because of leading whitespace breaking the
