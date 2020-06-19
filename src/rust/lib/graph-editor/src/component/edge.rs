@@ -112,14 +112,12 @@ impl SplitData {
     }
 }
 
-
 /// The MultiShape trait allows operations on a collection of `EdgeShape`.
 trait MultiShape {
     /// Return the `ShapeViewEvents` of all sub-shapes.
     fn events(&self) -> Vec<component::ShapeViewEvents>;
     /// Return references to all `EdgeShape`s in this MultiShape.
     fn edge_shape_views(&self) -> Vec<&dyn EdgeShape>;
-
 
     /// Connect the given `ShapeViewEventsProxy` to the mouse events of all sub-shapes.
     fn register_proxy_frp(&self, network:&frp::Network, frp:&ShapeViewEventsProxy) {
@@ -133,8 +131,7 @@ trait MultiShape {
         }
     }
 
-    /// Apply the provided `SplitData` to all sub-shapes, or disable splitting, if None
-    /// is given.
+    /// Apply the provided `SplitData` to all sub-shapes, or disable splitting, if `None` is given.
     fn set_hover_split(&self, split_data:Option<SplitData>) {
         for shape in self.edge_shape_views() {
             if let Some(split_data) = split_data {
