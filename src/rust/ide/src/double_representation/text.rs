@@ -18,7 +18,11 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
     //   The initial provisional algorithm received some changes to better behave in our typical
     //   editor use-cases, i.e. to keep node ids when editing its expression. However, this came
     //   at price of not properly keeping other sub-ids on parts of the node line.
-    //   In future, better and cleaner algorithm will need to be provided.
+    //   In future, better and cleaner algorithm will need to be provided, likely with a different
+    //   API. Because of such expected rewrite and deeper restructuring, we don't really want to
+    //   spend much time on refactoring this function right now, even if it could be made nicer.
+
+
     let removed       = change.replaced_span();
     let inserted      = change.inserted.as_str();
     let new_code      = change.applied(code);
@@ -60,6 +64,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
     let mut preferred : HashMap<Span,ast::Id> = default();
 
     for (span, id) in vector.iter_mut() {
+        // These
         let mut trim_front = false;
         let mut trim_back  = false;
         let initial_span   = *span;
