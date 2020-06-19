@@ -231,7 +231,9 @@ mod mock_client_tests {
 
         let list_recent_error = "Couldn't get recent projects.";
         let list_sample_error = "Couldn't get sample projects.";
-        let recent_projects = result(mock_client.list_projects(&2)).expect(list_recent_error);
+        let count_limit       = Some(2);
+        let recent_projects   = result(mock_client.list_projects(&count_limit));
+        let recent_projects   = recent_projects.expect(list_recent_error);
         assert_eq!(recent_projects, expected_recent_projects);
         let sample_projects = result(mock_client.list_samples(&2)).expect(list_sample_error);
         assert_eq!(sample_projects, expected_sample_projects);
@@ -355,8 +357,8 @@ mod remote_client_tests {
         });
 
         test_request(
-            |client| client.list_projects(&number_of_projects),
-            "project/listRecent",
+            |client| client.list_projects(&Some(number_of_projects)),
+            "project/list",
             &number_of_projects_json,
             &project_list_json,
             &project_list
