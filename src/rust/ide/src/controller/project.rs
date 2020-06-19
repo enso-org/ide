@@ -322,7 +322,9 @@ mod test {
     use language_server::response;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use enso_protocol::language_server::{CapabilityRegistration, Event, Notification};
+    use enso_protocol::language_server::CapabilityRegistration;
+    use enso_protocol::language_server::Event;
+    use enso_protocol::language_server::Notification;
     use enso_protocol::types::Sha3_224;
 
 
