@@ -57,7 +57,7 @@ BoundingBox grow (BoundingBox a, float value) {
     float max_x = a.max_x+value;
     float min_y = a.min_y-value;
     float max_y = a.max_y+value;
-    return  BoundingBox(min_x,max_x,min_y,max_y);
+    return BoundingBox(min_x,max_x,min_y,max_y);
 }
 
 
