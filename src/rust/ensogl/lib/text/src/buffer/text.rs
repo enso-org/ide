@@ -11,8 +11,6 @@ pub mod rope {
 pub use rope::SpansBuilder;
 pub use rope::Cursor;
 pub use rope::LinesMetric;
-pub use rope::Interval;
-pub use rope::IntervalBounds;
 pub use rope::Lines;
 
 use crate::prelude::*;
@@ -68,20 +66,38 @@ pub struct Spans<T:Clone> {
 }
 
 impl<T:Clone> Spans<T> {
-    pub fn set(&self, interval:impl Into<Interval>, data:impl Into<T>) {
+    pub fn set(&self, interval:impl Into<rope::Interval>, data:impl Into<T>) {
         let interval    = interval.into();
         let data        = data.into();
-        let mut builder = SpansBuilder::new(interval.end());
-        builder.add_span(interval,data);
+        let mut builder = SpansBuilder::new(interval.end - interval.start);
+        builder.add_span((..),data);
         self.edit(interval,builder.build());
     }
 
-    pub fn subseq(&self, bounds:impl IntervalBounds) -> rope::tree::Node<rope::SpansInfo<T>> {
+    pub fn set_default(&self, interval:impl Into<rope::Interval>) where T:Default {
+        let data : T = default();
+        self.set(interval,data);
+    }
+
+    pub fn subseq(&self, bounds:impl rope::IntervalBounds) -> rope::tree::Node<rope::SpansInfo<T>> {
         self.rc.borrow().subseq(bounds)
     }
 
+    pub fn focus(&self, bounds:impl rope::IntervalBounds) -> Self {
+        let rc = Rc::new(RefCell::new(self.subseq(bounds)));
+        Self {rc}
+    }
+
+    pub fn to_vector(&self) -> Vec<(rope::Interval,T)> {
+        self.rc.borrow().iter().map(|t| (t.0,t.1.clone())).collect_vec()
+    }
+
     pub fn edit
-    (&self, bounds:impl IntervalBounds, new:impl Into<rope::tree::Node<rope::SpansInfo<T>>>) {
+    (&self, bounds:impl rope::IntervalBounds, new:impl Into<rope::tree::Node<rope::SpansInfo<T>>>) {
         self.rc.borrow_mut().edit(bounds,new)
+    }
+
+    pub fn raw(&self) -> rope::Spans<T> {
+        self.rc.borrow().clone()
     }
 }

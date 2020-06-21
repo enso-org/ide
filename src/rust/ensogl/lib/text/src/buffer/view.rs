@@ -27,13 +27,19 @@ const DEFAULT_LINE_COUNT : usize = 10;
 /// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
 /// same file (keeping a view per user and merging them visually).
 #[allow(missing_docs)]
-#[derive(Debug,Clone,CloneRef,Deref)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct View {
-    #[deref]
     pub buffer        : Buffer,
     first_line_number : Rc<Cell<Line>>,
     line_count        : Rc<Cell<usize>>,
     selections        : Rc<RefCell<selection::Group>>,
+}
+
+impl Deref for View {
+    type Target = Buffer;
+    fn deref(&self) -> &Self::Target {
+        &self.buffer
+    }
 }
 
 impl View {
@@ -87,19 +93,40 @@ impl View {
         self.first_line_number.get()
     }
 
+    pub fn last_line_number(&self) -> Line {
+        self.first_line_number() + self.line_count()
+    }
+
     pub fn line_count(&self) -> usize {
         self.line_count.get()
     }
 
     pub fn line_range(&self) -> Range<Line> {
-        let first = self.first_line_number();
-        let last  = first + self.line_count();
-        first .. last
+        self.first_line_number() .. self.last_line_number()
+    }
+
+    pub fn first_line_offset(&self) -> Bytes {
+        self.offset_of_line(self.first_line_number())
+    }
+
+    pub fn last_line_offset(&self) -> Bytes {
+        self.offset_of_line(self.last_line_number())
     }
 
     pub fn line_offset_range(&self) -> Range<Bytes> {
-        let lines = self.line_range();
-        self.offset_of_line(lines.start) .. self.offset_of_line(lines.end)
+        self.first_line_offset() .. self.last_line_offset()
+    }
+
+    pub fn offset_of_view_line(&self, view_line:Line) -> Bytes {
+        let line = self.first_line_number() + view_line;
+        self.offset_of_line(line)
+    }
+
+    // FIXME: this sohuld not include line break.
+    pub fn range_of_view_line_raw(&self, view_line:Line) -> Range<Bytes> {
+        let start = self.offset_of_view_line(view_line);
+        let end   = self.offset_of_view_line(view_line + 1);
+        start .. end
     }
 
 //    pub fn get(&self, line:Line) -> String {

@@ -7,7 +7,7 @@ use crate::buffer;
 
 use ensogl::data::color;
 use ensogl::display;
-
+use crate::buffer::view::LineOffset;
 
 
 // ============
@@ -117,19 +117,29 @@ impl Area {
     fn redraw(&self) {
         let line_count = self.buffer_view.line_count();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
-        for (line_number,content) in self.buffer_view.lines().enumerate() {
-            self.redraw_line(line_number,content)
+        for (view_line_number,content) in self.buffer_view.lines().enumerate() {
+            self.redraw_line(view_line_number,content)
         }
     }
 
-    fn redraw_line(&self, line_number:usize, content:Cow<str>) {
+    fn redraw_line(&self, view_line_number:usize, content:Cow<str>) {
         let font_size = 10.0; // FIXME
-        let color     = color::Rgba::new(1.0,0.0,0.0,1.0);
-        let line      = &mut self.lines.rc.borrow_mut()[line_number];
+//        let color     = color::Rgba::new(1.0,0.0,0.0,1.0);
+//        let style     = self.buffer_view.style.current(); // FIXME: refactor to redraw
+        let line      = &mut self.lines.rc.borrow_mut()[view_line_number];
+
+        let line_range = self.buffer_view.range_of_view_line_raw(buffer::Line(view_line_number));
+        let mut line_style = self.buffer_view.style.focus(line_range.start.raw .. line_range.end.raw).iter();
+
+//        let style_cursor = style.cursor(self.buffer_view.first_line_offset().raw);
         // FIXME clone:
         let pen       = pen::Iterator::new(10.0,content.chars(),self.glyph_system.font.clone_ref());
         line.resize_with(content.len(),||self.glyph_system.new_glyph());
         for (glyph,info) in line.glyphs.iter().zip(pen) {
+            let style = line_style.next().unwrap_or_default();
+            line_style.drop(info.char.len_utf8() - 1);
+//            println!("?? {:?}", style_cursor.get_leaf());
+//            style_cursor.next();
             let glyph_info   = self.glyph_system.font.get_glyph_info(info.char);
             let size         = glyph_info.scale.scale(font_size);
             let glyph_offset = glyph_info.offset.scale(font_size);
@@ -137,7 +147,7 @@ impl Area {
             let glyph_y      = glyph_offset.y;
             glyph.set_position_xy(Vector2(glyph_x,glyph_y));
             glyph.set_char(info.char);
-            glyph.set_color(color);
+            glyph.set_color(style.color);
             glyph.size.set(size);
         }
     }
