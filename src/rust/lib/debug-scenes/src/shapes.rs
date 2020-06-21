@@ -115,14 +115,16 @@ fn init(app:&Application) {
     let buffer = text::Buffer::from("Test text €!!!\nline2\nline3\nline4");
     let buffer_view = buffer.new_view();
 
-    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
+//    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
 
 
-    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
+//    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
     buffer.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
     buffer.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
     buffer.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
     buffer.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
+
+    buffer.set_default(color::Rgba::new(0.8,0.8,0.8,1.0));
 
     let area = text::Area::new(Logger::new("test"),&buffer_view,&glyph_system);
     world.add_child(&area);
@@ -132,7 +134,6 @@ fn init(app:&Application) {
     println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(1)));
     println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(2)));
     println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(3)));
-    println!("!!! {:?}", buffer_view.style.color.to_vector());
 
     let mut was_rendered = false;
     let mut loader_hidden = false;

@@ -1,6 +1,7 @@
 
 use crate::prelude::*;
 use crate::buffer::text::rope;
+use std::ops::AddAssign; // FIXME
 
 
 pub mod traits {
@@ -124,3 +125,10 @@ impl<T:Into<Bytes>> ConversionToBytes for Range<T> {
 //         (t.start.raw .. t.end.raw).into()
 //     }
 // }
+
+
+impl AddAssign<usize> for Bytes {
+    fn add_assign(&mut self, rhs:usize) {
+        self.raw += rhs;
+    }
+}

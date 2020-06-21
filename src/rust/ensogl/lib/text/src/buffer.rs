@@ -25,133 +25,167 @@ use crate::text::Text;
 pub mod traits {
     pub use super::location::traits::*;
     pub use super::Setter as TRAIT_Setter;
+    pub use super::DefaultSetter as TRAIT_DefaultSetter;
 }
 
 
-//macro_rules! define_styles {
-//    () => {
-//        println!("Hello!");
-//    };
-//}
-//
-//define_styles! {
-//    color
-//}
 
-#[derive(Debug,Default)]
-pub struct StyleValue {
-    pub color     : color::Rgba,
-    pub bold      : bool,
-    pub italics   : bool,
-    pub underline : bool,
+
+#[derive(Clone,Debug,Default)]
+pub struct StyleProperty<T:Clone> {
+    spans   : text::Spans<T>,
+    default : T,
 }
 
+impl<T:Clone> StyleProperty<T> {
+    pub fn focus(&self, range:text::Range<Bytes>) -> Self {
+        let spans   = self.spans.focus(range);
+        let default = self.default.clone();
+        Self {spans,default}
+    }
 
-pub struct StyleIteratorComponents {
-    color     : std::vec::IntoIter<(text::rope::Interval,color::Rgba)>,
-    bold      : std::vec::IntoIter<(text::rope::Interval,bool)>,
-    italics   : std::vec::IntoIter<(text::rope::Interval,bool)>,
-    underline : std::vec::IntoIter<(text::rope::Interval,bool)>,
+    pub fn to_vector(&self) -> Vec<(text::Range<Bytes>,T)> {
+        let spans_iter = self.spans.to_vector().into_iter();
+        spans_iter.map(|t|(t.0,t.1.unwrap_or_else(||self.default.clone()))).collect_vec()
+    }
+
+    pub fn default(&self) -> &T {
+        &self.default
+    }
 }
 
-#[derive(Default)]
-pub struct StyleIteratorValue {
-    color     : Option<(text::rope::Interval,color::Rgba)>,
-    bold      : Option<(text::rope::Interval,bool)>,
-    italics   : Option<(text::rope::Interval,bool)>,
-    underline : Option<(text::rope::Interval,bool)>,
+impl<T:Clone> Deref for StyleProperty<T> {
+    type Target = text::Spans<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.spans
+    }
 }
+
+impl<T:Clone> DerefMut for StyleProperty<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.spans
+    }
+}
+
 
 pub struct StyleIterator {
-    byte_index : usize,
+    offset     : Bytes,
     value      : StyleIteratorValue,
     component  : StyleIteratorComponents,
 }
 
 impl StyleIterator {
     pub fn new(component:StyleIteratorComponents) -> Self {
-        let byte_index = default();
-        let value      = default();
-        Self {byte_index,value,component}
+        let offset = default();
+        let value  = default();
+        Self {offset,value,component}
     }
 
-    pub fn drop(&mut self, bytes:usize) {
-        for _ in 0 .. bytes {
+    pub fn drop(&mut self, bytes:Bytes) {
+        for _ in 0 .. bytes.raw {
             self.next();
         }
     }
 }
 
-impl Iterator for StyleIterator {
-    type Item = StyleValue;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.value.color.map(|t| self.byte_index < t.0.end) != Some(true) {self.value.color = self.component.color.next()}
-        if self.value.bold.map(|t| self.byte_index < t.0.end) != Some(true) {self.value.bold = self.component.bold.next()}
-        if self.value.italics.map(|t| self.byte_index < t.0.end) != Some(true) {self.value.italics = self.component.italics.next()}
-        if self.value.underline.map(|t| self.byte_index < t.0.end) != Some(true) {self.value.underline = self.component.underline.next()}
-
-        let color = self.value.color?.1;
-        let bold = self.value.bold?.1;
-        let italics = self.value.italics?.1;
-        let underline = self.value.underline?.1;
-
-        self.byte_index += 1;
-
-        Some(StyleValue {color,bold,italics,underline})
-    }
-}
-
-
-#[derive(Clone,CloneRef)]
-pub struct Style<T> {
-    spans   : text::Spans<color::Rgba>,
-    default : Rc<Cell<T>>,
-}
-
-impl<T> Deref for Style<T> {
-    type Target = text::Spans<color::Rgba>;
-    fn deref(&self) -> &Self::Target {
-        &self.spans
-    }
-}
-
-
 
 // =============
-// === Styles ===
+// === Style ===
 // =============
 
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct Styles {
-    pub color     : text::Spans<color::Rgba>,
-    pub bold      : text::Spans<bool>,
-    pub italics   : text::Spans<bool>,
-    pub underline : text::Spans<bool>,
+macro_rules! define_styles {
+    ($($field:ident : $field_type:ty),* $(,)?) => {
+        #[derive(Debug,Default)]
+        pub struct StyleValue {
+            $(pub $field : $field_type),*
+        }
+
+        pub struct StyleIteratorComponents {
+            $($field : std::vec::IntoIter<(text::Range<Bytes>,$field_type)>),*
+        }
+
+        #[derive(Default)]
+        pub struct StyleIteratorValue {
+            $($field : Option<(text::Range<Bytes>,$field_type)>),*
+        }
+
+        impl Iterator for StyleIterator {
+            type Item = StyleValue;
+            fn next(&mut self) -> Option<Self::Item> {
+                $(
+                    if self.value.$field.map(|t| self.offset < t.0.end) != Some(true) {
+                        self.value.$field = self.component.$field.next()
+                    }
+                    let $field = self.value.$field?.1;
+                )*
+                self.offset += 1;
+                Some(StyleValue {$($field),*})
+            }
+        }
+
+        #[derive(Clone,Debug,Default)]
+        pub struct Style {
+            $(pub $field : StyleProperty<$field_type>),*
+        }
+
+        impl Style {
+            pub fn new() -> Self {
+                Self::default()
+            }
+
+            pub fn focus(&self, bounds:text::Range<Bytes>) -> Self {
+                $(let $field = self.$field.focus(bounds);)*
+                Self {$($field),*}
+            }
+
+            pub fn iter(&self) -> StyleIterator {
+                $(let $field = self.$field.to_vector().into_iter();)*
+                StyleIterator::new(StyleIteratorComponents {$($field),*})
+            }
+        }
+
+        $(
+            impl Setter<$field_type> for Buffer {
+                fn set(&self, range:impl text::RangeBounds, data:$field_type) {
+                    let range = self.crop_range(range);
+                    self.style.borrow_mut().$field.set(range,Some(data))
+                }
+            }
+
+            impl DefaultSetter<$field_type> for Buffer {
+                fn set_default(&self, data:$field_type) {
+                    self.style.borrow_mut().$field.default = data;
+                }
+            }
+
+        )*
+    };
 }
 
-impl Styles {
+macro_rules! newtype {
+    ($(#$meta:tt)* $name:ident($field_type:ty)) => {
+        $(#$meta)*
+        #[derive(Clone,Copy,Debug,Default,Eq,From,Hash,Ord,PartialEq,PartialOrd)]
+        pub struct $name { raw : $field_type }
 
-    pub fn focus(&self, bounds:impl text::rope::IntervalBounds+Clone) -> Self {
-        let color = self.color.focus(bounds.clone());
-        let bold = self.bold.focus(bounds.clone());
-        let italics = self.italics.focus(bounds.clone());
-        let underline = self.underline.focus(bounds);
-        Self {color,bold,italics,underline}
-    }
-
-    pub fn iter(&self) -> StyleIterator {
-        let color = self.color.to_vector().into_iter();
-        let bold = self.bold.to_vector().into_iter();
-        let italics = self.italics.to_vector().into_iter();
-        let underline = self.underline.to_vector().into_iter();
-        let components = StyleIteratorComponents {color,bold,italics,underline};
-        StyleIterator::new(components)
-    }
+        /// Smart constructor.
+        $(#$meta)*
+        pub fn $name(raw:$field_type) -> $name { $name {raw} }
+    };
 }
 
+newtype!(Bold(bool));
+newtype!(Italics(bool));
+newtype!(Underline(bool));
 
 
 
+define_styles! {
+    color     : color::Rgba,
+    bold      : Bold,
+    italics   : Italics,
+    underline : Underline,
+}
 
 
 // ==============
@@ -162,8 +196,8 @@ impl Styles {
 #[derive(Clone,CloneRef,Debug,Default)]
 #[allow(missing_docs)]
 pub struct Buffer {
-    pub text  : Text,
-    pub style : Styles,
+    pub text : Text,
+    style    : Rc<RefCell<Style>>,
 }
 
 impl Buffer {
@@ -178,13 +212,24 @@ impl Buffer {
     }
 
     pub fn from_text(text:Text) -> Self {
-        let range = text::Interval::from(..text.len());
-        let style = Styles::default();
-        style.color.set_default(range);
-        style.bold.set_default(range);
-        style.italics.set_default(range);
-        style.underline.set_default(range);
+        let range = text.range();
+        let mut style = Style::default();
+        // FIXME: Remove the following after adding text edits, and always create text as empty first.
+        style.color.spans.TMP_set_default(range);
+        style.bold.spans.TMP_set_default(range);
+        style.italics.spans.TMP_set_default(range);
+        style.underline.spans.TMP_set_default(range);
+        let style = Rc::new(RefCell::new(style));
         Self {text,style}
+    }
+
+    pub fn focus_style(&self, range:impl text::RangeBounds) -> Style {
+        let range = range.with_upper_bound(self.len());
+        self.style.borrow().focus(range)
+    }
+
+    pub fn style(&self) -> Style {
+        self.style.borrow().clone()
     }
 }
 
@@ -196,14 +241,13 @@ impl Deref for Buffer {
 }
 
 pub trait Setter<T> {
-    fn set(&self, interval:impl text::IntervalBounds, data:T);
+    fn set(&self, range:impl text::RangeBounds, data:T);
 }
 
-impl Setter<color::Rgba> for Buffer {
-    fn set(&self, interval:impl text::IntervalBounds, data:color::Rgba) {
-        self.style.color.set(interval,data)
-    }
+pub trait DefaultSetter<T> {
+    fn set_default(&self, data:T);
 }
+
 
 // === Conversions ===
 

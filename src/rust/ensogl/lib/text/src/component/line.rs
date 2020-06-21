@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::traits::*;
 
 use crate::typeface::glyph;
 use crate::typeface::pen;
@@ -129,7 +130,7 @@ impl Area {
         let line      = &mut self.lines.rc.borrow_mut()[view_line_number];
 
         let line_range = self.buffer_view.range_of_view_line_raw(buffer::Line(view_line_number));
-        let mut line_style = self.buffer_view.style.focus(line_range.start.raw .. line_range.end.raw).iter();
+        let mut line_style = self.buffer_view.focus_style(line_range.start .. line_range.end).iter();
 
 //        let style_cursor = style.cursor(self.buffer_view.first_line_offset().raw);
         // FIXME clone:
@@ -137,7 +138,7 @@ impl Area {
         line.resize_with(content.len(),||self.glyph_system.new_glyph());
         for (glyph,info) in line.glyphs.iter().zip(pen) {
             let style = line_style.next().unwrap_or_default();
-            line_style.drop(info.char.len_utf8() - 1);
+            line_style.drop((info.char.len_utf8() - 1).bytes());
 //            println!("?? {:?}", style_cursor.get_leaf());
 //            style_cursor.next();
             let glyph_info   = self.glyph_system.font.get_glyph_info(info.char);
