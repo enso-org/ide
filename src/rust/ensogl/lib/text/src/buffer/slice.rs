@@ -18,30 +18,30 @@ const DEFAULT_LINE_COUNT : usize = 10;
 
 
 
-// ============
-// === View ===
-// ============
+// =============
+// === Slice ===
+// =============
 
-/// View for a region of a buffer. There are several cases where multiple views share the same
+/// Slice for a region of a buffer. There are several cases where multiple views share the same
 /// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
 /// same file (keeping a view per user and merging them visually).
 #[allow(missing_docs)]
 #[derive(Debug,Clone,CloneRef)]
-pub struct View {
+pub struct Slice {
     pub buffer        : Buffer,
     first_line_number : Rc<Cell<Line>>,
     line_count        : Rc<Cell<usize>>,
     selections        : Rc<RefCell<selection::Group>>,
 }
 
-impl Deref for View {
+impl Deref for Slice {
     type Target = Buffer;
     fn deref(&self) -> &Self::Target {
         &self.buffer
     }
 }
 
-impl View {
+impl Slice {
     /// Constructor.
     pub fn new(buffer:impl Into<Buffer>) -> Self {
         let buffer            = buffer.into();
@@ -160,7 +160,7 @@ impl View {
 }
 
 
-impl View {
+impl Slice {
     /// Convert selection to caret location after a vertical movement.
     fn vertical_motion_selection_to_caret
     (&self, selection:Selection, move_up:bool, modify:bool) -> Location {
@@ -248,7 +248,7 @@ impl View {
 
 
 
-impl View {
+impl Slice {
     /// Apply the movement to each region in the selection, and returns the union of the results.
     ///
     /// If `modify` is `true`, the selections are modified, otherwise the results of individual region
@@ -358,7 +358,7 @@ impl View {
 }
 
 
-impl LineOffset for View {
+impl LineOffset for Slice {
     fn data(&self) -> &Data {
         &self.buffer.data
     }

@@ -12,8 +12,8 @@ use crate::prelude::*;
 pub mod data;
 pub mod movement;
 pub mod selection;
+pub mod slice;
 pub mod style;
-pub mod view;
 
 pub mod traits {
     pub use super::data::traits::*;
@@ -26,8 +26,8 @@ pub use data::Lines;
 pub use data::unit::*;
 pub use movement::Movement;
 pub use selection::Selection;
+pub use slice::Slice;
 pub use style::Style;
-pub use view::View;
 
 
 
@@ -48,9 +48,9 @@ impl Buffer {
         default()
     }
 
-    /// Creates a new `View` for the buffer.
-    pub fn new_view(&self) -> View {
-        View::new(self)
+    /// Creates a new `Slice` for the buffer.
+    pub fn slice(&self) -> Slice {
+        Slice::new(self)
     }
 
     pub fn from_text(data:Data) -> Self {

@@ -8,7 +8,7 @@ use crate::buffer;
 
 use ensogl::data::color;
 use ensogl::display;
-use crate::buffer::view::LineOffset;
+use crate::buffer::slice::LineOffset;
 
 
 // ============
@@ -89,7 +89,7 @@ pub struct Area {
     logger         : Logger,
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
-    buffer_view    : buffer::View,
+    buffer         : buffer::Slice,
     lines          : Lines,
 
 }
@@ -97,13 +97,13 @@ pub struct Area {
 impl Area {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, buffer_view:&buffer::View, glyph_system:&glyph::System) -> Self {
+    (logger:impl AnyLogger, buffer:&buffer::Slice, glyph_system:&glyph::System) -> Self {
         let logger         = Logger::sub(logger,"text_area");
         let display_object = display::object::Instance::new(&logger);
         let glyph_system   = glyph_system.clone_ref();
-        let buffer_view    = buffer_view.clone_ref();
+        let buffer    = buffer.clone_ref();
         let lines          = default();
-        Self {logger,display_object,glyph_system,buffer_view,lines} . init()
+        Self {logger,display_object,glyph_system,buffer,lines} . init()
     }
 
     pub fn line_count(&self) -> usize {
@@ -116,9 +116,9 @@ impl Area {
     }
 
     fn redraw(&self) {
-        let line_count = self.buffer_view.line_count();
+        let line_count = self.buffer.line_count();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
-        for (view_line_number,content) in self.buffer_view.lines().enumerate() {
+        for (view_line_number,content) in self.buffer.lines().enumerate() {
             self.redraw_line(view_line_number,content)
         }
     }
@@ -126,13 +126,13 @@ impl Area {
     fn redraw_line(&self, view_line_number:usize, content:Cow<str>) {
         let font_size = 10.0; // FIXME
 //        let color     = color::Rgba::new(1.0,0.0,0.0,1.0);
-//        let style     = self.buffer_view.style.current(); // FIXME: refactor to redraw
+//        let style     = self.buffer.style.current(); // FIXME: refactor to redraw
         let line      = &mut self.lines.rc.borrow_mut()[view_line_number];
 
-        let line_range = self.buffer_view.range_of_view_line_raw(buffer::Line(view_line_number));
-        let mut line_style = self.buffer_view.focus_style(line_range.start .. line_range.end).iter();
+        let line_range = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
+        let mut line_style = self.buffer.focus_style(line_range.start .. line_range.end).iter();
 
-//        let style_cursor = style.cursor(self.buffer_view.first_line_offset().raw);
+//        let style_cursor = style.cursor(self.buffer.first_line_offset().raw);
         // FIXME clone:
         let pen       = pen::Iterator::new(10.0,content.chars(),self.glyph_system.font.clone_ref());
         line.resize_with(content.len(),||self.glyph_system.new_glyph());
