@@ -7,7 +7,12 @@ pub use std::borrow::Cow;
 pub use std::hash::Hash;
 pub use std::marker::PhantomData;
 pub use std::ops::Range;
-
+pub use std::ops::RangeBounds;
+pub use std::ops::RangeFrom;
+pub use std::ops::RangeFull;
+pub use std::ops::RangeInclusive;
+pub use std::ops::RangeTo;
+pub use std::ops::RangeToInclusive;
 
 // === Format ===
 

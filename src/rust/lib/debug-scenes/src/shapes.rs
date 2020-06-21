@@ -18,6 +18,8 @@ use ensogl::data::color;
 use enso_frp as frp;
 use ensogl_text as text;
 
+use text::traits::*;
+
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -113,11 +115,14 @@ fn init(app:&Application) {
     let buffer = text::Buffer::from("Test text €!!!\nline2\nline3\nline4");
     let buffer_view = buffer.new_view();
 
-    buffer.set_color((..),color::Rgba::new(0.8,0.8,0.8,1.0));
-    buffer.style.color.set(1..3,color::Rgba::new(0.0,1.0,0.0,1.0));
-    buffer.style.color.set(8..9,color::Rgba::new(1.0,1.0,0.0,1.0));
-    buffer.style.color.set(10..11,color::Rgba::new(1.0,0.0,0.0,1.0));
-    buffer.style.color.set(14..15,color::Rgba::new(0.0,0.0,1.0,1.0));
+    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
+
+
+    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
+    buffer.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
+    buffer.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
+    buffer.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
+    buffer.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
 
     let area = text::Area::new(Logger::new("test"),&buffer_view,&glyph_system);
     world.add_child(&area);

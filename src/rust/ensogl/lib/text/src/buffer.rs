@@ -22,6 +22,22 @@ use crate::data::color;
 use crate::text::Text;
 
 
+pub mod traits {
+    pub use super::location::traits::*;
+    pub use super::Setter as TRAIT_Setter;
+}
+
+
+//macro_rules! define_styles {
+//    () => {
+//        println!("Hello!");
+//    };
+//}
+//
+//define_styles! {
+//    color
+//}
+
 #[derive(Debug,Default)]
 pub struct StyleValue {
     pub color     : color::Rgba,
@@ -86,20 +102,34 @@ impl Iterator for StyleIterator {
 }
 
 
+#[derive(Clone,CloneRef)]
+pub struct Style<T> {
+    spans   : text::Spans<color::Rgba>,
+    default : Rc<Cell<T>>,
+}
+
+impl<T> Deref for Style<T> {
+    type Target = text::Spans<color::Rgba>;
+    fn deref(&self) -> &Self::Target {
+        &self.spans
+    }
+}
+
+
 
 // =============
-// === Style ===
+// === Styles ===
 // =============
 
 #[derive(Clone,CloneRef,Debug,Default)]
-pub struct Style {
+pub struct Styles {
     pub color     : text::Spans<color::Rgba>,
     pub bold      : text::Spans<bool>,
     pub italics   : text::Spans<bool>,
     pub underline : text::Spans<bool>,
 }
 
-impl Style {
+impl Styles {
 
     pub fn focus(&self, bounds:impl text::rope::IntervalBounds+Clone) -> Self {
         let color = self.color.focus(bounds.clone());
@@ -120,30 +150,7 @@ impl Style {
 }
 
 
-#[derive(Clone,Copy,PartialEq,Eq)]
-pub struct Interval {
-    pub start : Bytes,
-    pub end   : Bytes,
-}
 
-pub trait IntervalBounds {
-    fn with_upper_bound(self, upper_bound:Bytes) -> Interval;
-}
-
-impl IntervalBounds for std::ops::RangeFull {
-    fn with_upper_bound(self, end:Bytes) -> Interval {
-        let start = Bytes(0);
-        Interval {start,end}
-    }
-}
-
-impl From<Interval> for text::rope::Interval {
-    fn from(t:Interval) -> Self {
-        let start = t.start.raw;
-        let end   = t.end.raw;
-        Self {start,end}
-    }
-}
 
 
 
@@ -156,7 +163,7 @@ impl From<Interval> for text::rope::Interval {
 #[allow(missing_docs)]
 pub struct Buffer {
     pub text  : Text,
-    pub style : Style,
+    pub style : Styles,
 }
 
 impl Buffer {
@@ -171,18 +178,13 @@ impl Buffer {
     }
 
     pub fn from_text(text:Text) -> Self {
-        let range = text::rope::Interval::from(0..text.len().raw);
-        let style = Style::default();
+        let range = text::Interval::from(..text.len());
+        let style = Styles::default();
         style.color.set_default(range);
         style.bold.set_default(range);
         style.italics.set_default(range);
         style.underline.set_default(range);
         Self {text,style}
-    }
-
-    pub fn set_color(&self, interval:impl IntervalBounds, color:color::Rgba) {
-        let interval = interval.with_upper_bound(self.len());
-        self.style.color.set(interval,color);
     }
 }
 
@@ -190,6 +192,16 @@ impl Deref for Buffer {
     type Target = Text;
     fn deref(&self) -> &Self::Target {
         &self.text
+    }
+}
+
+pub trait Setter<T> {
+    fn set(&self, interval:impl text::IntervalBounds, data:T);
+}
+
+impl Setter<color::Rgba> for Buffer {
+    fn set(&self, interval:impl text::IntervalBounds, data:color::Rgba) {
+        self.style.color.set(interval,data)
     }
 }
 

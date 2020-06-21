@@ -3,6 +3,10 @@ use crate::prelude::*;
 use crate::buffer::text::rope;
 
 
+pub mod traits {
+    pub use super::ConversionToBytes as TRAIT_ConversionToBytes;
+}
+
 
 // ==============
 // === Macros ===
@@ -90,6 +94,27 @@ impl Bytes {
 
     pub fn as_column(self) -> Column {
         Column(self.raw)
+    }
+}
+
+pub trait ConversionToBytes {
+    type Output;
+    fn bytes(self) -> Self::Output;
+}
+
+impl<T:Into<Bytes>> ConversionToBytes for T {
+    type Output = Bytes;
+    fn bytes(self) -> Self::Output {
+        self.into()
+    }
+}
+
+impl<T:Into<Bytes>> ConversionToBytes for Range<T> {
+    type Output = Range<Bytes>;
+    fn bytes(self) -> Self::Output {
+        let start = self.start.bytes();
+        let end   = self.end.bytes();
+        Range {start,end}
     }
 }
 

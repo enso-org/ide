@@ -87,6 +87,10 @@ pub mod buffer;
 pub mod component;
 pub mod typeface;
 
+pub mod traits {
+    pub use super::buffer::traits::*;
+}
+
 /// Commonly used types and functions.
 pub mod prelude {
     pub use ensogl::prelude::*;
@@ -142,8 +146,8 @@ use typeface::glyph::Glyph;
 
 pub fn main() {
     let buffer = Buffer::from("Test text!");
-    buffer.style.color.set(1..2,color::Rgba::new(1.0,0.0,0.0,1.0));
-    buffer.style.color.set(5..6,color::Rgba::new(1.0,0.0,0.0,1.0));
+    buffer.style.color.set(Bytes(1)..Bytes(2),color::Rgba::new(1.0,0.0,0.0,1.0));
+    buffer.style.color.set(Bytes(5)..Bytes(6),color::Rgba::new(1.0,0.0,0.0,1.0));
     let view = buffer.new_view();
 
     view.add_selection(Selection::new(Bytes(0),Bytes(0)));

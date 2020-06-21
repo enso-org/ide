@@ -56,6 +56,104 @@ impl From<&&str>    for Text { fn from(t:&&str)    -> Self { (*t).into() } }
 
 
 
+// ================
+// === Interval ===
+// ================
+
+#[derive(Clone,Copy,PartialEq,Eq)]
+pub struct Interval {
+    pub start : Bytes,
+    pub end   : Bytes,
+}
+
+impl Interval {
+    pub fn new(start:Bytes, end:Bytes) -> Self {
+        Self {start,end}
+    }
+
+    pub fn size(&self) -> Bytes {
+        self.end - self.start
+    }
+}
+
+impl fmt::Display for Interval {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{}, {})", self.start.raw, self.end.raw)
+    }
+}
+
+impl fmt::Debug for Interval {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
+impl From<Range<Bytes>> for Interval {
+    fn from(src:Range<Bytes>) -> Interval {
+        let Range {start,end} = src;
+        Interval {start,end}
+    }
+}
+
+impl From<RangeTo<Bytes>> for Interval {
+    fn from(src: RangeTo<Bytes>) -> Interval {
+        Interval::new(Bytes(0), src.end)
+    }
+}
+
+impl From<RangeInclusive<Bytes>> for Interval {
+    fn from(src: RangeInclusive<Bytes>) -> Interval {
+        Interval::new(*src.start(), src.end().saturating_add(1))
+    }
+}
+
+impl From<RangeToInclusive<Bytes>> for Interval {
+    fn from(src: RangeToInclusive<Bytes>) -> Interval {
+        Interval::new(Bytes(0), src.end.saturating_add(1))
+    }
+}
+
+
+// === Conversions ===
+
+impl From<Interval> for rope::Interval {
+    fn from(t:Interval) -> Self {
+        let start = t.start.raw;
+        let end   = t.end.raw;
+        Self {start,end}
+    }
+}
+
+
+
+// ======================
+// === IntervalBounds ===
+// ======================
+
+pub trait IntervalBounds {
+    fn with_upper_bound(self, upper_bound:Bytes) -> Interval;
+}
+
+impl<T: Into<Interval>> IntervalBounds for T {
+    fn with_upper_bound(self, _upper_bound:Bytes) -> Interval {
+        self.into()
+    }
+}
+
+impl IntervalBounds for RangeFrom<Bytes> {
+    fn with_upper_bound(self, upper_bound:Bytes) -> Interval {
+        Interval::new(self.start, upper_bound)
+    }
+}
+
+impl IntervalBounds for RangeFull {
+    fn with_upper_bound(self, upper_bound:Bytes) -> Interval {
+        Interval::new(Bytes(0),upper_bound)
+    }
+}
+
+
+
 // =============
 // === Spans ===
 // =============
@@ -66,15 +164,19 @@ pub struct Spans<T:Clone> {
 }
 
 impl<T:Clone> Spans<T> {
-    pub fn set(&self, interval:impl Into<rope::Interval>, data:impl Into<T>) {
-        let interval    = interval.into();
+    pub fn len(&self) -> Bytes {
+        Bytes(self.rc.borrow().len())
+    }
+
+    pub fn set(&self, interval:impl IntervalBounds, data:impl Into<T>) {
+        let interval    = interval.with_upper_bound(self.len());
         let data        = data.into();
-        let mut builder = SpansBuilder::new(interval.end - interval.start);
+        let mut builder = SpansBuilder::new(interval.size().raw);
         builder.add_span((..),data);
         self.edit(interval,builder.build());
     }
 
-    pub fn set_default(&self, interval:impl Into<rope::Interval>) where T:Default {
+    pub fn set_default(&self, interval:impl IntervalBounds) where T:Default {
         let data : T = default();
         self.set(interval,data);
     }
