@@ -1,36 +1,33 @@
 //! Root of text buffer implementation. The text buffer is a sophisticated model for text styling
 //! and editing operations.
 
+use crate::prelude::*;
+
+
+
+// ===============
+// === Exports ===
+// ===============
+
 pub mod data;
-pub mod location;
 pub mod movement;
 pub mod selection;
 pub mod style;
 pub mod view;
 
-use crate::prelude::*;
-
-
-
-// =================
-// === Reexports ===
-// =================
-
-pub use location::Bytes;
-pub use location::Column;
-pub use location::Line;
-pub use movement::Movement;
-pub use selection::Selection;
-pub use style::Style;
-pub use data::Lines;
-pub use data::Data;
-pub use view::View;
-
 pub mod traits {
-    pub use super::location::traits::*;
+    pub use super::data::traits::*;
     pub use super::Setter        as TRAIT_Setter;
     pub use super::DefaultSetter as TRAIT_DefaultSetter;
 }
+
+pub use data::Data;
+pub use data::Lines;
+pub use data::unit::*;
+pub use movement::Movement;
+pub use selection::Selection;
+pub use style::Style;
+pub use view::View;
 
 
 
