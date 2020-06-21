@@ -1,46 +1,55 @@
-
-pub mod rope {
-    pub use xi_rope::*;
-    pub use xi_rope::rope::Lines;
-    pub use xi_rope::spans::Spans;
-    pub use xi_rope::spans::SpansBuilder;
-    pub use xi_rope::spans::SpansInfo;
-    pub use xi_rope::interval::Interval;
-}
-
-pub use rope::SpansBuilder;
-pub use rope::Cursor;
-pub use rope::LinesMetric;
-pub use rope::Lines;
+//! The data hold by the text buffer. Under the hood it is implemented as an efficient string rope.
 
 use crate::prelude::*;
 use crate::buffer::location::*;
-
 use rope::Rope;
 
 
 
+// =================
+// === Reexports ===
+// =================
+
+pub mod rope {
+    pub use xi_rope::*;
+    pub use xi_rope::interval::Interval;
+    pub use xi_rope::rope::Lines;
+    pub use xi_rope::spans::Spans;
+    pub use xi_rope::spans::SpansBuilder;
+    pub use xi_rope::spans::SpansInfo;
+}
+
+pub use rope::Cursor;
+pub use rope::Lines;
+pub use rope::LinesMetric;
+pub use rope::SpansBuilder;
+
+
+
 // ============
-// === Text ===
+// === Data ===
 // ============
 
-impl_clone_ref_as_clone!(Text);
+impl_clone_ref_as_clone!(Data);
 #[derive(Debug,Clone,Default,Deref)]
 #[allow(missing_docs)]
-pub struct Text {
+pub struct Data {
     pub rope : Rope,
 }
 
-impl Text {
+impl Data {
     /// Return the len of the text in bytes.
     pub fn len(&self) -> Bytes {
         Bytes(self.rope.len())
     }
 
+    /// Range of the text in this data.
     pub fn range(&self) -> Range<Bytes> {
         (..self.len()).into()
     }
 
+    /// Crop the provided range so it will be contained of the range of this data. This ensures that
+    /// the provided range will be valid for operations on this data.
     pub fn crop_range(&self, range:impl RangeBounds) -> Range<Bytes> {
         range.with_upper_bound(self.len())
     }
@@ -56,11 +65,14 @@ impl Text {
     }
 }
 
-impl From<&str>     for Text { fn from(t:&str)     -> Self { Self {rope:t.into()} } }
-impl From<String>   for Text { fn from(t:String)   -> Self { Self {rope:t.into()} } }
-impl From<&String>  for Text { fn from(t:&String)  -> Self { Self {rope:t.into()} } }
-impl From<&&String> for Text { fn from(t:&&String) -> Self { (*t).into() } }
-impl From<&&str>    for Text { fn from(t:&&str)    -> Self { (*t).into() } }
+
+// === Constructors ===
+
+impl From<&str>     for Data { fn from(t:&str)     -> Self { Self {rope:t.into()} } }
+impl From<String>   for Data { fn from(t:String)   -> Self { Self {rope:t.into()} } }
+impl From<&String>  for Data { fn from(t:&String)  -> Self { Self {rope:t.into()} } }
+impl From<&&String> for Data { fn from(t:&&String) -> Self { (*t).into() } }
+impl From<&&str>    for Data { fn from(t:&&str)    -> Self { (*t).into() } }
 
 
 
@@ -140,9 +152,9 @@ impl From<Range<Bytes>> for rope::Interval {
 
 
 
-// ======================
+// ===================
 // === RangeBounds ===
-// ======================
+// ===================
 
 pub trait RangeBounds {
     fn with_upper_bound(self, upper_bound:Bytes) -> Range<Bytes>;

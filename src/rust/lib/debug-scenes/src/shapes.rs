@@ -156,8 +156,6 @@ fn init(app:&Application) {
         was_rendered = true;
     }).forget();
 
-    ensogl_text::main();
-    println!("ooo");
 }
 
 

@@ -1,6 +1,6 @@
 
 use crate::prelude::*;
-use crate::buffer::text::rope;
+use crate::buffer::data::rope;
 use std::ops::AddAssign; // FIXME
 
 

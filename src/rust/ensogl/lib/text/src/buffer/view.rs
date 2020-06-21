@@ -130,7 +130,7 @@ impl View {
     }
 
 //    pub fn get(&self, line:Line) -> String {
-//        let last_line_number = self.line_of_offset(self.text().len());
+//        let last_line_number = self.line_of_offset(self.data().len());
 //        let start   = self.offset_of_line(line);
 //        let end     = self.offset_of_line(line+1);
 //        let end     = self.buffer.text.prev_grapheme_offset(end).unwrap_or(end);
@@ -141,7 +141,7 @@ impl View {
 
     pub fn lines(&self) -> buffer::Lines {
         let range = self.line_offset_range();
-        self.buffer.text.rope.lines(range.start.raw .. range.end.raw)
+        self.buffer.data.rope.lines(range.start.raw .. range.end.raw)
     }
 
 //    fn scroll_to_cursor(&mut self, text: &Text) {
@@ -187,7 +187,7 @@ impl View {
         let move_up    = line_delta < 0;
         let line_delta = line_delta.saturating_abs() as usize;
         let location   = self.vertical_motion_selection_to_caret(region,move_up,modify);
-        let n_lines    = self.line_of_offset(self.text().len());
+        let n_lines    = self.line_of_offset(self.data().len());
 
         if move_up && line_delta > location.line.raw {
             return (Bytes(0), Some(location.column));
@@ -197,7 +197,7 @@ impl View {
                    else       { location.line.raw.saturating_add(line_delta) };
 
         if line > n_lines.raw {
-            return (self.text().len(),Some(location.column));
+            return (self.data().len(),Some(location.column));
         }
 
         let line = Line(line);
@@ -210,7 +210,7 @@ impl View {
     fn vertical_motion_exact_pos
     (&self, region:Selection, move_up:bool, modify:bool) -> (Bytes,Option<Column>) {
         let location    = self.vertical_motion_selection_to_caret(region, move_up, modify);
-        let lines_count = self.line_of_offset(self.text().len());
+        let lines_count = self.line_of_offset(self.data().len());
 
         let line_len = self.offset_of_line(location.line.saturating_add(1)) - self.offset_of_line(location.line);
         if move_up && location.line == Line(0) {
@@ -266,7 +266,7 @@ impl View {
     /// Compute the result of movement on one selection region.
     pub fn moved_selection_region
     (&self, movement:Movement, region:Selection, modify:bool) -> Selection {
-        let text        = self.text();
+        let text        = self.data();
         let no_horiz    = |t|(t,None);
         let (end,horiz) : (Bytes,Option<Column>) = match movement {
 
@@ -312,19 +312,19 @@ impl View {
 
             Movement::StartOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.min()
-                let mut cursor = text::Cursor::new(&text,region.end.raw);
-                let offset     = Bytes(cursor.prev::<text::LinesMetric>().unwrap_or(0));
+                let mut cursor = data::Cursor::new(&text, region.end.raw);
+                let offset     = Bytes(cursor.prev::<data::LinesMetric>().unwrap_or(0));
                 no_horiz(offset)
             }
 
             Movement::EndOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.max()
-                let mut cursor = text::Cursor::new(&text,region.end.raw);
-                let     offset = match cursor.next::<text::LinesMetric>() {
+                let mut cursor = data::Cursor::new(&text, region.end.raw);
+                let     offset = match cursor.next::<data::LinesMetric>() {
                     None            => text.len(),
                     Some(next_line_offset) => {
                         let next_line_offset = Bytes(next_line_offset);
-                        if cursor.is_boundary::<text::LinesMetric>() {
+                        if cursor.is_boundary::<data::LinesMetric>() {
                             text.prev_grapheme_offset(next_line_offset).unwrap_or(region.end)
                         } else if Bytes(cursor.pos()) == text.len() {
                             text.len()
@@ -338,12 +338,12 @@ impl View {
 
             Movement::EndOfParagraphKill => {
                 // Note: TextEdit would start at modify ? region.end : region.max()
-                let mut cursor = text::Cursor::new(&text,region.end.raw);
-                let     offset = match cursor.next::<text::LinesMetric>() {
+                let mut cursor = data::Cursor::new(&text, region.end.raw);
+                let     offset = match cursor.next::<data::LinesMetric>() {
                     None            => region.end,
                     Some(next_line_offset) => {
                         let next_line_offset = Bytes(next_line_offset);
-                        if cursor.is_boundary::<text::LinesMetric>() {
+                        if cursor.is_boundary::<data::LinesMetric>() {
                             let eol = text.prev_grapheme_offset(next_line_offset);
                             let opt = eol.and_then(|t|(t!=region.end).as_some(t));
                             opt.unwrap_or(next_line_offset)
@@ -360,17 +360,17 @@ impl View {
 
 
 impl LineOffset for View {
-    fn text(&self) -> &Text {
-        &self.buffer.text
+    fn data(&self) -> &Data {
+        &self.buffer.data
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line.raw,self.text().measure::<text::LinesMetric>() + 1);
-        Bytes(self.text().offset_of_line(line))
+        let line = std::cmp::min(line.raw,self.data().measure::<data::LinesMetric>() + 1);
+        Bytes(self.data().offset_of_line(line))
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
-        Line(self.text().line_of_offset(offset.raw))
+        Line(self.data().line_of_offset(offset.raw))
     }
 }
 
@@ -387,16 +387,16 @@ impl LineOffset for View {
 pub trait LineOffset {
     // use own breaks if present, or text if not (no line wrapping)
 
-    fn text(&self) -> &Text;
+    fn data(&self) -> &Data;
 
     /// Returns the byte offset corresponding to the given line.
     fn offset_of_line(&self, line:Line) -> Bytes {
-        Bytes(self.text().offset_of_line(line.raw))
+        Bytes(self.data().offset_of_line(line.raw))
     }
 
     /// Returns the visible line number containing the given offset.
     fn line_of_offset(&self, offset:Bytes) -> Line {
-        Line(self.text().line_of_offset(offset.raw))
+        Line(self.data().line_of_offset(offset.raw))
     }
 
     // How should we count "column"? Valid choices include:
@@ -417,7 +417,7 @@ pub trait LineOffset {
 
     fn line_col_to_offset(&self, line:Line, col:Column) -> Bytes {
         let mut offset = self.offset_of_line(line).saturating_add(col.raw);
-        let len = self.text().len();
+        let len = self.data().len();
         if offset >= len {
             offset = len;
             if self.line_of_offset(offset) <= line {
@@ -425,13 +425,13 @@ pub trait LineOffset {
             }
         } else {
             // Snap to grapheme cluster boundary
-            offset = self.text().prev_grapheme_offset(offset + 1).unwrap_or_default();
+            offset = self.data().prev_grapheme_offset(offset + 1).unwrap_or_default();
         }
 
         // clamp to end of line
         let next_line_offset = self.offset_of_line(line + 1);
         if offset >= next_line_offset {
-            if let Some(prev) = self.text().prev_grapheme_offset(next_line_offset) {
+            if let Some(prev) = self.data().prev_grapheme_offset(next_line_offset) {
                 offset = prev;
             }
         }
