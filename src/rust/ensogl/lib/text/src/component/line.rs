@@ -8,7 +8,7 @@ use crate::buffer;
 
 use ensogl::data::color;
 use ensogl::display;
-use crate::buffer::slice::LineOffset;
+use crate::buffer::view::LineOffset;
 
 
 // ============
@@ -89,7 +89,7 @@ pub struct Area {
     logger         : Logger,
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
-    buffer         : buffer::Slice,
+    buffer         : buffer::View,
     lines          : Lines,
 
 }
@@ -97,11 +97,11 @@ pub struct Area {
 impl Area {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, buffer:&buffer::Slice, glyph_system:&glyph::System) -> Self {
+    (logger:impl AnyLogger, buffer:&buffer::View, glyph_system:&glyph::System) -> Self {
         let logger         = Logger::sub(logger,"text_area");
         let display_object = display::object::Instance::new(&logger);
         let glyph_system   = glyph_system.clone_ref();
-        let buffer    = buffer.clone_ref();
+        let buffer         = buffer.clone_ref();
         let lines          = default();
         Self {logger,display_object,glyph_system,buffer,lines} . init()
     }

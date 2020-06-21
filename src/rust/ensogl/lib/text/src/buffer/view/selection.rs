@@ -14,7 +14,7 @@ use super::data::unit::*;
 /// movement. Please note that the start of the selection is not always smaller then its end.
 /// If the selection was dragged from right to left, the start byte offset will be bigger than the
 /// end. Use the `min` and `max` methods to discover the edges.
-#[derive(Clone,Copy,PartialEq,Eq,Debug)]
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Default)]
 #[allow(missing_docs)]
 pub struct Selection {
     pub start  : Bytes,

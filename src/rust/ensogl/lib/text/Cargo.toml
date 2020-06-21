@@ -9,8 +9,9 @@ crate-type = ["rlib", "cdylib"]
 
 
 [dependencies]
-enso-prelude = { version = "0.1.0"  , path = "../../../lib/prelude" }
-ensogl       = { version = "0.1.0"  , path = "../../../ensogl"      }
-xi-rope      = { version = "0.3.0"                                  }
-ensogl-core-msdf-sys = { version = "0.1.0"  , path = "../../../ensogl/msdf-sys" }
-ensogl-core-embedded-fonts = { version = "0.1.0"  , path = "../../../ensogl/embedded-fonts"      }
+enso-frp                   = { version = "0.1.0"  , path = "../../../lib/frp"               }
+enso-prelude               = { version = "0.1.0"  , path = "../../../lib/prelude"           }
+ensogl                     = { version = "0.1.0"  , path = "../../../ensogl"                }
+ensogl-core-embedded-fonts = { version = "0.1.0"  , path = "../../../ensogl/embedded-fonts" }
+ensogl-core-msdf-sys       = { version = "0.1.0"  , path = "../../../ensogl/msdf-sys"       }
+xi-rope                    = { version = "0.3.0"                                            }

@@ -1,7 +1,17 @@
 
+
+pub mod movement;
+pub mod selection;
+
+pub use movement::*;
+pub use selection::*;
+
+
 use crate::prelude::*;
 use crate::buffer;
 use crate::buffer::*;
+
+use enso_frp as frp;
 
 
 
@@ -18,57 +28,124 @@ const DEFAULT_LINE_COUNT : usize = 10;
 
 
 
-// =============
-// === Slice ===
-// =============
+// ===========
+// === Frp ===
+// ===========
 
-/// Slice for a region of a buffer. There are several cases where multiple views share the same
-/// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
-/// same file (keeping a view per user and merging them visually).
-#[allow(missing_docs)]
 #[derive(Debug,Clone,CloneRef)]
-pub struct Slice {
-    pub buffer        : Buffer,
-    first_line_number : Rc<Cell<Line>>,
-    line_count        : Rc<Cell<usize>>,
-    selections        : Rc<RefCell<selection::Group>>,
+pub struct Frp {
+    pub network : frp::Network,
+    pub inputs  : FrpInputs,
 }
 
-impl Deref for Slice {
+impl Frp {
+    pub fn new(network:frp::Network, inputs:&FrpInputs) -> Self {
+        let inputs = inputs.clone_ref();
+        Self {network,inputs}
+    }
+}
+
+#[derive(Debug,Clone,CloneRef)]
+pub struct FrpInputs {
+    move_carets : frp::Source<Option<Movement>>,
+}
+
+impl FrpInputs {
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            move_carets <- source();
+        }
+        Self {move_carets}
+    }
+}
+
+
+
+// ==================
+// === ViewBuffer ===
+// ==================
+
+/// Specialized form of `Buffer` with view-related information, such as selection. This form of
+/// buffer is mainly used by `View`, but can also be combined with other `ViewBuffer`s to display
+/// cursors, selections, and edits of several users at the same time.
+#[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
+pub struct ViewBuffer {
+    pub buffer : Buffer,
+    selection  : Rc<RefCell<selection::Group>>,
+}
+
+impl Deref for ViewBuffer {
     type Target = Buffer;
     fn deref(&self) -> &Self::Target {
         &self.buffer
     }
 }
 
-impl Slice {
-    /// Constructor.
-    pub fn new(buffer:impl Into<Buffer>) -> Self {
-        let buffer            = buffer.into();
+impl From<&Buffer> for ViewBuffer {
+    fn from(buffer:&Buffer) -> Self {
+        let buffer    = buffer.clone_ref();
+        let selection = default();
+        Self {buffer,selection}
+    }
+}
+
+
+
+// =================
+// === ViewModel ===
+// =================
+
+/// View for a region of a buffer. There are several cases where multiple views share the same
+/// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
+/// same file (keeping a view per user and merging them visually).
+#[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
+pub struct ViewModel {
+    pub frp           : FrpInputs,
+    pub view_buffer   : ViewBuffer,
+    first_line_number : Rc<Cell<Line>>,
+    line_count        : Rc<Cell<usize>>,
+}
+
+impl ViewModel {
+    pub fn new(network:&frp::Network, view_buffer:impl Into<ViewBuffer>) -> Self {
+        let frp               = FrpInputs::new(network);
+        let view_buffer       = view_buffer.into();
         let first_line_number = default();
         let line_count        = Rc::new(Cell::new(DEFAULT_LINE_COUNT));
-        let mut selections    = default();
-        Self {buffer,first_line_number,line_count,selections}
+        Self {frp,view_buffer,first_line_number,line_count}
     }
+}
 
+impl Deref for ViewModel {
+    type Target = ViewBuffer;
+    fn deref(&self) -> &Self::Target {
+        &self.view_buffer
+    }
+}
+
+impl ViewModel {
     /// Add a new selection to the current view.
     pub fn add_selection(&self, selection:impl Into<Selection>) {
-        self.selections.borrow_mut().add_region(selection.into())
+        self.selection.borrow_mut().add_region(selection.into())
     }
 
     /// Set the selection to a new value.
     pub fn set_selection(&self, selection:impl Into<selection::Group>) {
-        *self.selections.borrow_mut() = selection.into();
+        *self.selection.borrow_mut() = selection.into();
     }
 
     /// Return all active selections.
     pub fn selections(&self) -> selection::Group {
-        self.selections.borrow().clone()
+        self.selection.borrow().clone()
     }
 
     /// Move all carets by the provided movement. All selections will be converted to carets.
-    pub fn move_carets(&self, movement:Movement) {
-        self.move_carets_or_modify_selections(movement,false)
+    fn move_carets(&self, movement:&Option<Movement>) {
+        if let Some(movement) = movement {
+            self.move_carets_or_modify_selections(*movement,false)
+        }
     }
 
     /// Modify the selections by the provided movement. All carets will be converted to selections.
@@ -160,7 +237,7 @@ impl Slice {
 }
 
 
-impl Slice {
+impl ViewModel {
     /// Convert selection to caret location after a vertical movement.
     fn vertical_motion_selection_to_caret
     (&self, selection:Selection, move_up:bool, modify:bool) -> Location {
@@ -248,14 +325,14 @@ impl Slice {
 
 
 
-impl Slice {
+impl ViewModel {
     /// Apply the movement to each region in the selection, and returns the union of the results.
     ///
     /// If `modify` is `true`, the selections are modified, otherwise the results of individual region
     /// movements become carets. Modify is often mapped to the `shift` button in text editors.
     pub fn moved_selection(&self, movement:Movement, modify:bool) -> selection::Group {
         let mut result = selection::Group::new();
-        for &selection in self.selections.borrow().iter() {
+        for &selection in self.selection.borrow().iter() {
             let new_selection = self.moved_selection_region(movement,selection,modify);
             result.add_region(new_selection);
         }
@@ -358,7 +435,7 @@ impl Slice {
 }
 
 
-impl LineOffset for Slice {
+impl LineOffset for ViewModel {
     fn data(&self) -> &Data {
         &self.buffer.data
     }
@@ -373,6 +450,42 @@ impl LineOffset for Slice {
     }
 }
 
+
+
+// ============
+// === View ===
+// ============
+
+#[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
+pub struct View {
+    model : ViewModel,
+    frp   : Frp,
+}
+
+impl Deref for View {
+    type Target = ViewModel;
+    fn deref(&self) -> &Self::Target {
+        &self.model
+    }
+}
+
+impl View {
+    /// Constructor.
+    pub fn new(view_buffer:impl Into<ViewBuffer>) -> Self {
+        let network = frp::Network::new();
+        let model   = ViewModel::new(&network,view_buffer);
+        let inputs  = model.frp.clone_ref();
+
+        frp::extend! { network
+            eval inputs.move_carets ((t) model.move_carets(t));
+        }
+
+
+        let frp     = Frp{network,inputs};
+        Self {frp,model}
+    }
+}
 
 
 

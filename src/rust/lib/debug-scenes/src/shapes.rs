@@ -113,7 +113,7 @@ fn init(app:&Application) {
 //    scene.views.label.add(symbol);
 
     let buffer = text::Buffer::from("Test text €!!!\nline2\nline3\nline4");
-    let buffer_view = buffer.slice();
+    let buffer_view = buffer.new_view();
 
 //    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
 
