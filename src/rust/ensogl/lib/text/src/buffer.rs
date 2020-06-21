@@ -57,10 +57,10 @@ impl Buffer {
         let range = data.range();
         let mut style = Style::default();
         // FIXME: Remove the following after adding data edits, and always create data as empty first.
-        style.color.spans.TMP_set_default(range);
-        style.bold.spans.TMP_set_default(range);
-        style.italics.spans.TMP_set_default(range);
-        style.underline.spans.TMP_set_default(range);
+        style.color.spans.set(range,None);
+        style.bold.spans.set(range,None);
+        style.italics.spans.set(range,None);
+        style.underline.spans.set(range,None);
         let style = Rc::new(RefCell::new(style));
         Self {data,style}
     }

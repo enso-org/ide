@@ -37,7 +37,7 @@ macro_rules! newtype {
 #[derive(Clone,Debug,Default)]
 #[allow(missing_docs)]
 pub struct Property<T:Clone> {
-    pub spans : data::Spans<T>,
+    pub spans : data::Spans<Option<T>>,
     default   : T,
 }
 
@@ -65,7 +65,7 @@ impl<T:Clone> Property<T> {
 // === Deref ===
 
 impl<T:Clone> Deref for Property<T> {
-    type Target = data::Spans<T>;
+    type Target = data::Spans<Option<T>>;
     fn deref(&self) -> &Self::Target {
         &self.spans
     }
