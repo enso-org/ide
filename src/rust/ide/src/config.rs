@@ -1,21 +1,20 @@
-//! This module provides constants used throughout the crate.
+//! This module provides IDE configuration structures.
 
 use crate::constants;
 
 /// Configuration data necessary to initialize IDE.
 ///
-/// Eventually we expect it to be passed to IDE from an external source.
+/// We will eventually want to load it from a configuration file.
 #[derive(Clone,Debug)]
-pub struct SetupConfig {
+pub struct Startup {
     /// WebSocket endpoint of the project manager service.
     pub project_manager_endpoint:String
 }
 
-impl SetupConfig {
+impl Startup {
     /// Provisional initial configuration that can be used during local deployments.
-    pub fn new_local() -> SetupConfig {
-        SetupConfig {
-            project_manager_endpoint:constants::PROJECT_MANAGER_ENDPOINT.into()
-        }
+    pub fn new_local() -> Startup {
+        let project_manager_endpoint = constants::PROJECT_MANAGER_ENDPOINT.into();
+        Startup{project_manager_endpoint}
     }
 }

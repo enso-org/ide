@@ -92,6 +92,7 @@ impl ViewLayoutData {
 
 impl ViewLayout {
     /// Creates a new ViewLayout with a single TextEditor.
+    #[allow(clippy::too_many_arguments)]
     pub async fn new
     ( logger                   : impl AnyLogger
     , kb_actions               : &mut keyboard::Actions

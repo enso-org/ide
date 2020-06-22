@@ -5,7 +5,7 @@ use crate::prelude::*;
 use crate::transport::web::ConnectingError;
 use crate::transport::web::WebSocket;
 use crate::view::project::ProjectView;
-use crate::config::SetupConfig;
+use crate::config::Startup;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
@@ -19,31 +19,26 @@ use uuid::Uuid;
 pub struct IDE {
     _executor       : executor::web::EventLoopExecutor,
     logger          : Logger,
-    config          : SetupConfig,
+    config          : Startup,
     project_manager : Option<project_manager::Client>,
     project_view    : Option<ProjectView>
+}
+
+impl Default for IDE {
+    fn default() -> Self {
+        let config          = Startup::new_local();
+        let logger          = Logger::new("IDE");
+        let _executor       = setup_global_executor();
+        let project_view    = default();
+        let project_manager = default();
+        Self {_executor,logger,config,project_view,project_manager}
+    }
 }
 
 impl IDE {
     /// Creates a new IDE instance.
     pub fn new() -> Self {
-        let config          = SetupConfig::new_local();
-        let logger          = Logger::new("IDE");
-        let _executor       = Self::setup_global_executor();
-        let project_view    = None;
-        let project_manager = None;
-        Self {_executor,logger,config,project_view,project_manager}
-    }
-
-    /// Creates a new running executor with its own event loop. Registers them
-    /// as a global executor.
-    ///
-    /// Note: Caller should store or leak this `JsExecutor` so the global
-    /// spawner won't be dangling.
-    pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
-        let executor = executor::web::EventLoopExecutor::new_running();
-        executor::global::set_spawner(executor.spawner.clone());
-        executor
+        default()
     }
 
     /// Establishes transport to the file manager server websocket endpoint.
@@ -60,24 +55,17 @@ impl IDE {
         project_manager
     }
 
-    /// Creates a new websocket transport and waits until the connection is properly opened.
-    pub async fn new_opened_ws
-    (logger:Logger, address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
-        let endpoint = format!("ws://{}:{}", address.host, address.port);
-        WebSocket::new_opened(logger,endpoint).await
-    }
-
     /// Connect to language server.
     pub async fn open_project
     ( logger          : &Logger
-      , json_endpoint   : project_manager::IpWithSocket
-      , binary_endpoint : project_manager::IpWithSocket
-      , project_name    : impl Str
+    , json_endpoint   : project_manager::IpWithSocket
+    , binary_endpoint : project_manager::IpWithSocket
+    , project_name    : impl Str
     ) -> FallibleResult<controller::Project> {
-        info!(logger, "Establishing Language Server connections.");
+        info!(logger, "Establishing Language Server connection.");
         let client_id     = Uuid::new_v4();
-        let json_ws       = Self::new_opened_ws(logger.clone_ref(), json_endpoint).await?;
-        let binary_ws     = Self::new_opened_ws(logger.clone_ref(), binary_endpoint).await?;
+        let json_ws       = new_opened_ws(logger.clone_ref(), json_endpoint).await?;
+        let binary_ws     = new_opened_ws(logger.clone_ref(), binary_endpoint).await?;
         let client_json   = language_server::Client::new(json_ws);
         let client_binary = binary::Client::new(logger,binary_ws);
         crate::executor::global::spawn(client_json.runner());
@@ -92,21 +80,22 @@ impl IDE {
     pub async fn create_project
     ( logger          : &Logger
     , project_manager : &impl project_manager::API
-    , name            : &String) -> FallibleResult<ProjectMetadata> {
-        info!(logger, "Creating a new project named `{name}`.");
-        let id = project_manager.create_project(name).await?.project_id;
-        Ok(ProjectMetadata {
-            id,
-            name        : ProjectName {name:name.clone()},
-            last_opened : None,
-        })
+    , name            : &str
+    ) -> FallibleResult<ProjectMetadata> {
+        info!(logger, "Creating a new project named '{name}'.");
+        let id          = project_manager.create_project(&name.to_string()).await?.project_id;
+        let name        = name.to_string();
+        let name        = ProjectName{name};
+        let last_opened = default();
+        Ok(ProjectMetadata{id,name,last_opened})
     }
 
     /// Open the named project or create a new project if it doesn't exist.
     pub async fn open_project_or_create_new
     ( logger : &Logger
     , project_manager : &impl project_manager::API
-    , project_name    : &String) -> FallibleResult<controller::Project> {
+    , project_name    : &str
+    ) -> FallibleResult<controller::Project> {
         let projects_to_list = constants::MAXIMUM_LISTABLE_PROJECTS;
         let response     = project_manager.list_recent_projects(&projects_to_list).await?;
         let mut projects = response.projects.iter();
@@ -181,4 +170,23 @@ impl IDE {
             std::mem::forget(self);
         });
     }
+}
+
+// =============
+// === Utils ===
+// =============
+
+/// Creates a new running executor with its own event loop. Registers them as a global executor.
+pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
+    let executor = executor::web::EventLoopExecutor::new_running();
+    executor::global::set_spawner(executor.spawner.clone());
+    executor
+}
+
+
+/// Creates a new websocket transport and waits until the connection is properly opened.
+pub async fn new_opened_ws
+(logger:Logger, address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
+    let endpoint = format!("ws://{}:{}", address.host, address.port);
+    WebSocket::new_opened(logger,endpoint).await
 }

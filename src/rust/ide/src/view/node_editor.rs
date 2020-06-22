@@ -129,14 +129,14 @@ impl GraphEditorIntegratedWithController {
 
 #[derive(Debug)]
 struct GraphEditorIntegratedWithControllerModel {
-    logger           : Logger,
-    editor           : GraphEditor,
-    controller       : controller::ExecutedGraph,
-    project          : controller::Project,
-    node_views       : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
-    expression_views : RefCell<HashMap<graph_editor::NodeId,String>>,
-    connection_views : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
-    visualizations   : SharedHashMap<graph_editor::NodeId,VisualizationId>,
+    logger             : Logger,
+    editor             : GraphEditor,
+    controller         : controller::ExecutedGraph,
+    project_controller : controller::Project,
+    node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
+    expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
+    connection_views   : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
+    visualizations     : SharedHashMap<graph_editor::NodeId,VisualizationId>,
 }
 
 
@@ -244,7 +244,9 @@ impl GraphEditorIntegratedWithControllerModel {
         let expression_views = default();
         let visualizations   = default();
         let this = GraphEditorIntegratedWithControllerModel {editor,controller,node_views,
-            expression_views,connection_views,logger,visualizations,project};
+            expression_views,connection_views,logger,visualizations,
+            project_controller: project
+        };
 
         if let Err(err) = this.update_graph_view() {
             error!(this.logger,"Error while initializing graph editor: {err}");
@@ -474,7 +476,7 @@ impl GraphEditorIntegratedWithControllerModel {
         //   Because of that for now we will just hardcode the `visualization_module` using
         //   fixed defaults. In future this will be changed, then the editor will also get access
         //   to the customised values.
-        let project_name         = self.project.project_name.as_ref();
+        let project_name         = self.project_controller.project_name.as_ref();
         let module_name          = crate::view::project::INITIAL_MODULE_NAME;
         let visualisation_module = QualifiedName::from_module_segments(&[module_name],project_name);
         let id                   = VisualizationId::new_v4();

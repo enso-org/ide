@@ -512,8 +512,8 @@ pub struct Arguments {
 impl Arguments {
     fn args_from_search(search:&str) -> HashMap<String,String> {
         if search.chars().nth(0) == Some('?') {
-            search[1..].split("&").filter_map(|arg| {
-                let x : Vec<&str> = arg.split("=").collect();
+            search[1..].split('&').filter_map(|arg| {
+                let x : Vec<&str> = arg.split('=').collect();
                 match x.len() {
                     1 => Some((x[0].to_string(), "".to_string())),
                     2 => Some((x[0].to_string(), x[1].to_string())),
@@ -527,7 +527,13 @@ impl Arguments {
 
     /// Creates a new arguments map from location search.
     pub fn new() -> Self {
-        let search   = window().location().search().unwrap_or_else(|_| String::from(""));
+        default()
+    }
+}
+
+impl Default for Arguments {
+    fn default() -> Self {
+        let search   = window().location().search().unwrap_or_default();
         let hash_map = Self::args_from_search(&search);
         Self{hash_map}
     }

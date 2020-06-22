@@ -6,9 +6,6 @@ pub const LANGUAGE_NAME:&str = "Enso";
 /// A file extension of modules of language this IDE supports without leading dot.
 pub const LANGUAGE_FILE_EXTENSION:&str = "enso";
 
-/// A file extension of modules of language this IDE supports with leading dot.
-pub const LANGUAGE_FILE_DOT_EXTENSION:&str = ".enso";
-
 /// The directory in the project that contains all the source files.
 pub const SOURCE_DIRECTORY:&str = "src";
 
@@ -22,7 +19,7 @@ pub const PROJECT_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30535";
 pub const DEFAULT_PROJECT_NAME:&str = "Project";
 
 /// Visualization folder where IDE can look for user-defined visualizations per project.
-pub const PROJECT_VISUALIZATION_FOLDER:&str = "visualization";
+pub const VISUALIZATION_DIRECTORY:&str = "visualization";
 
 /// This is the maximum number of listable projects, used in `ProjectManager::list_recent_projects`.
 pub const MAXIMUM_LISTABLE_PROJECTS : u32 = std::i32::MAX as u32 - 1;
