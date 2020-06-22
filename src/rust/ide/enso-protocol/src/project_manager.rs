@@ -80,11 +80,8 @@ pub struct IpWithSocket {
 }
 
 /// Project name.
-#[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Shrinkwrap)]
-pub struct ProjectName {
-    #[allow(missing_docs)]
-    pub name : String
-}
+#[derive(Debug,Display,Clone,Serialize,Deserialize,PartialEq,Shrinkwrap)]
+pub struct ProjectName(pub String);
 
 /// Project information, such as name, its id and last time it was opened.
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]

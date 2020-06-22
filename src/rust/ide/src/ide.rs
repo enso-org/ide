@@ -14,6 +14,25 @@ use enso_protocol::project_manager::ProjectMetadata;
 use enso_protocol::project_manager::ProjectName;
 use uuid::Uuid;
 
+
+
+// ==============
+// === Errors ===
+// ==============
+
+/// Error raised when project with given name was not found.
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Project with nae {} was not found.", name)]
+pub struct ProjectNotFound {
+    name : String
+}
+
+
+
+// ===========
+// === IDE ===
+// ===========
+
 /// The IDE structure containing its configuration and its components instances.
 #[derive(Debug)]
 pub struct IDE {
@@ -85,9 +104,20 @@ impl IDE {
         info!(logger, "Creating a new project named '{name}'.");
         let id          = project_manager.create_project(&name.to_string()).await?.project_id;
         let name        = name.to_string();
-        let name        = ProjectName{name};
+        let name        = ProjectName(name);
         let last_opened = default();
         Ok(ProjectMetadata{id,name,last_opened})
+    }
+
+    async fn lookup_project
+    ( project_manager : &impl project_manager::API
+    , project_name    : &str) -> FallibleResult<ProjectMetadata> {
+        let response     = project_manager.list_projects(&None).await?;
+        let mut projects = response.projects.iter();
+        projects.find(|project_metadata| {
+            project_metadata.name.as_str() == project_name
+        }).cloned().ok_or_else(|| ProjectNotFound{name:project_name.to_string()}.into())
+        // ij.0op./  f vgn yuiii
     }
 
     /// Open the named project or create a new project if it doesn't exist.
@@ -96,12 +126,8 @@ impl IDE {
     , project_manager : &impl project_manager::API
     , project_name    : &str
     ) -> FallibleResult<controller::Project> {
-        let response     = project_manager.list_projects(&None).await?;
-        let mut projects = response.projects.iter();
-        let project      = projects.find(|project_metadata| {
-            project_metadata.name.name == *project_name
-        });
-        let project_metadata = if let Some(project) = project {
+        let project = Self::lookup_project(project_manager,project_name).await;
+        let project_metadata = if let Ok(project) = project {
             project.clone()
         } else {
             println!("Attempting to create {}", project_name);
@@ -109,7 +135,7 @@ impl IDE {
         };
         let endpoints = project_manager.open_project(&project_metadata.id).await?;
         Self::open_project(logger,endpoints.language_server_json_address,
-            endpoints.language_server_binary_address,&project_metadata.name.name).await
+            endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
     }
 
     /// Open most recent project or create a new project if none exists.
@@ -126,7 +152,7 @@ impl IDE {
         };
         let endpoints = project_manager.open_project(&project_metadata.id).await?;
         Self::open_project(logger,endpoints.language_server_json_address,
-                     endpoints.language_server_binary_address,&project_metadata.name.name).await
+            endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
     }
 
     async fn initialize_project_manager(&mut self) -> FallibleResult<()> {
