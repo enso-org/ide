@@ -30,12 +30,12 @@ pub struct ProjectNotFound {
 
 
 // ===========
-// === IDE ===
+// === Ide ===
 // ===========
 
 /// The IDE structure containing its configuration and its components instances.
 #[derive(Debug)]
-pub struct IDE {
+pub struct Ide {
     _executor       : executor::web::EventLoopExecutor,
     logger          : Logger,
     config          : Startup,
@@ -43,7 +43,7 @@ pub struct IDE {
     project_view    : Option<ProjectView>
 }
 
-impl Default for IDE {
+impl Default for Ide {
     fn default() -> Self {
         let config          = Startup::new_local();
         let logger          = Logger::new("IDE");
@@ -54,7 +54,7 @@ impl Default for IDE {
     }
 }
 
-impl IDE {
+impl Ide {
     /// Creates a new IDE instance.
     pub fn new() -> Self {
         default()

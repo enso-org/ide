@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::*;
 
 use ensogl::system::web;
-use ide::IDE;
+use ide::Ide;
 
 /// IDE startup function.
 #[wasm_bindgen]
@@ -19,6 +19,6 @@ pub fn run_example_ide() {
                 p.remove_child(&t).unwrap()
             })
         }).ok();
-        IDE::new().run_and_forget();
+        Ide::new().run_and_forget();
     });
 }

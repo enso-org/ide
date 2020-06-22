@@ -30,7 +30,7 @@ pub mod view;
 pub mod constants;
 pub mod ide;
 
-pub use ide::IDE;
+pub use ide::Ide;
 
 #[cfg(test)]
 mod tests;
