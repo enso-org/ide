@@ -104,7 +104,7 @@ impl IDE {
         info!(logger, "Creating a new project named '{name}'.");
         let id          = project_manager.create_project(&name.to_string()).await?.project_id;
         let name        = name.to_string();
-        let name        = ProjectName(name);
+        let name        = ProjectName{name};
         let last_opened = default();
         Ok(ProjectMetadata{id,name,last_opened})
     }
@@ -115,7 +115,7 @@ impl IDE {
         let response     = project_manager.list_projects(&None).await?;
         let mut projects = response.projects.iter();
         projects.find(|project_metadata| {
-            project_metadata.name.as_str() == project_name
+            project_metadata.name.name == *project_name
         }).cloned().ok_or_else(|| ProjectNotFound{name:project_name.to_string()}.into())
         // ij.0op./  f vgn yuiii
     }
@@ -135,7 +135,7 @@ impl IDE {
         };
         let endpoints = project_manager.open_project(&project_metadata.id).await?;
         Self::open_project(logger,endpoints.language_server_json_address,
-            endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
+            endpoints.language_server_binary_address,&project_metadata.name.name).await
     }
 
     /// Open most recent project or create a new project if none exists.
@@ -152,7 +152,7 @@ impl IDE {
         };
         let endpoints = project_manager.open_project(&project_metadata.id).await?;
         Self::open_project(logger,endpoints.language_server_json_address,
-            endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
+                     endpoints.language_server_binary_address,&project_metadata.name.name).await
     }
 
     async fn initialize_project_manager(&mut self) -> FallibleResult<()> {
