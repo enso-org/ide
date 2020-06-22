@@ -503,7 +503,9 @@ pub async fn sleep(duration:Duration) {
 #[cfg(not(target_arch = "wasm32"))]
 pub use async_std::task::sleep;
 
-/// Stores arguments extracted from Location search. e.g. http://localhost/?arg0=value0&arg1=value1.
+/// Stores arguments extracted from `Location`'s search
+/// (https://developer.mozilla.org/en-US/docs/Web/API/Location/search).
+/// e.g. extracts arg0 = value0, and arg1 = value1 from http://localhost/?arg0=value0&arg1=value1.
 #[derive(Shrinkwrap,Debug)]
 pub struct Arguments {
     pub hash_map : HashMap<String,String>
@@ -512,12 +514,13 @@ pub struct Arguments {
 impl Arguments {
     fn args_from_search(search:&str) -> HashMap<String,String> {
         if search.chars().nth(0) == Some('?') {
-            search[1..].split('&').filter_map(|arg| {
+            let search_without_question_mark = &search[1..];
+            search_without_question_mark.split('&').filter_map(|arg| {
                 let x : Vec<&str> = arg.split('=').collect();
-                match x.len() {
-                    1 => Some((x[0].to_string(), "".to_string())),
-                    2 => Some((x[0].to_string(), x[1].to_string())),
-                    _ => None
+                match (x.get(0),x.get(1)) {
+                    (Some(key),Some(value)) => Some((key.to_string(),value.to_string())),
+                    (Some(key),None)        => Some((key.to_string(),"".to_string())),
+                    (_,_)                   => None
                 }
             }).collect()
         } else {

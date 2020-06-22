@@ -81,16 +81,19 @@ pub struct IpWithSocket {
 
 /// Project name.
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq,Shrinkwrap)]
-pub struct ProjectName {
-    #[allow(missing_docs)]
-    pub name : String
+pub struct ProjectName(String);
+
+impl ProjectName {
+    /// Create new ProjectName.
+    pub fn new(name : impl Str) -> Self {
+        Self(name.into())
+    }
 }
 
 /// Project information, such as name, its id and last time it was opened.
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
 pub struct ProjectMetadata {
     /// Project's name.
-    #[serde(flatten)]
     pub name : ProjectName,
     /// Project's uuid.
     pub id : Uuid,

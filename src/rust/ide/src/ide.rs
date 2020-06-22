@@ -104,7 +104,7 @@ impl IDE {
         info!(logger, "Creating a new project named '{name}'.");
         let id          = project_manager.create_project(&name.to_string()).await?.project_id;
         let name        = name.to_string();
-        let name        = ProjectName{name};
+        let name        = ProjectName::new(name);
         let last_opened = default();
         Ok(ProjectMetadata{id,name,last_opened})
     }
@@ -112,12 +112,13 @@ impl IDE {
     async fn lookup_project
     ( project_manager : &impl project_manager::API
     , project_name    : &str) -> FallibleResult<ProjectMetadata> {
+        let name         = project_name.to_string();
+        let project_name = ProjectName::new(&name);
         let response     = project_manager.list_projects(&None).await?;
         let mut projects = response.projects.iter();
         projects.find(|project_metadata| {
-            project_metadata.name.name == *project_name
-        }).cloned().ok_or_else(|| ProjectNotFound{name:project_name.to_string()}.into())
-        // ij.0op./  f vgn yuiii
+            project_metadata.name == project_name
+        }).cloned().ok_or_else(|| ProjectNotFound{name}.into())
     }
 
     /// Open the named project or create a new project if it doesn't exist.
@@ -135,7 +136,7 @@ impl IDE {
         };
         let endpoints = project_manager.open_project(&project_metadata.id).await?;
         Self::open_project(logger,endpoints.language_server_json_address,
-            endpoints.language_server_binary_address,&project_metadata.name.name).await
+            endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
     }
 
     /// Open most recent project or create a new project if none exists.
@@ -147,12 +148,12 @@ impl IDE {
         let project_metadata = if let Some(project) = response.projects.pop() {
             project
         } else {
-            let project_name = constants::DEFAULT_PROJECT_NAME.to_string();
-            Self::create_project(logger,project_manager,&project_name).await?
+            let project_name = constants::DEFAULT_PROJECT_NAME;
+            Self::create_project(logger,project_manager,project_name).await?
         };
         let endpoints = project_manager.open_project(&project_metadata.id).await?;
         Self::open_project(logger,endpoints.language_server_json_address,
-                     endpoints.language_server_binary_address,&project_metadata.name.name).await
+            endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
     }
 
     async fn initialize_project_manager(&mut self) -> FallibleResult<()> {
@@ -162,11 +163,11 @@ impl IDE {
     }
 
     /// Sets up the project view, including the controller it uses.
-    pub async fn setup_project_view(&self) -> Result<ProjectView,failure::Error> {
-        let logger       = &self.logger;
-        let pm           = self.project_manager.as_ref().expect("Couldn't get Project Manager.");
-        let arguments    = ensogl::system::web::Arguments::new();
-        let project = if let Some(project_name) = arguments.get("project") {
+    pub async fn setup_project_view(&self) -> FallibleResult<ProjectView> {
+        let logger                     = &self.logger;
+        let pm                         = self.project_manager.as_ref().expect("Couldn't get Project Manager.");
+        let project_name_from_argument = &self.config.project_name_from_arguments;
+        let project = if let Some(project_name) = project_name_from_argument {
             Self::open_project_or_create_new(logger,pm,project_name).await?
         } else {
             Self::open_most_recent_project_or_create_new(logger,pm).await?
