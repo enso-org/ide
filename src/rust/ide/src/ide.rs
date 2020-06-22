@@ -96,8 +96,7 @@ impl IDE {
     , project_manager : &impl project_manager::API
     , project_name    : &str
     ) -> FallibleResult<controller::Project> {
-        let projects_to_list = constants::MAXIMUM_LISTABLE_PROJECTS;
-        let response     = project_manager.list_recent_projects(&projects_to_list).await?;
+        let response     = project_manager.list_projects(&None).await?;
         let mut projects = response.projects.iter();
         let project      = projects.find(|project_metadata| {
             project_metadata.name.name == *project_name
@@ -117,8 +116,8 @@ impl IDE {
     pub async fn open_most_recent_project_or_create_new
     ( logger          : &Logger
     , project_manager : &impl project_manager::API) -> FallibleResult<controller::Project> {
-        let projects_to_list = 1;
-        let mut response     = project_manager.list_recent_projects(&projects_to_list).await?;
+        let projects_to_list = Some(1);
+        let mut response     = project_manager.list_projects(&projects_to_list).await?;
         let project_metadata = if let Some(project) = response.projects.pop() {
             project
         } else {
