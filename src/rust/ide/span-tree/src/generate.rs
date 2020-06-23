@@ -326,6 +326,18 @@ mod test {
 
     wasm_bindgen_test_configure!(run_in_browser);
 
+    /// A helper function which removes information about expression id from thw tree rooted at
+    /// `node`.
+    ///
+    /// It is used in tests. Because parser can assign id as he pleases, therefore to keep tests
+    /// cleaner the expression ids are removed before comparing trees.
+    fn clear_expression_id(node:&mut Node) {
+        node.expression_id = None;
+        for child in &mut node.children {
+            clear_expression_id(&mut child.node);
+        }
+    }
+
     #[wasm_bindgen_test]
     fn generating_span_tree() {
         let parser       = Parser::new_or_panic();
@@ -334,11 +346,19 @@ mod test {
         id_map.generate(0..11);
         id_map.generate(12..13);
         id_map.generate(14..15);
-        let ast          = parser.parse_line("2 + foo bar - 3").unwrap();
-        let tree         = ast.generate_tree().unwrap();
-        let is_removable = false;
+        id_map.generate(4..11);
+        let ast          = parser.parse_line_with_id_map("2 + foo bar - 3",id_map.clone()).unwrap();
+        let mut tree     = ast.generate_tree().unwrap();
+        for id_map_entry in id_map.vec {
+            let (span,id) = id_map_entry;
+            let node = tree.root_ref().find_by_span(&span);
+            assert!(node.is_some(), "Node with span {} not found", span);
+            assert_eq!(node.unwrap().node.expression_id, Some(id));
+        }
+        clear_expression_id(&mut tree.root);
 
-        let expected = TreeBuilder::new(15)
+        let is_removable = false;
+        let expected     = TreeBuilder::new(15)
             .add_empty_child(0,BeforeTarget)
             .add_child(0,11,Target{is_removable},InfixCrumb::LeftOperand)
                 .add_empty_child(0,BeforeTarget)
@@ -366,10 +386,11 @@ mod test {
     fn generate_span_tree_with_chains() {
         let parser       = Parser::new_or_panic();
         let ast          = parser.parse_line("2 + 3 + foo bar baz 13 + 5").unwrap();
-        let tree         = ast.generate_tree().unwrap();
-        let is_removable = true;
+        let mut tree     = ast.generate_tree().unwrap();
+        clear_expression_id(&mut tree.root);
 
-        let expected = TreeBuilder::new(26)
+        let is_removable = true;
+        let expected     = TreeBuilder::new(26)
             .add_child(0,22,Chained,InfixCrumb::LeftOperand)
                 .add_child(0,5,Chained,InfixCrumb::LeftOperand)
                     .add_empty_child(0,BeforeTarget)
@@ -408,10 +429,11 @@ mod test {
     fn generating_span_tree_from_right_assoc_operator() {
         let parser       = Parser::new_or_panic();
         let ast          = parser.parse_line("1,2,3").unwrap();
-        let tree         = ast.generate_tree().unwrap();
-        let is_removable = true;
+        let mut tree     = ast.generate_tree().unwrap();
+        clear_expression_id(&mut tree.root);
 
-        let expected = TreeBuilder::new(5)
+        let is_removable = true;
+        let expected     = TreeBuilder::new(5)
             .add_empty_child(0,Append)
             .add_leaf (0,1,Argument{is_removable},InfixCrumb::LeftOperand)
             .add_leaf (1,1,Operation,InfixCrumb::Operator)
@@ -434,10 +456,11 @@ mod test {
         // The star makes `SectionSides` ast being one of the parameters of + chain. First + makes
         // SectionRight, and last + makes SectionLeft.
         let ast          = parser.parse_line("+ * + + 2 +").unwrap();
-        let tree         = ast.generate_tree().unwrap();
-        let is_removable = true;
+        let mut tree     = ast.generate_tree().unwrap();
+        clear_expression_id(&mut tree.root);
 
-        let expected = TreeBuilder::new(11)
+        let is_removable = true;
+        let expected     = TreeBuilder::new(11)
             .add_child(0,9,Chained,SectionLeftCrumb::Arg)
                 .add_child(0,5,Chained,InfixCrumb::LeftOperand)
                     .add_child(0,3,Chained,SectionLeftCrumb::Arg)
@@ -468,10 +491,11 @@ mod test {
     fn generating_span_tree_from_right_assoc_section() {
         let parser       = Parser::new_or_panic();
         let ast          = parser.parse_line(",2,").unwrap();
-        let tree         = ast.generate_tree().unwrap();
-        let is_removable = true;
+        let mut tree     = ast.generate_tree().unwrap();
+        clear_expression_id(&mut tree.root);
 
-        let expected = TreeBuilder::new(3)
+        let is_removable = true;
+        let expected     = TreeBuilder::new(3)
             .add_empty_child(0,Append)
             .add_leaf (0,1,Operation,SectionRightCrumb::Opr)
             .add_child(1,2,Chained  ,SectionRightCrumb::Arg)
@@ -490,8 +514,14 @@ mod test {
         use PatternMatchCrumb::*;
 
         let parser       = Parser::new_or_panic();
-        let ast          = parser.parse_line("if foo then (a + b) x else ()").unwrap();
-        let tree         = ast.generate_tree().unwrap();
+        let mut id_map   = IdMap::default();
+        id_map.generate(0..29);
+        let expression      = "if foo then (a + b) x else ()";
+        let ast             = parser.parse_line_with_id_map(expression,id_map.clone()).unwrap();
+        let mut tree        = ast.generate_tree().unwrap();
+        let (_,expected_id) = id_map.vec.first().unwrap();
+        assert_eq!(tree.root_ref().expression_id,Some(*expected_id));
+        clear_expression_id(&mut tree.root);
         let is_removable = false;
 
         let if_then_else_cr = vec![Seq { right: false }, Or, Build];
@@ -527,12 +557,17 @@ mod test {
     #[wasm_bindgen_test]
     fn generating_span_tree_from_ambiguous_macros() {
         let parser       = Parser::new_or_panic();
-        let ast          = parser.parse_line("(4").unwrap();
-        let tree         = ast.generate_tree().unwrap();
+        let mut id_map   = IdMap::default();
+        id_map.generate(0..2);
+        let ast             = parser.parse_line_with_id_map("(4",id_map.clone()).unwrap();
+        let mut tree        = ast.generate_tree().unwrap();
+        let (_,expected_id) = id_map.vec.first().unwrap();
+        assert_eq!(tree.root_ref().expression_id,Some(*expected_id));
+        clear_expression_id(&mut tree.root);
+
         let is_removable = false;
         let crumb        = AmbiguousCrumb{index:0, field:AmbiguousSegmentCrumb::Body};
-
-        let expected = TreeBuilder::new(2)
+        let expected     = TreeBuilder::new(2)
             .add_leaf(1,1,Argument {is_removable},crumb)
             .build();
 
@@ -543,10 +578,11 @@ mod test {
     fn generating_span_tree_for_lambda() {
         let parser       = Parser::new_or_panic();
         let ast          = parser.parse_line("foo a-> b + c").unwrap();
-        let tree         = ast.generate_tree().unwrap();
-        let is_removable = false;
+        let mut tree     = ast.generate_tree().unwrap();
+        clear_expression_id(&mut tree.root);
 
-        let expected = TreeBuilder::new(13)
+        let is_removable = false;
+        let expected     = TreeBuilder::new(13)
             .add_leaf(0,3,Operation,PrefixCrumb::Func)
             .add_empty_child(4,BeforeTarget)
             .add_leaf(4,9,Target{is_removable},PrefixCrumb::Arg)
