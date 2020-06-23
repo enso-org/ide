@@ -110,14 +110,15 @@ impl SpanTreeGenerator for Ast {
                     ast::prefix::Chain::try_new(self).unwrap().generate_node(kind),
                 // Lambdas should fall in _ case, because we don't want to create subports for
                 // them
-                ast::Shape::Match(ast) if ast::macros::as_lambda_match(self).is_none() =>
-                    ast.generate_node(kind),
-                ast::Shape::Ambiguous(ast) =>
-                    ast.generate_node(kind),
+                ast::Shape::Match(_) if ast::macros::as_lambda_match(self).is_none() =>
+                    ast::known::Match::try_new(self.clone_ref()).unwrap().generate_node(kind),
+                ast::Shape::Ambiguous(_) =>
+                    ast::known::Ambiguous::try_new(self.clone_ref()).unwrap().generate_node(kind),
                 _  => {
-                    let size     = Size::new(self.len());
-                    let children = default();
-                    Ok(Node {kind,size,children})
+                    let size          = Size::new(self.len());
+                    let children      = default();
+                    let expression_id = self.id;
+                    Ok(Node {kind,size,children,expression_id})
                 },
             }
         }
@@ -174,9 +175,10 @@ impl SpanTreeGenerator for ast::opr::Chain {
             }
 
             Ok((Node {
-                kind     : if is_last {kind} else {node::Kind::Chained},
-                size     : gen.current_offset,
-                children : gen.children,
+                kind          : if is_last {kind} else {node::Kind::Chained},
+                size          : gen.current_offset,
+                children      : gen.children,
+                expression_id : elem.infix_id,
             }, elem.offset))
         })?;
         Ok(node)
@@ -201,16 +203,17 @@ impl SpanTreeGenerator for ast::prefix::Chain {
 
             let mut gen = ChildGenerator::default();
             gen.add_node(vec![Func.into()],node);
-            gen.spacing(arg.off);
+            gen.spacing(arg.sast.off);
             if let node::Kind::Target {..} = arg_kind {
                 gen.generate_empty_node(InsertType::BeforeTarget);
             }
-            gen.generate_ast_node(Located::new(Arg,arg.wrapped.clone_ref()), arg_kind)?;
+            gen.generate_ast_node(Located::new(Arg,arg.sast.wrapped.clone_ref()), arg_kind)?;
             gen.generate_empty_node(InsertType::Append);
             Ok(Node {
-                kind     : if is_last {kind} else {node::Kind::Chained},
-                size     : gen.current_offset,
-                children : gen.children,
+                kind          : if is_last {kind} else {node::Kind::Chained},
+                size          : gen.current_offset,
+                children      : gen.children,
+                expression_id : arg.prefix_id,
             })
         })
     }
@@ -219,7 +222,7 @@ impl SpanTreeGenerator for ast::prefix::Chain {
 
 // === Match ===
 
-impl SpanTreeGenerator for ast::Match<Ast> {
+impl SpanTreeGenerator for ast::known::Match {
     fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
         let is_removable  = false;
         let children_kind = node::Kind::Argument {is_removable};
@@ -239,8 +242,9 @@ impl SpanTreeGenerator for ast::Match<Ast> {
             generate_children_from_segment(&mut gen,index+1,&segment.wrapped)?;
         }
         Ok(Node {kind,
-            size     : gen.current_offset,
-            children : gen.children,
+            size          : gen.current_offset,
+            children      : gen.children,
+            expression_id : self.id(),
         })
     }
 }
@@ -263,7 +267,7 @@ fn generate_children_from_segment
 
 // === Ambiguous ==
 
-impl SpanTreeGenerator for ast::Ambiguous<Ast> {
+impl SpanTreeGenerator for ast::known::Ambiguous {
     fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
         let mut gen             = ChildGenerator::default();
         let first_segment_index = 0;
@@ -273,8 +277,9 @@ impl SpanTreeGenerator for ast::Ambiguous<Ast> {
             generate_children_from_abiguous_segment(&mut gen, index+1, &segment.wrapped)?;
         }
         Ok(Node{kind,
-            size     : gen.current_offset,
-            children : gen.children,
+            size          : gen.current_offset,
+            children      : gen.children,
+            expression_id : self.id(),
         })
     }
 }
@@ -317,12 +322,18 @@ mod test {
     use parser::Parser;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use ast::IdMap;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
     #[wasm_bindgen_test]
     fn generating_span_tree() {
         let parser       = Parser::new_or_panic();
+        let mut id_map   = IdMap::default();
+        id_map.generate(0..15);
+        id_map.generate(0..11);
+        id_map.generate(12..13);
+        id_map.generate(14..15);
         let ast          = parser.parse_line("2 + foo bar - 3").unwrap();
         let tree         = ast.generate_tree().unwrap();
         let is_removable = false;

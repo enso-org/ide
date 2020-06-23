@@ -99,7 +99,11 @@ impl Parser {
     /// Program is expected to be single non-empty line module. The line's AST is
     /// returned. Panics otherwise.
     pub fn parse_line(&self, program:impl Str) -> FallibleResult<Ast> {
-        let module = self.parse_module(program,default())?;
+        self.parse_line_with_id_map(program,default())
+    }
+
+    pub fn parse_line_with_id_map(&self, program:impl Str, id_map:IdMap) -> FallibleResult<Ast> {
+        let module = self.parse_module(program,id_map)?;
 
         let mut lines = module.lines.clone().into_iter().filter_map(|line| {
             line.elem
