@@ -23,7 +23,7 @@ pub use data::Data;
 pub use data::Lines;
 pub use data::unit::*;
 pub use view::*;
-pub use style::Style;
+pub use style::*;
 
 
 
@@ -53,6 +53,7 @@ impl Buffer {
         let range = data.range();
         let mut style = Style::default();
         // FIXME: Remove the following after adding data edits, and always create data as empty first.
+        style.size.spans.set(range,None);
         style.color.spans.set(range,None);
         style.bold.spans.set(range,None);
         style.italics.spans.set(range,None);

@@ -78,12 +78,6 @@ impl Lines {
 // === Area ===
 // ============
 
-/// A structure keeping line of glyphs with proper alignment.
-///
-/// Not all the glyphs in `glyphs` vector may be actually in use. This structure is meant to keep
-/// changing text, and for best performance it re-uses the created Glyphs (what means the specific
-/// buffer space). Therefore you can set a cap for line length by using the `set_fixed_capacity`
-/// method.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
     logger         : Logger,
@@ -91,7 +85,6 @@ pub struct Area {
     glyph_system   : glyph::System,
     buffer         : buffer::View,
     lines          : Lines,
-
 }
 
 impl Area {
@@ -124,26 +117,20 @@ impl Area {
     }
 
     fn redraw_line(&self, view_line_number:usize, content:Cow<str>) {
-        let font_size = 10.0; // FIXME
-//        let color     = color::Rgba::new(1.0,0.0,0.0,1.0);
-//        let style     = self.buffer.style.current(); // FIXME: refactor to redraw
-        let line      = &mut self.lines.rc.borrow_mut()[view_line_number];
-
-        let line_range = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
+        let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
+        let line_range     = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
         let mut line_style = self.buffer.focus_style(line_range.start .. line_range.end).iter();
 
-//        let style_cursor = style.cursor(self.buffer.first_line_offset().raw);
-        // FIXME clone:
-        let pen       = pen::Iterator::new(10.0,content.chars(),self.glyph_system.font.clone_ref());
+        let mut pen = pen::Pen::new(&self.glyph_system.font);
         line.resize_with(content.len(),||self.glyph_system.new_glyph());
-        for (glyph,info) in line.glyphs.iter().zip(pen) {
-            let style = line_style.next().unwrap_or_default();
+        for (glyph,chr) in line.glyphs.iter().zip(content.chars()) {
+            let style    = line_style.next().unwrap_or_default();
+            let chr_size = style.size.raw;
+            let info     = pen.advance(chr,chr_size);
             line_style.drop((info.char.len_utf8() - 1).bytes());
-//            println!("?? {:?}", style_cursor.get_leaf());
-//            style_cursor.next();
             let glyph_info   = self.glyph_system.font.get_glyph_info(info.char);
-            let size         = glyph_info.scale.scale(font_size);
-            let glyph_offset = glyph_info.offset.scale(font_size);
+            let size         = glyph_info.scale.scale(chr_size);
+            let glyph_offset = glyph_info.offset.scale(chr_size);
             let glyph_x      = info.offset + glyph_offset.x;
             let glyph_y      = glyph_offset.y;
             glyph.set_position_xy(Vector2(glyph_x,glyph_y));

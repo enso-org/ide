@@ -11,7 +11,7 @@ use super::*;
 macro_rules! newtype {
     ($(#$meta:tt)* $name:ident($field_type:ty)) => {
         $(#$meta)*
-        #[derive(Clone,Copy,Debug,Default,Eq,From,Hash,Ord,PartialEq,PartialOrd)]
+        #[derive(Clone,Copy,Debug,Default,From,PartialEq,PartialOrd)]
         #[allow(missing_docs)]
         pub struct $name {
             /// The raw, weakly typed value.
@@ -206,11 +206,27 @@ macro_rules! define_styles {
 // === Style Definition ===
 // ========================
 
+// newtype!(Size(f32));
 newtype!(Bold(bool));
 newtype!(Italics(bool));
 newtype!(Underline(bool));
 
+#[derive(Clone,Copy,Debug,From,PartialEq,PartialOrd)]
+#[allow(missing_docs)]
+pub struct Size {
+    pub raw: f32
+}
+pub fn Size(raw:f32) -> Size { Size { raw } }
+
+impl Default for Size {
+    fn default() -> Self {
+        let raw = 12.0;
+        Self {raw}
+    }
+}
+
 define_styles! {
+    size      : Size,
     color     : color::Rgba,
     bold      : Bold,
     italics   : Italics,

@@ -1,3 +1,3 @@
-pub mod line;
+pub mod area;
 
-pub use line::Area;
+pub use area::Area;

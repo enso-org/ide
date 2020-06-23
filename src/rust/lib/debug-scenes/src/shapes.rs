@@ -125,6 +125,11 @@ fn init(app:&Application) {
     buffer.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
 
     buffer.set_default(color::Rgba::new(0.8,0.8,0.8,1.0));
+    buffer.set_default(text::Size(10.0));
+    buffer.set((0..4).bytes(),text::Size(20.0));
+
+
+
 
     let area = text::Area::new(Logger::new("test"),&buffer_view,&glyph_system);
     world.add_child(&area);
