@@ -3,6 +3,7 @@
 #![warn(missing_debug_implementations)]
 #![feature(trait_alias)]
 #![feature(set_stdio)]
+#![feature(slice_patterns)]
 
 pub mod closure;
 pub mod resize_observer;
@@ -516,11 +517,10 @@ impl Arguments {
         if search.chars().nth(0) == Some('?') {
             let search_without_question_mark = &search[1..];
             search_without_question_mark.split('&').filter_map(|arg| {
-                let x : Vec<&str> = arg.split('=').collect();
-                match (x.get(0),x.get(1)) {
-                    (Some(key),Some(value)) => Some((key.to_string(),value.to_string())),
-                    (Some(key),None)        => Some((key.to_string(),"".to_string())),
-                    (_,_)                   => None
+                match arg.split('=').collect_vec().as_slice() {
+                    [key,value] => Some((key.to_string(),value.to_string())),
+                    [key]       => Some((key.to_string(),"".to_string())),
+                    _           => None
                 }
             }).collect()
         } else {

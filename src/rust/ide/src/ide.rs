@@ -36,8 +36,8 @@ pub struct ProjectNotFound {
 /// The IDE structure containing its configuration and its components instances.
 #[derive(Debug)]
 pub struct Ide {
-    _executor       : executor::web::EventLoopExecutor,
     logger          : Logger,
+    _executor       : executor::web::EventLoopExecutor,
     config          : Startup,
     project_manager : Option<project_manager::Client>,
     project_view    : Option<ProjectView>
@@ -198,6 +198,8 @@ impl Ide {
     }
 }
 
+
+
 // =============
 // === Utils ===
 // =============
@@ -208,7 +210,6 @@ pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
     executor::global::set_spawner(executor.spawner.clone());
     executor
 }
-
 
 /// Creates a new websocket transport and waits until the connection is properly opened.
 pub async fn new_opened_ws
