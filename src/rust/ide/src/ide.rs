@@ -5,7 +5,7 @@ use crate::prelude::*;
 use crate::transport::web::ConnectingError;
 use crate::transport::web::WebSocket;
 use crate::view::project::ProjectView;
-use crate::config::Startup;
+use crate::config;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
@@ -36,33 +36,37 @@ pub struct ProjectNotFound {
 /// The IDE structure containing its configuration and its components instances.
 #[derive(Debug)]
 pub struct Ide {
-    logger          : Logger,
-    _executor       : executor::web::EventLoopExecutor,
-    config          : Startup,
-    project_manager : Option<project_manager::Client>,
-    project_view    : Option<ProjectView>
+    project_view : ProjectView
 }
 
-impl Default for Ide {
+
+
+// ======================
+// === IdeInitializer ===
+// ======================
+
+/// The IDE initializer.
+#[derive(Debug)]
+pub struct IdeInitializer {
+    logger : Logger
+}
+
+impl Default for IdeInitializer {
     fn default() -> Self {
-        let config          = Startup::new_local();
-        let logger          = Logger::new("IDE");
-        let _executor       = setup_global_executor();
-        let project_view    = default();
-        let project_manager = default();
-        Self {_executor,logger,config,project_view,project_manager}
+        let logger = Logger::new("IdeInitializer");
+        Self {logger}
     }
 }
 
-impl Ide {
+impl IdeInitializer {
     /// Creates a new IDE instance.
     pub fn new() -> Self {
         default()
     }
 
     /// Establishes transport to the file manager server websocket endpoint.
-    pub async fn connect_to_project_manager(&self) -> Result<WebSocket,ConnectingError> {
-        WebSocket::new_opened(self.logger.clone_ref(),&self.config.project_manager_endpoint).await
+    pub async fn connect_to_project_manager(&self, config:&config::Startup) -> Result<WebSocket,ConnectingError> {
+        WebSocket::new_opened(self.logger.clone_ref(),&config.project_manager_endpoint).await
     }
 
     /// Wraps the transport to the project manager server into the client type and registers it
@@ -156,44 +160,46 @@ impl Ide {
             endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
     }
 
-    async fn initialize_project_manager(&mut self) -> FallibleResult<()> {
-        let transport        = self.connect_to_project_manager().await?;
-        self.project_manager = Some(Self::setup_project_manager(transport));
-        Ok(())
+    async fn initialize_project_manager
+    (&mut self, config:&config::Startup) -> FallibleResult<project_manager::Client> {
+        let transport        = self.connect_to_project_manager(config).await?;
+        Ok(Self::setup_project_manager(transport))
     }
 
-    /// Sets up the project view, including the controller it uses.
-    pub async fn setup_project_view(&self) -> FallibleResult<ProjectView> {
+    /// Initialize the project view, including the controller it uses.
+    pub async fn initialize_project_view
+    ( &self
+    , config          : &config::Startup
+    , project_manager : &project_manager::Client
+    ) -> FallibleResult<ProjectView> {
         let logger                     = &self.logger;
-        let pm                         = self.project_manager.as_ref().expect("Couldn't get Project Manager.");
-        let project_name_from_argument = &self.config.project_name_from_arguments;
+        let project_name_from_argument = &config.project_name_from_arguments;
         let project = if let Some(project_name) = project_name_from_argument {
-            Self::open_project_or_create_new(logger,pm,project_name).await?
+            Self::open_project_or_create_new(logger,project_manager,project_name).await?
         } else {
-            Self::open_most_recent_project_or_create_new(logger,pm).await?
+            Self::open_most_recent_project_or_create_new(logger,project_manager).await?
         };
-        let project_view = ProjectView::new(logger,project).await?;
-        Ok(project_view)
-    }
-
-    async fn initialize_project_view(&mut self) -> FallibleResult<()> {
-        let project_view = self.setup_project_view().await?;
-        self.project_view = Some(project_view);
-        Ok(())
+        Ok(ProjectView::new(logger,project).await?)
     }
 
     /// This function initializes the project manager, creates the project view and forget IDE
     /// to indefinitely keep it alive.
-    pub fn run_and_forget(mut self) {
-        info!(self.logger, "Starting IDE with the following config: {self.config:?}");
+    pub fn start_and_forget(mut self) {
+        let executor = setup_global_executor();
+        let config   = config::Startup::new_local();
+        info!(self.logger, "Starting IDE with the following config: {config:?}");
         executor::global::spawn(async move {
             // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
             //      issues to user, such information should be properly passed
             //      in case of setup failure.
-            self.initialize_project_manager().await.expect("Failed to initialize Project Manager.");
-            self.initialize_project_view().await.expect("Failed to setup initial project view.");
+            let project_manager = self.initialize_project_manager(&config).await;
+            let project_manager = project_manager.expect("Failed to initialize Project Manager.");
+            let project_view    = self.initialize_project_view(&config,&project_manager).await;
+            let project_view    = project_view.expect("Failed to setup initial project view.");
             self.logger.info("Setup done.");
-            std::mem::forget(self);
+            let ide = Ide{project_view};
+            std::mem::forget(ide);
+            std::mem::forget(executor);
         });
     }
 }
