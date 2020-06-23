@@ -331,32 +331,35 @@ mod test {
     ///
     /// It is used in tests. Because parser can assign id as he pleases, therefore to keep tests
     /// cleaner the expression ids are removed before comparing trees.
-    fn clear_expression_id(node:&mut Node) {
+    fn clear_expression_ids(node:&mut Node) {
         node.expression_id = None;
         for child in &mut node.children {
-            clear_expression_id(&mut child.node);
+            clear_expression_ids(&mut child.node);
         }
     }
 
     #[wasm_bindgen_test]
     fn generating_span_tree() {
-        let parser       = Parser::new_or_panic();
-        let mut id_map   = IdMap::default();
+        let parser     = Parser::new_or_panic();
+        let mut id_map = IdMap::default();
         id_map.generate(0..15);
         id_map.generate(0..11);
         id_map.generate(12..13);
         id_map.generate(14..15);
         id_map.generate(4..11);
-        let ast          = parser.parse_line_with_id_map("2 + foo bar - 3",id_map.clone()).unwrap();
-        let mut tree     = ast.generate_tree().unwrap();
+        let ast      = parser.parse_line_with_id_map("2 + foo bar - 3",id_map.clone()).unwrap();
+        let mut tree = ast.generate_tree().unwrap();
+
+        // Check the expression ids we defined:
         for id_map_entry in id_map.vec {
             let (span,id) = id_map_entry;
-            let node = tree.root_ref().find_by_span(&span);
+            let node      = tree.root_ref().find_by_span(&span);
             assert!(node.is_some(), "Node with span {} not found", span);
             assert_eq!(node.unwrap().node.expression_id, Some(id));
         }
-        clear_expression_id(&mut tree.root);
 
+        // Check the other fields:
+        clear_expression_ids(&mut tree.root);
         let is_removable = false;
         let expected     = TreeBuilder::new(15)
             .add_empty_child(0,BeforeTarget)
@@ -384,10 +387,10 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generate_span_tree_with_chains() {
-        let parser       = Parser::new_or_panic();
-        let ast          = parser.parse_line("2 + 3 + foo bar baz 13 + 5").unwrap();
-        let mut tree     = ast.generate_tree().unwrap();
-        clear_expression_id(&mut tree.root);
+        let parser   = Parser::new_or_panic();
+        let ast      = parser.parse_line("2 + 3 + foo bar baz 13 + 5").unwrap();
+        let mut tree = ast.generate_tree().unwrap();
+        clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
         let expected     = TreeBuilder::new(26)
@@ -427,10 +430,10 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generating_span_tree_from_right_assoc_operator() {
-        let parser       = Parser::new_or_panic();
-        let ast          = parser.parse_line("1,2,3").unwrap();
-        let mut tree     = ast.generate_tree().unwrap();
-        clear_expression_id(&mut tree.root);
+        let parser   = Parser::new_or_panic();
+        let ast      = parser.parse_line("1,2,3").unwrap();
+        let mut tree = ast.generate_tree().unwrap();
+        clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
         let expected     = TreeBuilder::new(5)
@@ -455,9 +458,9 @@ mod test {
         let parser = Parser::new_or_panic();
         // The star makes `SectionSides` ast being one of the parameters of + chain. First + makes
         // SectionRight, and last + makes SectionLeft.
-        let ast          = parser.parse_line("+ * + + 2 +").unwrap();
-        let mut tree     = ast.generate_tree().unwrap();
-        clear_expression_id(&mut tree.root);
+        let ast      = parser.parse_line("+ * + + 2 +").unwrap();
+        let mut tree = ast.generate_tree().unwrap();
+        clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
         let expected     = TreeBuilder::new(11)
@@ -489,10 +492,10 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generating_span_tree_from_right_assoc_section() {
-        let parser       = Parser::new_or_panic();
-        let ast          = parser.parse_line(",2,").unwrap();
-        let mut tree     = ast.generate_tree().unwrap();
-        clear_expression_id(&mut tree.root);
+        let parser   = Parser::new_or_panic();
+        let ast      = parser.parse_line(",2,").unwrap();
+        let mut tree = ast.generate_tree().unwrap();
+        clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
         let expected     = TreeBuilder::new(3)
@@ -513,19 +516,22 @@ mod test {
     fn generating_span_tree_from_matched_macros() {
         use PatternMatchCrumb::*;
 
-        let parser       = Parser::new_or_panic();
-        let mut id_map   = IdMap::default();
+        let parser     = Parser::new_or_panic();
+        let mut id_map = IdMap::default();
         id_map.generate(0..29);
-        let expression      = "if foo then (a + b) x else ()";
-        let ast             = parser.parse_line_with_id_map(expression,id_map.clone()).unwrap();
-        let mut tree        = ast.generate_tree().unwrap();
+        let expression = "if foo then (a + b) x else ()";
+        let ast        = parser.parse_line_with_id_map(expression,id_map.clone()).unwrap();
+        let mut tree   = ast.generate_tree().unwrap();
+
+        // Check if expression id is set
         let (_,expected_id) = id_map.vec.first().unwrap();
         assert_eq!(tree.root_ref().expression_id,Some(*expected_id));
-        clear_expression_id(&mut tree.root);
-        let is_removable = false;
 
-        let if_then_else_cr = vec![Seq { right: false }, Or, Build];
-        let parens_cr       = vec![Seq { right: false }, Or, Or, Build];
+        // Check the other fields
+        clear_expression_ids(&mut tree.root);
+        let is_removable        = false;
+        let if_then_else_cr     = vec![Seq { right: false }, Or, Build];
+        let parens_cr           = vec![Seq { right: false }, Or, Or, Build];
         let segment_body_crumbs = |index:usize, pattern_crumb:&Vec<PatternMatchCrumb>| {
             let val = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_crumb.clone()};
             ast::crumbs::MatchCrumb::Segs {val,index}
@@ -556,15 +562,18 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generating_span_tree_from_ambiguous_macros() {
-        let parser       = Parser::new_or_panic();
-        let mut id_map   = IdMap::default();
+        let parser     = Parser::new_or_panic();
+        let mut id_map = IdMap::default();
         id_map.generate(0..2);
-        let ast             = parser.parse_line_with_id_map("(4",id_map.clone()).unwrap();
-        let mut tree        = ast.generate_tree().unwrap();
+        let ast      = parser.parse_line_with_id_map("(4",id_map.clone()).unwrap();
+        let mut tree = ast.generate_tree().unwrap();
+
+        // Check the expression id:
         let (_,expected_id) = id_map.vec.first().unwrap();
         assert_eq!(tree.root_ref().expression_id,Some(*expected_id));
-        clear_expression_id(&mut tree.root);
 
+        // Check the other fields:
+        clear_expression_ids(&mut tree.root);
         let is_removable = false;
         let crumb        = AmbiguousCrumb{index:0, field:AmbiguousSegmentCrumb::Body};
         let expected     = TreeBuilder::new(2)
@@ -576,10 +585,10 @@ mod test {
 
     #[wasm_bindgen_test]
     fn generating_span_tree_for_lambda() {
-        let parser       = Parser::new_or_panic();
-        let ast          = parser.parse_line("foo a-> b + c").unwrap();
-        let mut tree     = ast.generate_tree().unwrap();
-        clear_expression_id(&mut tree.root);
+        let parser   = Parser::new_or_panic();
+        let ast      = parser.parse_line("foo a-> b + c").unwrap();
+        let mut tree = ast.generate_tree().unwrap();
+        clear_expression_ids(&mut tree.root);
 
         let is_removable = false;
         let expected     = TreeBuilder::new(13)

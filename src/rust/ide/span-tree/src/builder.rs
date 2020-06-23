@@ -22,8 +22,8 @@ pub trait Builder : Sized {
     fn add_child
     (self, offset:usize, len:usize, kind:node::Kind, crumbs:impl IntoCrumbs) -> ChildBuilder<Self> {
         let node = Node {kind,
-            size: Size::new(len),
-            children  : vec![],
+            size          : Size::new(len),
+            children      : vec![],
             expression_id : None,
         };
         let child = node::Child { node,

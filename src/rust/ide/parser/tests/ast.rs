@@ -73,7 +73,7 @@ pub fn flatten_prefix_test() {
         assert_eq!(flattened.args.len() + 1, pieces.len()); // +1 because `func` piece is separate field
         assert_eq!(&flattened.func.repr(),piece_itr.next().unwrap());
         flattened.args.iter().zip(piece_itr).for_each(|(lhs,rhs)|{
-            assert_eq!(&lhs.sast.repr(),rhs);
+            assert_eq!(&lhs.repr(),rhs);
         })
     }
 

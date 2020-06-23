@@ -2,15 +2,22 @@
 
 use crate::prelude::*;
 
-use crate::Ast;
+use crate::{Ast, TokenConsumer};
 use crate::Id;
 use crate::crumbs::Located;
 use crate::crumbs::PrefixCrumb;
+use crate::HasTokens;
 use crate::known;
 use crate::Prefix;
 use crate::Shifted;
 
 use utils::vec::VecExt;
+
+
+
+// ================
+// === Argument ===
+// ================
 
 /// Struct representing an element of a Prefix Chain: an argument applied over the function.
 #[derive(Clone,Debug)]
@@ -20,6 +27,16 @@ pub struct Argument {
     /// The id of Prefix AST of this argument application.
     pub prefix_id : Option<Id>,
 }
+
+impl HasTokens for Argument {
+    fn feed_to(&self, consumer: &mut impl TokenConsumer) {
+        self.sast.feed_to(consumer)
+    }
+}
+
+// ====================
+// === Prefix Chain ===
+// ====================
 
 /// Result of flattening a sequence of prefix applications.
 #[derive(Clone,Debug)]
@@ -64,11 +81,11 @@ impl Chain {
             Self::new(prefix)
         } else if let Ok(ref section) = known::SectionRight::try_from(ast) {
             // Case like `+ a b`
-            let func = section.opr.clone();
+            let func        = section.opr.clone();
             let right_chain = Chain::new_non_strict(&section.arg);
-            let sast      = Shifted{wrapped:right_chain.func, off:section.off};
-            let prefix_id = section.id();
-            let mut args = vec![Argument{sast,prefix_id}];
+            let sast        = Shifted{wrapped:right_chain.func, off:section.off};
+            let prefix_id   = section.id();
+            let mut args    = vec![Argument{sast,prefix_id}];
             args.extend(right_chain.args);
             Chain {func,args}
         } else {
