@@ -22,12 +22,12 @@ impl<T:Clone> Spans<T> {
         Bytes(self.raw.len())
     }
 
-    pub fn set(&mut self, range:Range<Bytes>, data:T) {
-        let mut builder = SpansBuilder::new(range.size().raw);
+    pub fn set(&mut self, range:Range<Bytes>, length:Bytes, data:T) {
+        let mut builder = SpansBuilder::new(length.raw);
         builder.add_span((..),data);
         self.edit(range,builder.build());
     }
-    
+
     pub fn focus(&self, range:Range<Bytes>) -> Self {
         let raw = self.raw.subseq(range.into_rope_repr());
         Self {raw}

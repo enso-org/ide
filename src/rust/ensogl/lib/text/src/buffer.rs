@@ -25,13 +25,10 @@ pub use data::unit::*;
 pub use view::*;
 pub use style::*;
 
-use data::crdt;
-use std::collections::BTreeSet;
+use data::Range;
 
 
-
-
-
+// fixme - refactor to undo/redo stub
 // ================
 // === EditType ===
 // ================
@@ -68,19 +65,20 @@ impl Default for EditType {
 
 
 
+// ==============
+// === Buffer ===
+// ==============
 
-
-// TODO This could go much higher without issue but while developing it is
-// better to keep it low to expose bugs in the GC during casual testing.
-const MAX_UNDOS: usize = 20;
-
-
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Debug,Default)]
 pub struct Buffer {
     pub(crate) data : Rc<RefCell<BufferData>>
 }
 
 impl Buffer {
+    pub fn new() -> Self {
+        default()
+    }
+
     /// Creates a new `View` for the buffer.
     pub fn new_view(&self) -> View {
         View::new(self)
@@ -92,29 +90,16 @@ impl Buffer {
 }
 
 
-// ==============
+
+// ==================
 // === BufferData ===
-// ==============
+// ==================
 
 /// Text container with associated styles.
-#[derive(Debug)]
+#[derive(Debug,Default)]
 pub struct BufferData {
-    pub(crate) data           : Data,
-    pub(crate) engine         : crdt::Engine,
-    pub(crate) style          : Style,
-    /// Undo groups that may still be toggled
-    pub(crate) live_undos     : Vec<usize>,
-    pub(crate) this_edit_type : EditType,
-    pub(crate) last_edit_type : EditType,
-    force_undo_group: bool,
-    undo_group_id: usize,
-    /// undo groups that are undone
-    undos: BTreeSet<usize>,
-    /// undo groups that are no longer live and should be gc'ed
-    gc_undos: BTreeSet<usize>,
-    /// The index of the current undo; subsequent undos are currently 'undone'
-    /// (but may be redone)
-    cur_undo: usize,
+    pub(crate) data  : Data,
+    pub(crate) style : Style,
 }
 
 impl Deref for BufferData {
@@ -125,35 +110,8 @@ impl Deref for BufferData {
 }
 
 impl BufferData {
-
-
-    pub fn from_string(s:String) -> Self {
-        let mut style = Style::default();
-
-        let engine = crdt::Engine::new(data::Rope::from(s));
-        let data   = Data::from(engine.get_head());
-
-        // FIXME: Remove the following after adding data edits, and always create data as empty first.
-        let range = data.range();
-        style.size.spans.set(range,None);
-        style.color.spans.set(range,None);
-        style.bold.spans.set(range,None);
-        style.italics.spans.set(range,None);
-        style.underline.spans.set(range,None);
-        let this_edit_type = default();
-        let last_edit_type = default();
-
-        // GC only works on undone edits or prefixes of the visible edits,
-        // but initial file loading can create an edit with undo group 0,
-        // so we want to collect that as part of the prefix.
-        let live_undos = vec![0];
-        let undo_group_id = 1;
-        let force_undo_group = false;
-        let undos = BTreeSet::new();
-        let gc_undos = BTreeSet::new();
-        let cur_undo = 1;
-
-        Self {data,engine,style,live_undos,force_undo_group,this_edit_type,last_edit_type,undo_group_id,undos,gc_undos,cur_undo}
+    pub fn new() -> Self {
+        default()
     }
 
     pub fn focus_style(&self, range:impl data::RangeBounds) -> Style {
@@ -165,100 +123,13 @@ impl BufferData {
         self.style.clone()
     }
 
-
-    /// Applies a delta to the text, and updates undo state.
-    ///
-    /// Records the delta into the CRDT engine so that it can be undone. Also
-    /// contains the logic for merging edits into the same undo group. At call
-    /// time, self.this_edit_type should be set appropriately.
-    ///
-    /// This method can be called multiple times, accumulating deltas that will
-    /// be committed at once with `commit_delta`. Note that it does not update
-    /// the views. Thus, view-associated state such as the selection and line
-    /// breaks are to be considered invalid after this method, until the
-    /// `commit_delta` call.
-    fn apply_change(&mut self, delta:data::Delta) {
-        let head_rev_id = self.engine.get_head_rev_id();
-        let undo_group  = self.calculate_undo_group();
-        self.last_edit_type = self.this_edit_type;
-        let priority = 0x10000;
-        self.engine.edit_rev(priority, undo_group, head_rev_id.token(), delta);
-        self.data = self.engine.get_head().into();
-    }
-
-    pub(crate) fn calculate_undo_group(&mut self) -> usize {
-        let has_undos         = !self.live_undos.is_empty();
-        let force_undo_group  = self.force_undo_group;
-        let is_unbroken_group = !self.this_edit_type.breaks_undo_group(self.last_edit_type);
-
-        if has_undos && (force_undo_group || is_unbroken_group) {
-            *self.live_undos.last().unwrap()
-        } else {
-            let undo_group = self.undo_group_id;
-            self.gc_undos.extend(&self.live_undos[self.cur_undo..]);
-            self.live_undos.truncate(self.cur_undo);
-            self.live_undos.push(undo_group);
-            if self.live_undos.len() <= MAX_UNDOS {
-                self.cur_undo += 1;
-            } else {
-                self.gc_undos.insert(self.live_undos.remove(0));
-            }
-            self.undo_group_id += 1;
-            undo_group
-        }
-    }
-
-    /// Replaces the selection with the text `T`.
-    pub fn insert_change<T:Into<data::Rope>>(&self, regions:&selection::Group, text:T) -> data::rope::Delta {
-        let rope = text.into();
-        let mut builder = data::rope::DeltaBuilder::new(self.len().raw);
-        for region in regions {
-            let iv = data::rope::Interval::new(region.min().raw, region.max().raw);
-            builder.replace(iv, rope.clone());
-        }
-
-        builder.build()
-    }
-
-    fn do_undo(&mut self) {
-        if self.cur_undo > 1 {
-            self.cur_undo -= 1;
-            assert!(self.undos.insert(self.live_undos[self.cur_undo]));
-            self.this_edit_type = EditType::Undo;
-            self.update_undos();
-        }
-    }
-
-    fn do_redo(&mut self) {
-        if self.cur_undo < self.live_undos.len() {
-            assert!(self.undos.remove(&self.live_undos[self.cur_undo]));
-            self.cur_undo += 1;
-            self.this_edit_type = EditType::Redo;
-            self.update_undos();
-        }
-    }
-
-    fn update_undos(&mut self) {
-        self.engine.undo(self.undos.clone());
-        self.data = self.engine.get_head().into();
+    pub fn insert(&mut self, range:impl data::RangeBounds, text:&Data) {
+        let range = self.crop_range(range);
+        self.data.rope.edit(range.into_rope_interval(),text.rope.clone());
+        self.style.modify(range,text.len().bytes());
     }
 }
 
-
-// === Conversions ===
-
-//impl From<Data>     for BufferData { fn from(data:Data)  -> Self { Self::from_text(data) } }
-//impl From<&Data>    for BufferData { fn from(data:&Data) -> Self { data.clone().into() } }
-impl From<String>   for BufferData { fn from(s:String)   -> Self { Self::from_string(s) } }
-impl From<&str>     for BufferData { fn from(s:&str)     -> Self { s.to_string().into() } }
-impl From<&String>  for BufferData { fn from(s:&String)  -> Self { s.clone().into() } }
-impl From<&&String> for BufferData { fn from(s:&&String) -> Self { (*s).into() } }
-impl From<&&str>    for BufferData { fn from(s:&&str)    -> Self { (*s).into() } }
-
-impl<T:Into<BufferData>> From<T> for Buffer { fn from(t:T) -> Self {
-    let data = Rc::new(RefCell::new(t.into()));
-    Self {data}
-} }
 
 
 // ==============
@@ -266,6 +137,7 @@ impl<T:Into<BufferData>> From<T> for Buffer { fn from(t:T) -> Self {
 // ==============
 
 pub trait Setter<T> {
+    fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:T);
     fn set(&self, range:impl data::RangeBounds, data:T);
 }
 
@@ -273,9 +145,12 @@ pub trait DefaultSetter<T> {
     fn set_default(&self, data:T);
 }
 
-//impl Setter<&str> for BufferData {
-//    fn set(&self, range:impl data::RangeBounds, data:T) {
-//        let range = self.crop_range(range);
-//        self.rope
-//    }
-//}
+impl Setter<&Data> for Buffer {
+    fn modify(&self, range: impl data::RangeBounds, len: Bytes, data: &Data) {
+        unimplemented!()
+    }
+
+    fn set(&self, range:impl data::RangeBounds, data:&Data) {
+        self.data.borrow_mut().insert(range,data)
+    }
+}

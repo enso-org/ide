@@ -139,7 +139,7 @@ impl Area {
         background.shape.sprite.size.set(Vector2(20.0,20.0));
 
         // FIXME
-        let buffer = buffer::Buffer::from("Test text €!!!\nline2\nline3\nline4");
+        let buffer = buffer::Buffer::new();
         let buffer = buffer.new_view();
 
         Self {logger,display_object,glyph_system,buffer,lines,background} . init()

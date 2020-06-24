@@ -8,7 +8,6 @@ use crate::prelude::*;
 // === Exports ===
 // ===============
 
-pub mod crdt;
 pub mod range;
 pub mod rope;
 pub mod spans;

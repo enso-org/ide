@@ -134,6 +134,9 @@ fn init(app:&Application) {
     let area = text::Area::new(Logger::new("test"),scene);
     world.add_child(&area);
 
+    area.add_cursor(0.bytes());
+    area.insert("Test text €!!!\nline2\nline3\nline4");
+
     area.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
     area.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
     area.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
@@ -142,12 +145,6 @@ fn init(app:&Application) {
     area.set_default(color::Rgba::new(0.8,0.8,0.8,1.0));
     area.set_default(text::Size(10.0));
     area.set((0..4).bytes(),text::Size(20.0));
-
-    area.add_cursor(1.bytes());
-    area.add_cursor(5.bytes());
-    area.insert("_");
-    area.undo();
-    area.redo();
 
     area.redraw();
 

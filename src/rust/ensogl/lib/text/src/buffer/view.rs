@@ -148,16 +148,9 @@ impl ViewBuffer {
 
     pub fn insert(&self, text:impl Into<Data>) {
         let text = text.into();
-        let change = self.buffer.data.borrow().insert_change(&*self.selection.borrow(),text.rope);
-        self.buffer.data.borrow_mut().apply_change(change);
-    }
-
-    pub fn undo(&self) {
-        self.buffer.data.borrow_mut().do_undo()
-    }
-
-    pub fn redo(&self) {
-        self.buffer.data.borrow_mut().do_redo()
+        for selection in &*self.selection.borrow() {
+            self.buffer.data.borrow_mut().insert(selection.range(),&text);
+        }
     }
 }
 
@@ -299,7 +292,7 @@ impl ViewModel {
         self.line_count.get()
     }
 
-    pub fn line_range(&self) -> Range<Line> {
+    pub fn line_range(&self) -> std::ops::Range<Line> {
         self.first_line_number() .. self.last_line_number()
     }
 
@@ -311,7 +304,7 @@ impl ViewModel {
         self.offset_of_line(self.last_line_number())
     }
 
-    pub fn line_offset_range(&self) -> Range<Bytes> {
+    pub fn line_offset_range(&self) -> std::ops::Range<Bytes> {
         self.first_line_offset() .. self.last_line_offset()
     }
 
@@ -321,7 +314,7 @@ impl ViewModel {
     }
 
     // FIXME: this sohuld not include line break.
-    pub fn range_of_view_line_raw(&self, view_line:Line) -> Range<Bytes> {
+    pub fn range_of_view_line_raw(&self, view_line:Line) -> std::ops::Range<Bytes> {
         let start = self.offset_of_view_line(view_line);
         let end   = self.offset_of_view_line(view_line + 1);
         start .. end
@@ -441,7 +434,7 @@ pub trait LineOffset {
     }
 
 //    /// Get the line range of a selected region.
-//    fn get_line_range(&self, text: &Text, region: &Selection) -> Range<usize> {
+//    fn get_line_range(&self, text: &Text, region: &Selection) -> std::ops::Range<usize> {
 //        let (first_line_number, _) = self.offset_to_line_col(text, region.min());
 //        let (mut last_line, last_col) = self.offset_to_line_col(text, region.max());
 //        if last_col == 0 && last_line > first_line_number {

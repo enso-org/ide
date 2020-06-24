@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 use crate::data::color;
+use crate::buffer::data::Range;
 use super::*;
 
 
@@ -177,6 +178,10 @@ macro_rules! define_styles {
                 Self {$($field),*}
             }
 
+            pub fn modify(&mut self, range:Range<Bytes>, len:Bytes) {
+                $(self.$field.set(range,len,None);)*
+            }
+
             /// Iterate over style values for subsequent bytes of the buffer.
             pub fn iter(&self) -> StyleIterator {
                 $(let $field = self.$field.to_vector().into_iter();)*
@@ -185,10 +190,25 @@ macro_rules! define_styles {
         }
 
         $(
+            impl Setter<Option<$field_type>> for Buffer {
+                fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:Option<$field_type>) {
+                    let range = self.data.borrow().crop_range(range);
+                    self.data.borrow_mut().style.$field.set(range,len,data)
+                }
+
+                fn set(&self, range:impl data::RangeBounds, data:Option<$field_type>) {
+                    let range = self.data.borrow().crop_range(range);
+                    self.data.borrow_mut().style.$field.set(range,range.size(),data)
+                }
+            }
+
             impl Setter<$field_type> for Buffer {
+                fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:$field_type) {
+                    self.modify(range,len,Some(data))
+                }
+
                 fn set(&self, range:impl data::RangeBounds, data:$field_type) {
-                    let range = self.data.borrow().crop_range(range); // FIXME
-                    self.data.borrow_mut().style.$field.set(range,Some(data))
+                    self.set(range,Some(data))
                 }
             }
 

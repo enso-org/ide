@@ -2,6 +2,7 @@
 use crate::prelude::*;
 
 use super::data::unit::*;
+use crate::buffer::data::Range;
 
 
 
@@ -31,6 +32,14 @@ impl Selection {
 
     pub fn new_cursor(offset:Bytes) -> Self {
         Self::new(offset,offset)
+    }
+
+    pub fn range(&self) -> Range<Bytes> {
+        (self.start .. self.end).into()
+    }
+
+    pub fn len(&self) -> Bytes {
+        self.end - self.start
     }
 
     /// Gets the earliest offset within the selection, ie the minimum of both edges.

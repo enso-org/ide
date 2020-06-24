@@ -31,6 +31,12 @@ impl<T> Range<T> {
     }
 }
 
+impl Range<Bytes> {
+    pub fn into_rope_interval(self) -> rope::Interval {
+        self.into()
+    }
+}
+
 impl<T:Display> fmt::Display for Range<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{}, {})", self.start, self.end)
