@@ -106,8 +106,8 @@ const DEFAULT_LINE_COUNT : usize = 10;
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct ViewBuffer {
-    pub buffer : Buffer,
-    pub selection  : Rc<RefCell<selection::Group>>,
+    pub buffer    : Buffer,
+    pub selection : Rc<RefCell<selection::Group>>,
 }
 
 impl Deref for ViewBuffer {
@@ -130,11 +130,11 @@ impl From<&Buffer> for ViewBuffer {
     }
 }
 
-//impl Default for ViewBuffer {
-//    fn default() -> Self {
-//        Buffer::default().into()
-//    }
-//}
+impl Default for ViewBuffer {
+    fn default() -> Self {
+        Buffer::default().into()
+    }
+}
 
 impl ViewBuffer {
     /// Add a new selection to the current view.
@@ -226,11 +226,13 @@ impl View {
     }
 }
 
-//impl Default for View {
-//    fn default() -> Self {
-//        Self::new(ViewBuffer::default())
-//    }
-//}
+impl Default for View {
+    fn default() -> Self {
+        Self::new(ViewBuffer::default())
+    }
+}
+
+
 
 // =================
 // === ViewModel ===

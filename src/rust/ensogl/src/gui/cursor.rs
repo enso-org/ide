@@ -164,6 +164,12 @@ impl Style {
         let press = Some(StyleValue::new(1.0));
         Self {press,..default()}
     }
+
+    pub fn new_text_cursor() -> Self {
+        let size = Vector2::new(4.0,DEFAULT_SIZE().y);
+        let size = Some(StyleValue::new(size));
+        Self {size,..default()}
+    }
 }
 
 

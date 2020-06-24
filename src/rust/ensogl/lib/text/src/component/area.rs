@@ -16,7 +16,8 @@ use ensogl::display;
 use crate::buffer::view::LineOffset;
 use ensogl::gui::component;
 use crate::typeface;
-//use crate::component::cursor;
+use ensogl::gui::cursor;
+use enso_frp as frp;
 
 
 
@@ -34,13 +35,13 @@ macro_rules! define_frp {
         #[derive(Debug,Clone,CloneRef)]
         pub struct Frp {
             pub network : frp::Network,
-            pub inputs  : FrpInputs,
-            pub outputs : FrpOutputs,
+            pub input   : FrpInputs,
+            pub output  : FrpOutputs,
         }
 
         impl Frp {
-            pub fn new(network:frp::Network, inputs:FrpInputs, outputs:FrpOutputs) -> Self {
-                Self {network,inputs,outputs}
+            pub fn new(network:frp::Network, input:FrpInputs, output:FrpOutputs) -> Self {
+                Self {network,input,output}
             }
         }
 
@@ -59,17 +60,17 @@ macro_rules! define_frp {
         }
 
         #[derive(Debug,Clone,CloneRef)]
-        pub struct FrpOutputsSource {
+        pub struct FrpOutputsSetter {
             $($out_field : frp::Any<$out_field_type>),*
         }
 
         #[derive(Debug,Clone,CloneRef)]
         pub struct FrpOutputs {
-            source       : FrpOutputsSource,
+            setter       : FrpOutputsSetter,
             $($out_field : frp::Stream<$out_field_type>),*
         }
 
-        impl FrpOutputsSource {
+        impl FrpOutputsSetter {
             pub fn new(network:&frp::Network) -> Self {
                 frp::extend! { network
                     $($out_field <- any(...);)*
@@ -80,9 +81,9 @@ macro_rules! define_frp {
 
         impl FrpOutputs {
             pub fn new(network:&frp::Network) -> Self {
-                let source = FrpOutputsSource::new(network);
-                $(let $out_field = source.$out_field.clone_ref().into();)*
-                Self {source,$($out_field),*}
+                let setter = FrpOutputsSetter::new(network);
+                $(let $out_field = setter.$out_field.clone_ref().into();)*
+                Self {setter,$($out_field),*}
             }
         }
     };
@@ -170,45 +171,87 @@ impl Lines {
 }
 
 
-//// ===========
-//// === FRP ===
-//// ===========
-//
-//define_frp! {
-//    Inputs {
-//    }
-//
-//    Outputs {
-//        cursor_style : cursor::Style,
-//    }
-//}
+// ===========
+// === FRP ===
+// ===========
+
+define_frp! {
+    Inputs {
+    }
+
+    Outputs {
+        cursor_style : cursor::Style,
+    }
+}
 
 
 // ============
 // === Area ===
 // ============
 
-#[derive(Clone,CloneRef,Debug)]
+
+#[derive(Debug)]
 pub struct Area {
-    buffer         : buffer::View,
+    data    : AreaData,
+    frp     : Frp,
+}
+
+impl Deref for Area {
+    type Target = AreaData;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl Area {
+    pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
+        let network = frp::Network::new();
+        let data    = AreaData::new(logger,scene,&network);
+        let output = FrpOutputs::new(&network);
+        let frp     = Frp::new(network,data.frp.clone_ref(),output);
+        Self {data,frp} . init()
+    }
+
+    fn init(self) -> Self {
+        let network = &self.frp.network;
+        frp::extend! { network
+
+            eval_ self.background.events.mouse_down ([] println!("press"));
+            eval_ self.background.events.mouse_over ([] println!("over"));
+
+            cursor_over <- self.background.events.mouse_over.constant(cursor::Style::new_text_cursor());
+            cursor_out  <- self.background.events.mouse_over.constant(cursor::Style::default());
+            cursor      <- any(cursor_over,cursor_out);
+            self.frp.output.setter.cursor_style <+ cursor;
+
+        }
+
+        self
+    }
+}
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct AreaData {
     logger         : Logger,
+    frp            : FrpInputs,
+    buffer         : buffer::View,
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
     lines          : Lines,
     background     : component::ShapeView<background::Shape>,
 }
 
-impl Deref for Area {
+impl Deref for AreaData {
     type Target = buffer::View;
     fn deref(&self) -> &Self::Target {
         &self.buffer
     }
 }
 
-impl Area {
+impl AreaData {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, scene:&Scene) -> Self {
+    (logger:impl AnyLogger, scene:&Scene, network:&frp::Network) -> Self {
         let logger         = Logger::sub(logger,"text_area");
         let bg_logger      = Logger::sub(&logger,"background");
         let background     = component::ShapeView::<background::Shape>::new(&bg_logger,scene);
@@ -217,17 +260,13 @@ impl Area {
         let glyph_system   = typeface::glyph::System::new(scene,font);
         let display_object = display::object::Instance::new(&logger);
         let glyph_system   = glyph_system.clone_ref();
-        // let buffer         = default();
+        let buffer         = default();
         let lines          = default();
+        let frp            = FrpInputs::new(network);
         display_object.add_child(&background);
         background.shape.sprite.size.set(Vector2(150.0,100.0));
         background.mod_position(|p| p.x += 50.0);
-
-        // FIXME
-        let buffer = buffer::Buffer::new();
-        let buffer = buffer.new_view();
-
-        Self {logger,display_object,glyph_system,buffer,lines,background} . init()
+        Self {logger,frp,display_object,glyph_system,buffer,lines,background} . init()
     }
 
     pub fn line_count(&self) -> usize {
@@ -283,9 +322,15 @@ impl Area {
     }
 }
 
-impl display::Object for Area {
+impl display::Object for AreaData {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
+    }
+}
+
+impl display::Object for Area {
+    fn display_object(&self) -> &display::object::Instance {
+        self.data.display_object()
     }
 }
 
