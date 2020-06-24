@@ -152,6 +152,14 @@ impl ViewBuffer {
             self.buffer.data.borrow_mut().insert(selection.range(),&text);
         }
     }
+
+    pub fn undo(&self) {
+        self.buffer.data.borrow_mut().undo();
+    }
+
+    pub fn redo(&self) {
+        self.buffer.data.borrow_mut().redo();
+    }
 }
 
 

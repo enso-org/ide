@@ -98,8 +98,10 @@ impl Buffer {
 /// Text container with associated styles.
 #[derive(Debug,Default)]
 pub struct BufferData {
-    pub(crate) data  : Data,
-    pub(crate) style : Style,
+    pub(crate) data       : Data,
+    pub(crate) style      : Style,
+    pub(crate) undo_stack : Vec<(Data,Style)>,
+    pub(crate) redo_stack : Vec<(Data,Style)>,
 }
 
 impl Deref for BufferData {
@@ -125,8 +127,26 @@ impl BufferData {
 
     pub fn insert(&mut self, range:impl data::RangeBounds, text:&Data) {
         let range = self.crop_range(range);
+        self.undo_stack.push((self.data.clone(),self.style.clone()));
+        self.redo_stack = default();
         self.data.rope.edit(range.into_rope_interval(),text.rope.clone());
         self.style.modify(range,text.len().bytes());
+    }
+
+    pub fn undo(&mut self) {
+        if let Some((data,style)) = self.undo_stack.pop() {
+            self.redo_stack.push((self.data.clone(),self.style.clone()));
+            self.data  = data;
+            self.style = style;
+        }
+    }
+
+    pub fn redo(&mut self) {
+        if let Some((data,style)) = self.redo_stack.pop() {
+            self.undo_stack.push((self.data.clone(),self.style.clone()));
+            self.data  = data;
+            self.style = style;
+        }
     }
 }
 
