@@ -80,11 +80,14 @@ impl IdeInitializer {
 
     /// Connect to language server.
     pub async fn open_project
-    ( logger          : &Logger
-    , json_endpoint   : project_manager::IpWithSocket
-    , binary_endpoint : project_manager::IpWithSocket
-    , project_name    : impl Str
+    ( logger           : &Logger
+    , project_manager  : &impl project_manager::API
+    , project_metadata : &ProjectMetadata
     ) -> FallibleResult<controller::Project> {
+        let endpoints = project_manager.open_project(&project_metadata.id).await?;
+        let json_endpoint   = endpoints.language_server_json_address;
+        let binary_endpoint = endpoints.language_server_binary_address;
+        let project_name    = project_metadata.name.to_string();
         info!(logger, "Establishing Language Server connection.");
         let client_id     = Uuid::new_v4();
         let json_ws       = new_opened_ws(logger.clone_ref(), json_endpoint).await?;
@@ -132,7 +135,7 @@ impl IdeInitializer {
     , project_name    : &str) -> FallibleResult<ProjectMetadata> {
         let project = Self::lookup_project(project_manager,project_name).await;
         let project_metadata = if let Ok(project) = project {
-            project.clone()
+            project
         } else {
             info!(logger, "Attempting to create {project_name}");
             Self::create_project(logger,project_manager,project_name).await?
@@ -156,32 +159,6 @@ impl IdeInitializer {
         Ok(project_metadata)
     }
 
-    /// Open the named project or create a new project if it doesn't exist.
-    pub async fn open_project_or_create_new
-    ( logger          : &Logger
-    , project_manager : &impl project_manager::API
-    , project_name    : &str
-    ) -> FallibleResult<controller::Project> {
-        let project_metadata = Self::get_project_or_create_new
-            (logger,project_manager,project_name).await?;
-        let endpoints = project_manager.open_project(&project_metadata.id).await?;
-        Self::open_project(logger,endpoints.language_server_json_address,
-            endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
-    }
-
-    /// Open most recent project or create a new project if none exists.
-    pub async fn open_most_recent_project_or_create_new
-    ( logger          : &Logger
-    , project_manager : &impl project_manager::API
-    , project_name    : &str) -> FallibleResult<controller::Project> {
-        let project_metadata = Self::get_most_recent_project_or_create_new
-            (logger,project_manager,project_name);
-        let project_metadata = project_metadata.await?;
-        let endpoints        = project_manager.open_project(&project_metadata.id).await?;
-        Self::open_project(logger,endpoints.language_server_json_address,
-            endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
-    }
-
     async fn initialize_project_manager
     (&mut self, config:&config::Startup) -> FallibleResult<project_manager::Client> {
         let transport        = self.connect_to_project_manager(config).await?;
@@ -196,12 +173,13 @@ impl IdeInitializer {
     ) -> FallibleResult<ProjectView> {
         let logger                     = &self.logger;
         let project_name_from_argument = &config.user_provided_project_name;
-        let project = if let Some(project_name) = project_name_from_argument {
-            Self::open_project_or_create_new(logger,project_manager,project_name).await?
+        let project_metadata = if let Some(project_name) = project_name_from_argument {
+            Self::get_project_or_create_new(logger,project_manager,&project_name).await?
         } else {
             let project_name = constants::DEFAULT_PROJECT_NAME;
-            Self::open_most_recent_project_or_create_new(logger,project_manager,project_name).await?
+            Self::get_most_recent_project_or_create_new(logger,project_manager,project_name).await?
         };
+        let project = Self::open_project(logger,project_manager,&project_metadata).await?;
         Ok(ProjectView::new(logger,project).await?)
     }
 

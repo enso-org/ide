@@ -206,23 +206,23 @@ mod mock_client_tests {
     fn list_projects() {
         let mock_client = MockClient::default();
         let project1    = ProjectMetadata {
-            name        : ProjectName { name : "project1".to_string() },
+            name        : ProjectName::new("project1"),
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap())
         };
         let project2 = ProjectMetadata {
-            name        : ProjectName { name : "project2".to_string() },
+            name        : ProjectName::new("project2"),
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap())
         };
         let expected_recent_projects = response::ProjectList { projects : vec![project1,project2] };
         let sample1 = ProjectMetadata {
-            name        : ProjectName { name : "sample1".to_string() },
+            name        : ProjectName::new("sample1"),
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2019-11-23T05:30:12Z").unwrap())
         };
         let sample2 = ProjectMetadata {
-            name        : ProjectName { name : "sample2".to_string() },
+            name        : ProjectName::new("sample2"),
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2019-12-25T00:10:58Z").unwrap())
         };
@@ -333,12 +333,12 @@ mod remote_client_tests {
         let number_of_projects_json = json!({"numberOfProjects":number_of_projects});
         let num_projects_json       = json!({"numProjects":number_of_projects});
         let project1                = ProjectMetadata {
-            name        : ProjectName { name : "project1".to_string() },
+            name        : ProjectName::new("project1"),
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap())
         };
         let project2 = ProjectMetadata {
-            name        : ProjectName { name : "project2".to_string() },
+            name        : ProjectName::new("project2"),
             id          : Uuid::default(),
             last_opened : Some(DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap())
         };

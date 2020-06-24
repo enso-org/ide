@@ -30,7 +30,7 @@ pub mod view;
 pub mod constants;
 pub mod ide;
 
-pub use ide::IdeInitializer;
+pub use crate::ide::IdeInitializer;
 
 #[cfg(test)]
 mod tests;

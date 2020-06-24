@@ -256,13 +256,16 @@ async fn file_events() {
 /// * establishing a binary protocol connection with Language Server
 async fn setup_project() -> Project {
     ensogl_system_web::set_stdout();
-    let logger   = Logger::new("Test");
+    let logger = Logger::new("Test");
     info!(logger,"Setting up the project.");
-    let endpoint = ide::constants::PROJECT_MANAGER_ENDPOINT;
-    let ws       = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
-    let pm       = ide::IdeInitializer::setup_project_manager(ws);
-    let name     = ide::constants::DEFAULT_PROJECT_NAME;
-    ide::IdeInitializer::open_most_recent_project_or_create_new(&logger,&pm,name).await.unwrap()
+    let endpoint         = ide::constants::PROJECT_MANAGER_ENDPOINT;
+    let ws               = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
+    let pm               = ide::IdeInitializer::setup_project_manager(ws);
+    let name             = ide::constants::DEFAULT_PROJECT_NAME;
+    let project_metadata = ide::IdeInitializer::get_most_recent_project_or_create_new
+        (&logger,&pm,name).await.expect("Couldn't get most recent or create new project.");
+    let error_msg = "Couldn't open project";
+    ide::IdeInitializer::open_project(&logger,&pm,&project_metadata).await.expect(error_msg)
 }
 
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]

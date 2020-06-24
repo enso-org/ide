@@ -17,10 +17,12 @@ async fn failure_to_open_most_recent_project_is_reported() {
     let transport   = MockTransport::new();
     let mut fixture = TestWithMockedTransport::set_up(&transport);
     fixture.run_test(async move {
-        let logger  = default();
-        let client  = IdeInitializer::setup_project_manager(transport);
-        let name    = crate::constants::DEFAULT_PROJECT_NAME;
-        let project = IdeInitializer::open_most_recent_project_or_create_new(&logger,&client,name);
+        let logger           = default();
+        let client           = IdeInitializer::setup_project_manager(transport);
+        let name             = crate::constants::DEFAULT_PROJECT_NAME;
+        let project_metadata = IdeInitializer::get_most_recent_project_or_create_new
+            (&logger,&client,name).await.expect("Couldn't get most recent or create new project.");
+        let project = IdeInitializer::open_project(&logger,&client,&project_metadata);
         let project = project.await;
         project.expect_err("error should have been reported");
     });
