@@ -38,7 +38,6 @@ pub mod prelude {
     pub use ensogl::prelude::*;
 }
 
-use crate::component::cursor;
 use crate::component::node;
 use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization;
@@ -58,6 +57,7 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
+use ensogl::gui::cursor;
 
 
 
@@ -926,7 +926,7 @@ impl Deref for GraphEditorModelWithNetwork {
 }
 
 impl GraphEditorModelWithNetwork {
-    pub fn new<S:Into<Scene>>(scene:S, cursor:component::Cursor) -> Self {
+    pub fn new<S:Into<Scene>>(scene:S, cursor:cursor::Cursor) -> Self {
         let network = frp::Network::new();
         let model   = GraphEditorModel::new(scene,cursor,&network);
         Self {model,network}
@@ -982,7 +982,7 @@ pub struct GraphEditorModel {
     pub logger         : Logger,
     pub display_object : display::object::Instance,
     pub scene          : Scene,
-    pub cursor         : component::Cursor,
+    pub cursor         : cursor::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
     touch_state        : TouchState,
@@ -992,7 +992,7 @@ pub struct GraphEditorModel {
 // === Public ===
 
 impl GraphEditorModel {
-    pub fn new<S:Into<Scene>>(scene:S, cursor:component::Cursor, network:&frp::Network) -> Self {
+    pub fn new<S:Into<Scene>>(scene:S, cursor:cursor::Cursor, network:&frp::Network) -> Self {
         let scene          = scene.into();
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
@@ -1411,7 +1411,7 @@ impl Default for SelectionMode {
 #[allow(unused_parens)]
 fn new_graph_editor(world:&World) -> GraphEditor {
     let scene  = world.scene();
-    let cursor = component::Cursor::new(world.scene());
+    let cursor = cursor::Cursor::new(world.scene());
     web::body().set_style_or_panic("cursor","none");
     world.add_child(&cursor);
 

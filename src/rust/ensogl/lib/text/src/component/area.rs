@@ -16,6 +16,77 @@ use ensogl::display;
 use crate::buffer::view::LineOffset;
 use ensogl::gui::component;
 use crate::typeface;
+//use crate::component::cursor;
+
+
+
+// ==================
+// === Frp Macros ===
+// ==================
+
+// FIXME: these are generic FRP utilities. To be refactored out after the API settles down.
+// FIXME: the same are defined in text/view
+macro_rules! define_frp {
+    (
+        Inputs  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
+        Outputs { $($out_field : ident : $out_field_type : ty),* $(,)? }
+    ) => {
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct Frp {
+            pub network : frp::Network,
+            pub inputs  : FrpInputs,
+            pub outputs : FrpOutputs,
+        }
+
+        impl Frp {
+            pub fn new(network:frp::Network, inputs:FrpInputs, outputs:FrpOutputs) -> Self {
+                Self {network,inputs,outputs}
+            }
+        }
+
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct FrpInputs {
+            $($in_field : frp::Source<$in_field_type>),*
+        }
+
+        impl FrpInputs {
+            pub fn new(network:&frp::Network) -> Self {
+                frp::extend! { network
+                    $($in_field <- source();)*
+                }
+                Self { $($in_field),* }
+            }
+        }
+
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct FrpOutputsSource {
+            $($out_field : frp::Any<$out_field_type>),*
+        }
+
+        #[derive(Debug,Clone,CloneRef)]
+        pub struct FrpOutputs {
+            source       : FrpOutputsSource,
+            $($out_field : frp::Stream<$out_field_type>),*
+        }
+
+        impl FrpOutputsSource {
+            pub fn new(network:&frp::Network) -> Self {
+                frp::extend! { network
+                    $($out_field <- any(...);)*
+                }
+                Self {$($out_field),*}
+            }
+        }
+
+        impl FrpOutputs {
+            pub fn new(network:&frp::Network) -> Self {
+                let source = FrpOutputsSource::new(network);
+                $(let $out_field = source.$out_field.clone_ref().into();)*
+                Self {source,$($out_field),*}
+            }
+        }
+    };
+}
 
 
 
@@ -29,7 +100,7 @@ pub mod background {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32) {
-            let out        = Rect((100.px(),100.px())).corners_radius(2.px()).fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+            let out = Rect((1000.px(),1000.px())).corners_radius(8.px()).fill(color::Rgba::new(1.0,1.0,1.0,0.1));
             out.into()
         }
     }
@@ -99,6 +170,19 @@ impl Lines {
 }
 
 
+//// ===========
+//// === FRP ===
+//// ===========
+//
+//define_frp! {
+//    Inputs {
+//    }
+//
+//    Outputs {
+//        cursor_style : cursor::Style,
+//    }
+//}
+
 
 // ============
 // === Area ===
@@ -136,7 +220,8 @@ impl Area {
         // let buffer         = default();
         let lines          = default();
         display_object.add_child(&background);
-        background.shape.sprite.size.set(Vector2(20.0,20.0));
+        background.shape.sprite.size.set(Vector2(150.0,100.0));
+        background.mod_position(|p| p.x += 50.0);
 
         // FIXME
         let buffer = buffer::Buffer::new();

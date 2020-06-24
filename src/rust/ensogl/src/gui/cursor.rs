@@ -2,16 +2,16 @@
 
 use crate::prelude::*;
 
-use enso_frp as frp;
-use ensogl::data::color;
-use ensogl::display::Buffer;
-use ensogl::display::scene::Scene;
-use ensogl::display::shape::*;
-use ensogl::display::{Sprite, Attribute};
-use ensogl::display;
-use ensogl::gui::component::Animation;
-use ensogl::gui::component::Tween;
-use ensogl::gui::component;
+use crate::frp;
+use crate::data::color;
+use crate::display::Buffer;
+use crate::display::scene::Scene;
+use crate::display::shape::*;
+use crate::display::{Sprite, Attribute};
+use crate::display;
+use crate::gui::component::Animation;
+use crate::gui::component::Tween;
+use crate::gui::component;
 
 
 
@@ -203,7 +203,7 @@ impl Style {
 /// Canvas shape definition.
 pub mod shape {
     use super::*;
-    ensogl::define_shape_system! {
+    crate::define_shape_system! {
         ( press  : f32
         , radius : f32
         , color  : Vector4<f32>

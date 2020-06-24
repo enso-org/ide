@@ -16,9 +16,8 @@ use ensogl::display::Sprite;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
+use ensogl::gui::cursor;
 
-
-use crate::component::cursor;
 use super::super::node;
 use span_tree::SpanTree;
 
