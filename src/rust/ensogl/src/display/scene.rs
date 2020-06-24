@@ -778,6 +778,31 @@ impl Frp {
 
 
 // =================
+// === Extension ===
+// =================
+
+pub trait Extension : 'static + CloneRef {
+    fn init(scene:&Scene) -> Self;
+}
+
+#[derive(Clone,CloneRef,Debug,Default)]
+pub struct Extensions {
+    map : Rc<RefCell<HashMap<TypeId,Box<dyn Any>>>>,
+}
+
+impl Extensions {
+    pub fn get<T:Extension>(&self, scene:&Scene) -> T {
+        let type_id = TypeId::of::<T>();
+        let init    = || Box::new(T::init(scene)) as Box<dyn Any>;
+        let map_mut = &mut self.map.borrow_mut();
+        let entry   = map_mut.entry(type_id).or_insert_with(init);
+        entry.downcast_ref::<T>().unwrap().clone_ref()
+    }
+}
+
+
+
+// =================
 // === SceneData ===
 // =================
 
@@ -801,6 +826,7 @@ pub struct SceneData {
     pub bg_color_change : callback::Handle,
     pub fonts           : font::SharedRegistry,
     pub frp             : Frp,
+    extensions          : Extensions,
 }
 
 impl SceneData {
@@ -838,6 +864,7 @@ impl SceneData {
         let mouse_logger    = Logger::sub(&logger,"mouse");
         let mouse           = Mouse::new(&frp,&variables,mouse_logger);
         let network         = &frp.network;
+        let extensions      = Extensions::default();
         let bg_color_var    = style_sheet.var("application.background.color");
         let bg_color_change = bg_color_var.on_change(f!([dom](change){
             change.color().for_each(|color| {
@@ -853,7 +880,7 @@ impl SceneData {
 
         uniforms.pixel_ratio.set(dom.shape().pixel_ratio);
         Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables,stats
-             ,uniforms,mouse,shapes,style_sheet,bg_color_var,bg_color_change,fonts,frp}
+             ,uniforms,mouse,shapes,style_sheet,bg_color_var,bg_color_change,fonts,frp,extensions}
     }
 
     pub fn shape(&self) -> &frp::Sampler<Shape> {
@@ -960,6 +987,10 @@ impl Scene {
         let this = Self {no_mut_access};
         this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref()); // FIXME ugly
         this
+    }
+
+    pub fn extension<T:Extension>(&self) -> T {
+        self.extensions.get(self)
     }
 }
 

@@ -38,6 +38,13 @@ pub struct Buffer {
     pub(crate) style : Rc<RefCell<Style>>,
 }
 
+impl Deref for Buffer {
+    type Target = Data;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
 impl Buffer {
     /// Constructor.
     pub fn new() -> Self {
@@ -63,28 +70,13 @@ impl Buffer {
     }
 
     pub fn focus_style(&self, range:impl data::RangeBounds) -> Style {
-        let range = range.with_upper_bound(self.len());
+        let range = self.crop_range(range);
         self.style.borrow().focus(range)
     }
 
     pub fn style(&self) -> Style {
         self.style.borrow().clone()
     }
-}
-
-impl Deref for Buffer {
-    type Target = Data;
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-pub trait Setter<T> {
-    fn set(&self, range:impl data::RangeBounds, data:T);
-}
-
-pub trait DefaultSetter<T> {
-    fn set_default(&self, data:T);
 }
 
 
@@ -97,3 +89,24 @@ impl From<String>   for Buffer { fn from(s:String)   -> Self { Data::from(s).int
 impl From<&String>  for Buffer { fn from(s:&String)  -> Self { Data::from(s).into() } }
 impl From<&&String> for Buffer { fn from(s:&&String) -> Self { (*s).into() } }
 impl From<&&str>    for Buffer { fn from(s:&&str)    -> Self { (*s).into() } }
+
+
+
+// ==============
+// === Setter ===
+// ==============
+
+pub trait Setter<T> {
+    fn set(&self, range:impl data::RangeBounds, data:T);
+}
+
+pub trait DefaultSetter<T> {
+    fn set_default(&self, data:T);
+}
+
+//impl Setter<&str> for Buffer {
+//    fn set(&self, range:impl data::RangeBounds, data:T) {
+//        let range = self.crop_range(range);
+//        self.rope
+//    }
+//}

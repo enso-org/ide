@@ -246,6 +246,13 @@ macro_rules! _define_shape_system {
             $(pub $gpu_param : Attribute<$gpu_param_type>),*
         }
 
+        impl Deref for Shape {
+            type Target = Sprite;
+            fn deref(&self) -> &Self::Target {
+                &self.sprite
+            }
+        }
+
         impl $crate::display::shape::system::Shape for Shape {
             type System = ShapeSystem;
             fn sprites(&self) -> Vec<&Sprite> {

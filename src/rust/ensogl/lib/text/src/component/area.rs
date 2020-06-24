@@ -6,9 +6,35 @@ use crate::typeface::pen;
 use crate::typeface::glyph::Glyph;
 use crate::buffer;
 
+use ensogl::display::Buffer;
+use ensogl::display::Attribute;
+use ensogl::display::Sprite;
+use ensogl::display::scene::Scene;
+use ensogl::display::shape::*;
 use ensogl::data::color;
 use ensogl::display;
 use crate::buffer::view::LineOffset;
+use ensogl::gui::component;
+use crate::typeface;
+
+
+
+// ==================
+// === Background ===
+// ==================
+
+/// Canvas node shape definition.
+pub mod background {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (style:Style, selection:f32) {
+            let out        = Rect((100.px(),100.px())).corners_radius(2.px()).fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+            out.into()
+        }
+    }
+}
+
 
 
 // ============
@@ -80,23 +106,43 @@ impl Lines {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
+    buffer         : buffer::View,
     logger         : Logger,
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
-    buffer         : buffer::View,
     lines          : Lines,
+    background     : component::ShapeView<background::Shape>,
+}
+
+impl Deref for Area {
+    type Target = buffer::View;
+    fn deref(&self) -> &Self::Target {
+        &self.buffer
+    }
 }
 
 impl Area {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, buffer:&buffer::View, glyph_system:&glyph::System) -> Self {
+    (logger:impl AnyLogger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"text_area");
+        let bg_logger      = Logger::sub(&logger,"background");
+        let background     = component::ShapeView::<background::Shape>::new(&bg_logger,scene);
+        let fonts          = scene.extension::<typeface::font::Registry>();
+        let font           = fonts.default();
+        let glyph_system   = typeface::glyph::System::new(scene,font);
         let display_object = display::object::Instance::new(&logger);
         let glyph_system   = glyph_system.clone_ref();
-        let buffer         = buffer.clone_ref();
+        // let buffer         = default();
         let lines          = default();
-        Self {logger,display_object,glyph_system,buffer,lines} . init()
+        display_object.add_child(&background);
+        background.shape.sprite.size.set(Vector2(20.0,20.0));
+
+        // FIXME
+        let buffer = buffer::Buffer::from("Test text €!!!\nline2\nline3\nline4");
+        let buffer = buffer.new_view();
+
+        Self {logger,display_object,glyph_system,buffer,lines,background} . init()
     }
 
     pub fn line_count(&self) -> usize {
@@ -108,7 +154,8 @@ impl Area {
         self
     }
 
-    fn redraw(&self) {
+    // FIXME: make private
+    pub fn redraw(&self) {
         let line_count = self.buffer.line_count();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
         for (view_line_number,content) in self.buffer.lines().enumerate() {

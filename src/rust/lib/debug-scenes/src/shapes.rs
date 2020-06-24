@@ -105,40 +105,53 @@ fn init(app:&Application) {
 //    trigger.emit(());
 
 
-    let fonts         = text::typeface::font::Registry::init_and_load_default();
-    let font          = fonts.load("DejaVuSansMono").unwrap();
-    let glyph_system  = text::typeface::glyph::System::new(scene,font);
-    let symbol        = &glyph_system.sprite_system().symbol;
+//    let fonts         = text::typeface::font::Registry::init_and_load_default();
+//    let font          = fonts.load("DejaVuSansMono");
+//    let glyph_system  = text::typeface::glyph::System::new(scene,font);
+//    let symbol        = &glyph_system.sprite_system().symbol;
 //    scene.views.main.remove(symbol);
 //    scene.views.label.add(symbol);
 
-    let buffer = text::Buffer::from("Test text €!!!\nline2\nline3\nline4");
-    let buffer_view = buffer.new_view();
-
-//    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
-
-
-//    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
-    buffer.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
-    buffer.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
-    buffer.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
-    buffer.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
-
-    buffer.set_default(color::Rgba::new(0.8,0.8,0.8,1.0));
-    buffer.set_default(text::Size(10.0));
-    buffer.set((0..4).bytes(),text::Size(20.0));
-
-
+//    let buffer = text::Buffer::from("Test text €!!!\nline2\nline3\nline4");
+//    let buffer_view = buffer.new_view();
+//
+////    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
+//
+//
+////    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
+//    buffer.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
+//    buffer.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
+//    buffer.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
+//    buffer.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
+//
+//    buffer.set_default(color::Rgba::new(0.8,0.8,0.8,1.0));
+//    buffer.set_default(text::Size(10.0));
+//    buffer.set((0..4).bytes(),text::Size(20.0));
 
 
-    let area = text::Area::new(Logger::new("test"),&buffer_view,&glyph_system);
+
+
+    let area = text::Area::new(Logger::new("test"),scene);
     world.add_child(&area);
 
-//    println!("!!! {}", buffer.text.rope.subseq(0..10));
-    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(0)));
-    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(1)));
-    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(2)));
-    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(3)));
+    area.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
+    area.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
+    area.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
+    area.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
+
+    area.set_default(color::Rgba::new(0.8,0.8,0.8,1.0));
+    area.set_default(text::Size(10.0));
+    area.set((0..4).bytes(),text::Size(20.0));
+
+    area.redraw();
+
+//    area.tmp_replace_all_text("Test text €!!!\nline2\nline3\nline4");
+
+//    println!("!!! {}", buffer.text.rope.subseq(0..t10));
+//    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(0)));
+//    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(1)));
+//    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(2)));
+//    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(3)));
 
     let mut was_rendered = false;
     let mut loader_hidden = false;

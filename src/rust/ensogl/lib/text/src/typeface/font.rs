@@ -6,9 +6,12 @@ pub mod msdf;
 
 use ensogl_core_msdf_sys as msdf_sys;
 use ensogl_core_embedded_fonts::EmbeddedFonts;
+use ensogl_core_embedded_fonts as embedded;
 use msdf_sys::MsdfParameters;
 use msdf_sys::Msdf;
 use std::collections::hash_map::Entry;
+use ensogl::display::{scene, Scene};
+use shapely::shared;
 
 
 
@@ -256,28 +259,25 @@ impl Font {
 
 
 
+
 // ====================
 // === RegistryData ===
 // ====================
 
+shared! { Registry
 /// Structure keeping all fonts loaded from different sources.
 #[derive(Debug)]
 pub struct RegistryData {
     embedded : EmbeddedFonts,
     fonts    : HashMap<String,Font>,
+    default  : Font,
 }
 
-impl RegistryData {
-    /// Create empty `Fonts` structure (however it contains raw data of embedded fonts).
-    pub fn init_and_load_default() -> RegistryData {
-        let embedded = EmbeddedFonts::create_and_fill();
-        let fonts    = HashMap::new();
-        Self {embedded,fonts}
-    }
-
-    /// Get render font info from loaded fonts, and if it does not exists, load data from one of
-    /// embedded fonts. Returns None if the name is missing in both loaded and embedded font list.
-    pub fn load(&mut self, name:&str) -> Option<Font> {
+impl {
+    /// Load a font by name. The font can be loaded either from cache or from the embedded fonts
+    /// registry if not used before. Returns None if the name is missing in both cache and embedded
+    /// font list.
+    pub fn try_load(&mut self, name:&str) -> Option<Font> {
         match self.fonts.entry(name.to_string()) {
             Entry::Occupied (entry) => Some(entry.get().clone_ref()),
             Entry::Vacant   (entry) => Font::try_from_embedded(&self.embedded,name).map(|font| {
@@ -286,31 +286,43 @@ impl RegistryData {
             })
         }
     }
-}
 
+    /// Load a font by name. The font can be loaded either from cache or from the embedded fonts
+    /// registry if not used before. Returns default font if the name is missing in both cache and
+    /// embedded font list.
+    pub fn load(&mut self, name:&str) -> Font {
+        self.try_load(name).unwrap_or_else(|| self.default())
+    }
 
+    /// Get the default font. It is often used in case the desired font could not be loaded.
+    pub fn default(&self) -> Font {
+        self.default.clone_ref()
+    }
+}}
 
-// ================
-// === Registry ===
-// ================
-
-/// Shared version of `RegistryData`.
-#[derive(Clone,CloneRef,Debug)]
-pub struct Registry {
-    model : Rc<RefCell<RegistryData>>
+impl RegistryData {
+    /// Create empty font `Registry` and load raw data of embedded fonts.
+    pub fn init_and_load_default() -> RegistryData {
+        let embedded     = EmbeddedFonts::create_and_fill();
+        let fonts        = HashMap::new();
+        let default_name = embedded::DEFAULT_FONT;
+        let default = Font::try_from_embedded(&embedded,default_name).unwrap_or_else(||
+            panic!("Cannot load default font {}.",default_name));
+        Self {embedded,fonts,default}
+    }
 }
 
 impl Registry {
     /// Constructor.
     pub fn init_and_load_default() -> Registry {
-        let model = Rc::new(RefCell::new(RegistryData::init_and_load_default()));
-        Self {model}
+        let rc = Rc::new(RefCell::new(RegistryData::init_and_load_default()));
+        Self {rc}
     }
+}
 
-    /// Get render font info from loaded fonts, and if it does not exists, load data from one of
-    /// embedded fonts. Returns None if the name is missing in both loaded and embedded font list.
-    pub fn load(&self, name:&str) -> Option<Font> {
-        self.model.borrow_mut().load(name)
+impl scene::Extension for Registry {
+    fn init(scene:&Scene) -> Self {
+        Self::init_and_load_default()
     }
 }
 

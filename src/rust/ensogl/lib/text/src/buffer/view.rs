@@ -117,11 +117,22 @@ impl Deref for ViewBuffer {
     }
 }
 
-impl From<&Buffer> for ViewBuffer {
-    fn from(buffer:&Buffer) -> Self {
-        let buffer    = buffer.clone_ref();
+impl From<Buffer> for ViewBuffer {
+    fn from(buffer:Buffer) -> Self {
         let selection = default();
         Self {buffer,selection}
+    }
+}
+
+impl From<&Buffer> for ViewBuffer {
+    fn from(buffer:&Buffer) -> Self {
+        buffer.clone_ref().into()
+    }
+}
+
+impl Default for ViewBuffer {
+    fn default() -> Self {
+        Buffer::default().into()
     }
 }
 
@@ -143,6 +154,13 @@ pub struct ViewModel {
     line_count        : Rc<Cell<usize>>,
 }
 
+impl Deref for ViewModel {
+    type Target = ViewBuffer;
+    fn deref(&self) -> &Self::Target {
+        &self.view_buffer
+    }
+}
+
 impl ViewModel {
     pub fn new(network:&frp::Network, view_buffer:impl Into<ViewBuffer>) -> Self {
         let frp               = FrpInputs::new(network);
@@ -150,13 +168,6 @@ impl ViewModel {
         let first_line_number = default();
         let line_count        = Rc::new(Cell::new(DEFAULT_LINE_COUNT));
         Self {frp,view_buffer,first_line_number,line_count}
-    }
-}
-
-impl Deref for ViewModel {
-    type Target = ViewBuffer;
-    fn deref(&self) -> &Self::Target {
-        &self.view_buffer
     }
 }
 
@@ -331,6 +342,12 @@ impl View {
         }
         let frp = Frp::new(network,inputs,outputs);
         Self {frp,model}
+    }
+}
+
+impl Default for View {
+    fn default() -> Self {
+        Self::new(ViewBuffer::default())
     }
 }
 
