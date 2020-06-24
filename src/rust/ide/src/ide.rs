@@ -125,19 +125,45 @@ impl IdeInitializer {
         }).cloned().ok_or_else(|| ProjectNotFound{name}.into())
     }
 
-    /// Open the named project or create a new project if it doesn't exist.
-    pub async fn open_project_or_create_new
-    ( logger : &Logger
+    /// Returns project with `project_name` or returns a newly created one if it doesn't exist.
+    pub async fn get_project_or_create_new
+    ( logger          : &Logger
     , project_manager : &impl project_manager::API
-    , project_name    : &str
-    ) -> FallibleResult<controller::Project> {
+    , project_name    : &str) -> FallibleResult<ProjectMetadata> {
         let project = Self::lookup_project(project_manager,project_name).await;
         let project_metadata = if let Ok(project) = project {
             project.clone()
         } else {
-            println!("Attempting to create {}", project_name);
+            info!(logger, "Attempting to create {project_name}");
             Self::create_project(logger,project_manager,project_name).await?
         };
+        Ok(project_metadata)
+    }
+
+    /// Returns the most recent opened project or returns a newly created one if the user doesn't
+    /// have any project.
+    pub async fn get_most_recent_project_or_create_new
+    ( logger          : &Logger
+    , project_manager : &impl project_manager::API
+    , project_name    : &str) -> FallibleResult<ProjectMetadata> {
+        let projects_to_list = Some(1);
+        let mut response     = project_manager.list_projects(&projects_to_list).await?;
+        let project_metadata = if let Some(project) = response.projects.pop() {
+            project
+        } else {
+            Self::create_project(logger,project_manager,project_name).await?
+        };
+        Ok(project_metadata)
+    }
+
+    /// Open the named project or create a new project if it doesn't exist.
+    pub async fn open_project_or_create_new
+    ( logger          : &Logger
+    , project_manager : &impl project_manager::API
+    , project_name    : &str
+    ) -> FallibleResult<controller::Project> {
+        let project_metadata = Self::get_project_or_create_new
+            (logger,project_manager,project_name).await?;
         let endpoints = project_manager.open_project(&project_metadata.id).await?;
         Self::open_project(logger,endpoints.language_server_json_address,
             endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
@@ -146,16 +172,12 @@ impl IdeInitializer {
     /// Open most recent project or create a new project if none exists.
     pub async fn open_most_recent_project_or_create_new
     ( logger          : &Logger
-    , project_manager : &impl project_manager::API) -> FallibleResult<controller::Project> {
-        let projects_to_list = Some(1);
-        let mut response     = project_manager.list_projects(&projects_to_list).await?;
-        let project_metadata = if let Some(project) = response.projects.pop() {
-            project
-        } else {
-            let project_name = constants::DEFAULT_PROJECT_NAME;
-            Self::create_project(logger,project_manager,project_name).await?
-        };
-        let endpoints = project_manager.open_project(&project_metadata.id).await?;
+    , project_manager : &impl project_manager::API
+    , project_name    : &str) -> FallibleResult<controller::Project> {
+        let project_metadata = Self::get_most_recent_project_or_create_new
+            (logger,project_manager,project_name);
+        let project_metadata = project_metadata.await?;
+        let endpoints        = project_manager.open_project(&project_metadata.id).await?;
         Self::open_project(logger,endpoints.language_server_json_address,
             endpoints.language_server_binary_address,&project_metadata.name.to_string()).await
     }
@@ -177,7 +199,8 @@ impl IdeInitializer {
         let project = if let Some(project_name) = project_name_from_argument {
             Self::open_project_or_create_new(logger,project_manager,project_name).await?
         } else {
-            Self::open_most_recent_project_or_create_new(logger,project_manager).await?
+            let project_name = constants::DEFAULT_PROJECT_NAME;
+            Self::open_most_recent_project_or_create_new(logger,project_manager,project_name).await?
         };
         Ok(ProjectView::new(logger,project).await?)
     }

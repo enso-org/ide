@@ -260,8 +260,9 @@ async fn setup_project() -> Project {
     info!(logger,"Setting up the project.");
     let endpoint = ide::constants::PROJECT_MANAGER_ENDPOINT;
     let ws       = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
-    let pm       = ide::ide::IdeInitializer::setup_project_manager(ws);
-    ide::ide::IdeInitializer::open_most_recent_project_or_create_new(&logger,&pm).await.unwrap()
+    let pm       = ide::IdeInitializer::setup_project_manager(ws);
+    let name     = ide::constants::DEFAULT_PROJECT_NAME;
+    ide::IdeInitializer::open_most_recent_project_or_create_new(&logger,&pm,name).await.unwrap()
 }
 
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]
