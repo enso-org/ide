@@ -273,7 +273,7 @@ impl GraphEditorIntegratedWithControllerModel {
 
     /// Like `update_type_on` but for multiple expressions.
     fn update_types_on(&self, expressions_to_update:&[ExpressionId]) -> FallibleResult<()> {
-        debug!(self.logger, "Will update type information for IDs: {expressions_to_update:?}.");
+        debug!(self.logger, "Updating type information for IDs: {expressions_to_update:?}.");
         for id in expressions_to_update {
             self.update_type_on(*id)
         }

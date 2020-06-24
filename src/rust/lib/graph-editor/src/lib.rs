@@ -714,7 +714,7 @@ impl display::Object for Edge {
 ///
 /// `None` means that type for the port is unknown.
 #[derive(Clone,Debug,Default,Shrinkwrap)]
-pub struct OptionalType(pub Option<Rc<String>>);
+pub struct OptionalType(pub Option<ImString>);
 
 
 
