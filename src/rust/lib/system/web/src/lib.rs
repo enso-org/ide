@@ -518,8 +518,8 @@ impl Arguments {
             let search_without_question_mark = &search[1..];
             search_without_question_mark.split('&').filter_map(|arg| {
                 match arg.split('=').collect_vec().as_slice() {
-                    [key,value] => Some((key.to_string(),value.to_string())),
-                    [key]       => Some((key.to_string(),"".to_string())),
+                    [key,value] => Some(((*key).to_string(),(*value).to_string())),
+                    [key]       => Some(((*key).to_string(),"".to_string())),
                     _           => None
                 }
             }).collect()

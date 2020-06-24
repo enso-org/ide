@@ -20,7 +20,7 @@ impl Startup {
     pub fn new_local() -> Startup {
         let arguments = ensogl::system::web::Arguments::new();
         let project_manager_endpoint   = constants::PROJECT_MANAGER_ENDPOINT.into();
-        let project_name = arguments.get("project").map(|name| ProjectName::new(name));
+        let project_name = arguments.get("project").map(ProjectName::new);
         let user_provided_project_name = project_name;
         Startup{project_manager_endpoint,user_provided_project_name}
     }
