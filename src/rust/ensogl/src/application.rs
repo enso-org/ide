@@ -11,6 +11,9 @@ use crate::prelude::*;
 use crate::display;
 use crate::display::world::World;
 use crate::display::style::theme;
+use crate::gui::cursor::Cursor;
+use crate::system::web;
+use ensogl_system_web::StyleSetter;
 
 
 
@@ -24,6 +27,7 @@ use crate::display::style::theme;
 #[allow(missing_docs)]
 pub struct Application {
     pub logger    : Logger,
+    pub cursor    : Cursor,
     pub display   : World,
     pub commands  : command::Registry,
     pub shortcuts : shortcut::Registry,
@@ -40,7 +44,14 @@ impl Application {
         let shortcuts = shortcut::Registry::new(&logger, &commands);
         let views     = view::Registry::create(&logger,&display,&commands,&shortcuts);
         let themes    = theme::Manager::from(&display.scene().style_sheet);
-        Self {logger,display,commands,shortcuts,views,themes}
+        let cursor    = Cursor::new(display.scene());
+        display.add_child(&cursor);
+        web::body().set_style_or_panic("cursor","none"); // FIXME
+        Self {logger,cursor,display,commands,shortcuts,views,themes}
+    }
+
+    pub fn new_view<T:View>(&self) -> T {
+        self.views.new_view(self)
     }
 }
 

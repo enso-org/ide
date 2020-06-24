@@ -77,7 +77,7 @@ fn init(app:&Application) {
     let navigator = Navigator::new(&scene,&camera);
 
     app.views.register::<GraphEditor>();
-    let graph_editor = app.views.new::<GraphEditor>();
+    let graph_editor = app.new_view::<GraphEditor>();
     world.add_child(&graph_editor);
 
 
@@ -136,7 +136,7 @@ fn init(app:&Application) {
     world.add_child(&area);
 
     area.add_cursor(0.bytes());
-    area.insert("Test text €!!!\nline2\nline3\nline4");
+    area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
 
 
     area.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
@@ -144,14 +144,20 @@ fn init(app:&Application) {
     area.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
     area.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
 
-    area.set_default(color::Rgba::new(0.8,0.8,0.8,1.0));
-    area.set_default(text::Size(10.0));
-    area.set((0..4).bytes(),text::Size(20.0));
+    area.set_default(color::Rgba::new(1.0,1.0,1.0,0.7));
+    area.set_default(text::Size(12.0));
+//    area.set((0..4).bytes(),text::Size(20.0));
 
     area.insert("!!!!");
     area.undo();
 
     area.redraw();
+
+    let cursor = &app.cursor;
+
+    frp::new_network! { network
+        eval area.frp.output.cursor_style ((s) cursor.frp.input.set_style.emit(s));
+    }
 
 //    area.tmp_replace_all_text("Test text €!!!\nline2\nline3\nline4");
 
@@ -167,7 +173,7 @@ fn init(app:&Application) {
         let _keep_alive = &navigator;
         let _keep_alive = &graph_editor;
         let _keep_alive = &area;
-//        let _keep_alive = &network;
+        let _keep_alive = &network;
 
         // Temporary code removing the web-loader instance.
         // To be changed in the future.

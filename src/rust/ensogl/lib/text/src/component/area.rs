@@ -47,7 +47,7 @@ macro_rules! define_frp {
 
         #[derive(Debug,Clone,CloneRef)]
         pub struct FrpInputs {
-            $($in_field : frp::Source<$in_field_type>),*
+            $(pub $in_field : frp::Source<$in_field_type>),*
         }
 
         impl FrpInputs {
@@ -66,8 +66,8 @@ macro_rules! define_frp {
 
         #[derive(Debug,Clone,CloneRef)]
         pub struct FrpOutputs {
-            setter       : FrpOutputsSetter,
-            $($out_field : frp::Stream<$out_field_type>),*
+            setter           : FrpOutputsSetter,
+            $(pub $out_field : frp::Stream<$out_field_type>),*
         }
 
         impl FrpOutputsSetter {
@@ -101,7 +101,7 @@ pub mod background {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32) {
-            let out = Rect((1000.px(),1000.px())).corners_radius(8.px()).fill(color::Rgba::new(1.0,1.0,1.0,0.1));
+            let out = Rect((1000.px(),1000.px())).corners_radius(8.px()).fill(color::Rgba::new(1.0,1.0,1.0,0.05));
             out.into()
         }
     }
@@ -193,7 +193,7 @@ define_frp! {
 #[derive(Debug)]
 pub struct Area {
     data    : AreaData,
-    frp     : Frp,
+    pub frp : Frp,
 }
 
 impl Deref for Area {
@@ -207,7 +207,7 @@ impl Area {
     pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
         let network = frp::Network::new();
         let data    = AreaData::new(logger,scene,&network);
-        let output = FrpOutputs::new(&network);
+        let output  = FrpOutputs::new(&network);
         let frp     = Frp::new(network,data.frp.clone_ref(),output);
         Self {data,frp} . init()
     }
@@ -220,7 +220,7 @@ impl Area {
             eval_ self.background.events.mouse_over ([] println!("over"));
 
             cursor_over <- self.background.events.mouse_over.constant(cursor::Style::new_text_cursor());
-            cursor_out  <- self.background.events.mouse_over.constant(cursor::Style::default());
+            cursor_out  <- self.background.events.mouse_out.constant(cursor::Style::default());
             cursor      <- any(cursor_over,cursor_out);
             self.frp.output.setter.cursor_style <+ cursor;
 

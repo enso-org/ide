@@ -234,12 +234,17 @@ define_sdf_shapes! {
     , top_right   : Distance<Pixels>
     , bottom_left : Distance<Pixels>
     , bottom_right: Distance<Pixels> ) {
-        size /= 2.0;
+        float top_weight    = clamp(size.x / (top_left    + top_right)   , 0.0, 1.0);
+        float bottom_weight = clamp(size.x / (bottom_left + bottom_right), 0.0, 1.0);
+        float left_weight   = clamp(size.y / (top_left    + bottom_left) , 0.0, 1.0);
+        float right_weight  = clamp(size.y / (top_right   + bottom_right), 0.0, 1.0);
 
-        float tl = top_left;
-        float tr = top_right;
-        float bl = bottom_left;
-        float br = bottom_right;
+        float tl = min(top_weight    , left_weight)  * top_left;
+        float tr = min(top_weight    , right_weight) * top_right;
+        float bl = min(bottom_weight , left_weight)  * bottom_left;
+        float br = min(bottom_weight , right_weight) * bottom_right;
+
+        size /= 2.0;
 
         bool is_top_left     = position.x <  -size.x + tl && position.y >  size.y - tl;
         bool is_top_right    = position.x >   size.x - tr && position.y >  size.y - tr;

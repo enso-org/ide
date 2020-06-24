@@ -19,11 +19,12 @@ use crate::gui::component;
 // === Constants ===
 // =================
 
-const PADDING        : f32 = 2.0;
-const SIDES_PADDING  : f32 = PADDING * 2.0;
-const DEFAULT_RADIUS : f32 = 8.0;
-const DEFAULT_COLOR  : color::Lcha = color::Lcha::new(1.0,0.0,0.0,0.2);
-const FADE_OUT_TIME  : f32 = 3000.0;
+const PADDING           : f32 = 2.0;
+const SIDES_PADDING     : f32 = PADDING * 2.0;
+const DEFAULT_RADIUS    : f32 = 8.0;
+const DEFAULT_COLOR     : color::Lcha = color::Lcha::new(0.8,0.0,0.0,0.5);
+const TEXT_CURSOR_COLOR : color::Lcha = color::Lcha::new(0.8,0.0,0.0,0.7);
+const FADE_OUT_TIME     : f32 = 3000.0;
 
 #[allow(non_snake_case)]
 fn DEFAULT_SIZE() -> Vector2<f32> { Vector2(16.0,16.0) }
@@ -166,9 +167,10 @@ impl Style {
     }
 
     pub fn new_text_cursor() -> Self {
-        let size = Vector2::new(4.0,DEFAULT_SIZE().y);
-        let size = Some(StyleValue::new(size));
-        Self {size,..default()}
+        let size  = Vector2::new(3.0,DEFAULT_SIZE().y);
+        let size  = Some(StyleValue::new(size));
+        let color = Some(StyleValue::new(TEXT_CURSOR_COLOR));
+        Self {size,color,..default()}
     }
 }
 

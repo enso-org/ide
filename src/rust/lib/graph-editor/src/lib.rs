@@ -45,7 +45,7 @@ use crate::component::visualization;
 
 use enso_frp as frp;
 use enso_frp::io::keyboard;
-use ensogl::application::shortcut;
+use ensogl::application::{shortcut, Application};
 use ensogl::application;
 use ensogl::data::color;
 use ensogl::display::Scene;
@@ -1352,8 +1352,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
 }
 
 impl application::View for GraphEditor {
-    fn new(world: &World) -> Self {
-        new_graph_editor(world)
+    fn new(app:&Application) -> Self {
+        new_graph_editor(app)
     }
 }
 
@@ -1409,13 +1409,10 @@ impl Default for SelectionMode {
 }
 
 #[allow(unused_parens)]
-fn new_graph_editor(world:&World) -> GraphEditor {
-    let scene  = world.scene();
-    let cursor = cursor::Cursor::new(world.scene());
-    web::body().set_style_or_panic("cursor","none");
-    world.add_child(&cursor);
-
-    let model          = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
+fn new_graph_editor(app:&Application) -> GraphEditor {
+    let scene          = app.display.scene();
+    let cursor         = &app.cursor;
+    let model          = GraphEditorModelWithNetwork::new(scene,app.cursor.clone_ref());
     let network        = &model.network;
     let nodes          = &model.nodes;
     let edges          = &model.edges;
