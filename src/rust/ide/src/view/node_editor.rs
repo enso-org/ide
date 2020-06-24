@@ -258,28 +258,6 @@ impl GraphEditorIntegratedWithControllerModel {
         Ok(())
     }
 
-    /// Set given type (or lack of such) on the given sub-expression.
-    fn set_type(&self, id:ExpressionId, typename:graph_editor::OptionalType) {
-        let event = (id,typename);
-        self.editor.frp.inputs.set_expression_type.emit_event(&event);
-    }
-
-    /// Look up the typename for the given expression in the execution controller's registry and
-    /// pass the data to the editor view.
-    fn update_type_on(&self, id:ExpressionId) {
-        let typename = self.lookup_typename(&id);
-        self.set_type(id,typename)
-    }
-
-    /// Like `update_type_on` but for multiple expressions.
-    fn update_types_on(&self, expressions_to_update:&[ExpressionId]) -> FallibleResult<()> {
-        debug!(self.logger, "Updating type information for IDs: {expressions_to_update:?}.");
-        for id in expressions_to_update {
-            self.update_type_on(*id)
-        }
-        Ok(())
-    }
-
     fn update_node_views
     (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>) -> FallibleResult<()> {
         let nodes = self.controller.graph.nodes()?;
@@ -369,14 +347,38 @@ impl GraphEditorIntegratedWithControllerModel {
             };
             self.editor.frp.inputs.set_node_expression.emit_event(&(id,code_and_trees));
             self.expression_views.borrow_mut().insert(id, expression);
-        }
 
-        // Set initially available type information on ports (identifiable expression's sub-parts).
-        for expression_part in node.info.expression().iter_recursive() {
-            if let Some(id) = expression_part.id {
-                self.update_type_on(id)
+            // Set initially available type information on ports (identifiable expression's
+            // sub-parts).
+            for expression_part in node.info.expression().iter_recursive() {
+                if let Some(id) = expression_part.id {
+                    self.update_type_on(id)
+                }
             }
         }
+
+    }
+
+    /// Like `update_type_on` but for multiple expressions.
+    fn update_types_on(&self, expressions_to_update:&[ExpressionId]) -> FallibleResult<()> {
+        debug!(self.logger, "Updating type information for IDs: {expressions_to_update:?}.");
+        for id in expressions_to_update {
+            self.update_type_on(*id)
+        }
+        Ok(())
+    }
+
+    /// Look up the typename for the given expression in the execution controller's registry and
+    /// pass the data to the editor view.
+    fn update_type_on(&self, id:ExpressionId) {
+        let typename = self.lookup_typename(&id);
+        self.set_type(id,typename)
+    }
+
+    /// Set given type (or lack of such) on the given sub-expression.
+    fn set_type(&self, id:ExpressionId, typename:graph_editor::OptionalType) {
+        let event = (id,typename);
+        self.editor.frp.inputs.set_expression_type.emit_event(&event);
     }
 
     fn update_connection_views
