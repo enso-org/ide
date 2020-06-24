@@ -108,6 +108,8 @@ pub struct BufferData {
     pub(crate) last_edit_type : EditType,
     force_undo_group: bool,
     undo_group_id: usize,
+    /// undo groups that are undone
+    undos: BTreeSet<usize>,
     /// undo groups that are no longer live and should be gc'ed
     gc_undos: BTreeSet<usize>,
     /// The index of the current undo; subsequent undos are currently 'undone'
@@ -147,10 +149,11 @@ impl BufferData {
         let live_undos = vec![0];
         let undo_group_id = 1;
         let force_undo_group = false;
+        let undos = BTreeSet::new();
         let gc_undos = BTreeSet::new();
         let cur_undo = 1;
 
-        Self {data,engine,style,live_undos,force_undo_group,this_edit_type,last_edit_type,undo_group_id,gc_undos,cur_undo}
+        Self {data,engine,style,live_undos,force_undo_group,this_edit_type,last_edit_type,undo_group_id,undos,gc_undos,cur_undo}
     }
 
     pub fn focus_style(&self, range:impl data::RangeBounds) -> Style {
@@ -215,6 +218,29 @@ impl BufferData {
         }
 
         builder.build()
+    }
+
+    fn do_undo(&mut self) {
+        if self.cur_undo > 1 {
+            self.cur_undo -= 1;
+            assert!(self.undos.insert(self.live_undos[self.cur_undo]));
+            self.this_edit_type = EditType::Undo;
+            self.update_undos();
+        }
+    }
+
+    fn do_redo(&mut self) {
+        if self.cur_undo < self.live_undos.len() {
+            assert!(self.undos.remove(&self.live_undos[self.cur_undo]));
+            self.cur_undo += 1;
+            self.this_edit_type = EditType::Redo;
+            self.update_undos();
+        }
+    }
+
+    fn update_undos(&mut self) {
+        self.engine.undo(self.undos.clone());
+        self.data = self.engine.get_head().into();
     }
 }
 

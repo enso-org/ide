@@ -151,6 +151,14 @@ impl ViewBuffer {
         let change = self.buffer.data.borrow().insert_change(&*self.selection.borrow(),text.rope);
         self.buffer.data.borrow_mut().apply_change(change);
     }
+
+    pub fn undo(&self) {
+        self.buffer.data.borrow_mut().do_undo()
+    }
+
+    pub fn redo(&self) {
+        self.buffer.data.borrow_mut().do_redo()
+    }
 }
 
 

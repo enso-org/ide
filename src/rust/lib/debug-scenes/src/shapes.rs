@@ -146,6 +146,8 @@ fn init(app:&Application) {
     area.add_cursor(1.bytes());
     area.add_cursor(5.bytes());
     area.insert("_");
+    area.undo();
+    area.redo();
 
     area.redraw();
 
