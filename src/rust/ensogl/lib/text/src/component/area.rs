@@ -252,7 +252,7 @@ impl AreaData {
         let bg_logger      = Logger::sub(&logger,"background");
         let background     = component::ShapeView::<background::Shape>::new(&bg_logger,scene);
         let fonts          = scene.extension::<typeface::font::Registry>();
-        let font           = fonts.default();
+        let font           = fonts.load("DejaVuSansMono");
         let glyph_system   = typeface::glyph::System::new(scene,font);
         let display_object = display::object::Instance::new(&logger);
         let glyph_system   = glyph_system.clone_ref();
@@ -276,8 +276,6 @@ impl AreaData {
 
     // FIXME: make private
     pub fn redraw(&self) {
-        println!(">>>> {:?}", self.buffer.view_buffer.selection.borrow());
-
         let line_count = self.buffer.line_count();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
         for (view_line_number,content) in self.buffer.lines().into_iter().enumerate() {

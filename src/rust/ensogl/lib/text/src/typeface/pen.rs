@@ -49,7 +49,7 @@ impl Pen {
         Self {offset,current_char,font}
     }
 
-    /// Advance the pen to the next position
+    /// Advance the pen to the next position.
     pub fn advance(&mut self, next_char:char, next_char_size:f32) -> CharInfo {
         if let Some((current_char,current_char_size)) = self.current_char {
             let kerning = self.font.get_kerning(current_char,next_char);
