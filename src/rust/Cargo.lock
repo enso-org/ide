@@ -649,6 +649,7 @@ dependencies = [
  "ensogl-core-embedded-fonts 0.1.0",
  "ensogl-core-msdf-sys 0.1.0",
  "shapely 0.1.0",
+ "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "xi-rope 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

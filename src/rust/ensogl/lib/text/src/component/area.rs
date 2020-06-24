@@ -215,10 +215,6 @@ impl Area {
     fn init(self) -> Self {
         let network = &self.frp.network;
         frp::extend! { network
-
-            eval_ self.background.events.mouse_down ([] println!("press"));
-            eval_ self.background.events.mouse_over ([] println!("over"));
-
             cursor_over <- self.background.events.mouse_over.constant(cursor::Style::new_text_cursor());
             cursor_out  <- self.background.events.mouse_out.constant(cursor::Style::default());
             cursor      <- any(cursor_over,cursor_out);

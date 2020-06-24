@@ -219,7 +219,7 @@ impl RenderInfo {
         let msdf_data             = (0..data_size).map(|_| 0.12345);
         let msdf_texture_glyph_id = self.msdf_texture_rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
 
-        self.msdf_texture.extend_f32(msdf_data);
+        self.msdf_texture.extend_with_raw_data(msdf_data);
         self.glyphs.get_or_create(ch, move || {
             GlyphRenderInfo {offset,scale,advance,msdf_texture_glyph_id}
         })
@@ -327,7 +327,7 @@ impl SharedRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display::shape::text::glyph::msdf::msdf::Texture;
+    use crate::display::shape::text::glyph::msdf::Texture;
 
     use ensogl_core_embedded_fonts::EmbeddedFonts;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -351,7 +351,7 @@ mod tests {
         let font_render_info = create_test_font_render_info();
 
         assert_eq!(TEST_FONT_NAME, font_render_info.name);
-        assert_eq!(0, font_render_info.msdf_texture.with_borrowed_data(Vec::len));
+        assert_eq!(0, font_render_info.msdf_texture.with_borrowed_data(|t|t.len()));
         assert_eq!(0, font_render_info.glyphs.len());
     }
 
@@ -370,7 +370,7 @@ mod tests {
         let tex_size   = tex_width * tex_height * channels;
 
         assert_eq!(tex_height , font_render_info.msdf_texture_rows());
-        assert_eq!(tex_size   , font_render_info.msdf_texture.with_borrowed_data(Vec::len));
+        assert_eq!(tex_size   , font_render_info.msdf_texture.with_borrowed_data(|t|t.len()));
         assert_eq!(chars      , font_render_info.glyphs.len());
 
         let first_char  = font_render_info.glyphs.get_or_create('A', || panic!("Expected value"));

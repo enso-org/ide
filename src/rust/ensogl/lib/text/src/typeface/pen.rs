@@ -12,7 +12,7 @@ use super::font::Font;
 // === CharInfo ===
 // ================
 
-/// Information about the current char pointed by the pen.
+/// Information about the char at the pen position.
 #[derive(Clone,Copy,Debug)]
 #[allow(missing_docs)]
 pub struct CharInfo {
@@ -40,15 +40,8 @@ pub struct Pen {
     font         : Font,
 }
 
-//impl<I:CharIterator> std::iter::Pen for Pen<I> {
-//    type Item = CharInfo;
-//    fn next(&mut self) -> Option<Self::Item> {
-//        self.next_chars.next().map(|t| self.advance(t))
-//    }
-//}
-
 impl Pen {
-    /// Create iterator wrapping `chars`, with pen starting from given position.
+    /// Create a new pen iterator for a given font.
     pub fn new (font:&Font) -> Self {
         let offset       = default();
         let current_char = default();
@@ -56,6 +49,7 @@ impl Pen {
         Self {offset,current_char,font}
     }
 
+    /// Advance the pen to the next position
     pub fn advance(&mut self, next_char:char, next_char_size:f32) -> CharInfo {
         if let Some((current_char,current_char_size)) = self.current_char {
             let kerning = self.font.get_kerning(current_char,next_char);
@@ -71,50 +65,48 @@ impl Pen {
 
 
 
-//// =============
-//// === Tests ===
-//// =============
-//
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//
-//    use crate::display::shape::text::glyph::font;
-//    use crate::display::shape::text::glyph::font::GlyphRenderInfo;
-//
-//    use wasm_bindgen_test::wasm_bindgen_test;
-//
-//    #[wasm_bindgen_test(async)]
-//    async fn moving_pen(){
-//        ensogl_core_msdf_sys::initialized().await;
-//        let font = Font::new(font::RenderInfo::mock_font("Test font".to_string()));
-//        mock_a_glyph_info(font.clone_ref());
-//        mock_w_glyph_info(font.clone_ref());
-//        font.mock_kerning_info('A', 'W', -0.16);
-//        font.mock_kerning_info('W', 'A', 0.0);
-//
-//        let chars    = "AWA".chars();
-//        let iter     = Pen::new(1.0,chars,font);
-//        let result   = iter.collect_vec();
-//        let expected = vec!
-//            [ ('A', 0.0)
-//            , ('W', 0.4)
-//            , ('A', 1.1)
-//            ];
-//        assert_eq!(expected,result);
-//    }
-//
-//    fn mock_a_glyph_info(font:Font) -> GlyphRenderInfo {
-//        let advance = 0.56;
-//        let scale   = Vector2::new(0.5, 0.8);
-//        let offset  = Vector2::new(0.1, 0.2);
-//        font.mock_char_info('A',scale,offset,advance)
-//    }
-//
-//    fn mock_w_glyph_info(font:Font) -> GlyphRenderInfo {
-//        let advance = 0.7;
-//        let scale   = Vector2::new(0.6, 0.9);
-//        let offset  = Vector2::new(0.1, 0.2);
-//        font.mock_char_info('W',scale,offset,advance)
-//    }
-//}
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::typeface::font;
+    use crate::typeface::font::GlyphRenderInfo;
+
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[wasm_bindgen_test(async)]
+    async fn moving_pen(){
+         ensogl_core_msdf_sys::initialized().await;
+        let font = Font::mock("Test font");
+        mock_a_glyph_info(font.clone_ref());
+        mock_w_glyph_info(font.clone_ref());
+        font.mock_kerning_info('A', 'W', -0.16);
+        font.mock_kerning_info('W', 'A', 0.0);
+
+        let mut pen    = Pen::new(&font);
+        let mut result = Vec::new();
+        for chr in "AWA".chars() {
+            result.push(pen.advance(chr,1.0).offset);
+        }
+        let expected = vec![0.0,0.4,1.1];
+        assert_eq!(expected,result);
+    }
+
+    fn mock_a_glyph_info(font:Font) -> GlyphRenderInfo {
+        let advance = 0.56;
+        let scale   = Vector2::new(0.5, 0.8);
+        let offset  = Vector2::new(0.1, 0.2);
+        font.mock_char_info('A',scale,offset,advance)
+    }
+
+    fn mock_w_glyph_info(font:Font) -> GlyphRenderInfo {
+        let advance = 0.7;
+        let scale   = Vector2::new(0.6, 0.9);
+        let offset  = Vector2::new(0.1, 0.2);
+        font.mock_char_info('W',scale,offset,advance)
+    }
+}

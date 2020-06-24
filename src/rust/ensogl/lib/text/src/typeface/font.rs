@@ -232,8 +232,8 @@ impl Font {
     }
 
     #[cfg(test)]
-    pub fn mock_font(name:String) -> Self {
-        Self::from_msdf_font(name,msdf_sys::Font::mock_font())
+    pub fn mock(name:impl Into<String>) -> Self {
+        Self::from_msdf_font(name.into(),msdf_sys::Font::mock_font())
     }
 
     #[cfg(test)]
@@ -244,7 +244,7 @@ impl Font {
         let msdf_data             = (0..data_size).map(|_| 0.12345);
         let msdf_texture_glyph_id = self.msdf_texture_rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
 
-        self.atlas.extend_f32(msdf_data);
+        self.atlas.extend_with_raw_data(msdf_data);
         self.glyphs.get_or_create(ch, move || {
             GlyphRenderInfo {offset,scale,advance,msdf_texture_glyph_id}
         })
@@ -335,7 +335,7 @@ impl scene::Extension for Registry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display::shape::text::glyph::msdf::msdf::Texture;
+    use msdf::Texture;
 
     use ensogl_core_embedded_fonts::EmbeddedFonts;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -343,9 +343,9 @@ mod tests {
 
     const TEST_FONT_NAME : &str = "DejaVuSansMono-Bold";
 
-    fn create_test_font_render_info() -> FontData {
+    fn create_test_font() -> Font {
         let mut embedded_fonts = EmbeddedFonts::create_and_fill();
-        FontData::try_from_embedded(&mut embedded_fonts,TEST_FONT_NAME).unwrap()
+        Font::try_from_embedded(&mut embedded_fonts,TEST_FONT_NAME).unwrap()
     }
 
     wasm_bindgen_test_configure!(run_in_browser);
@@ -353,17 +353,17 @@ mod tests {
     #[wasm_bindgen_test(async)]
     async fn empty_font_render_info() {
         ensogl_core_msdf_sys::initialized().await;
-        let font_render_info = create_test_font_render_info();
+        let font_render_info = create_test_font();
 
         assert_eq!(TEST_FONT_NAME, font_render_info.name);
-        assert_eq!(0,font_render_info.atlas.with_borrowed_data(Vec::len));
+        assert_eq!(0,font_render_info.atlas.with_borrowed_data(|t:&[u8]| t.len()));
         assert_eq!(0,font_render_info.glyphs.len());
     }
 
     #[wasm_bindgen_test(async)]
     async fn loading_glyph_info() {
         ensogl_core_msdf_sys::initialized().await;
-        let font_render_info = create_test_font_render_info();
+        let font_render_info = create_test_font();
 
         font_render_info.get_glyph_info('A');
         font_render_info.get_glyph_info('B');
@@ -375,7 +375,7 @@ mod tests {
         let tex_size   = tex_width * tex_height * channels;
 
         assert_eq!(tex_height , font_render_info.msdf_texture_rows());
-        assert_eq!(tex_size   , font_render_info.atlas.with_borrowed_data(Vec::len));
+        assert_eq!(tex_size   , font_render_info.atlas.with_borrowed_data(|t| t.len()));
         assert_eq!(chars      , font_render_info.glyphs.len());
 
         let first_char  = font_render_info.glyphs.get_or_create('A', || panic!("Expected value"));
@@ -391,7 +391,7 @@ mod tests {
     #[wasm_bindgen_test(async)]
     async fn getting_or_creating_char() {
         ensogl_core_msdf_sys::initialized().await;
-        let font_render_info = create_test_font_render_info();
+        let font_render_info = create_test_font();
 
         {
             let char_info = font_render_info.get_glyph_info('A');
