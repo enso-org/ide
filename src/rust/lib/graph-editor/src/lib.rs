@@ -1872,8 +1872,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     //   treated as unknown type by default);
     // * integration layer will not emit "unset" signal for ports that were removed by changing the
     //   node expression (`set_node_expression` event) or were removed altogether (`remove_node`);
-    // * integration layer reserves right to emit "spurious" signals (i.e. unsetting type that was
-    //   not previously set or setting same type multiple types). This should improve, as we get
+    // * integration layer reserves right to emit spurious signals (i.e. unsetting type that was
+    //   not previously set or setting same type multiple times). This should improve, as we get
     //   better updates from engine services (see https://github.com/enso-org/enso/issues/441 ).
     trace inputs.set_expression_type;
 
