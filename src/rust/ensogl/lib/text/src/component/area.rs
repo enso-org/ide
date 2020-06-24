@@ -156,14 +156,16 @@ impl Area {
 
     // FIXME: make private
     pub fn redraw(&self) {
+        println!(">>>> {:?}", self.buffer.view_buffer.selection.borrow());
+
         let line_count = self.buffer.line_count();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
-        for (view_line_number,content) in self.buffer.lines().enumerate() {
+        for (view_line_number,content) in self.buffer.lines().into_iter().enumerate() {
             self.redraw_line(view_line_number,content)
         }
     }
 
-    fn redraw_line(&self, view_line_number:usize, content:Cow<str>) {
+    fn redraw_line(&self, view_line_number:usize, content:String) { // content:Cow<str>
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
         let line_range     = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
         let mut line_style = self.buffer.focus_style(line_range.start .. line_range.end).iter();

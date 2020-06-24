@@ -1,7 +1,6 @@
 //! The data hold by the text buffer. Under the hood it is implemented as an efficient string rope.
 
 use crate::prelude::*;
-use rope::Rope;
 
 
 
@@ -9,6 +8,7 @@ use rope::Rope;
 // === Exports ===
 // ===============
 
+pub mod crdt;
 pub mod range;
 pub mod rope;
 pub mod spans;
@@ -16,6 +16,8 @@ pub mod unit;
 
 pub use range::Range;
 pub use range::RangeBounds;
+pub use rope::Delta;
+pub use rope::Rope;
 pub use rope::Cursor;
 pub use rope::Lines;
 pub use rope::LinesMetric;
@@ -65,6 +67,9 @@ impl Data {
 
 
 // === Constructors ===
+
+impl From<Rope>     for Data { fn from(t:Rope)     -> Self { Self {rope:t} } }
+impl From<&Rope>    for Data { fn from(t:&Rope)    -> Self { t.clone().into() } }
 
 impl From<&str>     for Data { fn from(t:&str)     -> Self { Self {rope:t.into()} } }
 impl From<String>   for Data { fn from(t:String)   -> Self { Self {rope:t.into()} } }

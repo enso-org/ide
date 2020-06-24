@@ -29,6 +29,10 @@ impl Selection {
         Self {start,end,column}
     }
 
+    pub fn new_cursor(offset:Bytes) -> Self {
+        Self::new(offset,offset)
+    }
+
     /// Gets the earliest offset within the selection, ie the minimum of both edges.
     pub fn min(self) -> Bytes {
         std::cmp::min(self.start, self.end)
@@ -100,7 +104,7 @@ impl Group {
     ///
     /// Performance note: should be O(1) if the new region strictly comes after all the others in
     /// the selection, otherwise O(n).
-    pub fn add_region(&mut self, region:Selection) {
+    pub fn add(&mut self, region:Selection) {
         let mut ix = self.selection_on_the_left_to(region.min());
         if ix == self.sorted_regions.len() {
             self.sorted_regions.push(region);
@@ -141,5 +145,13 @@ impl Group {
         } else {
             self.sorted_regions.binary_search_by(|r| r.max().cmp(&offset)).unwrap_both()
         }
+    }
+}
+
+impl<'t> IntoIterator for &'t Group {
+    type Item     = &'t Selection;
+    type IntoIter = slice::Iter<'t,Selection>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.sorted_regions.iter()
     }
 }

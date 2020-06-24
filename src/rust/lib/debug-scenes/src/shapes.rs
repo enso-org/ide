@@ -143,6 +143,10 @@ fn init(app:&Application) {
     area.set_default(text::Size(10.0));
     area.set((0..4).bytes(),text::Size(20.0));
 
+    area.add_cursor(1.bytes());
+    area.add_cursor(5.bytes());
+    area.insert("_");
+
     area.redraw();
 
 //    area.tmp_replace_all_text("Test text €!!!\nline2\nline3\nline4");

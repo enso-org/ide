@@ -141,7 +141,7 @@ impl ViewModel {
         let mut result = selection::Group::new();
         for &selection in self.selection.borrow().iter() {
             let new_selection = self.moved_selection_region(movement,selection,modify);
-            result.add_region(new_selection);
+            result.add(new_selection);
         }
         result
     }

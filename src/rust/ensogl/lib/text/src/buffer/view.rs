@@ -107,7 +107,7 @@ const DEFAULT_LINE_COUNT : usize = 10;
 #[allow(missing_docs)]
 pub struct ViewBuffer {
     pub buffer : Buffer,
-    selection  : Rc<RefCell<selection::Group>>,
+    pub selection  : Rc<RefCell<selection::Group>>,
 }
 
 impl Deref for ViewBuffer {
@@ -130,157 +130,29 @@ impl From<&Buffer> for ViewBuffer {
     }
 }
 
-impl Default for ViewBuffer {
-    fn default() -> Self {
-        Buffer::default().into()
-    }
-}
+//impl Default for ViewBuffer {
+//    fn default() -> Self {
+//        Buffer::default().into()
+//    }
+//}
 
-
-
-// =================
-// === ViewModel ===
-// =================
-
-/// View for a region of a buffer. There are several cases where multiple views share the same
-/// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
-/// same file (keeping a view per user and merging them visually).
-#[derive(Debug,Clone,CloneRef)]
-#[allow(missing_docs)]
-pub struct ViewModel {
-    pub frp           : FrpInputs,
-    pub view_buffer   : ViewBuffer,
-    first_line_number : Rc<Cell<Line>>,
-    line_count        : Rc<Cell<usize>>,
-}
-
-impl Deref for ViewModel {
-    type Target = ViewBuffer;
-    fn deref(&self) -> &Self::Target {
-        &self.view_buffer
-    }
-}
-
-impl ViewModel {
-    pub fn new(network:&frp::Network, view_buffer:impl Into<ViewBuffer>) -> Self {
-        let frp               = FrpInputs::new(network);
-        let view_buffer       = view_buffer.into();
-        let first_line_number = default();
-        let line_count        = Rc::new(Cell::new(DEFAULT_LINE_COUNT));
-        Self {frp,view_buffer,first_line_number,line_count}
-    }
-}
-
-impl ViewModel {
+impl ViewBuffer {
     /// Add a new selection to the current view.
     pub fn add_selection(&self, selection:impl Into<Selection>) {
-        self.selection.borrow_mut().add_region(selection.into())
+        self.selection.borrow_mut().add(selection.into())
     }
 
-    /// Set the selection to a new value.
-    pub fn set_selection(&self, selection:&selection::Group) {
-        *self.selection.borrow_mut() = selection.clone();
+    pub fn add_cursor(&self, offset:Bytes) {
+        self.add_selection(Selection::new_cursor(offset))
     }
 
-    /// Return all active selections.
-    pub fn selections(&self) -> selection::Group {
-        self.selection.borrow().clone()
-    }
-
-    fn moved_selection2(&self, movement:&Option<Movement>, modify:bool) -> selection::Group {
-        movement.map(|t| self.moved_selection(t,modify)).unwrap_or_default()
-    }
-
-    /// Computes the actual desired amount of scrolling (generally slightly less than the height of
-    /// the viewport, to allow overlap).
-    fn page_scroll_height(&self) -> isize {
-        std::cmp::max(self.line_count.get() as isize - SCROLL_OVERLAP, 1)
-    }
-
-    pub fn first_line_number(&self) -> Line {
-        self.first_line_number.get()
-    }
-
-    pub fn last_line_number(&self) -> Line {
-        self.first_line_number() + self.line_count()
-    }
-
-    pub fn line_count(&self) -> usize {
-        self.line_count.get()
-    }
-
-    pub fn line_range(&self) -> Range<Line> {
-        self.first_line_number() .. self.last_line_number()
-    }
-
-    pub fn first_line_offset(&self) -> Bytes {
-        self.offset_of_line(self.first_line_number())
-    }
-
-    pub fn last_line_offset(&self) -> Bytes {
-        self.offset_of_line(self.last_line_number())
-    }
-
-    pub fn line_offset_range(&self) -> Range<Bytes> {
-        self.first_line_offset() .. self.last_line_offset()
-    }
-
-    pub fn offset_of_view_line(&self, view_line:Line) -> Bytes {
-        let line = self.first_line_number() + view_line;
-        self.offset_of_line(line)
-    }
-
-    // FIXME: this sohuld not include line break.
-    pub fn range_of_view_line_raw(&self, view_line:Line) -> Range<Bytes> {
-        let start = self.offset_of_view_line(view_line);
-        let end   = self.offset_of_view_line(view_line + 1);
-        start .. end
-    }
-
-    pub fn lines(&self) -> buffer::Lines {
-        let range = self.line_offset_range();
-        self.buffer.data.rope.lines(range.start.raw .. range.end.raw)
-    }
-
-//    pub fn get(&self, line:Line) -> String {
-//        let last_line_number = self.line_of_offset(self.data().len());
-//        let start   = self.offset_of_line(line);
-//        let end     = self.offset_of_line(line+1);
-//        let end     = self.buffer.text.prev_grapheme_offset(end).unwrap_or(end);
-//        let content = self.buffer.text.rope.subseq(start.raw .. end.raw);
-//        println!("buffer line count: {}", last_line_number.raw);
-//        content.into()
-//    }
-
-//    fn scroll_to_cursor(&mut self, text: &Text) {
-//        let end = self.sel_regions().last().unwrap().end;
-//        let line = self.line_of_offset(text, end);
-//        if line < self.first_line_number {
-//            self.first_line_number = line;
-//        } else if self.first_line_number + self.height <= line {
-//            self.first_line_number = line - (self.height - 1);
-//        }
-//        // We somewhat arbitrarily choose the last region for setting the old-style
-//        // selection state, and for scrolling it into view if needed. This choice can
-//        // likely be improved.
-//        self.scroll_to = Some(end);
-//    }
-}
-
-impl LineOffset for ViewModel {
-    fn data(&self) -> &Data {
-        &self.buffer.data
-    }
-
-    fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line.raw,self.data().measure::<data::LinesMetric>() + 1);
-        Bytes(self.data().offset_of_line(line))
-    }
-
-    fn line_of_offset(&self,offset:Bytes) -> Line {
-        Line(self.data().line_of_offset(offset.raw))
+    pub fn insert(&self, text:impl Into<Data>) {
+        let text = text.into();
+        let change = self.buffer.data.borrow().insert_change(&*self.selection.borrow(),text.rope);
+        self.buffer.data.borrow_mut().apply_change(change);
     }
 }
+
 
 
 
@@ -345,12 +217,158 @@ impl View {
     }
 }
 
-impl Default for View {
-    fn default() -> Self {
-        Self::new(ViewBuffer::default())
+//impl Default for View {
+//    fn default() -> Self {
+//        Self::new(ViewBuffer::default())
+//    }
+//}
+
+// =================
+// === ViewModel ===
+// =================
+
+/// View for a region of a buffer. There are several cases where multiple views share the same
+/// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
+/// same file (keeping a view per user and merging them visually).
+#[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
+pub struct ViewModel {
+    pub frp           : FrpInputs,
+    pub view_buffer   : ViewBuffer,
+    first_line_number : Rc<Cell<Line>>,
+    line_count        : Rc<Cell<usize>>,
+}
+
+impl Deref for ViewModel {
+    type Target = ViewBuffer;
+    fn deref(&self) -> &Self::Target {
+        &self.view_buffer
     }
 }
 
+impl ViewModel {
+    pub fn new(network:&frp::Network, view_buffer:impl Into<ViewBuffer>) -> Self {
+        let frp               = FrpInputs::new(network);
+        let view_buffer       = view_buffer.into();
+        let first_line_number = default();
+        let line_count        = Rc::new(Cell::new(DEFAULT_LINE_COUNT));
+        Self {frp,view_buffer,first_line_number,line_count}
+    }
+}
+
+impl ViewModel {
+
+
+    /// Set the selection to a new value.
+    pub fn set_selection(&self, selection:&selection::Group) {
+        *self.selection.borrow_mut() = selection.clone();
+    }
+
+    /// Return all active selections.
+    pub fn selections(&self) -> selection::Group {
+        self.selection.borrow().clone()
+    }
+
+    fn moved_selection2(&self, movement:&Option<Movement>, modify:bool) -> selection::Group {
+        movement.map(|t| self.moved_selection(t,modify)).unwrap_or_default()
+    }
+
+    /// Computes the actual desired amount of scrolling (generally slightly less than the height of
+    /// the viewport, to allow overlap).
+    fn page_scroll_height(&self) -> isize {
+        std::cmp::max(self.line_count.get() as isize - SCROLL_OVERLAP, 1)
+    }
+
+    pub fn first_line_number(&self) -> Line {
+        self.first_line_number.get()
+    }
+
+    pub fn last_line_number(&self) -> Line {
+        self.first_line_number() + self.line_count()
+    }
+
+    pub fn line_count(&self) -> usize {
+        self.line_count.get()
+    }
+
+    pub fn line_range(&self) -> Range<Line> {
+        self.first_line_number() .. self.last_line_number()
+    }
+
+    pub fn first_line_offset(&self) -> Bytes {
+        self.offset_of_line(self.first_line_number())
+    }
+
+    pub fn last_line_offset(&self) -> Bytes {
+        self.offset_of_line(self.last_line_number())
+    }
+
+    pub fn line_offset_range(&self) -> Range<Bytes> {
+        self.first_line_offset() .. self.last_line_offset()
+    }
+
+    pub fn offset_of_view_line(&self, view_line:Line) -> Bytes {
+        let line = self.first_line_number() + view_line;
+        self.offset_of_line(line)
+    }
+
+    // FIXME: this sohuld not include line break.
+    pub fn range_of_view_line_raw(&self, view_line:Line) -> Range<Bytes> {
+        let start = self.offset_of_view_line(view_line);
+        let end   = self.offset_of_view_line(view_line + 1);
+        start .. end
+    }
+
+//    pub fn lines(&self) -> buffer::Lines {
+//        let range = self.line_offset_range();
+//        self.buffer.data.borrow().data.rope.lines(range.start.raw .. range.end.raw)
+//    }
+
+    // FIXME: this is inefficient now
+    pub fn lines(&self) -> Vec<String> {
+        let range = self.line_offset_range();
+        self.buffer.data.borrow().data.rope.lines(range.start.raw .. range.end.raw).map(|t| t.into()).collect_vec()
+    }
+
+//    pub fn get(&self, line:Line) -> String {
+//        let last_line_number = self.line_of_offset(self.data().len());
+//        let start   = self.offset_of_line(line);
+//        let end     = self.offset_of_line(line+1);
+//        let end     = self.buffer.text.prev_grapheme_offset(end).unwrap_or(end);
+//        let content = self.buffer.text.rope.subseq(start.raw .. end.raw);
+//        println!("buffer line count: {}", last_line_number.raw);
+//        content.into()
+//    }
+
+//    fn scroll_to_cursor(&mut self, text: &Text) {
+//        let end = self.sel_regions().last().unwrap().end;
+//        let line = self.line_of_offset(text, end);
+//        if line < self.first_line_number {
+//            self.first_line_number = line;
+//        } else if self.first_line_number + self.height <= line {
+//            self.first_line_number = line - (self.height - 1);
+//        }
+//        // We somewhat arbitrarily choose the last region for setting the old-style
+//        // selection state, and for scrolling it into view if needed. This choice can
+//        // likely be improved.
+//        self.scroll_to = Some(end);
+//    }
+}
+
+impl LineOffset for ViewModel {
+    fn data(&self) -> Data {
+        self.buffer.data.borrow().data.clone() // FIXME
+    }
+
+    fn offset_of_line(&self,line:Line) -> Bytes {
+        let line = std::cmp::min(line.raw,self.data().measure::<data::LinesMetric>() + 1);
+        Bytes(self.data().offset_of_line(line))
+    }
+
+    fn line_of_offset(&self,offset:Bytes) -> Line {
+        Line(self.data().line_of_offset(offset.raw))
+    }
+}
 
 
 
@@ -363,7 +381,7 @@ impl Default for View {
 pub trait LineOffset {
     // use own breaks if present, or text if not (no line wrapping)
 
-    fn data(&self) -> &Data;
+    fn data(&self) -> Data;
 
     /// Returns the byte offset corresponding to the given line.
     fn offset_of_line(&self, line:Line) -> Bytes {

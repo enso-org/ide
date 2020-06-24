@@ -6,3 +6,5 @@ pub use xi_rope::rope::Lines;
 pub use xi_rope::spans::Spans;
 pub use xi_rope::spans::SpansBuilder;
 pub use xi_rope::spans::SpansInfo;
+pub use xi_rope::RopeDelta as Delta;
+pub use xi_rope::DeltaBuilder;

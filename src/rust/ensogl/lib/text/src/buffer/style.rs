@@ -187,14 +187,14 @@ macro_rules! define_styles {
         $(
             impl Setter<$field_type> for Buffer {
                 fn set(&self, range:impl data::RangeBounds, data:$field_type) {
-                    let range = self.crop_range(range);
-                    self.style.borrow_mut().$field.set(range,Some(data))
+                    let range = self.data.borrow().crop_range(range); // FIXME
+                    self.data.borrow_mut().style.$field.set(range,Some(data))
                 }
             }
 
             impl DefaultSetter<$field_type> for Buffer {
                 fn set_default(&self, data:$field_type) {
-                    self.style.borrow_mut().$field.default = data;
+                    self.data.borrow_mut().style.$field.default = data;
                 }
             }
         )*
