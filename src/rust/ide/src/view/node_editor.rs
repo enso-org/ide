@@ -589,7 +589,7 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
-        debug!(self.logger,"Node editor wants to enter the node {node_id}.");
+        debug!(self.logger,"Requesting entering the node {node_id}.");
 
         let _id = self.get_controller_node_id(*node_id)?;
 
