@@ -172,14 +172,10 @@ impl IdeInitializer {
     , config          : &config::Startup
     , project_manager : project_manager::Client
     ) -> FallibleResult<ProjectView> {
-        let logger                     = &self.logger;
-        let project_name_from_argument = &config.user_provided_project_name;
-        let project_metadata = if let Some(project_name) = project_name_from_argument {
-            Self::get_project_or_create_new(logger,&project_manager,&project_name).await?
-        } else {
-            let project_name = constants::DEFAULT_PROJECT_NAME;
-            Self::get_most_recent_project_or_create_new(logger,&project_manager,project_name).await?
-        };
+        let logger           = &self.logger;
+        let project_name     = config.project_name.to_string();
+        let project_metadata = Self::get_project_or_create_new
+            (logger,&project_manager,&project_name).await?;
         let project = Self::open_project(logger,project_manager,project_metadata).await?;
         Ok(ProjectView::new(logger,project).await?)
     }
