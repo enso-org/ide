@@ -1,6 +1,6 @@
 # Repository Structure Overview
 
-* `build` - Helper JS scripts used by `run` script in main directory.  
+* `build` - Helper JS scripts used by `run` script in the main directory.  
 * `docs` - Documentation.
 * `src/js` - the JS part of IDE application.
 * `src/rust` - All Rust crates.
@@ -34,6 +34,6 @@ of it:
   connections to backend - instead it delivers FRP endpoints to be integrated with controllers. That
   design allow us to measure of vis-part only performance. 
 * IDE Controllers (`src/rust/ide/lib/controller`) - The logic part of IDE, that is 
-  synchronizing graph an text and communication with Engine. It should not
-  know anything about visual part. In future we may consider creating some sort of CLI for
+  synchronizing graph a text and communication with Engine. It should not
+  know anything about visual part. In the future we may consider creating some sort of CLI for
   automatic integration tests.
