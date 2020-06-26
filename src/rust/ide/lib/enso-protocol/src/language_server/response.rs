@@ -1,5 +1,6 @@
 //! Helper structures wrapping RPC method result types.
 use super::*;
+use crate::language_server::SuggestionsDatabaseEntry;
 
 /// Response of `init_protocol_connection` method.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
@@ -55,4 +56,30 @@ pub struct CreateExecutionContext {
     pub context_id       : ContextId,
     pub can_modify       : CapabilityRegistration,
     pub receives_updates : CapabilityRegistration
+}
+
+/// Response of `get_suggestions_database` method.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct GetSuggestionDatabase {
+    pub entries : Vec<SuggestionsDatabaseEntry>,
+    pub current_version : usize,
+}
+
+/// Response of `get_suggestions_database_version` method.
+#[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct GetSuggestionDatabaseVersion {
+    pub current_version : usize,
+}
+
+/// Response of `get_suggestions_database_version` method.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct Completion {
+    pub results        : Vec<SuggestionEntryId>,
+    pub current_version : usize,
 }

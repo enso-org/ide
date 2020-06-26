@@ -122,6 +122,10 @@ pub enum Notification {
     /// Sent from the server to the client to inform about new information for certain expressions becoming available.
     #[serde(rename = "executionContext/expressionValuesComputed")]
     ExpressionValuesComputed(ExpressionValuesComputed),
+
+    /// Sent from server to the client to inform abouth the change in the suggestions database.
+    #[serde(rename = "search/suggestionsDatabaseUpdate")]
+    SuggestionDatabaseUpdate(SuggestionDatabaseUpdateEvent),
 }
 
 /// Sent from the server to the client to inform about new information for certain expressions becoming available.
@@ -442,6 +446,13 @@ impl CapabilityRegistration {
         let register_options = RegisterOptions::ExecutionContextId {context_id};
         CapabilityRegistration {method,register_options}
     }
+
+    /// Create "search/receivesSuggestionsDatabaseUpdates" capability
+    pub fn create_receives_suggestions_database_updates() -> Self {
+        let method           = "search/receivesSuggestionsDatabaseUpdates".to_string();
+        let register_options = RegisterOptions::None;
+        CapabilityRegistration {method,register_options}
+    }
 }
 
 
@@ -459,7 +470,121 @@ impl CapabilityRegistration {
 #[serde(untagged, rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub enum RegisterOptions {
+    None,
     Path {path:Path},
     #[serde(rename_all = "camelCase")]
     ExecutionContextId {context_id:ContextId},
+}
+
+
+// ===========================
+// === Suggestion Database ===
+// ===========================
+
+/// The identifier of SuggestionEntry in SuggestionDatabase.
+pub type SuggestionEntryId = usize;
+
+/// The argument of an atom, method or function suggestion.
+#[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SuggestionEntryArgument {
+    /// The argument name.
+    pub name: String,
+    /// The arguement type. String 'Any' is used to specify generic types.
+    #[serde(rename = "type")] // To avoid collision with the `type` keyword.
+    pub arg_type: String,
+    /// Indicates whether the argument is lazy.
+    pub is_suspended: bool,
+    /// Optional default value.
+    pub default_value: Option<String>,
+}
+
+/// The definition scope.
+#[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct SuggestionEntryScope {
+    pub start : usize,
+    pub end   : usize,
+}
+
+/// A type of suggestion entry.
+#[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub enum SuggestionEntryType {Atom,Method,Function,Local}
+
+/// A Suggestion Entry.
+#[derive(Hash, Debug, Clone, PartialEq, Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+// TODO: Perhaps I should refactor this before merge.
+pub enum SuggestionEntry {
+    SuggestionEntryAtom {
+        name          : String,
+        module        : String,
+        arguments     : Vec<SuggestionEntryArgument>,
+        return_type   : String,
+        documentation : Option<String>,
+    },
+    SuggestionEntryMethod {
+        name          : String,
+        module        : String,
+        arguments     : Vec<SuggestionEntryArgument>,
+        self_type     : String,
+        return_type   : String,
+        documentation : Option<String>,
+    },
+    SuggestionEntryFunction {
+        name        : String,
+        module      : String,
+        arguments   : Vec<SuggestionEntryArgument>,
+        return_type : String,
+        scope       : SuggestionEntryScope,
+    },
+    SuggestionEntryLocal {
+        name        : String,
+        module      : String,
+        return_type : String,
+        scope       : SuggestionEntryScope,
+    },
+}
+
+/// The entry in the suggestions database.
+#[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct SuggestionsDatabaseEntry {
+    pub id: SuggestionEntryId,
+    pub suggestion: SuggestionEntry,
+}
+
+/// The kind of the suggestions database update.
+#[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[allow(missing_docs)]
+pub enum SuggestionsDatabaseUpdateKind {Add,Update,Delete}
+
+/// The update of the suggestions database.
+#[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct SuggestionsDatabaseUpdate {
+    pub id            : SuggestionEntryId,
+    pub kind          : SuggestionsDatabaseUpdateKind,
+    pub name          : Option<String>,
+    pub module        : Option<String>,
+    pub arguments     : Option<Vec<SuggestionEntryArgument>>,
+    pub self_type     : Option<String>,
+    pub return_type   : Option<String>,
+    pub documentation : Option<String>,
+    pub scope         : Option<SuggestionEntryScope>,
+}
+
+/// Notification about change in the suggestions database.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(missing_docs)]
+pub struct SuggestionDatabaseUpdateEvent {
+    pub updates         : Vec<SuggestionsDatabaseUpdate>,
+    pub current_version : usize,
 }
