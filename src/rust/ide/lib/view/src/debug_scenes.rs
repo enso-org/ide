@@ -1,3 +1,7 @@
+//! A set of debug scenes
+
+//TODO[ao] many of those should be moved to analogous crate in ensogl/lib directory.
+
 pub mod dom_symbols;
 pub mod easing_animator;
 pub mod frp;
