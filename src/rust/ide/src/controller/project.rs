@@ -15,6 +15,9 @@ use crate::model::synchronized::ExecutionContext;
 use enso_protocol::binary;
 use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
+use enso_protocol::project_manager;
+use enso_protocol::project_manager::ProjectMetadata;
+use enso_protocol::project_manager::ProjectName;
 use parser::Parser;
 use uuid::Uuid;
 
@@ -98,9 +101,12 @@ impl ExecutionContextsRegistry {
 
 /// Project controller's state.
 #[allow(missing_docs)]
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Derivative)]
+#[derivative(Debug)]
 pub struct Handle {
-    pub project_name        : Rc<String>,
+    pub project_metadata    : Rc<RefCell<ProjectMetadata>>,
+    #[derivative(Debug = "ignore")]
+    pub project_manager     : Rc<dyn project_manager::API>,
     pub language_server_rpc : Rc<language_server::Connection>,
     pub visualization       : Visualization,
     pub language_server_bin : Rc<binary::Connection>,
@@ -114,12 +120,13 @@ impl Handle {
     /// Create a new project controller.
     pub fn new
     ( parent                     : impl AnyLogger
+    , project_manager            : impl project_manager::API + 'static
     , language_server_client     : language_server::Connection
     , mut language_server_binary : binary::Connection
-    , project_name               : impl Str
+    , project_metadata           : ProjectMetadata
     ) -> Self {
         let logger = Logger::sub(parent,"Project Controller");
-        info!(logger,"Creating a project controller for project {project_name.as_ref()}");
+        info!(logger,"Creating a project controller for project {project_metadata.name.deref()}");
         let binary_protocol_events  = language_server_binary.event_stream();
         let json_rpc_events         = language_server_client.events();
         let embedded_visualizations = default();
@@ -127,12 +134,13 @@ impl Handle {
         let language_server_bin     = Rc::new(language_server_binary);
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
-        let project_name            = Rc::new(project_name.into());
+        let project_metadata        = Rc::new(RefCell::new(project_metadata));
         let module_registry         = default();
         let execution_contexts      = default();
         let parser                  = Parser::new_or_panic();
+        let project_manager         = Rc::new(project_manager);
 
-        let ret = Handle {project_name,module_registry,execution_contexts,parser,
+        let ret = Handle {project_metadata,project_manager,module_registry,execution_contexts,parser,
             language_server_rpc,language_server_bin,logger,visualization};
 
         let binary_handler = ret.binary_event_handler();
@@ -266,7 +274,7 @@ impl Handle {
 
     /// Generates full module's qualified name that includes the leading project name segment.
     pub fn qualified_module_name(&self, path:&model::module::Path) -> ModuleQualifiedName {
-        ModuleQualifiedName::from_path(path,self.project_name.deref())
+        ModuleQualifiedName::from_path(path,self.project_name().deref())
     }
 
     fn module_controller_with_model
@@ -303,6 +311,20 @@ impl Handle {
     /// `create_execution_context` method -- it is automatically done.
     pub fn register_execution_context(&self, execution_context:&Rc<ExecutionContext>) {
         self.execution_contexts.insert(execution_context.clone_ref());
+    }
+
+    /// Get project's name.
+    pub fn project_name(&self) -> ProjectName {
+        self.project_metadata.borrow().name.clone()
+    }
+
+    /// Rename project.
+    pub async fn rename_project(&self, name:impl Str) -> FallibleResult<()> {
+        let name                 = name.into();
+        let mut project_metadata = self.project_metadata.borrow_mut();
+        self.project_manager.rename_project(&project_metadata.id,&name).await?;
+        *project_metadata.name = ProjectName::new(name).to_string();
+        Ok(())
     }
 }
 
