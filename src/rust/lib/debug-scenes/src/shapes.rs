@@ -139,7 +139,7 @@ fn init(app:&Application) {
 
     area.add_cursor(0.bytes());
 //    area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
-    area.insert("open \"data.csv\"");
+    area.insert("open€ \"data.csv\"");
 
 
     area.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));

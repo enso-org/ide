@@ -119,7 +119,7 @@ pub mod cursor {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32) {
-            let out = Rect((2.px(),12.px())).corners_radius(1.px()).fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+            let out = Rect((2.px(),12.px())).corners_radius(1.px()).fill(color::Rgba::new(1.0,1.0,1.0,0.8));
             out.into()
         }
     }
@@ -309,11 +309,14 @@ impl Area {
                 let world_space  = model.scene.camera().inversed_view_projection_matrix() * clip_space;
                 let object_space = inv_object_matrix * world_space;
 
+//                let line_index =
                 let div_index = model.lines.rc.borrow()[0].div_index_close_to(object_space.x);
+
+                model.buffer.frp.input.set_cursor.emit(div_index.bytes());
 
 
                 println!("------");
-                println!("{:?}",div_index);
+                println!("{:?}",object_space.y);
 //                let m1       = model.scene.views.cursor.camera.inversed_view_matrix();
 //                let m1       = model.transform_matrix().try_inverse().unwrap();
 //                let m2       = model.scene.camera().inversed_view_projection_matrix();
@@ -324,6 +327,22 @@ impl Area {
 //                println!(">! ({},{}) ({},{})",p.x,p.y,position.x,position.y); // fixme w sliderach po kliknieciu tez trzbea znac pozycje lokal
 
             }));
+
+            eval model.buffer.frp.output.selection ([model](selections) {
+                let mut cursors = vec![];
+                for selection in selections {
+                    println!("{:?}",selection);
+                    let x_offset = model.lines.rc.borrow()[0].divs[selection.start.raw];
+                    let logger = Logger::sub(&model.logger,"cursor");
+                    let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&model.scene);
+                    cursor.shape.sprite.size.set(Vector2(4.0,20.0));
+                    cursor.set_position_y(-6.0);
+                    cursor.set_position_x(x_offset);
+                    model.add_child(&cursor);
+                    cursors.push(cursor);
+                }
+                *model.cursors.borrow_mut() = cursors;
+            });
 
         }
 
@@ -422,14 +441,15 @@ impl AreaData {
 
         divs.push(pen.advance_final());
 
-        for div in divs.iter() {
-            let logger = Logger::sub(&self.logger,"cursor");
-            let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&self.scene);
-            cursor.shape.sprite.size.set(Vector2(4.0,20.0));
-            cursor.set_position_x(*div);
-            self.add_child(&cursor);
-            self.cursors.borrow_mut().push(cursor);
-        }
+//        for div in divs.iter() {
+//            let logger = Logger::sub(&self.logger,"cursor");
+//            let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&self.scene);
+//            cursor.shape.sprite.size.set(Vector2(4.0,20.0));
+//            cursor.set_position_y(-6.0);
+//            cursor.set_position_x(*div);
+//            self.add_child(&cursor);
+//            self.cursors.borrow_mut().push(cursor);
+//        }
 
         line.set_divs(divs);
 
@@ -437,7 +457,7 @@ impl AreaData {
 
     fn new_line(&self, index:usize) -> Line {
         let line     = Line::new(&self.logger);
-        let y_offset = - (index as f32) * 14.0; // FIXME line height?
+        let y_offset = - ((index + 1) as f32) * 14.0 + 5.0; // FIXME line height?
         line.set_position_y(y_offset);
         self.add_child(&line);
         line

@@ -21,25 +21,25 @@ use enso_frp as frp;
 // FIXME: these are generic FRP utilities. To be refactored out after the API settles down.
 macro_rules! define_frp {
     (
-        Inputs  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
-        Outputs { $($out_field : ident : $out_field_type : ty),* $(,)? }
+        Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
+        Output { $($out_field : ident : $out_field_type : ty),* $(,)? }
     ) => {
         #[derive(Debug,Clone,CloneRef)]
         pub struct Frp {
             pub network : frp::Network,
-            pub inputs  : FrpInputs,
-            pub outputs : FrpOutputs,
+            pub input   : FrpInputs,
+            pub output  : FrpOutputs,
         }
 
         impl Frp {
-            pub fn new(network:frp::Network, inputs:FrpInputs, outputs:FrpOutputs) -> Self {
-                Self {network,inputs,outputs}
+            pub fn new(network:frp::Network, input:FrpInputs, output:FrpOutputs) -> Self {
+                Self {network,input,output}
             }
         }
 
         #[derive(Debug,Clone,CloneRef)]
         pub struct FrpInputs {
-            $($in_field : frp::Source<$in_field_type>),*
+            $(pub $in_field : frp::Source<$in_field_type>),*
         }
 
         impl FrpInputs {
@@ -58,8 +58,8 @@ macro_rules! define_frp {
 
         #[derive(Debug,Clone,CloneRef)]
         pub struct FrpOutputs {
-            source       : FrpOutputsSource,
-            $($out_field : frp::Stream<$out_field_type>),*
+            source : FrpOutputsSource,
+            $(pub $out_field : frp::Stream<$out_field_type>),*
         }
 
         impl FrpOutputsSource {
@@ -170,13 +170,14 @@ impl ViewBuffer {
 // ===========
 
 define_frp! {
-    Inputs {
+    Input {
         move_carets      : Option<Movement>,
         modify_selection : Option<Movement>,
+        set_cursor       : Bytes,
         clear_selection  : (),
     }
 
-    Outputs {
+    Output {
         selection : selection::Group,
     }
 }
@@ -190,8 +191,8 @@ define_frp! {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct View {
-    model : ViewModel,
-    frp   : Frp,
+    model   : ViewModel,
+    pub frp : Frp,
 }
 
 impl Deref for View {
@@ -206,22 +207,25 @@ impl View {
     pub fn new(view_buffer:impl Into<ViewBuffer>) -> Self {
         let network = frp::Network::new();
         let model   = ViewModel::new(&network,view_buffer);
-        let inputs  = model.frp.clone_ref();
-        let outputs = FrpOutputs::new(&network);
+        let input  = model.frp.clone_ref();
+        let output = FrpOutputs::new(&network);
 
         frp::extend! { network
 
-            selection_on_move  <- inputs.move_carets.map(f!((t) model.moved_selection2(t,false)));
-            selection_on_mod   <- inputs.modify_selection.map(f!((t) model.moved_selection2(t,true)));
-            selection_on_clear <- inputs.clear_selection.constant(default());
+            selection_on_move  <- input.move_carets.map(f!((t) model.moved_selection2(t,false)));
+            selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(t,true)));
+            selection_on_clear <- input.clear_selection.constant(default());
 
-            outputs.source.selection <+ selection_on_move;
-            outputs.source.selection <+ selection_on_mod;
-            outputs.source.selection <+ selection_on_clear;
+            selection_on_set_cursor <- input.set_cursor.map(|t| Selection::new_cursor(*t).into());
 
-            eval outputs.source.selection ((t) model.set_selection(t));
+            output.source.selection <+ selection_on_move;
+            output.source.selection <+ selection_on_mod;
+            output.source.selection <+ selection_on_clear;
+            output.source.selection <+ selection_on_set_cursor;
+
+            eval output.source.selection ((t) model.set_selection(t));
         }
-        let frp = Frp::new(network,inputs,outputs);
+        let frp = Frp::new(network,input,output);
         Self {frp,model}
     }
 }

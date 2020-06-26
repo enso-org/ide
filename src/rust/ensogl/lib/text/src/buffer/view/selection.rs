@@ -157,6 +157,13 @@ impl Group {
     }
 }
 
+impl From<Selection> for Group {
+    fn from(t:Selection) -> Self {
+        let sorted_regions = vec![t];
+        Self {sorted_regions}
+    }
+}
+
 impl<'t> IntoIterator for &'t Group {
     type Item     = &'t Selection;
     type IntoIter = slice::Iter<'t,Selection>;
