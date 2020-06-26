@@ -61,6 +61,19 @@ impl Pen {
         let offset        = self.offset;
         CharInfo {char:next_char,offset}
     }
+
+    /// Advance the pen to the last position (after all chars were consumed).
+    pub fn advance_final(&mut self) -> f32 {
+        if let Some((current_char,current_char_size)) = self.current_char {
+            let advance = self.font.get_glyph_info(current_char).advance;
+            let offset  = advance * current_char_size;
+            self.offset += offset;
+        }
+        self.current_char = None;
+        self.offset
+    }
+
+
 }
 
 

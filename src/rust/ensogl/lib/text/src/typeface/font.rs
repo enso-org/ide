@@ -206,7 +206,7 @@ impl Font {
         font_data_opt.map(|data| Self::from_raw_data(name.to_string(),data))
     }
 
-    /// Get render info for one character, generating one if not found
+    /// Get render info for one character, generating one if not found.
     pub fn get_glyph_info(&self, ch:char) -> GlyphRenderInfo {
         let handle = &self.msdf_font;
         self.glyphs.get_or_create(ch, move || GlyphRenderInfo::load(handle,ch,&self.atlas))

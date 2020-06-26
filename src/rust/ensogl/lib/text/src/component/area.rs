@@ -16,7 +16,7 @@ use ensogl::display;
 use crate::buffer::view::LineOffset;
 use ensogl::gui::component;
 use crate::typeface;
-use ensogl::gui::cursor;
+use ensogl::gui::cursor as mouse_cursor;
 use enso_frp as frp;
 
 
@@ -109,6 +109,62 @@ pub mod background {
 
 
 
+// ==============
+// === Cursor ===
+// ==============
+
+/// Canvas node shape definition.
+pub mod cursor {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (style:Style, selection:f32) {
+            let out = Rect((2.px(),12.px())).corners_radius(1.px()).fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+            out.into()
+        }
+    }
+}
+
+
+
+//// ====================
+//// === PrintedGlyph ===
+//// ====================
+//
+//#[derive(Debug)]
+//pub struct PrintedGlyph {
+//    glyph  : Glyph,
+//    offset : f32,
+//}
+//
+//impl Deref for PrintedGlyph {
+//    type Target = Glyph;
+//    fn deref(&self) -> &Self::Target {
+//        &self.glyph
+//    }
+//}
+//
+//impl PrintedGlyph {
+//    pub fn new(glyph:Glyph, offset:f32) -> Self {
+//        Self {glyph,offset}
+//    }
+//}
+//
+//impl From<Glyph> for PrintedGlyph {
+//    fn from(glyph:Glyph) -> Self {
+//        Self::new(glyph,default())
+//    }
+//}
+//
+//impl display::Object for PrintedGlyph {
+//    fn display_object(&self) -> &display::object::Instance {
+//        self.glyph.display_object()
+//    }
+//}
+
+
+
+
 // ============
 // === Line ===
 // ============
@@ -117,6 +173,8 @@ pub mod background {
 pub struct Line {
     display_object : display::object::Instance,
     glyphs         : Vec<Glyph>,
+    divs           : Vec<f32>,
+    centers        : Vec<f32>,
 }
 
 impl Line {
@@ -124,7 +182,21 @@ impl Line {
         let logger         = Logger::sub(logger,"line");
         let display_object = display::object::Instance::new(logger);
         let glyphs         = default();
-        Self {display_object,glyphs}
+        let divs           = default();
+        let centers        = default();
+        Self {display_object,glyphs,divs,centers}
+    }
+
+    /// Set the division points (offsets between letters). Also updates center points.
+    fn set_divs(&mut self, divs:Vec<f32>) {
+        let div_iter         = divs.iter();
+        let div_iter_skipped = divs.iter().skip(1);
+        self.centers         = div_iter.zip(div_iter_skipped).map(|(t,s)|(t+s)/2.0).collect();
+        self.divs = divs;
+    }
+
+    fn div_index_close_to(&self, offset:f32) -> usize {
+        self.centers.binary_search_by(|t|t.partial_cmp(&offset).unwrap()).unwrap_both()
     }
 
     fn resize_with(&mut self, size:usize, cons:impl Fn()->Glyph) {
@@ -180,7 +252,7 @@ define_frp! {
     }
 
     Outputs {
-        cursor_style : cursor::Style,
+        mouse_cursor_style : mouse_cursor::Style,
     }
 }
 
@@ -214,11 +286,44 @@ impl Area {
 
     fn init(self) -> Self {
         let network = &self.frp.network;
+        let mouse   = &self.scene.mouse.frp;
+        let model   = &self.data;
+
         frp::extend! { network
-            cursor_over <- self.background.events.mouse_over.constant(cursor::Style::new_text_cursor());
-            cursor_out  <- self.background.events.mouse_out.constant(cursor::Style::default());
-            cursor      <- any(cursor_over,cursor_out);
-            self.frp.output.setter.cursor_style <+ cursor;
+            cursor_over  <- self.background.events.mouse_over.constant(mouse_cursor::Style::new_text_cursor());
+            cursor_out   <- self.background.events.mouse_out.constant(mouse_cursor::Style::default());
+            mouse_cursor <- any(cursor_over,cursor_out);
+            self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
+
+            mouse_down_pos <- mouse.position.sample(&self.background.events.mouse_down);
+            _eval <- mouse_down_pos.map2(&model.scene.frp.shape, f!([model](screen_pos,shape) {
+
+                let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
+                let origin_clip_space  = model.scene.camera().view_projection_matrix() * origin_world_space;
+                let inv_object_matrix  = model.transform_matrix().try_inverse().unwrap();
+
+                let clip_space_z = origin_clip_space.z;
+                let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
+                let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
+                let clip_space   = Vector4(clip_space_x,clip_space_y,clip_space_z,origin_clip_space.w);
+                let world_space  = model.scene.camera().inversed_view_projection_matrix() * clip_space;
+                let object_space = inv_object_matrix * world_space;
+
+                let div_index = model.lines.rc.borrow()[0].div_index_close_to(object_space.x);
+
+
+                println!("------");
+                println!("{:?}",div_index);
+//                let m1       = model.scene.views.cursor.camera.inversed_view_matrix();
+//                let m1       = model.transform_matrix().try_inverse().unwrap();
+//                let m2       = model.scene.camera().inversed_view_projection_matrix();
+//                let
+//                let position = Vector4::new(p.x,p.y,-model.scene.camera().position().z,1.0);
+//                let position = m1 * (m2 * position);
+//
+//                println!(">! ({},{}) ({},{})",p.x,p.y,position.x,position.y); // fixme w sliderach po kliknieciu tez trzbea znac pozycje lokal
+
+            }));
 
         }
 
@@ -228,12 +333,14 @@ impl Area {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct AreaData {
+    scene          : Scene,
     logger         : Logger,
     frp            : FrpInputs,
     buffer         : buffer::View,
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
     lines          : Lines,
+    cursors        : Rc<RefCell<Vec<component::ShapeView<cursor::Shape>>>>,
     background     : component::ShapeView<background::Shape>,
 }
 
@@ -248,12 +355,14 @@ impl AreaData {
     /// Constructor.
     pub fn new
     (logger:impl AnyLogger, scene:&Scene, network:&frp::Network) -> Self {
+        let scene          = scene.clone_ref();
         let logger         = Logger::sub(logger,"text_area");
         let bg_logger      = Logger::sub(&logger,"background");
-        let background     = component::ShapeView::<background::Shape>::new(&bg_logger,scene);
+        let cursors        = default();
+        let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
         let fonts          = scene.extension::<typeface::font::Registry>();
         let font           = fonts.load("DejaVuSansMono");
-        let glyph_system   = typeface::glyph::System::new(scene,font);
+        let glyph_system   = typeface::glyph::System::new(&scene,font);
         let display_object = display::object::Instance::new(&logger);
         let glyph_system   = glyph_system.clone_ref();
         let buffer         = default();
@@ -262,7 +371,7 @@ impl AreaData {
         display_object.add_child(&background);
         background.shape.sprite.size.set(Vector2(150.0,100.0));
         background.mod_position(|p| p.x += 50.0);
-        Self {logger,frp,display_object,glyph_system,buffer,lines,background} . init()
+        Self {scene,logger,frp,display_object,glyph_system,buffer,lines,cursors,background} . init()
     }
 
     pub fn line_count(&self) -> usize {
@@ -283,14 +392,15 @@ impl AreaData {
         }
     }
 
-    fn redraw_line(&self, view_line_number:usize, content:String) { // content:Cow<str>
+    fn redraw_line(&self, view_line_number:usize, content:String) { // fixme content:Cow<str>
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
         let line_range     = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
         let mut line_style = self.buffer.focus_style(line_range.start .. line_range.end).iter();
 
-        let mut pen = pen::Pen::new(&self.glyph_system.font);
+        let mut pen  = pen::Pen::new(&self.glyph_system.font);
+        let mut divs = vec![];
         line.resize_with(content.len(),||self.glyph_system.new_glyph());
-        for (glyph,chr) in line.glyphs.iter().zip(content.chars()) {
+        for (glyph,chr) in line.glyphs.iter_mut().zip(content.chars()) {
             let style    = line_style.next().unwrap_or_default();
             let chr_size = style.size.raw;
             let info     = pen.advance(chr,chr_size);
@@ -304,12 +414,30 @@ impl AreaData {
             glyph.set_char(info.char);
             glyph.set_color(style.color);
             glyph.size.set(size);
+
+            divs.push(info.offset);
+
+
         }
+
+        divs.push(pen.advance_final());
+
+        for div in divs.iter() {
+            let logger = Logger::sub(&self.logger,"cursor");
+            let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&self.scene);
+            cursor.shape.sprite.size.set(Vector2(4.0,20.0));
+            cursor.set_position_x(*div);
+            self.add_child(&cursor);
+            self.cursors.borrow_mut().push(cursor);
+        }
+
+        line.set_divs(divs);
+
     }
 
     fn new_line(&self, index:usize) -> Line {
         let line     = Line::new(&self.logger);
-        let y_offset = - (index as f32) * 12.0; // FIXME line height?
+        let y_offset = - (index as f32) * 14.0; // FIXME line height?
         line.set_position_y(y_offset);
         self.add_child(&line);
         line
