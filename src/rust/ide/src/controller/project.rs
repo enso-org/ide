@@ -367,12 +367,19 @@ mod test {
             futures::stream::empty().boxed_local()
         });
 
+
         setup_mock_json(&mut json_client);
         setup_mock_binary(&mut binary_client);
-        let json_connection   = language_server::Connection::new_mock(json_client);
-        let binary_connection = binary::Connection::new_mock(binary_client);
-        let logger            = Logger::default();
-        controller::Project::new(logger,json_connection,binary_connection,DEFAULT_PROJECT_NAME)
+        let mock_project_controller = project_manager::MockClient::default();
+        let json_connection         = language_server::Connection::new_mock(json_client);
+        let binary_connection       = binary::Connection::new_mock(binary_client);
+        let logger                  = Logger::default();
+        let name                    = ProjectName::new(DEFAULT_PROJECT_NAME);
+        let id                      = uuid::Uuid::new_v4();
+        let last_opened             = default();
+        let project_metadata        = ProjectMetadata{name,id,last_opened};
+        controller::Project::new
+            (logger,mock_project_controller,json_connection,binary_connection,project_metadata)
     }
 
     #[wasm_bindgen_test]
