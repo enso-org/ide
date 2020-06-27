@@ -333,6 +333,7 @@ define_shape_data_operator!      { Div div (/)         where [A:RefInto<Glsl>, B
 define_shape_data_prim_operator! { Div div (/) for f32 where [A:RefInto<Glsl>] }
 define_shape_data_prim_operator! { Mul mul (*) for f32 where [A:RefInto<Glsl>] }
 define_shape_data_prim_operator! { Sub sub (-) for f32 where [A:RefInto<Glsl>] }
+define_shape_data_prim_operator! { Rem rem (%) for f32 where [A:RefInto<Glsl>] }
 
 impl<T> Neg for Var<T>
 where T : Neg + RefInto<Glsl> {
@@ -443,6 +444,22 @@ define_shape_data_string_operator! { Add add (+) }
 define_shape_data_string_operator! { Sub sub (-) }
 define_shape_data_string_operator! { Mul mul (*) }
 define_shape_data_string_operator! { Div div (/) }
+
+
+// =========================
+// === Utility Functions ===
+// =========================
+
+impl Var<f32> {
+    pub fn smoothstep(&self, e1:impl RefInto<Glsl>, e2:impl RefInto<Glsl>) -> Self {
+        let e1 = e1.glsl();
+        let e2 = e2.glsl();
+        match self {
+            Var::Static(t)  => Var::Dynamic(iformat!("smoothstep({e1},{e2},{t})").into()),
+            Var::Dynamic(t) => Var::Dynamic(iformat!("smoothstep({e1},{e2},{t})").into()),
+        }
+    }
+}
 
 
 

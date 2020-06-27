@@ -19,7 +19,7 @@ use ensogl::gui::component;
 use crate::typeface;
 use ensogl::gui::cursor as mouse_cursor;
 use enso_frp as frp;
-
+use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
 
 
 // ==================
@@ -114,55 +114,56 @@ pub mod background {
 // === Cursor ===
 // ==============
 
+const CURSOR_ALPHA             : f32 = 0.8;
+const BLINK_SLOPE_IN_DURATION  : f32 = 200.0;
+const BLINK_SLOPE_OUT_DURATION : f32 = 200.0;
+const BLINK_ON_DURATION        : f32 = 300.0;
+const BLINK_OFF_DURATION       : f32 = 300.0;
+const BLINK_PERIOD             : f32 =
+    BLINK_SLOPE_IN_DURATION + BLINK_SLOPE_OUT_DURATION + BLINK_ON_DURATION + BLINK_OFF_DURATION;
+
 /// Canvas node shape definition.
+///
+/// The blinking alpha is a time-dependent function which starts as a fully opaque value and
+/// changes periodically. The `start_time` parameter is set to the current time after each cursor
+/// operation, which makes cursor visible during typing and after position change.
+///
+/// ```compile_fail
+/// v-start time
+/// |
+/// |     on         off
+/// |  <------>   <------->
+/// |- --------.             .--------.             .-...
+/// |           \           /          \           /
+/// |            '---------'            '---------'
+/// |          <->         <->
+/// |       slope_out   slope_in
+/// ```
 pub mod cursor {
     use super::*;
-
     ensogl::define_shape_system! {
-        (style:Style, selection:f32) {
-            let out = Rect((2.px(),12.px())).corners_radius(1.px()).fill(color::Rgba::new(1.0,1.0,1.0,0.8));
-            out.into()
+        (style:Style, selection:f32, start_time:f32) {
+            let time : Var<f32>  = "input_time".into();
+            let one  : Var<f32>  = 1.0.into();
+            let time             = time - start_time;
+            let on_time          = BLINK_ON_DURATION + BLINK_SLOPE_OUT_DURATION;
+            let off_time         = on_time + BLINK_OFF_DURATION;
+            let sampler          = time % BLINK_PERIOD;
+            let slope_out        = sampler.smoothstep(BLINK_ON_DURATION,on_time);
+            let slope_in         = sampler.smoothstep(off_time,BLINK_PERIOD);
+            let alpha            = (one - slope_out + slope_in) * CURSOR_ALPHA;
+            let shape            = Rect((2.px(),LINE_HEIGHT.px())).corners_radius(1.px());
+            let shape            = shape.fill(format!("srgba(1.0,1.0,1.0,{})",alpha.glsl()));
+            shape.into()
         }
     }
 }
 
 
 
-//// ====================
-//// === PrintedGlyph ===
-//// ====================
-//
-//#[derive(Debug)]
-//pub struct PrintedGlyph {
-//    glyph  : Glyph,
-//    offset : f32,
-//}
-//
-//impl Deref for PrintedGlyph {
-//    type Target = Glyph;
-//    fn deref(&self) -> &Self::Target {
-//        &self.glyph
-//    }
-//}
-//
-//impl PrintedGlyph {
-//    pub fn new(glyph:Glyph, offset:f32) -> Self {
-//        Self {glyph,offset}
-//    }
-//}
-//
-//impl From<Glyph> for PrintedGlyph {
-//    fn from(glyph:Glyph) -> Self {
-//        Self::new(glyph,default())
-//    }
-//}
-//
-//impl display::Object for PrintedGlyph {
-//    fn display_object(&self) -> &display::object::Instance {
-//        self.glyph.display_object()
-//    }
-//}
-
+// ===========
+// === Div ===
+// ===========
 
 #[derive(Clone,Copy,Debug)]
 pub struct Div {
@@ -175,6 +176,7 @@ impl Div {
         Self {x_offset, byte_offset}
     }
 }
+
 
 
 // ============
@@ -232,7 +234,6 @@ impl Line {
 
     fn byte_size(&self) -> Bytes {
         self.byte_size
-//        self.divs.last().map(|t|t.byte_offset).unwrap_or_default()
     }
 }
 
@@ -269,14 +270,11 @@ impl Lines {
     }
 
     pub fn line_index_of_byte_offset(&self, tgt_offset:Bytes) -> usize {
-        println!("---------");
-        println!("tgt_offset: {:?}",tgt_offset);
         let lines = self.rc.borrow();
         let max_index  = lines.len() - 1;
         let mut index  = 0;
         let mut offset = 0.bytes();
         loop {
-            println!("[{:?}] {:?}",index,lines[index].byte_size());
             offset += lines[index].byte_size();
             if offset > tgt_offset || index == max_index { break }
             index += 1;
@@ -360,37 +358,28 @@ impl Area {
 
                 model.buffer.frp.input.set_cursor.emit(Location(buffer::Line(line_index),Column(div.byte_offset.raw)));
 
-
-//                println!("------");
-//                println!("{:?}",line_index as usize);
-//                let m1       = model.scene.views.cursor.camera.inversed_view_matrix();
-//                let m1       = model.transform_matrix().try_inverse().unwrap();
-//                let m2       = model.scene.camera().inversed_view_projection_matrix();
-//                let
-//                let position = Vector4::new(p.x,p.y,-model.scene.camera().position().z,1.0);
-//                let position = m1 * (m2 * position);
-//
-//                println!(">! ({},{}) ({},{})",p.x,p.y,position.x,position.y); // fixme w sliderach po kliknieciu tez trzbea znac pozycje lokal
-
             }));
 
-            eval model.buffer.frp.output.selection ([model](selections) {
-                let mut cursors = vec![];
-                for selection in selections {
-                    let line_index = model.lines.line_index_of_byte_offset(selection.start);
-                    let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
-                    let offset_in_line = selection.start - line_offset;
-                    let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
-                    let logger = Logger::sub(&model.logger,"cursor");
-                    let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&model.scene);
-                    cursor.shape.sprite.size.set(Vector2(4.0,20.0));
-                    cursor.set_position_y(-6.0 - LINE_HEIGHT * line_index as f32);
-                    cursor.set_position_x(div.x_offset);
-                    model.add_child(&cursor);
-                    cursors.push(cursor);
-                }
-                *model.cursors.borrow_mut() = cursors;
-            });
+
+            _eval <- model.buffer.frp.output.selection.map2
+                (&model.scene.frp.frame_time,f!([model](selections,time) {
+                    let mut cursors = vec![];
+                    for selection in selections {
+                        let line_index = model.lines.line_index_of_byte_offset(selection.start);
+                        let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
+                        let offset_in_line = selection.start - line_offset;
+                        let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
+                        let logger = Logger::sub(&model.logger,"cursor");
+                        let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&model.scene);
+                        cursor.shape.sprite.size.set(Vector2(4.0,20.0));
+                        cursor.set_position_y(-LINE_HEIGHT/2.0 - LINE_HEIGHT * line_index as f32);
+                        cursor.set_position_x(div.x_offset);
+                        cursor.shape.start_time.set(*time);
+                        model.add_child(&cursor);
+                        cursors.push(cursor);
+                    }
+                    *model.cursors.borrow_mut() = cursors;
+            }));
 
         }
 
@@ -493,17 +482,6 @@ impl AreaData {
         }
 
         divs.push(Div::new(pen.advance_final(),byte_offset));
-
-//        for div in divs.iter() {
-//            let logger = Logger::sub(&self.logger,"cursor");
-//            let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&self.scene);
-//            cursor.shape.sprite.size.set(Vector2(4.0,20.0));
-//            cursor.set_position_y(-6.0);
-//            cursor.set_position_x(*div);
-//            self.add_child(&cursor);
-//            self.cursors.borrow_mut().push(cursor);
-//        }
-
         line.set_divs(divs);
 
     }
