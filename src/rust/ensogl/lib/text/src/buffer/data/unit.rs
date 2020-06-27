@@ -29,6 +29,12 @@ macro_rules! num_newtype {
         impl From<&$name> for $field_type { fn from(t:&$name) -> Self { t.$field } }
         )*
 
+        impl AddAssign<$name> for $name {
+            fn add_assign(&mut self, rhs:Self) {
+                *self = Self { $($field:self.$field.add(rhs.$field)),* }
+            }
+        }
+
         num_newtype_opr! {Sub           sub            $name {$($field:$field_type),*}}
         num_newtype_opr! {Add           add            $name {$($field:$field_type),*}}
         num_newtype_opr! {SaturatingAdd saturating_add $name {$($field:$field_type),*}}
@@ -45,11 +51,26 @@ macro_rules! num_newtype_opr {
             }
         }
 
+        impl $opr<&$name> for &$name {
+            type Output = $name;
+            fn $f(self, rhs:&$name) -> Self::Output {
+                $(let $field = self.$field.$f(rhs.$field);)*
+                $name { $($field),* }
+            }
+        }
+
         $(
             impl $opr<$field_type> for $name {
                 type Output = $name;
                 fn $f(self, rhs:$field_type) -> Self::Output {
                     $name { $field:self.$field.$f(rhs), ..self }
+                }
+            }
+
+            impl $opr<$field_type> for &$name {
+                type Output = $name;
+                fn $f(self, rhs:$field_type) -> Self::Output {
+                    $name { $field:self.$field.$f(rhs), ..*self }
                 }
             }
         )*

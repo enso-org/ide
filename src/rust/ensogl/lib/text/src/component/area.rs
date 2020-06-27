@@ -5,6 +5,7 @@ use crate::typeface::glyph;
 use crate::typeface::pen;
 use crate::typeface::glyph::Glyph;
 use crate::buffer;
+use crate::buffer::data::unit::*;
 
 use ensogl::display::Buffer;
 use ensogl::display::Attribute;
@@ -163,6 +164,17 @@ pub mod cursor {
 //}
 
 
+#[derive(Clone,Copy,Debug)]
+pub struct Div {
+    x_offset    : f32,
+    byte_offset : Bytes,
+}
+
+impl Div {
+    pub fn new(x_offset:f32, byte_offset:Bytes) -> Self {
+        Self {x_offset, byte_offset}
+    }
+}
 
 
 // ============
@@ -173,7 +185,7 @@ pub mod cursor {
 pub struct Line {
     display_object : display::object::Instance,
     glyphs         : Vec<Glyph>,
-    divs           : Vec<f32>,
+    divs           : Vec<Div>,
     centers        : Vec<f32>,
 }
 
@@ -188,15 +200,23 @@ impl Line {
     }
 
     /// Set the division points (offsets between letters). Also updates center points.
-    fn set_divs(&mut self, divs:Vec<f32>) {
+    fn set_divs(&mut self, divs:Vec<Div>) {
         let div_iter         = divs.iter();
         let div_iter_skipped = divs.iter().skip(1);
-        self.centers         = div_iter.zip(div_iter_skipped).map(|(t,s)|(t+s)/2.0).collect();
+        self.centers         = div_iter.zip(div_iter_skipped).map(|(t,s)|(t.x_offset+s.x_offset)/2.0).collect();
         self.divs = divs;
     }
 
     fn div_index_close_to(&self, offset:f32) -> usize {
         self.centers.binary_search_by(|t|t.partial_cmp(&offset).unwrap()).unwrap_both()
+    }
+
+    fn div_index_by_byte_offset(&self, offset:Bytes) -> usize {
+        self.divs.binary_search_by(|t|t.byte_offset.partial_cmp(&offset).unwrap()).unwrap_both()
+    }
+
+    fn div_by_byte_offset(&self, offset:Bytes) -> Div {
+        self.divs[self.div_index_by_byte_offset(offset)]
     }
 
     fn resize_with(&mut self, size:usize, cons:impl Fn()->Glyph) {
@@ -311,8 +331,9 @@ impl Area {
 
 //                let line_index =
                 let div_index = model.lines.rc.borrow()[0].div_index_close_to(object_space.x);
+                let div       = model.lines.rc.borrow()[0].divs[div_index];
 
-                model.buffer.frp.input.set_cursor.emit(div_index.bytes());
+                model.buffer.frp.input.set_cursor.emit(div.byte_offset);
 
 
                 println!("------");
@@ -332,12 +353,12 @@ impl Area {
                 let mut cursors = vec![];
                 for selection in selections {
                     println!("{:?}",selection);
-                    let x_offset = model.lines.rc.borrow()[0].divs[selection.start.raw];
+                    let div = model.lines.rc.borrow()[0].div_by_byte_offset(selection.start);
                     let logger = Logger::sub(&model.logger,"cursor");
                     let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&model.scene);
                     cursor.shape.sprite.size.set(Vector2(4.0,20.0));
                     cursor.set_position_y(-6.0);
-                    cursor.set_position_x(x_offset);
+                    cursor.set_position_x(div.x_offset);
                     model.add_child(&cursor);
                     cursors.push(cursor);
                 }
@@ -416,14 +437,16 @@ impl AreaData {
         let line_range     = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
         let mut line_style = self.buffer.focus_style(line_range.start .. line_range.end).iter();
 
-        let mut pen  = pen::Pen::new(&self.glyph_system.font);
-        let mut divs = vec![];
+        let mut pen         = pen::Pen::new(&self.glyph_system.font);
+        let mut divs        = vec![];
+        let mut byte_offset = 0.bytes();
         line.resize_with(content.len(),||self.glyph_system.new_glyph());
         for (glyph,chr) in line.glyphs.iter_mut().zip(content.chars()) {
-            let style    = line_style.next().unwrap_or_default();
-            let chr_size = style.size.raw;
-            let info     = pen.advance(chr,chr_size);
-            line_style.drop((info.char.len_utf8() - 1).bytes());
+            let style     = line_style.next().unwrap_or_default();
+            let chr_size  = style.size.raw;
+            let info      = pen.advance(chr,chr_size);
+            let chr_bytes = info.char.len_utf8().bytes();
+            line_style.drop(chr_bytes - 1.bytes());
             let glyph_info   = self.glyph_system.font.get_glyph_info(info.char);
             let size         = glyph_info.scale.scale(chr_size);
             let glyph_offset = glyph_info.offset.scale(chr_size);
@@ -434,12 +457,13 @@ impl AreaData {
             glyph.set_color(style.color);
             glyph.size.set(size);
 
-            divs.push(info.offset);
 
+            divs.push(Div::new(info.offset,byte_offset));
+            byte_offset += chr_bytes;
 
         }
 
-        divs.push(pen.advance_final());
+        divs.push(Div::new(pen.advance_final(),byte_offset));
 
 //        for div in divs.iter() {
 //            let logger = Logger::sub(&self.logger,"cursor");
