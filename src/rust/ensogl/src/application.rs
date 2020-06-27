@@ -40,8 +40,9 @@ impl Application {
     pub fn new(dom:&web_sys::HtmlElement) -> Self {
         let logger    = Logger::new("Application");
         let display   = World::new(dom);
+        let scene     = display.scene();
         let commands  = command::Registry::create(&logger);
-        let shortcuts = shortcut::Registry::new(&logger, &commands);
+        let shortcuts = shortcut::Registry::new(&logger,&scene.mouse.frp,&commands);
         let views     = view::Registry::create(&logger,&display,&commands,&shortcuts);
         let themes    = theme::Manager::from(&display.scene().style_sheet);
         let cursor    = Cursor::new(display.scene());

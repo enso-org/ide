@@ -22,11 +22,11 @@ pub use keyboard_types::Key;
 // === KeyMask ===
 // ===============
 
-// FIXME: The follwoing implementation uses `key.legacy_keycode` which reports key codes for a very
+// FIXME: The following implementation uses `key.legacy_keycode` which reports key codes for a very
 //        small amount of keys. We need a better mechanism here.
 
 /// The key bitmask (each bit represents one key). Used for matching key combinations.
-#[derive(Clone,Copy,Debug,Default,Eq,Hash,PartialEq,Shrinkwrap)]
+#[derive(Clone,Debug,Default,Eq,Hash,PartialEq,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct KeyMask(pub BitField256);
 
@@ -76,6 +76,7 @@ impl<'a> FromIterator<&'a Key> for KeyMask {
 }
 
 impl From<&[Key]>   for KeyMask { fn from(keys:&[Key])   -> Self { KeyMask::from_iter(keys) } }
+impl From<&[Key;0]> for KeyMask { fn from(keys:&[Key;0]) -> Self { KeyMask::from_iter(keys) } }
 impl From<&[Key;1]> for KeyMask { fn from(keys:&[Key;1]) -> Self { KeyMask::from_iter(keys) } }
 impl From<&[Key;2]> for KeyMask { fn from(keys:&[Key;2]) -> Self { KeyMask::from_iter(keys) } }
 impl From<&[Key;3]> for KeyMask { fn from(keys:&[Key;3]) -> Self { KeyMask::from_iter(keys) } }
@@ -115,7 +116,7 @@ impl KeyMaskChange {
 
     /// Returns copy of given KeyMask with applied change
     fn updated_mask(&self, mask:&KeyMask) -> KeyMask {
-        let mut mask = *mask;
+        let mut mask = mask.clone();
         match self {
             Self::Set   (ref key) => mask.set(key,true),
             Self::Unset (ref key) => mask.set(key,false),

@@ -7,6 +7,8 @@ use crate::prelude::*;
 // === MouseButton ===
 // ===================
 
+// FIXME: use the frp version.
+
 /// An enumeration representing the mouse buttons. Please note that we do not name the buttons
 /// left, right, and middle, as this assumes we use a mouse for right-hand people.
 ///
