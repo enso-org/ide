@@ -7,6 +7,8 @@ use crate::typeface::glyph::Glyph;
 use crate::buffer;
 use crate::buffer::data::unit::*;
 
+use ensogl::application;
+
 use ensogl::display::Buffer;
 use ensogl::display::Attribute;
 use ensogl::display::Sprite;
@@ -20,6 +22,8 @@ use crate::typeface;
 use ensogl::gui::cursor as mouse_cursor;
 use enso_frp as frp;
 use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
+use enso_frp::Network;
+use ensogl::application::Application;
 
 
 // ==================
@@ -30,8 +34,9 @@ use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
 // FIXME: the same are defined in text/view
 macro_rules! define_frp {
     (
-        Inputs  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
-        Outputs { $($out_field : ident : $out_field_type : ty),* $(,)? }
+        $(Commands {$commands_name : ident})?
+        Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
+        Output { $($out_field : ident : $out_field_type : ty),* $(,)? }
     ) => {
         #[derive(Debug,Clone,CloneRef)]
         pub struct Frp {
@@ -48,15 +53,17 @@ macro_rules! define_frp {
 
         #[derive(Debug,Clone,CloneRef)]
         pub struct FrpInputs {
+            $(pub commands : $commands_name,)?
             $(pub $in_field : frp::Source<$in_field_type>),*
         }
 
         impl FrpInputs {
             pub fn new(network:&frp::Network) -> Self {
+                $(let $commands_name = $commands_name::new(network);)?
                 frp::extend! { network
                     $($in_field <- source();)*
                 }
-                Self { $($in_field),* }
+                Self { $(commands:$commands_name,)? $($in_field),* }
             }
         }
 
@@ -288,11 +295,28 @@ impl Lines {
 // === FRP ===
 // ===========
 
-define_frp! {
-    Inputs {
+ensogl::def_command_api! { Commands
+    /// Add a new node and place it in the origin of the workspace.
+    add_node,
+}
+
+impl application::command::CommandApi for Area {
+    fn command_api_docs() -> Vec<application::command::EndpointDocs> {
+        Commands::command_api_docs()
     }
 
-    Outputs {
+    fn command_api(&self) -> Vec<application::command::CommandEndpoint> {
+        self.frp.input.commands.command_api()
+    }
+}
+
+define_frp! {
+    Commands { Commands }
+
+    Input {
+    }
+
+    Output {
         mouse_cursor_style : mouse_cursor::Style,
     }
 }
@@ -318,9 +342,9 @@ impl Deref for Area {
 }
 
 impl Area {
-    pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
+    pub fn new(scene:&Scene) -> Self {
         let network = frp::Network::new();
-        let data    = AreaData::new(logger,scene,&network);
+        let data    = AreaData::new(scene,&network);
         let output  = FrpOutputs::new(&network);
         let frp     = Frp::new(network,data.frp.clone_ref(),output);
         Self {data,frp} . init()
@@ -410,9 +434,9 @@ impl Deref for AreaData {
 impl AreaData {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, scene:&Scene, network:&frp::Network) -> Self {
+    (scene:&Scene, network:&frp::Network) -> Self {
         let scene          = scene.clone_ref();
-        let logger         = Logger::sub(logger,"text_area");
+        let logger         = Logger::new("text_area");
         let bg_logger      = Logger::sub(&logger,"background");
         let cursors        = default();
         let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
@@ -562,3 +586,21 @@ impl display::Object for Area {
 //
 // === Display Object ===
 
+
+impl application::command::FrpNetworkProvider for Area {
+    fn network(&self) -> &Network {
+        &self.frp.network
+    }
+}
+
+impl application::command::Provider for Area {
+    fn label() -> &'static str {
+        "TextArea"
+    }
+}
+
+impl application::View for Area {
+    fn new(app:&Application) -> Self {
+        Area::new(&app.display.scene())
+    }
+}

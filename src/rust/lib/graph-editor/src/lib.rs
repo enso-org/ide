@@ -362,53 +362,6 @@ ensogl::def_command_api! { Commands
     cancel,
 }
 
-impl Commands {
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! { network
-            add_node                              <- source();
-            add_node_at_cursor                    <- source();
-            remove_selected_nodes                 <- source();
-            remove_all_nodes                      <- source();
-            toggle_visualization_visibility       <- source();
-            press_visualization_visibility        <- source();
-            double_press_visualization_visibility <- source();
-            release_visualization_visibility      <- source();
-
-            enable_node_multi_select              <- source();
-            disable_node_multi_select             <- source();
-            toggle_node_multi_select              <- source();
-
-            enable_node_merge_select              <- source();
-            disable_node_merge_select             <- source();
-            toggle_node_merge_select              <- source();
-
-            enable_node_subtract_select           <- source();
-            disable_node_subtract_select          <- source();
-            toggle_node_subtract_select           <- source();
-
-            enable_node_inverse_select            <- source();
-            disable_node_inverse_select           <- source();
-            toggle_node_inverse_select            <- source();
-
-            set_test_visualization_data_for_selected_node <- source();
-            cycle_visualization_for_selected_node         <- source();
-
-            toggle_fullscreen_for_selected_visualization <- source();
-
-            cancel <- source();
-        }
-        Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
-             ,toggle_visualization_visibility,press_visualization_visibility
-             ,double_press_visualization_visibility,release_visualization_visibility
-             ,enable_node_multi_select,disable_node_multi_select,toggle_node_multi_select
-             ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
-             ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
-             ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
-             ,set_test_visualization_data_for_selected_node,cycle_visualization_for_selected_node
-             ,toggle_fullscreen_for_selected_visualization,cancel}
-    }
-}
-
 
 
 // =================
@@ -437,7 +390,7 @@ pub struct FrpInputs {
     pub set_node_position            : frp::Source<(NodeId,Vector2)>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
-    pub register_visualization : frp::Source<Option<visualization::Definition>>,
+    pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
@@ -448,30 +401,30 @@ pub struct FrpInputs {
 impl FrpInputs {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def set_detached_edge_targets    = source();
-            def set_edge_source              = source();
-            def set_edge_target              = source();
-            def unset_edge_source            = source();
-            def unset_edge_target            = source();
-            def connect_nodes                = source();
-            def deselect_all_nodes           = source();
-            def press_node_input             = source();
-            def remove_all_node_edges        = source();
-            def remove_all_node_input_edges  = source();
-            def remove_all_node_output_edges = source();
-            def remove_edge                  = source();
-            def select_node                  = source();
-            def remove_node                  = source();
-            def set_node_expression          = source();
-            def set_node_position            = source();
-            def set_visualization_data       = source();
-            def cycle_visualization          = source();
-            def set_visualization            = source();
-            def register_visualization = source();
+            set_detached_edge_targets    <- source();
+            set_edge_source              <- source();
+            set_edge_target              <- source();
+            unset_edge_source            <- source();
+            unset_edge_target            <- source();
+            connect_nodes                <- source();
+            deselect_all_nodes           <- source();
+            press_node_input             <- source();
+            remove_all_node_edges        <- source();
+            remove_all_node_input_edges  <- source();
+            remove_all_node_output_edges <- source();
+            remove_edge                  <- source();
+            select_node                  <- source();
+            remove_node                  <- source();
+            set_node_expression          <- source();
+            set_node_position            <- source();
+            set_visualization_data       <- source();
+            cycle_visualization          <- source();
+            set_visualization            <- source();
+            register_visualization       <- source();
 
-            def hover_node_input           = source();
-            def some_edge_targets_detached = source();
-            def all_edge_targets_attached  = source();
+            hover_node_input             <- source();
+            some_edge_targets_detached   <- source();
+            all_edge_targets_attached    <- source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges

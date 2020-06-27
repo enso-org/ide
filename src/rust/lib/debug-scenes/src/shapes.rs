@@ -80,6 +80,7 @@ fn init(app:&Application) {
 
     app.views.register::<GraphEditor>();
     let graph_editor = app.new_view::<GraphEditor>();
+    let text_area = app.new_view::<text::Area>();
     world.add_child(&graph_editor);
 
 
@@ -105,65 +106,36 @@ fn init(app:&Application) {
 //
 //    }
 
-//    trigger.emit(());
+
+    world.add_child(&text_area);
+
+    text_area.add_cursor(0.bytes());
+//    text_area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
+    text_area.insert("open€ \"data.csv\"\nline2\nline3");
 
 
-//    let fonts         = text::typeface::font::Registry::init_and_load_default();
-//    let font          = fonts.load("DejaVuSansMono");
-//    let glyph_system  = text::typeface::glyph::System::new(scene,font);
-//    let symbol        = &glyph_system.sprite_system().symbol;
-//    scene.views.main.remove(symbol);
-//    scene.views.label.add(symbol);
+    text_area.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
+    text_area.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
+    text_area.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
+    text_area.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
 
-//    let buffer = text::Buffer::from("Test text €!!!\nline2\nline3\nline4");
-//    let buffer_view = buffer.new_view();
-//
-////    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
-//
-//
-////    buffer.set((..),color::Rgba::new(0.8,0.8,0.8,1.0));
-//    buffer.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
-//    buffer.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
-//    buffer.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
-//    buffer.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
-//
-//    buffer.set_default(color::Rgba::new(0.8,0.8,0.8,1.0));
-//    buffer.set_default(text::Size(10.0));
-//    buffer.set((0..4).bytes(),text::Size(20.0));
+    text_area.set_default(color::Rgba::new(1.0,1.0,1.0,0.7));
+    text_area.set_default(text::Size(12.0));
+    text_area.set_position_x(10.0);
+//    text_area.set((0..4).bytes(),text::Size(20.0));
 
+    text_area.insert("!!!!");
+    text_area.undo();
 
-
-
-    let area = text::Area::new(Logger::new("test"),scene);
-    world.add_child(&area);
-
-    area.add_cursor(0.bytes());
-//    area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
-    area.insert("open€ \"data.csv\"\nline2\nline3");
-
-
-    area.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
-    area.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
-    area.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
-    area.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
-
-    area.set_default(color::Rgba::new(1.0,1.0,1.0,0.7));
-    area.set_default(text::Size(12.0));
-    area.set_position_x(10.0);
-//    area.set((0..4).bytes(),text::Size(20.0));
-
-    area.insert("!!!!");
-    area.undo();
-
-    area.redraw();
+    text_area.redraw();
 
     let cursor = &app.cursor;
 
     frp::new_network! { network
-        eval area.frp.output.mouse_cursor_style ((s) cursor.frp.input.set_style.emit(s));
+        eval text_area.frp.output.mouse_cursor_style ((s) cursor.frp.input.set_style.emit(s));
     }
 
-//    area.tmp_replace_all_text("Test text €!!!\nline2\nline3\nline4");
+//    text_area.tmp_replace_all_text("Test text €!!!\nline2\nline3\nline4");
 
 //    println!("!!! {}", buffer.text.rope.subseq(0..t10));
 //    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(0)));
@@ -220,7 +192,7 @@ fn init(app:&Application) {
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
         let _keep_alive = &graph_editor;
-        let _keep_alive = &area;
+        let _keep_alive = &text_area;
         let _keep_alive = &network;
 
         // Temporary code removing the web-loader instance.

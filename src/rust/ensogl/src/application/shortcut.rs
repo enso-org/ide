@@ -90,7 +90,7 @@ impl Registry {
             let prev_key = model.keyboard.previous_key_mask.clone_ref();
             the_same_key       <- prev_key.map2(&key_mask,|t,s| t == s);
             release            <- prev_key.gate_not(&the_same_key);
-            eval release      ((m) model.process_action(ActionType::Release,m));
+            eval release ((m) model.process_action(ActionType::Release,m));
         }
         Self {model,network}
     }
