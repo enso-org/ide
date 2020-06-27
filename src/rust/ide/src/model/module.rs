@@ -16,7 +16,7 @@ use parser::api::ParsedSourceFile;
 use parser::Parser;
 use serde::Serialize;
 use serde::Deserialize;
-
+use enso_protocol::language_server::MethodPointer;
 
 
 // ============
@@ -138,6 +138,12 @@ impl Path {
     }
 }
 
+impl PartialEq<FilePath> for Path {
+    fn eq(&self, other:&FilePath) -> bool {
+        self.file_path.eq(other)
+    }
+}
+
 impl TryFrom<FilePath> for Path {
     type Error = InvalidModulePath;
 
@@ -149,6 +155,14 @@ impl TryFrom<FilePath> for Path {
 impl Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.file_path, f)
+    }
+}
+
+impl TryFrom<MethodPointer> for Path {
+    type Error = InvalidModulePath;
+
+    fn try_from(value:MethodPointer) -> Result<Self, Self::Error> {
+        value.file.try_into()
     }
 }
 

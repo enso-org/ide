@@ -5,11 +5,28 @@
 //! visualisations, retrieving types on ports, etc.
 use crate::prelude::*;
 
-use crate::model::execution_context::ComputedValueInfoRegistry;
+use crate::model::execution_context::{ComputedValueInfoRegistry, DefinitionId};
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::synchronized::ExecutionContext;
+use enso_protocol::language_server::{LocalCall, MethodPointer};
+
+use crate::controller::graph;
+
+use flo_stream::MessagePublisher;
+
+/////////////////////
+
+#[allow(missing_docs)]
+#[fail(display = "The node {} has not been evaluated yet.", _0)]
+#[derive(Debug,Fail,Clone,Copy)]
+pub struct NotEvaluatedYet(double_representation::node::Id);
+
+#[allow(missing_docs)]
+#[fail(display = "The node {} does not resolve to a method call.", _0)]
+#[derive(Debug,Fail,Clone,Copy)]
+pub struct NoResolvedMethod(double_representation::node::Id);
 
 
 
@@ -27,6 +44,10 @@ pub enum Notification {
     /// The notification from the execution context about the computed value information
     /// being updated.
     ComputedValueInfo(crate::model::execution_context::ComputedValueExpressions),
+    /// Notification emitted when the node has been entered.
+    EnteredNode(double_representation::node::Id),
+    /// Notification emitted when the node was step out.
+    SteppedOutOfNode(double_representation::node::Id),
 }
 
 
@@ -37,10 +58,18 @@ pub enum Notification {
 /// Handle providing executed graph controller interface.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
+    #[allow(missing_docs)]
+    pub logger:Logger,
     /// A handle to basic graph operations.
-    pub graph:controller::Graph,
+    graph:Rc<RefCell<controller::Graph>>,
     /// Execution Context handle, its call stack top contains `graph`'s definition.
     execution_ctx:Rc<ExecutionContext>,
+    /// The handle to project controller is necessary, as entering nodes might need to switch
+    /// modules, and only the project can provide their controllers.
+    project:controller::Project,
+    /// The publisher allowing sending notification to subscribed entities. Note that its outputs is
+    /// merged with publishers from the stored graph and execution controllers.
+    notifier:Rc<RefCell<crate::notification::Publisher<Notification>>>,
 }
 
 impl Handle {
@@ -55,8 +84,12 @@ impl Handle {
     /// strong references to the execution context and it is expected that it will be dropped after
     /// the last copy of this controller is dropped.
     /// Then the context when being dropped shall remove itself from the Language Server.
-    pub fn new(graph:controller::Graph, execution_ctx:Rc<ExecutionContext>) -> Self {
-        Handle{graph,execution_ctx}
+    pub fn new(graph:controller::Graph, project:&controller::Project, execution_ctx:Rc<ExecutionContext>) -> Self {
+        let logger   = Logger::sub(&graph.logger,"Executed");
+        let graph    = Rc::new(RefCell::new(graph));
+        let project  = project.clone_ref();
+        let notifier = default();
+        Handle {logger,graph,execution_ctx,project,notifier}
     }
 
     /// See `attach_visualization` in `ExecutionContext`.
@@ -82,19 +115,85 @@ impl Handle {
     /// context.
     pub fn subscribe(&self) -> impl Stream<Item=Notification> {
         let registry     = self.execution_ctx.computed_value_info_registry();
-        let value_stream = registry.subscribe().map(Notification::ComputedValueInfo);
-        let graph_stream = self.graph.subscribe().map(Notification::Graph);
-        futures::stream::select(value_stream,graph_stream)
+        let value_stream = registry.subscribe().map(Notification::ComputedValueInfo).boxed_local();
+        let graph_stream = self.graph().subscribe().map(Notification::Graph).boxed_local();
+        let self_stream = self.notifier.borrow_mut().subscribe().boxed_local();
+        futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
+    }
+
+    pub async fn graph_for_method(&self, method:&MethodPointer) -> FallibleResult<controller::Graph> {
+        let module_path = model::module::Path::from_file_path(method.file.clone())?;
+        let module      = self.project.module_controller(module_path).await?;
+        debug!(self.logger,"Looking up method definition {method:?} in the module.");
+        let module_ast = module.model.model.ast();
+        let definition = double_representation::definition::lookup_method(&module_ast,method)?;
+        module.graph_controller(definition)
+    }
+
+    pub async fn enter_node(&self, node:double_representation::node::Id) -> FallibleResult<()> {
+        debug!(self.logger, "Entering node {node}");
+        let node_info  = self.execution_ctx.computed_value_info_registry().get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
+        let method_ptr = node_info.method_call.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
+        //
+        // let module_path = model::module::Path::from_file_path(method_ptr.file.clone())?;
+        // let module = self.project.module_controller(module_path).await?;
+        //
+        // let definition = double_representation::definition::lookup_method(&module.model.model.ast(),method_ptr)?;
+        //
+        //
+
+        let graph = self.graph_for_method(method_ptr).await?;
+
+        let call = model::execution_context::LocalCall {
+            call : node,
+            definition : method_ptr.clone()
+        };
+        self.execution_ctx.push(call).await?;
+
+        // if method_ptr.defined_on_type == module.path.module_name() {
+        //     definition.crumbs[0].extended_target.clear();
+        // }
+
+        debug!(self.logger,"Replacing graph with {graph:?}.");
+        self.graph.replace(graph);
+        debug!(self.logger,"Sending graph invalidation signal.");
+        self.notifier.borrow_mut().publish(Notification::EnteredNode(node)).await;
+
+        Ok(())
+    }
+
+
+    pub async fn step_out_of_node(&self) -> FallibleResult<()> {
+        let frame = self.execution_ctx.pop().await?;
+        let method = self.execution_ctx.current_method();
+        let graph = self.graph_for_method(&method).await?;
+        self.graph.replace(graph);
+        self.notifier.borrow_mut().publish(Notification::SteppedOutOfNode(frame.call)).await;
+        Ok(())
+    }
+
+    ////
+
+    pub fn graph(&self) -> controller::Graph {
+        self.graph.borrow().clone_ref()
+    }
+
+    pub fn nodes(&self) -> FallibleResult<Vec<graph::Node>> {
+        self.graph.borrow().nodes()
+    }
+
+    pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult<()> {
+        self.graph.borrow().set_expression(id,expression_text)
     }
 }
 
-impl Deref for Handle {
-    type Target = controller::Graph;
-
-    fn deref(&self) -> &Self::Target {
-        &self.graph
-    }
-}
+// impl Deref for Handle {
+//     type Target = controller::Graph;
+//
+//     fn deref(&self) -> &Self::Target {
+//         &self.graph
+//     }
+// }
 
 
 
@@ -127,7 +226,7 @@ mod tests {
         let connection     = language_server::Connection::new_mock_rc(ls);
         let (_,graph)      = graph_data.create_controllers_with_ls(connection.clone_ref());
         let execution      = Rc::new(execution(connection.clone_ref()));
-        let executed_graph = Handle::new(graph,execution.clone_ref());
+        let executed_graph = Handle::new(graph,todo!(),execution.clone_ref());
 
         // Generate notification.
         let notification = execution_data.mock_values_computed_update();

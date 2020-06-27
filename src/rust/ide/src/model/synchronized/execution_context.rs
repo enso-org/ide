@@ -11,7 +11,7 @@ use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
 use json_rpc::error::RpcError;
-
+use enso_protocol::language_server::MethodPointer;
 
 
 // ==========================
@@ -24,7 +24,6 @@ use json_rpc::error::RpcError;
 pub struct ExecutionContext {
     id              : model::execution_context::Id,
     model           : model::ExecutionContext,
-    module_path     : Rc<model::module::Path>,
     language_server : Rc<language_server::Connection>,
     logger          : Logger,
 }
@@ -43,8 +42,7 @@ impl ExecutionContext {
     pub fn create
 	( parent          : impl AnyLogger
     , language_server : Rc<language_server::Connection>
-    , module_path     : Rc<model::module::Path>
-    , root_definition : DefinitionName
+    , root_definition : MethodPointer
     ) -> impl Future<Output=FallibleResult<Self>> {
         let logger = Logger::sub(&parent,"ExecutionContext");
         async move {
@@ -52,20 +50,26 @@ impl ExecutionContext {
             let id     = language_server.client.create_execution_context().await?.context_id;
             let logger = Logger::sub(&parent,iformat!{"ExecutionContext {id}"});
             let model  = model::ExecutionContext::new(&logger,root_definition);
-            info!(logger, "Created. Id:{id}");
-            let this = Self { id, module_path, model, language_server, logger };
+            info!(logger, "Created. Id: {id}.");
+            let this = Self {id,model,language_server,logger };
             this.push_root_frame().await?;
-            info!(this.logger, "Pushed root frame");
+            info!(this.logger, "Pushed root frame,");
             Ok(this)
         }
     }
 
+    pub fn current_method(&self) -> MethodPointer {
+        self.model.current_method()
+    }
+
     fn push_root_frame(&self) -> impl Future<Output=FallibleResult<()>> {
-        let method_pointer = language_server::MethodPointer {
-            file            : self.module_path.file_path().clone(),
-            defined_on_type : self.module_path.module_name().to_string(),
-            name            : self.model.entry_point.name.item.clone(),
-        };
+        // let method_pointer = language_server::MethodPointer {
+        //     file            : self.module_path.file_path().clone(),
+        //     defined_on_type : self.module_path.module_name().to_string(),
+        //     name            : self.model.entry_point.name.item.clone(),
+        // };
+
+        let method_pointer = self.model.entry_point.clone();
         let this_argument_expression         = default();
         let positional_arguments_expressions = default();
 
@@ -87,10 +91,10 @@ impl ExecutionContext {
 
     /// Pop the last stack item from this context. It returns error when only root call
     /// remains.
-    pub async fn pop(&self) -> FallibleResult<()> {
-        self.model.pop()?;
+    pub async fn pop(&self) -> FallibleResult<LocalCall> {
+        let ret = self.model.pop()?;
         self.language_server.pop_from_execution_context(&self.id).await?;
-        Ok(())
+        Ok(ret)
     }
 
     /// Attach a new visualization for current execution context.
@@ -156,13 +160,12 @@ impl ExecutionContext {
     #[cfg(test)]
     pub fn new_mock
     ( id              : model::execution_context::Id
-    , path            : model::module::Path
+    , path            : model::module::Path // TODO remove
     , model           : model::ExecutionContext
     , language_server : Rc<language_server::Connection>
     ) -> Self {
-        let module_path     = Rc::new(path);
         let logger          = Logger::new("ExecuctionContext mock");
-        ExecutionContext {id,model,module_path,language_server,logger}
+        ExecutionContext {id,model,language_server,logger}
     }
 }
 
@@ -291,7 +294,7 @@ pub mod tests {
         /// Create an exeuction context's model.
         pub fn create_model(&self) -> model::ExecutionContext {
             let logger = Logger::new("MockExecutionContextModel");
-            model::ExecutionContext::new(logger, self.root_definition.clone())
+            model::ExecutionContext::new(logger, self.main_method_pointer())
         }
 
         /// Create an exeuction context's controller.
@@ -349,10 +352,10 @@ pub mod tests {
             let logger  = Logger::default();
             let path    = Rc::new(mock_data.module_path);
             let def     = mock_data.root_definition;
-            let context = ExecutionContext::create(logger,connection,path.clone_ref(),def);
+            let context = ExecutionContext::create(logger,connection,todo!()); // TODO
             let context = context.await.unwrap();
             assert_eq!(context_id             , context.id);
-            assert_eq!(path                   , context.module_path);
+            assert_eq!(*path                  , context.model.entry_point.file);
             assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
         })
     }
@@ -371,7 +374,7 @@ pub mod tests {
         test.run_task(async move {
             let item = LocalCall {
                 call       : expression_id,
-                definition : mock_data.definition_id(),
+                definition : mock_data.main_method_pointer(),
             };
             context.push(item.clone()).await.unwrap();
             assert_eq!((item,), context.model.stack_items().expect_tuple());
@@ -384,7 +387,7 @@ pub mod tests {
             customize_model : Rc::new(|model,data| {
                 let item = LocalCall {
                     call       : model::execution_context::ExpressionId::new_v4(),
-                    definition : data.definition_id(),
+                    definition : data.main_method_pointer(),
                 };
                 model.push(item);
             }),

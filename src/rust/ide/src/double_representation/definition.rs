@@ -9,6 +9,7 @@ use ast::crumbs::Located;
 use ast::known;
 use ast::prefix;
 use ast::opr;
+use enso_protocol::language_server::MethodPointer;
 
 
 // =====================
@@ -75,6 +76,11 @@ impl Display for Id {
 pub struct CannotFindChild(Crumb);
 
 #[allow(missing_docs)]
+#[derive(Fail,Clone,Debug)]
+#[fail(display="Cannot find method by pointer {:?}.",_0)]
+pub struct CannotFindMethod(MethodPointer);
+
+#[allow(missing_docs)]
 #[derive(Copy,Fail,Clone,Debug)]
 #[fail(display="Encountered an empty definition ID. They must contain at least one crumb.")]
 pub struct EmptyDefinitionId;
@@ -96,6 +102,30 @@ pub fn locate(ast:&ast::known::Module, id:&Id) -> FallibleResult<ChildDefinition
         child = resolve_single_name(child,crumb)?;
     }
     Ok(child)
+}
+
+/// TODO TODO
+/// The module is assumed to be in the file identified by the `method.file` (for the purpose of
+/// desugaring implicit extensions methods for modules).
+pub fn lookup_method(ast:&ast::known::Module, method:&MethodPointer) -> FallibleResult<Id> {
+    let module_path = model::module::Path::from_file_path(method.file.clone())?;
+    let module_method = method.defined_on_type == module_path.module_name();
+
+    for child in ast.def_iter() {
+        let child_name : &DefinitionName = &child.name.item;
+        let name_matches = child_name.name.item == method.name;
+        let type_matches = match child_name.extended_target.as_slice() {
+            []         => module_method,
+            [typename] => typename.item == method.defined_on_type,
+            _          => child_name.explicitly_extends_type(&method.defined_on_type),
+        };
+        if name_matches && type_matches {
+            let id = Id::new_single_crumb(child_name.clone());
+            return Ok(id)
+        }
+    }
+
+    Err(CannotFindMethod(method.clone()).into())
 }
 
 
@@ -148,6 +178,14 @@ impl DefinitionName {
         DefinitionName {name, extended_target:default()}
     }
 
+    /// Creates a new name consisting of a single identifier, without any extension target.
+    pub fn new_method(typename:impl Str, name:impl Str) -> DefinitionName {
+        let name            = Located::new_root(name.into());
+        let extended_type   = Located::new_root(typename.into());
+        let extended_target = vec![extended_type];
+        DefinitionName {name,extended_target}
+    }
+
     /// Tries describing given Ast piece as a definition name. Typically, passed Ast
     /// should be the binding's left-hand side.
     ///
@@ -185,6 +223,22 @@ impl DefinitionName {
             }
         };
         Some(DefinitionName {extended_target,name})
+    }
+
+    pub fn extends_type(&self, parent_name:&str, expected_typename:&str) -> bool {
+        if self.extended_target.is_empty() {
+            parent_name == expected_typename
+        } else {
+            let expected = expected_typename.split(ast::opr::predefined::ACCESS);
+            let segments = self.extended_target.iter().map(|segment| segment.item.as_str());
+            segments.eq(expected)
+        }
+    }
+
+    pub fn explicitly_extends_type(&self, expected_typename:&str) -> bool {
+        let expected_segments = expected_typename.split(ast::opr::predefined::ACCESS);
+        let segments          = self.extended_target.iter().map(|segment| segment.item.as_str());
+        segments.eq(expected_segments)
     }
 }
 
@@ -388,7 +442,10 @@ impl<'a> DefinitionIterator<'a> {
     /// Looks up direct child definition by given name.
     pub fn find_by_name(mut self, name:&DefinitionName) -> Result<ChildDefinition,CannotFindChild> {
         let err = || CannotFindChild(name.clone());
-        self.find(|child_def| &*child_def.item.name == name).ok_or_else(err)
+        self.find(|child_def| {
+            println!("Testing name : {:?}", &*child_def.item.name);
+            &*child_def.item.name == name
+        }).ok_or_else(err)
     }
 }
 

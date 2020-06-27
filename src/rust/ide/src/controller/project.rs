@@ -17,7 +17,7 @@ use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
 use parser::Parser;
 use uuid::Uuid;
-
+use enso_protocol::language_server::MethodPointer;
 
 
 // ===============
@@ -287,12 +287,9 @@ impl Handle {
     /// Creates a new execution context with given definition as a root; and registers the context
     /// for receiving update.
     pub async fn create_execution_context
-    (&self
-    , module_path:Rc<model::module::Path>
-    , root_definition:double_representation::definition::DefinitionName
-    ) -> FallibleResult<Rc<ExecutionContext>> {
+    (&self, root_definition:MethodPointer) -> FallibleResult<Rc<ExecutionContext>> {
         let ls_rpc  = self.language_server_rpc.clone_ref();
-        let context = ExecutionContext::create(&self.logger,ls_rpc,module_path,root_definition);
+        let context = ExecutionContext::create(&self.logger,ls_rpc,root_definition);
         let context = context.await?;
         let context = Rc::new(context);
         self.register_execution_context(&context);
@@ -433,7 +430,7 @@ mod test {
         // Create execution context.
         let module_path = Rc::new(data.module_path.clone());
         let definition  = data.root_definition.clone();
-        let execution   = project.create_execution_context(module_path,definition);
+        let execution   = project.create_execution_context(todo!()); // TODO (module_path,definition);
         let execution   = test.expect_completion(execution).unwrap();
 
         // Now context is in registry.

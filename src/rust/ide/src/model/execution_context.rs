@@ -182,8 +182,8 @@ pub struct InvalidVisualizationId(VisualizationId);
 pub struct LocalCall {
     /// An expression being a call.
     pub call       : ExpressionId,
-    /// A definition of function called in `call` expression.
-    pub definition : DefinitionId,
+    // TODO / A definition of function called in `call` expression.
+    pub definition : MethodPointer,
 }
 
 
@@ -263,7 +263,7 @@ pub struct AttachedVisualization {
 pub struct ExecutionContext {
     logger:Logger,
     /// A name of definition which is a root call of this context.
-    pub entry_point:DefinitionName,
+    pub entry_point:MethodPointer,
     /// Local call stack.
     stack:RefCell<Vec<LocalCall>>,
     /// Set of active visualizations.
@@ -274,7 +274,7 @@ pub struct ExecutionContext {
 
 impl ExecutionContext {
     /// Create new execution context
-    pub fn new(logger:impl Into<Logger>, entry_point:DefinitionName) -> Self {
+    pub fn new(logger:impl Into<Logger>, entry_point:MethodPointer) -> Self {
         let logger                       = logger.into();
         let stack                        = default();
         let visualizations               = default();
@@ -290,10 +290,18 @@ impl ExecutionContext {
 
     /// Pop the last stack item from this context. It returns error when only root call
     /// remains.
-    pub fn pop(&self) -> FallibleResult<()> {
-        self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
+    pub fn pop(&self) -> FallibleResult<LocalCall> {
+        let ret = self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
         self.computed_value_info_registry.clear();
-        Ok(())
+        Ok(ret)
+    }
+
+    pub fn current_method(&self) -> MethodPointer {
+        if let Some(top_frame) = self.stack.borrow().last() {
+            top_frame.definition.clone()
+        } else {
+            self.entry_point.clone()
+        }
     }
 
     /// Attaches a new visualization for current execution context.

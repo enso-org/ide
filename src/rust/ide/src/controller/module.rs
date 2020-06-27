@@ -17,7 +17,7 @@ use double_representation as dr;
 use enso_protocol::language_server;
 use enso_protocol::types::Sha3_224;
 use parser::Parser;
-
+use enso_protocol::language_server::MethodPointer;
 
 
 // ==============
@@ -115,11 +115,12 @@ impl Handle {
     pub async fn executed_graph_controller_unchecked
     (&self, id:dr::graph::Id, project:&controller::Project)
     -> FallibleResult<controller::ExecutedGraph> {
-        let definition_name = id.crumbs.last().cloned().ok_or_else(|| InvalidGraphId(id.clone()))?;
+        let method          = self.method_pointer(&id)?;
+        //let definition_name = id.crumbs.last().cloned().ok_or_else(|| InvalidGraphId(id.clone()))?;
         let graph           = self.graph_controller_unchecked(id);
-        let path            = self.path.clone_ref();
-        let execution_ctx   = project.create_execution_context(path,definition_name).await?;
-        Ok(controller::ExecutedGraph::new(graph,execution_ctx))
+        //let path            = self.path.clone_ref();
+        let execution_ctx   = project.create_execution_context(method).await?;
+        Ok(controller::ExecutedGraph::new(graph,project,execution_ctx))
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id` without
@@ -127,6 +128,24 @@ impl Handle {
     pub fn graph_controller_unchecked(&self, id:dr::graph::Id) -> controller::Graph {
         controller::Graph::new_unchecked(&self.logger, self.model.clone_ref(),
                                          self.parser.clone_ref(), id)
+    }
+
+    pub fn method_pointer(&self, id:&dr::graph::Id) -> FallibleResult<MethodPointer> {
+        let defined_on_type = match id.crumbs.as_slice() {
+            [crumb] => {
+                if crumb.extended_target.is_empty() {
+                    self.path.module_name().to_string()
+                } else {
+                    crumb.extended_target.iter().map(|segment| segment.as_str()).join(".")
+                }
+            }
+            _ => return Err(InvalidGraphId(id.clone()).into()),
+        };
+        Ok(MethodPointer {
+            file : self.path.file_path().clone(),
+            defined_on_type,
+            name : id.crumbs.last().unwrap().name.item.clone(),
+        })
     }
 
     #[cfg(test)]
