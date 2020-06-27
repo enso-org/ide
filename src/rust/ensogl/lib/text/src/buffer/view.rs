@@ -173,7 +173,7 @@ define_frp! {
     Input {
         move_carets      : Option<Movement>,
         modify_selection : Option<Movement>,
-        set_cursor       : Bytes,
+        set_cursor       : Location,
         clear_selection  : (),
     }
 
@@ -216,7 +216,9 @@ impl View {
             selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(t,true)));
             selection_on_clear <- input.clear_selection.constant(default());
 
-            selection_on_set_cursor <- input.set_cursor.map(|t| Selection::new_cursor(*t).into());
+//            selection_on_set_cursor <- input.set_cursor.map(|t| Selection::new_cursor(*t).into());
+
+            selection_on_set_cursor <- input.set_cursor.map(f!([model](t) Selection::new_cursor(model.offset_of_view_location(t)).into()));
 
             output.source.selection <+ selection_on_move;
             output.source.selection <+ selection_on_mod;
@@ -325,6 +327,17 @@ impl ViewModel {
     pub fn offset_of_view_line(&self, view_line:Line) -> Bytes {
         let line = self.first_line_number() + view_line;
         self.offset_of_line(line)
+    }
+
+    pub fn offset_of_view_location(&self, location:impl Into<Location>) -> Bytes {
+        let location = location.into();
+        self.offset_of_view_line(location.line) + location.column.raw.bytes()
+    }
+
+    pub fn line_byte_size(&self, line:Line) -> Bytes {
+        let start = self.offset_of_view_line(line);
+        let end   = self.offset_of_view_line(line + 1);
+        end - start
     }
 
     // FIXME: this sohuld not include line break.

@@ -187,6 +187,7 @@ pub struct Line {
     glyphs         : Vec<Glyph>,
     divs           : Vec<Div>,
     centers        : Vec<f32>,
+    byte_size      : Bytes,
 }
 
 impl Line {
@@ -196,7 +197,8 @@ impl Line {
         let glyphs         = default();
         let divs           = default();
         let centers        = default();
-        Self {display_object,glyphs,divs,centers}
+        let byte_size      = default();
+        Self {display_object,glyphs,divs,centers,byte_size}
     }
 
     /// Set the division points (offsets between letters). Also updates center points.
@@ -226,6 +228,11 @@ impl Line {
             display_object.add_child(&glyph);
             glyph
         });
+    }
+
+    fn byte_size(&self) -> Bytes {
+        self.byte_size
+//        self.divs.last().map(|t|t.byte_offset).unwrap_or_default()
     }
 }
 
@@ -260,6 +267,22 @@ impl Lines {
             line
         })
     }
+
+    pub fn line_index_of_byte_offset(&self, tgt_offset:Bytes) -> usize {
+        println!("---------");
+        println!("tgt_offset: {:?}",tgt_offset);
+        let lines = self.rc.borrow();
+        let max_index  = lines.len() - 1;
+        let mut index  = 0;
+        let mut offset = 0.bytes();
+        loop {
+            println!("[{:?}] {:?}",index,lines[index].byte_size());
+            offset += lines[index].byte_size();
+            if offset > tgt_offset || index == max_index { break }
+            index += 1;
+        }
+        index
+    }
 }
 
 
@@ -281,6 +304,7 @@ define_frp! {
 // === Area ===
 // ============
 
+pub const LINE_HEIGHT : f32 = 14.0; // FIXME
 
 #[derive(Debug)]
 pub struct Area {
@@ -329,15 +353,16 @@ impl Area {
                 let world_space  = model.scene.camera().inversed_view_projection_matrix() * clip_space;
                 let object_space = inv_object_matrix * world_space;
 
-//                let line_index =
-                let div_index = model.lines.rc.borrow()[0].div_index_close_to(object_space.x);
-                let div       = model.lines.rc.borrow()[0].divs[div_index];
+                let line_index = (-object_space.y / LINE_HEIGHT) as usize;
+                let line_index = std::cmp::min(line_index,model.lines.len() - 1);
+                let div_index  = model.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
+                let div        = model.lines.rc.borrow()[line_index].divs[div_index];
 
-                model.buffer.frp.input.set_cursor.emit(div.byte_offset);
+                model.buffer.frp.input.set_cursor.emit(Location(buffer::Line(line_index),Column(div.byte_offset.raw)));
 
 
-                println!("------");
-                println!("{:?}",object_space.y);
+//                println!("------");
+//                println!("{:?}",line_index as usize);
 //                let m1       = model.scene.views.cursor.camera.inversed_view_matrix();
 //                let m1       = model.transform_matrix().try_inverse().unwrap();
 //                let m2       = model.scene.camera().inversed_view_projection_matrix();
@@ -352,12 +377,14 @@ impl Area {
             eval model.buffer.frp.output.selection ([model](selections) {
                 let mut cursors = vec![];
                 for selection in selections {
-                    println!("{:?}",selection);
-                    let div = model.lines.rc.borrow()[0].div_by_byte_offset(selection.start);
+                    let line_index = model.lines.line_index_of_byte_offset(selection.start);
+                    let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
+                    let offset_in_line = selection.start - line_offset;
+                    let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
                     let logger = Logger::sub(&model.logger,"cursor");
                     let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&model.scene);
                     cursor.shape.sprite.size.set(Vector2(4.0,20.0));
-                    cursor.set_position_y(-6.0);
+                    cursor.set_position_y(-6.0 - LINE_HEIGHT * line_index as f32);
                     cursor.set_position_x(div.x_offset);
                     model.add_child(&cursor);
                     cursors.push(cursor);
@@ -425,9 +452,10 @@ impl AreaData {
 
     // FIXME: make private
     pub fn redraw(&self) {
-        let line_count = self.buffer.line_count();
+        let lines      = self.buffer.lines();
+        let line_count = lines.len();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
-        for (view_line_number,content) in self.buffer.lines().into_iter().enumerate() {
+        for (view_line_number,content) in lines.into_iter().enumerate() {
             self.redraw_line(view_line_number,content)
         }
     }
@@ -436,6 +464,7 @@ impl AreaData {
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
         let line_range     = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
         let mut line_style = self.buffer.focus_style(line_range.start .. line_range.end).iter();
+        line.byte_size     = self.buffer.line_byte_size(buffer::Line(view_line_number));
 
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];
@@ -481,7 +510,7 @@ impl AreaData {
 
     fn new_line(&self, index:usize) -> Line {
         let line     = Line::new(&self.logger);
-        let y_offset = - ((index + 1) as f32) * 14.0 + 5.0; // FIXME line height?
+        let y_offset = - ((index + 1) as f32) * LINE_HEIGHT + 4.0; // FIXME line height?
         line.set_position_y(y_offset);
         self.add_child(&line);
         line
