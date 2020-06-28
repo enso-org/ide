@@ -1,16 +1,24 @@
-//! Keyboard shortcut management.
+//! Keyboard and mouse shortcut management.
 
 use crate::prelude::*;
 
 use super::command;
 
 use crate::control::io::keyboard::listener::KeyboardFrpBindings;
-use crate::frp::io::mouse;
-use crate::frp::io::mouse::Mouse;
-use crate::frp::io::keyboard;
 use crate::frp::io::keyboard::Keyboard;
+use crate::frp::io::keyboard;
+use crate::frp::io::mouse::Mouse;
+use crate::frp::io::mouse;
 use crate::frp;
 use crate::system::web;
+
+
+
+// =================
+// === Constants ===
+// =================
+
+const DOUBLE_PRESS_THRESHOLD : f32 = 300.0;
 
 
 
@@ -18,17 +26,18 @@ use crate::system::web;
 // === Registry ===
 // ================
 
-type RuleMap   = HashMap<keyboard::KeyMask,Vec<WeakHandle>>;
+type RuleMap   = HashMap<ActionMask,Vec<WeakHandle>>;
 type ActionMap = HashMap<ActionType,RuleMap>;
 
-/// Keyboard shortcut registry. You can add new shortcuts by using the `add` method and get a
-/// `Handle` back. When `Handle` is dropped, the shortcut will be lazily removed. This is useful
-/// when defining shortcuts by GUI components. When a component is unloaded, all its default
-/// shortcuts should be removed as well.
+/// Shortcut registry. See `Shortcut` to learn more.
 ///
-/// Note: we should probably handle user shortcuts in a slightly different way. User shortcuts
-/// should persist and should probably not return handles. Alternatively, there should be an user
-/// shortcut manager which will own and manage the handles.
+/// You can add new shortcuts by using the `add` method and get a `Handle` back. When `Handle` is
+/// dropped, the shortcut will be lazily removed. This is useful when defining shortcuts by GUI
+/// components. When a component is unloaded, all its default shortcuts should be removed as well.
+///
+/// ## Implementation Note
+/// There should be a layer for user shortcuts which will remember handles permanently until a
+/// shortcut is unregistered.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Registry {
     model   : RegistryModel,
@@ -63,7 +72,6 @@ impl RegistryModel {
         let keyboard_bindings = Rc::new(KeyboardFrpBindings::new(&logger,&keyboard));
         let command_registry  = command_registry.clone_ref();
         let action_map        = default();
-
         Self {logger,keyboard,mouse,keyboard_bindings,command_registry,action_map}
     }
 }
@@ -71,30 +79,31 @@ impl RegistryModel {
 impl Registry {
     /// Constructor.
     pub fn new(logger:&Logger, mouse:&Mouse, command_registry:&command::Registry) -> Self {
-        let model = RegistryModel::new(logger,mouse,command_registry);
+        let model    = RegistryModel::new(logger,mouse,command_registry);
+        let keyboard = &model.keyboard;
+        let mouse    = &model.mouse;
 
-        // TODO move to theme configuration.
-        let double_press_threshold_ms = 300.0;
         frp::new_network! { network
-            let key_mask = model.keyboard.key_mask.clone_ref();
-            nothing_pressed      <- key_mask.map(|m| *m == default());
+            mask <- all_with(&keyboard.key_mask,&mouse.button_mask,|k,m| ActionMask::new(k,m));
+            nothing_pressed      <- mask.map(|m| *m == default());
             nothing_pressed_prev <- nothing_pressed.previous();
-            press                <- key_mask.gate_not(&nothing_pressed);
+            press                <- mask.gate_not(&nothing_pressed);
             single_press         <- press.gate(&nothing_pressed_prev);
             eval press ((m) model.process_action(ActionType::Press,m));
 
             single_press_prev  <- single_press.previous();
-            press_time         <- single_press.map(|_| web::performance().now());
+            press_time         <- single_press.map(|_| web::performance().now() as f32);
             press_time_prev    <- press_time.previous();
             time_delta         <- press_time.map2(&press_time_prev, |t1,t2| (t1-t2));
             is_double_press    <- time_delta.map4(&press,&single_press_prev,&nothing_pressed_prev,
-                move |delta,t,s,g| *g && *delta < double_press_threshold_ms && t == s);
+                move |delta,t,s,g| *g && *delta < DOUBLE_PRESS_THRESHOLD && t == s);
             double_press       <- press.gate(&is_double_press);
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
 
-            let prev_key = model.keyboard.previous_key_mask.clone_ref();
-            the_same_key       <- prev_key.map2(&key_mask,|t,s| t == s);
-            release            <- prev_key.gate_not(&the_same_key);
+            prev_mask <- all_with(&keyboard.previous_key_mask,&mouse.previous_button_mask,
+                |k,m| ActionMask::new(k,m));
+            the_same_key       <- prev_mask.map2(&mask,|t,s| t == s);
+            release            <- prev_mask.gate_not(&the_same_key);
             eval release ((m) model.process_action(ActionType::Release,m));
         }
         Self {model,network}
@@ -103,10 +112,10 @@ impl Registry {
 
 impl RegistryModel {
 
-    fn process_action(&self, action_type:ActionType, key_mask:&keyboard::KeyMask) {
+    fn process_action(&self, action_type:ActionType, mask:&ActionMask) {
         let action_map_mut = &mut self.action_map.borrow_mut();
         if let Some(rule_map) = action_map_mut.get_mut(&action_type) {
-            if let Some(rules) = rule_map.get_mut(key_mask) {
+            if let Some(rules) = rule_map.get_mut(mask) {
                 self.process_rules(rules)
             }
         }
@@ -139,7 +148,6 @@ impl RegistryModel {
         }
     }
 
-
     fn condition_checker
     (condition:&Condition, status_map:&HashMap<String,command::Status>) -> bool {
         match condition {
@@ -156,7 +164,7 @@ impl Add<Shortcut> for &Registry {
         let instance   = handle.downgrade();
         let action_map = &mut self.action_map.borrow_mut();
         let rule_map   = action_map.entry(shortcut.action.tp).or_default();
-        let rules      = rule_map.entry(shortcut.action.mask.keyboard).or_default();
+        let rules      = rule_map.entry(shortcut.action.mask).or_default();
         rules.push(instance);
         handle
     }
@@ -202,11 +210,11 @@ impl WeakHandle {
 
 
 
-// ==============
-// === Action ===
-// ==============
+// ==================
+// === ActionMask ===
+// ==================
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
 pub struct ActionMask {
     pub keyboard : keyboard::KeyMask,
     pub mouse    : mouse::ButtonMask,
@@ -219,6 +227,12 @@ impl ActionMask {
         Self {keyboard,mouse}
     }
 }
+
+
+
+// ==============
+// === Action ===
+// ==============
 
 /// A type of a keyboard action.
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
@@ -283,7 +297,7 @@ impl Shortcut {
     /// Constructor. Version without condition checker.
     pub fn new<A,T,C>(action:A, target:T, command:C) -> Self
     where A:Into<Action>, T:Into<String>, C:Into<Command> {
-        let rule     = Rule::new(target,command);
+        let rule   = Rule::new(target,command);
         let action = action.into();
         Self {rule,action}
     }
@@ -353,7 +367,8 @@ impl From<&str> for Command {
 // === Condition ===
 // =================
 
-// TODO: Uncomment and handle more complex cases. Left here to show the intention of future dev.
+// TODO: Uncomment and handle more complex cases.
+// TODO: Left commented to show the direction of future development
 /// Condition expression.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
@@ -378,8 +393,8 @@ pub trait DefaultShortcutProvider : command::Provider {
     }
 
     /// Helper for defining shortcut targeting this object.
-    fn self_shortcut_when<A,C>(action:A, command:C, condition:Condition) -> Shortcut
-    where A:Into<Action>, C:Into<Command> {
+    fn self_shortcut_when
+    (action:impl Into<Action>, command:impl Into<Command>, condition:Condition) -> Shortcut {
         Shortcut::new_when(action,Self::label(),command,condition)
     }
 
@@ -387,13 +402,5 @@ pub trait DefaultShortcutProvider : command::Provider {
     /// condition checker.
     fn self_shortcut(action:impl Into<Action>, command:impl Into<Command>) -> Shortcut {
         Shortcut::new(action,Self::label(),command)
-    }
-}
-
-/// Default implementation for all objects. It allows implementing this trait only by objects which
-/// want to use it.
-impl<T:command::Provider> DefaultShortcutProvider for T {
-    default fn default_shortcuts() -> Vec<Shortcut> {
-        default()
     }
 }

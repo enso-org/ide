@@ -24,6 +24,8 @@ use enso_frp as frp;
 use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
 use enso_frp::Network;
 use ensogl::application::Application;
+use ensogl::application::shortcut;
+
 
 
 // ==================
@@ -53,7 +55,7 @@ macro_rules! define_frp {
 
         #[derive(Debug,Clone,CloneRef)]
         pub struct FrpInputs {
-            $(pub commands : $commands_name,)?
+            $(pub command : $commands_name,)?
             $(pub $in_field : frp::Source<$in_field_type>),*
         }
 
@@ -63,7 +65,7 @@ macro_rules! define_frp {
                 frp::extend! { network
                     $($in_field <- source();)*
                 }
-                Self { $(commands:$commands_name,)? $($in_field),* }
+                Self { $(command:$commands_name,)? $($in_field),* }
             }
         }
 
@@ -296,8 +298,8 @@ impl Lines {
 // ===========
 
 ensogl::def_command_api! { Commands
-    /// Add a new node and place it in the origin of the workspace.
-    add_node,
+    /// Set the text cursor at the mouse cursor position.
+    set_cursor_at_mouse_cursor,
 }
 
 impl application::command::CommandApi for Area {
@@ -306,7 +308,7 @@ impl application::command::CommandApi for Area {
     }
 
     fn command_api(&self) -> Vec<application::command::CommandEndpoint> {
-        self.frp.input.commands.command_api()
+        self.frp.input.command.command_api()
     }
 }
 
@@ -361,7 +363,7 @@ impl Area {
             mouse_cursor <- any(cursor_over,cursor_out);
             self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
 
-            mouse_down_pos <- mouse.position.sample(&self.background.events.mouse_down);
+            mouse_down_pos <- mouse.position.sample(&model.frp.command.set_cursor_at_mouse_cursor);
             _eval <- mouse_down_pos.map2(&model.scene.frp.shape, f!([model](screen_pos,shape) {
 
                 let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
@@ -404,7 +406,6 @@ impl Area {
                     }
                     *model.cursors.borrow_mut() = cursors;
             }));
-
         }
 
         self
@@ -602,5 +603,18 @@ impl application::command::Provider for Area {
 impl application::View for Area {
     fn new(app:&Application) -> Self {
         Area::new(&app.display.scene())
+    }
+}
+
+impl application::shortcut::DefaultShortcutProvider for Area {
+    fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
+        use enso_frp::io::keyboard::Key;
+        use enso_frp::io::mouse;
+//        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_cursor")
+//        ]
+        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Character("x".into())],&[])               , "set_cursor_at_mouse_cursor"),
+               Self::self_shortcut(shortcut::Action::press        (&[Key::Character("v".into())],&[mouse::PrimaryButton])  , "set_cursor_at_mouse_cursor"),
+               Self::self_shortcut(shortcut::Action::press        (&[],&[mouse::PrimaryButton])  , "set_cursor_at_mouse_cursor")
+        ]
     }
 }

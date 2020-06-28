@@ -135,58 +135,6 @@ fn init(app:&Application) {
         eval text_area.frp.output.mouse_cursor_style ((s) cursor.frp.input.set_style.emit(s));
     }
 
-//    text_area.tmp_replace_all_text("Test text €!!!\nline2\nline3\nline4");
-
-//    println!("!!! {}", buffer.text.rope.subseq(0..t10));
-//    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(0)));
-//    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(1)));
-//    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(2)));
-//    println!("!!! {:?}", buffer_view.offset_of_view_line(text::Line(3)));
-
-    let object_space  = n::Vector4::new(3.0,5.0,7.0,1.0);
-    let object_matrix = n::Matrix4::identity().append_translation(&n::Vector3::new(10.0,0.0,0.0));
-    let inv_object_matrix = object_matrix.try_inverse().unwrap();
-
-    let camera_matrix   = n::Matrix4::identity().append_translation(&n::Vector3::new(0.0,0.0,100.0));
-    let inv_view_matrix = camera_matrix;
-    let view_matrix     = camera_matrix.try_inverse().unwrap();
-
-    let aspect = 1.0;
-    let fov    = 90.0f32.to_radians();
-    let near   = 0.1;
-    let far    = 100.0;
-    let perspective           = n::Perspective3::new(aspect,fov,near,far);
-    let projection_matrix     = *perspective.as_matrix();
-    let inv_projection_matrix = perspective.inverse();
-
-    // let left   = -100.0;
-    // let right  = 100.0;
-    // let bottom = -100.0;
-    // let top    = 100.0;
-    // let near   = 0.0;
-    // let far    = 100.0;
-    // let orthographic          = n::Orthographic3::new(left,right,bottom,top,near,far);
-    // let projection_matrix     = *orthographic.as_matrix();
-    // let inv_projection_matrix = orthographic.inverse();
-
-    let world_space   = object_matrix * object_space;
-    let eye_space     = view_matrix * world_space;
-    let clip_space    = projection_matrix * eye_space;
-
-    let eye_space2    = inv_projection_matrix * clip_space;
-    let world_space2  = inv_view_matrix * eye_space2;
-    let object_space2 = inv_object_matrix * world_space2;
-
-    println!("---------------------------------");
-    println!("object_space: {:?}", object_space);
-    println!("world_space: {:?}", world_space);
-    println!("eye_space: {:?}", eye_space);
-    println!("clip_space: {:?}", clip_space);
-    println!("eye_space2: {:?}", eye_space2);
-    println!("world_space2: {:?}", world_space2);
-    println!("object_space2: {:?}", object_space2);
-
-
     let mut was_rendered = false;
     let mut loader_hidden = false;
     world.on_frame(move |_| {

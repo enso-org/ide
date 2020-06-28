@@ -80,26 +80,50 @@ impl Default for Button {
 /// The button bitmask (each bit represents one button). Used for matching button combinations.
 #[derive(Clone,Copy,Debug,Default,Eq,Hash,PartialEq,Shrinkwrap)]
 #[shrinkwrap(mutable)]
-pub struct ButtonMask(pub BitField32);
+pub struct ButtonMask {
+    pub bits : BitField32
+}
 
-impl<'a> FromIterator<&'a Button> for ButtonMask {
-    fn from_iter<T: IntoIterator<Item=&'a Button>>(buttons:T) -> Self {
-        let mut mask = ButtonMask::default();
-        for button in buttons {
-            let bit = button.code();
-            mask.set_bit(bit,true);
-        }
+impl ButtonMask {
+    /// Creates ButtonMask from Vec<Key>.
+    pub fn from_vec(buttons:Vec<Button>) -> Self {
+        buttons.iter().collect()
+    }
+
+    /// Check if button bit is on.
+    pub fn contains(&self, button:&Button) -> bool {
+        self.bits.get_bit(button.code())
+    }
+
+    /// Set the `button` bit with the new state.
+    pub fn set(&mut self, button:&Button, state:bool) {
+        self.bits.set_bit(button.code(),state);
+    }
+
+    /// Clone the mask and set the `button` bit with the new state.
+    pub fn with_set(&self, button:&Button, state:bool) -> Self {
+        let mut mask = self.clone();
+        mask.set(button,state);
         mask
     }
 }
 
-impl From<&[Button]>   for ButtonMask { fn from(t:&[Button])   -> Self { ButtonMask::from_iter(t) } }
-impl From<&[Button;0]> for ButtonMask { fn from(t:&[Button;0]) -> Self { ButtonMask::from_iter(t) } }
-impl From<&[Button;1]> for ButtonMask { fn from(t:&[Button;1]) -> Self { ButtonMask::from_iter(t) } }
-impl From<&[Button;2]> for ButtonMask { fn from(t:&[Button;2]) -> Self { ButtonMask::from_iter(t) } }
-impl From<&[Button;3]> for ButtonMask { fn from(t:&[Button;3]) -> Self { ButtonMask::from_iter(t) } }
-impl From<&[Button;4]> for ButtonMask { fn from(t:&[Button;4]) -> Self { ButtonMask::from_iter(t) } }
-impl From<&[Button;5]> for ButtonMask { fn from(t:&[Button;5]) -> Self { ButtonMask::from_iter(t) } }
+impl<'a> FromIterator<&'a Button> for ButtonMask {
+    fn from_iter<T: IntoIterator<Item=&'a Button>>(buttons:T) -> Self {
+        let mut mask = ButtonMask::default();
+        for button in buttons { mask.set(button,true) }
+        mask
+    }
+}
+
+impl From<&[Button]>   for ButtonMask { fn from(t:&[Button])   -> Self {ButtonMask::from_iter(t)} }
+impl From<&[Button;0]> for ButtonMask { fn from(t:&[Button;0]) -> Self {ButtonMask::from_iter(t)} }
+impl From<&[Button;1]> for ButtonMask { fn from(t:&[Button;1]) -> Self {ButtonMask::from_iter(t)} }
+impl From<&[Button;2]> for ButtonMask { fn from(t:&[Button;2]) -> Self {ButtonMask::from_iter(t)} }
+impl From<&[Button;3]> for ButtonMask { fn from(t:&[Button;3]) -> Self {ButtonMask::from_iter(t)} }
+impl From<&[Button;4]> for ButtonMask { fn from(t:&[Button;4]) -> Self {ButtonMask::from_iter(t)} }
+impl From<&[Button;5]> for ButtonMask { fn from(t:&[Button;5]) -> Self {ButtonMask::from_iter(t)} }
+impl From<&ButtonMask> for ButtonMask { fn from(t:&ButtonMask) -> Self {t.clone()} }
 
 
 
@@ -115,33 +139,79 @@ pub struct Mouse {
     pub up                   : frp::Source<Button>,
     pub down                 : frp::Source<Button>,
     pub wheel                : frp::Source,
-    pub up_button_0          : frp::Stream,
-    pub up_button_1          : frp::Stream,
-    pub up_button_2          : frp::Stream,
-    pub up_button_3          : frp::Stream,
-    pub up_button_4          : frp::Stream,
-    pub down_button_0        : frp::Stream,
-    pub down_button_1        : frp::Stream,
-    pub down_button_2        : frp::Stream,
-    pub down_button_3        : frp::Stream,
-    pub down_button_4        : frp::Stream,
-    pub is_down_button_0     : frp::Stream<bool>,
-    pub is_down_button_1     : frp::Stream<bool>,
-    pub is_down_button_2     : frp::Stream<bool>,
-    pub is_down_button_3     : frp::Stream<bool>,
-    pub is_down_button_4     : frp::Stream<bool>,
-    pub is_up_button_0       : frp::Stream<bool>,
-    pub is_up_button_1       : frp::Stream<bool>,
-    pub is_up_button_2       : frp::Stream<bool>,
-    pub is_up_button_3       : frp::Stream<bool>,
-    pub is_up_button_4       : frp::Stream<bool>,
+    pub up_0                 : frp::Stream,
+    pub up_1                 : frp::Stream,
+    pub up_2                 : frp::Stream,
+    pub up_3                 : frp::Stream,
+    pub up_4                 : frp::Stream,
+    pub down_0               : frp::Stream,
+    pub down_1               : frp::Stream,
+    pub down_2               : frp::Stream,
+    pub down_3               : frp::Stream,
+    pub down_4               : frp::Stream,
+    pub is_up_0              : frp::Stream<bool>,
+    pub is_up_1              : frp::Stream<bool>,
+    pub is_up_2              : frp::Stream<bool>,
+    pub is_up_3              : frp::Stream<bool>,
+    pub is_up_4              : frp::Stream<bool>,
+    pub is_down_0            : frp::Stream<bool>,
+    pub is_down_1            : frp::Stream<bool>,
+    pub is_down_2            : frp::Stream<bool>,
+    pub is_down_3            : frp::Stream<bool>,
+    pub is_down_4            : frp::Stream<bool>,
     pub position             : frp::Source<Vector2<f32>>,
     pub prev_position        : frp::Stream<Vector2<f32>>,
     pub translation          : frp::Stream<Vector2<f32>>,
     pub distance             : frp::Stream<f32>,
     pub ever_moved           : frp::Stream<bool>,
-    // pub button_mask          : frp::Stream<ButtonMask>,
-    // pub previous_button_mask : frp::Stream<ButtonMask>,
+    pub button_mask          : frp::Stream<ButtonMask>,
+    pub previous_button_mask : frp::Stream<ButtonMask>,
+}
+
+impl Mouse {
+    /// Smart accessor for `up_X` field.
+    pub fn up(&self, button:Button) -> &frp::Stream {
+        match button {
+            Button0 => &self.up_0,
+            Button1 => &self.up_1,
+            Button2 => &self.up_2,
+            Button3 => &self.up_3,
+            Button4 => &self.up_4,
+        }
+    }
+
+    /// Smart accessor for `down_X` field.
+    pub fn down(&self, button:Button) -> &frp::Stream {
+        match button {
+            Button0 => &self.down_0,
+            Button1 => &self.down_1,
+            Button2 => &self.down_2,
+            Button3 => &self.down_3,
+            Button4 => &self.down_4,
+        }
+    }
+
+    /// Smart accessor for `is_up_X` field.
+    pub fn is_up(&self, button:Button) -> &frp::Stream<bool> {
+        match button {
+            Button0 => &self.is_up_0,
+            Button1 => &self.is_up_1,
+            Button2 => &self.is_up_2,
+            Button3 => &self.is_up_3,
+            Button4 => &self.is_up_4,
+        }
+    }
+
+    /// Smart accessor for `is_down_X` field.
+    pub fn is_down(&self, button:Button) -> &frp::Stream<bool> {
+        match button {
+            Button0 => &self.is_down_0,
+            Button1 => &self.is_down_1,
+            Button2 => &self.is_down_2,
+            Button3 => &self.is_down_3,
+            Button4 => &self.is_down_4,
+        }
+    }
 }
 
 impl Default for Mouse {
@@ -158,48 +228,53 @@ impl Default for Mouse {
             distance      <- translation.map(|t:&Vector2<f32>|t.norm());
             ever_moved    <- position.constant(true);
 
-            up_button_0_check <- up.map(|t|*t==Button0);
-            up_button_1_check <- up.map(|t|*t==Button1);
-            up_button_2_check <- up.map(|t|*t==Button2);
-            up_button_3_check <- up.map(|t|*t==Button3);
-            up_button_4_check <- up.map(|t|*t==Button4);
+            up_0_check    <- up.map(|t|*t==Button0);
+            up_1_check    <- up.map(|t|*t==Button1);
+            up_2_check    <- up.map(|t|*t==Button2);
+            up_3_check    <- up.map(|t|*t==Button3);
+            up_4_check    <- up.map(|t|*t==Button4);
 
-            down_button_0_check <- down.map(|t|*t==Button0);
-            down_button_1_check <- down.map(|t|*t==Button1);
-            down_button_2_check <- down.map(|t|*t==Button2);
-            down_button_3_check <- down.map(|t|*t==Button3);
-            down_button_4_check <- down.map(|t|*t==Button4);
+            down_0_check  <- down.map(|t|*t==Button0);
+            down_1_check  <- down.map(|t|*t==Button1);
+            down_2_check  <- down.map(|t|*t==Button2);
+            down_3_check  <- down.map(|t|*t==Button3);
+            down_4_check  <- down.map(|t|*t==Button4);
 
-            up_button_0 <- up.gate(&up_button_0_check).constant(());
-            up_button_1 <- up.gate(&up_button_1_check).constant(());
-            up_button_2 <- up.gate(&up_button_2_check).constant(());
-            up_button_3 <- up.gate(&up_button_3_check).constant(());
-            up_button_4 <- up.gate(&up_button_4_check).constant(());
+            up_0          <- up.gate(&up_0_check).constant(());
+            up_1          <- up.gate(&up_1_check).constant(());
+            up_2          <- up.gate(&up_2_check).constant(());
+            up_3          <- up.gate(&up_3_check).constant(());
+            up_4          <- up.gate(&up_4_check).constant(());
 
-            down_button_0 <- down.gate(&down_button_0_check).constant(());
-            down_button_1 <- down.gate(&down_button_1_check).constant(());
-            down_button_2 <- down.gate(&down_button_2_check).constant(());
-            down_button_3 <- down.gate(&down_button_3_check).constant(());
-            down_button_4 <- down.gate(&down_button_4_check).constant(());
+            down_0        <- down.gate(&down_0_check).constant(());
+            down_1        <- down.gate(&down_1_check).constant(());
+            down_2        <- down.gate(&down_2_check).constant(());
+            down_3        <- down.gate(&down_3_check).constant(());
+            down_4        <- down.gate(&down_4_check).constant(());
 
-            is_down_button_0 <- bool(&up_button_0,&down_button_0);
-            is_down_button_1 <- bool(&up_button_1,&down_button_1);
-            is_down_button_2 <- bool(&up_button_2,&down_button_2);
-            is_down_button_3 <- bool(&up_button_3,&down_button_3);
-            is_down_button_4 <- bool(&up_button_4,&down_button_4);
+            is_down_0     <- bool(&up_0,&down_0);
+            is_down_1     <- bool(&up_1,&down_1);
+            is_down_2     <- bool(&up_2,&down_2);
+            is_down_3     <- bool(&up_3,&down_3);
+            is_down_4     <- bool(&up_4,&down_4);
 
-            is_up_button_0 <- is_down_button_0.map(|t|!t);
-            is_up_button_1 <- is_down_button_1.map(|t|!t);
-            is_up_button_2 <- is_down_button_2.map(|t|!t);
-            is_up_button_3 <- is_down_button_3.map(|t|!t);
-            is_up_button_4 <- is_down_button_4.map(|t|!t);
+            is_up_0       <- is_down_0.map(|t|!t);
+            is_up_1       <- is_down_1.map(|t|!t);
+            is_up_2       <- is_down_2.map(|t|!t);
+            is_up_3       <- is_down_3.map(|t|!t);
+            is_up_4       <- is_down_4.map(|t|!t);
 
+            button_mask   <- any_mut::<ButtonMask>();
+            button_mask   <+ down . map2(&button_mask,|button,mask| mask.with_set(button,true));
+            button_mask   <+ up   . map2(&button_mask,|button,mask| mask.with_set(button,false));
+
+            previous_button_mask <- button_mask.previous();
         };
-        Self {network,up,down,wheel,up_button_0,up_button_1,up_button_2,up_button_3,up_button_4
-             ,down_button_0,down_button_1,down_button_2,down_button_3,down_button_4
-             ,is_down_button_0,is_down_button_1,is_down_button_2,is_down_button_3,is_down_button_4
-             ,is_up_button_0,is_up_button_1,is_up_button_2,is_up_button_3,is_up_button_4
-             ,position,prev_position,translation,distance,ever_moved}
+        let button_mask = button_mask.into();
+        Self { network,up,down,wheel,up_0,up_1,up_2,up_3,up_4,down_0,down_1,down_2,down_3,down_4
+             , is_down_0,is_down_1,is_down_2,is_down_3,is_down_4,is_up_0,is_up_1,is_up_2,is_up_3
+             , is_up_4,position,prev_position,translation,distance,ever_moved,button_mask
+             , previous_button_mask }
     }
 }
 
