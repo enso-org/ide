@@ -322,6 +322,8 @@ ensogl::def_command_api! { Commands
     set_test_visualization_data_for_selected_node,
     /// Cycle the visualization for the selected nodes.
     cycle_visualization_for_selected_node,
+    /// Enter the last selected node.
+    enter_selected_node,
 
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
     enable_node_multi_select,
@@ -392,6 +394,7 @@ impl Commands {
 
             set_test_visualization_data_for_selected_node <- source();
             cycle_visualization_for_selected_node         <- source();
+            enter_selected_node                           <- source();
 
             toggle_fullscreen_for_selected_visualization <- source();
 
@@ -405,7 +408,7 @@ impl Commands {
              ,enable_node_subtract_select,disable_node_subtract_select,toggle_node_subtract_select
              ,enable_node_inverse_select,disable_node_inverse_select,toggle_node_inverse_select
              ,set_test_visualization_data_for_selected_node,cycle_visualization_for_selected_node
-             ,toggle_fullscreen_for_selected_visualization,cancel}
+             ,enter_selected_node,toggle_fullscreen_for_selected_visualization,cancel}
     }
 }
 
@@ -437,6 +440,7 @@ pub struct FrpInputs {
     pub remove_node                  : frp::Source<NodeId>,
     pub set_node_expression          : frp::Source<(NodeId,node::Expression)>,
     pub set_node_position            : frp::Source<(NodeId,Vector2)>,
+    pub set_expression_type          : frp::Source<(ast::Id, OptionalType)>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
     pub register_visualization : frp::Source<Option<visualization::Definition>>,
@@ -473,6 +477,7 @@ impl FrpInputs {
             def remove_node                  = source();
             def set_node_expression          = source();
             def set_node_position            = source();
+            def set_expression_type          = source();
             def set_visualization_data       = source();
             def cycle_visualization          = source();
             def set_visualization            = source();
@@ -491,7 +496,7 @@ impl FrpInputs {
              ,remove_all_node_input_edges,remove_all_node_output_edges,set_visualization_data
              ,set_detached_edge_targets,set_edge_source,set_edge_target
              ,unset_edge_source,unset_edge_target
-             ,set_node_position,select_node,remove_node,set_node_expression
+             ,set_node_position,set_expression_type,select_node,remove_node,set_node_expression
              ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
              ,register_visualization,some_edge_targets_detached,some_edge_sources_detached
              ,all_edge_targets_attached,hover_node_input,all_edge_sources_attached
@@ -575,6 +580,7 @@ generate_frp_outputs! {
     node_position_set         : (NodeId,Vector2),
     node_position_set_batched : (NodeId,Vector2),
     node_expression_set       : (NodeId,node::Expression),
+    node_entered              : NodeId,
 
     edge_added        : EdgeId,
     edge_removed      : EdgeId,
@@ -705,6 +711,18 @@ impl display::Object for Edge {
         &self.view.display_object()
     }
 }
+
+
+
+// ====================
+// === OptionalType ===
+// ====================
+
+/// Typename information that may be associated with the given Port.
+///
+/// `None` means that type for the port is unknown.
+#[derive(Clone,Debug,Default,Shrinkwrap)]
+pub struct OptionalType(pub Option<ImString>);
 
 
 
@@ -1486,7 +1504,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("d".into())])               , "set_test_visualization_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("f".into())]) , "cycle_visualization_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("f".into())])               , "cycle_visualization_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter])                  , "enter_selected_node")
              ]
     }
 }
@@ -1960,7 +1979,26 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval outputs.node_position_set (((id,pos)) model.set_node_position(id,*pos));
 
 
+    // === Set Expression Type ===
+
+    //TODO [mwu]
+    // === To Whoever Implements https://github.com/enso-org/ide/issues/478 ===
+    // The graph editor should react on this `set_expression_type` events. They are used to set or
+    // unset type information for expressions. The expression ID corresponds to some expression's
+    // SpanTree node.
+    // It should be noted that:
+    // * integration layer does not guarantee issuing this signal for all ports (they should be
+    //   treated as unknown type by default);
+    // * integration layer will not emit "unset" signal for ports that were removed by changing the
+    //   node expression (`set_node_expression` event) or were removed altogether (`remove_node`);
+    // * integration layer reserves right to emit spurious signals (i.e. unsetting type that was
+    //   not previously set or setting same type multiple times). This should improve, as we get
+    //   better updates from engine services (see https://github.com/enso-org/enso/issues/441 ).
+    trace inputs.set_expression_type;
+
+
     // === Move Edges ===
+
     detached_edge           <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
     cursor_pos_on_detach    <- cursor_pos_in_scene.sample(&detached_edge);
     edge_refresh_cursor_pos <- any (cursor_pos_on_detach,cursor_pos_in_scene);
@@ -2177,12 +2215,18 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }));
 
 
+    // === Node Entering ===
+
+    node_to_enter        <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
+    outputs.node_entered <+ node_to_enter;
+
+
     // === OUTPUTS REBIND ===
 
     outputs.some_edge_targets_detached <+ inputs.some_edge_targets_detached;
     outputs.some_edge_sources_detached <+ inputs.some_edge_sources_detached;
     outputs.all_edge_targets_attached  <+ inputs.all_edge_targets_attached;
-     outputs.all_edges_attached        <+ inputs.all_edges_attached;
+    outputs.all_edges_attached         <+ inputs.all_edges_attached;
 
     eval outputs.edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
     eval outputs.edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
