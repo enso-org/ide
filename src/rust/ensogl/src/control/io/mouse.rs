@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-pub mod button;
 pub mod event;
 
 use crate::control::callback;
@@ -14,8 +13,8 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::Closure;
 
-pub use button::*;
 pub use event::*;
+pub use crate::frp::io::mouse::*;
 
 
 
@@ -143,8 +142,8 @@ pub fn bind_frp_to_mouse(frp:&enso_frp::io::Mouse, mouse_manager:&MouseManager)
     let on_move = enclose!((frp.position => frp) move |e:&OnMove| {
         frp.emit(Vector2(e.client_x() as f32,e.client_y() as f32));
     });
-    let on_down  = enclose!((frp.down  => frp) move |_:&OnDown | frp.emit(()));
-    let on_up    = enclose!((frp.up    => frp) move |_:&OnUp   | frp.emit(()));
+    let on_down  = enclose!((frp.down  => frp) move |_:&OnDown | frp.emit(enso_frp::io::mouse::Button0));
+    let on_up    = enclose!((frp.up    => frp) move |_:&OnUp   | frp.emit(enso_frp::io::mouse::Button0));
     let on_wheel = enclose!((frp.wheel => frp) move |_:&OnWheel| frp.emit(()));
     MouseFrpCallbackHandles {
         on_move  : mouse_manager.on_move.add(on_move),
