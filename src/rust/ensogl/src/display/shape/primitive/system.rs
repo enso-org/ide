@@ -314,6 +314,7 @@ macro_rules! _define_shape_system {
 
             /// The canvas shape definition.
             pub fn shape_def(__style_watch__:&$crate::display::shape::StyleWatch) -> AnyShape {
+                #[allow(unused_imports)]
                 use $crate::display::style::data::DataMatch; // Operations styles.
                 $(
                     __style_watch__.reset();

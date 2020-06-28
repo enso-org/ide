@@ -1,3 +1,7 @@
+#![allow(missing_docs)]
+
+//! Text spans used to store metadata information.
+
 use crate::prelude::*;
 
 use super::range::Range;
@@ -22,14 +26,18 @@ impl<T:Clone> Spans<T> {
         Bytes(self.raw.len())
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.raw.is_empty()
+    }
+
     pub fn set(&mut self, range:Range<Bytes>, length:Bytes, data:T) {
         let mut builder = SpansBuilder::new(length.raw);
-        builder.add_span((..),data);
+        builder.add_span(..,data);
         self.edit(range,builder.build());
     }
 
     pub fn focus(&self, range:Range<Bytes>) -> Self {
-        let raw = self.raw.subseq(range.into_rope_repr());
+        let raw = self.raw.subseq(range.into_rope_interval());
         Self {raw}
     }
 
@@ -39,7 +47,7 @@ impl<T:Clone> Spans<T> {
 
     pub fn edit
     (&mut self, range:Range<Bytes>, new:impl Into<rope::tree::Node<rope::SpansInfo<T>>>) {
-        self.raw.edit(range.into_rope_repr(),new)
+        self.raw.edit(range.into_rope_interval(),new)
     }
 
     pub fn raw(&self) -> &rope::Spans<T> {

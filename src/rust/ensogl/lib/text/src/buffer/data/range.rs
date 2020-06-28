@@ -1,3 +1,5 @@
+//! Range implementation.
+
 use crate::prelude::*;
 
 use super::rope;
@@ -14,6 +16,7 @@ use super::unit::*;
 /// Unlike `std::ops::Range`, this range is strongly typed, implements `Copy`, and contains a lot
 /// of utilities for working with bytes ranges for the purpose of text manipulation.
 #[derive(Clone,Copy,PartialEq,Eq)]
+#[allow(missing_docs)]
 pub struct Range<T> {
     pub start : T,
     pub end   : T,
@@ -32,18 +35,19 @@ impl<T> Range<T> {
 }
 
 impl Range<Bytes> {
+    /// Convert to `rope::Interval`.
     pub fn into_rope_interval(self) -> rope::Interval {
         self.into()
     }
 }
 
-impl<T:Display> fmt::Display for Range<T> {
+impl<T:Display> Display for Range<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{}, {})", self.start, self.end)
     }
 }
 
-impl<T:Debug> fmt::Debug for Range<T> {
+impl<T:Debug> Debug for Range<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{:?}, {:?})", self.start, self.end)
     }
@@ -59,27 +63,21 @@ impl<T> From<std::ops::Range<T>> for Range<T> {
 
 // === Bytes Impls ===
 
-impl From<std::ops::RangeTo<Bytes>> for Range<Bytes> {
-    fn from(range:std::ops::RangeTo<Bytes>) -> Range<Bytes> {
+impl From<RangeTo<Bytes>> for Range<Bytes> {
+    fn from(range:RangeTo<Bytes>) -> Range<Bytes> {
         Range::new(Bytes(0), range.end)
     }
 }
 
-impl From<std::ops::RangeInclusive<Bytes>> for Range<Bytes> {
-    fn from(range:std::ops::RangeInclusive<Bytes>) -> Range<Bytes> {
+impl From<RangeInclusive<Bytes>> for Range<Bytes> {
+    fn from(range:RangeInclusive<Bytes>) -> Range<Bytes> {
         Range::new(*range.start(), range.end().saturating_add(1))
     }
 }
 
-impl From<std::ops::RangeToInclusive<Bytes>> for Range<Bytes> {
-    fn from(range:std::ops::RangeToInclusive<Bytes>) -> Range<Bytes> {
+impl From<RangeToInclusive<Bytes>> for Range<Bytes> {
+    fn from(range:RangeToInclusive<Bytes>) -> Range<Bytes> {
         Range::new(Bytes(0), range.end.saturating_add(1))
-    }
-}
-
-impl Range<Bytes> {
-    pub fn into_rope_repr(self) -> rope::Interval {
-        self.into()
     }
 }
 

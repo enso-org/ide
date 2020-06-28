@@ -27,6 +27,7 @@ pub use keyboard_types::Key;
 
 /// The key bitmask (each bit represents one key). Used for matching key combinations.
 #[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub struct KeyMask {
     pub bits : BitField256
 }
@@ -114,7 +115,7 @@ impl Default for Keyboard {
             key_mask          <- any_mut::<KeyMask>();
             key_mask          <+ on_pressed  . map2(&key_mask,|key,mask| mask.with_set(key,true));
             key_mask          <+ on_released . map2(&key_mask,|key,mask| mask.with_set(key,false));
-            key_mask          <+ on_defocus  . map2(&key_mask,|_  ,mask| default());
+            key_mask          <+ on_defocus  . map2(&key_mask,|_,_| default());
             previous_key_mask <- key_mask.previous();
         }
         let network  = keyboard;

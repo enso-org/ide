@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 //! Root of text buffer implementation. The text buffer is a sophisticated model for text styling
 //! and editing operations.
 
@@ -13,6 +15,7 @@ pub mod data;
 pub mod style;
 pub mod view;
 
+/// Common traits.
 pub mod traits {
     pub use super::data::traits::*;
     pub use super::Setter        as TRAIT_Setter;
@@ -25,7 +28,6 @@ pub use data::unit::*;
 pub use view::*;
 pub use style::*;
 
-use data::Range;
 
 
 // fixme - refactor to undo/redo stub
@@ -51,10 +53,10 @@ pub enum EditType {
 }
 
 impl EditType {
-    /// Checks whether a new undo group should be created between two edits.
-    fn breaks_undo_group(self, previous:EditType) -> bool {
-        self == EditType::Other || self == EditType::Transpose || self != previous
-    }
+    // /// Checks whether a new undo group should be created between two edits.
+    // fn breaks_undo_group(self, previous:EditType) -> bool {
+    //     self == EditType::Other || self == EditType::Transpose || self != previous
+    // }
 }
 
 impl Default for EditType {
@@ -163,14 +165,4 @@ pub trait Setter<T> {
 
 pub trait DefaultSetter<T> {
     fn set_default(&self, data:T);
-}
-
-impl Setter<&Data> for Buffer {
-    fn modify(&self, range: impl data::RangeBounds, len: Bytes, data: &Data) {
-        unimplemented!()
-    }
-
-    fn set(&self, range:impl data::RangeBounds, data:&Data) {
-        self.data.borrow_mut().insert(range,data)
-    }
 }

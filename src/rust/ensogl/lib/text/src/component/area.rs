@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use crate::traits::*;
 
 use crate::typeface::glyph;
 use crate::typeface::pen;
@@ -16,13 +15,11 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::data::color;
 use ensogl::display;
-use crate::buffer::view::LineOffset;
 use ensogl::gui::component;
 use crate::typeface;
 use ensogl::gui::cursor as mouse_cursor;
 use enso_frp as frp;
 use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
-use enso_frp::Network;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 
@@ -61,7 +58,10 @@ macro_rules! define_frp {
 
         impl FrpInputs {
             pub fn new(network:&frp::Network) -> Self {
-                $(let $commands_name = $commands_name::new(network);)?
+                $(
+                    #[allow(non_snake_case)]
+                    let $commands_name = $commands_name::new(network);
+                )?
                 frp::extend! { network
                     $($in_field <- source();)*
                 }
@@ -538,7 +538,7 @@ impl display::Object for Area {
 }
 
 impl application::command::FrpNetworkProvider for Area {
-    fn network(&self) -> &Network {
+    fn network(&self) -> &frp::Network {
         &self.frp.network
     }
 }

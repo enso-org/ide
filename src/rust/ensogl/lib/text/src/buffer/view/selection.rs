@@ -1,7 +1,7 @@
 
 use crate::prelude::*;
 
-use super::data::unit::*;
+use crate::buffer::data::unit::*;
 use crate::buffer::data::Range;
 
 
@@ -38,7 +38,7 @@ impl Selection {
         (self.start .. self.end).into()
     }
 
-    pub fn len(&self) -> Bytes {
+    pub fn size(&self) -> Bytes {
         self.end - self.start
     }
 

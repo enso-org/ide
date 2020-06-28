@@ -51,6 +51,7 @@ impl Application {
         Self {logger,cursor,display,commands,shortcuts,views,themes}
     }
 
+    /// Create a new instance of a view.
     pub fn new_view<T:View>(&self) -> T {
         self.views.new_view(self)
     }

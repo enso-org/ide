@@ -42,6 +42,11 @@ impl Data {
         Bytes(self.rope.len())
     }
 
+    /// Check whether the text is empty.
+    pub fn is_empty(&self) -> bool {
+        self.rope.is_empty()
+    }
+
     /// Range of the text in this data.
     pub fn range(&self) -> Range<Bytes> {
         (..self.len()).into()

@@ -37,8 +37,6 @@ use crate::display::shape::system::ShapeSystemOf;
 use display::style::data::DataMatch;
 use enso_frp as frp;
 use std::any::TypeId;
-use wasm_bindgen::JsValue;
-use wasm_bindgen::prelude::Closure;
 use web_sys::HtmlElement;
 
 
@@ -286,40 +284,12 @@ mod target_tests {
 // === Mouse ===
 // =============
 
-pub trait MouseEventFn      = Fn(JsValue) + 'static;
-pub type  MouseEventClosure = Closure<dyn Fn(JsValue)>;
-
-fn mouse_event_closure<F:MouseEventFn>(f:F) -> MouseEventClosure {
-    Closure::wrap(Box::new(f))
-}
-
-#[derive(Clone,CloneRef,Debug)]
-pub struct MouseButtonState {
-    pub button0_pressed : Uniform<bool>,
-    pub button1_pressed : Uniform<bool>,
-    pub button2_pressed : Uniform<bool>,
-    pub button3_pressed : Uniform<bool>,
-    pub button4_pressed : Uniform<bool>,
-}
-
-impl MouseButtonState {
-    pub fn new(variables:&UniformScope) -> Self {
-        let button0_pressed = variables.add_or_panic("mouse_button0_pressed",false);
-        let button1_pressed = variables.add_or_panic("mouse_button1_pressed",false);
-        let button2_pressed = variables.add_or_panic("mouse_button2_pressed",false);
-        let button3_pressed = variables.add_or_panic("mouse_button3_pressed",false);
-        let button4_pressed = variables.add_or_panic("mouse_button4_pressed",false);
-        Self {button0_pressed,button1_pressed,button2_pressed,button3_pressed,button4_pressed}
-    }
-}
-
 #[derive(Clone,CloneRef,Debug)]
 pub struct Mouse {
     pub mouse_manager : MouseManager,
     pub last_position : Rc<Cell<Vector2<i32>>>,
     pub position      : Uniform<Vector2<i32>>,
     pub hover_ids     : Uniform<Vector4<u32>>,
-    pub button_state  : MouseButtonState,
     pub target        : Rc<Cell<Target>>,
     pub handles       : Rc<Vec<callback::Handle>>,
     pub frp           : enso_frp::io::Mouse,
@@ -334,57 +304,32 @@ impl Mouse {
         let last_position   = Rc::new(Cell::new(Vector2::new(0,0)));
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
         let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal(&logger));
-        let button_state    = MouseButtonState::new(variables);
         let target          = Rc::new(Cell::new(target));
         let document        = web::dom::WithKnownShape::new(&web::document().body().unwrap());
         let mouse_manager   = MouseManager::new(&document.into());
         let frp             = frp::io::Mouse::new();
+        let on_move         = mouse_manager.on_move.add(f!([frp,scene_frp,position,last_position]
+            (event:&mouse::OnMove) {
+                let shape       = scene_frp.shape.value();
+                let pixel_ratio = shape.pixel_ratio as i32;
+                let screen_x    = event.client_x();
+                let screen_y    = event.client_y();
 
-        let on_move = mouse_manager.on_move.add(f!([frp,scene_frp,position,last_position]
-        (event:&mouse::OnMove) {
-            let shape       = scene_frp.shape.value();
-            let pixel_ratio = shape.pixel_ratio as i32;
-            let screen_x    = event.client_x();
-            let screen_y    = event.client_y();
-
-            let new_pos     = Vector2::new(screen_x,screen_y);
-            let pos_changed = new_pos != last_position.get();
-            if pos_changed {
-                last_position.set(new_pos);
-                let new_canvas_position = new_pos * pixel_ratio;
-                position.set(new_canvas_position);
-                let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
-                frp.position.emit(position);
+                let new_pos     = Vector2::new(screen_x,screen_y);
+                let pos_changed = new_pos != last_position.get();
+                if pos_changed {
+                    last_position.set(new_pos);
+                    let new_canvas_position = new_pos * pixel_ratio;
+                    position.set(new_canvas_position);
+                    let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
+                    frp.position.emit(position);
+                }
             }
-        }));
-
-        let on_down = mouse_manager.on_down.add(f!([frp,button_state](event:&mouse::OnDown) {
-            let button = event.button();
-            match button {
-                mouse::Button0 => button_state.button0_pressed.set(true),
-                mouse::Button1 => button_state.button1_pressed.set(true),
-                mouse::Button2 => button_state.button2_pressed.set(true),
-                mouse::Button3 => button_state.button3_pressed.set(true),
-                mouse::Button4 => button_state.button4_pressed.set(true),
-            }
-            frp.down.emit(button);
-        }));
-
-        let on_up = mouse_manager.on_up.add(f!([frp,button_state](event:&mouse::OnUp) {
-            let button = event.button();
-            match button {
-                mouse::Button0 => button_state.button0_pressed.set(false),
-                mouse::Button1 => button_state.button1_pressed.set(false),
-                mouse::Button2 => button_state.button2_pressed.set(false),
-                mouse::Button3 => button_state.button3_pressed.set(false),
-                mouse::Button4 => button_state.button4_pressed.set(false),
-            }
-            frp.up.emit(button);
-        }));
-
+        ));
+        let on_down = mouse_manager.on_down . add(f!((event) frp.down . emit(event.button())));
+        let on_up   = mouse_manager.on_up   . add(f!((event) frp.up   . emit(event.button())));
         let handles = Rc::new(vec![on_move,on_down,on_up]);
-        Self {mouse_manager,last_position,position,hover_ids,button_state,target,handles,frp
-             ,scene_frp,logger}
+        Self {mouse_manager,last_position,position,hover_ids,target,handles,frp,scene_frp,logger}
     }
 
     /// Reemits FRP mouse changed position event with the last mouse position value.
@@ -795,9 +740,8 @@ pub struct Extensions {
 impl Extensions {
     pub fn get<T:Extension>(&self, scene:&Scene) -> T {
         let type_id = TypeId::of::<T>();
-        let init    = || Box::new(T::init(scene)) as Box<dyn Any>;
         let map_mut = &mut self.map.borrow_mut();
-        let entry   = map_mut.entry(type_id).or_insert_with(init);
+        let entry   = map_mut.entry(type_id).or_insert_with(||Box::new(T::init(scene)));
         entry.downcast_ref::<T>().unwrap().clone_ref()
     }
 }

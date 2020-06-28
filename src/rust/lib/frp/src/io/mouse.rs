@@ -78,8 +78,8 @@ impl Default for Button {
 // ==================
 
 /// The button bitmask (each bit represents one button). Used for matching button combinations.
-#[derive(Clone,Copy,Debug,Default,Eq,Hash,PartialEq,Shrinkwrap)]
-#[shrinkwrap(mutable)]
+#[derive(Clone,Copy,Debug,Default,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub struct ButtonMask {
     pub bits : BitField32
 }
@@ -91,27 +91,26 @@ impl ButtonMask {
     }
 
     /// Check if button bit is on.
-    pub fn contains(&self, button:&Button) -> bool {
+    pub fn contains(self, button:Button) -> bool {
         self.bits.get_bit(button.code())
     }
 
     /// Set the `button` bit with the new state.
-    pub fn set(&mut self, button:&Button, state:bool) {
+    pub fn set(&mut self, button:Button, state:bool) {
         self.bits.set_bit(button.code(),state);
     }
 
     /// Clone the mask and set the `button` bit with the new state.
-    pub fn with_set(&self, button:&Button, state:bool) -> Self {
-        let mut mask = self.clone();
-        mask.set(button,state);
-        mask
+    pub fn with_set(mut self, button:Button, state:bool) -> Self {
+        self.set(button,state);
+        self
     }
 }
 
 impl<'a> FromIterator<&'a Button> for ButtonMask {
     fn from_iter<T: IntoIterator<Item=&'a Button>>(buttons:T) -> Self {
         let mut mask = ButtonMask::default();
-        for button in buttons { mask.set(button,true) }
+        for button in buttons { mask.set(*button,true) }
         mask
     }
 }
@@ -123,7 +122,7 @@ impl From<&[Button;2]> for ButtonMask { fn from(t:&[Button;2]) -> Self {ButtonMa
 impl From<&[Button;3]> for ButtonMask { fn from(t:&[Button;3]) -> Self {ButtonMask::from_iter(t)} }
 impl From<&[Button;4]> for ButtonMask { fn from(t:&[Button;4]) -> Self {ButtonMask::from_iter(t)} }
 impl From<&[Button;5]> for ButtonMask { fn from(t:&[Button;5]) -> Self {ButtonMask::from_iter(t)} }
-impl From<&ButtonMask> for ButtonMask { fn from(t:&ButtonMask) -> Self {t.clone()} }
+impl From<&ButtonMask> for ButtonMask { fn from(t:&ButtonMask) -> Self {*t} }
 
 
 
@@ -221,8 +220,6 @@ impl Default for Mouse {
             down          <- source();
             wheel         <- source();
             position      <- source();
-            is_down       <- bool(&up,&down);
-            is_up         <- is_down.map(|t|!t);
             prev_position <- position.previous();
             translation   <- position.map2(&prev_position,|t,s|t-s);
             distance      <- translation.map(|t:&Vector2<f32>|t.norm());
@@ -265,8 +262,8 @@ impl Default for Mouse {
             is_up_4       <- is_down_4.map(|t|!t);
 
             button_mask   <- any_mut::<ButtonMask>();
-            button_mask   <+ down . map2(&button_mask,|button,mask| mask.with_set(button,true));
-            button_mask   <+ up   . map2(&button_mask,|button,mask| mask.with_set(button,false));
+            button_mask   <+ down . map2(&button_mask,|button,mask| mask.with_set(*button,true));
+            button_mask   <+ up   . map2(&button_mask,|button,mask| mask.with_set(*button,false));
 
             previous_button_mask <- button_mask.previous();
         };

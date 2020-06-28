@@ -20,7 +20,6 @@ use ensogl_text as text;
 
 use text::traits::*;
 
-use nalgebra as n;
 
 
 #[wasm_bindgen]

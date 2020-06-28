@@ -451,6 +451,7 @@ define_shape_data_string_operator! { Div div (/) }
 // =========================
 
 impl Var<f32> {
+    /// Perform Hermite interpolation between two values.
     pub fn smoothstep(&self, e1:impl RefInto<Glsl>, e2:impl RefInto<Glsl>) -> Self {
         let e1 = e1.glsl();
         let e2 = e2.glsl();

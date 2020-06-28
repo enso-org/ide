@@ -1,15 +1,18 @@
+#![allow(missing_docs)]
 
+use crate::prelude::*;
 
 pub mod movement;
 pub mod selection;
 
 pub use movement::*;
-pub use selection::*;
+pub use selection::Selection;
 
 
-use crate::prelude::*;
-use crate::buffer;
-use crate::buffer::*;
+use crate::buffer::data;
+use crate::buffer::data::Data;
+use crate::buffer::data::unit::*;
+use crate::buffer::Buffer;
 
 use enso_frp as frp;
 
@@ -212,8 +215,8 @@ impl View {
 
         frp::extend! { network
 
-            selection_on_move  <- input.move_carets.map(f!((t) model.moved_selection2(t,false)));
-            selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(t,true)));
+            selection_on_move  <- input.move_carets.map(f!((t) model.moved_selection2(*t,false)));
+            selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(*t,true)));
             selection_on_clear <- input.clear_selection.constant(default());
 
 //            selection_on_set_cursor <- input.set_cursor.map(|t| Selection::new_cursor(*t).into());
@@ -286,7 +289,7 @@ impl ViewModel {
         self.selection.borrow().clone()
     }
 
-    fn moved_selection2(&self, movement:&Option<Movement>, modify:bool) -> selection::Group {
+    fn moved_selection2(&self, movement:Option<Movement>, modify:bool) -> selection::Group {
         movement.map(|t| self.moved_selection(t,modify)).unwrap_or_default()
     }
 
@@ -308,7 +311,7 @@ impl ViewModel {
         self.line_count.get()
     }
 
-    pub fn line_range(&self) -> std::ops::Range<Line> {
+    pub fn line_range(&self) -> Range<Line> {
         self.first_line_number() .. self.last_line_number()
     }
 
@@ -320,7 +323,7 @@ impl ViewModel {
         self.offset_of_line(self.last_line_number())
     }
 
-    pub fn line_offset_range(&self) -> std::ops::Range<Bytes> {
+    pub fn line_offset_range(&self) -> Range<Bytes> {
         self.first_line_offset() .. self.last_line_offset()
     }
 
@@ -341,7 +344,7 @@ impl ViewModel {
     }
 
     // FIXME: this sohuld not include line break.
-    pub fn range_of_view_line_raw(&self, view_line:Line) -> std::ops::Range<Bytes> {
+    pub fn range_of_view_line_raw(&self, view_line:Line) -> Range<Bytes> {
         let start = self.offset_of_view_line(view_line);
         let end   = self.offset_of_view_line(view_line + 1);
         start .. end

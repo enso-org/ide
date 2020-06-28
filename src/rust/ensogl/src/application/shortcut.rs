@@ -28,6 +28,7 @@ const DOUBLE_PRESS_THRESHOLD : f32 = 300.0;
 
 /// A bit-mask for keyboard and mouse events.
 #[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub struct ActionMask {
     pub keyboard : keyboard::KeyMask,
     pub mouse    : mouse::ButtonMask,

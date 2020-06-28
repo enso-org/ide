@@ -34,7 +34,7 @@ pub struct EventDispatcher<T> {
 
 impl<T> EventDispatcher<T> {
     /// Adds a new callback.
-    pub fn add<F:callback::CallbackMut1Fn<T>>(&self, f:F) -> callback::Handle {
+    pub fn add<F:FnMut(&T)+'static>(&self, f:F) -> callback::Handle {
         self.rc.borrow_mut().add(f)
     }
 
@@ -137,13 +137,13 @@ pub struct MouseFrpCallbackHandles {
 
 // FIXME: This is obsolete. Use mouse bindings from scene instead.
 /// Bind FRP graph to MouseManager.
-pub fn bind_frp_to_mouse(frp:&enso_frp::io::Mouse, mouse_manager:&MouseManager)
+pub fn bind_frp_to_mouse(frp:&Mouse, mouse_manager:&MouseManager)
 -> MouseFrpCallbackHandles {
     let on_move = enclose!((frp.position => frp) move |e:&OnMove| {
         frp.emit(Vector2(e.client_x() as f32,e.client_y() as f32));
     });
-    let on_down  = enclose!((frp.down  => frp) move |_:&OnDown | frp.emit(enso_frp::io::mouse::Button0));
-    let on_up    = enclose!((frp.up    => frp) move |_:&OnUp   | frp.emit(enso_frp::io::mouse::Button0));
+    let on_down  = enclose!((frp.down  => frp) move |_:&OnDown | frp.emit(Button0));
+    let on_up    = enclose!((frp.up    => frp) move |_:&OnUp   | frp.emit(Button0));
     let on_wheel = enclose!((frp.wheel => frp) move |_:&OnWheel| frp.emit(()));
     MouseFrpCallbackHandles {
         on_move  : mouse_manager.on_move.add(on_move),

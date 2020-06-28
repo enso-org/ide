@@ -22,15 +22,18 @@ pub trait BitField {
 
 
 
-// ===================
-// === BitField256 ===
-// ===================
+// ===============================
+// === Double Chunk Bit Fields ===
+// ===============================
 
 /// Efficient 256 bit field implementation. Encoded as two `u128` under the hood.
-/// Warning! Do not use copy if you don't have to. A reference takes 8 bytes. This struct takes
-/// 32 bytes (4x the reference size). It is highly probable that passing a reference would be more
-/// efficient than passing a value.
+///
+/// ## Implementation Notes
+/// The type does not implement `Copy` on purpose. A single reference takes 8 bytes. This struct
+/// takes 32 bytes (4x the reference size). Passing it by reference would be more efficient than
+/// by value.
 #[derive(Clone,Default,Deref,Eq,Hash,PartialEq)]
+#[allow(missing_copy_implementations)]
 pub struct BitField256 {
     chunks : [u128;2]
 }
@@ -74,17 +77,75 @@ impl Debug for BitField256 {
 }
 
 
+
+// ===============================
+// === Single Chunk Bit Fields ===
+// ===============================
+
+macro_rules! define_single_chunk_bit_field {
+    ($name:ident, $raw:ident, $size:tt) => {
+        /// Efficient $size bit field implementation. Encoded as single $raw under the hood.
+        #[derive(Clone,Copy,Default,Deref,Eq,Hash,PartialEq)]
+        #[allow(missing_docs)]
+        pub struct $name {
+            raw : $raw
+        }
+
+        impl $name {
+            /// Constructor.
+            pub fn new() -> Self {
+                default()
+            }
+        }
+
+        impl BitField for $name {
+            const BIT_LENGTH:usize = $size;
+
+            #[inline]
+            fn get_bit(&self, bit:usize) -> bool {
+                assert!(bit < Self::BIT_LENGTH);
+                (self.raw & (1 << bit)) != 0
+            }
+
+            #[inline]
+            #[allow(clippy::collapsible_if)]
+            fn set_bit(&mut self, bit:usize, value:bool) -> &mut Self {
+                assert!(bit < Self::BIT_LENGTH);
+                if value { self.raw |=   1 << bit  }
+                else     { self.raw &= !(1 << bit) }
+                self
+            }
+        }
+
+        impl Debug for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f,"BitField32({:032b})",self.raw)
+            }
+        }
+    };
+}
+
+define_single_chunk_bit_field!(BitField8   , u8   ,   8);
+define_single_chunk_bit_field!(BitField16  , u16  ,  16);
+define_single_chunk_bit_field!(BitField32  , u32  ,  32);
+define_single_chunk_bit_field!(BitField64  , u64  ,  64);
+define_single_chunk_bit_field!(BitField128 , u128 , 128);
+
+
+
+// =============
 // === Tests ===
+// =============
 
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
-    fn getting_and_setting_bits() {
-        let tested_bits = &[0, 10, 127, 128, 255];
+    fn single_chunk_bitfields() {
+        let tested_bits = &[0,1,10,20,31];
 
-        let mut bit_field = BitField256::default();
+        let mut bit_field = BitField32::default();
         for bit in tested_bits {
             assert_eq!(bit_field.get_bit(*bit), false);
         }
@@ -107,63 +168,12 @@ mod test {
             }
         }
     }
-}
-
-
-// ==================
-// === BitField32 ===
-// ==================
-
-/// Efficient 32 bit field implementation. Encoded as single u32 under the hood.
-#[derive(Clone,Copy,Default,Deref,Eq,Hash,PartialEq)]
-pub struct BitField32 {
-    raw : u32
-}
-
-impl BitField32 {
-    /// Constructor.
-    pub fn new() -> Self {
-        default()
-    }
-}
-
-impl BitField for BitField32 {
-    const BIT_LENGTH:usize = 32;
-
-    #[inline]
-    fn get_bit(&self, bit:usize) -> bool {
-        assert!(bit < Self::BIT_LENGTH);
-        (self.raw & (1 << bit)) != 0
-    }
-
-    #[inline]
-    #[allow(clippy::collapsible_if)]
-    fn set_bit(&mut self, bit:usize, value:bool) -> &mut Self {
-        assert!(bit < Self::BIT_LENGTH);
-        if value { self.raw |=   1 << bit  }
-        else     { self.raw &= !(1 << bit) }
-        self
-    }
-}
-
-impl Debug for BitField32 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"BitField32({:032b})",self.raw)
-    }
-}
-
-
-// === Tests ===
-
-#[cfg(test)]
-mod test {
-    use super::*;
 
     #[test]
-    fn getting_and_setting_bits() {
-        let tested_bits = &[0,1,10,20,31];
+    fn multi_chunk_bitfields() {
+        let tested_bits = &[0, 10, 127, 128, 255];
 
-        let mut bit_field = BitField32::default();
+        let mut bit_field = BitField256::default();
         for bit in tested_bits {
             assert_eq!(bit_field.get_bit(*bit), false);
         }

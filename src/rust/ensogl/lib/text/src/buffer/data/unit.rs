@@ -1,6 +1,6 @@
+#![allow(missing_docs)]
 
 use crate::prelude::*;
-use crate::buffer::data::rope;
 use std::ops::AddAssign; // FIXME
 
 
@@ -21,6 +21,7 @@ macro_rules! num_newtype {
 
         /// Smart constructor.
         $(#$meta)*
+        #[allow(non_snake_case)]
         pub fn $name($($field:$field_type),*) -> $name { $name {$($field),*} }
 
         impl From<&$name> for $name       { fn from(t:&$name) -> Self { *t } }
@@ -60,6 +61,7 @@ macro_rules! num_newtype_opr {
         }
 
         $(
+            #[allow(clippy::needless_update)]
             impl $opr<$field_type> for $name {
                 type Output = $name;
                 fn $f(self, rhs:$field_type) -> Self::Output {
@@ -67,6 +69,7 @@ macro_rules! num_newtype_opr {
                 }
             }
 
+            #[allow(clippy::needless_update)]
             impl $opr<$field_type> for &$name {
                 type Output = $name;
                 fn $f(self, rhs:$field_type) -> Self::Output {

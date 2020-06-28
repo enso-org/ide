@@ -20,7 +20,7 @@ use shapely::shared;
 // =============
 
 #[derive(Debug)]
-struct Cache<K:Eq+Hash, V> {
+pub struct Cache<K:Eq+Hash, V> {
     map: RefCell<HashMap<K,V>>,
 }
 
@@ -31,17 +31,6 @@ impl<K:Eq+Hash, V:Copy> Cache<K,V> {
         match map.entry(key) {
             Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => *entry.insert(constructor()),
-        }
-    }
-}
-
-impl<K:Eq+Hash, V:Clone> Cache<K,V> {
-    pub fn get_clone_or_create<F>(&self, key:K, constructor:F) -> V
-        where F : FnOnce() -> V {
-        let mut map = self.map.borrow_mut();
-        match map.entry(key) {
-            Entry::Occupied(entry) => entry.get().clone(),
-            Entry::Vacant(entry) => entry.insert(constructor()).clone(),
         }
     }
 }
@@ -136,7 +125,7 @@ impl GlyphRenderInfo {
         atlas.extend_with_raw_data(msdf.data.iter());
         GlyphRenderInfo {
             msdf_texture_glyph_id : glyph_id,
-            offset                : -Vector2(translation.x as f32, translation.y as f32),
+            offset                : -translation,
             scale                 : Vector2(inversed_scale.x as f32, inversed_scale.y as f32),
             advance               : msdf::x_distance_from_msdf_value(msdf.advance),
         }
@@ -321,7 +310,7 @@ impl Registry {
 }
 
 impl scene::Extension for Registry {
-    fn init(scene:&Scene) -> Self {
+    fn init(_scene:&Scene) -> Self {
         Self::init_and_load_default()
     }
 }

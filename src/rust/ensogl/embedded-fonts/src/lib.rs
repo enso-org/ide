@@ -1,3 +1,5 @@
+//! Implementation of embedded fonts loading.
+
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
@@ -24,6 +26,7 @@ pub const DEFAULT_FONT : &str = "DejaVuSans";
 /// user (e.g. by using msdf-sys crate).
 ///
 /// For list of embedded fonts, see FONTS_TO_EXTRACT constant in `build.rs`.
+#[allow(missing_docs)]
 pub struct EmbeddedFonts {
     pub font_data_by_name: HashMap<&'static str,&'static [u8]>
 }

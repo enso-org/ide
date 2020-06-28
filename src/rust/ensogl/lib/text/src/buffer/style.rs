@@ -1,4 +1,4 @@
-use crate::prelude::*;
+#![allow(missing_docs)]
 
 use crate::data::color;
 use crate::buffer::data::Range;
@@ -21,6 +21,7 @@ macro_rules! newtype {
 
         /// Smart constructor.
         $(#$meta)*
+        #[allow(non_snake_case)]
         pub fn $name(raw:$field_type) -> $name { $name {raw} }
     };
 }
@@ -44,14 +45,14 @@ pub struct Property<T:Clone> {
 
 impl<T:Clone> Property<T> {
     /// Return new property narrowed to the given range.
-    pub fn focus(&self, range: data::Range<Bytes>) -> Self {
+    pub fn focus(&self, range:Range<Bytes>) -> Self {
         let spans   = self.spans.focus(range);
         let default = self.default.clone();
         Self {spans,default}
     }
 
     /// Convert the property to a vector of spans.
-    pub fn to_vector(&self) -> Vec<(data::Range<Bytes>, T)> {
+    pub fn to_vector(&self) -> Vec<(Range<Bytes>,T)> {
         let spans_iter = self.spans.to_vector().into_iter();
         spans_iter.map(|t|(t.0,t.1.unwrap_or_else(||self.default.clone()))).collect_vec()
     }
@@ -85,6 +86,7 @@ impl<T:Clone> DerefMut for Property<T> {
 // ================
 
 /// Byte-based iterator for the `Style`.
+#[derive(Debug)]
 pub struct StyleIterator {
     offset    : Bytes,
     value     : StyleIteratorValue,
@@ -120,23 +122,25 @@ macro_rules! define_styles {
         // ==================
 
         /// The value of a style at some point in the buffer.
-        #[derive(Debug,Default)]
+        #[derive(Clone,Copy,Debug,Default)]
         pub struct StyleValue {
             $(pub $field : $field_type),*
         }
 
+        #[derive(Debug)]
         struct StyleIteratorComponents {
-            $($field : std::vec::IntoIter<(data::Range<Bytes>,$field_type)>),*
+            $($field : std::vec::IntoIter<(Range<Bytes>,$field_type)>),*
         }
+
 
 
         // ================
         // === Iterator ===
         // ================
 
-        #[derive(Default)]
+        #[derive(Debug,Default)]
         struct StyleIteratorValue {
-            $($field : Option<(data::Range<Bytes>,$field_type)>),*
+            $($field : Option<(Range<Bytes>,$field_type)>),*
         }
 
         impl Iterator for StyleIterator {
@@ -152,6 +156,7 @@ macro_rules! define_styles {
                 Some(StyleValue {$($field),*})
             }
         }
+
 
 
         // =============
@@ -173,7 +178,7 @@ macro_rules! define_styles {
             }
 
             /// Return new style narrowed to the given range.
-            pub fn focus(&self, bounds:data::Range<Bytes>) -> Self {
+            pub fn focus(&self, bounds:Range<Bytes>) -> Self {
                 $(let $field = self.$field.focus(bounds);)*
                 Self {$($field),*}
             }
@@ -236,6 +241,8 @@ newtype!(Underline(bool));
 pub struct Size {
     pub raw: f32
 }
+
+#[allow(non_snake_case)]
 pub fn Size(raw:f32) -> Size { Size { raw } }
 
 impl Default for Size {

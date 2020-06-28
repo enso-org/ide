@@ -102,8 +102,7 @@ pub fn y_distance_from_msdf_value(msdf_value:f64) -> f32 {
 /// This function get the transformation obtained from `msdf_sys` which is expressed in MSDF units,
 /// and convert it to  normalized coordinates, where (0.0, 0.0) is initial pen position for an
 /// character, and `y` = 1.0 is _ascender_.
-pub fn convert_msdf_translation(msdf:&Msdf)
--> Vector2<f32> {
+pub fn convert_msdf_translation(msdf:&Msdf) -> Vector2<f32> {
     let x = x_distance_from_msdf_value(msdf.translation.x);
     let y = y_distance_from_msdf_value(msdf.translation.y);
     Vector2(x, y)
