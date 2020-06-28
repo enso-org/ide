@@ -131,22 +131,27 @@ const BLINK_OFF_DURATION       : f32 = 300.0;
 const BLINK_PERIOD             : f32 =
     BLINK_SLOPE_IN_DURATION + BLINK_SLOPE_OUT_DURATION + BLINK_ON_DURATION + BLINK_OFF_DURATION;
 
-/// Canvas node shape definition.
+/// Text cursor definition.
+///
+///
+/// ## Blinking Implementation
 ///
 /// The blinking alpha is a time-dependent function which starts as a fully opaque value and
 /// changes periodically. The `start_time` parameter is set to the current time after each cursor
 /// operation, which makes cursor visible during typing and after position change.
 ///
 /// ```compile_fail
-/// v-start time
 /// |
-/// |     on         off
-/// |  <------>   <------->
-/// |- --------.             .--------.             .-...
-/// |           \           /          \           /
-/// |            '---------'            '---------'
-/// |          <->         <->
-/// |       slope_out   slope_in
+/// |    on         off
+/// | <------>   <------->
+/// | --------.             .--------.             .-...
+/// |          \           /          \           /
+/// |           '---------'            '---------'
+/// |         <->         <->
+/// |      slope_out   slope_in
+/// |                                              time
+/// |-------------------------------------------------->
+/// start time
 /// ```
 pub mod cursor {
     use super::*;
@@ -531,62 +536,6 @@ impl display::Object for Area {
         self.data.display_object()
     }
 }
-
-//
-//// === Internal API ===
-//
-//impl Line {
-//    fn resize(&self) {
-//        let content_len        = self.content.borrow().len();
-//        let target_glyph_count = self.fixed_capacity.get().unwrap_or(content_len);
-//        let glyph_count        = self.glyphs.borrow().len();
-//        if target_glyph_count > glyph_count {
-//            let new_count  = target_glyph_count - glyph_count;
-//            let new_glyphs = (0..new_count).map(|_| {
-//                let glyph = self.glyph_system.new_glyph();
-//                self.add_child(&glyph);
-//                glyph
-//            });
-//            self.glyphs.borrow_mut().extend(new_glyphs)
-//        }
-//        if glyph_count > target_glyph_count {
-//            self.glyphs.borrow_mut().truncate(target_glyph_count)
-//        }
-//    }
-//
-//    /// Updates properties of all glyphs, including characters they display, size, and colors.
-//    fn redraw(&self) {
-//        self.resize();
-//
-//        let content     = self.content.borrow();
-//        let font        = self.glyph_system.font.clone_ref();
-//        let font_size   = self.font_size.get();
-//        let chars       = content.chars();
-//        let pen         = PenIterator::new(font_size,chars,font);
-//        let content_len = content.len();
-//        let color       = self.font_color.get().into();
-//
-//        for (glyph,(chr,x_offset)) in self.glyphs.borrow().iter().zip(pen) {
-//            let glyph_info   = self.glyph_system.font.get_glyph_info(chr);
-//            let size         = glyph_info.scale.scale(font_size);
-//            let glyph_offset = glyph_info.offset.scale(font_size);
-//            let glyph_x      = x_offset + glyph_offset.x;
-//            let glyph_y      = glyph_offset.y;
-//            glyph.set_position(Vector3::new(glyph_x,glyph_y,0.0));
-//            glyph.set_glyph(chr);
-//            glyph.color().set(color);
-//            glyph.size.set(size);
-//        }
-//
-//        for glyph in self.glyphs.borrow().iter().skip(content_len) {
-//            glyph.size.set(Vector2::new(0.0,0.0));
-//        }
-//    }
-//}
-//
-//
-// === Display Object ===
-
 
 impl application::command::FrpNetworkProvider for Area {
     fn network(&self) -> &Network {
