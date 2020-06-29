@@ -102,7 +102,7 @@ impl StyleIterator {
 
     /// Drop the given amount of bytes.
     pub fn drop(&mut self, bytes:Bytes) {
-        for _ in 0 .. bytes.raw {
+        for _ in 0 .. bytes.value {
             self.next();
         }
     }

@@ -60,12 +60,12 @@ impl Data {
 
     /// Return the offset to the previous grapheme if any.
     pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.rope.prev_grapheme_offset(offset.raw).map(Bytes)
+        self.rope.prev_grapheme_offset(offset.value).map(Bytes)
     }
 
     /// Return the offset to the next grapheme if any.
     pub fn next_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.rope.next_grapheme_offset(offset.raw).map(Bytes)
+        self.rope.next_grapheme_offset(offset.value).map(Bytes)
     }
 }
 

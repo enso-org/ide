@@ -31,7 +31,7 @@ impl<T:Clone> Spans<T> {
     }
 
     pub fn set(&mut self, range:Range<Bytes>, length:Bytes, data:T) {
-        let mut builder = SpansBuilder::new(length.raw);
+        let mut builder = SpansBuilder::new(length.value);
         builder.add_span(..,data);
         self.edit(range,builder.build());
     }

@@ -111,7 +111,7 @@ impl ViewModel {
         let mut line = if move_up { location.line - 1 } else { location.line.saturating_add(1) };
 
         // If the active columns is longer than the current line, use the current line length.
-        let line_last_column = Column(line_len.raw);
+        let line_last_column = Column(line_len.value);
         let col = if line_last_column < location.column { line_last_column - 1 } else { location.column };
 
         loop {
@@ -119,7 +119,7 @@ impl ViewModel {
 
             // If the line is longer than the current cursor position, break.
             // We use > instead of >= because line_len includes newline.
-            if line_len.raw > col.raw {
+            if line_len.value > col.raw {
                 break;
             }
 
@@ -197,14 +197,14 @@ impl ViewModel {
 
             Movement::StartOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.min()
-                let mut cursor = data::Cursor::new(&text, region.end.raw);
+                let mut cursor = data::Cursor::new(&text, region.end.value);
                 let offset     = Bytes(cursor.prev::<data::LinesMetric>().unwrap_or(0));
                 no_horiz(offset)
             }
 
             Movement::EndOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.max()
-                let mut cursor = data::Cursor::new(&text, region.end.raw);
+                let mut cursor = data::Cursor::new(&text, region.end.value);
                 let     offset = match cursor.next::<data::LinesMetric>() {
                     None            => text.len(),
                     Some(next_line_offset) => {
@@ -223,7 +223,7 @@ impl ViewModel {
 
             Movement::EndOfParagraphKill => {
                 // Note: TextEdit would start at modify ? region.end : region.max()
-                let mut cursor = data::Cursor::new(&text, region.end.raw);
+                let mut cursor = data::Cursor::new(&text, region.end.value);
                 let     offset = match cursor.next::<data::LinesMetric>() {
                     None            => region.end,
                     Some(next_line_offset) => {

@@ -358,7 +358,7 @@ impl ViewModel {
     // FIXME: this is inefficient now
     pub fn lines(&self) -> Vec<String> {
         let range = self.line_offset_range();
-        self.buffer.data.borrow().data.rope.lines(range.start.raw .. range.end.raw).map(|t| t.into()).collect_vec()
+        self.buffer.data.borrow().data.rope.lines(range.start.value .. range.end.value).map(|t| t.into()).collect_vec()
     }
 
 //    pub fn get(&self, line:Line) -> String {
@@ -397,7 +397,7 @@ impl LineOffset for ViewModel {
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
-        Line(self.data().line_of_offset(offset.raw))
+        Line(self.data().line_of_offset(offset.value))
     }
 }
 
@@ -421,7 +421,7 @@ pub trait LineOffset {
 
     /// Returns the visible line number containing the given offset.
     fn line_of_offset(&self, offset:Bytes) -> Line {
-        Line(self.data().line_of_offset(offset.raw))
+        Line(self.data().line_of_offset(offset.value))
     }
 
     // How should we count "column"? Valid choices include:

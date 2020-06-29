@@ -256,33 +256,39 @@ impl_opr_unit_x_unit_to_repr! (Div div usize);
 // === Prim Units ===
 // ==================
 
+#[macro_export]
 macro_rules! define_unit {
-    ( $name:ident $type_name:ident $trait_name:ident $f:ident ) => {
+    ( $name:ident, $tp:ident, $type_name:ident, $trait_name:ident, $f:ident ) => {
         #[derive(Clone,Copy,Debug,Eq,PartialEq)]
         pub struct $type_name;
 
-        pub type $name<Repr=f32> = Unit<$type_name,Repr>;
+        pub type $name<Repr=$tp> = Unit<$type_name,Repr>;
+
+        pub fn $name(value:$tp) -> $name {
+            $name::new(value)
+        }
 
         pub trait $trait_name {
             type Output;
             fn $f(&self) -> Self::Output;
         }
 
-        impl $trait_name for f32 {
+        impl $trait_name for $tp {
             type Output = $name;
             fn $f(&self) -> Self::Output {
                 $name::new(*self)
             }
         }
 
+        // FIXME this impl is non-uniform
         impl $trait_name for i32 {
             type Output = $name;
             fn $f(&self) -> Self::Output {
-                $name::new(*self as f32)
+                $name::new(*self as $tp)
             }
         }
 
-        impl $trait_name for Vector2<f32> {
+        impl $trait_name for Vector2<$tp> {
             type Output = Vector2<$name>;
             fn $f(&self) -> Self::Output {
                 Vector2($name::new(self.x),$name::new(self.y))
@@ -292,9 +298,9 @@ macro_rules! define_unit {
     }
 }
 
-define_unit!(Pixels  PixelsType  ToPixels  px);
-define_unit!(Radians RadiansType ToRadians radians);
-define_unit!(Degrees DegreesType ToDegrees degrees);
+define_unit!(Pixels  , f32 , PixelsType  , ToPixels  , px);
+define_unit!(Radians , f32 , RadiansType , ToRadians , radians);
+define_unit!(Degrees , f32 , DegreesType , ToDegrees , degrees);
 
 
 // === Conversions ===

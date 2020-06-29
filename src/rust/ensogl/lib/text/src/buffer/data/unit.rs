@@ -3,6 +3,7 @@
 use crate::prelude::*;
 use std::ops::AddAssign; // FIXME
 
+use ensogl::math::topology::unit::Unit;
 
 pub mod traits {
     pub use super::ConversionToBytes as TRAIT_ConversionToBytes;
@@ -88,7 +89,7 @@ macro_rules! num_newtype_opr {
 
 num_newtype! {
 /// An offset in the buffer in bytes.
-Bytes { raw : usize }
+Bytes { value : usize }
 }
 
 num_newtype! {
@@ -114,11 +115,11 @@ Location {
 
 impl Bytes {
     pub fn as_line(self) -> Line {
-        Line(self.raw)
+        Line(self.value)
     }
 
     pub fn as_column(self) -> Column {
-        Column(self.raw)
+        Column(self.value)
     }
 }
 
@@ -153,7 +154,7 @@ impl<T:Into<Bytes>> ConversionToBytes for Range<T> {
 
 impl AddAssign<usize> for Bytes {
     fn add_assign(&mut self, rhs:usize) {
-        self.raw += rhs;
+        self.value += rhs;
     }
 }
 
