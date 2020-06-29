@@ -156,3 +156,5 @@ impl AddAssign<usize> for Bytes {
         self.raw += rhs;
     }
 }
+
+//type Location = Unit<(Line,Column)>

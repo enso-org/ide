@@ -450,6 +450,13 @@ pub trait SaturatingAdd<Rhs=Self> {
     fn saturating_add(self, rhs:Rhs) -> Self::Output;
 }
 
+impl SaturatingAdd for usize {
+    type Output = Self;
+    fn saturating_add(self, rhs:Self) -> Self::Output {
+        self.saturating_add(rhs)
+    }
+}
+
 
 
 // ============================
