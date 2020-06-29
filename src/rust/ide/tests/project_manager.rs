@@ -14,7 +14,7 @@ mod tests {
     wasm_bindgen_test_configure!(run_in_browser);
 
 
-    #[wasm_bindgen_test::wasm_bindgen_test(async)]
+    //#[wasm_bindgen_test::wasm_bindgen_test(async)]
     #[allow(dead_code)]
     async fn project_life_cycle() {
         let ws        = WebSocket::new_opened(default(),"ws://localhost:30535").await;

@@ -34,7 +34,7 @@ impl ProjectName {
         let logger                = Logger::sub(&logger,"ProjectName");
         let display_object        = display::object::Instance::new(&logger);
         let font                  = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
-        let size                  = Vector2::new(100.0,100.0);
+        let size                  = Vector2::new(600.0,100.0);
         let base_color            = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
         let text_size             = 16.0;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
@@ -56,8 +56,19 @@ impl ProjectName {
             }
             // Keep only one line.
             project_name.text_field.set_content(&new_name);
+            project_name.setup_center_alignment();
         });
+        self.setup_center_alignment();
         self
+    }
+
+    fn setup_center_alignment(&self) {
+        let mut offset = Vector3::new(0.0,0.0,0.0);
+        self.text_field.with_mut_content(|content| {
+            let mut line = content.line(0);
+            offset.x = -line.get_char_x_position(line.len() - 1) / 2.0;
+        });
+        self.text_field.set_position(offset);
     }
 
     /// Get the project name.
