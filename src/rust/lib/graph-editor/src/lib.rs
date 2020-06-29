@@ -447,7 +447,7 @@ pub struct FrpInputs {
     pub set_expression_type          : frp::Source<(ast::Id, OptionalType)>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
-    pub register_visualization : frp::Source<Option<visualization::Definition>>,
+    pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,

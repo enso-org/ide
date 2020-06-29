@@ -130,6 +130,11 @@ impl Handle {
                                          self.parser.clone_ref(), id)
     }
 
+    /// Get pointer to the method identified by its definition ID.
+    ///
+    /// Note that there might exist multiple definition IDs for the same method pointer, as
+    /// definition IDs include information about definition syntax whereas method pointer identifies
+    /// the desugared entity.
     pub fn method_pointer(&self, id:&dr::graph::Id) -> FallibleResult<MethodPointer> {
         let defined_on_type = match id.crumbs.as_slice() {
             [crumb] => {

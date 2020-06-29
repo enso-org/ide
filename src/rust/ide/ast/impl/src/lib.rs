@@ -1,6 +1,7 @@
 #![feature(associated_type_bounds)]
 #![feature(bool_to_option)]
 #![feature(generators, generator_trait)]
+#![feature(iter_order_by)]
 #![feature(trivial_bounds)]
 #![feature(type_alias_impl_trait)]
 #![feature(matches_macro)]

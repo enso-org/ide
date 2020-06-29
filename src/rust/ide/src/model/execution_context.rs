@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::definition::DefinitionName;
 use crate::model::module::QualifiedName as ModuleQualifiedName;
 use crate::notification::Publisher;
 
@@ -180,9 +179,9 @@ pub struct InvalidVisualizationId(VisualizationId);
 /// This is a single item in ExecutionContext stack.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct LocalCall {
-    /// An expression being a call.
+    /// An expression being a call to a method.
     pub call       : ExpressionId,
-    // TODO / A definition of function called in `call` expression.
+    /// A pointer to the called method.
     pub definition : MethodPointer,
 }
 
@@ -296,6 +295,7 @@ impl ExecutionContext {
         Ok(ret)
     }
 
+    /// Obtain the method pointer to the method of the call stack's top frame.
     pub fn current_method(&self) -> MethodPointer {
         if let Some(top_frame) = self.stack.borrow().last() {
             top_frame.definition.clone()

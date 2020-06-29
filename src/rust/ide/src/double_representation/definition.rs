@@ -9,7 +9,7 @@ use ast::crumbs::Located;
 use ast::known;
 use ast::prefix;
 use ast::opr;
-use enso_protocol::language_server::MethodPointer;
+
 
 
 // =====================
@@ -66,70 +66,6 @@ impl Display for Id {
 
 
 
-// ===============================
-// === Finding Graph In Module ===
-// ===============================
-
-#[allow(missing_docs)]
-#[derive(Fail,Clone,Debug)]
-#[fail(display="Cannot find definition child by id {:?}.",_0)]
-pub struct CannotFindChild(Crumb);
-
-#[allow(missing_docs)]
-#[derive(Fail,Clone,Debug)]
-#[fail(display="Cannot find method by pointer {:?}.",_0)]
-pub struct CannotFindMethod(MethodPointer);
-
-#[allow(missing_docs)]
-#[derive(Copy,Fail,Clone,Debug)]
-#[fail(display="Encountered an empty definition ID. They must contain at least one crumb.")]
-pub struct EmptyDefinitionId;
-
-/// Looks up graph in the module.
-pub fn traverse_for_definition
-(ast:&ast::known::Module, id:&Id) -> FallibleResult<DefinitionInfo> {
-    Ok(locate(ast, id)?.item)
-}
-
-/// Traverses the given sequence of crumbs, looking up the definition by given ID.
-pub fn locate(ast:&ast::known::Module, id:&Id) -> FallibleResult<ChildDefinition> {
-    let mut crumbs_iter = id.crumbs.iter();
-    // Not exactly regular - first crumb is a little special, because module is not a definition
-    // nor a children.
-    let first_crumb = crumbs_iter.next().ok_or(EmptyDefinitionId)?;
-    let mut child = ast.def_iter().find_by_name(&first_crumb)?;
-    for crumb in crumbs_iter {
-        child = resolve_single_name(child,crumb)?;
-    }
-    Ok(child)
-}
-
-/// TODO TODO
-/// The module is assumed to be in the file identified by the `method.file` (for the purpose of
-/// desugaring implicit extensions methods for modules).
-pub fn lookup_method(ast:&ast::known::Module, method:&MethodPointer) -> FallibleResult<Id> {
-    let module_path = model::module::Path::from_file_path(method.file.clone())?;
-    let module_method = method.defined_on_type == module_path.module_name();
-
-    for child in ast.def_iter() {
-        let child_name : &DefinitionName = &child.name.item;
-        let name_matches = child_name.name.item == method.name;
-        let type_matches = match child_name.extended_target.as_slice() {
-            []         => module_method,
-            [typename] => typename.item == method.defined_on_type,
-            _          => child_name.explicitly_extends_type(&method.defined_on_type),
-        };
-        if name_matches && type_matches {
-            let id = Id::new_single_crumb(child_name.clone());
-            return Ok(id)
-        }
-    }
-
-    Err(CannotFindMethod(method.clone()).into())
-}
-
-
-
 // =============
 // === Error ===
 // =============
@@ -138,6 +74,11 @@ pub fn lookup_method(ast:&ast::known::Module, method:&MethodPointer) -> Fallible
 #[fail(display="Cannot set Block lines because no line with Some(Ast) was found. Block must have \
 at least one non-empty line.")]
 struct MissingLineWithAst;
+
+#[allow(missing_docs)]
+#[derive(Fail,Clone,Debug)]
+#[fail(display="Cannot find definition child by id {:?}.",_0)]
+pub struct CannotFindChild(Crumb);
 
 
 
@@ -225,20 +166,20 @@ impl DefinitionName {
         Some(DefinitionName {extended_target,name})
     }
 
+    /// Checks if the given definition name is a member of given type.
     pub fn extends_type(&self, parent_name:&str, expected_typename:&str) -> bool {
         if self.extended_target.is_empty() {
             parent_name == expected_typename
         } else {
-            let expected = expected_typename.split(ast::opr::predefined::ACCESS);
-            let segments = self.extended_target.iter().map(|segment| segment.item.as_str());
-            segments.eq(expected)
+            self.explicitly_extends_type(expected_typename)
         }
     }
 
+    /// Check if this name is an explicit extension method for given type, like `Int.add`.
     pub fn explicitly_extends_type(&self, expected_typename:&str) -> bool {
-        let expected_segments = expected_typename.split(ast::opr::predefined::ACCESS);
-        let segments          = self.extended_target.iter().map(|segment| segment.item.as_str());
-        segments.eq(expected_segments)
+        let expected_segments = ast::opr::name_segments(expected_typename);
+        let segments          = &self.extended_target;
+        expected_segments.eq_by(segments, |lhs,rhs| lhs == rhs.item.as_str())
     }
 }
 
@@ -476,32 +417,13 @@ pub trait DefinitionProvider {
     }
 }
 
-/// Enumerates all AST being a direct children of the given AST node.
-pub fn ast_direct_children<'a>
-(ast:&'a impl Crumbable) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
-    let iter = ast.enumerate().map(|(crumb,ast)| {
-        ChildAst::new(crumb,ast)
-    });
-    Box::new(iter)
-}
-
-impl DefinitionProvider for known::Module {
-    fn indent(&self) -> usize { 0 }
-
-    fn scope_kind(&self) -> ScopeKind { ScopeKind::Root }
-
-    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
-        ast_direct_children(self.ast())
-    }
-}
-
 impl DefinitionProvider for known::Block {
     fn indent(&self) -> usize { self.indent }
 
     fn scope_kind(&self) -> ScopeKind { ScopeKind::NonRoot }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
-        ast_direct_children(self.ast())
+        self.ast().direct_children()
     }
 }
 
@@ -547,6 +469,7 @@ mod tests {
     use super::*;
 
     use crate::double_representation::INDENT;
+    use crate::double_representation::module;
 
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -703,7 +626,7 @@ mod tests {
         let main_id = Id::new_plain_name("main");
         for (program,expected_line_index) in program_to_expected_main_pos {
             let module   = parser.parse_module(program,default()).unwrap();
-            let location = locate(&module, &main_id).unwrap();
+            let location = module::locate(&module, &main_id).unwrap();
             let (crumb,) = location.crumbs.expect_tuple();
             match crumb {
                 ast::crumbs::Crumb::Module(m) => assert_eq!(m.line_index, expected_line_index),
@@ -727,11 +650,11 @@ main =
 
         let module    = parser::Parser::new_or_panic().parse_module(program,default()).unwrap();
         let check_def = |id, expected_body| {
-            let definition = traverse_for_definition(&module,&id).unwrap();
+            let definition = module::traverse_for_definition(&module,&id).unwrap();
             assert_eq!(definition.body().repr(), expected_body);
         };
         let check_not_found = |id| {
-            assert!(traverse_for_definition(&module,&id).is_err())
+            assert!(module::traverse_for_definition(&module,&id).is_err())
         };
 
         check_def(Id::new_plain_names(&["main","add"]), "a + b");

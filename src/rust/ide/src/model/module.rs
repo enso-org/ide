@@ -375,7 +375,7 @@ impl Module {
     pub fn find_definition
     (&self,id:&double_representation::graph::Id) -> FallibleResult<DefinitionInfo> {
         let ast = self.content.borrow().ast.clone_ref();
-        double_representation::definition::traverse_for_definition(&ast,id)
+        double_representation::module::traverse_for_definition(&ast,id)
     }
 
     /// Returns metadata for given node, if present.

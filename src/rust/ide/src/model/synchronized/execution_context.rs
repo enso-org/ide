@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::definition::DefinitionName;
 use crate::model::execution_context::ComputedValueInfoRegistry;
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
@@ -11,7 +10,6 @@ use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
 use json_rpc::error::RpcError;
-use enso_protocol::language_server::MethodPointer;
 
 
 // ==========================
@@ -42,7 +40,7 @@ impl ExecutionContext {
     pub fn create
 	( parent          : impl AnyLogger
     , language_server : Rc<language_server::Connection>
-    , root_definition : MethodPointer
+    , root_definition : language_server::MethodPointer
     ) -> impl Future<Output=FallibleResult<Self>> {
         let logger = Logger::sub(&parent,"ExecutionContext");
         async move {
@@ -58,18 +56,13 @@ impl ExecutionContext {
         }
     }
 
-    pub fn current_method(&self) -> MethodPointer {
+    /// Obtain the method pointer to the method of the call stack's top frame.
+    pub fn current_method(&self) -> language_server::MethodPointer {
         self.model.current_method()
     }
 
     fn push_root_frame(&self) -> impl Future<Output=FallibleResult<()>> {
-        // let method_pointer = language_server::MethodPointer {
-        //     file            : self.module_path.file_path().clone(),
-        //     defined_on_type : self.module_path.module_name().to_string(),
-        //     name            : self.model.entry_point.name.item.clone(),
-        // };
-
-        let method_pointer = self.model.entry_point.clone();
+        let method_pointer                   = self.model.entry_point.clone();
         let this_argument_expression         = default();
         let positional_arguments_expressions = default();
 
@@ -160,7 +153,6 @@ impl ExecutionContext {
     #[cfg(test)]
     pub fn new_mock
     ( id              : model::execution_context::Id
-    , path            : model::module::Path // TODO remove
     , model           : model::ExecutionContext
     , language_server : Rc<language_server::Connection>
     ) -> Self {
@@ -202,6 +194,7 @@ pub mod tests {
     use json_rpc::expect_call;
     use utils::test::ExpectTuple;
     use utils::test::stream::StreamTestExt;
+    use crate::double_representation::definition::DefinitionName;
 
     trait ModelCustomizer = Fn(&mut model::ExecutionContext, &MockData) + 'static;
 
@@ -317,7 +310,7 @@ pub mod tests {
             move |ls| {
                 let mut model = data.create_model();
                 (data.customize_model)(&mut model,&data);
-                ExecutionContext::new_mock(data.context_id, data.module_path.clone(), model, ls)
+                ExecutionContext::new_mock(data.context_id,model,ls)
             }
         }
 
@@ -350,9 +343,9 @@ pub mod tests {
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
             let logger  = Logger::default();
+            let method  = mock_data.main_method_pointer();
             let path    = Rc::new(mock_data.module_path);
-            let def     = mock_data.root_definition;
-            let context = ExecutionContext::create(logger,connection,todo!()); // TODO
+            let context = ExecutionContext::create(logger,connection,method);
             let context = context.await.unwrap();
             assert_eq!(context_id             , context.id);
             assert_eq!(*path                  , context.model.entry_point.file);

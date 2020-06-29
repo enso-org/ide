@@ -197,7 +197,7 @@ mod tests {
 
     use crate::double_representation::definition::DefinitionName;
     use crate::double_representation::definition::DefinitionProvider;
-    use crate::double_representation::definition::traverse_for_definition;
+    use crate::double_representation::module::traverse_for_definition;
 
     use ast::HasRepr;
     use ast::test_utils::expect_single_line;

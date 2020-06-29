@@ -303,8 +303,8 @@ async fn binary_visualization_updates_test_hlp() {
     let graph_executed        = module.executed_graph_controller_unchecked(
         function_id,&project).await.unwrap();
 
-    let the_node = graph_executed.nodes().unwrap()[0].info.clone();
-    graph_executed.set_expression(the_node.id(), "10+20").unwrap();
+    let the_node = graph_executed.graph().nodes().unwrap()[0].info.clone();
+    graph_executed.graph().set_expression(the_node.id(), "10+20").unwrap();
 
     // We must yield control for a moment, so the text edit is applied.
     sleep(Duration::from_millis(1)).await;

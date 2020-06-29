@@ -7,6 +7,7 @@
 #![feature(cell_update)]
 #![feature(drain_filter)]
 #![feature(exact_size_is_empty)]
+#![feature(iter_order_by)]
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
 #![recursion_limit="256"]

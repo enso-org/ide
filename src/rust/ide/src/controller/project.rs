@@ -113,18 +113,16 @@ pub struct Handle {
 impl Handle {
     /// Create a new project controller.
     pub fn new
-    ( parent                     : impl AnyLogger
-    , language_server_client     : language_server::Connection
-    , mut language_server_binary : binary::Connection
-    , project_name               : impl Str
+    ( parent              : impl AnyLogger
+    , language_server_rpc : Rc<language_server::Connection>
+    , language_server_bin : Rc<binary::Connection>
+    , project_name        : impl Str
     ) -> Self {
         let logger = Logger::sub(parent,"Project Controller");
         info!(logger,"Creating a project controller for project {project_name.as_ref()}");
-        let binary_protocol_events  = language_server_binary.event_stream();
-        let json_rpc_events         = language_server_client.events();
+        let json_rpc_events        = language_server_rpc.events();
+        let binary_protocol_events  = language_server_bin.event_stream();
         let embedded_visualizations = default();
-        let language_server_rpc     = Rc::new(language_server_client);
-        let language_server_bin     = Rc::new(language_server_binary);
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
         let project_name            = Rc::new(project_name.into());
@@ -142,6 +140,28 @@ impl Handle {
         crate::executor::global::spawn(json_rpc_events.for_each(json_rpc_handler));
 
         ret
+    }
+
+    /// Create a project controller from owned LS connections.
+    pub fn from_connections
+    ( parent              : impl AnyLogger
+    , language_server_rpc : language_server::Connection
+    , language_server_bin : binary::Connection
+    , project_name        : impl Str
+    ) -> Self {
+        let language_server_rpc = Rc::new(language_server_rpc);
+        let language_server_bin = Rc::new(language_server_bin);
+        Self::new(parent,language_server_rpc,language_server_bin,project_name)
+    }
+
+    /// Create a new mocked project controller.
+    pub fn new_mock
+    ( language_server_client : Rc<language_server::Connection>
+    , language_server_binary : Rc<binary::Connection>
+    , project_name           : impl Str
+    ) -> Self {
+        let parent = Logger::default();
+        Self::new(parent,language_server_client,language_server_binary,project_name)
     }
 
     /// Returns the primary content root id for this project.
@@ -347,7 +367,8 @@ mod test {
         let json_connection   = language_server::Connection::new_mock(json_client);
         let binary_connection = binary::Connection::new_mock(binary_client);
         let logger            = Logger::default();
-        controller::Project::new(logger,json_connection,binary_connection,DEFAULT_PROJECT_NAME)
+        controller::Project::from_connections(logger,json_connection,binary_connection,
+            DEFAULT_PROJECT_NAME)
     }
 
     #[wasm_bindgen_test]
@@ -429,8 +450,7 @@ mod test {
 
         // Create execution context.
         let module_path = Rc::new(data.module_path.clone());
-        let definition  = data.root_definition.clone();
-        let execution   = project.create_execution_context(todo!()); // TODO (module_path,definition);
+        let execution   = project.create_execution_context(data.main_method_pointer());
         let execution   = test.expect_completion(execution).unwrap();
 
         // Now context is in registry.

@@ -444,16 +444,25 @@ impl GraphEditorIntegratedWithControllerModel {
 // === Handling Controller Notifications ===
 
 impl GraphEditorIntegratedWithControllerModel {
-    pub fn on_node_entered(&self, id:double_representation::node::Id) -> FallibleResult<()> {
+    pub fn on_invalidated(&self) -> FallibleResult<()> {
+        self.update_graph_view()
+    }
+
+    pub fn on_node_entered(&self, _id:double_representation::node::Id) -> FallibleResult<()> {
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.update_graph_view()
     }
+
     pub fn on_stepped_out(&self, id:double_representation::node::Id) -> FallibleResult<()> {
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.update_graph_view()?;
         let id = self.get_displayed_node_id(id)?;
         self.editor.frp.select_node.emit_event(&id);
         Ok(())
+    }
+
+    pub fn on_values_computed(&self, expressions:&[ExpressionId]) -> FallibleResult<()> {
+        self.update_types_on(&expressions)
     }
 
     /// Handle notification received from controller.
@@ -463,8 +472,8 @@ impl GraphEditorIntegratedWithControllerModel {
         use controller::graph::Notification::Invalidate;
 
         let result = match notification {
-            Some(Notification::Graph(Invalidate))         => self.update_graph_view(),
-            Some(Notification::ComputedValueInfo(update)) => self.update_types_on(update),
+            Some(Notification::Graph(Invalidate))         => self.on_invalidated(),
+            Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
             Some(Notification::EnteredNode(id))           => self.on_node_entered(*id),
             Some(Notification::SteppedOutOfNode(id))      => self.on_stepped_out(*id),
             other => {

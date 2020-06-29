@@ -9,6 +9,7 @@ use crate::prelude::*;
 use crate::double_representation::alias_analysis::NormalizedName;
 use crate::double_representation::alias_analysis::LocatedName;
 use crate::double_representation::definition;
+use crate::double_representation::module;
 pub use crate::double_representation::graph::Id;
 use crate::double_representation::graph::GraphInfo;
 pub use crate::double_representation::graph::LocationHint;
@@ -626,7 +627,7 @@ impl Handle {
     pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult<()>
     where F:FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo> {
         let ast_so_far     = self.module.ast();
-        let definition     = definition::locate(&ast_so_far, &self.id)?;
+        let definition     = module::locate(&ast_so_far, &self.id)?;
         let new_definition = f(definition.item)?;
         info!(self.logger, "Applying graph changes onto definition");
         let new_ast    = new_definition.ast.into();
@@ -733,7 +734,7 @@ impl Handle {
 
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     use crate::double_representation::definition::DefinitionName;
