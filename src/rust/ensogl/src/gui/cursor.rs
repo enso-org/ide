@@ -216,8 +216,8 @@ pub mod shape {
         , radius : f32
         , color  : Vector4<f32>
         ) {
-            let width  : Var<Distance<Pixels>> = "input_size.x".into();
-            let height : Var<Distance<Pixels>> = "input_size.y".into();
+            let width  : Var<Pixels> = "input_size.x".into();
+            let height : Var<Pixels> = "input_size.y".into();
             let press_side_shrink = 2.px();
             let press_diff        = press_side_shrink * &press;
             let radius            = 1.px() * radius - &press_diff;

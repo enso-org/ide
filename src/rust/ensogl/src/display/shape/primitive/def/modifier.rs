@@ -115,8 +115,8 @@ macro_rules! _define_modifier {
 
 pub use immutable::*;
 define_modifiers! {
-    Translate    translate     (child)         (v:Vector2<Distance<Pixels>>)
-    Rotation     rotation      (child)         (angle:Angle<Radians>)
+    Translate    translate     (child)         (v:Vector2<Pixels>)
+    Rotation     rotation      (child)         (angle:Radians)
     Scale        scale         (child)         (value:f32)
     Union        union         (child1,child2) ()
     Difference   difference    (child1,child2) ()

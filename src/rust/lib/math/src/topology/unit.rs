@@ -11,124 +11,90 @@ use std::marker::PhantomData;
 // === Unit ===
 // ============
 
-/// Abstraction for any unit type. It is parametrized by:
-///   - Quantity, like distance, angle, or mass. See https://en.wikipedia.org/wiki/Quantity .
-///   - Type, like pixels, degrees, or radians.
-///   - Repr, like f32, or f64.
-#[derive(Clone,Copy,Debug,PartialEq)]
-pub struct Unit<Quantity,Type,Repr=f32> {
+/// Abstraction for any unit type parameterized by a type (like distance in pixels) and underlying
+/// numerical representation.
+#[derive(Debug,PartialEq)]
+pub struct Unit<Type,Repr=f32> {
     /// The raw value of this unit.
     pub value : Repr,
-    _quantity : PhantomData<Quantity>,
     _type     : PhantomData<Type>,
 }
 
-impl<Quantity,Type,Repr> Unit<Quantity,Type,Repr> {
+impl<Type,Repr:Copy>  Copy  for Unit<Type,Repr> {}
+impl<Type,Repr:Clone> Clone for Unit<Type,Repr> {
+    fn clone(&self) -> Self {
+        Self::new(self.value.clone())
+    }
+}
+
+impl<Type,Repr> Unit<Type,Repr> {
     /// Constructor.
     pub fn new(value:Repr) -> Self {
-        let _quantity = PhantomData;
-        let _type     = PhantomData;
-        Self {value,_quantity,_type}
+        let _type = PhantomData;
+        Self {value,_type}
     }
 }
 
 
-// === Num ===
+// === Conversions ===
 
-impl<Quantity,Type,Repr> Abs for Unit<Quantity,Type,Repr> where Repr:Abs {
-    fn abs(&self) -> Self {
-        Self { value:self.value.abs(), ..*self }
-    }
-}
-
-
-// === Operators ===
-
-impl<Quantity,Type,Repr> From<Repr> for Unit<Quantity,Type,Repr> {
+impl<Type,Repr> From<Repr> for Unit<Type,Repr> {
     fn from(t:Repr) -> Self {
         Self::new(t)
     }
 }
 
-impl<Quantity,Type> From<Unit<Quantity,Type,f32>> for f32 {
-    fn from(t:Unit<Quantity,Type,f32>) -> Self {
+impl<Type,Repr:Clone> From<&Repr> for Unit<Type,Repr> {
+    fn from(t:&Repr) -> Self {
+        Self::new(t.clone())
+    }
+}
+
+impl<Type> From<Unit<Type,f32>> for f32 {
+    fn from(t:Unit<Type,f32>) -> Self {
         t.value
     }
 }
 
-macro_rules! impl_operator_for_unit {
-    ( $name:ident $fn:ident $ln:ident $rn:ident <$rhs:ty> for $lhs:ty ) => {
-        impl_operator_for_unit_with_ref_rhs! { $name $fn $ln $rn <$rhs> for $lhs [value] }
-        impl_operator_for_unit_with_ref_lhs! { $name $fn $ln $rn <$rhs> for $lhs }
-    }
-}
-
-macro_rules! impl_operator_for_unit_with_ref_rhs {
-    ( $name:ident $fn:ident $ln:ident $rn:ident <$rhs:ty> for $lhs:ty $([$rhs_accessor:ident])? ) => {
-        impl<Quantity,Type>/*,$ln,$rn>*/ $name<$rhs> for $lhs
-        where $ln : $name<$rn> {
-            type Output = Unit<Quantity,Type,<$ln as $name<$rn>>::Output>;
-            fn $fn(self, rhs:$rhs) -> Self::Output {
-                (self.value.$fn(rhs $(.$rhs_accessor)?)).into()
-            }
-        }
-
-        impl<'t,Quantity,Type>/*,$ln,$rn>*/ $name<$rhs> for &'t $lhs
-        where &'t $ln : $name<$rn> {
-            type Output = Unit<Quantity,Type,<&'t $ln as $name<$rn>>::Output>;
-            fn $fn(self, rhs:$rhs) -> Self::Output {
-                ((&self.value).$fn(rhs $(.$rhs_accessor)?)).into()
-            }
-        }
-    }
-}
-
-macro_rules! impl_operator_for_unit_with_ref_lhs {
-    ( $name:ident $fn:ident $ln:ident $rn:ident <$rhs:ty> for $lhs:ty ) => {
-        impl<'t,Quantity,Type>/*,$ln,$rn>*/ $name<&'t $rhs> for &'t $lhs
-        where &'t $ln : $name<&'t $rn> {
-            type Output = Unit<Quantity,Type,<&'t $ln as $name<&'t $rn>>::Output>;
-            fn $fn(self, rhs:&'t $rhs) -> Self::Output {
-                ((&self.value).$fn(&rhs.value)).into()
-            }
-        }
-
-        impl<'t,Quantity,Type>/*,$ln,$rn>*/ $name<&'t $rhs> for $lhs
-            where $ln : $name<&'t $rn> {
-            type Output = Unit<Quantity,Type,<$ln as $name<&'t $rn>>::Output>;
-            fn $fn(self, rhs:&'t $rhs) -> Self::Output {
-                (self.value.$fn(&rhs.value)).into()
-            }
-        }
+impl<Type> From<&Unit<Type,f32>> for f32 {
+    fn from(t:&Unit<Type,f32>) -> Self {
+        t.value
     }
 }
 
 
-macro_rules! impl_operator_for_prim_type_rhs {
+
+// =================
+// === Operators ===
+// =================
+
+// === Unit x Repr -> Unit Operators ===
+
+macro_rules! impl_opr_unit_x_repr_to_unit {
     ( $name:ident $fn:ident $t:ident ) => {
-        impl<Quantity,Type> $name<$t> for Unit<Quantity,Type,$t> {
-            type Output = Unit<Quantity,Type,$t>;
+        impl<Type> $name<$t> for Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
             fn $fn(self, rhs:$t) -> Self::Output {
                 (self.value.$fn(rhs)).into()
             }
         }
 
-        impl<Quantity,Type> $name<$t> for &Unit<Quantity,Type,$t> {
-            type Output = Unit<Quantity,Type,$t>;
+        impl<Type> $name<$t> for &Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
             fn $fn(self, rhs:$t) -> Self::Output {
                 (self.value.$fn(rhs)).into()
             }
         }
 
-        impl<Quantity,Type> $name<&$t> for Unit<Quantity,Type,$t> {
-            type Output = Unit<Quantity,Type,$t>;
+        impl<Type> $name<&$t> for Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
             fn $fn(self, rhs:&$t) -> Self::Output {
                 (self.value.$fn(*rhs)).into()
             }
         }
 
-        impl<Quantity,Type> $name<&$t> for &Unit<Quantity,Type,$t> {
-            type Output = Unit<Quantity,Type,$t>;
+        impl<Type> $name<&$t> for &Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
             fn $fn(self, rhs:&$t) -> Self::Output {
                 ((&self.value).$fn(*rhs)).into()
             }
@@ -136,193 +102,214 @@ macro_rules! impl_operator_for_prim_type_rhs {
     }
 }
 
-impl_operator_for_prim_type_rhs!( Mul mul f32);
-impl_operator_for_prim_type_rhs!( Div div f32);
+macro_rules! impl_opr_repr_x_unit_to_unit {
+    ( $name:ident $fn:ident $t:ident ) => {
+        impl<Type> $name<Unit<Type,$t>> for $t {
+            type Output = Unit<Type,$t>;
+            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
+                (self.$fn(rhs.value)).into()
+            }
+        }
 
-// TODO: The following line (commented) is more generic, but is likely to introduce infinite
-//       compilation loop rutc bug.
-// impl_operator_for_unit! { Add add Lhs Rhs <Unit<Quantity,Type,Rhs>> for Unit<Quantity,Type,Lhs> }
-impl_operator_for_unit! { Add add f32 f32 <Unit<Quantity,Type,f32>> for Unit<Quantity,Type,f32> }
-impl_operator_for_unit! { Sub sub f32 f32 <Unit<Quantity,Type,f32>> for Unit<Quantity,Type,f32> }
+        impl<Type> $name<Unit<Type,$t>> for &$t {
+            type Output = Unit<Type,$t>;
+            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
+                (self.$fn(rhs.value)).into()
+            }
+        }
 
+        impl<Type> $name<&Unit<Type,$t>> for $t {
+            type Output = Unit<Type,$t>;
+            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
+                (self.$fn(rhs.value)).into()
+            }
+        }
 
-impl<Quantity,Type> Mul<Unit<Quantity,Type,f32>> for f32 {
-    type Output = Unit<Quantity,Type,f32>;
-    fn mul(self, rhs:Unit<Quantity,Type,f32>) -> Self::Output {
-        (self * rhs.value).into()
-    }
-}
-
-impl<'t,Quantity,Type> Mul<&'t Unit<Quantity,Type,f32>> for f32 {
-    type Output = Unit<Quantity,Type,f32>;
-    fn mul(self, rhs:&'t Unit<Quantity,Type,f32>) -> Self::Output {
-        (self * rhs.value).into()
-    }
-}
-
-impl<'t,Quantity,Type> Mul<Unit<Quantity,Type,f32>> for &'t f32 {
-    type Output = Unit<Quantity,Type,f32>;
-    fn mul(self, rhs:Unit<Quantity,Type,f32>) -> Self::Output {
-        (self * rhs.value).into()
-    }
-}
-
-impl<'t,Quantity,Type> Mul<&'t Unit<Quantity,Type,f32>> for &'t f32 {
-    type Output = Unit<Quantity,Type,f32>;
-    fn mul(self, rhs:&'t Unit<Quantity,Type,f32>) -> Self::Output {
-        (self * rhs.value).into()
-    }
-}
-
-impl<Quantity,Type,V> Neg for Unit<Quantity,Type,V>
-    where V:Neg<Output=V> {
-    type Output = Unit<Quantity,Type,V>;
-    fn neg(self) -> Self::Output {
-        (-self.value).into()
-    }
-}
-
-impl<'t,Quantity,Type,V> Neg for &'t Unit<Quantity,Type,V>
-    where &'t V : Neg {
-    type Output = Unit<Quantity,Type,<&'t V as Neg>::Output>;
-    fn neg(self) -> Self::Output {
-        (-&self.value).into()
+        impl<Type> $name<&Unit<Type,$t>> for &$t {
+            type Output = Unit<Type,$t>;
+            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
+                (self.$fn(rhs.value)).into()
+            }
+        }
     }
 }
 
 
+// === Unit x Unit -> Unit Operators ===
 
-// ================
-// === Quantity ===
-// ================
+macro_rules! impl_opr_unit_x_unit_to_unit {
+    ( $name:ident $fn:ident $t:ident ) => {
+        impl<Type> $name<Unit<Type,$t>> for Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
+            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
+                (self.value.$fn(rhs.value)).into()
+            }
+        }
 
-macro_rules! define_quantities {
-    ( $($name:ident),* $(,)? ) => {
-        /// Module containing popular quantity marker types.
-        #[allow(missing_docs)]
-        pub mod quantity {$(
-            #[derive(Clone,Copy,Debug,Eq,PartialEq)]
-            pub struct $name {}
-        )*}
-    }
-}
+        impl<Type> $name<Unit<Type,$t>> for &Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
+            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
+                (self.value.$fn(rhs.value)).into()
+            }
+        }
 
-define_quantities! {Distance,Angle}
+        impl<Type> $name<&Unit<Type,$t>> for Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
+            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
+                (self.value.$fn(rhs.value)).into()
+            }
+        }
 
-
-
-// ================
-// === Distance ===
-// ================
-
-/// Distance parametrized by the unit type.
-pub type Distance<Type,Repr=f32> = Unit<quantity::Distance,Type,Repr>;
-
-
-// === Pixels ===
-
-/// Pixel distance unit type.
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct Pixels;
-
-/// Provides a `px` method to every unit that can be converted to a pixel distance.
-#[allow(missing_docs)]
-pub trait PixelDistance {
-    type Output;
-    /// Distance in pixels.
-    fn px(&self) -> Self::Output;
-}
-
-impl PixelDistance for f32 {
-    type Output = Distance<Pixels>;
-    fn px(&self) -> Self::Output {
-        Distance::new(*self)
-    }
-}
-
-impl PixelDistance for i32 {
-    type Output = Distance<Pixels>;
-    fn px(&self) -> Self::Output {
-        Distance::new(*self as f32)
-    }
-}
-
-impl PixelDistance for Vector2<f32> {
-    type Output = Vector2<Distance<Pixels>>;
-    fn px(&self) -> Self::Output {
-        Vector2(Distance::new(self.x),Distance::new(self.y))
+        impl<Type> $name<&Unit<Type,$t>> for &Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
+            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
+                (self.value.$fn(rhs.value)).into()
+            }
+        }
     }
 }
 
 
+// === Unit x Unit -> Repr Operators ===
 
-// =============
-// === Angle ===
-// =============
+macro_rules! impl_opr_unit_x_unit_to_repr {
+    ( $name:ident $fn:ident $t:ident ) => {
+        impl<Type> $name<Unit<Type,$t>> for Unit<Type,$t> {
+            type Output = $t;
+            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
+                self.value.$fn(rhs.value)
+            }
+        }
 
-/// Angle parametrized by the unit type.
-pub type Angle<Type,Repr=f32> = Unit<quantity::Angle,Type,Repr>;
+        impl<Type> $name<Unit<Type,$t>> for &Unit<Type,$t> {
+            type Output = $t;
+            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
+                self.value.$fn(rhs.value)
+            }
+        }
 
-/// Degrees angle unit type.
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct Degrees;
+        impl<Type> $name<&Unit<Type,$t>> for Unit<Type,$t> {
+            type Output = $t;
+            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
+                self.value.$fn(rhs.value)
+            }
+        }
 
-/// Radians angle unit type.
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub struct Radians;
-
-/// Provides a `degrees` and `radians` methods to every unit that can be converted to an angle.
-pub trait AngleOps {
-    /// Distance in degrees.
-    fn degrees(&self) -> Angle<Degrees>;
-
-    /// Distance in radians.
-    fn radians(&self) -> Angle<Radians>;
-
-    /// Distance in degrees.
-    fn deg(&self) -> Angle<Degrees> { self.degrees() }
-
-    /// Distance in radians.
-    fn rad(&self) -> Angle<Radians> { self.radians() }
-}
-
-impl AngleOps for f32 {
-    fn degrees(&self) -> Angle<Degrees> {
-        Angle::new(*self)
-    }
-
-    fn radians(&self) -> Angle<Radians> {
-        Angle::new(*self)
+        impl<Type> $name<&Unit<Type,$t>> for &Unit<Type,$t> {
+            type Output = $t;
+            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
+                self.value.$fn(rhs.value)
+            }
+        }
     }
 }
 
-impl AngleOps for i32 {
-    fn degrees(&self) -> Angle<Degrees> {
-        Angle::new(*self as f32)
-    }
 
-    fn radians(&self) -> Angle<Radians> {
-        Angle::new(*self as f32)
+// === Unit -> Unit Operators ===
+
+macro_rules! impl_opr_unit_to_unit {
+    ( $name:ident $fn:ident $t:ident ) => {
+        impl<Type> $name for Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
+            fn $fn(self) -> Self::Output {
+                self.value.$fn().into()
+            }
+        }
+
+        impl<Type> $name for &Unit<Type,$t> {
+            type Output = Unit<Type,$t>;
+            fn $fn(self) -> Self::Output {
+                self.value.$fn().into()
+            }
+        }
     }
 }
 
-impl AngleOps for Angle<Degrees> {
-    fn degrees(&self) -> Angle<Degrees> {
-        *self
-    }
-
-    fn radians(&self) -> Angle<Radians> {
-        Angle::new(self.value.to_radians())
+impl<Type,Repr> Abs for Unit<Type,Repr> where Repr:Abs {
+    fn abs(&self) -> Self {
+        Self { value:self.value.abs(), ..*self }
     }
 }
 
-impl AngleOps for Angle<Radians> {
-    fn degrees(&self) -> Angle<Degrees> {
-        Angle::new(self.value.to_degrees())
-    }
 
-    fn radians(&self) -> Angle<Radians> {
-        *self
+// === Implementations ===
+
+impl_opr_unit_x_repr_to_unit! (Div div f32);
+impl_opr_unit_x_repr_to_unit! (Mul mul f32);
+impl_opr_repr_x_unit_to_unit! (Mul mul f32);
+impl_opr_unit_x_unit_to_unit! (Sub sub f32);
+impl_opr_unit_x_unit_to_unit! (Add add f32);
+impl_opr_unit_x_unit_to_repr! (Div div f32);
+impl_opr_unit_to_unit!        (Neg neg f32);
+
+impl_opr_unit_x_repr_to_unit! (Div div usize);
+impl_opr_unit_x_repr_to_unit! (Mul mul usize);
+impl_opr_repr_x_unit_to_unit! (Mul mul usize);
+impl_opr_unit_x_unit_to_unit! (Sub sub usize);
+impl_opr_unit_x_unit_to_unit! (Add add usize);
+impl_opr_unit_x_unit_to_unit! (SaturatingAdd saturating_add usize);
+impl_opr_unit_x_unit_to_repr! (Div div usize);
+
+
+
+// ==================
+// === Prim Units ===
+// ==================
+
+macro_rules! define_unit {
+    ( $name:ident $type_name:ident $trait_name:ident $f:ident ) => {
+        #[derive(Clone,Copy,Debug,Eq,PartialEq)]
+        pub struct $type_name;
+
+        pub type $name<Repr=f32> = Unit<$type_name,Repr>;
+
+        pub trait $trait_name {
+            type Output;
+            fn $f(&self) -> Self::Output;
+        }
+
+        impl $trait_name for f32 {
+            type Output = $name;
+            fn $f(&self) -> Self::Output {
+                $name::new(*self)
+            }
+        }
+
+        impl $trait_name for i32 {
+            type Output = $name;
+            fn $f(&self) -> Self::Output {
+                $name::new(*self as f32)
+            }
+        }
+
+        impl $trait_name for Vector2<f32> {
+            type Output = Vector2<$name>;
+            fn $f(&self) -> Self::Output {
+                Vector2($name::new(self.x),$name::new(self.y))
+            }
+        }
+
+    }
+}
+
+define_unit!(Pixels  PixelsType  ToPixels  px);
+define_unit!(Radians RadiansType ToRadians radians);
+define_unit!(Degrees DegreesType ToDegrees degrees);
+
+
+// === Conversions ===
+
+impl ToRadians for Degrees {
+    type Output = Radians;
+    fn radians(&self) -> Self::Output {
+        Radians::new(std::f32::consts::PI * self.value / 180.0)
+    }
+}
+
+impl ToDegrees for Radians {
+    type Output = Degrees;
+    fn degrees(&self) -> Self::Output {
+        Degrees::new(180.0 * self.value / std::f32::consts::PI)
     }
 }
 
@@ -334,6 +321,7 @@ impl AngleOps for Angle<Radians> {
 
 /// Commonly used traits.
 pub mod traits {
-    pub use super::PixelDistance;
-    pub use super::AngleOps;
+    pub use super::ToPixels;
+    pub use super::ToRadians;
+    pub use super::ToDegrees;
 }
