@@ -93,4 +93,42 @@ impl DefinitionProvider for known::Module {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::double_representation::definition::DefinitionName;
+
+    use enso_protocol::language_server::MethodPointer;
+    use enso_protocol::language_server::Path;
+
+    #[test]
+    fn implicit_method_resolution() {
+        let parser = parser::Parser::new_or_panic();
+        let foo_method = MethodPointer {
+            defined_on_type : "Main".into(),
+            file            : Path::new(default(),&["src","Main.enso"]),
+            name            : "foo".into(),
+        };
+
+        let expect_find = |code,expected:definition::Id| {
+            let module = parser.parse_module(code,default()).unwrap();
+            let result = lookup_method(&module,&foo_method);
+            assert_eq!(result.unwrap().to_string(),expected.to_string());
+
+            // FIXME
+            //assert_eq!(result.unwrap(),expected);
+        };
+
+        let expect_not_found = |code| {
+            let module = parser.parse_module(code,default()).unwrap();
+            lookup_method(&module,&foo_method).expect_err("expected method not found");
+        };
+
+        // Implicit module extension method.
+        let id = definition::Id::new_plain_name("foo");
+        expect_find("foo a b = a + b", id);
+        // Explicit module extension method
+        let id = definition::Id::new_single_crumb(DefinitionName::new_method("Main","foo"));
+        expect_find("Main.foo a b = a + b", id);
+
+        expect_not_found("bar a b = a + b");
+    }
 }

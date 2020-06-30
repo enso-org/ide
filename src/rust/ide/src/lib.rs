@@ -10,7 +10,6 @@
 #![feature(iter_order_by)]
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
-#![feature(impl_trait_in_bindings)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
