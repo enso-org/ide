@@ -132,7 +132,7 @@ impl GraphEditorIntegratedWithController {
 struct GraphEditorIntegratedWithControllerModel {
     logger             : Logger,
     editor             : GraphEditor,
-    controller         : controller::ExecutedGraph,
+    controller         : Rc<controller::ExecutedGraph>,
     project_controller : controller::Project,
     node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
@@ -248,6 +248,7 @@ impl GraphEditorIntegratedWithControllerModel {
     , controller : controller::ExecutedGraph
     , project    : controller::Project) -> Self {
         let editor           = app.views.new::<GraphEditor>();
+        let controller       = Rc::new(controller);
         let node_views       = default();
         let connection_views = default();
         let expression_views = default();
@@ -706,7 +707,6 @@ pub struct NodeEditor {
     display_object : display::object::Instance,
     #[allow(missing_docs)]
     pub graph     : Rc<GraphEditorIntegratedWithController>,
-    controller    : controller::ExecutedGraph,
     visualization : controller::Visualization
 }
 
@@ -721,11 +721,11 @@ impl NodeEditor {
         let logger         = Logger::sub(logger,"NodeEditor");
         let display_object = display::object::Instance::new(&logger);
         let graph          = GraphEditorIntegratedWithController::new(logger.clone_ref(),app,
-            controller.clone_ref(),project);
+            controller,project);
         let graph = Rc::new(graph);
         display_object.add_child(&graph.model.editor);
         info!(logger, "Created.");
-        Ok(NodeEditor {logger,display_object,graph,controller,visualization}.init().await?)
+        Ok(NodeEditor {logger,display_object,graph,visualization}.init().await?)
     }
 
     async fn init(self) -> FallibleResult<Self> {
