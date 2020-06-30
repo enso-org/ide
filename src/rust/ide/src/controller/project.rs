@@ -330,7 +330,7 @@ impl Handle {
 // ============
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use super::*;
 
     use crate::constants::DEFAULT_PROJECT_NAME;
@@ -352,7 +352,7 @@ mod test {
     /// Passed functions should be used to setup expectations upon the mock clients.
     /// Additionally, an `event_stream` expectation will be setup for a binary protocol, as
     /// project controller always calls it.
-    fn setup_mock_project
+    pub fn setup_mock_project
     ( setup_mock_json   : impl FnOnce(&mut language_server::MockClient)
     , setup_mock_binary : impl FnOnce(&mut enso_protocol::binary::MockClient)
     ) -> controller::Project {
