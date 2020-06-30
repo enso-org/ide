@@ -14,11 +14,11 @@ use enso_frp::stream::EventEmitter;
 use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::application::Application;
-use enso_ide_view::graph_editor;
-use enso_ide_view::graph_editor::component::visualization;
-use enso_ide_view::graph_editor::EdgeTarget;
-use enso_ide_view::graph_editor::GraphEditor;
-use enso_ide_view::graph_editor::SharedHashMap;
+use ide_view::graph_editor;
+use ide_view::graph_editor::component::visualization;
+use ide_view::graph_editor::EdgeTarget;
+use ide_view::graph_editor::GraphEditor;
+use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
 
 

@@ -15,8 +15,8 @@ use ensogl::display::style::theme;
 use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
-use enso_ide_view::graph_editor;
 use enso_shapely::shared;
+use ide_view::graph_editor;
 use nalgebra::Vector2;
 
 

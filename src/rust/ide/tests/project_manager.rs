@@ -2,12 +2,12 @@
 
 #[cfg(test)]
 mod tests {
-    use enso_ide::prelude::*;
+    use ide::prelude::*;
 
     use enso_protocol::project_manager::API;
     use enso_protocol::project_manager::Client;
-    use enso_ide::ide::*;
-    use enso_ide::transport::web::WebSocket;
+    use ide::ide::*;
+    use ide::transport::web::WebSocket;
 
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 

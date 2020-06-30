@@ -1,5 +1,5 @@
 [package]
-name    = "enso-ide"
+name    = "ide"
 version = "0.1.0"
 authors = ["Enso Team <contact@luna-lang.org>"]
 edition = "2018"
@@ -19,7 +19,7 @@ logger                   = { version = "0.1.0"  , path = "../lib/logger"        
 enso-shapely             = { version = "0.1.0"  , path = "../lib/enso-shapely/impl" }
 
 ast                      = { version = "0.1.0"  , path = "lib/ast/impl"      }
-enso-ide-view            = { version = "0.1.0"  , path = "lib/view"          }
+ide-view                 = { version = "0.1.0"  , path = "lib/view"          }
 enso-protocol            = { version = "0.1.0"  , path = "lib/enso-protocol" }
 json-rpc                 = { version = "0.1.0"  , path = "lib/json-rpc"      }
 parser                   = { version = "0.1.0"  , path = "lib/parser"        }

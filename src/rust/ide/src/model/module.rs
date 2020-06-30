@@ -198,9 +198,9 @@ impl QualifiedName {
     /// Obtain a module's full qualified name from its path and the project name.
     ///
     /// ```
-    /// use enso_ide::prelude::*;
-    /// use enso_ide::model::module::QualifiedName;
-    /// use enso_ide::model::module::Path;
+    /// use ide::prelude::*;
+    /// use ide::model::module::QualifiedName;
+    /// use ide::model::module::Path;
     ///
     /// let path = Path::from_name_segments(default(),&["Main"]).unwrap();
     /// assert_eq!(path.to_string(),"//00000000-0000-0000-0000-000000000000/src/Main.enso");
@@ -218,7 +218,7 @@ impl QualifiedName {
     /// Obtain a module's full qualified name from its path and the project name.
     ///
     /// ```
-    /// use enso_ide::model::module::QualifiedName;
+    /// use ide::model::module::QualifiedName;
     ///
     /// let name = QualifiedName::from_module_segments(&["Main"],"Project");
     /// assert_eq!(name.to_string(), "Project.Main");

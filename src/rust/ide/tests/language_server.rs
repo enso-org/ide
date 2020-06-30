@@ -10,14 +10,14 @@
 //! sbt "runner/run --server --root-id 6f7d58dd-8ee8-44cf-9ab7-9f0454033641 --path $HOME/ensotmp --rpc-port 30616"
 //! ```
 
-use enso_ide::prelude::*;
+use ide::prelude::*;
 
 use enso_protocol::language_server::*;
 use enso_protocol::types::*;
-use enso_ide::controller::Project;
-use enso_ide::model::execution_context::Visualization;
-use enso_ide::transport::web::WebSocket;
-use enso_ide::view::project::INITIAL_MODULE_NAME;
+use ide::controller::Project;
+use ide::model::execution_context::Visualization;
+use ide::transport::web::WebSocket;
+use ide::view::project::INITIAL_MODULE_NAME;
 use std::time::Duration;
 #[allow(unused_imports)]
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -66,7 +66,7 @@ async fn file_operations() {
     let ws        = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
     let ws        = ws.expect("Couldn't connect to WebSocket server.");
     let client    = Client::new(ws);
-    let _executor = enso_ide::ide::setup_global_executor();
+    let _executor = ide::ide::setup_global_executor();
 
     executor::global::spawn(client.runner());
 
@@ -209,7 +209,7 @@ async fn file_events() {
     let ws         = ws.expect("Couldn't connect to WebSocket server.");
     let client     = Client::new(ws);
     let mut stream = client.events();
-    let _executor  = enso_ide::ide::setup_global_executor();
+    let _executor  = ide::ide::setup_global_executor();
 
     executor::global::spawn(client.runner());
 
@@ -258,21 +258,21 @@ async fn setup_project() -> Project {
     ensogl_system_web::set_stdout();
     let logger = Logger::new("Test");
     info!(logger,"Setting up the project.");
-    let endpoint         = enso_ide::constants::PROJECT_MANAGER_ENDPOINT;
+    let endpoint         = ide::constants::PROJECT_MANAGER_ENDPOINT;
     let ws               = WebSocket::new_opened(logger.clone_ref(),endpoint).await.unwrap();
-    let pm               = enso_ide::IdeInitializer::setup_project_manager(ws);
-    let name             = enso_ide::constants::DEFAULT_PROJECT_NAME;
-    let project_metadata = enso_ide::IdeInitializer::get_most_recent_project_or_create_new
+    let pm               = ide::IdeInitializer::setup_project_manager(ws);
+    let name             = ide::constants::DEFAULT_PROJECT_NAME;
+    let project_metadata = ide::IdeInitializer::get_most_recent_project_or_create_new
         (&logger,&pm,name).await.expect("Couldn't get most recent or create new project.");
     let error_msg = "Couldn't open project";
-    enso_ide::IdeInitializer::open_project(&logger,&pm,&project_metadata).await.expect(error_msg)
+    ide::IdeInitializer::open_project(&logger,&pm,&project_metadata).await.expect(error_msg)
 }
 
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 /// This integration test covers writing and reading a file using the binary protocol
 async fn binary_protocol_test() {
-    let _guard   = enso_ide::ide::setup_global_executor();
+    let _guard   = ide::ide::setup_global_executor();
     let project  = setup_project().await;
     println!("Got project: {:?}",project);
     let path     = Path::new(project.language_server_rpc.content_root(), &["test_file.txt"]);
@@ -292,7 +292,7 @@ async fn binary_visualization_updates_test_hlp() {
     let expression = "x -> x.json_serialize";
 
     use ensogl::system::web::sleep;
-    use enso_ide::view::project::MAIN_DEFINITION_NAME;
+    use ide::view::project::MAIN_DEFINITION_NAME;
     use double_representation::definition::Id as DefinitionId;
 
     let module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
@@ -324,8 +324,8 @@ async fn binary_visualization_updates_test_hlp() {
 #[allow(dead_code)]
 /// This integration test covers attaching visualizations and receiving their updates.
 fn binary_visualization_updates_test() {
-    let executor = enso_ide::executor::web::EventLoopExecutor::new_running();
-    enso_ide::executor::global::set_spawner(executor.spawner.clone());
+    let executor = ide::executor::web::EventLoopExecutor::new_running();
+    ide::executor::global::set_spawner(executor.spawner.clone());
     executor.spawn_local(binary_visualization_updates_test_hlp()).unwrap();
     std::mem::forget(executor);
 }
