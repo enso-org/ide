@@ -153,8 +153,8 @@ trait API {
     ( &self
     , file        : Path
     , position    : Position
-    , self_type   : String
-    , return_type : String
+    , self_type   : Option<String>
+    , return_type : Option<String>
     , tags        : Option<Vec<SuggestionEntryType>>
     ) -> response::Completion;
 }}

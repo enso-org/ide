@@ -60,9 +60,10 @@ const VISUALISATION_CODE:&str = r#"
 
 wasm_bindgen_test_configure!(run_in_browser);
 
-//#[wasm_bindgen_test::wasm_bindgen_test(async)]
+// #[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
-async fn file_operations() {
+async fn ls_text_protocol_test() {
+    // Setting up.
     let ws        = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
     let ws        = ws.expect("Couldn't connect to WebSocket server.");
     let client    = Client::new(ws);
@@ -75,6 +76,7 @@ async fn file_operations() {
     let session   = session.expect("Couldn't initialize session.");
     let root_id   = session.content_roots[0];
 
+    // Initialize files.
     let file      = Path{root_id,segments:vec!["src".into(),"Main.enso".into()]};
     let contents  = MAIN_CODE.to_string();
     let result    = client.write_file(&file,&contents).await;
@@ -90,13 +92,14 @@ async fn file_operations() {
     let response     = client.write_file(&package_file,&contents).await;
     response.expect("Couldn't write yaml file.");
 
+    // Setting execution context.
     let execution_context    = client.create_execution_context().await;
     let execution_context    = execution_context.expect("Couldn't create execution context.");
     let execution_context_id = execution_context.context_id;
 
     let defined_on_type = "Main".to_string();
     let name            = "main".to_string();
-    let method_pointer  = MethodPointer{file,defined_on_type,name};
+    let method_pointer  = MethodPointer{file:file.clone(),defined_on_type,name};
     let positional_arguments_expressions = default();
     let this_argument_expression         = default();
     let explicit_call                    = ExplicitCall
@@ -104,17 +107,24 @@ async fn file_operations() {
     let stack_item = StackItem::ExplicitCall(explicit_call);
     let response   = client.push_to_execution_context(&execution_context_id,&stack_item).await;
     response.expect("Couldn't push execution context.");
-
     let response = client.pop_from_execution_context(&execution_context_id).await;
     response.expect("Couldn't pop execution context.");
 
+    // Retrieving Database.
+    let response = client.get_suggestions_database().await;
+    response.expect("Couldn't get the suggestions database");
+    let response = client.get_suggestions_database_version().await;
+    response.expect("Couldn't get the suggestions database version");
+
+
+    // Setting visualization.
     let visualisation_id     = uuid::Uuid::new_v4();
     let expression_id        = uuid::Uuid::parse_str("c553533e-a2b9-4305-9f12-b8fe7781f933");
     let expression_id        = expression_id.expect("Couldn't parse expression id.");
     let expression           = "x -> here.encode x".to_string();
     let visualisation_module = "Test.Visualisation".to_string();
     let visualisation_config = VisualisationConfiguration
-    {execution_context_id,expression,visualisation_module};
+        {execution_context_id,expression,visualisation_module};
     let response = client.attach_visualisation
         (&visualisation_id,&expression_id,&visualisation_config);
     response.await.expect("Couldn't attach visualisation.");
@@ -133,6 +143,15 @@ async fn file_operations() {
     let response = client.destroy_execution_context(&execution_context_id).await;
     response.expect("Couldn't destroy execution context.");
 
+    // Asking for autocompletion.
+    let position  = Position {line:4, character:4};
+    let ret_type  = "Number".to_string();
+    let self_type = "Number".to_string();
+    let response  = client.completion(&file,&position,&Some(self_type),&Some(ret_type),&None);
+    let result    = response.await.expect("Couldn't get completion suggestion list");
+    assert!(!result.results.is_empty());
+
+    // Operations on file.
     let path      = Path{root_id, segments:vec!["foo".into()]};
     let name      = "text.txt".into();
     let object    = FileSystemObject::File {name,path};

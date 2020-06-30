@@ -518,7 +518,6 @@ pub enum SuggestionEntryType {Atom,Method,Function,Local}
 #[derive(Hash, Debug, Clone, PartialEq, Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
-// TODO: Perhaps I should refactor this before merge.
 pub enum SuggestionEntry {
     SuggestionEntryAtom {
         name          : String,
