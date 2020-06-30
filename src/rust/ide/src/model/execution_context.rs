@@ -304,7 +304,7 @@ impl ExecutionContext {
         }
     }
 
-    /// Attaches a new visualization for current execution context.
+    /// Attach a new visualization for current execution context.
     ///
     /// Returns a stream of visualization update data received from the server.
     pub fn attach_visualization
@@ -317,11 +317,18 @@ impl ExecutionContext {
         receiver
     }
 
-    /// Detaches visualization from current execution context.
-    pub fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
-        let err = || InvalidVisualizationId(*id);
+    /// Detach the visualization from this execution context.
+    pub fn detach_visualization(&self, id:VisualizationId) -> FallibleResult<Visualization> {
+        let err = || InvalidVisualizationId(id);
         info!(self.logger,"Removing from the registry: {id}.");
-        Ok(self.visualizations.borrow_mut().remove(id).ok_or_else(err)?.visualization)
+        Ok(self.visualizations.borrow_mut().remove(&id).ok_or_else(err)?.visualization)
+    }
+
+    /// Get the information about the given visualization. Fails, if there's no such visualization
+    /// active.
+    pub fn visualization_info(&self, id:VisualizationId) -> FallibleResult<Visualization> {
+        let err = || InvalidVisualizationId(id).into();
+        self.visualizations.borrow_mut().get(&id).map(|v| v.visualization.clone()).ok_or_else(err)
     }
 
     /// Get an iterator over stack items.
@@ -355,5 +362,10 @@ impl ExecutionContext {
     (&self, notification:ExpressionValuesComputed) -> FallibleResult<()> {
         self.computed_value_info_registry.apply_update(notification);
         Ok(())
+    }
+
+    /// Returns IDs of all active visualizations.
+    pub fn active_visualizations(&self) -> Vec<VisualizationId> {
+        self.visualizations.borrow().keys().copied().collect_vec()
     }
 }

@@ -449,7 +449,6 @@ mod test {
         assert!(result1.is_err());
 
         // Create execution context.
-        let module_path = Rc::new(data.module_path.clone());
         let execution   = project.create_execution_context(data.main_method_pointer());
         let execution   = test.expect_completion(execution).unwrap();
 

@@ -599,7 +599,7 @@ impl GraphEditorIntegratedWithControllerModel {
         visualizations.remove(&node_id);
 
         let detach_action = async move {
-            if graph.detach_visualization(&id).await.is_ok() {
+            if graph.detach_visualization(id).await.is_ok() {
                 debug!(logger,"Successfully detached visualization {id} from node {node_id}.");
             } else {
                 error!(logger,"Failed to detach visualization {id} from node {node_id}.");

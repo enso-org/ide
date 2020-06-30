@@ -103,7 +103,7 @@ impl ExecutionContext {
         let stream = self.model.attach_visualization(vis.clone());
         let result = self.language_server.attach_visualisation(&vis.id, &vis.ast_id, &config).await;
         if let Err(e) = result {
-            self.model.detach_visualization(&vis.id)?;
+            self.model.detach_visualization(vis.id)?;
             Err(e.into())
         } else {
             Ok(stream)
@@ -111,10 +111,9 @@ impl ExecutionContext {
     }
 
     /// Detach visualization from current execution context.
-    pub async fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
-        info!(self.logger,"Scheduling detaching visualization by id: {id}.");
-        let vis    = self.model.detach_visualization(id)?;
-        let vis_id = *id;
+    pub async fn detach_visualization(&self, vis_id:VisualizationId) -> FallibleResult<Visualization> {
+        info!(self.logger,"Scheduling detaching visualization by id: {vis_id}.");
+        let vis    = self.model.detach_visualization(vis_id)?;
         let exe_id = self.id;
         let ast_id = vis.ast_id;
         let ls     = self.language_server.clone_ref();
@@ -127,6 +126,64 @@ impl ExecutionContext {
             }
         });
         Ok(vis)
+    }
+
+    //
+    // /// Detach visualization from current execution context.
+    // pub fn detach_visualization(&self, vis_id:VisualizationId) -> LocalBoxFuture<FallibleResult<Visualization>> {
+    //     info!(self.logger,"Scheduling detaching visualization by id: {vis_id}.");
+    //     match self.model.visualization_info(vis_id) {
+    //         Ok(visualization) => {
+    //             let ls     = self.language_server.clone_ref();
+    //             let this   = self.clone_ref();
+    //             let logger = self.logger.clone_ref();
+    //             async move {
+    //                 let exe_id = self.id;
+    //                 let ast_id = visualization.ast_id;
+    //
+    //                 info!(logger,"About to detach visualization by id: {vis_id}.");
+    //                 ls.detach_visualisation(&exe_id,&vis_id,&ast_id).await?;
+    //                 if let Err(err) = self.model.detach_visualization(vis_id) {
+    //                     error!(logger,"Failed to update model after visualization has been \
+    //                     detached by the language server. Error: {err}.");
+    //                 }
+    //                 Ok(visualization)
+    //             }.boxed_local()
+    //         }
+    //         Err(err) => futures::future::ready(Err(err)),
+    //     }
+    // }
+
+    // /// Detach visualization from current execution context.
+    // pub fn detach_visualization(&self, vis_id:VisualizationId) -> impl Future<FallibleResult<Visualization>> {
+    //     info!(self.logger,"Scheduling detaching visualization by id: {vis_id}.");
+    //     let vis    = self.model.detach_visualization(vis_id)?;
+    //     let exe_id = self.id;
+    //     let ast_id = vis.ast_id;
+    //     let ls     = self.language_server.clone_ref();
+    //     let logger = self.logger.clone_ref();
+    //     executor::global::spawn(async move {
+    //         info!(logger,"About to detach visualization by id: {vis_id}.");
+    //         let result = ls.detach_visualisation(&exe_id,&vis_id,&ast_id).await;
+    //         if result.is_err() {
+    //             error!(logger,"Error when detaching node: {result:?}.");
+    //         }
+    //     });
+    //     Ok(vis)
+    // }
+
+    /// Returns a future that attempts to detach all currently attached visualizations.
+    ///
+    /// The requests to the language server will be made in parallel rather than one by one.
+    /// The function tries to carry on and removes as many visualizations as possible, ignoring
+    /// any errors.
+    pub async fn detach_all_visualizations(&self) {
+        let visualization_ids  = self.model.active_visualizations();
+        // TODO parallelize
+        for id in visualization_ids {
+            // Even if some requests fail, we want to detach as many visualizations as possible.
+            let _ = self.detach_visualization(id).await.ok();
+        }
     }
 
     /// Dispatch the visualization update data (typically received from as LS binary notification)
@@ -436,11 +493,11 @@ pub mod tests {
             let other_vis_id = VisualizationId::new_v4();
             context.dispatch_visualization_update(other_vis_id,update.clone()).unwrap_err();
             events.expect_pending();
-            assert!(context.detach_visualization(&wrong_id).await.is_err());
+            assert!(context.detach_visualization(wrong_id).await.is_err());
             events.expect_pending();
-            assert!(context.detach_visualization(&vis.id).await.is_ok());
+            assert!(context.detach_visualization(vis.id).await.is_ok());
             events.expect_terminated();
-            assert!(context.detach_visualization(&vis.id).await.is_err());
+            assert!(context.detach_visualization(vis.id).await.is_err());
             context.dispatch_visualization_update(vis.id,update.clone()).unwrap_err();
         });
     }

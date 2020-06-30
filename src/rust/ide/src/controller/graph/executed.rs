@@ -97,8 +97,13 @@ impl Handle {
     }
 
     /// See `detach_visualization` in `ExecutionContext`.
-    pub async fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
+    pub async fn detach_visualization(&self, id:VisualizationId) -> FallibleResult<Visualization> {
         self.execution_ctx.detach_visualization(id).await
+    }
+
+    /// See `detach_all_visualizations` in `ExecutionContext`.
+    pub async fn detach_all_visualizations(&self) -> () {
+        self.execution_ctx.detach_all_visualizations().await
     }
 
     /// See `expression_info_registry` in `ExecutionContext`.
