@@ -114,11 +114,11 @@ impl Handle {
     /// This function wont check if the definition under id exists.
     pub async fn executed_graph_controller_unchecked
     (&self, id:dr::graph::Id, project:&controller::Project)
-    -> FallibleResult<controller::ExecutedGraph> {
+    -> FallibleResult<model::ExecutedGraph> {
         let method        = self.method_pointer(&id)?;
         let graph         = self.graph_controller_unchecked(id);
         let execution_ctx = project.create_execution_context(method).await?;
-        Ok(controller::ExecutedGraph::new(graph,project.clone_ref(),execution_ctx))
+        Ok(model::ExecutedGraph::new(graph,project,execution_ctx))
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id` without

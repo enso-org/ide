@@ -2,7 +2,6 @@
 //!
 //! This controller provides access to a specific graph. It lives under a module controller, as
 //! each graph belongs to some module.
-pub mod executed;
 
 use crate::prelude::*;
 
@@ -403,7 +402,8 @@ pub struct Handle {
     pub module : Rc<model::synchronized::Module>,
     parser     : Parser,
     id         : Rc<Id>,
-    logger     : Logger,
+    #[allow(missing_docs)]
+    pub logger : Logger,
 }
 
 impl Handle {

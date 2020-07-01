@@ -132,7 +132,7 @@ impl GraphEditorIntegratedWithController {
 struct GraphEditorIntegratedWithControllerModel {
     logger             : Logger,
     editor             : GraphEditor,
-    controller         : Rc<controller::ExecutedGraph>,
+    controller         : Rc<model::ExecutedGraph>,
     project_controller : controller::Project,
     node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
@@ -148,7 +148,7 @@ impl GraphEditorIntegratedWithController {
     pub fn new
     ( logger     : Logger
     , app        : &Application
-    , controller : controller::ExecutedGraph
+    , controller : model::ExecutedGraph
     , project    : controller::Project) -> Self {
         let model = GraphEditorIntegratedWithControllerModel::new(logger,app,controller,project);
         let model       = Rc::new(model);
@@ -182,7 +182,7 @@ impl GraphEditorIntegratedWithController {
         frp::extend! {network
             // Notifications from controller
             let handle_notification = FencedAction::fence(&network,
-                f!((notification:&Option<controller::graph::executed::Notification>)
+                f!((notification:&Option<model::synchronized::graph::executed::Notification>)
                     model.handle_controller_notification(notification);
             ));
 
@@ -204,7 +204,7 @@ impl GraphEditorIntegratedWithController {
 
     fn connect_frp_to_controller_notifications
     ( model        : &Rc<GraphEditorIntegratedWithControllerModel>
-    , frp_endpoint : frp::Source<Option<controller::graph::executed::Notification>>
+    , frp_endpoint : frp::Source<Option<model::synchronized::graph::executed::Notification>>
     ) {
         let stream  = model.controller.subscribe();
         let weak    = Rc::downgrade(model);
@@ -245,7 +245,7 @@ impl GraphEditorIntegratedWithControllerModel {
     fn new
     ( logger     : Logger
     , app        : &Application
-    , controller : controller::ExecutedGraph
+    , controller : model::ExecutedGraph
     , project    : controller::Project) -> Self {
         let editor           = app.views.new::<GraphEditor>();
         let controller       = Rc::new(controller);
@@ -468,8 +468,8 @@ impl GraphEditorIntegratedWithControllerModel {
 
     /// Handle notification received from controller.
     pub fn handle_controller_notification
-    (&self, notification:&Option<controller::graph::executed::Notification>) {
-        use controller::graph::executed::Notification;
+    (&self, notification:&Option<model::synchronized::graph::executed::Notification>) {
+        use model::synchronized::graph::executed::Notification;
         use controller::graph::Notification::Invalidate;
 
         let result = match notification {
@@ -715,7 +715,7 @@ impl NodeEditor {
     pub async fn new
     ( logger        : impl AnyLogger
     , app           : &Application
-    , controller    : controller::ExecutedGraph
+    , controller    : model::ExecutedGraph
     , project       : controller::Project
     , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = Logger::sub(logger,"NodeEditor");

@@ -22,7 +22,6 @@ pub mod text;
 pub mod visualization;
 
 pub use graph::Handle           as Graph;
-pub use graph::executed::Handle as ExecutedGraph;
 pub use module::Handle          as Module;
 pub use project::Handle         as Project;
 pub use text::Handle            as Text;

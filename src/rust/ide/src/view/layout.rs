@@ -98,7 +98,7 @@ impl ViewLayout {
     , kb_actions               : &mut keyboard::Actions
     , application              : &Application
     , text_controller          : controller::Text
-    , graph_controller         : controller::ExecutedGraph
+    , graph_controller         : model::ExecutedGraph
     , visualization_controller : controller::Visualization
     , project_controller       : controller::Project
     , fonts                    : &mut font::Registry

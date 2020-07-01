@@ -5,5 +5,6 @@ pub mod module;
 pub mod registry;
 pub mod synchronized;
 
+pub use synchronized::graph::executed::Handle as ExecutedGraph;
 pub use execution_context::ExecutionContext;
 pub use module::Module;
