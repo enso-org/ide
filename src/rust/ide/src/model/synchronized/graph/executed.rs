@@ -5,7 +5,8 @@
 //! visualisations, retrieving types on ports, etc.
 use crate::prelude::*;
 
-use crate::model::execution_context::{Visualization, ComputedValueInfoRegistry};
+use crate::model::execution_context::ComputedValueInfoRegistry;
+use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::synchronized::ExecutionContext;
@@ -13,7 +14,11 @@ use crate::model::synchronized::ExecutionContext;
 use flo_stream::MessagePublisher;
 use enso_protocol::language_server::MethodPointer;
 
-/////////////////////
+
+
+// ==============
+// === Errors ===
+// ==============
 
 #[allow(missing_docs)]
 #[fail(display = "The node {} has not been evaluated yet.", _0)]
@@ -50,11 +55,12 @@ pub enum Notification {
 
 
 // ==============
-// === Handle ===
+// === Model ===
 // ==============
-/// Handle providing executed graph controller interface.
+
+/// Model being the executed graph, i.e. the graph and associated execution context.
 #[derive(Debug)]
-pub struct Handle {
+pub struct Model {
     #[allow(missing_docs)]
     pub logger:Logger,
     /// A handle to basic graph operations.
@@ -69,7 +75,7 @@ pub struct Handle {
     notifier:RefCell<crate::notification::Publisher<Notification>>,
 }
 
-impl Handle {
+impl Model {
     /// Create handle for given graph and execution context.
     ///
     /// This takes a (shared) ownership of execution context which will be shared between all copies
@@ -81,12 +87,16 @@ impl Handle {
     /// strong references to the execution context and it is expected that it will be dropped after
     /// the last copy of this controller is dropped.
     /// Then the context when being dropped shall remove itself from the Language Server.
-    pub fn new(graph:controller::Graph, project:&controller::Project, execution_ctx:Rc<ExecutionContext>) -> Self {
+    pub fn new
+    ( graph:controller::Graph
+    , project:&controller::Project
+    , execution_ctx:Rc<ExecutionContext>
+    ) -> Self {
         let logger   = Logger::sub(&graph.logger,"Executed");
         let graph    = RefCell::new(graph);
         let project  = project.clone_ref();
         let notifier = default();
-        Handle {logger,graph,execution_ctx,project,notifier}
+        Model {logger,graph,execution_ctx,project,notifier}
     }
 
     /// See `attach_visualization` in `ExecutionContext`.
@@ -121,7 +131,8 @@ impl Handle {
     /// Create a graph controller for the given method.
     ///
     /// Fails if the module is inaccessible or if it does not contain given method.
-    pub async fn graph_for_method(&self, method:&MethodPointer) -> FallibleResult<controller::Graph> {
+    pub async fn graph_for_method
+    (&self, method:&MethodPointer) -> FallibleResult<controller::Graph> {
         let module_path = model::module::Path::from_file_path(method.file.clone())?;
         let module      = self.project.module_controller(module_path).await?;
         debug!(self.logger,"Looking up method definition {method:?} in the module.");
@@ -144,18 +155,13 @@ impl Handle {
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
         let method_ptr = node_info.method_call.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
         let graph      = self.graph_for_method(method_ptr).await?;
-
-        let call = model::execution_context::LocalCall {
+        let call       = model::execution_context::LocalCall {
             call : node,
             definition : method_ptr.clone()
         };
         self.execution_ctx.push(call).await?;
-
-        debug!(self.logger,"Replacing graph with {graph:?}.");
         self.graph.replace(graph);
-        debug!(self.logger,"Sending graph invalidation signal.");
         self.notifier.borrow_mut().publish(Notification::EnteredNode(node)).await;
-
         Ok(())
     }
 
@@ -212,7 +218,7 @@ mod tests {
         let (_,graph)      = graph_data.create_controllers_with_ls(connection.clone_ref());
         let execution      = Rc::new(execution(connection.clone_ref()));
         let project        = controller::project::test::setup_mock_project(|_| {}, |_| {});
-        let executed_graph = Handle::new(graph,&project,execution.clone_ref());
+        let executed_graph = Model::new(graph, &project, execution.clone_ref());
 
         // Generate notification.
         let notification = execution_data.mock_values_computed_update();
