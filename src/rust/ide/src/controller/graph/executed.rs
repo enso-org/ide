@@ -81,7 +81,11 @@ impl Handle {
     /// strong references to the execution context and it is expected that it will be dropped after
     /// the last copy of this controller is dropped.
     /// Then the context when being dropped shall remove itself from the Language Server.
-    pub fn new(graph:controller::Graph, project:&controller::Project, execution_ctx:Rc<ExecutionContext>) -> Self {
+    pub fn new
+    ( graph:controller::Graph
+    , project:&controller::Project
+    , execution_ctx:Rc<ExecutionContext>
+    ) -> Self {
         let logger   = Logger::sub(&graph.logger,"Executed");
         let graph    = RefCell::new(graph);
         let project  = project.clone_ref();
@@ -121,7 +125,8 @@ impl Handle {
     /// Create a graph controller for the given method.
     ///
     /// Fails if the module is inaccessible or if it does not contain given method.
-    pub async fn graph_for_method(&self, method:&MethodPointer) -> FallibleResult<controller::Graph> {
+    pub async fn graph_for_method
+    (&self, method:&MethodPointer) -> FallibleResult<controller::Graph> {
         let module_path = model::module::Path::from_file_path(method.file.clone())?;
         let module      = self.project.module_controller(module_path).await?;
         debug!(self.logger,"Looking up method definition {method:?} in the module.");
