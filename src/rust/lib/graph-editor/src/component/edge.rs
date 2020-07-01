@@ -730,7 +730,9 @@ pub fn sort_hack_2(scene:&Scene) {
 // === FRP ===
 // ===========
 
-/// FRP endpoints for aggregated mouse events.
+/// FRP system that is used to collect and aggregate shape view events from the sub-shapes of an
+/// `Edge`. The Edge exposes the `mouse_down`/`mouse_over`/`mouse_out` streams, while the sub-shapes
+/// emit events via th internal `on_mouse_down`/`on_mouse_over`/`on_mouse_out` sources.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ShapeViewEventsProxy {
