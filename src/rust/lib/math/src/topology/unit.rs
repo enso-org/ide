@@ -3,7 +3,7 @@
 use crate::algebra::*;
 
 use std::ops::*;
-use std::marker::PhantomData;
+
 
 
 // ==============
@@ -40,6 +40,7 @@ macro_rules! unsigned_unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
         pub mod $vname {
             use super::*;
+            use std::ops::AddAssign;
 
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
@@ -73,10 +74,49 @@ macro_rules! unsigned_unit {
 }
 
 #[macro_export]
+macro_rules! unsigned_unit_proxy {
+    ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        pub mod $vname {
+            use super::*;
+            use std::ops::AddAssign;
+
+            $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd saturating_add $name}
+//            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
+//            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
+//            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
+//            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
+
+            pub trait Into {
+                type Output;
+                fn $vname(self) -> Self::Output;
+            }
+
+            impl<T:std::convert::Into<$name>> Into for T {
+                type Output = $name;
+                fn $vname(self) -> Self::Output {
+                    self.into()
+                }
+            }
+
+            pub mod export {
+                pub use super::$name;
+                pub use super::Into as TRAIT_Into;
+            }
+        }
+        pub use $vname::export::*;
+    };
+}
+
+#[macro_export]
 macro_rules! unsigned_unit_float_like {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
         pub mod $vname {
             use super::*;
+            use std::ops::AddAssign;
 
             $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
@@ -114,6 +154,8 @@ macro_rules! signed_unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
         pub mod $vname {
             use super::*;
+            use std::ops::AddAssign;
+
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
@@ -150,6 +192,8 @@ macro_rules! signed_unit_float_like {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
         pub mod $vname {
             use super::*;
+            use std::ops::AddAssign;
+
             $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
@@ -184,6 +228,8 @@ macro_rules! signed_unit_float_like {
 #[macro_export]
 macro_rules! newtype {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
+        use std::ops::AddAssign;
+
         $crate::newtype_struct! {$(#$meta)* $name { $($field : $field_type),*}}
 
         $crate::impl_T_x_T_to_T! {Sub           sub            $name {$($field),*}}
@@ -631,3 +677,11 @@ pub mod traits {
 }
 
 pub use traits::*;
+//unsigned_unit_proxy! {
+///// A type representing horizontal measurements.
+/////
+///// **WARNING**
+///// This is currently in units that are not very well defined except that ASCII characters count as
+///// 1 each. This should be fixed in the future.
+//Column2::column2(Bytes)
+//}

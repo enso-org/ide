@@ -1,11 +1,5 @@
 #![allow(missing_docs)]
 
-use crate::prelude::*;
-use std::ops::AddAssign; // FIXME
-
-use ensogl::math::unit;
-use ensogl::math::newtype;
-
 pub mod traits {
     pub use super::bytes::Into  as TRAIT_bytes_into;
     pub use super::line::Into   as TRAIT_line_into;
@@ -13,22 +7,18 @@ pub mod traits {
 }
 pub use traits::*;
 
+use crate::prelude::*;
+use ensogl::math;
+
 
 
 // =============
 // === Bytes ===
 // =============
 
-unit! {
+math::unit! {
 /// An offset in the buffer in bytes.
 Bytes::bytes(usize)
-}
-
-impl Bytes {
-    // Interpret the byte offset as column.
-    pub fn as_column(self) -> Column {
-        Column(self.value)
-    }
 }
 
 impl<T:Into<Bytes>> bytes::Into for Range<T> {
@@ -46,7 +36,7 @@ impl<T:Into<Bytes>> bytes::Into for Range<T> {
 // === Line ===
 // ============
 
-unit! {
+math::unit! {
 /// A type representing vertical measurements.
 Line::line(usize)
 }
@@ -57,16 +47,13 @@ Line::line(usize)
 // === Column ===
 // ==============
 
-unit! {
-/// A type representing horizontal measurements.
-///
-/// **WARNING**
-/// This is currently in units that are not very well defined except that ASCII characters count as
-/// 1 each. This should be fixed in the future.
-Column::column(usize)
+math::unsigned_unit_proxy! {
+/// A type representing horizontal measurements
+Column::column(Bytes)
 }
 
-newtype! {
+
+math::newtype! {
 /// A type representing 2d measurements.
 Location {
     line   : Line,

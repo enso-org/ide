@@ -111,15 +111,15 @@ impl ViewModel {
         let mut line = if move_up { location.line - 1.line() } else { location.line.saturating_add(1.line()) };
 
         // If the active columns is longer than the current line, use the current line length.
-        let line_last_column = line_len.value.column();
-        let col = if line_last_column < location.column { line_last_column - 1.column() } else { location.column };
+        let line_last_column = line_len.column();
+        let col = if line_last_column < location.column { line_last_column - 1.bytes().column() } else { location.column };
 
         loop {
             let line_len = self.offset_of_line(line + 1.line()) - self.offset_of_line(line);
 
             // If the line is longer than the current cursor position, break.
             // We use > instead of >= because line_len includes newline.
-            if line_len.value > col.value {
+            if line_len > col.value {
                 break;
             }
 

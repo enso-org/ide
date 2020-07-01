@@ -436,7 +436,7 @@ pub trait LineOffset {
 
     fn offset_to_line_col(&self, offset:Bytes) -> Location {
         let line = self.line_of_offset(offset);
-        let col  = (offset - self.offset_of_line(line)).value.column();
+        let col  = (offset - self.offset_of_line(line)).column();
         Location(line,col)
     }
 
