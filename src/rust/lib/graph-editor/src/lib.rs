@@ -1760,7 +1760,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     eval edge_over ((edge_id) edge_hover.emit(Some(*edge_id)));
     eval_ edge_out ( edge_hover.emit(None) );
 
-    edge_over_pos <- map2(&mouse.position, &edge_hover, |pos, edge_id| {
+    edge_over_pos <- map2(&cursor_pos_in_scene, &edge_hover, |pos, edge_id| {
         edge_id.map(|id| (id, *pos))
     }).unwrap();
 
@@ -1776,7 +1776,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
             edge.frp.redraw.emit(());
         }
     });
-    edge_click <- map2(&edge_mouse_down, &mouse.position, f!([](edge_id,pos) (*edge_id,*pos)));
+    edge_click <- map2(&edge_mouse_down, &cursor_pos_in_scene, f!([](edge_id,pos) (*edge_id,*pos)));
 
     edge_is_source_click <- edge_click.map(f!([model]((edge_id,pos)) {
         if let Some(edge) = model.edges.get_cloned_ref(edge_id){
