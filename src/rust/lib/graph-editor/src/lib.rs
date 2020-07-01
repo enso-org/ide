@@ -2107,12 +2107,11 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }));
 
 
-    // === Node Entering ===
+    // === Stepping into and out of nodes ===
 
     node_to_enter             <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     outputs.node_stepped_into <+ node_to_enter;
-
-    outputs.node_stepped_out <+ inputs.step_out_of_node;
+    outputs.node_stepped_out  <+ inputs.step_out_of_node;
 
 
     // === OUTPUTS REBIND ===

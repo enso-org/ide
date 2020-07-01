@@ -83,7 +83,7 @@ impl ExecutionContext {
     }
 
     /// Pop the last stack item from this context. It returns error when only root call
-    /// remains.
+    /// remains. The root frame cannot be popped.
     pub async fn pop(&self) -> FallibleResult<LocalCall> {
         let ret = self.model.pop()?;
         self.language_server.pop_from_execution_context(&self.id).await?;

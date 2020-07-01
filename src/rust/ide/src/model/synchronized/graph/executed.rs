@@ -11,8 +11,8 @@ use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::synchronized::ExecutionContext;
 
-use flo_stream::MessagePublisher;
 use enso_protocol::language_server::MethodPointer;
+use flo_stream::MessagePublisher;
 
 
 

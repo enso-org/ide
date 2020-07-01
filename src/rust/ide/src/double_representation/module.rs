@@ -38,7 +38,8 @@ pub fn traverse_for_definition
 }
 
 /// Traverses the module's definition tree following the given Id crumbs, looking up the definition.
-pub fn locate(ast:&known::Module, id:&definition::Id) -> FallibleResult<definition::ChildDefinition> {
+pub fn locate
+(ast:&known::Module, id:&definition::Id) -> FallibleResult<definition::ChildDefinition> {
     let mut crumbs_iter = id.crumbs.iter();
     // Not exactly regular - first crumb is a little special, because module is not a definition
     // nor a children.
@@ -50,18 +51,20 @@ pub fn locate(ast:&known::Module, id:&definition::Id) -> FallibleResult<definiti
     Ok(child)
 }
 
-/// TODO TODO
+/// Get a definition ID that points to a method matching given pointer.
+///
 /// The module is assumed to be in the file identified by the `method.file` (for the purpose of
 /// desugaring implicit extensions methods for modules).
-pub fn lookup_method(ast:&known::Module, method:&language_server::MethodPointer) -> FallibleResult<definition::Id> {
+pub fn lookup_method
+(ast:&known::Module, method:&language_server::MethodPointer) -> FallibleResult<definition::Id> {
     let module_path = model::module::Path::from_file_path(method.file.clone())?;
-    let module_method = method.defined_on_type == module_path.module_name();
+    let explicitly_extends_looked_type = method.defined_on_type == module_path.module_name();
 
     for child in ast.def_iter() {
         let child_name : &definition::DefinitionName = &child.name.item;
         let name_matches = child_name.name.item == method.name;
         let type_matches = match child_name.extended_target.as_slice() {
-            []         => module_method,
+            []         => explicitly_extends_looked_type,
             [typename] => typename.item == method.defined_on_type,
             _          => child_name.explicitly_extends_type(&method.defined_on_type),
         };
@@ -113,8 +116,11 @@ mod tests {
             let result = lookup_method(&module,&foo_method);
             assert_eq!(result.unwrap().to_string(),expected.to_string());
 
-            // FIXME
-            //assert_eq!(result.unwrap(),expected);
+            // TODO [mwu]
+            //  We should be able to use `assert_eq!(result.unwrap(),expected);`
+            //  But we can't, because definition::Id uses located fields and crumbs won't match.
+            //  Eventually we'll likely need to split definition names into located and unlocated
+            //  ones. Definition ID should not require any location info.
         };
 
         let expect_not_found = |code| {

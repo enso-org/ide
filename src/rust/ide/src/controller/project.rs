@@ -17,7 +17,7 @@ use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
 use parser::Parser;
 use uuid::Uuid;
-use enso_protocol::language_server::MethodPointer;
+
 
 
 // ===============
@@ -307,7 +307,8 @@ impl Handle {
     /// Creates a new execution context with given definition as a root; and registers the context
     /// for receiving update.
     pub async fn create_execution_context
-    (&self, root_definition:MethodPointer) -> FallibleResult<Rc<ExecutionContext>> {
+    (&self, root_definition:language_server::MethodPointer)
+    -> FallibleResult<Rc<ExecutionContext>> {
         let ls_rpc  = self.language_server_rpc.clone_ref();
         let context = ExecutionContext::create(&self.logger,ls_rpc,root_definition);
         let context = context.await?;

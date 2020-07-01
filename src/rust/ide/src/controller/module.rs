@@ -17,7 +17,6 @@ use double_representation as dr;
 use enso_protocol::language_server;
 use enso_protocol::types::Sha3_224;
 use parser::Parser;
-use enso_protocol::language_server::MethodPointer;
 
 
 // ==============
@@ -133,7 +132,8 @@ impl Handle {
     /// Note that there might exist multiple definition IDs for the same method pointer, as
     /// definition IDs include information about definition syntax whereas method pointer identifies
     /// the desugared entity.
-    pub fn method_pointer(&self, id:&dr::graph::Id) -> FallibleResult<MethodPointer> {
+    pub fn method_pointer
+    (&self, id:&dr::graph::Id) -> FallibleResult<language_server::MethodPointer> {
         let defined_on_type = match id.crumbs.as_slice() {
             [crumb] => {
                 if crumb.extended_target.is_empty() {
@@ -144,7 +144,7 @@ impl Handle {
             }
             _ => return Err(InvalidGraphId(id.clone()).into()),
         };
-        Ok(MethodPointer {
+        Ok(language_server::MethodPointer {
             file : self.path.file_path().clone(),
             defined_on_type,
             name : id.crumbs.last().unwrap().name.item.clone(),
