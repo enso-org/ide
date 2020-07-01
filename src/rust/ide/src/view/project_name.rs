@@ -76,7 +76,7 @@ impl ProjectName {
         self.project_controller.project_name().to_string()
     }
 
-    /// Rename the project name.
+    /// Change the project name.
     pub fn rename(&self, new_name:impl Str) {
         let new_name = new_name.into();
         let old_name = self.name();
