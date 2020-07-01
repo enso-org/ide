@@ -8,12 +8,12 @@ Visualizations have two main purposes:
   computes its new value, the visualization shows it in an understandable way to
   the user. Please note that a single node can be assigned with multiple
   visualizations at the same time. For example, a node might want to display a
-  map of locations and their list at the same time next to each other.
+  map of locations, and their list at the same time next to each other.
 
 - **Provide interactive way to generate new data**  
   In a widget mode (described in detail later), visualizations provide users
   with an interactive GUI to define data. For example, a map visualization can
-  both display locations, as wekk as allow the user to pick locations by cliking
+  both display locations, as well as allowing the user to pick locations by clicking
   with a mouse. Similarly, the histogram can both display a list of numbers, and
   can be manually draw with the mouse producing such a list. Several numbers can
   be visualized as a table of sliders, which can also be used to interactively
@@ -24,7 +24,7 @@ Visualizations have two main purposes:
 ## Visualization Display Forms
 Visualizations can be displayed in the following ways:
 
-- **Attached to nodes**  
+- **Attached to nodes** 
   In this mode, visualizations display the most recent result of the node. They
   behave like an integrated part of the node. Whenever you move the node, the
   visualization moves as well. This mode can be toggled by tapping the spacebar.
@@ -111,8 +111,58 @@ an Enso type to a set of visualizations defined for that type. The type might be
 very generic, like `[a]` (which in Enso terms means list of any elements).
 
 ### Defining a Visualization
-This needs to be described in detail. For now, we can just assume that the user
-is allowed to create visualization and register it in Enso.
+Visualizations is planned to be defined both with Enso and JavaScript but, for now, only JavaScript visualizations are
+supported.
+
+Because IDE lacks support for editing any other file besides `Main.enso`, the user has to create it outside of IDE in
+the `visualization` folder of the Enso project, as demonstrated bellow.
+
+#### Custom Visualization Example
+
+Every visualization must reside in the `visualization` folder of the user's project. For instance:
+
+```
+└─ ProjectName
+   ├─ src
+   │  └─ Main.enso
+   └─ visualization
+      └─ grayscale.js
+```
+
+On this example, the visualization defined in `ProjectName/src/visualization/grayscale.js` draws a grayscale rectangle
+with its grayscale intensity defined by a numeric value from 0 to 255:
+
+```javascript
+class Grayscale extends Visualization {
+    static inputType = "Any";
+
+    constructor(handle) {
+        super(handle);
+        this.canvas = document.createElement("canvas");
+        this.ctx    = this.canvas.getContext("2d");
+        this.dom.appendChild(this.canvas);
+    }
+    
+    onDataReceived(data) {
+        if (typeof data == "number") {
+            let grayscale      = Math.min(Math.max(data,0),255);
+            let color          = `rgb(${grayscale},${grayscale},${grayscale})`;
+            this.ctx.fillStyle = color;
+            console.log(this.ctx.fillStyle);
+            this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+        } else {
+            this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+        }
+    }
+    
+    setSize(size) {
+        this.canvas.width  = size[0];
+        this.canvas.height = size[1];
+    }
+}
+
+return Grayscale;
+```
 
 ### Sending Data to Visualizations
 

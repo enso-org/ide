@@ -443,7 +443,7 @@ pub struct FrpInputs {
     pub set_expression_type          : frp::Source<(ast::Id, OptionalType)>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
-    pub register_visualization : frp::Source<Option<visualization::Definition>>,
+    pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
@@ -1437,8 +1437,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Alt])                                 , "toggle_node_subtract_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift,Key::Alt])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("d".into())])               , "set_test_visualization_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("f".into())])               , "cycle_visualization_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("d".into())])  , "set_test_visualization_data_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter])                  , "enter_selected_node")
              ]
     }
