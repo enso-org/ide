@@ -1,24 +1,26 @@
+//! Text cursor movement implementation.
 
 use super::*;
 use crate::buffer::data;
 use crate::buffer::data::unit::*;
 
 
+
 // ================
 // === Movement ===
 // ================
 
-/// Possible navigation patterns.
+/// Keyboard cursor navigation patterns.
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum Movement {
     /// Move to the left by one grapheme cluster.
     Left,
     /// Move to the right by one grapheme cluster.
     Right,
-    // /// Move to the left by one word.
-    // LeftWord,
-    // /// Move to the right by one word.
-    // RightWord,
+    /// Move to the left by one word.
+    LeftWord,
+    /// Move to the right by one word.
+    RightWord,
     /// Move to left end of visible line.
     LeftOfLine,
     /// Move to right end of visible line.
@@ -92,7 +94,7 @@ impl ViewModel {
             return (self.data().len(),Some(location.column));
         }
 
-        let line = Line(line);
+        let line       = Line(line);
         let new_offset = self.line_col_to_offset(line,location.column);
         (new_offset,Some(location.column))
     }
@@ -154,7 +156,6 @@ impl ViewModel {
         let text        = self.data();
         let no_horiz    = |t|(t,None);
         let (end,horiz) : (Bytes,Option<Column>) = match movement {
-
             Movement::Up                => self.vertical_motion(region, -1, modify),
             Movement::Down              => self.vertical_motion(region,  1, modify),
             Movement::UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),
@@ -237,6 +238,9 @@ impl ViewModel {
                 };
                 no_horiz(offset)
             }
+
+            Movement::LeftWord => todo!(),
+            Movement::RightWord => todo!(),
         };
         let start = if modify { region.start } else { end };
         Selection::new(start,end).with_column(horiz)

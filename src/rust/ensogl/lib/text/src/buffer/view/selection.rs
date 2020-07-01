@@ -1,3 +1,4 @@
+//! Text selection and carets implementation.
 
 use crate::prelude::*;
 
@@ -20,6 +21,9 @@ use crate::buffer::data::Range;
 pub struct Selection {
     pub start  : Bytes,
     pub end    : Bytes,
+    // FIXME: Column is encoded as byte offset now which obviously do not work correctly in this
+    //        use case (lines could have different byte offsets for the same amount of grapheme
+    //        clustes. To be fixed during further implementation.
     pub column : Option<Column>,
 }
 
@@ -30,14 +34,17 @@ impl Selection {
         Self {start,end,column}
     }
 
+    /// Cursor constructor (zero-length selection).
     pub fn new_cursor(offset:Bytes) -> Self {
         Self::new(offset,offset)
     }
 
+    /// Range of this selection.
     pub fn range(&self) -> Range<Bytes> {
         (self.start .. self.end).into()
     }
 
+    /// Size of this selection in bytes.
     pub fn size(&self) -> Bytes {
         self.end - self.start
     }

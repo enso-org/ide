@@ -22,6 +22,7 @@ use enso_frp as frp;
 // ==================
 
 // FIXME: these are generic FRP utilities. To be refactored out after the API settles down.
+// FIXME: They are already copy-pasted in the EnsoGL code. To be unified and refactored.
 macro_rules! define_frp {
     (
         Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
@@ -139,16 +140,19 @@ impl Default for ViewBuffer {
     }
 }
 
+// FIXME: Make all these utils private, and use FRP to control the model instead.
 impl ViewBuffer {
     /// Add a new selection to the current view.
     pub fn add_selection(&self, selection:impl Into<Selection>) {
         self.selection.borrow_mut().add(selection.into())
     }
 
+    /// Add a new cursor for the given byte offset.
     pub fn add_cursor(&self, offset:Bytes) {
         self.add_selection(Selection::new_cursor(offset))
     }
 
+    /// Insert new text in the place of current selections / cursors.
     pub fn insert(&self, text:impl Into<Data>) {
         let text = text.into();
         for selection in &*self.selection.borrow() {
@@ -156,15 +160,16 @@ impl ViewBuffer {
         }
     }
 
+    /// Perform undo operation.
     pub fn undo(&self) {
         self.buffer.data.borrow_mut().undo();
     }
 
+    /// Perform redo operation.
     pub fn redo(&self) {
         self.buffer.data.borrow_mut().redo();
     }
 }
-
 
 
 
@@ -191,6 +196,9 @@ define_frp! {
 // === View ===
 // ============
 
+/// View for a region of a buffer. There are several cases where multiple views share the same
+/// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
+/// same file (keeping a view per user and merging them visually).
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct View {
@@ -219,8 +227,6 @@ impl View {
             selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(*t,true)));
             selection_on_clear <- input.clear_selection.constant(default());
 
-//            selection_on_set_cursor <- input.set_cursor.map(|t| Selection::new_cursor(*t).into());
-
             selection_on_set_cursor <- input.set_cursor.map(f!([model](t) Selection::new_cursor(model.offset_of_view_location(t)).into()));
 
             output.source.selection <+ selection_on_move;
@@ -247,9 +253,7 @@ impl Default for View {
 // === ViewModel ===
 // =================
 
-/// View for a region of a buffer. There are several cases where multiple views share the same
-/// buffer, including displaying the buffer in separate tabs or displaying multiple users in the
-/// same file (keeping a view per user and merging them visually).
+/// Internal model for the `View`.
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct ViewModel {
@@ -267,6 +271,7 @@ impl Deref for ViewModel {
 }
 
 impl ViewModel {
+    /// Constructor.
     pub fn new(network:&frp::Network, view_buffer:impl Into<ViewBuffer>) -> Self {
         let frp               = FrpInputs::new(network);
         let view_buffer       = view_buffer.into();
@@ -277,8 +282,6 @@ impl ViewModel {
 }
 
 impl ViewModel {
-
-
     /// Set the selection to a new value.
     pub fn set_selection(&self, selection:&selection::Group) {
         *self.selection.borrow_mut() = selection.clone();
@@ -289,6 +292,7 @@ impl ViewModel {
         self.selection.borrow().clone()
     }
 
+    // FIXME: rename
     fn moved_selection2(&self, movement:Option<Movement>, modify:bool) -> selection::Group {
         movement.map(|t| self.moved_selection(t,modify)).unwrap_or_default()
     }

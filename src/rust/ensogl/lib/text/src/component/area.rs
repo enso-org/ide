@@ -391,7 +391,6 @@ impl Area {
 
             }));
 
-
             _eval <- model.buffer.frp.output.selection.map2
                 (&model.scene.frp.frame_time,f!([model](selections,time) {
                     let mut cursors = vec![];

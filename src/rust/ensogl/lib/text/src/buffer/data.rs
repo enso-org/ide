@@ -40,6 +40,11 @@ pub use unit::*;
 ///
 /// This type provides multiple `From` implementations for easy conversions from string-like types,
 /// and vice-versa.
+///
+/// Please note that the underlying rope implementation comes from `xi-rope` crate which does not
+/// use strong types for all units (like line number, column number, byte offset), so part of
+/// responsibility of this struct is to wrap the underlying API with strong types introduced in this
+/// library.
 #[derive(Debug,Clone,Default,Deref)]
 #[allow(missing_docs)]
 pub struct Data {
