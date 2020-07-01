@@ -162,7 +162,7 @@ impl Handle {
     , parser          : Parser
     ) -> FallibleResult<Self> {
         let logger = Logger::new("Mocked Module Controller");
-        let ast    = parser.parse(code.to_string(),id_map.clone())?.try_into()?;
+        let ast    = parser.parse(code.to_string(),id_map)?.try_into()?;
         let model  = model::Module::new(ast, default());
         let model  = model::synchronized::Module::mock(path.clone(),model);
         let path   = Rc::new(path);
