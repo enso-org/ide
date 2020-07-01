@@ -115,12 +115,10 @@ impl Handle {
     pub async fn executed_graph_controller_unchecked
     (&self, id:dr::graph::Id, project:&controller::Project)
     -> FallibleResult<controller::ExecutedGraph> {
-        let method          = self.method_pointer(&id)?;
-        //let definition_name = id.crumbs.last().cloned().ok_or_else(|| InvalidGraphId(id.clone()))?;
-        let graph           = self.graph_controller_unchecked(id);
-        //let path            = self.path.clone_ref();
-        let execution_ctx   = project.create_execution_context(method).await?;
-        Ok(controller::ExecutedGraph::new(graph,project,execution_ctx))
+        let method        = self.method_pointer(&id)?;
+        let graph         = self.graph_controller_unchecked(id);
+        let execution_ctx = project.create_execution_context(method).await?;
+        Ok(controller::ExecutedGraph::new(graph,project.clone_ref(),execution_ctx))
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id` without
