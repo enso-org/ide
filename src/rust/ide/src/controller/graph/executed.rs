@@ -163,7 +163,7 @@ impl Handle {
     ///
     /// Fails if this execution context is already at the stack's root or if the parent graph
     /// cannot be retrieved.
-    pub async fn step_out_of_node(&self) -> FallibleResult<()> {
+    pub async fn exit_node(&self) -> FallibleResult<()> {
         let frame  = self.execution_ctx.pop().await?;
         let method = self.execution_ctx.current_method();
         let graph  = self.graph_for_method(&method).await?;

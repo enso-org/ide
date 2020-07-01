@@ -165,8 +165,8 @@ impl GraphEditorIntegratedWithController {
             GraphEditorIntegratedWithControllerModel::node_removed_in_ui,&invalidate.trigger);
         let node_entered = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_entered_in_ui,&invalidate.trigger);
-        let node_stepped_out = Self::ui_action(&model,
-            GraphEditorIntegratedWithControllerModel::node_stepped_out_in_ui,&invalidate.trigger);
+        let node_exited = Self::ui_action(&model,
+            GraphEditorIntegratedWithControllerModel::node_exited_in_ui,&invalidate.trigger);
         let connection_created = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::connection_created_in_ui,&invalidate.trigger);
         let connection_removed = Self::ui_action(&model,
@@ -188,15 +188,15 @@ impl GraphEditorIntegratedWithController {
 
             // Changes in Graph Editor
             let is_handling_notification = handle_notification.is_running;
-            def is_hold = is_handling_notification.all_with(&invalidate.is_running, |l,r| *l || *r);
-            def _action = editor_outs.node_removed             .map2(&is_hold,node_removed);
-            def _action = editor_outs.node_entered             .map2(&is_hold,node_entered);
-            def _action = editor_outs.node_stepped_out         .map2(&is_hold,node_stepped_out);
-            def _action = editor_outs.connection_added         .map2(&is_hold,connection_created);
-            def _action = editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
-            def _action = editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
-            def _action = editor_outs.connection_removed       .map2(&is_hold,connection_removed);
-            def _action = editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
+            is_hold <- is_handling_notification.all_with(&invalidate.is_running, |l,r| *l || *r);
+            _action <- editor_outs.node_removed             .map2(&is_hold,node_removed);
+            _action <- editor_outs.node_entered             .map2(&is_hold,node_entered);
+            _action <- editor_outs.node_exited              .map2(&is_hold,node_exited);
+            _action <- editor_outs.connection_added         .map2(&is_hold,connection_created);
+            _action <- editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
+            _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
+            _action <- editor_outs.connection_removed       .map2(&is_hold,connection_removed);
+            _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
         }
         Self::connect_frp_to_controller_notifications(&model,handle_notification.trigger);
         Self {model,network}
@@ -259,7 +259,7 @@ impl GraphEditorIntegratedWithControllerModel {
         };
 
         if let Err(err) = this.refresh_graph_view() {
-            error!(this.logger,"Error while initializing graph editor: {err}");
+            error!(this.logger,"Error while initializing graph editor: {err}.");
         }
         this
     }
@@ -271,7 +271,7 @@ impl GraphEditorIntegratedWithControllerModel {
 impl GraphEditorIntegratedWithControllerModel {
     /// Reload whole displayed content to be up to date with module state.
     pub fn refresh_graph_view(&self) -> FallibleResult<()> {
-        info!(self.logger, "Refreshing graph view");
+        info!(self.logger, "Refreshing the graph view.");
         use controller::graph::Connections;
         let Connections{trees,connections} = self.controller.graph().connections()?;
         self.refresh_node_views(trees)?;
@@ -281,9 +281,9 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn refresh_node_views
     (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>) -> FallibleResult<()> {
-        debug!(self.logger, "Updating nodes for {self.controller.graph():?}");
+        debug!(self.logger, "Updating nodes for {self.controller.graph():?}.");
         let nodes = self.controller.graph().nodes()?;
-        debug!(self.logger, "Updated nodes {nodes:?}");
+        debug!(self.logger, "Updated nodes {nodes:?}.");
         let ids   = nodes.iter().map(|node| node.info.id() ).collect();
         self.retain_node_views(&ids);
         for (i,node_info) in nodes.iter().enumerate() {
@@ -445,16 +445,19 @@ impl GraphEditorIntegratedWithControllerModel {
 // === Handling Controller Notifications ===
 
 impl GraphEditorIntegratedWithControllerModel {
+    /// Handle notification received from controller about the whole graph being invalidated.
     pub fn on_invalidated(&self) -> FallibleResult<()> {
         self.refresh_graph_view()
     }
 
+    /// Handle notification received from controller about values having been entered.
     pub fn on_node_entered(&self, _id:double_representation::node::Id) -> FallibleResult<()> {
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.refresh_graph_view()
     }
 
-    pub fn on_stepped_out(&self, id:double_representation::node::Id) -> FallibleResult<()> {
+    /// Handle notification received from controller about node having been exited.
+    pub fn on_exited(&self, id:double_representation::node::Id) -> FallibleResult<()> {
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.refresh_graph_view()?;
         let id = self.get_displayed_node_id(id)?;
@@ -462,6 +465,7 @@ impl GraphEditorIntegratedWithControllerModel {
         Ok(())
     }
 
+    /// Handle notification received from controller about values having been computed.
     pub fn on_values_computed(&self, expressions:&[ExpressionId]) -> FallibleResult<()> {
         self.refresh_types_on(&expressions)
     }
@@ -476,7 +480,7 @@ impl GraphEditorIntegratedWithControllerModel {
             Some(Notification::Graph(Invalidate))         => self.on_invalidated(),
             Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
             Some(Notification::EnteredNode(id))           => self.on_node_entered(*id),
-            Some(Notification::SteppedOutOfNode(id))      => self.on_stepped_out(*id),
+            Some(Notification::SteppedOutOfNode(id))      => self.on_exited(*id),
             other => {
                 warning!(self.logger,"Handling notification {other:?} is not implemented; \
                     performing full invalidation");
@@ -626,21 +630,21 @@ impl GraphEditorIntegratedWithControllerModel {
         let logger       = self.logger.clone_ref();
         let enter_action = async move {
             let result = controller.enter_node(id).await;
-            debug!(logger,"Entering result: {result:?}");
+            debug!(logger,"Entering node result: {result:?}.");
         };
         executor::global::spawn(enter_action);
         Ok(())
     }
 
-    fn node_stepped_out_in_ui(&self, _:&()) -> FallibleResult<()> {
-        debug!(self.logger,"Requesting stepping out of the current node.");
+    fn node_exited_in_ui(&self, _:&()) -> FallibleResult<()> {
+        debug!(self.logger,"Requesting exiting the current node.");
         let controller      = self.controller.clone_ref();
         let logger          = self.logger.clone_ref();
-        let step_out_action = async move {
-            let result = controller.step_out_of_node().await;
-            debug!(logger,"Stepping out result: {result:?}");
+        let exit_node_action = async move {
+            let result = controller.exit_node().await;
+            debug!(logger,"Exiting node result: {result:?}.");
         };
-        executor::global::spawn(step_out_action);
+        executor::global::spawn(exit_node_action);
         Ok(())
     }
 }
