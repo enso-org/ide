@@ -482,7 +482,7 @@ impl AreaData {
     fn redraw_line(&self, view_line_number:usize, content:String) { // fixme content:Cow<str>
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
         let line_range     = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
-        let mut line_style = self.buffer.focus_style(line_range.start .. line_range.end).iter();
+        let mut line_style = self.buffer.sub_style(line_range.start .. line_range.end).iter();
         line.byte_size     = self.buffer.line_byte_size(buffer::Line(view_line_number));
 
         let mut pen         = pen::Pen::new(&self.glyph_system.font);

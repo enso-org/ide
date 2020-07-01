@@ -1,32 +1,166 @@
-#![allow(missing_docs)]
+//! Text style definition (color, bold, italics, etc.).
 
 use crate::data::color;
-use crate::buffer::data::Range;
+use crate::buffer::Range;
 use super::*;
 
 
 
-// TODO: refactor
+// ==============
+// === Macros ===
+// ==============
 
-
-macro_rules! newtype {
-    ($(#$meta:tt)* $name:ident($field_type:ty)) => {
-        $(#$meta)*
-        #[derive(Clone,Copy,Debug,Default,From,PartialEq,PartialOrd)]
+/// Defines a newtype for a primitive style property, like `Bold`. See usage below to learn more.
+macro_rules! def_style_property {
+    ($name:ident($field_type:ty)) => {
+        /// Style property.
+        #[derive(Clone,Copy,Debug,From,PartialEq,PartialOrd)]
         #[allow(missing_docs)]
         pub struct $name {
             /// The raw, weakly typed value.
             pub raw : $field_type
         }
 
+        impl $name {
+            /// Constructor.
+            pub fn new(raw:$field_type) -> $name { $name {raw} }
+        }
+
         /// Smart constructor.
-        $(#$meta)*
         #[allow(non_snake_case)]
         pub fn $name(raw:$field_type) -> $name { $name {raw} }
     };
 }
 
 
+/// Defines struct containing all styles information. Also defines many utils, like iterator for it.
+/// See the usage below to learn more.
+macro_rules! define_styles {
+    ($($field:ident : $field_type:ty),* $(,)?) => {
+
+        // === StyleValue ===
+
+        /// The value of a style at some point in the buffer.
+        #[derive(Clone,Copy,Debug,Default)]
+        pub struct StyleValue {
+            $(pub $field : $field_type),*
+        }
+
+        #[derive(Debug)]
+        struct StyleIteratorComponents {
+            $($field : std::vec::IntoIter<(Range<Bytes>,$field_type)>),*
+        }
+
+
+        // === Iterator ===
+
+        #[derive(Debug,Default)]
+        struct StyleIteratorValue {
+            $($field : Option<(Range<Bytes>,$field_type)>),*
+        }
+
+        impl Iterator for StyleIterator {
+            type Item = StyleValue;
+            fn next(&mut self) -> Option<Self::Item> {
+                $(
+                    if self.value.$field.map(|t| self.offset < t.0.end) != Some(true) {
+                        self.value.$field = self.component.$field.next()
+                    }
+                    let $field = self.value.$field?.1;
+                )*
+                self.offset += 1.bytes();
+                Some(StyleValue {$($field),*})
+            }
+        }
+
+
+        // === Style ===
+
+        /// Definition of possible text styles, like `color`, or `bold`. Each style is encoded as
+        /// `Property` for some spans in the buffer.
+        #[derive(Clone,Debug,Default)]
+        #[allow(missing_docs)]
+        pub struct Style {
+            $(pub $field : Property<$field_type>),*
+        }
+
+        impl Style {
+            /// Constructor.
+            pub fn new() -> Self {
+                Self::default()
+            }
+
+            /// Return new style narrowed to the given range.
+            pub fn sub(&self, range:Range<Bytes>) -> Self {
+                $(let $field = self.$field.sub(range);)*
+                Self {$($field),*}
+            }
+
+            pub fn modify(&mut self, range:Range<Bytes>, len:Bytes) {
+                $(self.$field.replace_resize(range,len,None);)*
+            }
+
+            /// Iterate over style values for subsequent bytes of the buffer.
+            pub fn iter(&self) -> StyleIterator {
+                $(let $field = self.$field.to_vector().into_iter();)*
+                StyleIterator::new(StyleIteratorComponents {$($field),*})
+            }
+        }
+
+        $(
+            impl Setter<Option<$field_type>> for Buffer {
+                fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:Option<$field_type>) {
+                    let range = self.data.borrow().crop_range(range);
+                    self.data.borrow_mut().style.$field.replace_resize(range,len,data)
+                }
+
+                fn set(&self, range:impl data::RangeBounds, data:Option<$field_type>) {
+                    let range = self.data.borrow().crop_range(range);
+                    self.data.borrow_mut().style.$field.replace_resize(range,range.size(),data)
+                }
+            }
+
+            impl Setter<$field_type> for Buffer {
+                fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:$field_type) {
+                    self.modify(range,len,Some(data))
+                }
+
+                fn set(&self, range:impl data::RangeBounds, data:$field_type) {
+                    self.set(range,Some(data))
+                }
+            }
+
+            impl DefaultSetter<$field_type> for Buffer {
+                fn set_default(&self, data:$field_type) {
+                    self.data.borrow_mut().style.$field.default = data;
+                }
+            }
+        )*
+    };
+}
+
+/// Byte-based iterator for the `Style`.
+#[derive(Debug)]
+pub struct StyleIterator {
+    offset    : Bytes,
+    value     : StyleIteratorValue,
+    component : StyleIteratorComponents,
+}
+
+impl StyleIterator {
+    fn new(component:StyleIteratorComponents) -> Self {
+        let offset = default();
+        let value  = default();
+        Self {offset,value,component}
+    }
+
+    /// Drop the given amount of bytes.
+    pub fn drop(&mut self, bytes:Bytes) {
+        for _ in 0 .. bytes.value {
+            self.next();
+        }
+    }
+}
 
 
 
@@ -34,8 +168,10 @@ macro_rules! newtype {
 // === Property ===
 // ================
 
-/// Style property, like `color` or `bold`. Contains information about text spans the style is
-/// applied to and a default value which can be changed at runtime.
+/// Style property, like `color` or `bold`. Records text spans it is applied to and a default value
+/// used for places not covered by spans. Please note that the default value is can be changed at
+/// runtime, which is useful for example when defining text field which should use white letters by
+/// default (when new letter is written).
 #[derive(Clone,Debug,Default)]
 #[allow(missing_docs)]
 pub struct Property<T:Clone> {
@@ -45,8 +181,8 @@ pub struct Property<T:Clone> {
 
 impl<T:Clone> Property<T> {
     /// Return new property narrowed to the given range.
-    pub fn focus(&self, range:Range<Bytes>) -> Self {
-        let spans   = self.spans.focus(range);
+    pub fn sub(&self, range:Range<Bytes>) -> Self {
+        let spans   = self.spans.sub(range);
         let default = self.default.clone();
         Self {spans,default}
     }
@@ -81,181 +217,24 @@ impl<T:Clone> DerefMut for Property<T> {
 
 
 
-// ================
-// === Iterator ===
-// ================
-
-/// Byte-based iterator for the `Style`.
-#[derive(Debug)]
-pub struct StyleIterator {
-    offset    : Bytes,
-    value     : StyleIteratorValue,
-    component : StyleIteratorComponents,
-}
-
-impl StyleIterator {
-    fn new(component:StyleIteratorComponents) -> Self {
-        let offset = default();
-        let value  = default();
-        Self {offset,value,component}
-    }
-
-    /// Drop the given amount of bytes.
-    pub fn drop(&mut self, bytes:Bytes) {
-        for _ in 0 .. bytes.value {
-            self.next();
-        }
-    }
-}
-
-
-
-// =============
-// === Style ===
-// =============
-
-macro_rules! define_styles {
-    ($($field:ident : $field_type:ty),* $(,)?) => {
-
-        // ==================
-        // === StyleValue ===
-        // ==================
-
-        /// The value of a style at some point in the buffer.
-        #[derive(Clone,Copy,Debug,Default)]
-        pub struct StyleValue {
-            $(pub $field : $field_type),*
-        }
-
-        #[derive(Debug)]
-        struct StyleIteratorComponents {
-            $($field : std::vec::IntoIter<(Range<Bytes>,$field_type)>),*
-        }
-
-
-
-        // ================
-        // === Iterator ===
-        // ================
-
-        #[derive(Debug,Default)]
-        struct StyleIteratorValue {
-            $($field : Option<(Range<Bytes>,$field_type)>),*
-        }
-
-        impl Iterator for StyleIterator {
-            type Item = StyleValue;
-            fn next(&mut self) -> Option<Self::Item> {
-                $(
-                    if self.value.$field.map(|t| self.offset < t.0.end) != Some(true) {
-                        self.value.$field = self.component.$field.next()
-                    }
-                    let $field = self.value.$field?.1;
-                )*
-                self.offset += 1.bytes();
-                Some(StyleValue {$($field),*})
-            }
-        }
-
-
-
-        // =============
-        // === Style ===
-        // =============
-
-        /// Definition of possible text styles, like `color`, or `bold`. Each style is encoded as
-        /// `Property` for some spans in the buffer.
-        #[derive(Clone,Debug,Default)]
-        #[allow(missing_docs)]
-        pub struct Style {
-            $(pub $field : Property<$field_type>),*
-        }
-
-        impl Style {
-            /// Constructor.
-            pub fn new() -> Self {
-                Self::default()
-            }
-
-            /// Return new style narrowed to the given range.
-            pub fn focus(&self, bounds:Range<Bytes>) -> Self {
-                $(let $field = self.$field.focus(bounds);)*
-                Self {$($field),*}
-            }
-
-            pub fn modify(&mut self, range:Range<Bytes>, len:Bytes) {
-                $(self.$field.set(range,len,None);)*
-            }
-
-            /// Iterate over style values for subsequent bytes of the buffer.
-            pub fn iter(&self) -> StyleIterator {
-                $(let $field = self.$field.to_vector().into_iter();)*
-                StyleIterator::new(StyleIteratorComponents {$($field),*})
-            }
-        }
-
-        $(
-            impl Setter<Option<$field_type>> for Buffer {
-                fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:Option<$field_type>) {
-                    let range = self.data.borrow().crop_range(range);
-                    self.data.borrow_mut().style.$field.set(range,len,data)
-                }
-
-                fn set(&self, range:impl data::RangeBounds, data:Option<$field_type>) {
-                    let range = self.data.borrow().crop_range(range);
-                    self.data.borrow_mut().style.$field.set(range,range.size(),data)
-                }
-            }
-
-            impl Setter<$field_type> for Buffer {
-                fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:$field_type) {
-                    self.modify(range,len,Some(data))
-                }
-
-                fn set(&self, range:impl data::RangeBounds, data:$field_type) {
-                    self.set(range,Some(data))
-                }
-            }
-
-            impl DefaultSetter<$field_type> for Buffer {
-                fn set_default(&self, data:$field_type) {
-                    self.data.borrow_mut().style.$field.default = data;
-                }
-            }
-        )*
-    };
-}
-
-
 // ========================
 // === Style Definition ===
 // ========================
 
-// newtype!(Size(f32));
-newtype!(Bold(bool));
-newtype!(Italics(bool));
-newtype!(Underline(bool));
+def_style_property!(Size(f32));
+def_style_property!(Bold(bool));
+def_style_property!(Italic(bool));
+def_style_property!(Underline(bool));
 
-#[derive(Clone,Copy,Debug,From,PartialEq,PartialOrd)]
-#[allow(missing_docs)]
-pub struct Size {
-    pub raw: f32
-}
-
-#[allow(non_snake_case)]
-pub fn Size(raw:f32) -> Size { Size { raw } }
-
-impl Default for Size {
-    fn default() -> Self {
-        let raw = 12.0;
-        Self {raw}
-    }
-}
+impl Default for Size      { fn default() -> Self { Self::new(12.0) } }
+impl Default for Bold      { fn default() -> Self { Self::new(false) } }
+impl Default for Italic    { fn default() -> Self { Self::new(false) } }
+impl Default for Underline { fn default() -> Self { Self::new(false) } }
 
 define_styles! {
     size      : Size,
     color     : color::Rgba,
     bold      : Bold,
-    italics   : Italics,
+    italics   : Italic,
     underline : Underline,
 }

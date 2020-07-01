@@ -392,7 +392,7 @@ impl LineOffset for ViewModel {
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line.value,self.data().measure::<data::LinesMetric>() + 1);
+        let line = std::cmp::min(line.value,self.data().measure::<data::metric::Lines>() + 1);
         Bytes(self.data().offset_of_line(line))
     }
 

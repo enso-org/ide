@@ -23,7 +23,7 @@ pub mod traits {
 }
 
 pub use data::Data;
-pub use data::Lines;
+pub use data::Range;
 pub use data::unit::*;
 pub use view::*;
 pub use style::*;
@@ -86,8 +86,8 @@ impl Buffer {
         View::new(self)
     }
 
-    pub fn focus_style(&self, range:impl data::RangeBounds) -> Style {
-        self.data.borrow().focus_style(range)
+    pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
+        self.data.borrow().sub_style(range)
     }
 }
 
@@ -118,9 +118,9 @@ impl BufferData {
         default()
     }
 
-    pub fn focus_style(&self, range:impl data::RangeBounds) -> Style {
+    pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
         let range = self.crop_range(range);
-        self.style.focus(range)
+        self.style.sub(range)
     }
 
     pub fn style(&self) -> Style {

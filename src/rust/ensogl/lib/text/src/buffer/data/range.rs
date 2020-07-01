@@ -1,4 +1,5 @@
-//! Range implementation.
+//! Text range implementation. Similar to `std::ops::Range` but with specialized impls for text
+//! management.
 
 use crate::prelude::*;
 
@@ -13,8 +14,8 @@ use super::unit::*;
 
 /// A (half-open) range bounded inclusively below and exclusively above [start,end).
 ///
-/// Unlike `std::ops::Range`, this range is strongly typed, implements `Copy`, and contains a lot
-/// of utilities for working with bytes ranges for the purpose of text manipulation.
+/// Unlike `std::ops::Range`, this type implements `Copy`, and contains text-related trait
+/// implementations.
 #[derive(Clone,Copy,PartialEq,Eq)]
 #[allow(missing_docs)]
 pub struct Range<T> {
