@@ -32,7 +32,7 @@ pub struct EmptyDefinitionId;
 // ========================
 
 /// Looks up graph in the module.
-pub fn traverse_for_definition
+pub fn get_definition
 (ast:&known::Module, id:&definition::Id) -> FallibleResult<definition::DefinitionInfo> {
     Ok(locate(ast, id)?.item)
 }
@@ -41,8 +41,8 @@ pub fn traverse_for_definition
 pub fn locate
 (ast:&known::Module, id:&definition::Id) -> FallibleResult<definition::ChildDefinition> {
     let mut crumbs_iter = id.crumbs.iter();
-    // Not exactly regular - first crumb is a little special, because module is not a definition
-    // nor a children.
+    // Not exactly regular - we need special case for the first crumb as it is not a definition nor
+    // a children. After this we can go just from one definition to another.
     let first_crumb = crumbs_iter.next().ok_or(EmptyDefinitionId)?;
     let mut child = ast.def_iter().find_by_name(&first_crumb)?;
     for crumb in crumbs_iter {
@@ -69,8 +69,7 @@ pub fn lookup_method
             _          => child_name.explicitly_extends_type(&method.defined_on_type),
         };
         if name_matches && type_matches {
-            let id = definition::Id::new_single_crumb(child_name.clone());
-            return Ok(id)
+            return Ok(definition::Id::new_single_crumb(child_name.clone()))
         }
     }
 

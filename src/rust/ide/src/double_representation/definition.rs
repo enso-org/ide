@@ -167,16 +167,22 @@ impl DefinitionName {
         Some(DefinitionName {extended_target,name})
     }
 
-    /// Checks if the given definition name is a member of given type.
-    pub fn extends_type(&self, parent_name:&str, expected_typename:&str) -> bool {
+    /// Checks if the given definition name is a method defined on given expected atom name.
+    ///
+    /// E.g. `Main.foo` is a method of `Main`. Also, if `Main` is a name of module, than root-scoped
+    /// definition named `foo` will be treated as an extension method on `Main`. For such case the
+    /// `parent_name` is provided - it is a name of module or type where the definition is located.
+    pub fn method_of(&self, parent_name:&str, expected_atom:&str) -> bool {
         if self.extended_target.is_empty() {
-            parent_name == expected_typename
+            parent_name == expected_atom
         } else {
-            self.explicitly_extends_type(expected_typename)
+            self.explicitly_extends_type(expected_atom)
         }
     }
 
-    /// Check if this name is an explicit extension method for given type, like `Int.add`.
+    /// Check if this name is an explicit extension method for given atom.
+    ///
+    /// For example `Int.add` is an extension method for `Int`, whereas plain name `add` is not.
     pub fn explicitly_extends_type(&self, expected_typename:&str) -> bool {
         let expected_segments = ast::opr::name_segments(expected_typename);
         let segments          = &self.extended_target;
@@ -648,11 +654,11 @@ main =
 
         let module    = parser::Parser::new_or_panic().parse_module(program,default()).unwrap();
         let check_def = |id, expected_body| {
-            let definition = module::traverse_for_definition(&module,&id).unwrap();
+            let definition = module::get_definition(&module, &id).unwrap();
             assert_eq!(definition.body().repr(), expected_body);
         };
         let check_not_found = |id| {
-            assert!(module::traverse_for_definition(&module,&id).is_err())
+            assert!(module::get_definition(&module, &id).is_err())
         };
 
         check_def(Id::new_plain_names(&["main","add"]), "a + b");

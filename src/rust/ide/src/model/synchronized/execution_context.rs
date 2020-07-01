@@ -51,7 +51,7 @@ impl ExecutionContext {
             info!(logger, "Created. Id: {id}.");
             let this = Self {id,model,language_server,logger };
             this.push_root_frame().await?;
-            info!(this.logger, "Pushed root frame,");
+            info!(this.logger, "Pushed root frame.");
             Ok(this)
         }
     }

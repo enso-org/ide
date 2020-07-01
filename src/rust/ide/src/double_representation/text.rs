@@ -266,7 +266,7 @@ mod test {
         use double_representation::definition::*;
         use double_representation::graph::GraphInfo;
         let id         = Id::new_plain_name("main");
-        let definition = module::traverse_for_definition(module,&id).unwrap();
+        let definition = module::get_definition(module, &id).unwrap();
         let graph      = GraphInfo::from_definition(definition);
         let nodes      = graph.nodes();
         nodes.into_iter().map(|node| node.id()).collect()

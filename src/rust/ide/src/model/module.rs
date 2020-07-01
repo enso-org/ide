@@ -9,6 +9,7 @@ use crate::notification;
 
 use data::text::TextChange;
 use data::text::TextLocation;
+use enso_protocol::language_server::MethodPointer;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use parser::api::SourceFile;
@@ -16,7 +17,7 @@ use parser::api::ParsedSourceFile;
 use parser::Parser;
 use serde::Serialize;
 use serde::Deserialize;
-use enso_protocol::language_server::MethodPointer;
+
 
 
 // ============
@@ -375,7 +376,7 @@ impl Module {
     pub fn find_definition
     (&self,id:&double_representation::graph::Id) -> FallibleResult<DefinitionInfo> {
         let ast = self.content.borrow().ast.clone_ref();
-        double_representation::module::traverse_for_definition(&ast,id)
+        double_representation::module::get_definition(&ast, id)
     }
 
     /// Returns metadata for given node, if present.
