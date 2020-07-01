@@ -141,7 +141,7 @@ impl Model {
         module.graph_controller(definition)
     }
 
-    /// Enter node by given ID.
+    /// Step into node by given ID.
     ///
     /// This will cause pushing a new stack frame to the execution context and changing the graph
     /// controller to point to a new definition.
@@ -149,7 +149,7 @@ impl Model {
     /// Fails if there's no information about target method pointer (e.g. because node value hasn't
     /// been yet computed by the engine) or if method graph cannot be created (see
     /// `graph_for_method` documentation).
-    pub async fn enter_node(&self, node:double_representation::node::Id) -> FallibleResult<()> {
+    pub async fn step_into_node(&self, node:double_representation::node::Id) -> FallibleResult<()> {
         debug!(self.logger, "Entering node {node}");
         let registry   = self.execution_ctx.computed_value_info_registry();
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
@@ -165,7 +165,7 @@ impl Model {
         Ok(())
     }
 
-    /// Leave the current node. Reverse of `enter_node`.
+    /// Step out of the current node. Reverse of `step_into_node`.
     ///
     /// Fails if this execution context is already at the stack's root or if the parent graph
     /// cannot be retrieved.

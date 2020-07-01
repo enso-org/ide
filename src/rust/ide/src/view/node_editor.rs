@@ -163,8 +163,8 @@ impl GraphEditorIntegratedWithController {
         }
         let node_removed = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_removed_in_ui,&invalidate.trigger);
-        let node_entered = Self::ui_action(&model,
-            GraphEditorIntegratedWithControllerModel::node_entered_in_ui,&invalidate.trigger);
+        let node_stepped_into = Self::ui_action(&model,
+            GraphEditorIntegratedWithControllerModel::node_stepped_into_in_ui,&invalidate.trigger);
         let node_stepped_out = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_stepped_out_in_ui,&invalidate.trigger);
         let connection_created = Self::ui_action(&model,
@@ -190,7 +190,7 @@ impl GraphEditorIntegratedWithController {
             let is_handling_notification = handle_notification.is_running;
             def is_hold = is_handling_notification.all_with(&invalidate.is_running, |l,r| *l || *r);
             def _action = editor_outs.node_removed             .map2(&is_hold,node_removed);
-            def _action = editor_outs.node_entered             .map2(&is_hold,node_entered);
+            def _action = editor_outs.node_stepped_into        .map2(&is_hold,node_stepped_into);
             def _action = editor_outs.node_stepped_out         .map2(&is_hold,node_stepped_out);
             def _action = editor_outs.connection_added         .map2(&is_hold,connection_created);
             def _action = editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
@@ -449,12 +449,12 @@ impl GraphEditorIntegratedWithControllerModel {
         self.refresh_graph_view()
     }
 
-    pub fn on_node_entered(&self, _id:double_representation::node::Id) -> FallibleResult<()> {
+    pub fn on_node_stepped_into(&self, _id:double_representation::node::Id) -> FallibleResult<()> {
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.refresh_graph_view()
     }
 
-    pub fn on_stepped_out(&self, id:double_representation::node::Id) -> FallibleResult<()> {
+    pub fn on_node_stepped_out(&self, id:double_representation::node::Id) -> FallibleResult<()> {
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.refresh_graph_view()?;
         let id = self.get_displayed_node_id(id)?;
@@ -475,8 +475,8 @@ impl GraphEditorIntegratedWithControllerModel {
         let result = match notification {
             Some(Notification::Graph(Invalidate))         => self.on_invalidated(),
             Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
-            Some(Notification::EnteredNode(id))           => self.on_node_entered(*id),
-            Some(Notification::SteppedOutOfNode(id))      => self.on_stepped_out(*id),
+            Some(Notification::EnteredNode(id))           => self.on_node_stepped_into(*id),
+            Some(Notification::SteppedOutOfNode(id))      => self.on_node_stepped_out(*id),
             other => {
                 warning!(self.logger,"Handling notification {other:?} is not implemented; \
                     performing full invalidation");
@@ -619,14 +619,14 @@ impl GraphEditorIntegratedWithControllerModel {
         Ok(())
     }
 
-    fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
-        debug!(self.logger,"Requesting entering the node {node_id}.");
+    fn node_stepped_into_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
+        debug!(self.logger,"Requesting stepping into the node {node_id}.");
         let id           = self.get_controller_node_id(*node_id)?;
         let controller   = self.controller.clone_ref();
         let logger       = self.logger.clone_ref();
         let enter_action = async move {
-            let result = controller.enter_node(id).await;
-            debug!(logger,"Entering result: {result:?}");
+            let result = controller.step_into_node(id).await;
+            debug!(logger,"Stepping into result: {result:?}");
         };
         executor::global::spawn(enter_action);
         Ok(())

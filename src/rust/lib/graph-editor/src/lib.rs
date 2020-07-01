@@ -584,7 +584,7 @@ generate_frp_outputs! {
     node_position_set         : (NodeId,Vector2),
     node_position_set_batched : (NodeId,Vector2),
     node_expression_set       : (NodeId,node::Expression),
-    node_entered              : NodeId,
+    node_stepped_into         : NodeId,
     node_stepped_out          : (),
 
     edge_added        : EdgeId,
@@ -2109,8 +2109,8 @@ fn new_graph_editor(world:&World) -> GraphEditor {
 
     // === Node Entering ===
 
-    node_to_enter        <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
-    outputs.node_entered <+ node_to_enter;
+    node_to_enter             <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
+    outputs.node_stepped_into <+ node_to_enter;
 
     outputs.node_stepped_out <+ inputs.step_out_of_node;
 
