@@ -965,7 +965,7 @@ impl EdgeModelData {
         point.y > mid_y
     }
 
-    /// Returns whether the given hover position belongs to the Input or Output part of the
+    /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
     /// edge.
     pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
         let target_y        = self.display_object.position().y;
