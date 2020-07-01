@@ -733,26 +733,19 @@ impl Handle {
 }
 
 
-#[cfg(test)]
-pub mod tests {
+
+// ======================
+// === Test Utilities ===
+// ======================
+
+/// Utilities for test code that uses graph controller.
+pub mod test_utils {
     use super::*;
 
-    use crate::double_representation::definition::DefinitionName;
-    use crate::double_representation::node::NodeInfo;
-    use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::module::Path as ModulePath;
-
-    use ast::HasRepr;
-    use ast::crumbs;
-    use data::text::Index;
-    use data::text::TextChange;
     use enso_protocol::language_server;
-    use parser::Parser;
-    use utils::test::ExpectTuple;
-    use wasm_bindgen_test::wasm_bindgen_test;
-    use ast::test_utils::expect_shape;
 
     /// All the data needed to set up and run the graph controller in mock environment.
+    #[allow(missing_docs)]
     #[derive(Clone,Debug)]
     pub struct MockData {
         pub module_path  : model::module::Path,
@@ -762,10 +755,11 @@ pub mod tests {
     }
 
     impl MockData {
+        /// Create mock data for graph in the module containing the provided `code` as contents.
         pub fn new(code:impl Str) -> Self {
             MockData {
                 module_path  : model::module::Path::from_mock_module_name("Main"),
-                graph_id     :  Id::new_plain_name("main"),
+                graph_id     : Id::new_plain_name("main"),
                 project_name : "MockProject".to_string(),
                 code         : code.into(),
             }
@@ -798,6 +792,33 @@ pub mod tests {
             (module,graph)
         }
     }
+}
+
+
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::test_utils::*;
+
+    use crate::double_representation::definition::DefinitionName;
+    use crate::double_representation::node::NodeInfo;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::module::Path as ModulePath;
+
+    use ast::HasRepr;
+    use ast::crumbs;
+    use data::text::Index;
+    use data::text::TextChange;
+    use parser::Parser;
+    use utils::test::ExpectTuple;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use ast::test_utils::expect_shape;
+
 
     #[derive(Debug,Shrinkwrap)]
     #[shrinkwrap(mutable)]

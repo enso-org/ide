@@ -22,7 +22,7 @@ pub struct CannotFindMethod(language_server::MethodPointer);
 
 #[allow(missing_docs)]
 #[derive(Copy,Fail,Clone,Debug)]
-#[fail(display="Encountered an empty definition ID. They must contain at least one crumb.")]
+#[fail(display="Encountered an empty definition ID. It must contain at least one crumb.")]
 pub struct EmptyDefinitionId;
 
 
@@ -83,7 +83,7 @@ impl DefinitionProvider for known::Module {
     fn scope_kind(&self) -> definition::ScopeKind { definition::ScopeKind::Root }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
-        self.ast().direct_children()
+        self.ast().children()
     }
 }
 

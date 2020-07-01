@@ -463,7 +463,7 @@ pub trait Crumbable {
     }
 
     /// Enumerates all AST being a direct children of the given AST node.
-    fn direct_children<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>> + 'a> {
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>> + 'a> {
         let iter = self.enumerate().map(|(crumb,ast)| ChildAst::new(crumb,ast));
         Box::new(iter)
     }

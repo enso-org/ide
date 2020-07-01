@@ -113,17 +113,18 @@ pub struct DefinitionName {
 }
 
 impl DefinitionName {
-    /// Creates a new name consisting of a single identifier, without any extension target.
+    /// Creates a new name consisting of a single unqualified identifier (not an explicit extension
+    /// method).
     pub fn new_plain(name:impl Str) -> DefinitionName {
         let name = Located::new_root(name.into());
         DefinitionName {name, extended_target:default()}
     }
 
-    /// Creates a new name consisting of a single identifier, without any extension target.
-    pub fn new_method(typename:impl Str, name:impl Str) -> DefinitionName {
+    /// Creates a new explicit extension method name.
+    pub fn new_method(extended_atom:impl Str, name:impl Str) -> DefinitionName {
         let name            = Located::new_root(name.into());
-        let extended_type   = Located::new_root(typename.into());
-        let extended_target = vec![extended_type];
+        let extended_atom   = Located::new_root(extended_atom.into());
+        let extended_target = vec![extended_atom];
         DefinitionName {name,extended_target}
     }
 
@@ -383,10 +384,7 @@ impl<'a> DefinitionIterator<'a> {
     /// Looks up direct child definition by given name.
     pub fn find_by_name(mut self, name:&DefinitionName) -> Result<ChildDefinition,CannotFindChild> {
         let err = || CannotFindChild(name.clone());
-        self.find(|child_def| {
-            println!("Testing name : {:?}", &*child_def.item.name);
-            &*child_def.item.name == name
-        }).ok_or_else(err)
+        self.find(|child_def| &*child_def.item.name == name).ok_or_else(err)
     }
 }
 
@@ -423,7 +421,7 @@ impl DefinitionProvider for known::Block {
     fn scope_kind(&self) -> ScopeKind { ScopeKind::NonRoot }
 
     fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>>+'a> {
-        self.ast().direct_children()
+        self.ast().children()
     }
 }
 

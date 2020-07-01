@@ -13,7 +13,6 @@ use crate::model::module::Path;
 use ast;
 use ast::HasIdMap;
 use data::text::*;
-use double_representation as dr;
 use enso_protocol::language_server;
 use enso_protocol::types::Sha3_224;
 use parser::Parser;
@@ -103,7 +102,8 @@ impl Handle {
     }
 
     /// Returns a graph controller for graph in this module's subtree identified by `id`.
-    pub fn graph_controller(&self, id:dr::graph::Id) -> FallibleResult<controller::Graph> {
+    pub fn graph_controller
+    (&self, id:double_representation::graph::Id) -> FallibleResult<controller::Graph> {
         controller::Graph::new(&self.logger, self.model.clone_ref(), self.parser.clone_ref(), id)
     }
 
@@ -112,7 +112,7 @@ impl Handle {
     ///
     /// This function wont check if the definition under id exists.
     pub async fn executed_graph_controller_unchecked
-    (&self, id:dr::graph::Id, project:&controller::Project)
+    (&self, id:double_representation::graph::Id, project:&controller::Project)
     -> FallibleResult<model::ExecutedGraph> {
         let method        = self.method_pointer(&id)?;
         let graph         = self.graph_controller_unchecked(id);
@@ -122,7 +122,8 @@ impl Handle {
 
     /// Returns a graph controller for graph in this module's subtree identified by `id` without
     /// checking if the graph exists.
-    pub fn graph_controller_unchecked(&self, id:dr::graph::Id) -> controller::Graph {
+    pub fn graph_controller_unchecked
+    (&self, id:double_representation::graph::Id) -> controller::Graph {
         controller::Graph::new_unchecked(&self.logger, self.model.clone_ref(),
                                          self.parser.clone_ref(), id)
     }
@@ -133,25 +134,26 @@ impl Handle {
     /// definition IDs include information about definition syntax whereas method pointer identifies
     /// the desugared entity.
     pub fn method_pointer
-    (&self, id:&dr::graph::Id) -> FallibleResult<language_server::MethodPointer> {
-        let defined_on_type = match id.crumbs.as_slice() {
-            [crumb] => {
-                if crumb.extended_target.is_empty() {
-                    self.path.module_name().to_string()
-                } else {
-                    crumb.extended_target.iter().map(|segment| segment.as_str()).join(".")
-                }
-            }
-            _ => return Err(InvalidGraphId(id.clone()).into()),
+    (&self, id:&double_representation::graph::Id)
+    -> FallibleResult<language_server::MethodPointer> {
+        let crumb = match id.crumbs.as_slice() {
+            [crumb] => crumb,
+            _       => return Err(InvalidGraphId(id.clone()).into()),
+        };
+
+        let defined_on_type = if crumb.extended_target.is_empty() {
+            self.path.module_name().to_string()
+        } else {
+            crumb.extended_target.iter().map(|segment| segment.as_str()).join(".")
         };
         Ok(language_server::MethodPointer {
             file : self.path.file_path().clone(),
             defined_on_type,
-            name : id.crumbs.last().unwrap().name.item.clone(),
+            name : crumb.name.item.clone(),
         })
     }
 
-    #[cfg(test)]
+    /// Creates a mocked module controller.
     pub fn new_mock
     ( path            : Path
     , code            : &str
