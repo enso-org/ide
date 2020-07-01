@@ -320,8 +320,8 @@ impl Rect {
         let radius       = radius.into();
         let top_left     = radius.clone();
         let bottom_left  = radius;
-        let top_right    = 0.px();
-        let bottom_right = 0.px();
+        let top_right    = 0.pixels();
+        let bottom_right = 0.pixels();
         RoundedRectByCorner(self.size(),top_left,top_right,bottom_left,bottom_right)
     }
 
@@ -329,8 +329,8 @@ impl Rect {
     pub fn right_corners_radius<T>(&self, radius:T) -> RoundedRectByCorner
         where T : Into<Var<Pixels>> {
         let radius       = radius.into();
-        let top_left     = 0.px();
-        let bottom_left  = 0.px();
+        let top_left     = 0.pixels();
+        let bottom_left  = 0.pixels();
         let top_right    = radius.clone();
         let bottom_right = radius;
         RoundedRectByCorner(self.size(),top_left,top_right,bottom_left,bottom_right)

@@ -4,7 +4,7 @@ use super::var::*;
 
 use crate::math::topology::unit;
 
-pub use crate::math::topology::unit::Unit;
+//pub use crate::math::topology::unit::Unit;
 pub use crate::math::topology::unit::Pixels;
 pub use crate::math::topology::unit::Radians;
 pub use crate::math::topology::unit::Degrees;
@@ -25,14 +25,14 @@ pub trait PixelDistance {
 impl PixelDistance for i32 {
     type Output = Var<Pixels>;
     fn px(&self) -> Self::Output {
-        unit::ToPixels::px(self).into()
+        unit::pixels::Into::pixels(self).into()
     }
 }
 
 impl PixelDistance for f32 {
     type Output = Var<Pixels>;
     fn px(&self) -> Self::Output {
-        unit::ToPixels::px(self).into()
+        unit::pixels::Into::pixels(self).into()
     }
 }
 
@@ -46,7 +46,7 @@ impl PixelDistance for f32 {
 pub mod types {
     use super::*;
     pub use super::PixelDistance;
-    pub use unit::Unit;
+//    pub use unit::Unit;
     pub use unit::Pixels;
     pub use unit::Radians;
     pub use unit::Degrees;

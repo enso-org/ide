@@ -65,19 +65,19 @@ impl<T> From<std::ops::Range<T>> for Range<T> {
 
 impl From<RangeTo<Bytes>> for Range<Bytes> {
     fn from(range:RangeTo<Bytes>) -> Range<Bytes> {
-        Range::new(Bytes(0), range.end)
+        Range::new(0.bytes(), range.end)
     }
 }
 
 impl From<RangeInclusive<Bytes>> for Range<Bytes> {
     fn from(range:RangeInclusive<Bytes>) -> Range<Bytes> {
-        Range::new(*range.start(), range.end().saturating_add(1))
+        Range::new(*range.start(), range.end().saturating_add(1.bytes()))
     }
 }
 
 impl From<RangeToInclusive<Bytes>> for Range<Bytes> {
     fn from(range:RangeToInclusive<Bytes>) -> Range<Bytes> {
-        Range::new(Bytes(0), range.end.saturating_add(1))
+        Range::new(0.bytes(), range.end.saturating_add(1.bytes()))
     }
 }
 
@@ -120,6 +120,6 @@ impl RangeBounds for RangeFrom<Bytes> {
 
 impl RangeBounds for RangeFull {
     fn with_upper_bound(self, upper_bound:Bytes) -> Range<Bytes> {
-        Range::new(Bytes(0),upper_bound)
+        Range::new(0.bytes(),upper_bound)
     }
 }

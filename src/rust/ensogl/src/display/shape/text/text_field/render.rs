@@ -25,7 +25,7 @@ use crate::display::shape::primitive::def::class::ShapeOps;
 
 use nalgebra::{Vector2, zero};
 use nalgebra::Vector3;
-use crate::math::topology::unit::ToPixels;
+use crate::math::topology::unit::traits::*;
 use crate::display::Glsl;
 
 
@@ -128,7 +128,7 @@ impl TextFieldSprites {
         let color_glsl:Glsl     = color.into();
         let color_function      = format!("fract(input_time / 1000.0) < 0.5 ? {}.raw : {}",
             color_glsl,COLOR_HIDDEN);
-        let cursor_definition     = shape::Rect(Vector2::new(WIDTH.px(),line_height.px()));
+        let cursor_definition     = shape::Rect(Vector2::new(WIDTH.pixels(),line_height.pixels()));
         let cursor_definition     = cursor_definition.fill(color_function);
         ShapeSystem::new(world,&cursor_definition)
     }

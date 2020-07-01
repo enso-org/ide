@@ -81,14 +81,14 @@ impl ViewModel {
         let location   = self.vertical_motion_selection_to_caret(region,move_up,modify);
         let n_lines    = self.line_of_offset(self.data().len());
 
-        if move_up && line_delta > location.line.raw {
+        if move_up && line_delta > location.line.value {
             return (Bytes(0), Some(location.column));
         }
 
-        let line = if move_up { location.line.raw - line_delta }
-                   else       { location.line.raw.saturating_add(line_delta) };
+        let line = if move_up { location.line.value - line_delta }
+                   else       { location.line.value.saturating_add(line_delta) };
 
-        if line > n_lines.raw {
+        if line > n_lines.value {
             return (self.data().len(),Some(location.column));
         }
 
@@ -104,22 +104,22 @@ impl ViewModel {
         let location    = self.vertical_motion_selection_to_caret(region, move_up, modify);
         let lines_count = self.line_of_offset(self.data().len());
 
-        let line_len = self.offset_of_line(location.line.saturating_add(1)) - self.offset_of_line(location.line);
+        let line_len = self.offset_of_line(location.line.saturating_add(1.line())) - self.offset_of_line(location.line);
         if move_up && location.line == Line(0) {
             return (self.line_col_to_offset(location.line, location.column), Some(location.column));
         }
-        let mut line = if move_up { location.line - 1 } else { location.line.saturating_add(1) };
+        let mut line = if move_up { location.line - 1.line() } else { location.line.saturating_add(1.line()) };
 
         // If the active columns is longer than the current line, use the current line length.
-        let line_last_column = Column(line_len.value);
-        let col = if line_last_column < location.column { line_last_column - 1 } else { location.column };
+        let line_last_column = line_len.value.column();
+        let col = if line_last_column < location.column { line_last_column - 1.column() } else { location.column };
 
         loop {
-            let line_len = self.offset_of_line(line + 1) - self.offset_of_line(line);
+            let line_len = self.offset_of_line(line + 1.line()) - self.offset_of_line(line);
 
             // If the line is longer than the current cursor position, break.
             // We use > instead of >= because line_len includes newline.
-            if line_len.value > col.raw {
+            if line_len.value > col.value {
                 break;
             }
 
@@ -129,7 +129,7 @@ impl ViewModel {
                 break;
             }
 
-            line = if move_up { line - 1 } else { line.saturating_add(1) };
+            line = if move_up { line - 1.line() } else { line.saturating_add(1.line()) };
         }
 
         (self.line_col_to_offset(line, col), Some(col))
@@ -188,7 +188,7 @@ impl ViewModel {
                 let line             = self.line_of_offset(region.end);
                 let text_len         = text.len();
                 let last_line        = line == self.line_of_offset(text_len);
-                let next_line_offset = self.offset_of_line(line+1);
+                let next_line_offset = self.offset_of_line(line+1.line());
                 let offset           = if last_line { text_len } else {
                     text.prev_grapheme_offset(next_line_offset).unwrap_or(text_len)
                 };

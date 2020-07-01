@@ -152,7 +152,7 @@ macro_rules! define_styles {
                     }
                     let $field = self.value.$field?.1;
                 )*
-                self.offset += 1;
+                self.offset += 1.bytes();
                 Some(StyleValue {$($field),*})
             }
         }

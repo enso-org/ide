@@ -12,7 +12,8 @@ use crate::math::algebra::Sqrt;
 use crate::math::topology::unit::Degrees;
 use crate::math::topology::unit::Pixels;
 use crate::math::topology::unit::Radians;
-use crate::math::topology::unit::Unit;
+use crate::math::topology::unit::traits::*;
+//use crate::math::topology::unit::Unit;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
 
@@ -196,7 +197,7 @@ impl PixelDistance for Var<Vector2<f32>> {
     type Output = Var<Vector2<Pixels>>;
     fn px(&self) -> Self::Output {
         match self {
-            Self::Static  (t) => Var::Static(Vector2(Pixels::new(t.x),Pixels::new(t.y))),
+            Self::Static  (t) => Var::Static(Vector2(t.x.pixels(),t.y.pixels())),
             Self::Dynamic (t) => Var::Dynamic(t.clone())
         }
     }
@@ -206,7 +207,7 @@ impl PixelDistance for Var<Vector3<f32>> {
     type Output = Var<Vector3<Pixels>>;
     fn px(&self) -> Self::Output {
         match self {
-            Self::Static  (t) => Var::Static(Vector3(Pixels::new(t.x),Pixels::new(t.y),Pixels::new(t.z))),
+            Self::Static  (t) => Var::Static(Vector3(t.x.pixels(),t.y.pixels(),t.z.pixels())),
             Self::Dynamic (t) => Var::Dynamic(t.clone())
         }
     }

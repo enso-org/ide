@@ -304,7 +304,7 @@ impl ViewModel {
     }
 
     pub fn last_line_number(&self) -> Line {
-        self.first_line_number() + self.line_count()
+        self.first_line_number() + self.line_count().line()
     }
 
     pub fn line_count(&self) -> usize {
@@ -334,19 +334,19 @@ impl ViewModel {
 
     pub fn offset_of_view_location(&self, location:impl Into<Location>) -> Bytes {
         let location = location.into();
-        self.offset_of_view_line(location.line) + location.column.raw.bytes()
+        self.offset_of_view_line(location.line) + location.column.value.bytes()
     }
 
     pub fn line_byte_size(&self, line:Line) -> Bytes {
         let start = self.offset_of_view_line(line);
-        let end   = self.offset_of_view_line(line + 1);
+        let end   = self.offset_of_view_line(line + 1.line());
         end - start
     }
 
     // FIXME: this sohuld not include line break.
     pub fn range_of_view_line_raw(&self, view_line:Line) -> Range<Bytes> {
         let start = self.offset_of_view_line(view_line);
-        let end   = self.offset_of_view_line(view_line + 1);
+        let end   = self.offset_of_view_line(view_line + 1.line());
         start .. end
     }
 
@@ -392,7 +392,7 @@ impl LineOffset for ViewModel {
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line.raw,self.data().measure::<data::LinesMetric>() + 1);
+        let line = std::cmp::min(line.value,self.data().measure::<data::LinesMetric>() + 1);
         Bytes(self.data().offset_of_line(line))
     }
 
@@ -416,7 +416,7 @@ pub trait LineOffset {
 
     /// Returns the byte offset corresponding to the given line.
     fn offset_of_line(&self, line:Line) -> Bytes {
-        Bytes(self.data().offset_of_line(line.raw))
+        Bytes(self.data().offset_of_line(line.value))
     }
 
     /// Returns the visible line number containing the given offset.
@@ -436,12 +436,12 @@ pub trait LineOffset {
 
     fn offset_to_line_col(&self, offset:Bytes) -> Location {
         let line = self.line_of_offset(offset);
-        let col  = (offset - self.offset_of_line(line)).as_column();
+        let col  = (offset - self.offset_of_line(line)).value.column();
         Location(line,col)
     }
 
     fn line_col_to_offset(&self, line:Line, col:Column) -> Bytes {
-        let mut offset = self.offset_of_line(line).saturating_add(col.raw);
+        let mut offset = self.offset_of_line(line).saturating_add(col.value.bytes()); // fixme: raw.bytes seems wrong
         let len = self.data().len();
         if offset >= len {
             offset = len;
@@ -450,11 +450,11 @@ pub trait LineOffset {
             }
         } else {
             // Snap to grapheme cluster boundary
-            offset = self.data().prev_grapheme_offset(offset + 1).unwrap_or_default();
+            offset = self.data().prev_grapheme_offset(offset + 1.bytes()).unwrap_or_default();
         }
 
         // clamp to end of line
-        let next_line_offset = self.offset_of_line(line + 1);
+        let next_line_offset = self.offset_of_line(line + 1.line());
         if offset >= next_line_offset {
             if let Some(prev) = self.data().prev_grapheme_offset(next_line_offset) {
                 offset = prev;

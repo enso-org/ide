@@ -6,318 +6,616 @@ use std::ops::*;
 use std::marker::PhantomData;
 
 
+// ==============
+// === Macros ===
+// ==============
 
-// ============
-// === Unit ===
-// ============
-
-/// Abstraction for any unit type parameterized by a type (like distance in pixels) and underlying
-/// numerical representation.
-#[derive(Debug,PartialEq)]
-pub struct Unit<Type,Repr=f32> {
-    /// The raw value of this unit.
-    pub value : Repr,
-    _type     : PhantomData<Type>,
+#[macro_export]
+macro_rules! unit {
+    ($(#$meta:tt)* $name:ident :: $vname:ident (f32)) => {
+        $crate::signed_unit_float_like!{$(#$meta)* $name :: $vname (f32)}
+    };
+    ($(#$meta:tt)* $name:ident :: $vname:ident (f64)) => {
+        $crate::signed_unit_float_like!{$(#$meta)* $name :: $vname (f64)}
+    };
+    ($(#$meta:tt)* $name:ident :: $vname:ident (usize)) => {
+        $crate::unsigned_unit!{$(#$meta)* $name :: $vname (usize)}
+    };
+    ($(#$meta:tt)* $name:ident :: $vname:ident (u32)) => {
+        $crate::unsigned_unit!{$(#$meta)* $name :: $vname (u32)}
+    };
+    ($(#$meta:tt)* $name:ident :: $vname:ident (u64)) => {
+        $crate::unsigned_unit!{$(#$meta)* $name :: $vname (u64)}
+    };
+    ($(#$meta:tt)* $name:ident :: $vname:ident (i32)) => {
+        $crate::signed_unit!{$(#$meta)* $name :: $vname (i32)}
+    };
+    ($(#$meta:tt)* $name:ident :: $vname:ident (i64)) => {
+        $crate::signed_unit!{$(#$meta)* $name :: $vname (i64)}
+    };
 }
 
-impl<Type,Repr:Copy>  Copy  for Unit<Type,Repr> {}
-impl<Type,Repr:Clone> Clone for Unit<Type,Repr> {
-    fn clone(&self) -> Self {
-        Self::new(self.value.clone())
+#[macro_export]
+macro_rules! unsigned_unit {
+    ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        pub mod $vname {
+            use super::*;
+
+            $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd saturating_add $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
+
+            pub trait Into {
+                type Output;
+                fn $vname(self) -> Self::Output;
+            }
+
+            impl<T:std::convert::Into<$name>> Into for T {
+                type Output = $name;
+                fn $vname(self) -> Self::Output {
+                    self.into()
+                }
+            }
+
+            pub mod export {
+                pub use super::$name;
+                pub use super::Into as TRAIT_Into;
+            }
+        }
+        pub use $vname::export::*;
+    };
+}
+
+#[macro_export]
+macro_rules! unsigned_unit_float_like {
+    ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        pub mod $vname {
+            use super::*;
+
+            $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd saturating_add $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
+
+            pub trait Into {
+                type Output;
+                fn $vname(self) -> Self::Output;
+            }
+
+            impl<T:std::convert::Into<$name>> Into for T {
+                type Output = $name;
+                fn $vname(self) -> Self::Output {
+                    self.into()
+                }
+            }
+
+            pub mod export {
+                pub use super::$name;
+                pub use super::Into as TRAIT_Into;
+            }
+        }
+        pub use $vname::export::*;
+    };
+}
+
+#[macro_export]
+macro_rules! signed_unit {
+    ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        pub mod $vname {
+            use super::*;
+            $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
+            $crate::impl_UNIT_to_UNIT!         {Neg neg $name}
+
+            pub trait Into {
+                type Output;
+                fn $vname(self) -> Self::Output;
+            }
+
+            impl<T:std::convert::Into<$name>> Into for T {
+                type Output = $name;
+                fn $vname(self) -> Self::Output {
+                    self.into()
+                }
+            }
+
+            pub mod export {
+                pub use super::$name;
+                pub use super::Into as TRAIT_Into;
+            }
+        }
+        pub use $vname::export::*;
+    };
+}
+
+#[macro_export]
+macro_rules! signed_unit_float_like {
+    ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        pub mod $vname {
+            use super::*;
+            $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
+            $crate::impl_UNIT_to_UNIT!         {Neg neg $name}
+
+            pub trait Into {
+                type Output;
+                fn $vname(self) -> Self::Output;
+            }
+
+            impl<T:std::convert::Into<$name>> Into for T {
+                type Output = $name;
+                fn $vname(self) -> Self::Output {
+                    self.into()
+                }
+            }
+
+            pub mod export {
+                pub use super::$name;
+                pub use super::Into as TRAIT_Into;
+            }
+        }
+        pub use $vname::export::*;
+    };
+}
+
+#[macro_export]
+macro_rules! newtype {
+    ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
+        $crate::newtype_struct! {$(#$meta)* $name { $($field : $field_type),*}}
+
+        $crate::impl_T_x_T_to_T! {Sub           sub            $name {$($field),*}}
+        $crate::impl_T_x_T_to_T! {Add           add            $name {$($field),*}}
+        $crate::impl_T_x_T_to_T! {SaturatingAdd saturating_add $name {$($field),*}}
+
+        $crate::impl_T_x_FIELD_to_T! {Sub           sub            $name {$($field:$field_type),*}}
+        $crate::impl_T_x_FIELD_to_T! {Add           add            $name {$($field:$field_type),*}}
+        $crate::impl_T_x_FIELD_to_T! {SaturatingAdd saturating_add $name {$($field:$field_type),*}}
+
+        impl AddAssign<$name> for $name {
+            fn add_assign(&mut self, rhs:Self) {
+                *self = Self { $($field:self.$field.add(rhs.$field)),* }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! newtype_struct {
+    ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
+        $crate::newtype_struct_def!   {$(#$meta)* $name { $($field : $field_type),*}}
+        $crate::newtype_struct_impls! {$(#$meta)* $name { $($field : $field_type),*}}
     }
 }
 
-impl<Type,Repr> Unit<Type,Repr> {
-    /// Constructor.
-    pub fn new(value:Repr) -> Self {
-        let _type = PhantomData;
-        Self {value,_type}
+#[macro_export]
+macro_rules! newtype_struct_float_like {
+    ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
+        $crate::newtype_struct_def_float_like! {$(#$meta)* $name { $($field : $field_type),*}}
+        $crate::newtype_struct_impls!          {$(#$meta)* $name { $($field : $field_type),*}}
     }
 }
 
-
-// === Conversions ===
-
-impl<Type,Repr> From<Repr> for Unit<Type,Repr> {
-    fn from(t:Repr) -> Self {
-        Self::new(t)
+#[macro_export]
+macro_rules! newtype_struct_def {
+    ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
+        $(#$meta)*
+        #[derive(Clone,Copy,Debug,Default,Eq,Hash,Ord,PartialEq,PartialOrd)]
+        pub struct $name { $(pub $field : $field_type),* }
     }
 }
 
-impl<Type,Repr:Clone> From<&Repr> for Unit<Type,Repr> {
-    fn from(t:&Repr) -> Self {
-        Self::new(t.clone())
+#[macro_export]
+macro_rules! newtype_struct_def_float_like {
+    ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
+        $(#$meta)*
+        #[derive(Clone,Copy,Debug,Default,PartialEq,PartialOrd)]
+        pub struct $name { $(pub $field : $field_type),* }
     }
 }
 
-impl<Type> From<Unit<Type,f32>> for f32 {
-    fn from(t:Unit<Type,f32>) -> Self {
-        t.value
-    }
-}
+#[macro_export]
+macro_rules! newtype_struct_impls {
+    ($(#$meta:tt)* $name:ident { $field:ident : $field_type:ty $(,)? }) => {
+        /// Smart constructor.
+        $(#$meta)*
+        #[allow(non_snake_case)]
+        pub fn $name($field:$field_type) -> $name { $name {$field} }
 
-impl<Type> From<&Unit<Type,f32>> for f32 {
-    fn from(t:&Unit<Type,f32>) -> Self {
-        t.value
-    }
-}
+        impl From<&$name>  for $name { fn from(t:&$name)  -> Self { *t } }
+        impl From<&&$name> for $name { fn from(t:&&$name) -> Self { **t } }
 
+        impl From<$name>   for $field_type { fn from(t:$name)   -> Self { t.$field } }
+        impl From<&$name>  for $field_type { fn from(t:&$name)  -> Self { t.$field } }
+        impl From<&&$name> for $field_type { fn from(t:&&$name) -> Self { t.$field } }
 
+        impl From<$field_type>   for $name { fn from(t:$field_type)   -> Self { $name(t) } }
+        impl From<&$field_type>  for $name { fn from(t:&$field_type)  -> Self { $name(*t) } }
+        impl From<&&$field_type> for $name { fn from(t:&&$field_type) -> Self { $name(**t) } }
+    };
 
-// =================
-// === Operators ===
-// =================
+    ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
+        /// Smart constructor.
+        $(#$meta)*
+        #[allow(non_snake_case)]
+        pub fn $name($($field:$field_type),*) -> $name { $name {$($field),*} }
 
-// === Unit x Repr -> Unit Operators ===
-
-macro_rules! impl_opr_unit_x_repr_to_unit {
-    ( $name:ident $fn:ident $t:ident ) => {
-        impl<Type> $name<$t> for Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:$t) -> Self::Output {
-                (self.value.$fn(rhs)).into()
-            }
-        }
-
-        impl<Type> $name<$t> for &Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:$t) -> Self::Output {
-                (self.value.$fn(rhs)).into()
-            }
-        }
-
-        impl<Type> $name<&$t> for Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:&$t) -> Self::Output {
-                (self.value.$fn(*rhs)).into()
-            }
-        }
-
-        impl<Type> $name<&$t> for &Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:&$t) -> Self::Output {
-                ((&self.value).$fn(*rhs)).into()
-            }
-        }
-    }
-}
-
-macro_rules! impl_opr_repr_x_unit_to_unit {
-    ( $name:ident $fn:ident $t:ident ) => {
-        impl<Type> $name<Unit<Type,$t>> for $t {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
-                (self.$fn(rhs.value)).into()
-            }
-        }
-
-        impl<Type> $name<Unit<Type,$t>> for &$t {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
-                (self.$fn(rhs.value)).into()
-            }
-        }
-
-        impl<Type> $name<&Unit<Type,$t>> for $t {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
-                (self.$fn(rhs.value)).into()
-            }
-        }
-
-        impl<Type> $name<&Unit<Type,$t>> for &$t {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
-                (self.$fn(rhs.value)).into()
-            }
-        }
-    }
+        impl From<&$name>  for $name { fn from(t:&$name)  -> Self { *t } }
+        impl From<&&$name> for $name { fn from(t:&&$name) -> Self { **t } }
+        $(
+            impl From<$name>   for $field_type { fn from(t:$name)   -> Self { t.$field } }
+            impl From<&$name>  for $field_type { fn from(t:&$name)  -> Self { t.$field } }
+            impl From<&&$name> for $field_type { fn from(t:&&$name) -> Self { t.$field } }
+        )*
+    };
 }
 
 
-// === Unit x Unit -> Unit Operators ===
-
-macro_rules! impl_opr_unit_x_unit_to_unit {
-    ( $name:ident $fn:ident $t:ident ) => {
-        impl<Type> $name<Unit<Type,$t>> for Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
-                (self.value.$fn(rhs.value)).into()
-            }
-        }
-
-        impl<Type> $name<Unit<Type,$t>> for &Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
-                (self.value.$fn(rhs.value)).into()
-            }
-        }
-
-        impl<Type> $name<&Unit<Type,$t>> for Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
-                (self.value.$fn(rhs.value)).into()
-            }
-        }
-
-        impl<Type> $name<&Unit<Type,$t>> for &Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
-                (self.value.$fn(rhs.value)).into()
-            }
-        }
-    }
-}
-
-
-// === Unit x Unit -> Repr Operators ===
-
-macro_rules! impl_opr_unit_x_unit_to_repr {
-    ( $name:ident $fn:ident $t:ident ) => {
-        impl<Type> $name<Unit<Type,$t>> for Unit<Type,$t> {
-            type Output = $t;
-            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
-                self.value.$fn(rhs.value)
-            }
-        }
-
-        impl<Type> $name<Unit<Type,$t>> for &Unit<Type,$t> {
-            type Output = $t;
-            fn $fn(self, rhs:Unit<Type,$t>) -> Self::Output {
-                self.value.$fn(rhs.value)
-            }
-        }
-
-        impl<Type> $name<&Unit<Type,$t>> for Unit<Type,$t> {
-            type Output = $t;
-            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
-                self.value.$fn(rhs.value)
-            }
-        }
-
-        impl<Type> $name<&Unit<Type,$t>> for &Unit<Type,$t> {
-            type Output = $t;
-            fn $fn(self, rhs:&Unit<Type,$t>) -> Self::Output {
-                self.value.$fn(rhs.value)
-            }
-        }
-    }
-}
-
-
-// === Unit -> Unit Operators ===
-
-macro_rules! impl_opr_unit_to_unit {
-    ( $name:ident $fn:ident $t:ident ) => {
-        impl<Type> $name for Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self) -> Self::Output {
-                self.value.$fn().into()
-            }
-        }
-
-        impl<Type> $name for &Unit<Type,$t> {
-            type Output = Unit<Type,$t>;
-            fn $fn(self) -> Self::Output {
-                self.value.$fn().into()
-            }
-        }
-    }
-}
-
-impl<Type,Repr> Abs for Unit<Type,Repr> where Repr:Abs {
-    fn abs(&self) -> Self {
-        Self { value:self.value.abs(), ..*self }
-    }
-}
-
-
-// === Implementations ===
-
-impl_opr_unit_x_repr_to_unit! (Div div f32);
-impl_opr_unit_x_repr_to_unit! (Mul mul f32);
-impl_opr_repr_x_unit_to_unit! (Mul mul f32);
-impl_opr_unit_x_unit_to_unit! (Sub sub f32);
-impl_opr_unit_x_unit_to_unit! (Add add f32);
-impl_opr_unit_x_unit_to_repr! (Div div f32);
-impl_opr_unit_to_unit!        (Neg neg f32);
-
-impl_opr_unit_x_repr_to_unit! (Div div usize);
-impl_opr_unit_x_repr_to_unit! (Mul mul usize);
-impl_opr_repr_x_unit_to_unit! (Mul mul usize);
-impl_opr_unit_x_unit_to_unit! (Sub sub usize);
-impl_opr_unit_x_unit_to_unit! (Add add usize);
-impl_opr_unit_x_unit_to_unit! (SaturatingAdd saturating_add usize);
-impl_opr_unit_x_unit_to_repr! (Div div usize);
 
 
 
 // ==================
-// === Prim Units ===
+// === T x T -> T ===
 // ==================
 
 #[macro_export]
-macro_rules! define_unit {
-    ( $name:ident, $tp:ident, $type_name:ident, $trait_name:ident, $f:ident ) => {
-        #[derive(Clone,Copy,Debug,Eq,PartialEq)]
-        pub struct $type_name;
+macro_rules! impl_UNIT_x_UNIT_to_UNIT {
+    ($opr:ident $f:ident $name:ident) => {
+        $crate::impl_T_x_T_to_T! {$opr $f $name {value}}
+    }
+}
 
-        pub type $name<Repr=$tp> = Unit<$type_name,Repr>;
-
-        pub fn $name(value:$tp) -> $name {
-            $name::new(value)
-        }
-
-        pub trait $trait_name {
-            type Output;
-            fn $f(&self) -> Self::Output;
-        }
-
-        impl $trait_name for $tp {
+#[macro_export]
+macro_rules! impl_T_x_T_to_T {
+    ($opr:ident $f:ident $name:ident { $($field:ident),* $(,)? }) => {
+        impl $opr<$name> for $name {
             type Output = $name;
-            fn $f(&self) -> Self::Output {
-                $name::new(*self)
+            fn $f(self, rhs:$name) -> Self::Output {
+                $(let $field = self.$field.$f(rhs.$field);)*
+                $name { $($field),* }
             }
         }
 
-        // FIXME this impl is non-uniform
-        impl $trait_name for i32 {
+        impl $opr<$name> for &$name {
             type Output = $name;
-            fn $f(&self) -> Self::Output {
-                $name::new(*self as $tp)
+            fn $f(self, rhs:$name) -> Self::Output {
+                $(let $field = self.$field.$f(rhs.$field);)*
+                $name { $($field),* }
             }
         }
 
-        impl $trait_name for Vector2<$tp> {
-            type Output = Vector2<$name>;
-            fn $f(&self) -> Self::Output {
-                Vector2($name::new(self.x),$name::new(self.y))
+        impl $opr<&$name> for $name {
+            type Output = $name;
+            fn $f(self, rhs:&$name) -> Self::Output {
+                $(let $field = self.$field.$f(rhs.$field);)*
+                $name { $($field),* }
             }
         }
 
+        impl $opr<&$name> for &$name {
+            type Output = $name;
+            fn $f(self, rhs:&$name) -> Self::Output {
+                $(let $field = self.$field.$f(rhs.$field);)*
+                $name { $($field),* }
+            }
+        }
+    };
+}
+
+
+
+// ======================
+// === T x FIELD -> T ===
+// ======================
+
+#[macro_export]
+macro_rules! impl_UNIT_x_FIELD_to_UNIT {
+    ($opr:ident $f:ident $name:ident $field_type:ty) => {
+        $crate::impl_T_x_FIELD_to_T! {$opr $f $name {value : $field_type}}
     }
 }
 
-define_unit!(Pixels  , f32 , PixelsType  , ToPixels  , px);
-define_unit!(Radians , f32 , RadiansType , ToRadians , radians);
-define_unit!(Degrees , f32 , DegreesType , ToDegrees , degrees);
+#[macro_export]
+macro_rules! impl_T_x_FIELD_to_T {
+    ($opr:ident $f:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+        #[allow(clippy::needless_update)]
+        impl $opr<$field_type> for $name {
+            type Output = $name;
+            fn $f(self, rhs:$field_type) -> Self::Output {
+                $name { $field:self.$field.$f(rhs), ..self }
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<$field_type> for &$name {
+            type Output = $name;
+            fn $f(self, rhs:$field_type) -> Self::Output {
+                $name { $field:self.$field.$f(rhs), ..*self }
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<&$field_type> for $name {
+            type Output = $name;
+            fn $f(self, rhs:&$field_type) -> Self::Output {
+                $name { $field:self.$field.$f(*rhs), ..self }
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<&$field_type> for &$name {
+            type Output = $name;
+            fn $f(self, rhs:&$field_type) -> Self::Output {
+                $name { $field:self.$field.$f(*rhs), ..*self }
+            }
+        }
+    )*};
+}
 
 
-// === Conversions ===
+// ======================
+// === FIELD x T -> T ===
+// ======================
 
-impl ToRadians for Degrees {
-    type Output = Radians;
-    fn radians(&self) -> Self::Output {
-        Radians::new(std::f32::consts::PI * self.value / 180.0)
+#[macro_export]
+macro_rules! impl_FIELD_x_UNIT_to_UNIT {
+    ($opr:ident $f:ident $name:ident $field_type:ty) => {
+        $crate::impl_FIELD_x_T_to_T! {$opr $f $name {value : $field_type}}
     }
 }
 
-impl ToDegrees for Radians {
-    type Output = Degrees;
-    fn degrees(&self) -> Self::Output {
-        Degrees::new(180.0 * self.value / std::f32::consts::PI)
+#[macro_export]
+macro_rules! impl_FIELD_x_T_to_T {
+    ($opr:ident $f:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+        #[allow(clippy::needless_update)]
+        impl $opr<$name> for $field_type {
+            type Output = $name;
+            fn $f(self, rhs:$name) -> Self::Output {
+                $name { $field:self.$f(rhs.$field), ..rhs }
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<$name> for &$field_type {
+            type Output = $name;
+            fn $f(self, rhs:$name) -> Self::Output {
+                $name { $field:self.$f(rhs.$field), ..rhs }
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<&$name> for $field_type {
+            type Output = $name;
+            fn $f(self, rhs:&$name) -> Self::Output {
+                $name { $field:self.$f(rhs.$field), ..*rhs }
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<&$name> for &$field_type {
+            type Output = $name;
+            fn $f(self, rhs:&$name) -> Self::Output {
+                $name { $field:self.$f(rhs.$field), ..*rhs }
+            }
+        }
+    )*};
+}
+
+
+
+// ======================
+// === T x T -> FIELD ===
+// ======================
+
+#[macro_export]
+macro_rules! impl_UNIT_x_UNIT_to_FIELD {
+    ($opr:ident $f:ident $name:ident $field_type:ty) => {
+        $crate::impl_T_x_T_to_FIELD! {$opr $f $name {value : $field_type}}
     }
 }
+
+#[macro_export]
+macro_rules! impl_T_x_T_to_FIELD {
+    ($opr:ident $f:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+        impl $opr<$name> for $name {
+            type Output = $field_type;
+            fn $f(self, rhs:$name) -> Self::Output {
+                self.$field.$f(rhs.$field)
+            }
+        }
+
+        impl $opr<$name> for &$name {
+            type Output = $field_type;
+            fn $f(self, rhs:$name) -> Self::Output {
+                self.$field.$f(rhs.$field)
+            }
+        }
+
+        impl $opr<&$name> for $name {
+            type Output = $field_type;
+            fn $f(self, rhs:&$name) -> Self::Output {
+                self.$field.$f(rhs.$field)
+            }
+        }
+
+        impl $opr<&$name> for &$name {
+            type Output = $field_type;
+            fn $f(self, rhs:&$name) -> Self::Output {
+                self.$field.$f(rhs.$field)
+            }
+        }
+    )*};
+}
+
+
+
+// ==============
+// === T -> T ===
+// ==============
+
+#[macro_export]
+macro_rules! impl_UNIT_to_UNIT {
+    ($opr:ident $f:ident $name:ident) => {
+        $crate::impl_T_to_T! {$opr $f $name {value}}
+    }
+}
+
+#[macro_export]
+macro_rules! impl_T_to_T {
+    ($opr:ident $f:ident $name:ident { $($field:ident),* $(,)? }) => {$(
+        #[allow(clippy::needless_update)]
+        impl $opr for $name {
+            type Output = $name;
+            fn $f(self) -> Self::Output {
+                $name { $field:self.$field.$f(), ..self }
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr for &$name {
+            type Output = $name;
+            fn $f(self) -> Self::Output {
+                $name { $field:self.$field.$f(), ..*self }
+            }
+        }
+    )*};
+}
+
+
+
+
+// =============
+// === T x T ===
+// =============
+
+#[macro_export]
+macro_rules! impl_UNIT_x_UNIT {
+    ($opr:ident $f:ident $name:ident) => {
+        $crate::impl_T_x_T! {$opr $f $name {value}}
+    }
+}
+
+#[macro_export]
+macro_rules! impl_T_x_T {
+    ($opr:ident $f:ident $name:ident { $($field:ident),* $(,)? }) => {$(
+        #[allow(clippy::needless_update)]
+        impl $opr<$name> for $name {
+            fn $f(&mut self, rhs:$name) {
+                self.$field.$f(rhs.$field)
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<$name> for &mut $name {
+            fn $f(&mut self, rhs:$name) {
+                self.$field.$f(rhs.$field)
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<&$name> for $name {
+            fn $f(&mut self, rhs:&$name) {
+                self.$field.$f(rhs.$field)
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<&$name> for &mut $name {
+            fn $f(&mut self, rhs:&$name) {
+                self.$field.$f(rhs.$field)
+            }
+        }
+    )*};
+}
+
+
+
+// =================
+// === T x FIELD ===
+// =================
+
+#[macro_export]
+macro_rules! impl_UNIT_x_FIELD {
+    ($opr:ident $f:ident $name:ident $field_type:ty) => {
+        $crate::impl_T_x_FIELD! {$opr $f $name {value : $field_type}}
+    }
+}
+
+#[macro_export]
+macro_rules! impl_T_x_FIELD {
+    ($opr:ident $f:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+        #[allow(clippy::needless_update)]
+        impl $opr<$field_type> for $name {
+            fn $f(&mut self, rhs:$field_type) {
+                self.$field.$f(rhs)
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<$field_type> for &mut $name {
+            fn $f(&mut self, rhs:$field_type) {
+                self.$field.$f(rhs)
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<&$field_type> for $name {
+            fn $f(&mut self, rhs:&$field_type) {
+                self.$field.$f(*rhs)
+            }
+        }
+
+        #[allow(clippy::needless_update)]
+        impl $opr<&$field_type> for &mut $name {
+            fn $f(&mut self, rhs:&$field_type) {
+                self.$field.$f(*rhs)
+            }
+        }
+    )*};
+}
+
+
+// =============
+// === Units ===
+// =============
+
+unit!{
+Pixels::pixels(f32)
+}
+
+unit!{
+Radians::radians(f32)
+}
+
+unit!{
+Degrees::degrees(f32)
+}
+
+impl From<i32>   for Pixels { fn from(t:i32)   -> Self { (t as f32).into() } }
+impl From<&i32>  for Pixels { fn from(t:&i32)  -> Self { (*t).into() } }
+impl From<&&i32> for Pixels { fn from(t:&&i32) -> Self { (*t).into() } }
 
 
 
@@ -327,7 +625,9 @@ impl ToDegrees for Radians {
 
 /// Commonly used traits.
 pub mod traits {
-    pub use super::ToPixels;
-    pub use super::ToRadians;
-    pub use super::ToDegrees;
+    pub use super::pixels::Into  as TRAIT_IntoPixels;
+    pub use super::radians::Into as TRAIT_IntoRadians;
+    pub use super::degrees::Into as TRAIT_IntoDegrees;
 }
+
+pub use traits::*;
