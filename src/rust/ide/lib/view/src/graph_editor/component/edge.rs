@@ -736,22 +736,22 @@ pub fn sort_hack_2(scene:&Scene) {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ShapeViewEventsProxy {
-    pub mouse_down : frp::Stream<()>,
-    pub mouse_over : frp::Stream<()>,
-    pub mouse_out  : frp::Stream<()>,
+    pub mouse_down : frp::Stream,
+    pub mouse_over : frp::Stream,
+    pub mouse_out  : frp::Stream,
 
-    on_mouse_down : frp::Source<()>,
-    on_mouse_over : frp::Source<()>,
-    on_mouse_out  : frp::Source<()>,
+    on_mouse_down : frp::Source,
+    on_mouse_over : frp::Source,
+    on_mouse_out  : frp::Source,
 }
 
 #[allow(missing_docs)]
 impl ShapeViewEventsProxy {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def on_mouse_over  = source();
-            def on_mouse_out   = source();
-            def on_mouse_down  = source();
+            def on_mouse_over = source();
+            def on_mouse_out  = source();
+            def on_mouse_down = source();
         }
         let mouse_down = on_mouse_down.clone_ref().into();
         let mouse_over = on_mouse_over.clone_ref().into();
@@ -769,7 +769,7 @@ pub struct Frp {
     pub source_height   : frp::Source<f32>,
     pub target_position : frp::Source<Vector2>,
     pub target_attached : frp::Source<bool>,
-    pub redraw          : frp::Source<()>,
+    pub redraw          : frp::Source,
 
     pub hover_position  : frp::Source<Option<Vector2<f32>>>,
     pub shape_events    : ShapeViewEventsProxy
