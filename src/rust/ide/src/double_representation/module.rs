@@ -101,8 +101,11 @@ mod tests {
 
     use enso_protocol::language_server::MethodPointer;
     use enso_protocol::language_server::Path;
+    use wasm_bindgen_test::wasm_bindgen_test;
 
-    #[test]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
     fn implicit_method_resolution() {
         let parser = parser::Parser::new_or_panic();
         let foo_method = MethodPointer {
