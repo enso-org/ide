@@ -386,7 +386,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 let shadow_size = 10.px() + 1.px();
                 let n_radius = &shadow_size + 1.px() * dim.y();
                 let n_shape  = Rect(
-                (&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
+                    (&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
                 let n_shape  = n_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
                 let tx       = - 1.px() * pos.x();
                 let ty       = - 1.px() * pos.y();
