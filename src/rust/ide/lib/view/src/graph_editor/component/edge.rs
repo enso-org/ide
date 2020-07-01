@@ -13,10 +13,13 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
+use ensogl::gui::component::ShapeViewEvents;
 use ensogl::gui::component;
 use nalgebra::UnitComplex;
+use std::cmp::Ordering;
 
 use super::node;
+
 
 
 fn min(a:f32,b:f32) -> f32 {
@@ -44,6 +47,8 @@ const NODE_PADDING       : f32 = node::SHADOW_SIZE;
 const PADDING            : f32 = 4.0;
 const RIGHT_ANGLE        : f32 = std::f32::consts::PI / 2.0;
 
+const SNAP_THRESHOLD     : f32 = 1.2 * LINE_SHAPE_WIDTH;
+
 const INFINITE : f32 = 99999.0;
 
 
@@ -56,14 +61,38 @@ const INFINITE : f32 = 99999.0;
 trait EdgeShape: ensogl::display::Object {
     fn set_hover_split_offset(&self, offset:Vector2<f32>);
     fn set_hover_split_rotation(&self, angle:f32);
+    /// Snaps the coordinates given in the shape local coordinate system to the shape and returns
+    /// the shape local coordinates. If no snapping is possible, returns `None`.
+    fn snap_to_shape_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>>;
+    fn sprite(&self) -> &Sprite;
+
+    /// Return the angle perpendicular to the shape at the given point. Defaults to zero, if not
+    /// implemented.
+    fn cut_angle_for_point(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32>  {
+        let local = self.to_shape_coordinate_system(point);
+        self.cut_angle_for_point_local(local)
+    }
+
+    fn cut_angle_for_point_local(&self, _point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+        nalgebra::Rotation2::new(0.0)
+    }
+
+    /// Snaps the coordinates given in the global coordinate system to the shape and returns
+    /// the global coordinates. If no snapping is possible, returns `None`.
+    fn snap_to_shape(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+        let local          = self.to_shape_coordinate_system(point);
+        let local_snapped  = self.snap_to_shape_local(local)?;
+        let global_snapped = self.from_shape_to_global_coordinate_system(local_snapped);
+        Some(global_snapped)
+    }
 
     /// Set the hover split for this shape. The `split_data` indicates where the shape should be
     /// split and which side should be recolored.
     fn enable_hover_split(&self, split_data:SplitData) {
-        let SplitData { split_position, area, cut_angle } = split_data;
+        let SplitData {split_position,area,cut_angle} = split_data;
         // Compute rotation in shape local coordinate system.
-        let base_rotation      = self.display_object().rotation().z;
-        let hover_split_rotation = base_rotation + cut_angle;
+        let base_rotation        = self.display_object().rotation().z;
+        let hover_split_rotation = cut_angle + base_rotation;
         match area {
             Area::Above => self.set_hover_split_rotation(hover_split_rotation),
             Area::Below => {
@@ -71,8 +100,7 @@ trait EdgeShape: ensogl::display::Object {
             },
         }
         // Compute position in shape local coordinate system.
-        let delta  = split_position - self.display_object().global_position().xy();
-        let offset = UnitComplex::new(-base_rotation) * delta;
+        let offset = self.to_shape_coordinate_system(split_position);
         self.set_hover_split_offset(offset)
     }
 
@@ -80,6 +108,34 @@ trait EdgeShape: ensogl::display::Object {
     fn disable_hover_split(&self) {
         self.set_hover_split_offset(Vector2::new(INFINITE, INFINITE));
         self.set_hover_split_rotation(RIGHT_ANGLE);
+    }
+
+    /// Convert the given global coordinates to the shape local coordinate system.
+    fn to_shape_coordinate_system(&self, point:Vector2<f32>) -> Vector2<f32> {
+        let base_rotation   = self.display_object().rotation().z;
+        let local_unrotated = point - self.display_object().global_position().xy();
+        UnitComplex::new(-base_rotation) * local_unrotated
+    }
+
+    /// Convert the given shape local coordinate to the global coordinates system.
+    fn from_shape_to_global_coordinate_system(&self, point:Vector2<f32>) -> Vector2<f32> {
+        let base_rotation   = self.display_object().rotation().z;
+        let local_unrotated = UnitComplex::new(base_rotation) * point;
+        local_unrotated + self.display_object().global_position().xy()
+    }
+
+    /// Check whether the given shape local coordinate is within the bounds of the shape.
+    fn contains_local(&self, point:Vector2<f32>) -> bool {
+        let size = self.sprite().size.get();
+        if point.x < -size.x / 2.0 || point.y < -size.y / 2.0 {
+            return false
+        }
+        point.x < size.x / 2.0 && point.y < size.y / 2.0
+    }
+
+    /// Check whether the given global coordinate is within the bounds of the shape.
+    fn contains(&self, point:Vector2<f32>) -> bool {
+        self.contains_local(self.to_shape_coordinate_system(point))
     }
 }
 
@@ -112,10 +168,24 @@ impl SplitData {
     }
 }
 
+/// `SnapData` is used as the result value of snapping operations on `MultiShapes`. It holds the
+/// position and shape that a hover position was snapped to, that is the shape and the position
+/// on the shape that was closest to the hover
+struct SnapData<'a> {
+    position     : Vector2<f32>,
+    target_shape : &'a dyn EdgeShape,
+}
+
+impl<'a> SnapData<'a> {
+    fn new(position: Vector2<f32>, target_shape: &'a dyn EdgeShape) -> Self {
+        SnapData{position,target_shape}
+    }
+}
+
 /// The MultiShape trait allows operations on a collection of `EdgeShape`.
 trait MultiShape {
     /// Return the `ShapeViewEvents` of all sub-shapes.
-    fn events(&self) -> Vec<component::ShapeViewEvents>;
+    fn events(&self) -> Vec<ShapeViewEvents>;
     /// Return references to all `EdgeShape`s in this MultiShape.
     fn edge_shape_views(&self) -> Vec<&dyn EdgeShape>;
 
@@ -131,14 +201,62 @@ trait MultiShape {
         }
     }
 
-    /// Apply the provided `SplitData` to all sub-shapes, or disable splitting, if `None` is given.
-    fn set_hover_split(&self, split_data:Option<SplitData>) {
-        for shape in self.edge_shape_views() {
-            if let Some(split_data) = split_data {
-                shape.enable_hover_split(split_data);
-            } else {
-                shape.disable_hover_split()
+    /// Snap the given position to our sub-shapes. Returns `None` if the given position cannot be
+    /// snapped to any sub-shape (e.g., because it is too far away).
+    fn snap_position_to_shape(&self, point:Vector2<f32>) -> Option<SnapData> {
+        let shapes    = self.edge_shape_views();
+        let snap_data = shapes.iter().filter_map(|shape|{
+            let maybe_snap_position     = shape.snap_to_shape(point);
+            if let Some(snap_position) = maybe_snap_position {
+                // TODO The `SNAP_THRESHOLD` test is needed to avoid visual artifacts for
+                // circles where sometimes we might snap to a part that is invisible instead of
+                // the visible shape next to it. It might be better to find a cheaper way to avoid
+                // these.
+                let snap_distance = (snap_position - point).norm();
+                if snap_distance < SNAP_THRESHOLD && shape.contains(point){
+                    return Some(SnapData::new(snap_position,*shape))
+                }
             }
+            None
+        });
+
+        // Return the snap that is closest to the hover.
+        snap_data
+            .map(|snap_data| ((snap_data.position - point).norm(), snap_data))
+            .min_by(|(distance_a, _), (distance_b, _)| {
+                distance_a.partial_cmp(&distance_b).unwrap_or(Ordering::Equal)
+            })
+            .map(|(_, snap_data)| snap_data)
+    }
+
+    /// Try to snap the given position to the shape and compute the perpendicular cut angle. If we
+    /// can find valid values, we return a `SplitData` struct. This can fail, if the hover is too
+    /// far from any of our sub-shapes.
+    fn get_split_data_for_hover(&self,position:Vector2<f32>,area:Area) -> Option<SplitData> {
+        let maybe_snap_data = self.snap_position_to_shape(position);
+        if let Some(snap_data) = maybe_snap_data {
+            // TODO refactor into shape
+            let base_rotation = snap_data.target_shape.display_object().rotation().z;
+            let cut_angle = snap_data.target_shape.cut_angle_for_point(snap_data.position).angle() - base_rotation;
+            Some(SplitData::new(snap_data.position,area,cut_angle))
+        } else {
+            None
+        }
+    }
+
+    /// Split the shape at the given `position` and highlight the given `area`. This might fail if
+    /// the given position is too far from the shape. In that case, splitting is disabled.
+    fn enable_hover_split(&self, position:Vector2<f32>, area:Area) {
+        if let Some(split_data) = self.get_split_data_for_hover(position,area) {
+            self.edge_shape_views().iter().for_each(|shape| shape.enable_hover_split(split_data));
+        } else {
+            self.disable_hover_split()
+        }
+    }
+
+    fn disable_hover_split(&self) {
+        for shape in self.edge_shape_views() {
+            shape.disable_hover_split()
         }
     }
 }
@@ -153,12 +271,14 @@ trait MultiShape {
 struct SplitShape {
     part_a : AnyShape,
     part_b : AnyShape,
+    joint  : AnyShape,
 }
 
 impl SplitShape {
-    /// Splits the shape in two at the line given by the offset and rotation.
+    /// Splits the shape in two at the line given by the offset and rotation. Will render a
+    /// circular "joint" at the given `offset`, if `joint_radius` > 0.0.
     fn new
-    (base_shape:AnyShape, offset:&Var<Vector2<f32>>,rotation:&Var<f32>) -> Self {
+    (base_shape:AnyShape, offset:&Var<Vector2<f32>>,rotation:&Var<f32>,joint_radius:&Var<Distance<Pixels>>) -> Self {
         let offset_x    = Var::<Distance<Pixels>>::from(offset.x());
         let offset_y    = Var::<Distance<Pixels>>::from(offset.y());
         let rotation    = Var::<Angle<Radians>>::from(rotation.clone());
@@ -170,14 +290,24 @@ impl SplitShape {
         let part_a = base_shape.intersection(&split_plane).into();
         let part_b = base_shape.difference(&split_plane).into();
 
-        SplitShape { part_a,part_b}
+        let joint_radius = Var::<Distance<Pixels>>::from(joint_radius);
+        let joint        = Circle(joint_radius)
+                            .translate_x(&offset_x)
+                            .translate_y(&offset_y)
+                            .into();
+
+        SplitShape { part_a,part_b,joint }
     }
 
-    /// Fill the two parts and return the combined shape.
+    /// Fill the two parts and the joint and return the combined shape.
     fn fill<Color:Into<color::Rgba>>(&self, color_a:Color, color_b:Color) -> AnyShape {
-        let part_a_filled = self.part_a.fill(color_a.into());
-        let part_b_filled = self.part_b.fill(color_b.into());
-        (part_a_filled + part_b_filled) .into()
+        let color_a = color_a.into();
+        let color_b = color_b.into();
+
+        let part_a_filled = self.part_a.fill(&color_a);
+        let part_b_filled = self.part_b.fill(&color_b);
+        let joint_filled  = self.joint.fill(&color_a);
+        (part_a_filled + part_b_filled + joint_filled).into()
     }
 }
 
@@ -190,7 +320,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
              hover_split_offset:Vector2<f32>,hover_split_rotation:f32) {
                 let radius = 1.px() * radius;
                 let width  = LINE_WIDTH.px();
-                let width2 = width / 2.0;
+                let width2 = &width / 2.0;
                 let ring   = Circle(&radius + &width2) - Circle(radius-width2);
                 let right : Var<f32> = (RIGHT_ANGLE).into();
                 let rot    = right - &angle/2.0 + start_angle;
@@ -209,20 +339,30 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 let shape    = shape - n_shape;
 
                 let split_shape = SplitShape::new(
-                    shape.into(),&hover_split_offset.into(),&hover_split_rotation.into());
+                    shape.into(),&(&hover_split_offset).into(),&hover_split_rotation.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
 
-         impl EdgeShape for component::ShapeView<Shape> {
+        impl EdgeShape for component::ShapeView<Shape> {
             fn set_hover_split_offset(&self, offset:Vector2<f32>) {
-                self.shape.hover_split_offset.set(offset);
+               self.shape.hover_split_offset.set(offset);
             }
 
             fn set_hover_split_rotation(&self, angle:f32) {
-                 self.shape.hover_split_rotation.set(angle);
+                self.shape.hover_split_rotation.set(angle);
             }
+
+            fn sprite(&self) -> &Sprite{
+                &self.shape.sprite
+            }
+
+            fn snap_to_shape_local(&self, _point:Vector2<f32>) -> Option<Vector2<f32>> {
+                // FIXME this needs to be implemented for upwards edges
+                None
+            }
+
         }
     }
 }}
@@ -236,7 +376,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
              hover_split_offset:Vector2<f32>,hover_split_rotation:f32) {
                 let radius = 1.px() * radius;
                 let width  = LINE_WIDTH.px();
-                let width2 = width / 2.0;
+                let width2 = &width / 2.0;
                 let ring   = Circle(&radius + &width2) - Circle(radius-width2);
                 let right : Var<f32> = (RIGHT_ANGLE).into();
                 let rot    = right - &angle/2.0 + start_angle;
@@ -254,8 +394,9 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
 
                 let shape = shape * n_shape;
                 let split_shape = SplitShape::new(
-                shape.into(),&hover_split_offset.into(),&hover_split_rotation.into());
+                shape.into(),&hover_split_offset.into(),&hover_split_rotation.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
+
                 shape.into()
             }
         }
@@ -268,6 +409,32 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
             fn set_hover_split_rotation(&self, angle:f32) {
                  self.shape.hover_split_rotation.set(angle);
             }
+
+            fn sprite(&self) -> &Sprite{
+                &self.shape.sprite
+            }
+
+            fn cut_angle_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+                nalgebra::Rotation2::rotation_between(&point,&Vector2::new(1.0,0.0))
+            }
+
+            fn snap_to_shape_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                // This shape is only valid for the upper part of the circle.
+                if point.y < 0.0 {
+                    return None
+                }
+                let radius = self.shape.radius.get();
+                let center = Vector2::zero();
+                let point_to_center = point.xy() - center;
+
+                // Note: this is the closes point to the full circle. Will fail to produce the
+                // desired result if the given point is closer to another part of the circle, than
+                // this curve. We need to validate in some other context, that we are in the correct
+                // quadrant.
+                let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
+
+                Some(Vector2::new(closest_point.x, closest_point.y))
+           }
         }
     }
 }}
@@ -277,25 +444,33 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
     pub mod line {
         use super::*;
         ensogl::define_shape_system! {
-            (hover_split_offset:Vector2<f32>,hover_split_rotation:f32) {
+            (hover_split_offset:Vector2<f32>,hover_split_rotation:f32,split_joint_position:Vector2<f32>) {
                 let width  = LINE_WIDTH.px();
                 let height : Var<Pixels> = "input_size.y".into();
-                let shape  = Rect((width,height));
+                let shape  = Rect((width.clone(),height));
 
                 let split_shape = SplitShape::new(
-                shape.into(),&hover_split_offset.into(),&hover_split_rotation.into());
+                    shape.into(),&hover_split_offset.into(),&hover_split_rotation.into(),&(&width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
         }
 
-         impl EdgeShape for component::ShapeView<Shape> {
+        impl EdgeShape for component::ShapeView<Shape> {
             fn set_hover_split_offset(&self, offset:Vector2<f32>) {
                 self.shape.hover_split_offset.set(offset);
             }
 
             fn set_hover_split_rotation(&self, angle:f32) {
-                 self.shape.hover_split_rotation.set(angle);
+                self.shape.hover_split_rotation.set(angle);
+            }
+
+            fn sprite(&self) -> &Sprite{
+                &self.shape.sprite
+            }
+
+            fn snap_to_shape_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+               Some(Vector2::new(0.0, point.y))
             }
         }
     }
@@ -306,7 +481,7 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
     pub mod arrow {
         use super::*;
         ensogl::define_shape_system! {
-            (hover_split_offset:Vector2<f32>,hover_split_rotation:f32) {
+            (hover_split_offset:Vector2<f32>,hover_split_rotation:f32,split_joint_position:Vector2<f32>) {
                 let width  : Var<Pixels> = "input_size.x".into();
                 let height : Var<Pixels> = "input_size.y".into();
                 let width      = width  - (2.0 * PADDING).px();
@@ -317,8 +492,8 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let triangle_r = triangle.translate_x(&offset);
                 let shape      = triangle_l + triangle_r;
 
-                let split_shape = SplitShape::new(
-                shape.into(),&hover_split_offset.into(),&hover_split_rotation.into());
+                let split_shape  = SplitShape::new(
+                  shape.into(),&hover_split_offset.into(),&hover_split_rotation.into(),&0.0.px());
                 let shape       = split_shape.fill($color, $highlight_color);
                 shape.into()
             }
@@ -331,6 +506,14 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
 
             fn set_hover_split_rotation(&self, angle:f32) {
                  self.shape.hover_split_rotation.set(angle);
+            }
+
+            fn sprite(&self) -> &Sprite{
+                &self.shape.sprite
+            }
+
+            fn snap_to_shape_local(&self, _point:Vector2<f32>) -> Option<Vector2<f32>> {
+               None
             }
         }
     }
@@ -412,17 +595,17 @@ impl LayoutLine for component::ShapeView<back::line::Shape> {
 /// Shape definitions which will be rendered in the front layer (on top of nodes).
 pub mod front {
     use super::*;
-    define_corner_start!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
-    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
-    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
+    define_corner_start!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
+    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
+    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
 }
 
 /// Shape definitions which will be rendered in the bottom layer (below nodes).
 pub mod back {
     use super::*;
-    define_corner_end!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
-    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
-    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.6,0.5,0.76,0.5));
+    define_corner_end!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
+    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
+    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
 }
 
 
@@ -440,7 +623,7 @@ macro_rules! define_components {
         pub struct $name {
             pub logger            : Logger,
             pub display_object    : display::object::Instance,
-            pub shape_view_events : Rc<Vec<component::ShapeViewEvents>>,
+            pub shape_view_events : Rc<Vec<ShapeViewEvents>>,
             $(pub $field : component::ShapeView<$field_type>),*
         }
 
@@ -451,7 +634,7 @@ macro_rules! define_components {
                 $(let $field = component::ShapeView::new(
                     Logger::sub(&logger,stringify!($field)),scene);)*
                     $(display_object.add_child(&$field);)*
-                let mut shape_view_events:Vec<component::ShapeViewEvents> = Vec::default();
+                let mut shape_view_events:Vec<ShapeViewEvents> = Vec::default();
                 $(shape_view_events.push($field.events.clone_ref());)*
                 let shape_view_events = Rc::new(shape_view_events);
 
@@ -468,7 +651,7 @@ macro_rules! define_components {
         }
 
         impl MultiShape for $name {
-            fn events(&self) -> Vec<component::ShapeViewEvents> {
+            fn events(&self) -> Vec<ShapeViewEvents> {
                 self.shape_view_events.to_vec()
             }
 
@@ -503,6 +686,23 @@ define_components!{
         side_line2 : back::line::Shape,
         main_line  : back::line::Shape,
         arrow      : back::arrow::Shape,
+    }
+}
+
+// TODO consider a nice design here that is more general
+impl MultiShape for (&Front, &Back) {
+    fn events(&self) -> Vec<ShapeViewEvents> {
+        let mut events_back:Vec<ShapeViewEvents>  = self.0.events();
+        let mut events_front:Vec<ShapeViewEvents> = self.1.events();
+        events_front.append(&mut events_back);
+        events_front
+    }
+
+    fn edge_shape_views(&self) -> Vec<&dyn EdgeShape> {
+        let mut shapes_back  = self.0.edge_shape_views();
+        let mut shapes_front = self.1.edge_shape_views();
+        shapes_front.append(&mut shapes_back);
+        shapes_front
     }
 }
 
@@ -789,19 +989,19 @@ impl EdgeModelData {
         }
     }
 
-    /// Return the cut angle of the hover split based on the quadrant in which the edge is
-    /// located relative to its source.
-    fn hover_split_cut_angle(&self) -> f32 {
+    /// Shows whether the correct hover split is implemented for the given configuration
+    /// This will no longer needed once it is implemented for all quadrants.
+    fn can_show_hover_split(&self) -> bool {
+        // FIXME remove this once the hover edge splitting is completely implemented.
         let target_pos = self.target_position.get();
         let source_pos = self.display_object.position();
         let is_below = target_pos.y <source_pos.y;
         let is_left  = target_pos.x < source_pos.x;
         match (is_below, is_left) {
-            (true, true)   => 0.5 * RIGHT_ANGLE,
-            (true, false)  => -0.5 * RIGHT_ANGLE,
-            (false, true)  => -0.5 * RIGHT_ANGLE,
-            (false, false) => 0.5 * RIGHT_ANGLE,
-
+            (true, true)   => true,
+            (true, false)  => true,
+            (false, true)  => false,
+            (false, false) => false,
         }
     }
 
@@ -820,15 +1020,19 @@ impl EdgeModelData {
         let node_radius      = node_half_height;
 
         // === Update Highlights ===
-        let hover_pos  = self.hover_position.get();
-        let hover_data = hover_pos.map(|position| {
-            let area      = self.hover_split_area_for_position(position);
-            let cut_angle = self.hover_split_cut_angle();
-            SplitData::new(position, area, cut_angle)
-        });
 
-        self.front.set_hover_split(hover_data);
-        self.back.set_hover_split(hover_data);
+        if self.can_show_hover_split() {
+            let hover_position  = self.hover_position.get();
+            if let Some(hover_position) = hover_position {
+                let highlight_area = self.hover_split_area_for_position(hover_position);
+                // This call treats both `Back` and `Front` as a combined `MultiShape`.
+                (fg,bg).enable_hover_split(hover_position,highlight_area);
+            } else {
+                (fg,bg).disable_hover_split();
+            }
+        } else {
+            (fg,bg).disable_hover_split();
+        }
 
 
         // === Target ===
