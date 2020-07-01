@@ -126,7 +126,7 @@ impl Handle {
     , project_metadata           : ProjectMetadata
     ) -> Self {
         let logger = Logger::sub(parent,"Project Controller");
-        info!(logger,"Creating a project controller for project {project_metadata.name.deref()}");
+        info!(logger,"Creating a project controller for project {project_metadata.name}");
         let binary_protocol_events  = language_server_binary.event_stream();
         let json_rpc_events         = language_server_client.events();
         let embedded_visualizations = default();
@@ -321,9 +321,9 @@ impl Handle {
     /// Rename project.
     pub async fn rename_project(&self, name:impl Str) -> FallibleResult<()> {
         let name                 = name.into();
-        let mut project_metadata = self.project_metadata.borrow_mut();
-        self.project_manager.rename_project(&project_metadata.id,&name).await?;
-        *project_metadata.name = ProjectName::new(name).to_string();
+        let project_id = self.project_metadata.borrow().id;
+        self.project_manager.rename_project(&project_id,&name).await?;
+        *self.project_metadata.borrow_mut().name = ProjectName::new(name).to_string();
         Ok(())
     }
 }
