@@ -118,6 +118,15 @@ impl Size {
     }
 }
 
+// === Getters ===
+
+#[allow(missing_docs)]
+impl Size {
+    pub fn get(&self) -> Vector2<f32>{
+        if self.hidden.get() { self.value.get() }
+        else                 { self.attr.get()  }
+    }
+}
 
 // === Private API ===
 
