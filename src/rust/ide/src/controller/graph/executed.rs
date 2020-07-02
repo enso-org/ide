@@ -5,7 +5,8 @@
 //! visualisations, retrieving types on ports, etc.
 use crate::prelude::*;
 
-use crate::model::execution_context::{Visualization, ComputedValueInfoRegistry};
+use crate::model::execution_context::ComputedValueInfoRegistry;
+use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::synchronized::ExecutionContext;
@@ -79,7 +80,7 @@ impl Handle {
     ( project:&controller::Project
     , method:MethodPointer
     ) -> FallibleResult<Self> {
-        let graph     = graph_for_method(&project,&method).await?;
+        let graph     = controller::Graph::new_method(&project, &method).await?;
         let execution = project.create_execution_context(method.clone()).await?;
         Ok(Self::new_internal(graph,&project,execution))
     }
@@ -152,10 +153,9 @@ impl Handle {
         let registry   = self.execution_ctx.computed_value_info_registry();
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
         let method_ptr = node_info.method_call.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
-        let graph      = graph_for_method(&self.project,&method_ptr).await?;
-
-        let call = model::execution_context::LocalCall {
-            call : node,
+        let graph      = controller::Graph::new_method(&self.project,&method_ptr).await?;
+        let call       = model::execution_context::LocalCall {
+            call       : node,
             definition : method_ptr.clone()
         };
         self.execution_ctx.push(call).await?;
@@ -175,7 +175,7 @@ impl Handle {
     pub async fn exit_node(&self) -> FallibleResult<()> {
         let frame  = self.execution_ctx.pop().await?;
         let method = self.execution_ctx.current_method();
-        let graph  = graph_for_method(&self.project,&method).await?;
+        let graph  = controller::Graph::new_method(&self.project,&method).await?;
         self.graph.replace(graph);
         self.notifier.borrow_mut().publish(Notification::SteppedOutOfNode(frame.call)).await;
         Ok(())
@@ -187,20 +187,6 @@ impl Handle {
     pub fn graph(&self) -> controller::Graph {
         self.graph.borrow().clone_ref()
     }
-}
-
-/// Create a graph controller for the given method.
-///
-/// Fails if the module is inaccessible or if it does not contain given method.
-pub async fn graph_for_method
-(project:&controller::Project, method:&MethodPointer) -> FallibleResult<controller::Graph> {
-    let project = project.clone_ref();
-    let method = method.clone();
-    let module_path = model::module::Path::from_file_path(method.file.clone())?;
-    let module      = project.module_controller(module_path).await?;
-    let module_ast = module.model.model.ast();
-    let definition = double_representation::module::lookup_method(&module_ast,&method)?;
-    module.graph_controller(definition)
 }
 
 

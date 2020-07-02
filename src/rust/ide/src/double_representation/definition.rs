@@ -170,8 +170,9 @@ impl DefinitionName {
     /// Checks if the given definition name is a method defined on given expected atom name.
     ///
     /// E.g. `Main.foo` is a method of `Main`. Also, if `Main` is a name of module, than root-scoped
-    /// definition named `foo` will be treated as an extension method on `Main`. For such case the
-    /// `parent_name` is provided - it is a name of module or type where the definition is located.
+    /// definition named `foo` will be treated as an extension method on `Main`. To handle such case
+    ///  properly, function takes `parent_name` - it is a name of module or type where the
+    /// definition is located.
     pub fn method_of(&self, parent_name:&str, expected_atom:&str) -> bool {
         if self.extended_target.is_empty() {
             parent_name == expected_atom

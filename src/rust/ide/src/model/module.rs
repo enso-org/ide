@@ -138,9 +138,9 @@ impl Path {
         Self::from_file_path(file_path).unwrap()
     }
 
-    /// Obtain a pointer to a method that was defined on the module under this path.
+    /// Obtain a pointer to a method of the module (i.e. extending the module's atom).
     ///
-    /// Note that this cannot be used for methods defined in the module but for the other atoms.
+    /// Note that this cannot be used for a method extending other atom than this module.
     pub fn method_pointer(&self, method_name:impl Str) -> MethodPointer {
         MethodPointer {
             defined_on_type : self.module_name().into(),
