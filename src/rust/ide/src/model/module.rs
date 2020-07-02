@@ -137,6 +137,17 @@ impl Path {
         let file_path   = FilePath::new(default(),&[src_dir,file_name]);
         Self::from_file_path(file_path).unwrap()
     }
+
+    /// Obtain a pointer to a method that was defined on the module under this path.
+    ///
+    /// Note that this cannot be used for methods defined in the module but for the other atoms.
+    pub fn method_pointer(&self, method_name:impl Str) -> MethodPointer {
+        MethodPointer {
+            defined_on_type : self.module_name().into(),
+            name            : method_name.into(),
+            file            : self.file_path.clone(),
+        }
+    }
 }
 
 impl PartialEq<FilePath> for Path {

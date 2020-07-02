@@ -107,19 +107,6 @@ impl Handle {
         controller::Graph::new(&self.logger, self.model.clone_ref(), self.parser.clone_ref(), id)
     }
 
-    /// Returns a executed graph controller for graph in this module's subtree identified by id.
-    /// The execution context will be rooted at definition of this graph.
-    ///
-    /// This function wont check if the definition under id exists.
-    pub async fn executed_graph_controller_unchecked
-    (&self, id:double_representation::graph::Id, project:&controller::Project)
-    -> FallibleResult<controller::ExecutedGraph> {
-        let method        = self.method_pointer(&id)?;
-        let graph         = self.graph_controller_unchecked(id);
-        let execution_ctx = project.create_execution_context(method).await?;
-        Ok(controller::ExecutedGraph::new(graph,project,execution_ctx))
-    }
-
     /// Returns a graph controller for graph in this module's subtree identified by `id` without
     /// checking if the graph exists.
     pub fn graph_controller_unchecked

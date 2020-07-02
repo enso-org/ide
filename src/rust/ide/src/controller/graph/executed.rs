@@ -74,7 +74,20 @@ pub struct Handle {
 }
 
 impl Handle {
+    /// Create handle for the executed graph that will be running the given method.
+    pub async fn new
+    ( project:&controller::Project
+    , method:MethodPointer
+    ) -> FallibleResult<Self> {
+        let graph     = graph_for_method(&project,&method).await?;
+        let execution = project.create_execution_context(method.clone()).await?;
+        Ok(Self::new_internal(graph,&project,execution))
+    }
+
     /// Create handle for given graph and execution context.
+    ///
+    /// The given graph and execution context must be for the same method. Prefer using `new`,
+    /// unless writing test code.
     ///
     /// This takes a (shared) ownership of execution context which will be shared between all copies
     /// of this handle. It is held through `Rc` because the registry in the project controller needs
@@ -85,10 +98,10 @@ impl Handle {
     /// strong references to the execution context and it is expected that it will be dropped after
     /// the last copy of this controller is dropped.
     /// Then the context when being dropped shall remove itself from the Language Server.
-    pub fn new
+    pub fn new_internal
     ( graph:controller::Graph
-    , project:&controller::Project
-    , execution_ctx:Rc<ExecutionContext>
+      , project:&controller::Project
+      , execution_ctx:Rc<ExecutionContext>
     ) -> Self {
         let logger   = Logger::sub(&graph.logger,"Executed");
         let graph    = Rc::new(RefCell::new(graph));
@@ -126,19 +139,6 @@ impl Handle {
         futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
     }
 
-    /// Create a graph controller for the given method.
-    ///
-    /// Fails if the module is inaccessible or if it does not contain given method.
-    pub async fn graph_for_method
-    (&self, method:&MethodPointer) -> FallibleResult<controller::Graph> {
-        let module_path = model::module::Path::from_file_path(method.file.clone())?;
-        let module      = self.project.module_controller(module_path).await?;
-        debug!(self.logger,"Looking up method definition {method:?} in the module.");
-        let module_ast = module.model.model.ast();
-        let definition = double_representation::module::lookup_method(&module_ast,method)?;
-        module.graph_controller(definition)
-    }
-
     /// Enter node by given ID.
     ///
     /// This will cause pushing a new stack frame to the execution context and changing the graph
@@ -152,7 +152,7 @@ impl Handle {
         let registry   = self.execution_ctx.computed_value_info_registry();
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
         let method_ptr = node_info.method_call.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
-        let graph      = self.graph_for_method(method_ptr).await?;
+        let graph      = graph_for_method(&self.project,&method_ptr).await?;
 
         let call = model::execution_context::LocalCall {
             call : node,
@@ -175,7 +175,7 @@ impl Handle {
     pub async fn exit_node(&self) -> FallibleResult<()> {
         let frame  = self.execution_ctx.pop().await?;
         let method = self.execution_ctx.current_method();
-        let graph  = self.graph_for_method(&method).await?;
+        let graph  = graph_for_method(&self.project,&method).await?;
         self.graph.replace(graph);
         self.notifier.borrow_mut().publish(Notification::SteppedOutOfNode(frame.call)).await;
         Ok(())
@@ -187,6 +187,20 @@ impl Handle {
     pub fn graph(&self) -> controller::Graph {
         self.graph.borrow().clone_ref()
     }
+}
+
+/// Create a graph controller for the given method.
+///
+/// Fails if the module is inaccessible or if it does not contain given method.
+pub async fn graph_for_method
+(project:&controller::Project, method:&MethodPointer) -> FallibleResult<controller::Graph> {
+    let project = project.clone_ref();
+    let method = method.clone();
+    let module_path = model::module::Path::from_file_path(method.file.clone())?;
+    let module      = project.module_controller(module_path).await?;
+    let module_ast = module.model.model.ast();
+    let definition = double_representation::module::lookup_method(&module_ast,&method)?;
+    module.graph_controller(definition)
 }
 
 
@@ -221,7 +235,7 @@ mod tests {
         let (_,graph)      = graph_data.create_controllers_with_ls(connection.clone_ref());
         let execution      = Rc::new(execution(connection.clone_ref()));
         let project        = controller::project::test::setup_mock_project(|_| {}, |_| {});
-        let executed_graph = Handle::new(graph,&project,execution.clone_ref());
+        let executed_graph = Handle::new_internal(graph,&project,execution.clone_ref());
 
         // Generate notification.
         let notification = execution_data.mock_values_computed_update();
