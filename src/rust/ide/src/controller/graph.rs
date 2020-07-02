@@ -24,6 +24,7 @@ use span_tree::SpanTree;
 use ast::crumbs::InfixCrumb;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -734,7 +735,7 @@ impl Handle {
 
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     use crate::double_representation::definition::DefinitionName;
