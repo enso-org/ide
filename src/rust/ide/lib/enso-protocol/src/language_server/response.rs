@@ -63,8 +63,8 @@ pub struct CreateExecutionContext {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct GetSuggestionDatabase {
-    pub entries : Vec<SuggestionsDatabaseEntry>,
-    pub current_version : usize,
+    pub entries         : Vec<SuggestionsDatabaseEntry>,
+    pub current_version : SuggestionsDatabaseVersion,
 }
 
 /// Response of `get_suggestions_database_version` method.
@@ -72,7 +72,7 @@ pub struct GetSuggestionDatabase {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct GetSuggestionDatabaseVersion {
-    pub current_version : usize,
+    pub current_version : SuggestionsDatabaseVersion,
 }
 
 /// Response of `get_suggestions_database_version` method.
@@ -80,6 +80,6 @@ pub struct GetSuggestionDatabaseVersion {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct Completion {
-    pub results        : Vec<SuggestionEntryId>,
-    pub current_version : usize,
+    pub results         : Vec<SuggestionEntryId>,
+    pub current_version : SuggestionsDatabaseVersion,
 }

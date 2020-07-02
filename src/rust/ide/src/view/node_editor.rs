@@ -134,7 +134,7 @@ struct GraphEditorIntegratedWithControllerModel {
     logger             : Logger,
     editor             : GraphEditor,
     controller         : controller::ExecutedGraph,
-    project_controller : controller::Project,
+    project            : Rc<model::Project>,
     node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
     connection_views   : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
@@ -150,7 +150,7 @@ impl GraphEditorIntegratedWithController {
     ( logger     : Logger
     , app        : &Application
     , controller : controller::ExecutedGraph
-    , project    : controller::Project) -> Self {
+    , project    : Rc<model::Project>) -> Self {
         let model = GraphEditorIntegratedWithControllerModel::new(logger,app,controller,project);
         let model       = Rc::new(model);
         let editor_outs = &model.editor.frp.outputs;
@@ -247,15 +247,14 @@ impl GraphEditorIntegratedWithControllerModel {
     ( logger     : Logger
     , app        : &Application
     , controller : controller::ExecutedGraph
-    , project    : controller::Project) -> Self {
-        let editor           = app.new_view::<GraphEditor>();
+    , project    : Rc<model::Project>) -> Self {
+        let editor           = app.views.new::<GraphEditor>();
         let node_views       = default();
         let connection_views = default();
         let expression_views = default();
         let visualizations   = default();
         let this = GraphEditorIntegratedWithControllerModel {editor,controller,node_views,
-            expression_views,connection_views,logger,visualizations,
-            project_controller: project
+            expression_views,connection_views,logger,visualizations,project
         };
 
         if let Err(err) = this.refresh_graph_view() {
@@ -736,7 +735,7 @@ impl NodeEditor {
     ( logger        : impl AnyLogger
     , app           : &Application
     , controller    : controller::ExecutedGraph
-    , project       : controller::Project
+    , project       : Rc<model::Project>
     , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = Logger::sub(logger,"NodeEditor");
         let display_object = display::object::Instance::new(&logger);

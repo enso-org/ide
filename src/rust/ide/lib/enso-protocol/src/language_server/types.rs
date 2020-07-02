@@ -484,6 +484,9 @@ pub enum RegisterOptions {
 /// The identifier of SuggestionEntry in SuggestionDatabase.
 pub type SuggestionEntryId = usize;
 
+/// The version of Suggestion Database.
+pub type SuggestionsDatabaseVersion = usize;
+
 /// The argument of an atom, method or function suggestion.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -585,5 +588,5 @@ pub struct SuggestionsDatabaseUpdate {
 #[allow(missing_docs)]
 pub struct SuggestionDatabaseUpdateEvent {
     pub updates         : Vec<SuggestionsDatabaseUpdate>,
-    pub current_version : usize,
+    pub current_version : SuggestionsDatabaseVersion,
 }

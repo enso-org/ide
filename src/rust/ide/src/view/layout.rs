@@ -100,15 +100,15 @@ impl ViewLayout {
     , text_controller          : controller::Text
     , graph_controller         : controller::ExecutedGraph
     , visualization_controller : controller::Visualization
-    , project_controller       : controller::Project
+    , project                  : Rc<model::Project>
     , fonts                    : &mut font::Registry
     ) -> FallibleResult<Self> {
         let logger        = Logger::sub(logger,"ViewLayout");
         let world         = &application.display;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
         let graph         = graph_controller.graph().clone_ref();
-        let node_editor   = NodeEditor::new
-            (&logger,application,graph_controller,project_controller,visualization_controller);
+        let node_editor   = NodeEditor::new(&logger,application,graph_controller,project,
+            visualization_controller);
         let node_editor   = node_editor.await?;
         let node_searcher = NodeSearcher::new(world,&logger,node_editor.clone_ref(),graph,fonts);
         world.add_child(&text_editor.display_object());
