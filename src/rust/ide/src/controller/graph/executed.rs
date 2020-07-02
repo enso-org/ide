@@ -13,7 +13,11 @@ use crate::model::synchronized::ExecutionContext;
 use flo_stream::MessagePublisher;
 use enso_protocol::language_server::MethodPointer;
 
-/////////////////////
+
+
+// ==============
+// === Errors ===
+// ==============
 
 #[allow(missing_docs)]
 #[fail(display = "The node {} has not been evaluated yet.", _0)]
