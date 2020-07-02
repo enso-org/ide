@@ -397,7 +397,7 @@ impl Commands {
             set_test_visualization_data_for_selected_node <- source();
             cycle_visualization_for_selected_node         <- source();
             enter_selected_node                           <- source();
-            exit_node                              <- source();
+            exit_node                                     <- source();
 
             toggle_fullscreen_for_selected_visualization <- source();
 
@@ -585,7 +585,7 @@ generate_frp_outputs! {
     node_position_set_batched : (NodeId,Vector2),
     node_expression_set       : (NodeId,node::Expression),
     node_entered              : NodeId,
-    node_exited          : (),
+    node_exited               : (),
 
     edge_added        : EdgeId,
     edge_removed      : EdgeId,
