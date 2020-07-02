@@ -72,8 +72,6 @@ impl Pen {
         self.current_char = None;
         self.offset
     }
-
-
 }
 
 
