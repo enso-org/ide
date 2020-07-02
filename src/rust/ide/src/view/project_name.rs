@@ -66,7 +66,7 @@ impl ProjectName {
         let mut offset = Vector3::new(0.0,0.0,0.0);
         self.text_field.with_mut_content(|content| {
             let mut line = content.line(0);
-            if line.len() {
+            if line.len() > 0 {
                 offset.x = -line.get_char_x_position(line.len() - 1) / 2.0;
             }
         });
