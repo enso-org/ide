@@ -2107,7 +2107,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     }));
 
 
-    // === Stepping Into and Out of Nodes ===
+    // === Entering and Exiting Nodes ===
 
     node_to_enter        <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     outputs.node_entered <+ node_to_enter;
