@@ -53,12 +53,12 @@ pub enum Notification {
 // === Handle ===
 // ==============
 /// Handle providing executed graph controller interface.
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     #[allow(missing_docs)]
     pub logger:Logger,
     /// A handle to basic graph operations.
-    graph:RefCell<controller::Graph>,
+    graph:Rc<RefCell<controller::Graph>>,
     /// Execution Context handle, its call stack top contains `graph`'s definition.
     execution_ctx:Rc<ExecutionContext>,
     /// The handle to project controller is necessary, as entering nodes might need to switch
@@ -66,7 +66,7 @@ pub struct Handle {
     project:controller::Project,
     /// The publisher allowing sending notification to subscribed entities. Note that its outputs is
     /// merged with publishers from the stored graph and execution controllers.
-    notifier:RefCell<crate::notification::Publisher<Notification>>,
+    notifier:Rc<RefCell<crate::notification::Publisher<Notification>>>,
 }
 
 impl Handle {
@@ -87,7 +87,7 @@ impl Handle {
     , execution_ctx:Rc<ExecutionContext>
     ) -> Self {
         let logger   = Logger::sub(&graph.logger,"Executed");
-        let graph    = RefCell::new(graph);
+        let graph    = Rc::new(RefCell::new(graph));
         let project  = project.clone_ref();
         let notifier = default();
         Handle {logger,graph,execution_ctx,project,notifier}

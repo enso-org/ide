@@ -132,7 +132,7 @@ impl GraphEditorIntegratedWithController {
 struct GraphEditorIntegratedWithControllerModel {
     logger             : Logger,
     editor             : GraphEditor,
-    controller         : Rc<controller::ExecutedGraph>,
+    controller         : controller::ExecutedGraph,
     project_controller : controller::Project,
     node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
@@ -248,7 +248,6 @@ impl GraphEditorIntegratedWithControllerModel {
     , controller : controller::ExecutedGraph
     , project    : controller::Project) -> Self {
         let editor           = app.views.new::<GraphEditor>();
-        let controller       = Rc::new(controller);
         let node_views       = default();
         let connection_views = default();
         let expression_views = default();
