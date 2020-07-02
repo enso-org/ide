@@ -100,8 +100,8 @@ impl Handle {
     /// Then the context when being dropped shall remove itself from the Language Server.
     pub fn new_internal
     ( graph:controller::Graph
-      , project:&controller::Project
-      , execution_ctx:Rc<ExecutionContext>
+    , project:&controller::Project
+    , execution_ctx:Rc<ExecutionContext>
     ) -> Self {
         let logger   = Logger::sub(&graph.logger,"Executed");
         let graph    = Rc::new(RefCell::new(graph));
