@@ -113,23 +113,15 @@ impl ExecutionContext {
     /// Detach visualization from current execution context.
     pub async fn detach_visualization
     (&self, vis_id:VisualizationId) -> FallibleResult<Visualization> {
-
         let vis    = self.model.visualization_info(vis_id)?; //.detach_visualization(vis_id)?;
-        let exe_id = self.id;
-        let ast_id = vis.ast_id;
-        let ls     = self.language_server.clone_ref();
-        let logger = self.logger.clone_ref();
-        info!(logger,"About to detach visualization by id: {vis_id}.");
-
-        ls.detach_visualisation(&exe_id,&vis_id,&ast_id).await?;
-        if let Err(err) = self.model.detach_visualization(vis_id) {
-            warning!(logger,"Failed to update model after detaching visualization: {err:?}.")
-        }
-        Ok(vis)
+        self.detach_visualization_inner(vis).await
     }
 
 
     /// Detach visualization from current execution context.
+    ///
+    /// Necessary because the Language Server requires passing both visualization ID and expression
+    /// ID for the visualization attach point, and `Visualization` structure contains both.
     pub async fn detach_visualization_inner
     (&self, vis:Visualization) -> FallibleResult<Visualization> {
         let vis_id = vis.id;
@@ -151,7 +143,9 @@ impl ExecutionContext {
     /// Results for each visualization that was attempted to be removed are returned.
     pub async fn detach_all_visualizations(&self) -> Vec<FallibleResult<Visualization>> {
         let visualizations = self.model.all_visualizations_info();
-        let detach_actions = visualizations.into_iter().map(|v| self.detach_visualization_inner(v));
+        let detach_actions = visualizations.into_iter().map(|v| {
+            self.detach_visualization_inner(v)
+        });
         futures::future::join_all(detach_actions).await
     }
 
