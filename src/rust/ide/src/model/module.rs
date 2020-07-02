@@ -10,7 +10,6 @@ use crate::notification;
 use data::text::TextChange;
 use data::text::TextLocation;
 use enso_protocol::language_server::MethodPointer;
-use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use parser::api::SourceFile;
 use parser::api::ParsedSourceFile;
@@ -335,7 +334,7 @@ pub type Content = ParsedSourceFile<Metadata>;
 #[derive(Debug)]
 pub struct Module {
     content       : RefCell<Content>,
-    notifications : RefCell<notification::Publisher<Notification>>,
+    notifications : notification::Publisher<Notification>,
 }
 
 impl Default for Module {
@@ -356,7 +355,7 @@ impl Module {
 
     /// Subscribe for notifications about text representation changes.
     pub fn subscribe(&self) -> Subscriber<Notification> {
-        self.notifications.borrow_mut().subscribe()
+        self.notifications.subscribe()
     }
 
     /// Create module state from given code, id_map and metadata.
@@ -457,7 +456,7 @@ impl Module {
     }
 
     fn notify(&self, notification:Notification) {
-        let notify  = self.notifications.borrow_mut().publish(notification);
+        let notify  = self.notifications.publish(notification);
         executor::global::spawn(notify);
     }
 }

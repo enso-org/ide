@@ -11,7 +11,6 @@ use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::synchronized::ExecutionContext;
 
-use flo_stream::MessagePublisher;
 use enso_protocol::language_server::MethodPointer;
 
 
@@ -71,7 +70,7 @@ pub struct Handle {
     project:controller::Project,
     /// The publisher allowing sending notification to subscribed entities. Note that its outputs is
     /// merged with publishers from the stored graph and execution controllers.
-    notifier:Rc<RefCell<crate::notification::Publisher<Notification>>>,
+    notifier:crate::notification::Publisher<Notification>,
 }
 
 impl Handle {
@@ -136,7 +135,7 @@ impl Handle {
         let registry     = self.execution_ctx.computed_value_info_registry();
         let value_stream = registry.subscribe().map(Notification::ComputedValueInfo).boxed_local();
         let graph_stream = self.graph().subscribe().map(Notification::Graph).boxed_local();
-        let self_stream  = self.notifier.borrow_mut().subscribe().boxed_local();
+        let self_stream  = self.notifier.subscribe().boxed_local();
         futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
     }
 
@@ -163,7 +162,7 @@ impl Handle {
         debug!(self.logger,"Replacing graph with {graph:?}.");
         self.graph.replace(graph);
         debug!(self.logger,"Sending graph invalidation signal.");
-        self.notifier.borrow_mut().publish(Notification::EnteredNode(node)).await;
+        self.notifier.publish(Notification::EnteredNode(node)).await;
 
         Ok(())
     }
@@ -177,7 +176,7 @@ impl Handle {
         let method = self.execution_ctx.current_method();
         let graph  = controller::Graph::new_method(&self.project,&method).await?;
         self.graph.replace(graph);
-        self.notifier.borrow_mut().publish(Notification::SteppedOutOfNode(frame.call)).await;
+        self.notifier.publish(Notification::SteppedOutOfNode(frame.call)).await;
         Ok(())
     }
 

@@ -10,7 +10,6 @@ use enso_protocol::language_server::ExpressionValueUpdate;
 use enso_protocol::language_server::ExpressionValuesComputed;
 use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::VisualisationConfiguration;
-use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -71,12 +70,12 @@ pub struct ComputedValueInfoRegistry {
     /// A publisher that emits an update every time a new batch of updates is received from language
     /// server.
     #[derivative(Debug="ignore")]
-    updates : RefCell<Publisher<ComputedValueExpressions>>,
+    updates : Publisher<ComputedValueExpressions>,
 }
 
 impl ComputedValueInfoRegistry {
     fn emit(&self, update: ComputedValueExpressions) {
-        let future = self.updates.borrow_mut().0.publish(update);
+        let future = self.updates.publish(update);
         executor::global::spawn(future);
     }
 
@@ -107,7 +106,7 @@ impl ComputedValueInfoRegistry {
 
     /// Subscribe to notifications about changes in the registry.
     pub fn subscribe(&self) -> Subscriber<ComputedValueExpressions> {
-        self.updates.borrow_mut().subscribe()
+        self.updates.subscribe()
     }
 
     /// Look up the registry for information about given expression.
