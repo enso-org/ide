@@ -77,7 +77,7 @@ struct MissingLineWithAst;
 
 #[allow(missing_docs)]
 #[derive(Fail,Clone,Debug)]
-#[fail(display="Cannot find definition child by id {:?}.",_0)]
+#[fail(display="Cannot find definition child with id {:?}.",_0)]
 pub struct CannotFindChild(Crumb);
 
 

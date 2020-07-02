@@ -17,7 +17,7 @@ use enso_protocol::language_server;
 
 #[allow(missing_docs)]
 #[derive(Fail,Clone,Debug)]
-#[fail(display="Cannot find method by pointer {:?}.",_0)]
+#[fail(display="Cannot find method with pointer {:?}.",_0)]
 pub struct CannotFindMethod(language_server::MethodPointer);
 
 #[allow(missing_docs)]
