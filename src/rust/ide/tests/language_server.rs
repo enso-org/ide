@@ -293,7 +293,6 @@ async fn binary_visualization_updates_test_hlp() {
 
     use ensogl::system::web::sleep;
     use ide::view::project::MAIN_DEFINITION_NAME;
-    use double_representation::definition::Id as DefinitionId;
 
     let module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
     let method                = module_path.method_pointer(MAIN_DEFINITION_NAME);
