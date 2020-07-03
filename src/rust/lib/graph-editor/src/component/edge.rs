@@ -95,9 +95,9 @@ trait EdgeShape: ensogl::display::Object {
         // Compute rotation in shape local coordinate system.
         let base_rotation        = self.display_object().rotation().z;
         let hover_split_rotation = split.cut_angle + base_rotation;
-        match split.area {
-            Area::Above => self.set_hover_split_rotation(hover_split_rotation),
-            Area::Below => {
+        match split.plane_direction {
+            HalfPlaneDirection::PrimaryAbove => self.set_hover_split_rotation(hover_split_rotation),
+            HalfPlaneDirection::PrimaryBelow => {
                 self.set_hover_split_rotation(hover_split_rotation + 2.0 * RIGHT_ANGLE)
             },
         }
@@ -147,11 +147,12 @@ trait EdgeShape: ensogl::display::Object {
 // === Split Shape ===
 // ===================
 
-/// Indicates which area should be recolored.
+/// Indicates which area of the split should be the primary and which should be the secondary half
+/// plane.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
-enum Area {
-    Above,
-    Below,
+enum HalfPlaneDirection {
+    PrimaryAbove,
+    PrimaryBelow,
 }
 
 /// Holds the data required to split a shape into two parts.
@@ -159,14 +160,14 @@ enum Area {
 /// The `area` indicates which side of the split will receive special coloring.
 #[derive(Clone,Copy,Debug)]
 struct Split {
-    position   : Vector2<f32>,
-    area       : Area,
-    cut_angle  : f32
+    position         : Vector2<f32>,
+    plane_direction  : HalfPlaneDirection,
+    cut_angle        : f32
 }
 
 impl Split {
-    fn new(split_position:Vector2<f32>, area:Area, cut_angle:f32) -> Self {
-        Split { position: split_position,area,cut_angle}
+    fn new(position:Vector2<f32>, plane_direction:HalfPlaneDirection, cut_angle:f32) -> Self {
+        Split {position,plane_direction,cut_angle}
     }
 }
 
@@ -294,13 +295,14 @@ trait AnyEdgeShape {
     /// Try to snap the given position to the shape and compute the perpendicular cut angle. If we
     /// can find valid values, we return a `SplitData` struct. This can fail, if the hover is too
     /// far from any of our sub-shapes.
-    fn get_split_data_for_hover(&self,position:Vector2<f32>, area:Area) -> Option<Split> {
+    fn get_split_data_for_hover(&self, position:Vector2<f32>, plane_direction:HalfPlaneDirection)
+    -> Option<Split> {
         let maybe_snap_data = self.snap_position_to_shape(position);
         if let Some(snap_data) = maybe_snap_data {
             // TODO refactor into shape
             let base_rotation = snap_data.target_shape.display_object().rotation().z;
             let cut_angle = snap_data.target_shape.normal_vector_for_point_local(snap_data.position).angle() - base_rotation;
-            Some(Split::new(snap_data.position,area,cut_angle))
+            Some(Split::new(snap_data.position,plane_direction,cut_angle))
         } else {
             None
         }
@@ -318,10 +320,11 @@ trait AnyEdgeShape {
         }
     }
 
-    /// Split the shape at the given `position` and highlight the given `area`. This might fail if
-    /// the given position is too far from the shape. In that case, splitting is disabled.
-    fn try_enable_hover_split(&self, position:Vector2<f32>, area:Area) {
-        if let Some(split) = self.get_split_data_for_hover(position, area) {
+    /// Split the shape at the given `position` and highlight the given `plane_direction`. This
+    /// might fail if the given position is too far from the shape. In that case, splitting is
+    /// disabled.
+    fn try_enable_hover_split(&self, position:Vector2<f32>, plane_direction:HalfPlaneDirection) {
+        if let Some(split) = self.get_split_data_for_hover(position,plane_direction) {
             self.enable_hover_split(split)
         } else {
             self.disable_hover_split()
@@ -996,22 +999,22 @@ impl EdgeModelData {
         let source_y        = self.target_position.get().y;
         let delta_y         = target_y - source_y;
         let input_above_mid = delta_y > 0.0;
-        let point_area      = self.hover_split_area_for_position(point);
+        let direction       = self.hover_split_direction_for_position(point);
 
-        match (point_area, input_above_mid) {
-            (Area::Above, true)  => EndDesignation::Input,
-            (Area::Above, false) => EndDesignation::Output,
-            (Area::Below, true)  => EndDesignation::Output,
-            (Area::Below, false) => EndDesignation::Input,
+        match (direction, input_above_mid) {
+            (HalfPlaneDirection::PrimaryAbove, true)  => EndDesignation::Input,
+            (HalfPlaneDirection::PrimaryAbove, false) => EndDesignation::Output,
+            (HalfPlaneDirection::PrimaryBelow, true)  => EndDesignation::Output,
+            (HalfPlaneDirection::PrimaryBelow, false) => EndDesignation::Input,
         }
     }
 
     /// Returns whether the given positions should change the color of the area above or below.
-    fn hover_split_area_for_position(&self, point:Vector2<f32>) -> Area {
+    fn hover_split_direction_for_position(&self, point:Vector2<f32>) -> HalfPlaneDirection {
         if self.is_in_upper_half(point) {
-            Area::Above
+            HalfPlaneDirection::PrimaryAbove
         } else {
-            Area::Below
+            HalfPlaneDirection::PrimaryBelow
         }
     }
 
@@ -1050,9 +1053,9 @@ impl EdgeModelData {
         if self.can_show_hover_split() {
             let hover_position  = self.hover_position.get();
             if let Some(hover_position) = hover_position {
-                let highlight_area = self.hover_split_area_for_position(hover_position);
+                let highlight_direction = self.hover_split_direction_for_position(hover_position);
                 // This call treats both `Back` and `Front` as a combined `AnyEdgeShape`.
-                (fg,bg).try_enable_hover_split(hover_position, highlight_area);
+                (fg,bg).try_enable_hover_split(hover_position,highlight_direction);
             } else {
                 (fg,bg).disable_hover_split();
             }
