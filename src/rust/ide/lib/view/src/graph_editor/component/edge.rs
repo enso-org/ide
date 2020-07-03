@@ -71,6 +71,8 @@ trait EdgeShape: ensogl::display::Object {
         self.sprite().id()
     }
 
+    fn events(&self) -> &ShapeViewEvents;
+
     /// Return the angle perpendicular to the shape at the given point. Defaults to zero, if not
     /// implemented.
     fn normal_vector_for_point(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32>  {
@@ -243,14 +245,14 @@ impl SplitShape {
 /// shape that a hover position was snapped to and the snapped position on the shape. The snapped
 /// position lies (a) on the visible part of the shape and (b) is the closes position on the shape
 /// to the source position that was used to compute the snapped position.
-struct SnapTarget<'a> {
+struct SnapTarget {
     position     : Vector2<f32>,
-    target_shape : &'a dyn EdgeShape,
+    target_shape_id: Id,
 }
 
-impl<'a> SnapTarget<'a> {
-    fn new(position:Vector2<f32>, target_shape:&'a dyn EdgeShape) -> Self {
-        SnapTarget {position,target_shape}
+impl SnapTarget {
+    fn new(position:Vector2<f32>, target_shape:Id) -> Self {
+        SnapTarget {position, target_shape_id: target_shape }
     }
 }
 
@@ -269,12 +271,13 @@ trait AnyEdgeShape {
 
     /// Connect the given `ShapeViewEventsProxy` to the mouse events of all sub-shapes.
     fn register_proxy_frp(&self, network:&frp::Network, frp:&ShapeViewEventsProxy) {
-        let events = self.events();
-        for event in &events {
+        for shape in &self.edge_shape_views() {
+            let event = shape.events();
+            let id    = shape.id();
             frp::extend! { network
-                eval_ event.mouse_down (frp.on_mouse_down.emit(()));
-                eval_ event.mouse_over (frp.on_mouse_over.emit(()));
-                eval_ event.mouse_out (frp.on_mouse_out.emit(()));
+                eval_ event.mouse_down (frp.on_mouse_down.emit(id));
+                eval_ event.mouse_over (frp.on_mouse_over.emit(id));
+                eval_ event.mouse_out  (frp.on_mouse_out.emit(id));
             }
         }
     }
@@ -331,6 +334,10 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
             fn sprite(&self) -> &Sprite{
                 &self.shape.sprite
+            }
+
+            fn events(&self) -> &ShapeViewEvents{
+                &self.events
             }
 
             fn normal_vector_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
@@ -401,6 +408,10 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 &self.shape.sprite
             }
 
+            fn events(&self) -> &ShapeViewEvents{
+                &self.events
+            }
+
             fn normal_vector_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
                 nalgebra::Rotation2::rotation_between(&point,&Vector2::new(1.0,0.0))
             }
@@ -452,6 +463,10 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 &self.shape.sprite
             }
 
+            fn events(&self) -> &ShapeViewEvents{
+                &self.events
+            }
+
             fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                Some(Vector2::new(0.0, point.y))
             }
@@ -494,6 +509,10 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
 
             fn sprite(&self) -> &Sprite{
                 &self.shape.sprite
+            }
+
+            fn events(&self) -> &ShapeViewEvents {
+                &self.events
             }
 
             fn snap_to_self_local(&self, _point:Vector2<f32>) -> Option<Vector2<f32>> {
@@ -678,13 +697,8 @@ define_components!{
     }
 }
 
-
-struct CombinedEdgeShapeView<'a> {
-    back  : &'a Back,
-    front : &'a Front,
-}
-
-impl<'a> AnyEdgeShape for CombinedEdgeShapeView<'a> {    fn events(&self) -> Vec<ShapeViewEvents> {
+impl AnyEdgeShape for EdgeModelData {
+    fn events(&self) -> Vec<ShapeViewEvents> {
         let mut events_back:Vec<ShapeViewEvents>  = self.back.events();
         let mut events_front:Vec<ShapeViewEvents> = self.front.events();
         events_front.append(&mut events_back);
@@ -722,7 +736,314 @@ enum LayoutState {
     DownCenter,
 }
 
-impl<'a> CombinedEdgeShapeView<'a> {
+
+
+// TODO: Implement proper sorting and remove.
+/// Hack function used to register the elements for the sorting purposes. To be removed.
+pub fn sort_hack_1(scene:&Scene) {
+    let logger = Logger::new("hack_sort");
+    component::ShapeView::<back::corner::Shape>::new(&logger,scene);
+    component::ShapeView::<back::line::Shape>::new(&logger,scene);
+    component::ShapeView::<back::arrow::Shape>::new(&logger,scene);
+}
+
+// TODO: Implement proper sorting and remove.
+/// Hack function used to register the elements for the sorting purposes. To be removed.
+pub fn sort_hack_2(scene:&Scene) {
+    let logger = Logger::new("hack_sort");
+    component::ShapeView::<front::corner::Shape>::new(&logger,scene);
+    component::ShapeView::<front::line::Shape>::new(&logger,scene);
+    component::ShapeView::<front::arrow::Shape>::new(&logger,scene);
+}
+
+
+
+// ===========
+// === FRP ===
+// ===========
+
+/// FRP system that is used to collect and aggregate shape view events from the sub-shapes of an
+/// `Edge`. The Edge exposes the `mouse_down`/`mouse_over`/`mouse_out` streams, while the sub-shapes
+/// emit events via th internal `on_mouse_down`/`on_mouse_over`/`on_mouse_out` sources.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct ShapeViewEventsProxy {
+    pub mouse_down : frp::Stream,
+    pub mouse_over : frp::Stream,
+    pub mouse_out  : frp::Stream,
+
+    on_mouse_down : frp::Source<Id>,
+    on_mouse_over : frp::Source<Id>,
+    on_mouse_out  : frp::Source<Id>,
+}
+
+#[allow(missing_docs)]
+impl ShapeViewEventsProxy {
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def on_mouse_over = source();
+            def on_mouse_out  = source();
+            def on_mouse_down = source();
+
+            mouse_down <- on_mouse_down.constant(());
+            mouse_over <- on_mouse_over.constant(());
+            mouse_out  <- on_mouse_out.constant(());
+        }
+
+        Self {on_mouse_down,mouse_down,mouse_over,mouse_out,on_mouse_out,on_mouse_over}
+    }
+}
+
+
+/// FRP endpoints of the edge.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct Frp {
+    pub source_width    : frp::Source<f32>,
+    pub source_height   : frp::Source<f32>,
+    pub target_position : frp::Source<Vector2>,
+    pub target_attached : frp::Source<bool>,
+    pub redraw          : frp::Source,
+
+    pub hover_position  : frp::Source<Option<Vector2<f32>>>,
+    pub shape_events    : ShapeViewEventsProxy
+}
+
+impl Frp {
+    /// Constructor.
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def source_width    = source();
+            def source_height   = source();
+            def target_position = source();
+            def target_attached = source();
+            def redraw          = source();
+            def hover_position  = source();
+        }
+        let shape_events = ShapeViewEventsProxy::new(&network);
+        Self {source_width,source_height,target_position,target_attached,redraw,
+              hover_position,shape_events}
+    }
+}
+
+
+
+// ==================
+// === Math Utils ===
+// ==================
+
+/// For the given radius of the first circle (`r1`), radius of the second circle (`r2`), and the
+/// x-axis position of the second circle (`x`), computes the y-axis position of the second circle in
+/// such a way, that the borders of the circle cross at the right angle. It also computes the angle
+/// of the intersection. Please note, that the center of the first circle is in the origin.
+///
+/// ```compile_fail
+///       r1
+///      ◄───►                (1) x^2 + y^2 = r1^2 + r2^2
+///    _____                  (1) => y = sqrt((r1^2 + r2^2)/x^2)
+///  .'     `.
+/// /   _.-"""B-._     ▲
+/// | .'0┼    |   `.   │      angle1 = A-XY-0
+/// \/   │    /     \  │ r2   angle2 = 0-XY-B
+/// |`._ │__.'       | │      alpha  = B-XY-X_AXIS
+/// |   A└───┼─      | ▼
+/// |      (x,y)     |        tg(angle1) = y  / x
+///  \              /         tg(angle2) = r1 / r2
+///   `._        _.'          alpha      = PI - angle1 - angle2
+///      `-....-'
+///```
+fn circle_intersection(x:f32, r1:f32, r2:f32) -> (f32,f32) {
+    let x_norm = x.clamp(-r2,r1);
+    let y      = (r1*r1 + r2*r2 - x_norm*x_norm).sqrt();
+    let angle1 = f32::atan2(y,x_norm);
+    let angle2 = f32::atan2(r1,r2);
+    let angle  = std::f32::consts::PI - angle1 - angle2;
+    (y,angle)
+}
+
+
+
+// ============
+// === Edge ===
+// ============
+
+/// Edge definition.
+#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
+pub struct Edge {
+    #[deref]
+    model   : Rc<EdgeModel>,
+    network : frp::Network,
+}
+
+impl AsRef<Edge> for Edge {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
+impl display::Object for EdgeModelData {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
+impl Edge {
+    /// Constructor.
+    pub fn new(scene:&Scene) -> Self {
+        let network = frp::Network::new();
+        let data    = Rc::new(EdgeModelData::new(scene,&network));
+        let model   = Rc::new(EdgeModel {data});
+        Self {model,network} . init()
+    }
+
+    fn init(self) -> Self {
+        let network         = &self.network;
+        let input           = &self.frp;
+        let target_position = &self.target_position;
+        let target_attached = &self.target_attached;
+        let source_width    = &self.source_width;
+        let source_height   = &self.source_height;
+        let hover_position  = &self.hover_position;
+        let hover_target    = &self.hover_target;
+
+        let model           = &self.model;
+        let shape_events    = &self.frp.shape_events;
+
+
+        model.data.front.register_proxy_frp(network, &input.shape_events);
+        model.data.back.register_proxy_frp(network, &input.shape_events);
+
+        frp::extend! { network
+            eval input.target_position ((t) target_position.set(*t));
+            eval input.target_attached ((t) target_attached.set(*t));
+            eval input.source_width    ((t) source_width.set(*t));
+            eval input.source_height   ((t) source_height.set(*t));
+            eval input.hover_position  ((t) hover_position.set(*t));
+
+            eval shape_events.on_mouse_over ((id) hover_target.set(Some(*id)));
+            eval shape_events.on_mouse_out  ((_)  hover_target.set(None));
+
+            eval_ input.redraw (model.redraw());
+        }
+
+        self
+    }
+}
+
+impl display::Object for Edge {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
+
+
+// =================
+// === EdgeModel ===
+// =================
+
+/// Indicates the type of end connection of the Edge.
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+#[allow(missing_docs)]
+pub enum EndDesignation {
+    Input,
+    Output
+}
+
+/// Edge definition.
+#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
+pub struct EdgeModel {
+    data : Rc<EdgeModelData>,
+}
+
+/// Internal data of `Edge`
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct EdgeModelData {
+    pub display_object  : display::object::Instance,
+    pub logger          : Logger,
+    pub frp             : Frp,
+    pub front           : Front,
+    pub back            : Back,
+    pub source_width    : Rc<Cell<f32>>,
+    pub source_height   : Rc<Cell<f32>>,
+    pub target_position : Rc<Cell<Vector2>>,
+    pub target_attached : Rc<Cell<bool>>,
+
+    state               : Rc<Cell<LayoutState>>,
+
+    hover_position      : Rc<Cell<Option<Vector2<f32>>>>,
+    hover_target        : Rc<Cell<Option<Id>>>,
+}
+
+impl EdgeModelData {
+    /// Constructor.
+    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
+        let logger         = Logger::new("edge");
+        let display_object = display::object::Instance::new(&logger);
+        let front          = Front::new(Logger::sub(&logger,"front"),scene);
+        let back           = Back::new (Logger::sub(&logger,"back"),scene);
+
+        display_object.add_child(&front);
+        display_object.add_child(&back);
+
+        front . side_line  . mod_rotation(|r| r.z = RIGHT_ANGLE);
+        back  . side_line  . mod_rotation(|r| r.z = RIGHT_ANGLE);
+        front . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
+        back  . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
+
+        let frp             = Frp::new(&network);
+        let source_height   = default();
+        let source_width    = default();
+        let target_position = default();
+        let target_attached = Rc::new(Cell::new(false));
+        let hover_position  = default();
+        let state           =  Rc::new(Cell::new(LayoutState::UpLeft));
+        let hover_target    = default();
+
+        Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
+              target_attached,hover_position,state,hover_target}
+    }
+
+    fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
+        let start = nalgebra::Point2::from(self.display_object.position().xy());
+        let end   = nalgebra::Point2::from(self.target_position.get());
+        let point = nalgebra::Point2::from(point);
+        let mid_y = (start.y + end.y) / 2.0;
+        point.y > mid_y
+    }
+
+    fn is_right(&self) -> bool {
+        let start = nalgebra::Point2::from(self.display_object.position().xy());
+        let end   = nalgebra::Point2::from(self.target_position.get());
+        start.x > end.y
+    }
+
+    /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
+    /// edge.
+    pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
+        let target_y        = self.display_object.position().y;
+        let source_y        = self.target_position.get().y;
+        let delta_y         = target_y - source_y;
+        let input_above_mid = delta_y > 0.0;
+        let upper_half      = self.is_in_upper_half(point);
+
+        match (upper_half, input_above_mid) {
+            (true, true)  => EndDesignation::Input,
+            (true, false) => EndDesignation::Output,
+            (false, true)  => EndDesignation::Output,
+            (false, false) => EndDesignation::Input,
+        }
+    }
+
+    /// Returns whether the given positions should change the color of the area above or below.
+    fn hover_split_direction_for_position(&self, point:Vector2<f32>) -> HalfPlaneDirection {
+        if self.is_in_upper_half(point) {
+            HalfPlaneDirection::PrimaryAbove
+        } else {
+            HalfPlaneDirection::PrimaryBelow
+        }
+    }
 
     fn semantically_binned_edges(&self) -> Vec<Vec<Id>> {
         let front = &self.front;
@@ -850,83 +1171,59 @@ impl<'a> CombinedEdgeShapeView<'a> {
 
     /// Snap the given position to our sub-shapes. Returns `None` if the given position cannot be
     /// snapped to any sub-shape (e.g., because it is too far away).
-    fn snap_position_to_shape(&'a self, point:Vector2<f32>) -> Option<SnapTarget<'a>> {
-        let shapes    = self.edge_shape_views();
-        let snap_data = shapes.iter().filter_map(|shape|{
-            let maybe_snap_position     = shape.snap_to_self(point);
-            if let Some(snap_position) = maybe_snap_position {
-                // TODO The `SNAP_THRESHOLD` test is needed to avoid visual artifacts for
-                // circles where sometimes we might snap to a part that is invisible instead of
-                // the visible shape next to it. It might be better to find a cheaper way to avoid
-                // these.
-                let snap_distance = (snap_position - point).norm();
-                if snap_distance < SNAP_THRESHOLD && shape.contains(point){
-                    return Some(SnapTarget::new(snap_position,*shape))
-                }
-            }
-            None
-        });
-
-        // TODO instead if recomputing this, get the correct shape from the hover FRP event.
-        // Return the snap that is closest to the hover.
-        snap_data
-            .map(|snap_data| ((snap_data.position - point).norm(), snap_data))
-            .min_by(|(distance_a, _), (distance_b, _)| {
-                distance_a.partial_cmp(&distance_b).unwrap_or(Ordering::Equal)
-            })
-            .map(|(_, snap_data)| snap_data)
+    fn snap_position_to_shape(&self, point:Vector2<f32>) -> Option<SnapTarget> {
+        // let shapes         = self.edge_shape_views();
+        let hover_shape_id = self.hover_target  .get()?;
+        let shape          = self.get_shape(hover_shape_id)?;
+        let snap_position = shape.snap_to_self(point);
+        snap_position.map(|snap_position|{
+            SnapTarget::new(snap_position,hover_shape_id)
+        })
     }
 
     /// Try to snap the given position to the shape and compute the perpendicular cut angle. If we
     /// can find valid values, we return a `SplitData` struct. This can fail, if the hover is too
     /// far from any of our sub-shapes.
     fn get_split_data_for_hover(&self, position:Vector2<f32>, direction:HalfPlaneDirection, part:EndDesignation, quadrant:LayoutState) -> Option<Split> {
-        let maybe_snap_data = self.snap_position_to_shape(position);
-        // println!("{:?}", maybe_snap_data.is_some());
-        if let Some(snap_data) = maybe_snap_data {
-            // println!("{:?}", snap_data.position);
-            let binned_shape_ids = self.semantically_binned_edges();
-            let mut split_index = None;
-            for (index, shape_ids) in binned_shape_ids.iter().enumerate() {
-                if shape_ids.contains(&snap_data.target_shape.id()) {
-                    split_index = Some(index);
-                    break
-                }
+        let snap_data        = self.snap_position_to_shape(position)?;
+        let binned_shape_ids = self.semantically_binned_edges();
+        let mut split_index  = None;
+        for (index, shape_ids) in binned_shape_ids.iter().enumerate() {
+            if shape_ids.contains(&snap_data.target_shape_id) {
+                split_index = Some(index);
+                break
             }
-            if let Some(split_index) = split_index {
-                for  (index, shape_ids) in binned_shape_ids.iter().enumerate() {
-                    for shape_id in shape_ids.iter() {
-                        if let Some(shape) = self.get_shape(*shape_id) {
-                            if index < split_index {
-                                match part{
-                                    EndDesignation::Output => shape.disable_hover(),
-                                    EndDesignation::Input  => shape.enable_hover(),
-                                }
-                            }
-                            if index == split_index {
-                                if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,quadrant,position) {
-                                    let split_data = Split::new(snap_data.position,direction,cut_angle);
-                                    shape.enable_hover_split(split_data)
-                                }
-                            }
-                            if index > split_index {
-                                match part{
-                                    EndDesignation::Output => shape.enable_hover(),
-                                    EndDesignation::Input  => shape.disable_hover(),
-                                }
-                            }
+        }
+        let split_index = split_index?;
+        for  (index, shape_ids) in binned_shape_ids.iter().enumerate() {
+            for shape_id in shape_ids.iter() {
+                if let Some(shape) = self.get_shape(*shape_id) {
+                    if index < split_index {
+                        match part{
+                            EndDesignation::Output => shape.disable_hover(),
+                            EndDesignation::Input  => shape.enable_hover(),
+                        }
+                    }
+                    if index == split_index {
+                        if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,quadrant,position) {
+                            let split_data = Split::new(snap_data.position,direction,cut_angle);
+                            shape.enable_hover_split(split_data)
+                        }
+                    }
+                    if index > split_index {
+                        match part{
+                            EndDesignation::Output => shape.enable_hover(),
+                            EndDesignation::Input  => shape.disable_hover(),
                         }
                     }
                 }
             }
-
-            // TODO refactor into shape
-            let base_rotation = snap_data.target_shape.display_object().rotation().z;
-            let cut_angle = snap_data.target_shape.normal_vector_for_point(snap_data.position).angle() - base_rotation;
-            Some(Split::new(snap_data.position,direction,cut_angle))
-        } else {
-            None
         }
+
+        let shape         = self.get_shape(snap_data.target_shape_id)?;
+        let base_rotation = shape.display_object().rotation().z;
+        let cut_angle     = shape.normal_vector_for_point(snap_data.position).angle() - base_rotation;
+        Some(Split::new(snap_data.position,direction,cut_angle))
     }
 
     // /// Split the shape with the given `split`.
@@ -952,316 +1249,6 @@ impl<'a> CombinedEdgeShapeView<'a> {
         }
     }
 
-}
-
-
-// TODO: Implement proper sorting and remove.
-/// Hack function used to register the elements for the sorting purposes. To be removed.
-pub fn sort_hack_1(scene:&Scene) {
-    let logger = Logger::new("hack_sort");
-    component::ShapeView::<back::corner::Shape>::new(&logger,scene);
-    component::ShapeView::<back::line::Shape>::new(&logger,scene);
-    component::ShapeView::<back::arrow::Shape>::new(&logger,scene);
-}
-
-// TODO: Implement proper sorting and remove.
-/// Hack function used to register the elements for the sorting purposes. To be removed.
-pub fn sort_hack_2(scene:&Scene) {
-    let logger = Logger::new("hack_sort");
-    component::ShapeView::<front::corner::Shape>::new(&logger,scene);
-    component::ShapeView::<front::line::Shape>::new(&logger,scene);
-    component::ShapeView::<front::arrow::Shape>::new(&logger,scene);
-}
-
-
-
-// ===========
-// === FRP ===
-// ===========
-
-/// FRP system that is used to collect and aggregate shape view events from the sub-shapes of an
-/// `Edge`. The Edge exposes the `mouse_down`/`mouse_over`/`mouse_out` streams, while the sub-shapes
-/// emit events via th internal `on_mouse_down`/`on_mouse_over`/`on_mouse_out` sources.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct ShapeViewEventsProxy {
-    pub mouse_down : frp::Stream,
-    pub mouse_over : frp::Stream,
-    pub mouse_out  : frp::Stream,
-
-    on_mouse_down : frp::Source,
-    on_mouse_over : frp::Source,
-    on_mouse_out  : frp::Source,
-}
-
-#[allow(missing_docs)]
-impl ShapeViewEventsProxy {
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! { network
-            def on_mouse_over = source();
-            def on_mouse_out  = source();
-            def on_mouse_down = source();
-        }
-        let mouse_down = on_mouse_down.clone_ref().into();
-        let mouse_over = on_mouse_over.clone_ref().into();
-        let mouse_out  = on_mouse_out.clone_ref().into();
-        Self {on_mouse_down,mouse_down,mouse_over,mouse_out,on_mouse_out,on_mouse_over}
-    }
-}
-
-
-/// FRP endpoints of the edge.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct Frp {
-    pub source_width    : frp::Source<f32>,
-    pub source_height   : frp::Source<f32>,
-    pub target_position : frp::Source<Vector2>,
-    pub target_attached : frp::Source<bool>,
-    pub redraw          : frp::Source,
-
-    pub hover_position  : frp::Source<Option<Vector2<f32>>>,
-    pub shape_events    : ShapeViewEventsProxy
-}
-
-impl Frp {
-    /// Constructor.
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! { network
-            def source_width    = source();
-            def source_height   = source();
-            def target_position = source();
-            def target_attached = source();
-            def redraw          = source();
-            def hover_position  = source();
-        }
-        let shape_events = ShapeViewEventsProxy::new(&network);
-        Self {source_width,source_height,target_position,target_attached,redraw,
-              hover_position,shape_events}
-    }
-}
-
-
-
-// ==================
-// === Math Utils ===
-// ==================
-
-/// For the given radius of the first circle (`r1`), radius of the second circle (`r2`), and the
-/// x-axis position of the second circle (`x`), computes the y-axis position of the second circle in
-/// such a way, that the borders of the circle cross at the right angle. It also computes the angle
-/// of the intersection. Please note, that the center of the first circle is in the origin.
-///
-/// ```compile_fail
-///       r1
-///      ◄───►                (1) x^2 + y^2 = r1^2 + r2^2
-///    _____                  (1) => y = sqrt((r1^2 + r2^2)/x^2)
-///  .'     `.
-/// /   _.-"""B-._     ▲
-/// | .'0┼    |   `.   │      angle1 = A-XY-0
-/// \/   │    /     \  │ r2   angle2 = 0-XY-B
-/// |`._ │__.'       | │      alpha  = B-XY-X_AXIS
-/// |   A└───┼─      | ▼
-/// |      (x,y)     |        tg(angle1) = y  / x
-///  \              /         tg(angle2) = r1 / r2
-///   `._        _.'          alpha      = PI - angle1 - angle2
-///      `-....-'
-///```
-fn circle_intersection(x:f32, r1:f32, r2:f32) -> (f32,f32) {
-    let x_norm = x.clamp(-r2,r1);
-    let y      = (r1*r1 + r2*r2 - x_norm*x_norm).sqrt();
-    let angle1 = f32::atan2(y,x_norm);
-    let angle2 = f32::atan2(r1,r2);
-    let angle  = std::f32::consts::PI - angle1 - angle2;
-    (y,angle)
-}
-
-
-
-// ============
-// === Edge ===
-// ============
-
-/// Edge definition.
-#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
-pub struct Edge {
-    #[deref]
-    model   : Rc<EdgeModel>,
-    network : frp::Network,
-}
-
-impl AsRef<Edge> for Edge {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
-impl display::Object for EdgeModelData {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
-    }
-}
-
-impl Edge {
-    /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
-        let network = frp::Network::new();
-        let data    = Rc::new(EdgeModelData::new(scene,&network));
-        let model   = Rc::new(EdgeModel {data});
-        Self {model,network} . init()
-    }
-
-    fn init(self) -> Self {
-        let network         = &self.network;
-        let input           = &self.frp;
-        let target_position = &self.target_position;
-        let target_attached = &self.target_attached;
-        let source_width    = &self.source_width;
-        let source_height   = &self.source_height;
-        let hover_position  = &self.hover_position;
-        let model           = &self.model;
-
-        model.data.front.register_proxy_frp(network, &input.shape_events);
-        model.data.back.register_proxy_frp(network, &input.shape_events);
-
-        frp::extend! { network
-            eval input.target_position ((t) target_position.set(*t));
-            eval input.target_attached ((t) target_attached.set(*t));
-            eval input.source_width    ((t) source_width.set(*t));
-            eval input.source_height   ((t) source_height.set(*t));
-            eval input.hover_position  ((t) hover_position.set(*t));
-            eval_ input.redraw (model.redraw());
-        }
-
-        self
-    }
-}
-
-impl display::Object for Edge {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
-    }
-}
-
-
-
-// =================
-// === EdgeModel ===
-// =================
-
-/// Indicates the type of end connection of the Edge.
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-#[allow(missing_docs)]
-pub enum EndDesignation {
-    Input,
-    Output
-}
-
-/// Edge definition.
-#[derive(AsRef,Clone,CloneRef,Debug,Deref)]
-pub struct EdgeModel {
-    data : Rc<EdgeModelData>,
-}
-
-/// Internal data of `Edge`
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct EdgeModelData {
-    pub display_object  : display::object::Instance,
-    pub logger          : Logger,
-    pub frp             : Frp,
-    pub front           : Front,
-    pub back            : Back,
-    pub source_width    : Rc<Cell<f32>>,
-    pub source_height   : Rc<Cell<f32>>,
-    pub target_position : Rc<Cell<Vector2>>,
-    pub target_attached : Rc<Cell<bool>>,
-    state               : Rc<Cell<LayoutState>>,
-    hover_position      : Rc<Cell<Option<Vector2<f32>>>>,
-}
-
-impl EdgeModelData {
-    /// Constructor.
-    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
-        let logger         = Logger::new("edge");
-        let display_object = display::object::Instance::new(&logger);
-        let front          = Front::new(Logger::sub(&logger,"front"),scene);
-        let back           = Back::new (Logger::sub(&logger,"back"),scene);
-
-        display_object.add_child(&front);
-        display_object.add_child(&back);
-
-        front . side_line  . mod_rotation(|r| r.z = RIGHT_ANGLE);
-        back  . side_line  . mod_rotation(|r| r.z = RIGHT_ANGLE);
-        front . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
-        back  . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
-
-        let frp             = Frp::new(&network);
-        let source_height   = default();
-        let source_width    = default();
-        let target_position = default();
-        let target_attached = Rc::new(Cell::new(false));
-        let hover_position  = default();
-        let state           =  Rc::new(Cell::new(LayoutState::UpLeft));
-
-        Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
-              target_attached,hover_position,state}
-    }
-
-    fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
-        let start = nalgebra::Point2::from(self.display_object.position().xy());
-        let end   = nalgebra::Point2::from(self.target_position.get());
-        let point = nalgebra::Point2::from(point);
-        let mid_y = (start.y + end.y) / 2.0;
-        point.y > mid_y
-    }
-
-    fn is_right(&self) -> bool {
-        let start = nalgebra::Point2::from(self.display_object.position().xy());
-        let end   = nalgebra::Point2::from(self.target_position.get());
-        start.x > end.y
-    }
-
-    /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
-    /// edge.
-    pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
-        let target_y        = self.display_object.position().y;
-        let source_y        = self.target_position.get().y;
-        let delta_y         = target_y - source_y;
-        let input_above_mid = delta_y > 0.0;
-        let upper_half      = self.is_in_upper_half(point);
-
-        match (upper_half, input_above_mid) {
-            (true, true)  => EndDesignation::Input,
-            (true, false) => EndDesignation::Output,
-            (false, true)  => EndDesignation::Output,
-            (false, false) => EndDesignation::Input,
-        }
-    }
-
-    // fn edge_quadrant(&self) -> EdgeState {
-    //     let target = self.display_object.position().xy();
-    //     let source = self.target_position.get().xy();
-    //     let delta  = target - source;
-    //     let top    = delta.y > 0.0;
-    //     let right  = delta.x > 0.0;
-    //     match (top, right) {
-    //         (true, true)   => EdgeState::UpLeft,
-    //         (true, false)  => EdgeState::UpRight,
-    //         (false, true)  => EdgeState::DownLeft,
-    //         (false, false) => EdgeState::DownRight,
-    //     }
-    // }
-
-    /// Returns whether the given positions should change the color of the area above or below.
-    fn hover_split_direction_for_position(&self, point:Vector2<f32>) -> HalfPlaneDirection {
-        if self.is_in_upper_half(point) {
-            HalfPlaneDirection::PrimaryAbove
-        } else {
-            HalfPlaneDirection::PrimaryBelow
-        }
-    }
-
     /// Redraws the connection.
     #[allow(clippy::cognitive_complexity)]
     pub fn redraw(&self) {
@@ -1278,15 +1265,14 @@ impl EdgeModelData {
 
         // === Update Highlights ===
 
-        let combined       = CombinedEdgeShapeView{back:bg,front:fg};
         let hover_position = self.hover_position.get();
         if let Some(hover_position) = hover_position {
             let highlight_area = self.hover_split_direction_for_position(hover_position);
             let highlight_part = self.end_designation_for_position(hover_position);
             // This call treats both `Back` and `Front` as a combined `MultiShape`.
-            combined.try_enable_hover_split(hover_position,highlight_area,highlight_part,self.state.get());
+            self.try_enable_hover_split(hover_position,highlight_area,highlight_part,self.state.get());
         } else {
-            combined.disable_hover_split();
+            self.disable_hover_split();
         }
 
 
