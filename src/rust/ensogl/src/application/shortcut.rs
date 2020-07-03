@@ -238,9 +238,9 @@ impl Deref for Registry {
 impl Registry {
     /// Constructor.
     pub fn new(logger:&Logger, mouse:&Mouse, command_registry:&command::Registry) -> Self {
-        let model = RegistryModel::new(logger,mouse,command_registry);
-        let keyboard    = &model.keyboard;
-        let mouse = &model.mouse;
+        let model    = RegistryModel::new(logger,mouse,command_registry);
+        let keyboard = &model.keyboard;
+        let mouse    = &model.mouse;
 
         frp::new_network! { network
             mask <- all_with(&keyboard.key_mask,&mouse.button_mask,|k,m|ActionMask::new(k,m));
