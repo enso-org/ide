@@ -814,12 +814,22 @@ impl<'a> CombinedEdgeShapeView<'a> {
             (LayoutState::DownLeft, Some(EdgePart::Corner)    ) => 2.0 * RIGHT_ANGLE,
 
             (LayoutState::UpLeft, Some(EdgePart::PortLine)  ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::UpLeft, Some(EdgePart::Corner)  ) => 2.0 * RIGHT_ANGLE,
 
             (LayoutState::UpRight, Some(EdgePart::PortLine)  ) => 2.0 * RIGHT_ANGLE,
             (LayoutState::UpRight, Some(EdgePart::Corner3)   ) => 2.0 * RIGHT_ANGLE,
             (LayoutState::UpRight, Some(EdgePart::SideLine2) ) => 2.0 * RIGHT_ANGLE,
             (LayoutState::UpRight, Some(EdgePart::Corner2)   ) => 2.0 * RIGHT_ANGLE,
             (LayoutState::UpRight, Some(EdgePart::SideLine)  ) => 2.0 * RIGHT_ANGLE,
+
+            (LayoutState::TopCenterRightLoop, Some(EdgePart::SideLine )) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterRightLoop, Some(EdgePart::PortLine )) => 2.0 * RIGHT_ANGLE,
+
+            (LayoutState::TopCenterLeftLoop, Some(EdgePart::SideLine2 )) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, Some(EdgePart::Corner2 ))   => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, Some(EdgePart::Corner))     => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, Some(EdgePart::Corner3))    => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, Some(EdgePart::PortLine ))  => 2.0 * RIGHT_ANGLE,
 
             _ => 0.0,
         };
@@ -1334,6 +1344,16 @@ impl EdgeModelData {
         let downward_far   = -target.y > min_len_for_non_curved_line || target_is_below_node;
         let is_down        = if is_flat_side {downward_flat} else {downward_far};
 
+        // === Layout State ===
+        // Initial guess at our layout. Will be refined for some edge cases when we have more
+        // layout informaiton.
+        let state = match (is_down, (side == -1.0)) {
+            (true, true) => LayoutState::DownLeft,
+            (true, false) => LayoutState::DownRight,
+            (false, true) => LayoutState::UpLeft,
+            (false, false) => LayoutState::UpRight,
+        };
+        self.state.set(state);
 
         // === Port Line Length ===
         //
@@ -1515,6 +1535,15 @@ impl EdgeModelData {
             let is_right_side       = (side_combined - 1.0).abs() < std::f32::EPSILON;
 
 
+            // === Layout State Update ===
+            // Corner case: we are above the node and the corners loop back
+            match (side < 0.0, corner_2_3_side < 0.0) {
+                (false, true) => self.state.set(LayoutState::TopCenterRightLoop),
+                (true, true)  => self.state.set(LayoutState::TopCenterLeftLoop),
+                _             => (),
+            };
+
+
             // === Corner2 & Corner3 Placement ===
             //
             // ╭─────╮ 2╭──╮3
@@ -1647,17 +1676,5 @@ impl EdgeModelData {
         // === Port Line ===
 
         fg.port_line.layout_v(port_line_start, port_line_len);
-
-
-        // === Update Layout state ===
-
-        let state = match (is_down, (side == -1.0)) {
-            (true, true) => LayoutState::DownLeft,
-            (true, false) => LayoutState::DownRight,
-            (false, true) => LayoutState::UpLeft,
-            (false, false) => LayoutState::UpRight,
-        };
-        println!("{:?}", state);
-        self.state.set(state)
     }
 }
