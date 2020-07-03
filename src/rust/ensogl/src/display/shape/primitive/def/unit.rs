@@ -2,12 +2,11 @@
 
 use super::var::*;
 
-use crate::math::topology::unit;
+use crate::types::topology::unit;
 
-//pub use crate::math::topology::unit::Unit;
-pub use crate::math::topology::unit::Pixels;
-pub use crate::math::topology::unit::Radians;
-pub use crate::math::topology::unit::Degrees;
+pub use crate::types::topology::unit::Pixels;
+pub use crate::types::topology::unit::Radians;
+pub use crate::types::topology::unit::Degrees;
 
 
 
@@ -46,7 +45,6 @@ impl PixelDistance for f32 {
 pub mod types {
     use super::*;
     pub use super::PixelDistance;
-//    pub use unit::Unit;
     pub use unit::Pixels;
     pub use unit::Radians;
     pub use unit::Degrees;

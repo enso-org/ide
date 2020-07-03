@@ -26,12 +26,12 @@ members = [
     "lib/generics",
     "lib/logger",
     "lib/macro-utils",
-    "lib/math",
     "lib/optics",
     "lib/prelude",
     "lib/shapely/impl",
     "lib/shapely/macros",
     "lib/system/web",
+    "lib/types",
 ]
 
 [profile.dev]
