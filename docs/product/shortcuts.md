@@ -11,7 +11,8 @@ tags: [product,ui]
 
 | Shortcut | Action |
 | -------- | ------ |
-| <kbd>Ctrl+Enter</kbd> | Enter the last selected node.
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Step into the last selected node.
+| <kbd>Ctrl</kbd>+<kbd>Arrow Up</kbd> | Step out of the current node.
 
 
 #### Node Selection
