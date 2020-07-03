@@ -1,3 +1,4 @@
+//! Downloader and patch for msdfgen library.
 
 mod msdfgen_wasm {
     use ensogl_build_utilities::GithubRelease;
@@ -21,8 +22,8 @@ mod msdfgen_wasm {
     ///
     /// If you find and implement a better way to downloading js snippets, please
     /// remember to remove msdfgen_wasm.js entry from the .gitignore file.
-    pub fn download_if_missing() -> bool {
-        PACKAGE.download_if_missing(path::Path::new("."))
+    pub fn download() {
+        PACKAGE.download(path::Path::new("."))
     }
 
     const PATCH_LINE : &str = "; export { ccall, getValue, _msdfgen_getKerning,\
@@ -45,11 +46,7 @@ mod msdfgen_wasm {
 }
 
 fn main() {
-    // FIXME: The following line doesn't work. Instead, we make manual check below.
-    //        If you want to check it, just remove the manual check and observe debug cargo info
-    //        about downloading files after change to just any file in the project.
     println!("cargo:rerun-if-changed=build.rs");
-    if msdfgen_wasm::download_if_missing() {
-        msdfgen_wasm::patch_for_wasm_bindgen_test();
-    }
+    msdfgen_wasm::download();
+    msdfgen_wasm::patch_for_wasm_bindgen_test();
 }

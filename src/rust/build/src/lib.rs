@@ -21,18 +21,13 @@ impl<T:AsRef<str>+Display> GithubRelease<T> {
     /// the file was downloaded or false if it already existed.
     ///
     /// The project_url should be a project's main page on GitHub.
-    pub fn download_if_missing(&self, destination_dir:&path::Path) -> bool {
+    pub fn download(&self, destination_dir:&path::Path) {
         let url = format!("{}/releases/download/{}/{}",self.project_url,self.version,self.filename);
         let destination_file = destination_dir.join(self.filename.as_ref());
-        let missing = !destination_file.exists();
-        if missing {
-            println!("cargo:warning=Downloading {}.",url);
-            Self::remove_old_file(&destination_file);
-            let mut resp = reqwest::blocking::get(&url).expect("Download failed.");
-            let mut out  = std::fs::File::create(destination_file).expect("Failed to create file.");
-            std::io::copy(&mut resp, &mut out).expect("Failed to copy file content.");
-        }
-        missing
+        Self::remove_old_file(&destination_file);
+        let mut resp = reqwest::blocking::get(&url).expect("Download failed.");
+        let mut out  = std::fs::File::create(destination_file).expect("Failed to create file.");
+        std::io::copy(&mut resp, &mut out).expect("Failed to copy file content.");
     }
 
     fn remove_old_file(file:&path::Path) {

@@ -1,3 +1,5 @@
+//! Downloader of fonts considered as "embedded" into the application.
+
 use std::{path, env, fs, io};
 use std::io::Write;
 
@@ -85,14 +87,10 @@ mod deja_vu {
         }
     }
 
-    pub fn download_and_extract_all_fonts_if_missing(out_dir : &path::Path) -> bool {
+    pub fn download_and_extract_all_fonts(out_dir : &path::Path) {
         let package_path = out_dir.join(PACKAGE.filename);
-
-        let missing = PACKAGE.download_if_missing(&out_dir);
-        if missing {
-            extract_all_fonts(package_path.as_path());
-        }
-        missing
+        PACKAGE.download(&out_dir);
+        extract_all_fonts(package_path.as_path());
     }
 
     pub fn add_entries_to_fill_map_rs(file:&mut FillMapRsFile) {
@@ -104,17 +102,12 @@ mod deja_vu {
 }
 
 fn main() {
-    // FIXME: The following line doesn't work. Instead, we make manual check below.
-    //        If you want to check it, just remove the manual check and observe debug cargo info
-    //        about downloading files after change to just any file in the project.
     println!("cargo:rerun-if-changed=build.rs");
-
     let out     = env::var("OUT_DIR").unwrap();
     let out_dir = path::Path::new(&out);
-    if deja_vu::download_and_extract_all_fonts_if_missing(out_dir) {
-        let fill_map_rs_path     = out_dir.join("fill_map.rs");
-        let mut fill_map_rs_file = FillMapRsFile::create(fill_map_rs_path).unwrap();
-        deja_vu::add_entries_to_fill_map_rs(&mut fill_map_rs_file);
-        fill_map_rs_file.close_block().unwrap();
-    }
+    deja_vu::download_and_extract_all_fonts(out_dir);
+    let fill_map_rs_path     = out_dir.join("fill_map.rs");
+    let mut fill_map_rs_file = FillMapRsFile::create(fill_map_rs_path).unwrap();
+    deja_vu::add_entries_to_fill_map_rs(&mut fill_map_rs_file);
+    fill_map_rs_file.close_block().unwrap();
 }
