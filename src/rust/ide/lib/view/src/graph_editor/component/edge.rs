@@ -117,7 +117,7 @@ trait EdgeShape: ensogl::display::Object {
     }
 
     fn enable_hover(&self) {
-        self.set_hover_split_offset(Vector2::new(INFINITE, INFINITE));
+        self.set_hover_split_center_local(Vector2::new(INFINITE, INFINITE));
         self.set_hover_split_rotation(2.0 * RIGHT_ANGLE);
     }
 
@@ -333,12 +333,12 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 &self.shape.sprite
             }
 
-            fn cut_angle_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+            fn normal_vector_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
                 let angle = nalgebra::Rotation2::rotation_between(&point,&Vector2::new(1.0,0.0));
                 nalgebra::Rotation2::new(-RIGHT_ANGLE + self.shape.angle.get() + angle.angle())
             }
 
-            fn snap_to_shape_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+            fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                 let radius = self.shape.radius.get();
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
@@ -811,7 +811,7 @@ impl<'a> CombinedEdgeShapeView<'a> {
         // constellations for some shapes.
         let cut_angle_correction = match (quadrant, edge_part)  {
             (LayoutState::DownLeft, Some(EdgePart::SideLine)  ) => 2.0 * RIGHT_ANGLE,
-            // (LayoutState::UpLeft, Some(EdgePart::Corner)    ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::DownLeft, Some(EdgePart::Corner)    ) => 2.0 * RIGHT_ANGLE,
 
             (LayoutState::UpLeft, Some(EdgePart::PortLine)  ) => 2.0 * RIGHT_ANGLE,
 
@@ -825,7 +825,7 @@ impl<'a> CombinedEdgeShapeView<'a> {
         };
 
         let base_rotation = shape.display_object().rotation().z;
-        let cut_angle     = shape.cut_angle_for_point(position).angle() - base_rotation + cut_angle_correction;
+        let cut_angle     = shape.normal_vector_for_point(position).angle() - base_rotation + cut_angle_correction;
         Some(cut_angle)
     }
 
@@ -840,10 +840,10 @@ impl<'a> CombinedEdgeShapeView<'a> {
 
     /// Snap the given position to our sub-shapes. Returns `None` if the given position cannot be
     /// snapped to any sub-shape (e.g., because it is too far away).
-    fn snap_position_to_shape(&'a self, point:Vector2<f32>) -> Option<SnapData<'a>> {
+    fn snap_position_to_shape(&'a self, point:Vector2<f32>) -> Option<SnapTarget<'a>> {
         let shapes    = self.edge_shape_views();
         let snap_data = shapes.iter().filter_map(|shape|{
-            let maybe_snap_position     = shape.snap_to_shape(point);
+            let maybe_snap_position     = shape.snap_to_self(point);
             if let Some(snap_position) = maybe_snap_position {
                 // TODO The `SNAP_THRESHOLD` test is needed to avoid visual artifacts for
                 // circles where sometimes we might snap to a part that is invisible instead of
@@ -851,7 +851,7 @@ impl<'a> CombinedEdgeShapeView<'a> {
                 // these.
                 let snap_distance = (snap_position - point).norm();
                 if snap_distance < SNAP_THRESHOLD && shape.contains(point){
-                    return Some(SnapData::new(snap_position,*shape))
+                    return Some(SnapTarget::new(snap_position,*shape))
                 }
             }
             None
@@ -870,7 +870,7 @@ impl<'a> CombinedEdgeShapeView<'a> {
     /// Try to snap the given position to the shape and compute the perpendicular cut angle. If we
     /// can find valid values, we return a `SplitData` struct. This can fail, if the hover is too
     /// far from any of our sub-shapes.
-    fn get_split_data_for_hover(&self, position:Vector2<f32>, area:Area, part:EndDesignation, quadrant: LayoutState) -> Option<SplitData> {
+    fn get_split_data_for_hover(&self, position:Vector2<f32>, direction:HalfPlaneDirection, part:EndDesignation, quadrant:LayoutState) -> Option<Split> {
         let maybe_snap_data = self.snap_position_to_shape(position);
         // println!("{:?}", maybe_snap_data.is_some());
         if let Some(snap_data) = maybe_snap_data {
@@ -895,7 +895,7 @@ impl<'a> CombinedEdgeShapeView<'a> {
                             }
                             if index == split_index {
                                 if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,quadrant,position) {
-                                    let split_data = SplitData::new(snap_data.position,area,cut_angle);
+                                    let split_data = Split::new(snap_data.position,direction,cut_angle);
                                     shape.enable_hover_split(split_data)
                                 }
                             }
@@ -912,31 +912,31 @@ impl<'a> CombinedEdgeShapeView<'a> {
 
             // TODO refactor into shape
             let base_rotation = snap_data.target_shape.display_object().rotation().z;
-            let cut_angle = snap_data.target_shape.cut_angle_for_point(snap_data.position).angle() - base_rotation;
-            Some(SplitData::new(snap_data.position,area,cut_angle))
+            let cut_angle = snap_data.target_shape.normal_vector_for_point(snap_data.position).angle() - base_rotation;
+            Some(Split::new(snap_data.position,direction,cut_angle))
         } else {
             None
         }
     }
 
-    /// Split the shape with the given `split`.
-    fn enable_hover_split(&self, split:Split) {
-        self.edge_shape_views().iter().for_each(|shape| shape.enable_hover_split(split));
-    }
+    // /// Split the shape with the given `split`.
+    // fn enable_hover_split(&self, split:Split) {
+    //     self.get_split_data_for_hover(position,area,part,quadrant);
+    // }
 
     /// Disable the splitting of the shape.
     fn disable_hover_split(&self) {
         for shape in self.edge_shape_views() {
-            shape.disable_hover_split();
+            shape.disable_hover();
         }
     }
 
     /// Split the shape at the given `position` and highlight the given `plane_direction`. This
     /// might fail if the given position is too far from the shape. In that case, splitting is
     /// disabled.
-    fn try_enable_hover_split(&self, position:Vector2<f32>, plane_direction:HalfPlaneDirection) {
-        if let Some(split) = self.get_split_data_for_hover(position,plane_direction) {
-            self.enable_hover_split(split)
+    fn try_enable_hover_split(&self, position:Vector2<f32>, plane_direction:HalfPlaneDirection, part:EndDesignation, quadrant:LayoutState) {
+        if let Some(split) = self.get_split_data_for_hover(position,plane_direction,part,quadrant) {
+            // self.enable_hover_split(split)
         } else {
             self.disable_hover_split()
         }
@@ -1271,10 +1271,10 @@ impl EdgeModelData {
         let combined       = CombinedEdgeShapeView{back:bg,front:fg};
         let hover_position = self.hover_position.get();
         if let Some(hover_position) = hover_position {
-            let highlight_area = self.hover_split_area_for_position(hover_position);
+            let highlight_area = self.hover_split_direction_for_position(hover_position);
             let highlight_part = self.end_designation_for_position(hover_position);
             // This call treats both `Back` and `Front` as a combined `MultiShape`.
-            combined.enable_hover_split(hover_position,highlight_area,highlight_part,self.state.get());
+            combined.try_enable_hover_split(hover_position,highlight_area,highlight_part,self.state.get());
         } else {
             combined.disable_hover_split();
         }
