@@ -98,7 +98,7 @@ impl IdeInitializer {
         crate::executor::global::spawn(client_binary.runner());
         let connection_json   = language_server::Connection::new(client_json,client_id).await?;
         let connection_binary = binary::Connection::new(client_binary,client_id).await?;
-        Ok(model::Project::new(logger,connection_json,connection_binary,project_name))
+        model::Project::from_connections(logger,connection_json,connection_binary,project_name).await
     }
 
     /// Creates a new project and returns its metadata, so the newly connected project can be

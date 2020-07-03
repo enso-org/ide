@@ -51,7 +51,10 @@ pub struct Handle {
 }
 
 impl Handle {
-
+    /// Create a Text Controller for file.
+    ///
+    /// This constructor checks what kind of file we read, and load it as a module file or plain
+    /// text file.
     pub async fn new
     (parent:impl AnyLogger, project:&model::Project, path:FilePath) -> FallibleResult<Self> {
         let logger = Logger::sub(parent,format!("Text Controller {}", path));
@@ -72,7 +75,7 @@ impl Handle {
     pub fn file_path(&self) -> &FilePath {
         match &self.file {
             FileHandle::PlainText{path,..} => &*path,
-            FileHandle::Module{controller} => controller.model.model.file_path()
+            FileHandle::Module{controller} => controller.model.path.file_path()
         }
     }
 

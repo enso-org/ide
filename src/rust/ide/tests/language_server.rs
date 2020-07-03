@@ -14,7 +14,7 @@ use ide::prelude::*;
 
 use enso_protocol::language_server::*;
 use enso_protocol::types::*;
-use ide::controller::Project;
+use ide::model::Project;
 use ide::model::execution_context::Visualization;
 use ide::transport::web::WebSocket;
 use ide::view::project::INITIAL_MODULE_NAME;
@@ -305,7 +305,7 @@ async fn binary_protocol_test() {
 
 /// The future that tests attaching visualization and routing its updates.
 async fn binary_visualization_updates_test_hlp() {
-    let project  = setup_project().await;
+    let project  = Rc::new(setup_project().await);
     println!("Got project: {:?}", project);
 
     let expression = "x -> x.json_serialize";
@@ -313,12 +313,13 @@ async fn binary_visualization_updates_test_hlp() {
     use ensogl::system::web::sleep;
     use ide::view::project::MAIN_DEFINITION_NAME;
 
+    let logger      = Logger::new("Test");
     let module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
     let method                = module_path.method_pointer(MAIN_DEFINITION_NAME);
     let module_qualified_name = project.qualified_module_name(&module_path);
-    let module                = project.module_controller(module_path).await.unwrap();
+    let module                = project.module(module_path).await.unwrap();
     println!("Got module: {:?}", module);
-    let graph_executed        = controller::ExecutedGraph::new(&project,method).await.unwrap();
+    let graph_executed        = controller::ExecutedGraph::new(&logger,project,method).await.unwrap();
 
     let the_node = graph_executed.graph().nodes().unwrap()[0].info.clone();
     graph_executed.graph().set_expression(the_node.id(), "10+20").unwrap();
@@ -327,7 +328,7 @@ async fn binary_visualization_updates_test_hlp() {
     sleep(Duration::from_millis(1)).await;
 
     println!("Main graph: {:?}", graph_executed);
-    println!("The code is: {:?}", module.code());
+    println!("The code is: {:?}", module.ast().repr());
     println!("Main node: {:?} with {}", the_node, the_node.expression().repr());
 
     let visualization = Visualization::new(the_node.id(),expression,module_qualified_name);

@@ -17,6 +17,7 @@ use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
 use parser::Parser;
 use uuid::Uuid;
+use enso_protocol::language_server::RegisterOptions;
 
 
 // ===============
@@ -91,11 +92,13 @@ impl ExecutionContextsRegistry {
 
 
 
-// ==========================
-// === Project Controller ===
-// ==========================
+// =============
+// === Model ===
+// =============
 
-/// Project controller's state.
+/// Project Model.
+///
+///
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Project {
@@ -103,35 +106,38 @@ pub struct Project {
     pub language_server_rpc : Rc<language_server::Connection>,
     pub language_server_bin : Rc<binary::Connection>,
     pub visualization       : Visualization,
-    pub module_registry     : model::registry::Registry<ModulePath,model::synchronized::Module>,
-    pub execution_contexts  : ExecutionContextsRegistry,
-    pub suggestion_db       : SuggestionDatabase,
+    pub module_registry     : Rc<model::registry::Registry<ModulePath,model::synchronized::Module>>,
+    pub execution_contexts  : Rc<ExecutionContextsRegistry>,
+    pub suggestion_db       : Rc<SuggestionDatabase>,
     pub parser              : Parser,
     pub logger              : Logger,
 }
 
 impl Project {
-    /// Create a new project controller.
-    pub fn new
-    ( parent                 : impl AnyLogger
-    , language_server_client : language_server::Connection
-    , language_server_binary : binary::Connection
-    , name                   : impl Str
-    ) -> Self {
+    /// Create a new project model.
+    pub async fn new
+    ( parent              : impl AnyLogger
+    , language_server_rpc : Rc<language_server::Connection>
+    , language_server_bin : Rc<binary::Connection>
+    , name                : impl Str
+    ) -> FallibleResult<Self> {
         let logger = Logger::sub(parent,"Project Controller");
         info!(logger,"Creating a model of project {name.as_ref()}");
-        let binary_protocol_events  = language_server_binary.event_stream();
-        let json_rpc_events         = language_server_client.events();
+        let binary_protocol_events  = language_server_bin.event_stream();
+        let json_rpc_events         = language_server_rpc.events();
         let embedded_visualizations = default();
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
-        let project_name            = Rc::new(name.into());
+        let name                    = Rc::new(name.into());
         let module_registry         = default();
         let execution_contexts      = default();
         let parser                  = Parser::new_or_panic();
+        let language_server         = &*language_server_rpc;
+        let suggestion_db           = SuggestionDatabase::create_synchronized(language_server);
+        let suggestion_db           = Rc::new(suggestion_db.await?);
 
         let ret = Project {name,module_registry,execution_contexts,parser,
-            language_server_rpc,language_server_bin,logger,visualization};
+            language_server_rpc,language_server_bin,logger,visualization,suggestion_db};
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
@@ -139,29 +145,20 @@ impl Project {
         let json_rpc_handler = ret.json_event_handler();
         crate::executor::global::spawn(json_rpc_events.for_each(json_rpc_handler));
 
-        ret
+        ret.acquire_suggestion_db_updates_capability().await?;
+        Ok(ret)
     }
 
-    /// Create a project controller from owned LS connections.
+    /// Create a project model from owned LS connections.
     pub fn from_connections
     ( parent              : impl AnyLogger
     , language_server_rpc : language_server::Connection
     , language_server_bin : binary::Connection
     , project_name        : impl Str
-    ) -> Self {
+    ) -> impl Future<Output=FallibleResult<Self>> {
         let language_server_rpc = Rc::new(language_server_rpc);
         let language_server_bin = Rc::new(language_server_bin);
         Self::new(parent,language_server_rpc,language_server_bin,project_name)
-    }
-
-    /// Create a new mocked project controller.
-    pub fn new_mock
-    ( language_server_client : Rc<language_server::Connection>
-    , language_server_binary : Rc<binary::Connection>
-    , project_name           : impl Str
-    ) -> Self {
-        let parent = Logger::default();
-        Self::new(parent,language_server_client,language_server_binary,project_name)
     }
 
     /// Returns the primary content root id for this project.
@@ -220,6 +217,7 @@ impl Project {
     //  See: https://github.com/luna/ide/issues/587
         let logger                  = self.logger.clone_ref();
         let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
+        let weak_suggestion_db      = Rc::downgrade(&self.suggestion_db);
         move |event| {
             debug!(logger, "Received an event from the json-rpc protocol: {event:?}");
             use enso_protocol::language_server::Event;
@@ -237,6 +235,11 @@ impl Project {
                         execution context being already dropped.");
                     }
                 }
+                Event::Notification(Notification::SuggestionDatabaseUpdate(update)) => {
+                    if let Some(suggestion_db) = weak_suggestion_db.upgrade() {
+                        suggestion_db.apply_update_event(update);
+                    }
+                }
                 Event::Closed => {
                     error!(logger,"Lost JSON-RPC connection with the Language Server!");
                     // TODO [wmu]
@@ -250,6 +253,12 @@ impl Project {
             }
             futures::future::ready(())
         }
+    }
+
+    fn acquire_suggestion_db_updates_capability(&self) -> impl Future<Output=json_rpc::Result<()>> {
+        let capability = "search/receivesSuggestionsDatabaseUpdates".to_string();
+        let options    = RegisterOptions::None {};
+        self.language_server_rpc.acquire_capability(&capability,&options)
     }
 
     /// Returns a model of module opened from file. The returned model will synchronize its state
@@ -271,10 +280,10 @@ impl Project {
 
     /// Generates full module's qualified name that includes the leading project name segment.
     pub fn qualified_module_name(&self, path:&model::module::Path) -> ModuleQualifiedName {
-        ModuleQualifiedName::from_path(path,self.project_name.deref())
+        ModuleQualifiedName::from_path(path,self.name.deref())
     }
 
-    pub fn load_module(&self, path:ModulePath)
+    fn load_module(&self, path:ModulePath)
     -> impl Future<Output=FallibleResult<Rc<model::synchronized::Module>>> {
         let language_server = self.language_server_rpc.clone_ref();
         let parser          = self.parser.clone_ref();
@@ -329,24 +338,31 @@ pub mod test {
 
     /// Sets up project controller using mock Language Server clients.
     /// Passed functions should be used to setup expectations upon the mock clients.
-    /// Additionally, an `event_stream` expectation will be setup for a binary protocol, as
-    /// project controller always calls it.
+    /// Additionally, an `event_stream` expectation will be setup for a binary protocol, and
+    /// `get_suggestion_database` for json protocol, as
+    /// project controller always calls them.
     pub fn setup_mock_project
     ( setup_mock_json   : impl FnOnce(&mut language_server::MockClient)
     , setup_mock_binary : impl FnOnce(&mut enso_protocol::binary::MockClient)
-    ) -> Project {
+    ) -> impl Future<Output=Project> {
         let mut json_client   = language_server::MockClient::default();
         let mut binary_client = enso_protocol::binary::MockClient::default();
         binary_client.expect_event_stream().return_once(|| {
             futures::stream::empty().boxed_local()
         });
+        let initial_suggestions_db = language_server::response::GetSuggestionDatabase {
+            entries: vec![],
+            current_version: 0
+        };
+        expect_call!(json_client.get_suggestions_database() => Ok(initial_suggestions_db));
 
         setup_mock_json(&mut json_client);
         setup_mock_binary(&mut binary_client);
         let json_connection   = language_server::Connection::new_mock(json_client);
         let binary_connection = binary::Connection::new_mock(binary_client);
         let logger            = Logger::default();
-        model::Project::new(logger,json_connection,binary_connection,DEFAULT_PROJECT_NAME)
+        model::Project::from_connections(logger,json_connection,binary_connection,
+            DEFAULT_PROJECT_NAME).map(|p| p.unwrap())
     }
 
     #[wasm_bindgen_test]
@@ -361,14 +377,14 @@ pub mod test {
             let project = setup_mock_project(|ls_json| {
                 mock_calls_for_opening_text_file(ls_json,path.file_path().clone(),"2+2");
                 mock_calls_for_opening_text_file(ls_json,another_path.file_path().clone(),"22+2");
-            }, |_| {});
+            }, |_| {}).await;
             let log               = Logger::new("Test");
             let module            = Module::new(&log,path.clone(),&project).await.unwrap();
             let same_module       = Module::new(&log,path.clone(),&project).await.unwrap();
             let another_module    = Module::new(&log,another_path.clone(),&project).await.unwrap();
 
-            assert_eq!(path,         *module.model.path);
-            assert_eq!(another_path, *another_module.model.path);
+            assert_eq!(path,         module.model.path);
+            assert_eq!(another_path, another_module.model.path);
             assert!(Rc::ptr_eq(&module.model, &same_module.model));
         });
     }
@@ -377,7 +393,7 @@ pub mod test {
     fn obtain_plain_text_controller() {
         TestWithLocalPoolExecutor::set_up().run_task(async move {
 
-            let project      = setup_mock_project(|_|{}, |_|{});
+            let project      = setup_mock_project(|_|{}, |_|{}).await;
             let root_id      = default();
             let path         = FilePath::new(root_id,&["TestPath"]);
             let another_path = FilePath::new(root_id,&["TestPath2"]);
@@ -402,10 +418,11 @@ pub mod test {
         test.run_task(async move {
             let module_path  = ModulePath::from_mock_module_name("Test");
             let file_path    = module_path.file_path();
-            let project_ctrl = setup_mock_project(|mock_json_client| {
+            let project      = setup_mock_project(|mock_json_client| {
                 mock_calls_for_opening_text_file(mock_json_client,file_path.clone(),"2 + 2");
-            }, |_| {});
-            let text_ctrl = project_ctrl.text_controller(file_path.clone()).await.unwrap();
+            }, |_| {}).await;
+            let log       = Logger::new("Test");
+            let text_ctrl = controller::Text::new(&log,&project,file_path.clone()).await.unwrap();
             let content   = text_ctrl.read_content().await.unwrap();
             assert_eq!("2 + 2", content.as_str());
         });
@@ -422,11 +439,11 @@ pub mod test {
         let mut test   = TestWithLocalPoolExecutor::set_up();
         let data       = model::synchronized::execution_context::tests::MockData::new();
         let mut sender = futures::channel::mpsc::unbounded().0;
-        let project    = setup_mock_project(|mock_json_client| {
+        let project    = test.expect_completion(setup_mock_project(|mock_json_client| {
             data.mock_create_push_destroy_calls(mock_json_client);
             sender = mock_json_client.setup_events();
             mock_json_client.require_all_calls();
-        }, |_| {});
+        }, |_| {}));
 
         // No context present yet.
         let no_op = |_| Ok(());

@@ -145,14 +145,14 @@ impl Path {
         MethodPointer {
             defined_on_type : self.module_name().into(),
             name            : method_name.into(),
-            file            : self.file_path.clone(),
+            file            : self.file_path.deref().clone(),
         }
     }
 }
 
 impl PartialEq<FilePath> for Path {
     fn eq(&self, other:&FilePath) -> bool {
-        self.file_path.eq(other)
+        self.file_path.deref().eq(other)
     }
 }
 

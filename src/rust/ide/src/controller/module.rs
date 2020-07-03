@@ -118,12 +118,12 @@ impl Handle {
         };
 
         let defined_on_type = if crumb.extended_target.is_empty() {
-            self.path.module_name().to_string()
+            self.model.path.module_name().to_string()
         } else {
             crumb.extended_target.iter().map(|segment| segment.as_str()).join(".")
         };
         Ok(language_server::MethodPointer {
-            file : self.path.file_path().clone(),
+            file : self.model.path.file_path().clone(),
             defined_on_type,
             name : crumb.name.item.clone(),
         })

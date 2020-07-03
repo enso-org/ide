@@ -112,14 +112,15 @@ pub enum Notification {
     #[serde(rename = "file/event")]
     FileEvent {
         /// The `file/event` notification input wrapper.
-        /// The serialization format requires the information to be wrapped into a field named "event".
-        /// This behavior is currently not specified by the specification and the issue has been raised
-        /// to address this: https://github.com/luna/enso/issues/707
+        /// The serialization format requires the information to be wrapped into a field named
+        /// "event". This behavior is currently not specified by the specification and the issue has
+        /// been raised to address this: https://github.com/luna/enso/issues/707
         // TODO [mwu] Update as the issue is resolved on way or another.
         event:FileEvent,
     },
 
-    /// Sent from the server to the client to inform about new information for certain expressions becoming available.
+    /// Sent from the server to the client to inform about new information for certain expressions
+    /// becoming available.
     #[serde(rename = "executionContext/expressionValuesComputed")]
     ExpressionValuesComputed(ExpressionValuesComputed),
 
@@ -128,7 +129,8 @@ pub enum Notification {
     SuggestionDatabaseUpdate(SuggestionDatabaseUpdateEvent),
 }
 
-/// Sent from the server to the client to inform about new information for certain expressions becoming available.
+/// Sent from the server to the client to inform about new information for certain expressions
+/// becoming available.
 #[derive(Clone,Debug,PartialEq)]
 #[derive(Serialize,Deserialize)]
 #[allow(missing_docs)]
@@ -450,7 +452,7 @@ impl CapabilityRegistration {
     /// Create "search/receivesSuggestionsDatabaseUpdates" capability
     pub fn create_receives_suggestions_database_updates() -> Self {
         let method           = "search/receivesSuggestionsDatabaseUpdates".to_string();
-        let register_options = RegisterOptions::None;
+        let register_options = RegisterOptions::None {};
         CapabilityRegistration {method,register_options}
     }
 }
@@ -470,7 +472,7 @@ impl CapabilityRegistration {
 #[serde(untagged, rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub enum RegisterOptions {
-    None,
+    None {},
     Path {path:Path},
     #[serde(rename_all = "camelCase")]
     ExecutionContextId {context_id:ContextId},
@@ -552,6 +554,18 @@ pub enum SuggestionEntry {
     },
 }
 
+impl SuggestionEntry {
+    /// Get name of the suggested entity.
+    pub fn name(&self) -> &String {
+        match &self {
+            Self::SuggestionEntryAtom     {name,..} => name,
+            Self::SuggestionEntryFunction {name,..} => name,
+            Self::SuggestionEntryLocal    {name,..} => name,
+            Self::SuggestionEntryMethod   {name,..} => name,
+        }
+    }
+}
+
 /// The entry in the suggestions database.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -570,16 +584,14 @@ pub enum SuggestionsDatabaseUpdateKind {Add,Update,Delete}
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
-pub struct SuggestionsDatabaseUpdate {
-    pub id            : SuggestionEntryId,
-    pub kind          : SuggestionsDatabaseUpdateKind,
-    pub name          : Option<String>,
-    pub module        : Option<String>,
-    pub arguments     : Option<Vec<SuggestionEntryArgument>>,
-    pub self_type     : Option<String>,
-    pub return_type   : Option<String>,
-    pub documentation : Option<String>,
-    pub scope         : Option<SuggestionEntryScope>,
+pub enum SuggestionsDatabaseUpdate {
+    Add {
+        id    : SuggestionEntryId,
+        entry : SuggestionEntry,
+    },
+    Remove {
+        id : SuggestionEntryId
+    },
 }
 
 /// Notification about change in the suggestions database.

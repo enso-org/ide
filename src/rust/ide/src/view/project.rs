@@ -83,9 +83,9 @@ impl ProjectView {
         let logger            = Logger::sub(logger,"ProjectView");
         let module_path       = initial_module_path(&model)?;
         let file_path         = module_path.file_path().clone();
-        let text_controller   = controller::Text::new(logger,&*model,file_path).await?;
+        let text_controller   = controller::Text::new(&logger,&*model,file_path).await?;
         let method            = module_path.method_pointer(MAIN_DEFINITION_NAME);
-        let graph_controller  = controller::ExecutedGraph::new(&controller,method);
+        let graph_controller  = controller::ExecutedGraph::new(&logger,model.clone(),method);
         let graph_controller  = graph_controller.await?;
         let application       = Application::new(&web::get_html_element_by_id("root").unwrap());
         Self::setup_components(&application);
