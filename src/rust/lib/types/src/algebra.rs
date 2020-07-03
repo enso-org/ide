@@ -486,35 +486,44 @@ pub trait SaturatingPow {
 
 // === Impls ===
 
-macro_rules! impl_saturating_integer {
-    ($($name:ident),*) => {$(
-        impl SaturatingAdd for $name {
-            type Output = Self;
-            fn saturating_add(self, rhs:Self) -> Self::Output {
-                self.saturating_add(rhs)
+macro_rules! impl_saturating_opr {
+    ($name:ident :: $opr:ident for $tgt:ident) => {
+        impl $name<$tgt> for $tgt {
+            type Output = $tgt;
+            fn $opr(self, rhs:$tgt) -> Self::Output {
+                self.$opr(rhs)
             }
         }
 
-        impl SaturatingSub for $name {
-            type Output = Self;
-            fn saturating_sub(self, rhs:Self) -> Self::Output {
-                self.saturating_sub(rhs)
+        impl $name<$tgt> for &$tgt {
+            type Output = $tgt;
+            fn $opr(self, rhs:$tgt) -> Self::Output {
+                (*self).$opr(rhs)
             }
         }
 
-        impl SaturatingMul for $name {
-            type Output = Self;
-            fn saturating_mul(self, rhs:Self) -> Self::Output {
-                self.saturating_mul(rhs)
+        impl $name<&$tgt> for $tgt {
+            type Output = $tgt;
+            fn $opr(self, rhs:&$tgt) -> Self::Output {
+                self.$opr(*rhs)
             }
         }
 
-        impl SaturatingPow for $name {
-            type Output = Self;
-            fn saturating_pow(self, exp:u32) -> Self::Output {
-                self.saturating_pow(exp)
+        impl $name<&$tgt> for &$tgt {
+            type Output = $tgt;
+            fn $opr(self, rhs:&$tgt) -> Self::Output {
+                (*self).$opr(*rhs)
             }
         }
-    )*}
+    };
 }
+
+macro_rules! impl_saturating_integer {
+    ($($name:ident),* $(,)?) => {
+        $(impl_saturating_opr! {SaturatingAdd::saturating_add for $name})*
+        $(impl_saturating_opr! {SaturatingSub::saturating_sub for $name})*
+        $(impl_saturating_opr! {SaturatingMul::saturating_mul for $name})*
+    }
+}
+
 impl_saturating_integer!(u8,u16,u32,u64,u128,usize);

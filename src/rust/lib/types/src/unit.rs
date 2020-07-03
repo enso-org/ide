@@ -411,6 +411,54 @@ macro_rules! impl_T_x_T_to_T {
 
 
 
+// ==================
+// === T x S -> T ===
+// ==================
+
+/// Unit definition macro. See module docs to learn more.
+#[macro_export]
+macro_rules! impl_T_x_S_to_T {
+    ($trait:ident :: $opr:ident [$($rhs:tt)*] for $name:ident { $($field:ident),* $(,)? }) => {
+        $crate::impl_T_x_S_to_T! {$trait :: $opr [$($rhs)*] as $opr for $name { $($field),* }}
+    };
+
+    ($trait:ident :: $opr:ident [$($rhs:tt)*] as $as_opr:ident for $name:ident { $($field:ident),* $(,)? }) => {
+        impl $trait<$($rhs)*> for $name {
+            type Output = $name;
+            fn $opr(self, rhs:$($rhs)*) -> Self::Output {
+                $(let $field = self.$field.$as_opr(rhs);)*
+                $name { $($field),* }
+            }
+        }
+
+        impl $trait<$($rhs)*> for &$name {
+            type Output = $name;
+            fn $opr(self, rhs:$($rhs)*) -> Self::Output {
+                $(let $field = self.$field.$as_opr(rhs);)*
+                $name { $($field),* }
+            }
+        }
+
+        impl $trait<&$($rhs)*> for $name {
+            type Output = $name;
+            fn $opr(self, rhs:&$($rhs)*) -> Self::Output {
+                $(let $field = self.$field.$as_opr(*rhs);)*
+                $name { $($field),* }
+            }
+        }
+
+        impl $trait<&$($rhs)*> for &$name {
+            type Output = $name;
+            fn $opr(self, rhs:&$($rhs)*) -> Self::Output {
+                $(let $field = self.$field.$as_opr(*rhs);)*
+                $name { $($field),* }
+            }
+        }
+    };
+}
+
+
+
 // ======================
 // === T x FIELD -> T ===
 // ======================
@@ -577,12 +625,12 @@ macro_rules! impl_Unit_to_Unit {
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_T_to_T {
-    ($trait:ident :: $opr:ident for $name:ident { $($field:ident),* $(,)? }) => {$(
+    ( $trait:ident :: $opr:ident for $name:ident { $($field:ident),* $(,)? } ) => {
         #[allow(clippy::needless_update)]
         impl $trait for $name {
             type Output = $name;
             fn $opr(self) -> Self::Output {
-                $name { $field:self.$field.$opr(), ..self }
+                $name { $($field:self.$field.$opr(),)* ..self }
             }
         }
 
@@ -590,10 +638,10 @@ macro_rules! impl_T_to_T {
         impl $trait for &$name {
             type Output = $name;
             fn $opr(self) -> Self::Output {
-                $name { $field:self.$field.$opr(), ..*self }
+                $name { $($field:self.$field.$opr(),)* ..*self }
             }
         }
-    )*};
+    };
 }
 
 
