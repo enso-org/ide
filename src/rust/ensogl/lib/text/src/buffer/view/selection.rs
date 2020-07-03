@@ -149,7 +149,7 @@ impl Group {
             let start = ix + 1;
             let len   = end_ix - ix - 1;
             self.sorted_regions[ix] = region;
-            self.sorted_regions.remove_many(start,len);
+            self.sorted_regions.drain(start..start+len);
         }
     }
 

@@ -83,7 +83,7 @@ impl Debug for BitField256 {
 // ===============================
 
 macro_rules! define_single_chunk_bit_field {
-    ($name:ident, $raw:ident, $size:tt) => {
+    ($name:ident, $raw:ident, $size:tt, $fmt:tt) => {
         /// Efficient $size bit field implementation. Encoded as single $raw under the hood.
         #[derive(Clone,Copy,Default,Deref,Eq,Hash,PartialEq)]
         #[allow(missing_docs)]
@@ -119,17 +119,17 @@ macro_rules! define_single_chunk_bit_field {
 
         impl Debug for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f,"BitField32({:032b})",self.raw)
+                write!(f,concat!("{}({:",$fmt,"})"),stringify!($name),self.raw)
             }
         }
     };
 }
 
-define_single_chunk_bit_field!(BitField8   , u8   ,   8);
-define_single_chunk_bit_field!(BitField16  , u16  ,  16);
-define_single_chunk_bit_field!(BitField32  , u32  ,  32);
-define_single_chunk_bit_field!(BitField64  , u64  ,  64);
-define_single_chunk_bit_field!(BitField128 , u128 , 128);
+define_single_chunk_bit_field!(BitField8   , u8   ,   8, "008b");
+define_single_chunk_bit_field!(BitField16  , u16  ,  16, "016b");
+define_single_chunk_bit_field!(BitField32  , u32  ,  32, "032b");
+define_single_chunk_bit_field!(BitField64  , u64  ,  64, "064b");
+define_single_chunk_bit_field!(BitField128 , u128 , 128, "128b");
 
 
 

@@ -17,9 +17,6 @@ use enso_prelude::*;
 // === EmbeddedFonts ===
 // =====================
 
-/// Default font the app will revert to if a desired font could not be loaded.
-pub const DEFAULT_FONT : &str = "DejaVuSans";
-
 /// A base of built-in fonts in application
 ///
 /// The structure keeps only a binary data in ttf format. The data should be then interpreted by

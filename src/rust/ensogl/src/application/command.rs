@@ -54,12 +54,6 @@ pub trait CommandApi : Sized {
     fn command_api(&self) -> Vec<CommandEndpoint> { default() }
 }
 
-//impl<T:Sized> CommandApi for T {
-//    default fn command_api_docs() -> Vec<EndpointDocs>    { default() }
-//    default fn command_api(&self) -> Vec<CommandEndpoint> { default() }
-//}
-
-
 /// Status API, a set of labeled status endpoints and labeled status docs. Both functions
 /// should return the same set of labels. Although it could be designed in a safer way, it would
 /// be much more trickier to use. You should not define it by hand. Instead use the provided

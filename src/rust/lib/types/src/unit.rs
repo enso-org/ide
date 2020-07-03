@@ -1,4 +1,23 @@
-//! Defines utilities for creating custom strongly typed units.
+//! Defines utilities for creating custom strongly typed units. For example, unit `Angle` could be a
+//! wrapper for `f32`.
+//!
+//! Units automatically implement a lot of traits in a generic fashion, so you can for example add
+//! to angles together, or divide angle by a number, but you are not allowed to divide a number by
+//! an angle. Rarely you may want to use very custom rules for unit definition. In such a case, you
+//! should use other macros defined in this module. Look at the definitions below to learn the
+//! usage patterns.
+//!
+//! ## Why Macros
+//! You may wonder why this utility is defined as a macro that generates hundreds of lines of code
+//! instead of a generic type `Unit<Phantom,Repr>`. The later approach has one major issue. The
+//! definition `type Angle = Unit<AngleType,f32>` will be dysfunctional, as you would not be allowed
+//! to implement many impls because the type `Unit` would be defined in an external crate.
+//!
+//! ## Macro Naming Pattern
+//! Many macros defined in this module use a specific naming, for example
+//! `impl_UNIT_x_FIELD_to_UNIT`. You should interpret it as a macro defining a transformation
+//! similar to `fn<Unit,Field>(unit:Unit, field:Field) -> Unit`, where `Field` is a specific field
+//! of the `Unit` (in most cases units have single field).
 
 
 
@@ -6,20 +25,9 @@
 // === Macros ===
 // ==============
 
-/// Define a new unit type. Units are strongly typed wrappers for some primitive values. For
-/// example, unit `Angle` could be a wrapper for `f32`.
-///
-/// Units automatically implement a lot of traits in a generic fashion, so you can for example add
-/// to angles together, or divide angle by a number, but you are not allowed to divide a number by
-/// an angle. Rarely you may want to use very custom rules for unit definition. In such a case, you
-/// should use other macros defined in this module. Look at the definitions below to learn the
-/// usage patterns.
-///
-/// ## Implementation Notes
-/// You may wonder why this utility is defined as a macro that generates hundreds of lines of code
-/// instead of a generic type `Unit<Phantom,Repr>`. The later approach has one major issue. The
-/// definition `type Angle = Unit<AngleType,f32>` will be dysfunctional, as you would not be allowed
-/// to implement many impls because the type `Unit` would be defined in an external crate.
+/// Define a new unit type. Choose the right macro based on the provided primitive type. In case the
+/// primitive type is not recognized, you have to use one of the more specific macros defined in
+/// this module. See module docs to learn more.
 #[macro_export]
 macro_rules! unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident (f32)) => {
@@ -46,7 +54,7 @@ macro_rules! unit {
 }
 
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! unsigned_unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -58,11 +66,11 @@ macro_rules! unsigned_unit {
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
-            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
-            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
-            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
-            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
-            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div::div for $name :: $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div::div for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
 
             pub trait Into {
                 type Output;
@@ -85,7 +93,7 @@ macro_rules! unsigned_unit {
     };
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! unsigned_unit_proxy {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -97,11 +105,7 @@ macro_rules! unsigned_unit_proxy {
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
-//            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
-//            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
-//            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
-//            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
-            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
 
             pub trait Into {
                 type Output;
@@ -124,7 +128,7 @@ macro_rules! unsigned_unit_proxy {
     };
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! unsigned_unit_float_like {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -136,11 +140,11 @@ macro_rules! unsigned_unit_float_like {
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
-            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
-            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
-            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
-            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
-            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div::div for $name :: $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div::div for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
 
             pub trait Into {
                 type Output;
@@ -163,7 +167,7 @@ macro_rules! unsigned_unit_float_like {
     };
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! signed_unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -174,12 +178,12 @@ macro_rules! signed_unit {
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
-            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
-            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
-            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
-            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
-            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
-            $crate::impl_UNIT_to_UNIT!         {Neg neg $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div::div for $name :: $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div::div for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
+            $crate::impl_UNIT_to_UNIT!         {Neg::neg for $name}
 
             pub trait Into {
                 type Output;
@@ -202,7 +206,7 @@ macro_rules! signed_unit {
     };
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! signed_unit_float_like {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -214,12 +218,12 @@ macro_rules! signed_unit_float_like {
             $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
             $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
-            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
-            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
-            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
-            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div div $name $field_type}
-            $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
-            $crate::impl_UNIT_to_UNIT!         {Neg neg $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div::div for $name :: $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div::div for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
+            $crate::impl_UNIT_to_UNIT!         {Neg::neg for $name}
 
             /// Unit conversion and associated method. It has associated type in order to allow
             /// complex conversions, like `(10,10).px()` be converted the same way as
@@ -247,7 +251,7 @@ macro_rules! signed_unit_float_like {
     };
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! newtype {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -259,9 +263,9 @@ macro_rules! newtype {
         $crate::impl_T_x_T_to_T! {Add           :: add            for $name {$($field),*}}
         $crate::impl_T_x_T_to_T! {SaturatingAdd :: saturating_add for $name {$($field),*}}
 
-        $crate::impl_T_x_FIELD_to_T! {Sub           sub            $name {$($field:$field_type),*}}
-        $crate::impl_T_x_FIELD_to_T! {Add           add            $name {$($field:$field_type),*}}
-        $crate::impl_T_x_FIELD_to_T! {SaturatingAdd saturating_add $name {$($field:$field_type),*}}
+        $crate::impl_T_x_FIELD_to_T! {Sub           :: sub            for $name {$($field:$field_type),*}}
+        $crate::impl_T_x_FIELD_to_T! {Add           :: add            for $name {$($field:$field_type),*}}
+        $crate::impl_T_x_FIELD_to_T! {SaturatingAdd :: saturating_add for $name {$($field:$field_type),*}}
 
         impl AddAssign<$name> for $name {
             fn add_assign(&mut self, rhs:Self) {
@@ -271,7 +275,7 @@ macro_rules! newtype {
     };
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! newtype_struct {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -280,7 +284,7 @@ macro_rules! newtype_struct {
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! newtype_struct_float_like {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -289,7 +293,7 @@ macro_rules! newtype_struct_float_like {
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! newtype_struct_def {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -299,7 +303,7 @@ macro_rules! newtype_struct_def {
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! newtype_struct_def_float_like {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -310,7 +314,7 @@ macro_rules! newtype_struct_def_float_like {
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! newtype_struct_impls {
     ($(#$meta:tt)* $name:ident { $field:ident : $field_type:ty $(,)? }) => {
@@ -355,7 +359,7 @@ macro_rules! newtype_struct_impls {
 // === T x T -> T ===
 // ==================
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT_to_UNIT {
     ($trait:ident :: $opr:ident for $name:ident) => {
@@ -363,7 +367,7 @@ macro_rules! impl_UNIT_x_UNIT_to_UNIT {
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_T_x_T_to_T {
     ($trait:ident :: $opr:ident for $name:ident { $($field:ident),* $(,)? }) => {
@@ -407,18 +411,18 @@ macro_rules! impl_T_x_T_to_T {
 // === T x FIELD -> T ===
 // ======================
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_FIELD_to_UNIT {
-    ($trait:ident $opr:ident $name:ident $field_type:ty) => {
-        $crate::impl_T_x_FIELD_to_T! {$trait $opr $name {value : $field_type}}
+    ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
+        $crate::impl_T_x_FIELD_to_T! {$trait :: $opr for $name {value : $field_type}}
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_T_x_FIELD_to_T {
-    ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+    ($trait:ident :: $opr:ident for $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
         impl $trait<$field_type> for $name {
             type Output = $name;
@@ -458,18 +462,18 @@ macro_rules! impl_T_x_FIELD_to_T {
 // === FIELD x T -> T ===
 // ======================
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_FIELD_x_UNIT_to_UNIT {
-    ($trait:ident $opr:ident $name:ident $field_type:ty) => {
-        $crate::impl_FIELD_x_T_to_T! {$trait $opr $name {value : $field_type}}
+    ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
+        $crate::impl_FIELD_x_T_to_T! {$trait :: $opr for $name {value : $field_type}}
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_FIELD_x_T_to_T {
-    ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+    ($trait:ident :: $opr:ident for $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
         impl $trait<$name> for $field_type {
             type Output = $name;
@@ -510,18 +514,18 @@ macro_rules! impl_FIELD_x_T_to_T {
 // === T x T -> FIELD ===
 // ======================
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT_to_FIELD {
-    ($trait:ident $opr:ident $name:ident $field_type:ty) => {
-        $crate::impl_T_x_T_to_FIELD! {$trait $opr $name {value : $field_type}}
+    ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
+        $crate::impl_T_x_T_to_FIELD! {$trait :: $opr for $name {value : $field_type}}
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_T_x_T_to_FIELD {
-    ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+    ($trait:ident :: $opr:ident for $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
         impl $trait<$name> for $name {
             type Output = $field_type;
             fn $opr(self, rhs:$name) -> Self::Output {
@@ -558,18 +562,18 @@ macro_rules! impl_T_x_T_to_FIELD {
 // === T -> T ===
 // ==============
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_to_UNIT {
-    ($trait:ident $opr:ident $name:ident) => {
-        $crate::impl_T_to_T! {$trait $opr $name {value}}
+    ($trait:ident :: $opr:ident for $name:ident) => {
+        $crate::impl_T_to_T! {$trait :: $opr for $name {value}}
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_T_to_T {
-    ($trait:ident $opr:ident $name:ident { $($field:ident),* $(,)? }) => {$(
+    ($trait:ident :: $opr:ident for $name:ident { $($field:ident),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
         impl $trait for $name {
             type Output = $name;
@@ -595,18 +599,18 @@ macro_rules! impl_T_to_T {
 // === T x T ===
 // =============
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT {
-    ($trait:ident $opr:ident $name:ident) => {
-        $crate::impl_T_x_T! {$trait $opr $name {value}}
+    ($trait:ident :: $opr:ident for $name:ident) => {
+        $crate::impl_T_x_T! {$trait :: $opr for $name {value}}
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_T_x_T {
-    ($trait:ident $opr:ident $name:ident { $($field:ident),* $(,)? }) => {$(
+    ($trait:ident :: $opr:ident for $name:ident { $($field:ident),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
         impl $trait<$name> for $name {
             fn $opr(&mut self, rhs:$name) {
@@ -643,18 +647,18 @@ macro_rules! impl_T_x_T {
 // === T x FIELD ===
 // =================
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_FIELD {
-    ($trait:ident $opr:ident $name:ident $field_type:ty) => {
-        $crate::impl_T_x_FIELD! {$trait $opr $name {value : $field_type}}
+    ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
+        $crate::impl_T_x_FIELD! {$trait :: $opr for $name {value : $field_type}}
     }
 }
 
-/// Unit definition macro. See docs of `unit` to learn more.
+/// Unit definition macro. See module docs to learn more.
 #[macro_export]
 macro_rules! impl_T_x_FIELD {
-    ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+    ($trait:ident :: $opr:ident for $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
         impl $trait<$field_type> for $name {
             fn $opr(&mut self, rhs:$field_type) {

@@ -18,7 +18,7 @@ use crate::system::web;
 // === Constants ===
 // =================
 
-const DOUBLE_PRESS_THRESHOLD : f32 = 300.0;
+const DOUBLE_PRESS_THRESHOLD_MS : f32 = 300.0;
 
 
 
@@ -117,8 +117,8 @@ impl From<&str> for Command {
 // === Condition ===
 // =================
 
-// TODO: Uncomment and handle more complex cases. Left commented to show the direction of future
-// development
+// TODO[WD]: Uncomment and handle more complex cases. Left commented to show the direction of future
+//           development.
 /// Condition expression.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
@@ -255,7 +255,7 @@ impl Registry {
             press_time_prev    <- press_time.previous();
             time_delta         <- press_time.map2(&press_time_prev, |t1,t2| (t1-t2));
             is_double_press    <- time_delta.map4(&press,&single_press_prev,&nothing_pressed_prev,
-                move |delta,t,s,g| *g && *delta < DOUBLE_PRESS_THRESHOLD && t == s);
+                move |delta,t,s,g| *g && *delta < DOUBLE_PRESS_THRESHOLD_MS && t == s);
             double_press       <- press.gate(&is_double_press);
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
 

@@ -9,17 +9,9 @@ use crate::algebra::*;
 // === Units ===
 // =============
 
-crate::unit!{
-Pixels::pixels(f32)
-}
-
-crate::unit!{
-Radians::radians(f32)
-}
-
-crate::unit!{
-Degrees::degrees(f32)
-}
+crate::unit!(Pixels::pixels(f32));
+crate::unit!(Radians::radians(f32));
+crate::unit!(Degrees::degrees(f32));
 
 impl From<i32>   for Pixels { fn from(t:i32)   -> Self { (t as f32).into() } }
 impl From<&i32>  for Pixels { fn from(t:&i32)  -> Self { (*t).into() } }

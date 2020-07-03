@@ -4,14 +4,23 @@ use crate::prelude::*;
 
 pub mod msdf;
 
-use ensogl_core_msdf_sys as msdf_sys;
+use ensogl::display::scene;
+use ensogl::display::Scene;
 use ensogl_core_embedded_fonts::EmbeddedFonts;
-use ensogl_core_embedded_fonts as embedded;
-use msdf_sys::MsdfParameters;
+use ensogl_core_msdf_sys as msdf_sys;
 use msdf_sys::Msdf;
-use std::collections::hash_map::Entry;
-use ensogl::display::{scene, Scene};
+use msdf_sys::MsdfParameters;
 use shapely::shared;
+use std::collections::hash_map::Entry;
+
+
+
+// =================
+// === Constants ===
+// =================
+
+/// Default font the app will revert to if a desired font could not be loaded.
+pub const DEFAULT_FONT : &str = "DejaVuSans";
 
 
 
@@ -294,7 +303,7 @@ impl RegistryData {
     pub fn init_and_load_default() -> RegistryData {
         let embedded     = EmbeddedFonts::create_and_fill();
         let fonts        = HashMap::new();
-        let default_name = embedded::DEFAULT_FONT;
+        let default_name = DEFAULT_FONT;
         let default = Font::try_from_embedded(&embedded,default_name).unwrap_or_else(||
             panic!("Cannot load default font {}.",default_name));
         Self {embedded,fonts,default}

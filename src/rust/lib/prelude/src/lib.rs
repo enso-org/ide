@@ -335,6 +335,7 @@ impl<T:?Sized> WeakRef for Weak<T> {
 #[allow(missing_docs)]
 pub trait ResultGet {
     type Item;
+    /// Allows extracting the element from `Result<T,T>` for any `T`.
     fn unwrap_both(self) -> Self::Item;
 }
 
@@ -344,35 +345,6 @@ impl<T> ResultGet for Result<T,T> {
         match self {
             Ok  (t) => t,
             Err (t) => t,
-        }
-    }
-}
-
-
-
-
-// ==================
-// === Vector Ops ===
-// ==================
-
-/// Useful `Vec` operations.
-pub trait VectorOps {
-    /// Removes several elements starting at position index within the vector, shifting all elements
-    /// after them to the left.
-    fn remove_many(&mut self, index:usize, count:usize);
-}
-
-impl<T> VectorOps for Vec<T> {
-    #[allow(clippy::comparison_chain)]
-    fn remove_many(&mut self, index:usize, count:usize) {
-        if count == 1 {
-            self.remove(index);
-        } else if count > 1 {
-            let new_len = self.len() - count;
-            for i in index..new_len {
-                self.swap(i,i+count);
-            }
-            self.truncate(new_len);
         }
     }
 }

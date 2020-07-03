@@ -42,20 +42,20 @@ use crate::component::node;
 use crate::component::visualization::MockDataGenerator3D;
 use crate::component::visualization;
 
-
 use enso_frp as frp;
 use enso_frp::io::keyboard;
-use ensogl::application::{shortcut, Application};
+use ensogl::application::Application;
+use ensogl::application::shortcut;
 use ensogl::application;
 use ensogl::data::color;
-use ensogl::display::Scene;
 use ensogl::display::object::Id;
+use ensogl::display::Scene;
 use ensogl::display;
-use ensogl::prelude::*;
-use ensogl::system::web;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
+use ensogl::prelude::*;
+use ensogl::system::web;
 
 
 

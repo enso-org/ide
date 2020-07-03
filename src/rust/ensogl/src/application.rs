@@ -47,7 +47,7 @@ impl Application {
         let themes    = theme::Manager::from(&display.scene().style_sheet);
         let cursor    = Cursor::new(display.scene());
         display.add_child(&cursor);
-        web::body().set_style_or_panic("cursor","none"); // FIXME
+        web::body().set_style_or_panic("cursor","none");
         Self {logger,cursor,display,commands,shortcuts,views,themes}
     }
 
