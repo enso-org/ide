@@ -448,9 +448,9 @@ impl Acos for f32 {
 
 
 
-// =====================
-// === SaturatingAdd ===
-// =====================
+// =============================
+// === Saturating Operations ===
+// =============================
 
 /// Saturating addition. Computes self + rhs, saturating at the numeric bounds instead of
 /// overflowing.
@@ -460,9 +460,61 @@ pub trait SaturatingAdd<Rhs=Self> {
     fn saturating_add(self, rhs:Rhs) -> Self::Output;
 }
 
-impl SaturatingAdd for usize {
-    type Output = Self;
-    fn saturating_add(self, rhs:Self) -> Self::Output {
-        self.saturating_add(rhs)
-    }
+/// Saturating subtraction. Computes self - rhs, saturating at the numeric bounds instead of
+/// overflowing.
+#[allow(missing_docs)]
+pub trait SaturatingSub<Rhs=Self> {
+    type Output;
+    fn saturating_sub(self, rhs:Rhs) -> Self::Output;
 }
+
+/// Saturating multiplication. Computes self * rhs, saturating at the numeric bounds instead of
+/// overflowing.
+#[allow(missing_docs)]
+pub trait SaturatingMul<Rhs=Self> {
+    type Output;
+    fn saturating_mul(self, rhs:Rhs) -> Self::Output;
+}
+
+/// Saturating power. Computes self ^ exp, saturating at the numeric bounds instead of overflowing.
+#[allow(missing_docs)]
+pub trait SaturatingPow {
+    type Output;
+    fn saturating_pow(self, exp:u32) -> Self::Output;
+}
+
+
+// === Impls ===
+
+macro_rules! impl_saturating_integer {
+    ($($name:ident),*) => {$(
+        impl SaturatingAdd for $name {
+            type Output = Self;
+            fn saturating_add(self, rhs:Self) -> Self::Output {
+                self.saturating_add(rhs)
+            }
+        }
+
+        impl SaturatingSub for $name {
+            type Output = Self;
+            fn saturating_sub(self, rhs:Self) -> Self::Output {
+                self.saturating_sub(rhs)
+            }
+        }
+
+        impl SaturatingMul for $name {
+            type Output = Self;
+            fn saturating_mul(self, rhs:Self) -> Self::Output {
+                self.saturating_mul(rhs)
+            }
+        }
+
+        impl SaturatingPow for $name {
+            type Output = Self;
+            fn saturating_pow(self, exp:u32) -> Self::Output {
+                self.saturating_pow(exp)
+            }
+        }
+    )*}
+}
+impl_saturating_integer!(u8,u16,u32,u64,u128,usize);
