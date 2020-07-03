@@ -519,6 +519,48 @@ where T: Sqrt<Output=T> {
 
 
 
+// =============
+// === Clamp ===
+// =============
+
+impl<T> Clamp for Var<T>
+where T: Clamp<Output=T>+Into<Glsl> {
+    type Output = Var<T>;
+    fn clamp(self, lower:Var<T>, upper:Var<T>) -> Var<T> {
+        use Var::Static;
+        use Var::Dynamic;
+
+        match (self, lower, upper) {
+            (Static(value),Static(lower),Static(upper)) => Static(value.clamp(lower, upper)),
+            (value, lower, upper)                       => {
+                let value:Glsl = value.into();
+                let lower:Glsl = lower.into();
+                let upper:Glsl = upper.into();
+                Dynamic(format!("clamp({},{},{})", value.glsl(), lower.glsl(), upper.glsl()).into())
+            }
+        }
+    }
+}
+
+
+
+// ==============
+// === Signum ===
+// ==============
+
+impl<T> Signum for Var<T>
+    where T: Signum<Output=T> {
+    type Output = Var<T>;
+    fn signum(self) -> Self {
+        match self {
+            Self::Static  (t) => Var::Static(t.signum()),
+            Self::Dynamic (t) => Var::Dynamic(format!("sign({})",t).into())
+        }
+    }
+}
+
+
+
 // ============================
 // === Conversion Functions ===
 // ============================

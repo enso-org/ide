@@ -117,9 +117,35 @@ pub enum Notification {
         /// to address this: https://github.com/luna/enso/issues/707
         // TODO [mwu] Update as the issue is resolved on way or another.
         event:FileEvent,
-    }
+    },
+
+    /// Sent from the server to the client to inform about new information for certain expressions becoming available.
+    #[serde(rename = "executionContext/expressionValuesComputed")]
+    ExpressionValuesComputed(ExpressionValuesComputed),
 }
 
+/// Sent from the server to the client to inform about new information for certain expressions becoming available.
+#[derive(Clone,Debug,PartialEq)]
+#[derive(Serialize,Deserialize)]
+#[allow(missing_docs)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpressionValuesComputed {
+    pub context_id : ContextId,
+    pub updates    : Vec<ExpressionValueUpdate>,
+}
+
+/// The updates from `executionContext/expressionValuesComputed`.
+#[derive(Clone,Debug,PartialEq)]
+#[derive(Serialize,Deserialize)]
+#[allow(missing_docs)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpressionValueUpdate {
+    pub id          : ExpressionId,
+    #[serde(rename = "type")] // To avoid collision with the `type` keyword.
+    pub typename    : Option<String>,
+    pub short_value : Option<String>,
+    pub method_call : Option<MethodPointer>,
+}
 
 
 // =================
@@ -389,7 +415,7 @@ pub enum StackItem {
 #[serde(rename_all = "camelCase")]
 pub struct CapabilityRegistration {
     /// Method is the name of the capability listed in
-    /// https://github.com/luna/enso/blob/master/doc/language-server/specification/enso-protocol.md#capabilities
+    /// https://github.com/luna/enso/blob/main/docs/language-server/protocol-language-server.md#capabilities
     pub method: String,
     /// One of the enumerated `RegisterOptions` depending of `method`.
     pub register_options: RegisterOptions
@@ -425,7 +451,7 @@ impl CapabilityRegistration {
 
 /// `capability/acquire` takes method and options specific to the method. This type represents the
 /// options. The used variant must match the method. See for details:
-/// https://github.com/luna/enso/blob/master/docs/language-server/protocol-language-server.md#capabilities
+/// https://github.com/luna/enso/blob/main/docs/language-server/protocol-language-server.md#capabilities
 //TODO[ao] we cannot have one variant for each cabability due to `untagged` attribute.
 // The best solution is make CapabilityRegistration an enum and write serialization and
 // deserialization by hand.

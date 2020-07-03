@@ -3,10 +3,14 @@
 use crate::prelude::*;
 
 use crate::model::module::QualifiedName as ModuleQualifiedName;
-use crate::double_representation::definition::DefinitionName;
+use crate::notification::Publisher;
 
 use enso_protocol::language_server;
+use enso_protocol::language_server::ExpressionValueUpdate;
+use enso_protocol::language_server::ExpressionValuesComputed;
+use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::VisualisationConfiguration;
+use flo_stream::Subscriber;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -21,6 +25,95 @@ pub type DefinitionId = crate::double_representation::definition::Id;
 
 /// An identifier of expression.
 pub type ExpressionId = ast::Id;
+
+
+
+// =========================
+// === ComputedValueInfo ===
+// =========================
+
+/// Information about some computed value.
+///
+/// Contains "meta-data" like type or method pointer, not the computed value representation itself.
+#[derive(Clone,Debug)]
+pub struct ComputedValueInfo {
+    /// The string representing the typename of the computed value, e.g. "Number" or "Unit".
+    pub typename    : Option<ImString>,
+    /// If the expression is a method call (i.e. can be entered), this points to the target method.
+    pub method_call : Option<MethodPointer>,
+}
+
+impl From<ExpressionValueUpdate> for ComputedValueInfo {
+    fn from(update:ExpressionValueUpdate) -> Self {
+        ComputedValueInfo {
+            typename    : update.typename.map(ImString::new),
+            method_call : update.method_call,
+        }
+    }
+}
+
+/// Ids of expressions that were computed and received updates in this batch.
+pub type ComputedValueExpressions = Vec<ExpressionId>;
+
+
+
+// =================================
+// === ComputedValueInfoRegistry ===
+// =================================
+
+/// Registry that receives the `executionContext/expressionValuesComputed` notifications from the
+/// Language Server. Caches the received data. Emits notifications when the data is changed.
+#[derive(Clone,Default,Derivative)]
+#[derivative(Debug)]
+pub struct ComputedValueInfoRegistry {
+    map : RefCell<HashMap<ExpressionId,Rc<ComputedValueInfo>>>,
+    /// A publisher that emits an update every time a new batch of updates is received from language
+    /// server.
+    #[derivative(Debug="ignore")]
+    updates : Publisher<ComputedValueExpressions>,
+}
+
+impl ComputedValueInfoRegistry {
+    fn emit(&self, update: ComputedValueExpressions) {
+        let future = self.updates.publish(update);
+        executor::global::spawn(future);
+    }
+
+    /// Clear the stored values.
+    ///
+    /// When change is made to execution context (like adding or removing the call stack frame), the
+    /// cache should be cleaned.
+    fn clear(&self)  {
+        let removed_keys = self.map.borrow().keys().copied().collect_vec();
+        self.map.borrow_mut().clear();
+        if !removed_keys.is_empty() {
+            self.emit(removed_keys);
+        }
+    }
+
+    /// Store the information from the given update received from the Language Server.
+    pub fn apply_update(&self, values_computed:ExpressionValuesComputed) {
+        let updated_expressions = values_computed.updates.iter().map(|update| update.id).collect();
+        with(self.map.borrow_mut(), |mut map| {
+            for update in values_computed.updates {
+                let id   = update.id;
+                let info = Rc::new(ComputedValueInfo::from(update));
+                map.insert(id,info);
+            };
+        });
+        self.emit(updated_expressions);
+    }
+
+    /// Subscribe to notifications about changes in the registry.
+    pub fn subscribe(&self) -> Subscriber<ComputedValueExpressions> {
+        self.updates.subscribe()
+    }
+
+    /// Look up the registry for information about given expression.
+    pub fn get(&self, id:&ExpressionId) -> Option<Rc<ComputedValueInfo>> {
+        self.map.borrow_mut().get(id).cloned()
+    }
+}
 
 
 
@@ -85,10 +178,10 @@ pub struct InvalidVisualizationId(VisualizationId);
 /// This is a single item in ExecutionContext stack.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct LocalCall {
-    /// An expression being a call.
+    /// An expression being a call to a method.
     pub call       : ExpressionId,
-    /// A definition of function called in `call` expression.
-    pub definition : DefinitionId,
+    /// A pointer to the called method.
+    pub definition : MethodPointer,
 }
 
 
@@ -168,35 +261,49 @@ pub struct AttachedVisualization {
 pub struct ExecutionContext {
     logger:Logger,
     /// A name of definition which is a root call of this context.
-    pub entry_point:DefinitionName,
+    pub entry_point:MethodPointer,
     /// Local call stack.
     stack:RefCell<Vec<LocalCall>>,
     /// Set of active visualizations.
     visualizations: RefCell<HashMap<VisualizationId,AttachedVisualization>>,
+    /// Storage for information about computed values (like their types).
+    pub computed_value_info_registry: ComputedValueInfoRegistry,
 }
 
 impl ExecutionContext {
     /// Create new execution context
-    pub fn new(logger:impl Into<Logger>, entry_point:DefinitionName) -> Self {
-        let logger         = logger.into();
-        let stack          = default();
-        let visualizations = default();
-        Self {logger,entry_point,stack,visualizations}
+    pub fn new(logger:impl Into<Logger>, entry_point:MethodPointer) -> Self {
+        let logger                       = logger.into();
+        let stack                        = default();
+        let visualizations               = default();
+        let computed_value_info_registry = default();
+        Self {logger,entry_point,stack,visualizations, computed_value_info_registry }
     }
 
     /// Push a new stack item to execution context.
     pub fn push(&self, stack_item:LocalCall) {
         self.stack.borrow_mut().push(stack_item);
+        self.computed_value_info_registry.clear();
     }
 
     /// Pop the last stack item from this context. It returns error when only root call
     /// remains.
-    pub fn pop(&self) -> FallibleResult<()> {
-        self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
-        Ok(())
+    pub fn pop(&self) -> FallibleResult<LocalCall> {
+        let ret = self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
+        self.computed_value_info_registry.clear();
+        Ok(ret)
     }
 
-    /// Attaches a new visualization for current execution context.
+    /// Obtain the method pointer to the method of the call stack's top frame.
+    pub fn current_method(&self) -> MethodPointer {
+        if let Some(top_frame) = self.stack.borrow().last() {
+            top_frame.definition.clone()
+        } else {
+            self.entry_point.clone()
+        }
+    }
+
+    /// Attach a new visualization for current execution context.
     ///
     /// Returns a stream of visualization update data received from the server.
     pub fn attach_visualization
@@ -209,11 +316,18 @@ impl ExecutionContext {
         receiver
     }
 
-    /// Detaches visualization from current execution context.
-    pub fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
-        let err = || InvalidVisualizationId(*id);
+    /// Detach the visualization from this execution context.
+    pub fn detach_visualization(&self, id:VisualizationId) -> FallibleResult<Visualization> {
+        let err = || InvalidVisualizationId(id);
         info!(self.logger,"Removing from the registry: {id}.");
-        Ok(self.visualizations.borrow_mut().remove(id).ok_or_else(err)?.visualization)
+        Ok(self.visualizations.borrow_mut().remove(&id).ok_or_else(err)?.visualization)
+    }
+
+    /// Get the information about the given visualization. Fails, if there's no such visualization
+    /// active.
+    pub fn visualization_info(&self, id:VisualizationId) -> FallibleResult<Visualization> {
+        let err = || InvalidVisualizationId(id).into();
+        self.visualizations.borrow_mut().get(&id).map(|v| v.visualization.clone()).ok_or_else(err)
     }
 
     /// Get an iterator over stack items.
@@ -240,5 +354,17 @@ impl ExecutionContext {
             Failed to found such visualization.");
             Err(InvalidVisualizationId(visualization_id).into())
         }
+    }
+
+    /// Handles the update about expressions being computed.
+    pub fn handle_expression_values_computed
+    (&self, notification:ExpressionValuesComputed) -> FallibleResult<()> {
+        self.computed_value_info_registry.apply_update(notification);
+        Ok(())
+    }
+
+    /// Returns IDs of all active visualizations.
+    pub fn active_visualizations(&self) -> Vec<VisualizationId> {
+        self.visualizations.borrow().keys().copied().collect_vec()
     }
 }

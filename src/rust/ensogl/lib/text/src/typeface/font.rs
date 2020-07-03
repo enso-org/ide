@@ -10,7 +10,7 @@ use ensogl_core_embedded_fonts::EmbeddedFonts;
 use ensogl_core_msdf_sys as msdf_sys;
 use msdf_sys::Msdf;
 use msdf_sys::MsdfParameters;
-use shapely::shared;
+use enso_shapely::shared;
 use std::collections::hash_map::Entry;
 
 

@@ -1,7 +1,7 @@
 //! This module contains all structures which describes Module state (code, ast, metadata).
 use crate::prelude::*;
 
-use crate::constants::LANGUAGE_FILE_DOT_EXTENSION;
+use crate::constants::LANGUAGE_FILE_EXTENSION;
 use crate::constants::SOURCE_DIRECTORY;
 use crate::controller::FilePath;
 use crate::double_representation::definition::DefinitionInfo;
@@ -9,7 +9,7 @@ use crate::notification;
 
 use data::text::TextChange;
 use data::text::TextLocation;
-use flo_stream::MessagePublisher;
+use enso_protocol::language_server::MethodPointer;
 use flo_stream::Subscriber;
 use parser::api::SourceFile;
 use parser::api::ParsedSourceFile;
@@ -83,7 +83,7 @@ impl Path {
             let path = file_path.clone();
             move || InvalidModulePath {path,issue}
         };
-        let correct_extension = file_path.extension() == Some(constants::LANGUAGE_FILE_EXTENSION);
+        let correct_extension = file_path.extension() == Some(LANGUAGE_FILE_EXTENSION);
         correct_extension.ok_or_else(error(WrongFileExtension))?;
         let file_name       = file_path.file_name().ok_or_else(error(ContainsNoSegments))?;
         let name_first_char = file_name.chars().next().ok_or_else(error(ContainsEmptySegment))?;
@@ -102,7 +102,8 @@ impl Path {
         let mut segments : Vec<String> = vec![SOURCE_DIRECTORY.into()];
         segments.extend(name_segments.into_iter().map(|segment| segment.as_ref().to_string()));
         let module_file = segments.last_mut().ok_or(EmptyQualifiedName)?;
-        module_file.push_str(LANGUAGE_FILE_DOT_EXTENSION);
+        module_file.push('.');
+        module_file.push_str(LANGUAGE_FILE_EXTENSION);
         let file_path = FilePath {root_id,segments} ;
         Ok(Path {file_path})
     }
@@ -116,7 +117,7 @@ impl Path {
     ///
     /// E.g. "Main" -> "Main.enso"
     pub fn name_to_file_name(name:impl Str) -> String {
-        format!("{}.{}",name.as_ref(),constants::LANGUAGE_FILE_EXTENSION)
+        format!("{}.{}",name.as_ref(),LANGUAGE_FILE_EXTENSION)
     }
 
     /// Get the module name from path.
@@ -135,6 +136,23 @@ impl Path {
         let file_path   = FilePath::new(default(),&[src_dir,file_name]);
         Self::from_file_path(file_path).unwrap()
     }
+
+    /// Obtain a pointer to a method of the module (i.e. extending the module's atom).
+    ///
+    /// Note that this cannot be used for a method extending other atom than this module.
+    pub fn method_pointer(&self, method_name:impl Str) -> MethodPointer {
+        MethodPointer {
+            defined_on_type : self.module_name().into(),
+            name            : method_name.into(),
+            file            : self.file_path.clone(),
+        }
+    }
+}
+
+impl PartialEq<FilePath> for Path {
+    fn eq(&self, other:&FilePath) -> bool {
+        self.file_path.eq(other)
+    }
 }
 
 impl TryFrom<FilePath> for Path {
@@ -148,6 +166,14 @@ impl TryFrom<FilePath> for Path {
 impl Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.file_path, f)
+    }
+}
+
+impl TryFrom<MethodPointer> for Path {
+    type Error = InvalidModulePath;
+
+    fn try_from(value:MethodPointer) -> Result<Self, Self::Error> {
+        value.file.try_into()
     }
 }
 
@@ -308,7 +334,7 @@ pub type Content = ParsedSourceFile<Metadata>;
 #[derive(Debug)]
 pub struct Module {
     content       : RefCell<Content>,
-    notifications : RefCell<notification::Publisher<Notification>>,
+    notifications : notification::Publisher<Notification>,
 }
 
 impl Default for Module {
@@ -329,7 +355,7 @@ impl Module {
 
     /// Subscribe for notifications about text representation changes.
     pub fn subscribe(&self) -> Subscriber<Notification> {
-        self.notifications.borrow_mut().subscribe()
+        self.notifications.subscribe()
     }
 
     /// Create module state from given code, id_map and metadata.
@@ -360,7 +386,7 @@ impl Module {
     pub fn find_definition
     (&self,id:&double_representation::graph::Id) -> FallibleResult<DefinitionInfo> {
         let ast = self.content.borrow().ast.clone_ref();
-        double_representation::definition::traverse_for_definition(&ast,id)
+        double_representation::module::get_definition(&ast, id)
     }
 
     /// Returns metadata for given node, if present.
@@ -394,10 +420,8 @@ impl Module {
     pub fn apply_code_change
     (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult<()> {
         let mut code          = self.ast().repr();
-        let replaced_indices  = change.replaced.start.value..change.replaced.end.value;
         let replaced_location = TextLocation::convert_range(&code,&change.replaced);
-
-        code.replace_range(replaced_indices,&change.inserted);
+        change.apply(&mut code);
         let new_ast = parser.parse(code,new_id_map)?.try_into()?;
         self.content.borrow_mut().ast = new_ast;
         self.notify(Notification::CodeChanged {change,replaced_location});
@@ -432,7 +456,7 @@ impl Module {
     }
 
     fn notify(&self, notification:Notification) {
-        let notify  = self.notifications.borrow_mut().publish(notification);
+        let notify  = self.notifications.publish(notification);
         executor::global::spawn(notify);
     }
 }
