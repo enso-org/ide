@@ -248,18 +248,18 @@ impl Registry {
         let mouse = &model.mouse;
 
         frp::new_network! { network
-            mask          <- all_with(&kb.key_mask,&mouse.button_mask,|k,m| action_mask(k,m));
-            no_press      <- mask.map(|m| *m == default());
-            no_press_prev <- no_press.previous();
-            press         <- mask.gate_not(&no_press);
-            single_press  <- press.gate(&no_press_prev);
+            mask                 <- all_with(&kb.key_mask,&mouse.button_mask,|k,m|action_mask(k,m));
+            nothing_pressed      <- mask.map(|m| *m == default());
+            nothing_pressed_prev <- nothing_pressed.previous();
+            press                <- mask.gate_not(&nothing_pressed);
+            single_press         <- press.gate(&nothing_pressed_prev);
             eval press ((m) model.process_action(ActionType::Press,m));
 
             single_press_prev  <- single_press.previous();
             press_time         <- single_press.map(|_| web::performance().now() as f32);
             press_time_prev    <- press_time.previous();
             time_delta         <- press_time.map2(&press_time_prev, |t1,t2| (t1-t2));
-            is_double_press    <- time_delta.map4(&press,&single_press_prev,&no_press_prev,
+            is_double_press    <- time_delta.map4(&press,&single_press_prev,&nothing_pressed_prev,
                 move |delta,t,s,g| *g && *delta < DOUBLE_PRESS_THRESHOLD_MS && t == s);
             double_press       <- press.gate(&is_double_press);
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
