@@ -1819,15 +1819,13 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     outputs.node_position_set         <+ node_with_position;
     outputs.node_position_set_batched <+ node_with_position;
 
-
-
     }
 
 
 
     // === Node Connect ===
 
-    frp::extend! { network
+    frp::extend! { TRACE_ALL network
 
     outputs.edge_source_set <+ inputs.set_edge_source;
     outputs.edge_target_set <+ inputs.set_edge_target;
