@@ -42,11 +42,6 @@ impl ActionMask {
     }
 }
 
-fn action_mask
-(keyboard:impl Into<keyboard::KeyMask>, mouse:impl Into<mouse::ButtonMask>) -> ActionMask {
-    ActionMask::new(keyboard,mouse)
-}
-
 
 
 // ==============
@@ -248,7 +243,7 @@ impl Registry {
         let mouse = &model.mouse;
 
         frp::new_network! { network
-            mask                 <- all_with(&keyboard.key_mask,&mouse.button_mask,|k,m|action_mask(k,m));
+            mask <- all_with(&keyboard.key_mask,&mouse.button_mask,|k,m|ActionMask::new(k,m));
             nothing_pressed      <- mask.map(|m| *m == default());
             nothing_pressed_prev <- nothing_pressed.previous();
             press                <- mask.gate_not(&nothing_pressed);
@@ -265,9 +260,9 @@ impl Registry {
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
 
             prev_mask_on_key_up <- keyboard.key_mask.map3
-                (&keyboard.prev_key_mask,&mouse.button_mask,|_,k,m|action_mask(k,m));
+                (&keyboard.prev_key_mask,&mouse.button_mask,|_,k,m|ActionMask::new(k,m));
             prev_mask_on_mouse_up <- mouse.button_mask.map3
-                (&keyboard.key_mask,&mouse.prev_button_mask,|_,k,m|action_mask(k,m));
+                (&keyboard.key_mask,&mouse.prev_button_mask,|_,k,m|ActionMask::new(k,m));
             prev_mask <- any(prev_mask_on_key_up,prev_mask_on_mouse_up);
             same_key  <- prev_mask.map2(&mask,|t,s| t == s);
             release   <- prev_mask.gate_not(&same_key);
