@@ -1,9 +1,9 @@
 //! This is a visualization example scene which creates a sinusoidal graph.
 
-use crate::graph_editor::data;
 use crate::graph_editor::component::visualization::Data;
 use crate::graph_editor::component::visualization;
 use crate::graph_editor::component::visualization::Registry;
+use crate::graph_editor::data;
 
 use ensogl::application::Application;
 use ensogl::display::navigation::navigator::Navigator;

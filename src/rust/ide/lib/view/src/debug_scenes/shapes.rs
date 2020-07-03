@@ -167,8 +167,8 @@ use crate::graph_editor::component::node::port::Expression;
 
 use ast::crumbs::PatternMatchCrumb::*;
 use ast::crumbs::*;
-use span_tree::traits::*;
 use ensogl_core_msdf_sys::run_once_initialized;
+use span_tree::traits::*;
 
 
 pub fn expression_mock() -> Expression {

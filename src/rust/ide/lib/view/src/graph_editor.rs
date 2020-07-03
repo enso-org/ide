@@ -115,7 +115,7 @@ impl<T,S> Clone for SharedHashSet<T,S> {
 }
 
 impl<T,S> Default for SharedHashSet<T,S>
-    where T:Eq+Hash, S:Default+std::hash::BuildHasher {
+where T:Eq+Hash, S:Default+std::hash::BuildHasher {
     fn default() -> Self {
         let raw = default();
         Self {raw}
@@ -123,7 +123,7 @@ impl<T,S> Default for SharedHashSet<T,S>
 }
 
 impl<T,S> SharedHashSet<T,S>
-    where T:Eq+Hash, S:Default+std::hash::BuildHasher {
+where T:Eq+Hash, S:Default+std::hash::BuildHasher {
     pub fn new() -> Self {
         default()
     }
@@ -134,7 +134,7 @@ impl<T,S> SharedHashSet<T,S>
 }
 
 impl<T,S> SharedHashSet<T,S>
-    where T:Eq+Hash, S:std::hash::BuildHasher {
+where T:Eq+Hash, S:std::hash::BuildHasher {
     pub fn insert(&self, t:T) -> bool {
         self.raw.borrow_mut().insert(t)
     }
@@ -158,7 +158,7 @@ impl<T,S> SharedHashSet<T,S> {
     }
 
     pub fn for_each<F>(&self, f:F)
-        where F:FnMut(&T) {
+    where F:FnMut(&T) {
         self.raw.borrow_mut().iter().for_each(f)
     }
 
@@ -167,7 +167,7 @@ impl<T,S> SharedHashSet<T,S> {
     }
 
     pub fn keys(&self) -> Vec<T>
-        where T:Clone {
+    where T:Clone {
         self.raw.borrow().iter().cloned().collect_vec()
     }
 }
@@ -192,7 +192,7 @@ impl<K,V,S> Clone for SharedHashMap<K,V,S> {
 }
 
 impl<K,V,S> Default for SharedHashMap<K,V,S>
-    where K:Eq+Hash, S:Default+std::hash::BuildHasher {
+where K:Eq+Hash, S:Default+std::hash::BuildHasher {
     fn default() -> Self {
         let raw = default();
         Self {raw}
@@ -200,7 +200,7 @@ impl<K,V,S> Default for SharedHashMap<K,V,S>
 }
 
 impl<K,V,S> SharedHashMap<K,V,S>
-    where K:Eq+Hash, S:Default+std::hash::BuildHasher {
+where K:Eq+Hash, S:Default+std::hash::BuildHasher {
     pub fn new() -> Self {
         default()
     }
@@ -211,23 +211,23 @@ impl<K,V,S> SharedHashMap<K,V,S>
 }
 
 impl<K,V,S> SharedHashMap<K,V,S>
-    where K:Eq+Hash, S:std::hash::BuildHasher {
+where K:Eq+Hash, S:std::hash::BuildHasher {
     pub fn insert(&self, k:K, v:V) -> Option<V> {
         self.raw.borrow_mut().insert(k,v)
     }
 
     pub fn get_copied(&self, k:&K) -> Option<V>
-        where V:Copy {
+    where V:Copy {
         self.raw.borrow().get(k).copied()
     }
 
     pub fn get_cloned(&self, k:&K) -> Option<V>
-        where V:Clone {
+    where V:Clone {
         self.raw.borrow().get(k).cloned()
     }
 
     pub fn get_cloned_ref(&self, k:&K) -> Option<V>
-        where V:CloneRef {
+    where V:CloneRef {
         self.raw.borrow().get(k).map(|t| t.clone_ref())
     }
 
@@ -242,12 +242,12 @@ impl<K,V,S> SharedHashMap<K,V,S> {
     }
 
     pub fn for_each<F>(&self, f:F)
-        where F:FnMut((&K,&V)) {
+    where F:FnMut((&K,&V)) {
         self.raw.borrow_mut().iter().for_each(f)
     }
 
     pub fn keys(&self) -> Vec<K>
-        where K:Clone {
+    where K:Clone {
         self.raw.borrow().keys().cloned().collect_vec()
     }
 }
@@ -425,14 +425,14 @@ impl FrpInputs {
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
-            ,remove_all_node_input_edges,remove_all_node_output_edges,set_visualization_data
-            ,set_detached_edge_targets,set_edge_source,set_edge_target
-            ,unset_edge_source,unset_edge_target
-            ,set_node_position,set_expression_type,select_node,remove_node,set_node_expression
-            ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
-            ,register_visualization,some_edge_targets_detached,some_edge_sources_detached
-            ,all_edge_targets_attached,hover_node_input,all_edge_sources_attached
-            ,hover_node_output,press_node_output,set_detached_edge_sources,all_edges_attached
+             ,remove_all_node_input_edges,remove_all_node_output_edges,set_visualization_data
+             ,set_detached_edge_targets,set_edge_source,set_edge_target
+             ,unset_edge_source,unset_edge_target
+             ,set_node_position,set_expression_type,select_node,remove_node,set_node_expression
+             ,connect_nodes,deselect_all_nodes,cycle_visualization,set_visualization
+             ,register_visualization,some_edge_targets_detached,some_edge_sources_detached
+             ,all_edge_targets_attached,hover_node_input,all_edge_sources_attached
+             ,hover_node_output,press_node_output,set_detached_edge_sources,all_edges_attached
         }
     }
 }
@@ -902,9 +902,9 @@ impl GraphEditorModelWithNetwork {
 
     fn new_node
     ( &self
-      , cursor_style : &frp::Source<cursor::Style>
-      , output_press : &frp::Source<NodeId>
-      , input_press  : &frp::Source<EdgeTarget>
+    , cursor_style : &frp::Source<cursor::Style>
+    , output_press : &frp::Source<NodeId>
+    , input_press  : &frp::Source<EdgeTarget>
     ) -> NodeId {
         let view = component::Node::new(&self.scene);
         let node = Node::new(view);
@@ -1386,7 +1386,7 @@ impl application::View for GraphEditor {
 
 fn enable_disable_toggle
 (network:&frp::Network, enable:&frp::Source, disable:&frp::Source, toggle:&frp::Source)
- -> frp::Stream<bool> {
+-> frp::Stream<bool> {
     // FIXME: the clone_refs bellow should not be needed.
     let enable  = enable.clone_ref();
     let disable = disable.clone_ref();
