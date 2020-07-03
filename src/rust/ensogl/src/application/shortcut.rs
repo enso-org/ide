@@ -264,9 +264,11 @@ impl Registry {
             double_press       <- press.gate(&is_double_press);
             eval double_press ((m) model.process_action(ActionType::DoublePress,m));
 
-            prev_mask1 <- mask.map3(&kb.prev_key_mask,&mouse.button_mask,|_,k,m|action_mask(k,m));
-            prev_mask2 <- mask.map3(&kb.key_mask,&mouse.prev_button_mask,|_,k,m|action_mask(k,m));
-            prev_mask  <- any(prev_mask1,prev_mask2);
+            prev_mask_on_key_up <- mask.map3(&kb.prev_key_mask,&mouse.button_mask,
+                |_,k,m|action_mask(k,m));
+            prev_mask_on_mouse_up <- mask.map3(&kb.key_mask,&mouse.prev_button_mask,
+                |_,k,m|action_mask(k,m));
+            prev_mask  <- any(prev_mask_on_key_up,prev_mask_on_mouse_up);
             same_key   <- prev_mask.map2(&mask,|t,s| t == s);
             release    <- prev_mask.gate_not(&same_key);
             eval release ((m) model.process_action(ActionType::Release,m));
