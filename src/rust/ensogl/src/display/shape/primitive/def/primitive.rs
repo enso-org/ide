@@ -13,7 +13,6 @@ use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::Var;
-use crate::types::topology::unit::*;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::shader::glsl::traits::*;
 

@@ -1,8 +1,4 @@
-//! Defines unit of measurement abstraction. See: https://en.wikipedia.org/wiki/Unit_of_measurement
-
-use crate::algebra::*;
-
-use std::ops::*;
+//! Defines utilities for creating custom strongly typed units.
 
 
 
@@ -10,6 +6,20 @@ use std::ops::*;
 // === Macros ===
 // ==============
 
+/// Define a new unit type. Units are strongly typed wrappers for some primitive values. For
+/// example, unit `Angle` could be a wrapper for `f32`.
+///
+/// Units automatically implement a lot of traits in a generic fashion, so you can for example add
+/// to angles together, or divide angle by a number, but you are not allowed to divide a number by
+/// an angle. Rarely you may want to use very custom rules for unit definition. In such a case, you
+/// should use other macros defined in this module. Look at the definitions below to learn the
+/// usage patterns.
+///
+/// ## Implementation Notes
+/// You may wonder why this utility is defined as a macro that generates hundreds of lines of code
+/// instead of a generic type `Unit<Phantom,Repr>`. The later approach has one major issue. The
+/// definition `type Angle = Unit<AngleType,f32>` will be dysfunctional, as you would not be allowed
+/// to implement many impls because the type `Unit` would be defined in an external crate.
 #[macro_export]
 macro_rules! unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident (f32)) => {
@@ -35,6 +45,8 @@ macro_rules! unit {
     };
 }
 
+
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! unsigned_unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -73,6 +85,7 @@ macro_rules! unsigned_unit {
     };
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! unsigned_unit_proxy {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -111,6 +124,7 @@ macro_rules! unsigned_unit_proxy {
     };
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! unsigned_unit_float_like {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -149,6 +163,7 @@ macro_rules! unsigned_unit_float_like {
     };
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! signed_unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
@@ -187,9 +202,11 @@ macro_rules! signed_unit {
     };
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! signed_unit_float_like {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        /// Unit module.
         pub mod $vname {
             use super::*;
             use std::ops::AddAssign;
@@ -204,6 +221,10 @@ macro_rules! signed_unit_float_like {
             $crate::impl_UNIT_x_UNIT!          {AddAssign add_assign $name}
             $crate::impl_UNIT_to_UNIT!         {Neg neg $name}
 
+            /// Unit conversion and associated method. It has associated type in order to allow
+            /// complex conversions, like `(10,10).px()` be converted the same way as
+            /// `(10.px(),10.px())`.
+            #[allow(missing_docs)]
             pub trait Into {
                 type Output;
                 fn $vname(self) -> Self::Output;
@@ -216,6 +237,7 @@ macro_rules! signed_unit_float_like {
                 }
             }
 
+            /// Exports. The traits are renamed not to pollute the scope.
             pub mod export {
                 pub use super::$name;
                 pub use super::Into as TRAIT_Into;
@@ -225,6 +247,7 @@ macro_rules! signed_unit_float_like {
     };
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! newtype {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -248,6 +271,7 @@ macro_rules! newtype {
     };
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! newtype_struct {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -256,6 +280,7 @@ macro_rules! newtype_struct {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! newtype_struct_float_like {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -264,6 +289,7 @@ macro_rules! newtype_struct_float_like {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! newtype_struct_def {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -273,15 +299,18 @@ macro_rules! newtype_struct_def {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! newtype_struct_def_float_like {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
         $(#$meta)*
+        #[allow(missing_docs)]
         #[derive(Clone,Copy,Debug,Default,PartialEq,PartialOrd)]
         pub struct $name { $(pub $field : $field_type),* }
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! newtype_struct_impls {
     ($(#$meta:tt)* $name:ident { $field:ident : $field_type:ty $(,)? }) => {
@@ -326,6 +355,7 @@ macro_rules! newtype_struct_impls {
 // === T x T -> T ===
 // ==================
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT_to_UNIT {
     ($trait:ident :: $opr:ident for $name:ident) => {
@@ -333,6 +363,7 @@ macro_rules! impl_UNIT_x_UNIT_to_UNIT {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_T_x_T_to_T {
     ($trait:ident :: $opr:ident for $name:ident { $($field:ident),* $(,)? }) => {
@@ -376,6 +407,7 @@ macro_rules! impl_T_x_T_to_T {
 // === T x FIELD -> T ===
 // ======================
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_FIELD_to_UNIT {
     ($trait:ident $opr:ident $name:ident $field_type:ty) => {
@@ -383,6 +415,7 @@ macro_rules! impl_UNIT_x_FIELD_to_UNIT {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_T_x_FIELD_to_T {
     ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
@@ -425,6 +458,7 @@ macro_rules! impl_T_x_FIELD_to_T {
 // === FIELD x T -> T ===
 // ======================
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_FIELD_x_UNIT_to_UNIT {
     ($trait:ident $opr:ident $name:ident $field_type:ty) => {
@@ -432,6 +466,7 @@ macro_rules! impl_FIELD_x_UNIT_to_UNIT {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_FIELD_x_T_to_T {
     ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
@@ -475,6 +510,7 @@ macro_rules! impl_FIELD_x_T_to_T {
 // === T x T -> FIELD ===
 // ======================
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT_to_FIELD {
     ($trait:ident $opr:ident $name:ident $field_type:ty) => {
@@ -482,6 +518,7 @@ macro_rules! impl_UNIT_x_UNIT_to_FIELD {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_T_x_T_to_FIELD {
     ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
@@ -521,6 +558,7 @@ macro_rules! impl_T_x_T_to_FIELD {
 // === T -> T ===
 // ==============
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_to_UNIT {
     ($trait:ident $opr:ident $name:ident) => {
@@ -528,6 +566,7 @@ macro_rules! impl_UNIT_to_UNIT {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_T_to_T {
     ($trait:ident $opr:ident $name:ident { $($field:ident),* $(,)? }) => {$(
@@ -556,6 +595,7 @@ macro_rules! impl_T_to_T {
 // === T x T ===
 // =============
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT {
     ($trait:ident $opr:ident $name:ident) => {
@@ -563,6 +603,7 @@ macro_rules! impl_UNIT_x_UNIT {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_T_x_T {
     ($trait:ident $opr:ident $name:ident { $($field:ident),* $(,)? }) => {$(
@@ -602,6 +643,7 @@ macro_rules! impl_T_x_T {
 // === T x FIELD ===
 // =================
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_UNIT_x_FIELD {
     ($trait:ident $opr:ident $name:ident $field_type:ty) => {
@@ -609,6 +651,7 @@ macro_rules! impl_UNIT_x_FIELD {
     }
 }
 
+/// Unit definition macro. See docs of `unit` to learn more.
 #[macro_export]
 macro_rules! impl_T_x_FIELD {
     ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
@@ -641,54 +684,3 @@ macro_rules! impl_T_x_FIELD {
         }
     )*};
 }
-
-
-// =============
-// === Units ===
-// =============
-
-unit!{
-Pixels::pixels(f32)
-}
-
-unit!{
-Radians::radians(f32)
-}
-
-unit!{
-Degrees::degrees(f32)
-}
-
-impl From<i32>   for Pixels { fn from(t:i32)   -> Self { (t as f32).into() } }
-impl From<&i32>  for Pixels { fn from(t:&i32)  -> Self { (*t).into() } }
-impl From<&&i32> for Pixels { fn from(t:&&i32) -> Self { (*t).into() } }
-
-
-
-// ==============
-// === Traits ===
-// ==============
-
-/// Commonly used traits.
-pub mod traits {
-    pub use super::pixels::Into  as TRAIT_IntoPixels;
-    pub use super::radians::Into as TRAIT_IntoRadians;
-    pub use super::degrees::Into as TRAIT_IntoDegrees;
-}
-
-pub use traits::*;
-//unsigned_unit_proxy! {
-///// A type representing horizontal measurements.
-/////
-///// **WARNING**
-///// This is currently in units that are not very well defined except that ASCII characters count as
-///// 1 each. This should be fixed in the future.
-//Column2::column2(Bytes)
-//}
-
-
-unit! {
-/// A type representing vertical measurements.
-Line::line(usize)
-}
-

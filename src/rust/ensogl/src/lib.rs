@@ -72,7 +72,7 @@ pub mod prelude {
     pub use shapely::shared;
     pub use super::display::traits::*;
     pub use super::data::container::AddMut;
-    pub use super::types::types::*;
+    pub use super::types::*;
 }
 
 /// Common traits.

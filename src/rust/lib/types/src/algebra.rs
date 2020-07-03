@@ -22,10 +22,11 @@ use nalgebra::ComplexField;
 use nalgebra::Dim;
 use nalgebra::storage::Storage;
 
-use std::ops::Add;
-use std::ops::Div;
-use std::ops::Mul;
-use std::ops::Sub;
+pub use std::ops::Add;
+pub use std::ops::Div;
+pub use std::ops::Mul;
+pub use std::ops::Neg;
+pub use std::ops::Sub;
 
 
 
@@ -33,13 +34,19 @@ use std::ops::Sub;
 // === Smart Constructors ===
 // ==========================
 
-pub type Vector2<T=f32> = nalgebra::Vector2<T>;
-pub type Vector3<T=f32> = nalgebra::Vector3<T>;
-pub type Vector4<T=f32> = nalgebra::Vector4<T>;
+#[allow(missing_docs)]
+mod vectors {
+    use super::*;
 
-pub fn Vector2<T:Scalar>(t1:T,t2:T)           -> Vector2<T> { Vector2::new(t1,t2) }
-pub fn Vector3<T:Scalar>(t1:T,t2:T,t3:T)      -> Vector3<T> { Vector3::new(t1,t2,t3) }
-pub fn Vector4<T:Scalar>(t1:T,t2:T,t3:T,t4:T) -> Vector4<T> { Vector4::new(t1,t2,t3,t4) }
+    pub type Vector2<T=f32> = nalgebra::Vector2<T>;
+    pub type Vector3<T=f32> = nalgebra::Vector3<T>;
+    pub type Vector4<T=f32> = nalgebra::Vector4<T>;
+
+    pub fn Vector2<T:Scalar>(t1:T,t2:T)           -> Vector2<T> { Vector2::new(t1,t2) }
+    pub fn Vector3<T:Scalar>(t1:T,t2:T,t3:T)      -> Vector3<T> { Vector3::new(t1,t2,t3) }
+    pub fn Vector4<T:Scalar>(t1:T,t2:T,t3:T,t4:T) -> Vector4<T> { Vector4::new(t1,t2,t3,t4) }
+}
+pub use vectors::*;
 
 
 
@@ -445,6 +452,9 @@ impl Acos for f32 {
 // === SaturatingAdd ===
 // =====================
 
+/// Saturating addition. Computes self + rhs, saturating at the numeric bounds instead of
+/// overflowing.
+#[allow(missing_docs)]
 pub trait SaturatingAdd<Rhs=Self> {
     type Output;
     fn saturating_add(self, rhs:Rhs) -> Self::Output;
@@ -456,14 +466,3 @@ impl SaturatingAdd for usize {
         self.saturating_add(rhs)
     }
 }
-
-
-
-// ============================
-// === Algebraic Structures ===
-// ============================
-// TODO evaluate for correctness and usefulness.
-
-/// Trait that describes a set of numbers that define addition, subtraction, multiplication,
-/// and division.
-pub trait Field<T> = Add<T,Output=T> + Sub<T,Output=T> + Mul<T,Output=T> + Div<T,Output=T>;

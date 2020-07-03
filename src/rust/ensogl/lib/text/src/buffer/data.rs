@@ -18,6 +18,7 @@ pub use range::RangeBounds;
 pub use rope::Cursor;
 pub use rope::metric;
 pub use spans::Spans;
+pub use unit::traits;
 pub use unit::*;
 
 

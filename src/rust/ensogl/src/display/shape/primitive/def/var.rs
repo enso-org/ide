@@ -4,16 +4,6 @@ use crate::prelude::*;
 
 use crate::data::color;
 use crate::display::shape::primitive::def::unit::PixelDistance;
-use crate::types::algebra::Acos;
-use crate::types::algebra::Asin;
-use crate::types::algebra::Cos;
-use crate::types::algebra::Sin;
-use crate::types::algebra::Sqrt;
-use crate::types::topology::unit::Degrees;
-use crate::types::topology::unit::Pixels;
-use crate::types::topology::unit::Radians;
-use crate::types::topology::unit::traits::*;
-//use crate::math::topology::unit::Unit;
 use crate::system::gpu::shader::glsl::Glsl;
 use crate::system::gpu::types::*;
 

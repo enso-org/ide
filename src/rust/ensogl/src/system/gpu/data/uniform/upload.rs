@@ -5,7 +5,7 @@
 use web_sys::WebGlUniformLocation;
 
 use crate::system::gpu::Context;
-use crate::types::types::*;
+use crate::types::*;
 
 
 

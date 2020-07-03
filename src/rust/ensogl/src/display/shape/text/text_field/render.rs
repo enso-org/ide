@@ -25,7 +25,6 @@ use crate::display::shape::primitive::def::class::ShapeOps;
 
 use nalgebra::{Vector2, zero};
 use nalgebra::Vector3;
-use crate::types::topology::unit::traits::*;
 use crate::display::Glsl;
 
 
