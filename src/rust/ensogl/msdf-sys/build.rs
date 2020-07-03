@@ -47,6 +47,6 @@ mod msdfgen_wasm {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    msdfgen_wasm::download();
-    msdfgen_wasm::patch_for_wasm_bindgen_test();
+    //msdfgen_wasm::download();
+    //msdfgen_wasm::patch_for_wasm_bindgen_test();
 }

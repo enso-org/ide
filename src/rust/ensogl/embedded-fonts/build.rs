@@ -103,11 +103,11 @@ mod deja_vu {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    let out     = env::var("OUT_DIR").unwrap();
-    let out_dir = path::Path::new(&out);
-    deja_vu::download_and_extract_all_fonts(out_dir);
-    let fill_map_rs_path     = out_dir.join("fill_map.rs");
-    let mut fill_map_rs_file = FillMapRsFile::create(fill_map_rs_path).unwrap();
-    deja_vu::add_entries_to_fill_map_rs(&mut fill_map_rs_file);
-    fill_map_rs_file.close_block().unwrap();
+    // let out     = env::var("OUT_DIR").unwrap();
+    // let out_dir = path::Path::new(&out);
+    // deja_vu::download_and_extract_all_fonts(out_dir);
+    // let fill_map_rs_path     = out_dir.join("fill_map.rs");
+    // let mut fill_map_rs_file = FillMapRsFile::create(fill_map_rs_path).unwrap();
+    // deja_vu::add_entries_to_fill_map_rs(&mut fill_map_rs_file);
+    // fill_map_rs_file.close_block().unwrap();
 }

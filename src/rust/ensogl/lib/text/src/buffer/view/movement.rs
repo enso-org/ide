@@ -103,14 +103,16 @@ impl ViewModel {
     /// any line that is shorter than the current cursor position.
     fn vertical_motion_exact_pos
     (&self, region:Selection, move_up:bool, modify:bool) -> (Bytes,Option<Column>) {
-        let location    = self.vertical_motion_selection_to_caret(region, move_up, modify);
-        let lines_count = self.line_of_offset(self.data().len());
-
-        let line_len = self.offset_of_line(location.line.saturating_add(1.line())) - self.offset_of_line(location.line);
+        let location         = self.vertical_motion_selection_to_caret(region, move_up, modify);
+        let lines_count      = self.line_of_offset(self.data().len());
+        let line_offset      = self.offset_of_line(location.line);
+        let next_line_offset = self.offset_of_line(location.line.saturating_add(1.line()));
+        let line_len         = next_line_offset - line_offset;
         if move_up && location.line == Line(0) {
-            return (self.line_col_to_offset(location.line, location.column), Some(location.column));
+            return (self.line_col_to_offset(location.line,location.column), Some(location.column));
         }
-        let mut line = if move_up { location.line - 1.line() } else { location.line.saturating_add(1.line()) };
+        let mut line = if move_up { location.line - 1.line() }
+                       else       { location.line.saturating_add(1.line()) };
 
         // If the active columns is longer than the current line, use the current line length.
         let line_last_column = line_len.column();

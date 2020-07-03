@@ -4,7 +4,6 @@
 #![feature(clamp)]
 
 pub mod algebra;
-pub mod geometry;
 pub mod topology;
 
 pub use algebra::Vector2;

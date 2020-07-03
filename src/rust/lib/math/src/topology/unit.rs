@@ -43,9 +43,9 @@ macro_rules! unsigned_unit {
             use std::ops::AddAssign;
 
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd saturating_add $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
             $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
             $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
             $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
@@ -81,9 +81,9 @@ macro_rules! unsigned_unit_proxy {
             use std::ops::AddAssign;
 
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd saturating_add $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
 //            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
 //            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
 //            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
@@ -119,9 +119,9 @@ macro_rules! unsigned_unit_float_like {
             use std::ops::AddAssign;
 
             $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd saturating_add $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
             $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
             $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
             $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
@@ -157,8 +157,8 @@ macro_rules! signed_unit {
             use std::ops::AddAssign;
 
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
             $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
             $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
             $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
@@ -195,8 +195,8 @@ macro_rules! signed_unit_float_like {
             use std::ops::AddAssign;
 
             $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub sub $name}
-            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add add $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
             $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul mul $name $field_type}
             $crate::impl_UNIT_x_FIELD_to_UNIT! {Div div $name $field_type}
             $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul mul $name $field_type}
@@ -232,9 +232,9 @@ macro_rules! newtype {
 
         $crate::newtype_struct! {$(#$meta)* $name { $($field : $field_type),*}}
 
-        $crate::impl_T_x_T_to_T! {Sub           sub            $name {$($field),*}}
-        $crate::impl_T_x_T_to_T! {Add           add            $name {$($field),*}}
-        $crate::impl_T_x_T_to_T! {SaturatingAdd saturating_add $name {$($field),*}}
+        $crate::impl_T_x_T_to_T! {Sub           :: sub            for $name {$($field),*}}
+        $crate::impl_T_x_T_to_T! {Add           :: add            for $name {$($field),*}}
+        $crate::impl_T_x_T_to_T! {SaturatingAdd :: saturating_add for $name {$($field),*}}
 
         $crate::impl_T_x_FIELD_to_T! {Sub           sub            $name {$($field:$field_type),*}}
         $crate::impl_T_x_FIELD_to_T! {Add           add            $name {$($field:$field_type),*}}
@@ -328,42 +328,42 @@ macro_rules! newtype_struct_impls {
 
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT_to_UNIT {
-    ($opr:ident $f:ident $name:ident) => {
-        $crate::impl_T_x_T_to_T! {$opr $f $name {value}}
+    ($trait:ident :: $opr:ident for $name:ident) => {
+        $crate::impl_T_x_T_to_T! {$trait :: $opr for  $name {value}}
     }
 }
 
 #[macro_export]
 macro_rules! impl_T_x_T_to_T {
-    ($opr:ident $f:ident $name:ident { $($field:ident),* $(,)? }) => {
-        impl $opr<$name> for $name {
+    ($trait:ident :: $opr:ident for $name:ident { $($field:ident),* $(,)? }) => {
+        impl $trait<$name> for $name {
             type Output = $name;
-            fn $f(self, rhs:$name) -> Self::Output {
-                $(let $field = self.$field.$f(rhs.$field);)*
+            fn $opr(self, rhs:$name) -> Self::Output {
+                $(let $field = self.$field.$opr(rhs.$field);)*
                 $name { $($field),* }
             }
         }
 
-        impl $opr<$name> for &$name {
+        impl $trait<$name> for &$name {
             type Output = $name;
-            fn $f(self, rhs:$name) -> Self::Output {
-                $(let $field = self.$field.$f(rhs.$field);)*
+            fn $opr(self, rhs:$name) -> Self::Output {
+                $(let $field = self.$field.$opr(rhs.$field);)*
                 $name { $($field),* }
             }
         }
 
-        impl $opr<&$name> for $name {
+        impl $trait<&$name> for $name {
             type Output = $name;
-            fn $f(self, rhs:&$name) -> Self::Output {
-                $(let $field = self.$field.$f(rhs.$field);)*
+            fn $opr(self, rhs:&$name) -> Self::Output {
+                $(let $field = self.$field.$opr(rhs.$field);)*
                 $name { $($field),* }
             }
         }
 
-        impl $opr<&$name> for &$name {
+        impl $trait<&$name> for &$name {
             type Output = $name;
-            fn $f(self, rhs:&$name) -> Self::Output {
-                $(let $field = self.$field.$f(rhs.$field);)*
+            fn $opr(self, rhs:&$name) -> Self::Output {
+                $(let $field = self.$field.$opr(rhs.$field);)*
                 $name { $($field),* }
             }
         }
@@ -378,43 +378,43 @@ macro_rules! impl_T_x_T_to_T {
 
 #[macro_export]
 macro_rules! impl_UNIT_x_FIELD_to_UNIT {
-    ($opr:ident $f:ident $name:ident $field_type:ty) => {
-        $crate::impl_T_x_FIELD_to_T! {$opr $f $name {value : $field_type}}
+    ($trait:ident $opr:ident $name:ident $field_type:ty) => {
+        $crate::impl_T_x_FIELD_to_T! {$trait $opr $name {value : $field_type}}
     }
 }
 
 #[macro_export]
 macro_rules! impl_T_x_FIELD_to_T {
-    ($opr:ident $f:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+    ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
-        impl $opr<$field_type> for $name {
+        impl $trait<$field_type> for $name {
             type Output = $name;
-            fn $f(self, rhs:$field_type) -> Self::Output {
-                $name { $field:self.$field.$f(rhs), ..self }
+            fn $opr(self, rhs:$field_type) -> Self::Output {
+                $name { $field:self.$field.$opr(rhs), ..self }
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<$field_type> for &$name {
+        impl $trait<$field_type> for &$name {
             type Output = $name;
-            fn $f(self, rhs:$field_type) -> Self::Output {
-                $name { $field:self.$field.$f(rhs), ..*self }
+            fn $opr(self, rhs:$field_type) -> Self::Output {
+                $name { $field:self.$field.$opr(rhs), ..*self }
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<&$field_type> for $name {
+        impl $trait<&$field_type> for $name {
             type Output = $name;
-            fn $f(self, rhs:&$field_type) -> Self::Output {
-                $name { $field:self.$field.$f(*rhs), ..self }
+            fn $opr(self, rhs:&$field_type) -> Self::Output {
+                $name { $field:self.$field.$opr(*rhs), ..self }
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<&$field_type> for &$name {
+        impl $trait<&$field_type> for &$name {
             type Output = $name;
-            fn $f(self, rhs:&$field_type) -> Self::Output {
-                $name { $field:self.$field.$f(*rhs), ..*self }
+            fn $opr(self, rhs:&$field_type) -> Self::Output {
+                $name { $field:self.$field.$opr(*rhs), ..*self }
             }
         }
     )*};
@@ -427,43 +427,43 @@ macro_rules! impl_T_x_FIELD_to_T {
 
 #[macro_export]
 macro_rules! impl_FIELD_x_UNIT_to_UNIT {
-    ($opr:ident $f:ident $name:ident $field_type:ty) => {
-        $crate::impl_FIELD_x_T_to_T! {$opr $f $name {value : $field_type}}
+    ($trait:ident $opr:ident $name:ident $field_type:ty) => {
+        $crate::impl_FIELD_x_T_to_T! {$trait $opr $name {value : $field_type}}
     }
 }
 
 #[macro_export]
 macro_rules! impl_FIELD_x_T_to_T {
-    ($opr:ident $f:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+    ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
-        impl $opr<$name> for $field_type {
+        impl $trait<$name> for $field_type {
             type Output = $name;
-            fn $f(self, rhs:$name) -> Self::Output {
-                $name { $field:self.$f(rhs.$field), ..rhs }
+            fn $opr(self, rhs:$name) -> Self::Output {
+                $name { $field:self.$opr(rhs.$field), ..rhs }
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<$name> for &$field_type {
+        impl $trait<$name> for &$field_type {
             type Output = $name;
-            fn $f(self, rhs:$name) -> Self::Output {
-                $name { $field:self.$f(rhs.$field), ..rhs }
+            fn $opr(self, rhs:$name) -> Self::Output {
+                $name { $field:self.$opr(rhs.$field), ..rhs }
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<&$name> for $field_type {
+        impl $trait<&$name> for $field_type {
             type Output = $name;
-            fn $f(self, rhs:&$name) -> Self::Output {
-                $name { $field:self.$f(rhs.$field), ..*rhs }
+            fn $opr(self, rhs:&$name) -> Self::Output {
+                $name { $field:self.$opr(rhs.$field), ..*rhs }
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<&$name> for &$field_type {
+        impl $trait<&$name> for &$field_type {
             type Output = $name;
-            fn $f(self, rhs:&$name) -> Self::Output {
-                $name { $field:self.$f(rhs.$field), ..*rhs }
+            fn $opr(self, rhs:&$name) -> Self::Output {
+                $name { $field:self.$opr(rhs.$field), ..*rhs }
             }
         }
     )*};
@@ -477,39 +477,39 @@ macro_rules! impl_FIELD_x_T_to_T {
 
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT_to_FIELD {
-    ($opr:ident $f:ident $name:ident $field_type:ty) => {
-        $crate::impl_T_x_T_to_FIELD! {$opr $f $name {value : $field_type}}
+    ($trait:ident $opr:ident $name:ident $field_type:ty) => {
+        $crate::impl_T_x_T_to_FIELD! {$trait $opr $name {value : $field_type}}
     }
 }
 
 #[macro_export]
 macro_rules! impl_T_x_T_to_FIELD {
-    ($opr:ident $f:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
-        impl $opr<$name> for $name {
+    ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+        impl $trait<$name> for $name {
             type Output = $field_type;
-            fn $f(self, rhs:$name) -> Self::Output {
-                self.$field.$f(rhs.$field)
+            fn $opr(self, rhs:$name) -> Self::Output {
+                self.$field.$opr(rhs.$field)
             }
         }
 
-        impl $opr<$name> for &$name {
+        impl $trait<$name> for &$name {
             type Output = $field_type;
-            fn $f(self, rhs:$name) -> Self::Output {
-                self.$field.$f(rhs.$field)
+            fn $opr(self, rhs:$name) -> Self::Output {
+                self.$field.$opr(rhs.$field)
             }
         }
 
-        impl $opr<&$name> for $name {
+        impl $trait<&$name> for $name {
             type Output = $field_type;
-            fn $f(self, rhs:&$name) -> Self::Output {
-                self.$field.$f(rhs.$field)
+            fn $opr(self, rhs:&$name) -> Self::Output {
+                self.$field.$opr(rhs.$field)
             }
         }
 
-        impl $opr<&$name> for &$name {
+        impl $trait<&$name> for &$name {
             type Output = $field_type;
-            fn $f(self, rhs:&$name) -> Self::Output {
-                self.$field.$f(rhs.$field)
+            fn $opr(self, rhs:&$name) -> Self::Output {
+                self.$field.$opr(rhs.$field)
             }
         }
     )*};
@@ -523,27 +523,27 @@ macro_rules! impl_T_x_T_to_FIELD {
 
 #[macro_export]
 macro_rules! impl_UNIT_to_UNIT {
-    ($opr:ident $f:ident $name:ident) => {
-        $crate::impl_T_to_T! {$opr $f $name {value}}
+    ($trait:ident $opr:ident $name:ident) => {
+        $crate::impl_T_to_T! {$trait $opr $name {value}}
     }
 }
 
 #[macro_export]
 macro_rules! impl_T_to_T {
-    ($opr:ident $f:ident $name:ident { $($field:ident),* $(,)? }) => {$(
+    ($trait:ident $opr:ident $name:ident { $($field:ident),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
-        impl $opr for $name {
+        impl $trait for $name {
             type Output = $name;
-            fn $f(self) -> Self::Output {
-                $name { $field:self.$field.$f(), ..self }
+            fn $opr(self) -> Self::Output {
+                $name { $field:self.$field.$opr(), ..self }
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr for &$name {
+        impl $trait for &$name {
             type Output = $name;
-            fn $f(self) -> Self::Output {
-                $name { $field:self.$field.$f(), ..*self }
+            fn $opr(self) -> Self::Output {
+                $name { $field:self.$field.$opr(), ..*self }
             }
         }
     )*};
@@ -558,39 +558,39 @@ macro_rules! impl_T_to_T {
 
 #[macro_export]
 macro_rules! impl_UNIT_x_UNIT {
-    ($opr:ident $f:ident $name:ident) => {
-        $crate::impl_T_x_T! {$opr $f $name {value}}
+    ($trait:ident $opr:ident $name:ident) => {
+        $crate::impl_T_x_T! {$trait $opr $name {value}}
     }
 }
 
 #[macro_export]
 macro_rules! impl_T_x_T {
-    ($opr:ident $f:ident $name:ident { $($field:ident),* $(,)? }) => {$(
+    ($trait:ident $opr:ident $name:ident { $($field:ident),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
-        impl $opr<$name> for $name {
-            fn $f(&mut self, rhs:$name) {
-                self.$field.$f(rhs.$field)
+        impl $trait<$name> for $name {
+            fn $opr(&mut self, rhs:$name) {
+                self.$field.$opr(rhs.$field)
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<$name> for &mut $name {
-            fn $f(&mut self, rhs:$name) {
-                self.$field.$f(rhs.$field)
+        impl $trait<$name> for &mut $name {
+            fn $opr(&mut self, rhs:$name) {
+                self.$field.$opr(rhs.$field)
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<&$name> for $name {
-            fn $f(&mut self, rhs:&$name) {
-                self.$field.$f(rhs.$field)
+        impl $trait<&$name> for $name {
+            fn $opr(&mut self, rhs:&$name) {
+                self.$field.$opr(rhs.$field)
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<&$name> for &mut $name {
-            fn $f(&mut self, rhs:&$name) {
-                self.$field.$f(rhs.$field)
+        impl $trait<&$name> for &mut $name {
+            fn $opr(&mut self, rhs:&$name) {
+                self.$field.$opr(rhs.$field)
             }
         }
     )*};
@@ -604,39 +604,39 @@ macro_rules! impl_T_x_T {
 
 #[macro_export]
 macro_rules! impl_UNIT_x_FIELD {
-    ($opr:ident $f:ident $name:ident $field_type:ty) => {
-        $crate::impl_T_x_FIELD! {$opr $f $name {value : $field_type}}
+    ($trait:ident $opr:ident $name:ident $field_type:ty) => {
+        $crate::impl_T_x_FIELD! {$trait $opr $name {value : $field_type}}
     }
 }
 
 #[macro_export]
 macro_rules! impl_T_x_FIELD {
-    ($opr:ident $f:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
+    ($trait:ident $opr:ident $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {$(
         #[allow(clippy::needless_update)]
-        impl $opr<$field_type> for $name {
-            fn $f(&mut self, rhs:$field_type) {
-                self.$field.$f(rhs)
+        impl $trait<$field_type> for $name {
+            fn $opr(&mut self, rhs:$field_type) {
+                self.$field.$opr(rhs)
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<$field_type> for &mut $name {
-            fn $f(&mut self, rhs:$field_type) {
-                self.$field.$f(rhs)
+        impl $trait<$field_type> for &mut $name {
+            fn $opr(&mut self, rhs:$field_type) {
+                self.$field.$opr(rhs)
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<&$field_type> for $name {
-            fn $f(&mut self, rhs:&$field_type) {
-                self.$field.$f(*rhs)
+        impl $trait<&$field_type> for $name {
+            fn $opr(&mut self, rhs:&$field_type) {
+                self.$field.$opr(*rhs)
             }
         }
 
         #[allow(clippy::needless_update)]
-        impl $opr<&$field_type> for &mut $name {
-            fn $f(&mut self, rhs:&$field_type) {
-                self.$field.$f(*rhs)
+        impl $trait<&$field_type> for &mut $name {
+            fn $opr(&mut self, rhs:&$field_type) {
+                self.$field.$opr(*rhs)
             }
         }
     )*};
@@ -685,3 +685,10 @@ pub use traits::*;
 ///// 1 each. This should be fixed in the future.
 //Column2::column2(Bytes)
 //}
+
+
+unit! {
+/// A type representing vertical measurements.
+Line::line(usize)
+}
+
