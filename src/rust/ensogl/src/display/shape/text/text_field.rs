@@ -164,6 +164,12 @@ shared! { TextField
             self.rendered.update_lines(&self.properties);
         }
 
+        /// Set color.
+        pub fn set_base_color(&mut self, base_color:color::Rgba) {
+            self.properties.base_color = base_color;
+            self.rendered.update_lines(&self.properties);
+        }
+
         /// Scroll text by given offset in pixels.
         pub fn scroll(&mut self, offset:Vector2<f32>) {
             let scroll_position = self.scroll_position();
@@ -352,6 +358,11 @@ shared! { TextField
         pub fn set_text_edit_callback<Callback:FnMut(TextChange) + 'static>
         (&mut self, callback:Callback) {
             self.text_change_callback = Some(Box::new(callback))
+        }
+
+        /// Tell if the TextField is focused.
+        pub fn is_focused(&self) -> bool {
+            self.focused
         }
 
         fn on_defocus(&mut self) {
