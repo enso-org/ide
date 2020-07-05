@@ -43,6 +43,7 @@ const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
 const LINE_WIDTH         : f32 = 4.0;
 const ARROW_SIZE_X       : f32 = 20.0;
 const ARROW_SIZE_Y       : f32 = 20.0;
+const HOVER_EXTENSION    : f32 = 10.0;
 
 const MOUSE_OFFSET       : f32 = 2.0;
 const NODE_PADDING       : f32 = node::SHADOW_SIZE;
@@ -155,6 +156,16 @@ impl PartialEq for dyn EdgeShape {
 }
 
 
+
+// =======================
+// === Hover Extension ===
+// =======================
+
+fn extend_hover_area(base_shape:AnyShape, extension:Var<Distance<Pixels>>) -> AnyShape {
+    let extended = base_shape.grow(extension);
+    let extended = extended.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
+    (extended + base_shape).into()
+}
 
 // ===================
 // === Split Shape ===
@@ -306,7 +317,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 let split_shape = SplitShape::new(
                     shape.into(),&(&hover_split_center).into(),&hover_split_rotation.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
-                shape.into()
+                extend_hover_area(shape,HOVER_EXTENSION.px()).into()
             }
         }
 
@@ -378,7 +389,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 shape.into(),&hover_split_center.into(),&hover_split_rotation.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
 
-                shape.into()
+                extend_hover_area(shape,HOVER_EXTENSION.px()).into()
             }
         }
 
@@ -433,7 +444,7 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 let split_shape = SplitShape::new(
                     shape.into(),&hover_split_center.into(),&hover_split_rotation.into(),&(&width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
-                shape.into()
+                extend_hover_area(shape,HOVER_EXTENSION.px()).into()
             }
         }
 
