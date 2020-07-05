@@ -1773,7 +1773,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Node Connect ===
 
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
     outputs.edge_source_set <+ inputs.set_edge_source;
     outputs.edge_target_set <+ inputs.set_edge_target;

@@ -753,6 +753,20 @@ enum LayoutState {
     DownCenter,
 }
 
+impl LayoutState {
+    fn is_down_state(&self) -> bool {
+        match self {
+            LayoutState::UpLeft => false,
+            LayoutState::UpRight => false,
+            LayoutState::TopCenterRightLoop => false,
+            LayoutState::TopCenterLeftLoop => false,
+            LayoutState::DownLeft => true,
+            LayoutState::DownRight => true,
+            LayoutState::DownCenter => true,
+        }
+    }
+}
+
 
 
 // TODO: Implement proper sorting and remove.
@@ -987,7 +1001,7 @@ pub struct EdgeModelData {
     pub target_position : Rc<Cell<Vector2>>,
     pub target_attached : Rc<Cell<bool>>,
 
-    state               : Rc<Cell<LayoutState>>,
+    layout_state: Rc<Cell<LayoutState>>,
 
     hover_position      : Rc<Cell<Option<Vector2<f32>>>>,
     hover_target        : Rc<Cell<Option<Id>>>,
@@ -1015,11 +1029,12 @@ impl EdgeModelData {
         let target_position = default();
         let target_attached = Rc::new(Cell::new(false));
         let hover_position  = default();
-        let state           =  Rc::new(Cell::new(LayoutState::UpLeft));
+        let layout_state    =  Rc::new(Cell::new(LayoutState::UpLeft));
         let hover_target    = default();
 
         Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
-              target_attached,hover_position,state,hover_target}
+              target_attached,hover_position,
+            layout_state,hover_target}
     }
 
     fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
@@ -1036,12 +1051,27 @@ impl EdgeModelData {
         start.x > end.y
     }
 
+    fn closest_end(&self, point:Vector2<f32>) -> EndDesignation {
+        let target_position = self.display_object.position().xy();
+        let source_position = self.target_position.get().xy();
+        let target_distance = (point - target_position).norm();
+        let source_distance = (point - source_position).norm();
+        if source_distance > target_distance {
+            EndDesignation::Input
+        } else {
+            EndDesignation::Output
+        }
+    }
+
     /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
     /// edge.
     pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
         let target_y        = self.display_object.position().y;
         let source_y        = self.target_position.get().y;
         let delta_y         = target_y - source_y;
+        if delta_y > 0.0 && delta_y < 45.0 { // TODO turn this threshold into a constant derived form the layout
+            return self.closest_end(point)
+        }
         let input_above_mid = delta_y > 0.0;
         let upper_half      = self.is_in_upper_half(point);
 
@@ -1055,11 +1085,16 @@ impl EdgeModelData {
 
     /// Returns whether the given positions should change the color of the area above or below.
     fn hover_split_direction_for_position(&self, point:Vector2<f32>) -> HalfPlaneDirection {
-        if self.is_in_upper_half(point) {
-            HalfPlaneDirection::PrimaryAbove
-        } else {
-            HalfPlaneDirection::PrimaryBelow
-        }
+        // let target_y        = self.display_object.position().y;
+        // let source_y        = self.target_position.get().y;
+        // if delta_y > 0.0 && delta_y < 45.0 { // TODO turn this threshold into a constant derived form the layout
+        //     return HalfPlaneDirection::PrimaryAbove
+        // }
+        // if self.is_in_upper_half(point) {
+        //     HalfPlaneDirection::PrimaryAbove
+        // } else {
+        HalfPlaneDirection::PrimaryBelow
+        // }
     }
 
     fn semantically_binned_edges(&self) -> Vec<Vec<Id>> {
@@ -1137,7 +1172,7 @@ impl EdgeModelData {
         vec![EdgeShape::id(&self.front.arrow), EdgeShape::id(&self.back.arrow)]
     }
 
-    fn cut_angle_for_shape(&self, shape_id:Id, quadrant: LayoutState, position:Vector2<f32>)
+    fn cut_angle_for_shape(&self, shape_id:Id, quadrant: LayoutState, position:Vector2<f32>, part:EndDesignation)
                            -> Option<f32> {
         let shape = self.get_shape(shape_id)?;
         let edge_part = self.edge_part_for_shape_id(shape_id);
@@ -1174,8 +1209,15 @@ impl EdgeModelData {
             _ => 0.0,
         };
 
+        let layout_angle_correction = match (quadrant.is_down_state(), part) {
+            (false, EndDesignation::Input)   => 0.0,
+            (false, EndDesignation::Output)  => 2.0 * RIGHT_ANGLE,
+            (true, EndDesignation::Input)  => 2.0 * RIGHT_ANGLE,
+            (true, EndDesignation::Output) => 0.0,
+
+        };
         let base_rotation = shape.display_object().rotation().z;
-        let cut_angle     = shape.normal_vector_for_point(position).angle() - base_rotation + cut_angle_correction;
+        let cut_angle     = layout_angle_correction + shape.normal_vector_for_point(position).angle() - base_rotation + cut_angle_correction;
         Some(cut_angle)
     }
 
@@ -1224,7 +1266,7 @@ impl EdgeModelData {
                         }
                     }
                     if index == split_index {
-                        if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,quadrant,position) {
+                        if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,quadrant,position,part) {
                             let split_data = Split::new(snap_data.position,direction,cut_angle);
                             shape.enable_hover_split(split_data)
                         }
@@ -1286,10 +1328,10 @@ impl EdgeModelData {
 
         let hover_position = self.hover_position.get();
         if let Some(hover_position) = hover_position {
-            let highlight_area = self.hover_split_direction_for_position(hover_position);
+            let highlight_area = HalfPlaneDirection::PrimaryBelow;
             let highlight_part = self.end_designation_for_position(hover_position);
             // This call treats both `Back` and `Front` as a combined `MultiShape`.
-            self.try_enable_hover_split(hover_position,highlight_area,highlight_part,self.state.get());
+            self.try_enable_hover_split(hover_position,highlight_area,highlight_part,self.layout_state.get());
         } else {
             self.disable_hover_split();
         }
@@ -1358,7 +1400,7 @@ impl EdgeModelData {
             (false, true) => LayoutState::UpLeft,
             (false, false) => LayoutState::UpRight,
         };
-        self.state.set(state);
+        self.layout_state.set(state);
 
         // === Port Line Length ===
         //
@@ -1543,8 +1585,8 @@ impl EdgeModelData {
             // === Layout State Update ===
             // Corner case: we are above the node and the corners loop back
             match (side < 0.0, corner_2_3_side < 0.0) {
-                (false, true) => self.state.set(LayoutState::TopCenterRightLoop),
-                (true, true)  => self.state.set(LayoutState::TopCenterLeftLoop),
+                (false, true) => self.layout_state.set(LayoutState::TopCenterRightLoop),
+                (true, true)  => self.layout_state.set(LayoutState::TopCenterLeftLoop),
                 _             => (),
             };
 
