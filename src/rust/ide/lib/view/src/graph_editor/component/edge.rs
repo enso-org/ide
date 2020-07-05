@@ -41,6 +41,9 @@ const LINE_SHAPE_WIDTH   : f32 = LINE_WIDTH + 2.0 * PADDING;
 const LINE_SIDE_OVERLAP  : f32 = 1.0;
 const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
 const LINE_WIDTH         : f32 = 4.0;
+const ARROW_SIZE_X       : f32 = 20.0;
+const ARROW_SIZE_Y       : f32 = 20.0;
+
 const MOUSE_OFFSET       : f32 = 2.0;
 const NODE_PADDING       : f32 = node::SHADOW_SIZE;
 const PADDING            : f32 = 4.0;
@@ -246,8 +249,8 @@ impl SplitShape {
 /// position lies (a) on the visible part of the shape and (b) is the closes position on the shape
 /// to the source position that was used to compute the snapped position.
 struct SnapTarget {
-    position     : Vector2<f32>,
-    target_shape_id: Id,
+    position        : Vector2<f32>,
+    target_shape_id : Id,
 }
 
 impl SnapTarget {
@@ -489,7 +492,8 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let offset     = (LINE_WIDTH/2.0).px();
                 let triangle_l = triangle.translate_x(-&offset);
                 let triangle_r = triangle.translate_x(&offset);
-                let shape      = triangle_l + triangle_r;
+                let triangle_m = triangle.translate_y(&(&offset * 2.0));
+                let shape      = triangle_l + triangle_r + triangle_m;
 
                 let split_shape  = SplitShape::new(
                   shape.into(),&hover_split_center.into(),&hover_split_rotation.into(),&0.0.px());
@@ -500,7 +504,16 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
 
         impl EdgeShape for component::ShapeView<Shape> {
             fn set_hover_split_center_local(&self, center:Vector2<f32>) {
-                self.shape.hover_split_center.set(center);
+                // We don't want the arrow to appear the split. Instead we set the split to the
+                // closes corner make the highlight all or nothing.
+                let min = -Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y) / 2.0;
+                let max =  Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y) / 2.0;
+                let mid =  Vector2::<f32>::zero();
+
+                let x = if center.x < mid.x { min.x } else { max.x };
+                let y = if center.y < mid.y { min.y } else { max.y };
+
+                self.shape.hover_split_center.set(Vector2::new(x,y));
             }
 
             fn set_hover_split_rotation(&self, angle:f32) {
@@ -515,8 +528,12 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 &self.events
             }
 
-            fn snap_to_self_local(&self, _point:Vector2<f32>) -> Option<Vector2<f32>> {
-               None
+            fn normal_vector_for_point(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+                 nalgebra::Rotation2::new(-RIGHT_ANGLE)
+            }
+
+            fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                Some(Vector2::new(0.0, point.y))
             }
         }
     }
@@ -1051,12 +1068,12 @@ impl EdgeModelData {
         vec![
             vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
             vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
-            vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line)  ],
+            vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
+                 EdgeShape::id(&front.arrow), EdgeShape::id(&back.arrow) ],
             vec![EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ],
             vec![EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ],
             vec![EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ],
             vec![EdgeShape::id(&front.port_line)                                   ],
-            vec![EdgeShape::id(&front.arrow)                                       ],
         ]
     }
 
@@ -1117,7 +1134,7 @@ impl EdgeModelData {
     }
 
     fn arrows(&self) -> Vec<Id> {
-        vec![EdgeShape::id(&self.front.arrow)]
+        vec![EdgeShape::id(&self.front.arrow), EdgeShape::id(&self.back.arrow)]
     }
 
     fn cut_angle_for_shape(&self, shape_id:Id, quadrant: LayoutState, position:Vector2<f32>)
@@ -1151,6 +1168,8 @@ impl EdgeModelData {
             (LayoutState::TopCenterLeftLoop, Some(EdgePart::Corner))     => 2.0 * RIGHT_ANGLE,
             (LayoutState::TopCenterLeftLoop, Some(EdgePart::Corner3))    => 2.0 * RIGHT_ANGLE,
             (LayoutState::TopCenterLeftLoop, Some(EdgePart::PortLine ))  => 2.0 * RIGHT_ANGLE,
+
+            (_, Some(EdgePart::Arrow ))  => RIGHT_ANGLE,
 
             _ => 0.0,
         };
@@ -1613,7 +1632,7 @@ impl EdgeModelData {
             if main_line_len > 2.0 {
                 let arrow_y    = (corner1.y - corner1_radius + corner2_y + corner2_radius)/2.0;
                 let arrow_pos  = Vector2::new(main_line_start.x, arrow_y);
-                let arrow_size = Vector2::new(20.0,20.0);
+                let arrow_size = Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y);
                 if target_attached {
                     fg.arrow.shape.sprite.size.set(zero());
                     bg.arrow.shape.sprite.size.set(arrow_size);
