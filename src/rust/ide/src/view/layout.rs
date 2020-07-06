@@ -109,8 +109,7 @@ impl ViewLayout {
         let node_editor   = NodeEditor::new(&logger,application,graph_controller.clone_ref(),
             project_controller,visualization_controller);
         let node_editor   = node_editor.await?;
-        let node_searcher = NodeSearcher::new(world,&logger,node_editor.clone_ref(),
-            graph_controller,fonts);
+        let node_searcher = NodeSearcher::new(world,&logger,node_editor.clone_ref(),fonts);
         world.add_child(&text_editor.display_object());
         world.add_child(&node_editor);
         world.add_child(&node_searcher);
