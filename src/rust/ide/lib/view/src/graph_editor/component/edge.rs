@@ -50,6 +50,9 @@ const NODE_PADDING       : f32 = node::SHADOW_SIZE;
 const PADDING            : f32 = 4.0;
 const RIGHT_ANGLE        : f32 = std::f32::consts::PI / 2.0;
 
+// TODO: Maybe find a better name.
+const MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION : f32 = 45.0;
+
 const INFINITE : f32 = 99999.0;
 
 
@@ -1048,8 +1051,8 @@ impl EdgeModelData {
 
         let hover_position = self.hover_position.get();
         if let Some(hover_position) = hover_position {
-            let highlight_part = self.end_designation_for_position(hover_position);
-            if let Err(()) = self.try_enable_hover_split(hover_position,highlight_part,self.layout_state.get()) {
+            let highlight_part = self.closest_end_designation_for_point(hover_position);
+            if let Err(()) = self.try_enable_hover_split(hover_position,highlight_part) {
                 // TODO consider remembering our state and avoid calling ths if not required.
                 self.disable_hover_split();
             }
@@ -1451,6 +1454,7 @@ impl EdgeModelData {
 // === Edge Splitting ===
 
 impl EdgeModelData {
+    /// Return whether the point is in the upper half of the overall edge shape.
     fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
         let start = nalgebra::Point2::from(self.display_object.position().xy());
         let end   = nalgebra::Point2::from(self.target_position.get());
@@ -1459,7 +1463,9 @@ impl EdgeModelData {
         point.y > mid_y
     }
 
-    fn closest_end(&self, point:Vector2<f32>) -> EndDesignation {
+   /// Return the `EndDesignation` for the closest end of the edge for the given point. Uses
+   /// euclidean distance between point and `Input`/`Output`.
+    fn closest_end_designation_for_point(&self, point:Vector2<f32>) -> EndDesignation {
         let target_position = self.display_object.position().xy();
         let source_position = self.target_position.get().xy();
         let target_distance = (point - target_position).norm();
@@ -1472,13 +1478,14 @@ impl EdgeModelData {
     }
 
     /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
-    /// edge.
+    /// edge. This is determined based on the y-position only, except when that is impractical due
+    /// do a low y-difference between `Input` and `Output`.
     pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
-        let target_y        = self.display_object.position().y;
-        let source_y        = self.target_position.get().y;
-        let delta_y         = target_y - source_y;
-        if delta_y > 0.0 && delta_y < 45.0 { // TODO turn this threshold into a constant derived form the layout
-            return self.closest_end(point)
+        let target_y = self.display_object.position().y;
+        let source_y = self.target_position.get().y;
+        let delta_y  = target_y - source_y;
+        if delta_y > 0.0 && delta_y < MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION {
+            return self.closest_end_designation_for_point(point)
         }
         let input_above_mid = delta_y > 0.0;
         let upper_half      = self.is_in_upper_half(point);
@@ -1491,6 +1498,10 @@ impl EdgeModelData {
         }
     }
 
+    /// Return a ordered vector that contains the ids of the shapes in the order they appear in the
+    /// edge. Shapes that are to be handled as in the same place, are binned into a sub-vector.
+    /// This enables us to infer which parts are next to each other, and which ones are
+    /// "source-side"/"target-side"/
     fn semantically_binned_edges(&self) -> Vec<Vec<object::Id>> {
         let front = &self.front;
         let back  = &self.back;
@@ -1506,6 +1517,8 @@ impl EdgeModelData {
         ]
     }
 
+    /// Return the `EdgePart` designation of a `Id`. If there is no valid shape of that `Id` in this
+    ///edge, returns `None`.
     fn edge_part_for_shape_id(&self, shape_id:object::Id) -> Option<EdgePart> {
         if self.side_lines().contains(&shape_id) {
             return Some(EdgePart::SideLine)
@@ -1566,56 +1579,66 @@ impl EdgeModelData {
         vec![EdgeShape::id(&self.front.arrow), EdgeShape::id(&self.back.arrow)]
     }
 
-    fn cut_angle_for_shape(&self, shape_id:object::Id, quadrant: LayoutState, position:Vector2<f32>, part:EndDesignation)
-                           -> Option<f32> {
-        let shape = self.get_shape(shape_id)?;
-        let edge_part = self.edge_part_for_shape_id(shape_id);
-        // These corrections are needed as sometimes shapes are in places that lead to inconsistent
-        // results. e.g., die die line leaving the node from left/right aor right/left. The shape
-        // itself does not have enough information about its own placement to determine which end
-        // is pointed towards the `Target` or `Source` part of the whole edge. So we need to account
-        // for these here. For now this means: flipping the cut angle by 180 degree in some specific
-        // constellations for some shapes.
-        let cut_angle_correction = match (quadrant, edge_part)  {
-            (LayoutState::DownLeft, Some(EdgePart::SideLine)  ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::DownLeft, Some(EdgePart::Corner)    ) => 2.0 * RIGHT_ANGLE,
+    fn cut_angle_for_shape
+    (&self, shape_id:object::Id, position:Vector2<f32>, part:EndDesignation) -> Option<f32> {
+        let shape     = self.get_shape(shape_id)?;
+        let edge_part = self.edge_part_for_shape_id(shape_id)?;
 
-            (LayoutState::UpLeft, Some(EdgePart::PortLine)  ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpLeft, Some(EdgePart::Corner)  ) => 2.0 * RIGHT_ANGLE,
+        let cut_angle_correction = self.get_cut_angle_correction(edge_part);
+        let target_angle         = self.get_target_angle(part);
 
-            (LayoutState::UpRight, Some(EdgePart::PortLine)  ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpRight, Some(EdgePart::Corner3)   ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpRight, Some(EdgePart::SideLine2) ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpRight, Some(EdgePart::Corner2)   ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpRight, Some(EdgePart::SideLine)  ) => 2.0 * RIGHT_ANGLE,
-
-            (LayoutState::TopCenterRightLoop, Some(EdgePart::SideLine )) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterRightLoop, Some(EdgePart::PortLine )) => 2.0 * RIGHT_ANGLE,
-
-            (LayoutState::TopCenterLeftLoop, Some(EdgePart::SideLine2 )) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterLeftLoop, Some(EdgePart::Corner2 ))   => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterLeftLoop, Some(EdgePart::Corner))     => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterLeftLoop, Some(EdgePart::Corner3))    => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterLeftLoop, Some(EdgePart::PortLine ))  => 2.0 * RIGHT_ANGLE,
-
-            (_, Some(EdgePart::Arrow ))  => RIGHT_ANGLE,
-
-            _ => 0.0,
-        };
-
-        let layout_angle_correction = match (quadrant.is_down_state(), part) {
-            (false, EndDesignation::Input)   => 0.0,
-            (false, EndDesignation::Output)  => 2.0 * RIGHT_ANGLE,
-            (true, EndDesignation::Input)  => 2.0 * RIGHT_ANGLE,
-            (true, EndDesignation::Output) => 0.0,
-
-        };
         let base_rotation = shape.display_object().rotation().z + 2.0 * RIGHT_ANGLE;
-        let cut_angle     = layout_angle_correction + shape.normal_vector_for_point(position).angle() - base_rotation + cut_angle_correction;
-        Some(cut_angle)
+        let shape_normal  = shape.normal_vector_for_point(position).angle();
+        Some(shape_normal - base_rotation + cut_angle_correction + target_angle)
     }
 
-    // FIXME this is ugly and needs to be replaced
+    /// Return the cut angle value needed to highlight the given end of the shape. This takes into
+    /// account the current layout.
+    fn get_target_angle(&self, part:EndDesignation) -> f32 {
+        match (self.layout_state.get().is_down_state(), part) {
+            (false, EndDesignation::Input) => 0.0,
+            (false, EndDesignation::Output) => 2.0 * RIGHT_ANGLE,
+            (true, EndDesignation::Input) => 2.0 * RIGHT_ANGLE,
+            (true, EndDesignation::Output) => 0.0,
+        }
+    }
+
+    /// These corrections are needed as sometimes shapes are in places that lead to inconsistent
+    /// results. e.g., the side line leaving the node from left/right or right/left. The shape
+    /// itself does not have enough information about its own placement to determine which end
+    /// is pointed towards the `Target` or `Source` part of the whole edge. So we need to account
+    /// for these here based on the specific layout state we are in.
+    fn get_cut_angle_correction(&self, edge_part:EdgePart) -> f32 {
+        let layout_state = self.layout_state.get();
+        match (layout_state, edge_part)  {
+            (LayoutState::DownLeft, EdgePart::SideLine ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::DownLeft, EdgePart::Corner   ) => 2.0 * RIGHT_ANGLE,
+
+            (LayoutState::UpLeft, EdgePart::PortLine ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::UpLeft, EdgePart::Corner   ) => 2.0 * RIGHT_ANGLE,
+
+            (LayoutState::UpRight, EdgePart::PortLine  ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::UpRight, EdgePart::Corner3   ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::UpRight, EdgePart::SideLine2 ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::UpRight, EdgePart::Corner2   ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::UpRight, EdgePart::SideLine  ) => 2.0 * RIGHT_ANGLE,
+
+            (LayoutState::TopCenterRightLoop, EdgePart::SideLine ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterRightLoop, EdgePart::PortLine ) => 2.0 * RIGHT_ANGLE,
+
+            (LayoutState::TopCenterLeftLoop, EdgePart::SideLine2 ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, EdgePart::Corner2 )   => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, EdgePart::Corner)     => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, EdgePart::Corner3)    => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, EdgePart::PortLine )  => 2.0 * RIGHT_ANGLE,
+
+            (_, EdgePart::Arrow )  => RIGHT_ANGLE,
+
+            _ => 0.0,
+        }
+    }
+
+    /// Return a reference to sub-shape indicated by the given shape id.
     fn get_shape(&self, id:object::Id) -> Option<&dyn EdgeShape> {
         let shape_ref = self.back.get_shape(id);
         if shape_ref.is_some() {
@@ -1645,7 +1668,7 @@ impl EdgeModelData {
     /// Split the shape at the given `position` and highlight the given `plane_direction`. This
     /// might fail if the given position is too far from the shape. In that case, splitting is
     /// disabled.
-    fn try_enable_hover_split(&self, position:Vector2<f32>, part:EndDesignation, quadrant:LayoutState) -> Result<(), ()>{
+    fn try_enable_hover_split(&self, position:Vector2<f32>, part:EndDesignation) -> Result<(), ()>{
         let snap_data        = self.snap_position_to_shape(position).ok_or(())?;
         let binned_shape_ids = self.semantically_binned_edges();
         let mut split_index  = None;
@@ -1674,7 +1697,7 @@ impl EdgeModelData {
                         }
                     }
                     if (index - split_index).abs() <=1  {
-                        if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,quadrant,position,part) {
+                        if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,position,part) {
                             let split_data = Split::new(snap_data.position,cut_angle);
                             shape.enable_hover_split(split_data)
                         }
