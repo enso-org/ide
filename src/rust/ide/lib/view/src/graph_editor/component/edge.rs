@@ -1713,7 +1713,7 @@ impl EdgeModelData {
     fn try_enable_hover_split(&self, position:Vector2<f32>, part:EndDesignation) -> Result<(), ()>{
         let snap_data      = self.snap_position_to_shape(position).ok_or(())?;
         let semantic_split = SemanticSplit::new(&self, snap_data.target_shape_id).ok_or(())?;
-
+        let cut_angle      = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
         // Completely disable/enable hovering for shapes that are not close the split base don their
         // relative position within the shape. This avoids issues with splitting not working
         // correctly when a split would intersect the edge at multiple points.
@@ -1738,10 +1738,8 @@ impl EdgeModelData {
         // next.
         semantic_split.split_shapes().iter().for_each(|shape_id|{
             if let Some(shape) = self.get_shape(*shape_id) {
-                if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,position,part) {
-                    let split_data = Split::new(snap_data.position,cut_angle);
-                    shape.enable_hover_split(split_data)
-                }
+                let split_data = Split::new(snap_data.position,cut_angle);
+                shape.enable_hover_split(split_data)
             }
         });
         Ok(())
