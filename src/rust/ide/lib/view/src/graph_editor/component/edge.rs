@@ -43,7 +43,7 @@ const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
 const LINE_WIDTH         : f32 = 4.0;
 const ARROW_SIZE_X       : f32 = 20.0;
 const ARROW_SIZE_Y       : f32 = 20.0;
-const HOVER_EXTENSION    : f32 = 10.0;
+const HOVER_EXTENSION    : f32 = 2.0;
 
 const MOUSE_OFFSET       : f32 = 2.0;
 const NODE_PADDING       : f32 = node::SHADOW_SIZE;
@@ -1658,23 +1658,25 @@ impl EdgeModelData {
         let split_index = split_index.ok_or(())?;
         for  (index, shape_ids) in binned_shape_ids.iter().enumerate() {
             for shape_id in shape_ids.iter() {
+                let index       = index as i32;
+                let split_index = split_index as i32;
                 if let Some(shape) = self.get_shape(*shape_id) {
-                    if index < split_index {
+                    if (index + 1) < split_index {
                         match part{
                             EndDesignation::Output => shape.disable_hover(),
                             EndDesignation::Input  => shape.enable_hover(),
                         }
                     }
-                    if index == split_index {
-                        if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,quadrant,position,part) {
-                            let split_data = Split::new(snap_data.position,cut_angle);
-                            shape.enable_hover_split(split_data)
-                        }
-                    }
-                    if index > split_index {
+                    if index > (split_index + 1) {
                         match part{
                             EndDesignation::Output => shape.enable_hover(),
                             EndDesignation::Input  => shape.disable_hover(),
+                        }
+                    }
+                    if (index - split_index).abs() <=1  {
+                        if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,quadrant,position,part) {
+                            let split_data = Split::new(snap_data.position,cut_angle);
+                            shape.enable_hover_split(split_data)
                         }
                     }
                 }
