@@ -42,6 +42,8 @@ const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
 const LINE_WIDTH         : f32 = 4.0;
 const ARROW_SIZE_X       : f32 = 20.0;
 const ARROW_SIZE_Y       : f32 = 20.0;
+/// FIXME: this value cannot be increased much more, as the edge shapes have a limited canvas size.
+/// For a larger hover area the shapes and layouting algorithm need to be adjusted to allow this.
 const HOVER_EXTENSION    : f32 = 2.0;
 
 const MOUSE_OFFSET       : f32 = 2.0;
@@ -70,11 +72,9 @@ trait EdgeShape: ensogl::display::Object {
     /// the shape local coordinates. If no snapping is possible, returns `None`.
     fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>>;
     fn sprite(&self) -> &Sprite;
-
     fn id(&self) -> object::Id {
         self.sprite().id()
     }
-
     fn events(&self) -> &ShapeViewEvents;
 
     /// Return the angle perpendicular to the shape at the given point. Defaults to zero, if not
@@ -99,8 +99,8 @@ trait EdgeShape: ensogl::display::Object {
         Some(global_snapped)
     }
 
-    /// Set the hover split for this shape. The `split_data` indicates where the shape should be
-    /// split and which side should be recolored.
+    /// Set the hover split for this shape. The `split` indicates where the shape should be
+    /// split and how the split should be rotated.
     fn enable_hover_split(&self, split:Split) {
         // Compute rotation in shape local coordinate system.
         let base_rotation        = self.display_object().rotation().z;
@@ -111,12 +111,13 @@ trait EdgeShape: ensogl::display::Object {
         self.set_hover_split_center_local(center)
     }
 
-    /// Disable the hover split on this shape.
+    /// Fully disable the hover split on this shape.
     fn disable_hover(&self) {
         self.set_hover_split_center_local(Vector2::new(INFINITE, INFINITE));
         self.set_hover_split_rotation(RIGHT_ANGLE);
     }
 
+    /// Make the whole shaper appear as without showing a split.
     fn enable_hover(&self) {
         self.set_hover_split_center_local(Vector2::new(INFINITE, INFINITE));
         self.set_hover_split_rotation(2.0 * RIGHT_ANGLE);
@@ -149,23 +150,28 @@ impl PartialEq for dyn EdgeShape {
 // === Hover Extension ===
 // =======================
 
+/// Add an invisible extension to the shape that can be used to generate an larger interactive
+/// area. The extended area is equivalent to the base shape grown by the `extension` value.
+///
+/// Note: the base shape should already be colored otherwise coloring it later will also color the
+///extension.
 fn extend_hover_area(base_shape:AnyShape, extension:Var<Distance<Pixels>>) -> AnyShape {
     let extended = base_shape.grow(extension);
     let extended = extended.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
     (extended + base_shape).into()
 }
 
+
+
 // ===================
 // === Split Shape ===
 // ===================
 
 /// Holds the data required to split a shape into two parts.
-///
-/// The `area` indicates which side of the split will receive special coloring.
 #[derive(Clone,Copy,Debug)]
 struct Split {
-    position         : Vector2<f32>,
-    cut_angle        : f32
+    position  : Vector2<f32>,
+    cut_angle : f32
 }
 
 impl Split {
@@ -627,7 +633,7 @@ macro_rules! define_components {
             pub logger            : Logger,
             pub display_object    : display::object::Instance,
             pub shape_view_events : Rc<Vec<ShapeViewEvents>>,
-            shape_type_map        : Rc<HashMap<object::Id,EdgePart>>,
+            shape_type_map        : Rc<HashMap<object::Id,ShapeRole>>,
             $(pub $field : component::ShapeView<$field_type>),*
         }
 
@@ -642,7 +648,7 @@ macro_rules! define_components {
                 $(shape_view_events.push($field.events.clone_ref());)*
                 let shape_view_events = Rc::new(shape_view_events);
 
-                let mut shape_type_map:HashMap<object::Id,EdgePart> = default();
+                let mut shape_type_map:HashMap<object::Id,ShapeRole> = default();
                 $(shape_type_map.insert(EdgeShape::id(&$field), $field_shape_type);)*
                 let shape_type_map = Rc::new(shape_type_map);
 
@@ -654,12 +660,9 @@ macro_rules! define_components {
                     $(id if id == EdgeShape::id(&self.$field) => Some(&self.$field),)*
                     _ => None,
                 }
-                // let mut map :HashMap<object::Id, &dyn EdgeShape> = default();
-                // $(map.insert(EdgeShape::id(&self.$field), &self.$field);)*
-                // map.get(&id).cloned()
             }
 
-            fn get_shape_type(&self, id:object::Id) -> Option<EdgePart> {
+            fn get_shape_type(&self, id:object::Id) -> Option<ShapeRole> {
                 self.shape_type_map.get(&id).cloned()
             }
         }
@@ -686,26 +689,26 @@ macro_rules! define_components {
 
 define_components!{
     Front {
-        corner     : (front::corner::Shape, EdgePart::Corner),
-        corner2    : (front::corner::Shape, EdgePart::Corner2),
-        corner3    : (front::corner::Shape, EdgePart::Corner3),
-        side_line  : (front::line::Shape,   EdgePart::SideLine),
-        side_line2 : (front::line::Shape,   EdgePart::SideLine2),
-        main_line  : (front::line::Shape,   EdgePart::MainLine),
-        port_line  : (front::line::Shape,   EdgePart::PortLine),
-        arrow      : (front::arrow::Shape,  EdgePart::Arrow),
+        corner     : (front::corner::Shape, ShapeRole::Corner),
+        corner2    : (front::corner::Shape, ShapeRole::Corner2),
+        corner3    : (front::corner::Shape, ShapeRole::Corner3),
+        side_line  : (front::line::Shape,   ShapeRole::SideLine),
+        side_line2 : (front::line::Shape,   ShapeRole::SideLine2),
+        main_line  : (front::line::Shape,   ShapeRole::MainLine),
+        port_line  : (front::line::Shape,   ShapeRole::PortLine),
+        arrow      : (front::arrow::Shape,  ShapeRole::Arrow),
     }
 }
 
 define_components!{
     Back {
-        corner     : (back::corner::Shape, EdgePart::Corner),
-        corner2    : (back::corner::Shape, EdgePart::Corner2),
-        corner3    : (back::corner::Shape, EdgePart::Corner3),
-        side_line  : (back::line::Shape,   EdgePart::SideLine),
-        side_line2 : (back::line::Shape,   EdgePart::SideLine2),
-        main_line  : (back::line::Shape,   EdgePart::MainLine),
-        arrow      : (back::arrow::Shape,  EdgePart::Arrow),
+        corner     : (back::corner::Shape, ShapeRole::Corner),
+        corner2    : (back::corner::Shape, ShapeRole::Corner2),
+        corner3    : (back::corner::Shape, ShapeRole::Corner3),
+        side_line  : (back::line::Shape,   ShapeRole::SideLine),
+        side_line2 : (back::line::Shape,   ShapeRole::SideLine2),
+        main_line  : (back::line::Shape,   ShapeRole::MainLine),
+        arrow      : (back::arrow::Shape,  ShapeRole::Arrow),
     }
 }
 
@@ -752,7 +755,7 @@ pub fn sort_hack_2(scene:&Scene) {
 
 /// Indicates which role a shape plays within the overall edge.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
-enum EdgePart {
+enum ShapeRole {
     SideLine,
     Corner,
     MainLine,
@@ -1126,12 +1129,12 @@ impl EdgeModelData {
         let target_position = default();
         let target_attached = Rc::new(Cell::new(false));
         let hover_position  = default();
-        let layout_state    =  Rc::new(Cell::new(LayoutState::UpLeft));
+        let layout_state    = Rc::new(Cell::new(LayoutState::UpLeft));
         let hover_target    = default();
 
         Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
               target_attached,hover_position,
-            layout_state,hover_target}
+              layout_state,hover_target}
     }
 
     /// Redraws the connection.
@@ -1558,23 +1561,22 @@ impl EdgeModelData {
     fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
         let start_y = self.display_object.position().y;
         let end_y   = self.target_position.get().y;
-        let mid_y = (start_y + end_y) / 2.0;
+        let mid_y   = (start_y + end_y) / 2.0;
         point.y > mid_y
     }
 
-
     /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
     /// edge. This is determined based on the y-position only, except when that is impractical due
-    /// do a low y-difference between `Input` and `Output`.
+    /// to a low y-difference between `Input` and `Output`.
     pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
         if self.input_and_output_y_too_close() {
             return self.closest_end_for_point(point)
         }
 
-        let input_above = self.layout_state.get().is_input_above_output();
-        let upper_half  = self.is_in_upper_half(point);
+        let input_in_upper_half = self.layout_state.get().is_input_above_output();
+        let point_in_upper_half = self.is_in_upper_half(point);
 
-        match (upper_half, input_above) {
+        match (point_in_upper_half, input_in_upper_half) {
             (true, true)  => EndDesignation::Input,
             (true, false) => EndDesignation::Output,
             (false, true)  => EndDesignation::Output,
@@ -1596,8 +1598,8 @@ impl EdgeModelData {
         }
     }
 
-    /// Indicates whether the height difference between input and output is too small to do
-    /// use the y value to assign the `EndDesignation` for a given point.
+    /// Indicates whether the height difference between input and output is too small to  use the
+    /// y value to assign the `EndDesignation` for a given point.
     fn input_and_output_y_too_close(&self) -> bool {
         let target_y = self.display_object.position().y;
         let source_y = self.target_position.get().y;
@@ -1609,10 +1611,10 @@ impl EdgeModelData {
     /// `target_end`. Will return `None` if the `shape_id` is not a valid sub-shape of this edge.
     fn cut_angle_for_shape
     (&self, shape_id:object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
-        let shape     = self.get_shape(shape_id)?;
-        let edge_part = self.get_shape_type(shape_id)?;
+        let shape      = self.get_shape(shape_id)?;
+        let shape_role = self.get_shape_role(shape_id)?;
 
-        let cut_angle_correction = self.get_cut_angle_correction(edge_part);
+        let cut_angle_correction = self.get_cut_angle_correction(shape_role);
         let target_angle         = self.get_target_angle(target_end);
 
         let base_rotation = shape.display_object().rotation().z + 2.0 * RIGHT_ANGLE;
@@ -1623,7 +1625,8 @@ impl EdgeModelData {
     /// Return the cut angle value needed to highlight the given end of the shape. This takes into
     /// account the current layout.
     fn get_target_angle(&self, target_end:EndDesignation) -> f32 {
-        match (self.layout_state.get().is_output_above_input(),target_end) {
+        let output_on_top = self.layout_state.get().is_output_above_input();
+        match (output_on_top,target_end) {
             (false, EndDesignation::Input)  => 0.0,
             (false, EndDesignation::Output) => 2.0 * RIGHT_ANGLE,
             (true, EndDesignation::Input)   => 2.0 * RIGHT_ANGLE,
@@ -1632,38 +1635,38 @@ impl EdgeModelData {
     }
 
     /// These corrections are needed as sometimes shapes are in places that lead to inconsistent
-    /// results. e.g., the side line leaving the node from left/right or right/left. The shape
+    /// results, e.g., the side line leaving the node from left/right or right/left. The shape
     /// itself does not have enough information about its own placement to determine which end
     /// is pointed towards the `Target` or `Source` part of the whole edge. So we need to account
     /// for these here based on the specific layout state we are in.
-    fn get_cut_angle_correction(&self, edge_part:EdgePart) -> f32 {
+    fn get_cut_angle_correction(&self, shape_role:ShapeRole) -> f32 {
         let layout_state = self.layout_state.get();
 
         let flip = 2.0 * RIGHT_ANGLE;
 
-        match (layout_state, edge_part)  {
-            (LayoutState::DownLeft, EdgePart::SideLine ) => flip,
-            (LayoutState::DownLeft, EdgePart::Corner   ) => flip,
+        match (layout_state, shape_role)  {
+            (LayoutState::DownLeft, ShapeRole::SideLine ) => flip,
+            (LayoutState::DownLeft, ShapeRole::Corner   ) => flip,
 
-            (LayoutState::UpLeft, EdgePart::PortLine ) => flip,
-            (LayoutState::UpLeft, EdgePart::Corner   ) => flip,
+            (LayoutState::UpLeft, ShapeRole::PortLine ) => flip,
+            (LayoutState::UpLeft, ShapeRole::Corner   ) => flip,
 
-            (LayoutState::UpRight, EdgePart::PortLine  ) => flip,
-            (LayoutState::UpRight, EdgePart::Corner3   ) => flip,
-            (LayoutState::UpRight, EdgePart::SideLine2 ) => flip,
-            (LayoutState::UpRight, EdgePart::Corner2   ) => flip,
-            (LayoutState::UpRight, EdgePart::SideLine  ) => flip,
+            (LayoutState::UpRight, ShapeRole::PortLine  ) => flip,
+            (LayoutState::UpRight, ShapeRole::Corner3   ) => flip,
+            (LayoutState::UpRight, ShapeRole::SideLine2 ) => flip,
+            (LayoutState::UpRight, ShapeRole::Corner2   ) => flip,
+            (LayoutState::UpRight, ShapeRole::SideLine  ) => flip,
 
-            (LayoutState::TopCenterRightLoop, EdgePart::SideLine ) => flip,
-            (LayoutState::TopCenterRightLoop, EdgePart::PortLine ) => flip,
+            (LayoutState::TopCenterRightLoop, ShapeRole::SideLine ) => flip,
+            (LayoutState::TopCenterRightLoop, ShapeRole::PortLine ) => flip,
 
-            (LayoutState::TopCenterLeftLoop, EdgePart::SideLine2 ) => flip,
-            (LayoutState::TopCenterLeftLoop, EdgePart::Corner2   ) => flip,
-            (LayoutState::TopCenterLeftLoop, EdgePart::Corner    ) => flip,
-            (LayoutState::TopCenterLeftLoop, EdgePart::Corner3   ) => flip,
-            (LayoutState::TopCenterLeftLoop, EdgePart::PortLine  ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::SideLine2 ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner2   ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner    ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner3   ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::PortLine  ) => flip,
 
-            (_, EdgePart::Arrow)  => RIGHT_ANGLE,
+            (_, ShapeRole::Arrow)  => RIGHT_ANGLE,
 
             _ => 0.0,
         }
@@ -1678,8 +1681,8 @@ impl EdgeModelData {
         self.front.get_shape(id)
     }
 
-    /// Return the `EdgePart` designation for the given sub-shape indicated by the given shape id.
-    fn get_shape_type(&self, id:object::Id) -> Option<EdgePart> {
+    /// Return the `ShapeRole` for the given sub-shape.
+    fn get_shape_role(&self, id:object::Id) -> Option<ShapeRole> {
         let shape_type = self.back.get_shape_type(id);
         if shape_type.is_some() {
             return shape_type
@@ -1692,7 +1695,7 @@ impl EdgeModelData {
     fn snap_position_to_shape(&self, point:Vector2<f32>) -> Option<SnapTarget> {
         let hover_shape_id = self.hover_target  .get()?;
         let shape          = self.get_shape(hover_shape_id)?;
-        let snap_position = shape.snap_to_self(point);
+        let snap_position  = shape.snap_to_self(point);
         snap_position.map(|snap_position|{
             SnapTarget::new(snap_position,hover_shape_id)
         })
