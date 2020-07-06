@@ -136,20 +136,6 @@ trait EdgeShape: ensogl::display::Object {
         let local_unrotated = UnitComplex::new(base_rotation) * point;
         local_unrotated + self.display_object().global_position().xy()
     }
-
-    /// Check whether the given shape local coordinate is within the bounds of the shape.
-    fn contains_local(&self, point:Vector2<f32>) -> bool {
-        let size = self.sprite().size.get();
-        if point.x < -size.x / 2.0 || point.y < -size.y / 2.0 {
-            return false
-        }
-        point.x < size.x / 2.0 && point.y < size.y / 2.0
-    }
-
-    /// Check whether the given global coordinate is within the bounds of the shape.
-    fn contains(&self, point:Vector2<f32>) -> bool {
-        self.contains_local(self.to_shape_coordinate_system(point))
-    }
 }
 
 impl PartialEq for dyn EdgeShape {
@@ -806,7 +792,7 @@ impl LayoutState {
         }
     }
 
-    fn is_input_above_output(&self) -> bool {
+    fn is_input_above_output(self) -> bool {
         !self.is_output_above_input()
     }
 }
