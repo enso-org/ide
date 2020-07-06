@@ -634,7 +634,7 @@ pub mod back {
 
 macro_rules! define_components {
     ($name:ident {
-        $($field:ident : $field_type:ty),* $(,)?
+        $($field:ident : ($field_type:ty,  $field_shape_type:expr)),* $(,)?
     }) => {
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]
@@ -642,6 +642,7 @@ macro_rules! define_components {
             pub logger            : Logger,
             pub display_object    : display::object::Instance,
             pub shape_view_events : Rc<Vec<ShapeViewEvents>>,
+            shape_type_map        : Rc<HashMap<object::Id,EdgePart>>,
             $(pub $field : component::ShapeView<$field_type>),*
         }
 
@@ -656,14 +657,25 @@ macro_rules! define_components {
                 $(shape_view_events.push($field.events.clone_ref());)*
                 let shape_view_events = Rc::new(shape_view_events);
 
-                Self {logger,display_object,shape_view_events,$($field),*}
+                let mut shape_type_map:HashMap<object::Id,EdgePart> = default();
+                $(shape_type_map.insert(EdgeShape::id(&$field), $field_shape_type);)*
+                let shape_type_map = Rc::new(shape_type_map);
+
+                Self {logger,display_object,shape_view_events,shape_type_map,$($field),*}
             }
 
-            // FIXME ugly and low performance
             fn get_shape(&self, id:object::Id) -> Option<&dyn EdgeShape> {
-                let mut map :HashMap<object::Id, &dyn EdgeShape> = default();
-                $(map.insert(EdgeShape::id(&self.$field), &self.$field);)*
-                map.get(&id).cloned()
+                match id {
+                    $(id if id == EdgeShape::id(&self.$field) => Some(&self.$field),)*
+                    _ => None,
+                }
+                // let mut map :HashMap<object::Id, &dyn EdgeShape> = default();
+                // $(map.insert(EdgeShape::id(&self.$field), &self.$field);)*
+                // map.get(&id).cloned()
+            }
+
+            fn get_shape_type(&self, id:object::Id) -> Option<EdgePart> {
+                self.shape_type_map.get(&id).cloned()
             }
         }
 
@@ -689,26 +701,26 @@ macro_rules! define_components {
 
 define_components!{
     Front {
-        corner     : front::corner::Shape,
-        corner2    : front::corner::Shape,
-        corner3    : front::corner::Shape,
-        side_line  : front::line::Shape,
-        side_line2 : front::line::Shape,
-        main_line  : front::line::Shape,
-        port_line  : front::line::Shape,
-        arrow      : front::arrow::Shape,
+        corner     : (front::corner::Shape, EdgePart::Corner),
+        corner2    : (front::corner::Shape, EdgePart::Corner2),
+        corner3    : (front::corner::Shape, EdgePart::Corner3),
+        side_line  : (front::line::Shape,   EdgePart::SideLine),
+        side_line2 : (front::line::Shape,   EdgePart::SideLine2),
+        main_line  : (front::line::Shape,   EdgePart::MainLine),
+        port_line  : (front::line::Shape,   EdgePart::PortLine),
+        arrow      : (front::arrow::Shape,  EdgePart::Arrow),
     }
 }
 
 define_components!{
     Back {
-        corner     : back::corner::Shape,
-        corner2    : back::corner::Shape,
-        corner3    : back::corner::Shape,
-        side_line  : back::line::Shape,
-        side_line2 : back::line::Shape,
-        main_line  : back::line::Shape,
-        arrow      : back::arrow::Shape,
+        corner     : (back::corner::Shape, EdgePart::Corner),
+        corner2    : (back::corner::Shape, EdgePart::Corner2),
+        corner3    : (back::corner::Shape, EdgePart::Corner3),
+        side_line  : (back::line::Shape,   EdgePart::SideLine),
+        side_line2 : (back::line::Shape,   EdgePart::SideLine2),
+        main_line  : (back::line::Shape,   EdgePart::MainLine),
+        arrow      : (back::arrow::Shape,  EdgePart::Arrow),
     }
 }
 
@@ -1509,7 +1521,7 @@ impl EdgeModelData {
             vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
             vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
             vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
-                 EdgeShape::id(&front.arrow), EdgeShape::id(&back.arrow) ],
+                 EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ],
             vec![EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ],
             vec![EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ],
             vec![EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ],
@@ -1517,72 +1529,10 @@ impl EdgeModelData {
         ]
     }
 
-    /// Return the `EdgePart` designation of a `Id`. If there is no valid shape of that `Id` in this
-    ///edge, returns `None`.
-    fn edge_part_for_shape_id(&self, shape_id:object::Id) -> Option<EdgePart> {
-        if self.side_lines().contains(&shape_id) {
-            return Some(EdgePart::SideLine)
-        }
-        if self.corners().contains(&shape_id) {
-            return Some(EdgePart::Corner)
-        }
-        if self.main_lines().contains(&shape_id) {
-            return Some(EdgePart::MainLine)
-        }
-        if self.corners2().contains(&shape_id) {
-            return Some(EdgePart::Corner2)
-        }
-        if self.side_lines2().contains(&shape_id) {
-            return Some(EdgePart::SideLine2)
-        }
-        if self.corners3().contains(&shape_id) {
-            return Some(EdgePart::Corner3)
-        }
-        if self.port_lines().contains(&shape_id) {
-            return Some(EdgePart::PortLine)
-        }
-        if self.arrows().contains(&shape_id) {
-            return Some(EdgePart::Arrow)
-        }
-        None
-    }
-
-    fn side_lines(&self) -> Vec<object::Id> {
-        vec![EdgeShape::id(&self.front.side_line),  EdgeShape::id(&self.back.side_line)]
-    }
-
-    fn corners(&self) -> Vec<object::Id> {
-        vec![EdgeShape::id(&self.front.corner),  EdgeShape::id(&self.back.corner)]
-    }
-
-    fn main_lines(&self) -> Vec<object::Id> {
-        vec![EdgeShape::id(&self.front.main_line),  EdgeShape::id(&self.back.main_line)]
-    }
-
-    fn corners2(&self) -> Vec<object::Id> {
-        vec![EdgeShape::id(&self.front.corner2),  EdgeShape::id(&self.back.corner2)]
-    }
-
-    fn side_lines2(&self) -> Vec<object::Id> {
-        vec![EdgeShape::id(&self.front.side_line2),  EdgeShape::id(&self.back.side_line2)]
-    }
-
-    fn corners3(&self) -> Vec<object::Id> {
-        vec![EdgeShape::id(&self.front.corner3),  EdgeShape::id(&self.back.corner3)]
-    }
-
-    fn port_lines(&self) -> Vec<object::Id> {
-        vec![EdgeShape::id(&self.front.port_line)]
-    }
-
-    fn arrows(&self) -> Vec<object::Id> {
-        vec![EdgeShape::id(&self.front.arrow), EdgeShape::id(&self.back.arrow)]
-    }
-
     fn cut_angle_for_shape
     (&self, shape_id:object::Id, position:Vector2<f32>, part:EndDesignation) -> Option<f32> {
         let shape     = self.get_shape(shape_id)?;
-        let edge_part = self.edge_part_for_shape_id(shape_id)?;
+        let edge_part = self.get_shape_type(shape_id)?;
 
         let cut_angle_correction = self.get_cut_angle_correction(edge_part);
         let target_angle         = self.get_target_angle(part);
@@ -1645,6 +1595,15 @@ impl EdgeModelData {
             return shape_ref
         }
         self.front.get_shape(id)
+    }
+
+    /// Return the `EdgePart` designation for the given sub-shape indicated by the given shape id.
+    fn get_shape_type(&self, id:object::Id) -> Option<EdgePart> {
+        let shape_type = self.back.get_shape_type(id);
+        if shape_type.is_some() {
+            return shape_type
+        }
+        self.front.get_shape_type(id)
     }
 
     /// Snap the given position to our sub-shapes. Returns `None` if the given position cannot be
