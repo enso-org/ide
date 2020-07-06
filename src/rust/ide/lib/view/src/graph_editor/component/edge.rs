@@ -16,7 +16,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewEvents;
 use ensogl::gui::component;
-use nalgebra::UnitComplex;
 
 use super::node;
 
@@ -127,13 +126,13 @@ trait EdgeShape: ensogl::display::Object {
     fn to_shape_coordinate_system(&self, point:Vector2<f32>) -> Vector2<f32> {
         let base_rotation   = self.display_object().rotation().z;
         let local_unrotated = point - self.display_object().global_position().xy();
-        UnitComplex::new(-base_rotation) * local_unrotated
+        nalgebra::Rotation2::new(-base_rotation) * local_unrotated
     }
 
     /// Convert the given shape local coordinate to the global coordinates system.
     fn from_shape_to_global_coordinate_system(&self, point:Vector2<f32>) -> Vector2<f32> {
         let base_rotation   = self.display_object().rotation().z;
-        let local_unrotated = UnitComplex::new(base_rotation) * point;
+        let local_unrotated = nalgebra::Rotation2::new(base_rotation) * point;
         local_unrotated + self.display_object().global_position().xy()
     }
 }
@@ -238,8 +237,8 @@ struct SnapTarget {
 }
 
 impl SnapTarget {
-    fn new(position:Vector2<f32>, target_shape:object::Id) -> Self {
-        SnapTarget {position, target_shape_id: target_shape }
+    fn new(position:Vector2<f32>, target_shape_id:object::Id) -> Self {
+        SnapTarget {position,target_shape_id}
     }
 }
 
