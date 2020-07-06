@@ -740,42 +740,6 @@ impl AnyEdgeShape for EdgeModelData {
     }
 }
 
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-enum EdgePart {
-    SideLine,
-    Corner,
-    MainLine,
-    Corner2,
-    SideLine2,
-    Corner3,
-    PortLine,
-    Arrow,
-}
-
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-enum LayoutState {
-    UpLeft,
-    UpRight,
-    TopCenterRightLoop,
-    TopCenterLeftLoop,
-    DownLeft,
-    DownRight,
-}
-
-impl LayoutState {
-    fn is_down_state(self) -> bool {
-        match self {
-            LayoutState::UpLeft => false,
-            LayoutState::UpRight => false,
-            LayoutState::TopCenterRightLoop => false,
-            LayoutState::TopCenterLeftLoop => false,
-            LayoutState::DownLeft => true,
-            LayoutState::DownRight => true,
-        }
-    }
-}
-
-
 
 // TODO: Implement proper sorting and remove.
 /// Hack function used to register the elements for the sorting purposes. To be removed.
@@ -793,6 +757,146 @@ pub fn sort_hack_2(scene:&Scene) {
     component::ShapeView::<front::corner::Shape>::new(&logger,scene);
     component::ShapeView::<front::line::Shape>::new(&logger,scene);
     component::ShapeView::<front::arrow::Shape>::new(&logger,scene);
+}
+
+
+
+// ===========================
+// === Shape & State Enums ===
+// ===========================
+
+/// Indicates which role a shape plays within the overall edge.
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+enum EdgePart {
+    SideLine,
+    Corner,
+    MainLine,
+    Corner2,
+    SideLine2,
+    Corner3,
+    PortLine,
+    Arrow,
+}
+
+/// Indicates the state the shape layout is in. Can be used to adjust behaviour based on state
+/// to address edge cases for specific layouts. The terms are used to follow the direction of the
+/// edge from `Output` to `Input`.
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+enum LayoutState {
+    UpLeft,
+    UpRight,
+    DownLeft,
+    DownRight,
+    /// The edge goes up and the top loops back to the right.
+    TopCenterRightLoop,
+    /// The edge goes up and the top loops back to the left.
+    TopCenterLeftLoop,
+}
+
+impl LayoutState {
+    /// Indicates whether the `Output` is below the `Input` in the current layout configuration.
+    fn is_output_above_input(self) -> bool {
+        match self {
+            LayoutState::UpLeft => false,
+            LayoutState::UpRight => false,
+            LayoutState::TopCenterRightLoop => false,
+            LayoutState::TopCenterLeftLoop => false,
+            LayoutState::DownLeft => true,
+            LayoutState::DownRight => true,
+        }
+    }
+
+    fn is_input_above_output(&self) -> bool {
+        !self.is_output_above_input()
+    }
+}
+
+
+
+// =====================
+// === SemanticSplit ===
+// =====================
+
+/// The semantic split, splits the sub-shapes according to their relative position from `Output` to
+/// `Input` and allows access to the three different groups of shapes: (a) shapes that are input
+/// side of the split, (b) shapes that are at the split (c) shapes that are  output side of the
+/// split.
+///
+/// Note that "at the split" also includes the shapes adjacent to the actual split because they
+/// need to be treated as if they were at the split location to  avoid glitches at the shape
+/// boundaries.
+struct SemanticSplit {
+    /// a ordered vector that contains the ids of the shapes in the order they appear in the
+    ///  edge. Shapes that fill the same "slot" in the shape and must be handled together,
+    /// are binned into a sub-vector. That can be the case for shapes that are present in the
+    /// back and the front of the shape.
+    ordered_part_ids : Vec<Vec<object::Id>>,
+    /// The index the shape where the edge split occurs in the `ordered_part_ids`.
+    split_index      : usize,
+}
+
+impl SemanticSplit {
+
+    /// Return a ordered vector that contains the ids of the shapes in the order they appear in the
+    /// edge. Shapes that are to be handled as in the same place, are binned into a sub-vector.
+    /// This enables us to infer which parts are next to each other, and which ones are
+    /// "source-side"/"target-side". In general, we treat the equivalent shape from front and back
+    /// as the same, but also the arrow needs to be handled together with the main line.
+    fn semantically_binned_edges(edge_data:&EdgeModelData) -> Vec<Vec<object::Id>> {
+        let front = &edge_data.front;
+        let back  = &edge_data.back;
+        vec![
+            vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
+            vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
+            vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
+                 EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ],
+            vec![EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ],
+            vec![EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ],
+            vec![EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ],
+            vec![EdgeShape::id(&front.port_line)                                   ],
+        ]
+    }
+
+    fn new(edge_data:&EdgeModelData, split_shape:object::Id) -> Option<Self> {
+        let ordered_part_ids = Self::semantically_binned_edges(edge_data);
+
+        // Find the object id in our `ordered_part_ids`
+        let mut split_index  = None;
+        for (index, shape_ids) in ordered_part_ids.iter().enumerate() {
+            if shape_ids.contains(&split_shape) {
+                split_index = Some(index);
+                break
+            }
+        }
+        let split_index = split_index?;
+
+        Some(SemanticSplit {ordered_part_ids,split_index})
+    }
+
+    /// Return `Id`s that match the given index condition `cond`.
+    fn index_filtered_shapes<F:Fn(i32)-> bool>(&self, cond:F) -> Vec<object::Id> {
+        self.ordered_part_ids
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| cond(*index as i32))
+            .flat_map(|(_index, ids)| ids.clone())
+            .collect()
+    }
+
+    /// Shapes that are output side of the split.
+    fn output_side_shapes(&self) -> Vec<object::Id> {
+        self.index_filtered_shapes(move |index| (index + 1) < self.split_index as i32)
+    }
+
+    /// Shapes that are input side of the split.
+    fn input_side_shapes(&self) -> Vec<object::Id> {
+        self.index_filtered_shapes(move |index| index > (self.split_index as i32 + 1))
+    }
+
+    /// Shapes that are at the split location and adjacent to it.
+    fn split_shapes(&self) -> Vec<object::Id> {
+        self.index_filtered_shapes(move |index| (index - self.split_index as i32).abs() <=1)
+    }
 }
 
 
@@ -1009,7 +1113,7 @@ pub struct EdgeModelData {
     pub target_position : Rc<Cell<Vector2>>,
     pub target_attached : Rc<Cell<bool>>,
 
-    layout_state: Rc<Cell<LayoutState>>,
+    layout_state        : Rc<Cell<LayoutState>>,
 
     hover_position      : Rc<Cell<Option<Vector2<f32>>>>,
     hover_target        : Rc<Cell<Option<object::Id>>>,
@@ -1063,9 +1167,8 @@ impl EdgeModelData {
 
         let hover_position = self.hover_position.get();
         if let Some(hover_position) = hover_position {
-            let highlight_part = self.closest_end_designation_for_point(hover_position);
+            let highlight_part = self.closest_end_for_point(hover_position);
             if let Err(()) = self.try_enable_hover_split(hover_position,highlight_part) {
-                // TODO consider remembering our state and avoid calling ths if not required.
                 self.disable_hover_split();
             }
         } else {
@@ -1468,16 +1571,35 @@ impl EdgeModelData {
 impl EdgeModelData {
     /// Return whether the point is in the upper half of the overall edge shape.
     fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
-        let start = nalgebra::Point2::from(self.display_object.position().xy());
-        let end   = nalgebra::Point2::from(self.target_position.get());
-        let point = nalgebra::Point2::from(point);
-        let mid_y = (start.y + end.y) / 2.0;
+        let start_y = self.display_object.position().y;
+        let end_y   = self.target_position.get().y;
+        let mid_y = (start_y + end_y) / 2.0;
         point.y > mid_y
     }
 
-   /// Return the `EndDesignation` for the closest end of the edge for the given point. Uses
-   /// euclidean distance between point and `Input`/`Output`.
-    fn closest_end_designation_for_point(&self, point:Vector2<f32>) -> EndDesignation {
+
+    /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
+    /// edge. This is determined based on the y-position only, except when that is impractical due
+    /// do a low y-difference between `Input` and `Output`.
+    pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
+        if self.input_and_output_y_too_close() {
+            return self.closest_end_for_point(point)
+        }
+
+        let input_above = self.layout_state.get().is_input_above_output();
+        let upper_half  = self.is_in_upper_half(point);
+
+        match (upper_half, input_above) {
+            (true, true)  => EndDesignation::Input,
+            (true, false) => EndDesignation::Output,
+            (false, true)  => EndDesignation::Output,
+            (false, false) => EndDesignation::Input,
+        }
+    }
+
+    /// Return the `EndDesignation` for the closest end of the edge for the given point. Uses
+    /// euclidean distance between point and `Input`/`Output`.
+    fn closest_end_for_point(&self, point:Vector2<f32>) -> EndDesignation {
         let target_position = self.display_object.position().xy();
         let source_position = self.target_position.get().xy();
         let target_distance = (point - target_position).norm();
@@ -1489,53 +1611,24 @@ impl EdgeModelData {
         }
     }
 
-    /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
-    /// edge. This is determined based on the y-position only, except when that is impractical due
-    /// do a low y-difference between `Input` and `Output`.
-    pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
+    /// Indicates whether the height difference between input and output is too small to do
+    /// use the y value to assign the `EndDesignation` for a given point.
+    fn input_and_output_y_too_close(&self) -> bool {
         let target_y = self.display_object.position().y;
         let source_y = self.target_position.get().y;
         let delta_y  = target_y - source_y;
-        if delta_y > 0.0 && delta_y < MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION {
-            return self.closest_end_designation_for_point(point)
-        }
-        let input_above_mid = delta_y > 0.0;
-        let upper_half      = self.is_in_upper_half(point);
-
-        match (upper_half, input_above_mid) {
-            (true, true)  => EndDesignation::Input,
-            (true, false) => EndDesignation::Output,
-            (false, true)  => EndDesignation::Output,
-            (false, false) => EndDesignation::Input,
-        }
+        delta_y > 0.0 && delta_y < MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION
     }
 
-    /// Return a ordered vector that contains the ids of the shapes in the order they appear in the
-    /// edge. Shapes that are to be handled as in the same place, are binned into a sub-vector.
-    /// This enables us to infer which parts are next to each other, and which ones are
-    /// "source-side"/"target-side"/
-    fn semantically_binned_edges(&self) -> Vec<Vec<object::Id>> {
-        let front = &self.front;
-        let back  = &self.back;
-        vec![
-            vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
-            vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
-            vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
-                 EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ],
-            vec![EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ],
-            vec![EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ],
-            vec![EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ],
-            vec![EdgeShape::id(&front.port_line)                                   ],
-        ]
-    }
-
+    /// Return the correct cut angle for the given `shape_id` ath the `position` to highlight the
+    /// `target_end`. Will return `None` if the `shape_id` is not a valid sub-shape of this edge.
     fn cut_angle_for_shape
-    (&self, shape_id:object::Id, position:Vector2<f32>, part:EndDesignation) -> Option<f32> {
+    (&self, shape_id:object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
         let shape     = self.get_shape(shape_id)?;
         let edge_part = self.get_shape_type(shape_id)?;
 
         let cut_angle_correction = self.get_cut_angle_correction(edge_part);
-        let target_angle         = self.get_target_angle(part);
+        let target_angle         = self.get_target_angle(target_end);
 
         let base_rotation = shape.display_object().rotation().z + 2.0 * RIGHT_ANGLE;
         let shape_normal  = shape.normal_vector_for_point(position).angle();
@@ -1544,12 +1637,12 @@ impl EdgeModelData {
 
     /// Return the cut angle value needed to highlight the given end of the shape. This takes into
     /// account the current layout.
-    fn get_target_angle(&self, part:EndDesignation) -> f32 {
-        match (self.layout_state.get().is_down_state(), part) {
-            (false, EndDesignation::Input) => 0.0,
+    fn get_target_angle(&self, target_end:EndDesignation) -> f32 {
+        match (self.layout_state.get().is_output_above_input(),target_end) {
+            (false, EndDesignation::Input)  => 0.0,
             (false, EndDesignation::Output) => 2.0 * RIGHT_ANGLE,
-            (true, EndDesignation::Input) => 2.0 * RIGHT_ANGLE,
-            (true, EndDesignation::Output) => 0.0,
+            (true, EndDesignation::Input)   => 2.0 * RIGHT_ANGLE,
+            (true, EndDesignation::Output)  => 0.0,
         }
     }
 
@@ -1560,29 +1653,32 @@ impl EdgeModelData {
     /// for these here based on the specific layout state we are in.
     fn get_cut_angle_correction(&self, edge_part:EdgePart) -> f32 {
         let layout_state = self.layout_state.get();
+
+        let flip = 2.0 * RIGHT_ANGLE;
+
         match (layout_state, edge_part)  {
-            (LayoutState::DownLeft, EdgePart::SideLine ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::DownLeft, EdgePart::Corner   ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::DownLeft, EdgePart::SideLine ) => flip,
+            (LayoutState::DownLeft, EdgePart::Corner   ) => flip,
 
-            (LayoutState::UpLeft, EdgePart::PortLine ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpLeft, EdgePart::Corner   ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::UpLeft, EdgePart::PortLine ) => flip,
+            (LayoutState::UpLeft, EdgePart::Corner   ) => flip,
 
-            (LayoutState::UpRight, EdgePart::PortLine  ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpRight, EdgePart::Corner3   ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpRight, EdgePart::SideLine2 ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpRight, EdgePart::Corner2   ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::UpRight, EdgePart::SideLine  ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::UpRight, EdgePart::PortLine  ) => flip,
+            (LayoutState::UpRight, EdgePart::Corner3   ) => flip,
+            (LayoutState::UpRight, EdgePart::SideLine2 ) => flip,
+            (LayoutState::UpRight, EdgePart::Corner2   ) => flip,
+            (LayoutState::UpRight, EdgePart::SideLine  ) => flip,
 
-            (LayoutState::TopCenterRightLoop, EdgePart::SideLine ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterRightLoop, EdgePart::PortLine ) => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterRightLoop, EdgePart::SideLine ) => flip,
+            (LayoutState::TopCenterRightLoop, EdgePart::PortLine ) => flip,
 
-            (LayoutState::TopCenterLeftLoop, EdgePart::SideLine2 ) => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterLeftLoop, EdgePart::Corner2 )   => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterLeftLoop, EdgePart::Corner)     => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterLeftLoop, EdgePart::Corner3)    => 2.0 * RIGHT_ANGLE,
-            (LayoutState::TopCenterLeftLoop, EdgePart::PortLine )  => 2.0 * RIGHT_ANGLE,
+            (LayoutState::TopCenterLeftLoop, EdgePart::SideLine2 ) => flip,
+            (LayoutState::TopCenterLeftLoop, EdgePart::Corner2   ) => flip,
+            (LayoutState::TopCenterLeftLoop, EdgePart::Corner    ) => flip,
+            (LayoutState::TopCenterLeftLoop, EdgePart::Corner3   ) => flip,
+            (LayoutState::TopCenterLeftLoop, EdgePart::PortLine  ) => flip,
 
-            (_, EdgePart::Arrow )  => RIGHT_ANGLE,
+            (_, EdgePart::Arrow)  => RIGHT_ANGLE,
 
             _ => 0.0,
         }
@@ -1624,46 +1720,42 @@ impl EdgeModelData {
         }
     }
 
-    /// Split the shape at the given `position` and highlight the given `plane_direction`. This
-    /// might fail if the given position is too far from the shape. In that case, splitting is
-    /// disabled.
+    /// Split the shape at the given `position` and highlight the given `EndDesignation`. This
+    /// might fail if the given position is too far from the shape.
     fn try_enable_hover_split(&self, position:Vector2<f32>, part:EndDesignation) -> Result<(), ()>{
-        let snap_data        = self.snap_position_to_shape(position).ok_or(())?;
-        let binned_shape_ids = self.semantically_binned_edges();
-        let mut split_index  = None;
-        for (index, shape_ids) in binned_shape_ids.iter().enumerate() {
-            if shape_ids.contains(&snap_data.target_shape_id) {
-                split_index = Some(index);
-                break
-            }
-        }
-        let split_index = split_index.ok_or(())?;
-        for  (index, shape_ids) in binned_shape_ids.iter().enumerate() {
-            for shape_id in shape_ids.iter() {
-                let index       = index as i32;
-                let split_index = split_index as i32;
-                if let Some(shape) = self.get_shape(*shape_id) {
-                    if (index + 1) < split_index {
-                        match part{
-                            EndDesignation::Output => shape.disable_hover(),
-                            EndDesignation::Input  => shape.enable_hover(),
-                        }
-                    }
-                    if index > (split_index + 1) {
-                        match part{
-                            EndDesignation::Output => shape.enable_hover(),
-                            EndDesignation::Input  => shape.disable_hover(),
-                        }
-                    }
-                    if (index - split_index).abs() <=1  {
-                        if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,position,part) {
-                            let split_data = Split::new(snap_data.position,cut_angle);
-                            shape.enable_hover_split(split_data)
-                        }
-                    }
+        let snap_data      = self.snap_position_to_shape(position).ok_or(())?;
+        let semantic_split = SemanticSplit::new(&self, snap_data.target_shape_id).ok_or(())?;
+
+        // Completely disable/enable hovering for shapes that are not close the split base don their
+        // relative position within the shape. This avoids issues with splitting not working
+        // correctly when a split would intersect the edge at multiple points.
+        semantic_split.output_side_shapes().iter().for_each(|shape_id| {
+            if let Some(shape) = self.get_shape(*shape_id) {
+                match part{
+                    EndDesignation::Output => shape.disable_hover(),
+                    EndDesignation::Input  => shape.enable_hover(),
                 }
             }
-        }
+        });
+        semantic_split.input_side_shapes().iter().for_each(|shape_id|{
+            if let Some(shape) = self.get_shape(*shape_id) {
+                match part{
+                    EndDesignation::Output => shape.enable_hover(),
+                    EndDesignation::Input  => shape.disable_hover(),
+                }
+            }
+        });
+        // Apply a split to the shapes at the split location, and next to the split shapes. The
+        // extension to neighbours is required to show the correct transition from one shape to the
+        // next.
+        semantic_split.split_shapes().iter().for_each(|shape_id|{
+            if let Some(shape) = self.get_shape(*shape_id) {
+                if let Some(cut_angle)  = self.cut_angle_for_shape(*shape_id,position,part) {
+                    let split_data = Split::new(snap_data.position,cut_angle);
+                    shape.enable_hover_split(split_data)
+                }
+            }
+        });
         Ok(())
     }
 }
