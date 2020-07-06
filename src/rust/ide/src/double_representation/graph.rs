@@ -332,7 +332,7 @@ mod tests {
         assert_eq!(graph.nodes()[1].expression().repr(), "not_node");
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn add_node_to_graph_with_blank_line() {
         // The trailing `foo` definition is necessary for the blank line after "node2" to be
         // included in the `main` block. Otherwise, the block would end on "node2" and the blank
