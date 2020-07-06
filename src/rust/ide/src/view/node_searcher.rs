@@ -23,7 +23,7 @@ pub struct NodeSearcher {
     display_object : display::object::Instance,
     node_editor    : NodeEditor,
     text_field     : TextField,
-    controller     : controller::graph::Handle,
+    controller     : controller::ExecutedGraph,
     logger         : Logger,
 }
 
@@ -32,7 +32,7 @@ impl NodeSearcher {
     ( world       : &World
     , logger      : impl AnyLogger
     , node_editor : NodeEditor
-    , controller  : controller::graph::Handle
+    , controller  : controller::ExecutedGraph
     , fonts       : &mut font::Registry)
     -> Self {
         let scene          = world.scene();
@@ -67,7 +67,7 @@ impl NodeSearcher {
                 let location_hint = LocationHint::End;
                 let expression    = expression.to_string();
                 let new_node      = NewNodeInfo { expression,metadata,id,location_hint };
-                node_searcher.controller.add_node(new_node);
+                node_searcher.controller.graph().add_node(new_node);
                 node_searcher.hide();
             } else {
                 // Keep only one line.
