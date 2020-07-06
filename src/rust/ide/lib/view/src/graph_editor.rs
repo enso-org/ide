@@ -424,7 +424,7 @@ impl FrpInputs {
             some_edge_sources_detached   <- source();
             all_edge_targets_attached    <- source();
             all_edge_sources_attached    <- source();
-            all_edges_attached           <- source();
+             all_edges_attached         <- source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -1692,7 +1692,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // === Add Node ===
-    frp::extend! { network
+    frp::extend! { TRACE_ALL network
 
     node_cursor_style <- source::<cursor::Style>();
 
@@ -1703,6 +1703,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     on_output_connect_follow_mode <- node_output_touch.selected.constant(false);
     on_input_connect_drag_mode    <- node_input_touch.down.constant(true);
     on_input_connect_follow_mode  <- node_input_touch.selected.constant(false);
+
+    on_detached_edge    <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
+    has_detached_edge   <- bool(&inputs.all_edges_attached,&on_detached_edge);
 
     eval node_input_touch.down ((target) model.frp.press_node_input.emit(target));
 
@@ -1733,7 +1736,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         edge_id.map(|id| (id, *pos))
     }).unwrap();
 
-    eval edge_over_pos ([model]((edge_id,pos)) {
+    activate_edge_hover <- edge_over_pos.gate_not(&has_detached_edge);
+
+    eval activate_edge_hover ([model]((edge_id,pos)) {
          if let Some(edge) = model.edges.get_cloned_ref(edge_id){
             edge.frp.hover_position.emit(Some(*pos));
             edge.frp.redraw.emit(());
