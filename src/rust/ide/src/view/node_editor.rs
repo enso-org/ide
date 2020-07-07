@@ -161,6 +161,21 @@ impl GraphEditorIntegratedWithController {
                 }
             }));
         }
+
+
+        // === Project Renaming ===
+
+        let project_name = &model.editor.project_name;
+        frp::extend! {network
+            eval project_name.frp.outputs.renamed((name) {
+                model.rename_project(name.to_string());
+            });
+        }
+        model.editor.project_name.frp.reset_name.emit(());
+
+
+        // === UI Actions ===
+
         let node_removed = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_removed_in_ui,&invalidate.trigger);
         let node_entered = Self::ui_action(&model,
@@ -259,6 +274,24 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 }
 
+
+// === Project renaming ===
+
+impl GraphEditorIntegratedWithControllerModel {
+    fn rename_project(&self, name:String) {
+        if self.project_controller.project_name().to_string() != name {
+            let project_controller = self.project_controller.clone_ref();
+            let project_name       = self.editor.project_name.clone_ref();
+            let logger             = self.logger.clone_ref();
+            executor::global::spawn(async move {
+                if let Err(e) = project_controller.rename_project(&name).await {
+                    info!(logger, "Couldn't rename project: {e}");
+                    project_name.frp.reset_name.emit(());
+                }
+            });
+        }
+    }
+}
 
 // === Updating Graph View ===
 
@@ -691,6 +724,8 @@ impl NodeEditor {
         let graph_editor = self.graph.graph_editor();
         let identifiers  = self.visualization.list_visualizations().await;
         let identifiers  = identifiers.unwrap_or_default();
+        let project_name = self.graph.model.project_controller.project_name().to_string();
+        graph_editor.project_name.frp.rename.emit(project_name);
         for identifier in identifiers {
             let visualization = self.visualization.load_visualization(&identifier).await;
             let visualization = visualization.map(|visualization| {

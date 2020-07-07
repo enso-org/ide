@@ -8,7 +8,6 @@ use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
 use crate::view::node_editor::NodeEditor;
 use crate::view::node_searcher::NodeSearcher;
-use crate::view::project_name::ProjectName;
 
 use enso_callback as callback;
 use enso_frp as frp;
@@ -40,7 +39,6 @@ pub struct ViewLayoutData {
     node_searcher             : NodeSearcher,
     size                      : Vector2<f32>,
     logger                    : Logger,
-    project_name              : ProjectName,
     node_searcher_show_action : Option<callback::Handle>
 }
 
@@ -62,13 +60,6 @@ impl ViewLayoutData {
         self.update_text_editor();
         self.update_graph_editor();
         self.update_node_searcher();
-        self.update_project_name();
-    }
-
-    fn update_project_name(&mut self) {
-        let screen_size = self.size;
-        let margin      = 10.0;
-        self.project_name.set_position(Vector3::new(0.0,screen_size.y / 2.0 - margin,0.0));
     }
 
     fn update_text_editor(&mut self) {
@@ -116,12 +107,10 @@ impl ViewLayout {
         let world         = &application.display;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
         let graph         = graph_controller.graph.clone_ref();
-        let project_name  = ProjectName::new(&logger,&world,&project_controller,fonts);
         let node_editor   = NodeEditor::new
             (&logger,application,graph_controller,project_controller,visualization_controller);
         let node_editor   = node_editor.await?;
         let node_searcher = NodeSearcher::new(world,&logger,node_editor.clone_ref(),graph,fonts);
-        world.add_child(&project_name);
         world.add_child(&text_editor.display_object());
         world.add_child(&node_editor);
         world.add_child(&node_searcher);
@@ -131,7 +120,7 @@ impl ViewLayout {
         frp::new_network! { network def mouse_position_sampler = mouse.position.sampler(); }
         let node_searcher_show_action = None;
         let data = ViewLayoutData{network,text_editor,node_editor,node_searcher,size,logger,
-            node_searcher_show_action,mouse_position_sampler,project_name};
+            node_searcher_show_action,mouse_position_sampler};
         let rc   = Rc::new(RefCell::new(data));
         Ok(Self {rc}.init(world,kb_actions))
     }

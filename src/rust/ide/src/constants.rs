@@ -16,7 +16,7 @@ pub const SERIALIZE_TO_JSON_EXPRESSION:&str = "x -> x.json_serialize";
 pub const PROJECT_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30535";
 
 /// Default project name used by IDE on startup.
-pub const DEFAULT_PROJECT_NAME:&str = "Untitled";
+pub const DEFAULT_PROJECT_NAME:&str = graph_editor::component::project_name::DEFAULT_PROJECT_NAME;
 
 /// Visualization folder where IDE can look for user-defined visualizations per project.
 pub const VISUALIZATION_DIRECTORY:&str = "visualization";

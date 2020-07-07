@@ -302,6 +302,8 @@ ensogl::def_status_api! { FrpStatus
 }
 
 ensogl::def_command_api! { Commands
+    /// Cancel project name editing, restablishing the old name.
+    cancel_project_name_editing,
     /// Add a new node and place it in the origin of the workspace.
     add_node,
     /// Add a new node and place it at the mouse cursor position.
@@ -367,6 +369,8 @@ ensogl::def_command_api! { Commands
 impl Commands {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
+            cancel_project_name_editing           <- source();
+
             add_node                              <- source();
             add_node_at_cursor                    <- source();
             remove_selected_nodes                 <- source();
@@ -400,8 +404,8 @@ impl Commands {
 
             cancel <- source();
         }
-        Self {add_node,add_node_at_cursor,remove_selected_nodes,remove_all_nodes
-             ,toggle_visualization_visibility,press_visualization_visibility
+        Self {cancel_project_name_editing,add_node,add_node_at_cursor,remove_selected_nodes
+             ,remove_all_nodes,toggle_visualization_visibility,press_visualization_visibility
              ,double_press_visualization_visibility,release_visualization_visibility
              ,enable_node_multi_select,disable_node_multi_select,toggle_node_multi_select
              ,enable_node_merge_select,disable_node_merge_select,toggle_node_merge_select
@@ -443,7 +447,7 @@ pub struct FrpInputs {
     pub set_expression_type          : frp::Source<(ast::Id, OptionalType)>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
-    pub register_visualization : frp::Source<Option<visualization::Definition>>,
+    pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
@@ -481,7 +485,7 @@ impl FrpInputs {
             def set_visualization_data       = source();
             def cycle_visualization          = source();
             def set_visualization            = source();
-            def register_visualization = source();
+            def register_visualization       = source();
 
             def hover_node_input           = source();
             def hover_node_output          = source();
@@ -489,7 +493,7 @@ impl FrpInputs {
             def some_edge_sources_detached = source();
             def all_edge_targets_attached  = source();
             def all_edge_sources_attached  = source();
-            def all_edges_attached  = source();
+            def all_edges_attached         = source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -961,9 +965,9 @@ impl Deref for GraphEditorModelWithNetwork {
 }
 
 impl GraphEditorModelWithNetwork {
-    pub fn new<S:Into<Scene>>(scene:S, cursor:component::Cursor) -> Self {
+    pub fn new(world:&World, cursor:component::Cursor) -> Self {
         let network = frp::Network::new();
-        let model   = GraphEditorModel::new(scene,cursor,&network);
+        let model   = GraphEditorModel::new(world,cursor,&network);
         Self {model,network}
     }
 
@@ -1027,6 +1031,7 @@ pub struct GraphEditorModel {
     pub logger         : Logger,
     pub display_object : display::object::Instance,
     pub scene          : Scene,
+    pub project_name   : component::ProjectName,
     pub cursor         : component::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
@@ -1037,8 +1042,12 @@ pub struct GraphEditorModel {
 // === Public ===
 
 impl GraphEditorModel {
-    pub fn new<S:Into<Scene>>(scene:S, cursor:component::Cursor, network:&frp::Network) -> Self {
-        let scene          = scene.into();
+    pub fn new
+    ( world   : &World
+    , cursor  : component::Cursor
+    , network : &frp::Network
+    ) -> Self {
+        let scene          = world.scene().clone_ref();
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
@@ -1046,7 +1055,13 @@ impl GraphEditorModel {
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp}//visualizations }
+        let project_name   = component::ProjectName::new(world);
+        scene.add_child(&display_object);
+        scene.add_child(&project_name);
+        let screen = world.scene().camera().screen();
+        let margin = 10.0;
+        project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
+        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name}//visualizations }
     }
 
     fn create_edge(&self) -> EdgeId {
@@ -1385,9 +1400,6 @@ impl display::Object for GraphEditorModel {
 
 
 
-
-
-
 // ===================
 // === GraphEditor ===
 // ===================
@@ -1422,7 +1434,8 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Character("n".into())])               , "add_node_at_cursor")
+        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Escape])                              , "cancel_project_name_editing")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Character("n".into())])               , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Backspace])                           , "remove_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())])  , "press_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())])  , "double_press_visualization_visibility")
@@ -1508,7 +1521,7 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     web::body().set_style_or_panic("cursor","none");
     world.add_child(&cursor);
 
-    let model          = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref());
+    let model          = GraphEditorModelWithNetwork::new(world,cursor.clone_ref());
     let network        = &model.network;
     let nodes          = &model.nodes;
     let edges          = &model.edges;
@@ -1519,6 +1532,14 @@ fn new_graph_editor(world:&World) -> GraphEditor {
     let logger         = &model.logger;
     let outputs        = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
+
+    // === Cancel project name editing ===
+
+    frp::extend! { network
+        eval inputs.cancel_project_name_editing((_) {
+            model.project_name.frp.reset_name.emit(())
+        });
+    }
 
     // === Mouse Cursor Transform ===
     frp::extend! { network
