@@ -49,6 +49,11 @@ pub enum Movement {
     EndOfDocument,
 }
 
+impl ToRef<Option<Movement>> for Movement {
+    fn to_ref(&self) -> &Option<Movement> {
+        unimplemented!()
+    }
+}
 
 
 // =========================

@@ -5,6 +5,7 @@ use crate::typeface::pen;
 use crate::typeface::glyph::Glyph;
 use crate::buffer;
 use crate::buffer::data::unit::*;
+use crate::buffer::Movement;
 
 use ensogl::application;
 
@@ -305,6 +306,10 @@ impl Lines {
 ensogl::def_command_api! { Commands
     /// Set the text cursor at the mouse cursor position.
     set_cursor_at_mouse_cursor,
+    /// Move the cursor to the left by one grapheme cluster.
+    move_cursor_left,
+    /// Move the cursor to the right by one grapheme cluster.
+    move_cursor_right,
 }
 
 impl application::command::CommandApi for Area {
@@ -361,6 +366,8 @@ impl Area {
         let network = &self.frp.network;
         let mouse   = &self.scene.mouse.frp;
         let model   = &self.data;
+        let input   = &model.frp;
+        let command = &input.command;
 
         frp::extend! { network
             cursor_over  <- self.background.events.mouse_over.constant(mouse_cursor::Style::new_text_cursor());
@@ -410,6 +417,9 @@ impl Area {
                     }
                     *model.cursors.borrow_mut() = cursors;
             }));
+
+            eval_ command.move_cursor_left  (model.buffer.frp.input.move_carets.emit(Movement::Left));
+//            eval_ command.move_cursor_right;
         }
 
         self
@@ -560,9 +570,9 @@ impl application::shortcut::DefaultShortcutProvider for Area {
         use enso_frp::io::mouse;
 //        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_cursor")
 //        ]
-        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Character("x".into())],&[])               , "set_cursor_at_mouse_cursor"),
-               Self::self_shortcut(shortcut::Action::press        (&[Key::Character("v".into())],&[mouse::PrimaryButton])  , "set_cursor_at_mouse_cursor"),
-               Self::self_shortcut(shortcut::Action::press        (&[],&[mouse::PrimaryButton])  , "set_cursor_at_mouse_cursor")
+        vec! [ Self::self_shortcut(shortcut::Action::press (&[Key::ArrowLeft]  ,&[])     , "move_cursor_left"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight] ,&[])     , "move_cursor_right"),
+               Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]) , "set_cursor_at_mouse_cursor")
         ]
     }
 }
