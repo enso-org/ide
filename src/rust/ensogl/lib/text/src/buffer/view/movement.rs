@@ -63,9 +63,10 @@ impl ViewModel {
             if      modify  { selection.end }
             else if move_up { selection.min() }
             else            { selection.max() };
-        let location = self.offset_to_line_col(offset);
-        let column   = selection.column.unwrap_or(location.column);
-        Location(location.line,column)
+        self.offset_to_line_col(offset)
+
+//        let column   = selection.column.unwrap_or(location.column);
+//        Location(location.line,column)
     }
 
 
@@ -78,26 +79,97 @@ impl ViewModel {
     // TODO: Write tests to verify that it's safe regarding integer ovewrflow.
     fn vertical_motion
     (&self, region:Selection, line_delta:isize, modify:bool) -> (Bytes,Option<Column>) {
+        println!("-------------");
+
         let move_up    = line_delta < 0;
         let line_delta = line_delta.saturating_abs() as usize;
         let location   = self.vertical_motion_selection_to_caret(region,move_up,modify);
         let n_lines    = self.line_of_offset(self.data().len());
 
         if move_up && line_delta > location.line.value {
+            println!("top line");
             return (Bytes(0), Some(location.column));
         }
 
         let line = if move_up { location.line.value - line_delta }
-                   else       { location.line.value.saturating_add(line_delta) };
+        else       { location.line.value.saturating_add(line_delta) };
+
+
+        println!("location: {:?}", location);
+
+
+        let column     = self.column_of_location(location.line,location.column.value);
+        let tgt_offset = self.line_offset_of_location_X(Line(line),column);
+
+        println!("column: {:?}", column);
+        println!("tgt_offset: {:?}", tgt_offset);
+
 
         if line > n_lines.value {
+            println!("bottom");
             return (self.data().len(),Some(location.column));
         }
 
         let line       = Line(line);
-        let new_offset = self.line_col_to_offset(line,location.column);
+        let new_offset = self.line_col_to_offset(line,Column(tgt_offset));
         (new_offset,Some(location.column))
     }
+
+    fn column_of_location(&self, line:Line, line_offset:Bytes) -> usize {
+        let mut offset = self.offset_of_line(line);
+        let tgt_offset = offset + line_offset;
+        let mut column = 0;
+        while offset < tgt_offset {
+            match self.next_grapheme_offset(offset) {
+                None      => break,
+                Some(off) => {
+                    column += 1;
+                    offset = off;
+                }
+            }
+        }
+        column
+    }
+
+    fn line_offset_of_location_X(&self, line:Line, line_column:usize) -> Bytes {
+        println!("line_offset_of_location_X {:?} {:?}", line, line_column);
+        let start_offset = self.offset_of_line(line);
+        let mut offset = start_offset;
+        let mut column = 0;
+        while column < line_column {
+            match self.next_grapheme_offset(offset) {
+                None      => break,
+                Some(off) => {
+                    column += 1;
+                    offset = off;
+                }
+            }
+        }
+        offset - start_offset
+    }
+
+//    fn vertical_motion
+//    (&self, region:Selection, line_delta:isize, modify:bool) -> (Bytes,Option<Column>) {
+//        let move_up    = line_delta < 0;
+//        let line_delta = line_delta.saturating_abs() as usize;
+//        let location   = self.vertical_motion_selection_to_caret(region,move_up,modify);
+//        let n_lines    = self.line_of_offset(self.data().len());
+//
+//        if move_up && line_delta > location.line.value {
+//            return (Bytes(0), Some(location.column));
+//        }
+//
+//        let line = if move_up { location.line.value - line_delta }
+//        else       { location.line.value.saturating_add(line_delta) };
+//
+//        if line > n_lines.value {
+//            return (self.data().len(),Some(location.column));
+//        }
+//
+//        let line       = Line(line);
+//        let new_offset = self.line_col_to_offset(line,location.column);
+//        (new_offset,Some(location.column))
+//    }
 
     /// Compute movement based on vertical motion by the given number of lines skipping
     /// any line that is shorter than the current cursor position.
@@ -245,6 +317,7 @@ impl ViewModel {
             Movement::RightWord => todo!(),
         };
         let start = if modify { region.start } else { end };
+        println!(">>> {:?}",(start,end));
         Selection::new(start,end).with_column(horiz)
     }
 }

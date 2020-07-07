@@ -89,6 +89,18 @@ impl Buffer {
     pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
         self.data.borrow().sub_style(range)
     }
+
+    /// Return the offset to the next grapheme if any. See the documentation of the library to
+    /// learn more about graphemes.
+    pub fn next_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
+        self.data.borrow().data.next_grapheme_offset(offset)
+    }
+
+    /// Return the offset to the previous grapheme if any. See the documentation of the library to
+    /// learn more about graphemes.
+    pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
+        self.data.borrow().data.prev_grapheme_offset(offset)
+    }
 }
 
 

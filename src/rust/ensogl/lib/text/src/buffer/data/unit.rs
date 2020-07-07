@@ -2,7 +2,9 @@
 //! level dependencies in the whole library.
 
 use crate::prelude::*;
-use ensogl::types;
+use enso_types::unit;
+use enso_types::unsigned_unit_proxy;
+use enso_types::newtype;
 
 
 
@@ -24,7 +26,7 @@ pub use traits::*;
 // === Bytes ===
 // =============
 
-types::unit! {
+unit! {
 /// An offset in the buffer in bytes.
 Bytes::bytes(usize)
 }
@@ -44,7 +46,7 @@ impl<T:Into<Bytes>> bytes::Into for Range<T> {
 // === Line ===
 // ============
 
-types::unit! {
+unit! {
 /// A type representing vertical measurements.
 Line::line(usize)
 }
@@ -55,13 +57,13 @@ Line::line(usize)
 // === Column ===
 // ==============
 
-types::unsigned_unit_proxy! {
+unsigned_unit_proxy! {
 /// A type representing horizontal measurements
 Column::column(Bytes)
 }
 
 
-types::newtype! {
+newtype! {
 /// A type representing 2d measurements.
 Location {
     line   : Line,

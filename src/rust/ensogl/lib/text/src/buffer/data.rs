@@ -76,16 +76,16 @@ impl Data {
         range.with_upper_bound(self.len())
     }
 
-    /// Return the offset to the previous grapheme if any. See the documentation of the library to
-    /// learn more about graphemes.
-    pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.rope.prev_grapheme_offset(offset.value).map(Bytes)
-    }
-
     /// Return the offset to the next grapheme if any. See the documentation of the library to
     /// learn more about graphemes.
     pub fn next_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
         self.rope.next_grapheme_offset(offset.value).map(Bytes)
+    }
+
+    /// Return the offset to the previous grapheme if any. See the documentation of the library to
+    /// learn more about graphemes.
+    pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
+        self.rope.prev_grapheme_offset(offset.value).map(Bytes)
     }
 }
 

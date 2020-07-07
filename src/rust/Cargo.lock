@@ -689,6 +689,7 @@ dependencies = [
  "enso-frp 0.1.0",
  "enso-prelude 0.1.0",
  "enso-shapely 0.1.0",
+ "enso-types 0.1.0",
  "ensogl 0.1.0",
  "ensogl-core-embedded-fonts 0.1.0",
  "ensogl-core-msdf-sys 0.1.0",
