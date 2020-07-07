@@ -338,7 +338,7 @@ impl ViewModel {
 
     pub fn offset_of_view_location(&self, location:impl Into<Location>) -> Bytes {
         let location = location.into();
-        self.offset_of_view_line(location.line) + location.column.value.bytes()
+        self.offset_of_view_line(location.line) + location.offset
     }
 
     pub fn line_byte_size(&self, line:Line) -> Bytes {
@@ -440,11 +440,11 @@ pub trait LineOffset {
 
     fn offset_to_line_col(&self, offset:Bytes) -> Location {
         let line = self.line_of_offset(offset);
-        let col  = (offset - self.offset_of_line(line)).column();
+        let col  = (offset - self.offset_of_line(line));
         Location(line,col)
     }
 
-    fn line_col_to_offset(&self, line:Line, col:Column) -> Bytes {
+    fn line_col_to_offset(&self, line:Line, col:Bytes) -> Bytes {
         let mut offset = self.offset_of_line(line).saturating_add(col.value.bytes()); // fixme: raw.bytes seems wrong
         let len = self.data().len();
         if offset >= len {

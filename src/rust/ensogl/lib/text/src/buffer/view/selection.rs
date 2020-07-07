@@ -24,7 +24,7 @@ pub struct Selection {
     // FIXME: Column is encoded as byte offset now which obviously do not work correctly in this
     //        use case (lines could have different byte offsets for the same amount of grapheme
     //        clustes. To be fixed during further implementation.
-    pub column : Option<Column>,
+    pub column : Option<Bytes>,
 }
 
 impl Selection {
@@ -65,7 +65,7 @@ impl Selection {
     }
 
     /// Returns a selection with the given horizontal position.
-    pub fn with_column(self, column:Option<Column>) -> Self {
+    pub fn with_column(self, column:Option<Bytes>) -> Self {
         Self {column,..self}
     }
 

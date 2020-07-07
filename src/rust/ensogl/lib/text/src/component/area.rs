@@ -398,7 +398,7 @@ impl Area {
                 let div_index  = model.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
                 let div        = model.lines.rc.borrow()[line_index].divs[div_index];
 
-                model.buffer.frp.input.set_cursor.emit(Location(buffer::Line(line_index),div.byte_offset.column()));
+                model.buffer.frp.input.set_cursor.emit(Location(buffer::Line(line_index),div.byte_offset));
 
             }));
 

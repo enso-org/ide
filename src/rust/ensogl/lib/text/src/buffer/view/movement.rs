@@ -78,7 +78,7 @@ impl ViewModel {
     /// Note: This code is quite careful to avoid integer overflow.
     // TODO: Write tests to verify that it's safe regarding integer ovewrflow.
     fn vertical_motion
-    (&self, region:Selection, line_delta:isize, modify:bool) -> (Bytes,Option<Column>) {
+    (&self, region:Selection, line_delta:isize, modify:bool) -> (Bytes,Option<Bytes>) {
         println!("-------------");
 
         let move_up    = line_delta < 0;
@@ -88,7 +88,7 @@ impl ViewModel {
 
         if move_up && line_delta > location.line.value {
             println!("top line");
-            return (Bytes(0), Some(location.column));
+            return (Bytes(0), Some(location.offset));
         }
 
         let line = if move_up { location.line.value - line_delta }
@@ -98,7 +98,7 @@ impl ViewModel {
         println!("location: {:?}", location);
 
 
-        let column     = self.column_of_location(location.line,location.column.value);
+        let column     = self.column_of_location(location.line,location.offset);
         let tgt_offset = self.line_offset_of_location_X(Line(line),column);
 
         println!("column: {:?}", column);
@@ -107,12 +107,12 @@ impl ViewModel {
 
         if line > n_lines.value {
             println!("bottom");
-            return (self.data().len(),Some(location.column));
+            return (self.data().len(),Some(location.offset));
         }
 
         let line       = Line(line);
-        let new_offset = self.line_col_to_offset(line,Column(tgt_offset));
-        (new_offset,Some(location.column))
+        let new_offset = self.line_col_to_offset(line,tgt_offset);
+        (new_offset,Some(location.offset))
     }
 
     fn column_of_location(&self, line:Line, line_offset:Bytes) -> usize {
@@ -174,28 +174,28 @@ impl ViewModel {
     /// Compute movement based on vertical motion by the given number of lines skipping
     /// any line that is shorter than the current cursor position.
     fn vertical_motion_exact_pos
-    (&self, region:Selection, move_up:bool, modify:bool) -> (Bytes,Option<Column>) {
+    (&self, region:Selection, move_up:bool, modify:bool) -> (Bytes,Option<Bytes>) {
         let location         = self.vertical_motion_selection_to_caret(region, move_up, modify);
         let lines_count      = self.line_of_offset(self.data().len());
         let line_offset      = self.offset_of_line(location.line);
         let next_line_offset = self.offset_of_line(location.line.saturating_add(1.line()));
         let line_len         = next_line_offset - line_offset;
         if move_up && location.line == Line(0) {
-            return (self.line_col_to_offset(location.line,location.column), Some(location.column));
+            return (self.line_col_to_offset(location.line,location.offset), Some(location.offset));
         }
         let mut line = if move_up { location.line - 1.line() }
                        else       { location.line.saturating_add(1.line()) };
 
         // If the active columns is longer than the current line, use the current line length.
-        let line_last_column = line_len.column();
-        let col = if line_last_column < location.column { line_last_column - 1.bytes().column() } else { location.column };
+        let line_last_column = line_len;
+        let col = if line_last_column < location.offset { line_last_column - 1.bytes() } else { location.offset };
 
         loop {
             let line_len = self.offset_of_line(line + 1.line()) - self.offset_of_line(line);
 
             // If the line is longer than the current cursor position, break.
             // We use > instead of >= because line_len includes newline.
-            if line_len > col.value {
+            if line_len > col {
                 break;
             }
 
@@ -229,7 +229,7 @@ impl ViewModel {
     (&self, movement:Movement, region:Selection, modify:bool) -> Selection {
         let text        = self.data();
         let no_horiz    = |t|(t,None);
-        let (end,horiz) : (Bytes,Option<Column>) = match movement {
+        let (end,horiz) : (Bytes,Option<Bytes>) = match movement {
             Movement::Up                => self.vertical_motion(region, -1, modify),
             Movement::Down              => self.vertical_motion(region,  1, modify),
             Movement::UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),
