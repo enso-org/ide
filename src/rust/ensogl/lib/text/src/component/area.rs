@@ -310,6 +310,10 @@ ensogl::def_command_api! { Commands
     move_cursor_left,
     /// Move the cursor to the right by one grapheme cluster.
     move_cursor_right,
+    /// Move the cursor down one line.
+    move_cursor_down,
+    /// Move the cursor up one line.
+    move_cursor_up,
 }
 
 impl application::command::CommandApi for Area {
@@ -418,8 +422,10 @@ impl Area {
                     *model.cursors.borrow_mut() = cursors;
             }));
 
-            eval_ command.move_cursor_left  (model.buffer.frp.input.move_carets.emit(Movement::Left));
-//            eval_ command.move_cursor_right;
+            eval_ command.move_cursor_left  (model.buffer.frp.input.move_carets.emit(Some(Movement::Left)));
+            eval_ command.move_cursor_right (model.buffer.frp.input.move_carets.emit(Some(Movement::Right)));
+            eval_ command.move_cursor_up    (model.buffer.frp.input.move_carets.emit(Some(Movement::Up)));
+            eval_ command.move_cursor_down  (model.buffer.frp.input.move_carets.emit(Some(Movement::Down)));
         }
 
         self
@@ -570,8 +576,10 @@ impl application::shortcut::DefaultShortcutProvider for Area {
         use enso_frp::io::mouse;
 //        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_cursor")
 //        ]
-        vec! [ Self::self_shortcut(shortcut::Action::press (&[Key::ArrowLeft]  ,&[])     , "move_cursor_left"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight] ,&[])     , "move_cursor_right"),
+        vec! [ Self::self_shortcut(shortcut::Action::press (&[Key::ArrowLeft]  , &[])    , "move_cursor_left"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight] , &[])    , "move_cursor_right"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowUp]    , &[])    , "move_cursor_up"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowDown]  , &[])    , "move_cursor_down"),
                Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]) , "set_cursor_at_mouse_cursor")
         ]
     }

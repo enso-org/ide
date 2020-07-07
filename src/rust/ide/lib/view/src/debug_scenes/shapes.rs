@@ -110,7 +110,7 @@ fn init(app:&Application) {
 
     text_area.add_cursor(0.bytes());
 //    text_area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
-    text_area.insert("open€ \"data.csv\"\nline2\nline3");
+    text_area.insert("open€ \"data.csv\"\nline2 continuation\nline3 continuation");
 
 
     text_area.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
