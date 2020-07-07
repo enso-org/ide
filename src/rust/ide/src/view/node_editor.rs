@@ -129,8 +129,8 @@ impl GraphEditorIntegratedWithController {
     }
 
     /// Get the controller associated with this graph editor.
-    pub fn controller(&self) -> controller::ExecutedGraph {
-        self.model.controller.clone_ref()
+    pub fn controller(&self) -> &controller::ExecutedGraph {
+        &self.model.controller
     }
 }
 
