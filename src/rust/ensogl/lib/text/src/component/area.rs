@@ -23,6 +23,7 @@ use enso_frp as frp;
 use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
+use ensogl::gui::component::Animation;
 
 
 
@@ -373,6 +374,9 @@ impl Area {
         let input   = &model.frp;
         let command = &input.command;
 
+        let pos     = Animation :: <Vector2> :: new(&network);
+        pos.update_spring(|spring| spring*2.0);
+
         frp::extend! { network
             cursor_over  <- self.background.events.mouse_over.constant(mouse_cursor::Style::new_text_cursor());
             cursor_out   <- self.background.events.mouse_out.constant(mouse_cursor::Style::default());
@@ -403,23 +407,39 @@ impl Area {
             }));
 
             _eval <- model.buffer.frp.output.selection.map2
-                (&model.scene.frp.frame_time,f!([model](selections,time) {
-                    let mut cursors = vec![];
-                    for selection in selections {
-                        let line_index = model.lines.line_index_of_byte_offset(selection.start);
-                        let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
-                        let offset_in_line = selection.start - line_offset;
-                        let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
-                        let logger = Logger::sub(&model.logger,"cursor");
-                        let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&model.scene);
-                        cursor.shape.sprite.size.set(Vector2(4.0,20.0));
-                        cursor.set_position_y(-LINE_HEIGHT/2.0 - LINE_HEIGHT * line_index as f32);
-                        cursor.set_position_x(div.x_offset);
-                        cursor.shape.start_time.set(*time);
-                        model.add_child(&cursor);
-                        cursors.push(cursor);
+                (&model.scene.frp.frame_time,f!([model,pos](selections,time) {
+                    if model.cursors.borrow().is_empty() {
+                        let mut cursors = vec![];
+                        for selection in selections {
+                            let line_index = model.lines.line_index_of_byte_offset(selection.start);
+                            let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
+                            let offset_in_line = selection.start - line_offset;
+                            let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
+                            let logger = Logger::sub(&model.logger,"cursor");
+                            let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&model.scene);
+                            cursor.shape.sprite.size.set(Vector2(4.0,20.0));
+                            cursor.set_position_y(-LINE_HEIGHT/2.0 - LINE_HEIGHT * line_index as f32);
+                            cursor.set_position_x(div.x_offset);
+                            cursor.shape.start_time.set(*time);
+                            model.add_child(&cursor);
+                            cursors.push(cursor);
+                        }
+                        *model.cursors.borrow_mut() = cursors;
                     }
-                    *model.cursors.borrow_mut() = cursors;
+
+                        for selection in selections {
+                            let line_index = model.lines.line_index_of_byte_offset(selection.start);
+                            let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
+                            let offset_in_line = selection.start - line_offset;
+                            let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
+                            let logger = Logger::sub(&model.logger,"cursor");
+                            pos.set_target_value(Vector2(div.x_offset,-LINE_HEIGHT/2.0 - LINE_HEIGHT * line_index as f32));
+                        }
+            }));
+
+            _eval <- pos.value.map2 (&model.scene.frp.frame_time, f!([model](p,time) {
+                model.cursors.borrow()[0].set_position_xy(*p);
+                model.cursors.borrow()[0].shape.start_time.set(*time);
             }));
 
             eval_ command.move_cursor_left  (model.buffer.frp.input.move_carets.emit(Some(Movement::Left)));
