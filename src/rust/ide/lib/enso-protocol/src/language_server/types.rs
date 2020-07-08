@@ -20,7 +20,7 @@ pub type Event = json_rpc::handler::Event<Notification>;
 /// A path is a representation of a path relative to a specified content root.
 // FIXME [mwu] Consider rename to something like `FilePath`, see https://github.com/luna/enso/issues/708
 #[derive(Clone,Debug,Serialize,Deserialize,Hash,PartialEq,Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 pub struct Path {
     /// Path's root id.
     pub root_id:Uuid,
@@ -127,7 +127,7 @@ pub enum Notification {
 #[derive(Clone,Debug,PartialEq)]
 #[derive(Serialize,Deserialize)]
 #[allow(missing_docs)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 pub struct ExpressionValuesComputed {
     pub context_id : ContextId,
     pub updates    : Vec<ExpressionValueUpdate>,
@@ -137,7 +137,7 @@ pub struct ExpressionValuesComputed {
 #[derive(Clone,Debug,PartialEq)]
 #[derive(Serialize,Deserialize)]
 #[allow(missing_docs)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 pub struct ExpressionValueUpdate {
     pub id          : ExpressionId,
     #[serde(rename = "type")] // To avoid collision with the `type` keyword.
@@ -179,7 +179,7 @@ pub enum FileEventKind {
 /// Attributes of the file in the filesystem.
 #[derive(Clone,Debug,PartialEq,Eq,Hash)]
 #[derive(Serialize,Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 pub struct FileAttributes {
     /// When the file was created.
     pub creation_time:UTCDateTime,
@@ -318,7 +318,7 @@ impls!{ Into + &Into <Range<data::text::TextLocation>> for TextRange { |this|
 
 /// A representation of a change to a text file at a given position.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct TextEdit {
     pub range: TextRange,
@@ -332,7 +332,7 @@ pub struct TextEdit {
 
 /// A versioned representation of batch edits to a file.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct FileEdit {
     pub path: Path,
@@ -354,7 +354,7 @@ pub type ExpressionId = Uuid;
 
 /// A configuration object for properties of the visualisation.
 #[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct VisualisationConfiguration {
     #[allow(missing_docs)]
@@ -368,7 +368,7 @@ pub struct VisualisationConfiguration {
 /// Used to enter deeper in the execution context stack. In general, all consequent stack items
 /// should be `LocalCall`s.
 #[derive(Hash, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct LocalCall {
     pub expression_id: ExpressionId
@@ -376,7 +376,7 @@ pub struct LocalCall {
 
 /// Points to a method definition.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct MethodPointer {
     pub file: Path,
@@ -387,7 +387,7 @@ pub struct MethodPointer {
 /// Used for entering a method. The first item on the execution context stack should always be
 /// an `ExplicitCall`.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct ExplicitCall {
     pub method_pointer: MethodPointer,
@@ -411,7 +411,7 @@ pub enum StackItem {
 
 /// `CapabilityRegistration` is used to keep track of permissions granting.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 pub struct CapabilityRegistration {
     /// Method is the name of the capability listed in
     /// https://github.com/luna/enso/blob/main/docs/language-server/protocol-language-server.md#capabilities
@@ -473,7 +473,7 @@ impl CapabilityRegistration {
 #[allow(missing_docs)]
 pub enum RegisterOptions {
     Path {path:Path},
-    #[serde(rename_all = "camelCase")]
+    #[serde(rename_all="camelCase")]
     ExecutionContextId {context_id:ContextId},
     None {},
 }
@@ -491,7 +491,7 @@ pub type SuggestionsDatabaseVersion = usize;
 
 /// The argument of an atom, method or function suggestion.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 pub struct SuggestionEntryArgument {
     /// The argument name.
     pub name: String,
@@ -506,7 +506,7 @@ pub struct SuggestionEntryArgument {
 
 /// The definition scope. The start and end are chars indices.
 #[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionEntryScope {
     pub start : usize,
@@ -515,13 +515,13 @@ pub struct SuggestionEntryScope {
 
 /// A type of suggestion entry.
 #[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub enum SuggestionEntryType {Atom,Method,Function,Local}
 
 /// A Suggestion Entry.
 #[derive(Hash, Debug, Clone, PartialEq, Eq,Serialize,Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub enum SuggestionEntry {
     SuggestionEntryAtom {
@@ -568,7 +568,7 @@ impl SuggestionEntry {
 
 /// The entry in the suggestions database.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionsDatabaseEntry {
     pub id         : SuggestionEntryId,
@@ -582,7 +582,7 @@ pub enum SuggestionsDatabaseUpdateKind {Add,Update,Delete}
 
 /// The update of the suggestions database.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub enum SuggestionsDatabaseUpdate {
     Add {
@@ -596,7 +596,7 @@ pub enum SuggestionsDatabaseUpdate {
 
 /// Notification about change in the suggestions database.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionDatabaseUpdateEvent {
     pub updates         : Vec<SuggestionsDatabaseUpdate>,
