@@ -557,7 +557,7 @@ pub enum SuggestionEntry {
 impl SuggestionEntry {
     /// Get name of the suggested entity.
     pub fn name(&self) -> &String {
-        match &self {
+        match self {
             Self::SuggestionEntryAtom     {name,..} => name,
             Self::SuggestionEntryFunction {name,..} => name,
             Self::SuggestionEntryLocal    {name,..} => name,
