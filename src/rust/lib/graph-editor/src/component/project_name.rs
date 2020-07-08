@@ -43,7 +43,7 @@ mod shape {
 
     ensogl::define_shape_system! {
             (style:Style, selection:f32) {
-                let bg_color = color::Rgba::new(0.0,0.0,0.0,0.000001);
+                let bg_color = color::Rgba::new(0.0,0.0,0.0,0.000_001);
                 Plane().fill(bg_color).into()
             }
         }
@@ -111,13 +111,19 @@ pub struct Frp {
     pub network : frp::Network,
 }
 
-impl Frp {
-    /// Create new Frp.
-    pub fn new() -> Self {
+impl Default for Frp {
+    fn default() -> Self {
         let network = frp::Network::new();
         let inputs  = FrpInputs::new(&network);
         let outputs = FrpOutputs::new(&network);
         Self{network,inputs,outputs}
+    }
+}
+
+impl Frp {
+    /// Create new Frp.
+    pub fn new() -> Self {
+        default()
     }
 }
 
@@ -130,14 +136,16 @@ impl Frp {
 /// ProjectName's animations handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    highlight : Animation<f32>
+    highlight   : Animation<f32>,
+    positioning : Animation<Vector3<f32>>
 }
 
 impl Animations {
     /// Create new animations handlers.
     pub fn new(network:&frp::Network) -> Self {
-        let highlight = Animation::<f32>::new(&network);
-        Self{highlight}
+        let highlight   = Animation::<_>::new(&network);
+        let positioning = Animation::<_>::new(&network);
+        Self{highlight,positioning}
     }
 }
 
@@ -169,7 +177,7 @@ impl ProjectNameModel {
         let size                  = Vector2::new(600.0,100.0);
         let base_color            = DARK_GRAY_TEXT_COLOR;
         let text_size             = 16.0;
-        let text_field_properties = TextFieldProperties{base_color,font,size:size.clone(),text_size};
+        let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
         let text_field            = TextField::new(&world,text_field_properties);
         let view_logger           = Logger::sub(&logger,"view_logger");
         let view                  = component::ShapeView::<shape::Shape>::new(&view_logger,scene);
@@ -189,10 +197,11 @@ impl ProjectNameModel {
             }
         });
         let offset = Vector3::new(-width/2.0,0.0,0.0);
-        let height = 16.0;
+        let mut height = default();
+        self.text_field.with_content(|content| height = content.line_height);
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.view.set_position(Vector3::new(0.0,-height/2.0,0.0));
-        self.text_field.set_position(offset);
+        self.animations.positioning.set_target_value(offset);
     }
 
     fn initialize(self) -> Self {
@@ -240,6 +249,10 @@ impl ProjectNameModel {
         self.text_field.set_base_color(base_color);
     }
 
+    fn set_position(&self, value:Vector3<f32>) {
+        self.text_field.set_position(value);
+    }
+
     fn rename(&self, name:impl Str) {
         let name = name.into();
         *self.project_name.borrow_mut() = name.clone();
@@ -269,10 +282,9 @@ impl ProjectName {
         let frp     = Frp::new();
         let model   = Rc::new(ProjectNameModel::new(world,&frp));
         let network = &frp.network;
-        let clone   = model.clone();
         frp::extend! { network
-            eval clone.view.events.mouse_over((_) {model.highlight_text()});
-            eval clone.view.events.mouse_out ((_) {model.darken_text()});
+            eval model.view.events.mouse_over((_) {model.highlight_text()});
+            eval model.view.events.mouse_out ((_) {model.darken_text()});
             eval frp.inputs.reset_name((_) {model.reset_name()});
             eval frp.inputs.rename((name) {model.rename(name)});
         }
@@ -280,7 +292,8 @@ impl ProjectName {
         // Animations
 
         frp::extend! {network
-            eval clone.animations.highlight.value((value) model.set_highlight(*value));
+            eval model.animations.highlight.value((value) model.set_highlight(*value));
+            eval model.animations.positioning.value((value) model.set_position(*value));
         }
 
         Self{frp,model}
