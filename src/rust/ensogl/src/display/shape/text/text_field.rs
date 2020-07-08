@@ -126,10 +126,10 @@ shared! { TextField
     }
 
     impl {
-        /// Run `callback` with the underlying `mut TextFieldContent`.
+        /// Run `callback` with the underlying `&TextFieldContent`.
         pub fn with_content<F:FnMut(&TextFieldContent)>(&self, callback:F) {
             let mut callback = callback;
-            callback(&self.content)
+            callback(&self.content);
         }
 
         /// Run `callback` with the underlying `&mut TextFieldContent`.

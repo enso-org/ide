@@ -84,6 +84,7 @@ impl IdeInitializer {
     , project_manager  : impl project_manager::API + 'static
     , project_metadata : ProjectMetadata
     ) -> FallibleResult<controller::Project> {
+        use controller::Project;
         let endpoints       = project_manager.open_project(&project_metadata.id).await?;
         let json_endpoint   = endpoints.language_server_json_address;
         let binary_endpoint = endpoints.language_server_binary_address;
@@ -99,9 +100,8 @@ impl IdeInitializer {
         let connection_binary = binary::Connection::new(client_binary,client_id).await?;
         let project_id        = project_metadata.id;
         let project_name      = project_metadata.name;
-        let controller        = controller::Project::new
-            (logger,project_manager,connection_json,connection_binary,project_id,project_name);
-        Ok(controller)
+        Ok(Project::from_connections(logger,project_manager,connection_json,connection_binary
+            ,project_id,project_name))
     }
 
     /// Creates a new project and returns its metadata, so the newly connected project can be
