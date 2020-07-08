@@ -323,9 +323,11 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
             , dim                : Vector2<f32>
             , focus_split_center : Vector2<f32>
             , focus_split_angle  : f32
+            , color_rgba:Vector4<f32>
             ) {
                 let width  = &LINE_WIDTH.px();
                 let shape  = corner_base_shape(&radius,width,&angle,&start_angle);
+                let color = Var::<color::Rgba>::from(color_rgba);
 
                 let shadow_size = 10.px();
                 let node_radius = &shadow_size + 1.px() * dim.y();
@@ -342,7 +344,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
                 let split_shape = FocusedEdge::new(
                     shape,&focus_split_center.px(),&focus_split_angle.into());
-                let shape       = split_shape.fill($color,$highlight_color);
+                let shape       = split_shape.fill($highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
                 let hover_area  = corner_base_shape(&radius,&hover_width,&angle,&start_angle);
@@ -393,6 +395,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
     }
 }}
 
+// TODO remove color from macro
 macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod corner {
@@ -405,9 +408,11 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
             , dim:Vector2<f32>
             , focus_split_center:Vector2<f32>
             , focus_split_angle:f32
+            , color_rgba:Vector4<f32>
             ) {
                 let width  = &LINE_WIDTH.px();
                 let shape  = corner_base_shape(&radius,width,&angle,&start_angle);
+                let color = Var::<color::Rgba>::from(color_rgba);
 
                 let shadow_size = 10.px() + 1.px();
                 let node_radius = &shadow_size + 1.px() * dim.y();
@@ -422,7 +427,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
 
                 let split_shape = FocusedEdge::new(
                 shape,&focus_split_center.px(),&focus_split_angle.into());
-                let shape       = split_shape.fill($color, $highlight_color);
+                let shape       = split_shape.fill(color, $highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
                 let hover_area  = corner_base_shape(&radius,&hover_width,&angle,&start_angle);
@@ -477,19 +482,21 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
     }
 }}
 
+// TODO remove color from macro
 macro_rules! define_line {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod line {
         use super::*;
         ensogl::define_shape_system! {
-            (focus_split_center:Vector2<f32>, focus_split_angle:f32) {
+            (focus_split_center:Vector2<f32>, focus_split_angle:f32, color_rgba:Vector4<f32>) {
                 let width  = LINE_WIDTH.px();
                 let height : Var<Pixels> = "input_size.y".into();
                 let shape  = Rect((width.clone(),height));
+                let color = Var::<color::Rgba>::from(color_rgba);
 
                 let split_shape = FocusedEdge::new(
                     shape,&focus_split_center.px(),&focus_split_angle.into());
-                let shape       = split_shape.fill($color, $highlight_color);
+                let shape       = split_shape.fill(color, $highlight_color);
                 hover_area(shape,HOVER_EXTENSION.px()).into()
             }
         }
@@ -527,20 +534,22 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
     }
 }}
 
+// TODO remove color from macro
 macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod arrow {
         use super::*;
         ensogl::define_shape_system! {
-            (focus_split_center:Vector2<f32>, focus_split_angle:f32) {
+            (focus_split_center:Vector2<f32>, focus_split_angle:f32, color_rgba:Vector4<f32>) {
                 let width  : Var<Pixels> = "input_size.x".into();
                 let height : Var<Pixels> = "input_size.y".into();
+                let color = Var::<color::Rgba>::from(color_rgba);
                 let focus_split_angle  = focus_split_angle.into();
                 let focus_split_center = focus_split_center.px();
                 let shape_padding = -1.px();
                 let shape         = Triangle(width+&shape_padding,height+&shape_padding);
                 let shape         = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle);
-                let shape         = shape.fill($color,$highlight_color);
+                let shape         = shape.fill(color,$highlight_color);
                 shape.into()
             }
         }
@@ -1229,6 +1238,10 @@ impl EdgeModelData {
         Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
               target_attached,source_attached,hover_position,
               layout_state,hover_target,joint}
+    }
+
+    fn set_color<Color:Into<color::Rgba>>(&self, color:Color) {
+        unimplemented!()
     }
 
     /// Redraws the connection.

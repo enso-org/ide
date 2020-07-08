@@ -35,13 +35,14 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, hover:f32) {
+        (style:Style, hover:f32, color_rgba:Vector4<f32>) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius = 6.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
-            // let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001 + 0.1*input_hover)".into();
-            let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001)".into();
+            let color = Var::<color::Rgba>::from(color_rgba);
+            // TODO remove obsolete code
+            //let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001)".into();
             let shape  = shape.fill(color);
             shape.into()
         }
