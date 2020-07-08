@@ -404,9 +404,9 @@ impl GraphEditorIntegratedWithControllerModel {
     fn refresh_computed_info(&self, id:ExpressionId) {
         let info     = self.lookup_computed_info(&id);
         let info     = info.as_ref();
-        let typename = info.and_then(|info| info.typename.clone_ref());
+        let typename = info.and_then(|info| info.typename.clone());
         self.set_type(id,graph_editor::OptionalType(typename));
-        let method_pointer = info.and_then(|info| info.method_pointer.clone_ref());
+        let method_pointer = info.and_then(|info| info.method_pointer.clone());
         self.set_method_pointer(id,graph_editor::OptionalMethodPointer(method_pointer));
     }
 
