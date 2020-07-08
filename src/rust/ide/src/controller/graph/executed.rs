@@ -224,17 +224,8 @@ mod tests {
         let connection     = language_server::Connection::new_mock_rc(ls);
         let (_,graph)      = graph_data.create_controllers_with_ls(connection.clone_ref());
         let execution      = Rc::new(execution(connection.clone_ref()));
-
-        let executed_graph:Rc<RefCell<Option<Handle>>> = default();
-        let execution2      = execution.clone_ref();
-        let executed_graph2 = executed_graph.clone();
-        fixture.run_task(async move {
-            let project        = Rc::new(model::project::test::setup_mock_project(|_| {}, |_| {}).await);
-            let executed_graph = Handle::new_internal(graph,project,execution2);
-            *executed_graph2.borrow_mut() = Some(executed_graph);
-        });
-        fixture.run_until_stalled();
-        let executed_graph = executed_graph.borrow_mut().take().unwrap();
+        let project        = model::project::test::setup_mock_project(|_| {}, |_| {});
+        let executed_graph = Handle::new_internal(graph,Rc::new(project),execution.clone_ref());
 
         // Generate notification.
         let notification = execution_data.mock_values_computed_update();
@@ -243,7 +234,6 @@ mod tests {
         // Notification not yet send.
         let registry          = executed_graph.computed_value_info_registry();
         let mut notifications = executed_graph.subscribe().boxed_local();
-
         notifications.expect_pending();
         assert!(registry.get(&update.id).is_none());
 

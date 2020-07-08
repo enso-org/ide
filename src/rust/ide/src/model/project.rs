@@ -15,9 +15,9 @@ use crate::model::synchronized::ExecutionContext;
 use enso_protocol::binary;
 use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
+use enso_protocol::language_server::CapabilityRegistration;
 use parser::Parser;
 use uuid::Uuid;
-use enso_protocol::language_server::RegisterOptions;
 
 
 // ===============
@@ -256,9 +256,8 @@ impl Project {
     }
 
     fn acquire_suggestion_db_updates_capability(&self) -> impl Future<Output=json_rpc::Result<()>> {
-        let capability = "search/receivesSuggestionsDatabaseUpdates".to_string();
-        let options    = RegisterOptions::None {};
-        self.language_server_rpc.acquire_capability(&capability,&options)
+        let capability = CapabilityRegistration::create_receives_suggestions_database_updates();
+        self.language_server_rpc.acquire_capability(&capability.method,&capability.register_options)
     }
 
     /// Returns a model of module opened from file. The returned model will synchronize its state
@@ -332,6 +331,7 @@ pub mod test {
     use enso_protocol::language_server::Event;
     use enso_protocol::language_server::Notification;
     use enso_protocol::types::Sha3_224;
+    use utils::test::future::FutureTestExt;
 
 
     wasm_bindgen_test_configure!(run_in_browser);
@@ -344,7 +344,7 @@ pub mod test {
     pub fn setup_mock_project
     ( setup_mock_json   : impl FnOnce(&mut language_server::MockClient)
     , setup_mock_binary : impl FnOnce(&mut enso_protocol::binary::MockClient)
-    ) -> impl Future<Output=Project> {
+    ) -> Project {
         let mut json_client   = language_server::MockClient::default();
         let mut binary_client = enso_protocol::binary::MockClient::default();
         binary_client.expect_event_stream().return_once(|| {
@@ -355,14 +355,19 @@ pub mod test {
             current_version: 0
         };
         expect_call!(json_client.get_suggestions_database() => Ok(initial_suggestions_db));
+        let capability_reg = CapabilityRegistration::create_receives_suggestions_database_updates();
+        let method         = capability_reg.method;
+        let options        = capability_reg.register_options;
+        expect_call!(json_client.acquire_capability(method,options) => Ok(()));
 
         setup_mock_json(&mut json_client);
         setup_mock_binary(&mut binary_client);
         let json_connection   = language_server::Connection::new_mock(json_client);
         let binary_connection = binary::Connection::new_mock(binary_client);
         let logger            = Logger::default();
-        model::Project::from_connections(logger,json_connection,binary_connection,
-            DEFAULT_PROJECT_NAME).map(|p| p.unwrap())
+        let mut project_fut   = model::Project::from_connections(logger,json_connection,
+            binary_connection,DEFAULT_PROJECT_NAME).boxed_local();
+        project_fut.expect_ready().unwrap()
     }
 
     #[wasm_bindgen_test]
@@ -377,7 +382,7 @@ pub mod test {
             let project = setup_mock_project(|ls_json| {
                 mock_calls_for_opening_text_file(ls_json,path.file_path().clone(),"2+2");
                 mock_calls_for_opening_text_file(ls_json,another_path.file_path().clone(),"22+2");
-            }, |_| {}).await;
+            }, |_| {});
             let log               = Logger::new("Test");
             let module            = Module::new(&log,path.clone(),&project).await.unwrap();
             let same_module       = Module::new(&log,path.clone(),&project).await.unwrap();
@@ -393,7 +398,7 @@ pub mod test {
     fn obtain_plain_text_controller() {
         TestWithLocalPoolExecutor::set_up().run_task(async move {
 
-            let project      = setup_mock_project(|_|{}, |_|{}).await;
+            let project      = setup_mock_project(|_|{}, |_|{});
             let root_id      = default();
             let path         = FilePath::new(root_id,&["TestPath"]);
             let another_path = FilePath::new(root_id,&["TestPath2"]);
@@ -420,7 +425,7 @@ pub mod test {
             let file_path    = module_path.file_path();
             let project      = setup_mock_project(|mock_json_client| {
                 mock_calls_for_opening_text_file(mock_json_client,file_path.clone(),"2 + 2");
-            }, |_| {}).await;
+            }, |_| {});
             let log       = Logger::new("Test");
             let text_ctrl = controller::Text::new(&log,&project,file_path.clone()).await.unwrap();
             let content   = text_ctrl.read_content().await.unwrap();
@@ -439,11 +444,11 @@ pub mod test {
         let mut test   = TestWithLocalPoolExecutor::set_up();
         let data       = model::synchronized::execution_context::tests::MockData::new();
         let mut sender = futures::channel::mpsc::unbounded().0;
-        let project    = test.expect_completion(setup_mock_project(|mock_json_client| {
+        let project    = setup_mock_project(|mock_json_client| {
             data.mock_create_push_destroy_calls(mock_json_client);
             sender = mock_json_client.setup_events();
             mock_json_client.require_all_calls();
-        }, |_| {}));
+        }, |_| {});
 
         // No context present yet.
         let no_op = |_| Ok(());

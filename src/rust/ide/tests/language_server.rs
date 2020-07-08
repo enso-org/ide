@@ -53,14 +53,14 @@ Number.foo = x ->
 []"#;
 
 const VISUALISATION_CODE:&str = r#"
-    encode = x -> x.to_text
+encode = x -> x.to_text
 
-    incAndEncode = x -> here.encode x+1
+incAndEncode = x -> here.encode x+1
 "#;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
-// #[wasm_bindgen_test::wasm_bindgen_test(async)]
+#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn ls_text_protocol_test() {
     // Setting up.
@@ -109,6 +109,9 @@ async fn ls_text_protocol_test() {
     response.expect("Couldn't push execution context.");
     let response = client.pop_from_execution_context(&execution_context_id).await;
     response.expect("Couldn't pop execution context.");
+    // Push stackframe again for visualizations testing.
+    let response   = client.push_to_execution_context(&execution_context_id,&stack_item).await;
+    response.expect("Couldn't push execution context.");
 
     // Retrieving Database.
     let response = client.get_suggestions_database().await;
@@ -144,12 +147,16 @@ async fn ls_text_protocol_test() {
     response.expect("Couldn't destroy execution context.");
 
     // Asking for autocompletion.
-    let position  = Position {line:4, character:4};
-    let ret_type  = "Number".to_string();
-    let self_type = "Number".to_string();
-    let response  = client.completion(&file,&position,&Some(self_type),&Some(ret_type),&None);
-    let result    = response.await.expect("Couldn't get completion suggestion list");
-    assert!(!result.results.is_empty());
+
+    //TODO[ao] Engine will fix getting suggestion method in their next PR, therefore we also should
+    // adjust our api in the next PR.
+
+    // let position  = Position {line:4, character:4};
+    // let ret_type  = "Number".to_string();
+    // let self_type = "Number".to_string();
+    // let response  = client.completion(&,&position,&Some(self_type),&Some(ret_type),&None);
+    // let result    = response.await.expect("Couldn't get completion suggestion list");
+    // assert!(!result.results.is_empty());
 
     // Operations on file.
     let path      = Path{root_id, segments:vec!["foo".into()]};
@@ -221,7 +228,7 @@ async fn ls_text_protocol_test() {
     assert_eq!("Hello, world!".to_string(),read.contents);
 }
 
-//#[wasm_bindgen_test::wasm_bindgen_test(async)]
+// #[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn file_events() {
     let ws         = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
@@ -247,9 +254,11 @@ async fn file_events() {
         assert_eq!(file.exists,false);
     }
 
-    let path       = Path{root_id, segments:vec![]};
-    let options    = RegisterOptions::Path{path};
-    let capability = client.acquire_capability(&"receivesTreeUpdates".to_string(),&options).await;
+    let path         = Path{root_id, segments:vec![]};
+    let registration = CapabilityRegistration::create_receives_tree_updates(path);
+    let method       = registration.method;
+    let options      = registration.register_options;
+    let capability   = client.acquire_capability(&method,&options).await;
     capability.expect("Couldn't acquire receivesTreeUpdates capability.");
 
     let path      = Path{root_id, segments:vec![]};
@@ -259,8 +268,7 @@ async fn file_events() {
 
     let path         = Path{root_id,segments:vec!["test.txt".into()]};
     let kind         = FileEventKind::Added;
-    let event        = FileEvent {path,kind};
-    let notification = Notification::FileEvent {event};
+    let notification = Notification::FileEvent(FileEvent {path,kind});
 
     let event = stream.next().await.expect("Couldn't get any notification.");
     if let Event::Notification(incoming_notification) = event {

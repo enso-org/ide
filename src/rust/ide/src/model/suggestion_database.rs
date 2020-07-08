@@ -89,11 +89,11 @@ mod test {
 
         // Non-empty db
         let entry = Entry::SuggestionEntryAtom {
-            name: "TextAtom".to_string(),
-            module: "TestModule".to_string(),
-            arguments: vec![],
-            return_type: "TestAtom".to_string(),
-            documentation: None
+            name          : "TextAtom".to_string(),
+            module        : "TestModule".to_string(),
+            arguments     : vec![],
+            return_type   : "TestAtom".to_string(),
+            documentation : None
         };
         let db_entry = SuggestionsDatabaseEntry {id:12, suggestion:entry};
         let response = language_server::response::GetSuggestionDatabase {
@@ -109,31 +109,31 @@ mod test {
     #[test]
     fn applying_update() {
         let entry1 = Entry::SuggestionEntryAtom {
-            name: "Entry1".to_string(),
-            module: "TestModule".to_string(),
-            arguments: vec![],
-            return_type: "TestAtom".to_string(),
-            documentation: None
+            name          : "Entry1".to_string(),
+            module        : "TestModule".to_string(),
+            arguments     : vec![],
+            return_type   : "TestAtom".to_string(),
+            documentation : None
         };
         let entry2 = Entry::SuggestionEntryAtom {
-            name: "Entry2".to_string(),
-            module: "TestModule".to_string(),
-            arguments: vec![],
-            return_type: "TestAtom".to_string(),
-            documentation: None
+            name          : "Entry2".to_string(),
+            module        : "TestModule".to_string(),
+            arguments     : vec![],
+            return_type   : "TestAtom".to_string(),
+            documentation : None
         };
         let new_entry2 = Entry::SuggestionEntryAtom {
-            name: "NewEntry2".to_string(),
-            module: "TestModule".to_string(),
-            arguments: vec![],
-            return_type: "TestAtom".to_string(),
-            documentation: None
+            name          : "NewEntry2".to_string(),
+            module        : "TestModule".to_string(),
+            arguments     : vec![],
+            return_type   : "TestAtom".to_string(),
+            documentation : None
         };
 
         let db_entry1        = SuggestionsDatabaseEntry {id:1, suggestion:entry1};
         let db_entry2        = SuggestionsDatabaseEntry {id:2, suggestion:entry2};
         let initial_response = language_server::response::GetSuggestionDatabase {
-            entries : vec![db_entry1,db_entry2],
+            entries         : vec![db_entry1,db_entry2],
             current_version : 1,
         };
         let db = SuggestionDatabase::new_from_ls_response(initial_response);

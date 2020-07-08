@@ -110,14 +110,7 @@ impl Path {
 pub enum Notification {
     /// Filesystem event occurred for a watched path.
     #[serde(rename = "file/event")]
-    FileEvent {
-        /// The `file/event` notification input wrapper.
-        /// The serialization format requires the information to be wrapped into a field named
-        /// "event". This behavior is currently not specified by the specification and the issue has
-        /// been raised to address this: https://github.com/luna/enso/issues/707
-        // TODO [mwu] Update as the issue is resolved on way or another.
-        event:FileEvent,
-    },
+    FileEvent(FileEvent),
 
     /// Sent from the server to the client to inform about new information for certain expressions
     /// becoming available.
@@ -428,21 +421,28 @@ pub struct CapabilityRegistration {
 }
 
 impl CapabilityRegistration {
-    /// Create "text/canEdit" capability for path
+    /// Create "file/receivesTreeUpdates" capability for path.
+    pub fn create_receives_tree_updates(path:Path) -> Self {
+        let method           = "file/receivesTreeUpdates".to_string();
+        let register_options = RegisterOptions::Path {path};
+        CapabilityRegistration {method,register_options}
+    }
+
+    /// Create "text/canEdit" capability for path.
     pub fn create_can_edit_text_file(path:Path) -> Self {
         let method           = "text/canEdit".to_string();
         let register_options = RegisterOptions::Path {path};
         CapabilityRegistration {method,register_options}
     }
 
-    /// Create "executionContext/canModify" capability for path
+    /// Create "executionContext/canModify" capability for path.
     pub fn create_can_modify_execution_context(context_id:Uuid) -> Self {
         let method = "executionContext/canModify".to_string();
         let register_options = RegisterOptions::ExecutionContextId {context_id};
         CapabilityRegistration {method,register_options}
     }
 
-    /// Create "executionContext/receivesUpdates" capability for path
+    /// Create "executionContext/receivesUpdates" capability for path.
     pub fn create_receives_execution_context_updates(context_id:Uuid) -> Self {
         let method = "executionContext/receivesUpdates".to_string();
         let register_options = RegisterOptions::ExecutionContextId {context_id};
@@ -472,10 +472,10 @@ impl CapabilityRegistration {
 #[serde(untagged, rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub enum RegisterOptions {
-    None {},
     Path {path:Path},
     #[serde(rename_all = "camelCase")]
     ExecutionContextId {context_id:ContextId},
+    None {},
 }
 
 
@@ -504,7 +504,7 @@ pub struct SuggestionEntryArgument {
     pub default_value: Option<String>,
 }
 
-/// The definition scope.
+/// The definition scope. The start and end are chars indices.
 #[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
@@ -571,8 +571,8 @@ impl SuggestionEntry {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionsDatabaseEntry {
-    pub id: SuggestionEntryId,
-    pub suggestion: SuggestionEntry,
+    pub id         : SuggestionEntryId,
+    pub suggestion : SuggestionEntry,
 }
 
 /// The kind of the suggestions database update.
