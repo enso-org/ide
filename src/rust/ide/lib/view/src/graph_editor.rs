@@ -1730,8 +1730,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
     });
     edge_click <- map2(&edge_mouse_down, &cursor_pos_in_scene, f!([](edge_id,pos) (*edge_id,*pos)));
+    valid_edge_disconnect_click <- edge_click.gate_not(&has_detached_edge);
 
-    edge_is_source_click <- edge_click.map(f!([model]((edge_id,pos)) {
+    edge_is_source_click <- valid_edge_disconnect_click.map(f!([model]((edge_id,pos)) {
         if let Some(edge) = model.edges.get_cloned_ref(edge_id){
             edge.end_designation_for_position(*pos) == component::edge::EndDesignation::Output
         } else {
@@ -1739,11 +1740,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
     }));
 
-    edge_source_click <- edge_mouse_down.gate(&edge_is_source_click);
-    edge_target_click <- edge_mouse_down.gate_not(&edge_is_source_click);
+    edge_source_click <- valid_edge_disconnect_click.gate(&edge_is_source_click);
+    edge_target_click <- valid_edge_disconnect_click.gate_not(&edge_is_source_click);
 
-    eval edge_source_click ((edge_id) model.remove_edge_source(*edge_id));
-    eval edge_target_click ((edge_id) model.remove_edge_target(*edge_id));
+    eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
+    eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
 
     new_output_edge <- node_output_touch.down.map(f_!([model,edge_mouse_down,edge_over,edge_out]{
         model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out)
