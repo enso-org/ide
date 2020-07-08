@@ -978,6 +978,13 @@ impl GraphEditorModelWithNetwork {
         false
     }
 
+    fn is_node_connected_at_output(&self, node_id:NodeId) -> bool {
+        match self.nodes.get_cloned(&node_id) {
+            Some(node) => !node.out_edges.raw.borrow().is_empty(),
+            None       => false,
+        }
+    }
+
     pub fn get_node_position(&self, node_id:NodeId) -> Option<Vector3<f32>> {
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position())
     }
@@ -1766,9 +1773,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
     eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
 
-    new_output_edge <- node_output_touch.down.map(f_!([model,edge_mouse_down,edge_over,edge_out]{
-        model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out)
-    }));
+    new_output_edge <- node_output_touch.down.map(f!([model,edge_mouse_down,edge_over,edge_out]((node_id)){
+        if model.is_node_connected_at_output(*node_id) {
+            return None
+        };
+        Some(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out))
+    })).unwrap();
     new_input_edge <- node_input_touch.down.map(f!([model,edge_mouse_down,edge_over,edge_out]((target)){
         if model.is_node_connected_at_input(target.node_id,target.port.to_vec()) {
             return None
