@@ -148,8 +148,9 @@ async fn ls_text_protocol_test() {
 
     // Asking for autocompletion.
 
-    //TODO[ao] Engine will fix getting suggestion method in their next PR, therefore we also should
-    // adjust our api in the next PR.
+    //TODO[ao] Engine will fix getting suggestion method in
+    // https://github.com/enso-org/enso/issues/438, therefore we also should adjust our api in the
+    // next PR.
 
     // let position  = Position {line:4, character:4};
     // let ret_type  = "Number".to_string();

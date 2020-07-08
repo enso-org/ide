@@ -20,7 +20,7 @@ pub use language_server::types::SuggestionsDatabaseUpdate as Update;
 ///
 /// This is database of possible suggestions in Searcher. To achieve best performance, some
 /// often-called Language Server methods returns the list of keys of this database instead of the
-/// whole entries. Additionally the database contains information about functions and their
+/// whole entries. Additionally the suggestions contains information about functions and their
 /// argument names and types.
 #[derive(Clone,Debug,Default)]
 pub struct SuggestionDatabase {
