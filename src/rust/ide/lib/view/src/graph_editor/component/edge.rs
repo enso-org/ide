@@ -155,7 +155,7 @@ impl PartialEq for dyn EdgeShape {
 ///
 /// Note: the base shape should already be colored otherwise coloring it later will also color the
 ///extension.
-fn extend_hover_area(base_shape:AnyShape, extension:Var<Distance<Pixels>>) -> AnyShape {
+fn extend_hover_area(base_shape:AnyShape, extension:Var<Pixels>) -> AnyShape {
     let extended = base_shape.grow(extension);
     let extended = extended.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
     (extended + base_shape).into()
@@ -196,10 +196,10 @@ impl SplitShape {
     /// circular "joint" at the given `center`, if `joint_radius` > 0.0.
     fn new
     (base_shape:AnyShape, center:&Var<Vector2<f32>>, rotation:&Var<f32>,
-     joint_radius:&Var<Distance<Pixels>>) -> Self {
-        let center_x        = Var::<Distance<Pixels>>::from(center.x());
-        let center_y        = Var::<Distance<Pixels>>::from(center.y());
-        let rotation        = Var::<Angle<Radians>>::from(rotation.clone());
+     joint_radius:&Var<Pixels>) -> Self {
+        let center_x        = Var::<Pixels>::from(center.x());
+        let center_y        = Var::<Pixels>::from(center.y());
+        let rotation        = Var::<Radians>::from(rotation.clone());
         let split_plane     = HalfPlane();
         let split_plane     = split_plane.rotate(&rotation);
         let split_plane     = split_plane.translate_x(&center_x);
@@ -207,7 +207,7 @@ impl SplitShape {
         let primary_shape   = base_shape.intersection(&split_plane).into();
         let secondary_shape = base_shape.difference(&split_plane).into();
 
-        let joint_radius = Var::<Distance<Pixels>>::from(joint_radius);
+        let joint_radius = Var::<Pixels>::from(joint_radius);
         let joint        = Circle(joint_radius);
         let joint        = joint.translate_x(&center_x);
         let joint        = joint.translate_y(&center_y);
