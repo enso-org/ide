@@ -75,7 +75,7 @@ pub struct GetSuggestionDatabaseVersion {
     pub current_version : SuggestionsDatabaseVersion,
 }
 
-/// Response of `get_suggestions_database_version` method.
+/// Response of `completion` method.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
