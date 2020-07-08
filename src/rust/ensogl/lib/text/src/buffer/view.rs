@@ -110,8 +110,9 @@ const DEFAULT_LINE_COUNT : usize = 10;
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct ViewBuffer {
-    pub buffer    : Buffer,
-    pub selection : Rc<RefCell<selection::Group>>,
+    pub buffer            : Buffer,
+    pub selection         : Rc<RefCell<selection::Group>>,
+    pub next_selection_id : Rc<Cell<usize>>,
 }
 
 impl Deref for ViewBuffer {
@@ -123,8 +124,9 @@ impl Deref for ViewBuffer {
 
 impl From<Buffer> for ViewBuffer {
     fn from(buffer:Buffer) -> Self {
-        let selection = default();
-        Self {buffer,selection}
+        let selection         = default();
+        let next_selection_id = default();
+        Self {buffer,selection,next_selection_id}
     }
 }
 
@@ -149,7 +151,15 @@ impl ViewBuffer {
 
     /// Add a new cursor for the given byte offset.
     pub fn add_cursor(&self, offset:Bytes) {
-        self.add_selection(Selection::new_cursor(offset))
+        let id = self.next_selection_id.get();
+        self.next_selection_id.set(id+1);
+        self.add_selection(Selection::new_cursor(offset,id))
+    }
+
+    pub fn new_cursor(&self, offset:Bytes) -> Selection {
+        let id = self.next_selection_id.get();
+        self.next_selection_id.set(id+1);
+        Selection::new_cursor(offset,id)
     }
 
     /// Insert new text in the place of current selections / cursors.
@@ -227,7 +237,7 @@ impl View {
             selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(*t,true)));
             selection_on_clear <- input.clear_selection.constant(default());
 
-            selection_on_set_cursor <- input.set_cursor.map(f!([model](t) Selection::new_cursor(model.offset_of_view_location(t)).into()));
+            selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(model.offset_of_view_location(t)).into()));
 
             output.source.selection <+ selection_on_move;
             output.source.selection <+ selection_on_mod;

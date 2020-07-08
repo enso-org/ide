@@ -318,6 +318,6 @@ impl ViewModel {
         };
         let start = if modify { region.start } else { end };
         println!(">>> {:?}",(start,end));
-        Selection::new(start,end).with_column(horiz)
+        Selection::new(start,end,region.id).with_column(horiz)
     }
 }

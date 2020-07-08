@@ -306,7 +306,9 @@ impl Lines {
 
 ensogl::def_command_api! { Commands
     /// Set the text cursor at the mouse cursor position.
-    set_cursor_at_mouse_cursor,
+    set_cursor_at_mouse_position,
+    /// Add a new cursor at the mouse cursor position.
+    add_cursor_at_mouse_position,
     /// Move the cursor to the left by one grapheme cluster.
     move_cursor_left,
     /// Move the cursor to the right by one grapheme cluster.
@@ -383,7 +385,7 @@ impl Area {
             mouse_cursor <- any(cursor_over,cursor_out);
             self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
 
-            mouse_down_pos <- mouse.position.sample(&model.frp.command.set_cursor_at_mouse_cursor);
+            mouse_down_pos <- mouse.position.sample(&model.frp.command.set_cursor_at_mouse_position);
             _eval <- mouse_down_pos.map2(&model.scene.frp.shape, f!([model](screen_pos,shape) {
 
                 let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
@@ -408,39 +410,44 @@ impl Area {
 
             _eval <- model.buffer.frp.output.selection.map2
                 (&model.scene.frp.frame_time,f!([model,pos](selections,time) {
-                    if model.cursors.borrow().is_empty() {
-                        let mut cursors = vec![];
-                        for selection in selections {
-                            let line_index = model.lines.line_index_of_byte_offset(selection.start);
-                            let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
-                            let offset_in_line = selection.start - line_offset;
-                            let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
-                            let logger = Logger::sub(&model.logger,"cursor");
-                            let cursor = component::ShapeView::<cursor::Shape>::new(&logger,&model.scene);
-                            cursor.shape.sprite.size.set(Vector2(4.0,20.0));
-                            cursor.set_position_y(-LINE_HEIGHT/2.0 - LINE_HEIGHT * line_index as f32);
-                            cursor.set_position_x(div.x_offset);
-                            cursor.shape.start_time.set(*time);
-                            model.add_child(&cursor);
-                            cursors.push(cursor);
-                        }
-                        *model.cursors.borrow_mut() = cursors;
+                    let mut selection_map     = model.selection_map.borrow_mut();
+                    let mut new_selection_map = SelectionMap::default();
+                    for selection in selections {
+                        let id         = selection.id;
+                        let line_index = model.lines.line_index_of_byte_offset(selection.start);
+                        let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
+                        let offset_in_line = selection.start - line_offset;
+                        let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
+                        let logger = Logger::sub(&model.logger,"cursor");
+
+                        let pos_x = div.x_offset;
+                        let pos_y = -LINE_HEIGHT/2.0 - LINE_HEIGHT * line_index as f32;
+                        let pos   = Vector2(pos_x,pos_y);
+                        let selection = match selection_map.remove(&id) {
+                            Some(selection) => {
+                                selection.position.set_target_value(pos);
+                                selection
+                            }
+                            None => {
+                                let selection = Selection::new(&logger,&model.scene);
+                                selection.shape.sprite.size.set(Vector2(4.0,20.0));
+                                model.add_child(&selection);
+                                selection.position.set_target_value(pos);
+                                selection.position.skip();
+                                selection
+                            }
+                        };
+
+                        selection.shape.start_time.set(*time);
+                        new_selection_map.insert(id,selection);
                     }
-
-                        for selection in selections {
-                            let line_index = model.lines.line_index_of_byte_offset(selection.start);
-                            let line_offset = model.buffer.offset_of_view_line(buffer::Line(line_index));
-                            let offset_in_line = selection.start - line_offset;
-                            let div = model.lines.rc.borrow()[line_index].div_by_byte_offset(offset_in_line);
-                            let logger = Logger::sub(&model.logger,"cursor");
-                            pos.set_target_value(Vector2(div.x_offset,-LINE_HEIGHT/2.0 - LINE_HEIGHT * line_index as f32));
-                        }
+                    *selection_map = new_selection_map;
             }));
 
-            _eval <- pos.value.map2 (&model.scene.frp.frame_time, f!([model](p,time) {
-                model.cursors.borrow()[0].set_position_xy(*p);
-                model.cursors.borrow()[0].shape.start_time.set(*time);
-            }));
+//            _eval <- pos.value.map2 (&model.scene.frp.frame_time, f!([model](p,time) {
+//                model.selection_map.borrow()[0].set_position_xy(*p);
+//                model.selection_map.borrow()[0].shape.start_time.set(*time);
+//            }));
 
             eval_ command.move_cursor_left  (model.buffer.frp.input.move_carets.emit(Some(Movement::Left)));
             eval_ command.move_cursor_right (model.buffer.frp.input.move_carets.emit(Some(Movement::Right)));
@@ -452,6 +459,61 @@ impl Area {
     }
 }
 
+
+
+
+
+
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Selection {
+    shape_view : component::ShapeView<cursor::Shape>,
+    network    : frp::Network,
+    position   : Animation<Vector2>,
+}
+
+impl Deref for Selection {
+    type Target = component::ShapeView<cursor::Shape>;
+    fn deref(&self) -> &Self::Target {
+        &self.shape_view
+    }
+}
+
+impl Selection {
+    pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
+        let network    = frp::Network::new();
+        let shape_view = component::ShapeView::<cursor::Shape>::new(logger,scene);
+        let position   = Animation::new(&network);
+        position.update_spring(|spring| spring*2.0);
+        Self {shape_view,network,position} . init()
+    }
+
+    fn init(self) -> Self {
+        let network = &self.network;
+        let view    = &self.shape_view;
+        frp::extend! { network
+            _eval <- self.position.value.map(f!((p) {
+                view.shape.set_position_xy(*p);
+            }));
+        }
+        self
+    }
+}
+
+impl display::Object for Selection {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.shape_view.display_object()
+    }
+}
+
+
+
+
+
+
+
+type SelectionMap = HashMap<usize,Selection>;
+
 #[derive(Clone,CloneRef,Debug)]
 pub struct AreaData {
     scene          : Scene,
@@ -461,7 +523,7 @@ pub struct AreaData {
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
     lines          : Lines,
-    cursors        : Rc<RefCell<Vec<component::ShapeView<cursor::Shape>>>>,
+    selection_map  : Rc<RefCell<SelectionMap>>,
     background     : component::ShapeView<background::Shape>,
 }
 
@@ -479,7 +541,7 @@ impl AreaData {
         let scene          = scene.clone_ref();
         let logger         = Logger::new("text_area");
         let bg_logger      = Logger::sub(&logger,"background");
-        let cursors        = default();
+        let selection_map  = default();
         let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
         let fonts          = scene.extension::<typeface::font::Registry>();
         let font           = fonts.load("DejaVuSansMono");
@@ -492,7 +554,7 @@ impl AreaData {
         display_object.add_child(&background);
         background.shape.sprite.size.set(Vector2(150.0,100.0));
         background.mod_position(|p| p.x += 50.0);
-        Self {scene,logger,frp,display_object,glyph_system,buffer,lines,cursors,background} . init()
+        Self {scene,logger,frp,display_object,glyph_system,buffer,lines,selection_map,background} . init()
     }
 
     pub fn line_count(&self) -> usize {
@@ -594,13 +656,14 @@ impl application::shortcut::DefaultShortcutProvider for Area {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use enso_frp::io::keyboard::Key;
         use enso_frp::io::mouse;
-//        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_cursor")
+//        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_position")
 //        ]
-        vec! [ Self::self_shortcut(shortcut::Action::press (&[Key::ArrowLeft]  , &[])    , "move_cursor_left"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight] , &[])    , "move_cursor_right"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowUp]    , &[])    , "move_cursor_up"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowDown]  , &[])    , "move_cursor_down"),
-               Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]) , "set_cursor_at_mouse_cursor")
+        vec! [ Self::self_shortcut(shortcut::Action::press (&[Key::ArrowLeft]  , &[])             , "move_cursor_left"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight] , &[])             , "move_cursor_right"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowUp]    , &[])             , "move_cursor_up"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowDown]  , &[])             , "move_cursor_down"),
+               Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton])          , "set_cursor_at_mouse_position"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::Meta],&[mouse::PrimaryButton]) , "add_cursor_at_mouse_position"),
         ]
     }
 }

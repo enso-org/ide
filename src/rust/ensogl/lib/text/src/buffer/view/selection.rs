@@ -25,18 +25,19 @@ pub struct Selection {
     //        use case (lines could have different byte offsets for the same amount of grapheme
     //        clustes. To be fixed during further implementation.
     pub column : Option<Bytes>,
+    pub id     : usize,
 }
 
 impl Selection {
     /// Constructor.
-    pub fn new(start:Bytes, end:Bytes) -> Self {
+    pub fn new(start:Bytes, end:Bytes, id:usize) -> Self {
         let column = default();
-        Self {start,end,column}
+        Self {start,end,column,id}
     }
 
     /// Cursor constructor (zero-length selection).
-    pub fn new_cursor(offset:Bytes) -> Self {
-        Self::new(offset,offset)
+    pub fn new_cursor(offset:Bytes, id:usize) -> Self {
+        Self::new(offset,offset,id)
     }
 
     /// Range of this selection.
@@ -78,12 +79,12 @@ impl Selection {
     }
 
     /// Merge self with an overlapping region. Retains direction of self.
-    pub fn merge_with(self, other: Selection) -> Selection {
+    pub fn merge_with(self, other:Selection) -> Selection {
         let is_forward  = self.end >= self.start;
         let new_min     = std::cmp::min(self.min(), other.min());
         let new_max     = std::cmp::max(self.max(), other.max());
         let (start,end) = if is_forward { (new_min,new_max) } else { (new_max,new_min) };
-        Selection::new(start,end)
+        Selection::new(start,end,self.id)
     }
 }
 
