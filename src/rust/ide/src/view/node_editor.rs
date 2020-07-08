@@ -404,20 +404,22 @@ impl GraphEditorIntegratedWithControllerModel {
     fn refresh_computed_info(&self, id:ExpressionId) {
         let info     = self.lookup_computed_info(&id);
         let info     = info.as_ref();
-        let typename = info.and_then(|info| info.typename.clone());
-        self.set_type(id,graph_editor::OptionalType(typename));
-        let method_pointer = info.and_then(|info| info.method_pointer.clone());
-        self.set_method_pointer(id,graph_editor::OptionalMethodPointer(method_pointer));
+        let typename = info.and_then(|info| info.typename.clone().map(graph_editor::Type));
+        self.set_type(id,typename);
+        let method_pointer = info.and_then(|info| {
+            info.method_pointer.clone().map(graph_editor::MethodPointer)
+        });
+        self.set_method_pointer(id,method_pointer);
     }
 
     /// Set given type (or lack of such) on the given sub-expression.
-    fn set_type(&self, id:ExpressionId, typename:graph_editor::OptionalType) {
+    fn set_type(&self, id:ExpressionId, typename:Option<graph_editor::Type>) {
         let event = (id,typename);
         self.editor.frp.inputs.set_expression_type.emit_event(&event);
     }
 
     /// Set given method pointer (or lack of such) on the given sub-expression.
-    fn set_method_pointer(&self, id:ExpressionId, method:graph_editor::OptionalMethodPointer) {
+    fn set_method_pointer(&self, id:ExpressionId, method:Option<graph_editor::MethodPointer>) {
         let event = (id,method);
         self.editor.frp.inputs.set_method_pointer.emit_event(&event);
     }
