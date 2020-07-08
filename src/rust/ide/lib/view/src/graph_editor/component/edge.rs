@@ -42,13 +42,12 @@ const LINE_SIDES_OVERLAP : f32 = 2.0 * LINE_SIDE_OVERLAP;
 const LINE_WIDTH         : f32 = 4.0;
 const ARROW_SIZE_X       : f32 = 20.0;
 const ARROW_SIZE_Y       : f32 = 20.0;
-/// FIXME: this value cannot be increased much more, as the edge shapes have a limited canvas size.
-/// For a larger hover area the shapes and layouting algorithm need to be adjusted to allow this.
-const HOVER_EXTENSION    : f32 = 2.0;
+
+const HOVER_EXTENSION    : f32 = 10.0;
 
 const MOUSE_OFFSET       : f32 = 2.0;
 const NODE_PADDING       : f32 = node::SHADOW_SIZE;
-const PADDING            : f32 = 4.0;
+const PADDING            : f32 = 4.0 + HOVER_EXTENSION;
 const RIGHT_ANGLE        : f32 = std::f32::consts::PI / 2.0;
 
 // TODO: Maybe find a better name.
@@ -1151,7 +1150,7 @@ impl EdgeModelData {
 
         let hover_position = self.hover_position.get();
         if let Some(hover_position) = hover_position {
-            let highlight_part = self.closest_end_for_point(hover_position);
+            let highlight_part = self.end_designation_for_position(hover_position);
             if let Err(()) = self.try_enable_hover_split(hover_position,highlight_part) {
                 self.disable_hover_split();
             }
@@ -1553,11 +1552,12 @@ impl EdgeModelData {
 // === Edge Splitting ===
 
 impl EdgeModelData {
+
     /// Return whether the point is in the upper half of the overall edge shape.
     fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
-        let start_y = self.display_object.position().y;
-        let end_y   = self.target_position.get().y;
-        let mid_y   = (start_y + end_y) / 2.0;
+        let world_space_source = self.position().y - self.source_height.get() / 2.0;
+        let world_space_target = self.target_position.get().y ;
+        let mid_y          = (world_space_source + world_space_target) / 2.0;
         point.y > mid_y
     }
 
@@ -1568,13 +1568,12 @@ impl EdgeModelData {
         if self.input_and_output_y_too_close() {
             return self.closest_end_for_point(point)
         }
-
         let input_in_upper_half = self.layout_state.get().is_input_above_output();
         let point_in_upper_half = self.is_in_upper_half(point);
 
         match (point_in_upper_half, input_in_upper_half) {
-            (true, true)  => EndDesignation::Input,
-            (true, false) => EndDesignation::Output,
+            (true, true)   => EndDesignation::Input,
+            (true, false)  => EndDesignation::Output,
             (false, true)  => EndDesignation::Output,
             (false, false) => EndDesignation::Input,
         }
@@ -1583,8 +1582,8 @@ impl EdgeModelData {
     /// Return the `EndDesignation` for the closest end of the edge for the given point. Uses
     /// euclidean distance between point and `Input`/`Output`.
     fn closest_end_for_point(&self, point:Vector2<f32>) -> EndDesignation {
-        let target_position = self.display_object.position().xy();
-        let source_position = self.target_position.get().xy();
+        let target_position = self.target_position.get().xy();
+        let source_position = self.position().xy() - Vector2::new(0.0, self.source_height.get() / 2.0);
         let target_distance = (point - target_position).norm();
         let source_distance = (point - source_position).norm();
         if source_distance > target_distance {
@@ -1597,7 +1596,7 @@ impl EdgeModelData {
     /// Indicates whether the height difference between input and output is too small to  use the
     /// y value to assign the `EndDesignation` for a given point.
     fn input_and_output_y_too_close(&self) -> bool {
-        let target_y = self.display_object.position().y;
+        let target_y = self.position().y;
         let source_y = self.target_position.get().y;
         let delta_y  = target_y - source_y;
         delta_y > 0.0 && delta_y < MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION
