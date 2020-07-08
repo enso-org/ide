@@ -22,6 +22,7 @@ use nalgebra::Vector2;
 use ensogl::animation::linear_interpolation;
 
 
+
 // =================
 // === Constants ===
 // =================
@@ -29,8 +30,8 @@ use ensogl::animation::linear_interpolation;
 const HIGHLIGHTED_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,1.0);
 const DARK_GRAY_TEXT_COLOR   : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
 
-/// Default project name used by IDE on startup.
-pub const DEFAULT_PROJECT_NAME:&str = "Unnamed";
+/// Project name used as a placeholder in ProjectName view.
+pub const UNKNOWN_PROJECT_NAME:&str = "[UNKNOWN NAME]";
 
 
 
@@ -181,7 +182,7 @@ impl ProjectNameModel {
         let text_field            = TextField::new(&world,text_field_properties);
         let view_logger           = Logger::sub(&logger,"view_logger");
         let view                  = component::ShapeView::<shape::Shape>::new(&view_logger,scene);
-        let project_name          = Rc::new(RefCell::new(DEFAULT_PROJECT_NAME.to_string()));
+        let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let renamed_output        = frp.outputs.renamed.clone();
         let animations            = Animations::new(&frp.network);
         Self{logger,view,display_object,text_field,project_name,renamed_output

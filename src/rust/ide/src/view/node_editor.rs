@@ -293,6 +293,7 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 }
 
+
 // === Updating Graph View ===
 
 impl GraphEditorIntegratedWithControllerModel {
