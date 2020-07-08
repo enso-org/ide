@@ -475,14 +475,10 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
              split_joint_position:Vector2<f32>) {
                 let width  : Var<Pixels> = "input_size.x".into();
                 let height : Var<Pixels> = "input_size.y".into();
-                let width      = width  - (2.0 * PADDING).px();
-                let height     = height - (2.0 * PADDING).px();
-                let triangle   = Triangle(width,height);
-                let offset     = (LINE_WIDTH/2.0).px();
-                let triangle_l = triangle.translate_x(-&offset);
-                let triangle_r = triangle.translate_x(&offset);
-                let triangle_m = triangle.translate_y(&(&offset * 2.0));
-                let shape      = triangle_l + triangle_r + triangle_m;
+                let width    = width  - (2.0 * PADDING).px();
+                let height   = height - (2.0 * PADDING).px();
+                let triangle = Triangle(width,height);
+                let shape    = triangle ;
 
                 let split_shape  = SplitShape::new(
                   shape.into(),&hover_split_center.into(),&hover_split_rotation.into(),&0.0.px());
@@ -495,8 +491,8 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
             fn set_hover_split_center_local(&self, center:Vector2<f32>) {
                 // We don't want the arrow to appear the split. Instead we set the split to the
                 // closes corner make the highlight all or nothing.
-                let min = -Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y) / 2.0;
-                let max =  Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y) / 2.0;
+                let min = -Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y);
+                let max =  Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y);
                 let mid =  Vector2::<f32>::zero();
 
                 let x = if center.x < mid.x { min.x } else { max.x };
