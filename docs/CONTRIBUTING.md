@@ -1,3 +1,10 @@
+---
+layout: developer-doc
+title: Development & Contributing Guide
+category: summary
+tags: [summary,contributing]
+---
+
 # Development & Contributing Guide
 Thank you for your interest in contributing to the Enso IDE! We believe that only through community
 involvement can Enso be the best it can be! There are a whole host of ways to contribute, and every
@@ -65,10 +72,16 @@ need the following setup:
   Engine Services binary protocol description. Otherwise, relying on the generated files that are
   being stored in this repository is fine.
 
-  `flatc` must be in version *newer than 1.12* due to [this bug](). As of writing this text there
+  `flatc` must be in version *newer than 1.12* due to 
+  [this bug](https://github.com/google/flatbuffers/issues/5055). As of writing this text there
   are no official releases with this issue fixed, however current binaries can be obtained from the
-  project's CI [build
-  artifacts](https://github.com/google/flatbuffers/actions?query=branch%3Amaster).
+  project's CI 
+  [build artifacts](https://github.com/google/flatbuffers/actions?query=branch%3Amaster). `flatc`
+  builds from 8 May 2020 onwards have been confirmed to work.
+
+  After placing `flatc` in `PATH` you need to define the `ENSO_IDE_ENABLE_FLATC` environment
+  variable to explicitly enable regeneration of the interface files. The `flatc` is run as part of
+  `build.rs` script of the `enso-protocol package.
 
 <br/>
 

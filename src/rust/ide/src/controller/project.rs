@@ -131,20 +131,18 @@ pub struct Handle {
 impl Handle {
     /// Create a new project controller.
     pub fn new
-    ( parent                     : impl AnyLogger
-    , project_manager            : impl project_manager::API + 'static
-    , language_server_client     : language_server::Connection
-    , mut language_server_binary : binary::Connection
-    , project_id                 : Uuid
-    , project_name               : ProjectName
+    ( parent              : impl AnyLogger
+    , project_manager     : impl project_manager::API + 'static
+    , language_server_rpc : Rc<language_server::Connection>
+    , language_server_bin : Rc<binary::Connection>
+    , project_id          : Uuid
+    , project_name        : ProjectName
     ) -> Self {
         let logger = Logger::sub(parent,"Project Controller");
         info!(logger,"Creating a project controller for project {project_name}");
-        let binary_protocol_events  = language_server_binary.event_stream();
-        let json_rpc_events         = language_server_client.events();
+        let json_rpc_events        = language_server_rpc.events();
+        let binary_protocol_events  = language_server_bin.event_stream();
         let embedded_visualizations = default();
-        let language_server_rpc     = Rc::new(language_server_client);
-        let language_server_bin     = Rc::new(language_server_binary);
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
         let project_data            = ProjectData{id:project_id,name:project_name};
@@ -164,6 +162,34 @@ impl Handle {
         crate::executor::global::spawn(json_rpc_events.for_each(json_rpc_handler));
 
         ret
+    }
+
+    /// Create a project controller from owned LS connections.
+    pub fn from_connections
+    ( parent              : impl AnyLogger
+    , project_manager     : impl project_manager::API + 'static
+    , language_server_rpc : language_server::Connection
+    , language_server_bin : binary::Connection
+    , project_id          : Uuid
+    , project_name        : ProjectName
+    ) -> Self {
+        let language_server_rpc = Rc::new(language_server_rpc);
+        let language_server_bin = Rc::new(language_server_bin);
+        Self::new(parent,project_manager,language_server_rpc,language_server_bin,project_id
+                 ,project_name)
+    }
+
+    /// Create a new mocked project controller.
+    pub fn new_mock
+    ( project_manager        : impl project_manager::API + 'static
+    , language_server_client : Rc<language_server::Connection>
+    , language_server_binary : Rc<binary::Connection>
+    , project_id             : Uuid
+    , project_name           : ProjectName
+    ) -> Self {
+        let parent = Logger::default();
+        Self::new(parent,project_manager,language_server_client,language_server_binary,project_id
+            ,project_name)
     }
 
     /// Returns the primary content root id for this project.
@@ -309,12 +335,10 @@ impl Handle {
     /// Creates a new execution context with given definition as a root; and registers the context
     /// for receiving update.
     pub async fn create_execution_context
-    (&self
-    , module_path:Rc<model::module::Path>
-    , root_definition:double_representation::definition::DefinitionName
-    ) -> FallibleResult<Rc<ExecutionContext>> {
+    (&self, root_definition:language_server::MethodPointer)
+    -> FallibleResult<Rc<ExecutionContext>> {
         let ls_rpc  = self.language_server_rpc.clone_ref();
-        let context = ExecutionContext::create(&self.logger,ls_rpc,module_path,root_definition);
+        let context = ExecutionContext::create(&self.logger,ls_rpc,root_definition);
         let context = context.await?;
         let context = Rc::new(context);
         self.register_execution_context(&context);
@@ -349,7 +373,7 @@ impl Handle {
 // ============
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use super::*;
 
     use crate::constants::DEFAULT_PROJECT_NAME;
@@ -371,7 +395,7 @@ mod test {
     /// Passed functions should be used to setup expectations upon the mock clients.
     /// Additionally, an `event_stream` expectation will be setup for a binary protocol, as
     /// project controller always calls it.
-    fn setup_mock_project
+    pub fn setup_mock_project
     ( setup_mock_json   : impl FnOnce(&mut language_server::MockClient)
     , setup_mock_binary : impl FnOnce(&mut enso_protocol::binary::MockClient)
     ) -> controller::Project {
@@ -390,8 +414,8 @@ mod test {
         let logger                  = Logger::default();
         let project_name            = ProjectName::new(DEFAULT_PROJECT_NAME);
         let project_id              = uuid::Uuid::new_v4();
-        controller::Project::new(logger,mock_project_controller,json_connection,binary_connection
-                                 ,project_id,project_name)
+        controller::Project::from_connections(logger,mock_project_controller,json_connection
+            ,binary_connection,project_id,project_name)
     }
 
     #[wasm_bindgen_test]
@@ -472,9 +496,7 @@ mod test {
         assert!(result1.is_err());
 
         // Create execution context.
-        let module_path = Rc::new(data.module_path.clone());
-        let definition  = data.root_definition.clone();
-        let execution   = project.create_execution_context(module_path,definition);
+        let execution   = project.create_execution_context(data.main_method_pointer());
         let execution   = test.expect_completion(execution).unwrap();
 
         // Now context is in registry.
