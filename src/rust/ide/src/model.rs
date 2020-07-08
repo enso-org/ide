@@ -15,10 +15,17 @@ pub mod execution_context;
 pub mod module;
 pub mod registry;
 pub mod suggestion_database;
-pub mod synchronized;
 pub mod project;
 
 pub use execution_context::ExecutionContext;
 pub use module::Module;
 pub use project::Project;
 pub use suggestion_database::SuggestionDatabase;
+
+pub mod traits {
+    use super::*;
+
+    pub use execution_context::API as TRAIT_ExecutionContextApi;
+    pub use module::API as TRAIT_ModuleApi;
+    pub use project::API as TRAIT_ProjectApi;
+}

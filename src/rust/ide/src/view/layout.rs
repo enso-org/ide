@@ -125,7 +125,7 @@ impl ViewLayout {
     }
 
     fn init_keyboard(self, keyboard_actions:&mut keyboard::Actions) -> Self {
-        // TODO[ao] add here some useful staff (quitting project for example)
+        // TODO[ao] add here some useful stuff (quitting project for example)
         let layout                    = self.rc.clone_ref();
         let keys                      = &[keyboard::Key::Tab];
         let node_searcher_show_action = keyboard_actions.add_action(keys, move || {

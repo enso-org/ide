@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::double_representation::text::apply_code_change_to_id_map;
 use crate::model::module::Path;
+use crate::model::traits::*;
 
 use ast;
 use ast::HasIdMap;
@@ -34,7 +35,7 @@ pub struct InvalidGraphId(controller::graph::Id);
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
-    pub model           : Rc<model::synchronized::Module>,
+    pub model           : model::Module,
     pub language_server : Rc<language_server::Connection>,
     pub parser          : Parser,
     pub logger          : Logger,
@@ -46,8 +47,8 @@ impl Handle {
     (parent:impl AnyLogger, path:Path, project:&model::Project) -> FallibleResult<Self> {
         let logger          = Logger::sub(parent,format!("Module Controller {}", path));
         let model           = project.module(path).await?;
-        let language_server = project.language_server_rpc.clone_ref();
-        let parser          = project.parser.clone_ref();
+        let language_server = project.json_rpc();
+        let parser          = project.parser().clone_ref();
         Ok(Handle {model,language_server,parser,logger})
     }
 
@@ -130,19 +131,19 @@ impl Handle {
     }
 
     /// Creates a mocked module controller.
-    pub fn new_mock
-    ( path            : Path
-    , code            : &str
-    , id_map          : ast::IdMap
-    , language_server : Rc<language_server::Connection>
-    , parser          : Parser
-    ) -> FallibleResult<Self> {
-        let logger = Logger::new("Mocked Module Controller");
-        let ast    = parser.parse(code.to_string(),id_map)?.try_into()?;
-        let model  = model::Module::new(ast, default());
-        let model  = model::synchronized::Module::mock(path,model);
-        Ok(Handle {model,language_server,parser,logger})
-    }
+    // pub fn new_mock
+    // ( path            : Path
+    // , code            : &str
+    // , id_map          : ast::IdMap
+    // , language_server : Rc<language_server::Connection>
+    // , parser          : Parser
+    // ) -> FallibleResult<Self> {
+    //     let logger = Logger::new("Mocked Module Controller");
+    //     let ast    = parser.parse(code.to_string(),id_map)?.try_into()?;
+    //     let model  = model::Module::new(ast, default());
+    //     let model  = model::synchronized::Module::mock(path,model);
+    //     Ok(Handle {model,language_server,parser,logger})
+    // }
 
     #[cfg(test)]
     pub fn expect_code(&self, expected_code:impl Str) {
@@ -174,23 +175,27 @@ mod test {
     #[wasm_bindgen_test]
     fn update_ast_after_text_change() {
         TestWithLocalPoolExecutor::set_up().run_task(async {
+            let logger   = Logger::new("Test");
             let ls       = language_server::Connection::new_mock_rc(default());
             let parser   = Parser::new().unwrap();
             let location = Path::from_mock_module_name("Test");
+            let project  = model::project::MockAPI::new();
 
             let uuid1    = Uuid::new_v4();
             let uuid2    = Uuid::new_v4();
             let uuid3    = Uuid::new_v4();
             let uuid4    = Uuid::new_v4();
-            let module   = "2+2";
+            let code   = "2+2";
             let id_map   = ast::IdMap::new(vec!
                 [ (Span::new(Index::new(0),Size::new(1)),uuid1)
                 , (Span::new(Index::new(1),Size::new(1)),uuid2)
                 , (Span::new(Index::new(2),Size::new(1)),uuid3)
                 , (Span::new(Index::new(0),Size::new(3)),uuid4)
                 ]);
+            let ast    = parser.parse(code.to_string(),id_map)?.try_into()?;
+            let model  = model::module::Plain::new(location.clone_ref(),ast,default());
 
-            let controller = Handle::new_mock(location,module,id_map,ls,parser).unwrap();
+            let controller = Handle::new(&logger,location,project.into()).unwrap();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(0),"2".to_string());

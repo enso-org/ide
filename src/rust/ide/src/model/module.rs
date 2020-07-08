@@ -1,4 +1,8 @@
 //! This module contains all structures which describes Module state (code, ast, metadata).
+
+pub mod plain;
+pub mod synchronized;
+
 use crate::prelude::*;
 
 use crate::constants::LANGUAGE_FILE_EXTENSION;
@@ -327,138 +331,72 @@ impl Position {
 /// A type describing content of the module: the ast and metadata.
 pub type Content = ParsedSourceFile<Metadata>;
 
-/// A structure describing the module.
-///
-/// It implements internal mutability pattern, so the state may be shared between different
-/// controllers. Each change in module will emit notification for each module representation
-/// (text and graph).
-#[derive(Debug)]
-pub struct Module {
-    content       : RefCell<Content>,
-    notifications : notification::Publisher<Notification>,
-}
-
-impl Default for Module {
-    fn default() -> Self {
-        let ast = ast::known::Module::new(ast::Module{lines:default()},None);
-        Self::new(ast,default())
-    }
-}
-
-impl Module {
-    /// Create state with given content.
-    pub fn new(ast:ast::known::Module, metadata:Metadata) -> Self {
-        Module {
-            content       : RefCell::new(ParsedSourceFile{ast,metadata}),
-            notifications : default(),
-        }
-    }
-
+pub trait API {
     /// Subscribe for notifications about text representation changes.
-    pub fn subscribe(&self) -> Subscriber<Notification> {
-        self.notifications.subscribe()
-    }
-
-    /// Create module state from given code, id_map and metadata.
-    #[cfg(test)]
-    pub fn from_code_or_panic<S:ToString>
-    (code:S, id_map:ast::IdMap, metadata:Metadata) -> Self {
-        let parser = parser::Parser::new_or_panic();
-        let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
-        Self::new(ast,metadata)
-    }
-}
+    fn subscribe(&self) -> Subscriber<Notification>;
 
 
-// === Access to Module Content ===
+// === Getters ===
+    /// Get the module path.
+    fn path(&self) -> &Path;
 
-impl Module {
     /// Get module sources as a string, which contains both code and metadata.
-    pub fn serialized_content(&self) -> FallibleResult<SourceFile> {
+    fn serialized_content(&self) -> FallibleResult<SourceFile> {
         self.content.borrow().serialize().map_err(|e| e.into())
     }
 
     /// Get module's ast.
-    pub fn ast(&self) -> ast::known::Module {
-        self.content.borrow().ast.clone_ref()
-    }
+    fn ast(&self) -> ast::known::Module;
 
     /// Obtains definition information for given graph id.
-    pub fn find_definition
-    (&self,id:&double_representation::graph::Id) -> FallibleResult<DefinitionInfo> {
-        let ast = self.content.borrow().ast.clone_ref();
-        double_representation::module::get_definition(&ast, id)
-    }
+    fn find_definition
+    (&self,id:&double_representation::graph::Id) -> FallibleResult<DefinitionInfo>;
 
     /// Returns metadata for given node, if present.
-    pub fn node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
-        let data = self.content.borrow().metadata.ide.node.get(&id).cloned();
-        data.ok_or_else(|| NodeMetadataNotFound(id).into())
-    }
-}
+    fn node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata>;
 
 
 // === Setters ===
 
-impl Module {
-
     /// Update whole content of the module.
-    pub fn update_whole(&self, content:Content) {
-        *self.content.borrow_mut() = content;
-        self.notify(Notification::Invalidate);
-    }
+    fn update_whole(&self, content:Content);
 
     /// Update ast in module controller.
-    pub fn update_ast(&self, ast:ast::known::Module) {
-        self.content.borrow_mut().ast  = ast;
-        self.notify(Notification::Invalidate);
-    }
+    fn update_ast(&self, ast:ast::known::Module);
 
     /// Updates AST after code change.
     ///
     /// May return Error when new code causes parsing errors, or when parsed code does not produce
     /// Module ast.
-    pub fn apply_code_change
-    (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult<()> {
-        let mut code          = self.ast().repr();
-        let replaced_location = TextLocation::convert_range(&code,&change.replaced);
-        change.apply(&mut code);
-        let new_ast = parser.parse(code,new_id_map)?.try_into()?;
-        self.content.borrow_mut().ast = new_ast;
-        self.notify(Notification::CodeChanged {change,replaced_location});
-        Ok(())
-    }
+    fn apply_code_change
+    (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult<()>;
 
     /// Sets metadata for given node.
-    pub fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) {
-        self.content.borrow_mut().metadata.ide.node.insert(id, data);
-        self.notify(Notification::MetadataChanged);
-    }
+    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata);
 
     /// Removes metadata of given node and returns them.
-    pub fn remove_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
-        let lookup = self.content.borrow_mut().metadata.ide.node.remove(&id);
-        let data   = lookup.ok_or_else(|| NodeMetadataNotFound(id))?;
-        self.notify(Notification::MetadataChanged);
-        Ok(data)
-    }
+    fn remove_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata>;
 
     /// Modify metadata of given node.
     ///
     /// If ID doesn't have metadata, empty (default) metadata is inserted. Inside callback you
     /// should use only the data passed as argument; don't use functions of this controller for
     /// getting and setting metadata for the same node.
-    pub fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata)) {
-        let lookup   = self.content.borrow_mut().metadata.ide.node.remove(&id);
-        let mut data = lookup.unwrap_or_default();
-        fun(&mut data);
-        self.content.borrow_mut().metadata.ide.node.insert(id, data);
-        self.notify(Notification::MetadataChanged);
-    }
+    fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata));
+}
 
-    fn notify(&self, notification:Notification) {
-        let notify  = self.notifications.publish(notification);
-        executor::global::spawn(notify);
+pub type Plain        = plain::Module;
+pub type Synchronized = synchronized::Module;
+
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+pub struct Module {
+    rc : Rc<dyn API>
+}
+
+impl<M:API> From<M> for Module {
+    fn from(module:M) -> Self {
+        let rc = Rc::new(module);
+        Module{rc}
     }
 }
 
