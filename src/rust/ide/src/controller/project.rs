@@ -16,7 +16,6 @@ use enso_protocol::binary;
 use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
 use enso_protocol::project_manager;
-use enso_protocol::project_manager::ProjectMetadata;
 use enso_protocol::project_manager::ProjectName;
 use parser::Parser;
 use uuid::Uuid;
@@ -95,6 +94,19 @@ impl ExecutionContextsRegistry {
 
 
 
+// ===================
+// === ProjectData ===
+// ===================
+
+/// A structure containing the project's unique ID and name.
+#[derive(Debug,Clone)]
+pub struct ProjectData {
+    id   : Uuid,
+    name : ProjectName,
+}
+
+
+
 // ==========================
 // === Project Controller ===
 // ==========================
@@ -104,7 +116,7 @@ impl ExecutionContextsRegistry {
 #[derive(Clone,CloneRef,Derivative)]
 #[derivative(Debug)]
 pub struct Handle {
-    pub project_metadata    : Rc<RefCell<ProjectMetadata>>,
+    pub project_data        : Rc<RefCell<ProjectData>>,
     #[derivative(Debug = "ignore")]
     pub project_manager     : Rc<dyn project_manager::API>,
     pub language_server_rpc : Rc<language_server::Connection>,
@@ -123,10 +135,11 @@ impl Handle {
     , project_manager            : impl project_manager::API + 'static
     , language_server_client     : language_server::Connection
     , mut language_server_binary : binary::Connection
-    , project_metadata           : ProjectMetadata
+    , project_id                 : Uuid
+    , project_name               : ProjectName
     ) -> Self {
         let logger = Logger::sub(parent,"Project Controller");
-        info!(logger,"Creating a project controller for project {project_metadata.name}");
+        info!(logger,"Creating a project controller for project {project_name}");
         let binary_protocol_events  = language_server_binary.event_stream();
         let json_rpc_events         = language_server_client.events();
         let embedded_visualizations = default();
@@ -134,13 +147,14 @@ impl Handle {
         let language_server_bin     = Rc::new(language_server_binary);
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
-        let project_metadata        = Rc::new(RefCell::new(project_metadata));
+        let project_data            = ProjectData{id:project_id,name:project_name};
+        let project_data            = Rc::new(RefCell::new(project_data));
         let module_registry         = default();
         let execution_contexts      = default();
         let parser                  = Parser::new_or_panic();
         let project_manager         = Rc::new(project_manager);
 
-        let ret = Handle {project_metadata,project_manager,module_registry,execution_contexts,parser,
+        let ret = Handle {project_data,project_manager,module_registry,execution_contexts,parser,
             language_server_rpc,language_server_bin,logger,visualization};
 
         let binary_handler = ret.binary_event_handler();
@@ -315,15 +329,15 @@ impl Handle {
 
     /// Get project's name.
     pub fn project_name(&self) -> ProjectName {
-        self.project_metadata.borrow().name.clone()
+        self.project_data.borrow().name.clone()
     }
 
     /// Rename project.
     pub async fn rename_project(&self, name:impl Str) -> FallibleResult<()> {
-        let name                 = name.into();
-        let project_id = self.project_metadata.borrow().id;
+        let name       = name.into();
+        let project_id = self.project_data.borrow().id;
         self.project_manager.rename_project(&project_id,&name).await?;
-        *self.project_metadata.borrow_mut().name = ProjectName::new(name).to_string();
+        *self.project_data.borrow_mut().name = ProjectName::new(name).to_string();
         Ok(())
     }
 }
@@ -374,12 +388,10 @@ mod test {
         let json_connection         = language_server::Connection::new_mock(json_client);
         let binary_connection       = binary::Connection::new_mock(binary_client);
         let logger                  = Logger::default();
-        let name                    = ProjectName::new(DEFAULT_PROJECT_NAME);
-        let id                      = uuid::Uuid::new_v4();
-        let last_opened             = default();
-        let project_metadata        = ProjectMetadata{name,id,last_opened};
-        controller::Project::new
-            (logger,mock_project_controller,json_connection,binary_connection,project_metadata)
+        let project_name            = ProjectName::new(DEFAULT_PROJECT_NAME);
+        let project_id              = uuid::Uuid::new_v4();
+        controller::Project::new(logger,mock_project_controller,json_connection,binary_connection
+                                 ,project_id,project_name)
     }
 
     #[wasm_bindgen_test]

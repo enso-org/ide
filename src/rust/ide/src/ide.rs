@@ -97,8 +97,10 @@ impl IdeInitializer {
         crate::executor::global::spawn(client_binary.runner());
         let connection_json   = language_server::Connection::new(client_json,client_id).await?;
         let connection_binary = binary::Connection::new(client_binary,client_id).await?;
+        let project_id        = project_metadata.id;
+        let project_name      = project_metadata.name;
         let controller        = controller::Project::new
-            (logger,project_manager,connection_json,connection_binary,project_metadata);
+            (logger,project_manager,connection_json,connection_binary,project_id,project_name);
         Ok(controller)
     }
 
