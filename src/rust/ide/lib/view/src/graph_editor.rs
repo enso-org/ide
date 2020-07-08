@@ -939,7 +939,6 @@ impl GraphEditorModelWithNetwork {
             eval_ node.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
             eval  node.ports.frp.cursor_style ((style) cursor_style.emit(style));
             eval_ node.view.output_ports.frp.port_mouse_down (output_press.emit(node_id));
-            eval_ node.view.output_ports.frp.port_mouse_down (output_press.emit(node_id));
             eval  node.ports.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 input_press.emit(target);
