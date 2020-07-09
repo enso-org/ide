@@ -19,6 +19,7 @@ pub mod graph;
 pub mod module;
 pub mod text;
 pub mod visualization;
+pub mod searcher;
 
 pub use graph::Handle           as Graph;
 pub use graph::executed::Handle as ExecutedGraph;
