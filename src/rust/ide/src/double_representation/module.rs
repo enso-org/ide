@@ -309,6 +309,9 @@ mod tests {
         info.expect_code("import Bar.Gar");
         info.remove_import(&ImportInfo::from_qualified_name("Bar.Gar")).unwrap();
         info.expect_code("");
+
+        info.add_import(&parser,import("import Bar.Gar"));
+        info.expect_code("import Bar.Gar");
     }
 
     #[wasm_bindgen_test]

@@ -1,5 +1,3 @@
-#![feature(option_result_contains)]
-
 use parser::prelude::*;
 
 use parser::Parser;
