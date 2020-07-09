@@ -55,6 +55,7 @@ const MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION : f32 = 45.0;
 
 const INFINITE : f32 = 99999.0;
 
+const HOVER_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.000_001);
 
 
 // ========================
@@ -280,21 +281,31 @@ trait AnyEdgeShape {
 // === Shape Definitions ===
 // =========================
 
+fn create_corner_base_shape
+(radius:&Var<f32>, width:&Var<Pixels>, angle:&Var<f32>, start_angle:&Var<f32>) ->AnyShape {
+    let radius = 1.px() * radius;
+    let width2 = width / 2.0;
+    let ring   = Circle(&radius + &width2) - Circle(radius-width2);
+    let right : Var<f32> = (RIGHT_ANGLE).into();
+    let rot    = right - angle/2.0 + start_angle;
+    let mask   = Plane().cut_angle_fast(angle.clone()).rotate(rot);
+    let shape  = ring * mask;
+    shape.into()
+}
+
 macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod corner {
         use super::*;
+
+
+
         ensogl::define_shape_system! {
             (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
              hover_split_center:Vector2<f32>,hover_split_rotation:f32) {
-                let radius = 1.px() * radius;
-                let width  = LINE_WIDTH.px();
-                let width2 = &width / 2.0;
-                let ring   = Circle(&radius + &width2) - Circle(radius-width2);
-                let right : Var<f32> = (RIGHT_ANGLE).into();
-                let rot    = right - &angle/2.0 + start_angle;
-                let mask   = Plane().cut_angle_fast(angle).rotate(rot);
-                let shape  = ring * mask;
+
+                let width  = &LINE_WIDTH.px();
+                let shape  = create_corner_base_shape(&radius,width,&angle,&start_angle);
 
                 let shadow_size = 10.px();
                 let n_radius = &shadow_size + 1.px() * dim.y();
@@ -305,12 +316,16 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 let ty       = - 1.px() * pos.y();
                 let n_shape  = n_shape.translate((tx,ty));
 
-                let shape    = shape - n_shape;
+                let shape    = shape.difference(n_shape);
 
                 let split_shape = SplitShape::new(
                     shape.into(),&(&hover_split_center).into(),&hover_split_rotation.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
-                extend_hover_area(shape,HOVER_EXTENSION.px()).into()
+
+                let hover_width = width + HOVER_EXTENSION.px() * 2.0;
+                let hover_area  = create_corner_base_shape(&radius,&hover_width,&angle,&start_angle);
+                let hover_area  = hover_area.fill(HOVER_COLOR);
+                (hover_area + shape).into()
             }
         }
 
@@ -359,14 +374,9 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
         ensogl::define_shape_system! {
             (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
              hover_split_center:Vector2<f32>, hover_split_rotation:f32) {
-                let radius = 1.px() * radius;
-                let width  = LINE_WIDTH.px();
-                let width2 = &width / 2.0;
-                let ring   = Circle(&radius + &width2) - Circle(radius-width2);
-                let right : Var<f32> = (RIGHT_ANGLE).into();
-                let rot    = right - &angle/2.0 + start_angle;
-                let mask   = Plane().cut_angle_fast(angle).rotate(rot);
-                let shape  = ring * mask;
+                let width  = &LINE_WIDTH.px();
+                let shape  = create_corner_base_shape(&radius,width,&angle,&start_angle);
+
 
                 let shadow_size = 10.px() + 1.px();
                 let n_radius = &shadow_size + 1.px() * dim.y();
@@ -377,12 +387,16 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 let ty       = - 1.px() * pos.y();
                 let n_shape  = n_shape.translate((tx,ty));
 
-                let shape = shape * n_shape;
+                let shape = shape.intersection(n_shape);
+
                 let split_shape = SplitShape::new(
                 shape.into(),&hover_split_center.into(),&hover_split_rotation.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
 
-                extend_hover_area(shape,HOVER_EXTENSION.px()).into()
+                let hover_width = width + HOVER_EXTENSION.px() * 2.0;
+                let hover_area  = create_corner_base_shape(&radius,&hover_width,&angle,&start_angle);
+                let hover_area  = hover_area.fill(HOVER_COLOR);
+                (hover_area + shape).into()
             }
         }
 
