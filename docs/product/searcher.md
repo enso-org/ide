@@ -7,8 +7,29 @@ tags: [product]
 
 # Searcher Panel In Graph Editor
 
-## Behaviour
+### Behaviour
 
-## Suggestion Database
+The Searcher Panel can be brought to the screen in two different ways:
+* when user starts to edit node - the node became Searcher input and panel appears below, 
+* when user press tab with mouse over Graph Editor Panel - the new Searcher input appears with
+  Searcher panel below. Additionally, if there is exactly one node selected, the connection is
+  displayed between the selected node and the Searcher input.
+  
+When the new searcher is displayed by pressing Tab and there is no selected node, and the user
+didn't type anything in searcher input yer, the panel below input shows the main menu. In other
+cases the list of suggestions is displayed instead.
 
-## Searcher Controller
+TODO: Add more description when visual part will be implemented.
+
+### Suggestion of Node Expressions
+
+The suggestion list is obtained from the Engine using `search/completion` method of Language Server.
+The parameters of the call depends on the Current searcher input, picked suggestions so far, and
+if we add a node connected to selection. The current implementation can be found in 
+`ide::controller::searcher` module.
+
+### Suggestion Database
+
+The`search/completion` method of Language Server returns a list of keys to the Suggestion
+Database instead of the whole entries. The database is retrieved by IDE on Project opening, and 
+keeps it up to date. The Database is implemented in `ide::model::suggestion_database` module. 
