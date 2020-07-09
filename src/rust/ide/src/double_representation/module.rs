@@ -5,8 +5,10 @@ use crate::prelude::*;
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionProvider;
 
-use ast::crumbs::{ChildAst, Located, ModuleCrumb};
-use ast::{known, BlockLine};
+use ast::crumbs::ChildAst;
+use ast::crumbs::ModuleCrumb;
+use ast::known;
+use ast::BlockLine;
 use enso_protocol::language_server;
 
 
@@ -119,7 +121,9 @@ pub struct LineIndexOutOfBounds;
 // ============
 
 /// Wrapper allowing getting information about the module and updating it.
-struct Info {
+#[derive(Clone,Debug)]
+pub struct Info {
+    #[allow(missing_docs)]
     pub ast:known::Module,
 }
 
@@ -129,21 +133,6 @@ impl Info {
         let children = self.ast.shape().enumerate();
         children.filter_map(|(crumb,ast)| Some((crumb,ImportInfo::from_ast(ast)?)))
     }
-
-    // pub fn lines(&self) -> &Vec<ast::BlockLine<Option<Ast>>> {
-    //     &self.ast.shape().lines
-    // }
-    //
-    // pub fn non_empty_lines<'a>(&'a self) -> impl Iterator<Item=(usize,&'a Ast)> + 'a {
-    //     self.lines().iter().enumerate().filter_map(|(index,line)| {
-    //         line.elem.as_ref().and_then(|ast| Some((index,ast)))
-    //     })
-    // }
-    //
-    // /// Access line by index.
-    // pub fn line(&self, index:usize) -> &ast::BlockLine<Option<Ast>> {
-    //     &self.ast.shape().lines[index]
-    // }
 
     /// Add a new line to the module's block.
     ///
@@ -157,7 +146,7 @@ impl Info {
     /// Remove line with given index.
     ///
     /// Returns removed line. Fails if the index is out of bounds.
-    pub fn remove_line(&mut self, index:usize) -> FallibleResult<ast::BlockLine<Option<Ast>>> {
+    pub fn remove_line(&mut self, index:usize) -> FallibleResult<BlockLine<Option<Ast>>> {
         self.ast.update_shape(|shape| {
             shape.lines.try_remove(index).ok_or(LineIndexOutOfBounds.into())
         })
@@ -168,17 +157,21 @@ impl Info {
         self.enumerate_imports().map(|(_,import)| import).collect()
     }
 
-    /// Remove a lines that matches given import description.
+    /// Remove a line that matches given import description.
     ///
+    /// If there is more than one line matching, only the first one will be removed.
     /// Fails if there is no import matching given argument.
     pub fn remove_import(&mut self, to_remove:&ImportInfo) -> FallibleResult<()> {
         let lookup_result = self.enumerate_imports().find(|(_,import)| import == to_remove);
-        let (crumb,import) = lookup_result.ok_or_else(|| ImportNotFound(to_remove.clone()))?;
-        self.remove_line(crumb.line_index);
+        let (crumb,_)     = lookup_result.ok_or_else(|| ImportNotFound(to_remove.clone()))?;
+        self.remove_line(crumb.line_index)?;
         Ok(())
     }
 
     /// Add a new import declaration to a module.
+    // TODO [mwu]
+    //   Ideally we should not require parser but should use some sane way of generating AST from
+    //   the `ImportInfo` value.
     pub fn add_import(&mut self, parser:&parser::Parser, to_add:ImportInfo) -> usize {
         // Find last import that is not "after" the added one lexicographically.
         let previous_import = self.enumerate_imports().take_while(|(_,import)| {
@@ -190,27 +183,11 @@ impl Info {
         self.add_line(index_to_place_at,Some(import_ast));
         index_to_place_at
     }
-}
 
-#[test]
-fn aaaa() {
-    use parser::test_utils::*;
-
-    let parser = parser::Parser::new_or_panic();
-    let code = "import Foo.Bar.Baz";
-    let ast = parser.parse_module(code,default()).unwrap();
-    let mut info   = Info { ast };
-
-    let import = |code| {
-        let ast = parser.parse_line(code).unwrap();
-        ImportInfo::from_ast(&ast).unwrap()
-    };
-
-    println!("{:?}\n\n",info.imports());
-    info.add_import(&parser,import("import Bar.Gaz"));
-    info.add_import(&parser,import("import Gaz.Bar"));
-    println!("{:?}\n\n",info.imports());
-    println!("{}",info.ast.repr());
+    #[cfg(test)]
+    pub fn expect_code(&self,expected_code:impl AsRef<str>) {
+        assert_eq!(self.ast.repr(),expected_code.as_ref());
+    }
 }
 
 
@@ -307,6 +284,32 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[test]
+    fn import_adding_and_removing() {
+        let parser   = parser::Parser::new_or_panic();
+        let code     = "import Foo.Bar.Baz";
+        let ast      = parser.parse_module(code,default()).unwrap();
+        let mut info = Info { ast };
+        let import   = |code| {
+            let ast = parser.parse_line(code).unwrap();
+            ImportInfo::from_ast(&ast).unwrap()
+        };
+
+        info.add_import(&parser,import("import Bar.Gar"));
+        info.expect_code("import Bar.Gar\nimport Foo.Bar.Baz");
+        info.add_import(&parser,import("import Gar.Bar"));
+        info.expect_code("import Bar.Gar\nimport Foo.Bar.Baz\nimport Gar.Bar");
+
+        info.remove_import(&ImportInfo::from_qualified_name("Foo.Bar.Baz")).unwrap();
+        info.expect_code("import Bar.Gar\nimport Gar.Bar");
+        info.remove_import(&ImportInfo::from_qualified_name("Foo.Bar.Baz")).unwrap_err();
+        info.expect_code("import Bar.Gar\nimport Gar.Bar");
+        info.remove_import(&ImportInfo::from_qualified_name("import Gar.Bar")).unwrap();
+        info.expect_code("import Bar.Gar");
+        info.remove_import(&ImportInfo::from_qualified_name("import Bar.Gar")).unwrap();
+        info.expect_code("");
+    }
 
     #[wasm_bindgen_test]
     fn implicit_method_resolution() {

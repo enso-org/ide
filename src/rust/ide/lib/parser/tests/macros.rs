@@ -2,40 +2,44 @@
 
 use parser::prelude::*;
 
-use utils::option::OptionExt;
-
 use parser::Parser;
 use wasm_bindgen_test::wasm_bindgen_test;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
+#[test]
+fn import_utilities() {
+    use ast::macros::ast_as_import_match;
+    use ast::macros::is_ast_import;
+    use ast::macros::is_match_import;
 
-// #[test]
-// fn recognizing_imports() {
-//     use ast::*;
-//
-//     let parser = Parser::new_or_panic();
-//
-//     let ast = parser.parse_line("import Foo.Bar.Baz").unwrap();
-//
-//     let m = ast::known::Match::try_from(ast).unwrap();
-//     assert_eq!(m.segs.tail.len(),0);
-//     let seg : &MacroMatchSegment<Ast> = &m.segs.head;
-//
-//     // println!("{:?}\n\n",seg);
-//     // println!("{:?}\n\n",seg.head);
-//     // println!("{:?}\n\n",seg.body);
-//     // println!("{}\n\n",seg.body.repr());
-//
-//     if ast::identifier::name(&seg.head).contains_if(|str| *str == "import") {
-//         let target_module = seg.body.repr();
-//         let segments = target_module.split(ast::opr::predefined::ACCESS).map(ToString::to_string).collect();
-//         let import = ast::macros::ImportInfo {segments};
-//         println!("{:?}",import);
-//     }
-//
-// }
+    let parser = Parser::new_or_panic();
+    let expect_import = |code:&str| {
+        let ast = parser.parse_line(code).unwrap();
+        assert!(is_ast_import(&ast));
+        let ast_match = ast_as_import_match(&ast).unwrap();
+        assert_eq!(&ast,ast_match.ast());
+        assert!(is_match_import(&ast_match));
+    };
+
+    let expect_not_import = |code:&str| {
+        println!("Checking that {} is not an import.",code);
+        let ast = parser.parse_line(code).unwrap();
+        println!("Ast: {:?}",ast);
+        assert!(!is_ast_import(&ast));
+        assert!(ast_as_import_match(&ast).is_none());
+    };
+
+    expect_import("import Foo");
+    expect_import("import Foo.Bar");
+    expect_import("import Foo.Bar.Baz");
+
+    expect_not_import("type Foo");
+    expect_not_import("if Foo then Bar else Baz");
+    expect_not_import("Foo.Bar.Baz");
+    expect_not_import("import");
+}
 
 #[wasm_bindgen_test]
 fn recognizing_lambdas() {
