@@ -305,9 +305,9 @@ mod tests {
         info.expect_code("import Bar.Gar\nimport Gar.Bar");
         info.remove_import(&ImportInfo::from_qualified_name("Foo.Bar.Baz")).unwrap_err();
         info.expect_code("import Bar.Gar\nimport Gar.Bar");
-        info.remove_import(&ImportInfo::from_qualified_name("import Gar.Bar")).unwrap();
+        info.remove_import(&ImportInfo::from_qualified_name("Gar.Bar")).unwrap();
         info.expect_code("import Bar.Gar");
-        info.remove_import(&ImportInfo::from_qualified_name("import Bar.Gar")).unwrap();
+        info.remove_import(&ImportInfo::from_qualified_name("Bar.Gar")).unwrap();
         info.expect_code("");
     }
 
