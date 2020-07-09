@@ -87,7 +87,10 @@ impl NodeSearcher {
         self.text_field.clear_content();
         self.text_field.set_focus();
         let module     = self.node_editor.displayed_module();
-        let position   = TextLocation { line:2, column:4 }; // TODO[ao]
+        //TODO[ao]: Now we use some predefined location, until this task will be done:
+        // https://github.com/enso-org/ide/issues/653 . This code should be replaced with
+        // the proper Searcher view integration anyway.
+        let position   = TextLocation { line:2, column:4 };
         let controller = controller::Searcher::new(&self.logger,&*self.project,module,position);
         let logger     = self.logger.clone_ref();
         let weak       = Rc::downgrade(&self.controller);
