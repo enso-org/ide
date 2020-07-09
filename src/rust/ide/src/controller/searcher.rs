@@ -103,6 +103,11 @@ impl Searcher {
         self.data.borrow().current_list.clone_ref()
     }
 
+    pub fn set_input(&self, new_input:String) {
+        self.data.borrow_mut().current_input = new_input;
+        //TODO[ao] here goes refreshing suggestion list after input change.
+    }
+
     fn reload_list(&self) {
         let module      = self.module.deref().into();
         let self_type   = None;

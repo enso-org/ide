@@ -16,12 +16,15 @@ use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::world::World;
 use ensogl::display;
 use ensogl::traits::*;
+use data::text::TextLocation;
 
 
 #[derive(Clone,Debug,CloneRef)]
 pub struct NodeSearcher {
     display_object : display::object::Instance,
     node_editor    : NodeEditor,
+    project        : Rc<model::Project>,
+    controller     : Rc<CloneCell<Option<controller::Searcher>>>,
     text_field     : TextField,
     logger         : Logger,
 }
@@ -31,6 +34,7 @@ impl NodeSearcher {
     ( world       : &World
     , logger      : impl AnyLogger
     , node_editor : NodeEditor
+    , project     : Rc<model::Project>
     , fonts       : &mut font::Registry)
     -> Self {
         let scene          = world.scene();
@@ -46,7 +50,9 @@ impl NodeSearcher {
         };
         let text_field = TextField::new(world,properties);
         display_object.add_child(&text_field.display_object());
-        let searcher = NodeSearcher{node_editor,display_object,text_field,logger};
+        let controller = default();
+        let searcher   = NodeSearcher{node_editor,display_object,project,controller,text_field,
+            logger};
         searcher.initialize()
     }
 
@@ -80,6 +86,25 @@ impl NodeSearcher {
         self.display_object.add_child(&self.text_field.display_object());
         self.text_field.clear_content();
         self.text_field.set_focus();
+        let module     = self.node_editor.displayed_module();
+        let position   = TextLocation { line:2, column:4 }; // TODO[ao]
+        let controller = controller::Searcher::new(&self.logger,&*self.project,module,position);
+        let logger     = self.logger.clone_ref();
+        let weak       = Rc::downgrade(&self.controller);
+        executor::global::spawn(controller.subscribe().for_each(move |notification| {
+            if let Some(opt_controller) = weak.upgrade() {
+                if let Some(controller) = opt_controller.get() {
+                    match notification {
+                        controller::searcher::Notification::NewList => {
+                            let list = controller.suggestions();
+                            info!(logger,"New list in Searcher: {list:?}");
+                        }
+                    }
+                }
+            }
+            futures::future::ready(())
+        }));
+        self.controller.set(Some(controller))
     }
 
     /// Hide NodeSearcher if it is visible.
