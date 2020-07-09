@@ -131,6 +131,9 @@ optParser.options('version', {
 
 function parseCmdArgs() {
     let argv = isDev ? process.argv.slice(process.argv.indexOf('--') + 1) : process.argv
+    if (process.platform == 'darwin') {
+        return optParser.parse("")
+    }
     return optParser.parse(argv)
 }
 
