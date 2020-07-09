@@ -286,7 +286,7 @@ impl Handle {
 
     /// Generates full module's qualified name that includes the leading project name segment.
     pub fn qualified_module_name(&self, path:&model::module::Path) -> ModuleQualifiedName {
-        ModuleQualifiedName::from_path(path,self.project_name.deref())
+        path.qualified_module_name(self.project_name.deref())
     }
 
     fn module_controller_with_model

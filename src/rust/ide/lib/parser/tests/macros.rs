@@ -11,31 +11,31 @@ use wasm_bindgen_test::wasm_bindgen_test_configure;
 wasm_bindgen_test_configure!(run_in_browser);
 
 
-#[test]
-fn recognizing_imports() {
-    use ast::*;
-
-    let parser = Parser::new_or_panic();
-
-    let ast = parser.parse_line("import Foo.Bar.Baz").unwrap();
-
-    let m = ast::known::Match::try_from(ast).unwrap();
-    assert_eq!(m.segs.tail.len(),0);
-    let seg : &MacroMatchSegment<Ast> = &m.segs.head;
-
-    // println!("{:?}\n\n",seg);
-    // println!("{:?}\n\n",seg.head);
-    // println!("{:?}\n\n",seg.body);
-    // println!("{}\n\n",seg.body.repr());
-
-    if ast::identifier::name(&seg.head).contains_if(|str| *str == "import") {
-        let target_module = seg.body.repr();
-        let segments = target_module.split(ast::opr::predefined::ACCESS).map(ToString::to_string).collect();
-        let import = ast::macros::ImportInfo {segments};
-        println!("{:?}",import);
-    }
-
-}
+// #[test]
+// fn recognizing_imports() {
+//     use ast::*;
+//
+//     let parser = Parser::new_or_panic();
+//
+//     let ast = parser.parse_line("import Foo.Bar.Baz").unwrap();
+//
+//     let m = ast::known::Match::try_from(ast).unwrap();
+//     assert_eq!(m.segs.tail.len(),0);
+//     let seg : &MacroMatchSegment<Ast> = &m.segs.head;
+//
+//     // println!("{:?}\n\n",seg);
+//     // println!("{:?}\n\n",seg.head);
+//     // println!("{:?}\n\n",seg.body);
+//     // println!("{}\n\n",seg.body.repr());
+//
+//     if ast::identifier::name(&seg.head).contains_if(|str| *str == "import") {
+//         let target_module = seg.body.repr();
+//         let segments = target_module.split(ast::opr::predefined::ACCESS).map(ToString::to_string).collect();
+//         let import = ast::macros::ImportInfo {segments};
+//         println!("{:?}",import);
+//     }
+//
+// }
 
 #[wasm_bindgen_test]
 fn recognizing_lambdas() {

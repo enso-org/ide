@@ -8,6 +8,7 @@ use crate::crumbs::AmbiguousCrumb;
 use crate::crumbs::Located;
 use crate::crumbs::MatchCrumb;
 use crate::known;
+use failure::_core::fmt::Formatter;
 
 
 // ===============
@@ -17,31 +18,19 @@ use crate::known;
 /// The keyword introducing a
 pub const IMPORT_KEYWORD:&str = "import";
 
-#[derive(Clone,Debug,PartialEq)]
-pub struct ImportInfo {
-    pub segments : Vec<String>
+pub fn ast_as_import_match(ast:&Ast) -> Option<known::Match> {
+    let macro_match = known::Match::try_from(ast).ok()?;
+    is_match_import(&macro_match).then(macro_match)
 }
 
-pub fn match_as_import(ast:known::Match) -> Option<ImportInfo> {
+pub fn is_match_import(ast:&known::Match) -> bool {
     let segment = &ast.segs.head;
     let keyword = crate::identifier::name(&segment.head);
-    if keyword.contains_if(|str| *str == IMPORT_KEYWORD) {
-        let target_module = segment.body.repr();
-        let segments      = target_module.split(crate::opr::predefined::ACCESS);
-        let segments      = segments.map(ToString::to_string).collect();
-        Some(ImportInfo {segments})
-    } else {
-        None
-    }
+    keyword.contains_if(|str| *str == IMPORT_KEYWORD)
 }
 
-pub fn ast_as_import(ast:&Ast) -> Option<ImportInfo> {
-    let macro_match = known::Match::try_from(ast).ok()?;
-    match_as_import(macro_match)
-}
-
-pub fn is_import(ast:&Ast) -> bool {
-    ast_as_import(ast).is_some()
+pub fn is_ast_import(ast:&Ast) -> bool {
+    ast_as_import_match(ast).is_some()
 }
 
 

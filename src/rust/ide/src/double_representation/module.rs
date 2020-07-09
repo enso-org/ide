@@ -6,166 +6,214 @@ use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionProvider;
 
 use ast::crumbs::{ChildAst, Located, ModuleCrumb};
-use ast::known;
+use ast::{known, BlockLine};
 use enso_protocol::language_server;
-use ast::macros::ImportInfo;
 
+
+
+// =====================
+// === QualifiedName ===
+// =====================
+
+/// Module's qualified name is used in some of the Language Server's APIs, like
+/// `VisualisationConfiguration`.
+///
+/// Qualified name is constructed as follows:
+/// `ProjectName.<directories_between_src_and_enso_file>.<file_without_ext>`
+///
+/// See https://dev.enso.org/docs/distribution/packaging.html for more information about the
+/// package structure.
+#[derive(Clone,Debug,Display,Shrinkwrap)]
+pub struct QualifiedName(String);
+
+impl QualifiedName {
+    /// Build a module's full qualified name from its name segments and the project name.
+    ///
+    /// ```
+    /// use ide::model::module::QualifiedName;
+    ///
+    /// let name = QualifiedName::from_module_segments(&["Main"],"Project");
+    /// assert_eq!(name.to_string(), "Project.Main");
+    /// ```
+    pub fn from_segments
+    (project_name:impl Str, module_segments:impl IntoIterator<Item:AsRef<str>>)
+     -> QualifiedName {
+        let project_name     = std::iter::once(project_name.into());
+        let module_segments  = module_segments.into_iter();
+        let module_segments  = module_segments.map(|segment| segment.as_ref().to_string());
+        let mut all_segments = project_name.chain(module_segments);
+        let name             = all_segments.join(".");
+        QualifiedName(name)
+    }
+}
+
+
+
+// ==================
+// === ImportInfo ===
+// ==================
+
+/// Representation of a single import declaration.
+// TODO [mwu]
+// Currently only supports the unqualified imports like `import Foo.Bar`. Qualified, restricted and
+// and hiding imports are not supported by the parser yet. In future when parser and engine
+// supports them, this structure should be adjusted as well.
+#[derive(Clone,Debug,PartialEq)]
+pub struct ImportInfo {
+    /// The segments of the qualified name of the imported target.
+    pub target:Vec<String>
+}
+
+impl ImportInfo {
+    /// Construct from imported module qualified name like `"Foo.Bar"`.
+    ///
+    /// Implicitly will trim the whitespace from input name to ease usage with `import` macro body.
+    fn from_qualified_name(name:impl AsRef<str>) -> Self {
+        let name     = name.as_ref().trim();
+        let segments = name.split(ast::opr::predefined::ACCESS).map(Into::into).collect();
+        ImportInfo { target: segments }
+    }
+
+    fn qualified_name(&self) -> QualifiedName {
+        QualifiedName(self.target.join(ast::opr::predefined::ACCESS))
+    }
+
+    fn from_ast(ast:&Ast) -> Option<Self> {
+        let macro_match = known::Match::try_from(ast).ok()?;
+        Self::from_match(macro_match)
+    }
+
+    fn from_match(ast:known::Match) -> Option<Self> {
+        ast::macros::is_match_import(&ast).then_with(|| {
+            ImportInfo::from_qualified_name(ast.segs.head.body.repr())
+        })
+    }
+}
+
+impl Display for ImportInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}",ast::macros::IMPORT_KEYWORD,self.qualified_name())
+    }
+}
+
+
+
+// ==============
+// === Errors ===
+// ==============
+
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Import `{}` was not found in the module.",_0)]
+#[allow(missing_docs)]
+pub struct ImportNotFound(pub ImportInfo);
+
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="Line index is out of bounds.")]
+#[allow(missing_docs)]
+pub struct LineIndexOutOfBounds;
+
+
+
+// ============
+// === Info ===
+// ============
+
+/// Wrapper allowing getting information about the module and updating it.
 struct Info {
-    ast:known::Module,
+    pub ast:known::Module,
 }
 
 impl Info {
-    pub fn iter_imports<'a>(&'a self) -> impl Iterator<Item=(ModuleCrumb,ImportInfo)> + 'a {
+    /// Iterate over all lines in module that contain an import declaration.
+    pub fn enumerate_imports<'a>(&'a self) -> impl Iterator<Item=(ModuleCrumb, ImportInfo)> + 'a {
         let children = self.ast.shape().enumerate();
-        children.filter_map(|(crumb,ast)| {
-            ast::macros::ast_as_import(ast).map(|import| (crumb,import))
-        })
+        children.filter_map(|(crumb,ast)| Some((crumb,ImportInfo::from_ast(ast)?)))
     }
 
-    pub fn lines(&self) -> &Vec<ast::BlockLine<Option<Ast>>> {
-        &self.ast.shape().lines
-    }
-
-    pub fn non_empty_lines<'a>(&'a self) -> impl Iterator<Item=(usize,&'a Ast)> + 'a {
-        self.lines().iter().enumerate().filter_map(|(index,line)| {
-            line.elem.as_ref().and_then(|ast| Some((index,ast)))
-        })
-    }
-
-    pub fn line(&self, index:usize) -> &ast::BlockLine<Option<Ast>> {
-        &self.ast.shape().lines[index]
-    }
-
-    // pub fn leading_import_lines(&self) -> Range<usize> {
-    //     // let non_empty_lines = self.lines().iter().enumerate().filter_map(|(index,line)| {
-    //     //     line.elem.and_then(|ast| Some((index,ast)))
-    //     // }).collect_vec();
+    // pub fn lines(&self) -> &Vec<ast::BlockLine<Option<Ast>>> {
+    //     &self.ast.shape().lines
+    // }
     //
+    // pub fn non_empty_lines<'a>(&'a self) -> impl Iterator<Item=(usize,&'a Ast)> + 'a {
+    //     self.lines().iter().enumerate().filter_map(|(index,line)| {
+    //         line.elem.as_ref().and_then(|ast| Some((index,ast)))
+    //     })
+    // }
     //
-    //     //
-    //     // let (first_import,first_non_import) = || {
-    //     //     let mut first_import = None;
-    //     //     let mut first_non_import = None;
-    //     //     for (index,ast) in &non_empty_lines {
-    //     //         if ast::macros::is_import(ast) {
-    //     //             first_import.get_or_insert(index)
-    //     //         } else {
-    //     //             first_non_import.get_or_insert(index)
-    //     //         }
-    //     //     }
-    //     // }();
-    //
-    //     // let first_import = non_empty_lines.iter().find_map(|(index,ast)| {
-    //     //     ast::macros::is_import(ast).then(index).copied()
-    //     // });
-    //     //
-    //     // let first_non_import = non_empty_lines.iter().find_map(|(index,ast)| {
-    //     //     ast::macros::is_import(ast).then(index).copied()
-    //     // });
-    //     //
-    //     // let first_import_index = match first_non_empty {
-    //     //     (index,ast) if ast::macros::if_import(ast) => index,
-    //     //     _                                          => return 0..0,
-    //     // };
-    //     //
-    //     // let last_import_index = {
-    //     //     let mut index = first_import_index+1;
-    //     //     while let Some(index,)
-    //     // }
-    //
-    //
-    //     // let mut index = 0;
-    //     // while let Some()
-    //
-    //     // for index in 0..lines.len() {
-    //     //     if let Some(line_ast) = &self.line(index).elem {
-    //     //         if ast::macros::ast_as_import(line_ast).is_some() {
-    //     //
-    //     //         }
-    //     //     }
-    //     // }
-    //     //
-    //     //
-    //     // let first_non_import = self.lines().iter().position(|line| {
-    //     //     line.elem.and_then(ast::macros::ast_as_import).is_some()
-    //     // });
+    // /// Access line by index.
+    // pub fn line(&self, index:usize) -> &ast::BlockLine<Option<Ast>> {
+    //     &self.ast.shape().lines[index]
     // }
 
-    pub fn imports(&self) -> Vec<ImportInfo> {
-        self.iter_imports().map(|(_,import)| import).collect()
-    }
-
-
-
-    pub fn remove_import(&mut self, segments:impl IntoIterator<Item:Into<String>>) -> Option<ImportInfo> {
-        let searched_segments = segments.into_iter().map(|s| s.into()).collect_vec();
-        let (crumb,import) = self.iter_imports().find(|(_,import)| {
-            import.segments == searched_segments
-        })?;
-        self.remove_line(crumb.line_index);
-        Some(import)
-    }
-
-    pub fn remove_line(&mut self, index:usize) {
-        self.ast.update_shape(|shape| { shape.lines.remove(index); })
-    }
-
-    pub fn add_import(&mut self, segments:impl IntoIterator<Item:Into<String>>) -> usize {
-        let previous_import = 5;
-        for ((crumb1,import1),(crumb2,import2)) in self.iter_imports().tuples() {
-
-        }
-        4
-    }
-
+    /// Add a new line to the module's block.
+    ///
+    /// Note that indices are the "module line" indices, which usually are quite different from text
+    /// API line indices (because nested blocks doesn't count as separate "module lines").
     pub fn add_line(&mut self, index:usize, ast:Option<Ast>) {
-        // TODO
-        //self.ast.update_shape(|shape| { shape.lines.remove(index); })
+        let line = BlockLine::new(ast);
+        self.ast.update_shape(|shape| shape.lines.insert(index,line))
+    }
+
+    /// Remove line with given index.
+    ///
+    /// Returns removed line. Fails if the index is out of bounds.
+    pub fn remove_line(&mut self, index:usize) -> FallibleResult<ast::BlockLine<Option<Ast>>> {
+        self.ast.update_shape(|shape| {
+            shape.lines.try_remove(index).ok_or(LineIndexOutOfBounds.into())
+        })
+    }
+
+    /// Get all import declarations in the module.
+    pub fn imports(&self) -> Vec<ImportInfo> {
+        self.enumerate_imports().map(|(_,import)| import).collect()
+    }
+
+    /// Remove a lines that matches given import description.
+    ///
+    /// Fails if there is no import matching given argument.
+    pub fn remove_import(&mut self, to_remove:&ImportInfo) -> FallibleResult<()> {
+        let lookup_result = self.enumerate_imports().find(|(_,import)| import == to_remove);
+        let (crumb,import) = lookup_result.ok_or_else(|| ImportNotFound(to_remove.clone()))?;
+        self.remove_line(crumb.line_index);
+        Ok(())
+    }
+
+    /// Add a new import declaration to a module.
+    pub fn add_import(&mut self, parser:&parser::Parser, to_add:ImportInfo) -> usize {
+        // Find last import that is not "after" the added one lexicographically.
+        let previous_import = self.enumerate_imports().take_while(|(_,import)| {
+            to_add.target > import.target
+        }).last();
+
+        let index_to_place_at = previous_import.map_or(0,|(crumb,_)| crumb.line_index + 1);
+        let import_ast        = parser.parse_line(to_add.to_string()).unwrap();
+        self.add_line(index_to_place_at,Some(import_ast));
+        index_to_place_at
     }
 }
-//
-// struct ModuleHeader {
-//     first_import : usize,
-//     last_import  : usize,
-// }
-//
-// impl ModuleHeader {
-//     fn new(lines:&[(usize,Ast)]) -> Option<ModuleHeader> {
-//         let mut first_import = None;
-//         let mut last_import = None;
-//
-//         for (index,ast) in lines {
-//             if ast::macros::is_import(ast) {
-//                 first_import.get_or_insert(*index);
-//                 last_import = Some(*index);
-//             } else {
-//                 break;
-//             }
-//         }
-//
-//         first_import.and_then(|first_import| {
-//             last_import.map(|last_import| ModuleHeader {first_import,last_import})
-//         })
-//     }
-// }
-//
-// fn leading_imports(lines:&[(usize,Ast)]) -> Vec<(usize,Ast)> {
-//     let mut first_import = None;
-//     let mut last_import = None;
-//
-//     for (index,ast) in lines {
-//         if ast::macros::is_import(ast) {
-//             first_import.get_or_insert(*index);
-//             last_import = Some(*index);
-//         } else {
-//             break;
-//         }
-//     }
-//
-//     first_import.and_then(|first_import| {
-//         last_import.map(|last_import| ModuleHeader {first_import,last_import})
-//     })
-// }
+
+#[test]
+fn aaaa() {
+    use parser::test_utils::*;
+
+    let parser = parser::Parser::new_or_panic();
+    let code = "import Foo.Bar.Baz";
+    let ast = parser.parse_module(code,default()).unwrap();
+    let mut info   = Info { ast };
+
+    let import = |code| {
+        let ast = parser.parse_line(code).unwrap();
+        ImportInfo::from_ast(&ast).unwrap()
+    };
+
+    println!("{:?}\n\n",info.imports());
+    info.add_import(&parser,import("import Bar.Gaz"));
+    info.add_import(&parser,import("import Gaz.Bar"));
+    println!("{:?}\n\n",info.imports());
+    println!("{}",info.ast.repr());
+}
+
+
 
 // ==============
 // === Errors ===

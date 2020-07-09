@@ -68,13 +68,23 @@ where for<'t> &'t Shape<Ast> : TryInto<&'t T,Error=E> {
         self.deref()
     }
 
+    // /// Updated self in place by applying given function on the stored Shape.
+    // pub fn update_shape(&mut self, f:impl FnOnce(&mut T))
+    // where T : Clone + Into<Shape<Ast>>,
+    //       E : Debug {
+    //     let mut shape = self.shape().clone();
+    //     f(&mut shape);
+    //     self.ast = self.ast.with_shape(shape)
+    // }
+
     /// Updated self in place by applying given function on the stored Shape.
-    pub fn update_shape(&mut self, f:impl FnOnce(&mut T))
-    where T : Clone + Into<Shape<Ast>>,
-          E : Debug {
+    pub fn update_shape<R>(&mut self, f:impl FnOnce(&mut T) -> R) -> R
+        where T : Clone + Into<Shape<Ast>>,
+              E : Debug {
         let mut shape = self.shape().clone();
-        f(&mut shape);
-        self.ast = self.ast.with_shape(shape)
+        let ret = f(&mut shape);
+        self.ast = self.ast.with_shape(shape);
+        ret
     }
 
     /// Create new instance of KnownAst with mapped shape.
