@@ -5,11 +5,167 @@ use crate::prelude::*;
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionProvider;
 
-use ast::crumbs::ChildAst;
+use ast::crumbs::{ChildAst, Located, ModuleCrumb};
 use ast::known;
 use enso_protocol::language_server;
+use ast::macros::ImportInfo;
+
+struct Info {
+    ast:known::Module,
+}
+
+impl Info {
+    pub fn iter_imports<'a>(&'a self) -> impl Iterator<Item=(ModuleCrumb,ImportInfo)> + 'a {
+        let children = self.ast.shape().enumerate();
+        children.filter_map(|(crumb,ast)| {
+            ast::macros::ast_as_import(ast).map(|import| (crumb,import))
+        })
+    }
+
+    pub fn lines(&self) -> &Vec<ast::BlockLine<Option<Ast>>> {
+        &self.ast.shape().lines
+    }
+
+    pub fn non_empty_lines<'a>(&'a self) -> impl Iterator<Item=(usize,&'a Ast)> + 'a {
+        self.lines().iter().enumerate().filter_map(|(index,line)| {
+            line.elem.as_ref().and_then(|ast| Some((index,ast)))
+        })
+    }
+
+    pub fn line(&self, index:usize) -> &ast::BlockLine<Option<Ast>> {
+        &self.ast.shape().lines[index]
+    }
+
+    // pub fn leading_import_lines(&self) -> Range<usize> {
+    //     // let non_empty_lines = self.lines().iter().enumerate().filter_map(|(index,line)| {
+    //     //     line.elem.and_then(|ast| Some((index,ast)))
+    //     // }).collect_vec();
+    //
+    //
+    //     //
+    //     // let (first_import,first_non_import) = || {
+    //     //     let mut first_import = None;
+    //     //     let mut first_non_import = None;
+    //     //     for (index,ast) in &non_empty_lines {
+    //     //         if ast::macros::is_import(ast) {
+    //     //             first_import.get_or_insert(index)
+    //     //         } else {
+    //     //             first_non_import.get_or_insert(index)
+    //     //         }
+    //     //     }
+    //     // }();
+    //
+    //     // let first_import = non_empty_lines.iter().find_map(|(index,ast)| {
+    //     //     ast::macros::is_import(ast).then(index).copied()
+    //     // });
+    //     //
+    //     // let first_non_import = non_empty_lines.iter().find_map(|(index,ast)| {
+    //     //     ast::macros::is_import(ast).then(index).copied()
+    //     // });
+    //     //
+    //     // let first_import_index = match first_non_empty {
+    //     //     (index,ast) if ast::macros::if_import(ast) => index,
+    //     //     _                                          => return 0..0,
+    //     // };
+    //     //
+    //     // let last_import_index = {
+    //     //     let mut index = first_import_index+1;
+    //     //     while let Some(index,)
+    //     // }
+    //
+    //
+    //     // let mut index = 0;
+    //     // while let Some()
+    //
+    //     // for index in 0..lines.len() {
+    //     //     if let Some(line_ast) = &self.line(index).elem {
+    //     //         if ast::macros::ast_as_import(line_ast).is_some() {
+    //     //
+    //     //         }
+    //     //     }
+    //     // }
+    //     //
+    //     //
+    //     // let first_non_import = self.lines().iter().position(|line| {
+    //     //     line.elem.and_then(ast::macros::ast_as_import).is_some()
+    //     // });
+    // }
+
+    pub fn imports(&self) -> Vec<ImportInfo> {
+        self.iter_imports().map(|(_,import)| import).collect()
+    }
 
 
+
+    pub fn remove_import(&mut self, segments:impl IntoIterator<Item:Into<String>>) -> Option<ImportInfo> {
+        let searched_segments = segments.into_iter().map(|s| s.into()).collect_vec();
+        let (crumb,import) = self.iter_imports().find(|(_,import)| {
+            import.segments == searched_segments
+        })?;
+        self.remove_line(crumb.line_index);
+        Some(import)
+    }
+
+    pub fn remove_line(&mut self, index:usize) {
+        self.ast.update_shape(|shape| { shape.lines.remove(index); })
+    }
+
+    pub fn add_import(&mut self, segments:impl IntoIterator<Item:Into<String>>) -> usize {
+        let previous_import = 5;
+        for ((crumb1,import1),(crumb2,import2)) in self.iter_imports().tuples() {
+
+        }
+        4
+    }
+
+    pub fn add_line(&mut self, index:usize, ast:Option<Ast>) {
+        // TODO
+        //self.ast.update_shape(|shape| { shape.lines.remove(index); })
+    }
+}
+//
+// struct ModuleHeader {
+//     first_import : usize,
+//     last_import  : usize,
+// }
+//
+// impl ModuleHeader {
+//     fn new(lines:&[(usize,Ast)]) -> Option<ModuleHeader> {
+//         let mut first_import = None;
+//         let mut last_import = None;
+//
+//         for (index,ast) in lines {
+//             if ast::macros::is_import(ast) {
+//                 first_import.get_or_insert(*index);
+//                 last_import = Some(*index);
+//             } else {
+//                 break;
+//             }
+//         }
+//
+//         first_import.and_then(|first_import| {
+//             last_import.map(|last_import| ModuleHeader {first_import,last_import})
+//         })
+//     }
+// }
+//
+// fn leading_imports(lines:&[(usize,Ast)]) -> Vec<(usize,Ast)> {
+//     let mut first_import = None;
+//     let mut last_import = None;
+//
+//     for (index,ast) in lines {
+//         if ast::macros::is_import(ast) {
+//             first_import.get_or_insert(*index);
+//             last_import = Some(*index);
+//         } else {
+//             break;
+//         }
+//     }
+//
+//     first_import.and_then(|first_import| {
+//         last_import.map(|last_import| ModuleHeader {first_import,last_import})
+//     })
+// }
 
 // ==============
 // === Errors ===
