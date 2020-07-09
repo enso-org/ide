@@ -58,7 +58,6 @@ impl ViewLayoutData {
 
     fn recalculate_layout(&mut self) {
         self.update_text_editor();
-        self.update_graph_editor();
         self.update_node_searcher();
     }
 
@@ -75,12 +74,6 @@ impl ViewLayoutData {
         self.text_editor.set_padding(padding);
         self.text_editor.set_size(size);
         TemporaryPanel::set_position(&mut self.text_editor,position);
-    }
-
-    fn update_graph_editor(&mut self) {
-        let screen_size  = self.size;
-        let position     = Vector3::new(50.0 - screen_size.x / 2.0, screen_size.y / 4.0, 0.0);
-        self.node_editor.set_position(position);
     }
 
     fn update_node_searcher(&mut self) {

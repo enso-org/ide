@@ -987,8 +987,7 @@ impl GraphEditorModel {
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
         let project_name   = component::ProjectName::new(world);
-        scene.add_child(&display_object);
-        scene.add_child(&project_name);
+        display_object.add_child(&project_name);
         let screen = world.scene().camera().screen();
         let margin = 10.0;
         project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
