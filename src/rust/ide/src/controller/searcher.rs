@@ -9,22 +9,35 @@ use enso_protocol::language_server;
 use flo_stream::Subscriber;
 
 
+
+// =======================
+// === Suggestion List ===
+// =======================
+
+/// A single suggestion on the Searcher suggestion list.
 #[derive(Clone,CloneRef,Debug,Eq,PartialEq)]
 pub enum Suggestion {
+    /// Suggestion for input completion: possible functions, arguments, etc.
     Completion(Rc<model::suggestion_database::Entry>)
+    // In future, other suggestion types will be added (like suggestions of actions, etc.).
 }
 
-
+/// List of suggestions available in Searcher.
 #[derive(Clone,CloneRef,Debug)]
 pub enum Suggestions {
+    /// The suggestion list is still loading from the Language Server.
     Loading,
+    /// The suggestion list is loaded.
+    #[allow(missing_docs)]
     Loaded {
         list : Rc<Vec<Suggestion>>
     },
+    /// Loading suggestion list results in error.
     Error(Rc<failure::Error>)
 }
 
 impl Suggestions {
+    /// Check if suggestion list is still loading.
     pub fn is_loading(&self) -> bool {
         match self {
             Self::Loading => true,
@@ -32,6 +45,7 @@ impl Suggestions {
         }
     }
 
+    /// Check if retrieving suggestion list was unsuccessful
     pub fn is_error(&self) -> bool {
         match self {
             Self::Error(_) => true,
@@ -39,6 +53,7 @@ impl Suggestions {
         }
     }
 
+    /// Get the list of suggestions. Returns None if still loading or error was returned.
     pub fn list(&self) -> Option<&Vec<Suggestion>> {
         match self {
             Self::Loaded {list} => Some(list),
@@ -53,17 +68,38 @@ impl Default for Suggestions {
     }
 }
 
+
+
+// =====================
+// === Notifications ===
+// =====================
+
+/// The notification emitted by Searcher Controller
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
 pub enum Notification {
+    /// A new Suggestion list is available.
     NewList
 }
 
+
+
+// ===========================
+// === Searcher Controller ===
+// ===========================
+
+/// A controller state. Currently it caches the currently kept suggestions list and the current
+/// searcher input.
 #[derive(Clone,Debug,Default)]
 struct Data {
     current_input : String,
     current_list  : Suggestions,
 }
 
+/// Searcher Controller.
+///
+/// This is an object providing all required functionalities for Searcher View: mainly it is the
+/// suggestion list to display depending on the searcher input, and actions of picking one or
+/// accepting the Searcher input (pressing "Enter").
 #[derive(Clone,CloneRef,Debug)]
 pub struct Searcher {
     logger          : Logger,
@@ -76,6 +112,7 @@ pub struct Searcher {
 }
 
 impl Searcher {
+    /// Create new Searcher Controller.
     pub fn new
     ( parent   : impl AnyLogger
     , project  : &model::Project
@@ -95,19 +132,29 @@ impl Searcher {
         this
     }
 
+    /// Subscribe to controller's notifications.
     pub fn subscribe(&self) -> Subscriber<Notification> {
         self.notifier.subscribe()
     }
 
+    /// Get the current suggestion list.
     pub fn suggestions(&self) -> Suggestions {
         self.data.borrow().current_list.clone_ref()
     }
 
+    /// Set the Searcher Input.
+    ///
+    /// This function should be called each time user modifies Searcher input in view. It may result
+    /// in a new suggestion list (the aprriopriate notification will be emitted).
     pub fn set_input(&self, new_input:String) {
         self.data.borrow_mut().current_input = new_input;
         //TODO[ao] here goes refreshing suggestion list after input change.
     }
 
+    /// Reload Suggestion List.
+    ///
+    /// The current list will be set as "Loading" and Language Server will be requested for a new
+    /// list - once it be retrieved, the new list will be set and notification will be emitted.
     fn reload_list(&self) {
         let module      = self.module.deref().into();
         let self_type   = None;
@@ -190,7 +237,7 @@ mod test {
         };
         let entry1 = model::suggestion_database::Entry {
             name          : "TestFunction1".to_string(),
-            kind          : model::suggestion_database::Kind::Function,
+            kind          : model::suggestion_database::EntryKind::Function,
             module        : "Test.Test".to_string(),
             arguments     : vec![],
             return_type   : "Number".to_string(),

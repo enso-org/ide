@@ -780,6 +780,7 @@ impl NodeEditor {
         Ok(self)
     }
 
+    /// The path to the module, which graph is currently displayed.
     pub fn displayed_module(&self) -> model::module::Path {
         self.graph.model.controller.graph().module.path.clone_ref()
     }

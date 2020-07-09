@@ -1,5 +1,5 @@
 //! The module contains all structures for representing suggestions and their database.
-//!
+
 use crate::prelude::*;
 
 use enso_protocol::language_server;
@@ -11,27 +11,41 @@ pub use language_server::types::SuggestionEntryId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
 
 
+
 // =============
 // === Entry ===
 // =============
 
+/// A type of suggestion entry.
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
-pub enum Kind {
+#[allow(missing_docs)]
+pub enum EntryKind {
     Atom,Function,Local,Method
 }
 
+/// The Suggestion Database Entry.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct Entry {
-    pub name          : String,
-    pub kind          : Kind,
-    pub module        : String,
-    pub arguments     : Vec<Argument>,
-    pub return_type   : String,
+    /// A name of suggested object.
+    pub name : String,
+    /// A type of suggestion.
+    pub kind : EntryKind,
+    /// A module where the suggested object is defined.
+    pub module : String,
+    /// Argument lists of suggested object (atom or function). If the object does not take any
+    /// arguments, the list is empty.
+    pub arguments : Vec<Argument>,
+    /// A type returned by the suggested object.
+    pub return_type : String,
+    /// A documentation associated with object. If there is no documentation, the field is an empty
+    /// string.
     pub documentation : String,
-    pub self_type     : Option<String>,
+    /// A type of the "self" argument. This field is `None` for non-method suggestions.
+    pub self_type : Option<String>,
 }
 
 impl Entry {
+    /// Create entry from the structure deserialized from the Language Server responses.
     pub fn from_ls_entry(entry:language_server::types::SuggestionEntry) -> Self {
         use language_server::types::SuggestionEntry::*;
         match entry {
@@ -40,21 +54,21 @@ impl Entry {
                     name,module,arguments,return_type,
                     documentation : documentation.unwrap_or_default(),
                     self_type     : None,
-                    kind          : Kind::Atom,
+                    kind          : EntryKind::Atom,
                 },
             SuggestionEntryMethod {name,module,arguments,self_type,return_type,documentation} =>
                 Self {
                     name,module,arguments,return_type,
                     self_type     : Some(self_type),
                     documentation : documentation.unwrap_or_default(),
-                    kind          : Kind::Method,
+                    kind          : EntryKind::Method,
                 },
             SuggestionEntryFunction {name,module,arguments,return_type,..} =>
                 Self {
                     name,module,arguments,return_type,
                     self_type     : None,
                     documentation : default(),
-                    kind          : Kind::Function,
+                    kind          : EntryKind::Function,
                 },
             SuggestionEntryLocal {name,module,return_type,..} =>
                 Self {
@@ -62,7 +76,7 @@ impl Entry {
                     arguments     : default(),
                     self_type     : None,
                     documentation : default(),
-                    kind          : Kind::Local,
+                    kind          : EntryKind::Local,
                 },
         }
     }
@@ -129,6 +143,8 @@ impl SuggestionDatabase {
         self.version.set(event.current_version);
     }
 
+    /// Put the entry to the database. Using this function likely break the synchronization between
+    /// Language Server and IDE, and should be used only in tests.
     #[cfg(test)]
     pub fn put_entry(&self, id:EntryId, entry:Entry) {
         self.entries.borrow_mut().insert(id,Rc::new(entry));
