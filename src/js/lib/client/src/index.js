@@ -131,10 +131,19 @@ optParser.options('version', {
 
 function parseCmdArgs() {
     let argv = isDev ? process.argv.slice(process.argv.indexOf('--') + 1) : process.argv
-    if (process.platform == 'darwin') {
-        return optParser.parse("")
-    }
-    return optParser.parse(argv)
+    console.log(argv.length);
+    argv = ["info"]
+    console.log(argv.length);
+    console.log("ARGS:\n");
+    console.log(argv.toString());
+    console.log(optParser.parse(argv));
+    console.log(argv.shift());
+    console.log(optParser.parse(argv.shift()));
+    // if (process.platform == 'darwin') {
+    //     return optParser.parse("")
+    // }
+    //return optParser.parse(Array.prototype.shift.apply(argv))
+    return optParser.parse(argv.shift())
 }
 
 let args = parseCmdArgs()
