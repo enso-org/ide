@@ -27,19 +27,20 @@ use ensogl::animation::linear_interpolation;
 // === Constants ===
 // =================
 
-const HIGHLIGHTED_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,1.0);
-const DARK_GRAY_TEXT_COLOR   : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
+const TEXT_SIZE              : f32         = 16.0;
+const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 1.0);
+const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.6);
 
-/// Project name used as a placeholder in ProjectName view.
+/// Project name used as a placeholder in ProjectName view when it's initialized.
 pub const UNKNOWN_PROJECT_NAME:&str = "[UNKNOWN NAME]";
 
 
 
-// =============
-// === Shape ===
-// =============
+// ==================
+// === Background ===
+// ==================
 
-mod shape {
+mod background {
     use super::*;
 
     ensogl::define_shape_system! {
@@ -60,19 +61,19 @@ mod shape {
 #[allow(missing_docs)]
 pub struct FrpInputs {
     /// Rename the project.
-    pub rename     : frp::Source<String>,
+    pub name : frp::Source<String>,
     /// Reset the project name to the one before editing.
-    pub reset_name : frp::Source<()>
+    pub cancel_editing : frp::Source
 }
 
 impl FrpInputs {
     /// Create new FrpInputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            def reset_name = source();
-            def rename     = source();
+            def cancel_editing = source();
+            def name           = source();
         }
-        Self{reset_name,rename}
+        Self{cancel_editing,name}
     }
 }
 
@@ -86,45 +87,53 @@ impl FrpInputs {
 #[allow(missing_docs)]
 pub struct FrpOutputs {
     /// Emits the new project name when it's renamed.
-    pub renamed : frp::Source<String>
+    pub name : frp::Source<String>
 }
 
 impl FrpOutputs {
     /// Create new FrpOutputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            def renamed = source();
+            def name = source();
         }
-        Self{renamed}
+        Self{name}
     }
 }
+
+
 
 // ===========
 // === Frp ===
 // ===========
 
-#[derive(Debug,Clone,CloneRef,Shrinkwrap)]
+#[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct Frp {
-    #[shrinkwrap(main_field)]
     pub inputs  : FrpInputs,
     pub outputs : FrpOutputs,
     pub network : frp::Network,
 }
 
+impl Deref for Frp {
+    type Target = FrpInputs;
+    fn deref(&self) -> &Self::Target {
+        &self.inputs
+    }
+}
+
 impl Default for Frp {
     fn default() -> Self {
-        let network = frp::Network::new();
-        let inputs  = FrpInputs::new(&network);
-        let outputs = FrpOutputs::new(&network);
-        Self{network,inputs,outputs}
+        Self::new()
     }
 }
 
 impl Frp {
     /// Create new Frp.
     pub fn new() -> Self {
-        default()
+        let network = frp::Network::new();
+        let inputs  = FrpInputs::new(&network);
+        let outputs = FrpOutputs::new(&network);
+        Self{network,inputs,outputs}
     }
 }
 
@@ -137,16 +146,16 @@ impl Frp {
 /// ProjectName's animations handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    highlight   : Animation<f32>,
-    positioning : Animation<Vector3<f32>>
+    opacity  : Animation<f32>,
+    position : Animation<Vector3<f32>>
 }
 
 impl Animations {
     /// Create new animations handlers.
     pub fn new(network:&frp::Network) -> Self {
-        let highlight   = Animation::<_>::new(&network);
-        let positioning = Animation::<_>::new(&network);
-        Self{highlight,positioning}
+        let opacity = Animation::new(&network);
+        let position = Animation::new(&network);
+        Self{opacity,position}
     }
 }
 
@@ -161,11 +170,11 @@ impl Animations {
 pub struct ProjectNameModel {
     logger         : Logger,
     animations     : Animations,
-    view           : component::ShapeView<shape::Shape>,
     display_object : display::object::Instance,
+    view           : component::ShapeView<background::Shape>,
     text_field     : TextField,
     project_name   : Rc<RefCell<String>>,
-    renamed_output : frp::Source<String>,
+    name_output    : frp::Source<String>,
 }
 
 impl ProjectNameModel {
@@ -175,21 +184,22 @@ impl ProjectNameModel {
         let logger                = Logger::new("ProjectName");
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
-        let size                  = Vector2::new(600.0,100.0);
-        let base_color            = DARK_GRAY_TEXT_COLOR;
-        let text_size             = 16.0;
+        let size                  = Vector2::new(scene.camera().screen().width,TEXT_SIZE);
+        let base_color            = TRANSPARENT_TEXT_COLOR;
+        let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
         let text_field            = TextField::new(&world,text_field_properties);
         let view_logger           = Logger::sub(&logger,"view_logger");
-        let view                  = component::ShapeView::<shape::Shape>::new(&view_logger,scene);
+        let view                  = component::ShapeView::<background::Shape>::new(&view_logger, scene);
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
-        let renamed_output        = frp.outputs.renamed.clone();
+        let renamed_output        = frp.outputs.name.clone();
         let animations            = Animations::new(&frp.network);
-        Self{logger,view,display_object,text_field,project_name,renamed_output
-            ,animations}.initialize()
+        Self{logger,view,display_object,text_field,project_name,
+            name_output: renamed_output
+            ,animations}.init()
     }
 
-    fn setup_center_alignment(&self) {
+    fn update_center_alignment(&self) {
         let mut width = 0.0;
         self.text_field.with_mut_content(|content| {
             let mut line = content.line(0);
@@ -202,13 +212,15 @@ impl ProjectNameModel {
             self.text_field.with_content(|content| height = content.line_height);
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.view.set_position(Vector3::new(0.0,-height/2.0,0.0));
-        self.animations.positioning.set_target_value(offset);
+        self.animations.position.set_target_value(offset);
     }
 
-    fn initialize(self) -> Self {
+    fn init(self) -> Self {
         self.add_child(&self.text_field.display_object());
         self.add_child(&self.view);
         let project_name = self.clone_ref();
+        //FIXME[dg]: This section to check newline and keep TextField in a single line is hacky
+        // and should be removed once the new TextField is implemented.
         self.text_field.set_text_edit_callback(move |change| {
             // If the text edit callback is called, the TextEdit must be still alive.
             let field_content = project_name.text_field.get_content();
@@ -218,35 +230,35 @@ impl ProjectNameModel {
             }
             // Keep only one line.
             project_name.text_field.set_content(&new_name);
-            project_name.setup_center_alignment();
+            project_name.update_center_alignment();
         });
 
-        self.setup_text_field_content();
+        self.update_text_field_content();
         self
     }
 
     fn reset_name(&self) {
         info!(self.logger, "Resetting project name.");
-        self.setup_text_field_content();
+        self.update_text_field_content();
     }
 
-    fn setup_text_field_content(&self) {
+    fn update_text_field_content(&self) {
         self.text_field.set_content(&self.project_name.borrow());
-        self.setup_center_alignment();
+        self.update_center_alignment();
     }
 
-    fn highlight_text(&self) {
-        self.animations.highlight.set_target_value(1.0);
+    fn fade_in_text(&self) {
+        self.animations.opacity.set_target_value(1.0);
     }
 
-    fn darken_text(&self) {
+    fn fade_out_text(&self) {
         if !self.text_field.is_focused() {
-            self.animations.highlight.set_target_value(0.0);
+            self.animations.opacity.set_target_value(0.0);
         }
     }
 
-    fn set_highlight(&self, value:f32) {
-        let base_color = linear_interpolation(DARK_GRAY_TEXT_COLOR,HIGHLIGHTED_TEXT_COLOR,value);
+    fn set_opacity(&self, value:f32) {
+        let base_color = linear_interpolation(TRANSPARENT_TEXT_COLOR, TEXT_COLOR, value);
         self.text_field.set_base_color(base_color);
     }
 
@@ -257,8 +269,14 @@ impl ProjectNameModel {
     fn rename(&self, name:impl Str) {
         let name = name.into();
         *self.project_name.borrow_mut() = name.clone();
-        self.setup_text_field_content();
-        self.renamed_output.emit(name);
+        self.update_text_field_content();
+        self.name_output.emit(name);
+    }
+}
+
+impl display::Object for ProjectNameModel {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
     }
 }
 
@@ -284,26 +302,21 @@ impl ProjectName {
         let model   = Rc::new(ProjectNameModel::new(world,&frp));
         let network = &frp.network;
         frp::extend! { network
-            eval model.view.events.mouse_over((_) {model.highlight_text()});
-            eval model.view.events.mouse_out ((_) {model.darken_text()});
-            eval frp.inputs.reset_name((_) {model.reset_name()});
-            eval frp.inputs.rename((name) {model.rename(name)});
+            eval_ model.view.events.mouse_over(model.fade_in_text());
+            eval_ model.view.events.mouse_out (model.fade_out_text());
+            eval_ frp.inputs.cancel_editing(model.reset_name());
+            eval frp.inputs.name((name) {model.rename(name)});
         }
 
-        // Animations
+
+        // == Animations
 
         frp::extend! {network
-            eval model.animations.highlight.value((value) model.set_highlight(*value));
-            eval model.animations.positioning.value((value) model.set_position(*value));
+            eval model.animations.opacity.value((value) model.set_opacity(*value));
+            eval model.animations.position.value((value) model.set_position(*value));
         }
 
         Self{frp,model}
-    }
-}
-
-impl display::Object for ProjectNameModel {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
     }
 }
 

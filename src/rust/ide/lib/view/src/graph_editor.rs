@@ -95,8 +95,6 @@ impl<T:Clone> SharedVec<T> {
 
 
 
-
-
 // =====================
 // === SharedHashSet ===
 // =====================
@@ -542,7 +540,6 @@ generate_frp_outputs! {
 
 
 
-
 // ============
 // === Node ===
 // ============
@@ -969,6 +966,7 @@ pub struct GraphEditorModel {
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
+
 
 // === Public ===
 
@@ -1462,13 +1460,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let outputs        = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
+
     // === Cancel project name editing ===
 
     frp::extend! { network
-        eval inputs.cancel_project_name_editing((_) {
-            model.project_name.frp.reset_name.emit(())
-        });
+        eval_ inputs.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
     }
+
 
     // === Mouse Cursor Transform ===
     frp::extend! { network
@@ -1476,6 +1474,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             scene.screen_to_scene_coordinates(*position).xy()
         }));
     }
+
 
     // === Selection Target Redirection ===
     frp::extend! { network
@@ -1528,7 +1527,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                                            cursor_style_on_edge_drag_stop);
 
     }
-
 
 
     // === Node Select ===
@@ -1660,7 +1658,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
 
-
     // === Node Connect ===
 
     frp::extend! { network
@@ -1701,7 +1698,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval edge_to_drop ((id) model.remove_edge(id));
 
     }
-
 
 
     // === Remove Node ===
@@ -1893,6 +1889,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     });
 
 
+
     // ====================
     // === Cursor Style ===
     // ====================
@@ -1936,7 +1933,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 //    def _toggle_fullscreen = inputs.toggle_fullscreen_for_selected_visualization.map(f!([visualizations](_) {
 //        visualizations.toggle_fullscreen_for_selected_visualization();
 //    }));
-//
+
+
    // === Vis Set ===
 
    def _update_vis_data = inputs.set_visualization.map(f!([logger,nodes,scene,visualizations]((node_id,vis_path)) {
@@ -1961,6 +1959,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
        }
 
    }));
+
 
     // === Vis Update Data ===
 
@@ -2086,13 +2085,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     outputs.connection_removed <+ outputs.edge_removed;
 
 
-
     // === Status ===
 
     def is_active_src = source::<bool>();
     def is_empty_src  = source::<bool>();
     def is_active = is_active_src.sampler();
     def is_empty  = is_empty_src.sampler();
+
 
     // === Remove implementation ===
     outputs.node_removed <+ inputs.remove_node;
