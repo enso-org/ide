@@ -24,7 +24,7 @@ TODO: Add more description when visual part will be implemented.
 ### Suggestion of Node Expressions
 
 The suggestion list is obtained from the Engine using `search/completion` method of Language Server.
-The parameters of the call depends on the Current searcher input, picked suggestions so far, and
+The parameters of the call depend on the Current searcher input, suggestions picked suggestions so far, and
 if we add a node connected to selection. The current implementation can be found in 
 `ide::controller::searcher` module.
 
