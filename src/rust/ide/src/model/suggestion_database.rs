@@ -37,9 +37,8 @@ pub struct Entry {
     pub arguments : Vec<Argument>,
     /// A type returned by the suggested object.
     pub return_type : String,
-    /// A documentation associated with object. If there is no documentation, the field is an empty
-    /// string.
-    pub documentation : String,
+    /// A documentation associated with object.
+    pub documentation : Option<String>,
     /// A type of the "self" argument. This field is `None` for non-method suggestions.
     pub self_type : Option<String>,
 }
@@ -51,16 +50,14 @@ impl Entry {
         match entry {
             SuggestionEntryAtom {name,module,arguments,return_type,documentation} =>
                 Self {
-                    name,module,arguments,return_type,
-                    documentation : documentation.unwrap_or_default(),
+                    name,module,arguments,return_type,documentation,
                     self_type     : None,
                     kind          : EntryKind::Atom,
                 },
             SuggestionEntryMethod {name,module,arguments,self_type,return_type,documentation} =>
                 Self {
-                    name,module,arguments,return_type,
+                    name,module,arguments,return_type,documentation,
                     self_type     : Some(self_type),
-                    documentation : documentation.unwrap_or_default(),
                     kind          : EntryKind::Method,
                 },
             SuggestionEntryFunction {name,module,arguments,return_type,..} =>

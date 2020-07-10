@@ -9,6 +9,7 @@ use crate::model::module::NodeMetadata;
 use crate::model::module::Position;
 use crate::view::node_editor::NodeEditor;
 
+use data::text::TextLocation;
 use ensogl::data::color;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::text_field::TextField;
@@ -16,7 +17,6 @@ use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::world::World;
 use ensogl::display;
 use ensogl::traits::*;
-use data::text::TextLocation;
 
 
 #[derive(Clone,Debug,CloneRef)]
@@ -49,7 +49,6 @@ impl NodeSearcher {
             size       : Vector2::new(screen.width,16.0),
         };
         let text_field = TextField::new(world,properties);
-        display_object.add_child(&text_field.display_object());
         let controller = default();
         let searcher   = NodeSearcher{node_editor,display_object,project,controller,text_field,
             logger};
@@ -83,37 +82,46 @@ impl NodeSearcher {
 
     /// Show NodeSearcher if it is invisible.
     pub fn show(&mut self) {
-        self.display_object.add_child(&self.text_field.display_object());
-        self.text_field.clear_content();
-        self.text_field.set_focus();
-        let module     = self.node_editor.displayed_module();
-        //TODO[ao]: Now we use some predefined location, until this task will be done:
-        // https://github.com/enso-org/ide/issues/653 . This code should be replaced with
-        // the proper Searcher view integration anyway.
-        let position   = TextLocation { line:2, column:4 };
-        let controller = controller::Searcher::new(&self.logger,&*self.project,module,position);
-        let logger     = self.logger.clone_ref();
-        let weak       = Rc::downgrade(&self.controller);
-        executor::global::spawn(controller.subscribe().for_each(move |notification| {
-            if let Some(opt_controller) = weak.upgrade() {
-                if let Some(controller) = opt_controller.get() {
-                    match notification {
-                        controller::searcher::Notification::NewList => {
-                            let list = controller.suggestions();
-                            info!(logger,"New list in Searcher: {list:?}");
+        if !self.is_shown() {
+            self.display_object.add_child(&self.text_field.display_object());
+            self.text_field.clear_content();
+            self.text_field.set_focus();
+            let module     = self.node_editor.displayed_module();
+            //TODO[ao]: Now we use some predefined location, until this task will be done:
+            // https://github.com/enso-org/ide/issues/653 . This code should be replaced with
+            // the proper Searcher view integration anyway.
+            let position   = TextLocation { line:2, column:4 };
+            let controller = controller::Searcher::new(&self.logger,&*self.project,module,position);
+            let logger     = self.logger.clone_ref();
+            let weak       = Rc::downgrade(&self.controller);
+            executor::global::spawn(controller.subscribe().for_each(move |notification| {
+                if let Some(opt_controller) = weak.upgrade() {
+                    if let Some(controller) = opt_controller.get() {
+                        match notification {
+                            controller::searcher::Notification::NewSuggestionList => {
+                                let list = controller.suggestions();
+                                info!(logger,"New list in Searcher: {list:?}");
+                            }
                         }
                     }
                 }
-            }
-            futures::future::ready(())
-        }));
-        self.controller.set(Some(controller))
+                futures::future::ready(())
+            }));
+            self.controller.set(Some(controller))
+        }
     }
 
     /// Hide NodeSearcher if it is visible.
     pub fn hide(&mut self) {
-        self.text_field.clear_content();
-        self.display_object.remove_child(&self.text_field.display_object());
+        if self.is_shown() {
+            self.text_field.clear_content();
+            self.controller.set(None);
+            self.display_object.remove_child(&self.text_field.display_object());
+        }
+    }
+
+    pub fn is_shown(&self) -> bool {
+        self.text_field.display_object().has_parent()
     }
 }
 

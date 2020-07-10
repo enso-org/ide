@@ -236,12 +236,6 @@ impl QualifiedName {
     }
 }
 
-impl<'a> Into<&'a String> for &'a QualifiedName {
-    fn into(self) -> &'a String {
-        &self.0
-    }
-}
-
 
 
 // ====================

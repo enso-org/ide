@@ -78,7 +78,7 @@ impl Default for Suggestions {
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
 pub enum Notification {
     /// A new Suggestion list is available.
-    NewList
+    NewSuggestionList
 }
 
 
@@ -156,7 +156,7 @@ impl Searcher {
     /// The current list will be set as "Loading" and Language Server will be requested for a new
     /// list - once it be retrieved, the new list will be set and notification will be emitted.
     fn reload_list(&self) {
-        let module      = self.module.deref().into();
+        let module      = self.module.as_ref();
         let self_type   = None;
         let return_type = None;
         let tags        = None;
@@ -169,16 +169,16 @@ impl Searcher {
 
         self.data.borrow_mut().current_list = Suggestions::Loading;
         executor::global::spawn(async move {
-            info!(logger,"Requesting new suggestion list");
+            info!(logger,"Requesting new suggestion list.");
             let ls_response = request.await;
-            info!(logger,"Received suggestions from Language Server");
+            info!(logger,"Received suggestions from Language Server.");
             let new_list = match ls_response {
                 Ok(list) => {
                     let entry_ids   = list.results.into_iter();
                     let entries     = entry_ids.filter_map(|id| {
                         let entry = database.get(id);
                         if entry.is_none() {
-                            error!(logger,"Missing entry {id} in Suggestion Database");
+                            error!(logger,"Missing entry {id} in Suggestion Database.");
                         }
                         entry
                     });
@@ -188,7 +188,7 @@ impl Searcher {
                 Err(error) => Suggestions::Error(Rc::new(error.into()))
             };
             data.borrow_mut().current_list = new_list;
-            notifier.publish(Notification::NewList).await;
+            notifier.publish(Notification::NewSuggestionList).await;
         });
     }
 }
@@ -260,6 +260,7 @@ mod test {
         test.run_until_stalled();
         let expected_list = vec![Suggestion::Completion(entry1),Suggestion::Completion(entry2)];
         assert_eq!(searcher.suggestions().list(), Some(&expected_list));
-        assert_eq!(subscriber.next().boxed_local().expect_ready(), Some(Notification::NewList));
+        let notification = subscriber.next().boxed_local().expect_ready();
+        assert_eq!(notification, Some(Notification::NewSuggestionList));
     }
 }
