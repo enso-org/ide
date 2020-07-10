@@ -32,7 +32,7 @@ pub enum Suggestions {
     Loaded {
         list : Rc<Vec<Suggestion>>
     },
-    /// Loading suggestion list results in error.
+    /// Loading suggestion list resulted in error.
     Error(Rc<failure::Error>)
 }
 
