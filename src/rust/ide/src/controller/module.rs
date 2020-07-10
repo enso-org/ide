@@ -55,7 +55,7 @@ impl Handle {
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
         let content = self.model.serialized_content();
-        let path    = self.model.path.clone_ref();
+        let path    = self.model.path().clone_ref();
         let ls      = self.language_server.clone_ref();
         async move {
             let version = Sha3_224::new(content?.content.as_bytes());
@@ -192,10 +192,10 @@ mod test {
                 , (Span::new(Index::new(2),Size::new(1)),uuid3)
                 , (Span::new(Index::new(0),Size::new(3)),uuid4)
                 ]);
-            let ast    = parser.parse(code.to_string(),id_map)?.try_into()?;
+            let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
             let model  = model::module::Plain::new(location.clone_ref(),ast,default());
 
-            let controller = Handle::new(&logger,location,project.into()).unwrap();
+            let controller = Handle::new(&logger,location,&project.into()).await.unwrap();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(0),"2".to_string());

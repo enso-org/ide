@@ -7,6 +7,7 @@ use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::execution_context::VisualizationId;
+use crate::model::traits::*;
 
 use enso_protocol::language_server;
 use json_rpc::error::RpcError;
@@ -21,7 +22,7 @@ use json_rpc::error::RpcError;
 #[derive(Debug)]
 pub struct ExecutionContext {
     id              : model::execution_context::Id,
-    model           : model::ExecutionContext,
+    model           : model::execution_context::Plain,
     language_server : Rc<language_server::Connection>,
     logger          : Logger,
 }
@@ -47,7 +48,7 @@ impl ExecutionContext {
             info!(logger, "Creating.");
             let id     = language_server.client.create_execution_context().await?.context_id;
             let logger = Logger::sub(&parent,iformat!{"ExecutionContext {id}"});
-            let model  = model::ExecutionContext::new(&logger,root_definition);
+            let model  = model::execution_context::Plain::new(&logger,root_definition);
             info!(logger, "Created. Id: {id}.");
             let this = Self {id,model,language_server,logger };
             this.push_root_frame().await?;
@@ -81,33 +82,16 @@ impl ExecutionContext {
         let logger = self.logger.clone_ref();
         info!(logger,"About to detach visualization by id: {vis_id}.");
         ls.detach_visualisation(&exe_id,&vis_id,&ast_id).await?;
-        if let Err(err) = self.model.detach_visualization(vis_id) {
+        if let Err(err) = self.model.detach_visualization(vis_id).await {
             warning!(logger,"Failed to update model after detaching visualization: {err:?}.")
         }
         Ok(vis)
-    }
-
-    /// Attempt detaching all the currently active visualizations.
-    ///
-    /// The requests are made in parallel (not one by one). Any number of them might fail.
-    /// Results for each visualization that was attempted to be removed are returned.
-    pub async fn detach_all_visualizations(&self) -> Vec<FallibleResult<Visualization>> {
-        let visualizations = self.model.all_visualizations_info();
-        let detach_actions = visualizations.into_iter().map(|v| {
-            self.detach_visualization_inner(v)
-        });
-        futures::future::join_all(detach_actions).await
     }
 
     /// Handles the update about expressions being computed.
     pub fn handle_expression_values_computed
     (&self, notification:language_server::ExpressionValuesComputed) -> FallibleResult<()> {
         self.model.handle_expression_values_computed(notification)
-    }
-
-    /// Access the registry of computed values information, like types or called method pointers.
-    pub fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry {
-        &self.model.computed_value_info_registry
     }
 
     /// Create a mock which does no call on `language_server` during construction.
@@ -139,6 +123,11 @@ impl model::execution_context::API for ExecutionContext {
         self.model.active_visualizations()
     }
 
+    /// Access the registry of computed values information, like types or called method pointers.
+    fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry {
+        &self.model.computed_value_info_registry()
+    }
+
     fn push(&self, stack_item: LocalCall) -> LocalBoxFuture<FallibleResult<()>> {
         let expression_id = stack_item.call;
         let call          = language_server::LocalCall{expression_id};
@@ -148,9 +137,12 @@ impl model::execution_context::API for ExecutionContext {
     }
 
     fn pop(&self) -> LocalBoxFuture<FallibleResult<LocalCall>> {
-        let ret = self.model.pop()?;
+        let pop_future      = self.model.pop();
+        let id              = self.id;
+        let language_server = self.language_server.clone_ref();
         async move {
-            self.language_server.pop_from_execution_context(&self.id).await?;
+            let ret = pop_future.await?;
+            language_server.pop_from_execution_context(&id).await?;
             Ok(ret)
         }.boxed_local()
     }

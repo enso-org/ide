@@ -79,7 +79,7 @@ impl Handle {
     , project : model::Project
     , method  : MethodPointer
     ) -> FallibleResult<Self> {
-        let graph     = controller::Graph::new_method(parent,&*project,&method).await?;
+        let graph     = controller::Graph::new_method(parent,&project,&method).await?;
         let execution = project.create_execution_context(method.clone()).await?;
         Ok(Self::new_internal(graph,project,execution))
     }

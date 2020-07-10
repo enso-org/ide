@@ -382,7 +382,7 @@ pub trait API {
     /// If ID doesn't have metadata, empty (default) metadata is inserted. Inside callback you
     /// should use only the data passed as argument; don't use functions of this controller for
     /// getting and setting metadata for the same node.
-    fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata));
+    fn with_node_metadata(&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata)>);
 }
 
 pub type Plain        = plain::Module;

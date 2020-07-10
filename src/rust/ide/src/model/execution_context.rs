@@ -249,6 +249,9 @@ pub trait API {
     /// Returns IDs of all active visualizations.
     fn active_visualizations(&self) -> Vec<VisualizationId>;
 
+    /// Get the registry of computed values.
+    fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry;
+
     /// Push a new stack item to execution context.
     fn push(&self, stack_item:LocalCall) -> LocalBoxFuture<FallibleResult<()>>;
 
@@ -269,6 +272,18 @@ pub trait API {
 
     fn dispatch_visualization_update
     (&self, visualization_id:VisualizationId, data:VisualizationUpdateData) -> FallibleResult<()>;
+
+    /// Attempt detaching all the currently active visualizations.
+    ///
+    /// The requests are made in parallel (not one by one). Any number of them might fail.
+    /// Results for each visualization that was attempted to be removed are returned.
+    fn detach_all_visualizations(&self) -> LocalBoxFuture<Vec<FallibleResult<Visualization>>> {
+        let visualizations = self.all_visualizations_info();
+        let detach_actions = visualizations.into_iter().map(|v| {
+            self.detach_visualization_inner(v)
+        });
+        futures::future::join_all(detach_actions).boxed_local()
+    }
 }
 
 pub type Plain = plain::ExecutionContext;

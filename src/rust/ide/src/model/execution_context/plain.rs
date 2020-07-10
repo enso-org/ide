@@ -82,6 +82,10 @@ impl model::execution_context::API for ExecutionContext {
         self.visualizations.borrow().keys().copied().collect_vec()
     }
 
+    fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry {
+        &self.computed_value_info_registry
+    }
+
     fn push(&self, stack_item:LocalCall)  {
         self.stack.borrow_mut().push(stack_item);
         self.computed_value_info_registry.clear();
@@ -104,10 +108,13 @@ impl model::execution_context::API for ExecutionContext {
         receiver
     }
 
-    fn detach_visualization(&self, id:VisualizationId) -> FallibleResult<Visualization> {
+    fn detach_visualization
+    (&self, id:VisualizationId) -> LocalBoxFuture<FallibleResult<Visualization>> {
         let err = || InvalidVisualizationId(id);
         info!(self.logger,"Removing from the registry: {id}.");
-        Ok(self.visualizations.borrow_mut().remove(&id).ok_or_else(err)?.visualization)
+        let removed = self.visualizations.borrow_mut().remove(&id);
+        let removed = removed.ok_or_else(err).map(|v| v.visualization);
+        futures::future::ready(removed).boxed_local()
     }
 
     fn dispatch_visualization_update
