@@ -893,6 +893,7 @@ impl Deref for GraphEditorModelWithNetwork {
 }
 
 impl GraphEditorModelWithNetwork {
+    //FIXME[dg]: Use `impl Into<Scene>` instead of `&World` when the new TextField is implemented.
     pub fn new(world:&World, cursor:cursor::Cursor) -> Self {
         let network = frp::Network::new();
         let model   = GraphEditorModel::new(world,cursor,&network);
