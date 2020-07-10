@@ -41,6 +41,10 @@ let optParser = yargs
     .help()
     .version(false)
     .parserConfiguration({'populate--':true})
+//  FIXME [MM]
+//  This modifier crashes Enso Studio on macOS 11, To test if it works 
+//  again in next macOS betas - temporarily solves #650
+//  .strict()
 
 
 // === Config Options ===
