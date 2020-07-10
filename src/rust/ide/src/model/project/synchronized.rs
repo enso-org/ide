@@ -1,14 +1,19 @@
 use crate::prelude::*;
-use enso_protocol::{language_server, binary};
-use crate::controller::Visualization;
-use crate::model::SuggestionDatabase;
-use parser::Parser;
-use crate::model::module::Path;
-use enso_protocol::language_server::{MethodPointer, CapabilityRegistration, Connection};
+
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::execution_context;
 use crate::model::module;
+use crate::model::SuggestionDatabase;
+use crate::model::traits::*;
+
+use enso_protocol::binary;
 use enso_protocol::binary::message::VisualisationContext;
+use enso_protocol::language_server;
+use enso_protocol::language_server::CapabilityRegistration;
+use enso_protocol::language_server::MethodPointer;
+use parser::Parser;
+
+
 
 // =================================
 // === ExecutionContextsRegistry ===
@@ -78,10 +83,10 @@ impl ExecutionContextsRegistry {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct Project {
-    pub name                : Rc<String>,
+    pub name                : ImString,
     pub language_server_rpc : Rc<language_server::Connection>,
     pub language_server_bin : Rc<binary::Connection>,
-    pub visualization       : Visualization,
+    pub visualization       : controller::Visualization,
     pub module_registry     : Rc<model::registry::Registry<module::Path,module::Synchronized>>,
     pub execution_contexts  : Rc<ExecutionContextsRegistry>,
     pub suggestion_db       : Rc<SuggestionDatabase>,
@@ -103,8 +108,8 @@ impl Project {
         let json_rpc_events         = language_server_rpc.events();
         let embedded_visualizations = default();
         let language_server         = language_server_rpc.clone();
-        let visualization           = Visualization::new(language_server,embedded_visualizations);
-        let name                    = Rc::new(name.into());
+        let visualization           = controller::Visualization::new(language_server,embedded_visualizations);
+        let name                    = ImString::new(name.into());
         let module_registry         = default();
         let execution_contexts      = default();
         let parser                  = Parser::new_or_panic();
@@ -128,9 +133,9 @@ impl Project {
     /// Create a project model from owned LS connections.
     pub fn from_connections
     ( parent              : impl AnyLogger
-      , language_server_rpc : language_server::Connection
-      , language_server_bin : binary::Connection
-      , project_name        : impl Str
+    , language_server_rpc : language_server::Connection
+    , language_server_bin : binary::Connection
+    , project_name        : impl Str
     ) -> impl Future<Output=FallibleResult<Self>> {
         let language_server_rpc = Rc::new(language_server_rpc);
         let language_server_bin = Rc::new(language_server_bin);
@@ -232,10 +237,10 @@ impl Project {
     }
 
     fn load_module(&self, path:module::Path)
-    -> impl Future<Output=FallibleResult<model::Module>> {
+    -> impl Future<Output=FallibleResult<Rc<module::Synchronized>>> {
         let language_server = self.language_server_rpc.clone_ref();
         let parser          = self.parser.clone_ref();
-        model::module::Synchronized::open(path,language_server,parser).map(|rc| model::Module{rc})
+        module::Synchronized::open(path,language_server,parser)
     }
 }
 
@@ -244,11 +249,11 @@ impl model::project::API for Project {
         self.name.clone_ref()
     }
 
-    fn json_rpc(&self) -> Rc<Connection> {
+    fn json_rpc(&self) -> Rc<language_server::Connection> {
         self.language_server_rpc.clone_ref()
     }
 
-    fn binary_rpc(&self) -> Rc<Connection> {
+    fn binary_rpc(&self) -> Rc<binary::Connection> {
         self.language_server_bin.clone_ref()
     }
 
@@ -256,25 +261,27 @@ impl model::project::API for Project {
         &self.parser
     }
 
-    fn module(&self, path: Path) -> LocalBoxFuture<FallibleResult<model::Module>> {
-        info!(self.logger,"Obtaining module for {path}");
-        let model_loader = self.load_module(path.clone());
-        let registry     = self.module_registry.clone_ref();
+    fn visualization(&self) -> &controller::Visualization {
+        &self.visualization
+    }
+
+    fn module(&self, path: module::Path) -> BoxFuture<FallibleResult<model::Module>> {
         async move {
-            let model = registry.get_or_load(path,model_loader).await?;
+            info!(self.logger,"Obtaining module for {path}");
+            let model_loader = self.load_module(path.clone());
+            let model:Rc<module::Synchronized> = self.module_registry.get_or_load(path,model_loader).await?;
             Ok(model.into())
-        }
+        }.boxed_local()
     }
 
     fn create_execution_context
-    (&self, root_definition:MethodPointer) -> LocalBoxFuture<FallibleResult<model::ExecutionContext>> {
-        let ls_rpc   = self.language_server_rpc.clone_ref();
-        let registry = self.execution_contexts.clone_ref();
-        let context  = model::execution_context::Synchronized::create(&self.logger,ls_rpc,root_definition);
+    (&self, root_definition:MethodPointer) -> BoxFuture<FallibleResult<model::ExecutionContext>> {
         async move {
-            let context = context.await?;
-            let context = Rc::new(context);
-            registry.insert(context);
+            let logger  = &self.logger;
+            let ls_rpc  = self.language_server_rpc.clone_ref();
+            let context = execution_context::Synchronized::create(&logger,ls_rpc,root_definition);
+            let context = Rc::new(context.await?);
+            self.execution_contexts.insert(context.clone_ref());
             Ok(context.into())
         }.boxed_local()
     }

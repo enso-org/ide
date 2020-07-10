@@ -1,7 +1,16 @@
+//! Module with plain Execution Context Model (without any synchronization).
+
 use crate::prelude::*;
-use enso_protocol::language_server::{MethodPointer, ExpressionValuesComputed};
-use crate::model::execution_context::{LocalCall, VisualizationId, AttachedVisualization, ComputedValueInfoRegistry, Visualization, VisualizationUpdateData};
-use websocket::futures::unsync::mpsc::UnboundedReceiver;
+
+use crate::model::execution_context::AttachedVisualization;
+use crate::model::execution_context::ComputedValueInfoRegistry;
+use crate::model::execution_context::LocalCall;
+use crate::model::execution_context::Visualization;
+use crate::model::execution_context::VisualizationId;
+use crate::model::execution_context::VisualizationUpdateData;
+
+use enso_protocol::language_server::MethodPointer;
+use futures::future::LocalBoxFuture;
 
 
 // ==============
@@ -57,7 +66,48 @@ impl ExecutionContext {
         Self {logger,entry_point,stack,visualizations, computed_value_info_registry }
     }
 
+    /// Push a new stack item to execution context.
+    ///
+    /// This function shadows the asynchronous version from API trait.
+    pub fn push(&self, stack_item:LocalCall)  {
+        self.stack.borrow_mut().push(stack_item);
+        self.computed_value_info_registry.clear();
+    }
 
+    /// Pop the last stack item from this context. It returns error when only root call remains.
+    ///
+    /// This function shadows the asynchronous version from API trait.
+    pub fn pop(&self) -> FallibleResult<LocalCall> {
+        let ret = self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
+        self.computed_value_info_registry.clear();
+        Ok(ret)
+    }
+
+    /// Attach a new visualization for current execution context. Returns a stream of visualization
+    /// update data received from the server.
+    ///
+    /// This function shadows the asynchronous version from API trait.
+    pub fn attach_visualization
+    (&self, visualization:Visualization)
+     -> futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData> {
+        let id                       = visualization.id;
+        let (update_sender,receiver) = futures::channel::mpsc::unbounded();
+        let visualization            = AttachedVisualization {visualization,update_sender};
+        info!(self.logger,"Inserting to the registry: {id}.");
+        self.visualizations.borrow_mut().insert(id,visualization);
+        receiver
+    }
+
+    /// Detach the visualization from this execution context.
+    ///
+    /// This function shadows the asynchronous version from API trait.
+    pub fn detach_visualization
+    (&self, id:VisualizationId) -> FallibleResult<Visualization> {
+        let err = || InvalidVisualizationId(id);
+        info!(self.logger,"Removing from the registry: {id}.");
+        let removed = self.visualizations.borrow_mut().remove(&id).ok_or_else(err)?;
+        Ok(removed.visualization)
+    }
 }
 
 impl model::execution_context::API for ExecutionContext {
@@ -86,35 +136,28 @@ impl model::execution_context::API for ExecutionContext {
         &self.computed_value_info_registry
     }
 
-    fn push(&self, stack_item:LocalCall)  {
-        self.stack.borrow_mut().push(stack_item);
-        self.computed_value_info_registry.clear();
+    fn stack_items<'a>(&'a self) -> Box<dyn Iterator<Item=LocalCall> + 'a> {
+        let stack_size = self.stack.borrow().len();
+        Box::new((0..stack_size).filter_map(move |i| self.stack.borrow().get(i).cloned()))
     }
 
-    fn pop(&self) -> FallibleResult<LocalCall> {
-        let ret = self.stack.borrow_mut().pop().ok_or_else(PopOnEmptyStack)?;
-        self.computed_value_info_registry.clear();
-        Ok(ret)
+    fn push(&self, stack_item:LocalCall) -> LocalBoxFuture<'_, FallibleResult<()>> {
+        futures::future::ready(Ok(self.push(stack_item))).boxed_local()
+    }
+
+    fn pop(&self) -> LocalBoxFuture<'_, FallibleResult<LocalCall>> {
+        futures::future::ready(self.pop()).boxed_local()
     }
 
     fn attach_visualization
     (&self, visualization:Visualization)
-    -> futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData> {
-        let id                       = visualization.id;
-        let (update_sender,receiver) = futures::channel::mpsc::unbounded();
-        let visualization            = AttachedVisualization {visualization,update_sender};
-        info!(self.logger,"Inserting to the registry: {id}.");
-        self.visualizations.borrow_mut().insert(id,visualization);
-        receiver
+    -> LocalBoxFuture<FallibleResult<futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData>>> {
+        futures::future::ready(Ok(self.attach_visualization(visualization))).boxed_local()
     }
 
     fn detach_visualization
-    (&self, id:VisualizationId) -> LocalBoxFuture<FallibleResult<Visualization>> {
-        let err = || InvalidVisualizationId(id);
-        info!(self.logger,"Removing from the registry: {id}.");
-        let removed = self.visualizations.borrow_mut().remove(&id);
-        let removed = removed.ok_or_else(err).map(|v| v.visualization);
-        futures::future::ready(removed).boxed_local()
+    (&self, id:VisualizationId) -> LocalBoxFuture<'_, FallibleResult<Visualization>> {
+        futures::future::ready(self.detach_visualization(id)).boxed_local()
     }
 
     fn dispatch_visualization_update

@@ -100,7 +100,7 @@ impl ViewLayout {
     , text_controller          : controller::Text
     , graph_controller         : controller::ExecutedGraph
     , visualization_controller : controller::Visualization
-    , project                  : Rc<model::Project>
+    , project                  : model::Project
     , fonts                    : &mut font::Registry
     ) -> FallibleResult<Self> {
         let logger        = Logger::sub(logger,"ViewLayout");

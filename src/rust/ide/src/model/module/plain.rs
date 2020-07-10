@@ -1,3 +1,5 @@
+//! The plain Module Model.
+
 use crate::prelude::*;
 
 use parser::api::{ParsedSourceFile, SourceFile};
@@ -17,21 +19,14 @@ use parser::Parser;
 /// (text and graph).
 #[derive(Debug)]
 pub struct Module {
-    path          : model::module::Path,
+    path          : Path,
     content       : RefCell<Content>,
     notifications : notification::Publisher<Notification>,
 }
 
-impl Default for Module {
-    fn default() -> Self {
-        let ast = ast::known::Module::new(ast::Module{lines:default()},None);
-        Self::new(ast,default())
-    }
-}
-
 impl Module {
     /// Create state with given content.
-    pub fn new(path:model::module::Path, ast:ast::known::Module, metadata:Metadata) -> Self {
+    pub fn new(path:Path, ast:ast::known::Module, metadata:Metadata) -> Self {
         Module {
             path,
             content       : RefCell::new(ParsedSourceFile{ast,metadata}),
@@ -42,7 +37,7 @@ impl Module {
     /// Create module state from given code, id_map and metadata.
     #[cfg(test)]
     pub fn from_code_or_panic<S:ToString>
-    (path:model::module::Path, code:S, id_map:ast::IdMap, metadata:Metadata) -> Self {
+    (path:Path, code:S, id_map:ast::IdMap, metadata:Metadata) -> Self {
         let parser = parser::Parser::new_or_panic();
         let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
         Self::new(path,ast,metadata)
@@ -53,9 +48,6 @@ impl Module {
         executor::global::spawn(notify);
     }
 }
-
-
-// === Access to Module Content ===
 
 impl model::module::API for Module {
     fn subscribe(&self) -> Subscriber<Notification> {
@@ -118,7 +110,7 @@ impl model::module::API for Module {
         Ok(data)
     }
 
-    fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata)) {
+    fn with_node_metadata(&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) {
         let lookup   = self.content.borrow_mut().metadata.ide.node.remove(&id);
         let mut data = lookup.unwrap_or_default();
         fun(&mut data);

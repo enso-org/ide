@@ -98,7 +98,8 @@ impl IdeInitializer {
         crate::executor::global::spawn(client_binary.runner());
         let connection_json   = language_server::Connection::new(client_json,client_id).await?;
         let connection_binary = binary::Connection::new(client_binary,client_id).await?;
-        model::Project::from_connections(logger,connection_json,connection_binary,project_name).await
+        let project           = model::project::Synchronized::from_connections(logger,connection_json,connection_binary,project_name).await?;
+        Ok(project.into())
     }
 
     /// Creates a new project and returns its metadata, so the newly connected project can be
@@ -180,7 +181,7 @@ impl IdeInitializer {
             Self::get_most_recent_project_or_create_new(logger,project_manager,project_name).await?
         };
         let project = Self::open_project(logger,project_manager,&project_metadata).await?;
-        Ok(ProjectView::new(logger,Rc::new(project)).await?)
+        Ok(ProjectView::new(logger,project).await?)
     }
 
     /// This function initializes the project manager, creates the project view and forget IDE

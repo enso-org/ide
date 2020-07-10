@@ -2,20 +2,24 @@
 
 use crate::prelude::*;
 
-use crate::model::module::{Notification, NodeMetadata, Path};
+use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::graph::Id;
+use crate::model::module::API;
+use crate::model::module::Content;
+use crate::model::module::Notification;
+use crate::model::module::NodeMetadata;
+use crate::model::module::Path;
 
+use ast::IdMap;
+use data::text::TextChange;
+use data::text::TextLocation;
 use enso_protocol::types::Sha3_224;
 use enso_protocol::language_server;
-use data::text::{TextLocation, TextChange};
+use enso_protocol::language_server::TextEdit;
+use flo_stream::Subscriber;
 use parser::api::SourceFile;
 use parser::Parser;
-use enso_protocol::language_server::TextEdit;
-use ast::IdMap;
-use flo_stream::Subscriber;
-use crate::double_representation::graph::Id;
-use crate::double_representation::definition::DefinitionInfo;
-use crate::model::module::Content;
-use crate::model::module::API;
+
 
 
 // =======================
@@ -92,10 +96,7 @@ impl LanguageServerContent {
 /// [https://github.com/luna/enso/blob/main/docs/language-server/protocol-language-server.md].
 #[derive(Debug)]
 pub struct Module {
-    /// Path to the module file.
-    pub path        : model::module::Path,
-    /// The module handle.
-    pub model       : model::module::Plain,
+    model           : model::module::Plain,
     language_server : Rc<language_server::Connection>,
     logger          : Logger,
 }
@@ -109,7 +110,7 @@ impl Module {
     /// This function will open the module in Language Server and schedule task which will send
     /// updates about module's change to Language Server.
     pub async fn open
-    ( path            : model::module::Path
+    ( path            : Path
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
     ) -> FallibleResult<Rc<Self>> {
@@ -124,20 +125,20 @@ impl Module {
         let source  = parser.parse_with_metadata(opened.content)?;
         let digest  = opened.current_version;
         let summary = ContentSummary {digest,end_of_file};
-        let model   = model::module::Plain::new(source.ast,source.metadata);
-        let this    = Rc::new(Module {path,model,language_server,logger});
+        let model   = model::module::Plain::new(path,source.ast,source.metadata);
+        let this    = Rc::new(Module {model,language_server,logger});
         executor::global::spawn(Self::runner(this.clone_ref(),summary));
         Ok(this)
     }
 
     /// Create a module mock.
-    pub fn mock(path:model::module::Path, model:model::module::Plain) -> Rc<Self> {
-        let logger = Logger::new(iformat!("Mocked Module {path}"));
+    pub fn mock(model:model::module::Plain) -> Rc<Self> {
+        let logger = Logger::new(iformat!("Mocked Module {model.path()}"));
         let client = language_server::MockClient::default();
         client.expect.close_text_file(|_| Ok(()));
         // We don't expect any other call, because we don't execute `runner()`.
         let language_server = language_server::Connection::new_mock_rc(client);
-        Rc::new(Module{path,model,language_server,logger})
+        Rc::new(Module{model,language_server,logger})
     }
 }
 
@@ -187,7 +188,7 @@ impl API for Module {
         self.model.remove_node_metadata(id)
     }
 
-    fn with_node_metadata(&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata)) {
+    fn with_node_metadata(&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) {
         self.model.with_node_metadata(id,fun)
     }
 }
@@ -289,7 +290,7 @@ impl Module {
         let content = self.model.serialized_content()?;
         let summary = ParsedContentSummary::from_source(&content);
         let edit    = language_server::types::FileEdit {
-            path        : self.path.file_path().clone(),
+            path        : self.path().file_path().clone(),
             edits       : edits_constructor(content),
             old_version : ls_content.digest.clone(),
             new_version : summary.digest.clone()
@@ -302,7 +303,7 @@ impl Module {
 
 impl Drop for Module {
     fn drop(&mut self) {
-        let file_path       = self.path.file_path().clone();
+        let file_path       = self.path().file_path().clone();
         let language_server = self.language_server.clone_ref();
         let logger          = self.logger.clone_ref();
         executor::global::spawn(async move {

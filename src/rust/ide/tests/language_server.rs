@@ -296,64 +296,64 @@ async fn setup_project() -> Project {
     ide::IdeInitializer::open_project(&logger,&pm,&project_metadata).await.expect(error_msg)
 }
 
-//#[wasm_bindgen_test::wasm_bindgen_test(async)]
-#[allow(dead_code)]
-/// This integration test covers writing and reading a file using the binary protocol
-async fn binary_protocol_test() {
-    let _guard   = ide::ide::setup_global_executor();
-    let project  = setup_project().await;
-    println!("Got project: {:?}",project);
-    let path     = Path::new(project.language_server_rpc.content_root(), &["test_file.txt"]);
-    let contents = "Hello!".as_bytes();
-    let written  = project.language_server_bin.write_file(&path,contents).await.unwrap();
-    println!("Written: {:?}", written);
-    let read_back = project.language_server_bin.read_file(&path).await.unwrap();
-    println!("Read back: {:?}", read_back);
-    assert_eq!(contents, read_back.as_slice());
-}
+// //#[wasm_bindgen_test::wasm_bindgen_test(async)]
+// #[allow(dead_code)]
+// /// This integration test covers writing and reading a file using the binary protocol
+// async fn binary_protocol_test() {
+//     let _guard   = ide::ide::setup_global_executor();
+//     let project  = setup_project().await;
+//     println!("Got project: {:?}",project);
+//     let path     = Path::new(project.language_server_rpc.content_root(), &["test_file.txt"]);
+//     let contents = "Hello!".as_bytes();
+//     let written  = project.language_server_bin.write_file(&path,contents).await.unwrap();
+//     println!("Written: {:?}", written);
+//     let read_back = project.language_server_bin.read_file(&path).await.unwrap();
+//     println!("Read back: {:?}", read_back);
+//     assert_eq!(contents, read_back.as_slice());
+// }
 
-/// The future that tests attaching visualization and routing its updates.
-async fn binary_visualization_updates_test_hlp() {
-    let project  = Rc::new(setup_project().await);
-    println!("Got project: {:?}", project);
-
-    let expression = "x -> x.json_serialize";
-
-    use ensogl::system::web::sleep;
-    use ide::view::project::MAIN_DEFINITION_NAME;
-
-    let logger      = Logger::new("Test");
-    let module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
-    let method                = module_path.method_pointer(MAIN_DEFINITION_NAME);
-    let module_qualified_name = project.qualified_module_name(&module_path);
-    let module                = project.module(module_path).await.unwrap();
-    println!("Got module: {:?}", module);
-    let graph_executed        = controller::ExecutedGraph::new(&logger,project,method).await.unwrap();
-
-    let the_node = graph_executed.graph().nodes().unwrap()[0].info.clone();
-    graph_executed.graph().set_expression(the_node.id(), "10+20").unwrap();
-
-    // We must yield control for a moment, so the text edit is applied.
-    sleep(Duration::from_millis(1)).await;
-
-    println!("Main graph: {:?}", graph_executed);
-    println!("The code is: {:?}", module.ast().repr());
-    println!("Main node: {:?} with {}", the_node, the_node.expression().repr());
-
-    let visualization = Visualization::new(the_node.id(),expression,module_qualified_name);
-    let     stream    = graph_executed.attach_visualization(visualization.clone()).await.unwrap();
-    println!("Attached the visualization {}", visualization.id);
-    let mut stream    = stream.boxed_local();
-    let first_event = stream.next().await.unwrap(); // await update
-    assert_eq!(first_event.as_ref(), "30".as_bytes());
-}
-
-//#[wasm_bindgen_test]
-#[allow(dead_code)]
-/// This integration test covers attaching visualizations and receiving their updates.
-fn binary_visualization_updates_test() {
-    let executor = ide::executor::web::EventLoopExecutor::new_running();
-    ide::executor::global::set_spawner(executor.spawner.clone());
-    executor.spawn_local(binary_visualization_updates_test_hlp()).unwrap();
-    std::mem::forget(executor);
-}
+// /// The future that tests attaching visualization and routing its updates.
+// async fn binary_visualization_updates_test_hlp() {
+//     let project  = Rc::new(setup_project().await);
+//     println!("Got project: {:?}", project);
+//
+//     let expression = "x -> x.json_serialize";
+//
+//     use ensogl::system::web::sleep;
+//     use ide::view::project::MAIN_DEFINITION_NAME;
+//
+//     let logger      = Logger::new("Test");
+//     let module_path = project.module_path_from_qualified_name(&[INITIAL_MODULE_NAME]).unwrap();
+//     let method                = module_path.method_pointer(MAIN_DEFINITION_NAME);
+//     let module_qualified_name = project.qualified_module_name(&module_path);
+//     let module                = project.module(module_path).await.unwrap();
+//     println!("Got module: {:?}", module);
+//     let graph_executed        = controller::ExecutedGraph::new(&logger,project,method).await.unwrap();
+//
+//     let the_node = graph_executed.graph().nodes().unwrap()[0].info.clone();
+//     graph_executed.graph().set_expression(the_node.id(), "10+20").unwrap();
+//
+//     // We must yield control for a moment, so the text edit is applied.
+//     sleep(Duration::from_millis(1)).await;
+//
+//     println!("Main graph: {:?}", graph_executed);
+//     println!("The code is: {:?}", module.ast().repr());
+//     println!("Main node: {:?} with {}", the_node, the_node.expression().repr());
+//
+//     let visualization = Visualization::new(the_node.id(),expression,module_qualified_name);
+//     let     stream    = graph_executed.attach_visualization(visualization.clone()).await.unwrap();
+//     println!("Attached the visualization {}", visualization.id);
+//     let mut stream    = stream.boxed_local();
+//     let first_event = stream.next().await.unwrap(); // await update
+//     assert_eq!(first_event.as_ref(), "30".as_bytes());
+// }
+//
+// //#[wasm_bindgen_test]
+// #[allow(dead_code)]
+// /// This integration test covers attaching visualizations and receiving their updates.
+// fn binary_visualization_updates_test() {
+//     let executor = ide::executor::web::EventLoopExecutor::new_running();
+//     ide::executor::global::set_spawner(executor.spawner.clone());
+//     executor.spawn_local(binary_visualization_updates_test_hlp()).unwrap();
+//     std::mem::forget(executor);
+// }

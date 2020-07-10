@@ -1,4 +1,5 @@
 //! This module consists of all structures describing Execution Context.
+
 pub mod plain;
 pub mod synchronized;
 
@@ -15,7 +16,7 @@ use enso_protocol::language_server::VisualisationConfiguration;
 use flo_stream::Subscriber;
 use std::collections::HashMap;
 use uuid::Uuid;
-use wasm_bindgen::__rt::std::process::exit;
+
 
 
 // ===============
@@ -235,7 +236,8 @@ pub struct AttachedVisualization {
 // === Model ===
 // =============
 
-pub trait API {
+/// Execution Context Model API.
+pub trait API : Debug {
     /// Obtain the method pointer to the method of the call stack's top frame.
     fn current_method(&self) -> MethodPointer;
 
@@ -252,24 +254,28 @@ pub trait API {
     /// Get the registry of computed values.
     fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry;
 
-    /// Push a new stack item to execution context.
-    fn push(&self, stack_item:LocalCall) -> LocalBoxFuture<FallibleResult<()>>;
+    /// Get all items on stack.
+    fn stack_items<'a>(&'a self) -> Box<dyn Iterator<Item=LocalCall> + 'a>;
 
-    /// Pop the last stack item from this context. It returns error when only root call
-    /// remains.
-    fn pop(&self) -> LocalBoxFuture<FallibleResult<LocalCall>>;
+    /// Push a new stack item to execution context.
+    fn push(&self, stack_item:LocalCall) -> BoxFuture<FallibleResult<()>>;
+
+    /// Pop the last stack item from this context. It returns error when only root call remains.
+    fn pop(&self) -> BoxFuture<FallibleResult<LocalCall>>;
 
     /// Attach a new visualization for current execution context.
     ///
     /// Returns a stream of visualization update data received from the server.
     fn attach_visualization
     (&self, visualization:Visualization)
-    -> LocalBoxFuture<FallibleResult<futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData>>>;
+    -> BoxFuture<FallibleResult<futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData>>>;
 
     /// Detach the visualization from this execution context.
     fn detach_visualization
-    (&self, id:VisualizationId) -> LocalBoxFuture<FallibleResult<Visualization>>;
+    (&self, id:VisualizationId) -> BoxFuture<FallibleResult<Visualization>>;
 
+    /// Dispatches the visualization update data (typically received from as LS binary notification)
+    /// to the respective's visualization update channel.
     fn dispatch_visualization_update
     (&self, visualization_id:VisualizationId, data:VisualizationUpdateData) -> FallibleResult<()>;
 
@@ -277,27 +283,35 @@ pub trait API {
     ///
     /// The requests are made in parallel (not one by one). Any number of them might fail.
     /// Results for each visualization that was attempted to be removed are returned.
-    fn detach_all_visualizations(&self) -> LocalBoxFuture<Vec<FallibleResult<Visualization>>> {
-        let visualizations = self.all_visualizations_info();
-        let detach_actions = visualizations.into_iter().map(|v| {
-            self.detach_visualization_inner(v)
+    fn detach_all_visualizations(&self) -> BoxFuture<Vec<FallibleResult<Visualization>>> {
+        let visualizations = self.active_visualizations();
+        let detach_actions = visualizations.into_iter().map(move |v| {
+            self.detach_visualization(v)
         });
         futures::future::join_all(detach_actions).boxed_local()
     }
 }
 
+/// Execution Context Model which does not do anything besides storing data.
 pub type Plain = plain::ExecutionContext;
+/// Execution Context Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::ExecutionContext;
 
+/// The general, shared Execution Context Model handle. It may be created from anything what
+/// implements model's API.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct ExecutionContext {
     rc : Rc<dyn API>,
 }
 
-impl<EC:API> From<EC> for ExecutionContext {
+impl<'a,EC:API+'static> From<EC> for ExecutionContext {
     fn from(execution_context: EC) -> Self {
-        Self {
-            rc : Rc::new(execution_context),
-        }
+        Rc::new(execution_context).into()
+    }
+}
+
+impl<'a,EC:API+'static> From<Rc<EC>> for ExecutionContext {
+    fn from(rc:Rc<EC>) -> Self {
+        Self {rc}
     }
 }
