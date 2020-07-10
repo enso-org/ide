@@ -30,6 +30,6 @@ if we are adding a node connected to selection. The current implementation can b
 
 ### Suggestion Database
 
-The`search/completion` method of Language Server returns a list of keys to the Suggestion
+The `search/completion` method of Language Server returns a list of keys to the Suggestion
 Database instead of the whole entries. The database is retrieved by IDE on Project opening, and 
 keeps it up to date. The Database is implemented in `ide::model::suggestion_database` module. 
