@@ -16,7 +16,7 @@ The Searcher Panel can be brought to the screen in two different ways:
   displayed between the selected node and the Searcher input.
   
 When the new searcher is displayed by pressing Tab and there is no selected node, and the user
-didn't type anything in searcher input yer, the panel below input shows the main menu. In other
+didn't type anything in searcher input yet, the panel below input shows the main menu. In other
 cases the list of suggestions is displayed instead.
 
 TODO: Add more description when visual part will be implemented.
