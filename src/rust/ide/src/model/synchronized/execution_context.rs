@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::definition::DefinitionName;
 use crate::model::execution_context::ComputedValueInfoRegistry;
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
@@ -11,7 +10,6 @@ use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
 use json_rpc::error::RpcError;
-
 
 
 // ==========================
@@ -24,7 +22,6 @@ use json_rpc::error::RpcError;
 pub struct ExecutionContext {
     id              : model::execution_context::Id,
     model           : model::ExecutionContext,
-    module_path     : Rc<model::module::Path>,
     language_server : Rc<language_server::Connection>,
     logger          : Logger,
 }
@@ -43,8 +40,7 @@ impl ExecutionContext {
     pub fn create
 	( parent          : impl AnyLogger
     , language_server : Rc<language_server::Connection>
-    , module_path     : Rc<model::module::Path>
-    , root_definition : DefinitionName
+    , root_definition : language_server::MethodPointer
     ) -> impl Future<Output=FallibleResult<Self>> {
         let logger = Logger::sub(&parent,"ExecutionContext");
         async move {
@@ -52,20 +48,21 @@ impl ExecutionContext {
             let id     = language_server.client.create_execution_context().await?.context_id;
             let logger = Logger::sub(&parent,iformat!{"ExecutionContext {id}"});
             let model  = model::ExecutionContext::new(&logger,root_definition);
-            info!(logger, "Created. Id:{id}");
-            let this = Self { id, module_path, model, language_server, logger };
+            info!(logger, "Created. Id: {id}.");
+            let this = Self {id,model,language_server,logger };
             this.push_root_frame().await?;
-            info!(this.logger, "Pushed root frame");
+            info!(this.logger, "Pushed root frame.");
             Ok(this)
         }
     }
 
+    /// Obtain the method pointer to the method of the call stack's top frame.
+    pub fn current_method(&self) -> language_server::MethodPointer {
+        self.model.current_method()
+    }
+
     fn push_root_frame(&self) -> impl Future<Output=FallibleResult<()>> {
-        let method_pointer = language_server::MethodPointer {
-            file            : self.module_path.file_path().clone(),
-            defined_on_type : self.module_path.module_name().to_string(),
-            name            : self.model.entry_point.name.item.clone(),
-        };
+        let method_pointer                   = self.model.entry_point.clone();
         let this_argument_expression         = default();
         let positional_arguments_expressions = default();
 
@@ -86,11 +83,11 @@ impl ExecutionContext {
     }
 
     /// Pop the last stack item from this context. It returns error when only root call
-    /// remains.
-    pub async fn pop(&self) -> FallibleResult<()> {
-        self.model.pop()?;
+    /// remains. The root frame cannot be popped.
+    pub async fn pop(&self) -> FallibleResult<LocalCall> {
+        let ret = self.model.pop()?;
         self.language_server.pop_from_execution_context(&self.id).await?;
-        Ok(())
+        Ok(ret)
     }
 
     /// Attach a new visualization for current execution context.
@@ -106,7 +103,7 @@ impl ExecutionContext {
         let stream = self.model.attach_visualization(vis.clone());
         let result = self.language_server.attach_visualisation(&vis.id, &vis.ast_id, &config).await;
         if let Err(e) = result {
-            self.model.detach_visualization(&vis.id)?;
+            self.model.detach_visualization(vis.id)?;
             Err(e.into())
         } else {
             Ok(stream)
@@ -114,22 +111,42 @@ impl ExecutionContext {
     }
 
     /// Detach visualization from current execution context.
-    pub async fn detach_visualization(&self, id:&VisualizationId) -> FallibleResult<Visualization> {
-        info!(self.logger,"Scheduling detaching visualization by id: {id}.");
-        let vis    = self.model.detach_visualization(id)?;
-        let vis_id = *id;
+    pub async fn detach_visualization
+    (&self, vis_id:VisualizationId) -> FallibleResult<Visualization> {
+        let vis    = self.model.visualization_info(vis_id)?; //.detach_visualization(vis_id)?;
+        self.detach_visualization_inner(vis).await
+    }
+
+
+    /// Detach visualization from current execution context.
+    ///
+    /// Necessary because the Language Server requires passing both visualization ID and expression
+    /// ID for the visualization attach point, and `Visualization` structure contains both.
+    pub async fn detach_visualization_inner
+    (&self, vis:Visualization) -> FallibleResult<Visualization> {
+        let vis_id = vis.id;
         let exe_id = self.id;
         let ast_id = vis.ast_id;
         let ls     = self.language_server.clone_ref();
         let logger = self.logger.clone_ref();
-        executor::global::spawn(async move {
-            info!(logger,"About to detach visualization by id: {vis_id}.");
-            let result = ls.detach_visualisation(&exe_id,&vis_id,&ast_id).await;
-            if result.is_err() {
-                error!(logger,"Error when detaching node: {result:?}.");
-            }
-        });
+        info!(logger,"About to detach visualization by id: {vis_id}.");
+        ls.detach_visualisation(&exe_id,&vis_id,&ast_id).await?;
+        if let Err(err) = self.model.detach_visualization(vis_id) {
+            warning!(logger,"Failed to update model after detaching visualization: {err:?}.")
+        }
         Ok(vis)
+    }
+
+    /// Attempt detaching all the currently active visualizations.
+    ///
+    /// The requests are made in parallel (not one by one). Any number of them might fail.
+    /// Results for each visualization that was attempted to be removed are returned.
+    pub async fn detach_all_visualizations(&self) -> Vec<FallibleResult<Visualization>> {
+        let visualizations = self.model.all_visualizations_info();
+        let detach_actions = visualizations.into_iter().map(|v| {
+            self.detach_visualization_inner(v)
+        });
+        futures::future::join_all(detach_actions).await
     }
 
     /// Dispatch the visualization update data (typically received from as LS binary notification)
@@ -156,13 +173,11 @@ impl ExecutionContext {
     #[cfg(test)]
     pub fn new_mock
     ( id              : model::execution_context::Id
-    , path            : model::module::Path
     , model           : model::ExecutionContext
     , language_server : Rc<language_server::Connection>
     ) -> Self {
-        let module_path     = Rc::new(path);
         let logger          = Logger::new("ExecuctionContext mock");
-        ExecutionContext {id,model,module_path,language_server,logger}
+        ExecutionContext {id,model,language_server,logger}
     }
 }
 
@@ -199,6 +214,7 @@ pub mod tests {
     use json_rpc::expect_call;
     use utils::test::ExpectTuple;
     use utils::test::stream::StreamTestExt;
+    use crate::double_representation::definition::DefinitionName;
 
     trait ModelCustomizer = Fn(&mut model::ExecutionContext, &MockData) + 'static;
 
@@ -291,7 +307,7 @@ pub mod tests {
         /// Create an exeuction context's model.
         pub fn create_model(&self) -> model::ExecutionContext {
             let logger = Logger::new("MockExecutionContextModel");
-            model::ExecutionContext::new(logger, self.root_definition.clone())
+            model::ExecutionContext::new(logger, self.main_method_pointer())
         }
 
         /// Create an exeuction context's controller.
@@ -314,7 +330,7 @@ pub mod tests {
             move |ls| {
                 let mut model = data.create_model();
                 (data.customize_model)(&mut model,&data);
-                ExecutionContext::new_mock(data.context_id, data.module_path.clone(), model, ls)
+                ExecutionContext::new_mock(data.context_id,model,ls)
             }
         }
 
@@ -347,12 +363,12 @@ pub mod tests {
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {
             let logger  = Logger::default();
+            let method  = mock_data.main_method_pointer();
             let path    = Rc::new(mock_data.module_path);
-            let def     = mock_data.root_definition;
-            let context = ExecutionContext::create(logger,connection,path.clone_ref(),def);
+            let context = ExecutionContext::create(logger,connection,method);
             let context = context.await.unwrap();
             assert_eq!(context_id             , context.id);
-            assert_eq!(path                   , context.module_path);
+            assert_eq!(*path                  , context.model.entry_point.file);
             assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
         })
     }
@@ -371,7 +387,7 @@ pub mod tests {
         test.run_task(async move {
             let item = LocalCall {
                 call       : expression_id,
-                definition : mock_data.definition_id(),
+                definition : mock_data.main_method_pointer(),
             };
             context.push(item.clone()).await.unwrap();
             assert_eq!((item,), context.model.stack_items().expect_tuple());
@@ -384,7 +400,7 @@ pub mod tests {
             customize_model : Rc::new(|model,data| {
                 let item = LocalCall {
                     call       : model::execution_context::ExpressionId::new_v4(),
-                    definition : data.definition_id(),
+                    definition : data.main_method_pointer(),
                 };
                 model.push(item);
             }),
@@ -440,12 +456,54 @@ pub mod tests {
             let other_vis_id = VisualizationId::new_v4();
             context.dispatch_visualization_update(other_vis_id,update.clone()).unwrap_err();
             events.expect_pending();
-            assert!(context.detach_visualization(&wrong_id).await.is_err());
+            assert!(context.detach_visualization(wrong_id).await.is_err());
             events.expect_pending();
-            assert!(context.detach_visualization(&vis.id).await.is_ok());
+            assert!(context.detach_visualization(vis.id).await.is_ok());
             events.expect_terminated();
-            assert!(context.detach_visualization(&vis.id).await.is_err());
+            assert!(context.detach_visualization(vis.id).await.is_err());
             context.dispatch_visualization_update(vis.id,update.clone()).unwrap_err();
+        });
+    }
+
+    // TODO [mwu]
+    //   The test below has been disabled as shaky, see https://github.com/enso-org/ide/issues/637
+    #[ignore]
+    #[test]
+    fn detaching_all_visualizations() {
+        let mock_data = MockData::new();
+        let ls        = language_server::MockClient::default();
+        let vis       = Visualization {
+            id                   : model::execution_context::VisualizationId::new_v4(),
+            ast_id               : model::execution_context::ExpressionId::new_v4(),
+            expression           : "".to_string(),
+            visualisation_module : mock_data.module_qualified_name(),
+        };
+        let vis2    = Visualization{
+            id : VisualizationId::new_v4(),
+            ..vis.clone()
+        };
+
+        let exe_id  = mock_data.context_id;
+        let vis_id  = vis.id;
+        let vis2_id = vis2.id;
+        let ast_id  = vis.ast_id;
+        let config  = vis.config(exe_id);
+        let config2  = vis2.config(exe_id);
+
+        expect_call!(ls.attach_visualisation(vis_id,ast_id,config)   => Ok(()));
+        expect_call!(ls.attach_visualisation(vis2_id,ast_id,config2) => Ok(()));
+        expect_call!(ls.detach_visualisation(exe_id,vis_id,ast_id)   => Ok(()));
+        expect_call!(ls.detach_visualisation(exe_id,vis2_id,ast_id)  => Ok(()));
+
+        let context   = mock_data.create_context(ls);
+
+        let mut test = TestWithLocalPoolExecutor::set_up();
+        test.run_task(async move {
+            // We discard visualization update streams -- they are covered by a separate test.
+            let _ = context.attach_visualization(vis.clone()).await.unwrap();
+            let _ = context.attach_visualization(vis2.clone()).await.unwrap();
+
+            context.detach_all_visualizations().await;
         });
     }
 }
