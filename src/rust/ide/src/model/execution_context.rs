@@ -38,16 +38,16 @@ pub type ExpressionId = ast::Id;
 #[derive(Clone,Debug)]
 pub struct ComputedValueInfo {
     /// The string representing the typename of the computed value, e.g. "Number" or "Unit".
-    pub typename    : Option<ImString>,
+    pub typename:Option<ImString>,
     /// If the expression is a method call (i.e. can be entered), this points to the target method.
-    pub method_call : Option<MethodPointer>,
+    pub method_pointer:Option<Rc<MethodPointer>>,
 }
 
 impl From<ExpressionValueUpdate> for ComputedValueInfo {
     fn from(update:ExpressionValueUpdate) -> Self {
         ComputedValueInfo {
-            typename    : update.typename.map(ImString::new),
-            method_call : update.method_call,
+            typename       : update.typename.map(ImString::new),
+            method_pointer : update.method_call.map(Rc::new),
         }
     }
 }
@@ -251,11 +251,13 @@ pub struct AttachedVisualization {
 
 /// Execution Context Model.
 ///
-/// The execution context consists of the root call (which is a direct call of some function
+/// This model reflects the state of the execution context in Language Server.
+/// It consists of the root call (which is a direct call of some function
 /// definition), stack of function calls (see `StackItem` definition and docs) and a list of
-/// active visualizations.
+/// active visualizations. It can also cache all computed values and types of various expression
+/// for the context.
 ///
-/// It implements internal mutability pattern, so the state may be shared between different
+/// It implements internal mutability pattern, so it may be shared between different
 /// controllers.
 #[derive(Debug)]
 pub struct ExecutionContext {
