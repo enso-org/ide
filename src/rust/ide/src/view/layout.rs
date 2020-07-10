@@ -133,6 +133,7 @@ impl ViewLayout {
             let position               = *layout.mouse_position_sampler.value();
             //TODO[dg]: Test it when graph scene panning is working.
             let node_searcher_position = Vector3::new(position.x,position.y,0.0);
+            layout.node_searcher.hide();
             layout.node_searcher.set_position(node_searcher_position);
             layout.node_searcher.show();
         });
