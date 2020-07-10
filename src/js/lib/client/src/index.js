@@ -44,6 +44,7 @@ let optParser = yargs
 //  FIXME [MM]
 //  This modifier crashes Enso Studio on macOS 11, To test if it works 
 //  again in next macOS betas - temporarily solves #650
+//  https://github.com/yargs/yargs/issues/1688
 //  .strict()
 
 
