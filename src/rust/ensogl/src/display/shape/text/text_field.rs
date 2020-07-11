@@ -126,20 +126,19 @@ shared! { TextField
     }
 
     impl {
-        /// Run `callback` with the underlying `&TextFieldContent`.
-        pub fn with_content<F:FnMut(&TextFieldContent)>(&self, callback:F) {
-            let mut callback = callback;
-            callback(&self.content);
+        /// Get TextField's line height.
+        pub fn line_height(&self) -> f32 {
+            self.content.line_height
         }
 
-        /// Run `callback` with the underlying `&mut TextFieldContent`.
-        pub fn with_mut_content<F:FnMut(&mut TextFieldContent)>(&mut self, callback:F) {
-            let mut callback = callback;
-            callback(&mut self.content);
-            self.cursors.recalculate_positions(&self.content);
-            self.assignment_update().update_after_text_edit();
-            self.rendered.update_glyphs(&mut self.content);
-            self.rendered.update_cursor_sprites(&self.cursors, &mut self.content,self.focused);
+        /// Get the width of the line.
+        pub fn width_of_line(&mut self, line:usize) -> f32 {
+            let mut width = 0.0;
+            let mut line  = self.content.line(line);
+            if line.len() > 0 {
+                width = line.get_char_x_position(line.len() - 1);
+            }
+            width
         }
 
         /// Display object getter.

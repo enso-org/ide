@@ -44,11 +44,11 @@ mod background {
     use super::*;
 
     ensogl::define_shape_system! {
-            (style:Style, selection:f32) {
-                let bg_color = color::Rgba::new(0.0,0.0,0.0,0.000_001);
-                Plane().fill(bg_color).into()
-            }
+        (style:Style, selection:f32) {
+            let bg_color = color::Rgba::new(0.0,0.0,0.0,0.000_001);
+            Plane().fill(bg_color).into()
         }
+    }
 }
 
 
@@ -60,7 +60,7 @@ mod background {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpInputs {
-    /// Rename the project.
+    /// Set the project name.
     pub name : frp::Source<String>,
     /// Reset the project name to the one before editing.
     pub cancel_editing : frp::Source
@@ -86,7 +86,6 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    /// Emits the new project name when it's renamed.
     pub name : frp::Source<String>
 }
 
@@ -192,24 +191,15 @@ impl ProjectNameModel {
         let view_logger           = Logger::sub(&logger,"view_logger");
         let view                  = component::ShapeView::<background::Shape>::new(&view_logger, scene);
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
-        let renamed_output        = frp.outputs.name.clone();
+        let name_output           = frp.outputs.name.clone();
         let animations            = Animations::new(&frp.network);
-        Self{logger,view,display_object,text_field,project_name,
-            name_output: renamed_output
-            ,animations}.init()
+        Self{logger,view,display_object,text_field,project_name,name_output,animations}.init()
     }
 
     fn update_center_alignment(&self) {
-        let mut width = 0.0;
-        self.text_field.with_mut_content(|content| {
-            let mut line = content.line(0);
-            if line.len() > 0 {
-                width = line.get_char_x_position(line.len() - 1);
-            }
-        });
+        let width  = self.text_field.width_of_line(0);
         let offset = Vector3::new(-width/2.0,0.0,0.0);
-        let mut height = default();
-            self.text_field.with_content(|content| height = content.line_height);
+        let height = self.text_field.line_height();
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.view.set_position(Vector3::new(0.0,-height/2.0,0.0));
         self.animations.position.set_target_value(offset);
@@ -271,9 +261,9 @@ impl ProjectNameModel {
 
     fn rename(&self, name:impl Str) {
         let name = name.into();
-        *self.project_name.borrow_mut() = name.clone();
+        self.name_output.emit(&name);
+        *self.project_name.borrow_mut() = name;
         self.update_text_field_content();
-        self.name_output.emit(name);
     }
 }
 
@@ -312,7 +302,7 @@ impl ProjectName {
         }
 
 
-        // == Animations
+        // === Animations ===
 
         frp::extend! {network
             eval model.animations.opacity.value((value) model.set_opacity(*value));

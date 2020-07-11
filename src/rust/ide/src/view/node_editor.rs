@@ -302,7 +302,7 @@ impl GraphEditorIntegratedWithControllerModel {
             let logger             = self.logger.clone_ref();
             executor::global::spawn(async move {
                 if let Err(e) = project_controller.rename_project(&name).await {
-                    info!(logger, "Couldn't rename project: {e}");
+                    info!(logger, "The project couldn't be renamed: {e}");
                     project_name.frp.cancel_editing.emit(());
                 }
             });
