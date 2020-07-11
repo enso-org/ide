@@ -102,7 +102,19 @@ impl ExecutionContextsRegistry {
 #[derive(Debug,Clone)]
 pub struct ProjectData {
     id   : Uuid,
-    name : ProjectName,
+    name : RefCell<ProjectName>,
+}
+
+impl ProjectData {
+    /// Set project name.
+    pub fn set_name(&self, name:ProjectName) {
+        *self.name.borrow_mut() = name;
+    }
+
+    /// Get project name.
+    pub fn name(&self) -> ProjectName {
+        self.name.borrow().clone()
+    }
 }
 
 
@@ -116,7 +128,7 @@ pub struct ProjectData {
 #[derive(Clone,CloneRef,Derivative)]
 #[derivative(Debug)]
 pub struct Handle {
-    pub project_data        : Rc<RefCell<ProjectData>>,
+    pub project_data        : Rc<ProjectData>,
     #[derivative(Debug = "ignore")]
     pub project_manager     : Rc<dyn project_manager::API>,
     pub language_server_rpc : Rc<language_server::Connection>,
@@ -145,8 +157,8 @@ impl Handle {
         let embedded_visualizations = default();
         let language_server         = language_server_rpc.clone();
         let visualization           = Visualization::new(language_server,embedded_visualizations);
-        let project_data            = ProjectData{id:project_id,name:project_name};
-        let project_data            = Rc::new(RefCell::new(project_data));
+        let project_data            = ProjectData{id:project_id,name:RefCell::new(project_name)};
+        let project_data            = Rc::new(project_data);
         let module_registry         = default();
         let execution_contexts      = default();
         let parser                  = Parser::new_or_panic();
@@ -353,15 +365,14 @@ impl Handle {
 
     /// Get project's name.
     pub fn project_name(&self) -> ProjectName {
-        self.project_data.borrow().name.clone()
+        self.project_data.name()
     }
 
     /// Rename project.
     pub async fn rename_project(&self, name:impl Str) -> FallibleResult<()> {
-        let name       = name.into();
-        let project_id = self.project_data.borrow().id;
-        self.project_manager.rename_project(&project_id,&name).await?;
-        *self.project_data.borrow_mut().name = ProjectName::new(name).to_string();
+        let name = name.into();
+        self.project_manager.rename_project(&self.project_data.id,&name).await?;
+        self.project_data.set_name(ProjectName::new(name));
         Ok(())
     }
 }
