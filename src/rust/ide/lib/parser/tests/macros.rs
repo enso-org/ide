@@ -6,7 +6,7 @@ use wasm_bindgen_test::wasm_bindgen_test_configure;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
-#[test]
+#[wasm_bindgen_test]
 fn import_utilities() {
     use ast::macros::ast_as_import_match;
     use ast::macros::is_ast_import;
@@ -22,21 +22,20 @@ fn import_utilities() {
     };
 
     let expect_not_import = |code:&str| {
-        println!("Checking that {} is not an import.",code);
         let ast = parser.parse_line(code).unwrap();
-        println!("Ast: {:?}",ast);
         assert!(!is_ast_import(&ast));
         assert!(ast_as_import_match(&ast).is_none());
     };
 
+    expect_import("import");
     expect_import("import Foo");
     expect_import("import Foo.Bar");
     expect_import("import Foo.Bar.Baz");
 
     expect_not_import("type Foo");
+    expect_not_import("type Foo as Bar");
     expect_not_import("if Foo then Bar else Baz");
     expect_not_import("Foo.Bar.Baz");
-    expect_not_import("import");
 }
 
 #[wasm_bindgen_test]

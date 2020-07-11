@@ -34,7 +34,7 @@ impl QualifiedName {
     /// ```
     /// use ide::model::module::QualifiedName;
     ///
-    /// let name = QualifiedName::from_module_segments(&["Main"],"Project");
+    /// let name = QualifiedName::from_segments("Project",&["Main"]);
     /// assert_eq!(name.to_string(), "Project.Main");
     /// ```
     pub fn from_segments
@@ -67,27 +67,36 @@ pub struct ImportInfo {
 }
 
 impl ImportInfo {
-    /// Construct from imported module qualified name like `"Foo.Bar"`.
-    ///
-    /// Implicitly will trim the whitespace from input name to ease usage with `import` macro body.
-    fn from_qualified_name(name:impl AsRef<str>) -> Self {
+    /// Construct from a string describing an import target, like `"Foo.Bar"`.
+    pub fn from_target_str(name:impl AsRef<str>) -> Self {
         let name     = name.as_ref().trim();
-        let segments = name.split(ast::opr::predefined::ACCESS).map(Into::into).collect();
-        ImportInfo { target: segments }
+        let target = match name.is_empty() {
+            false => name.split(ast::opr::predefined::ACCESS).map(Into::into).collect(),
+            true  => Vec::new(),
+        };
+        ImportInfo {target}
     }
 
-    fn qualified_name(&self) -> QualifiedName {
+    /// Construct from a module qualified name like `"Foo.Bar"` that describes imported target.
+    pub fn from_qualified_name(name:&QualifiedName) -> Self {
+        Self::from_target_str(name.as_str())
+    }
+
+    /// Obtain the qualified name of the imported module.
+    pub fn qualified_name(&self) -> QualifiedName {
         QualifiedName(self.target.join(ast::opr::predefined::ACCESS))
     }
 
-    fn from_ast(ast:&Ast) -> Option<Self> {
+    /// Construct from an AST. Fails if the Ast is not an import declaration.
+    pub fn from_ast(ast:&Ast) -> Option<Self> {
         let macro_match = known::Match::try_from(ast).ok()?;
         Self::from_match(macro_match)
     }
 
-    fn from_match(ast:known::Match) -> Option<Self> {
+    /// Construct from a macro match AST. Fails if the Ast is not an import declaration.
+    pub fn from_match(ast:known::Match) -> Option<Self> {
         ast::macros::is_match_import(&ast).then_with(|| {
-            ImportInfo::from_qualified_name(ast.segs.head.body.repr())
+            ImportInfo::from_target_str(ast.segs.head.body.repr().trim())
         })
     }
 }
@@ -134,6 +143,13 @@ impl Info {
         children.filter_map(|(crumb,ast)| Some((crumb,ImportInfo::from_ast(ast)?)))
     }
 
+    /// Iterate over all import declarations in the module.
+    ///
+    /// If the caller wants to know *where* the declarations are, use `enumerate_imports`.
+    pub fn iter_imports<'a>(&'a self) -> impl Iterator<Item=ImportInfo> + 'a {
+        self.enumerate_imports().map(|(_,import)| import)
+    }
+
     /// Add a new line to the module's block.
     ///
     /// Note that indices are the "module line" indices, which usually are quite different from text
@@ -150,11 +166,6 @@ impl Info {
         self.ast.update_shape(|shape| {
             shape.lines.try_remove(index).ok_or(LineIndexOutOfBounds.into())
         })
-    }
-
-    /// Get all import declarations in the module.
-    pub fn imports(&self) -> Vec<ImportInfo> {
-        self.enumerate_imports().map(|(_,import)| import).collect()
     }
 
     /// Remove a line that matches given import description.
@@ -285,7 +296,27 @@ mod tests {
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    #[test]
+    #[wasm_bindgen_test]
+    fn import_listing() {
+        let parser   = parser::Parser::new_or_panic();
+        let expect_imports = |code:&str, expected:&[&[&str]]| {
+            let ast      = parser.parse_module(code,default()).unwrap();
+            let info = Info {ast};
+            let imports = info.iter_imports().collect_vec();
+            assert_eq!(imports.len(), expected.len());
+            for (import,expected_segments) in imports.iter().zip(expected) {
+                itertools::assert_equal(import.target.iter(),expected_segments.iter());
+            }
+        };
+
+        expect_imports("import", &[&[]]);
+        expect_imports("import Foo", &[&["Foo"]]);
+        expect_imports("import Foo.Bar", &[&["Foo","Bar"]]);
+        expect_imports("foo = bar\nimport Foo.Bar", &[&["Foo","Bar"]]);
+        expect_imports("import Foo.Bar\nfoo=bar\nimport Foo.Bar", &[&["Foo","Bar"],&["Foo","Bar"]]);
+    }
+
+    #[wasm_bindgen_test]
     fn import_adding_and_removing() {
         let parser   = parser::Parser::new_or_panic();
         let code     = "import Foo.Bar.Baz";
@@ -301,13 +332,13 @@ mod tests {
         info.add_import(&parser,import("import Gar.Bar"));
         info.expect_code("import Bar.Gar\nimport Foo.Bar.Baz\nimport Gar.Bar");
 
-        info.remove_import(&ImportInfo::from_qualified_name("Foo.Bar.Baz")).unwrap();
+        info.remove_import(&ImportInfo::from_target_str("Foo.Bar.Baz")).unwrap();
         info.expect_code("import Bar.Gar\nimport Gar.Bar");
-        info.remove_import(&ImportInfo::from_qualified_name("Foo.Bar.Baz")).unwrap_err();
+        info.remove_import(&ImportInfo::from_target_str("Foo.Bar.Baz")).unwrap_err();
         info.expect_code("import Bar.Gar\nimport Gar.Bar");
-        info.remove_import(&ImportInfo::from_qualified_name("Gar.Bar")).unwrap();
+        info.remove_import(&ImportInfo::from_target_str("Gar.Bar")).unwrap();
         info.expect_code("import Bar.Gar");
-        info.remove_import(&ImportInfo::from_qualified_name("Bar.Gar")).unwrap();
+        info.remove_import(&ImportInfo::from_target_str("Bar.Gar")).unwrap();
         info.expect_code("");
 
         info.add_import(&parser,import("import Bar.Gar"));
