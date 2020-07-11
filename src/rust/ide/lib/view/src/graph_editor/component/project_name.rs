@@ -32,7 +32,7 @@ const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 1.0
 const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.6);
 
 /// Project name used as a placeholder in ProjectName view when it's initialized.
-pub const UNKNOWN_PROJECT_NAME:&str = "[UNKNOWN NAME]";
+pub const UNKNOWN_PROJECT_NAME:&str = "Unknown";
 
 
 
@@ -216,6 +216,7 @@ impl ProjectNameModel {
     }
 
     fn init(self) -> Self {
+        //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
         self.add_child(&self.text_field.display_object());
         self.add_child(&self.view);
         let project_name = self.clone_ref();

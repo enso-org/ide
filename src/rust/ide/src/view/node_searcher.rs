@@ -45,6 +45,7 @@ impl NodeSearcher {
             size       : Vector2::new(screen.width,16.0),
         };
         let text_field = TextField::new(world,properties);
+        //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
         display_object.add_child(&text_field.display_object());
         let searcher = NodeSearcher{node_editor,display_object,text_field,logger};
         searcher.initialize()
@@ -77,6 +78,7 @@ impl NodeSearcher {
 
     /// Show NodeSearcher if it is invisible.
     pub fn show(&mut self) {
+        //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
         self.display_object.add_child(&self.text_field.display_object());
         self.text_field.clear_content();
         self.text_field.set_focus();
@@ -85,6 +87,7 @@ impl NodeSearcher {
     /// Hide NodeSearcher if it is visible.
     pub fn hide(&mut self) {
         self.text_field.clear_content();
+        //FIXME:Use remove_child(&text_field) when replaced by TextField 2.0
         self.display_object.remove_child(&self.text_field.display_object());
     }
 }
