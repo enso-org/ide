@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::controller;
+use crate::model;
 
 use ensogl::display;
 use ensogl::display::world::World;
@@ -20,16 +20,16 @@ pub struct ProjectName {
     logger             : Logger,
     display_object     : display::object::Instance,
     text_field         : TextField,
-    project_controller : controller::Project
+    project            : model::Project
 }
 
 impl ProjectName {
     /// Create a new ProjectName view.
     pub fn new
-    ( logger             : impl AnyLogger
-    , world              : &World
-    , project_controller : &controller::Project
-    , fonts              : &mut font::Registry
+    ( logger  : impl AnyLogger
+    , world   : &World
+    , project : &model::Project
+    , fonts   : &mut font::Registry
     ) -> Self {
         let logger                = Logger::sub(&logger,"ProjectName");
         let display_object        = display::object::Instance::new(&logger);
@@ -39,10 +39,10 @@ impl ProjectName {
         let text_size             = 16.0;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
         let text_field            = TextField::new(&world,text_field_properties);
-        text_field.set_content(&project_controller.project_name());
-        let project_controller = project_controller.clone();
+        text_field.set_content(&project.project_name());
+        let project = project.clone();
         display_object.add_child(&text_field.display_object());
-        Self {logger,display_object,text_field,project_controller}.initialize()
+        Self {logger,display_object,text_field,project}.initialize()
     }
 
     fn initialize(self) -> Self {
@@ -75,7 +75,7 @@ impl ProjectName {
 
     /// Get the project name.
     pub fn name(&self) -> String {
-        self.project_controller.project_name().to_string()
+        self.project.project_name().to_string()
     }
 
     /// Change the project name.
@@ -86,7 +86,7 @@ impl ProjectName {
             info!(self.logger, "Renaming '{old_name}' to '{new_name}'");
             let project_name = self.clone_ref();
             executor::global::spawn(async move {
-                if let Err(e) = project_name.project_controller.rename_project(&new_name).await {
+                if let Err(e) = project_name.project.rename_project(&new_name).await {
                     info!(project_name.logger, "Couldn't rename project to '{new_name}': {e}");
                     project_name.text_field.set_content(&old_name);
                 }

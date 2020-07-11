@@ -83,8 +83,7 @@ impl IdeInitializer {
     ( logger           : &Logger
     , project_manager  : Rc<dyn project_manager::API>
     , project_metadata : ProjectMetadata
-    ) -> FallibleResult<controller::Project> {
-        use controller::Project;
+    ) -> FallibleResult<model::Project> {
         let endpoints       = project_manager.open_project(&project_metadata.id).await?;
         let json_endpoint   = endpoints.language_server_json_address;
         let binary_endpoint = endpoints.language_server_binary_address;
@@ -100,8 +99,8 @@ impl IdeInitializer {
         let connection_binary = binary::Connection::new(client_binary,client_id).await?;
         let project_id        = project_metadata.id;
         let project_name      = project_metadata.name;
-        Ok(Project::from_connections(logger,project_manager,connection_json,connection_binary
-            ,project_id,project_name))
+        model::Project::from_connections(logger,project_manager,connection_json,connection_binary
+            ,project_id,project_name).await
     }
 
     /// Creates a new project and returns its metadata, so the newly connected project can be
@@ -180,7 +179,7 @@ impl IdeInitializer {
             (logger,&project_manager,&project_name).await?;
         let project_manager = Rc::new(project_manager);
         let project         = Self::open_project(logger,project_manager,project_metadata).await?;
-        Ok(ProjectView::new(logger,project).await?)
+        Ok(ProjectView::new(logger,Rc::new(project)).await?)
     }
 
     /// This function initializes the project manager, creates the project view and forget IDE
