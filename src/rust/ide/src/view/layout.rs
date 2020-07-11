@@ -93,7 +93,7 @@ impl ViewLayout {
     , text_controller          : controller::Text
     , graph_controller         : controller::ExecutedGraph
     , visualization_controller : controller::Visualization
-    , project_controller       : controller::Project
+    , project                  : Rc<model::Project>
     , fonts                    : &mut font::Registry
     ) -> FallibleResult<Self> {
         let logger        = Logger::sub(logger,"ViewLayout");
@@ -103,7 +103,7 @@ impl ViewLayout {
         let text_editor   = TextEditor::new
             (&logger,scene,text_controller,kb_actions,fonts,focus_manager);
         let node_editor   = NodeEditor::new
-            (&logger,application,graph_controller,project_controller,visualization_controller);
+            (&logger,application,graph_controller,project,visualization_controller);
         let node_editor   = node_editor.await?;
         let node_searcher = NodeSearcher::new
             (scene,&logger,node_editor.clone_ref(),fonts,focus_manager);
