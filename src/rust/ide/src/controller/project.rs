@@ -144,7 +144,7 @@ impl Handle {
     /// Create a new project controller.
     pub fn new
     ( parent              : impl AnyLogger
-    , project_manager     : impl project_manager::API + 'static
+    , project_manager     : Rc<dyn project_manager::API>
     , language_server_rpc : Rc<language_server::Connection>
     , language_server_bin : Rc<binary::Connection>
     , project_id          : Uuid
@@ -162,7 +162,6 @@ impl Handle {
         let module_registry         = default();
         let execution_contexts      = default();
         let parser                  = Parser::new_or_panic();
-        let project_manager         = Rc::new(project_manager);
 
         let ret = Handle {project_data,project_manager,module_registry,execution_contexts,parser,
             language_server_rpc,language_server_bin,logger,visualization};
@@ -179,7 +178,7 @@ impl Handle {
     /// Create a project controller from owned LS connections.
     pub fn from_connections
     ( parent              : impl AnyLogger
-    , project_manager     : impl project_manager::API + 'static
+    , project_manager     : Rc<dyn project_manager::API>
     , language_server_rpc : language_server::Connection
     , language_server_bin : binary::Connection
     , project_id          : Uuid
@@ -193,7 +192,7 @@ impl Handle {
 
     /// Create a new mocked project controller.
     pub fn new_mock
-    ( project_manager        : impl project_manager::API + 'static
+    ( project_manager        : Rc<dyn project_manager::API>
     , language_server_client : Rc<language_server::Connection>
     , language_server_binary : Rc<binary::Connection>
     , project_id             : Uuid
@@ -425,6 +424,7 @@ pub mod test {
         let logger                  = Logger::default();
         let project_name            = ProjectName::new(DEFAULT_PROJECT_NAME);
         let project_id              = uuid::Uuid::new_v4();
+        let mock_project_controller = Rc::new(mock_project_controller);
         controller::Project::from_connections(logger,mock_project_controller,json_connection
             ,binary_connection,project_id,project_name)
     }

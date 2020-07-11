@@ -81,7 +81,7 @@ impl IdeInitializer {
     /// Connect to language server.
     pub async fn open_project
     ( logger           : &Logger
-    , project_manager  : impl project_manager::API + 'static
+    , project_manager  : Rc<dyn project_manager::API>
     , project_metadata : ProjectMetadata
     ) -> FallibleResult<controller::Project> {
         use controller::Project;
@@ -178,7 +178,8 @@ impl IdeInitializer {
         let project_name     = config.project_name.to_string();
         let project_metadata = Self::get_project_or_create_new
             (logger,&project_manager,&project_name).await?;
-        let project = Self::open_project(logger,project_manager,project_metadata).await?;
+        let project_manager = Rc::new(project_manager);
+        let project         = Self::open_project(logger,project_manager,project_metadata).await?;
         Ok(ProjectView::new(logger,project).await?)
     }
 
