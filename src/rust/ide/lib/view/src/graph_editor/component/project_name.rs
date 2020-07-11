@@ -9,11 +9,11 @@ use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
+use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::shape::*;
 use ensogl::display::Sprite;
-use ensogl::display::world::World;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use logger::enabled::Logger;
@@ -179,8 +179,8 @@ pub struct ProjectNameModel {
 
 impl ProjectNameModel {
     /// Create new ProjectNameModel.
-    pub fn new(world:&World,frp:&Frp) -> Self {
-        let scene                 = world.scene();
+    pub fn new<'t,S:Into<&'t Scene>>(scene:S,frp:&Frp,focus_manager:&FocusManager) -> Self {
+        let scene                 = scene.into();
         let logger                = Logger::new("ProjectName");
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
@@ -188,7 +188,7 @@ impl ProjectNameModel {
         let base_color            = TRANSPARENT_TEXT_COLOR;
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
-        let text_field            = TextField::new(&world,text_field_properties);
+        let text_field            = TextField::new(scene,text_field_properties,focus_manager);
         let view_logger           = Logger::sub(&logger,"view_logger");
         let view                  = component::ShapeView::<background::Shape>::new(&view_logger, scene);
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
@@ -300,9 +300,9 @@ pub struct ProjectName {
 
 impl ProjectName {
     /// Create a new ProjectName view.
-    pub fn new(world:&World) -> Self {
+    pub fn new<'t,S:Into<&'t Scene>>(scene:S,focus_manager:&FocusManager) -> Self {
         let frp     = Frp::new();
-        let model   = Rc::new(ProjectNameModel::new(world,&frp));
+        let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
             eval_ model.view.events.mouse_over(model.fade_in_text());

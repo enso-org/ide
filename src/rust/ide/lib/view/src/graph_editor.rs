@@ -27,16 +27,17 @@ use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::application;
 use ensogl::data::color;
+use ensogl::display;
 use ensogl::display::object::Id;
 use ensogl::display::Scene;
-use ensogl::display;
+use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use frp::io::keyboard;
-use ensogl::display::world::World;
+
 
 
 // =================
@@ -893,10 +894,9 @@ impl Deref for GraphEditorModelWithNetwork {
 }
 
 impl GraphEditorModelWithNetwork {
-    //FIXME[dg]: Use `impl Into<Scene>` instead of `&World` when the new TextField is implemented.
-    pub fn new(world:&World, cursor:cursor::Cursor) -> Self {
+    pub fn new<'t,S:Into<&'t Scene>>(scene:S, cursor:cursor::Cursor, focus_manager:&FocusManager) -> Self {
         let network = frp::Network::new();
-        let model   = GraphEditorModel::new(world,cursor,&network);
+        let model   = GraphEditorModel::new(scene,cursor,&network,focus_manager);
         Self {model,network}
     }
 
@@ -972,12 +972,13 @@ pub struct GraphEditorModel {
 // === Public ===
 
 impl GraphEditorModel {
-    pub fn new
-    ( world   : &World
-    , cursor  : cursor::Cursor
-    , network : &frp::Network
+    pub fn new<'t,S:Into<&'t Scene>>
+    ( scene         : S
+    , cursor        : cursor::Cursor
+    , network       : &frp::Network
+    , focus_manager : &FocusManager
     ) -> Self {
-        let scene          = world.scene().clone_ref();
+        let scene          = scene.into();
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
@@ -985,11 +986,12 @@ impl GraphEditorModel {
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
-        let project_name   = component::ProjectName::new(world);
+        let project_name   = component::ProjectName::new(scene,focus_manager);
         display_object.add_child(&project_name);
-        let screen = world.scene().camera().screen();
+        let screen = scene.camera().screen();
         let margin = 10.0;
         project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
+        let scene = scene.clone_ref();
         Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name}//visualizations }
     }
 
@@ -1447,9 +1449,10 @@ impl Default for SelectionMode {
 #[allow(unused_parens)]
 fn new_graph_editor(app:&Application) -> GraphEditor {
     let world          = &app.display;
+    let focus_manager  = world.text_field_focus_manager();
     let scene          = world.scene();
     let cursor         = &app.cursor;
-    let model          = GraphEditorModelWithNetwork::new(world,app.cursor.clone_ref());
+    let model          = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref(),focus_manager);
     let network        = &model.network;
     let nodes          = &model.nodes;
     let edges          = &model.edges;

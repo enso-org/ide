@@ -11,7 +11,9 @@ pub mod word_occurrence;
 use crate::prelude::*;
 
 use crate::data::color;
+use crate::display;
 use crate::display::object::traits::*;
+use crate::display::Scene;
 use crate::display::shape::text::glyph::font;
 use crate::display::shape::text::text_field::content::location::TextLocationChange;
 use crate::display::shape::text::text_field::content::TextFieldContent;
@@ -24,8 +26,6 @@ use crate::display::shape::text::text_field::frp::TextFieldFrp;
 use crate::display::shape::text::text_field::render::assignment::GlyphLinesAssignmentUpdate;
 use crate::display::shape::text::text_field::render::TextFieldSprites;
 use crate::display::shape::text::text_field::word_occurrence::WordOccurrences;
-use crate::display::world::World;
-use crate::display;
 use crate::system::web::text_input::KeyboardBinding;
 
 use data::text::TextChange;
@@ -381,17 +381,20 @@ shared! { TextField
 
 impl TextField {
     /// Create new empty TextField
-    pub fn new(world:&World, properties:TextFieldProperties) -> Self {
-        Self::new_with_content(world,"",properties)
+    pub fn new<'t,S:Into<&'t Scene>>
+    (scene:S, properties:TextFieldProperties,focus_manager:&FocusManager) -> Self {
+        Self::new_with_content(scene,"",properties,focus_manager)
     }
 
     /// Create new TextField with predefined content.
-    pub fn new_with_content(world:&World, initial_content:&str, properties:TextFieldProperties)
+    pub fn new_with_content<'t,S:Into<&'t Scene>>
+    (scene:S, initial_content:&str, properties:TextFieldProperties,focus_manager:&FocusManager)
     -> Self {
-        let data = TextFieldData::new(world,initial_content,properties);
+        let scene = scene.into();
+        let data = TextFieldData::new(scene,initial_content,properties,focus_manager);
         let rc   = Rc::new(RefCell::new(data));
         let this = Self {rc};
-        let frp  = TextFieldFrp::new(world,this.downgrade());
+        let frp  = TextFieldFrp::new(scene,this.downgrade());
         this.with_borrowed(move |mut data| { data.frp = Some(frp); });
         this
     }
@@ -485,16 +488,21 @@ impl TextField {
 }
 
 impl TextFieldData {
-    fn new(world:&World, initial_content:&str, properties:TextFieldProperties) -> Self {
+    fn new<'t,S:Into<&'t Scene>>
+    ( scene           : S
+    , initial_content : &str
+    , properties      : TextFieldProperties
+    , focus_manager   : &FocusManager
+    ) -> Self {
         let logger               = Logger::new("TextField");
         let display_object       = display::object::Instance::new(logger);
         let content              = TextFieldContent::new(initial_content,&properties);
         let cursors              = Cursors::default();
-        let rendered             = TextFieldSprites::new(world,&properties);
+        let rendered             = TextFieldSprites::new(scene,&properties);
         let frp                  = None;
         let word_occurrences     = None;
         let text_change_callback = None;
-        let focus_manager        = world.text_field_focus_manager().clone_ref();
+        let focus_manager        = focus_manager.clone_ref();
         let focused              = false;
         display_object.add_child(&rendered);
 
