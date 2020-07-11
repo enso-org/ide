@@ -69,10 +69,11 @@ pub struct ImportInfo {
 impl ImportInfo {
     /// Construct from a string describing an import target, like `"Foo.Bar"`.
     pub fn from_target_str(name:impl AsRef<str>) -> Self {
-        let name     = name.as_ref().trim();
-        let target = match name.is_empty() {
-            false => name.split(ast::opr::predefined::ACCESS).map(Into::into).collect(),
-            true  => Vec::new(),
+        let name   = name.as_ref().trim();
+        let target = if name.is_empty() {
+            Vec::new()
+        } else {
+            name.split(ast::opr::predefined::ACCESS).map(Into::into).collect()
         };
         ImportInfo {target}
     }
@@ -164,7 +165,7 @@ impl Info {
     /// Returns removed line. Fails if the index is out of bounds.
     pub fn remove_line(&mut self, index:usize) -> FallibleResult<BlockLine<Option<Ast>>> {
         self.ast.update_shape(|shape| {
-            shape.lines.try_remove(index).ok_or(LineIndexOutOfBounds.into())
+            shape.lines.try_remove(index).ok_or_else(|| LineIndexOutOfBounds.into())
         })
     }
 
