@@ -253,6 +253,8 @@ impl ProjectNameModel {
     }
 
     fn fade_out_text(&self) {
+        //TODO[dg]:Make use of TextField 2.0's frp when it's available and remove both fade in and
+        // fade out functions.
         if !self.text_field.is_focused() {
             self.animations.opacity.set_target_value(0.0);
         }
