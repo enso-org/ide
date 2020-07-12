@@ -423,7 +423,7 @@ impl FrpInputs {
             some_edge_sources_detached   <- source();
             all_edge_targets_attached    <- source();
             all_edge_sources_attached    <- source();
-             all_edges_attached         <- source();
+            all_edges_attached           <- source();
         }
         let commands = Commands::new(&network);
         Self {commands,remove_edge,press_node_input,remove_all_node_edges
@@ -937,7 +937,12 @@ impl GraphEditorModelWithNetwork {
 
         frp::new_bridge_network! { [self.network, node.main_area.events.network]
             eval_ node.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
-            eval  node.ports.frp.cursor_style ((style) cursor_style.emit(style));
+            eval  node.ports.frp.cursor_style ([model,cursor_style](style) {
+                let has_detached_target = !model.edges.detached_target.is_empty();
+                if has_detached_target {
+                    cursor_style.emit(style)
+                }
+            });
             eval_ node.view.output_ports.frp.port_mouse_down (output_press.emit(node_id));
             eval  node.ports.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
@@ -1707,7 +1712,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     on_node_output_touch <- node_output_touch.down.constant(());
     on_node_input_touch  <- node_input_touch.down.constant(());
 
-    on_new_edge    <- any(&on_node_output_touch, &on_node_input_touch);
+    on_new_edge    <- any(&on_node_output_touch,&on_node_input_touch);
     deselect_edges <- on_new_edge.gate_not(&keep_selection);
     eval_ deselect_edges ( model.clear_all_detached_edges() );
 
