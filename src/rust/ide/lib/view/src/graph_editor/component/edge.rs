@@ -789,7 +789,7 @@ enum LayoutState {
 }
 
 impl LayoutState {
-    /// Indicates whether the `Output` is below the `Input` in the current layout configuration.
+    /// Indicates whether the `OutputPort` is below the `InputPort` in the current layout configuration.
     fn is_output_above_input(self) -> bool {
         match self {
             LayoutState::UpLeft => false,
@@ -812,8 +812,8 @@ impl LayoutState {
 // === SemanticSplit ===
 // =====================
 
-/// The semantic split, splits the sub-shapes according to their relative position from `Output` to
-/// `Input` and allows access to the three different groups of shapes: (a) shapes that are input
+/// The semantic split, splits the sub-shapes according to their relative position from `OutputPort` to
+/// `InputPort` and allows access to the three different groups of shapes: (a) shapes that are input
 /// side of the split, (b) shapes that are at the split (c) shapes that are  output side of the
 /// split.
 ///
@@ -1084,8 +1084,8 @@ impl display::Object for Edge {
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub enum EndDesignation {
-    Input,
-    Output
+    InputPort,
+    OutputPort
 }
 
 /// Edge definition.
@@ -1584,10 +1584,10 @@ impl EdgeModelData {
         let point_in_upper_half = self.is_in_upper_half(point);
 
         match (point_in_upper_half, input_in_upper_half) {
-            (true, true)   => EndDesignation::Input,
-            (true, false)  => EndDesignation::Output,
-            (false, true)  => EndDesignation::Output,
-            (false, false) => EndDesignation::Input,
+            (true, true)   => EndDesignation::InputPort,
+            (true, false)  => EndDesignation::OutputPort,
+            (false, true)  => EndDesignation::OutputPort,
+            (false, false) => EndDesignation::InputPort,
         }
     }
 
@@ -1599,9 +1599,9 @@ impl EdgeModelData {
         let target_distance = (point - target_position).norm();
         let source_distance = (point - source_position).norm();
         if source_distance > target_distance {
-            EndDesignation::Input
+            EndDesignation::OutputPort
         } else {
-            EndDesignation::Output
+            EndDesignation::InputPort
         }
     }
 
@@ -1634,10 +1634,10 @@ impl EdgeModelData {
     fn get_target_angle(&self, target_end:EndDesignation) -> f32 {
         let output_on_top = self.layout_state.get().is_output_above_input();
         match (output_on_top,target_end) {
-            (false, EndDesignation::Input)  => 0.0,
-            (false, EndDesignation::Output) => 2.0 * RIGHT_ANGLE,
-            (true, EndDesignation::Input)   => 2.0 * RIGHT_ANGLE,
-            (true, EndDesignation::Output)  => 0.0,
+            (false, EndDesignation::InputPort)  => 2.0 * RIGHT_ANGLE,
+            (false, EndDesignation::OutputPort) => 0.0,
+            (true, EndDesignation::InputPort)   => 0.0,
+            (true, EndDesignation::OutputPort)  => 2.0 * RIGHT_ANGLE,
         }
     }
 
@@ -1726,17 +1726,17 @@ impl EdgeModelData {
         // correctly when a split would intersect the edge at multiple points.
         semantic_split.output_side_shapes().iter().for_each(|shape_id| {
             if let Some(shape) = self.get_shape(*shape_id) {
-                match part{
-                    EndDesignation::Output => shape.disable_hover(),
-                    EndDesignation::Input  => shape.enable_hover(),
+                match part {
+                    EndDesignation::OutputPort => shape.enable_hover(),
+                    EndDesignation::InputPort => shape.disable_hover(),
                 }
             }
         });
         semantic_split.input_side_shapes().iter().for_each(|shape_id|{
             if let Some(shape) = self.get_shape(*shape_id) {
-                match part{
-                    EndDesignation::Output => shape.enable_hover(),
-                    EndDesignation::Input  => shape.disable_hover(),
+                match part {
+                    EndDesignation::OutputPort => shape.disable_hover(),
+                    EndDesignation::InputPort => shape.enable_hover(),
                 }
             }
         });

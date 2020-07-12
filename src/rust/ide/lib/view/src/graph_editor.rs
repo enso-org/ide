@@ -1740,7 +1740,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     edge_is_source_click <- valid_edge_disconnect_click.map(f!([model]((edge_id,pos)) {
         if let Some(edge) = model.edges.get_cloned_ref(edge_id){
-            edge.end_designation_for_position(*pos) == component::edge::EndDesignation::Output
+            edge.end_designation_for_position(*pos) == component::edge::EndDesignation::OutputPort
         } else {
             false
         }
