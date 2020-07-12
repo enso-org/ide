@@ -139,7 +139,7 @@ trait EdgeShape: ensogl::display::Object {
 }
 
 impl PartialEq for dyn EdgeShape {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, other:&Self) -> bool {
         self.id() == other.id()
     }
 }
@@ -286,7 +286,7 @@ fn create_corner_base_shape
     let radius = 1.px() * radius;
     let width2 = width / 2.0;
     let ring   = Circle(&radius + &width2) - Circle(radius-width2);
-    let right : Var<f32> = (RIGHT_ANGLE).into();
+    let right:Var<f32> = (RIGHT_ANGLE).into();
     let rot    = right - angle/2.0 + start_angle;
     let mask   = Plane().cut_angle_fast(angle.clone()).rotate(rot);
     let shape  = ring * mask;
@@ -812,14 +812,28 @@ impl LayoutState {
 // === SemanticSplit ===
 // =====================
 
-/// The semantic split, splits the sub-shapes according to their relative position from `OutputPort` to
-/// `InputPort` and allows access to the three different groups of shapes: (a) shapes that are input
-/// side of the split, (b) shapes that are at the split (c) shapes that are  output side of the
-/// split.
+/// The semantic split, splits the sub-shapes according to their relative position from `OutputPort`
+/// to `InputPort` and allows access to the three different groups of shapes: (a) shapes that are
+/// input side of the split, (b) shapes that are at the split (c) shapes that are  output side of
+/// the split.
 ///
 /// Note that "at the split" also includes the shapes adjacent to the actual split because they
 /// need to be treated as if they were at the split location to  avoid glitches at the shape
 /// boundaries.
+///
+/// This allows us to apply special handling to these groups. This is required as a simple geometric
+/// split based on a line, will lead to double intersections with the edge. Thus we avoid the
+/// geometric intersections, for shapes away from the intersection point, and instead color them
+/// based on their position within the edge.
+///
+/// We have seven "slots" of shapes within the edge that can be ordered from output port to input
+/// port: `SideLine` `Corner`, `MainLine`/`Arrow`, `Corner2`, `SideLine2`, `Corner3`, `PortLine`.
+///
+/// Example: We need to split on the `SideLine2` and highlight the shapes closer to the
+/// output port. That means we need to do the geometric split on  `Corner2`, `SideLine2`, `Corner3`,
+///which we can access via `split_shapes` and apply the highlighting to `SideLine` `Corner` and
+/// `MainLine`/`Arrow`, which we can access via `output_side_shapes`. The remaining shapes that must
+/// not to be highlighted can be accessed via `input_side_shapes`.
 struct SemanticSplit {
     /// a ordered vector that contains the ids of the shapes in the order they appear in the
     ///  edge. Shapes that fill the same "slot" in the shape and must be handled together,
@@ -1234,11 +1248,11 @@ impl EdgeModelData {
         // === Layout State ===
         // Initial guess at our layout. Will be refined for some edge cases when we have more
         // layout informaiton.
-        let state = match (is_down, (side < 0.0)) {
-            (true, true) => LayoutState::DownLeft,
-            (true, false) => LayoutState::DownRight,
-            (false, true) => LayoutState::UpLeft,
-            (false, false) => LayoutState::UpRight,
+        let state = match (is_down,(side < 0.0)) {
+            (true,true) => LayoutState::DownLeft,
+            (true,false) => LayoutState::DownRight,
+            (false,true) => LayoutState::UpLeft,
+            (false,false) => LayoutState::UpRight,
         };
         self.layout_state.set(state);
 
@@ -1589,11 +1603,11 @@ impl EdgeModelData {
         let input_in_upper_half = self.layout_state.get().is_input_above_output();
         let point_in_upper_half = self.is_in_upper_half(point);
 
-        match (point_in_upper_half, input_in_upper_half) {
-            (true, true)   => EndDesignation::InputPort,
-            (true, false)  => EndDesignation::OutputPort,
-            (false, true)  => EndDesignation::OutputPort,
-            (false, false) => EndDesignation::InputPort,
+        match (point_in_upper_half,input_in_upper_half) {
+            (true,true)   => EndDesignation::InputPort,
+            (true,false)  => EndDesignation::OutputPort,
+            (false,true)  => EndDesignation::OutputPort,
+            (false,false) => EndDesignation::InputPort,
         }
     }
 
@@ -1601,7 +1615,7 @@ impl EdgeModelData {
     /// euclidean distance between point and `Input`/`Output`.
     fn closest_end_for_point(&self, point:Vector2<f32>) -> EndDesignation {
         let target_position = self.target_position.get().xy();
-        let source_position = self.position().xy() - Vector2::new(0.0, self.source_height.get() / 2.0);
+        let source_position = self.position().xy() - Vector2::new(0.0,self.source_height.get() / 2.0);
         let target_distance = (point - target_position).norm();
         let source_distance = (point - source_position).norm();
         if source_distance > target_distance {
@@ -1640,10 +1654,10 @@ impl EdgeModelData {
     fn get_target_angle(&self, target_end:EndDesignation) -> f32 {
         let output_on_top = self.layout_state.get().is_output_above_input();
         match (output_on_top,target_end) {
-            (false, EndDesignation::InputPort)  => 2.0 * RIGHT_ANGLE,
-            (false, EndDesignation::OutputPort) => 0.0,
-            (true, EndDesignation::InputPort)   => 0.0,
-            (true, EndDesignation::OutputPort)  => 2.0 * RIGHT_ANGLE,
+            (false,EndDesignation::InputPort)  => 2.0 * RIGHT_ANGLE,
+            (false,EndDesignation::OutputPort) => 0.0,
+            (true,EndDesignation::InputPort)   => 0.0,
+            (true,EndDesignation::OutputPort)  => 2.0 * RIGHT_ANGLE,
         }
     }
 
@@ -1657,7 +1671,7 @@ impl EdgeModelData {
 
         let flip = 2.0 * RIGHT_ANGLE;
 
-        match (layout_state, shape_role)  {
+        match (layout_state,shape_role)  {
             (LayoutState::DownLeft, ShapeRole::SideLine ) => flip,
             (LayoutState::DownLeft, ShapeRole::Corner   ) => flip,
 
@@ -1725,7 +1739,7 @@ impl EdgeModelData {
     /// might fail if the given position is too far from the shape.
     fn try_enable_hover_split(&self, position:Vector2<f32>, part:EndDesignation) -> Result<(), ()>{
         let snap_data      = self.snap_position_to_shape(position).ok_or(())?;
-        let semantic_split = SemanticSplit::new(&self, snap_data.target_shape_id).ok_or(())?;
+        let semantic_split = SemanticSplit::new(&self,snap_data.target_shape_id).ok_or(())?;
         let cut_angle      = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
         // Completely disable/enable hovering for shapes that are not close the split base don their
         // relative position within the shape. This avoids issues with splitting not working
