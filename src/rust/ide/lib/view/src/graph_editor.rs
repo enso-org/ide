@@ -1842,6 +1842,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     new_edge_source <- detached_edges_without_sources.map2(&attach_all_edge_outputs, |id,t| (*id,t.clone()));
     outputs.edge_source_set <+ new_edge_source;
 
+    on_new_edge_source <- new_edge_source.constant(());
+    on_new_edge_target <- new_edge_target.constant(());
+
     overlapping_edges       <= outputs.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
     outputs.edge_removed    <+ overlapping_edges;
 
@@ -1987,8 +1990,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Move Edges ===
 
     detached_edge           <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
-    cursor_pos_on_detach    <- cursor_pos_in_scene.sample(&detached_edge);
-    edge_refresh_cursor_pos <- any (cursor_pos_on_detach,cursor_pos_in_scene);
+    update_edge             <- any(detached_edge,on_new_edge_source,on_new_edge_target);
+    cursor_pos_on_update    <- cursor_pos_in_scene.sample(&update_edge);
+    edge_refresh_cursor_pos <- any (cursor_pos_on_update,cursor_pos_in_scene);
 
     is_hovering_output <- inputs.hover_node_output.map(|target| target.is_some());
     hover_node         <- inputs.hover_node_output.unwrap();
