@@ -941,6 +941,7 @@ pub struct Frp {
     pub source_height   : frp::Source<f32>,
     pub target_position : frp::Source<Vector2>,
     pub target_attached : frp::Source<bool>,
+    pub source_attached : frp::Source<bool>,
     pub redraw          : frp::Source,
 
     pub hover_position  : frp::Source<Option<Vector2<f32>>>,
@@ -955,11 +956,12 @@ impl Frp {
             def source_height   = source();
             def target_position = source();
             def target_attached = source();
+            def source_attached = source();
             def redraw          = source();
             def hover_position  = source();
         }
         let shape_events = ShapeViewEventsProxy::new(&network);
-        Self {source_width,source_height,target_position,target_attached,redraw,
+        Self {source_width,source_height,target_position,target_attached,source_attached,redraw,
               hover_position,shape_events}
     }
 }
@@ -1039,6 +1041,7 @@ impl Edge {
         let input           = &self.frp;
         let target_position = &self.target_position;
         let target_attached = &self.target_attached;
+        let source_attached = &self.source_attached;
         let source_width    = &self.source_width;
         let source_height   = &self.source_height;
         let hover_position  = &self.hover_position;
@@ -1054,6 +1057,7 @@ impl Edge {
         frp::extend! { network
             eval input.target_position ((t) target_position.set(*t));
             eval input.target_attached ((t) target_attached.set(*t));
+            eval input.source_attached ((t) source_attached.set(*t));
             eval input.source_width    ((t) source_width.set(*t));
             eval input.source_height   ((t) source_height.set(*t));
             eval input.hover_position  ((t) hover_position.set(*t));
@@ -1107,6 +1111,7 @@ pub struct EdgeModelData {
     pub source_height   : Rc<Cell<f32>>,
     pub target_position : Rc<Cell<Vector2>>,
     pub target_attached : Rc<Cell<bool>>,
+    pub source_attached : Rc<Cell<bool>>,
 
     layout_state        : Rc<Cell<LayoutState>>,
 
@@ -1135,12 +1140,13 @@ impl EdgeModelData {
         let source_width    = default();
         let target_position = default();
         let target_attached = Rc::new(Cell::new(false));
+        let source_attached = Rc::new(Cell::new(false));
         let hover_position  = default();
         let layout_state    = Rc::new(Cell::new(LayoutState::UpLeft));
         let hover_target    = default();
 
         Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
-              target_attached,hover_position,
+              target_attached,source_attached,hover_position,
               layout_state,hover_target}
     }
 
@@ -1152,7 +1158,7 @@ impl EdgeModelData {
 
         let fg               = &self.front;
         let bg               = &self.back;
-        let target_attached  = self.target_attached.get();
+        let fully_attached   = self.target_attached.get() && self.source_attached.get();
         let node_half_width  = self.source_width.get() / 2.0;
         let node_half_height = self.source_height.get() / 2.0;
         let node_circle      = Vector2::new(node_half_width-node_half_height,0.0);
@@ -1250,7 +1256,7 @@ impl EdgeModelData {
         let space              = space_attached - NODE_PADDING;
         let len_below_free     = max(0.0,min(port_line_len_max,space));
         let len_below_attached = max(0.0,min(port_line_len_max,space_attached));
-        let len_below          = if target_attached {len_below_attached} else {len_below_free};
+        let len_below          = if fully_attached {len_below_attached} else {len_below_free};
         let far_side_len       = if target_is_below_node {len_below} else {port_line_len_max};
         let flat_side_len      = min(far_side_len,-port_line_start.y);
         let mut port_line_len  = if is_flat_side && is_down {flat_side_len} else {far_side_len};
@@ -1303,7 +1309,7 @@ impl EdgeModelData {
         bg.corner.shape.radius.set(corner1_radius);
         bg.corner.shape.pos.set(corner1);
         bg.corner.set_position_xy(corner1);
-        if !target_attached {
+        if !fully_attached {
             bg.corner.shape.dim.set(Vector2::new(node_half_width,node_half_height));
             fg.corner.shape.sprite.size.set(corner1_size);
             fg.corner.shape.start_angle.set(corner1_start_angle);
@@ -1333,7 +1339,7 @@ impl EdgeModelData {
         let side_line_len   = max(0.0,corner1_x - node_half_width + side_line_shift);
         let bg_line_x       = node_half_width - side_line_shift;
         let bg_line_start   = Vector2::new(side*bg_line_x,0.0);
-        if target_attached {
+        if fully_attached {
             let bg_line_len = side*side_line_len;
             fg.side_line.shape.sprite.size.set(zero());
             bg.side_line.layout_h(bg_line_start,bg_line_len);
@@ -1368,14 +1374,14 @@ impl EdgeModelData {
         if is_down {
             let main_line_end_y = corner1.y;
             let main_line_len   = main_line_end_y - port_line_start.y;
-            if !target_attached && target_is_below_node {
+            if !fully_attached && target_is_below_node {
                 let back_line_start_y = max(-node_half_height - NODE_PADDING, port_line_start.y);
                 let back_line_start = Vector2::new(port_line_start.x, back_line_start_y);
                 let back_line_len = main_line_end_y - back_line_start_y;
                 let front_line_len = main_line_len - back_line_len;
                 bg.main_line.layout_v(back_line_start, back_line_len);
                 fg.main_line.layout_v(port_line_start, front_line_len);
-            } else if target_attached {
+            } else if fully_attached {
                 let main_line_start_y = port_line_start.y + port_line_len;
                 let main_line_start = Vector2::new(port_line_start.x, main_line_start_y);
                 fg.main_line.shape.sprite.size.set(zero());
@@ -1440,7 +1446,7 @@ impl EdgeModelData {
             let corner3       = Vector2::new(corner3_x*side,corner3_y);
             let corner3_angle = if is_right_side {0.0} else {-RIGHT_ANGLE};
 
-            if target_attached {
+            if fully_attached {
                 fg.corner3.shape.sprite.size.set(zero());
                 bg.corner3.shape.sprite.size.set(corner3_size);
                 bg.corner3.shape.start_angle.set(corner3_angle);
@@ -1464,7 +1470,7 @@ impl EdgeModelData {
             let corner2       = Vector2::new(corner2_x*side,corner2_y);
             let corner2_angle = if is_right_side {-RIGHT_ANGLE} else {0.0};
 
-            if target_attached {
+            if fully_attached {
                 fg.corner2.shape.sprite.size.set(zero());
                 bg.corner2.shape.sprite.size.set(corner1_size);
                 bg.corner2.shape.start_angle.set(corner2_angle);
@@ -1497,7 +1503,7 @@ impl EdgeModelData {
             let main_line_len   = corner2_y - corner1.y;
             let main_line_start = Vector2::new(side*corner1_target.x,corner1.y);
 
-            if target_attached {
+            if fully_attached {
                 fg.main_line.shape.sprite.size.set(zero());
                 bg.main_line.layout_v(main_line_start, main_line_len);
             } else {
@@ -1509,7 +1515,7 @@ impl EdgeModelData {
                 let arrow_y    = (corner1.y - corner1_radius + corner2_y + corner2_radius)/2.0;
                 let arrow_pos  = Vector2::new(main_line_start.x, arrow_y);
                 let arrow_size = Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y);
-                if target_attached {
+                if fully_attached {
                     fg.arrow.shape.sprite.size.set(zero());
                     bg.arrow.shape.sprite.size.set(arrow_size);
                     bg.arrow.set_position_xy(arrow_pos);
@@ -1533,7 +1539,7 @@ impl EdgeModelData {
 
             let side_line2_len  = side*(corner3_x - corner2_x);
             let side_line2_start  = Vector2::new(side*corner2_x,corner2_y + corner2_radius);
-            if target_attached {
+            if fully_attached {
                 fg.side_line2.shape.sprite.size.set(zero());
                 bg.side_line2.layout_h(side_line2_start,side_line2_len);
             } else {

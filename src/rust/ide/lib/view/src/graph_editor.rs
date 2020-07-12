@@ -1218,6 +1218,7 @@ impl GraphEditorModel {
             if let Some(node) = self.nodes.get_cloned_ref(&target.node_id) {
                 node.out_edges.insert(edge_id);
                 edge.set_source(target);
+                edge.view.frp.source_attached.emit(true);
                 // FIXME: both lines require edge to refresh. Let's make it more efficient.
                 self.refresh_edge_position(edge_id);
                 self.refresh_edge_source_size(edge_id);
@@ -1230,6 +1231,7 @@ impl GraphEditorModel {
             if let Some(source) = edge.take_source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&source.node_id) {
                     node.out_edges.remove(&edge_id);
+                    edge.view.frp.source_attached.emit(false);
                     let first_detached = self.edges.detached_source.is_empty();
                     self.edges.detached_source.insert(edge_id);
                     // FIXME: both lines require edge to refresh. Let's make it more efficient.
@@ -1270,7 +1272,7 @@ impl GraphEditorModel {
                     node.in_edges.remove(&edge_id);
                     let first_detached = self.edges.detached_target.is_empty();
                     self.edges.detached_target.insert(edge_id);
-                    edge.view.frp.target_attached.emit(true);
+                    edge.view.frp.target_attached.emit(false);
                     self.refresh_edge_position(edge_id);
                     if first_detached {
                         self.frp.some_edge_targets_detached.emit(());
