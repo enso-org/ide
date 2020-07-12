@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NodeTrees;
+use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
@@ -139,7 +140,7 @@ struct GraphEditorIntegratedWithControllerModel {
     logger             : Logger,
     editor             : GraphEditor,
     controller         : controller::ExecutedGraph,
-    project_controller : controller::Project,
+    project            : Rc<model::Project>,
     node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
     connection_views   : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
@@ -155,7 +156,7 @@ impl GraphEditorIntegratedWithController {
     ( logger     : Logger
     , app        : &Application
     , controller : controller::ExecutedGraph
-    , project    : controller::Project) -> Self {
+    , project    : Rc<model::Project>) -> Self {
         let model = GraphEditorIntegratedWithControllerModel::new(logger,app,controller,project);
         let model       = Rc::new(model);
         let editor_outs = &model.editor.frp.outputs;
@@ -252,15 +253,14 @@ impl GraphEditorIntegratedWithControllerModel {
     ( logger     : Logger
     , app        : &Application
     , controller : controller::ExecutedGraph
-    , project    : controller::Project) -> Self {
+    , project    : Rc<model::Project>) -> Self {
         let editor           = app.new_view::<GraphEditor>();
         let node_views       = default();
         let connection_views = default();
         let expression_views = default();
         let visualizations   = default();
         let this = GraphEditorIntegratedWithControllerModel {editor,controller,node_views,
-            expression_views,connection_views,logger,visualizations,
-            project_controller: project
+            expression_views,connection_views,logger,visualizations,project
         };
 
         if let Err(err) = this.refresh_graph_view() {
@@ -380,33 +380,47 @@ impl GraphEditorIntegratedWithControllerModel {
             // sub-parts).
             for expression_part in node.info.expression().iter_recursive() {
                 if let Some(id) = expression_part.id {
-                    self.refresh_type_on(id)
+                    self.refresh_computed_info(id)
                 }
             }
         }
 
     }
 
-    /// Like `refresh_type_on` but for multiple expressions.
-    fn refresh_types_on(&self, expressions_to_refresh:&[ExpressionId]) -> FallibleResult<()> {
+    /// Like `refresh_computed_info` but for multiple expressions.
+    fn refresh_computed_infos(&self, expressions_to_refresh:&[ExpressionId]) -> FallibleResult<()> {
         debug!(self.logger, "Refreshing type information for IDs: {expressions_to_refresh:?}.");
         for id in expressions_to_refresh {
-            self.refresh_type_on(*id)
+            self.refresh_computed_info(*id)
         }
         Ok(())
     }
 
-    /// Look up the typename for the given expression in the execution controller's registry and
-    /// pass the data to the editor view.
-    fn refresh_type_on(&self, id:ExpressionId) {
-        let typename = self.lookup_typename(&id);
-        self.set_type(id,typename)
+    /// Look up the computed information for a given expression and pass the information to the
+    /// graph editor view.
+    ///
+    /// The computed value information includes the expression type and the target method pointer.
+    fn refresh_computed_info(&self, id:ExpressionId) {
+        let info     = self.lookup_computed_info(&id);
+        let info     = info.as_ref();
+        let typename = info.and_then(|info| info.typename.clone().map(graph_editor::Type));
+        self.set_type(id,typename);
+        let method_pointer = info.and_then(|info| {
+            info.method_pointer.clone().map(graph_editor::MethodPointer)
+        });
+        self.set_method_pointer(id,method_pointer);
     }
 
     /// Set given type (or lack of such) on the given sub-expression.
-    fn set_type(&self, id:ExpressionId, typename:graph_editor::OptionalType) {
+    fn set_type(&self, id:ExpressionId, typename:Option<graph_editor::Type>) {
         let event = (id,typename);
         self.editor.frp.inputs.set_expression_type.emit_event(&event);
+    }
+
+    /// Set given method pointer (or lack of such) on the given sub-expression.
+    fn set_method_pointer(&self, id:ExpressionId, method:Option<graph_editor::MethodPointer>) {
+        let event = (id,method);
+        self.editor.frp.inputs.set_method_pointer.emit_event(&event);
     }
 
     fn refresh_connection_views
@@ -474,7 +488,7 @@ impl GraphEditorIntegratedWithControllerModel {
 
     /// Handle notification received from controller about values having been computed.
     pub fn on_values_computed(&self, expressions:&[ExpressionId]) -> FallibleResult<()> {
-        self.refresh_types_on(&expressions)
+        self.refresh_computed_infos(&expressions)
     }
 
     /// Request controller to detach all attached visualizations.
@@ -572,7 +586,7 @@ impl GraphEditorIntegratedWithControllerModel {
         //   Because of that for now we will just hardcode the `visualization_module` using
         //   fixed defaults. In future this will be changed, then the editor will also get access
         //   to the customised values.
-        let project_name         = self.project_controller.project_name.as_ref();
+        let project_name         = self.project.name.as_ref();
         let module_name          = crate::view::project::INITIAL_MODULE_NAME;
         let visualisation_module = QualifiedName::from_segments(project_name,&[module_name]);
         let id                   = VisualizationId::new_v4();
@@ -711,11 +725,9 @@ impl GraphEditorIntegratedWithControllerModel {
         self.visualizations.get_copied(&node_id).ok_or_else(err)
     }
 
-    fn lookup_typename(&self, id:&ExpressionId) -> graph_editor::OptionalType {
+    fn lookup_computed_info(&self, id:&ExpressionId) -> Option<Rc<ComputedValueInfo>> {
         let registry = self.controller.computed_value_info_registry();
-        let info     = registry.get(id);
-        let typename = info.and_then(|info| info.typename.clone());
-        graph_editor::OptionalType(typename)
+        registry.get(id)
     }
 }
 
@@ -741,7 +753,7 @@ impl NodeEditor {
     ( logger        : impl AnyLogger
     , app           : &Application
     , controller    : controller::ExecutedGraph
-    , project       : controller::Project
+    , project       : Rc<model::Project>
     , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = Logger::sub(logger,"NodeEditor");
         let display_object = display::object::Instance::new(&logger);
