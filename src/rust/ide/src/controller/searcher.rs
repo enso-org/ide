@@ -90,28 +90,32 @@ pub enum Notification {
 
 #[derive(Clone,Debug,Default)]
 struct ParsedInput {
-    expression : Option<ast::prefix::Chain>,
-    pattern    : String,
+    expression     : Option<ast::Shifted<ast::prefix::Chain>>,
+    pattern_offset : usize,
+    pattern        : String,
 }
 
 impl ParsedInput {
     fn new(mut input:String, parser:&Parser) -> FallibleResult<Self> {
+        let leading_spaces = input.chars().take_while(|c| *c == ' ').count();
         input.push('a');
-        let mut prefix = ast::prefix::Chain::new_non_strict(&parser.parse_line(input)?);
+        let mut prefix = ast::prefix::Chain::new_non_strict(&parser.parse_line(input.trim_start())?);
         let last_arg   = prefix.args.pop();
         if let Some(last_arg) = last_arg{
-            let mut last_arg_repr = last_arg.repr();
+            let mut last_arg_repr = last_arg.sast.wrapped.repr();
             last_arg_repr.pop();
             Ok(ParsedInput {
-                expression : Some(prefix),
-                pattern    : last_arg_repr,
+                expression     : Some(ast::Shifted::new(leading_spaces,prefix)),
+                pattern_offset : last_arg.sast.off,
+                pattern        : last_arg_repr,
             })
         } else {
             let mut func_repr = prefix.func.repr();
             func_repr.pop();
             Ok(ParsedInput {
-                expression : None,
-                pattern    : func_repr
+                expression     : None,
+                pattern_offset : leading_spaces,
+                pattern        : func_repr
             })
         }
     }
@@ -119,8 +123,9 @@ impl ParsedInput {
 
 impl HasRepr for ParsedInput {
     fn repr(&self) -> String {
-        let expr = self.expression.as_ref().map_or("".to_string(), HasRepr::repr);
-        iformat!("{expr} {self.pattern}")
+        let expr          = self.expression.as_ref().map_or("".to_string(), HasRepr::repr);
+        let offset:String = std::iter::repeat(' ').take(self.pattern_offset).collect();
+        iformat!("{expr}{offset}{self.pattern}")
     }
 }
 
@@ -129,7 +134,7 @@ impl HasRepr for ParsedInput {
 // === Searcher Controller ===
 // ===========================
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Eq,PartialEq)]
 enum CompletionId {
     Function, Argument{id:usize}
 }
@@ -219,38 +224,48 @@ impl Searcher {
     /// This function should be called each time user modifies Searcher input in view. It may result
     /// in a new suggestion list (the aprriopriate notification will be emitted).
     pub fn set_input(&self, new_input:String) -> FallibleResult<()> {
-        self.data.borrow_mut().current_input = ParsedInput::new(new_input,&self.parser)?;
+        let parsed_input = ParsedInput::new(new_input,&self.parser)?;
+        let old_id = self.next_completion();
+        self.data.borrow_mut().current_input = parsed_input;
+        let new_id = self.next_completion();
+
         self.invalidate_picked_completions();
-        //TODO[ao] here goes refreshing suggestion list after input change.
+
+        if old_id != new_id {
+            self.reload_list()
+        }
         Ok(())
     }
 
     pub fn pick_completion(&self, completion:Completion) -> String {
-        let added_string   = &completion.name;
-        let added_ast      = ast::Ast::var(added_string);
-        let new_expression = match self.data.borrow_mut().current_input.expression.take() {
-            None                 => ast::prefix::Chain::new_non_strict(&added_ast),
+        let added_string      = &completion.name;
+        let added_ast         = ast::Ast::var(added_string);
+        let id                = self.next_completion();
+        let picked_completion = PickedCompletion{id,completion};
+        let pattern_offset    = self.data.borrow().current_input.pattern_offset;
+        let new_expression    = match self.data.borrow_mut().current_input.expression.take() {
+            None => {
+                let ast = ast::prefix::Chain::new_non_strict(&added_ast);
+                ast::Shifted::new(pattern_offset,ast)
+            },
             Some(mut expression) => {
                 let new_argument = ast::prefix::Argument {
-                    sast      : ast::Shifted::new(1,added_ast),
+                    sast      : ast::Shifted::new(pattern_offset,added_ast),
                     prefix_id : default(),
                 };
                 expression.args.push(new_argument);
                 expression
             }
         };
-        let id = match new_expression.args.len() {
-            0   => CompletionId::Function,
-            len => CompletionId::Argument {id:len-1}
-        };
-        let picked_completion = PickedCompletion{id,completion};
         let new_parsed_input = ParsedInput {
-            expression : Some(new_expression),
-            pattern    : "".to_string()
+            expression     : Some(new_expression),
+            pattern_offset : 1,
+            pattern        : "".to_string()
         };
         let new_input = new_parsed_input.repr();
         self.data.borrow_mut().current_input = new_parsed_input;
         self.data.borrow_mut().picked_completions.push(picked_completion);
+        self.reload_list();
         new_input
     }
 
@@ -266,23 +281,31 @@ impl Searcher {
     /// The current list will be set as "Loading" and Language Server will be requested for a new
     /// list - once it be retrieved, the new list will be set and notification will be emitted.
     fn reload_list(&self) {
+        let new_list = if self.next_completion() == CompletionId::Function {
+            self.get_list_from_engine(None,None);
+            Suggestions::Loading
+        } else {
+            // TODO[ao] Requesting for argument.
+            Suggestions::Loaded {list:default()}
+        };
+        self.data.borrow_mut().current_list = new_list;
+    }
+
+    fn get_list_from_engine(&self, return_type:Option<String>, tags:Option<Vec<language_server::SuggestionEntryType>>) {
+        let ls          = &self.language_server;
         let module      = self.module.as_ref();
         let self_type   = None;
-        let return_type = None;
-        let tags        = None;
         let position    = self.position.deref().into();
-        let request     = self.language_server.completion(module,&position,&self_type,&return_type,&tags);
+        let request     = ls.completion(module,&position,&self_type,&return_type,&tags);
         let data        = self.data.clone_ref();
         let database    = self.database.clone_ref();
         let logger      = self.logger.clone_ref();
         let notifier    = self.notifier.clone_ref();
-
-        self.data.borrow_mut().current_list = Suggestions::Loading;
         executor::global::spawn(async move {
             info!(logger,"Requesting new suggestion list.");
-            let ls_response = request.await;
+            let response = request.await;
             info!(logger,"Received suggestions from Language Server.");
-            let new_list = match ls_response {
+            let new_list = match response {
                 Ok(list) => {
                     let entry_ids   = list.results.into_iter();
                     let entries     = entry_ids.filter_map(|id| {
@@ -301,6 +324,13 @@ impl Searcher {
             notifier.publish(Notification::NewSuggestionList).await;
         });
     }
+
+    fn next_completion(&self) -> CompletionId {
+        match &self.data.borrow().current_input.expression {
+            None             => CompletionId::Function,
+            Some(expression) => CompletionId::Argument {id:expression.args.len()},
+        }
+    }
 }
 
 
@@ -318,60 +348,133 @@ mod test {
     use json_rpc::expect_call;
     use utils::test::traits::*;
 
+    struct Fixture {
+        searcher : Searcher,
+        entry1   : Completion,
+        entry9   : Completion,
+    }
+
+    impl Fixture {
+        fn new(client_setup:impl FnOnce(&mut language_server::MockClient)) -> Self {
+            let mut client = language_server::MockClient::default();
+            client_setup(&mut client);
+            let searcher = Searcher {
+                logger          : default(),
+                data            : default(),
+                notifier        : default(),
+                module          : Rc::new(QualifiedName::from_path(&Path::from_mock_module_name("Test"),"Test")),
+                position        : Immutable(TextLocation::at_document_begin()),
+                database        : default(),
+                language_server : language_server::Connection::new_mock_rc(client),
+                parser          : Parser::new_or_panic(),
+            };
+            let entry1 = model::suggestion_database::Entry {
+                name          : "TestFunction1".to_string(),
+                kind          : model::suggestion_database::EntryKind::Function,
+                module        : "Test.Test".to_string(),
+                arguments     : vec![],
+                return_type   : "Number".to_string(),
+                documentation : default(),
+                self_type     : None
+            };
+            let entry9 = model::suggestion_database::Entry {
+                name : "TestFunction2".to_string(),
+                ..entry1.clone()
+            };
+            searcher.database.put_entry(1,entry1);
+            let entry1 = searcher.database.get(1).unwrap();
+            searcher.database.put_entry(9,entry9);
+            let entry9 = searcher.database.get(9).unwrap();
+            Fixture{searcher,entry1,entry9}
+        }
+    }
+
+
     #[test]
-    fn reloading_list() {
-        let mut test    = TestWithLocalPoolExecutor::set_up();
-        let client      = language_server::MockClient::default();
-        let module_path = Path::from_mock_module_name("Test");
-
-        let completion_response = language_server::response::Completion {
-            results: vec![1,5,9],
-            current_version: default(),
-        };
-        expect_call!(client.completion(
-            module      = "Test.Test".to_string(),
-            position    = TextLocation::at_document_begin().into(),
-            self_type   = None,
-            return_type = None,
-            tag         = None
-        ) => Ok(completion_response));
-
-        let searcher = Searcher {
-            logger          : default(),
-            data            : default(),
-            notifier        : default(),
-            module          : Rc::new(module_path.qualified_module_name("Test")),
-            position        : Immutable(TextLocation::at_document_begin()),
-            database        : default(),
-            language_server : language_server::Connection::new_mock_rc(client),
-            parser          : Parser::new_or_panic(),
-        };
-        let entry1 = model::suggestion_database::Entry {
-            name          : "TestFunction1".to_string(),
-            kind          : model::suggestion_database::EntryKind::Function,
-            module        : "Test.Test".to_string(),
-            arguments     : vec![],
-            return_type   : "Number".to_string(),
-            documentation : default(),
-            self_type     : None
-        };
-        let entry2 = model::suggestion_database::Entry {
-            name : "TestFunction2".to_string(),
-            ..entry1.clone()
-        };
-        searcher.database.put_entry(1,entry1);
-        let entry1 = searcher.database.get(1).unwrap();
-        searcher.database.put_entry(9,entry2);
-        let entry2 = searcher.database.get(9).unwrap();
+    fn loading_list() {
+        let mut test = TestWithLocalPoolExecutor::set_up();
+        let Fixture{searcher,entry1,entry9} = Fixture::new(|client| {
+            let completion_response = language_server::response::Completion {
+                results: vec![1,5,9],
+                current_version: default(),
+            };
+            expect_call!(client.completion(
+                module      = "Test.Test".to_string(),
+                position    = TextLocation::at_document_begin().into(),
+                self_type   = None,
+                return_type = None,
+                tag         = None
+            ) => Ok(completion_response));
+        });
 
         let mut subscriber = searcher.subscribe();
-
         searcher.reload_list();
         assert!(searcher.suggestions().is_loading());
         test.run_until_stalled();
-        let expected_list = vec![Suggestion::Completion(entry1),Suggestion::Completion(entry2)];
+        let expected_list = vec![Suggestion::Completion(entry1),Suggestion::Completion(entry9)];
         assert_eq!(searcher.suggestions().list(), Some(&expected_list));
         let notification = subscriber.next().boxed_local().expect_ready();
         assert_eq!(notification, Some(Notification::NewSuggestionList));
+    }
+
+    #[test]
+    fn parsed_input() {
+        let parser = Parser::new_or_panic();
+
+        fn args_repr(prefix:&ast::prefix::Chain) -> Vec<String> {
+            prefix.args.iter().map(|arg| arg.repr()).collect()
+        }
+
+        let input  = "";
+        let parsed = ParsedInput::new(input.to_string(),&parser).unwrap();
+        assert!(parsed.expression.is_none());
+        assert_eq!(parsed.pattern.as_str(), "");
+
+        let input  = "foo";
+        let parsed = ParsedInput::new(input.to_string(),&parser).unwrap();
+        assert!(parsed.expression.is_none());
+        assert_eq!(parsed.pattern.as_str(), "foo");
+
+        let input  = " foo";
+        let parsed = ParsedInput::new(input.to_string(),&parser).unwrap();
+        assert!(parsed.expression.is_none());
+        assert_eq!(parsed.pattern_offset,   1);
+        assert_eq!(parsed.pattern.as_str(), "foo");
+
+        let input  = "foo  ";
+        let parsed = ParsedInput::new(input.to_string(),&parser).unwrap();
+        let expression = parsed.expression.unwrap();
+        assert_eq!(expression.off         , 0);
+        assert_eq!(expression.func.repr() , "foo");
+        assert_eq!(args_repr(&expression) , Vec::<String>::new());
+        assert_eq!(parsed.pattern_offset,   2);
+        assert_eq!(parsed.pattern.as_str(), "");
+
+        let input  = "foo bar";
+        let parsed = ParsedInput::new(input.to_string(),&parser).unwrap();
+        let expression = parsed.expression.unwrap();
+        assert_eq!(expression.off         , 0);
+        assert_eq!(expression.func.repr() , "foo");
+        assert_eq!(args_repr(&expression) , Vec::<String>::new());
+        assert_eq!(parsed.pattern_offset,   1);
+        assert_eq!(parsed.pattern.as_str(), "bar");
+
+        let input  = "foo  bar  baz";
+        let parsed = ParsedInput::new(input.to_string(),&parser).unwrap();
+        let expression = parsed.expression.unwrap();
+        assert_eq!(expression.off         , 0);
+        assert_eq!(expression.func.repr() , "foo");
+        assert_eq!(args_repr(&expression) , vec!["  bar".to_string()]);
+        assert_eq!(parsed.pattern_offset,   2);
+        assert_eq!(parsed.pattern.as_str(), "baz");
+
+        let input  = "  foo bar baz ";
+        let parsed = ParsedInput::new(input.to_string(),&parser).unwrap();
+        let expression = parsed.expression.unwrap();
+        assert_eq!(expression.off         , 2);
+        assert_eq!(expression.func.repr() , "foo");
+        assert_eq!(args_repr(&expression) , vec![" bar".to_string()," baz".to_string()]);
+        assert_eq!(parsed.pattern_offset,   1);
+        assert_eq!(parsed.pattern.as_str(), "");
     }
 }
