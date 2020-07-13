@@ -937,12 +937,7 @@ impl GraphEditorModelWithNetwork {
 
         frp::new_bridge_network! { [self.network, node.main_area.events.network]
             eval_ node.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
-            eval  node.ports.frp.cursor_style ([model,cursor_style](style) {
-                let has_detached_target = !model.edges.detached_target.is_empty();
-                if has_detached_target {
-                    cursor_style.emit(style)
-                }
-            });
+            eval  node.ports.frp.cursor_style ((style) cursor_style.emit(style));
             eval_ node.view.output_ports.frp.port_mouse_down (output_press.emit(node_id));
             eval  node.ports.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
