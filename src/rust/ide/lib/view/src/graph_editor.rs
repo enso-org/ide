@@ -373,7 +373,7 @@ pub struct FrpInputs {
     pub remove_node                  : frp::Source<NodeId>,
     pub set_node_expression          : frp::Source<(NodeId,node::Expression)>,
     pub set_node_position            : frp::Source<(NodeId,Vector2)>,
-    pub set_expression_type          : frp::Source<(ast::Id,Option<Type>)>,
+    pub set_expression_type          : frp::Source<(NodeId,ast::Id,Option<Type>)>,
     pub set_method_pointer           : frp::Source<(ast::Id,Option<MethodPointer>)>,
     pub cycle_visualization          : frp::Source<NodeId>,
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
@@ -637,6 +637,7 @@ impl Edge {
     pub fn take_target(&self) -> Option<EdgeTarget> {
         mem::take(&mut *self.target.borrow_mut())
     }
+
 }
 
 impl display::Object for Edge {
@@ -1218,6 +1219,7 @@ impl GraphEditorModel {
         let node_id = node_id.into();
         let mut edges = self.node_in_edges(node_id);
         edges.extend(&self.node_out_edges(node_id));
+        edges.extend(&self.node_out_edges(node_id));
         edges
     }
 
@@ -1253,6 +1255,7 @@ impl GraphEditorModel {
                 edge.set_source(target);
                 edge.view.frp.source_attached.emit(true);
                 // FIXME: both lines require edge to refresh. Let's make it more efficient.
+                self.refresh_edge_color(edge_id);
                 self.refresh_edge_position(edge_id);
                 self.refresh_edge_source_size(edge_id);
             }
@@ -1293,6 +1296,7 @@ impl GraphEditorModel {
 
                 edge.view.frp.target_attached.emit(true);
                 edge.view.frp.redraw.emit(());
+                self.refresh_edge_color(edge_id);
                 self.refresh_edge_position(edge_id);
             };
         }
@@ -1383,6 +1387,13 @@ impl GraphEditorModel {
         }
     }
 
+    pub fn set_node_expression_type(&self, node_id:impl Into<NodeId>, ast_id:ast::Id, maybe_type:Option<Type>) {
+        let node_id  = node_id.into();
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            node.view.frp.set_expression_type.emit((ast_id,maybe_type))
+        }
+    }
+
     fn disable_grid_snapping_for(&self, node_ids:&[NodeId]) {
         self.nodes.recompute_grid(node_ids.iter().cloned().collect());
     }
@@ -1417,6 +1428,23 @@ impl GraphEditorModel {
                     edge.view.frp.redraw.emit(());
                 }
             }
+        };
+    }
+
+    pub fn refresh_edge_color(&self, edge_id:EdgeId) {
+        if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
+            let edge_target = match (edge.source(), edge.target()) {
+                (Some(source), _) => Some(source),
+                (_, Some(target)) => Some(target),
+                _                 => None
+            };
+            if let Some(edge_target) = edge_target {
+                if let Some(node) = self.nodes.get_cloned_ref(&edge_target.node_id) {
+                    let port_color = node.view.ports.get_port_color(&edge_target.port);
+                    edge.view.set_color(port_color);
+                }
+            }
+
         };
     }
 
@@ -2029,7 +2057,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // * integration layer reserves right to emit spurious signals (i.e. unsetting type that was
     //   not previously set or setting same type multiple times). This should improve, as we get
     //   better updates from engine services (see https://github.com/enso-org/enso/issues/441 ).
-    trace inputs.set_expression_type;
+    eval inputs.set_expression_type (((node_id,ast_id,maybe_type)) model.set_node_expression_type(*node_id,*ast_id,maybe_type.clone()));
 
     }
 

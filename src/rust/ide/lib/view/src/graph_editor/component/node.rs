@@ -26,7 +26,7 @@ use std::num::NonZeroU32;
 use super::edge;
 use crate::graph_editor::component::visualization;
 use crate::graph_editor::component::node::port::output::OutputPorts;
-
+use crate::graph_editor::Type;
 
 
 // =================
@@ -129,21 +129,23 @@ pub mod drag_area {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct InputEvents {
-    pub select            : frp::Source,
-    pub deselect          : frp::Source,
-    pub set_expression    : frp::Source<Expression>,
-    pub set_visualization : frp::Source<Option<visualization::Instance>>,
+    pub select              : frp::Source,
+    pub deselect            : frp::Source,
+    pub set_expression      : frp::Source<Expression>,
+    pub set_expression_type : frp::Source<(ast::Id,Option<Type>)>,
+    pub set_visualization   : frp::Source<Option<visualization::Instance>>,
 }
 
 impl InputEvents {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def select            = source();
-            def deselect          = source();
-            def set_expression    = source();
-            def set_visualization = source();
+            def select              = source();
+            def deselect            = source();
+            def set_expression      = source();
+            def set_expression_type = source();
+            def set_visualization   = source();
         }
-        Self {select,deselect,set_expression,set_visualization}
+        Self {select,deselect,set_expression,set_expression_type,set_visualization}
     }
 }
 

@@ -23,7 +23,9 @@ use ensogl::gui::cursor;
 
 use super::super::node;
 use span_tree::SpanTree;
-
+use crate::graph_editor::Type;
+use crate::graph_editor::component::color::TypeMap;
+use enso_protocol::prelude::Uuid;
 
 
 // ============
@@ -42,7 +44,7 @@ pub mod shape {
             let shape  = Rect((&width,&height)).corners_radius(radius);
             let color = Var::<color::Rgba>::from(color_rgba);
             // TODO remove obsolete code
-            //let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001)".into();
+            let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001)".into();
             let shape  = shape.fill(color);
             shape.into()
         }
@@ -163,15 +165,16 @@ impl From<&Expression> for Expression {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Manager {
-    logger         : Logger,
-    display_object : display::object::Instance,
-    scene          : Scene,
-    expression     : Rc<RefCell<Expression>>,
-    label          : component::ShapeView<label::Shape>,
-    ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
-    width          : Rc<Cell<f32>>,
-    port_networks  : Rc<RefCell<Vec<frp::Network>>>,
-    pub frp        : Events,
+    logger            : Logger,
+    display_object    : display::object::Instance,
+    scene             : Scene,
+    expression        : Rc<RefCell<Expression>>,
+    label             : component::ShapeView<label::Shape>,
+    ports             : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
+    width             : Rc<Cell<f32>>,
+    port_networks     : Rc<RefCell<Vec<frp::Network>>>,
+    type_map          : TypeMap,
+    pub frp           : Events,
 }
 
 impl Manager {
@@ -187,6 +190,7 @@ impl Manager {
         let scene          = scene.clone_ref();
         let expression     = default();
         let port_networks  = default();
+        let type_map       = default();
         let label          = component::ShapeView::<label::Shape>::new(&logger,&scene);
         let ports          = default();
         let width          = default();
@@ -200,7 +204,7 @@ impl Manager {
 
         display_object.add_child(&label);
 
-        Self {logger,display_object,frp,label,ports,width,scene,expression,port_networks}
+        Self {logger,display_object,frp,label,ports,width,scene,expression,port_networks,type_map}
     }
 
     pub fn set_expression(&self, expression:impl Into<Expression>) {
@@ -226,27 +230,32 @@ impl Manager {
                     let contains_root = span.index.value == 0;
                     let skip          = node.kind.is_empty() || contains_root;
                     if !skip {
-                        let logger = Logger::sub(&self.logger,"port");
-                        let port   = component::ShapeView::<shape::Shape>::new(&logger,&self.scene);
-                        let unit   = 7.224_609_4;
-                        let width  = unit * span.size.value as f32;
-                        let width2  = width + 8.0;
+                        let logger      = Logger::sub(&self.logger,"port");
+                        let port        = component::ShapeView::<shape::Shape>::new(&logger,&self.scene);
+                        let type_map    = &self.type_map;
+
+                        let unit        = 7.224_609_4;
+                        let width       = unit * span.size.value as f32;
+                        let width2      = width + 8.0;
                         let node_height = 28.0;
-                        let height = 18.0;
+                        let height      = 18.0;
                         port.shape.sprite.size.set(Vector2::new(width2,node_height));
                         let x = width/2.0 + unit * span.index.value as f32;
                         port.mod_position(|t| t.x = x);
                         self.add_child(&port);
 
-//                        let network = &port.events.network;
                         let hover   = &port.shape.hover;
                         let crumbs  = node.crumbs.clone();
+                        let ast_id      = self.get_id_for_crumbs(&crumbs);
                         frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
                             def _foo = port.events.mouse_out  . map(f_!(hover.set(0.0);));
 
                             def out  = port.events.mouse_out.constant(cursor::Style::default());
-                            def over = port.events.mouse_over.constant(cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(color::Lcha::new(0.6,0.5,0.76,1.0))));
+                            def over = port.events.mouse_over.map(f_!([type_map,port]{
+                                let port_color = type_map.type_color(ast_id);
+                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(port_color))
+                            }));
                             // FIXME: the following lines leak memory in the current FRP
                             // implementation because self.frp does not belong to this network and
                             // we are attaching node there. Nothing bad should happen though.
@@ -286,8 +295,27 @@ impl Manager {
         }).ok()
     }
 
+    pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> color::Lcha {
+        let ast_id = self.get_id_for_crumbs(crumbs);
+        self.type_map.type_color(ast_id)
+    }
+
+    fn get_id_for_crumbs(&self, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
+        let span_tree = &self.expression.borrow().input_span_tree;
+        span_tree.root_ref().get_descendant(crumbs).map(|node|{
+            node.expression_id
+        }).ok().flatten()
+    }
+
     pub fn width(&self) -> f32 {
         self.width.get()
+    }
+
+    pub fn set_expression_type(&self, id:ast::Id, maybe_type:Option<Type>) {
+        match maybe_type {
+            Some(r#type) => self.type_map.insert(id, r#type),
+            None         => self.type_map.remove(&id),
+        };
     }
 }
 

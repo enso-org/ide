@@ -76,6 +76,7 @@ trait EdgeShape : display::Object {
     fn sprite (&self) -> &Sprite;
     fn id     (&self) -> display::object::Id { self.sprite().id() }
     fn events (&self) -> &ShapeViewEvents;
+    fn set_color(&self, color:color::Rgba);
 
 
     // === Hover ===
@@ -310,7 +311,7 @@ fn corner_base_shape
 
 // FIXME [WD]: The 2 follwoing impls are almost the same. Should be merged. This task should will
 //             handled by Wojciech.
-macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
+macro_rules! define_corner_start { () => {
     /// Shape definition.
     pub mod corner {
         use super::*;
@@ -325,8 +326,8 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
             , focus_split_angle  : f32
             , color_rgba:Vector4<f32>
             ) {
-                let width  = &LINE_WIDTH.px();
-                let shape  = corner_base_shape(&radius,width,&angle,&start_angle);
+                let width = &LINE_WIDTH.px();
+                let shape = corner_base_shape(&radius,width,&angle,&start_angle);
                 let color = Var::<color::Rgba>::from(color_rgba);
 
                 let shadow_size = 10.px();
@@ -344,7 +345,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
                 let split_shape = FocusedEdge::new(
                     shape,&focus_split_center.px(),&focus_split_angle.into());
-                let shape       = split_shape.fill($highlight_color);
+                let shape       = split_shape.fill(color.clone(), color.clone());
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
                 let hover_area  = corner_base_shape(&radius,&hover_width,&angle,&start_angle);
@@ -368,6 +369,10 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
             fn events(&self) -> &ShapeViewEvents{
                 &self.events
+            }
+
+            fn set_color(&self, color:color::Rgba) {
+                self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
@@ -395,8 +400,8 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
     }
 }}
 
-// TODO remove color from macro
-macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
+
+macro_rules! define_corner_end { () => {
     /// Shape definition.
     pub mod corner {
         use super::*;
@@ -427,7 +432,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
 
                 let split_shape = FocusedEdge::new(
                 shape,&focus_split_center.px(),&focus_split_angle.into());
-                let shape       = split_shape.fill(color, $highlight_color);
+                let shape       = split_shape.fill(color.clone(), color.clone());
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
                 let hover_area  = corner_base_shape(&radius,&hover_width,&angle,&start_angle);
@@ -451,6 +456,10 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
 
             fn events(&self) -> &ShapeViewEvents{
                 &self.events
+            }
+
+            fn set_color(&self, color:color::Rgba) {
+                self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
@@ -482,8 +491,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
     }
 }}
 
-// TODO remove color from macro
-macro_rules! define_line {($color:expr, $highlight_color:expr) => {
+macro_rules! define_line { () => {
     /// Shape definition.
     pub mod line {
         use super::*;
@@ -496,7 +504,7 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
 
                 let split_shape = FocusedEdge::new(
                     shape,&focus_split_center.px(),&focus_split_angle.into());
-                let shape       = split_shape.fill(color, $highlight_color);
+                let shape       = split_shape.fill(color.clone(), color.clone());
                 hover_area(shape,HOVER_EXTENSION.px()).into()
             }
         }
@@ -518,6 +526,10 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 &self.events
             }
 
+            fn set_color(&self, color:color::Rgba) {
+                self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+            }
+
             fn normal_local(&self, _:Vector2<f32>) -> nalgebra::Rotation2<f32> {
                 nalgebra::Rotation2::new(0.0)
             }
@@ -534,8 +546,7 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
     }
 }}
 
-// TODO remove color from macro
-macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
+macro_rules! define_arrow { () => {
     /// Shape definition.
     pub mod arrow {
         use super::*;
@@ -549,7 +560,7 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let shape_padding = -1.px();
                 let shape         = Triangle(width+&shape_padding,height+&shape_padding);
                 let shape         = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle);
-                let shape         = shape.fill(color,$highlight_color);
+                let shape         = shape.fill(color.clone(), color.clone());
                 shape.into()
             }
         }
@@ -576,6 +587,10 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
 
             fn events(&self) -> &ShapeViewEvents {
                 &self.events
+            }
+
+            fn set_color(&self, color:color::Rgba) {
+                self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn normal_local(&self, _:Vector2<f32>) -> nalgebra::Rotation2<f32> {
@@ -669,17 +684,17 @@ impl LayoutLine for component::ShapeView<back::line::Shape> {
 /// Shape definitions which will be rendered in the front layer (on top of nodes).
 pub mod front {
     use super::*;
-    define_corner_start!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
-    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
-    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
+    define_corner_start!();
+    define_line!();
+    define_arrow!();
 }
 
 /// Shape definitions which will be rendered in the bottom layer (below nodes).
 pub mod back {
     use super::*;
-    define_corner_end!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
-    define_line!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
-    define_arrow!(color::Lcha::new(0.6,0.5,0.76,1.0),color::Lcha::new(0.2,0.5,0.76,1.0));
+    define_corner_end!();
+    define_line!();
+    define_arrow!();
 }
 
 
@@ -1240,8 +1255,10 @@ impl EdgeModelData {
               layout_state,hover_target,joint}
     }
 
-    fn set_color<Color:Into<color::Rgba>>(&self, color:Color) {
-        unimplemented!()
+    // TODO frp
+    pub fn set_color<Color:Into<color::Rgba>>(&self, color:Color) {
+        let color = color.into();
+        self.edge_shape_views().iter().for_each(|shape| shape.set_color(color))
     }
 
     /// Redraws the connection.
