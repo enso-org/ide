@@ -7,18 +7,20 @@ use crate::notification;
 use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
-
+use parser::Parser;
 
 
 // =======================
 // === Suggestion List ===
 // =======================
 
+pub type Completion = Rc<model::suggestion_database::Entry>;
+
 /// A single suggestion on the Searcher suggestion list.
 #[derive(Clone,CloneRef,Debug,Eq,PartialEq)]
 pub enum Suggestion {
     /// Suggestion for input completion: possible functions, arguments, etc.
-    Completion(Rc<model::suggestion_database::Entry>)
+    Completion(Completion)
     // In future, other suggestion types will be added (like suggestions of actions, etc.).
 }
 
@@ -82,17 +84,85 @@ pub enum Notification {
 }
 
 
+// ===================
+// === Input Parts ===
+// ===================
+
+#[derive(Clone,Debug,Default)]
+struct ParsedInput {
+    expression : Option<ast::prefix::Chain>,
+    pattern    : String,
+}
+
+impl ParsedInput {
+    fn new(mut input:String, parser:&Parser) -> FallibleResult<Self> {
+        input.push('a');
+        let mut prefix = ast::prefix::Chain::new_non_strict(&parser.parse_line(input)?);
+        let last_arg   = prefix.args.pop();
+        if let Some(last_arg) = last_arg{
+            let mut last_arg_repr = last_arg.repr();
+            last_arg_repr.pop();
+            Ok(ParsedInput {
+                expression : Some(prefix),
+                pattern    : last_arg_repr,
+            })
+        } else {
+            let mut func_repr = prefix.func.repr();
+            func_repr.pop();
+            Ok(ParsedInput {
+                expression : None,
+                pattern    : func_repr
+            })
+        }
+    }
+}
+
+impl HasRepr for ParsedInput {
+    fn repr(&self) -> String {
+        let expr = self.expression.as_ref().map_or("".to_string(), HasRepr::repr);
+        iformat!("{expr} {self.pattern}")
+    }
+}
+
 
 // ===========================
 // === Searcher Controller ===
 // ===========================
 
+#[derive(Clone,Debug)]
+enum CompletionId {
+    Function, Argument{id:usize}
+}
+
+impl CompletionId {
+    fn completed_fragment(&self,input:&ParsedInput) -> Option<String> {
+        match (self,&input.expression) {
+            (_                          , None)       => None,
+            (CompletionId::Function     , Some(expr)) => Some(expr.func.repr()),
+            (CompletionId::Argument {id}, Some(expr)) => expr.args.get(*id).map(HasRepr::repr),
+        }
+    }
+}
+
+#[derive(Clone,Debug)]
+struct PickedCompletion {
+    id              : CompletionId,
+    completion      : Completion,
+}
+
+impl PickedCompletion {
+    fn still_unmodified(&self, input:&ParsedInput) -> bool {
+        self.id.completed_fragment(input).as_ref() == Some(&self.completion.name)
+    }
+}
+
 /// A controller state. Currently it caches the currently kept suggestions list and the current
 /// searcher input.
 #[derive(Clone,Debug,Default)]
 struct Data {
-    current_input : String,
-    current_list  : Suggestions,
+    current_input      : ParsedInput,
+    current_list       : Suggestions,
+    picked_completions : Vec<PickedCompletion>,
 }
 
 /// Searcher Controller.
@@ -109,6 +179,7 @@ pub struct Searcher {
     position        : Immutable<TextLocation>,
     database        : Rc<model::SuggestionDatabase>,
     language_server : Rc<language_server::Connection>,
+    parser          : Parser,
 }
 
 impl Searcher {
@@ -127,6 +198,7 @@ impl Searcher {
             module          : Rc::new(project.qualified_module_name(&module)),
             database        : project.suggestion_db.clone_ref(),
             language_server : project.language_server_rpc.clone_ref(),
+            parser          : project.parser.clone_ref(),
         };
         this.reload_list();
         this
@@ -146,9 +218,47 @@ impl Searcher {
     ///
     /// This function should be called each time user modifies Searcher input in view. It may result
     /// in a new suggestion list (the aprriopriate notification will be emitted).
-    pub fn set_input(&self, new_input:String) {
-        self.data.borrow_mut().current_input = new_input;
+    pub fn set_input(&self, new_input:String) -> FallibleResult<()> {
+        self.data.borrow_mut().current_input = ParsedInput::new(new_input,&self.parser)?;
+        self.invalidate_picked_completions();
         //TODO[ao] here goes refreshing suggestion list after input change.
+        Ok(())
+    }
+
+    pub fn pick_completion(&self, completion:Completion) -> String {
+        let added_string   = &completion.name;
+        let added_ast      = ast::Ast::var(added_string);
+        let new_expression = match self.data.borrow_mut().current_input.expression.take() {
+            None                 => ast::prefix::Chain::new_non_strict(&added_ast),
+            Some(mut expression) => {
+                let new_argument = ast::prefix::Argument {
+                    sast      : ast::Shifted::new(1,added_ast),
+                    prefix_id : default(),
+                };
+                expression.args.push(new_argument);
+                expression
+            }
+        };
+        let id = match new_expression.args.len() {
+            0   => CompletionId::Function,
+            len => CompletionId::Argument {id:len-1}
+        };
+        let picked_completion = PickedCompletion{id,completion};
+        let new_parsed_input = ParsedInput {
+            expression : Some(new_expression),
+            pattern    : "".to_string()
+        };
+        let new_input = new_parsed_input.repr();
+        self.data.borrow_mut().current_input = new_parsed_input;
+        self.data.borrow_mut().picked_completions.push(picked_completion);
+        new_input
+    }
+
+    fn invalidate_picked_completions(&self) {
+        let mut data = self.data.borrow_mut();
+        let data     = data.deref_mut();
+        let input    = &data.current_input;
+        data.picked_completions.drain_filter(|compl| compl.still_unmodified(input));
     }
 
     /// Reload Suggestion List.
@@ -234,6 +344,7 @@ mod test {
             position        : Immutable(TextLocation::at_document_begin()),
             database        : default(),
             language_server : language_server::Connection::new_mock_rc(client),
+            parser          : Parser::new_or_panic(),
         };
         let entry1 = model::suggestion_database::Entry {
             name          : "TestFunction1".to_string(),
