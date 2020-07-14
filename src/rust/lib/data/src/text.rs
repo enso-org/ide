@@ -113,7 +113,7 @@ impl Display for Size {
 
 impl From<&str> for Size {
     fn from(text:&str) -> Self {
-        Size::new(text.len())
+        Size::new(text.chars().count())
     }
 }
 
@@ -140,6 +140,11 @@ impl Span {
             let size  = end - begin;
             Span {index,size}
         }
+    }
+
+    /// Creates a span from zero up to given index.
+    pub fn from_beginning_to(index:Index) -> Self {
+        Span::from_indices(Index::new(0), index)
     }
 
     /// Creates a span from zero index with given length.
@@ -240,7 +245,36 @@ impl std::ops::Index<Span> for str {
     type Output = str;
 
     fn index(&self, index:Span) -> &Self::Output {
-        &self[index.range()]
+        println!("===\n{}\n===", self);
+        println!("{:?}", index);
+        // Note: Unwraps in this method are justified, as OOB access panic is expected behavior
+        // for []-style indexing operations.
+        let mut char_indices = self.char_indices();
+        let start_char = char_indices.nth(index.index.value).unwrap();
+        println!("Start: {:?}", start_char);
+        let start = start_char.0;
+        let end   = match index.size.value.checked_sub(1) {
+            Some(0) => start + start_char.1.len_utf8(),
+            Some(i) => {
+                let dd = char_indices.take(i).enumerate().last();
+                println!("i={},DD: {:?}",i,dd);
+
+                // TODO refactor
+
+                let last_character_index = dd.map_or(0,|last_char| last_char.0);
+                if last_character_index + 1 == i {
+                    println!("aa");
+                    (dd.unwrap().1).0 + (dd.unwrap().1).1.len_utf8()
+                // } else if last_character_index == i {
+                //     println!("bb");
+                //     self.len()
+                }  else {
+                    panic!("End index of span {} exceeds the character count {}",index,self.chars().count());
+                }
+            },
+            None => start,
+        };
+        &self[start..end]
     }
 }
 
@@ -521,5 +555,17 @@ mod test {
         assert_eq!(TextLocation::at_document_end(str) , TextLocation {line:2, column:5});
         assert_eq!(TextLocation::at_document_end("")  , TextLocation {line:0, column:0});
         assert_eq!(TextLocation::at_document_end("\n"), TextLocation {line:1, column:0});
+    }
+
+    #[test]
+    fn indexing_utf8() {
+        let str = "zazó黄ć gęślą jaźń";
+        assert_eq!(&str[Span::from(2..5)],"zó黄");
+        assert_eq!(&str[Span::from(5..5)],"");
+        assert_eq!(Size::from("日本語").value,3);
+        assert_eq!(&"日本語"[Span::from(0..0)],"");
+        assert_eq!(&"日本語"[Span::from(0..1)],"日");
+        assert_eq!(&"日本語"[Span::from(2..3)],"語");
+
     }
 }

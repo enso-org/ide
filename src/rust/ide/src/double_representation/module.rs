@@ -202,6 +202,12 @@ impl Info {
     }
 }
 
+impl From<known::Module> for Info {
+    fn from(ast:known::Module) -> Self {
+        Info {ast}
+    }
+}
+
 
 
 // ==============
@@ -267,6 +273,11 @@ pub fn lookup_method
     }
 
     Err(CannotFindMethod(method.clone()).into())
+}
+
+pub fn definition_span(ast:&known::Module, id:&definition::Id) -> FallibleResult<data::text::Span> {
+    let location = locate(ast,id)?;
+    ast.span_of_descendent_at(&location.crumbs)
 }
 
 impl DefinitionProvider for known::Module {
@@ -381,4 +392,39 @@ mod tests {
 
         expect_not_found("bar a b = a + b");
     }
+
+
+    #[test]
+    fn test_definition_location() {
+        let code = r"
+some def =
+    first line
+    second line
+
+other def =
+    first line
+    second line
+    nested def =
+        nested body
+    last line of other def
+
+last def = inline expression";
+
+        let parser = parser::Parser::new_or_panic();
+        let module = parser.parse_module(code,default()).unwrap();
+        let module   = Info {ast:module};
+
+        let id       = definition::Id::new_plain_name("other");
+        let span     = definition_span(&module.ast,&id).unwrap();
+        assert!(code[span].ends_with("last line of other def\n"));
+
+        let id       = definition::Id::new_plain_name("last");
+        let span     = definition_span(&module.ast,&id).unwrap();
+        assert!(code[span].ends_with("inline expression"));
+
+        let id       = definition::Id::new_plain_names(&["other","nested"]);
+        let span     = definition_span(&module.ast,&id).unwrap();
+        assert!(code[span].ends_with("nested body"));
+    }
+
 }
