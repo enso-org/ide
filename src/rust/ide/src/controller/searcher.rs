@@ -405,7 +405,7 @@ mod test {
                 logger          : default(),
                 data            : default(),
                 notifier        : default(),
-                module          : Rc::new(QualifiedName::from_path(&module_path,"Test")),
+                module          : Rc::new(module_path.qualified_module_name("Test")),
                 position        : Immutable(TextLocation::at_document_begin()),
                 database        : default(),
                 language_server : language_server::Connection::new_mock_rc(client),
