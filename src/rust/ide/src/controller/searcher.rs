@@ -203,7 +203,6 @@ mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::module::QualifiedName;
     use crate::model::module::Path;
 
     use json_rpc::expect_call;
@@ -211,8 +210,9 @@ mod test {
 
     #[test]
     fn reloading_list() {
-        let mut test = TestWithLocalPoolExecutor::set_up();
-        let client   = language_server::MockClient::default();
+        let mut test    = TestWithLocalPoolExecutor::set_up();
+        let client      = language_server::MockClient::default();
+        let module_path = Path::from_mock_module_name("Test");
 
         let completion_response = language_server::response::Completion {
             results: vec![1,5,9],
@@ -230,7 +230,7 @@ mod test {
             logger          : default(),
             data            : default(),
             notifier        : default(),
-            module          : Rc::new(QualifiedName::from_path(&Path::from_mock_module_name("Test"),"Test")),
+            module          : Rc::new(module_path.qualified_module_name("Test")),
             position        : Immutable(TextLocation::at_document_begin()),
             database        : default(),
             language_server : language_server::Connection::new_mock_rc(client),
