@@ -1218,7 +1218,7 @@ pub trait TraversableAst:Sized {
         let mut ast      = self.my_ast()?;
         for crumb in crumbs {
             let child    = ast.get(crumb)?;
-            let child_ix = ast.index_of_child(child)?;
+            let child_ix = ast.child_offset(child)?;
             position    += Span::from_beginning_to(child_ix).size;
             ast          = child;
         }

@@ -275,6 +275,7 @@ pub fn lookup_method
     Err(CannotFindMethod(method.clone()).into())
 }
 
+/// Get a span in module's text representation where the given definition is located.
 pub fn definition_span(ast:&known::Module, id:&definition::Id) -> FallibleResult<data::text::Span> {
     let location = locate(ast,id)?;
     ast.span_of_descendent_at(&location.crumbs)
@@ -394,7 +395,7 @@ mod tests {
     }
 
 
-    #[test]
+    #[wasm_bindgen_test]
     fn test_definition_location() {
         let code = r"
 some def =

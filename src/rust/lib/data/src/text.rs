@@ -34,6 +34,17 @@ impl Index {
         let slice = &content.as_ref()[..index.value];
         Self::new(slice.chars().count())
     }
+
+    /// Checked subtraction. Computes `self - rhs`, returning `None` if overflow occurred.
+    pub fn checked_sub(self, rhs:Size) -> Option<Self> {
+        self.value.checked_sub(rhs.value).map(Self::new)
+    }
+}
+
+impl Display for Index {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"{}",self.value)
+    }
 }
 
 
@@ -68,6 +79,11 @@ impl Size {
         Size {value}
     }
 
+    /// Obtain a size of given string value.
+    pub fn from_text(value:impl AsRef<str>) -> Self {
+        Size::new(value.as_ref().chars().count())
+    }
+
     /// Checks if this is a non-empty size (more than zero elements).
     pub fn non_empty(self) -> bool {
         self.value > 0
@@ -76,6 +92,11 @@ impl Size {
     /// Checks if this is an empty size (zero elements).
     pub fn is_empty(self) -> bool {
         self.value == 0
+    }
+
+    /// Checked subtraction. Computes `self - rhs`, returning `None` if overflow occurred.
+    pub fn checked_sub(self, rhs:Size) -> Option<Self> {
+        self.value.checked_sub(rhs.value).map(Self::new)
     }
 }
 
@@ -108,12 +129,6 @@ impl SubAssign for Size {
 impl Display for Size {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"{}",self.value)
-    }
-}
-
-impl From<&str> for Size {
-    fn from(text:&str) -> Self {
-        Size::new(text.chars().count())
     }
 }
 
@@ -150,6 +165,17 @@ impl Span {
     /// Creates a span from zero index with given length.
     pub fn from_beginning(size:Size) -> Self {
         Span {index:Index::new(0), size}
+    }
+
+    /// Get the index of the last character in the span.
+    ///
+    /// If the span is empty or starts at 0, returns `None`.
+    pub fn last(&self) -> Option<Index> {
+        if self.is_empty() {
+            None
+        } else {
+            self.end().checked_sub(Size::new(1))
+        }
     }
 
     /// Get the character after last character of this span.
@@ -219,6 +245,11 @@ impl Span {
     pub fn set_right(&mut self, new_right:Index) {
         self.size = new_right - self.index;
     }
+
+    /// Check if this is an empty span (zero elements).
+    pub fn is_empty(self) -> bool {
+        self.size.is_empty()
+    }
 }
 
 impls! { From + &From <Range<usize>> for Span { |range|
@@ -244,37 +275,19 @@ impl Display for Span {
 impl std::ops::Index<Span> for str {
     type Output = str;
 
-    fn index(&self, index:Span) -> &Self::Output {
-        println!("===\n{}\n===", self);
-        println!("{:?}", index);
+    fn index(&self, span:Span) -> &Self::Output {
         // Note: Unwraps in this method are justified, as OOB access panic is expected behavior
         // for []-style indexing operations.
-        let mut char_indices = self.char_indices();
-        let start_char = char_indices.nth(index.index.value).unwrap();
-        println!("Start: {:?}", start_char);
-        let start = start_char.0;
-        let end   = match index.size.value.checked_sub(1) {
-            Some(0) => start + start_char.1.len_utf8(),
-            Some(i) => {
-                let dd = char_indices.take(i).enumerate().last();
-                println!("i={},DD: {:?}",i,dd);
-
-                // TODO refactor
-
-                let last_character_index = dd.map_or(0,|last_char| last_char.0);
-                if last_character_index + 1 == i {
-                    println!("aa");
-                    (dd.unwrap().1).0 + (dd.unwrap().1).1.len_utf8()
-                // } else if last_character_index == i {
-                //     println!("bb");
-                //     self.len()
-                }  else {
-                    panic!("End index of span {} exceeds the character count {}",index,self.chars().count());
-                }
-            },
-            None => start,
-        };
-        &self[start..end]
+        let mut iter    = self.char_indices();
+        let first       = iter.nth(span.index.value).unwrap();
+        let to_last     = span.last().map(|last| last - span.index);
+        let last_as_nth = to_last.and_then(|i| i.checked_sub(Size::new(1)));
+        let last        = last_as_nth.map_or(first,|nth| iter.nth(nth.value).unwrap());
+        if span.is_empty() {
+            &self[first.0 .. first.0]
+        } else {
+            &self[first.0 .. last.0 + last.1.len_utf8()]
+        }
     }
 }
 
@@ -562,10 +575,11 @@ mod test {
         let str = "zazó黄ć gęślą jaźń";
         assert_eq!(&str[Span::from(2..5)],"zó黄");
         assert_eq!(&str[Span::from(5..5)],"");
-        assert_eq!(Size::from("日本語").value,3);
+        assert_eq!(Size::from_text("日本語").value, 3);
         assert_eq!(&"日本語"[Span::from(0..0)],"");
+        assert_eq!(&"日本語"[Span::from(0..3)],"日本語");
+        assert_eq!(&"日本語"[Span::from(3..3)],"");
         assert_eq!(&"日本語"[Span::from(0..1)],"日");
         assert_eq!(&"日本語"[Span::from(2..3)],"語");
-
     }
 }

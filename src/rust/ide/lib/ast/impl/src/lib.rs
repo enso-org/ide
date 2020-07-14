@@ -311,8 +311,8 @@ impl Ast {
         self.iter_recursive().find(|ast| ast.repr() == repr)
     }
 
-    /// Get the index (relative to self) for given child node.
-    pub fn index_of_child(&self, child:&Ast) -> FallibleResult<Index> {
+    /// Get the offset relative to self for a given child node.
+    pub fn child_offset(&self, child:&Ast) -> FallibleResult<Index> {
         let searched_token  = Token::Ast(&child);
         let mut found_child = false;
         let mut position    = 0;
@@ -333,7 +333,7 @@ impl Ast {
     /// Get the span (relative to self) for a child node identified by given crumb.
     pub fn span_of_child_at(&self, crumb:&Crumb) -> FallibleResult<Span> {
         let child = self.get(crumb)?;
-        let index = self.index_of_child(child)?;
+        let index = self.child_offset(child)?;
         Ok(Span::new(index, Size::new(child.len())))
     }
 }
@@ -890,7 +890,7 @@ impl TokenConsumer for IdMapBuilder {
     fn feed(&mut self, token:Token) {
         match token {
             Token::Off(val) => self.offset += val,
-            Token::Chr(val) => self.offset += val.len_utf8(),
+            Token::Chr( _ ) => self.offset += 1,
             Token::Str(val) => self.offset += val.chars().count(),
             Token::Ast(val) => {
                 let begin = self.offset;
@@ -934,7 +934,7 @@ impl TokenConsumer for LengthBuilder {
     fn feed(&mut self, token:Token) {
         match token {
             Token::Off(val) => self.length += val,
-            Token::Chr(val) => self.length += val.len_utf8(),
+            Token::Chr( _ ) => self.length += 1,
             Token::Str(val) => self.length += val.chars().count(),
             Token::Ast(val) => val.shape().feed_to(self),
         }
@@ -953,7 +953,7 @@ impl HasLength for Token<'_> {
     fn len(&self) -> usize {
         match self {
             Token::Off(val) => *val,
-            Token::Chr(val) => val.len_utf8(),
+            Token::Chr( _ ) => 1,
             Token::Str(val) => val.chars().count(),
             // The below is different and cannot be unified with `LengthBuilder` because below will
             // use the cached length, while `LengthBuilder` will traverse subtree.
@@ -1055,7 +1055,7 @@ where F:FnMut(Index,&Ast) {
     fn feed(&mut self, token:Token) {
         match token {
             Token::Off(val) => self.index += val,
-            Token::Chr(val) => self.index += val.len_utf8(),
+            Token::Chr( _ ) => self.index += 1,
             Token::Str(val) => self.index += val.chars().count(),
             Token::Ast(val) => {
                 (self.callback)(Index::new(self.index), val);
@@ -1607,5 +1607,8 @@ mod tests {
         let idmap = var.id_map();
         assert_eq!(idmap.vec[0].0,Span::from(0..1));
         assert_eq!(idmap.vec[0].1,var.id.unwrap());
+
+        let builder_with_char = Token::Chr('壱');
+        assert_eq!(builder_with_char.len(),1);
     }
 }
