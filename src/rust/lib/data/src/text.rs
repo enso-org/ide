@@ -578,7 +578,6 @@ mod test {
         assert_eq!(Size::from_text("日本語").value, 3);
         assert_eq!(&"日本語"[Span::from(0..0)],"");
         assert_eq!(&"日本語"[Span::from(0..3)],"日本語");
-        assert_eq!(&"日本語"[Span::from(3..3)],"");
         assert_eq!(&"日本語"[Span::from(0..1)],"日");
         assert_eq!(&"日本語"[Span::from(2..3)],"語");
     }
