@@ -100,9 +100,10 @@ impl ViewLayout {
     , text_controller          : controller::Text
     , graph_controller         : controller::ExecutedGraph
     , visualization_controller : controller::Visualization
-    , project                  : Rc<dyn model::project::API + 'static> // TODO[ao]!!!!!!!!!!!!
+    , project                  : impl Into<Rc<dyn model::project::API>> // TODO[ao]!!!!!!!!!!!!
     , fonts                    : &mut font::Registry
     ) -> FallibleResult<Self> {
+        let project       = project.into();
         let logger        = Logger::sub(logger,"ViewLayout");
         let world         = &application.display;
         let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);

@@ -342,9 +342,9 @@ mod test {
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(binary_client);
             let logger            = Logger::default();
-            let project_fut       = model::Project::from_connections(logger,json_connection,
+            let project_fut       = Project::from_connections(logger,json_connection,
                 binary_connection,DEFAULT_PROJECT_NAME).boxed_local();
-            let project = test.expect_completion(project_fut);
+            let project = test.expect_completion(project_fut).unwrap();
             Fixture {test,project,binary_events_sender}
         }
     }
