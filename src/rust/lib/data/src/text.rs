@@ -169,7 +169,7 @@ impl Span {
 
     /// Get the index of the last character in the span.
     ///
-    /// If the span is empty or starts at 0, returns `None`.
+    /// If the span is empty returns `None`.
     pub fn last(&self) -> Option<Index> {
         if self.is_empty() {
             None
