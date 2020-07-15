@@ -292,26 +292,9 @@ pub trait API : Debug {
     }
 }
 
+/// The general, shared Execution Context Model handle.
+pub type ExecutionContext = Rc<dyn API>;
 /// Execution Context Model which does not do anything besides storing data.
 pub type Plain = plain::ExecutionContext;
 /// Execution Context Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::ExecutionContext;
-
-/// The general, shared Execution Context Model handle. It may be created from anything what
-/// implements model's API.
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
-pub struct ExecutionContext {
-    rc : Rc<dyn API>,
-}
-
-impl<'a,EC:API+'static> From<EC> for ExecutionContext {
-    fn from(execution_context: EC) -> Self {
-        Rc::new(execution_context).into()
-    }
-}
-
-impl<'a,EC:API+'static> From<Rc<EC>> for ExecutionContext {
-    fn from(rc:Rc<EC>) -> Self {
-        Self {rc}
-    }
-}

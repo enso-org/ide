@@ -268,9 +268,9 @@ impl model::project::API for Project {
     fn module(&self, path: module::Path) -> BoxFuture<FallibleResult<model::Module>> {
         async move {
             info!(self.logger,"Obtaining module for {path}");
-            let model_loader = self.load_module(path.clone());
-            let model:Rc<module::Synchronized> = self.module_registry.get_or_load(path,model_loader).await?;
-            Ok(model.into())
+            let model_loader        = self.load_module(path.clone());
+            let model:model::Module = self.module_registry.get_or_load(path,model_loader).await?;
+            Ok(model)
         }.boxed_local()
     }
 
@@ -282,7 +282,8 @@ impl model::project::API for Project {
             let context = execution_context::Synchronized::create(&logger,ls_rpc,root_definition);
             let context = Rc::new(context.await?);
             self.execution_contexts.insert(context.clone_ref());
-            Ok(context.into())
+            let context:model::ExecutionContext = context;
+            Ok(context)
         }.boxed_local()
     }
 

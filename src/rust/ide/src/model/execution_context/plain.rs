@@ -175,3 +175,62 @@ impl model::execution_context::API for ExecutionContext {
         }
     }
 }
+
+
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    use crate::double_representation::definition::DefinitionName;
+    use crate::constants::DEFAULT_PROJECT_NAME;
+
+    use enso_protocol::language_server;
+
+    #[derive(Clone,Derivative)]
+    #[derivative(Debug)]
+    pub struct MockData {
+        pub module_path     : model::module::Path,
+        pub context_id      : model::execution_context::Id,
+        pub root_definition : DefinitionName,
+        pub project_name    : String,
+    }
+
+    impl Default for MockData {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    impl MockData {
+        pub fn new() -> MockData {
+            MockData {
+                context_id      : model::execution_context::Id::new_v4(),
+                module_path     : model::module::Path::from_mock_module_name("Test"),
+                root_definition : DefinitionName::new_plain("main"),
+                project_name    : DEFAULT_PROJECT_NAME.to_string(),
+            }
+        }
+
+        pub fn module_qualified_name(&self) -> model::module::QualifiedName {
+            model::module::QualifiedName::from_path(&self.module_path,&self.project_name)
+        }
+
+        pub fn definition_id(&self) -> model::execution_context::DefinitionId {
+            model::execution_context::DefinitionId::new_single_crumb(self.root_definition.clone())
+        }
+
+        pub fn main_method_pointer(&self) -> language_server::MethodPointer {
+            language_server::MethodPointer {
+                file            : self.module_path.file_path().clone(),
+                defined_on_type : self.module_path.module_name().to_string(),
+                name            : self.root_definition.to_string(),
+            }
+        }
+
+        pub fn create(&self) -> ExecutionContext {
+            let logger = Logger::new("Mocked Execution Context");
+            ExecutionContext::new(logger,self.main_method_pointer())
+        }
+    }
+}

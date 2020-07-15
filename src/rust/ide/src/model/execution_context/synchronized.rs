@@ -10,6 +10,7 @@ use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
 use enso_protocol::language_server::ExpressionValuesComputed;
+use crate::model::execution_context::plain::PopOnEmptyStack;
 
 
 // ==========================
@@ -143,10 +144,18 @@ impl model::execution_context::API for ExecutionContext {
         }.boxed_local()
     }
 
-    fn pop(&self) -> futures::future::LocalBoxFuture<FallibleResult<LocalCall>> {
+    fn pop(&self) -> BoxFuture<FallibleResult<LocalCall>> {
         async move {
-            self.language_server.pop_from_execution_context(&self.id).await?;
-            self.model.pop()
+            // We do pop first, because we want to call any ls method if the operation is impossible
+            // in the plain model.
+            let frame  = self.model.pop()?;
+            let result = self.language_server.pop_from_execution_context(&self.id).await;
+            if let Err(err) = result {
+                self.model.push(frame);
+                Err(err.into())
+            } else {
+                Ok(frame)
+            }
         }.boxed_local()
     }
 
@@ -205,309 +214,209 @@ impl Drop for ExecutionContext {
 // === Tests ===
 // =============
 
-// #[cfg(test)]
-// pub mod tests {
-//     use super::*;
-//
-//     use crate::constants::DEFAULT_PROJECT_NAME;
-//     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-//     use crate::model::module::QualifiedName as ModuleQualifiedName;
-//
-//     use enso_protocol::language_server::CapabilityRegistration;
-//     use enso_protocol::language_server::response::CreateExecutionContext;
-//     use json_rpc::expect_call;
-//     use utils::test::ExpectTuple;
-//     use utils::test::stream::StreamTestExt;
-//     use crate::double_representation::definition::DefinitionName;
-//
-//     trait ModelCustomizer = Fn(&mut model::ExecutionContext, &MockData) + 'static;
-//
-//     /// Set of data needed to create and operate mock execution context.
-//     #[derive(Clone,Derivative)]
-//     #[derivative(Debug)]
-//     pub struct MockData {
-//         pub module_path     : model::module::Path,
-//         pub context_id      : model::execution_context::Id,
-//         pub root_definition : DefinitionName,
-//         pub project_name    : String,
-//         #[derivative(Debug="ignore")]
-//         pub customize_model : Rc<dyn ModelCustomizer>,
-//     }
-//
-//     impl Default for MockData {
-//         fn default() -> Self {
-//             Self::new()
-//         }
-//     }
-//
-//     impl MockData {
-//         pub fn new() -> MockData {
-//             MockData {
-//                 context_id      : model::execution_context::Id::new_v4(),
-//                 module_path     : model::module::Path::from_mock_module_name("Test"),
-//                 root_definition : DefinitionName::new_plain("main"),
-//                 project_name    : DEFAULT_PROJECT_NAME.to_string(),
-//                 customize_model : Rc::new(|_,_| {})
-//             }
-//         }
-//
-//         /// WHat is expected server's response to a successful creation of this context.
-//         pub fn expected_creation_response(&self) -> CreateExecutionContext {
-//             let context_id = self.context_id;
-//             let can_modify =
-//                 CapabilityRegistration::create_can_modify_execution_context(context_id);
-//             let receives_updates =
-//                 CapabilityRegistration::create_receives_execution_context_updates(context_id);
-//             CreateExecutionContext {context_id,can_modify,receives_updates}
-//         }
-//
-//         /// Sets up mock client expectations for context creation and destruction.
-//         pub fn mock_create_destroy_calls(&self, ls:&mut language_server::MockClient) {
-//             let id     = self.context_id;
-//             let result = self.expected_creation_response();
-//             expect_call!(ls.create_execution_context()    => Ok(result));
-//             expect_call!(ls.destroy_execution_context(id) => Ok(()));
-//         }
-//
-//         /// Sets up mock client expectations for context creation, initial frame push
-//         /// and destruction.
-//         pub fn mock_create_push_destroy_calls(&self, ls:&mut language_server::MockClient) {
-//             self.mock_create_destroy_calls(ls);
-//             let id = self.context_id;
-//             let root_frame = language_server::ExplicitCall {
-//                 method_pointer                   : self.main_method_pointer(),
-//                 this_argument_expression         : None,
-//                 positional_arguments_expressions : vec![]
-//             };
-//             let stack_item = language_server::StackItem::ExplicitCall(root_frame);
-//             expect_call!(ls.push_to_execution_context(id,stack_item) => Ok(()));
-//         }
-//
-//         /// Generates a mock update for a random expression id.
-//         pub fn mock_expression_value_update() -> language_server::ExpressionValueUpdate {
-//             language_server::ExpressionValueUpdate {
-//                 id          : model::execution_context::ExpressionId::new_v4(),
-//                 typename    : Some("typename".into()),
-//                 short_value : None,
-//                 method_call : None,
-//             }
-//         }
-//
-//         /// Generates a mock update for a single expression.
-//         pub fn mock_values_computed_update(&self) -> language_server::ExpressionValuesComputed {
-//             language_server::ExpressionValuesComputed {
-//                 context_id : self.context_id,
-//                 updates    : vec![Self::mock_expression_value_update()],
-//             }
-//         }
-//
-//         /// Allows customizing initial state of the context's model.
-//         ///
-//         /// Call and pass a function, and it will be called when setting up the model.
-//         pub fn customize_model(&mut self, f:impl Fn(&mut model::ExecutionContext, &MockData) + 'static) {
-//             self.customize_model = Rc::new(f);
-//         }
-//
-//         /// Create an exeuction context's model.
-//         pub fn create_model(&self) -> model::ExecutionContext {
-//             let logger = Logger::new("MockExecutionContextModel");
-//             model::ExecutionContext::new(logger, self.main_method_pointer())
-//         }
-//
-//         /// Create an exeuction context's controller.
-//         pub fn create_context(&self, mut ls:language_server::MockClient) -> ExecutionContext {
-//             self.context_provider(&mut ls)(language_server::Connection::new_mock_rc(ls))
-//         }
-//
-//         /// Generate a method that when called will generate the execution context.
-//         ///
-//         /// Purpose of this method is to be able obtain provider without losing ownership of the
-//         /// MockClient. This allows setting up multiple mock controllers that share a single mocked
-//         /// client.
-//         pub fn context_provider
-//         (&self, ls:&mut language_server::MockClient)
-//          -> impl FnOnce(Rc<language_server::Connection>) -> ExecutionContext {
-//             let id = self.context_id;
-//             expect_call!(ls.destroy_execution_context(id) => Ok(()));
-//
-//             let data = self.clone();
-//             move |ls| {
-//                 let mut model = data.create_model();
-//                 (data.customize_model)(&mut model,&data);
-//                 ExecutionContext::new_mock(data.context_id,model,ls)
-//             }
-//         }
-//
-//         pub fn module_qualified_name(&self) -> ModuleQualifiedName {
-//             ModuleQualifiedName::from_path(&self.module_path,&self.project_name)
-//         }
-//
-//         pub fn definition_id(&self) -> model::execution_context::DefinitionId {
-//             model::execution_context::DefinitionId::new_single_crumb(self.root_definition.clone())
-//         }
-//
-//         pub fn main_method_pointer(&self) -> language_server::MethodPointer {
-//             language_server::MethodPointer {
-//                 file            : self.module_path.file_path().clone(),
-//                 defined_on_type : self.module_path.module_name().to_string(),
-//                 name            : self.root_definition.to_string(),
-//             }
-//         }
-//     }
-//
-//     #[test]
-//     fn creating_context() {
-//         let mock_data      = MockData::new();
-//         let context_id     = mock_data.context_id;
-//         let mut ls_client  = language_server::MockClient::default();
-//         mock_data.mock_create_push_destroy_calls(&mut ls_client);
-//         ls_client.require_all_calls();
-//         let connection = language_server::Connection::new_mock_rc(ls_client);
-//
-//         let mut test = TestWithLocalPoolExecutor::set_up();
-//         test.run_task(async move {
-//             let logger  = Logger::default();
-//             let method  = mock_data.main_method_pointer();
-//             let path    = Rc::new(mock_data.module_path);
-//             let context = ExecutionContext::create(logger,connection,method);
-//             let context = context.await.unwrap();
-//             assert_eq!(context_id             , context.id);
-//             assert_eq!(*path                  , context.model.entry_point.file);
-//             assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
-//         })
-//     }
-//
-//     #[test]
-//     fn pushing_stack_item() {
-//         let mock_data           = MockData::new();
-//         let ls                  = language_server::MockClient::default();
-//         let id                  = mock_data.context_id;
-//         let expression_id       = model::execution_context::ExpressionId::new_v4();
-//         let expected_call_frame = language_server::LocalCall{expression_id};
-//         let expected_stack_item = language_server::StackItem::LocalCall(expected_call_frame);
-//         expect_call!(ls.push_to_execution_context(id,expected_stack_item) => Ok(()));
-//         let context = mock_data.create_context(ls);
-//         let mut test = TestWithLocalPoolExecutor::set_up();
-//         test.run_task(async move {
-//             let item = LocalCall {
-//                 call       : expression_id,
-//                 definition : mock_data.main_method_pointer(),
-//             };
-//             context.push(item.clone()).await.unwrap();
-//             assert_eq!((item,), context.model.stack_items().expect_tuple());
-//         })
-//     }
-//
-//     #[test]
-//     fn popping_stack_item() {
-//         let mock_data = MockData {
-//             customize_model : Rc::new(|model,data| {
-//                 let item = LocalCall {
-//                     call       : model::execution_context::ExpressionId::new_v4(),
-//                     definition : data.main_method_pointer(),
-//                 };
-//                 model.push(item);
-//             }),
-//             ..default()
-//         };
-//
-//         let ls        = language_server::MockClient::default();
-//         let id        = mock_data.context_id;
-//         expect_call!(ls.pop_from_execution_context(id) => Ok(()));
-//         let context  = mock_data.create_context(ls);
-//
-//         let mut test = TestWithLocalPoolExecutor::set_up();
-//         test.run_task(async move {
-//             context.pop().await.unwrap();
-//             assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
-//             // Pop on empty stack.
-//             assert!(context.pop().await.is_err());
-//         })
-//     }
-//
-//     #[test]
-//     fn attaching_visualizations_and_notifying() {
-//         let mock_data = MockData::new();
-//         let ls        = language_server::MockClient::default();
-//         let vis       = Visualization {
-//             id                   : model::execution_context::VisualizationId::new_v4(),
-//             ast_id               : model::execution_context::ExpressionId::new_v4(),
-//             expression           : "".to_string(),
-//             visualisation_module : mock_data.module_qualified_name(),
-//         };
-//         let exe_id = mock_data.context_id;
-//         let vis_id = vis.id;
-//         let ast_id = vis.ast_id;
-//         let config = vis.config(exe_id);
-//
-//         expect_call!(ls.attach_visualisation(vis_id,ast_id,config) => Ok(()));
-//         expect_call!(ls.detach_visualisation(exe_id,vis_id,ast_id) => Ok(()));
-//
-//         let context   = mock_data.create_context(ls);
-//
-//         let mut test = TestWithLocalPoolExecutor::set_up();
-//         test.run_task(async move {
-//             let wrong_id   = model::execution_context::VisualizationId::new_v4();
-//             let events     = context.attach_visualization(vis.clone()).await.unwrap();
-//             let mut events = events.boxed_local();
-//             events.expect_pending();
-//
-//             let update = VisualizationUpdateData::new(vec![1,2,3]);
-//             context.dispatch_visualization_update(vis.id,update.clone()).unwrap();
-//             assert_eq!(events.expect_next(),update);
-//
-//             events.expect_pending();
-//             let other_vis_id = VisualizationId::new_v4();
-//             context.dispatch_visualization_update(other_vis_id,update.clone()).unwrap_err();
-//             events.expect_pending();
-//             assert!(context.detach_visualization(wrong_id).await.is_err());
-//             events.expect_pending();
-//             assert!(context.detach_visualization(vis.id).await.is_ok());
-//             events.expect_terminated();
-//             assert!(context.detach_visualization(vis.id).await.is_err());
-//             context.dispatch_visualization_update(vis.id,update.clone()).unwrap_err();
-//         });
-//     }
-//
-//     // TODO [mwu]
-//     //   The test below has been disabled as shaky, see https://github.com/enso-org/ide/issues/637
-//     #[ignore]
-//     #[test]
-//     fn detaching_all_visualizations() {
-//         let mock_data = MockData::new();
-//         let ls        = language_server::MockClient::default();
-//         let vis       = Visualization {
-//             id                   : model::execution_context::VisualizationId::new_v4(),
-//             ast_id               : model::execution_context::ExpressionId::new_v4(),
-//             expression           : "".to_string(),
-//             visualisation_module : mock_data.module_qualified_name(),
-//         };
-//         let vis2    = Visualization{
-//             id : VisualizationId::new_v4(),
-//             ..vis.clone()
-//         };
-//
-//         let exe_id  = mock_data.context_id;
-//         let vis_id  = vis.id;
-//         let vis2_id = vis2.id;
-//         let ast_id  = vis.ast_id;
-//         let config  = vis.config(exe_id);
-//         let config2  = vis2.config(exe_id);
-//
-//         expect_call!(ls.attach_visualisation(vis_id,ast_id,config)   => Ok(()));
-//         expect_call!(ls.attach_visualisation(vis2_id,ast_id,config2) => Ok(()));
-//         expect_call!(ls.detach_visualisation(exe_id,vis_id,ast_id)   => Ok(()));
-//         expect_call!(ls.detach_visualisation(exe_id,vis2_id,ast_id)  => Ok(()));
-//
-//         let context   = mock_data.create_context(ls);
-//
-//         let mut test = TestWithLocalPoolExecutor::set_up();
-//         test.run_task(async move {
-//             // We discard visualization update streams -- they are covered by a separate test.
-//             let _ = context.attach_visualization(vis.clone()).await.unwrap();
-//             let _ = context.attach_visualization(vis2.clone()).await.unwrap();
-//
-//             context.detach_all_visualizations().await;
-//         });
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::double_representation::definition::DefinitionName;
+    use crate::constants::DEFAULT_PROJECT_NAME;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::module::QualifiedName as ModuleQualifiedName;
+    use crate::model::traits::*;
+
+    use enso_protocol::language_server::CapabilityRegistration;
+    use enso_protocol::language_server::response::CreateExecutionContext;
+    use json_rpc::expect_call;
+    use utils::test::ExpectTuple;
+    use utils::test::stream::StreamTestExt;
+
+    use crate::model::execution_context::plain::test::MockData;
+
+
+    #[derive(Debug)]
+    struct Fixture {
+        test    : TestWithLocalPoolExecutor,
+        data    : MockData,
+        context : ExecutionContext,
+    }
+
+    impl Fixture {
+        fn new(ls_setup:impl FnOnce(&mut language_server::MockClient,&MockData)) -> Fixture {
+            let data          = MockData::new();
+            let mut ls_client = language_server::MockClient::default();
+            Self::mock_create_push_destroy_calls(&data,&mut ls_client);
+            ls_setup(&mut ls_client,&data);
+            ls_client.require_all_calls();
+            let connection = language_server::Connection::new_mock_rc(ls_client);
+            let mut test   = TestWithLocalPoolExecutor::set_up();
+            let logger     = Logger::default();
+            let method     = data.main_method_pointer();
+            let path       = Rc::new(data.module_path.clone());
+            let context    = ExecutionContext::create(logger,connection,method);
+            let context    = test.expect_completion(context).unwrap();
+            Fixture {test,data,context}
+        }
+
+        /// What is expected server's response to a successful creation of this context.
+        fn expected_creation_response(data:&MockData) -> CreateExecutionContext {
+            let context_id = data.context_id;
+            let can_modify =
+                CapabilityRegistration::create_can_modify_execution_context(context_id);
+            let receives_updates =
+                CapabilityRegistration::create_receives_execution_context_updates(context_id);
+            CreateExecutionContext {context_id,can_modify,receives_updates}
+        }
+
+        /// Sets up mock client expectations for context creation and destruction.
+        fn mock_create_destroy_calls(data:&MockData, ls:&mut language_server::MockClient) {
+            let id     = data.context_id;
+            let result = Self::expected_creation_response(data);
+            expect_call!(ls.create_execution_context()    => Ok(result));
+            expect_call!(ls.destroy_execution_context(id) => Ok(()));
+        }
+
+        /// Sets up mock client expectations for context creation, initial frame push
+        /// and destruction.
+        fn mock_create_push_destroy_calls(data:&MockData, ls:&mut language_server::MockClient) {
+            Self::mock_create_destroy_calls(&data,ls);
+            let id = data.context_id;
+            let root_frame = language_server::ExplicitCall {
+                method_pointer                   : data.main_method_pointer(),
+                this_argument_expression         : None,
+                positional_arguments_expressions : vec![]
+            };
+            let stack_item = language_server::StackItem::ExplicitCall(root_frame);
+            expect_call!(ls.push_to_execution_context(id,stack_item) => Ok(()));
+        }
+
+        /// Generates a mock update for a random expression id.
+        fn mock_expression_value_update() -> language_server::ExpressionValueUpdate {
+            language_server::ExpressionValueUpdate {
+                id          : model::execution_context::ExpressionId::new_v4(),
+                typename    : Some("typename".into()),
+                short_value : None,
+                method_call : None,
+            }
+        }
+
+        /// Generates a mock update for a single expression.
+        fn mock_values_computed_update(&self) -> language_server::ExpressionValuesComputed {
+            language_server::ExpressionValuesComputed {
+                context_id : self.data.context_id,
+                updates    : vec![Self::mock_expression_value_update()],
+            }
+        }
+    }
+
+    #[test]
+    fn creating_context() {
+        let Fixture{data,test,context} = Fixture::new(|_,_|{});
+        assert_eq!(data.context_id        , context.id);
+        assert_eq!(data.module_path       , context.model.entry_point.file);
+        assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
+    }
+
+    #[test]
+    fn pushing_and_popping_stack_item() {
+        let expression_id = model::execution_context::ExpressionId::new_v4();
+        let Fixture{data,mut test,context} = Fixture::new(|ls,data| {
+            let id                  = data.context_id;
+            let expected_call_frame = language_server::LocalCall{expression_id};
+            let expected_stack_item = language_server::StackItem::LocalCall(expected_call_frame);
+            expect_call!(ls.push_to_execution_context(id,expected_stack_item) => Ok(()));
+            expect_call!(ls.pop_from_execution_context(id) => Ok(()));
+        });
+        test.run_task(async move {
+            assert!(context.pop().await.is_err());
+            let item    = LocalCall {
+                call       : expression_id,
+                definition : data.main_method_pointer(),
+            };
+            context.push(item.clone()).await.unwrap();
+            assert_eq!((item,), context.model.stack_items().expect_tuple());
+            context.pop().await.unwrap();
+            assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
+            assert!(context.pop().await.is_err());
+        });
+    }
+
+    #[test]
+    fn attaching_visualizations_and_notifying() {
+        let vis = Visualization {
+            id                   : model::execution_context::VisualizationId::new_v4(),
+            ast_id               : model::execution_context::ExpressionId::new_v4(),
+            expression           : "".to_string(),
+            visualisation_module : MockData::new().module_qualified_name(),
+        };
+        let Fixture{mut test,context,data} = Fixture::new(|ls,data| {
+            let exe_id = data.context_id;
+            let vis_id = vis.id;
+            let ast_id = vis.ast_id;
+            let config = vis.config(exe_id);
+
+            expect_call!(ls.attach_visualisation(vis_id,ast_id,config) => Ok(()));
+            expect_call!(ls.detach_visualisation(exe_id,vis_id,ast_id) => Ok(()));
+        });
+
+        test.run_task(async move {
+            let wrong_id   = model::execution_context::VisualizationId::new_v4();
+
+            let events     = context.attach_visualization(vis.clone()).await.unwrap();
+            let mut events = events.boxed_local();
+            events.expect_pending();
+
+            let update = VisualizationUpdateData::new(vec![1,2,3]);
+            context.dispatch_visualization_update(vis.id,update.clone()).unwrap();
+            assert_eq!(events.expect_next(),update);
+
+            events.expect_pending();
+            let other_vis_id = VisualizationId::new_v4();
+            context.dispatch_visualization_update(other_vis_id,update.clone()).unwrap_err();
+            events.expect_pending();
+            assert!(context.detach_visualization(wrong_id).await.is_err());
+            events.expect_pending();
+            assert!(context.detach_visualization(vis.id).await.is_ok());
+            events.expect_terminated();
+            assert!(context.detach_visualization(vis.id).await.is_err());
+            context.dispatch_visualization_update(vis.id,update.clone()).unwrap_err();
+        });
+    }
+
+    // TODO [mwu]
+    //   The test below has been disabled as shaky, see https://github.com/enso-org/ide/issues/637
+    #[ignore]
+    #[test]
+    fn detaching_all_visualizations() {
+        let vis       = Visualization {
+            id                   : model::execution_context::VisualizationId::new_v4(),
+            ast_id               : model::execution_context::ExpressionId::new_v4(),
+            expression           : "".to_string(),
+            visualisation_module : MockData::new().module_qualified_name(),
+        };
+        let vis2    = Visualization{
+            id : VisualizationId::new_v4(),
+            ..vis.clone()
+        };
+
+        let Fixture{mut test,context,data} = Fixture::new(|ls,data| {
+            let exe_id  = data.context_id;
+            let vis_id  = vis.id;
+            let vis2_id = vis2.id;
+            let ast_id  = vis.ast_id;
+            let config  = vis.config(exe_id);
+            let config2 = vis2.config(exe_id);
+
+            expect_call!(ls.attach_visualisation(vis_id,ast_id,config)   => Ok(()));
+            expect_call!(ls.attach_visualisation(vis2_id,ast_id,config2) => Ok(()));
+            expect_call!(ls.detach_visualisation(exe_id,vis_id,ast_id)   => Ok(()));
+            expect_call!(ls.detach_visualisation(exe_id,vis2_id,ast_id)  => Ok(()));
+        });
+        test.run_task(async move {
+            // We discard visualization update streams -- they are covered by a separate test.
+            let _ = context.attach_visualization(vis.clone()).await.unwrap();
+            let _ = context.attach_visualization(vis2.clone()).await.unwrap();
+
+            context.detach_all_visualizations().await;
+        });
+    }
+}
