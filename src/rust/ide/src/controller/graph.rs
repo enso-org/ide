@@ -754,541 +754,517 @@ impl Handle {
 // === Test ===
 // ============
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     use crate::double_representation::definition::DefinitionName;
-//     use crate::double_representation::node::NodeInfo;
-//     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-//     use crate::model::module::Path as ModulePath;
-//
-//     use ast::HasRepr;
-//     use ast::crumbs;
-//     use data::text::Index;
-//     use data::text::TextChange;
-//     use enso_protocol::language_server;
-//     use parser::Parser;
-//     use utils::test::ExpectTuple;
-//     use wasm_bindgen_test::wasm_bindgen_test;
-//     use ast::test_utils::expect_shape;
-//
-//     /// All the data needed to set up and run the graph controller in mock environment.
-//     #[derive(Clone,Debug)]
-//     pub struct MockData {
-//         pub module_path  : model::module::Path,
-//         pub graph_id     : Id,
-//         pub project_name : String,
-//         pub code         : String,
-//     }
-//
-//     impl MockData {
-//         pub fn new(code:impl Str) -> Self {
-//             MockData {
-//                 module_path  : model::module::Path::from_mock_module_name("Main"),
-//                 graph_id     :  Id::new_plain_name("main"),
-//                 project_name : "MockProject".to_string(),
-//                 code         : code.into(),
-//             }
-//         }
-//
-//         /// Creates a mock data with the main function being an inline definition.
-//         ///
-//         /// The single node's expression is taken as the argument.
-//         pub fn new_inline(main_body:impl Str) -> Self {
-//             Self::new(format!("main = {}", main_body.as_ref()))
-//         }
-//
-//         /// Creates module and graph controllers.
-//         pub fn create_controllers(&self) -> (controller::Module,Handle) {
-//             let ls = language_server::Connection::new_mock_rc(default());
-//             self.create_controllers_with_ls(ls)
-//         }
-//
-//         /// Like `create_controllers`, but allows  passing a custom LS client (e.g. with some
-//         /// expectations already set or shared with other controllers).
-//         pub fn create_controllers_with_ls
-//         (&self, ls:Rc<language_server::Connection>) -> (controller::Module,Handle) {
-//             let id     = self.graph_id.clone();
-//             let path   = self.module_path.clone();
-//             let code   = &self.code;
-//             let id_map = default();
-//             let parser = Parser::new_or_panic();
-//             let module = controller::Module::new_mock(path,code,id_map,ls,parser).unwrap();
-//             let graph  = module.graph_controller(id).unwrap();
-//             (module,graph)
-//         }
-//     }
-//
-//     #[derive(Debug,Shrinkwrap)]
-//     #[shrinkwrap(mutable)]
-//     pub struct Fixture(pub TestWithLocalPoolExecutor);
-//     impl Fixture {
-//         pub fn set_up() -> Fixture {
-//             let nested = TestWithLocalPoolExecutor::set_up();
-//             Self(nested)
-//         }
-//
-//         pub fn run<Fut>
-//         ( &mut self
-//         , data : MockData
-//         , test : impl FnOnce(controller::Module,Handle) -> Fut + 'static
-//         ) where Fut : Future<Output=()> {
-//             let (module,graph) = data.create_controllers();
-//             self.run_task(async move {
-//                 test(module,graph).await
-//             })
-//         }
-//
-//         pub fn run_graph_for_main<Test,Fut>
-//         (&mut self, code:impl Str, test:Test)
-//         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
-//               Fut  : Future<Output=()> {
-//             let data = MockData::new(code);
-//             self.run(data,test)
-//         }
-//
-//         pub fn run_graph_for<Test,Fut>(&mut self, code:impl Str, graph_id:Id, test:Test)
-//             where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
-//                   Fut  : Future<Output=()> {
-//
-//             let mut data = MockData::new(code);
-//             data.graph_id = graph_id;
-//             self.run(data,test);
-//         }
-//
-//         pub fn run_inline_graph<Test,Fut>(&mut self, definition_body:impl Str, test:Test)
-//         where Test : FnOnce(controller::Module,Handle) -> Fut + 'static,
-//               Fut  : Future<Output=()> {
-//             assert_eq!(definition_body.as_ref().contains('\n'), false);
-//             let code = format!("main = {}", definition_body.as_ref());
-//             self.run_graph_for_main(code,test)
-//         }
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn node_operations() {
-//         TestWithLocalPoolExecutor::set_up().run_task(async {
-//             let code   = "main = Hello World";
-//             let path   = ModulePath::from_mock_module_name("Test");
-//             let model  = model::Module::from_code_or_panic(code,default(),default());
-//             let module = model::synchronized::Module::mock(path,model);
-//             let parser = Parser::new().unwrap();
-//             let pos    = model::module::Position {vector:Vector2::new(0.0,0.0)};
-//             let crumbs = vec![DefinitionName::new_plain("main")];
-//             let id     = Id {crumbs};
-//             let graph  = Handle::new(Logger::new("Test"),module,parser,id).unwrap();
-//             let uid    = graph.all_node_infos().unwrap()[0].id();
-//
-//             graph.module.with_node_metadata(uid, |data| data.position = Some(pos));
-//
-//             assert_eq!(graph.module.node_metadata(uid).unwrap().position, Some(pos));
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_notification_relay() {
-//         let mut test = Fixture::set_up();
-//         test.run_graph_for_main("main = 2 + 2", |module, graph| async move {
-//             let text_change = TextChange::insert(Index::new(12), "2".into());
-//             module.apply_code_change(text_change).unwrap();
-//
-//             let mut sub = graph.subscribe();
-//             module.apply_code_change(TextChange::insert(Index::new(1),"2".to_string())).unwrap();
-//             assert_eq!(Some(Notification::Invalidate), sub.next().await);
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_inline_definition() {
-//         let mut test = Fixture::set_up();
-//         const EXPRESSION: &str = "2+2";
-//         test.run_inline_graph(EXPRESSION, |_,graph| async move {
-//             let nodes   = graph.nodes().unwrap();
-//             let (node,) = nodes.expect_tuple();
-//             assert_eq!(node.info.expression().repr(), EXPRESSION);
-//             let id   = node.info.id();
-//             let node = graph.node(id).unwrap();
-//             assert_eq!(node.info.expression().repr(), EXPRESSION);
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_block_definition() {
-//         let mut test  = Fixture::set_up();
-//         let program = r"
-// main =
-//     foo = 2
-//     print foo";
-//         test.run_graph_for_main(program, |_, graph| async move {
-//             let nodes   = graph.nodes().unwrap();
-//             let (node1,node2) = nodes.expect_tuple();
-//             assert_eq!(node1.info.expression().repr(), "2");
-//             assert_eq!(node2.info.expression().repr(), "print foo");
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_parse_expression() {
-//         let mut test  = Fixture::set_up();
-//         let program = r"main = 0";
-//         test.run_graph_for_main(program, |_, graph| async move {
-//             let foo = graph.parse_node_expression("foo").unwrap();
-//             assert_eq!(expect_shape::<ast::Var>(&foo), &ast::Var {name:"foo".into()});
-//
-//             assert!(graph.parse_node_expression("Vec").is_ok());
-//             assert!(graph.parse_node_expression("5").is_ok());
-//             assert!(graph.parse_node_expression("5+5").is_ok());
-//             assert!(graph.parse_node_expression("a+5").is_ok());
-//             assert!(graph.parse_node_expression("a=5").is_err());
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_used_names_in_inline_def() {
-//         let mut test  = Fixture::set_up();
-//         const PROGRAM:&str = r"main = foo";
-//         test.run_graph_for_main(PROGRAM, |_, graph| async move {
-//             let expected_name = LocatedName::new_root(NormalizedName::new("foo"));
-//             let used_names    = graph.used_names().unwrap();
-//             assert_eq!(used_names, vec![expected_name]);
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_nested_definition() {
-//         let mut test  = Fixture::set_up();
-//         const PROGRAM:&str = r"main =
-//     foo a =
-//         bar b = 5
-//     print foo";
-//         let definition = definition::Id::new_plain_names(vec!["main","foo"]);
-//         test.run_graph_for(PROGRAM, definition, |module, graph| async move {
-//             let expression = "new_node";
-//             graph.add_node(NewNodeInfo::new_pushed_back(expression)).unwrap();
-//             let expected_program = r"main =
-//     foo a =
-//         bar b = 5
-//         new_node
-//     print foo";
-//             module.expect_code(expected_program);
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_doubly_nested_definition() {
-//         // Tests editing nested definition that requires transforming inline expression into
-//         // into a new block.
-//         let mut test  = Fixture::set_up();
-//         // Not using multi-line raw string literals, as we don't want IntelliJ to automatically
-//         // strip the trailing whitespace in the lines.
-//         const PROGRAM:&str = "main =\n    foo a =\n        bar b = 5\n    print foo";
-//         let definition = definition::Id::new_plain_names(vec!["main","foo","bar"]);
-//         test.run_graph_for(PROGRAM, definition, |module, graph| async move {
-//             let expression = "new_node";
-//             graph.add_node(NewNodeInfo::new_pushed_back(expression)).unwrap();
-//             let expected_program = "main =\n    foo a =\n        bar b = \
-//                                     \n            5\n            new_node\n    print foo";
-//             module.expect_code(expected_program);
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_node_operations_node() {
-//         let mut test  = Fixture::set_up();
-//         const PROGRAM:&str = r"
-// main =
-//     foo = 2
-//     print foo";
-//         test.run_graph_for_main(PROGRAM, |module, graph| async move {
-//             // === Initial nodes ===
-//             let nodes   = graph.nodes().unwrap();
-//             let (node1,node2) = nodes.expect_tuple();
-//             assert_eq!(node1.info.expression().repr(), "2");
-//             assert_eq!(node2.info.expression().repr(), "print foo");
-//
-//
-//             // === Add node ===
-//             let id       = ast::Id::new_v4();
-//             let position = Some(model::module::Position::new(10.0,20.0));
-//             let metadata = NodeMetadata {position};
-//             let info     = NewNodeInfo {
-//                 expression    : "a+b".into(),
-//                 metadata      : Some(metadata),
-//                 id            : Some(id),
-//                 location_hint : LocationHint::End,
-//             };
-//             graph.add_node(info).unwrap();
-//             let expected_program = r"
-// main =
-//     foo = 2
-//     print foo
-//     a+b";
-//             module.expect_code(expected_program);
-//             let nodes = graph.nodes().unwrap();
-//             let (_,_,node3) = nodes.expect_tuple();
-//             assert_eq!(node3.info.id(),id);
-//             assert_eq!(node3.info.expression().repr(), "a+b");
-//             let pos = node3.metadata.unwrap().position;
-//             assert_eq!(pos, position);
-//             assert!(graph.module.node_metadata(id).is_ok());
-//
-//
-//             // === Edit node ===
-//             graph.set_expression(id, "bar baz").unwrap();
-//             let (_,_,node3) = graph.nodes().unwrap().expect_tuple();
-//             assert_eq!(node3.info.id(),id);
-//             assert_eq!(node3.info.expression().repr(), "bar baz");
-//             assert_eq!(node3.metadata.unwrap().position, position);
-//
-//
-//             // === Remove node ===
-//             graph.remove_node(node3.info.id()).unwrap();
-//             let nodes = graph.nodes().unwrap();
-//             let (node1,node2) = nodes.expect_tuple();
-//             assert_eq!(node1.info.expression().repr(), "2");
-//             assert_eq!(node2.info.expression().repr(), "print foo");
-//             assert!(graph.module.node_metadata(id).is_err());
-//
-//             module.expect_code(PROGRAM);
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_connections_listing() {
-//         let mut test  = Fixture::set_up();
-//         const PROGRAM:&str = r"
-// main =
-//     x,y = get_pos
-//     print x
-//     z = print $ foo y
-//     print z
-//     foo
-//         print z";
-//         test.run_graph_for_main(PROGRAM, |_, graph| async move {
-//             let connections = graph.connections().unwrap();
-//
-//             let (node0,node1,node2,node3,node4) = graph.nodes().unwrap().expect_tuple();
-//             assert_eq!(node0.info.expression().repr(), "get_pos");
-//             assert_eq!(node1.info.expression().repr(), "print x");
-//             assert_eq!(node2.info.expression().repr(), "print $ foo y");
-//             assert_eq!(node3.info.expression().repr(), "print z");
-//
-//             let c = &connections.connections[0];
-//             assert_eq!(c.source.node,      node0.info.id());
-//             assert_eq!(c.source.port,      vec![1]);
-//             assert_eq!(c.destination.node, node1.info.id());
-//             assert_eq!(c.destination.port, vec![2]);
-//
-//             let c = &connections.connections[1];
-//             assert_eq!(c.source.node     , node0.info.id());
-//             assert_eq!(c.source.port     , vec![4]);
-//             assert_eq!(c.destination.node, node2.info.id());
-//             assert_eq!(c.destination.port, vec![4,2]);
-//
-//             let c = &connections.connections[2];
-//             assert_eq!(c.source.node     , node2.info.id());
-//             assert_eq!(c.source.port     , Vec::<usize>::new());
-//             assert_eq!(c.destination.node, node3.info.id());
-//             assert_eq!(c.destination.port, vec![2]);
-//
-//             use ast::crumbs::*;
-//             let c = &connections.connections[3];
-//             assert_eq!(c.source.node     , node2.info.id());
-//             assert_eq!(c.source.port     , Vec::<usize>::new());
-//             assert_eq!(c.destination.node, node4.info.id());
-//             assert_eq!(c.destination.port, vec![2]);
-//             assert_eq!(c.destination.var_crumbs, crumbs!(BlockCrumb::HeadLine,PrefixCrumb::Arg));
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_create_connection() {
-//         /// A case for creating connection test. The field's names are short to be able to write
-//         /// nice-to-read table of cases without very long lines (see `let cases` below).
-//         #[derive(Clone,Debug)]
-//         struct Case {
-//             /// A pattern (the left side of assignment operator) of source node.
-//             src      : &'static str,
-//             /// An expression of destination node.
-//             dst      : &'static str,
-//             /// Crumbs of source and destination ports (i.e. SpanTree nodes)
-//             ports    : (&'static [usize],&'static [usize]),
-//             /// Expected destination expression after connecting.
-//             expected : &'static str,
-//         }
-//
-//         impl Case {
-//             fn run(&self) {
-//                 let mut test    = Fixture::set_up();
-//                 let main_prefix = format!("main = \n    {} = foo\n    ",self.src);
-//                 let main        = format!("{}{}",main_prefix,self.dst);
-//                 let expected    = format!("{}{}",main_prefix,self.expected);
-//                 let this        = self.clone();
-//
-//                 let (src_port,dst_port) = self.ports;
-//                 let src_port = src_port.to_vec();
-//                 let dst_port = dst_port.to_vec();
-//
-//                 test.run_graph_for_main(main, |_, graph| async move {
-//                     let (node0,node1) = graph.nodes().unwrap().expect_tuple();
-//                     let source        = Endpoint::new(node0.info.id(),src_port.to_vec());
-//                     let destination   = Endpoint::new(node1.info.id(),dst_port.to_vec());
-//                     let connection    = Connection{source,destination};
-//                     graph.connect(&connection).unwrap();
-//                     let new_main = graph.graph_definition_info().unwrap().ast.repr();
-//                     assert_eq!(new_main,expected,"Case {:?}",this);
-//                 })
-//             }
-//         }
-//
-//         let cases = &
-//             [ Case {src:"x"      , dst:"foo"      , expected:"x"         , ports:(&[]   ,&[]   )}
-//             , Case {src:"x,y"    , dst:"foo a"    , expected:"foo y"     , ports:(&[4]  ,&[2]  )}
-//             , Case {src:"Vec x y", dst:"1 + 2 + 3", expected:"x + 2 + 3" , ports:(&[0,2],&[0,1])}
-//             ];
-//         for case in cases {
-//             case.run()
-//         }
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_create_connection_reordering() {
-//         let mut test  = Fixture::set_up();
-//         const PROGRAM:&str = r"main =
-//     sum = _ + _
-//     a = 1
-//     b = 3";
-//         const EXPECTED:&str = r"main =
-//     a = 1
-//     b = 3
-//     sum = _ + b";
-//         test.run_graph_for_main(PROGRAM,  |_, graph| async move {
-//             assert!(graph.connections().unwrap().connections.is_empty());
-//             let (node0,_node1,node2) = graph.nodes().unwrap().expect_tuple();
-//             let connection_to_add = Connection {
-//                 source : Endpoint {
-//                     node      : node2.info.id(),
-//                     port      : vec![],
-//                     var_crumbs: vec![]
-//                 },
-//                 destination : Endpoint {
-//                     node      : node0.info.id(),
-//                     port      : vec![4], // `_` in `print _`
-//                     var_crumbs: vec![]
-//                 }
-//             };
-//             graph.connect(&connection_to_add).unwrap();
-//             let new_main = graph.graph_definition_info().unwrap().ast.repr();
-//             assert_eq!(new_main,EXPECTED);
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn graph_controller_create_connection_introducing_var() {
-//         let mut test  = Fixture::set_up();
-//         const PROGRAM:&str = r"main =
-//     calculate
-//     print _
-//     calculate1 = calculate2
-//     calculate3 calculate5 = calculate5 calculate4";
-//         // Note: we expect that name `calculate5` will be introduced. There is no conflict with a
-//         // function argument, as it just shadows outer variable.
-//         const EXPECTED:&str = r"main =
-//     calculate5 = calculate
-//     print calculate5
-//     calculate1 = calculate2
-//     calculate3 calculate5 = calculate5 calculate4";
-//         test.run_graph_for_main(PROGRAM, |_, graph| async move {
-//             assert!(graph.connections().unwrap().connections.is_empty());
-//             let (node0,node1,_) = graph.nodes().unwrap().expect_tuple();
-//             let connection_to_add = Connection {
-//                 source : Endpoint {
-//                     node      : node0.info.id(),
-//                     port      : vec![],
-//                     var_crumbs: vec![]
-//                 },
-//                 destination : Endpoint {
-//                     node      : node1.info.id(),
-//                     port      : vec![2], // `_` in `print _`
-//                     var_crumbs: vec![]
-//                 }
-//             };
-//             graph.connect(&connection_to_add).unwrap();
-//             let new_main = graph.graph_definition_info().unwrap().ast.repr();
-//             assert_eq!(new_main,EXPECTED);
-//         })
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn suggested_names() {
-//         let parser = Parser::new_or_panic();
-//         let cases = [
-//             ("a+b",           "sum"),
-//             ("a-b",           "difference"),
-//             ("a*b",           "product"),
-//             ("a/b",           "quotient"),
-//             ("read 'foo.csv'","read"),
-//             ("Read 'foo.csv'","read"),
-//             ("574",           "number"),
-//             ("'Hello'",       "text"),
-//             ("'Hello",        "text"),
-//             ("\"Hello\"",     "text"),
-//             ("\"Hello",       "text"),
-//         ];
-//
-//         for (code,expected_name) in &cases {
-//             let ast = parser.parse_line(*code).unwrap();
-//             let node = NodeInfo::from_line_ast(&ast).unwrap();
-//             let name = Handle::variable_name_base_for(&node);
-//             assert_eq!(&name,expected_name);
-//         }
-//     }
-//
-//     #[wasm_bindgen_test]
-//     fn disconnect() {
-//         #[derive(Clone,Debug)]
-//         struct Case {
-//             dest_node_expr     : &'static str,
-//             dest_node_expected : &'static str,
-//         }
-//
-//         impl Case {
-//             fn run(&self) {
-//                 let mut test  = Fixture::set_up();
-//                 const MAIN_PREFIX:&str = "main = \n    in = foo\n    ";
-//                 let main     = format!("{}{}",MAIN_PREFIX,self.dest_node_expr);
-//                 let expected = format!("{}{}",MAIN_PREFIX,self.dest_node_expected);
-//                 let this     = self.clone();
-//
-//                 test.run_graph_for_main(main,|_,graph| async move {
-//                     let connections = graph.connections().unwrap();
-//                     let connection  = connections.connections.first().unwrap();
-//                     graph.disconnect(connection).unwrap();
-//                     let new_main = graph.graph_definition_info().unwrap().ast.repr();
-//                     assert_eq!(new_main,expected,"Case {:?}",this);
-//                 })
-//             }
-//         }
-//
-//         let cases = &
-//             [ Case {dest_node_expr:"foo in"             , dest_node_expected:"foo _"              }
-//             , Case {dest_node_expr:"foo in a"           , dest_node_expected:"foo _ a"            }
-//             , Case {dest_node_expr:"foo a in"           , dest_node_expected:"foo a"              }
-//             , Case {dest_node_expr:"in + a"             , dest_node_expected:"_ + a"              }
-//             , Case {dest_node_expr:"a + in"             , dest_node_expected:"a + _"              }
-//             , Case {dest_node_expr:"in + b + c"         , dest_node_expected:"_ + b + c"          }
-//             , Case {dest_node_expr:"a + in + c"         , dest_node_expected:"a + _ + c"          }
-//             , Case {dest_node_expr:"a + b + in"         , dest_node_expected:"a + b"              }
-//             , Case {dest_node_expr:"in , a"             , dest_node_expected:"_ , a"              }
-//             , Case {dest_node_expr:"a , in"             , dest_node_expected:"a , _"              }
-//             , Case {dest_node_expr:"in , b , c"         , dest_node_expected:"_ , b , c"          }
-//             , Case {dest_node_expr:"a , in , c"         , dest_node_expected:"a , _ , c"          }
-//             , Case {dest_node_expr:"a , b , in"         , dest_node_expected:"a , b"              }
-//             , Case {dest_node_expr:"f\n        bar a in", dest_node_expected: "f\n        bar a _"}
-//             ];
-//         for case in cases {
-//             case.run();
-//         }
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::double_representation::definition::DefinitionName;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::module::Path as ModulePath;
+
+    use ast::HasIdMap;
+    use ast::crumbs;
+    use ast::test_utils::expect_shape;
+    use data::text::Index;
+    use data::text::TextChange;
+    use parser::Parser;
+    use utils::test::ExpectTuple;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    /// All the data needed to set up and run the graph controller in mock environment.
+    #[derive(Clone,Debug)]
+    pub struct MockData {
+        pub module_path  : model::module::Path,
+        pub graph_id     : Id,
+        pub project_name : String,
+        pub code         : String,
+    }
+
+    impl MockData {
+        pub fn new() -> Self {
+            MockData {
+                module_path  : model::module::Path::from_mock_module_name("Main"),
+                graph_id     : Id::new_plain_name("main"),
+                project_name : "MockProject".to_string(),
+                code         : "main = 2 + 2".to_string(),
+            }
+        }
+
+        /// Creates a mock data with the main function being an inline definition.
+        ///
+        /// The single node's expression is taken as the argument.
+        pub fn new_inline(main_body:impl Into<String>) -> Self {
+            MockData {
+                code : format!("main = {}", main_body.into()),
+                ..Self::new()
+            }
+        }
+
+        pub fn module(&self) -> Rc<model::module::Plain> {
+            let path     = self.module_path.clone();
+            let idmap    = default();
+            let metadata = default();
+            let model    = model::module::plain::Module::from_code_or_panic(path,&self.code,idmap,metadata);
+            Rc::new(model)
+        }
+
+        pub fn graph(&self) -> Handle {
+            let logger = Logger::new("Test");
+            let module = self.module();
+            let parser = Parser::new().unwrap();
+            let id = self.graph_id.clone();
+            Handle::new(logger,module,parser,id).unwrap()
+        }
+    }
+
+    impl Default for MockData {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    #[derive(Debug,Shrinkwrap)]
+    #[shrinkwrap(mutable)]
+    pub struct Fixture{
+        pub data  : MockData,
+        #[shrinkwrap(main_field)]
+        pub inner : TestWithLocalPoolExecutor,
+    }
+
+    impl Fixture {
+        pub fn set_up() -> Fixture {
+            let data  = MockData::new();
+            let inner = TestWithLocalPoolExecutor::set_up();
+            Self {data,inner}
+        }
+
+        pub fn run<Test,Fut>(&mut self, test:Test)
+            where Test : FnOnce(Handle) -> Fut + 'static,
+                  Fut  : Future<Output=()> {
+            let graph = self.data.graph();
+            self.run_task(async move {
+                test(graph).await
+            })
+        }
+    }
+
+    #[test]
+    fn node_operations() {
+        Fixture::set_up().run(|graph| async move {
+            let uid = graph.all_node_infos().unwrap()[0].id();
+            let pos = model::module::Position {vector:Vector2::new(0.0,0.0)};
+            graph.module.with_node_metadata(uid, Box::new(|data| data.position = Some(pos))); // TODO
+            assert_eq!(graph.module.node_metadata(uid).unwrap().position, Some(pos));
+        })
+    }
+
+    #[test]
+    fn graph_controller_notification_relay() {
+        Fixture::set_up().run(|graph| async move {
+            let mut sub = graph.subscribe();
+            let change  = TextChange::insert(Index::new(12), "2".into());
+            graph.module.apply_code_change(change, &graph.parser,default()).unwrap();
+            assert_eq!(Some(Notification::Invalidate), sub.next().await);
+        });
+    }
+
+    #[test]
+    fn graph_controller_inline_definition() {
+        let mut test = Fixture::set_up();
+        const EXPRESSION:&str = "2+2";
+        test.data.code = iformat!("main = {EXPRESSION}");
+        test.run(|graph| async move {
+            let nodes   = graph.nodes().unwrap();
+            let (node,) = nodes.expect_tuple();
+            assert_eq!(node.info.expression().repr(), EXPRESSION);
+            let id   = node.info.id();
+            let node = graph.node(id).unwrap();
+            assert_eq!(node.info.expression().repr(), EXPRESSION);
+        })
+    }
+
+    #[test]
+    fn graph_controller_block_definition() {
+        let mut test  = Fixture::set_up();
+        test.data.code = r"
+main =
+    foo = 2
+    print foo".to_string();
+        test.run(|graph| async move {
+            let nodes         = graph.nodes().unwrap();
+            let (node1,node2) = nodes.expect_tuple();
+            assert_eq!(node1.info.expression().repr(), "2");
+            assert_eq!(node2.info.expression().repr(), "print foo");
+        })
+    }
+
+    #[test]
+    fn graph_controller_parse_expression() {
+        let mut test  = Fixture::set_up();
+        test.run(|graph| async move {
+            let foo = graph.parse_node_expression("foo").unwrap();
+            assert_eq!(expect_shape::<ast::Var>(&foo), &ast::Var {name:"foo".into()});
+
+            assert!(graph.parse_node_expression("Vec").is_ok());
+            assert!(graph.parse_node_expression("5").is_ok());
+            assert!(graph.parse_node_expression("5+5").is_ok());
+            assert!(graph.parse_node_expression("a+5").is_ok());
+            assert!(graph.parse_node_expression("a=5").is_err());
+        })
+    }
+
+    #[test]
+    fn graph_controller_used_names_in_inline_def() {
+        let mut test  = Fixture::set_up();
+        test.data.code = "main = foo".into();
+        test.run(|graph| async move {
+            let expected_name = LocatedName::new_root(NormalizedName::new("foo"));
+            let used_names    = graph.used_names().unwrap();
+            assert_eq!(used_names, vec![expected_name]);
+        })
+    }
+
+    #[test]
+    fn graph_controller_nested_definition() {
+        let mut test  = Fixture::set_up();
+        test.data.code = r"main =
+    foo a =
+        bar b = 5
+    print foo".into();
+        test.data.graph_id = definition::Id::new_plain_names(&["main","foo"]);
+        test.run(|graph| async move {
+            let expression = "new_node";
+            graph.add_node(NewNodeInfo::new_pushed_back(expression)).unwrap();
+            let expected_program = r"main =
+    foo a =
+        bar b = 5
+        new_node
+    print foo";
+            model::module::test::expect_code(&*graph.module,expected_program);
+        })
+    }
+
+    #[test]
+    fn graph_controller_doubly_nested_definition() {
+        // Tests editing nested definition that requires transforming inline expression into
+        // into a new block.
+        let mut test  = Fixture::set_up();
+        // Not using multi-line raw string literals, as we don't want IntelliJ to automatically
+        // strip the trailing whitespace in the lines.
+        test.data.code     = "main =\n    foo a =\n        bar b = 5\n    print foo".into();
+        test.data.graph_id = definition::Id::new_plain_names(&["main","foo","bar"]);
+        test.run(|graph| async move {
+            let expression = "new_node";
+            graph.add_node(NewNodeInfo::new_pushed_back(expression)).unwrap();
+            let expected_program = "main =\n    foo a =\n        bar b = \
+                                    \n            5\n            new_node\n    print foo";
+
+            model::module::test::expect_code(&*graph.module,expected_program);
+        })
+    }
+
+    #[test]
+    fn graph_controller_node_operations_node() {
+        let mut test  = Fixture::set_up();
+        const PROGRAM:&str = r"
+main =
+    foo = 2
+    print foo";
+        test.data.code = PROGRAM.into();
+        test.run(|graph| async move {
+            // === Initial nodes ===
+            let nodes         = graph.nodes().unwrap();
+            let (node1,node2) = nodes.expect_tuple();
+            assert_eq!(node1.info.expression().repr(), "2");
+            assert_eq!(node2.info.expression().repr(), "print foo");
+
+
+            // === Add node ===
+            let id       = ast::Id::new_v4();
+            let position = Some(model::module::Position::new(10.0,20.0));
+            let metadata = NodeMetadata {position};
+            let info     = NewNodeInfo {
+                expression    : "a+b".into(),
+                metadata      : Some(metadata),
+                id            : Some(id),
+                location_hint : LocationHint::End,
+            };
+            graph.add_node(info).unwrap();
+            let expected_program = r"
+main =
+    foo = 2
+    print foo
+    a+b";
+
+            model::module::test::expect_code(&*graph.module,expected_program);
+            let nodes = graph.nodes().unwrap();
+            let (_,_,node3) = nodes.expect_tuple();
+            assert_eq!(node3.info.id(),id);
+            assert_eq!(node3.info.expression().repr(), "a+b");
+            let pos = node3.metadata.unwrap().position;
+            assert_eq!(pos, position);
+            assert!(graph.module.node_metadata(id).is_ok());
+
+
+            // === Edit node ===
+            graph.set_expression(id, "bar baz").unwrap();
+            let (_,_,node3) = graph.nodes().unwrap().expect_tuple();
+            assert_eq!(node3.info.id(),id);
+            assert_eq!(node3.info.expression().repr(), "bar baz");
+            assert_eq!(node3.metadata.unwrap().position, position);
+
+
+            // === Remove node ===
+            graph.remove_node(node3.info.id()).unwrap();
+            let nodes = graph.nodes().unwrap();
+            let (node1,node2) = nodes.expect_tuple();
+            assert_eq!(node1.info.expression().repr(), "2");
+            assert_eq!(node2.info.expression().repr(), "print foo");
+            assert!(graph.module.node_metadata(id).is_err());
+
+            model::module::test::expect_code(&*graph.module, PROGRAM);
+        })
+    }
+
+    #[test]
+    fn graph_controller_connections_listing() {
+        let mut test  = Fixture::set_up();
+        const PROGRAM:&str = r"
+main =
+    x,y = get_pos
+    print x
+    z = print $ foo y
+    print z
+    foo
+        print z";
+        test.data.code = PROGRAM.into();
+        test.run(|graph| async move {
+            let connections = graph.connections().unwrap();
+
+            let (node0,node1,node2,node3,node4) = graph.nodes().unwrap().expect_tuple();
+            assert_eq!(node0.info.expression().repr(), "get_pos");
+            assert_eq!(node1.info.expression().repr(), "print x");
+            assert_eq!(node2.info.expression().repr(), "print $ foo y");
+            assert_eq!(node3.info.expression().repr(), "print z");
+
+            let c = &connections.connections[0];
+            assert_eq!(c.source.node,      node0.info.id());
+            assert_eq!(c.source.port,      vec![1]);
+            assert_eq!(c.destination.node, node1.info.id());
+            assert_eq!(c.destination.port, vec![2]);
+
+            let c = &connections.connections[1];
+            assert_eq!(c.source.node     , node0.info.id());
+            assert_eq!(c.source.port     , vec![4]);
+            assert_eq!(c.destination.node, node2.info.id());
+            assert_eq!(c.destination.port, vec![4,2]);
+
+            let c = &connections.connections[2];
+            assert_eq!(c.source.node     , node2.info.id());
+            assert_eq!(c.source.port     , Vec::<usize>::new());
+            assert_eq!(c.destination.node, node3.info.id());
+            assert_eq!(c.destination.port, vec![2]);
+
+            use ast::crumbs::*;
+            let c = &connections.connections[3];
+            assert_eq!(c.source.node     , node2.info.id());
+            assert_eq!(c.source.port     , Vec::<usize>::new());
+            assert_eq!(c.destination.node, node4.info.id());
+            assert_eq!(c.destination.port, vec![2]);
+            assert_eq!(c.destination.var_crumbs, crumbs!(BlockCrumb::HeadLine,PrefixCrumb::Arg));
+        })
+    }
+
+    #[test]
+    fn graph_controller_create_connection() {
+        /// A case for creating connection test. The field's names are short to be able to write
+        /// nice-to-read table of cases without very long lines (see `let cases` below).
+        #[derive(Clone,Debug)]
+        struct Case {
+            /// A pattern (the left side of assignment operator) of source node.
+            src      : &'static str,
+            /// An expression of destination node.
+            dst      : &'static str,
+            /// Crumbs of source and destination ports (i.e. SpanTree nodes)
+            ports    : (&'static [usize],&'static [usize]),
+            /// Expected destination expression after connecting.
+            expected : &'static str,
+        }
+
+        impl Case {
+            fn run(&self) {
+                let mut test    = Fixture::set_up();
+                let main_prefix = format!("main = \n    {} = foo\n    ",self.src);
+                let main        = format!("{}{}",main_prefix,self.dst);
+                let expected    = format!("{}{}",main_prefix,self.expected);
+                let this        = self.clone();
+
+                let (src_port,dst_port) = self.ports;
+                let src_port = src_port.to_vec();
+                let dst_port = dst_port.to_vec();
+
+                test.data.code = main;
+                test.run(|graph| async move {
+                    println!("The nodes: {:?}", graph.nodes());
+                    let (node0,node1) = graph.nodes().unwrap().expect_tuple();
+                    let source        = Endpoint::new(node0.info.id(),src_port.to_vec());
+                    let destination   = Endpoint::new(node1.info.id(),dst_port.to_vec());
+                    let connection    = Connection{source,destination};
+                    graph.connect(&connection).unwrap();
+                    let new_main = graph.graph_definition_info().unwrap().ast.repr();
+                    assert_eq!(new_main,expected,"Case {:?}",this);
+                })
+            }
+        }
+
+        let cases = &
+            [ Case {src:"x"      , dst:"foo"      , expected:"x"         , ports:(&[]   ,&[]   )}
+            , Case {src:"x,y"    , dst:"foo a"    , expected:"foo y"     , ports:(&[4]  ,&[2]  )}
+            , Case {src:"Vec x y", dst:"1 + 2 + 3", expected:"x + 2 + 3" , ports:(&[0,2],&[0,1])}
+            ];
+        for case in cases {
+            case.run()
+        }
+    }
+
+    #[test]
+    fn graph_controller_create_connection_reordering() {
+        let mut test  = Fixture::set_up();
+        const PROGRAM:&str = r"main =
+    sum = _ + _
+    a = 1
+    b = 3";
+        const EXPECTED:&str = r"main =
+    a = 1
+    b = 3
+    sum = _ + b";
+        test.data.code = PROGRAM.into();
+        test.run(|graph| async move {
+            assert!(graph.connections().unwrap().connections.is_empty());
+            let (node0,_node1,node2) = graph.nodes().unwrap().expect_tuple();
+            let connection_to_add = Connection {
+                source : Endpoint {
+                    node      : node2.info.id(),
+                    port      : vec![],
+                    var_crumbs: vec![]
+                },
+                destination : Endpoint {
+                    node      : node0.info.id(),
+                    port      : vec![4], // `_` in `print _`
+                    var_crumbs: vec![]
+                }
+            };
+            graph.connect(&connection_to_add).unwrap();
+            let new_main = graph.graph_definition_info().unwrap().ast.repr();
+            assert_eq!(new_main,EXPECTED);
+        })
+    }
+
+    #[test]
+    fn graph_controller_create_connection_introducing_var() {
+        let mut test  = Fixture::set_up();
+        const PROGRAM:&str = r"main =
+    calculate
+    print _
+    calculate1 = calculate2
+    calculate3 calculate5 = calculate5 calculate4";
+        test.data.code = PROGRAM.into();
+        // Note: we expect that name `calculate5` will be introduced. There is no conflict with a
+        // function argument, as it just shadows outer variable.
+        const EXPECTED:&str = r"main =
+    calculate5 = calculate
+    print calculate5
+    calculate1 = calculate2
+    calculate3 calculate5 = calculate5 calculate4";
+        test.run(|graph| async move {
+            assert!(graph.connections().unwrap().connections.is_empty());
+            let (node0,node1,_) = graph.nodes().unwrap().expect_tuple();
+            let connection_to_add = Connection {
+                source : Endpoint {
+                    node      : node0.info.id(),
+                    port      : vec![],
+                    var_crumbs: vec![]
+                },
+                destination : Endpoint {
+                    node      : node1.info.id(),
+                    port      : vec![2], // `_` in `print _`
+                    var_crumbs: vec![]
+                }
+            };
+            graph.connect(&connection_to_add).unwrap();
+            let new_main = graph.graph_definition_info().unwrap().ast.repr();
+            assert_eq!(new_main,EXPECTED);
+        })
+    }
+
+    #[test]
+    fn suggested_names() {
+        let parser = Parser::new_or_panic();
+        let cases = [
+            ("a+b",           "sum"),
+            ("a-b",           "difference"),
+            ("a*b",           "product"),
+            ("a/b",           "quotient"),
+            ("read 'foo.csv'","read"),
+            ("Read 'foo.csv'","read"),
+            ("574",           "number"),
+            ("'Hello'",       "text"),
+            ("'Hello",        "text"),
+            ("\"Hello\"",     "text"),
+            ("\"Hello",       "text"),
+        ];
+
+        for (code,expected_name) in &cases {
+            let ast = parser.parse_line(*code).unwrap();
+            let node = NodeInfo::from_line_ast(&ast).unwrap();
+            let name = Handle::variable_name_base_for(&node);
+            assert_eq!(&name,expected_name);
+        }
+    }
+
+    #[test]
+    fn disconnect() {
+        #[derive(Clone,Debug)]
+        struct Case {
+            dest_node_expr     : &'static str,
+            dest_node_expected : &'static str,
+        }
+
+        impl Case {
+            fn run(&self) {
+                let mut test  = Fixture::set_up();
+                const MAIN_PREFIX:&str = "main = \n    in = foo\n    ";
+                test.data.code = format!("{}{}",MAIN_PREFIX,self.dest_node_expr);
+                let expected   = format!("{}{}",MAIN_PREFIX,self.dest_node_expected);
+                let this       = self.clone();
+                test.run(|graph| async move {
+                    let connections = graph.connections().unwrap();
+                    let connection  = connections.connections.first().unwrap();
+                    graph.disconnect(connection).unwrap();
+                    let new_main = graph.graph_definition_info().unwrap().ast.repr();
+                    assert_eq!(new_main,expected,"Case {:?}",this);
+                })
+            }
+        }
+
+        let cases = &
+            [ Case {dest_node_expr:"foo in"             , dest_node_expected:"foo _"              }
+            , Case {dest_node_expr:"foo in a"           , dest_node_expected:"foo _ a"            }
+            , Case {dest_node_expr:"foo a in"           , dest_node_expected:"foo a"              }
+            , Case {dest_node_expr:"in + a"             , dest_node_expected:"_ + a"              }
+            , Case {dest_node_expr:"a + in"             , dest_node_expected:"a + _"              }
+            , Case {dest_node_expr:"in + b + c"         , dest_node_expected:"_ + b + c"          }
+            , Case {dest_node_expr:"a + in + c"         , dest_node_expected:"a + _ + c"          }
+            , Case {dest_node_expr:"a + b + in"         , dest_node_expected:"a + b"              }
+            , Case {dest_node_expr:"in , a"             , dest_node_expected:"_ , a"              }
+            , Case {dest_node_expr:"a , in"             , dest_node_expected:"a , _"              }
+            , Case {dest_node_expr:"in , b , c"         , dest_node_expected:"_ , b , c"          }
+            , Case {dest_node_expr:"a , in , c"         , dest_node_expected:"a , _ , c"          }
+            , Case {dest_node_expr:"a , b , in"         , dest_node_expected:"a , b"              }
+            , Case {dest_node_expr:"f\n        bar a in", dest_node_expected: "f\n        bar a _"}
+            ];
+        for case in cases {
+            case.run();
+        }
+    }
+}

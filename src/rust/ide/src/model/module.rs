@@ -381,6 +381,21 @@ pub trait API:Debug {
     /// getting and setting metadata for the same node.
     fn with_node_metadata(&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>);
 }
+//
+// pub trait API_Extensions {
+//     #[cfg(test)]
+//     fn expect_code(&self, expected_code:impl Str) {
+//         let code = self.code();
+//         assert_eq!(code,expected_code.as_ref());
+//     }
+//
+//     fn code(&self) -> String {
+//         self.ast().repr()
+//     }
+// }
+//
+// impl<T:API> API_Extensions for Module {
+// }
 
 pub type Module       = Rc<dyn API>;
 pub type Plain        = plain::Module;
@@ -393,7 +408,7 @@ pub type Synchronized = synchronized::Module;
 // ============
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
@@ -401,6 +416,11 @@ mod test {
     use data::text;
     use uuid::Uuid;
     use wasm_bindgen_test::wasm_bindgen_test;
+
+    pub fn expect_code(module:&dyn API, expected_code:impl AsRef<str>) {
+        let code = module.ast().repr();
+        assert_eq!(code,expected_code.as_ref())
+    }
 
     #[test]
     fn module_path_conversion() {
