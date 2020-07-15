@@ -120,12 +120,6 @@ impl Deref for Frp {
     }
 }
 
-impl Default for Frp {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Frp {
     /// Create new Frp.
     pub fn new() -> Self {
@@ -133,6 +127,12 @@ impl Frp {
         let inputs  = FrpInputs::new(&network);
         let outputs = FrpOutputs::new(&network);
         Self{network,inputs,outputs}
+    }
+}
+
+impl Default for Frp {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -238,18 +238,6 @@ impl ProjectNameModel {
         self.update_center_alignment();
     }
 
-    fn fade_in_text(&self) {
-        self.animations.opacity.set_target_value(1.0);
-    }
-
-    fn fade_out_text(&self) {
-        //TODO[dg]:Make use of TextField 2.0's frp when it's available and remove both fade in and
-        // fade out functions.
-        if !self.text_field.is_focused() {
-            self.animations.opacity.set_target_value(0.0);
-        }
-    }
-
     fn set_opacity(&self, value:f32) {
         let base_color = linear_interpolation(TRANSPARENT_TEXT_COLOR, TEXT_COLOR, value);
         self.text_field.set_base_color(base_color);
@@ -264,6 +252,10 @@ impl ProjectNameModel {
         self.name_output.emit(&name);
         *self.project_name.borrow_mut() = name;
         self.update_text_field_content();
+    }
+
+    fn is_focused(&self) -> bool {
+        self.text_field.is_focused()
     }
 }
 
@@ -295,8 +287,11 @@ impl ProjectName {
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
-            eval_ model.view.events.mouse_over(model.fade_in_text());
-            eval_ model.view.events.mouse_out (model.fade_out_text());
+            eval_ model.view.events.mouse_over(model.animations.opacity.set_target_value(1.0));
+            eval_ model.view.events.mouse_out({
+                //TODO[dg]:Make use of TextField 2.0's frp for getting focus state changes.
+                model.animations.opacity.set_target_value(model.is_focused() as i32 as f32);
+            });
             eval_ frp.inputs.cancel_editing(model.reset_name());
             eval frp.inputs.name((name) {model.rename(name)});
         }

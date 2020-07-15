@@ -180,9 +180,7 @@ impl GraphEditorIntegratedWithController {
 
         let project_name = &model.editor.project_name;
         frp::extend! {network
-            eval project_name.frp.outputs.name((name) {
-                model.rename_project(name.to_string());
-            });
+            eval project_name.frp.outputs.name((name) {model.rename_project(name);});
         }
         model.editor.project_name.frp.cancel_editing.emit(());
 
@@ -295,7 +293,8 @@ impl GraphEditorIntegratedWithControllerModel {
 // === Project renaming ===
 
 impl GraphEditorIntegratedWithControllerModel {
-    fn rename_project(&self, name:String) {
+    fn rename_project(&self, name:impl Str) {
+        let name = name.into();
         if self.project.project_name().to_string() != name {
             let project      = self.project.clone_ref();
             let project_name = self.editor.project_name.clone_ref();
