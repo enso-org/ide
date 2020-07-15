@@ -77,6 +77,10 @@ impl ExecutionContextsRegistry {
     }
 }
 
+// =============
+// === Model ===
+// =============
+
 /// Project Model.
 ///
 ///
@@ -98,9 +102,9 @@ impl Project {
     /// Create a new project model.
     pub async fn new
     ( parent              : impl AnyLogger
-      , language_server_rpc : Rc<language_server::Connection>
-      , language_server_bin : Rc<binary::Connection>
-      , name                : impl Str
+    , language_server_rpc : Rc<language_server::Connection>
+    , language_server_bin : Rc<binary::Connection>
+    , name                : impl Str
     ) -> FallibleResult<Self> {
         let logger = Logger::sub(parent,"Project Controller");
         info!(logger,"Creating a model of project {name.as_ref()}");
@@ -311,6 +315,7 @@ mod test {
         test                 : TestWithLocalPoolExecutor,
         project              : Project,
         binary_events_sender : futures::channel::mpsc::UnboundedSender<binary::client::Event>,
+        json_events_sender   : futures::channel::mpsc::UnboundedSender<language_server::Event>,
     }
 
     impl Fixture {
@@ -326,6 +331,7 @@ mod test {
             binary_client.expect_event_stream().return_once(|| {
                 binary_events.boxed_local()
             });
+            let json_events_sender = json_client.setup_events();
 
             let initial_suggestions_db = language_server::response::GetSuggestionDatabase {
                 entries: vec![],
@@ -345,31 +351,31 @@ mod test {
             let project_fut       = Project::from_connections(logger,json_connection,
                 binary_connection,DEFAULT_PROJECT_NAME).boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
-            Fixture {test,project,binary_events_sender}
+            Fixture {test,project,binary_events_sender,json_events_sender}
         }
     }
 
-    // #[wasm_bindgen_test]
-    // fn obtain_module_controller() {
-    //     let path         = module::Path::from_mock_module_name("TestModule");
-    //     let another_path = module::Path::from_mock_module_name("TestModule2");
-    //     let Fixture{mut test,project,..} = Fixture::new(|ls_json| {
-    //         mock_calls_for_opening_text_file(ls_json,path.file_path().clone(),"2+2");
-    //         mock_calls_for_opening_text_file(ls_json,another_path.file_path().clone(),"22+2");
-    //     }, |_|{});
-    //
-    //     test.run_task(async move {
-    //         use controller::Module;
-    //         let log            = Logger::new("Test");
-    //         let module         = Module::new(&log,path.clone(),&project).await.unwrap();
-    //         let same_module    = Module::new(&log,path.clone(),&project).await.unwrap();
-    //         let another_module = Module::new(&log,another_path.clone(),&project).await.unwrap();
-    //
-    //         assert_eq!(path,         module.model.path);
-    //         assert_eq!(another_path, another_module.model.path);
-    //         assert!(Rc::ptr_eq(&module.model, &same_module.model));
-    //     });
-    // }
+    #[wasm_bindgen_test]
+    fn obtain_module_controller() {
+        let path         = module::Path::from_mock_module_name("TestModule");
+        let another_path = module::Path::from_mock_module_name("TestModule2");
+        let Fixture{mut test,project,..} = Fixture::new(|ls_json| {
+            mock_calls_for_opening_text_file(ls_json,path.file_path().clone(),"2+2");
+            mock_calls_for_opening_text_file(ls_json,another_path.file_path().clone(),"22+2");
+        }, |_|{});
+
+        test.run_task(async move {
+            use controller::Module;
+            let log            = Logger::new("Test");
+            let module         = project.module(path.clone_ref()).await.unwrap();
+            let same_module    = project.module(path.clone_ref()).await.unwrap();
+            let another_module = project.module(another_path.clone_ref()).await.unwrap();
+
+            assert_eq!(path,         *module.path());
+            assert_eq!(another_path, *another_module.path());
+            assert!(Rc::ptr_eq(&module, &same_module));
+        });
+    }
 
     fn mock_calls_for_opening_text_file
     (client:&language_server::MockClient, path:language_server::Path, content:&str) {
@@ -381,5 +387,49 @@ mod test {
         expect_call!(client.open_text_file(path=path.clone()) => Ok(open_response));
         client.expect.apply_text_file_edit(|_| Ok(()));
         expect_call!(client.close_text_file(path) => Ok(()));
+    }
+
+    /// This tests checks mainly if:
+    /// * project controller correctly creates execution context
+    /// * created execution context appears in the registry
+    /// * project controller correctly dispatches the LS notification with type information
+    /// * the type information is correctly recorded and available in the execution context
+    #[wasm_bindgen_test]
+    fn execution_context_management() {
+        let context_data = execution_context::plain::test::MockData::new();
+        let Fixture {mut test,project,json_events_sender,..} = Fixture::new(|mock_json_client| {
+            execution_context::synchronized::test::Fixture::mock_create_push_destroy_calls(&context_data,mock_json_client);
+            mock_json_client.require_all_calls();
+        }, |_| {});
+
+        // No context present yet.
+        let no_op = |_| Ok(());
+        let result1 = project.execution_contexts.with_context(context_data.context_id,no_op);
+        assert!(result1.is_err());
+
+        // Create execution context.
+        let execution   = project.create_execution_context(context_data.main_method_pointer());
+        let execution   = test.expect_completion(execution).unwrap();
+
+        // Now context is in registry.
+        let result1 = project.execution_contexts.with_context(context_data.context_id,no_op);
+        assert!(result1.is_ok());
+
+        // Context has no information about type.
+        let notification   = execution_context::synchronized::test::Fixture::mock_values_computed_update(&context_data);
+        let value_update   = &notification.updates[0];
+        let expression_id  = value_update.id;
+        let value_registry = execution.computed_value_info_registry();
+        assert!(value_registry.get(&expression_id).is_none());
+
+        // Send notification with type information.
+        let event = language_server::Event::Notification(language_server::Notification::ExpressionValuesComputed(notification.clone()));
+        json_events_sender.unbounded_send(event).unwrap();
+        test.run_until_stalled();
+
+        // Context now has the information about type.
+        let value_info = value_registry.get(&expression_id).unwrap();
+        assert_eq!(value_info.typename, value_update.typename.clone().map(ImString::new));
+        assert_eq!(value_info.method_pointer, value_update.method_call.clone().map(Rc::new));
     }
 }

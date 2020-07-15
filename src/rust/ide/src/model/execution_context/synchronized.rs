@@ -215,7 +215,7 @@ impl Drop for ExecutionContext {
 // =============
 
 #[cfg(test)]
-mod tests {
+pub mod test {
     use super::*;
 
     use crate::double_representation::definition::DefinitionName;
@@ -234,7 +234,7 @@ mod tests {
 
 
     #[derive(Debug)]
-    struct Fixture {
+    pub struct Fixture {
         test    : TestWithLocalPoolExecutor,
         data    : MockData,
         context : ExecutionContext,
@@ -277,7 +277,7 @@ mod tests {
 
         /// Sets up mock client expectations for context creation, initial frame push
         /// and destruction.
-        fn mock_create_push_destroy_calls(data:&MockData, ls:&mut language_server::MockClient) {
+        pub fn mock_create_push_destroy_calls(data:&MockData, ls:&mut language_server::MockClient) {
             Self::mock_create_destroy_calls(&data,ls);
             let id = data.context_id;
             let root_frame = language_server::ExplicitCall {
@@ -290,7 +290,7 @@ mod tests {
         }
 
         /// Generates a mock update for a random expression id.
-        fn mock_expression_value_update() -> language_server::ExpressionValueUpdate {
+        pub fn mock_expression_value_update() -> language_server::ExpressionValueUpdate {
             language_server::ExpressionValueUpdate {
                 id          : model::execution_context::ExpressionId::new_v4(),
                 typename    : Some("typename".into()),
@@ -300,9 +300,9 @@ mod tests {
         }
 
         /// Generates a mock update for a single expression.
-        fn mock_values_computed_update(&self) -> language_server::ExpressionValuesComputed {
+        pub fn mock_values_computed_update(data:&MockData) -> language_server::ExpressionValuesComputed {
             language_server::ExpressionValuesComputed {
-                context_id : self.data.context_id,
+                context_id : data.context_id,
                 updates    : vec![Self::mock_expression_value_update()],
             }
         }
