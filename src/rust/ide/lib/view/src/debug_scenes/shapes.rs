@@ -53,6 +53,43 @@ where T:frp::HasOutput<Output=Out>, T:Into<frp::Stream<Out>>, Out:frp::Data {
     (runner,condition)
 }
 
+#[derive(Clone,Debug,Default)]
+struct DummyTypeGenerator {
+    type_counter : u32
+}
+
+impl DummyTypeGenerator {
+    fn get_dummy_type(&mut self) -> Type {
+        self.type_counter += 1;
+        Type(ImString::new(format!("dummy_type_{}",self.type_counter)))
+
+    }
+}
+
+fn visit_span_tree_nodes<F:FnMut(&span_tree::Node)>(span_tree:&span_tree::SpanTree, mut f:F) {
+    let mut to_visit = vec![span_tree.root_ref()];
+    loop {
+        match to_visit.pop() {
+            None => break,
+            Some(node) => {
+                let skip          = node.kind.is_empty();
+                if !skip { f(&node) };
+                to_visit.extend(node.children_iter());
+            }
+        }
+    }
+}
+
+fn visit_node_and_children_mut<F:FnMut(&mut span_tree::Node)>(node: &mut span_tree::Node, f: &mut F) {
+    f(node);
+    node.children.iter_mut().for_each(|child| {
+        visit_node_and_children_mut(&mut child.node, f);
+    })
+}
+
+fn visit_span_tree_nodes_mut<F:FnMut(&mut span_tree::Node)>(span_tree:&mut span_tree::SpanTree, mut f:F) {
+    visit_node_and_children_mut(&mut span_tree.root, &mut f);
+}
 
 
 // ==================
