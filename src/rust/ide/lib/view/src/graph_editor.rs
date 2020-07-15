@@ -18,6 +18,7 @@ pub mod component;
 pub mod builtin;
 pub mod data;
 
+use crate::graph_editor::component::type_coloring::DEFAULT_TYPE_COLOR;
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization;
@@ -37,7 +38,6 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use frp::io::keyboard;
-
 
 
 // =================
@@ -827,6 +827,14 @@ impl Edges {
         self.all.insert(edge.id(),edge);
     }
 
+    pub fn detached_edges(&self) -> impl Iterator<Item=EdgeId> {
+        let detached_target = self.detached_target.raw.borrow();
+        let detached_source = self.detached_source.raw.borrow();
+        let mut detached = detached_target.iter().copied().collect_vec();
+        let detached_source_iter = detached_source.iter().copied();
+        detached.extend(detached_source_iter);
+        detached.into_iter()
+    }
 }
 
 
@@ -923,7 +931,7 @@ impl GraphEditorModelWithNetwork {
     fn new_node
     ( &self
     , cursor_style : &frp::Source<cursor::Style>
-    , output_press : &frp::Source<NodeId>
+    , output_press : &frp::Source<EdgeTarget>
     , input_press  : &frp::Source<EdgeTarget>
     ) -> NodeId {
         let view = component::Node::new(&self.scene);
@@ -937,7 +945,11 @@ impl GraphEditorModelWithNetwork {
         frp::new_bridge_network! { [self.network, node.main_area.events.network]
             eval_ node.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
             eval  node.ports.frp.cursor_style ((style) cursor_style.emit(style));
-            eval_ node.view.output_ports.frp.port_mouse_down (output_press.emit(node_id));
+            eval_ node.view.output_ports.frp.port_mouse_down ([output_press]{
+                // FIXME use crumbs
+                let target = EdgeTarget::new(node_id,default());
+                output_press.emit(target)
+            });
             eval  node.ports.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 input_press.emit(target);
@@ -1433,18 +1445,8 @@ impl GraphEditorModel {
 
     pub fn refresh_edge_color(&self, edge_id:EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
-            let edge_target = match (edge.source(), edge.target()) {
-                (Some(source), _) => Some(source),
-                (_, Some(target)) => Some(target),
-                _                 => None
-            };
-            if let Some(edge_target) = edge_target {
-                if let Some(node) = self.nodes.get_cloned_ref(&edge_target.node_id) {
-                    let port_color = node.view.ports.get_port_color(&edge_target.port);
-                    edge.view.set_color(port_color);
-                }
-            }
-
+            let color = self.get_edge_color_or_default(edge_id);
+            edge.view.set_color(color);
         };
     }
 
@@ -1472,6 +1474,34 @@ impl GraphEditorModel {
                 }
             }
         };
+    }
+
+    fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
+        let node = self.nodes.get_cloned_ref(&edge_target.node_id)?;
+        node.view.ports.get_port_color(&edge_target.port)
+            .or_else(|| node.view.output_ports.get_port_color(&edge_target.port))
+
+    }
+
+    fn try_get_edge_color(&self, edge_id:EdgeId) -> Option<color::Lcha> {
+        let edge = self.edges.get_cloned_ref(&edge_id)?;
+        let source_color = edge.source().map(|source| self.try_get_edge_target_color(source)).flatten();
+        let target_color = || edge.target().map(|target| self.try_get_edge_target_color(target)).flatten();
+        source_color.or_else(target_color)
+
+    }
+
+    fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
+       match self.try_get_edge_color(edge_id) {
+           None        => DEFAULT_TYPE_COLOR,
+           Some(color) => color,
+       }
+    }
+
+    pub fn detached_edge_color(&self) -> Option<color::Lcha> {
+        self.edges.detached_edges().find_map(|edge_id| {
+            self.try_get_edge_color(edge_id)
+        })
     }
 }
 
@@ -1671,22 +1701,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     }
 
-
-    // === Cursor Color ===
-    frp::extend! { network
-
-    let style = cursor::Style::new_color_no_animation(color::Lcha::new(0.6,0.5,0.76,1.0)).press();
-    cursor_style_source_drag       <- outputs.some_edge_sources_detached.constant(style.clone());
-    cursor_style_target_drag       <- outputs.some_edge_targets_detached.constant(style);
-    cursor_style_on_edge_drag_stop <- outputs.all_edges_attached.constant(default());
-    cursor_style_edge_drag         <- any (cursor_style_source_drag,cursor_style_target_drag,
-                                           cursor_style_on_edge_drag_stop);
-
-    }
-
-
     // === Node Select ===
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
     deselect_all_nodes <- any_(...);
 
@@ -1768,7 +1784,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     node_cursor_style <- source::<cursor::Style>();
 
     let node_input_touch  = TouchNetwork::<EdgeTarget>::new(&network,&mouse);
-    let node_output_touch = TouchNetwork::<NodeId>::new(&network,&mouse);
+    let node_output_touch = TouchNetwork::<EdgeTarget>::new(&network,&mouse);
 
     on_output_connect_drag_mode   <- node_output_touch.down.constant(true);
     on_output_connect_follow_mode <- node_output_touch.selected.constant(false);
@@ -1782,11 +1798,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     on_detached_edge    <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
     has_detached_edge   <- bool(&inputs.all_edges_attached,&on_detached_edge);
 
-    eval node_input_touch.down ((target) model.frp.press_node_input.emit(target));
-
-    eval node_output_touch.down ((node_id) {
-        model.frp.press_node_output.emit(EdgeTarget::new(node_id,default()));
-    });
+    eval node_input_touch.down ((target)   model.frp.press_node_input.emit(target));
+    eval node_output_touch.down ((target)  model.frp.press_node_output.emit(target));
 
 
     // === Edge interactions  ===
@@ -1873,7 +1886,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     })).unwrap();
 
     outputs.edge_added <+ new_output_edge;
-    new_edge_source <- new_output_edge.map2(&node_output_touch.down, move |id,node_id| (*id,EdgeTarget::new(node_id,default())));
+    new_edge_source <- new_output_edge.map2(&node_output_touch.down, move |id,target| (*id,target.clone()));
     outputs.edge_source_set <+ new_edge_source;
 
     outputs.edge_added <+ new_input_edge;
@@ -2041,8 +2054,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     outputs.node_position_set_batched <+ inputs.set_node_position;
     eval outputs.node_position_set (((id,pos)) model.set_node_position(id,*pos));
 
+    }
 
     // === Set Expression Type ===
+    frp::extend! { network
 
     //TODO [mwu]
     // === To Whoever Implements https://github.com/enso-org/ide/issues/478 ===
@@ -2128,21 +2143,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         });
     });
 
-
-
-    // ====================
-    // === Cursor Style ===
-    // ====================
-
-    cursor_style <- all
-        [ cursor_on_drag
-        , cursor_selection
-        , cursor_press
-        , cursor_style_edge_drag
-        , node_cursor_style
-        ].fold();
-
-    eval cursor_style ((style) cursor.frp.set_style.emit(style));
+    }
 
 
      // === Activate Visualisation ===
@@ -2176,6 +2177,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
    // === Vis Set ===
+   frp::extend! { network
 
    def _update_vis_data = inputs.set_visualization.map(f!([logger,nodes,scene,visualizations]((node_id,vis_path)) {
        match (&nodes.get_cloned_ref(node_id), vis_path) {
@@ -2349,6 +2351,37 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edges_to_rm          <- any (inputs.remove_edge, input_edges_to_rm, output_edges_to_rm);
     outputs.edge_removed <+ edges_to_rm;
     }
+
+    // ====================
+    // === Cursor Style ===
+    // ====================
+
+    frp::extend! { network
+
+    // TODO when refactoring the edge FRP add a better endpoint for this.
+    cursor_style_edge_drag <- edge_endpoint_set.map(f_!([model]{
+        if let Some(color) = model.detached_edge_color() {
+            cursor::Style::new_color(color).press()
+        } else {
+            cursor::Style::new_color_no_animation(DEFAULT_TYPE_COLOR).press()
+        }
+    }));
+    cursor_style_on_edge_drag_stop <- outputs.all_edges_attached.constant(default());
+    cursor_style_edge_drag         <- any (cursor_style_edge_drag,cursor_style_on_edge_drag_stop);
+
+
+    cursor_style <- all
+        [ cursor_on_drag
+        , cursor_selection
+        , cursor_press
+        , cursor_style_edge_drag
+        , node_cursor_style
+        ].fold();
+
+    eval cursor_style ((style) cursor.frp.set_style.emit(style));
+
+    }
+
 
     // FIXME This is a temporary solution. Should be replaced by a real thing once layout
     //       management is implemented.

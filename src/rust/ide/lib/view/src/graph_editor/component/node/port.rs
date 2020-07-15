@@ -12,20 +12,22 @@ use enso_frp;
 use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
+use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
-use ensogl::display::Sprite;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl::gui::cursor;
+use span_tree::SpanTree;
 
 use super::super::node;
-use span_tree::SpanTree;
+
 use crate::graph_editor::Type;
-use crate::graph_editor::component::color::TypeMap;
-use enso_protocol::prelude::Uuid;
+use crate::graph_editor::component::type_coloring::DEFAULT_TYPE_COLOR;
+use crate::graph_editor::component::type_coloring::TypeMap;
+
 
 
 // ============
@@ -37,13 +39,11 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, hover:f32, color_rgba:Vector4<f32>) {
+        (style:Style, hover:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius = 6.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
-            let color = Var::<color::Rgba>::from(color_rgba);
-            // TODO remove obsolete code
             let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001)".into();
             let shape  = shape.fill(color);
             shape.into()
@@ -142,6 +142,22 @@ impl Expression {
         let input_span_tree  = default();
         let output_span_tree = default();
         Self {code,input_span_tree,output_span_tree}
+    }
+
+    fn get_id_for_crumbs(&self, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
+        [&self.input_span_tree, &self.output_span_tree]
+            .iter()
+            .find_map(|span_tree|{
+                if span_tree.root_ref().crumbs == crumbs {
+                    return span_tree.root.expression_id
+                };
+                span_tree
+                    .root_ref()
+                    .get_descendant(crumbs)
+                    .map(|node|{node.expression_id})
+                    .ok()
+                    .flatten()
+        })
     }
 }
 
@@ -246,15 +262,19 @@ impl Manager {
 
                         let hover   = &port.shape.hover;
                         let crumbs  = node.crumbs.clone();
-                        let ast_id      = self.get_id_for_crumbs(&crumbs);
+                        let ast_id   = expression.get_id_for_crumbs(&crumbs);
                         frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
                             def _foo = port.events.mouse_out  . map(f_!(hover.set(0.0);));
 
                             def out  = port.events.mouse_out.constant(cursor::Style::default());
                             def over = port.events.mouse_over.map(f_!([type_map,port]{
-                                let port_color = type_map.type_color(ast_id);
-                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(port_color))
+                                if let Some(ast_id) = ast_id {
+                                    if let Some(port_color) = type_map.type_color(ast_id) {
+                                        return cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(port_color))
+                                    }
+                                }
+                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(DEFAULT_TYPE_COLOR))
                             }));
                             // FIXME: the following lines leak memory in the current FRP
                             // implementation because self.frp does not belong to this network and
@@ -295,16 +315,9 @@ impl Manager {
         }).ok()
     }
 
-    pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> color::Lcha {
-        let ast_id = self.get_id_for_crumbs(crumbs);
+    pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
+        let ast_id = self.expression.borrow().get_id_for_crumbs(crumbs)?;
         self.type_map.type_color(ast_id)
-    }
-
-    fn get_id_for_crumbs(&self, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
-        let span_tree = &self.expression.borrow().input_span_tree;
-        span_tree.root_ref().get_descendant(crumbs).map(|node|{
-            node.expression_id
-        }).ok().flatten()
     }
 
     pub fn width(&self) -> f32 {
@@ -313,7 +326,7 @@ impl Manager {
 
     pub fn set_expression_type(&self, id:ast::Id, maybe_type:Option<Type>) {
         match maybe_type {
-            Some(r#type) => self.type_map.insert(id, r#type),
+            Some(r#type) => self.type_map.insert(id,r#type),
             None         => self.type_map.remove(&id),
         };
     }

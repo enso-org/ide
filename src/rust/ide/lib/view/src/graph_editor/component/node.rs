@@ -21,7 +21,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
-use std::num::NonZeroU32;
 
 use super::edge;
 use crate::graph_editor::component::visualization;
@@ -259,7 +258,7 @@ impl NodeModel {
 
 
         // TODO: Determine number of output ports based on node semantics.
-        let output_ports = OutputPorts::new(&scene, NonZeroU32::new(10).unwrap());
+        let output_ports = OutputPorts::new(&scene);
         display_object.add_child(&output_ports);
 
 
@@ -282,7 +281,8 @@ impl NodeModel {
 
     fn set_expression(&self, expr:impl Into<Expression>) {
         let expr = expr.into();
-        self.ports.set_expression(expr);
+        self.ports.set_expression(expr.clone());
+        self.output_ports.set_expression(expr);
 
         let width = self.width();
         let height = self.height();
@@ -319,6 +319,10 @@ impl Node {
             eval_ inputs.deselect (selection.set_target_value(0.0));
 
             eval inputs.set_expression ((expr) model.set_expression(expr));
+            eval inputs.set_expression_type (((ast_id,maybe_type)) {
+                model.ports.set_expression_type(*ast_id,maybe_type.clone());
+                model.output_ports.set_expression_type(*ast_id,maybe_type.clone())
+            });
 
             eval inputs.set_visualization ((content)
                 model.visualization.frp.set_visualization.emit(content)

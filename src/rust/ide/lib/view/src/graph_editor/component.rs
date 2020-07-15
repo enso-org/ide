@@ -1,6 +1,6 @@
 //! Root module for graph component definitions.
 
-pub mod color;
+pub mod type_coloring;
 pub mod edge;
 pub mod edge2;
 pub mod node;
