@@ -291,3 +291,95 @@ impl model::project::API for Project {
         self.language_server_rpc.content_root()
     }
 }
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use crate::constants::DEFAULT_PROJECT_NAME;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
+    use enso_protocol::types::Sha3_224;
+    use enso_protocol::language_server::response;
+    use json_rpc::expect_call;
+
+    struct Fixture {
+        test                 : TestWithLocalPoolExecutor,
+        project              : Project,
+        binary_events_sender : futures::channel::mpsc::UnboundedSender<binary::client::Event>,
+    }
+
+    impl Fixture {
+        fn new
+        ( setup_mock_json   : impl FnOnce(&mut language_server::MockClient)
+        , setup_mock_binary : impl FnOnce(&mut enso_protocol::binary::MockClient)
+        ) -> Self {
+            let mut test          = TestWithLocalPoolExecutor::set_up();
+            let mut json_client   = language_server::MockClient::default();
+            let mut binary_client = enso_protocol::binary::MockClient::default();
+
+            let (binary_events_sender,binary_events) = futures::channel::mpsc::unbounded();
+            binary_client.expect_event_stream().return_once(|| {
+                binary_events.boxed_local()
+            });
+
+            let initial_suggestions_db = language_server::response::GetSuggestionDatabase {
+                entries: vec![],
+                current_version: 0
+            };
+            expect_call!(json_client.get_suggestions_database() => Ok(initial_suggestions_db));
+            let capability_reg = CapabilityRegistration::create_receives_suggestions_database_updates();
+            let method         = capability_reg.method;
+            let options        = capability_reg.register_options;
+            expect_call!(json_client.acquire_capability(method,options) => Ok(()));
+
+            setup_mock_json(&mut json_client);
+            setup_mock_binary(&mut binary_client);
+            let json_connection   = language_server::Connection::new_mock(json_client);
+            let binary_connection = binary::Connection::new_mock(binary_client);
+            let logger            = Logger::default();
+            let project_fut       = model::Project::from_connections(logger,json_connection,
+                binary_connection,DEFAULT_PROJECT_NAME).boxed_local();
+            let project = test.expect_completion(project_fut);
+            Fixture {test,project,binary_events_sender}
+        }
+    }
+
+    // #[wasm_bindgen_test]
+    // fn obtain_module_controller() {
+    //     let path         = module::Path::from_mock_module_name("TestModule");
+    //     let another_path = module::Path::from_mock_module_name("TestModule2");
+    //     let Fixture{mut test,project,..} = Fixture::new(|ls_json| {
+    //         mock_calls_for_opening_text_file(ls_json,path.file_path().clone(),"2+2");
+    //         mock_calls_for_opening_text_file(ls_json,another_path.file_path().clone(),"22+2");
+    //     }, |_|{});
+    //
+    //     test.run_task(async move {
+    //         use controller::Module;
+    //         let log            = Logger::new("Test");
+    //         let module         = Module::new(&log,path.clone(),&project).await.unwrap();
+    //         let same_module    = Module::new(&log,path.clone(),&project).await.unwrap();
+    //         let another_module = Module::new(&log,another_path.clone(),&project).await.unwrap();
+    //
+    //         assert_eq!(path,         module.model.path);
+    //         assert_eq!(another_path, another_module.model.path);
+    //         assert!(Rc::ptr_eq(&module.model, &same_module.model));
+    //     });
+    // }
+
+    fn mock_calls_for_opening_text_file
+    (client:&language_server::MockClient, path:language_server::Path, content:&str) {
+        let content          = content.to_string();
+        let current_version  = Sha3_224::new(content.as_bytes());
+        let write_capability = CapabilityRegistration::create_can_edit_text_file(path.clone());
+        let write_capability = Some(write_capability);
+        let open_response    = response::OpenTextFile {content,current_version,write_capability};
+        expect_call!(client.open_text_file(path=path.clone()) => Ok(open_response));
+        client.expect.apply_text_file_edit(|_| Ok(()));
+        expect_call!(client.close_text_file(path) => Ok(()));
+    }
+}

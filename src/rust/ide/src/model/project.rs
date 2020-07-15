@@ -60,20 +60,8 @@ impl Debug for MockAPI {
     }
 }
 
+pub type Project      = Rc<dyn API>;
 pub type Synchronized = synchronized::Project;
-
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
-pub struct Project {
-    rc:Rc<dyn API>
-}
-
-impl<P:API+'static> From<P> for Project {
-    fn from(project:P) -> Self {
-        Project {
-            rc : Rc::new(project),
-        }
-    }
-}
 
 
 

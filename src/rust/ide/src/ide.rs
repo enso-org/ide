@@ -99,7 +99,7 @@ impl IdeInitializer {
         let connection_json   = language_server::Connection::new(client_json,client_id).await?;
         let connection_binary = binary::Connection::new(client_binary,client_id).await?;
         let project           = model::project::Synchronized::from_connections(logger,connection_json,connection_binary,project_name).await?;
-        Ok(project.into())
+        Ok(Rc::new(project))
     }
 
     /// Creates a new project and returns its metadata, so the newly connected project can be

@@ -100,7 +100,7 @@ impl ViewLayout {
     , text_controller          : controller::Text
     , graph_controller         : controller::ExecutedGraph
     , visualization_controller : controller::Visualization
-    , project                  : model::Project
+    , project                  : Rc<dyn model::project::API + 'static> // TODO[ao]!!!!!!!!!!!!
     , fonts                    : &mut font::Registry
     ) -> FallibleResult<Self> {
         let logger        = Logger::sub(logger,"ViewLayout");
@@ -120,7 +120,7 @@ impl ViewLayout {
         let node_searcher_show_action = None;
         let data = ViewLayoutData{network,text_editor,node_editor,node_searcher,size,logger,
             node_searcher_show_action,mouse_position_sampler};
-        let rc   = Rc::new(RefCell::new(data));
+        let rc = Rc::new(RefCell::new(data));
         Ok(Self {rc}.init(world,kb_actions))
     }
 
