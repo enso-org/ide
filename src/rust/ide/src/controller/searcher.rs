@@ -10,6 +10,7 @@ use flo_stream::Subscriber;
 use parser::Parser;
 
 
+
 // =======================
 // === Suggestion List ===
 // =======================
@@ -89,6 +90,19 @@ pub enum Notification {
 // === Input Parts ===
 // ===================
 
+/// An identification of input fragment filled by picking suggestion.
+///
+/// Essentially, this is a crumb for ParsedInput's expression.
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+#[allow(missing_docs)]
+pub enum CompletedFragmentId {
+    /// The called "function" part, defined as a `func` element in Prefix Chain
+    /// (see `ast::prefix::Chain`).
+    Function,
+    /// The `id`th argument of the called function.
+    Argument{index:usize}
+}
+
 /// A Searcher Input which is parsed to the _expression_ and _pattern_ parts.
 ///
 /// We parse the input for better understanding what user wants to add.
@@ -118,8 +132,7 @@ impl ParsedInput {
         input.push('a');
         let ast        = parser.parse_line(input.trim_start())?;
         let mut prefix = ast::prefix::Chain::new_non_strict(&ast);
-        let last_arg   = prefix.args.pop();
-        if let Some(last_arg) = last_arg {
+        if let Some(last_arg) = prefix.args.pop() {
             let mut last_arg_repr = last_arg.sast.wrapped.repr();
             last_arg_repr.pop();
             Ok(ParsedInput {
@@ -142,16 +155,27 @@ impl ParsedInput {
     fn next_completion_id(&self) -> CompletedFragmentId {
         match &self.expression {
             None             => CompletedFragmentId::Function,
-            Some(expression) => CompletedFragmentId::Argument {id:expression.args.len()},
+            Some(expression) => CompletedFragmentId::Argument {index:expression.args.len()},
+        }
+    }
+
+    /// Get the picked fragment from the Searcher's input.
+    pub fn completed_fragment(&self,fragment:CompletedFragmentId) -> Option<String> {
+        use CompletedFragmentId::*;
+        match (fragment,&self.expression) {
+            (_              ,None)       => None,
+            (Function       ,Some(expr)) => Some(expr.func.repr()),
+            (Argument{index},Some(expr)) => Some(expr.args.get(index)?.sast.wrapped.repr()),
         }
     }
 }
 
 impl HasRepr for ParsedInput {
     fn repr(&self) -> String {
-        let expr          = self.expression.as_ref().map_or("".to_string(), HasRepr::repr);
-        let offset:String = std::iter::repeat(' ').take(self.pattern_offset).collect();
-        iformat!("{expr}{offset}{self.pattern}")
+        let mut repr = self.expression.as_ref().map_or("".to_string(), HasRepr::repr);
+        repr.extend(itertools::repeat_n(' ',self.pattern_offset));
+        repr.extend(self.pattern.chars());
+        repr
     }
 }
 
@@ -160,29 +184,6 @@ impl HasRepr for ParsedInput {
 // ===========================
 // === Searcher Controller ===
 // ===========================
-
-/// An identification of input fragment filled by picking suggestion.
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-#[allow(missing_docs)]
-pub enum CompletedFragmentId {
-    /// The called "function" part, defined as a `func` element in Prefix Chain
-    /// (see `ast::prefix::Chain`).
-    Function,
-    /// The `id`th argument of the called function.
-    Argument{id:usize}
-}
-
-impl CompletedFragmentId {
-    /// Get the picked fragment from the Searcher's input.
-    pub fn completed_fragment(&self,input:&ParsedInput) -> Option<String> {
-        use CompletedFragmentId::*;
-        match (self,&input.expression) {
-            (_           ,None)       => None,
-            (Function    ,Some(expr)) => Some(expr.func.repr()),
-            (Argument{id},Some(expr)) => Some(expr.args.get(*id)?.sast.wrapped.repr()),
-        }
-    }
-}
 
 /// A fragment filled by single picked completion suggestion.
 ///
@@ -197,8 +198,8 @@ pub struct FragmentAddedByPickingSuggestion {
 
 impl FragmentAddedByPickingSuggestion {
     /// Check if the picked fragment is still unmodified by user.
-    fn still_unmodified(&self, input:&ParsedInput) -> bool {
-        self.id.completed_fragment(input).as_ref() == Some(&self.picked_suggestion.name)
+    fn is_still_unmodified(&self, input:&ParsedInput) -> bool {
+        input.completed_fragment(self.id).contains(&self.picked_suggestion.name)
     }
 }
 
@@ -206,9 +207,9 @@ impl FragmentAddedByPickingSuggestion {
 #[derive(Clone,Debug,Default)]
 pub struct Data {
     /// The current searcher's input.
-    pub current_input : ParsedInput,
+    pub input : ParsedInput,
     /// The suggestion list which should be displayed.
-    pub current_list : Suggestions,
+    pub suggestions : Suggestions,
     /// All fragments of input which were added by picking suggestions. If the fragment will be
     /// changed by user, it will be removed from this list.
     pub fragments_added_by_picking : Vec<FragmentAddedByPickingSuggestion>,
@@ -260,7 +261,7 @@ impl Searcher {
 
     /// Get the current suggestion list.
     pub fn suggestions(&self) -> Suggestions {
-        self.data.borrow().current_list.clone_ref()
+        self.data.borrow().suggestions.clone_ref()
     }
 
     /// Set the Searcher Input.
@@ -269,10 +270,10 @@ impl Searcher {
     /// in a new suggestion list (the aprriopriate notification will be emitted).
     pub fn set_input(&self, new_input:String) -> FallibleResult<()> {
         let parsed_input = ParsedInput::new(new_input,&self.parser)?;
-        let old_id       = self.data.borrow().current_input.next_completion_id();
+        let old_id       = self.data.borrow().input.next_completion_id();
         let new_id       = parsed_input.next_completion_id();
 
-        self.data.borrow_mut().current_input = parsed_input;
+        self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
         if old_id != new_id {
             self.reload_list()
@@ -280,16 +281,18 @@ impl Searcher {
         Ok(())
     }
 
-    /// User picked a completion suggestion.
+    /// Pick a completion suggestion.
     ///
-    /// This function should be called when user chooses some completion suggestion. It still will
-    /// be editing the input. The picked suggestion will be remembered,
-    pub fn pick_completion(&self, picked_suggestion:CompletionSuggestion) -> String {
-        let added_ast         = ast::Ast::var(&picked_suggestion.name);
-        let id                = self.data.borrow().current_input.next_completion_id();
+    /// This function should be called when user chooses some completion suggestion. The picked
+    /// suggestion will be remembered, and the searcher's input will be updated and returned by this
+    /// function.
+    pub fn pick_completion
+    (&self, picked_suggestion:CompletionSuggestion) -> FallibleResult<String> {
+        let added_ast         = self.parser.parse_line(&picked_suggestion.name)?;
+        let id                = self.data.borrow().input.next_completion_id();
         let picked_completion = FragmentAddedByPickingSuggestion {id,picked_suggestion};
-        let pattern_offset    = self.data.borrow().current_input.pattern_offset;
-        let new_expression    = match self.data.borrow_mut().current_input.expression.take() {
+        let pattern_offset    = self.data.borrow().input.pattern_offset;
+        let new_expression    = match self.data.borrow_mut().input.expression.take() {
             None => {
                 let ast = ast::prefix::Chain::new_non_strict(&added_ast);
                 ast::Shifted::new(pattern_offset,ast)
@@ -309,17 +312,17 @@ impl Searcher {
             pattern        : "".to_string()
         };
         let new_input = new_parsed_input.repr();
-        self.data.borrow_mut().current_input = new_parsed_input;
+        self.data.borrow_mut().input = new_parsed_input;
         self.data.borrow_mut().fragments_added_by_picking.push(picked_completion);
         self.reload_list();
-        new_input
+        Ok(new_input)
     }
 
     fn invalidate_fragments_added_by_picking(&self) {
         let mut data = self.data.borrow_mut();
         let data     = data.deref_mut();
-        let input    = &data.current_input;
-        data.fragments_added_by_picking.drain_filter(|frag| !frag.still_unmodified(input));
+        let input    = &data.input;
+        data.fragments_added_by_picking.drain_filter(|frag| !frag.is_still_unmodified(input));
     }
 
     /// Reload Suggestion List.
@@ -327,15 +330,15 @@ impl Searcher {
     /// The current list will be set as "Loading" and Language Server will be requested for a new
     /// list - once it be retrieved, the new list will be set and notification will be emitted.
     fn reload_list(&self) {
-        let next_completion = self.data.borrow().current_input.next_completion_id();
-        let new_list = if next_completion == CompletedFragmentId::Function {
+        let next_completion = self.data.borrow().input.next_completion_id();
+        let new_suggestions = if next_completion == CompletedFragmentId::Function {
             self.get_suggestion_list_from_engine(None,None);
             Suggestions::Loading
         } else {
             // TODO[ao] Requesting for argument.
             Suggestions::Loaded {list:default()}
         };
-        self.data.borrow_mut().current_list = new_list;
+        self.data.borrow_mut().suggestions = new_suggestions;
     }
 
     fn get_suggestion_list_from_engine
@@ -353,7 +356,7 @@ impl Searcher {
             info!(logger,"Requesting new suggestion list.");
             let response = request.await;
             info!(logger,"Received suggestions from Language Server.");
-            let new_list = match response {
+            let new_suggestions = match response {
                 Ok(list) => {
                     let entry_ids   = list.results.into_iter();
                     let entries     = entry_ids.filter_map(|id| {
@@ -368,7 +371,7 @@ impl Searcher {
                 },
                 Err(error) => Suggestions::Error(Rc::new(error.into()))
             };
-            data.borrow_mut().current_list = new_list;
+            data.borrow_mut().suggestions = new_suggestions;
             notifier.publish(Notification::NewSuggestionList).await;
         });
     }
@@ -470,7 +473,7 @@ mod test {
     fn parsed_input() {
         let parser = Parser::new_or_panic();
 
-        fn args_repr(prefix:&ast::prefix::Chain) -> Vec<String> {
+        fn args_reprs(prefix:&ast::prefix::Chain) -> Vec<String> {
             prefix.args.iter().map(|arg| arg.repr()).collect()
         }
 
@@ -495,7 +498,7 @@ mod test {
         let expression = parsed.expression.unwrap();
         assert_eq!(expression.off         , 0);
         assert_eq!(expression.func.repr() , "foo");
-        assert_eq!(args_repr(&expression) , Vec::<String>::new());
+        assert_eq!(args_reprs(&expression) , Vec::<String>::new());
         assert_eq!(parsed.pattern_offset,   2);
         assert_eq!(parsed.pattern.as_str(), "");
 
@@ -504,7 +507,7 @@ mod test {
         let expression = parsed.expression.unwrap();
         assert_eq!(expression.off         , 0);
         assert_eq!(expression.func.repr() , "foo");
-        assert_eq!(args_repr(&expression) , Vec::<String>::new());
+        assert_eq!(args_reprs(&expression) , Vec::<String>::new());
         assert_eq!(parsed.pattern_offset,   1);
         assert_eq!(parsed.pattern.as_str(), "bar");
 
@@ -513,7 +516,7 @@ mod test {
         let expression = parsed.expression.unwrap();
         assert_eq!(expression.off         , 0);
         assert_eq!(expression.func.repr() , "foo");
-        assert_eq!(args_repr(&expression) , vec!["  bar".to_string()]);
+        assert_eq!(args_reprs(&expression) , vec!["  bar".to_string()]);
         assert_eq!(parsed.pattern_offset  , 2);
         assert_eq!(parsed.pattern.as_str(), "baz");
 
@@ -522,7 +525,7 @@ mod test {
         let expression = parsed.expression.unwrap();
         assert_eq!(expression.off         , 2);
         assert_eq!(expression.func.repr() , "foo");
-        assert_eq!(args_repr(&expression) , vec![" bar".to_string()," baz".to_string()]);
+        assert_eq!(args_reprs(&expression) , vec![" bar".to_string()," baz".to_string()]);
         assert_eq!(parsed.pattern_offset,   1);
         assert_eq!(parsed.pattern.as_str(), "");
 
@@ -531,7 +534,7 @@ mod test {
         let expression = parsed.expression.unwrap();
         assert_eq!(expression.off         , 0);
         assert_eq!(expression.func.repr() , "foo");
-        assert_eq!(args_repr(&expression) , vec![" bar".to_string()]);
+        assert_eq!(args_reprs(&expression) , vec![" bar".to_string()]);
         assert_eq!(parsed.pattern_offset,   1);
         assert_eq!(parsed.pattern.as_str(), "(baz ");
     }
@@ -542,7 +545,7 @@ mod test {
         let frags_borrow = || Ref::map(searcher.data.borrow(),|d| &d.fragments_added_by_picking);
 
         // Picking first suggestion.
-        let new_input = searcher.pick_completion(entry1.clone_ref());
+        let new_input = searcher.pick_completion(entry1.clone_ref()).unwrap();
         assert_eq!(new_input, "TestFunction1 ");
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
@@ -555,16 +558,16 @@ mod test {
         assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
 
         // Picking argument's suggestion.
-        let new_input = searcher.pick_completion(entry2.clone_ref());
+        let new_input = searcher.pick_completion(entry2.clone_ref()).unwrap();
         assert_eq!(new_input, "TestFunction1 some_arg TestVar1 ");
-        let new_input = searcher.pick_completion(entry2.clone_ref());
+        let new_input = searcher.pick_completion(entry2.clone_ref()).unwrap();
         assert_eq!(new_input, "TestFunction1 some_arg TestVar1 TestVar1 ");
         let (function,arg1,arg2) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(function.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&function.picked_suggestion,&entry1));
-        assert_eq!(arg1.id, CompletedFragmentId::Argument {id:1});
+        assert_eq!(arg1.id, CompletedFragmentId::Argument {index:1});
         assert!(Rc::ptr_eq(&arg1.picked_suggestion,&entry2));
-        assert_eq!(arg2.id, CompletedFragmentId::Argument {id:2});
+        assert_eq!(arg2.id, CompletedFragmentId::Argument {index:2});
         assert!(Rc::ptr_eq(&arg2.picked_suggestion,&entry2));
 
         // Backspacing back to the second arg.
@@ -572,13 +575,13 @@ mod test {
         let (picked,arg) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(picked.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&picked.picked_suggestion,&entry1));
-        assert_eq!(arg.id, CompletedFragmentId::Argument {id:1});
+        assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
 
         // Editing the picked function.
         searcher.set_input("TestFunction2 some_arg TestVar1 TestV".to_string()).unwrap();
         let (arg,) = frags_borrow().iter().cloned().expect_tuple();
-        assert_eq!(arg.id, CompletedFragmentId::Argument {id:1});
+        assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
     }
 }
