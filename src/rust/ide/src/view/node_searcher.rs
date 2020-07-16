@@ -10,11 +10,12 @@ use crate::model::module::Position;
 use crate::view::node_editor::NodeEditor;
 
 use ensogl::data::color;
+use ensogl::display;
+use ensogl::display::Scene;
 use ensogl::display::shape::text::glyph::font;
+use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
-use ensogl::display::world::World;
-use ensogl::display;
 use ensogl::traits::*;
 
 
@@ -27,13 +28,14 @@ pub struct NodeSearcher {
 }
 
 impl NodeSearcher {
-    pub fn new
-    ( world       : &World
-    , logger      : impl AnyLogger
-    , node_editor : NodeEditor
-    , fonts       : &mut font::Registry)
+    pub fn new<'t,S:Into<&'t Scene>>
+    ( scene         : S
+    , logger        : impl AnyLogger
+    , node_editor   : NodeEditor
+    , fonts         : &mut font::Registry
+    , focus_manager : &FocusManager)
     -> Self {
-        let scene          = world.scene();
+        let scene          = scene.into();
         let camera         = scene.camera();
         let screen         = camera.screen();
         let logger         = Logger::sub(logger,"NodeSearcher");
@@ -44,7 +46,8 @@ impl NodeSearcher {
             base_color : color::Rgba::new(1.0, 1.0, 1.0, 0.7),
             size       : Vector2::new(screen.width,16.0),
         };
-        let text_field = TextField::new(world,properties);
+        let text_field = TextField::new(scene,properties,focus_manager);
+        //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
         display_object.add_child(&text_field.display_object());
         let searcher = NodeSearcher{node_editor,display_object,text_field,logger};
         searcher.initialize()
@@ -77,6 +80,7 @@ impl NodeSearcher {
 
     /// Show NodeSearcher if it is invisible.
     pub fn show(&mut self) {
+        //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
         self.display_object.add_child(&self.text_field.display_object());
         self.text_field.clear_content();
         self.text_field.set_focus();
@@ -85,6 +89,7 @@ impl NodeSearcher {
     /// Hide NodeSearcher if it is visible.
     pub fn hide(&mut self) {
         self.text_field.clear_content();
+        //FIXME:Use remove_child(&text_field) when replaced by TextField 2.0
         self.display_object.remove_child(&self.text_field.display_object());
     }
 }
