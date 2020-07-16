@@ -212,6 +212,10 @@ impl ProjectNameModel {
         let project_name = self.clone_ref();
         //FIXME[dg]: This section to check newline and keep TextField in a single line is hacky
         // and should be removed once the new TextField is implemented.
+        // Also: Taking TextField reference inside a closure managed by itself is a reference
+        // loop, which means we are leaking memory. This cannot be fixed without refactoring
+        // TextField. This code will not suffer of memory leak when using the events emitted from
+        // TextField 2.0` implementation.
         self.text_field.set_text_edit_callback(move |change| {
             // If the text edit callback is called, the TextEdit must be still alive.
             let field_content = project_name.text_field.get_content();
