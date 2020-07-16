@@ -142,7 +142,8 @@ impl model::execution_context::API for ExecutionContext {
     }
 
     fn push(&self, stack_item:LocalCall) -> LocalBoxFuture<'_, FallibleResult<()>> {
-        futures::future::ready(Ok(self.push(stack_item))).boxed_local()
+        self.push(stack_item);
+        futures::future::ready(Ok(())).boxed_local()
     }
 
     fn pop(&self) -> LocalBoxFuture<'_, FallibleResult<LocalCall>> {
@@ -185,8 +186,6 @@ pub mod test {
     use crate::double_representation::definition::DefinitionName;
     use crate::constants::DEFAULT_PROJECT_NAME;
 
-    use enso_protocol::language_server;
-
     #[derive(Clone,Derivative)]
     #[derivative(Debug)]
     pub struct MockData {
@@ -220,8 +219,8 @@ pub mod test {
             model::execution_context::DefinitionId::new_single_crumb(self.root_definition.clone())
         }
 
-        pub fn main_method_pointer(&self) -> language_server::MethodPointer {
-            language_server::MethodPointer {
+        pub fn main_method_pointer(&self) -> MethodPointer {
+            MethodPointer {
                 file            : self.module_path.file_path().clone(),
                 defined_on_type : self.module_path.module_name().to_string(),
                 name            : self.root_definition.to_string(),

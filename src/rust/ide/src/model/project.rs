@@ -20,17 +20,22 @@ use uuid::Uuid;
 // === Model ===
 // =============
 
+/// The API of the Project Model.
 #[automock]
 pub trait API:Debug {
     /// Project's name
     fn name(&self) -> ImString;
 
+    /// Get Language Server JSON-RPC Connection for this project.
     fn json_rpc(&self) -> Rc<language_server::Connection>;
 
+    /// Get Language Server binary Connection for this project.
     fn binary_rpc(&self) -> Rc<binary::Connection>;
 
+    /// Get the instance of parser that is set up for this project.
     fn parser(&self) -> &Parser;
 
+    /// Get the visualization controller.
     fn visualization(&self) -> &controller::Visualization;
 
     /// Returns a model of module opened from file.
@@ -60,7 +65,9 @@ impl Debug for MockAPI {
     }
 }
 
+/// The general, shared Project Model handle.
 pub type Project      = Rc<dyn API>;
+/// Project Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::Project;
 
 #[cfg(test)]
@@ -77,6 +84,6 @@ pub mod test {
         let module_path = module.path().clone();
         project.expect_module()
             .withf_st    (move |path| path == &module_path)
-            .returning_st(move |path| futures::future::ready(Ok(module.clone_ref())).boxed_local());
+            .returning_st(move |_path| futures::future::ready(Ok(module.clone_ref())).boxed_local());
     }
 }

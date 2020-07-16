@@ -129,9 +129,9 @@ mod test {
 
     #[wasm_bindgen_test]
     fn applying_code_change() {
-        let mut test = TestWithLocalPoolExecutor::set_up();
-        let module   = model::module::test::plain_from_code("2 + 2");
-        let change   = TextChange {
+        let _test  = TestWithLocalPoolExecutor::set_up();
+        let module = model::module::test::plain_from_code("2 + 2");
+        let change = TextChange {
             replaced: text::Index::new(2)..text::Index::new(5),
             inserted: "- abc".to_string(),
         };
@@ -194,8 +194,8 @@ mod test {
 
     #[wasm_bindgen_test]
     fn handling_metadata() {
-        let mut test = TestWithLocalPoolExecutor::set_up();
-        let module   = model::module::test::plain_from_code("");
+        let _test  = TestWithLocalPoolExecutor::set_up();
+        let module = model::module::test::plain_from_code("");
 
         let id         = Uuid::new_v4();
         let initial_md = module.node_metadata(id.clone());

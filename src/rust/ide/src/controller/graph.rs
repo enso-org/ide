@@ -758,11 +758,8 @@ impl Handle {
 pub mod tests {
     use super::*;
 
-    use crate::double_representation::definition::DefinitionName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::module::Path as ModulePath;
 
-    use ast::HasIdMap;
     use ast::crumbs;
     use ast::test_utils::expect_shape;
     use data::text::Index;

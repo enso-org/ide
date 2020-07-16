@@ -1,3 +1,5 @@
+//! A Project Model that synchronizes all its operations with the Language Server.
+
 use crate::prelude::*;
 
 use crate::model::execution_context::VisualizationUpdateData;
@@ -311,6 +313,7 @@ mod test {
     use enso_protocol::language_server::response;
     use json_rpc::expect_call;
 
+    #[allow(unused)]
     struct Fixture {
         test                 : TestWithLocalPoolExecutor,
         project              : Project,
@@ -365,8 +368,6 @@ mod test {
         }, |_|{});
 
         test.run_task(async move {
-            use controller::Module;
-            let log            = Logger::new("Test");
             let module         = project.module(path.clone_ref()).await.unwrap();
             let same_module    = project.module(path.clone_ref()).await.unwrap();
             let another_module = project.module(another_path.clone_ref()).await.unwrap();

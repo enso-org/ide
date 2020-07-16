@@ -10,7 +10,6 @@ use crate::model::execution_context::VisualizationId;
 
 use enso_protocol::language_server;
 use enso_protocol::language_server::ExpressionValuesComputed;
-use crate::model::execution_context::plain::PopOnEmptyStack;
 
 
 // ==========================
@@ -218,10 +217,7 @@ impl Drop for ExecutionContext {
 pub mod test {
     use super::*;
 
-    use crate::double_representation::definition::DefinitionName;
-    use crate::constants::DEFAULT_PROJECT_NAME;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::module::QualifiedName as ModuleQualifiedName;
     use crate::model::traits::*;
 
     use enso_protocol::language_server::CapabilityRegistration;
@@ -251,7 +247,6 @@ pub mod test {
             let mut test   = TestWithLocalPoolExecutor::set_up();
             let logger     = Logger::default();
             let method     = data.main_method_pointer();
-            let path       = Rc::new(data.module_path.clone());
             let context    = ExecutionContext::create(logger,connection,method);
             let context    = test.expect_completion(context).unwrap();
             Fixture {test,data,context}
@@ -300,8 +295,8 @@ pub mod test {
         }
 
         /// Generates a mock update for a single expression.
-        pub fn mock_values_computed_update(data:&MockData) -> language_server::ExpressionValuesComputed {
-            language_server::ExpressionValuesComputed {
+        pub fn mock_values_computed_update(data:&MockData) -> ExpressionValuesComputed {
+            ExpressionValuesComputed {
                 context_id : data.context_id,
                 updates    : vec![Self::mock_expression_value_update()],
             }
@@ -310,7 +305,7 @@ pub mod test {
 
     #[test]
     fn creating_context() {
-        let Fixture{data,test,context} = Fixture::new(|_,_|{});
+        let Fixture{data,context,..} = Fixture::new(|_,_|{});
         assert_eq!(data.context_id        , context.id);
         assert_eq!(data.module_path       , context.model.entry_point.file);
         assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
@@ -348,7 +343,7 @@ pub mod test {
             expression           : "".to_string(),
             visualisation_module : MockData::new().module_qualified_name(),
         };
-        let Fixture{mut test,context,data} = Fixture::new(|ls,data| {
+        let Fixture{mut test,context,..} = Fixture::new(|ls,data| {
             let exe_id = data.context_id;
             let vis_id = vis.id;
             let ast_id = vis.ast_id;
@@ -398,7 +393,7 @@ pub mod test {
             ..vis.clone()
         };
 
-        let Fixture{mut test,context,data} = Fixture::new(|ls,data| {
+        let Fixture{mut test,context,..} = Fixture::new(|ls,data| {
             let exe_id  = data.context_id;
             let vis_id  = vis.id;
             let vis2_id = vis2.id;

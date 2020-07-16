@@ -330,6 +330,7 @@ impl Position {
 /// A type describing content of the module: the ast and metadata.
 pub type Content = ParsedSourceFile<Metadata>;
 
+/// Module model API.
 pub trait API:Debug {
     /// Subscribe for notifications about text representation changes.
     fn subscribe(&self) -> Subscriber<Notification>;
@@ -382,10 +383,12 @@ pub trait API:Debug {
     fn with_node_metadata(&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>);
 }
 
-pub type Module       = Rc<dyn API>;
-pub type Plain        = plain::Module;
+/// The general, shared Module Model handle.
+pub type Module = Rc<dyn API>;
+/// Module Model which does not do anything besides storing data.
+pub type Plain = plain::Module;
+/// Module Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::Module;
-
 
 
 // ============
@@ -395,12 +398,6 @@ pub type Synchronized = synchronized::Module;
 #[cfg(test)]
 pub mod test {
     use super::*;
-
-    use crate::executor::test_utils::TestWithLocalPoolExecutor;
-
-    use data::text;
-    use uuid::Uuid;
-    use wasm_bindgen_test::wasm_bindgen_test;
 
     pub fn expect_code(module:&dyn API, expected_code:impl AsRef<str>) {
         let code = module.ast().repr();
@@ -428,14 +425,14 @@ pub mod test {
     }
 
     impl MockData {
-        pub fn plain(&self, parser:&Parser) -> model::Module {
+        pub fn plain(&self, parser:&Parser) -> Module {
             let ast    = parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
             let module = Plain::new(self.path.clone(),ast,self.metadata.clone());
             Rc::new(module)
         }
     }
 
-    pub fn plain_from_code(code:impl Into<String>) -> model::Module {
+    pub fn plain_from_code(code:impl Into<String>) -> Module {
         MockData {
             code : code.into(),
             ..default()
