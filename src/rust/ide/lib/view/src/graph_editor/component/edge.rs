@@ -237,9 +237,10 @@ impl SplitShape {
 /// shape that a hover position was snapped to and the snapped position on the shape. The snapped
 /// position lies (a) on the visible part of the shape and (b) is the closes position on the shape
 /// to the source position that was used to compute the snapped position.
+#[derive(Clone,Debug)]
 struct SnapTarget {
-    position        : Vector2<f32>,
-    target_shape_id : object::Id,
+    position: Vector2<f32>,
+    target_shape_id: object::Id,
 }
 
 impl SnapTarget {
@@ -1191,14 +1192,13 @@ impl EdgeModelData {
 
         // === Update Highlights ===
 
-        let hover_position = self.hover_position.get();
-        if let Some(hover_position) = hover_position {
-            let highlight_part = self.end_designation_for_position(hover_position);
-            let _ = self.try_enable_hover_split(hover_position, highlight_part);
-        } else {
-            self.disable_hover_split();
+        match (fully_attached, self.hover_position.get()) {
+            (true, Some(hover_position)) => {
+                let highlight_part = self.end_designation_for_position(hover_position);
+                let _ = self.try_enable_hover_split(hover_position, highlight_part);
+            },
+            _ =>  self.disable_hover_split(),
         }
-
 
 
         // === Target ===
@@ -1750,6 +1750,7 @@ impl EdgeModelData {
         let snap_data      = self.snap_position_to_shape(position).ok_or(())?;
         let semantic_split = SemanticSplit::new(&self,snap_data.target_shape_id).ok_or(())?;
         let cut_angle      = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
+        println!("{:?}", snap_data);
         // Completely disable/enable hovering for shapes that are not close the split base don their
         // relative position within the shape. This avoids issues with splitting not working
         // correctly when a split would intersect the edge at multiple points.
