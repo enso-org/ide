@@ -209,25 +209,6 @@ impl ProjectNameModel {
         //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
         self.add_child(&self.text_field.display_object());
         self.add_child(&self.view);
-        let project_name = self.clone_ref();
-        //FIXME[dg]: This section to check newline and keep TextField in a single line is hacky
-        // and should be removed once the new TextField is implemented.
-        // Also: Taking TextField reference inside a closure managed by itself is a reference
-        // loop, which means we are leaking memory. This cannot be fixed without refactoring
-        // TextField. This code will not suffer of memory leak when using the events emitted from
-        // TextField 2.0` implementation.
-        self.text_field.set_text_edit_callback(move |change| {
-            // If the text edit callback is called, the TextEdit must be still alive.
-            let field_content = project_name.text_field.get_content();
-            let new_name      = field_content.replace("\n","");
-            if change.inserted == "\n" {
-                project_name.rename(&new_name);
-            }
-            // Keep only one line.
-            project_name.text_field.set_content(&new_name);
-            project_name.update_center_alignment();
-        });
-
         self.update_text_field_content();
         self
     }
@@ -308,7 +289,27 @@ impl ProjectName {
             eval model.animations.position.value((value) model.set_position(*value));
         }
 
-        Self{frp,model}
+        Self{frp,model}.init()
+    }
+
+    fn init(self) -> Self {
+        let project_name = Rc::downgrade(&self.model);
+        //FIXME[dg]: This section to check newline and keep TextField in a single line is hacky
+        // and should be removed once the new TextField is implemented.
+        self.text_field.set_text_edit_callback(move |change| {
+            if let Some(project_name) = project_name.upgrade() {
+                // If the text edit callback is called, the TextEdit must be still alive.
+                let field_content = project_name.text_field.get_content();
+                let new_name      = field_content.replace("\n", "");
+                if change.inserted == "\n" {
+                    project_name.rename(&new_name);
+                }
+                // Keep only one line.
+                project_name.text_field.set_content(&new_name);
+                project_name.update_center_alignment();
+            }
+        });
+        self
     }
 }
 
