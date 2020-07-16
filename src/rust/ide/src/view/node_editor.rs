@@ -630,7 +630,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let project_name         = self.project.project_name();
         let project_name         = project_name.deref();
         let module_name          = crate::view::project::INITIAL_MODULE_NAME;
-        let visualisation_module = QualifiedName::from_segments(project_name,&[module_name]);
+        let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
         let id                   = VisualizationId::new_v4();
         let expression           = crate::constants::SERIALIZE_TO_JSON_EXPRESSION.into();
         let ast_id               = self.get_controller_node_id(*node_id)?;
