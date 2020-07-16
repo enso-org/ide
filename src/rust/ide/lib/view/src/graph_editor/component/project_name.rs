@@ -27,7 +27,7 @@ use ensogl::animation::linear_interpolation;
 // === Constants ===
 // =================
 
-const TEXT_SIZE              : f32         = 16.0;
+const TEXT_SIZE              : f32         = 12.0;
 const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 1.0);
 const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.6);
 
