@@ -802,21 +802,20 @@ pub mod tests {
             }
         }
 
-        /// Create a plain module model from the current mock data.
-        pub fn module(&self) -> Rc<model::module::Plain> {
-            let path     = self.module_path.clone();
-            let idmap    = default();
-            let metadata = default();
-            let model    = model::module::plain::Module::from_code_or_panic(path,&self.code,idmap,metadata);
-            Rc::new(model)
+        pub fn module_data(&self) -> model::module::test::MockData {
+            model::module::test::MockData {
+                code : self.code.clone(),
+                path : self.module_path.clone(),
+                ..default()
+            }
         }
 
         /// Create a graph controller from the current mock data.
         pub fn graph(&self) -> Handle {
             let logger = Logger::new("Test");
-            let module = self.module();
             let parser = Parser::new().unwrap();
-            let id = self.graph_id.clone();
+            let module = self.module_data().plain(&parser);
+            let id     = self.graph_id.clone();
             Handle::new(logger,module,parser,id).unwrap()
         }
     }

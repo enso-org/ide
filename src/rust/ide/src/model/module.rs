@@ -407,6 +407,41 @@ pub mod test {
         assert_eq!(code,expected_code.as_ref())
     }
 
+    /// Data from which module model is usually created in test scenarios.
+    #[derive(Clone,Debug)]
+    pub struct MockData {
+        pub path     : Path,
+        pub code     : String,
+        pub id_map   : ast::IdMap,
+        pub metadata : Metadata,
+    }
+
+    impl Default for MockData {
+        fn default() -> Self {
+            Self {
+                path     : Path::from_mock_module_name("Main"),
+                code     : "main = 2 + 2".into(),
+                id_map   : default(),
+                metadata : default(),
+            }
+        }
+    }
+
+    impl MockData {
+        pub fn plain(&self, parser:&Parser) -> model::Module {
+            let ast    = parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
+            let module = Plain::new(self.path.clone(),ast,self.metadata.clone());
+            Rc::new(module)
+        }
+    }
+
+    pub fn plain_from_code(code:impl Into<String>) -> model::Module {
+        MockData {
+            code : code.into(),
+            ..default()
+        }.plain(&parser::Parser::new_or_panic())
+    }
+
     #[test]
     fn module_path_conversion() {
         let path = FilePath::new(default(), &["src","Main.enso"]);

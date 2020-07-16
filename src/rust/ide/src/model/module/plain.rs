@@ -34,15 +34,6 @@ impl Module {
         }
     }
 
-    /// Create module state from given code, id_map and metadata.
-    #[cfg(test)]
-    pub fn from_code_or_panic<S:ToString>
-    (path:Path, code:S, id_map:ast::IdMap, metadata:Metadata) -> Self {
-        let parser = parser::Parser::new_or_panic();
-        let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
-        Self::new(path,ast,metadata)
-    }
-
     fn notify(&self, notification:Notification) {
         let notify  = self.notifications.publish(notification);
         executor::global::spawn(notify);
@@ -136,13 +127,10 @@ mod test {
     use data::text;
     use utils::test::traits::*;
 
-
-
     #[wasm_bindgen_test]
     fn applying_code_change() {
         let mut test = TestWithLocalPoolExecutor::set_up();
-        let path     = Path::from_mock_module_name("Test");
-        let module   = Module::from_code_or_panic(path,"2 + 2",default(),default());
+        let module   = model::module::test::plain_from_code("2 + 2");
         let change   = TextChange {
             replaced: text::Index::new(2)..text::Index::new(5),
             inserted: "- abc".to_string(),
@@ -154,8 +142,7 @@ mod test {
     #[wasm_bindgen_test]
     fn notifying() {
         let mut test         = TestWithLocalPoolExecutor::set_up();
-        let path             = Path::from_mock_module_name("Test");
-        let module           = Module::from_code_or_panic(path,"",default(),default());
+        let module           = model::module::test::plain_from_code("");
         let mut subscription = module.subscribe().boxed_local();
         subscription.expect_pending();
 
@@ -208,8 +195,7 @@ mod test {
     #[wasm_bindgen_test]
     fn handling_metadata() {
         let mut test = TestWithLocalPoolExecutor::set_up();
-        let path     = Path::from_mock_module_name("Test");
-        let module   = Module::from_code_or_panic(path,"",default(),default());
+        let module   = model::module::test::plain_from_code("");
 
         let id         = Uuid::new_v4();
         let initial_md = module.node_metadata(id.clone());

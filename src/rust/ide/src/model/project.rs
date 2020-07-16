@@ -62,3 +62,18 @@ impl Debug for MockAPI {
 
 pub type Project      = Rc<dyn API>;
 pub type Synchronized = synchronized::Project;
+
+pub mod test {
+    use super::*;
+
+    pub fn expect_parser(project:&mut MockAPI, parser:&Parser) {
+        project.expect_parser().return_const(parser.clone());
+    }
+
+    pub fn expect_module(project:&mut MockAPI, module:model::Module) {
+        let module_path = module.path().clone();
+        project.expect_module()
+            .withf_st    (move |path| path == &module_path)
+            .returning_st(move |path| futures::future::ready(Ok(module.clone_ref())).boxed_local());
+    }
+}

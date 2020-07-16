@@ -224,22 +224,16 @@ mod test {
 
     #[wasm_bindgen_test]
     fn obtain_text_controller_for_module() {
+        let parser   = parser::Parser::new_or_panic();
         let mut test = TestWithLocalPoolExecutor::set_up().run_task(async move {
-            let module_path  = model::module::Path::from_mock_module_name("Test");
-            let module_path_clone = module_path.clone();
+            let code         = "2 + 2".to_string();
+            let module       = model::module::test::MockData {code,..default()}.plain(&parser);
+            let module_clone = module.clone_ref();
             let project      = setup_mock_project(move |project| {
-                let module = model::module::Plain::from_code_or_panic(module_path_clone.clone(),"2 + 2",default(),default());
-                let module = Rc::new(module) as model::Module;
-                project.expect_module()
-                    .withf_st(move |path| path == &module_path_clone)
-                    .returning_st(move |path| {
-                        futures::future::ready(Ok(module.clone_ref())).boxed_local()
-                    });
-                let parser = parser::Parser::new_or_panic();
-                project.expect_parser().return_const(parser);
+                model::project::test::expect_module(project,module_clone);
+                model::project::test::expect_parser(project,&parser);
             });
-            let file_path    = module_path.file_path();
-
+            let file_path = module.path().file_path();
             let log       = Logger::new("Test");
             let text_ctrl = controller::Text::new(&log,&project,file_path.clone()).await.unwrap();
             let content   = text_ctrl.read_content().await.unwrap();
