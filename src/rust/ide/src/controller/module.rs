@@ -130,19 +130,19 @@ impl Handle {
     }
 
     /// Creates a mocked module controller.
-    // pub fn new_mock
-    // ( path            : Path
-    // , code            : &str
-    // , id_map          : ast::IdMap
-    // , language_server : Rc<language_server::Connection>
-    // , parser          : Parser
-    // ) -> FallibleResult<Self> {
-    //     let logger = Logger::new("Mocked Module Controller");
-    //     let ast    = parser.parse(code.to_string(),id_map)?.try_into()?;
-    //     let model  = model::Module::new(ast, default());
-    //     let model  = model::synchronized::Module::mock(path,model);
-    //     Ok(Handle {model,language_server,parser,logger})
-    // }
+    pub fn new_mock
+    ( path            : Path
+    , code            : &str
+    , id_map          : ast::IdMap
+    , language_server : Rc<language_server::Connection>
+    , parser          : Parser
+    ) -> FallibleResult<Self> {
+        let logger = Logger::new("Mocked Module Controller");
+        let ast    = parser.parse(code.to_string(),id_map)?.try_into()?;
+        let metadata = default();
+        let model  = Rc::new(model::module::Plain::new(path,ast,metadata));
+        Ok(Handle {model,language_server,parser,logger})
+    }
 
     #[cfg(test)]
     pub fn expect_code(&self, expected_code:impl Str) {
@@ -157,61 +157,56 @@ impl Handle {
 // === Tests ===
 // =============
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//
-//     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-//
-//     use ast;
-//     use ast::BlockLine;
-//     use ast::Ast;
-//     use data::text::Span;
-//     use parser::Parser;
-//     use uuid::Uuid;
-//     use wasm_bindgen_test::wasm_bindgen_test;
-//
-//     #[wasm_bindgen_test]
-//     fn update_ast_after_text_change() {
-//         TestWithLocalPoolExecutor::set_up().run_task(async {
-//             let logger   = Logger::new("Test");
-//             let ls       = language_server::Connection::new_mock_rc(default());
-//             let parser   = Parser::new().unwrap();
-//             let location = Path::from_mock_module_name("Test");
-//             let project  = model::project::MockAPI::new();
-//
-//             let uuid1    = Uuid::new_v4();
-//             let uuid2    = Uuid::new_v4();
-//             let uuid3    = Uuid::new_v4();
-//             let uuid4    = Uuid::new_v4();
-//             let code   = "2+2";
-//             let id_map   = ast::IdMap::new(vec!
-//                 [ (Span::new(Index::new(0),Size::new(1)),uuid1)
-//                 , (Span::new(Index::new(1),Size::new(1)),uuid2)
-//                 , (Span::new(Index::new(2),Size::new(1)),uuid3)
-//                 , (Span::new(Index::new(0),Size::new(3)),uuid4)
-//                 ]);
-//             let ast    = parser.parse(code.to_string(),id_map).unwrap().try_into().unwrap();
-//             let model  = model::module::Plain::new(location.clone_ref(),ast,default());
-//
-//             let controller = Handle::new(&logger,location,&project.into()).await.unwrap();
-//
-//             // Change code from "2+2" to "22+2"
-//             let change = TextChange::insert(Index::new(0),"2".to_string());
-//             controller.apply_code_change(change).unwrap();
-//             let expected_ast = Ast::new_no_id(ast::Module {
-//                 lines: vec![BlockLine {
-//                     elem: Some(Ast::new(ast::Infix {
-//                         larg : Ast::new(ast::Number{base:None, int:"22".to_string()}, Some(uuid1)),
-//                         loff : 0,
-//                         opr  : Ast::new(ast::Opr {name:"+".to_string()}, Some(uuid2)),
-//                         roff : 0,
-//                         rarg : Ast::new(ast::Number{base:None, int:"2".to_string()}, Some(uuid3)),
-//                     }, Some(uuid4))),
-//                     off: 0
-//                 }]
-//             });
-//             assert_eq!(expected_ast, controller.model.ast().into());
-//         });
-//     }
-// }
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
+    use ast;
+    use ast::BlockLine;
+    use ast::Ast;
+    use data::text::Span;
+    use parser::Parser;
+    use uuid::Uuid;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[test]
+    fn update_ast_after_text_change() {
+        TestWithLocalPoolExecutor::set_up().run_task(async {
+            let logger   = Logger::new("Test");
+            let ls       = language_server::Connection::new_mock_rc(default());
+            let parser   = Parser::new().unwrap();
+            let location = Path::from_mock_module_name("Test");
+            let code     = "2+2";
+            let uuid1    = Uuid::new_v4();
+            let uuid2    = Uuid::new_v4();
+            let uuid3    = Uuid::new_v4();
+            let uuid4    = Uuid::new_v4();
+            let id_map   = ast::IdMap::new(vec!
+                [ (Span::new(Index::new(0),Size::new(1)),uuid1)
+                , (Span::new(Index::new(1),Size::new(1)),uuid2)
+                , (Span::new(Index::new(2),Size::new(1)),uuid3)
+                , (Span::new(Index::new(0),Size::new(3)),uuid4)
+                ]);
+            let controller = Handle::new_mock(location,code,id_map,ls,parser).unwrap();
+
+            // Change code from "2+2" to "22+2"
+            let change = TextChange::insert(Index::new(0),"2".to_string());
+            controller.apply_code_change(change).unwrap();
+            let expected_ast = Ast::new_no_id(ast::Module {
+                lines: vec![BlockLine {
+                    elem: Some(Ast::new(ast::Infix {
+                        larg : Ast::new(ast::Number{base:None, int:"22".to_string()}, Some(uuid1)),
+                        loff : 0,
+                        opr  : Ast::new(ast::Opr {name:"+".to_string()}, Some(uuid2)),
+                        roff : 0,
+                        rarg : Ast::new(ast::Number{base:None, int:"2".to_string()}, Some(uuid3)),
+                    }, Some(uuid4))),
+                    off: 0
+                }]
+            });
+            assert_eq!(expected_ast, controller.model.ast().into());
+        });
+    }
+}
