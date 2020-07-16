@@ -63,13 +63,16 @@ impl Debug for MockAPI {
 pub type Project      = Rc<dyn API>;
 pub type Synchronized = synchronized::Project;
 
+#[cfg(test)]
 pub mod test {
     use super::*;
 
+    /// Sets up parser expectation on the mock project.
     pub fn expect_parser(project:&mut MockAPI, parser:&Parser) {
         project.expect_parser().return_const(parser.clone());
     }
 
+    /// Sets up module expectation on the mock project, returning a give module.
     pub fn expect_module(project:&mut MockAPI, module:model::Module) {
         let module_path = module.path().clone();
         project.expect_module()
