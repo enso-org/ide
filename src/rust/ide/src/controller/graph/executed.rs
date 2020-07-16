@@ -198,53 +198,51 @@ impl Handle {
 // === Test ===
 // ============
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-//
-//     use enso_protocol::language_server;
-//     use utils::test::traits::*;
-//     use wasm_bindgen_test::wasm_bindgen_test;
-//     use wasm_bindgen_test::wasm_bindgen_test_configure;
-//
-//     wasm_bindgen_test_configure!(run_in_browser);
-//
-//     Test that checks that value computed notification is properly relayed by the executed graph.
-//     #[wasm_bindgen_test]
-//     fn dispatching_value_computed_notification() {
-//         // Setup the controller.
-//         let mut fixture    = TestWithLocalPoolExecutor::set_up();
-//         let execution_data = model::synchronized::execution_context::tests::MockData::new();
-//         let execution      = execution_data.context_provider(&mut ls);
-//         let graph_data     = controller::graph::tests::MockData::new_inline("1 + 2");
-//         let connection     = language_server::Connection::new_mock_rc(ls);
-//         let (_,graph)      = graph_data.create_controllers_with_ls(connection.clone_ref());
-//         let execution      = Rc::new(execution(connection.clone_ref()));
-//         let project        = model::project::test::setup_mock_project(|_| {}, |_| {}).into();
-//         let executed_graph = Handle::new_internal(graph,project,execution.clone_ref());
-//
-//         // Generate notification.
-//         let notification = execution_data.mock_values_computed_update();
-//         let update       = &notification.updates[0];
-//
-//         // Notification not yet send.
-//         let registry          = executed_graph.computed_value_info_registry();
-//         let mut notifications = executed_graph.subscribe().boxed_local();
-//         notifications.expect_pending();
-//         assert!(registry.get(&update.id).is_none());
-//
-//         // Sending notification.
-//         execution.handle_expression_values_computed(notification.clone()).unwrap();
-//         fixture.run_until_stalled();
-//
-//         // Observing that notification was relayed.
-//         let observed_notification = notifications.expect_next();
-//         let typename_in_registry  = registry.get(&update.id).unwrap().typename.clone();
-//         let expected_typename     = update.typename.clone().map(ImString::new);
-//         assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![update.id]));
-//         assert_eq!(typename_in_registry,expected_typename);
-//         notifications.expect_pending();
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
+    use enso_protocol::language_server;
+    use utils::test::traits::*;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    // Test that checks that value computed notification is properly relayed by the executed graph.
+    #[wasm_bindgen_test]
+    fn dispatching_value_computed_notification() {
+        // Setup the controller.
+        let mut fixture    = TestWithLocalPoolExecutor::set_up();
+        let graph_data     = controller::graph::tests::MockData::new();
+        let graph          = graph_data.graph();
+        let execution_data = model::execution_context::plain::test::MockData::new();
+        let execution      = Rc::new(execution_data.create());
+        let project        = Rc::new(model::project::MockAPI::new());
+        let executed_graph = Handle::new_internal(graph,project,execution.clone_ref());
+
+        // Generate notification.
+        let notification = model::execution_context::synchronized::test::Fixture::mock_values_computed_update(&execution_data);
+        let update       = &notification.updates[0];
+
+        // Notification not yet send.
+        let registry          = executed_graph.computed_value_info_registry();
+        let mut notifications = executed_graph.subscribe().boxed_local();
+        notifications.expect_pending();
+        assert!(registry.get(&update.id).is_none());
+
+        // Sending notification.
+        execution.computed_value_info_registry.apply_update(notification.clone());
+        fixture.run_until_stalled();
+
+        // Observing that notification was relayed.
+        let observed_notification = notifications.expect_next();
+        let typename_in_registry  = registry.get(&update.id).unwrap().typename.clone();
+        let expected_typename     = update.typename.clone().map(ImString::new);
+        assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![update.id]));
+        assert_eq!(typename_in_registry,expected_typename);
+        notifications.expect_pending();
+    }
+}

@@ -755,7 +755,7 @@ impl Handle {
 // ============
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     use crate::double_representation::definition::DefinitionName;
@@ -781,6 +781,8 @@ mod tests {
     }
 
     impl MockData {
+        /// Creates a mock data with the `main` function being an inline definition with a single
+        /// node.
         pub fn new() -> Self {
             MockData {
                 module_path  : model::module::Path::from_mock_module_name("Main"),
@@ -800,6 +802,7 @@ mod tests {
             }
         }
 
+        /// Create a plain module model from the current mock data.
         pub fn module(&self) -> Rc<model::module::Plain> {
             let path     = self.module_path.clone();
             let idmap    = default();
@@ -808,6 +811,7 @@ mod tests {
             Rc::new(model)
         }
 
+        /// Create a graph controller from the current mock data.
         pub fn graph(&self) -> Handle {
             let logger = Logger::new("Test");
             let module = self.module();
@@ -848,7 +852,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn node_operations() {
         Fixture::set_up().run(|graph| async move {
             let uid = graph.all_node_infos().unwrap()[0].id();
@@ -858,7 +862,7 @@ mod tests {
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_notification_relay() {
         Fixture::set_up().run(|graph| async move {
             let mut sub = graph.subscribe();
@@ -868,7 +872,7 @@ mod tests {
         });
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_inline_definition() {
         let mut test = Fixture::set_up();
         const EXPRESSION:&str = "2+2";
@@ -883,7 +887,7 @@ mod tests {
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_block_definition() {
         let mut test  = Fixture::set_up();
         test.data.code = r"
@@ -898,7 +902,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_parse_expression() {
         let mut test  = Fixture::set_up();
         test.run(|graph| async move {
@@ -913,7 +917,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_used_names_in_inline_def() {
         let mut test  = Fixture::set_up();
         test.data.code = "main = foo".into();
@@ -924,7 +928,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_nested_definition() {
         let mut test  = Fixture::set_up();
         test.data.code = r"main =
@@ -944,7 +948,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_doubly_nested_definition() {
         // Tests editing nested definition that requires transforming inline expression into
         // into a new block.
@@ -963,7 +967,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_node_operations_node() {
         let mut test  = Fixture::set_up();
         const PROGRAM:&str = r"
@@ -1026,7 +1030,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_connections_listing() {
         let mut test  = Fixture::set_up();
         const PROGRAM:&str = r"
@@ -1075,7 +1079,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_create_connection() {
         /// A case for creating connection test. The field's names are short to be able to write
         /// nice-to-read table of cases without very long lines (see `let cases` below).
@@ -1127,7 +1131,7 @@ main =
         }
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_create_connection_reordering() {
         let mut test  = Fixture::set_up();
         const PROGRAM:&str = r"main =
@@ -1160,7 +1164,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_create_connection_introducing_var() {
         let mut test  = Fixture::set_up();
         const PROGRAM:&str = r"main =
@@ -1197,7 +1201,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn suggested_names() {
         let parser = Parser::new_or_panic();
         let cases = [
@@ -1222,7 +1226,7 @@ main =
         }
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn disconnect() {
         #[derive(Clone,Debug)]
         struct Case {
