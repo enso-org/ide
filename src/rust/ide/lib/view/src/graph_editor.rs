@@ -861,6 +861,7 @@ impl<T:frp::Data> TouchNetwork<T> {
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn check(end:&Vector2, start:&Vector2, diff:&f32) -> bool {
         (end-start).norm() <= diff * 2.0
     }

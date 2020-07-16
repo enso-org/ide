@@ -298,8 +298,6 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
     pub mod corner {
         use super::*;
 
-
-
         ensogl::define_shape_system! {
             (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
              hover_split_center:Vector2<f32>,hover_split_rotation:f32) {
@@ -356,12 +354,19 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
 
-                // Note: this is the closes point to the full circle. Will fail to produce the
-                // desired result if the given point is closer to another part of the circle, than
-                // this curve. We need to validate in some other context, that we are in the correct
-                // quadrant.
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
-                Some(closest_point)
+                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
+                let start_angle   =  self.shape.start_angle.get();
+                let end_angle     =  start_angle + self.shape.angle.get();
+                let upper_bound   = start_angle.max(end_angle);
+                let lower_bound   = start_angle.min(end_angle);
+
+                let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
+                if correct_quadrant {
+                     Some(Vector2::new(closest_point.x, closest_point.y))
+                } else {
+                    None
+                }
             }
         }
     }
@@ -426,13 +431,19 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
 
-                // Note: this is the closes point to the full circle. Will fail to produce the
-                // desired result if the given point is closer to another part of the circle, than
-                // this curve. We need to validate in some other context, that we are in the correct
-                // quadrant.
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
+                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
+                let start_angle   =  self.shape.start_angle.get();
+                let end_angle     =  start_angle + self.shape.angle.get();
+                let upper_bound   = start_angle.max(end_angle);
+                let lower_bound   = start_angle.min(end_angle);
 
-                Some(Vector2::new(closest_point.x, closest_point.y))
+                let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
+                if correct_quadrant {
+                     Some(Vector2::new(closest_point.x, closest_point.y))
+                } else {
+                    None
+                }
            }
         }
     }
@@ -1183,9 +1194,7 @@ impl EdgeModelData {
         let hover_position = self.hover_position.get();
         if let Some(hover_position) = hover_position {
             let highlight_part = self.end_designation_for_position(hover_position);
-            if let Err(()) = self.try_enable_hover_split(hover_position,highlight_part) {
-                self.disable_hover_split();
-            }
+            let _ = self.try_enable_hover_split(hover_position, highlight_part);
         } else {
             self.disable_hover_split();
         }
@@ -1525,7 +1534,7 @@ impl EdgeModelData {
                 fg.main_line.layout_v(main_line_start, main_line_len);
             }
 
-            if main_line_len > 2.0 {
+            if main_line_len > ARROW_SIZE_Y {
                 let arrow_y    = (corner1.y - corner1_radius + corner2_y + corner2_radius)/2.0;
                 let arrow_pos  = Vector2::new(main_line_start.x, arrow_y);
                 let arrow_size = Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y);
