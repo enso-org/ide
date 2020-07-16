@@ -804,7 +804,7 @@ pub trait TokenConsumer {
 }
 
 impl<F:FnMut(Token)> TokenConsumer for F {
-    fn feed(&mut self, val: Token) {
+    fn feed(&mut self, val:Token) {
         self(val)
     }
 }
