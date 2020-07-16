@@ -1981,22 +1981,31 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     //   better updates from engine services (see https://github.com/enso-org/enso/issues/441 ).
     trace inputs.set_expression_type;
 
+    }
+
 
     // === Move Edges ===
+    frp::extend! { network
 
     detached_edge           <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
     update_edge             <- any(detached_edge,on_new_edge_source,on_new_edge_target);
     cursor_pos_on_update    <- cursor_pos_in_scene.sample(&update_edge);
     edge_refresh_cursor_pos <- any (cursor_pos_on_update,cursor_pos_in_scene);
 
-    is_hovering_output <- inputs.hover_node_output.map(|target| target.is_some());
+    is_hovering_output <- inputs.hover_node_output.map(|target| target.is_some()).sampler();
     hover_node         <- inputs.hover_node_output.unwrap();
 
-    edge_refresh_on_node_hover       <- all(edge_refresh_cursor_pos,hover_node);
-    edge_refresh_cursor_pos_no_hover <- edge_refresh_cursor_pos.gate_not(&is_hovering_output);
+    edge_refresh_on_node_hover        <- all(edge_refresh_cursor_pos,hover_node).gate(&is_hovering_output);
+    edge_refresh_cursor_pos_no_hover  <- edge_refresh_cursor_pos.gate_not(&is_hovering_output);
+    edge_refresh_cursor_pos_on_hover  <- edge_refresh_on_node_hover.map(|(pos,_)| pos.clone());
+    snap_source_to_node               <- edge_refresh_on_node_hover.map(|(_,target)| target.clone());
 
-    eval edge_refresh_cursor_pos ((position) {
-        edges.detached_target.for_each(|id| {
+    refresh_target      <- any(&edge_refresh_cursor_pos_on_hover,&edge_refresh_cursor_pos_no_hover);
+    refresh_source      <- edge_refresh_cursor_pos_no_hover.map(|pos| pos.clone());
+    snap_source_to_node <- edge_refresh_on_node_hover.map(|(_,target)| target.clone());
+
+    eval refresh_target ([edges,model](position) {
+       edges.detached_target.for_each(|id| {
             if let Some(edge) = edges.get_cloned_ref(id) {
                 edge.view.frp.target_position.emit(position.xy());
                 edge.view.frp.redraw.emit(());
@@ -2004,7 +2013,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         });
     });
 
-    eval edge_refresh_cursor_pos_no_hover ([edges,model](position) {
+    eval refresh_source ([edges,model](position) {
         edges.detached_source.for_each(|edge_id| {
             if let Some(edge) = edges.get_cloned_ref(edge_id) {
                 edge.view.frp.source_width.emit(cursor::DEFAULT_RADIUS);
@@ -2020,7 +2029,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         });
     });
 
-    eval edge_refresh_on_node_hover ([nodes,edges,model]((_,target)) {
+    eval snap_source_to_node ([nodes,edges,model]((target)) {
         edges.detached_source.for_each(|edge_id| {
             if let Some(node) = nodes.get_cloned_ref(&target.node_id) {
                 if let Some(edge) = edges.get_cloned_ref(edge_id) {
