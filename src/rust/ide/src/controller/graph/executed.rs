@@ -204,7 +204,6 @@ mod tests {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
-    use enso_protocol::language_server;
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;

@@ -173,6 +173,16 @@ mod test {
     use parser::Parser;
     use wasm_bindgen_test::wasm_bindgen_test;
 
+    fn setup_mock_project(setup:impl FnOnce(&mut model::project::MockAPI)) -> model::Project {
+        let json_client = language_server::MockClient::default();
+        let ls          = enso_protocol::language_server::Connection::new_mock_rc(json_client);
+        let ls_clone    = ls.clone_ref();
+        let mut project = model::project::MockAPI::new();
+        setup(&mut project);
+        project.expect_json_rpc().returning_st(move || ls_clone.clone_ref());
+        Rc::new(project)
+    }
+
     #[wasm_bindgen_test]
     fn passing_notifications_from_module() {
         let mut test  = TestWithLocalPoolExecutor::set_up();
@@ -191,5 +201,49 @@ mod test {
             module.apply_code_change(TextChange::insert(Index::new(8),"2".to_string())).unwrap();
             assert_eq!(Some(Notification::Invalidate), sub.next().await);
         })
+    }
+
+    #[wasm_bindgen_test]
+    fn obtain_plain_text_controller() {
+        TestWithLocalPoolExecutor::set_up().run_task(async move {
+            let project      = setup_mock_project(|_| {});
+            let root_id      = default();
+            let path         = FilePath::new(root_id,&["TestPath"]);
+            let another_path = FilePath::new(root_id,&["TestPath2"]);
+            let log          = Logger::new("Test");
+            let text_ctrl    = Handle::new(&log,&project,path.clone()).await.unwrap();
+            let another_ctrl = Handle::new(&log,&project,another_path.clone()).await.unwrap();
+
+            assert!(Rc::ptr_eq(&another_ctrl.language_server(),&text_ctrl.language_server()));
+            assert!(Rc::ptr_eq(&another_ctrl.language_server(),&project.json_rpc()));
+            assert!(Rc::ptr_eq(&another_ctrl.language_server(),&project.json_rpc()));
+            assert_eq!(path        , *text_ctrl   .file_path());
+            assert_eq!(another_path, *another_ctrl.file_path());
+        });
+    }
+
+    #[wasm_bindgen_test]
+    fn obtain_text_controller_for_module() {
+        let mut test = TestWithLocalPoolExecutor::set_up().run_task(async move {
+            let module_path  = model::module::Path::from_mock_module_name("Test");
+            let module_path_clone = module_path.clone();
+            let project      = setup_mock_project(move |project| {
+                let module = model::module::Plain::from_code_or_panic(module_path_clone.clone(),"2 + 2",default(),default());
+                let module = Rc::new(module) as model::Module;
+                project.expect_module()
+                    .withf_st(move |path| path == &module_path_clone)
+                    .returning_st(move |path| {
+                        futures::future::ready(Ok(module.clone_ref())).boxed_local()
+                    });
+                let parser = parser::Parser::new_or_panic();
+                project.expect_parser().return_const(parser);
+            });
+            let file_path    = module_path.file_path();
+
+            let log       = Logger::new("Test");
+            let text_ctrl = controller::Text::new(&log,&project,file_path.clone()).await.unwrap();
+            let content   = text_ctrl.read_content().await.unwrap();
+            assert_eq!("2 + 2", content.as_str());
+        });
     }
 }
