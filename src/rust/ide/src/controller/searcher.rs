@@ -174,7 +174,7 @@ impl HasRepr for ParsedInput {
     fn repr(&self) -> String {
         let mut repr = self.expression.as_ref().map_or("".to_string(), HasRepr::repr);
         repr.extend(itertools::repeat_n(' ',self.pattern_offset));
-        repr.extend(self.pattern.chars());
+        repr.push_str(&self.pattern);
         repr
     }
 }
@@ -199,7 +199,7 @@ pub struct FragmentAddedByPickingSuggestion {
 impl FragmentAddedByPickingSuggestion {
     /// Check if the picked fragment is still unmodified by user.
     fn is_still_unmodified(&self, input:&ParsedInput) -> bool {
-        input.completed_fragment(self.id).contains(&self.picked_suggestion.name)
+        input.completed_fragment(self.id).contains(&self.picked_suggestion.code_to_insert())
     }
 }
 
@@ -288,7 +288,7 @@ impl Searcher {
     /// function.
     pub fn pick_completion
     (&self, picked_suggestion:CompletionSuggestion) -> FallibleResult<String> {
-        let added_ast         = self.parser.parse_line(&picked_suggestion.name)?;
+        let added_ast         = self.parser.parse_line(&picked_suggestion.code_to_insert())?;
         let id                = self.data.borrow().input.next_completion_id();
         let picked_completion = FragmentAddedByPickingSuggestion {id,picked_suggestion};
         let pattern_offset    = self.data.borrow().input.pattern_offset;
@@ -417,7 +417,7 @@ mod test {
             let entry1 = model::suggestion_database::Entry {
                 name          : "TestFunction1".to_string(),
                 kind          : model::suggestion_database::EntryKind::Function,
-                module        : "Test.Test".to_string(),
+                module        : "Test.Test".to_string().try_into().unwrap(),
                 arguments     : vec![],
                 return_type   : "Number".to_string(),
                 documentation : default(),
@@ -425,12 +425,11 @@ mod test {
             };
             let entry2 = model::suggestion_database::Entry {
                 name : "TestVar1".to_string(),
+                kind : model::suggestion_database::EntryKind::Local,
                 ..entry1.clone()
             };
-            let entry9 = model::suggestion_database::Entry {
-                name : "TestFunction2".to_string(),
-                ..entry1.clone()
-            };
+            let entry9 = entry1.clone().with_name("TestFunction2");
+
             searcher.database.put_entry(1,entry1);
             let entry1 = searcher.database.get(1).unwrap();
             searcher.database.put_entry(2,entry2);
