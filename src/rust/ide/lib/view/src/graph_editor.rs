@@ -2040,7 +2040,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     cursor_pos_on_update    <- cursor_pos_in_scene.sample(&update_edge);
     edge_refresh_cursor_pos <- any(cursor_pos_on_update,cursor_pos_in_scene);
 
-    is_hovering_output <- inputs.hover_node_output.map(|target| target.is_some());
+    is_hovering_output <- inputs.hover_node_output.map(|target| target.is_some()).sampler();
     hover_node         <- inputs.hover_node_output.unwrap();
 
     edge_refresh_on_node_hover        <- all(edge_refresh_cursor_pos,hover_node).gate(&is_hovering_output);
