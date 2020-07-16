@@ -103,10 +103,10 @@ impl ViewLayout {
         let text_editor   = TextEditor::new
             (&logger,scene,text_controller,kb_actions,fonts,focus_manager);
         let node_editor   = NodeEditor::new
-            (&logger,application,graph_controller,project,visualization_controller);
+            (&logger,application,graph_controller,project.clone_ref(),visualization_controller);
         let node_editor   = node_editor.await?;
         let node_searcher = NodeSearcher::new
-            (scene,&logger,node_editor.clone_ref(),fonts,focus_manager);
+            (scene,&logger,node_editor.clone_ref(),fonts,focus_manager,project);
         world.add_child(&node_editor);
         world.add_child(&text_editor.display_object());
         world.add_child(&node_searcher);
@@ -130,6 +130,7 @@ impl ViewLayout {
             let position               = *layout.mouse_position_sampler.value();
             //TODO[dg]: Test it when graph scene panning is working.
             let node_searcher_position = Vector3::new(position.x,position.y,0.0);
+            layout.node_searcher.hide();
             layout.node_searcher.set_position(node_searcher_position);
             layout.node_searcher.show();
         });
