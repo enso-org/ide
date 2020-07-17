@@ -845,7 +845,7 @@ impl LayoutState {
                          EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ,
                          EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ,
                     ],
-                    vec![nEdgeShape::id(&front.port_line)                                   ],
+                    vec![EdgeShape::id(&front.port_line)                                   ],
                 ]
 
             },
@@ -1214,7 +1214,9 @@ impl EdgeModelData {
 
         let fg               = &self.front;
         let bg               = &self.back;
-        let fully_attached   = self.target_attached.get() && self.source_attached.get();
+        // FIXME This should be enabled for #672
+        // let fully_attached   = self.target_attached.get() && self.source_attached.get();
+        let fully_attached   = self.target_attached.get();
         let node_half_width  = self.source_width.get() / 2.0;
         let node_half_height = self.source_height.get() / 2.0;
         let node_circle      = Vector2::new(node_half_width-node_half_height,0.0);
