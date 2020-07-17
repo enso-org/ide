@@ -816,6 +816,53 @@ impl LayoutState {
     fn is_input_above_output(self) -> bool {
         !self.is_output_above_input()
     }
+
+    /// Return a ordered vector that contains the ids of the shapes in the order they appear in the
+    /// edge. Shapes that are to be handled as in the same place, are binned into a sub-vector.
+    /// This enables us to infer which parts are next to each other, and which ones are
+    /// "source-side"/"target-side".
+    ///
+    /// In general, we treat the equivalent shape from front and back as the same, but also the
+    /// arrow needs to be handled together with the main line. Other shapes might be in the same
+    /// bucket if they are invisible in some layout configurations.
+    ///
+    /// Usage note: The important information we create here is the correct adjacency of shapes.
+    /// This is used to determine which shapes are adjacent to correctly render the split
+    /// passing from one shape to the next.
+    fn semantically_binned_edges(&self, edge_data:&EdgeModelData) -> Vec<Vec<object::Id>> {
+        let front = &edge_data.front;
+        let back  = &edge_data.back;
+        // TODO: this only covers cases that made problems. Might not actually be exhaustive.
+        match self {
+            Self::DownLeft | Self::DownRight => {
+                vec![
+                    vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
+                    vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
+                    // All collapsed and visible only as a single line
+                    vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
+                         EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ,
+                         EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ,
+                         EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ,
+                         EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ,
+                    ],
+                    vec![nEdgeShape::id(&front.port_line)                                   ],
+                ]
+
+            },
+            _ => {
+                    vec![
+                        vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
+                        vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
+                        vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
+                             EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ],
+                        vec![EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ],
+                        vec![EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ],
+                        vec![EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ],
+                        vec![EdgeShape::id(&front.port_line)                                   ],
+                    ]
+                }
+        }
+    }
 }
 
 
@@ -846,6 +893,7 @@ impl LayoutState {
 ///which we can access via `split_shapes` and apply the highlighting to `SideLine` `Corner` and
 /// `MainLine`/`Arrow`, which we can access via `output_side_shapes`. The remaining shapes that must
 /// not to be highlighted can be accessed via `input_side_shapes`.
+#[derive(Clone,Debug)]
 struct SemanticSplit {
     /// a ordered vector that contains the ids of the shapes in the order they appear in the
     ///  edge. Shapes that fill the same "slot" in the shape and must be handled together,
@@ -858,28 +906,9 @@ struct SemanticSplit {
 
 impl SemanticSplit {
 
-    /// Return a ordered vector that contains the ids of the shapes in the order they appear in the
-    /// edge. Shapes that are to be handled as in the same place, are binned into a sub-vector.
-    /// This enables us to infer which parts are next to each other, and which ones are
-    /// "source-side"/"target-side". In general, we treat the equivalent shape from front and back
-    /// as the same, but also the arrow needs to be handled together with the main line.
-    fn semantically_binned_edges(edge_data:&EdgeModelData) -> Vec<Vec<object::Id>> {
-        let front = &edge_data.front;
-        let back  = &edge_data.back;
-        vec![
-            vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
-            vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
-            vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
-                 EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ],
-            vec![EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ],
-            vec![EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ],
-            vec![EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ],
-            vec![EdgeShape::id(&front.port_line)                                   ],
-        ]
-    }
-
     fn new(edge_data:&EdgeModelData, split_shape:object::Id) -> Option<Self> {
-        let ordered_part_ids = Self::semantically_binned_edges(edge_data);
+        let layout           = edge_data.layout_state.get();
+        let ordered_part_ids = layout.semantically_binned_edges(edge_data);
 
         // Find the object id in our `ordered_part_ids`
         let mut split_index  = None;
@@ -1650,6 +1679,7 @@ impl EdgeModelData {
     (&self, shape_id:object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
         let shape      = self.get_shape(shape_id)?;
         let shape_role = self.get_shape_role(shape_id)?;
+        println!("{:?}", shape_role);
 
         let cut_angle_correction = self.get_cut_angle_correction(shape_role);
         let target_angle         = self.get_target_angle(target_end);
