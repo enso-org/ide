@@ -1606,7 +1606,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // === Node Select ===
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
     deselect_all_nodes <- any_(...);
 
@@ -1681,7 +1681,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // === Add Node ===
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
 
     node_cursor_style <- source::<cursor::Style>();
@@ -1756,7 +1756,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
     // === Edge creation  ===
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
     on_node_output_touch <- node_output_touch.down.constant(());
     on_node_input_touch  <- node_input_touch.down.constant(());
@@ -1810,7 +1810,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Edge Connect ===
 
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
     outputs.edge_source_set <+ inputs.set_edge_source;
     outputs.edge_target_set <+ inputs.set_edge_target;
