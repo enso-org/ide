@@ -980,13 +980,6 @@ impl GraphEditorModelWithNetwork {
         false
     }
 
-    fn is_node_connected_at_output(&self, node_id:NodeId) -> bool {
-        match self.nodes.get_cloned(&node_id) {
-            Some(node) => !node.out_edges.raw.borrow().is_empty(),
-            None       => false,
-        }
-    }
-
     pub fn get_node_position(&self, node_id:NodeId) -> Option<Vector3<f32>> {
         self.nodes.get_cloned_ref(&node_id).map(|node| node.position())
     }
@@ -1778,7 +1771,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     deselect_edges <- on_new_edge.gate_not(&keep_selection);
     eval_ deselect_edges ( model.clear_all_detached_edges() );
 
-    new_output_edge <- create_edge_from_output.map(f!([model,edge_mouse_down,edge_over,edge_out]((node_id)){
+    new_output_edge <- create_edge_from_output.map(f_!([model,edge_mouse_down,edge_over,edge_out] {
         Some(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
     new_input_edge <- create_edge_from_input.map(f!([model,edge_mouse_down,edge_over,edge_out]((target)){
@@ -1992,14 +1985,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     edge_refresh_on_node_hover        <- all(edge_refresh_cursor_pos,hover_node).gate(&is_hovering_output);
     edge_refresh_cursor_pos_no_hover  <- edge_refresh_cursor_pos.gate_not(&is_hovering_output);
-    edge_refresh_cursor_pos_on_hover  <- edge_refresh_on_node_hover.map(|(pos,_)| pos.clone());
-    snap_source_to_node               <- edge_refresh_on_node_hover.map(|(_,target)| target.clone());
+    edge_refresh_cursor_pos_on_hover  <- edge_refresh_on_node_hover.map(|(pos,_)| *pos);
 
     refresh_target      <- any(&edge_refresh_cursor_pos_on_hover,&edge_refresh_cursor_pos_no_hover);
-    refresh_source      <- edge_refresh_cursor_pos_no_hover.map(|pos| pos.clone());
+    refresh_source      <- edge_refresh_cursor_pos_no_hover.map(|pos| *pos);
     snap_source_to_node <- edge_refresh_on_node_hover.map(|(_,target)| target.clone());
 
-    eval refresh_target ([edges,model](position) {
+    eval refresh_target ([edges](position) {
        edges.detached_target.for_each(|id| {
             if let Some(edge) = edges.get_cloned_ref(id) {
                 edge.view.frp.target_position.emit(position.xy());
