@@ -1067,7 +1067,7 @@ impl Edge {
         let input           = &self.frp;
         let target_position = &self.target_position;
         let target_attached = &self.target_attached;
-        let source_attached = &self.source_attached;
+        let _source_attached = &self.source_attached;
         let source_width    = &self.source_width;
         let source_height   = &self.source_height;
         let hover_position  = &self.hover_position;
