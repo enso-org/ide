@@ -1597,7 +1597,7 @@ impl EdgeModelData {
 
     /// Return whether the point is in the upper half of the overall edge shape.
     fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
-        let world_space_source = self.position().y - self.source_height.get() / 2.0;
+        let world_space_source = self.position().y;
         let world_space_target = self.target_position.get().y ;
         let mid_y          = (world_space_source + world_space_target) / 2.0;
         point.y > mid_y
