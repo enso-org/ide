@@ -1225,7 +1225,7 @@ impl EdgeModelData {
         match (fully_attached, self.hover_position.get()) {
             (true, Some(hover_position)) => {
                 let highlight_part = self.end_designation_for_position(hover_position);
-                let _ = self.try_enable_hover_split(hover_position, highlight_part);
+                let _ = self.try_enable_hover_split(hover_position,highlight_part);
             },
             _ =>  self.disable_hover_split(),
         }
