@@ -120,3 +120,44 @@ impl Parser {
         }
     }
 }
+
+// ==========================================
+// === Documentation Parser and Generator ===
+// ==========================================
+
+/// Handle to a doc parser implementation.
+///
+/// Currently this component is implemented as a wrapper over documentation
+/// parser written in Scala. Depending on compilation target (native or wasm) 
+/// it uses either implementation provided by `wsclient` or `jsclient`.
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+#[shrinkwrap(mutable)]
+pub struct DocParser(pub Rc<RefCell<Client>>);
+
+impl DocParser {
+    /// Obtains a default doc parser implementation.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new() -> api::Result<DocParser> {
+        let client = wsclient::Client::new()?;
+        let doc_parser = Rc::new(RefCell::new(client));
+        Ok(DocParser(doc_parser))
+    }
+
+    /// Obtains a default doc parser implementation.
+    #[cfg(target_arch = "wasm32")]
+    pub fn new() -> api::Result<DocParser> {
+        let client = jsclient::Client::new()?;
+        let doc_parser = Rc::new(RefCell::new(client));
+        Ok(DocParser(doc_parser))
+    }
+
+    /// Obtains a default doc parser implementation, panicking in case of failure.
+    pub fn new_or_panic() -> DocParser {
+        DocParser::new().unwrap_or_else(|e| panic!("Failed to create doc parser: {:?}", e))
+    }
+
+    /// Parses program with documentation and generates HTML code.
+    pub fn doc_parser_generate_html_source(&self, program:String) -> api::Result<String> {
+        self.borrow_mut().doc_parser_generate_html_source(program)
+    }
+}

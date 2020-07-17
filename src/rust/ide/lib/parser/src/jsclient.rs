@@ -46,9 +46,9 @@ extern "C" {
     #[wasm_bindgen(catch)]
     fn parse_with_metadata
     (content:String) -> std::result::Result<String,JsValue>;
-    // #[wasm_bindgen(catch)]
-    // fn doc_parser_generate_html_source
-    // (content:String) -> std::result::Result<String,JsValue>;
+    #[wasm_bindgen(catch)]
+    fn doc_parser_generate_html_source
+    (content:String) -> std::result::Result<String,JsValue>;
 }
 
 /// Wrapper over the JS-compiled parser.
@@ -82,11 +82,11 @@ impl Client {
         Ok(result()?)
     }
 
-    // pub fn doc_parser_generate_html_source(&self, program:String) -> api::Result<String> {
-    //     let html_code = || {
-    //         let html_code = doc_parser_generate_html_source(program)?;
-    //         Result::Ok(html_code)
-    //     };
-    //     Ok(html_code()?)
-    // }
+    pub fn doc_parser_generate_html_source(&self, program:String) -> api::Result<String> {
+        let html_code = || {
+            let html_code = doc_parser_generate_html_source(program)?;
+            Result::Ok(html_code)
+        };
+        Ok(html_code()?)
+    }
 }

@@ -91,6 +91,7 @@ impl From<serde_json::error::Error> for Error {
 pub enum Request {
     ParseRequest             { program: String, ids: IdMap },
     ParseRequestWithMetadata { content: String },
+    DocParserGenerateHtmlSource { content: String },
 }
 
 /// All responses that Parser Service might reply with.
@@ -211,6 +212,15 @@ impl Client {
         let response = self.rpc_call(request)?;
         match response {
             Response::Success {module} => Ok(module),
+            Response::Error {message}  => Err(ParsingError(message)),
+        }
+    }
+
+    pub fn doc_parser_generate_html_source(&mut self, program:String) -> api::Result<String> {
+        let request  = Request::DocParserGenerateHtmlSource {program};
+        let response = self.rpc_call(request)?;
+        match response {
+            Response::Success {code} => Ok(code),
             Response::Error {message}  => Err(ParsingError(message)),
         }
     }
