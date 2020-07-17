@@ -825,6 +825,7 @@ impl Edges {
     pub fn insert(&self, edge:Edge) {
         self.all.insert(edge.id(),edge);
     }
+
 }
 
 
@@ -1657,7 +1658,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // === Node Select ===
-    frp::extend! { network
+    frp::extend! { TRACE_ALL network
 
     deselect_all_nodes <- any_(...);
 
@@ -1732,7 +1733,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // === Add Node ===
-    frp::extend! { network
+    frp::extend! { TRACE_ALL network
+
 
 
     node_cursor_style <- source::<cursor::Style>();
@@ -1864,7 +1866,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Edge Connect ===
 
-    frp::extend! { network
+    frp::extend! { TRACE_ALL network
 
     outputs.edge_source_set <+ inputs.set_edge_source;
     outputs.edge_target_set <+ inputs.set_edge_target;
