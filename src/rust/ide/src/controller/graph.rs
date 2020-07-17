@@ -1245,7 +1245,7 @@ main =
         }
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn disconnect() {
         #[derive(Clone,Debug)]
         struct Case {
