@@ -1082,8 +1082,9 @@ impl Edge {
 
         frp::extend! { network
             eval input.target_position ((t) target_position.set(*t));
+            // FIXME This should be enabled for #672
+            // eval input.source_attached ((t) source_attached.set(*t));
             eval input.target_attached ((t) target_attached.set(*t));
-            eval input.source_attached ((t) source_attached.set(*t));
             eval input.source_width    ((t) source_width.set(*t));
             eval input.source_height   ((t) source_height.set(*t));
             eval input.hover_position  ((t) hover_position.set(*t));
@@ -1166,7 +1167,7 @@ impl EdgeModelData {
         let source_width    = default();
         let target_position = default();
         let target_attached = Rc::new(Cell::new(false));
-        let source_attached = Rc::new(Cell::new(false));
+        let source_attached = Rc::new(Cell::new(true));
         let hover_position  = default();
         let layout_state    = Rc::new(Cell::new(LayoutState::UpLeft));
         let hover_target    = default();
