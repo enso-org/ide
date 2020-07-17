@@ -500,7 +500,7 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
              split_joint_position:Vector2<f32>) {
                 let width  : Var<Pixels> = "input_size.x".into();
                 let height : Var<Pixels> = "input_size.y".into();
-                let triangle = Triangle(width,height);
+                let triangle = Triangle(width-1.0.px(),height-1.0.px());
                 let shape    = triangle ;
 
                 let split_shape  = SplitShape::new(
