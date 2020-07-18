@@ -91,7 +91,7 @@ impl From<serde_json::error::Error> for Error {
 pub enum Request {
     ParseRequest             { program: String, ids: IdMap },
     ParseRequestWithMetadata { content: String },
-    DocParserGenerateHtmlSource { content: String },
+    DocParserGenerateHtmlSource { program: String },
 }
 
 /// All responses that Parser Service might reply with.
@@ -99,6 +99,13 @@ pub enum Request {
 pub enum Response<Metadata> {
     Success { module  : ParsedSourceFile<Metadata> },
     Error   { message : String                     },
+}
+
+/// All responses that Doc Parser Service might reply with.
+#[derive(Debug)]
+pub enum ResponseDoc {
+    Success { code    : String },
+    Error   { message : String },
 }
 
 
@@ -166,6 +173,14 @@ mod internal {
             }
         }
 
+        pub fn recv_response_doc(&mut self) -> Result<ResponseDoc> {
+            let response = self.connection.recv_message()?;
+            match response {
+                websocket::OwnedMessage::Text(code) => Ok(ResponseDoc::Success {code}),
+                _                                   => Err(Error::NonTextResponse(response)),
+            }
+        }
+
         /// Sends given `Request` to peer and receives a `Response`.
         ///
         /// Both request and response are exchanged in JSON using text messages
@@ -174,6 +189,12 @@ mod internal {
         (&mut self, request: Request) -> Result<Response<M>> {
             self.send_request(request)?;
             self.recv_response()
+        }
+
+        pub fn rpc_call_doc
+        (&mut self, request: Request) -> Result<ResponseDoc> {
+            self.send_request(request)?;
+            self.recv_response_doc()
         }
     }
 }
@@ -218,10 +239,10 @@ impl Client {
 
     pub fn doc_parser_generate_html_source(&mut self, program:String) -> api::Result<String> {
         let request  = Request::DocParserGenerateHtmlSource {program};
-        let response = self.rpc_call(request)?;
-        match response {
-            Response::Success {code} => Ok(code),
-            Response::Error {message}  => Err(ParsingError(message)),
+        let response_doc = self.rpc_call_doc(request)?;
+        match response_doc {
+            ResponseDoc::Success {code} => Ok(code),
+            ResponseDoc::Error {message}  => Err(ParsingError(message)),
         }
     }
 
