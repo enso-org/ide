@@ -1744,7 +1744,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             edge.frp.redraw.emit(());
         }
     });
-    eval edge_out ([model](edge_id) {
+
+    remove_split <- any(&edge_out,&edge_mouse_down);
+    eval remove_split ([model](edge_id) {
          if let Some(edge) = model.edges.get_cloned_ref(edge_id){
             edge.frp.hover_position.emit(None);
             edge.frp.redraw.emit(());
