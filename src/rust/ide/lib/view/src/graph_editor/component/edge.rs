@@ -485,7 +485,9 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
             }
 
             fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
-               Some(Vector2::new(0.0, point.y))
+                let height = self.sprite().size.get().y;
+                let y = point.y.clamp(-height/2.0, height/2.0);
+                Some(Vector2::new(0.0, y))
             }
         }
     }
@@ -1681,7 +1683,6 @@ impl EdgeModelData {
     (&self, shape_id:object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
         let shape      = self.get_shape(shape_id)?;
         let shape_role = self.get_shape_role(shape_id)?;
-        println!("{:?}", shape_role);
 
         let cut_angle_correction = self.get_cut_angle_correction(shape_role);
         let target_angle         = self.get_target_angle(target_end);
