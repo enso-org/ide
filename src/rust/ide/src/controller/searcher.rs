@@ -8,7 +8,7 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
-
+use enso_protocol::language_server::MethodPointer;
 
 
 // =======================
@@ -225,8 +225,7 @@ pub struct Searcher {
     logger          : Logger,
     data            : Rc<RefCell<Data>>,
     notifier        : notification::Publisher<Notification>,
-    module          : Rc<model::module::QualifiedName>,
-    position        : Immutable<TextLocation>,
+    graph           : controller::ExecutedGraph,
     database        : Rc<model::SuggestionDatabase>,
     language_server : Rc<language_server::Connection>,
     parser          : Parser,
@@ -234,18 +233,24 @@ pub struct Searcher {
 
 impl Searcher {
     /// Create new Searcher Controller.
-    pub fn new
+    pub async fn new
     ( parent   : impl AnyLogger
     , project  : &model::Project
-    , module   : model::module::Path
-    , position : TextLocation
-    ) -> Self {
+    , method   : MethodPointer
+    ) -> FallibleResult<Self> {
+        let graph = controller::ExecutedGraph::new(&parent,project.clone_ref(),method).await?;
+        Ok(Self::new_from_graph_controller(parent,project,graph))
+    }
+
+    /// Create new Searcher Controller, when you have Executed Graph Controller handy.
+    pub fn new_from_graph_controller
+    (parent:impl AnyLogger, project:&model::Project, graph:controller::ExecutedGraph)
+    -> Self {
+        let logger = Logger::sub(parent,"Searcher Controller");
         let this = Self {
-            position        : Immutable(position),
-            logger          : Logger::sub(parent,"Searcher Controller"),
+            logger,graph,
             data            : default(),
             notifier        : default(),
-            module          : Rc::new(project.qualified_module_name(&module)),
             database        : project.suggestion_db(),
             language_server : project.json_rpc(),
             parser          : project.parser(),
@@ -332,7 +337,9 @@ impl Searcher {
     fn reload_list(&self) {
         let next_completion = self.data.borrow().input.next_completion_id();
         let new_suggestions = if next_completion == CompletedFragmentId::Function {
-            self.get_suggestion_list_from_engine(None,None);
+            if let Err(err) = self.get_suggestion_list_from_engine(None,None).is_err() {
+                error!(self.logger,"Cannot request engine for suggestions: {err}");
+            }
             Suggestions::Loading
         } else {
             // TODO[ao] Requesting for argument.
@@ -342,16 +349,22 @@ impl Searcher {
     }
 
     fn get_suggestion_list_from_engine
-    (&self, return_type:Option<String>, tags:Option<Vec<language_server::SuggestionEntryType>>) {
-        let ls          = &self.language_server;
-        let module      = self.module.as_ref();
-        let self_type   = None;
-        let position    = self.position.deref().into();
-        let request     = ls.completion(module,&position,&self_type,&return_type,&tags);
-        let data        = self.data.clone_ref();
-        let database    = self.database.clone_ref();
-        let logger      = self.logger.clone_ref();
-        let notifier    = self.notifier.clone_ref();
+    (&self, return_type:Option<String>, tags:Option<Vec<language_server::SuggestionEntryType>>)
+    -> FallibleResult<()> {
+        let ls             = &self.language_server;
+        let graph          = self.graph.graph();
+        let graph_id       = &*graph.id;
+        let module_ast     = graph.module.ast();
+        let file           = graph.module.path().file_path();
+        let definition_ast = graph.graph_definition_info()?.body().item.clone_ref();
+        let self_type      = None;
+        let def_span       = double_representation::module::definition_span(&module_ast,&graph_id)?;
+        let position       = TextLocation::convert_span(definition_ast.repr(),&def_span).end.into();
+        let request        = ls.completion(&file,&position,&self_type,&return_type,&tags);
+        let data           = self.data.clone_ref();
+        let database       = self.database.clone_ref();
+        let logger         = self.logger.clone_ref();
+        let notifier       = self.notifier.clone_ref();
         executor::global::spawn(async move {
             info!(logger,"Requesting new suggestion list.");
             let response = request.await;
@@ -374,6 +387,7 @@ impl Searcher {
             data.borrow_mut().suggestions = new_suggestions;
             notifier.publish(Notification::NewSuggestionList).await;
         });
+        Ok(())
     }
 }
 
@@ -387,7 +401,6 @@ mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::module::Path;
 
     use json_rpc::expect_call;
     use utils::test::traits::*;
@@ -402,14 +415,14 @@ mod test {
     impl Fixture {
         fn new(client_setup:impl FnOnce(&mut language_server::MockClient)) -> Self {
             let mut client  = language_server::MockClient::default();
-            let module_path = Path::from_mock_module_name("Test");
+            let graph_data  = controller::graph::tests::MockData::new();
+
             client_setup(&mut client);
             let searcher = Searcher {
                 logger          : default(),
                 data            : default(),
                 notifier        : default(),
-                module          : Rc::new(module_path.qualified_module_name("Test")),
-                position        : Immutable(TextLocation::at_document_begin()),
+                graph           : ExecutedGraph::graph_data.graph(),
                 database        : default(),
                 language_server : language_server::Connection::new_mock_rc(client),
                 parser          : Parser::new_or_panic(),

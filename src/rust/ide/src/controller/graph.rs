@@ -401,10 +401,10 @@ impl EndpointInfo {
 /// Handle providing graph controller interface.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
+    pub id     : Rc<Id>,
     /// Model of the module which this graph belongs to.
     pub module : model::Module,
     parser     : Parser,
-    id         : Rc<Id>,
     logger     : Logger,
 }
 
