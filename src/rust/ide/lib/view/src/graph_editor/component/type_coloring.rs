@@ -10,8 +10,11 @@ use ensogl::data::color;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 
+
 /// Color that should be used if no type information is available.
 pub const DEFAULT_TYPE_COLOR : color::Lcha = color::Lcha::new(0.5, 0.0, 0.0, 1.0);
+
+
 
 // ================================
 // === Type to Color Conversion ===
@@ -28,6 +31,8 @@ pub fn color_for_type(type_information:Type) -> color::Lch {
     let hue =  (type_to_hash(type_information) % 360) as f32 / 360.0;
     color::Lch::new(0.5, 0.8, hue)
 }
+
+
 
 // ================
 // === Type Map ===
@@ -48,4 +53,3 @@ impl TypeMap {
         })
     }
 }
-
