@@ -1230,7 +1230,6 @@ impl GraphEditorModel {
         let node_id = node_id.into();
         let mut edges = self.node_in_edges(node_id);
         edges.extend(&self.node_out_edges(node_id));
-        edges.extend(&self.node_out_edges(node_id));
         edges
     }
 
