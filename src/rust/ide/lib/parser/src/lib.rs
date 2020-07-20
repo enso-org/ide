@@ -121,6 +121,8 @@ impl Parser {
     }
 }
 
+
+
 // ==========================================
 // === Documentation Parser and Generator ===
 // ==========================================
@@ -138,7 +140,7 @@ impl DocParser {
     /// Obtains a default doc parser implementation.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> api::Result<DocParser> {
-        let client = wsclient::Client::new()?;
+        let client     = wsclient::Client::new()?;
         let doc_parser = Rc::new(RefCell::new(client));
         Ok(DocParser(doc_parser))
     }
@@ -146,7 +148,7 @@ impl DocParser {
     /// Obtains a default doc parser implementation.
     #[cfg(target_arch = "wasm32")]
     pub fn new() -> api::Result<DocParser> {
-        let client = jsclient::Client::new()?;
+        let client     = jsclient::Client::new()?;
         let doc_parser = Rc::new(RefCell::new(client));
         Ok(DocParser(doc_parser))
     }
