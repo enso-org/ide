@@ -945,10 +945,9 @@ impl GraphEditorModelWithNetwork {
         frp::new_bridge_network! { [self.network, node.main_area.events.network]
             eval_ node.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
             eval  node.ports.frp.cursor_style ((style) cursor_style.emit(style));
-            eval_ node.view.output_ports.frp.port_mouse_down ([output_press]{
-                // FIXME use crumbs
-                let target = EdgeTarget::new(node_id,default());
-                output_press.emit(target)
+            eval node.view.output_ports.frp.port_mouse_down ([output_press](crumbs){
+                let target = EdgeTarget::new(node_id,crumbs.clone());
+                output_press.emit(target);
             });
             eval  node.ports.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
@@ -960,8 +959,8 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_input.emit(target);
             });
 
-             eval_ node.view.output_ports.frp.port_mouse_over ([model] {
-                let target = EdgeTarget::new(node_id,default());
+             eval node.view.output_ports.frp.port_mouse_over ([model](crumbs) {
+                let target = EdgeTarget::new(node_id,crumbs.clone());
                 model.frp.hover_node_output.emit(Some(target));
              });
 
