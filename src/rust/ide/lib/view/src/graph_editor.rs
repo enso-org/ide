@@ -18,8 +18,8 @@ pub mod component;
 pub mod builtin;
 pub mod data;
 
-use crate::graph_editor::component::type_coloring::DEFAULT_TYPE_COLOR;
 use crate::graph_editor::component::node;
+use crate::graph_editor::component::type_coloring::DEFAULT_TYPE_COLOR;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization;
 
