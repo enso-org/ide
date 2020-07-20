@@ -231,13 +231,17 @@ pub mod test {
 
     #[derive(Debug)]
     pub struct Fixture {
-        test    : TestWithLocalPoolExecutor,
-        data    : MockData,
         context : ExecutionContext,
+        data    : MockData,
+        test    : TestWithLocalPoolExecutor,
     }
 
     impl Fixture {
-        fn new(ls_setup:impl FnOnce(&mut language_server::MockClient,&MockData)) -> Fixture {
+        fn new() -> Fixture {
+            Self::new_customized(|_,_|{})
+        }
+
+        fn new_customized(ls_setup:impl FnOnce(&mut language_server::MockClient,&MockData)) -> Fixture {
             let data          = MockData::new();
             let mut ls_client = language_server::MockClient::default();
             Self::mock_create_push_destroy_calls(&data,&mut ls_client);
@@ -274,7 +278,7 @@ pub mod test {
         /// and destruction.
         pub fn mock_create_push_destroy_calls(data:&MockData, ls:&mut language_server::MockClient) {
             Self::mock_create_destroy_calls(&data,ls);
-            let id = data.context_id;
+            let id         = data.context_id;
             let root_frame = language_server::ExplicitCall {
                 method_pointer                   : data.main_method_pointer(),
                 this_argument_expression         : None,
@@ -305,16 +309,16 @@ pub mod test {
 
     #[test]
     fn creating_context() {
-        let Fixture{data,context,..} = Fixture::new(|_,_|{});
-        assert_eq!(data.context_id        , context.id);
-        assert_eq!(data.module_path       , context.model.entry_point.file);
-        assert_eq!(Vec::<LocalCall>::new(), context.model.stack_items().collect_vec());
+        let f = Fixture::new();
+        assert_eq!(f.data.context_id      , f.context.id);
+        assert_eq!(f.data.module_path     , f.context.model.entry_point.file);
+        assert_eq!(Vec::<LocalCall>::new(), f.context.model.stack_items().collect_vec());
     }
 
     #[test]
     fn pushing_and_popping_stack_item() {
         let expression_id = model::execution_context::ExpressionId::new_v4();
-        let Fixture{data,mut test,context} = Fixture::new(|ls,data| {
+        let Fixture{data,mut test,context} = Fixture::new_customized(|ls,data| {
             let id                  = data.context_id;
             let expected_call_frame = language_server::LocalCall{expression_id};
             let expected_stack_item = language_server::StackItem::LocalCall(expected_call_frame);
@@ -343,7 +347,7 @@ pub mod test {
             expression           : "".to_string(),
             visualisation_module : MockData::new().module_qualified_name(),
         };
-        let Fixture{mut test,context,..} = Fixture::new(|ls,data| {
+        let Fixture{mut test,context,..} = Fixture::new_customized(|ls,data| {
             let exe_id = data.context_id;
             let vis_id = vis.id;
             let ast_id = vis.ast_id;
@@ -355,7 +359,6 @@ pub mod test {
 
         test.run_task(async move {
             let wrong_id   = model::execution_context::VisualizationId::new_v4();
-
             let events     = context.attach_visualization(vis.clone()).await.unwrap();
             let mut events = events.boxed_local();
             events.expect_pending();
@@ -382,18 +385,18 @@ pub mod test {
     #[ignore]
     #[test]
     fn detaching_all_visualizations() {
-        let vis       = Visualization {
+        let vis = Visualization {
             id                   : model::execution_context::VisualizationId::new_v4(),
             ast_id               : model::execution_context::ExpressionId::new_v4(),
             expression           : "".to_string(),
             visualisation_module : MockData::new().module_qualified_name(),
         };
-        let vis2    = Visualization{
+        let vis2 = Visualization{
             id : VisualizationId::new_v4(),
             ..vis.clone()
         };
 
-        let Fixture{mut test,context,..} = Fixture::new(|ls,data| {
+        let Fixture{mut test,context,..} = Fixture::new_customized(|ls,data| {
             let exe_id  = data.context_id;
             let vis_id  = vis.id;
             let vis2_id = vis2.id;
