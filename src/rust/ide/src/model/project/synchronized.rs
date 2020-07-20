@@ -13,6 +13,8 @@ use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
 use enso_protocol::language_server::CapabilityRegistration;
 use enso_protocol::language_server::MethodPointer;
+use enso_protocol::project_manager;
+use enso_protocol::project_manager::ProjectName;
 use parser::Parser;
 
 
@@ -46,8 +48,10 @@ impl ExecutionContextsRegistry {
     ///
     /// Handles the error of context not being present in the registry.
     pub fn with_context<R>
-    (&self, id:execution_context::Id, f:impl FnOnce(Rc<execution_context::Synchronized>) -> FallibleResult<R>)
-     -> FallibleResult<R> {
+    ( &self
+    , id : execution_context::Id
+    , f  : impl FnOnce(Rc<execution_context::Synchronized>) -> FallibleResult<R>
+    ) -> FallibleResult<R> {
         let ctx = self.0.borrow_mut().get(&id);
         let ctx = ctx.ok_or_else(|| NoSuchExecutionContext(id))?;
         f(ctx)
@@ -56,8 +60,8 @@ impl ExecutionContextsRegistry {
     /// Route the visualization update into the appropriate execution context.
     pub fn dispatch_visualization_update
     (&self
-    , context : VisualisationContext
-    , data    : VisualizationUpdateData
+     , context : VisualisationContext
+     , data    : VisualizationUpdateData
     ) -> FallibleResult<()> {
         self.with_context(context.context_id, |ctx| {
             ctx.dispatch_visualization_update(context.visualization_id,data)
@@ -83,18 +87,42 @@ impl ExecutionContextsRegistry {
 // === Model ===
 // =============
 
+// === Data ===
+
+/// A structure containing the project's unique ID and name.
+#[derive(Debug,Clone)]
+pub struct Data {
+    pub id             : Uuid,
+    name               : RefCell<ImString>,
+}
+
+impl Data {
+    /// Set project name.
+    pub fn set_name(&self, name:impl Str) {
+        *self.name.borrow_mut() = ImString::new(name);
+    }
+
+    /// Get project name.
+    pub fn name(&self) -> ImString {
+        self.name.borrow().clone_ref()
+    }
+}
+
 /// Project Model.
 ///
 ///
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Project {
-    pub name                : ImString,
+    pub data                : Rc<Data>,
+    #[derivative(Debug = "ignore")]
+    pub project_manager     : Rc<dyn project_manager::API>,
     pub language_server_rpc : Rc<language_server::Connection>,
     pub language_server_bin : Rc<binary::Connection>,
-    pub visualization       : controller::Visualization,
     pub module_registry     : Rc<model::registry::Registry<module::Path,module::Synchronized>>,
     pub execution_contexts  : Rc<ExecutionContextsRegistry>,
+    pub visualization       : controller::Visualization,
     pub suggestion_db       : Rc<SuggestionDatabase>,
     pub parser              : Parser,
     pub logger              : Logger,
@@ -104,8 +132,10 @@ impl Project {
     /// Create a new project model.
     pub async fn new
     ( parent              : impl AnyLogger
+    , project_manager     : Rc<dyn project_manager::API>
     , language_server_rpc : Rc<language_server::Connection>
     , language_server_bin : Rc<binary::Connection>
+    , id                  : Uuid
     , name                : impl Str
     ) -> FallibleResult<Self> {
         let logger = Logger::sub(parent,"Project Controller");
@@ -114,17 +144,19 @@ impl Project {
         let json_rpc_events         = language_server_rpc.events();
         let embedded_visualizations = default();
         let language_server         = language_server_rpc.clone();
-        let visualization           = controller::Visualization::new(language_server,embedded_visualizations);
-        let name                    = ImString::new(name.into());
         let module_registry         = default();
         let execution_contexts      = default();
+        let visualization           = controller::Visualization::new(language_server,embedded_visualizations);
+        let name                    = RefCell::new(ImString::new(name.into()));
         let parser                  = Parser::new_or_panic();
         let language_server         = &*language_server_rpc;
         let suggestion_db           = SuggestionDatabase::create_synchronized(language_server);
         let suggestion_db           = Rc::new(suggestion_db.await?);
+        
+        let data = Rc::new(Data {id,name});
 
-        let ret = Project {name,module_registry,execution_contexts,parser,
-            language_server_rpc,language_server_bin,logger,visualization,suggestion_db};
+        let ret = Project {data,parser,project_manager,language_server_rpc,module_registry,
+            execution_contexts,language_server_bin,logger,visualization,suggestion_db};
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
@@ -139,13 +171,15 @@ impl Project {
     /// Create a project model from owned LS connections.
     pub fn from_connections
     ( parent              : impl AnyLogger
+    , project_manager     : Rc<dyn project_manager::API>
     , language_server_rpc : language_server::Connection
     , language_server_bin : binary::Connection
-    , project_name        : impl Str
+    , id                  : Uuid
+    , name                : impl Str
     ) -> impl Future<Output=FallibleResult<Self>> {
         let language_server_rpc = Rc::new(language_server_rpc);
         let language_server_bin = Rc::new(language_server_bin);
-        Self::new(parent,language_server_rpc,language_server_bin,project_name)
+        Self::new(parent,project_manager,language_server_rpc,language_server_bin,id,name)
     }
 
     /// Returns a handling function capable of processing updates from the binary protocol.
@@ -252,7 +286,7 @@ impl Project {
 
 impl model::project::API for Project {
     fn name(&self) -> ImString {
-        self.name.clone_ref()
+        self.data.name()
     }
 
     fn json_rpc(&self) -> Rc<language_server::Connection> {
@@ -269,6 +303,10 @@ impl model::project::API for Project {
 
     fn visualization(&self) -> &controller::Visualization {
         &self.visualization
+    }
+
+    fn suggestion_db(&self) -> Rc<model::SuggestionDatabase> {
+        self.suggestion_db.clone_ref()
     }
 
     fn module(&self, path: module::Path) -> BoxFuture<FallibleResult<model::Module>> {
@@ -290,6 +328,14 @@ impl model::project::API for Project {
             self.execution_contexts.insert(context.clone_ref());
             let context:model::ExecutionContext = context;
             Ok(context)
+        }.boxed_local()
+    }
+
+    fn rename_project(&self, name:String) -> BoxFuture<FallibleResult<()>> {
+        async move {
+            self.project_manager.rename_project(&self.data.id,&name).await?;
+            self.data.set_name(name);
+            Ok(())
         }.boxed_local()
     }
 
@@ -326,9 +372,10 @@ mod test {
         ( setup_mock_json   : impl FnOnce(&mut language_server::MockClient)
         , setup_mock_binary : impl FnOnce(&mut enso_protocol::binary::MockClient)
         ) -> Self {
-            let mut test          = TestWithLocalPoolExecutor::set_up();
-            let mut json_client   = language_server::MockClient::default();
-            let mut binary_client = enso_protocol::binary::MockClient::default();
+            let mut test            = TestWithLocalPoolExecutor::set_up();
+            let mut project_manager = project_manager::MockClient::default();
+            let mut json_client     = language_server::MockClient::default();
+            let mut binary_client   = enso_protocol::binary::MockClient::default();
 
             let (binary_events_sender,binary_events) = futures::channel::mpsc::unbounded();
             binary_client.expect_event_stream().return_once(|| {
@@ -350,9 +397,11 @@ mod test {
             setup_mock_binary(&mut binary_client);
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(binary_client);
+            let project_manager   = Rc::new(project_manager);
             let logger            = Logger::default();
-            let project_fut       = Project::from_connections(logger,json_connection,
-                binary_connection,DEFAULT_PROJECT_NAME).boxed_local();
+            let id                = Uuid::new_v4();
+            let project_fut       = Project::from_connections(logger,project_manager,
+                json_connection,binary_connection,id,DEFAULT_PROJECT_NAME).boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
             Fixture {test,project,binary_events_sender,json_events_sender}
         }

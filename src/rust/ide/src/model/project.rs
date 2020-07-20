@@ -10,6 +10,9 @@ use crate::model::module;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
+use enso_protocol::language_server::CapabilityRegistration;
+use enso_protocol::project_manager;
+use enso_protocol::project_manager::ProjectName;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
@@ -38,6 +41,9 @@ pub trait API:Debug {
     /// Get the visualization controller.
     fn visualization(&self) -> &controller::Visualization;
 
+    /// Get the suggestions database.
+    fn suggestion_db(&self) -> Rc<model::SuggestionDatabase>;
+
     /// Returns a model of module opened from file.
     fn module<'a>
     (&'a self, path:crate::model::module::Path) -> BoxFuture<'a,FallibleResult<model::Module>>;
@@ -48,6 +54,8 @@ pub trait API:Debug {
     (&'a self, root_definition:language_server::MethodPointer)
     -> BoxFuture<'a,FallibleResult<model::ExecutionContext>>;
 
+    fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
+
     /// Returns the primary content root id for this project.
     fn content_root_id(&self) -> Uuid {
         self.json_rpc().content_root()
@@ -55,7 +63,7 @@ pub trait API:Debug {
 
     /// Generates full module's qualified name that includes the leading project name segment.
     fn qualified_module_name(&self, path:&model::module::Path) -> crate::model::module::QualifiedName {
-        module::QualifiedName::from_path(path,self.name().deref())
+        path.qualified_module_name(self.name().deref())
     }
 }
 

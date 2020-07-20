@@ -35,6 +35,7 @@ pub mod prelude {
     pub use crate::Ast;
     pub use crate::traits::*;
     pub use utils::option::*;
+    pub use utils::fail::FallibleResult;
 }
 
 use crate::prelude::*;
@@ -44,6 +45,7 @@ pub use crumbs::Crumbs;
 
 use ast_macros::*;
 use data::text::Index;
+use data::text::Size;
 use data::text::Span;
 
 use serde::de::Deserializer;
@@ -94,6 +96,11 @@ impl IdMap {
 /// enum type to its variant subtype if different constructor was used.
 #[derive(Display, Debug, Fail)]
 pub struct WrongEnum {pub expected_con:String}
+
+#[allow(missing_docs)]
+#[derive(Clone,Fail,Debug)]
+#[fail(display="No such child found under given AST node.")]
+pub struct NoSuchChild;
 
 
 
@@ -303,6 +310,35 @@ impl Ast {
         //   Still, no need at this point.
         self.iter_recursive().find(|ast| ast.repr() == repr)
     }
+
+    /// Get the offset relative to self for a given child node.
+    ///
+    /// Returned index is the position of the first character of child's text representation within
+    /// the text representation of this AST node.
+    pub fn child_offset(&self, child:&Ast) -> FallibleResult<Index> {
+        let searched_token  = Token::Ast(&child);
+        let mut found_child = false;
+        let mut position    = 0;
+        self.shape().feed_to(&mut |token:Token| {
+            if searched_token == token {
+                found_child = true
+            } else if !found_child {
+                position += token.len()
+            }
+        });
+        if found_child {
+            Ok(Index::new(position))
+        } else {
+            Err(NoSuchChild.into())
+        }
+    }
+
+    /// Get the span (relative to self) for a child node identified by given crumb.
+    pub fn span_of_child_at(&self, crumb:&Crumb) -> FallibleResult<Span> {
+        let child = self.get(crumb)?;
+        let index = self.child_offset(child)?;
+        Ok(Span::new(index, Size::new(child.len())))
+    }
 }
 
 /// Fills `id` with `None` by default.
@@ -399,9 +435,10 @@ impl<'de> Deserialize<'de> for Ast {
 #[ast(flat)]
 #[derive(HasTokens)]
 pub enum Shape<T> {
-    Unrecognized  { str   : String  },
-    InvalidQuote  { quote : Builder },
-    InlineBlock   { quote : Builder },
+    Unrecognized  { str   : String                         },
+    Unexpected    { msg   : String, stream:Vec<Shifted<T>> },
+    InvalidQuote  { quote : Builder                        },
+    InlineBlock   { quote : Builder                        },
 
     // === Identifiers ===
     Blank         { },
@@ -475,7 +512,7 @@ pub enum Shape<T> {
 #[macro_export]
 macro_rules! with_shape_variants {
     ($f:ident) => {
-        $f! { [Unrecognized] [InvalidQuote] [InlineBlock]
+        $f! { [Unrecognized] [Unexpected Ast] [InvalidQuote] [InlineBlock]
               [Blank] [Var] [Cons] [Opr] [Mod] [InvalidSuffix Ast]
               [Number] [DanglingBase]
               [TextLineRaw] [TextLineFmt Ast] [TextBlockRaw] [TextBlockFmt Ast] [TextUnclosed Ast]
@@ -751,7 +788,7 @@ pub enum MacroPatternMatchRaw<T> {
 // === Tokenizer ===
 
 /// An enum of valid Ast tokens.
-#[derive(Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum Token<'a> { Off(usize), Chr(char), Str(&'a str), Ast(&'a Ast) }
 
 /// Things that can be turned into stream of tokens.
@@ -766,6 +803,11 @@ pub trait TokenConsumer {
     fn feed(&mut self, val:Token);
 }
 
+impl<F:FnMut(Token)> TokenConsumer for F {
+    fn feed(&mut self, val:Token) {
+        self(val)
+    }
+}
 
 impl HasTokens for &str {
     fn feed_to(&self, consumer:&mut impl TokenConsumer) {
@@ -852,7 +894,7 @@ impl TokenConsumer for IdMapBuilder {
         match token {
             Token::Off(val) => self.offset += val,
             Token::Chr( _ ) => self.offset += 1,
-            Token::Str(val) => self.offset += val.len(),
+            Token::Str(val) => self.offset += val.chars().count(),
             Token::Ast(val) => {
                 let begin = self.offset;
                 val.shape().feed_to(self);
@@ -896,7 +938,7 @@ impl TokenConsumer for LengthBuilder {
         match token {
             Token::Off(val) => self.length += val,
             Token::Chr( _ ) => self.length += 1,
-            Token::Str(val) => self.length += val.len(),
+            Token::Str(val) => self.length += val.chars().count(),
             Token::Ast(val) => val.shape().feed_to(self),
         }
     }
@@ -907,6 +949,19 @@ impl<T:HasTokens> HasLength for T {
         let mut consumer = LengthBuilder::default();
         self.feed_to(&mut consumer);
         consumer.length
+    }
+}
+
+impl HasLength for Token<'_> {
+    fn len(&self) -> usize {
+        match self {
+            Token::Off(val) => *val,
+            Token::Chr( _ ) => 1,
+            Token::Str(val) => val.chars().count(),
+            // The below is different and cannot be unified with `LengthBuilder` because below will
+            // use the cached length, while `LengthBuilder` will traverse subtree.
+            Token::Ast(val) => val.len(),
+        }
     }
 }
 
@@ -1004,7 +1059,7 @@ where F:FnMut(Index,&Ast) {
         match token {
             Token::Off(val) => self.index += val,
             Token::Chr( _ ) => self.index += 1,
-            Token::Str(val) => self.index += val.len(),
+            Token::Str(val) => self.index += val.chars().count(),
             Token::Ast(val) => {
                 (self.callback)(Index::new(self.index), val);
                 val.shape().feed_to(self);
@@ -1545,5 +1600,18 @@ mod tests {
         assert_eq!(tail1.off,1);
         assert_eq!(tail2.elem.as_ref().unwrap().repr(),"tail2");
         assert_eq!(tail2.off,3);
+    }
+
+    #[test]
+    fn utf8_lengths() {
+        let var = Ast::var("価");
+        assert_eq!(var.len(),1);
+
+        let idmap = var.id_map();
+        assert_eq!(idmap.vec[0].0,Span::from(0..1));
+        assert_eq!(idmap.vec[0].1,var.id.unwrap());
+
+        let builder_with_char = Token::Chr('壱');
+        assert_eq!(builder_with_char.len(),1);
     }
 }

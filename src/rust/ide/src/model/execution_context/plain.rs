@@ -212,7 +212,7 @@ pub mod test {
         }
 
         pub fn module_qualified_name(&self) -> model::module::QualifiedName {
-            model::module::QualifiedName::from_path(&self.module_path,&self.project_name)
+            self.module_path.qualified_module_name(&self.project_name)
         }
 
         pub fn definition_id(&self) -> model::execution_context::DefinitionId {
