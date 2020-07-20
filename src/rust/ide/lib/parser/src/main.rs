@@ -3,7 +3,8 @@ use enso_prelude::*;
 
 
 /// Simple interactive tester - calls parser with its argument (or a
-/// hardcoded default) and prints the result
+/// hardcoded default) and prints the result, then calls doc parser
+/// and prints the HTML code or an error message.
 fn main() {
     let default_input = String::from("import Foo.Bar\nfoo = a + 2");
     let program = std::env::args().nth(1).unwrap_or(default_input);
