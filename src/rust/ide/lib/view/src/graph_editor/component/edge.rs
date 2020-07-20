@@ -21,17 +21,6 @@ use super::node;
 
 
 
-fn min(a:f32,b:f32) -> f32 {
-    f32::min(a,b)
-}
-
-
-fn max(a:f32,b:f32) -> f32 {
-    f32::max(a,b)
-}
-
-
-
 // =================
 // === Constants ===
 // =================
@@ -58,11 +47,12 @@ const INFINITE : f32 = 99999.0;
 const HOVER_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.000_001);
 
 
-// ========================
-// === Edge Shape Trait ===
-// ========================
 
-/// Edge shape defines the common behaviour of the sub-shapes used to create a Edge.
+// =================
+// === EdgeShape ===
+// =================
+
+/// Abstraction for all sub-shapes the edge shape is build from.
 trait EdgeShape: ensogl::display::Object {
     /// Set the center of the shape split on this shape. The coordinates must be in the shape local
     /// coordinate system.
@@ -113,13 +103,13 @@ trait EdgeShape: ensogl::display::Object {
 
     /// Fully disable the hover split on this shape.
     fn disable_hover(&self) {
-        self.set_hover_split_center_local(Vector2::new(INFINITE, INFINITE));
+        self.set_hover_split_center_local(Vector2(INFINITE, INFINITE));
         self.set_hover_split_rotation(RIGHT_ANGLE);
     }
 
-    /// Make the whole shaper appear as without showing a split.
+    /// Make the whole shape appear as without showing a split.
     fn enable_hover(&self) {
-        self.set_hover_split_center_local(Vector2::new(INFINITE, INFINITE));
+        self.set_hover_split_center_local(Vector2(INFINITE, INFINITE));
         self.set_hover_split_rotation(2.0 * RIGHT_ANGLE);
     }
 
@@ -135,12 +125,6 @@ trait EdgeShape: ensogl::display::Object {
         let base_rotation   = self.display_object().rotation().z;
         let local_unrotated = nalgebra::Rotation2::new(base_rotation) * point;
         local_unrotated + self.display_object().global_position().xy()
-    }
-}
-
-impl PartialEq for dyn EdgeShape {
-    fn eq(&self, other:&Self) -> bool {
-        self.id() == other.id()
     }
 }
 
@@ -216,18 +200,28 @@ impl SplitShape {
         SplitShape{primary_shape,secondary_shape,joint}
     }
 
+    fn new2
+    (base_shape:AnyShape, center:&Var<Vector2<Pixels>>, rotation:&Var<Radians>, joint_radius:&Var<Pixels>) -> Self {
+        let split_mask      = HalfPlane().rotate(rotation).translate(center);
+        let primary_shape   = (&base_shape * &split_mask).into();
+        let secondary_shape = (&base_shape - &split_mask).into();
+        let joint           = Circle(joint_radius).translate(center).into();
+        SplitShape{primary_shape,secondary_shape,joint}
+    }
+
     /// Returns the combined and colored shape. Fill the the `primary_shape` and `secondary_shape`
     /// with their respective colors. The joint will be colored with the `primary_color`.
-    fn fill<Color:Into<color::Rgba>>(&self, primary_color:Color, secondary_color:Color) -> AnyShape {
+    fn fill<C:Into<color::Rgba>>(&self, primary_color:C, secondary_color:C) -> AnyShape {
         let primary_color   = primary_color.into();
         let secondary_color = secondary_color.into();
-
-        let primary_shape_filled   = self.primary_shape.fill(&primary_color);
-        let secondary_shape_filled = self.secondary_shape.fill(&secondary_color);
-        let joint_filled           = self.joint.fill(&primary_color);
-        (primary_shape_filled + secondary_shape_filled + joint_filled).into()
+        let primary_shape   = self.primary_shape.fill(&primary_color);
+        let secondary_shape = self.secondary_shape.fill(&secondary_color);
+        let joint           = self.joint.fill(&primary_color);
+        (primary_shape + secondary_shape + joint).into()
     }
 }
+
+
 
 // ===================
 // === Snap Target ===
@@ -301,7 +295,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
         ensogl::define_shape_system! {
             (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
-             hover_split_center:Vector2<f32>,hover_split_rotation:f32) {
+             hover_split_center:Vector2<f32>, hover_split_rotation:f32) {
 
                 let width  = &LINE_WIDTH.px();
                 let shape  = create_corner_base_shape(&radius,width,&angle,&start_angle);
@@ -317,9 +311,9 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
                 let shape    = shape.difference(n_shape);
 
-                let split_shape = SplitShape::new(
-                    shape.into(),&(&hover_split_center).into(),&hover_split_rotation.into(),&(width * 0.5));
-                let shape       = split_shape.fill($color, $highlight_color);
+                let split_shape = SplitShape::new2(
+                    shape.into(),&hover_split_center.px(),&hover_split_rotation.into(),&(width * 0.5));
+                let shape       = split_shape.fill($color,$highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
                 let hover_area  = create_corner_base_shape(&radius,&hover_width,&angle,&start_angle);
@@ -346,7 +340,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
             }
 
             fn normal_vector_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-                let angle = nalgebra::Rotation2::rotation_between(&point,&Vector2::new(1.0,0.0));
+                let angle = nalgebra::Rotation2::rotation_between(&point,&Vector2(1.0,0.0));
                 nalgebra::Rotation2::new(-RIGHT_ANGLE + self.shape.angle.get() + angle.angle())
             }
 
@@ -356,7 +350,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 let point_to_center = point.xy() - center;
 
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
-                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
+                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2(0.0, 1.0),&closest_point).angle();
                 let start_angle   =  self.shape.start_angle.get();
                 let end_angle     =  start_angle + self.shape.angle.get();
                 let upper_bound   = start_angle.max(end_angle);
@@ -364,7 +358,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
                 let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
                 if correct_quadrant {
-                     Some(Vector2::new(closest_point.x, closest_point.y))
+                     Some(Vector2(closest_point.x, closest_point.y))
                 } else {
                     None
                 }
@@ -424,7 +418,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
             }
 
             fn normal_vector_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-                nalgebra::Rotation2::rotation_between(&point,&Vector2::new(1.0,0.0))
+                nalgebra::Rotation2::rotation_between(&point,&Vector2(1.0,0.0))
             }
 
             fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
@@ -433,7 +427,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 let point_to_center = point.xy() - center;
 
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
-                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
+                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2(0.0, 1.0),&closest_point).angle();
                 let start_angle   =  self.shape.start_angle.get();
                 let end_angle     =  start_angle + self.shape.angle.get();
                 let upper_bound   = start_angle.max(end_angle);
@@ -441,7 +435,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
 
                 let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
                 if correct_quadrant {
-                     Some(Vector2::new(closest_point.x, closest_point.y))
+                     Some(Vector2(closest_point.x, closest_point.y))
                 } else {
                     None
                 }
@@ -487,7 +481,7 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
             fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                 let height = self.sprite().size.get().y;
                 let y = point.y.clamp(-height/2.0, height/2.0);
-                Some(Vector2::new(0.0, y))
+                Some(Vector2(0.0, y))
             }
         }
     }
@@ -516,14 +510,14 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
             fn set_hover_split_center_local(&self, center:Vector2<f32>) {
                 // We don't want the arrow to appear the split. Instead we set the split to the
                 // closes corner make the highlight all or nothing.
-                let min = -Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y);
-                let max =  Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y);
+                let min = -Vector2(ARROW_SIZE_X,ARROW_SIZE_Y);
+                let max =  Vector2(ARROW_SIZE_X,ARROW_SIZE_Y);
                 let mid =  Vector2::<f32>::zero();
 
                 let x = if center.x < mid.x { min.x } else { max.x };
                 let y = if center.y < mid.y { min.y } else { max.y };
 
-                self.shape.hover_split_center.set(Vector2::new(x,y));
+                self.shape.hover_split_center.set(Vector2(x,y));
             }
 
             fn set_hover_split_rotation(&self, angle:f32) {
@@ -543,7 +537,7 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
             }
 
             fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
-                Some(Vector2::new(0.0, point.y))
+                Some(Vector2(0.0, point.y))
             }
         }
     }
@@ -564,26 +558,26 @@ trait LayoutLine {
 
 impl LayoutLine for component::ShapeView<front::line::Shape> {
     fn layout_v(&self, start:Vector2<f32>, len:f32) {
-        let pos  = Vector2::new(start.x, start.y + len/2.0);
-        let size = Vector2::new(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
+        let pos  = Vector2(start.x, start.y + len/2.0);
+        let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
         self.shape.sprite.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_h(&self, start:Vector2<f32>, len:f32) {
-        let pos  = Vector2::new(start.x + len/2.0, start.y);
-        let size = Vector2::new(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
+        let pos  = Vector2(start.x + len/2.0, start.y);
+        let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
         self.shape.sprite.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_v_no_overlap(&self, start:Vector2<f32>, len:f32) {
-        let pos  = Vector2::new(start.x, start.y + len/2.0);
-        let size = Vector2::new(LINE_SHAPE_WIDTH, len.abs());
+        let pos  = Vector2(start.x, start.y + len/2.0);
+        let size = Vector2(LINE_SHAPE_WIDTH, len.abs());
         self.shape.sprite.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_h_no_overlap(&self, start:Vector2<f32>, len:f32) {
-        let pos  = Vector2::new(start.x + len/2.0, start.y);
-        let size = Vector2::new(LINE_SHAPE_WIDTH, len.abs());
+        let pos  = Vector2(start.x + len/2.0, start.y);
+        let size = Vector2(LINE_SHAPE_WIDTH, len.abs());
         self.shape.sprite.size.set(size);
         self.set_position_xy(pos);
     }
@@ -591,26 +585,26 @@ impl LayoutLine for component::ShapeView<front::line::Shape> {
 
 impl LayoutLine for component::ShapeView<back::line::Shape> {
     fn layout_v(&self, start:Vector2<f32>, len:f32) {
-        let pos  = Vector2::new(start.x, start.y + len/2.0);
-        let size = Vector2::new(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
+        let pos  = Vector2(start.x, start.y + len/2.0);
+        let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
         self.shape.sprite.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_h(&self, start:Vector2<f32>, len:f32) {
-        let pos  = Vector2::new(start.x + len/2.0, start.y);
-        let size = Vector2::new(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
+        let pos  = Vector2(start.x + len/2.0, start.y);
+        let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
         self.shape.sprite.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_v_no_overlap(&self, start:Vector2<f32>, len:f32) {
-        let pos  = Vector2::new(start.x, start.y + len/2.0);
-        let size = Vector2::new(LINE_SHAPE_WIDTH, len.abs());
+        let pos  = Vector2(start.x, start.y + len/2.0);
+        let size = Vector2(LINE_SHAPE_WIDTH, len.abs());
         self.shape.sprite.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_h_no_overlap(&self, start:Vector2<f32>, len:f32) {
-        let pos  = Vector2::new(start.x + len/2.0, start.y);
-        let size = Vector2::new(LINE_SHAPE_WIDTH, len.abs());
+        let pos  = Vector2(start.x + len/2.0, start.y);
+        let size = Vector2(LINE_SHAPE_WIDTH, len.abs());
         self.shape.sprite.size.set(size);
         self.set_position_xy(pos);
     }
@@ -1221,7 +1215,7 @@ impl EdgeModelData {
         let fully_attached   = self.target_attached.get();
         let node_half_width  = self.source_width.get() / 2.0;
         let node_half_height = self.source_height.get() / 2.0;
-        let node_circle      = Vector2::new(node_half_width-node_half_height,0.0);
+        let node_circle      = Vector2(node_half_width-node_half_height,0.0);
         let node_radius      = node_half_height;
 
         // === Update Highlights ===
@@ -1252,7 +1246,7 @@ impl EdgeModelData {
         let target_y               = world_space_target.y - self.position().y;
         let side                   = target_x.signum();
         let target_x               = target_x.abs();
-        let target                 = Vector2::new(target_x,target_y);
+        let target                 = Vector2(target_x,target_y);
         let target_is_below_node_x = target.x < node_half_width;
         let target_is_below_node_y = target.y < (-node_half_height);
         let target_is_below_node   = target_is_below_node_x && target_is_below_node_y;
@@ -1308,7 +1302,7 @@ impl EdgeModelData {
         //     │  ▢  │ ▼  shadow. It can be shorter if the target position is below the node or the
         //     ╰─────╯    connection is being dragged, in order not to overlap with the source node.
 
-        let port_line_start    = Vector2::new(side * target.x, target.y + MOUSE_OFFSET);
+        let port_line_start    = Vector2(side * target.x, target.y + MOUSE_OFFSET);
         let space_attached     = -port_line_start.y - node_half_height - LINE_SIDE_OVERLAP;
         let space              = space_attached - NODE_PADDING;
         let len_below_free     = max(0.0,min(port_line_len_max,space));
@@ -1317,7 +1311,7 @@ impl EdgeModelData {
         let far_side_len       = if target_is_below_node {len_below} else {port_line_len_max};
         let flat_side_len      = min(far_side_len,-port_line_start.y);
         let mut port_line_len  = if is_flat_side && is_down {flat_side_len} else {far_side_len};
-        let port_line_end      = Vector2::new(target.x,port_line_start.y + port_line_len);
+        let port_line_end      = Vector2(target.x,port_line_start.y + port_line_len);
 
 
         // === Corner1 ===
@@ -1352,10 +1346,10 @@ impl EdgeModelData {
         let corner1_x_loc       = corner1_x - node_circle.x;
         let (y,angle)           = circle_intersection(corner1_x_loc,node_radius,corner1_radius);
         let corner1_y           = if is_down {-y} else {y};
-        let corner1             = Vector2::new(corner1_x*side, corner1_y);
+        let corner1             = Vector2(corner1_x*side, corner1_y);
         let angle_overlap       = if corner1_x > node_half_width { 0.0 } else { 0.1 };
         let corner1_side        = (corner1_radius + PADDING) * 2.0;
-        let corner1_size        = Vector2::new(corner1_side,corner1_side);
+        let corner1_size        = Vector2(corner1_side,corner1_side);
         let corner1_start_angle = if is_down {0.0} else {side_right_angle};
         let corner1_angle       = (angle + angle_overlap) * side;
         let corner1_angle       = if is_down {corner1_angle} else {side_right_angle};
@@ -1367,17 +1361,17 @@ impl EdgeModelData {
         bg.corner.shape.pos.set(corner1);
         bg.corner.set_position_xy(corner1);
         if !fully_attached {
-            bg.corner.shape.dim.set(Vector2::new(node_half_width,node_half_height));
+            bg.corner.shape.dim.set(Vector2(node_half_width,node_half_height));
             fg.corner.shape.sprite.size.set(corner1_size);
             fg.corner.shape.start_angle.set(corner1_start_angle);
             fg.corner.shape.angle.set(corner1_angle);
             fg.corner.shape.radius.set(corner1_radius);
             fg.corner.shape.pos.set(corner1);
-            fg.corner.shape.dim.set(Vector2::new(node_half_width,node_half_height));
+            fg.corner.shape.dim.set(Vector2(node_half_width,node_half_height));
             fg.corner.set_position_xy(corner1);
         } else {
             fg.corner.shape.sprite.size.set(zero());
-            bg.corner.shape.dim.set(Vector2::new(INFINITE,INFINITE));
+            bg.corner.shape.dim.set(Vector2(INFINITE,INFINITE));
         }
 
 
@@ -1395,7 +1389,7 @@ impl EdgeModelData {
         let side_line_shift = LINE_SIDES_OVERLAP;
         let side_line_len   = max(0.0,corner1_x - node_half_width + side_line_shift);
         let bg_line_x       = node_half_width - side_line_shift;
-        let bg_line_start   = Vector2::new(side*bg_line_x,0.0);
+        let bg_line_start   = Vector2(side*bg_line_x,0.0);
         if fully_attached {
             let bg_line_len = side*side_line_len;
             fg.side_line.shape.sprite.size.set(zero());
@@ -1404,7 +1398,7 @@ impl EdgeModelData {
             let bg_max_len            = NODE_PADDING + side_line_shift;
             let bg_line_len           = min(side_line_len,bg_max_len);
             let bg_end_x              = bg_line_x + bg_line_len;
-            let fg_line_start         = Vector2::new(side*(bg_end_x+LINE_SIDE_OVERLAP),0.0);
+            let fg_line_start         = Vector2(side*(bg_end_x+LINE_SIDE_OVERLAP),0.0);
             let fg_line_len           = side*(side_line_len - bg_line_len);
             let bg_line_len_overlap   = side * min(side_line_len,bg_max_len+LINE_SIDES_OVERLAP);
             bg.side_line.layout_h(bg_line_start,bg_line_len_overlap);
@@ -1433,14 +1427,14 @@ impl EdgeModelData {
             let main_line_len   = main_line_end_y - port_line_start.y;
             if !fully_attached && target_is_below_node {
                 let back_line_start_y = max(-node_half_height - NODE_PADDING, port_line_start.y);
-                let back_line_start = Vector2::new(port_line_start.x, back_line_start_y);
+                let back_line_start = Vector2(port_line_start.x, back_line_start_y);
                 let back_line_len = main_line_end_y - back_line_start_y;
                 let front_line_len = main_line_len - back_line_len;
                 bg.main_line.layout_v(back_line_start, back_line_len);
                 fg.main_line.layout_v(port_line_start, front_line_len);
             } else if fully_attached {
                 let main_line_start_y = port_line_start.y + port_line_len;
-                let main_line_start = Vector2::new(port_line_start.x, main_line_start_y);
+                let main_line_start = Vector2(port_line_start.x, main_line_start_y);
                 fg.main_line.shape.sprite.size.set(zero());
                 bg.main_line.layout_v(main_line_start, main_line_len - port_line_len);
             } else {
@@ -1494,13 +1488,13 @@ impl EdgeModelData {
             // ╰─────╯──╯1 ▢
 
             let corner3_side  = (corner3_radius + PADDING) * 2.0;
-            let corner3_size  = Vector2::new(corner3_side,corner3_side);
+            let corner3_size  = Vector2(corner3_side,corner3_side);
             let corner3_x     = port_line_end.x - corner_2_3_side * corner3_radius;
             let corner3_y     = port_line_end.y;
             let corner2_y     = corner3_y + corner3_radius - corner2_radius;
             let corner2_y     = max(corner2_y, corner1.y);
             let corner3_y     = max(corner3_y,corner2_y - corner3_radius + corner2_radius);
-            let corner3       = Vector2::new(corner3_x*side,corner3_y);
+            let corner3       = Vector2(corner3_x*side,corner3_y);
             let corner3_angle = if is_right_side {0.0} else {-RIGHT_ANGLE};
 
             if fully_attached {
@@ -1510,7 +1504,7 @@ impl EdgeModelData {
                 bg.corner3.shape.angle.set(RIGHT_ANGLE);
                 bg.corner3.shape.radius.set(corner3_radius);
                 bg.corner3.shape.pos.set(corner3);
-                bg.corner3.shape.dim.set(Vector2::new(INFINITE,INFINITE));
+                bg.corner3.shape.dim.set(Vector2(INFINITE,INFINITE));
                 bg.corner3.set_position_xy(corner3);
             } else {
                 bg.corner3.shape.sprite.size.set(zero());
@@ -1524,7 +1518,7 @@ impl EdgeModelData {
             }
 
             let corner2_x     = corner1_target.x + corner_2_3_side * corner2_radius;
-            let corner2       = Vector2::new(corner2_x*side,corner2_y);
+            let corner2       = Vector2(corner2_x*side,corner2_y);
             let corner2_angle = if is_right_side {-RIGHT_ANGLE} else {0.0};
 
             if fully_attached {
@@ -1534,7 +1528,7 @@ impl EdgeModelData {
                 bg.corner2.shape.angle.set(RIGHT_ANGLE);
                 bg.corner2.shape.radius.set(corner2_radius);
                 bg.corner2.shape.pos.set(corner2);
-                bg.corner2.shape.dim.set(Vector2::new(INFINITE,INFINITE));
+                bg.corner2.shape.dim.set(Vector2(INFINITE,INFINITE));
                 bg.corner2.set_position_xy(corner2);
             } else {
                 bg.corner2.shape.sprite.size.set(zero());
@@ -1558,7 +1552,7 @@ impl EdgeModelData {
             // ╰─────╯──╯1 ▢
 
             let main_line_len   = corner2_y - corner1.y;
-            let main_line_start = Vector2::new(side*corner1_target.x,corner1.y);
+            let main_line_start = Vector2(side*corner1_target.x,corner1.y);
 
             if fully_attached {
                 fg.main_line.shape.sprite.size.set(zero());
@@ -1570,8 +1564,8 @@ impl EdgeModelData {
 
             if main_line_len > ARROW_SIZE_Y {
                 let arrow_y    = (corner1.y - corner1_radius + corner2_y + corner2_radius)/2.0;
-                let arrow_pos  = Vector2::new(main_line_start.x, arrow_y);
-                let arrow_size = Vector2::new(ARROW_SIZE_X,ARROW_SIZE_Y);
+                let arrow_pos  = Vector2(main_line_start.x, arrow_y);
+                let arrow_size = Vector2(ARROW_SIZE_X,ARROW_SIZE_Y);
                 if fully_attached {
                     fg.arrow.shape.sprite.size.set(zero());
                     bg.arrow.shape.sprite.size.set(arrow_size);
@@ -1595,7 +1589,7 @@ impl EdgeModelData {
             // ╰─────╯──╯1 ▢
 
             let side_line2_len  = side*(corner3_x - corner2_x);
-            let side_line2_start  = Vector2::new(side*corner2_x,corner2_y + corner2_radius);
+            let side_line2_start  = Vector2(side*corner2_x,corner2_y + corner2_radius);
             if fully_attached {
                 fg.side_line2.shape.sprite.size.set(zero());
                 bg.side_line2.layout_h(side_line2_start,side_line2_len);
@@ -1658,7 +1652,7 @@ impl EdgeModelData {
     /// euclidean distance between point and `Input`/`Output`.
     fn closest_end_for_point(&self, point:Vector2<f32>) -> EndDesignation {
         let target_position = self.target_position.get().xy();
-        let source_position = self.position().xy() - Vector2::new(0.0,self.source_height.get() / 2.0);
+        let source_position = self.position().xy() - Vector2(0.0,self.source_height.get() / 2.0);
         let target_distance = (point - target_position).norm();
         let source_distance = (point - source_position).norm();
         if source_distance > target_distance {
