@@ -831,7 +831,7 @@ impl LayoutState {
     /// Usage note: The important information we create here is the correct adjacency of shapes.
     /// This is used to determine which shapes are adjacent to correctly render the split
     /// passing from one shape to the next.
-    fn semantically_binned_edges(&self, edge_data:&EdgeModelData) -> Vec<Vec<object::Id>> {
+    fn semantically_binned_edges(self, edge_data:&EdgeModelData) -> Vec<Vec<object::Id>> {
         let front = &edge_data.front;
         let back  = &edge_data.back;
         // TODO: this only covers cases that made problems. Might not actually be exhaustive.
