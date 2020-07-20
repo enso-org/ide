@@ -718,7 +718,7 @@ pub enum MacroPatternMatchRaw<T> {
 }
 
 #[ast] pub struct Import<T> {
-    pub path:T // Cons inside
+    pub path:T
 }
 
 #[ast] pub struct Mixfix<T> {

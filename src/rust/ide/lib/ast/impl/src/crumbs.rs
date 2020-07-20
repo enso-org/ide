@@ -244,7 +244,14 @@ pub enum BlockCrumb {
 
 #[allow(missing_docs)]
 #[derive(Clone,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub struct ImportCrumb {pub crumb:Box<Crumb>}
+pub struct ImportCrumb(pub Box<Crumb>);
+
+impl ImportCrumb {
+    #[allow(missing_docs)]
+    pub fn new(crumb:impl Into<Crumb>) -> Self {
+        Self(Box::new(crumb.into()))
+    }
+}
 
 
 // === Mixfix ===
@@ -1043,17 +1050,17 @@ impl Crumbable for crate::Import<Ast> {
     type Crumb = ImportCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        self.path.get(&crumb.crumb)
+        self.path.get(&crumb.0)
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut import = self.clone();
-        import.path    = self.path.set(&crumb.crumb,new_ast)?;
+        import.path    = self.path.set(&crumb.0,new_ast)?;
         Ok(import)
     }
 
     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
-        Box::new(self.path.iter_subcrumbs().map(|crumb| ImportCrumb { crumb : Box::new(crumb) }))
+        Box::new(self.path.iter_subcrumbs().map(ImportCrumb::new))
     }
 }
 
