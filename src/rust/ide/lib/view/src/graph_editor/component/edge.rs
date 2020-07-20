@@ -9,7 +9,6 @@ use ensogl::data::color;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
 use ensogl::display::Sprite;
-use ensogl::display::object;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
@@ -53,7 +52,7 @@ const HOVER_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.000_001);
 // =================
 
 /// Abstraction for all sub-shapes the edge shape is build from.
-trait EdgeShape: ensogl::display::Object {
+trait EdgeShape: display::Object {
     /// Set the center of the shape split on this shape. The coordinates must be in the shape local
     /// coordinate system.
     fn set_hover_split_center_local(&self, center:Vector2<f32>);
@@ -62,7 +61,7 @@ trait EdgeShape: ensogl::display::Object {
     /// the shape local coordinates. If no snapping is possible, returns `None`.
     fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>>;
     fn sprite(&self) -> &Sprite;
-    fn id(&self) -> object::Id {
+    fn id(&self) -> display::object::Id {
         self.sprite().id()
     }
     fn events(&self) -> &ShapeViewEvents;
@@ -178,35 +177,19 @@ struct SplitShape {
 impl SplitShape {
     /// Splits the shape in two at the line given by the center and rotation. Will render a
     /// circular "joint" at the given `center`, if `joint_radius` > 0.0.
+    // FIXME[WD]: Refactor shapes and make it polymorphic instead of using AnyShape inputs.
     fn new
-    (base_shape:AnyShape, center:&Var<Vector2<f32>>, rotation:&Var<f32>,
-     joint_radius:&Var<Pixels>) -> Self {
-        let center_x        = Var::<Pixels>::from(center.x());
-        let center_y        = Var::<Pixels>::from(center.y());
-        let rotation        = Var::<Radians>::from(rotation.clone());
-        let split_plane     = HalfPlane();
-        let split_plane     = split_plane.rotate(&rotation);
-        let split_plane     = split_plane.translate_x(&center_x);
-        let split_plane     = split_plane.translate_y(&center_y);
-        let primary_shape   = base_shape.intersection(&split_plane).into();
-        let secondary_shape = base_shape.difference(&split_plane).into();
-
-        let joint_radius = Var::<Pixels>::from(joint_radius);
-        let joint        = Circle(joint_radius);
-        let joint        = joint.translate_x(&center_x);
-        let joint        = joint.translate_y(&center_y);
-        let joint        = joint.into();
-
-        SplitShape{primary_shape,secondary_shape,joint}
-    }
-
-    fn new2
-    (base_shape:AnyShape, center:&Var<Vector2<Pixels>>, rotation:&Var<Radians>, joint_radius:&Var<Pixels>) -> Self {
+    ( base_shape   : impl Into<AnyShape>
+    , center       : &Var<Vector2<Pixels>>
+    , rotation     : &Var<Radians>
+    , joint_radius : &Var<Pixels>
+    ) -> Self {
+        let base_shape      = base_shape.into();
         let split_mask      = HalfPlane().rotate(rotation).translate(center);
         let primary_shape   = (&base_shape * &split_mask).into();
         let secondary_shape = (&base_shape - &split_mask).into();
         let joint           = Circle(joint_radius).translate(center).into();
-        SplitShape{primary_shape,secondary_shape,joint}
+        SplitShape {primary_shape,secondary_shape,joint}
     }
 
     /// Returns the combined and colored shape. Fill the the `primary_shape` and `secondary_shape`
@@ -234,11 +217,11 @@ impl SplitShape {
 #[derive(Clone,Debug)]
 struct SnapTarget {
     position: Vector2<f32>,
-    target_shape_id: object::Id,
+    target_shape_id: display::object::Id,
 }
 
 impl SnapTarget {
-    fn new(position:Vector2<f32>, target_shape_id:object::Id) -> Self {
+    fn new(position:Vector2<f32>, target_shape_id:display::object::Id) -> Self {
         SnapTarget {position,target_shape_id}
     }
 }
@@ -311,8 +294,8 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
                 let shape    = shape.difference(n_shape);
 
-                let split_shape = SplitShape::new2(
-                    shape.into(),&hover_split_center.px(),&hover_split_rotation.into(),&(width * 0.5));
+                let split_shape = SplitShape::new(
+                    shape,&hover_split_center.px(),&hover_split_rotation.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color,$highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
@@ -390,7 +373,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 let shape = shape.intersection(n_shape);
 
                 let split_shape = SplitShape::new(
-                shape.into(),&hover_split_center.into(),&hover_split_rotation.into(),&(width * 0.5));
+                shape,&hover_split_center.px(),&hover_split_rotation.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
@@ -455,7 +438,7 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 let shape  = Rect((width.clone(),height));
 
                 let split_shape = SplitShape::new(
-                    shape.into(),&hover_split_center.into(),&hover_split_rotation.into(),&(&width * 0.5));
+                    shape,&hover_split_center.px(),&hover_split_rotation.into(),&(&width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
                 extend_hover_area(shape,HOVER_EXTENSION.px()).into()
             }
@@ -500,8 +483,8 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let shape    = triangle ;
 
                 let split_shape  = SplitShape::new(
-                  shape.into(),&hover_split_center.into(),&hover_split_rotation.into(),&0.0.px());
-                let shape       = split_shape.fill($color, $highlight_color);
+                  shape,&hover_split_center.px(),&hover_split_rotation.into(),&0.0.px());
+                let shape       = split_shape.fill($color,$highlight_color);
                 shape.into()
             }
         }
@@ -648,7 +631,7 @@ macro_rules! define_components {
             pub logger            : Logger,
             pub display_object    : display::object::Instance,
             pub shape_view_events : Rc<Vec<ShapeViewEvents>>,
-            shape_type_map        : Rc<HashMap<object::Id,ShapeRole>>,
+            shape_type_map        : Rc<HashMap<display::object::Id,ShapeRole>>,
             $(pub $field : component::ShapeView<$field_type>),*
         }
 
@@ -663,21 +646,21 @@ macro_rules! define_components {
                 $(shape_view_events.push($field.events.clone_ref());)*
                 let shape_view_events = Rc::new(shape_view_events);
 
-                let mut shape_type_map:HashMap<object::Id,ShapeRole> = default();
+                let mut shape_type_map:HashMap<display::object::Id,ShapeRole> = default();
                 $(shape_type_map.insert(EdgeShape::id(&$field), $field_shape_type);)*
                 let shape_type_map = Rc::new(shape_type_map);
 
                 Self {logger,display_object,shape_view_events,shape_type_map,$($field),*}
             }
 
-            fn get_shape(&self, id:object::Id) -> Option<&dyn EdgeShape> {
+            fn get_shape(&self, id:display::object::Id) -> Option<&dyn EdgeShape> {
                 match id {
                     $(id if id == EdgeShape::id(&self.$field) => Some(&self.$field),)*
                     _ => None,
                 }
             }
 
-            fn get_shape_type(&self, id:object::Id) -> Option<ShapeRole> {
+            fn get_shape_type(&self, id:display::object::Id) -> Option<ShapeRole> {
                 self.shape_type_map.get(&id).cloned()
             }
         }
@@ -825,7 +808,7 @@ impl LayoutState {
     /// Usage note: The important information we create here is the correct adjacency of shapes.
     /// This is used to determine which shapes are adjacent to correctly render the split
     /// passing from one shape to the next.
-    fn semantically_binned_edges(self, edge_data:&EdgeModelData) -> Vec<Vec<object::Id>> {
+    fn semantically_binned_edges(self, edge_data:&EdgeModelData) -> Vec<Vec<display::object::Id>> {
         let front = &edge_data.front;
         let back  = &edge_data.back;
         // TODO: this only covers cases that made problems. Might not actually be exhaustive.
@@ -895,14 +878,14 @@ struct SemanticSplit {
     ///  edge. Shapes that fill the same "slot" in the shape and must be handled together,
     /// are binned into a sub-vector. That can be the case for shapes that are present in the
     /// back and the front of the shape.
-    ordered_part_ids : Vec<Vec<object::Id>>,
+    ordered_part_ids : Vec<Vec<display::object::Id>>,
     /// The index the shape where the edge split occurs in the `ordered_part_ids`.
     split_index      : usize,
 }
 
 impl SemanticSplit {
 
-    fn new(edge_data:&EdgeModelData, split_shape:object::Id) -> Option<Self> {
+    fn new(edge_data:&EdgeModelData, split_shape:display::object::Id) -> Option<Self> {
         let layout           = edge_data.layout_state.get();
         let ordered_part_ids = layout.semantically_binned_edges(edge_data);
 
@@ -920,7 +903,7 @@ impl SemanticSplit {
     }
 
     /// Return `Id`s that match the given index condition `cond`.
-    fn index_filtered_shapes<F:Fn(i32)-> bool>(&self, cond:F) -> Vec<object::Id> {
+    fn index_filtered_shapes<F:Fn(i32)-> bool>(&self, cond:F) -> Vec<display::object::Id> {
         self.ordered_part_ids
             .iter()
             .enumerate()
@@ -930,17 +913,17 @@ impl SemanticSplit {
     }
 
     /// Shapes that are output side of the split.
-    fn output_side_shapes(&self) -> Vec<object::Id> {
+    fn output_side_shapes(&self) -> Vec<display::object::Id> {
         self.index_filtered_shapes(move |index| (index + 1) < self.split_index as i32)
     }
 
     /// Shapes that are input side of the split.
-    fn input_side_shapes(&self) -> Vec<object::Id> {
+    fn input_side_shapes(&self) -> Vec<display::object::Id> {
         self.index_filtered_shapes(move |index| index > (self.split_index as i32 + 1))
     }
 
     /// Shapes that are at the split location and adjacent to it.
-    fn split_shapes(&self) -> Vec<object::Id> {
+    fn split_shapes(&self) -> Vec<display::object::Id> {
         self.index_filtered_shapes(move |index| (index - self.split_index as i32).abs() <=1)
     }
 }
@@ -961,9 +944,9 @@ pub struct ShapeViewEventsProxy {
     pub mouse_over : frp::Stream,
     pub mouse_out  : frp::Stream,
 
-    on_mouse_down : frp::Source<object::Id>,
-    on_mouse_over : frp::Source<object::Id>,
-    on_mouse_out  : frp::Source<object::Id>,
+    on_mouse_down : frp::Source<display::object::Id>,
+    on_mouse_over : frp::Source<display::object::Id>,
+    on_mouse_out  : frp::Source<display::object::Id>,
 }
 
 #[allow(missing_docs)]
@@ -1168,7 +1151,7 @@ pub struct EdgeModelData {
     layout_state        : Rc<Cell<LayoutState>>,
 
     hover_position      : Rc<Cell<Option<Vector2<f32>>>>,
-    hover_target        : Rc<Cell<Option<object::Id>>>,
+    hover_target        : Rc<Cell<Option<display::object::Id>>>,
 }
 
 impl EdgeModelData {
@@ -1674,7 +1657,7 @@ impl EdgeModelData {
     /// Return the correct cut angle for the given `shape_id` ath the `position` to highlight the
     /// `target_end`. Will return `None` if the `shape_id` is not a valid sub-shape of this edge.
     fn cut_angle_for_shape
-    (&self, shape_id:object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
+    (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
         let shape      = self.get_shape(shape_id)?;
         let shape_role = self.get_shape_role(shape_id)?;
 
@@ -1737,7 +1720,7 @@ impl EdgeModelData {
     }
 
     /// Return a reference to sub-shape indicated by the given shape id.
-    fn get_shape(&self, id:object::Id) -> Option<&dyn EdgeShape> {
+    fn get_shape(&self, id:display::object::Id) -> Option<&dyn EdgeShape> {
         let shape_ref = self.back.get_shape(id);
         if shape_ref.is_some() {
             return shape_ref
@@ -1746,7 +1729,7 @@ impl EdgeModelData {
     }
 
     /// Return the `ShapeRole` for the given sub-shape.
-    fn get_shape_role(&self, id:object::Id) -> Option<ShapeRole> {
+    fn get_shape_role(&self, id:display::object::Id) -> Option<ShapeRole> {
         let shape_type = self.back.get_shape_type(id);
         if shape_type.is_some() {
             return shape_type
