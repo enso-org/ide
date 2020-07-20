@@ -380,7 +380,8 @@ macro_rules! define_corner_start { () => {
             }
 
             fn set_color_highlight(&self, color:color::Rgba) {
-                self.shape.highlight_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                let color_vec = Vector4::new(color.red,color.green,color.blue,color.alpha);
+                self.shape.highlight_color_rgba.set(color_vec);
             }
 
             fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {

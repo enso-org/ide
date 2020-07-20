@@ -1482,7 +1482,7 @@ impl GraphEditorModel {
     }
 
     fn try_get_edge_color(&self, edge_id:EdgeId) -> Option<color::Lcha> {
-        let edge = self.edges.get_cloned_ref(&edge_id)?;
+        let edge         = self.edges.get_cloned_ref(&edge_id)?;
         let source_color = edge.source().map(|source| self.try_get_edge_target_color(source)).flatten();
         let target_color = || edge.target().map(|target| self.try_get_edge_target_color(target)).flatten();
         source_color.or_else(target_color)
