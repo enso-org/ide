@@ -570,9 +570,6 @@ impl Node {
         self.view.id().into()
     }
 
-    pub fn has_out_edges(&self) -> bool {
-        !self.out_edges.is_empty()
-    }
 }
 
 impl display::Object for Node {
@@ -828,7 +825,6 @@ impl Edges {
     pub fn insert(&self, edge:Edge) {
         self.all.insert(edge.id(),edge);
     }
-
 }
 
 
@@ -861,7 +857,6 @@ impl<T:frp::Data> TouchNetwork<T> {
         Self {down,up,is_down,selected}
     }
 
-    #[allow(clippy::trivially_copy_pass_by_ref)]
     #[allow(clippy::trivially_copy_pass_by_ref)]
     fn check(end:&Vector2, start:&Vector2, diff:&f32) -> bool {
         (end-start).norm() <= diff * 2.0
