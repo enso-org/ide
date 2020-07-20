@@ -10,12 +10,19 @@ use ast::crumbs::ModuleCrumb;
 use ast::known;
 use ast::BlockLine;
 use enso_protocol::language_server;
-
+use data::text::ByteIndex;
 
 
 // =====================
 // === QualifiedName ===
 // =====================
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,Fail)]
+pub enum InvalidQualifiedName {
+    #[fail(display="No module segment in qualified name.")]
+    NoModuleSegment,
+}
 
 /// Module's qualified name is used in some of the Language Server's APIs, like
 /// `VisualisationConfiguration`.
@@ -25,8 +32,12 @@ use enso_protocol::language_server;
 ///
 /// See https://dev.enso.org/docs/distribution/packaging.html for more information about the
 /// package structure.
-#[derive(Clone,Debug,Display,Shrinkwrap)]
-pub struct QualifiedName(String);
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct QualifiedName {
+    #[shrinkwrap(main_field)]
+    text      : String,
+    name_part : Range<ByteIndex>,
+}
 
 impl QualifiedName {
     /// Build a module's full qualified name from its name segments and the project name.
@@ -34,21 +45,50 @@ impl QualifiedName {
     /// ```
     /// use ide::model::module::QualifiedName;
     ///
-    /// let name = QualifiedName::from_segments("Project",&["Main"]);
+    /// let name = QualifiedName::from_segments("Project",&["Main"]).unwrap();
     /// assert_eq!(name.to_string(), "Project.Main");
     /// ```
     pub fn from_segments
     (project_name:impl Str, module_segments:impl IntoIterator<Item:AsRef<str>>)
-     -> QualifiedName {
+    -> FallibleResult<QualifiedName> {
         let project_name     = std::iter::once(project_name.into());
         let module_segments  = module_segments.into_iter();
         let module_segments  = module_segments.map(|segment| segment.as_ref().to_string());
         let mut all_segments = project_name.chain(module_segments);
-        let name             = all_segments.join(".");
-        QualifiedName(name)
+        let text             = all_segments.join(ast::opr::predefined::ACCESS);
+        Ok(text.try_into()?)
+    }
+
+    /// Get the unqualified name of the module.
+    pub fn name(&self) -> &str {
+        &self.text[self.name_part.start.value..self.name_part.end.value]
     }
 }
 
+impl TryFrom<String> for QualifiedName {
+    type Error = InvalidQualifiedName;
+
+    fn try_from(text:String) -> Result<Self,Self::Error> {
+        let error      = InvalidQualifiedName::NoModuleSegment;
+        let name_start = text.rfind(ast::opr::predefined::ACCESS).ok_or(error)? + 1;
+        let name_part  = ByteIndex::new(name_start)..ByteIndex::new(text.len());
+        Ok(QualifiedName {text,name_part})
+    }
+}
+
+impl Display for QualifiedName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.text,f)
+    }
+}
+
+impl PartialEq<QualifiedName> for QualifiedName {
+    fn eq(&self,rhs:&QualifiedName) -> bool {
+        self.text == rhs.text
+    }
+}
+
+impl Eq for QualifiedName {}
 
 
 // ==================
@@ -63,6 +103,8 @@ impl QualifiedName {
 #[derive(Clone,Debug,PartialEq)]
 pub struct ImportInfo {
     /// The segments of the qualified name of the imported target.
+    ///
+    /// This field is not Qualified name to cover semantically illegal imports.
     pub target:Vec<String>
 }
 
@@ -84,8 +126,8 @@ impl ImportInfo {
     }
 
     /// Obtain the qualified name of the imported module.
-    pub fn qualified_name(&self) -> QualifiedName {
-        QualifiedName(self.target.join(ast::opr::predefined::ACCESS))
+    pub fn qualified_name(&self) -> FallibleResult<QualifiedName> {
+        Ok(self.target.join(ast::opr::predefined::ACCESS).try_into()?)
     }
 
     /// Construct from an AST. Fails if the Ast is not an import declaration.
@@ -104,7 +146,8 @@ impl ImportInfo {
 
 impl Display for ImportInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}",ast::macros::IMPORT_KEYWORD,self.qualified_name())
+        let target = self.target.join(ast::opr::predefined::ACCESS);
+        write!(f, "{} {}",ast::macros::IMPORT_KEYWORD,target)
     }
 }
 
@@ -202,6 +245,12 @@ impl Info {
     }
 }
 
+impl From<known::Module> for Info {
+    fn from(ast:known::Module) -> Self {
+        Info {ast}
+    }
+}
+
 
 
 // ==============
@@ -267,6 +316,12 @@ pub fn lookup_method
     }
 
     Err(CannotFindMethod(method.clone()).into())
+}
+
+/// Get a span in module's text representation where the given definition is located.
+pub fn definition_span(ast:&known::Module, id:&definition::Id) -> FallibleResult<data::text::Span> {
+    let location = locate(ast,id)?;
+    ast.span_of_descendent_at(&location.crumbs)
 }
 
 impl DefinitionProvider for known::Module {
@@ -382,4 +437,39 @@ mod tests {
 
         expect_not_found("bar a b = a + b");
     }
+
+
+    #[wasm_bindgen_test]
+    fn test_definition_location() {
+        let code = r"
+some def =
+    first line
+    second line
+
+other def =
+    first line
+    second line
+    nested def =
+        nested body
+    last line of other def
+
+last def = inline expression";
+
+        let parser = parser::Parser::new_or_panic();
+        let module = parser.parse_module(code,default()).unwrap();
+        let module   = Info {ast:module};
+
+        let id       = definition::Id::new_plain_name("other");
+        let span     = definition_span(&module.ast,&id).unwrap();
+        assert!(code[span].ends_with("last line of other def\n"));
+
+        let id       = definition::Id::new_plain_name("last");
+        let span     = definition_span(&module.ast,&id).unwrap();
+        assert!(code[span].ends_with("inline expression"));
+
+        let id       = definition::Id::new_plain_names(&["other","nested"]);
+        let span     = definition_span(&module.ast,&id).unwrap();
+        assert!(code[span].ends_with("nested body"));
+    }
+
 }
