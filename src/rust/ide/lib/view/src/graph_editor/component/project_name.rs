@@ -27,9 +27,9 @@ use ensogl::animation::linear_interpolation;
 // === Constants ===
 // =================
 
-const TEXT_SIZE              : f32         = 16.0;
-const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 1.0);
-const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.6);
+const TEXT_SIZE              : f32         = 12.0;
+const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
+const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
 
 /// Project name used as a placeholder in ProjectName view when it's initialized.
 pub const UNKNOWN_PROJECT_NAME:&str = "Unknown";
@@ -120,12 +120,6 @@ impl Deref for Frp {
     }
 }
 
-impl Default for Frp {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Frp {
     /// Create new Frp.
     pub fn new() -> Self {
@@ -133,6 +127,12 @@ impl Frp {
         let inputs  = FrpInputs::new(&network);
         let outputs = FrpOutputs::new(&network);
         Self{network,inputs,outputs}
+    }
+}
+
+impl Default for Frp {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -209,21 +209,6 @@ impl ProjectNameModel {
         //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
         self.add_child(&self.text_field.display_object());
         self.add_child(&self.view);
-        let project_name = self.clone_ref();
-        //FIXME[dg]: This section to check newline and keep TextField in a single line is hacky
-        // and should be removed once the new TextField is implemented.
-        self.text_field.set_text_edit_callback(move |change| {
-            // If the text edit callback is called, the TextEdit must be still alive.
-            let field_content = project_name.text_field.get_content();
-            let new_name      = field_content.replace("\n","");
-            if change.inserted == "\n" {
-                project_name.rename(&new_name);
-            }
-            // Keep only one line.
-            project_name.text_field.set_content(&new_name);
-            project_name.update_center_alignment();
-        });
-
         self.update_text_field_content();
         self
     }
@@ -236,18 +221,6 @@ impl ProjectNameModel {
     fn update_text_field_content(&self) {
         self.text_field.set_content(&self.project_name.borrow());
         self.update_center_alignment();
-    }
-
-    fn fade_in_text(&self) {
-        self.animations.opacity.set_target_value(1.0);
-    }
-
-    fn fade_out_text(&self) {
-        //TODO[dg]:Make use of TextField 2.0's frp when it's available and remove both fade in and
-        // fade out functions.
-        if !self.text_field.is_focused() {
-            self.animations.opacity.set_target_value(0.0);
-        }
     }
 
     fn set_opacity(&self, value:f32) {
@@ -264,6 +237,10 @@ impl ProjectNameModel {
         self.name_output.emit(&name);
         *self.project_name.borrow_mut() = name;
         self.update_text_field_content();
+    }
+
+    fn is_focused(&self) -> bool {
+        self.text_field.is_focused()
     }
 }
 
@@ -295,8 +272,11 @@ impl ProjectName {
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
-            eval_ model.view.events.mouse_over(model.fade_in_text());
-            eval_ model.view.events.mouse_out (model.fade_out_text());
+            eval_ model.view.events.mouse_over(model.animations.opacity.set_target_value(1.0));
+            eval_ model.view.events.mouse_out({
+                //TODO[dg]:Make use of TextField 2.0's frp for getting focus state changes.
+                model.animations.opacity.set_target_value(model.is_focused() as i32 as f32);
+            });
             eval_ frp.inputs.cancel_editing(model.reset_name());
             eval frp.inputs.name((name) {model.rename(name)});
         }
@@ -309,7 +289,27 @@ impl ProjectName {
             eval model.animations.position.value((value) model.set_position(*value));
         }
 
-        Self{frp,model}
+        Self{frp,model}.init()
+    }
+
+    fn init(self) -> Self {
+        let project_name = Rc::downgrade(&self.model);
+        //FIXME[dg]: This section to check newline and keep TextField in a single line is hacky
+        // and should be removed once the new TextField is implemented.
+        self.text_field.set_text_edit_callback(move |change| {
+            if let Some(project_name) = project_name.upgrade() {
+                // If the text edit callback is called, the TextEdit must be still alive.
+                let field_content = project_name.text_field.get_content();
+                let new_name      = field_content.replace("\n", "");
+                if change.inserted == "\n" {
+                    project_name.rename(&new_name);
+                }
+                // Keep only one line.
+                project_name.text_field.set_content(&new_name);
+                project_name.update_center_alignment();
+            }
+        });
+        self
     }
 }
 
