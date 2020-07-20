@@ -102,10 +102,10 @@ pub enum Response<Metadata> {
 }
 
 /// All responses that Doc Parser Service might reply with.
-#[derive(Debug)]
+#[derive(Debug, serde::Deserialize)]
 pub enum ResponseDoc {
-    Success { code    : String },
-    Error   { message : String },
+    SuccessDoc { code    : String },
+    Error      { message : String },
 }
 
 
@@ -176,7 +176,7 @@ mod internal {
         pub fn recv_response_doc(&mut self) -> Result<ResponseDoc> {
             let response = self.connection.recv_message()?;
             match response {
-                websocket::OwnedMessage::Text(code) => Ok(ResponseDoc::Success {code}),
+                websocket::OwnedMessage::Text(code) => Ok(serde_json::from_str(&code)?),
                 _                                   => Err(Error::NonTextResponse(response)),
             }
         }
@@ -241,8 +241,8 @@ impl Client {
         let request  = Request::DocParserGenerateHtmlSource {program};
         let response_doc = self.rpc_call_doc(request)?;
         match response_doc {
-            ResponseDoc::Success {code} => Ok(code),
-            ResponseDoc::Error {message}  => Err(ParsingError(message)),
+            ResponseDoc::SuccessDoc {code} => Ok(code),
+            ResponseDoc::Error {message}   => Err(ParsingError(message)),
         }
     }
 
