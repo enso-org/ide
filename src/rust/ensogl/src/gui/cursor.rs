@@ -143,15 +143,12 @@ define_style! {
 
 #[allow(missing_docs)]
 impl Style {
-    pub fn new_highlight<H,Color:Into<color::Lcha>>
-    (host:H, size:Vector2<f32>, color:Option<Color>) -> Self
+    pub fn new_highlight<H>
+    (host:H, size:Vector2<f32>, color:Option<color::Lcha>) -> Self
     where H:display::Object {
         let host  = Some(StyleValue::new(host.display_object().clone_ref()));
         let size  = Some(StyleValue::new(size));
-        let color = color.map(|color|{
-            let color = color.into();
-            StyleValue::new(color)
-        });
+        let color = color.map(StyleValue::new);
         Self {host,size,color,..default()}
     }
 
