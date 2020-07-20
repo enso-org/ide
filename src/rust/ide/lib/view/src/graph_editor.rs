@@ -2058,22 +2058,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Set Expression Type ===
     frp::extend! { network
-
-    //TODO [mwu]
-    // === To Whoever Implements https://github.com/enso-org/ide/issues/478 ===
-    // The graph editor should react on this `set_expression_type` events. They are used to set or
-    // unset type information for expressions. The expression ID corresponds to some expression's
-    // SpanTree node.
-    // It should be noted that:
-    // * integration layer does not guarantee issuing this signal for all ports (they should be
-    //   treated as unknown type by default);
-    // * integration layer will not emit "unset" signal for ports that were removed by changing the
-    //   node expression (`set_node_expression` event) or were removed altogether (`remove_node`);
-    // * integration layer reserves right to emit spurious signals (i.e. unsetting type that was
-    //   not previously set or setting same type multiple times). This should improve, as we get
-    //   better updates from engine services (see https://github.com/enso-org/enso/issues/441 ).
     eval inputs.set_expression_type (((node_id,ast_id,maybe_type)) model.set_node_expression_type(*node_id,*ast_id,maybe_type.clone()));
-
     }
 
 
