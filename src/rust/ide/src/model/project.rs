@@ -6,13 +6,8 @@ pub mod synchronized;
 
 use crate::prelude::*;
 
-use crate::model::module;
-
 use enso_protocol::binary;
 use enso_protocol::language_server;
-use enso_protocol::language_server::CapabilityRegistration;
-use enso_protocol::project_manager;
-use enso_protocol::project_manager::ProjectName;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
@@ -54,6 +49,7 @@ pub trait API:Debug {
     (&'a self, root_definition:language_server::MethodPointer)
     -> BoxFuture<'a,FallibleResult<model::ExecutionContext>>;
 
+    /// Set a new project name..
     fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
 
     /// Returns the primary content root id for this project.

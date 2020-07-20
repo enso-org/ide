@@ -122,7 +122,6 @@ mod test {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::model::module::Position;
-    use crate::model::traits::*;
 
     use data::text;
     use utils::test::traits::*;

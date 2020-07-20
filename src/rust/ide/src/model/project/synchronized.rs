@@ -14,7 +14,6 @@ use enso_protocol::language_server;
 use enso_protocol::language_server::CapabilityRegistration;
 use enso_protocol::language_server::MethodPointer;
 use enso_protocol::project_manager;
-use enso_protocol::project_manager::ProjectName;
 use parser::Parser;
 
 
@@ -83,17 +82,21 @@ impl ExecutionContextsRegistry {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
+
 
 // === Data ===
 
 /// A structure containing the project's unique ID and name.
 #[derive(Debug,Clone)]
 pub struct Data {
-    pub id             : Uuid,
-    name               : RefCell<ImString>,
+    /// ID of the project, as used by the Project Manager service.
+    pub id : Uuid,
+    name   : RefCell<ImString>,
 }
 
 impl Data {
@@ -109,8 +112,6 @@ impl Data {
 }
 
 /// Project Model.
-///
-///
 #[allow(missing_docs)]
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -305,7 +306,7 @@ impl model::project::API for Project {
         &self.visualization
     }
 
-    fn suggestion_db(&self) -> Rc<model::SuggestionDatabase> {
+    fn suggestion_db(&self) -> Rc<SuggestionDatabase> {
         self.suggestion_db.clone_ref()
     }
 
@@ -372,10 +373,10 @@ mod test {
         ( setup_mock_json   : impl FnOnce(&mut language_server::MockClient)
         , setup_mock_binary : impl FnOnce(&mut enso_protocol::binary::MockClient)
         ) -> Self {
-            let mut test            = TestWithLocalPoolExecutor::set_up();
-            let mut project_manager = project_manager::MockClient::default();
-            let mut json_client     = language_server::MockClient::default();
-            let mut binary_client   = enso_protocol::binary::MockClient::default();
+            let mut test          = TestWithLocalPoolExecutor::set_up();
+            let project_manager   = project_manager::MockClient::default();
+            let mut json_client   = language_server::MockClient::default();
+            let mut binary_client = enso_protocol::binary::MockClient::default();
 
             let (binary_events_sender,binary_events) = futures::channel::mpsc::unbounded();
             binary_client.expect_event_stream().return_once(|| {

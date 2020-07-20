@@ -197,6 +197,7 @@ impl Client {
     }
 
     pub fn parse(&mut self, program:String, ids:IdMap) -> api::Result<Ast> {
+        println!("Without metadata:\n{}",program);
         let request  = Request::ParseRequest {program,ids};
         let response = self.rpc_call::<serde_json::Value>(request)?;
         match response {
@@ -207,6 +208,7 @@ impl Client {
 
     pub fn parse_with_metadata<M:Metadata>
     (&mut self, program:String) -> api::Result<ParsedSourceFile<M>> {
+        println!("With metadata:\n{}",program);
         let request  = Request::ParseRequestWithMetadata {content:program};
         let response = self.rpc_call(request)?;
         match response {
