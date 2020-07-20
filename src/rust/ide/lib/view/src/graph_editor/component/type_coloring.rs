@@ -41,11 +41,11 @@ pub fn color_for_type(type_information:Type) -> color::Lch {
 /// `TypeMap` allows to keep track of the type and color of a `ast::Id`. It allows to store the
 /// `ast::Id` -> `Type` mapping and infer the colour for the given `ast::Id` from that.
 #[derive(Clone,CloneRef,Debug,Default,Shrinkwrap)]
-pub struct TypeMap {
+pub struct TypeColorMap {
     data: SharedHashMap<ast::Id,Type>,
 }
 
-impl TypeMap {
+impl TypeColorMap {
     /// Return the colour for the `ast_id`. If no type information is available, returns `None`.
     pub fn type_color(&self, ast_id:ast::Id) -> Option<color::Lcha> {
         self.data.get_cloned(&ast_id).map(|type_information| {

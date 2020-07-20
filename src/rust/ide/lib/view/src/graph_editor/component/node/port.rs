@@ -26,7 +26,7 @@ use super::super::node;
 
 use crate::graph_editor::Type;
 use crate::graph_editor::component::type_coloring::DEFAULT_TYPE_COLOR;
-use crate::graph_editor::component::type_coloring::TypeMap;
+use crate::graph_editor::component::type_coloring::TypeColorMap;
 
 
 
@@ -189,7 +189,7 @@ pub struct Manager {
     ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
     width          : Rc<Cell<f32>>,
     port_networks  : Rc<RefCell<Vec<frp::Network>>>,
-    type_map       : TypeMap,
+    type_map       : TypeColorMap,
     pub frp        : Events,
 }
 

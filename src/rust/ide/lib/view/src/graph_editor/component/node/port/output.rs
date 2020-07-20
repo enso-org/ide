@@ -27,7 +27,7 @@ use span_tree;
 use crate::graph_editor::node;
 use crate::graph_editor::Type;
 use crate::graph_editor::component::node::Expression;
-use crate::graph_editor::component::type_coloring::{TypeMap, DEFAULT_TYPE_COLOR};
+use crate::graph_editor::component::type_coloring::{TypeColorMap, DEFAULT_TYPE_COLOR};
 
 
 
@@ -615,7 +615,7 @@ pub struct OutputPorts {
         network          : frp::Network,
         network_internal : Rc<RefCell<frp::Network>>,
         data             : Rc<OutputPortsData>,
-        type_map         : TypeMap,
+        type_map         : TypeColorMap,
         expression       : Rc<RefCell<Expression>>,
         scene            : Scene,
         id_map           : CrumbsForIds,
