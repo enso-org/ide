@@ -1285,7 +1285,7 @@ impl EdgeModelData {
     /// Set the color of the edge. Also updates the highlight color (which will be a dimmed version
     /// of the main color).
     pub fn set_color(&self, color:color::Lcha) {
-        let highlight_color = color::Lcha::new(color.lightness * 0.6,color.chroma,color.hue,color.alpha);
+        let highlight_color = color::Lcha::new(color.lightness * 0.2,color.chroma,color.hue,color.alpha);
         self.edge_shape_views().iter().for_each(|shape| {
             shape.set_color_highlight(highlight_color.into());
             shape.set_color(color.into())
