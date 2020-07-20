@@ -181,16 +181,16 @@ impl From<&Expression> for Expression {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Manager {
-    logger            : Logger,
-    display_object    : display::object::Instance,
-    scene             : Scene,
-    expression        : Rc<RefCell<Expression>>,
-    label             : component::ShapeView<label::Shape>,
-    ports             : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
-    width             : Rc<Cell<f32>>,
-    port_networks     : Rc<RefCell<Vec<frp::Network>>>,
-    type_map          : TypeMap,
-    pub frp           : Events,
+    logger         : Logger,
+    display_object : display::object::Instance,
+    scene          : Scene,
+    expression     : Rc<RefCell<Expression>>,
+    label          : component::ShapeView<label::Shape>,
+    ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
+    width          : Rc<Cell<f32>>,
+    port_networks  : Rc<RefCell<Vec<frp::Network>>>,
+    type_map       : TypeMap,
+    pub frp        : Events,
 }
 
 impl Manager {
