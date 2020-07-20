@@ -23,9 +23,9 @@ fn main() {
     println!("Will parse: {}", program);
 
     let parser = parser::DocParser::new_or_panic();
-    let output = parser.doc_parser_generate_html_source(program);
+    let output = parser.generate_html_docs(program);
     match output {
-        Ok(result) => println!("Parser responded with: {:?}", result),
+        Ok(result) => println!("Doc parser responded with: {:?}", result),
         Err(e)     => println!("Failed to obtain a response: {:?}", e),
     }
 }

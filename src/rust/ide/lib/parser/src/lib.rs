@@ -159,7 +159,7 @@ impl DocParser {
     }
 
     /// Parses program with documentation and generates HTML code.
-    pub fn doc_parser_generate_html_source(&self, program:String) -> api::Result<String> {
-        self.borrow_mut().doc_parser_generate_html_source(program)
+    pub fn generate_html_docs(&self, program:String) -> api::Result<String> {
+        self.borrow_mut().generate_html_docs(program)
     }
 }

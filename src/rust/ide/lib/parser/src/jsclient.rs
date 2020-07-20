@@ -82,7 +82,7 @@ impl Client {
         Ok(result()?)
     }
 
-    pub fn doc_parser_generate_html_source(&self, program:String) -> api::Result<String> {
+    pub fn generate_html_docs(&self, program:String) -> api::Result<String> {
         let html_code = || {
             let html_code = doc_parser_generate_html_source(program)?;
             Result::Ok(html_code)

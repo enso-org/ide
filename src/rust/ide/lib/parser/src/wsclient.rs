@@ -173,6 +173,10 @@ mod internal {
             }
         }
 
+        /// Obtains a text message from peer and deserializes it using JSON
+        /// into a `ResponseDoc`.
+        ///
+        /// Should be called exactly once after each `send_request` invocation.
         pub fn recv_response_doc(&mut self) -> Result<ResponseDoc> {
             let response = self.connection.recv_message()?;
             match response {
@@ -191,6 +195,10 @@ mod internal {
             self.recv_response()
         }
 
+        /// Sends given `Request` to peer and receives a `ResponseDoc`.
+        ///
+        /// Both request and response are exchanged in JSON using text messages
+        /// over WebSocket.
         pub fn rpc_call_doc
         (&mut self, request:Request) -> Result<ResponseDoc> {
             self.send_request(request)?;
@@ -237,7 +245,7 @@ impl Client {
         }
     }
 
-    pub fn doc_parser_generate_html_source(&mut self, program:String) -> api::Result<String> {
+    pub fn generate_html_docs(&mut self, program:String) -> api::Result<String> {
         let request      = Request::DocParserGenerateHtmlSource {program};
         let response_doc = self.rpc_call_doc(request)?;
         match response_doc {
