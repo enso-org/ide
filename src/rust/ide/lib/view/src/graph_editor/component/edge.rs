@@ -39,15 +39,14 @@ const NODE_PADDING       : f32 = node::SHADOW_SIZE;
 // The padding needs to be large enough to accommodate the extended hover area without clipping it.
 const PADDING            : f32 = 4.0 + HOVER_EXTENSION;
 const RIGHT_ANGLE        : f32 = std::f32::consts::PI / 2.0;
+const INFINITE           : f32 = 99999.0;
 
 /// The threshold for the y-distance between nodes at which we switch from using the y-distance
 /// only to determine the closest port to using the full cartesian distance.
 const MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION : f32 = 45.0;
 
-const INFINITE : f32 = 99999.0;
-
-const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
-
+const HOVER_COLOR                  : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
+const SPLIT_COLOR_LIGHTNESS_FACTOR : f32 = 0.2;
 
 
 // ===================
@@ -1285,7 +1284,7 @@ impl EdgeModelData {
     /// Set the color of the edge. Also updates the highlight color (which will be a dimmed version
     /// of the main color).
     pub fn set_color(&self, color:color::Lcha) {
-        let highlight_color = color::Lcha::new(color.lightness * 0.2,color.chroma,color.hue,color.alpha);
+        let highlight_color = color::Lcha::new(color.lightness * SPLIT_COLOR_LIGHTNESS_FACTOR,color.chroma,color.hue,color.alpha);
         self.edge_shape_views().iter().for_each(|shape| {
             shape.set_color_highlight(highlight_color.into());
             shape.set_color(color.into())
