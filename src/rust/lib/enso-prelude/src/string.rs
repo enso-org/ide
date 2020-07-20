@@ -159,6 +159,12 @@ impl Into<String> for ImString {
     }
 }
 
+impl PartialEq<&str> for ImString {
+    fn eq(&self, other:&&str) -> bool {
+        self.content.as_ref().eq(other)
+    }
+}
+
 impl PartialEq<String> for ImString {
     fn eq(&self, other:&String) -> bool {
         self.content.as_ref().eq(other)

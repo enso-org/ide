@@ -294,11 +294,11 @@ impl GraphEditorIntegratedWithControllerModel {
 
 impl GraphEditorIntegratedWithControllerModel {
     fn rename_project(&self, name:impl Str) {
-        let name = name.into();
-        if self.project.name().to_string() != name {
+        if self.project.name() != name.as_ref() {
             let project      = self.project.clone_ref();
             let project_name = self.editor.project_name.clone_ref();
             let logger       = self.logger.clone_ref();
+            let name         = name.into();
             executor::global::spawn(async move {
                 if let Err(e) = project.rename_project(name).await {
                     info!(logger, "The project couldn't be renamed: {e}");
