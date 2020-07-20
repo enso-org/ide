@@ -2341,7 +2341,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
 
-    // TODO when refactoring the edge FRP add a better endpoint for this.
     cursor_style_edge_drag <- edge_endpoint_set.map(f_!([model]{
         if let Some(color) = model.detached_edge_color() {
             cursor::Style::new_color(color).press()
