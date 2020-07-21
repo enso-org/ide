@@ -47,83 +47,139 @@ const HOVER_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.000_001);
 
 
 
+fn up() -> Vector2<f32> {
+    Vector2(1.0,0.0)
+}
+
+fn point_rotation(point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+    nalgebra::Rotation2::rotation_between(&point,&up())
+}
+
+
+
 // =================
 // === EdgeShape ===
 // =================
 
 /// Abstraction for all sub-shapes the edge shape is build from.
-trait EdgeShape: display::Object {
+trait EdgeShape : display::Object {
+
+    // === Info ===
+
+    fn sprite (&self) -> &Sprite;
+    fn id     (&self) -> display::object::Id { self.sprite().id() }
+    fn events (&self) -> &ShapeViewEvents;
+
+
+    // === Hover ===
+
     /// Set the center of the shape split on this shape. The coordinates must be in the shape local
     /// coordinate system.
-    fn set_hover_split_center_local(&self, center:Vector2<f32>);
-    fn set_hover_split_rotation(&self, angle:f32);
-    /// Snaps the coordinates given in the shape local coordinate system to the shape and returns
-    /// the shape local coordinates. If no snapping is possible, returns `None`.
-    fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>>;
-    fn sprite(&self) -> &Sprite;
-    fn id(&self) -> display::object::Id {
-        self.sprite().id()
-    }
-    fn events(&self) -> &ShapeViewEvents;
+    fn set_focus_split_center_local(&self, center:Vector2<f32>);
 
-    /// Return the angle perpendicular to the shape at the given point. Defaults to zero, if not
-    /// implemented.
-    fn normal_vector_for_point(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32>  {
-        let local = self.to_shape_coordinate_system(point);
-        self.normal_vector_for_point_local(local)
-    }
-
-    /// Return the angle perpendicular to the shape at the point given in the shapes local
-    /// coordinate system . Defaults to zero, if not implemented.
-    fn normal_vector_for_point_local(&self, _point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-        nalgebra::Rotation2::new(0.0)
-    }
-
-    /// Snaps the coordinates given in the global coordinate system to the shape and returns
-    /// the global coordinates. If no snapping is possible, returns `None`.
-    fn snap_to_self(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
-        let local          = self.to_shape_coordinate_system(point);
-        let local_snapped  = self.snap_to_self_local(local)?;
-        let global_snapped = self.from_shape_to_global_coordinate_system(local_snapped);
-        Some(global_snapped)
-    }
+    // TODO: Docs. What does it mean to have 0 angle? What does it mean to have 90 deg angle?
+    fn set_focus_split_angle(&self, angle:f32);
 
     /// Set the hover split for this shape. The `split` indicates where the shape should be
     /// split and how the split should be rotated.
-    fn enable_hover_split(&self, split:Split) {
-        // Compute rotation in shape local coordinate system.
-        let base_rotation        = self.display_object().rotation().z;
-        let hover_split_rotation = split.cut_angle + base_rotation;
-        self.set_hover_split_rotation(hover_split_rotation);
-        // Compute position in shape local coordinate system.
-        let center = self.to_shape_coordinate_system(split.position);
-        self.set_hover_split_center_local(center)
+    fn set_focus_split(&self, split:Split) {
+        let angle  = self.global_to_local_rotation(split.angle);
+        let center = self.global_to_local_position(split.position);
+        self.set_focus_split_angle(angle);
+        self.set_focus_split_center_local(center);
     }
 
-    /// Fully disable the hover split on this shape.
-    fn disable_hover(&self) {
-        self.set_hover_split_center_local(Vector2(INFINITE, INFINITE));
-        self.set_hover_split_rotation(RIGHT_ANGLE);
+    /// Focus the whole edge.
+    fn focus_none(&self) {
+        // FIXME: why these values work?
+        self.set_focus_split_center_local(Vector2(INFINITE,INFINITE));
+        self.set_focus_split_angle(RIGHT_ANGLE);
     }
 
-    /// Make the whole shape appear as without showing a split.
-    fn enable_hover(&self) {
-        self.set_hover_split_center_local(Vector2(INFINITE, INFINITE));
-        self.set_hover_split_rotation(2.0 * RIGHT_ANGLE);
+    /// Do not focus any part of the edge.
+    fn focus_all(&self) {
+        // FIXME: why these values work?
+        self.set_focus_split_center_local(Vector2(INFINITE,INFINITE));
+        self.set_focus_split_angle(2.0 * RIGHT_ANGLE);
     }
 
-    /// Convert the given global coordinates to the shape local coordinate system.
-    fn to_shape_coordinate_system(&self, point:Vector2<f32>) -> Vector2<f32> {
+
+    // === Snapping ===
+
+    /// Snaps the provided point to the closest location on the shape. This function has to work
+    /// properly for all points in the shape canvas.
+    fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32>;
+
+    /// Snaps the provided point to the closest location on the shape. This function has to work
+    /// properly for all points in the shape canvas.
+    fn snap(&self, point:Vector2<f32>) -> Vector2<f32> {
+        let local         = self.global_to_local_position(point);
+        let local_snapped = self.snap_local(local);
+        self.local_to_global_position(local_snapped)
+    }
+
+
+    // === Shape Analysis ===
+
+    /// Return the angle perpendicular to the shape at the point given in the shapes local
+    /// coordinate system . Defaults to zero, if not implemented.
+    fn normal_local(&self, _point:Vector2<f32>) -> nalgebra::Rotation2<f32>;
+
+    /// Return the angle perpendicular to the shape at the given point.
+    fn normal(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32>  {
+        let local = self.global_to_local_position(point);
+        self.normal_local(local)
+    }
+
+
+    // === Metrics ===
+
+    /// Convert the angle to the local coordinate system.
+    fn global_to_local_rotation(&self, angle:f32) -> f32 {
+        angle + self.display_object().rotation().z
+    }
+
+
+    /// Convert the global position to the local coordinate system.
+    fn global_to_local_position(&self, point:Vector2<f32>) -> Vector2<f32> {
         let base_rotation   = self.display_object().rotation().z;
         let local_unrotated = point - self.display_object().global_position().xy();
         nalgebra::Rotation2::new(-base_rotation) * local_unrotated
     }
 
-    /// Convert the given shape local coordinate to the global coordinates system.
-    fn from_shape_to_global_coordinate_system(&self, point:Vector2<f32>) -> Vector2<f32> {
+    /// Convert the local position to the global coordinate system.
+    fn local_to_global_position(&self, point:Vector2<f32>) -> Vector2<f32> {
         let base_rotation   = self.display_object().rotation().z;
         let local_unrotated = nalgebra::Rotation2::new(base_rotation) * point;
         local_unrotated + self.display_object().global_position().xy()
+    }
+}
+
+
+
+// ====================
+// === AnyEdgeShape ===
+// ====================
+
+/// The AnyEdgeShape trait allows operations on a collection of `EdgeShape`.
+trait AnyEdgeShape {
+    /// Return the `ShapeViewEvents` of all sub-shapes.
+    fn events(&self) -> Vec<ShapeViewEvents>;
+
+    /// Return references to all `EdgeShape`s in this `AnyEdgeShape`.
+    fn edge_shape_views(&self) -> Vec<&dyn EdgeShape>;
+
+    /// Connect the given `ShapeViewEventsProxy` to the mouse events of all sub-shapes.
+    fn register_proxy_frp(&self, network:&frp::Network, frp:&ShapeViewEventsProxy) {
+        for shape in &self.edge_shape_views() {
+            let event = shape.events();
+            let id    = shape.id();
+            frp::extend! { network
+                eval_ event.mouse_down (frp.on_mouse_down.emit(id));
+                eval_ event.mouse_over (frp.on_mouse_over.emit(id));
+                eval_ event.mouse_out  (frp.on_mouse_out.emit(id));
+            }
+        }
     }
 }
 
@@ -133,44 +189,44 @@ trait EdgeShape: display::Object {
 // === Hover Extension ===
 // =======================
 
-/// Add an invisible extension to the shape that can be used to generate an larger interactive
-/// area. The extended area is equivalent to the base shape grown by the `extension` value.
-///
-/// Note: the base shape should already be colored otherwise coloring it later will also color the
-///extension.
-fn extend_hover_area(base_shape:AnyShape, extension:Var<Pixels>) -> AnyShape {
-    let extended = base_shape.grow(extension);
-    let extended = extended.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
-    (extended + base_shape).into()
+/// Add an invisible hover area to the provided shape. The base shape should already be colored
+/// otherwise coloring it later will also color the hover area.
+fn hover_area(base_shape:AnyShape, size:Var<Pixels>) -> AnyShape {
+    let hover_area = base_shape.grow(size).fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
+    (hover_area + base_shape).into()
 }
 
 
 
-// ===================
-// === Split Shape ===
-// ===================
+// =============
+// === Split ===
+// =============
 
 /// Holds the data required to split a shape into two parts.
 #[derive(Clone,Copy,Debug)]
 struct Split {
     position  : Vector2<f32>,
-    cut_angle : f32
+    angle : f32
 }
 
 impl Split {
-    fn new(position:Vector2<f32>,cut_angle:f32) -> Self {
-        Split {position,cut_angle}
+    fn new(position:Vector2<f32>, angle:f32) -> Self {
+        Split {position,angle}
     }
 }
 
-/// SplitShape allows a shape to be split along a line and each sub-shape to be colored separately.
+
+
+// ==================
+// === SplitShape ===
+// ==================
+
+/// A shape split into two parts with different colors and a circular joint used to give more
+/// pleasing aesthetics.
+#[allow(missing_docs)]
 struct SplitShape {
-    /// Part of the source shape that will be colored in the primary color.
     primary_shape   : AnyShape,
-    /// Part of the source shape that will be colored in the secondary color.
     secondary_shape : AnyShape,
-    /// Additional circle shape, place at the center of the split. Used to give more pleasing
-    /// aesthetics to the split shape.
     joint           : AnyShape,
 }
 
@@ -192,8 +248,8 @@ impl SplitShape {
         SplitShape {primary_shape,secondary_shape,joint}
     }
 
-    /// Returns the combined and colored shape. Fill the the `primary_shape` and `secondary_shape`
-    /// with their respective colors. The joint will be colored with the `primary_color`.
+    /// Color the primary and secondary sub-shapes with the provided colors respectively. The joint
+    /// will be colored with the `primary_color`.
     fn fill<C:Into<color::Rgba>>(&self, primary_color:C, secondary_color:C) -> AnyShape {
         let primary_color   = primary_color.into();
         let secondary_color = secondary_color.into();
@@ -206,9 +262,9 @@ impl SplitShape {
 
 
 
-// ===================
-// === Snap Target ===
-// ===================
+// ==================
+// === SnapTarget ===
+// ==================
 
 /// `SnapTarget` is the result value of snapping operations on `AnyEdgeShape`. It holds the
 /// shape that a hover position was snapped to and the snapped position on the shape. The snapped
@@ -216,8 +272,8 @@ impl SplitShape {
 /// to the source position that was used to compute the snapped position.
 #[derive(Clone,Debug)]
 struct SnapTarget {
-    position: Vector2<f32>,
-    target_shape_id: display::object::Id,
+    position        : Vector2<f32>,
+    target_shape_id : display::object::Id,
 }
 
 impl SnapTarget {
@@ -228,30 +284,7 @@ impl SnapTarget {
 
 
 
-// ========================
-// === Edge Shape Trait ===
-// ========================
 
-/// The AnyEdgeShape trait allows operations on a collection of `EdgeShape`.
-trait AnyEdgeShape {
-    /// Return the `ShapeViewEvents` of all sub-shapes.
-    fn events(&self) -> Vec<ShapeViewEvents>;
-    /// Return references to all `EdgeShape`s in this `AnyEdgeShape`.
-    fn edge_shape_views(&self) -> Vec<&dyn EdgeShape>;
-
-    /// Connect the given `ShapeViewEventsProxy` to the mouse events of all sub-shapes.
-    fn register_proxy_frp(&self, network:&frp::Network, frp:&ShapeViewEventsProxy) {
-        for shape in &self.edge_shape_views() {
-            let event = shape.events();
-            let id    = shape.id();
-            frp::extend! { network
-                eval_ event.mouse_down (frp.on_mouse_down.emit(id));
-                eval_ event.mouse_over (frp.on_mouse_over.emit(id));
-                eval_ event.mouse_out  (frp.on_mouse_out.emit(id));
-            }
-        }
-    }
-}
 
 
 
@@ -306,11 +339,11 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
         }
 
         impl EdgeShape for component::ShapeView<Shape> {
-            fn set_hover_split_center_local(&self, center:Vector2<f32>) {
+            fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                self.shape.hover_split_center.set(center);
             }
 
-            fn set_hover_split_rotation(&self, angle:f32) {
+            fn set_focus_split_angle(&self, angle:f32) {
                 self.shape.hover_split_rotation.set(angle);
             }
 
@@ -322,29 +355,13 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 &self.events
             }
 
-            fn normal_vector_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-                let angle = nalgebra::Rotation2::rotation_between(&point,&Vector2(1.0,0.0));
+            fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+                let angle = point_rotation(point);
                 nalgebra::Rotation2::new(-RIGHT_ANGLE + self.shape.angle.get() + angle.angle())
             }
 
-            fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
-                let radius = self.shape.radius.get();
-                let center = Vector2::zero();
-                let point_to_center = point.xy() - center;
-
-                let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
-                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2(0.0, 1.0),&closest_point).angle();
-                let start_angle   =  self.shape.start_angle.get();
-                let end_angle     =  start_angle + self.shape.angle.get();
-                let upper_bound   = start_angle.max(end_angle);
-                let lower_bound   = start_angle.min(end_angle);
-
-                let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
-                if correct_quadrant {
-                     Some(Vector2(closest_point.x, closest_point.y))
-                } else {
-                    None
-                }
+            fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32> {
+                point.normalize() * self.shape.radius.get() // FIXME: can we do it nicer?
             }
         }
     }
@@ -384,11 +401,11 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
         }
 
         impl EdgeShape for component::ShapeView<Shape> {
-            fn set_hover_split_center_local(&self, center:Vector2<f32>) {
+            fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                 self.shape.hover_split_center.set(center);
             }
 
-            fn set_hover_split_rotation(&self, angle:f32) {
+            fn set_focus_split_angle(&self, angle:f32) {
                  self.shape.hover_split_rotation.set(angle);
             }
 
@@ -400,28 +417,12 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 &self.events
             }
 
-            fn normal_vector_for_point_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-                nalgebra::Rotation2::rotation_between(&point,&Vector2(1.0,0.0))
+            fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+                point_rotation(point)
             }
 
-            fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
-                let radius = self.shape.radius.get();
-                let center = Vector2::zero();
-                let point_to_center = point.xy() - center;
-
-                let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
-                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2(0.0, 1.0),&closest_point).angle();
-                let start_angle   =  self.shape.start_angle.get();
-                let end_angle     =  start_angle + self.shape.angle.get();
-                let upper_bound   = start_angle.max(end_angle);
-                let lower_bound   = start_angle.min(end_angle);
-
-                let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
-                if correct_quadrant {
-                     Some(Vector2(closest_point.x, closest_point.y))
-                } else {
-                    None
-                }
+            fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32> {
+                point.normalize() * self.shape.radius.get()
            }
         }
     }
@@ -440,16 +441,16 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 let split_shape = SplitShape::new(
                     shape,&hover_split_center.px(),&hover_split_rotation.into(),&(&width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
-                extend_hover_area(shape,HOVER_EXTENSION.px()).into()
+                hover_area(shape,HOVER_EXTENSION.px()).into()
             }
         }
 
         impl EdgeShape for component::ShapeView<Shape> {
-            fn set_hover_split_center_local(&self, center:Vector2<f32>) {
+            fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                 self.shape.hover_split_center.set(center);
             }
 
-            fn set_hover_split_rotation(&self, angle:f32) {
+            fn set_focus_split_angle(&self, angle:f32) {
                 self.shape.hover_split_rotation.set(angle);
             }
 
@@ -461,10 +462,12 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 &self.events
             }
 
-            fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
-                let height = self.sprite().size.get().y;
-                let y = point.y.clamp(-height/2.0, height/2.0);
-                Some(Vector2(0.0, y))
+            fn normal_local(&self, _:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+                nalgebra::Rotation2::new(0.0)
+            }
+
+            fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32> {
+                Vector2(0.0,point.y)
             }
         }
     }
@@ -490,7 +493,7 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
         }
 
         impl EdgeShape for component::ShapeView<Shape> {
-            fn set_hover_split_center_local(&self, center:Vector2<f32>) {
+            fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                 // We don't want the arrow to appear the split. Instead we set the split to the
                 // closes corner make the highlight all or nothing.
                 let min = -Vector2(ARROW_SIZE_X,ARROW_SIZE_Y);
@@ -503,7 +506,7 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 self.shape.hover_split_center.set(Vector2(x,y));
             }
 
-            fn set_hover_split_rotation(&self, angle:f32) {
+            fn set_focus_split_angle(&self, angle:f32) {
                  self.shape.hover_split_rotation.set(angle);
             }
 
@@ -515,12 +518,16 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 &self.events
             }
 
-            fn normal_vector_for_point(&self, _point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+            fn normal_local(&self, _:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+                nalgebra::Rotation2::new(0.0)
+            }
+
+            fn normal(&self, _point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
                  nalgebra::Rotation2::new(-RIGHT_ANGLE)
             }
 
-            fn snap_to_self_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
-                Some(Vector2(0.0, point.y))
+            fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32> {
+                Vector2(0.0,point.y)
             }
         }
     }
@@ -1654,7 +1661,7 @@ impl EdgeModelData {
         delta_y > 0.0 && delta_y < MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION
     }
 
-    /// Return the correct cut angle for the given `shape_id` ath the `position` to highlight the
+    /// Return the correct cut angle for the given `shape_id` at the `position` to highlight the
     /// `target_end`. Will return `None` if the `shape_id` is not a valid sub-shape of this edge.
     fn cut_angle_for_shape
     (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
@@ -1665,7 +1672,7 @@ impl EdgeModelData {
         let target_angle         = self.get_target_angle(target_end);
 
         let base_rotation = shape.display_object().rotation().z + 2.0 * RIGHT_ANGLE;
-        let shape_normal  = shape.normal_vector_for_point(position).angle();
+        let shape_normal  = shape.normal(position).angle();
         Some(shape_normal - base_rotation + cut_angle_correction + target_angle)
     }
 
@@ -1737,30 +1744,27 @@ impl EdgeModelData {
         self.front.get_shape_type(id)
     }
 
-    /// Snap the given position to our sub-shapes. Returns `None` if the given position cannot be
-    /// snapped to any sub-shape (e.g., because it is too far away).
-    fn snap_position_to_shape(&self, point:Vector2<f32>) -> Option<SnapTarget> {
-        let hover_shape_id = self.hover_target  .get()?;
-        let shape          = self.get_shape(hover_shape_id)?;
-        let snap_position  = shape.snap_to_self(point);
-        snap_position.map(|snap_position|{
-            SnapTarget::new(snap_position,hover_shape_id)
-        })
+    /// Check whether the provided point is close enough to be snapped to the edge.
+    fn try_point_snap(&self, point:Vector2<f32>) -> Option<SnapTarget> {
+        let hover_shape_id = self.hover_target.get()?;
+        let hover_shape    = self.get_shape(hover_shape_id)?;
+        let snap_position  = hover_shape.snap(point);
+        Some(SnapTarget::new(snap_position,hover_shape_id))
     }
 
     /// Disable the splitting of the shape.
     fn disable_hover_split(&self) {
         for shape in self.edge_shape_views() {
-            shape.disable_hover();
+            shape.focus_none();
         }
     }
 
     /// Split the shape at the given `position` and highlight the given `EndDesignation`. This
     /// might fail if the given position is too far from the shape.
     fn try_enable_hover_split(&self, position:Vector2<f32>, part:EndDesignation) -> Result<(), ()>{
-        let snap_data      = self.snap_position_to_shape(position).ok_or(())?;
+        let snap_data      = self.try_point_snap(position).ok_or(())?;
         let semantic_split = SemanticSplit::new(&self,snap_data.target_shape_id).ok_or(())?;
-        let cut_angle      = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
+        let angle      = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
 
         // Completely disable/enable hovering for shapes that are not close the split base don their
         // relative position within the shape. This avoids issues with splitting not working
@@ -1768,16 +1772,16 @@ impl EdgeModelData {
         semantic_split.output_side_shapes().iter().for_each(|shape_id| {
             if let Some(shape) = self.get_shape(*shape_id) {
                 match part {
-                    EndDesignation::OutputPort => shape.enable_hover(),
-                    EndDesignation::InputPort => shape.disable_hover(),
+                    EndDesignation::OutputPort => shape.focus_all(),
+                    EndDesignation::InputPort => shape.focus_none(),
                 }
             }
         });
         semantic_split.input_side_shapes().iter().for_each(|shape_id|{
             if let Some(shape) = self.get_shape(*shape_id) {
                 match part {
-                    EndDesignation::OutputPort => shape.disable_hover(),
-                    EndDesignation::InputPort => shape.enable_hover(),
+                    EndDesignation::OutputPort => shape.focus_none(),
+                    EndDesignation::InputPort => shape.focus_all(),
                 }
             }
         });
@@ -1786,8 +1790,8 @@ impl EdgeModelData {
         // next.
         semantic_split.split_shapes().iter().for_each(|shape_id|{
             if let Some(shape) = self.get_shape(*shape_id) {
-                let split_data = Split::new(snap_data.position,cut_angle);
-                shape.enable_hover_split(split_data)
+                let split_data = Split::new(snap_data.position,angle);
+                shape.set_focus_split(split_data)
             }
         });
         Ok(())
