@@ -173,20 +173,20 @@ have prepared several scripts which maximally automate the process:
   resulting binary size is one of the most important responsibility of each
   contributor in order to keep the project small and suitable for web-based
   usage. In case the size will exceed the limits:
-  1. If the PR does not include any new libraries, you are allowed to increase 
-     the limit by 10KB. In case the limit will be exceeded by more than 10KB,
-     check which part of the code contributet to it, and talk about it with the 
-     code owner.
-  2. If the PR does include new libraries, you are allowed to increase the
-     limit by 10KB, but you should also consider if it is possible to get the
-     same results without using a new library (even by implementing few lines 
-     of code from the library in sources of the project).
-  3. If the PR does include new libraries, and the limit is exceeded by more
-     than 10KB, check which part of the code contributed to it, and talk about 
-     it with the code owner.
-  4. If the PR does include new libraries, and the limit is exceeded by more 
-     than 50KB, it would probably not be merged. Research possible alternatives
-     before talking with code owner about this case.
+  - If the PR does not include any new libraries, you are allowed to increase 
+    the limit by 10KB. In case the limit will be exceeded by more than 10KB,
+    check which part of the code contributet to it, and talk about it with the 
+    code owner.
+  - If the PR does include new libraries, you are allowed to increase the
+    limit by 10KB, but you should also consider if it is possible to get the
+    same results without using a new library (even by implementing few lines 
+    of code from the library in sources of the project).
+  - If the PR does include new libraries, and the limit is exceeded by more
+    than 10KB, check which part of the code contributed to it, and talk about 
+    it with the code owner.
+  - If the PR does include new libraries, and the limit is exceeded by more 
+    than 50KB, it would probably not be merged. Research possible alternatives
+    before talking with code owner about this case.
 
 - **Testing**
   For the test suite to run you need a current version of Chrome installed.
