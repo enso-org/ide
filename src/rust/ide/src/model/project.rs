@@ -33,7 +33,7 @@ pub trait API:Debug {
     fn binary_rpc(&self) -> Rc<binary::Connection>;
 
     /// Get the instance of parser that is set up for this project.
-    fn parser(&self) -> &Parser;
+    fn parser(&self) -> Parser;
 
     /// Get the visualization controller.
     fn visualization(&self) -> &controller::Visualization;
@@ -82,12 +82,13 @@ pub mod test {
 
     /// Sets up parser expectation on the mock project.
     pub fn expect_parser(project:&mut MockAPI, parser:&Parser) {
-        project.expect_parser().return_const(parser.clone());
+        let parser = parser.clone_ref();
+        project.expect_parser().returning_st(move || parser.clone_ref());
     }
 
     /// Sets up module expectation on the mock project, returning a give module.
     pub fn expect_module(project:&mut MockAPI, module:model::Module) {
-        let module_path = module.path().clone();
+        let module_path = module.path().clone_ref();
         project.expect_module()
             .withf_st    (move |path| path == &module_path)
             .returning_st(move |_path| futures::future::ready(Ok(module.clone_ref())).boxed_local());

@@ -296,7 +296,7 @@ async fn setup_project() -> Project {
     ide::IdeInitializer::open_project(&logger,pm,project_metadata).await.expect(error_msg)
 }
 
-//#[wasm_bindgen_test::wasm_bindgen_test(async)]
+#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 /// This integration test covers writing and reading a file using the binary protocol
 async fn binary_protocol_test() {

@@ -298,8 +298,8 @@ impl model::project::API for Project {
         self.language_server_bin.clone_ref()
     }
 
-    fn parser(&self) -> &Parser {
-        &self.parser
+    fn parser(&self) -> Parser {
+        self.parser.clone_ref()
     }
 
     fn visualization(&self) -> &controller::Visualization {

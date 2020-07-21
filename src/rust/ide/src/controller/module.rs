@@ -49,7 +49,7 @@ impl Handle {
         let logger          = Logger::sub(parent,format!("Module Controller {}", path));
         let model           = project.module(path).await?;
         let language_server = project.json_rpc();
-        let parser          = project.parser().clone_ref();
+        let parser          = project.parser();
         Ok(Handle {model,language_server,parser,logger})
     }
 

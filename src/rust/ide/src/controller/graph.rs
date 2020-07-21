@@ -440,7 +440,7 @@ impl Handle {
         let module      = project.module(module_path).await?;
         let module_ast  = module.ast();
         let definition  = double_representation::module::lookup_method(&module_ast,&method)?;
-        Self::new(parent,module,project.parser().clone_ref(),definition)
+        Self::new(parent,module,project.parser(),definition)
     }
 
     /// Retrieves double rep information about definition providing this graph.
@@ -853,7 +853,7 @@ pub mod tests {
         Fixture::set_up().run(|graph| async move {
             let uid = graph.all_node_infos().unwrap()[0].id();
             let pos = model::module::Position {vector:Vector2::new(0.0,0.0)};
-            graph.module.with_node_metadata(uid, Box::new(|data| data.position = Some(pos))); // TODO
+            graph.module.with_node_metadata(uid, Box::new(|data| data.position = Some(pos)));
             assert_eq!(graph.module.node_metadata(uid).unwrap().position, Some(pos));
         })
     }
