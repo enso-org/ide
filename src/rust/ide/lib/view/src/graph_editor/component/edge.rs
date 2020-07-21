@@ -43,7 +43,7 @@ const MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION : f32 = 45.0;
 
 const INFINITE : f32 = 99999.0;
 
-const HOVER_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.000_001);
+const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 
 
 
@@ -82,7 +82,7 @@ trait EdgeShape : display::Object {
 
     /// Set the hover split for this shape. The `split` indicates where the shape should be
     /// split and how the split should be rotated.
-    fn set_focus_split(&self, split:Split) {
+    fn set_focus_split(&self, split:FocusSplit) {
         let angle  = self.global_to_local_rotation(split.angle);
         let center = self.global_to_local_position(split.position);
         self.set_focus_split_angle(angle);
@@ -139,7 +139,6 @@ trait EdgeShape : display::Object {
         angle + self.display_object().rotation().z
     }
 
-
     /// Convert the global position to the local coordinate system.
     fn global_to_local_position(&self, point:Vector2<f32>) -> Vector2<f32> {
         let base_rotation   = self.display_object().rotation().z;
@@ -163,15 +162,12 @@ trait EdgeShape : display::Object {
 
 /// The AnyEdgeShape trait allows operations on a collection of `EdgeShape`.
 trait AnyEdgeShape {
-    /// Return the `ShapeViewEvents` of all sub-shapes.
-    fn events(&self) -> Vec<ShapeViewEvents>;
-
     /// Return references to all `EdgeShape`s in this `AnyEdgeShape`.
-    fn edge_shape_views(&self) -> Vec<&dyn EdgeShape>;
+    fn shapes(&self) -> Vec<&dyn EdgeShape>;
 
     /// Connect the given `ShapeViewEventsProxy` to the mouse events of all sub-shapes.
     fn register_proxy_frp(&self, network:&frp::Network, frp:&ShapeViewEventsProxy) {
-        for shape in &self.edge_shape_views() {
+        for shape in &self.shapes() {
             let event = shape.events();
             let id    = shape.id();
             frp::extend! { network
@@ -198,65 +194,61 @@ fn hover_area(base_shape:AnyShape, size:Var<Pixels>) -> AnyShape {
 
 
 
-// =============
-// === Split ===
-// =============
+// ==================
+// === FocusSplit ===
+// ==================
 
-/// Holds the data required to split a shape into two parts.
+/// Holds the data required to split a shape into two focus visual groups.
 #[derive(Clone,Copy,Debug)]
-struct Split {
-    position  : Vector2<f32>,
-    angle : f32
+struct FocusSplit {
+    position : Vector2<f32>,
+    angle    : f32
 }
 
-impl Split {
+impl FocusSplit {
     fn new(position:Vector2<f32>, angle:f32) -> Self {
-        Split {position,angle}
+        FocusSplit {position,angle}
     }
 }
 
 
 
-// ==================
-// === SplitShape ===
-// ==================
+// ===================
+// === FocusedEdge ===
+// ===================
 
-/// A shape split into two parts with different colors and a circular joint used to give more
-/// pleasing aesthetics.
-#[allow(missing_docs)]
-struct SplitShape {
-    primary_shape   : AnyShape,
-    secondary_shape : AnyShape,
-    joint           : AnyShape,
+/// An edge split into two parts - focused and unfocused one. The focused part ends with a circular
+/// joint used to give more pleasing aesthetics.
+struct FocusedEdge {
+    focused   : AnyShape,
+    unfocused : AnyShape,
+    joint     : AnyShape,
 }
 
-impl SplitShape {
-    /// Splits the shape in two at the line given by the center and rotation. Will render a
-    /// circular "joint" at the given `center`, if `joint_radius` > 0.0.
-    // FIXME[WD]: Refactor shapes and make it polymorphic instead of using AnyShape inputs.
+impl FocusedEdge {
+    /// Splits the shape in two at the line given by the `split_center` and `split_angle`.
     fn new
     ( base_shape   : impl Into<AnyShape>
-    , center       : &Var<Vector2<Pixels>>
-    , rotation     : &Var<Radians>
+    , split_center : &Var<Vector2<Pixels>>
+    , split_angle  : &Var<Radians>
     , joint_radius : &Var<Pixels>
     ) -> Self {
-        let base_shape      = base_shape.into();
-        let split_mask      = HalfPlane().rotate(rotation).translate(center);
-        let primary_shape   = (&base_shape * &split_mask).into();
-        let secondary_shape = (&base_shape - &split_mask).into();
-        let joint           = Circle(joint_radius).translate(center).into();
-        SplitShape {primary_shape,secondary_shape,joint}
+        let base_shape = base_shape.into();
+        let split_mask = HalfPlane().rotate(split_angle).translate(split_center);
+        let focused    = (&base_shape * &split_mask).into();
+        let unfocused  = (&base_shape - &split_mask).into();
+        let joint      = Circle(joint_radius).translate(split_center).into();
+        FocusedEdge {focused,unfocused,joint}
     }
 
-    /// Color the primary and secondary sub-shapes with the provided colors respectively. The joint
-    /// will be colored with the `primary_color`.
-    fn fill<C:Into<color::Rgba>>(&self, primary_color:C, secondary_color:C) -> AnyShape {
-        let primary_color   = primary_color.into();
-        let secondary_color = secondary_color.into();
-        let primary_shape   = self.primary_shape.fill(&primary_color);
-        let secondary_shape = self.secondary_shape.fill(&secondary_color);
-        let joint           = self.joint.fill(&primary_color);
-        (primary_shape + secondary_shape + joint).into()
+    /// Color the focused and unfocused parts with the provided colors.
+    fn fill<C:Into<color::Rgba>>(&self, focused_color:C, unfocused_color:C) -> AnyShape {
+        let focused_color   = focused_color.into();
+        let unfocused_color = unfocused_color.into();
+        let focused         = self.focused.fill(&focused_color);
+        let unfocused       = self.unfocused.fill(&unfocused_color);
+        let joint           = self.joint.fill(&focused_color);
+        (focused + unfocused + joint).into()
     }
 }
 
@@ -284,55 +276,60 @@ impl SnapTarget {
 
 
 
-
-
-
-
 // =========================
 // === Shape Definitions ===
 // =========================
 
-fn create_corner_base_shape
-(radius:&Var<f32>, width:&Var<Pixels>, angle:&Var<f32>, start_angle:&Var<f32>) ->AnyShape {
-    let radius = 1.px() * radius;
-    let width2 = width / 2.0;
-    let ring   = Circle(&radius + &width2) - Circle(radius-width2);
-    let right:Var<f32> = (RIGHT_ANGLE).into();
-    let rot    = right - angle/2.0 + start_angle;
-    let mask   = Plane().cut_angle_fast(angle.clone()).rotate(rot);
-    let shape  = ring * mask;
+fn corner_base_shape
+(radius:&Var<f32>, width:&Var<Pixels>, angle:&Var<f32>, start_angle:&Var<f32>) -> AnyShape {
+    let radius         = 1.px() * radius;
+    let width2         = width / 2.0;
+    let radius_outer   = &radius + &width2;
+    let radius_inner   = &radius - &width2;
+    let ring           = Circle(radius_outer) - Circle(radius_inner);
+    let right:Var<f32> = RIGHT_ANGLE.into();
+    let rot            = right - angle/2.0 + start_angle;
+    let mask           = Plane().cut_angle_fast(angle.clone()).rotate(rot);
+    let shape          = ring * mask;
     shape.into()
 }
 
+// FIXME [WD]: The 2 follwoing impls are almost the same. Should be merged. This task should will
+//             handled by Wojciech.
 macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
     /// Shape definition.
     pub mod corner {
         use super::*;
 
         ensogl::define_shape_system! {
-            (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
-             hover_split_center:Vector2<f32>, hover_split_rotation:f32) {
-
+            ( radius:f32
+            , angle:f32
+            , start_angle:f32
+            , pos:Vector2<f32>
+            , dim:Vector2<f32>
+            , focus_split_center:Vector2<f32>
+            , focus_split_angle:f32
+            ) {
                 let width  = &LINE_WIDTH.px();
-                let shape  = create_corner_base_shape(&radius,width,&angle,&start_angle);
+                let shape  = corner_base_shape(&radius,width,&angle,&start_angle);
 
                 let shadow_size = 10.px();
-                let n_radius = &shadow_size + 1.px() * dim.y();
-                let n_shape  = Rect(
-                    (&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
-                let n_shape  = n_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+                let node_radius = &shadow_size + 1.px() * dim.y();
+                let node_shape  = Rect(
+                    (&shadow_size*2.0 + 2.px() * dim.x(),&node_radius*2.0)).corners_radius(node_radius);
+                let node_shape  = node_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
                 let tx       = - 1.px() * pos.x();
                 let ty       = - 1.px() * pos.y();
-                let n_shape  = n_shape.translate((tx,ty));
+                let node_shape  = node_shape.translate((tx,ty));
 
-                let shape    = shape.difference(n_shape);
+                let shape    = shape.difference(node_shape);
 
-                let split_shape = SplitShape::new(
-                    shape,&hover_split_center.px(),&hover_split_rotation.into(),&(width * 0.5));
+                let split_shape = FocusedEdge::new(
+                    shape,&focus_split_center.px(),&focus_split_angle.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color,$highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
-                let hover_area  = create_corner_base_shape(&radius,&hover_width,&angle,&start_angle);
+                let hover_area  = corner_base_shape(&radius,&hover_width,&angle,&start_angle);
                 let hover_area  = hover_area.fill(HOVER_COLOR);
                 (hover_area + shape).into()
             }
@@ -340,11 +337,11 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
         impl EdgeShape for component::ShapeView<Shape> {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
-               self.shape.hover_split_center.set(center);
+               self.shape.focus_split_center.set(center);
             }
 
             fn set_focus_split_angle(&self, angle:f32) {
-                self.shape.hover_split_rotation.set(angle);
+                self.shape.focus_split_angle.set(angle);
             }
 
             fn sprite(&self) -> &Sprite{
@@ -355,6 +352,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 &self.events
             }
 
+            // FIXME: why this implementation is different fro the impl in `define_corner_end` ?
             fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
                 let angle = point_rotation(point);
                 nalgebra::Rotation2::new(-RIGHT_ANGLE + self.shape.angle.get() + angle.angle())
@@ -372,29 +370,34 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
     pub mod corner {
         use super::*;
         ensogl::define_shape_system! {
-            (radius:f32, angle:f32, start_angle:f32, pos:Vector2<f32>, dim:Vector2<f32>,
-             hover_split_center:Vector2<f32>, hover_split_rotation:f32) {
+            ( radius:f32
+            , angle:f32
+            , start_angle:f32
+            , pos:Vector2<f32>
+            , dim:Vector2<f32>
+            , focus_split_center:Vector2<f32>
+            , focus_split_angle:f32
+            ) {
                 let width  = &LINE_WIDTH.px();
-                let shape  = create_corner_base_shape(&radius,width,&angle,&start_angle);
-
+                let shape  = corner_base_shape(&radius,width,&angle,&start_angle);
 
                 let shadow_size = 10.px() + 1.px();
-                let n_radius = &shadow_size + 1.px() * dim.y();
-                let n_shape  = Rect(
-                    (&shadow_size*2.0 + 2.px() * dim.x(),&n_radius*2.0)).corners_radius(n_radius);
-                let n_shape  = n_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+                let node_radius = &shadow_size + 1.px() * dim.y();
+                let node_shape  = Rect(
+                    (&shadow_size*2.0 + 2.px() * dim.x(),&node_radius*2.0)).corners_radius(node_radius);
+                let node_shape  = node_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
                 let tx       = - 1.px() * pos.x();
                 let ty       = - 1.px() * pos.y();
-                let n_shape  = n_shape.translate((tx,ty));
+                let node_shape  = node_shape.translate((tx,ty));
 
-                let shape = shape.intersection(n_shape);
+                let shape = shape.intersection(node_shape);
 
-                let split_shape = SplitShape::new(
-                shape,&hover_split_center.px(),&hover_split_rotation.into(),&(width * 0.5));
+                let split_shape = FocusedEdge::new(
+                shape,&focus_split_center.px(),&focus_split_angle.into(),&(width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
-                let hover_area  = create_corner_base_shape(&radius,&hover_width,&angle,&start_angle);
+                let hover_area  = corner_base_shape(&radius,&hover_width,&angle,&start_angle);
                 let hover_area  = hover_area.fill(HOVER_COLOR);
                 (hover_area + shape).into()
             }
@@ -402,11 +405,11 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
 
         impl EdgeShape for component::ShapeView<Shape> {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
-                self.shape.hover_split_center.set(center);
+                self.shape.focus_split_center.set(center);
             }
 
             fn set_focus_split_angle(&self, angle:f32) {
-                 self.shape.hover_split_rotation.set(angle);
+                 self.shape.focus_split_angle.set(angle);
             }
 
             fn sprite(&self) -> &Sprite{
@@ -433,13 +436,13 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
     pub mod line {
         use super::*;
         ensogl::define_shape_system! {
-            (hover_split_center:Vector2<f32>,hover_split_rotation:f32,split_joint_position:Vector2<f32>) {
+            (focus_split_center:Vector2<f32>, focus_split_angle:f32) {
                 let width  = LINE_WIDTH.px();
                 let height : Var<Pixels> = "input_size.y".into();
                 let shape  = Rect((width.clone(),height));
 
-                let split_shape = SplitShape::new(
-                    shape,&hover_split_center.px(),&hover_split_rotation.into(),&(&width * 0.5));
+                let split_shape = FocusedEdge::new(
+                    shape,&focus_split_center.px(),&focus_split_angle.into(),&(&width * 0.5));
                 let shape       = split_shape.fill($color, $highlight_color);
                 hover_area(shape,HOVER_EXTENSION.px()).into()
             }
@@ -447,11 +450,11 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
 
         impl EdgeShape for component::ShapeView<Shape> {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
-                self.shape.hover_split_center.set(center);
+                self.shape.focus_split_center.set(center);
             }
 
             fn set_focus_split_angle(&self, angle:f32) {
-                self.shape.hover_split_rotation.set(angle);
+                self.shape.focus_split_angle.set(angle);
             }
 
             fn sprite(&self) -> &Sprite{
@@ -478,36 +481,33 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
     pub mod arrow {
         use super::*;
         ensogl::define_shape_system! {
-            (hover_split_center:Vector2<f32>, hover_split_rotation:f32,
-             split_joint_position:Vector2<f32>) {
+            (focus_split_center:Vector2<f32>, focus_split_angle:f32) {
                 let width  : Var<Pixels> = "input_size.x".into();
                 let height : Var<Pixels> = "input_size.y".into();
-                let triangle = Triangle(width-1.0.px(),height-1.0.px());
-                let shape    = triangle ;
-
-                let split_shape  = SplitShape::new(
-                  shape,&hover_split_center.px(),&hover_split_rotation.into(),&0.0.px());
-                let shape       = split_shape.fill($color,$highlight_color);
+                let focus_split_angle  = focus_split_angle.into();
+                let focus_split_center = focus_split_center.px();
+                let zero  = 0.0.px();
+                let shape = Triangle(width-1.0.px(),height-1.0.px());
+                let shape = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle,&zero);
+                let shape = shape.fill($color,$highlight_color);
                 shape.into()
             }
         }
 
         impl EdgeShape for component::ShapeView<Shape> {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
-                // We don't want the arrow to appear the split. Instead we set the split to the
-                // closes corner make the highlight all or nothing.
+                // We don't want the arrow to be half-focused. The focus split point is set to the
+                // closest edge (all or nothing).
                 let min = -Vector2(ARROW_SIZE_X,ARROW_SIZE_Y);
                 let max =  Vector2(ARROW_SIZE_X,ARROW_SIZE_Y);
                 let mid =  Vector2::<f32>::zero();
-
-                let x = if center.x < mid.x { min.x } else { max.x };
-                let y = if center.y < mid.y { min.y } else { max.y };
-
-                self.shape.hover_split_center.set(Vector2(x,y));
+                let x   = if center.x < mid.x { min.x } else { max.x };
+                let y   = if center.y < mid.y { min.y } else { max.y };
+                self.shape.focus_split_center.set(Vector2(x,y));
             }
 
             fn set_focus_split_angle(&self, angle:f32) {
-                 self.shape.hover_split_rotation.set(angle);
+                 self.shape.focus_split_angle.set(angle);
             }
 
             fn sprite(&self) -> &Sprite{
@@ -679,11 +679,7 @@ macro_rules! define_components {
         }
 
         impl AnyEdgeShape for $name {
-            fn events(&self) -> Vec<ShapeViewEvents> {
-                self.shape_view_events.to_vec()
-            }
-
-            fn edge_shape_views(&self) -> Vec<&dyn EdgeShape> {
+            fn shapes(&self) -> Vec<&dyn EdgeShape> {
                 let mut output = Vec::<&dyn EdgeShape>::default();
                 $(output.push(&self.$field);)*
                 output
@@ -718,16 +714,9 @@ define_components!{
 }
 
 impl AnyEdgeShape for EdgeModelData {
-    fn events(&self) -> Vec<ShapeViewEvents> {
-        let mut events_back:Vec<ShapeViewEvents>  = self.back.events();
-        let mut events_front:Vec<ShapeViewEvents> = self.front.events();
-        events_front.append(&mut events_back);
-        events_front
-    }
-
-    fn edge_shape_views(&self) -> Vec<&dyn EdgeShape> {
-        let mut shapes_back  = self.back.edge_shape_views();
-        let mut shapes_front = self.front.edge_shape_views();
+    fn shapes(&self) -> Vec<&dyn EdgeShape> {
+        let mut shapes_back  = self.back.shapes();
+        let mut shapes_front = self.front.shapes();
         shapes_front.append(&mut shapes_back);
         shapes_front
     }
@@ -780,6 +769,7 @@ enum LayoutState {
     UpRight,
     DownLeft,
     DownRight,
+    // FIXME: why we need to distinguish such cases? Sounds like a very detailed case whoch should be covered by more generic rules
     /// The edge goes up and the top loops back to the right.
     TopCenterRightLoop,
     /// The edge goes up and the top loops back to the left.
@@ -795,7 +785,7 @@ impl LayoutState {
             LayoutState::TopCenterRightLoop => false,
             LayoutState::TopCenterLeftLoop => false,
             LayoutState::DownLeft => true,
-            LayoutState::DownRight => true,
+            LayoutState::DownRight => true, // FIXME: no alignment
         }
     }
 
@@ -808,6 +798,8 @@ impl LayoutState {
     /// This enables us to infer which parts are next to each other, and which ones are
     /// "source-side"/"target-side".
     ///
+    /// // FIXME: more information needed here. What does it mean that "we treat the equivalent shape from front and back as the same"
+    /// //        when is this used and what is this used for? See comment below - not all mappings are correct here.
     /// In general, we treat the equivalent shape from front and back as the same, but also the
     /// arrow needs to be handled together with the main line. Other shapes might be in the same
     /// bucket if they are invisible in some layout configurations.
@@ -823,6 +815,11 @@ impl LayoutState {
             Self::DownLeft | Self::DownRight => {
                 vec![
                     vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
+                    // FIXME: I am not sure if this is correct. `front.corner` is a different shape than
+                    //        back corner. The front corner = ring - node shape, while the back corner = ring * node shape (intersection).
+                    //        See their definition for reference. They are used together. If we will use
+                    //        front corner without back corner, then there would be a sall gap between edge and the node.
+                    //        Back corner fills the gap and is placed below the node.
                     vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
                     // All collapsed and visible only as a single line
                     vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
@@ -858,13 +855,15 @@ impl LayoutState {
 // =====================
 
 /// The semantic split, splits the sub-shapes according to their relative position from `OutputPort`
-/// to `InputPort` and allows access to the three different groups of shapes: (a) shapes that are
-/// input side of the split, (b) shapes that are at the split (c) shapes that are  output side of
-/// the split.
+/// to `InputPort` and allows access to the three different groups of shapes:
+///   - shapes that are input side of the split;
+///   - shapes that are at the split;
+///   - shapes that are output side of the split.
 ///
 /// Note that "at the split" also includes the shapes adjacent to the actual split because they
-/// need to be treated as if they were at the split location to  avoid glitches at the shape
+/// need to be treated as if they were at the split location to avoid glitches at the shape
 /// boundaries.
+/// // FIXE: please, tell more about these glitches - I do not understand why they happen after this description
 ///
 /// This allows us to apply special handling to these groups. This is required as a simple geometric
 /// split based on a line, will lead to double intersections with the edge. Thus we avoid the
@@ -876,15 +875,14 @@ impl LayoutState {
 ///
 /// Example: We need to split on the `SideLine2` and highlight the shapes closer to the
 /// output port. That means we need to do the geometric split on  `Corner2`, `SideLine2`, `Corner3`,
-///which we can access via `split_shapes` and apply the highlighting to `SideLine` `Corner` and
+/// which we can access via `split_shapes` and apply the highlighting to `SideLine` `Corner` and
 /// `MainLine`/`Arrow`, which we can access via `output_side_shapes`. The remaining shapes that must
-/// not to be highlighted can be accessed via `input_side_shapes`.
+/// not be highlighted can be accessed via `input_side_shapes`.
 #[derive(Clone,Debug)]
 struct SemanticSplit {
-    /// a ordered vector that contains the ids of the shapes in the order they appear in the
-    ///  edge. Shapes that fill the same "slot" in the shape and must be handled together,
-    /// are binned into a sub-vector. That can be the case for shapes that are present in the
-    /// back and the front of the shape.
+    /// Ids of the shapes in the order they appear in the edge. Shapes that fill the same "slot" in
+    /// the shape and must be handled together, are binned into a sub-vector. That can be the case
+    /// for shapes that are present in the back and the front of the shape.
     ordered_part_ids : Vec<Vec<display::object::Id>>,
     /// The index the shape where the edge split occurs in the `ordered_part_ids`.
     split_index      : usize,
@@ -1082,7 +1080,7 @@ impl Edge {
         let input           = &self.frp;
         let target_position = &self.target_position;
         let target_attached = &self.target_attached;
-        let _source_attached = &self.source_attached;
+        let _source_attached = &self.source_attached; // FIXME - why such lines are left?
         let source_width    = &self.source_width;
         let source_height   = &self.source_height;
         let hover_position  = &self.hover_position;
@@ -1126,6 +1124,7 @@ impl display::Object for Edge {
 // === EdgeModel ===
 // =================
 
+// FIXME: this needs a better name and docs. What is "end connection of an edge"? Edge is an connection.
 /// Indicates the type of end connection of the Edge.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
@@ -1156,7 +1155,6 @@ pub struct EdgeModelData {
     pub source_attached : Rc<Cell<bool>>,
 
     layout_state        : Rc<Cell<LayoutState>>,
-
     hover_position      : Rc<Cell<Option<Vector2<f32>>>>,
     hover_target        : Rc<Cell<Option<display::object::Id>>>,
 }
@@ -1215,7 +1213,7 @@ impl EdgeModelData {
                 let highlight_part = self.end_designation_for_position(hover_position);
                 let _ = self.try_enable_hover_split(hover_position,highlight_part);
             },
-            _ =>  self.disable_hover_split(),
+            _ => self.focus_none(),
         }
 
 
@@ -1603,7 +1601,7 @@ impl EdgeModelData {
 
         // === Port Line ===
 
-        fg.port_line.layout_v(port_line_start, port_line_len);
+        fg.port_line.layout_v(port_line_start,port_line_len);
     }
 }
 
@@ -1616,10 +1614,12 @@ impl EdgeModelData {
     fn is_in_upper_half(&self, point:Vector2<f32>) -> bool {
         let world_space_source = self.position().y;
         let world_space_target = self.target_position.get().y ;
-        let mid_y          = (world_space_source + world_space_target) / 2.0;
+        let mid_y              = (world_space_source + world_space_target) / 2.0;
         point.y > mid_y
     }
 
+    // FIXME: "except when that is impractical due to a low y-difference [...]" - needs better
+    //         explanation what is "low y-difference" with info what we do in such situation.
     /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
     /// edge. This is determined based on the y-position only, except when that is impractical due
     /// to a low y-difference between `Input` and `Output`.
@@ -1630,6 +1630,9 @@ impl EdgeModelData {
         let input_in_upper_half = self.layout_state.get().is_input_above_output();
         let point_in_upper_half = self.is_in_upper_half(point);
 
+        // FIXME: This can be simplified by `point_in_upper_half == input_in_upper_half`.
+        //        My question here is whether this is justified by some logic. Should be explained
+        //        in the docs above.
         match (point_in_upper_half,input_in_upper_half) {
             (true,true)   => EndDesignation::InputPort,
             (true,false)  => EndDesignation::OutputPort,
@@ -1645,11 +1648,8 @@ impl EdgeModelData {
         let source_position = self.position().xy() - Vector2(0.0,self.source_height.get() / 2.0);
         let target_distance = (point - target_position).norm();
         let source_distance = (point - source_position).norm();
-        if source_distance > target_distance {
-            EndDesignation::OutputPort
-        } else {
-            EndDesignation::InputPort
-        }
+        if source_distance > target_distance { EndDesignation::OutputPort }
+        else                                 { EndDesignation::InputPort }
     }
 
     /// Indicates whether the height difference between input and output is too small to  use the
@@ -1661,6 +1661,7 @@ impl EdgeModelData {
         delta_y > 0.0 && delta_y < MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION
     }
 
+    // FIXE: several lines are too long.
     /// Return the correct cut angle for the given `shape_id` at the `position` to highlight the
     /// `target_end`. Will return `None` if the `shape_id` is not a valid sub-shape of this edge.
     fn cut_angle_for_shape
@@ -1688,6 +1689,14 @@ impl EdgeModelData {
         }
     }
 
+    // TODO: This needs a much better documentation with an example. Seems overly coplex to me and
+    //       I'm wondering if we can implement it in a simpler way than this. Especially, the amount
+    //       of layourt states is really big and I have a feeling we can simplify it a lot.
+    //
+    // TODO: Anyway, we need docs / description which would make reading the code below easy - the
+    //       reader should understand each rule introduced here. Maybe we should add docs to each
+    //       rule explaining when it happens? I hope there is easier way to explain it though.
+    //       For now, I have hard time to understand why these rules work.
     /// These corrections are needed as sometimes shapes are in places that lead to inconsistent
     /// results, e.g., the side line leaving the node from left/right or right/left. The shape
     /// itself does not have enough information about its own placement to determine which end
@@ -1753,13 +1762,16 @@ impl EdgeModelData {
     }
 
     /// Disable the splitting of the shape.
-    fn disable_hover_split(&self) {
-        for shape in self.edge_shape_views() {
+    fn focus_none(&self) {
+        for shape in self.shapes() {
             shape.focus_none();
         }
     }
 
-    /// Split the shape at the given `position` and highlight the given `EndDesignation`. This
+    // FIXME: lets rename all "hover-like" names to "focus-like" names (see refactoring above).
+    //        These names should have semantic meaning (we are focusing an edge), not a behavioral
+    //        meaning (we are focusing ON hover).
+    /// FocusSplit the shape at the given `position` and highlight the given `EndDesignation`. This
     /// might fail if the given position is too far from the shape.
     fn try_enable_hover_split(&self, position:Vector2<f32>, part:EndDesignation) -> Result<(), ()>{
         let snap_data      = self.try_point_snap(position).ok_or(())?;
@@ -1790,7 +1802,7 @@ impl EdgeModelData {
         // next.
         semantic_split.split_shapes().iter().for_each(|shape_id|{
             if let Some(shape) = self.get_shape(*shape_id) {
-                let split_data = Split::new(snap_data.position,angle);
+                let split_data = FocusSplit::new(snap_data.position,angle);
                 shape.set_focus_split(split_data)
             }
         });
