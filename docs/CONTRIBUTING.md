@@ -182,7 +182,7 @@ have prepared several scripts which maximally automate the process:
      same results without using a new library (even by implementing few lines 
      of code from the library in sources of the project).
   3. If the PR does include new libraries, and the limit is exceeded by more
-     than 10KB, check which part of the code contributet to it, and talk about 
+     than 10KB, check which part of the code contributed to it, and talk about 
      it with the code owner.
   4. If the PR does include new libraries, and the limit is exceeded by more 
      than 50KB, it would probably not be merged. Research possible alternatives
@@ -203,4 +203,3 @@ have prepared several scripts which maximally automate the process:
 - **Linting**
   Please be sure to fix all errors reported by `node ./run lint` before
   creating a pull request to this repository.
-
