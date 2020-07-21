@@ -296,20 +296,33 @@ async fn setup_project() -> Project {
     ide::IdeInitializer::open_project(&logger,pm,project_metadata).await.expect(error_msg)
 }
 
-#[wasm_bindgen_test::wasm_bindgen_test(async)]
+//#[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 /// This integration test covers writing and reading a file using the binary protocol
-async fn binary_protocol_test() {
+async fn file_operations_test() {
     let _guard   = ide::ide::setup_global_executor();
     let project  = setup_project().await;
     println!("Got project: {:?}",project);
+    // Edit file using the text protocol
     let path     = Path::new(project.json_rpc().content_root(), &["test_file.txt"]);
-    let contents = "Hello!".to_string();
+    let contents = "Hello, 世界!".to_string();
     let written  = project.json_rpc().write_file(&path,&contents).await.unwrap();
     println!("Written: {:?}", written);
     let read_back = project.json_rpc().read_file(&path).await.unwrap();
     println!("Read back: {:?}", read_back);
     assert_eq!(contents, read_back.contents);
+
+    // Edit file using the binary protocol.
+    let other_contents = "Totally different treść.";
+    let read_back = project.binary_rpc().read_file(&path).await.unwrap();
+    assert_eq!(contents.as_bytes(), read_back.as_slice());
+    project.binary_rpc().write_file(&path, other_contents.as_bytes()).await.unwrap();
+    let read_back = project.binary_rpc().read_file(&path).await.unwrap();
+    assert_eq!(other_contents.as_bytes(), read_back.as_slice());
+
+    // Once again check that we read the same thing with text protocol.
+    let read_back = project.json_rpc().read_file(&path).await.unwrap();
+    assert_eq!(other_contents, read_back.contents);
 }
 
 /// The future that tests attaching visualization and routing its updates.
