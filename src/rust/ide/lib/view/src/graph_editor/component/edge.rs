@@ -1633,11 +1633,10 @@ impl EdgeModelData {
         // FIXME: This can be simplified by `point_in_upper_half == input_in_upper_half`.
         //        My question here is whether this is justified by some logic. Should be explained
         //        in the docs above.
-        match (point_in_upper_half,input_in_upper_half) {
-            (true,true)   => EndDesignation::InputPort,
-            (true,false)  => EndDesignation::OutputPort,
-            (false,true)  => EndDesignation::OutputPort,
-            (false,false) => EndDesignation::InputPort,
+        if point_in_upper_half != input_in_upper_half {
+            EndDesignation::InputPort
+        } else {
+            EndDesignation::OutputPort
         }
     }
 
