@@ -16,7 +16,8 @@
 //! the actual code the Synchronized Model should be used. Each struct using model as a dependency
 //! should use the Shared Handle.
 //!
-//! Due to Shared Handle object, all models should implement "internal mutability" pattern.
+//! As the models are usually shared between many controllers, they should implement "internal
+//! mutability" pattern.
 
 pub mod execution_context;
 pub mod module;

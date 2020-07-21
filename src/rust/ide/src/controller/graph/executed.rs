@@ -203,6 +203,7 @@ mod tests {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::execution_context::synchronized::test::Fixture as ExecutionContextFixture;
 
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -223,7 +224,7 @@ mod tests {
         let executed_graph = Handle::new_internal(graph,project,execution.clone_ref());
 
         // Generate notification.
-        let notification = model::execution_context::synchronized::test::Fixture::mock_values_computed_update(&execution_data);
+        let notification = ExecutionContextFixture::mock_values_computed_update(&execution_data);
         let update       = &notification.updates[0];
 
         // Notification not yet send.
