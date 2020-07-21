@@ -217,12 +217,10 @@ impl FocusSplit {
 // === FocusedEdge ===
 // ===================
 
-/// An edge split into two parts - focused and unfocused one. The focused part ends with a circular
-/// joint used to give more pleasing aesthetics.
+/// An edge split into two parts - focused and unfocused one.
 struct FocusedEdge {
     focused   : AnyShape,
     unfocused : AnyShape,
-    joint     : AnyShape,
 }
 
 impl FocusedEdge {
@@ -231,14 +229,12 @@ impl FocusedEdge {
     ( base_shape   : impl Into<AnyShape>
     , split_center : &Var<Vector2<Pixels>>
     , split_angle  : &Var<Radians>
-    , joint_radius : &Var<Pixels>
     ) -> Self {
         let base_shape = base_shape.into();
         let split_mask = HalfPlane().rotate(split_angle).translate(split_center);
         let focused    = (&base_shape * &split_mask).into();
         let unfocused  = (&base_shape - &split_mask).into();
-        let joint      = Circle(joint_radius).translate(split_center).into();
-        FocusedEdge {focused,unfocused,joint}
+        FocusedEdge {focused,unfocused}
     }
 
     /// Color the focused and unfocused parts with the provided colors.
@@ -247,8 +243,7 @@ impl FocusedEdge {
         let unfocused_color = unfocused_color.into();
         let focused         = self.focused.fill(&focused_color);
         let unfocused       = self.unfocused.fill(&unfocused_color);
-        let joint           = self.joint.fill(&focused_color);
-        (focused + unfocused + joint).into()
+        (focused + unfocused).into()
     }
 }
 
@@ -279,6 +274,22 @@ impl SnapTarget {
 // =========================
 // === Shape Definitions ===
 // =========================
+
+/// Joint definition
+pub mod joint {
+    use super::*;
+
+    ensogl::define_shape_system! {
+            (
+            ) {
+                let radius : Var<Pixels> = "min(input_size.y,input_size.x)".into();
+                let joint                   = Circle(radius/2.0);
+                let joint_color:color::Rgba = color::Lcha::new(0.6,0.5,0.76,1.0).into();
+                let joint_colored           = joint.fill(joint_color);
+                joint_colored.into()
+            }
+        }
+}
 
 fn corner_base_shape
 (radius:&Var<f32>, width:&Var<Pixels>, angle:&Var<f32>, start_angle:&Var<f32>) -> AnyShape {
@@ -325,7 +336,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 let shape    = shape.difference(node_shape);
 
                 let split_shape = FocusedEdge::new(
-                    shape,&focus_split_center.px(),&focus_split_angle.into(),&(width * 0.5));
+                    shape,&focus_split_center.px(),&focus_split_angle.into());
                 let shape       = split_shape.fill($color,$highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
@@ -393,7 +404,7 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 let shape = shape.intersection(node_shape);
 
                 let split_shape = FocusedEdge::new(
-                shape,&focus_split_center.px(),&focus_split_angle.into(),&(width * 0.5));
+                shape,&focus_split_center.px(),&focus_split_angle.into());
                 let shape       = split_shape.fill($color, $highlight_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
@@ -442,7 +453,7 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 let shape  = Rect((width.clone(),height));
 
                 let split_shape = FocusedEdge::new(
-                    shape,&focus_split_center.px(),&focus_split_angle.into(),&(&width * 0.5));
+                    shape,&focus_split_center.px(),&focus_split_angle.into());
                 let shape       = split_shape.fill($color, $highlight_color);
                 hover_area(shape,HOVER_EXTENSION.px()).into()
             }
@@ -486,9 +497,8 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let height : Var<Pixels> = "input_size.y".into();
                 let focus_split_angle  = focus_split_angle.into();
                 let focus_split_center = focus_split_center.px();
-                let zero  = 0.0.px();
                 let shape = Triangle(width-1.0.px(),height-1.0.px());
-                let shape = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle,&zero);
+                let shape = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle);
                 let shape = shape.fill($color,$highlight_color);
                 shape.into()
             }
@@ -1148,6 +1158,7 @@ pub struct EdgeModelData {
     pub frp             : Frp,
     pub front           : Front,
     pub back            : Back,
+    pub joint           : component::ShapeView<joint::Shape>,
     pub source_width    : Rc<Cell<f32>>,
     pub source_height   : Rc<Cell<f32>>,
     pub target_position : Rc<Cell<Vector2>>,
@@ -1166,9 +1177,14 @@ impl EdgeModelData {
         let display_object = display::object::Instance::new(&logger);
         let front          = Front::new(Logger::sub(&logger,"front"),scene);
         let back           = Back::new (Logger::sub(&logger,"back"),scene);
+        let joint          = component::ShapeView::new(Logger::sub(&logger,"joint"),scene);
+
+        let shape_system = scene.shapes.shape_system(PhantomData::<joint::Shape>);
+        shape_system.shape_system.set_pointer_events(false);
 
         display_object.add_child(&front);
         display_object.add_child(&back);
+        display_object.add_child(&joint);
 
         front . side_line  . mod_rotation(|r| r.z = RIGHT_ANGLE);
         back  . side_line  . mod_rotation(|r| r.z = RIGHT_ANGLE);
@@ -1187,7 +1203,7 @@ impl EdgeModelData {
 
         Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
               target_attached,source_attached,hover_position,
-              layout_state,hover_target}
+              layout_state,hover_target,joint}
     }
 
     /// Redraws the connection.
@@ -1210,12 +1226,22 @@ impl EdgeModelData {
 
         // === Update Highlights ===
 
-        match (fully_attached, self.hover_position.get()) {
-            (true, Some(hover_position)) => {
+        match (fully_attached, self.hover_position.get(), self.hover_target.get()) {
+            (true, Some(hover_position), Some(hover_target)) => {
                 let highlight_part = self.end_designation_for_position(hover_position);
-                let _ = self.try_enable_hover_split(hover_position,highlight_part);
+                let hover_split_result = self.try_enable_hover_split(hover_position,hover_target,highlight_part);
+                if let Ok(snap_data) = hover_split_result {
+                    let joint_position = snap_data.position - self.display_object.position().xy();
+                    self.joint.set_position_xy(joint_position);
+                    self.joint.shape.sprite.size.set(Vector2(LINE_WIDTH,LINE_WIDTH));
+                } else {
+                    self.joint.shape.sprite.size.set(Vector2::zero());
+                }
             },
-            _ => self.focus_none(),
+            _ => {
+                self.focus_none();
+                self.joint.shape.sprite.size.set(Vector2::zero());
+            },
         }
 
 
@@ -1669,6 +1695,7 @@ impl EdgeModelData {
     (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
         let shape      = self.get_shape(shape_id)?;
         let shape_role = self.get_shape_role(shape_id)?;
+        println!("{:?}", shape_role);
 
         let cut_angle_correction = self.get_cut_angle_correction(shape_role);
         let target_angle         = self.get_target_angle(target_end);
@@ -1755,8 +1782,7 @@ impl EdgeModelData {
     }
 
     /// Check whether the provided point is close enough to be snapped to the edge.
-    fn try_point_snap(&self, point:Vector2<f32>) -> Option<SnapTarget> {
-        let hover_shape_id = self.hover_target.get()?;
+    fn try_point_snap(&self, point:Vector2<f32>, hover_shape_id:display::object::Id) -> Option<SnapTarget> {
         let hover_shape    = self.get_shape(hover_shape_id)?;
         let snap_position  = hover_shape.snap(point);
         Some(SnapTarget::new(snap_position,hover_shape_id))
@@ -1774,8 +1800,11 @@ impl EdgeModelData {
     //        meaning (we are focusing ON hover).
     /// FocusSplit the shape at the given `position` and highlight the given `EndDesignation`. This
     /// might fail if the given position is too far from the shape.
-    fn try_enable_hover_split(&self, position:Vector2<f32>, part:EndDesignation) -> Result<(), ()>{
-        let snap_data      = self.try_point_snap(position).ok_or(())?;
+    fn try_enable_hover_split
+    (&self, position:Vector2<f32>, hover_shape_id:display::object::Id, part:EndDesignation)
+    -> Result<SnapTarget, ()>{
+        println!("{:?}, {:?}", hover_shape_id, position);
+        let snap_data      = self.try_point_snap(position,hover_shape_id).ok_or(())?;
         let semantic_split = SemanticSplit::new(&self,snap_data.target_shape_id).ok_or(())?;
         let angle      = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
 
@@ -1807,6 +1836,6 @@ impl EdgeModelData {
                 shape.set_focus_split(split_data)
             }
         });
-        Ok(())
+        Ok(snap_data)
     }
 }
