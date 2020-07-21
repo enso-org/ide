@@ -159,6 +159,7 @@ impl DocParser {
     }
 
     /// Parses program with documentation and generates HTML code.
+    /// If the program does not have any documentation will return empty string.
     pub fn generate_html_docs(&self, program:String) -> api::Result<String> {
         self.borrow_mut().generate_html_docs(program)
     }
