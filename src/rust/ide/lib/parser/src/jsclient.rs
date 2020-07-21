@@ -49,6 +49,9 @@ extern "C" {
     #[wasm_bindgen(catch)]
     fn doc_parser_generate_html_source
     (content:String) -> std::result::Result<String,JsValue>;
+    #[wasm_bindgen(catch)]
+    fn doc_parser_generate_html_from_doc
+    (content:String) -> std::result::Result<String,JsValue>;
 }
 
 /// Wrapper over the JS-compiled parser.
@@ -85,10 +88,19 @@ impl Client {
         Ok(result()?)
     }
 
-    /// Calls JS parser to generate HTML from documented Enso code
+    /// Calls JS doc parser to generate HTML from documented Enso code
     pub fn generate_html_docs(&self, program:String) -> api::Result<String> {
         let html_code = || {
             let html_code = doc_parser_generate_html_source(program)?;
+            Result::Ok(html_code)
+        };
+        Ok(html_code()?)
+    }
+
+    /// Calls JS doc parser to generate HTML from pure doc code w/o Enso's AST
+    pub fn generate_html_doc_pure(&self, code:String) -> api::Result<String> {
+        let html_code = || {
+            let html_code = doc_parser_generate_html_from_doc(code)?;
             Result::Ok(html_code)
         };
         Ok(html_code()?)

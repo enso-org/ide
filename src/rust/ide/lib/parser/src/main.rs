@@ -28,4 +28,16 @@ fn main() {
         Ok(result) => println!("Doc parser responded with: {:?}", result),
         Err(e)     => println!("Failed to obtain a response: {:?}", e),
     }
+
+
+    let default_input = String::from("Computes the _logical_ conjunction of *two* booleans");
+    let program = std::env::args().nth(1).unwrap_or(default_input);
+    println!("Will parse: {}", program);
+
+    let parser = parser::DocParser::new_or_panic();
+    let output = parser.generate_html_doc_pure(program);
+    match output {
+        Ok(result) => println!("Doc parser responded with: {:?}", result),
+        Err(e)     => println!("Failed to obtain a response: {:?}", e),
+    }
 }

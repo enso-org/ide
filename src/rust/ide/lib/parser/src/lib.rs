@@ -163,4 +163,10 @@ impl DocParser {
     pub fn generate_html_docs(&self, program:String) -> api::Result<String> {
         self.borrow_mut().generate_html_docs(program)
     }
+
+    /// Parses pure documentation code and generates HTML code.
+    /// Will return empty string for empty entry
+    pub fn generate_html_doc_pure(&self, code:String) -> api::Result<String> {
+        self.borrow_mut().generate_html_doc_pure(code)
+    }
 }

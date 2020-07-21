@@ -89,9 +89,10 @@ impl From<serde_json::error::Error> for Error {
 /// All request supported by the Parser Service.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Request {
-    ParseRequest                { program : String, ids : IdMap },
-    ParseRequestWithMetadata    { content : String },
-    DocParserGenerateHtmlSource { program : String },
+    ParseRequest                 { program : String, ids : IdMap },
+    ParseRequestWithMetadata     { content : String },
+    DocParserGenerateHtmlSource  { program : String },
+    DocParserGenerateHtmlFromDoc { code : String },
 }
 
 /// All responses that Parser Service might reply with.
@@ -250,6 +251,16 @@ impl Client {
     /// Sends a request to parser service to generate HTML code from documented Enso code
     pub fn generate_html_docs(&mut self, program:String) -> api::Result<String> {
         let request      = Request::DocParserGenerateHtmlSource {program};
+        let response_doc = self.rpc_call_doc(request)?;
+        match response_doc {
+            ResponseDoc::SuccessDoc {code} => Ok(code),
+            ResponseDoc::Error   {message} => Err(ParsingError(message)),
+        }
+    }
+
+    /// Sends a request to parser service to generate HTML code from pure documentation code
+    pub fn generate_html_doc_pure(&mut self, code:String) -> api::Result<String> {
+        let request      = Request::DocParserGenerateHtmlFromDoc {code};
         let response_doc = self.rpc_call_doc(request)?;
         match response_doc {
             ResponseDoc::SuccessDoc {code} => Ok(code),
