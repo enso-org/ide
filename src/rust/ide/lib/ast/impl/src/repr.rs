@@ -174,9 +174,10 @@ has_tokens!(ShiftedVec1<T>, self.head, self.tail);
 // === Invalid ===
 // ===============
 
-has_tokens!(Unrecognized, self.str  );
-has_tokens!(InvalidQuote, self.quote);
-has_tokens!(InlineBlock , self.quote);
+has_tokens!(Unrecognized  , self.str);
+has_tokens!(Unexpected<T> , self.stream);
+has_tokens!(InvalidQuote  , self.quote);
+has_tokens!(InlineBlock   , self.quote);
 
 
 // ===================
@@ -370,7 +371,7 @@ mod tests {
     // === Import ===
 
     fn make_import() -> Shape<Ast> {
-        Import {path : vec![]}.into()
+        Import {path : Ast::var("Target")}.into()
     }
 
     #[test]

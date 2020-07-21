@@ -630,7 +630,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let project_name         = self.project.project_name();
         let project_name         = project_name.deref();
         let module_name          = crate::view::project::INITIAL_MODULE_NAME;
-        let visualisation_module = QualifiedName::from_module_segments(&[module_name],project_name);
+        let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
         let id                   = VisualizationId::new_v4();
         let expression           = crate::constants::SERIALIZE_TO_JSON_EXPRESSION.into();
         let ast_id               = self.get_controller_node_id(*node_id)?;
@@ -822,6 +822,11 @@ impl NodeEditor {
         }
         info!(self.logger, "Initialized.");
         Ok(self)
+    }
+
+    /// The path to the module, which graph is currently displayed.
+    pub fn displayed_module(&self) -> model::module::Path {
+        self.graph.model.controller.graph().module.path.clone_ref()
     }
 }
 

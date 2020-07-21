@@ -279,10 +279,6 @@ ensogl::def_status_api! { FrpStatus
 }
 
 ensogl::def_command_api! { Commands
-    /// Enter the selected node.
-    enter_node,
-    /// Leave the current node.
-    leave_node,
     /// Cancel project name editing, restablishing the old name.
     cancel_project_name_editing,
     /// Add a new node and place it in the origin of the workspace.
@@ -1391,9 +1387,7 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Enter],&[])                  , "enter_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::ArrowUp],&[])                , "leave_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
+        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
@@ -1492,14 +1486,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let outputs        = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
-
-    // === Node entering / leaving ===
-
-    frp::extend! { network
-        // FIXME[dg]: Remove hardcoded value.
-        eval_ inputs.enter_node(model.breadcrumbs.frp.push_breadcrumb.emit("hardcoded".to_string()));
-        eval_ inputs.leave_node(model.breadcrumbs.frp.pop_breadcrumb.emit(()));
-    }
 
     // === Cancel project name editing ===
 
@@ -2091,6 +2077,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // === Entering and Exiting Nodes ===
+
+    // FIXME[dg]: Remove hardcoded value.
+    eval_ inputs.enter_selected_node({
+        model.breadcrumbs.frp.push_breadcrumb.emit("hardcoded".to_string())
+    });
+    eval_ inputs.exit_node(model.breadcrumbs.frp.pop_breadcrumb.emit(()));
 
     node_to_enter        <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     outputs.node_entered <+ node_to_enter;

@@ -270,6 +270,10 @@ impl Project {
                         execution context being already dropped.");
                     }
                 }
+                Event::Notification(Notification::ExecutionFailed(update)) => {
+                    error!(logger,"Execution failed in context {update.context_id}. Error: \
+                    {update.message}.");
+                }
                 Event::Notification(Notification::SuggestionDatabaseUpdate(update)) => {
                     if let Some(suggestion_db) = weak_suggestion_db.upgrade() {
                         suggestion_db.apply_update_event(update);
@@ -314,7 +318,7 @@ impl Project {
 
     /// Generates full module's qualified name that includes the leading project name segment.
     pub fn qualified_module_name(&self, path:&model::module::Path) -> ModuleQualifiedName {
-        ModuleQualifiedName::from_path(path,self.project_name().deref())
+        path.qualified_module_name(self.project_name().deref())
     }
 
     fn load_module(&self, path:ModulePath)

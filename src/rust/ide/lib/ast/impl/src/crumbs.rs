@@ -11,6 +11,9 @@ use crate::HasTokens;
 use crate::Shape;
 use crate::TokenConsumer;
 
+use data::text::Index;
+use data::text::Size;
+use data::text::Span;
 use utils::fail::FallibleResult;
 
 
@@ -243,8 +246,15 @@ pub enum BlockCrumb {
 // === Import ===
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
-pub struct ImportCrumb {pub index:usize}
+#[derive(Clone,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
+pub struct ImportCrumb(pub Box<Crumb>);
+
+impl ImportCrumb {
+    #[allow(missing_docs)]
+    pub fn new(crumb:impl Into<Crumb>) -> Self {
+        Self(Box::new(crumb.into()))
+    }
+}
 
 
 // === Mixfix ===
@@ -1043,20 +1053,17 @@ impl Crumbable for crate::Import<Ast> {
     type Crumb = ImportCrumb;
 
     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        self.path.get_or_err(crumb.index,"path").map_err(|err| err.into())
+        self.path.get(&crumb.0)
     }
 
     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
         let mut import = self.clone();
-        let path = import.path.get_mut_or_err(crumb.index,"path")?;
-        *path = new_ast;
+        import.path    = self.path.set(&crumb.0,new_ast)?;
         Ok(import)
     }
 
     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
-        let indices = self.path.iter().enumerate().map(|(indices,_)| indices);
-        let crumbs  = indices.map(|path_index| ImportCrumb { index: path_index });
-        Box::new(crumbs)
+        Box::new(self.path.iter_subcrumbs().map(ImportCrumb::new))
     }
 }
 
@@ -1203,6 +1210,24 @@ pub trait TraversableAst:Sized {
 
     /// Recursively traverses AST to retrieve AST node located by given crumbs sequence.
     fn get_traversing(&self, crumbs:&[Crumb]) -> FallibleResult<&Ast>;
+
+    /// Get the `Ast` node corresponging to `Self`.
+    fn my_ast(&self) -> FallibleResult<&Ast> {
+        self.get_traversing(&[])
+    }
+
+    /// Calculate the span of the descendent AST node described by given crumbs..
+    fn span_of_descendent_at(&self, crumbs:&[Crumb]) -> FallibleResult<Span> {
+        let mut position = Index::new(0);
+        let mut ast      = self.my_ast()?;
+        for crumb in crumbs {
+            let child    = ast.get(crumb)?;
+            let child_ix = ast.child_offset(child)?;
+            position    += Span::from_beginning_to(child_ix).size;
+            ast          = child;
+        }
+        Ok(Span::new(position,Size::new(ast.len())))
+    }
 }
 
 impl TraversableAst for Ast {
@@ -1946,7 +1971,24 @@ mod tests {
         assert_eq!(shape.get(&c1).unwrap(),&ast[0]);
         assert_eq!(shape.get(&c2).unwrap(),&ast[1]);
         assert_eq!(shape.get(&c3).unwrap(),&ast[2]);
+    }
 
 
+    // === TraversableAst ===
+
+    #[test]
+    fn traversable_ast() {
+        let ast = Ast::prefix(Ast::prefix(Ast::var("add"),Ast::number(2)),Ast::number(4));
+        let expected_code = "add 2 4";
+        assert_eq!(ast.repr(), expected_code);
+        assert_eq!(ast.my_ast().unwrap(), &ast);
+
+        let crumbs_to_two = [PrefixCrumb::Func,PrefixCrumb::Arg].into_crumbs();
+        let two           = ast.get_traversing(&crumbs_to_two).unwrap();
+        assert_eq!(two.repr(),"2");
+
+        let two_span = ast.span_of_descendent_at(&crumbs_to_two).unwrap();
+        assert_eq!(two_span, Span::from(4..5));
+        assert_eq!(&expected_code[two_span], "2");
     }
 }
