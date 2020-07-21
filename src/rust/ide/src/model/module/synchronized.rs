@@ -226,7 +226,7 @@ impl Module {
     /// so any new update attempt should perform full invalidation.
     fn new_ls_content_info
     (&self, old_content:ContentSummary, new_content:FallibleResult<ParsedContentSummary>)
-     -> LanguageServerContent {
+    -> LanguageServerContent {
         match new_content {
             Ok(new_content) => LanguageServerContent::Synchronized(new_content),
             Err(err)        => {
@@ -240,7 +240,7 @@ impl Module {
     /// content summery of Language Server state.
     async fn handle_notification
     (&self, content:&LanguageServerContent, notification:Notification)
-     -> FallibleResult<ParsedContentSummary> {
+    -> FallibleResult<ParsedContentSummary> {
         debug!(self.logger,"Handling notification: {content:?}.");
         match content {
             LanguageServerContent::Desynchronized(summary) => self.full_invalidation(summary).await,
@@ -284,8 +284,8 @@ impl Module {
     /// Language Server. Returns the new summary of Language Server state.
     async fn notify_language_server
     ( &self
-      , ls_content        : &ContentSummary
-      , edits_constructor : impl FnOnce(SourceFile) -> Vec<TextEdit>
+    , ls_content        : &ContentSummary
+    , edits_constructor : impl FnOnce(SourceFile) -> Vec<TextEdit>
     ) -> FallibleResult<ParsedContentSummary> {
         let content = self.model.serialized_content()?;
         let summary = ParsedContentSummary::from_source(&content);
@@ -377,7 +377,7 @@ pub mod test {
         }
 
         fn expect_edit<EditApplier>(&self, result:json_rpc::Result<()>, edit_applier:EditApplier)
-            where EditApplier : FnOnce(&[TextEdit]) -> String + 'static {
+        where EditApplier : FnOnce(&[TextEdit]) -> String + 'static {
             let path       = self.file_path.clone();
             let ls_version = self.current_ls_version.clone_ref();
             let ls_code    = self.current_ls_code.clone_ref();

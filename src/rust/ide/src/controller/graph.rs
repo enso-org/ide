@@ -839,8 +839,8 @@ pub mod tests {
         }
 
         pub fn run<Test,Fut>(&mut self, test:Test)
-            where Test : FnOnce(Handle) -> Fut + 'static,
-                  Fut  : Future<Output=()> {
+        where Test : FnOnce(Handle) -> Fut + 'static,
+              Fut  : Future<Output=()> {
             let graph = self.data.graph();
             self.run_task(async move {
                 test(graph).await

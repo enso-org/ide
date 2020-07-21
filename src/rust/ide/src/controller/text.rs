@@ -65,7 +65,7 @@ impl Handle {
         } else {
             FileHandle::PlainText {
                 path            : Rc::new(path),
-                language_server : project.json_rpc().clone_ref()
+                language_server : project.json_rpc()
             }
         };
         Ok(Self {logger,file})
