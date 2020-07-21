@@ -121,7 +121,7 @@ pub struct ParsedInput {
 }
 
 impl ParsedInput {
-    /// Contructor from the plain input.
+    /// Constructor from the plain input.
     fn new(mut input:String, parser:&Parser) -> FallibleResult<Self> {
         let leading_spaces = input.chars().take_while(|c| *c == ' ').count();
         // To properly guess what is "still typed argument" we simulate type of one letter by user.
