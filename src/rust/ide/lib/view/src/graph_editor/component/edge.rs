@@ -17,7 +17,7 @@ use ensogl::gui::component::ShapeViewEvents;
 use ensogl::gui::component;
 
 use super::node;
-
+use crate::graph_editor::component::node::NODE_HEIGHT;
 
 
 // =================
@@ -1200,11 +1200,13 @@ impl EdgeModelData {
         let bg               = &self.back;
         // FIXME This should be enabled for #672
         // let fully_attached   = self.target_attached.get() && self.source_attached.get();
-        let fully_attached   = self.target_attached.get();
-        let node_half_width  = self.source_width.get() / 2.0;
-        let node_half_height = self.source_height.get() / 2.0;
-        let node_circle      = Vector2(node_half_width-node_half_height,0.0);
-        let node_radius      = node_half_height;
+        let fully_attached          = self.target_attached.get();
+        let node_half_width         = self.source_width.get() / 2.0;
+        // FIXME This should be set externally, just like `source_node_half_height`.
+        let target_node_half_height = NODE_HEIGHT / 2.0;
+        let source_node_half_height = self.source_height.get() / 2.0;
+        let source_node_circle      = Vector2(node_half_width- source_node_half_height, 0.0);
+        let source_node_radius      = source_node_half_height;
 
         // === Update Highlights ===
 
@@ -1236,9 +1238,9 @@ impl EdgeModelData {
         let target_x               = target_x.abs();
         let target                 = Vector2(target_x,target_y);
         let target_is_below_node_x = target.x < node_half_width;
-        let target_is_below_node_y = target.y < (-node_half_height);
+        let target_is_below_node_y = target.y < (-source_node_half_height);
         let target_is_below_node   = target_is_below_node_x && target_is_below_node_y;
-        let port_line_len_max      = node_half_height + NODE_PADDING;
+        let port_line_len_max      = target_node_half_height + NODE_PADDING;
         let side_right_angle       = side * RIGHT_ANGLE;
 
 
@@ -1291,7 +1293,7 @@ impl EdgeModelData {
         //     ╰─────╯    connection is being dragged, in order not to overlap with the source node.
 
         let port_line_start    = Vector2(side * target.x, target.y + MOUSE_OFFSET);
-        let space_attached     = -port_line_start.y - node_half_height - LINE_SIDE_OVERLAP;
+        let space_attached     = -port_line_start.y - target_node_half_height - LINE_SIDE_OVERLAP;
         let space              = space_attached - NODE_PADDING;
         let len_below_free     = max(0.0,min(port_line_len_max,space));
         let len_below_attached = max(0.0,min(port_line_len_max,space_attached));
@@ -1331,8 +1333,8 @@ impl EdgeModelData {
         let corner1_radius = corner1_radius.min(corner1_target.y.abs());
         let corner1_x      = corner1_target.x - corner1_radius;
 
-        let corner1_x_loc       = corner1_x - node_circle.x;
-        let (y,angle)           = circle_intersection(corner1_x_loc,node_radius,corner1_radius);
+        let corner1_x_loc       = corner1_x - source_node_circle.x;
+        let (y,angle)           = circle_intersection(corner1_x_loc, source_node_radius, corner1_radius);
         let corner1_y           = if is_down {-y} else {y};
         let corner1             = Vector2(corner1_x*side, corner1_y);
         let angle_overlap       = if corner1_x > node_half_width { 0.0 } else { 0.1 };
@@ -1349,13 +1351,13 @@ impl EdgeModelData {
         bg.corner.shape.pos.set(corner1);
         bg.corner.set_position_xy(corner1);
         if !fully_attached {
-            bg.corner.shape.dim.set(Vector2(node_half_width,node_half_height));
+            bg.corner.shape.dim.set(Vector2(node_half_width, source_node_half_height));
             fg.corner.shape.sprite.size.set(corner1_size);
             fg.corner.shape.start_angle.set(corner1_start_angle);
             fg.corner.shape.angle.set(corner1_angle);
             fg.corner.shape.radius.set(corner1_radius);
             fg.corner.shape.pos.set(corner1);
-            fg.corner.shape.dim.set(Vector2(node_half_width,node_half_height));
+            fg.corner.shape.dim.set(Vector2(node_half_width, source_node_half_height));
             fg.corner.set_position_xy(corner1);
         } else {
             fg.corner.shape.sprite.size.set(zero());
@@ -1414,7 +1416,7 @@ impl EdgeModelData {
             let main_line_end_y = corner1.y;
             let main_line_len   = main_line_end_y - port_line_start.y;
             if !fully_attached && target_is_below_node {
-                let back_line_start_y = max(-node_half_height - NODE_PADDING, port_line_start.y);
+                let back_line_start_y = max(-source_node_half_height - NODE_PADDING, port_line_start.y);
                 let back_line_start = Vector2(port_line_start.x, back_line_start_y);
                 let back_line_len = main_line_end_y - back_line_start_y;
                 let front_line_len = main_line_len - back_line_len;
