@@ -58,7 +58,6 @@ impl ViewLayoutData {
 
     fn recalculate_layout(&mut self) {
         self.update_text_editor();
-        self.update_graph_editor();
         self.update_node_searcher();
     }
 
@@ -75,12 +74,6 @@ impl ViewLayoutData {
         self.text_editor.set_padding(padding);
         self.text_editor.set_size(size);
         TemporaryPanel::set_position(&mut self.text_editor,position);
-    }
-
-    fn update_graph_editor(&mut self) {
-        let screen_size  = self.size;
-        let position     = Vector3::new(50.0 - screen_size.x / 2.0, screen_size.y / 4.0, 0.0);
-        self.node_editor.set_position(position);
     }
 
     fn update_node_searcher(&mut self) {
@@ -100,18 +93,23 @@ impl ViewLayout {
     , text_controller          : controller::Text
     , graph_controller         : controller::ExecutedGraph
     , visualization_controller : controller::Visualization
-    , project                  : Rc<model::Project>
+    , project                  : impl Into<model::Project> // Note [ViewLayout::new]
     , fonts                    : &mut font::Registry
     ) -> FallibleResult<Self> {
+        let project       = project.into();
         let logger        = Logger::sub(logger,"ViewLayout");
         let world         = &application.display;
-        let text_editor   = TextEditor::new(&logger,world,text_controller,kb_actions,fonts);
-        let node_editor   = NodeEditor::new(&logger,application,graph_controller,
-            project.clone_ref(),visualization_controller);
+        let scene         = world.scene();
+        let focus_manager = world.text_field_focus_manager();
+        let text_editor   = TextEditor::new
+            (&logger,scene,text_controller,kb_actions,fonts,focus_manager);
+        let node_editor   = NodeEditor::new
+            (&logger,application,graph_controller,project.clone_ref(),visualization_controller);
         let node_editor   = node_editor.await?;
-        let node_searcher = NodeSearcher::new(world,&logger,node_editor.clone_ref(),project,fonts);
-        world.add_child(&text_editor.display_object());
+        let node_searcher = NodeSearcher::new
+            (scene,&logger,node_editor.clone_ref(),fonts,focus_manager,project);
         world.add_child(&node_editor);
+        world.add_child(&text_editor.display_object());
         world.add_child(&node_searcher);
         let size  = zero();
         let scene = world.scene();
@@ -120,12 +118,21 @@ impl ViewLayout {
         let node_searcher_show_action = None;
         let data = ViewLayoutData{network,text_editor,node_editor,node_searcher,size,logger,
             node_searcher_show_action,mouse_position_sampler};
-        let rc   = Rc::new(RefCell::new(data));
+        let rc = Rc::new(RefCell::new(data));
         Ok(Self {rc}.init(world,kb_actions))
     }
 
+    // Note [ViewLayout::new]
+    // ======================
+    // We cannot take directly `project:model::Project` as it seems that there's a bug in rustc
+    // that cannot properly handle lifetimes when async method is taking dyn Trait as a parameter.
+    // We believe it is the same issue as described here:
+    // https://github.com/rust-lang/rust/issues/63033
+    // Once it it resolved, the method signature should be simplified. For now we use impl Into<...>
+    // syntax as a workaround to avoid triggering the bug.
+
     fn init_keyboard(self, keyboard_actions:&mut keyboard::Actions) -> Self {
-        // TODO[ao] add here some useful staff (quitting project for example)
+        // TODO[ao] add here some useful stuff (quitting project for example)
         let layout                    = self.rc.clone_ref();
         let keys                      = &[keyboard::Key::Tab];
         let node_searcher_show_action = keyboard_actions.add_action(keys, move || {

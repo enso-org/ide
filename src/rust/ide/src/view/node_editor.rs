@@ -109,8 +109,14 @@ impl<Parameter:frp::Data> FencedAction<Parameter> {
 // ==============================
 
 /// The gap between nodes in pixels on default node layout (when user did not set any position of
-/// node - possible when node was added by editing text).
-const DEFAULT_GAP_BETWEEN_NODES:f32 = 44.0;
+/// node - possibly when node was added by editing text).
+const DEFAULT_GAP_BETWEEN_NODES : f32 =    4.0;
+/// The default X position of the node when user did not set any position of node - possibly when
+/// node was added by editing text.
+const DEFAULT_NODE_X_POSITION   : f32 = -100.0;
+/// The default Y position of the node when user did not set any position of node - possibly when
+/// node was added by editing text.
+const DEFAULT_NODE_Y_POSITION   : f32 =  200.0;
 
 /// A structure which handles integration between controller and graph_editor EnsoGl control.
 /// All changes made by user in view are reflected in controller, and all controller notifications
@@ -140,7 +146,7 @@ struct GraphEditorIntegratedWithControllerModel {
     logger             : Logger,
     editor             : GraphEditor,
     controller         : controller::ExecutedGraph,
-    project            : Rc<model::Project>,
+    project            : model::Project,
     node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
     connection_views   : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
@@ -156,7 +162,7 @@ impl GraphEditorIntegratedWithController {
     ( logger     : Logger
     , app        : &Application
     , controller : controller::ExecutedGraph
-    , project    : Rc<model::Project>) -> Self {
+    , project    : model::Project) -> Self {
         let model = GraphEditorIntegratedWithControllerModel::new(logger,app,controller,project);
         let model       = Rc::new(model);
         let editor_outs = &model.editor.frp.outputs;
@@ -168,6 +174,19 @@ impl GraphEditorIntegratedWithController {
                 }
             }));
         }
+
+
+        // === Project Renaming ===
+
+        let project_name = &model.editor.project_name;
+        frp::extend! {network
+            eval project_name.frp.outputs.name((name) {model.rename_project(name);});
+        }
+        model.editor.project_name.frp.cancel_editing.emit(());
+
+
+        // === UI Actions ===
+
         let node_removed = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_removed_in_ui,&invalidate.trigger);
         let node_entered = Self::ui_action(&model,
@@ -253,7 +272,7 @@ impl GraphEditorIntegratedWithControllerModel {
     ( logger     : Logger
     , app        : &Application
     , controller : controller::ExecutedGraph
-    , project    : Rc<model::Project>) -> Self {
+    , project    : model::Project) -> Self {
         let editor           = app.new_view::<GraphEditor>();
         let node_views       = default();
         let connection_views = default();
@@ -267,6 +286,26 @@ impl GraphEditorIntegratedWithControllerModel {
             error!(this.logger,"Error while initializing graph editor: {err}.");
         }
         this
+    }
+}
+
+
+// === Project renaming ===
+
+impl GraphEditorIntegratedWithControllerModel {
+    fn rename_project(&self, name:impl Str) {
+        if self.project.name() != name.as_ref() {
+            let project      = self.project.clone_ref();
+            let project_name = self.editor.project_name.clone_ref();
+            let logger       = self.logger.clone_ref();
+            let name         = name.into();
+            executor::global::spawn(async move {
+                if let Err(e) = project.rename_project(name).await {
+                    info!(logger, "The project couldn't be renamed: {e}");
+                    project_name.frp.cancel_editing.emit(());
+                }
+            });
+        }
     }
 }
 
@@ -294,7 +333,9 @@ impl GraphEditorIntegratedWithControllerModel {
         for (i,node_info) in nodes.iter().enumerate() {
             let id          = node_info.info.id();
             let node_trees  = trees.remove(&id).unwrap_or_else(default);
-            let default_pos = Vector2(0.0, i as f32 * -DEFAULT_GAP_BETWEEN_NODES);
+            let x           = DEFAULT_NODE_X_POSITION;
+            let y           = DEFAULT_NODE_Y_POSITION + i as f32 * -DEFAULT_GAP_BETWEEN_NODES;
+            let default_pos = Vector2(x,y);
             let displayed   = self.node_views.borrow_mut().get_by_left(&id).cloned();
             match displayed {
                 Some(displayed) => self.refresh_node_view(displayed, node_info, node_trees),
@@ -547,9 +588,9 @@ impl GraphEditorIntegratedWithControllerModel {
     fn node_moved_in_ui(&self, param:&(graph_editor::NodeId, Vector2)) -> FallibleResult<()> {
         let (displayed_id,pos) = param;
         let id                 = self.get_controller_node_id(*displayed_id)?;
-        self.controller.graph().module.with_node_metadata(id, |md| {
+        self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
             md.position = Some(model::module::Position::new(pos.x,pos.y));
-        });
+        }));
         Ok(())
     }
 
@@ -586,7 +627,7 @@ impl GraphEditorIntegratedWithControllerModel {
         //   Because of that for now we will just hardcode the `visualization_module` using
         //   fixed defaults. In future this will be changed, then the editor will also get access
         //   to the customised values.
-        let project_name         = self.project.name.as_ref();
+        let project_name:String  = self.project.name().into();
         let module_name          = crate::view::project::INITIAL_MODULE_NAME;
         let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
         let id                   = VisualizationId::new_v4();
@@ -753,7 +794,7 @@ impl NodeEditor {
     ( logger        : impl AnyLogger
     , app           : &Application
     , controller    : controller::ExecutedGraph
-    , project       : Rc<model::Project>
+    , project       : model::Project
     , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = Logger::sub(logger,"NodeEditor");
         let display_object = display::object::Instance::new(&logger);
@@ -769,6 +810,8 @@ impl NodeEditor {
         let graph_editor = self.graph.graph_editor();
         let identifiers  = self.visualization.list_visualizations().await;
         let identifiers  = identifiers.unwrap_or_default();
+        let project_name = self.graph.model.project.name().to_string();
+        graph_editor.project_name.frp.name.emit(project_name);
         for identifier in identifiers {
             let visualization = self.visualization.load_visualization(&identifier).await;
             let visualization = visualization.map(|visualization| {
@@ -782,7 +825,7 @@ impl NodeEditor {
 
     /// The path to the module, which graph is currently displayed.
     pub fn displayed_module(&self) -> model::module::Path {
-        self.graph.model.controller.graph().module.path.clone_ref()
+        self.graph.model.controller.graph().module.path().clone_ref()
     }
 }
 
