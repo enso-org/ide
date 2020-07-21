@@ -269,6 +269,7 @@ pub trait Min {
     fn min(self, other:Self) -> Self;
 }
 
+#[allow(missing_docs)]
 pub fn min<T:Min>(a:T, b:T) -> T {
     a.min(b)
 }
@@ -293,6 +294,7 @@ pub trait Max {
     fn max(self, other:Self) -> Self;
 }
 
+#[allow(missing_docs)]
 pub fn max<T:Max>(a:T, b:T) -> T {
     a.max(b)
 }
