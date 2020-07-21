@@ -37,8 +37,8 @@ impl NodeSearcher {
     , node_editor   : NodeEditor
     , fonts         : &mut font::Registry
     , focus_manager : &FocusManager
-    , project       : model::Project)
-    -> Self {
+    , project       : model::Project
+    ) -> Self {
         let scene          = scene.into();
         let camera         = scene.camera();
         let screen         = camera.screen();

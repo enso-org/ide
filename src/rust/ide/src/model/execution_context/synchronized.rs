@@ -93,17 +93,6 @@ impl ExecutionContext {
         self.model.computed_value_info_registry.apply_update(notification);
         Ok(())
     }
-
-    // /// Create a mock which does no call on `language_server` during construction.
-    // #[cfg(test)]
-    // fn new_mock
-    // ( id              : model::execution_context::Id
-    // , model           : model::ExecutionContext
-    // , language_server : Rc<language_server::Connection>
-    // ) -> Self {
-    //     let logger          = Logger::new("ExecuctionContext mock");
-    //     ExecutionContext {id,model,language_server,logger}
-    // }
 }
 
 impl model::execution_context::API for ExecutionContext {
