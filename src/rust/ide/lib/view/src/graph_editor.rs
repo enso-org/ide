@@ -2078,12 +2078,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Entering and Exiting Nodes ===
 
-    // FIXME[dg]: Remove hardcoded value.
-    eval_ inputs.enter_selected_node({
-        model.breadcrumbs.frp.push_breadcrumb.emit("hardcoded".to_string())
-    });
-    eval_ inputs.exit_node(model.breadcrumbs.frp.pop_breadcrumb.emit(()));
-
     node_to_enter        <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     outputs.node_entered <+ node_to_enter;
     outputs.node_exited  <+ inputs.exit_node;

@@ -176,6 +176,13 @@ impl GraphEditorIntegratedWithController {
         }
 
 
+        // === Breadcrumb Selection ===
+
+        let breadcrumbs = &model.editor.breadcrumbs;
+        frp::extend! {network
+            eval_ breadcrumbs.frp.outputs.breadcrumb_pop(model.node_exited_in_ui(&()).ok());
+        }
+
         // === Project Renaming ===
 
         let project_name = &model.editor.project_name;
@@ -701,13 +708,20 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
+
         debug!(self.logger,"Requesting entering the node {node_id}.");
-        let id           = self.get_controller_node_id(*node_id)?;
-        let controller   = self.controller.clone_ref();
-        let logger       = self.logger.clone_ref();
-        let enter_action = async move {
+        let id             = self.get_controller_node_id(*node_id)?;
+        let info           = self.lookup_computed_info(&id);
+        let controller     = self.controller.clone_ref();
+        let logger         = self.logger.clone_ref();
+        let graph_editor   = self.editor.clone_ref();
+        let enter_action   = async move {
             let result = controller.enter_node(id).await;
             debug!(logger,"Entering node result: {result:?}.");
+            let method_pointer = info.as_ref().and_then(|info| info.method_pointer.as_ref());
+            if let (Ok(_),Some(method_pointer)) = (result,method_pointer) {
+                graph_editor.breadcrumbs.frp.push_breadcrumb.emit(&method_pointer.name)
+            }
         };
         executor::global::spawn(enter_action);
         Ok(())
@@ -715,11 +729,15 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn node_exited_in_ui(&self, _:&()) -> FallibleResult<()> {
         debug!(self.logger,"Requesting exiting the current node.");
-        let controller      = self.controller.clone_ref();
-        let logger          = self.logger.clone_ref();
+        let controller   = self.controller.clone_ref();
+        let logger       = self.logger.clone_ref();
+        let graph_editor = self.editor.clone_ref();
         let exit_node_action = async move {
             let result = controller.exit_node().await;
             debug!(logger,"Exiting node result: {result:?}.");
+            if let Ok(_) = result {
+                graph_editor.breadcrumbs.frp.pop_breadcrumb.emit(())
+            }
         };
         executor::global::spawn(exit_node_action);
         Ok(())

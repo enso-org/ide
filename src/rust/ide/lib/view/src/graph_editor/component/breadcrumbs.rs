@@ -48,18 +48,16 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    pub pushed_breadcrumb : frp::Source<String>,
-    pub popped_breadcrumb : frp::Source<String>
+    pub breadcrumb_pop : frp::Source
 }
 
 impl FrpOutputs {
     /// Create new FrpOutputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            def pushed_breadcrumb = source();
-            def popped_breadcrumb = source();
+            def breadcrumb_pop = source();
         }
-        Self{pushed_breadcrumb,popped_breadcrumb}
+        Self{breadcrumb_pop}
     }
 }
 
@@ -130,7 +128,8 @@ pub struct BreadcrumbsModel {
     animations     : Animations,
     display_object : display::object::Instance,
     scene          : Scene,
-    breadcrumbs    : Rc<RefCell<Vec<Breadcrumb>>>
+    breadcrumbs    : Rc<RefCell<Vec<Breadcrumb>>>,
+    breadcrumb_pop : frp::Source
 }
 
 impl BreadcrumbsModel {
@@ -142,7 +141,8 @@ impl BreadcrumbsModel {
         let animations     = Animations::new(&frp.network);
         let scene          = scene.clone_ref();
         let breadcrumbs    = Rc::new(RefCell::new(default()));
-        Self{logger,display_object,animations,scene,breadcrumbs}
+        let breadcrumb_pop = frp.outputs.breadcrumb_pop.clone_ref();
+        Self{logger,display_object,animations,scene,breadcrumbs,breadcrumb_pop}
     }
 
     fn width(&self) -> f32 {
@@ -154,13 +154,12 @@ impl BreadcrumbsModel {
     }
 
     fn select_breadcrumb(&self, index:usize) {
-        // If we have more crumbs after `index`, we will remove them.
-        let split_index = index + 1;
-        if split_index < self.breadcrumbs.borrow().len() {
-            let removed_breadcrumbs = self.breadcrumbs.borrow_mut().split_off(split_index);
-            for removed_breadcrumb in removed_breadcrumbs {
-                removed_breadcrumb.unset_parent();
-            }
+        // If we have more crumbs after `index`, we will pop them.
+        let breadcrumb_length = self.breadcrumbs.borrow().len();
+        let last_index        = breadcrumb_length - 1;
+        let pop_amount        = last_index - index;
+        for _ in 0..pop_amount {
+            self.breadcrumb_pop.emit(());
         }
         info!(self.logger,"Selecting breadcrumb #{index}");
     }
@@ -212,7 +211,7 @@ impl Breadcrumbs {
     /// Create a new ProjectName view.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S) -> Self {
         let frp     = Frp::new();
-        let model   = Rc::new(BreadcrumbsModel::new(scene, &frp));
+        let model   = Rc::new(BreadcrumbsModel::new(scene,&frp));
         let network = &frp.network;
         frp::extend! { network
             eval frp.push_breadcrumb((name) {model.push_breadcrumb(name)});
