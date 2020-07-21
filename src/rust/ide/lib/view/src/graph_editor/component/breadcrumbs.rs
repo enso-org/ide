@@ -1,5 +1,5 @@
 //! This module provides a view for breadcrumbs, enabling us to know which node the graph being
-//! edited belongs to.
+//! edited belongs to and navigating through them.
 
 use crate::prelude::*;
 
@@ -104,7 +104,7 @@ impl Frp {
 // === Animations ===
 // ==================
 
-/// ProjectName's animations handlers.
+/// Breadcrumbs' animations handlers.
 #[derive(Debug,Clone,CloneRef,Copy)]
 pub struct Animations {}
 
@@ -133,24 +133,20 @@ pub struct BreadcrumbsModel {
 }
 
 impl BreadcrumbsModel {
-    /// Create new ProjectNameModel.
+    /// Create new BreadcrumbsModel.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S,frp:&Frp) -> Self {
         let scene          = scene.into();
         let logger         = Logger::new("Breadcrumbs");
         let display_object = display::object::Instance::new(&logger);
         let animations     = Animations::new(&frp.network);
         let scene          = scene.clone_ref();
-        let breadcrumbs    = Rc::new(RefCell::new(default()));
+        let breadcrumbs    = default();
         let breadcrumb_pop = frp.outputs.breadcrumb_pop.clone_ref();
         Self{logger,display_object,animations,scene,breadcrumbs,breadcrumb_pop}
     }
 
     fn width(&self) -> f32 {
-        let mut width = 0.0;
-        for breadcrumb in self.breadcrumbs.borrow().iter() {
-            width += breadcrumb.width();
-        }
-        width
+        self.breadcrumbs.borrow().iter().fold(0.0, |acc,breadcrumb| acc + breadcrumb.width())
     }
 
     fn select_breadcrumb(&self, index:usize) {
@@ -198,7 +194,7 @@ impl display::Object for BreadcrumbsModel {
 // === Breadcrumbs ===
 // ===================
 
-/// The project name's view used for visualizing the project name and renaming it.
+/// The Breadcrumb's view used for visualizing the breadcrumbs and navigating them.
 #[derive(Debug,Clone,CloneRef,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct Breadcrumbs {
@@ -208,7 +204,7 @@ pub struct Breadcrumbs {
 }
 
 impl Breadcrumbs {
-    /// Create a new ProjectName view.
+    /// Create a new Breadcrumbs view.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(BreadcrumbsModel::new(scene,&frp));
