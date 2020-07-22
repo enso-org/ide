@@ -39,7 +39,7 @@ const TEXT_SIZE         : f32 = 12.0;
 #[allow(missing_docs)]
 pub struct FrpInputs {
     /// Push breadcrumb.
-    pub push_breadcrumb : frp::Source<String>,
+    pub push_breadcrumb : frp::Source<(String,uuid::Uuid)>,
     /// Pop breadcrumb.
     pub pop_breadcrumb : frp::Source,
 }
@@ -165,7 +165,7 @@ impl BreadcrumbsModel {
 
     fn init(self) -> Self {
         self.add_child(&self.project_name);
-        self.push_breadcrumb("Main");
+        self.push_breadcrumb("Main",&default());
         self
     }
 
@@ -184,8 +184,8 @@ impl BreadcrumbsModel {
         info!(self.logger,"Selecting breadcrumb #{index}");
     }
 
-    fn push_breadcrumb(&self, name:impl Str) {
-        let breadcrumb       = Breadcrumb::new(&self.scene,name);
+    fn push_breadcrumb(&self, name:impl Str,expression_id:&uuid::Uuid) {
+        let breadcrumb       = Breadcrumb::new(&self.scene,name,*expression_id);
         let network          = &breadcrumb.frp.network;
         let breadcrumb_index = self.breadcrumbs.borrow().len();
         let model            = self.clone_ref();
@@ -194,7 +194,7 @@ impl BreadcrumbsModel {
             eval_ breadcrumb.frp.outputs.selected(model.select_breadcrumb(breadcrumb_index));
         }
 
-        info!(self.logger,"Pushing {breadcrumb.name} breadcrumb");
+        info!(self.logger,"Pushing {breadcrumb.info.name} breadcrumb");
         breadcrumb.set_position(Vector3::new(self.width(),0.0,0.0));
         self.add_child(&breadcrumb);
         self.breadcrumbs.borrow_mut().push(breadcrumb);
@@ -234,7 +234,9 @@ impl Breadcrumbs {
         let model   = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
-            eval frp.push_breadcrumb((name) {model.push_breadcrumb(name)});
+            eval frp.push_breadcrumb(((name,expression_id)) {
+                model.push_breadcrumb(name,expression_id)
+            });
             eval_ frp.pop_breadcrumb(model.pop_breadcrumb());
         }
         Self{frp,model}

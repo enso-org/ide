@@ -708,7 +708,6 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
-
         debug!(self.logger,"Requesting entering the node {node_id}.");
         let id             = self.get_controller_node_id(*node_id)?;
         let info           = self.lookup_computed_info(&id);
@@ -717,10 +716,15 @@ impl GraphEditorIntegratedWithControllerModel {
         let graph_editor   = self.editor.clone_ref();
         let enter_action   = async move {
             let result = controller.enter_node(id).await;
-            debug!(logger,"Entering node result: {result:?}.");
             let method_pointer = info.as_ref().and_then(|info| info.method_pointer.as_ref());
-            if let (Ok(_),Some(method_pointer)) = (result,method_pointer) {
-                graph_editor.breadcrumbs.frp.push_breadcrumb.emit(&method_pointer.name)
+            match (result,method_pointer) {
+                (Ok(_),Some(method_pointer)) => {
+                    info!(logger,"Entering node.");
+                    let breadcrumb_info = (method_pointer.name.clone(),id);
+                    graph_editor.breadcrumbs.frp.push_breadcrumb.emit(&breadcrumb_info);
+                },
+                (Err(e),_) => error!(logger,"Couldn't enter node: {e}"),
+                (_,None)   => error!(logger,"Couldn't enter node: Computed info not found.")
             }
         };
         executor::global::spawn(enter_action);
@@ -734,9 +738,12 @@ impl GraphEditorIntegratedWithControllerModel {
         let graph_editor = self.editor.clone_ref();
         let exit_node_action = async move {
             let result = controller.exit_node().await;
-            debug!(logger,"Exiting node result: {result:?}.");
-            if result.is_ok() {
-                graph_editor.breadcrumbs.frp.pop_breadcrumb.emit(())
+            match result {
+                Ok(_) => {
+                    info!(logger,"Exiting node.");
+                    graph_editor.breadcrumbs.frp.pop_breadcrumb.emit(())
+                },
+                Err(e) => error!(logger,"Couldn't exit node: {e}")
             }
         };
         executor::global::spawn(exit_node_action);

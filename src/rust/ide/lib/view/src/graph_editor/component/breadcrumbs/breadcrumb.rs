@@ -118,6 +118,20 @@ impl Frp {
 
 
 
+// ======================
+// === BreadcrumbInfo ===
+// ======================
+
+/// Breadcrumb information such as name and expression id.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct BreadcrumbInfo {
+    pub name          : String,
+    pub expression_id : uuid::Uuid
+}
+
+
+
 // ========================
 // === BreadcrumbModel ===
 // ========================
@@ -130,22 +144,23 @@ pub struct BreadcrumbModel {
     view           : component::ShapeView<background::Shape>,
     glyph_system   : GlyphSystem,
     label          : Line,
-    pub name       : Rc<String>
+    pub info       : Rc<BreadcrumbInfo>
 }
 
 impl BreadcrumbModel {
     /// Create a new BreadcrumbModel.
-    pub fn new<'t,S:Into<&'t Scene>>(scene:S,name:impl Str) -> Self {
+    pub fn new<'t,S:Into<&'t Scene>>(scene:S,name:impl Str, expression_id:uuid::Uuid) -> Self {
         let scene          = scene.into();
         let logger         = Logger::new("Breadcrumbs");
         let display_object = display::object::Instance::new(&logger);
         let view_logger    = Logger::sub(&logger,"view_logger");
         let view           = component::ShapeView::<background::Shape>::new(&view_logger, scene);
-        let name           = Rc::new(name.into());
+        let name           = name.into();
         let font           = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let glyph_system   = GlyphSystem::new(scene,font);
         let label          = glyph_system.new_line();
-        Self{logger,view,display_object,name,glyph_system,label}.init()
+        let info           = Rc::new(BreadcrumbInfo{name,expression_id});
+        Self{logger,view,display_object,glyph_system,label,info}.init()
     }
 
     fn init(self) -> Self {
@@ -157,7 +172,7 @@ impl BreadcrumbModel {
         self.label.set_font_size(TEXT_SIZE);
         self.label.set_font_color(color);
         //FIXME[dg]: Remove text separators.
-        self.label.set_text(format!("> {}", self.name));
+        self.label.set_text(format!("> {}", self.info.name));
         self.label.set_position(Vector3::new(HORIZONTAL_MARGIN,-TEXT_SIZE-VERTICAL_MARGIN,0.0));
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.view.set_position(Vector3::new(width,-height,0.0)/2.0);
@@ -170,7 +185,7 @@ impl BreadcrumbModel {
     pub fn width(&self) -> f32 {
         //FIXME[dg]: Remove text separators.
         let number_of_separator_glyphs = 2;
-        let glyphs = (self.name.len() + number_of_separator_glyphs) as f32;
+        let glyphs = (self.info.name.len() + number_of_separator_glyphs) as f32;
         glyphs * GLYPH_WIDTH + HORIZONTAL_MARGIN
     }
 }
@@ -198,9 +213,9 @@ pub struct Breadcrumb {
 
 impl Breadcrumb {
     /// Create a new ProjectName view.
-    pub fn new<'t,S:Into<&'t Scene>>(scene:S, name:impl Str) -> Self {
+    pub fn new<'t,S:Into<&'t Scene>>(scene:S, name:impl Str, expression_id:uuid::Uuid) -> Self {
         let frp     = Frp::new();
-        let model   = Rc::new(BreadcrumbModel::new(scene,name));
+        let model   = Rc::new(BreadcrumbModel::new(scene,name,expression_id));
         let network = &frp.network;
 
         frp::extend! {network
