@@ -4,7 +4,10 @@
 use crate::prelude::*;
 
 pub mod breadcrumb;
+pub mod project_name;
+
 pub use breadcrumb::Breadcrumb;
+pub use project_name::ProjectName;
 
 use enso_frp as frp;
 use ensogl::display;
@@ -12,6 +15,19 @@ use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
 use logger::enabled::Logger;
 use logger::AnyLogger;
+use ensogl::display::shape::text::text_field::FocusManager;
+
+
+
+// =================
+// === Constants ===
+// =================
+
+// FIXME[dg] hardcoded literal for glyph of height 12.0. Copied from port.rs
+const GLYPH_WIDTH       : f32 = 7.224_609_4;
+const VERTICAL_MARGIN   : f32 = GLYPH_WIDTH * 2.0;
+const HORIZONTAL_MARGIN : f32 = GLYPH_WIDTH;
+const TEXT_SIZE         : f32 = 12.0;
 
 
 
@@ -124,29 +140,37 @@ impl Animations {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct BreadcrumbsModel {
-    logger         : Logger,
-    animations     : Animations,
-    display_object : display::object::Instance,
-    scene          : Scene,
-    breadcrumbs    : Rc<RefCell<Vec<Breadcrumb>>>,
-    breadcrumb_pop : frp::Source
+    logger           : Logger,
+    animations       : Animations,
+    display_object   : display::object::Instance,
+    pub project_name : ProjectName,
+    scene            : Scene,
+    breadcrumbs      : Rc<RefCell<Vec<Breadcrumb>>>,
+    breadcrumb_pop   : frp::Source
 }
 
 impl BreadcrumbsModel {
     /// Create new BreadcrumbsModel.
-    pub fn new<'t,S:Into<&'t Scene>>(scene:S,frp:&Frp) -> Self {
+    pub fn new<'t,S:Into<&'t Scene>>(scene:S, frp:&Frp, focus_manager:&FocusManager) -> Self {
         let scene          = scene.into();
+        let project_name   = ProjectName::new(scene,focus_manager);
         let logger         = Logger::new("Breadcrumbs");
         let display_object = display::object::Instance::new(&logger);
         let animations     = Animations::new(&frp.network);
         let scene          = scene.clone_ref();
         let breadcrumbs    = default();
         let breadcrumb_pop = frp.outputs.breadcrumb_pop.clone_ref();
-        Self{logger,display_object,animations,scene,breadcrumbs,breadcrumb_pop}
+        Self{logger,display_object,animations,scene,breadcrumbs,breadcrumb_pop,project_name}.init()
+    }
+
+    fn init(self) -> Self {
+        self.add_child(&self.project_name);
+        self.push_breadcrumb("Main");
+        self
     }
 
     fn width(&self) -> f32 {
-        self.breadcrumbs.borrow().iter().fold(0.0, |acc,breadcrumb| acc + breadcrumb.width())
+        self.breadcrumbs.borrow().iter().fold(self.project_name.width(), |acc,breadcrumb| acc + breadcrumb.width())
     }
 
     fn select_breadcrumb(&self, index:usize) {
@@ -205,9 +229,9 @@ pub struct Breadcrumbs {
 
 impl Breadcrumbs {
     /// Create a new Breadcrumbs view.
-    pub fn new<'t,S:Into<&'t Scene>>(scene:S) -> Self {
+    pub fn new<'t,S:Into<&'t Scene>>(scene:S, focus_manager:&FocusManager) -> Self {
         let frp     = Frp::new();
-        let model   = Rc::new(BreadcrumbsModel::new(scene,&frp));
+        let model   = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
             eval frp.push_breadcrumb((name) {model.push_breadcrumb(name)});

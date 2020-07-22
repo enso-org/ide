@@ -978,7 +978,6 @@ pub struct GraphEditorModel {
     pub display_object : display::object::Instance,
     pub scene          : Scene,
     pub breadcrumbs    : component::Breadcrumbs,
-    pub project_name   : component::ProjectName,
     pub cursor         : cursor::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
@@ -1004,17 +1003,12 @@ impl GraphEditorModel {
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
-        let project_name   = component::ProjectName::new(scene,focus_manager);
-        let breadcrumbs    = component::Breadcrumbs::new(scene);
-        display_object.add_child(&project_name);
+        let breadcrumbs    = component::Breadcrumbs::new(scene,focus_manager);
         display_object.add_child(&breadcrumbs);
         let screen = scene.camera().screen();
-        let margin = 10.0;
-        project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
         breadcrumbs.set_position(Vector3::new(-screen.width,screen.height,0.0)/2.0);
         let scene = scene.clone_ref();
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name
-            ,breadcrumbs}//visualizations }
+        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,breadcrumbs}//visualizations }
     }
 
     fn create_edge(&self) -> EdgeId {
@@ -1490,7 +1484,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Cancel project name editing ===
 
     frp::extend! { network
-        eval_ inputs.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
+        eval_ inputs.cancel_project_name_editing({
+            model.breadcrumbs.project_name.frp.cancel_editing.emit(())
+        });
     }
 
 

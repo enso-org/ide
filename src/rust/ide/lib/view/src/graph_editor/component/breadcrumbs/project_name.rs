@@ -2,6 +2,10 @@
 
 use crate::prelude::*;
 
+use crate::graph_editor::component::breadcrumbs::TEXT_SIZE;
+use crate::graph_editor::component::breadcrumbs::GLYPH_WIDTH;
+use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
+
 use enso_frp as frp;
 use ensogl::data::color;
 use ensogl::display;
@@ -22,12 +26,10 @@ use nalgebra::Vector2;
 use ensogl::animation::linear_interpolation;
 
 
-
 // =================
 // === Constants ===
 // =================
 
-const TEXT_SIZE              : f32         = 12.0;
 const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
 const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
 
@@ -196,13 +198,22 @@ impl ProjectNameModel {
         Self{logger,view,display_object,text_field,project_name,name_output,animations}.init()
     }
 
-    fn update_center_alignment(&self) {
-        let width  = self.text_field.width_of_line(0);
-        let offset = Vector3::new(-width/2.0,0.0,0.0);
-        let height = self.text_field.line_height();
+    /// Get the width of the ProjectName view.
+    pub fn width(&self) -> f32 {
+        let content = self.text_field.get_content();
+        let glyphs  = content.len();
+        glyphs as f32 * GLYPH_WIDTH
+    }
+
+    fn update_alignment(&self) {
+        let width       = self.width();
+        let line_height = self.text_field.line_height();
+        let height      = line_height + VERTICAL_MARGIN * 2.0;
+        let offset_y    = 1.8;
+        //self.text_field.set_position(Vector3::new(0.0,-line_height-VERTICAL_MARGIN,0.0));
+        self.text_field.set_position(Vector3::new(0.0,-offset_y-VERTICAL_MARGIN,0.0));
         self.view.shape.sprite.size.set(Vector2::new(width,height));
-        self.view.set_position(Vector3::new(0.0,-height/2.0,0.0));
-        self.animations.position.set_target_value(offset);
+        self.view.set_position(Vector3::new(width,-height,0.0)/2.0);
     }
 
     fn init(self) -> Self {
@@ -220,7 +231,7 @@ impl ProjectNameModel {
 
     fn update_text_field_content(&self) {
         self.text_field.set_content(&self.project_name.borrow());
-        self.update_center_alignment();
+        self.update_alignment();
     }
 
     fn set_opacity(&self, value:f32) {
@@ -306,7 +317,7 @@ impl ProjectName {
                 }
                 // Keep only one line.
                 project_name.text_field.set_content(&new_name);
-                project_name.update_center_alignment();
+                project_name.update_alignment();
             }
         });
         self

@@ -185,11 +185,11 @@ impl GraphEditorIntegratedWithController {
 
         // === Project Renaming ===
 
-        let project_name = &model.editor.project_name;
+        let project_name = &model.editor.breadcrumbs.project_name;
         frp::extend! {network
             eval project_name.frp.outputs.name((name) {model.rename_project(name);});
         }
-        model.editor.project_name.frp.cancel_editing.emit(());
+        model.editor.breadcrumbs.project_name.frp.cancel_editing.emit(());
 
 
         // === UI Actions ===
@@ -304,7 +304,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let name = name.into();
         if self.project.project_name().to_string() != name {
             let project      = self.project.clone_ref();
-            let project_name = self.editor.project_name.clone_ref();
+            let project_name = self.editor.breadcrumbs.project_name.clone_ref();
             let logger       = self.logger.clone_ref();
             executor::global::spawn(async move {
                 if let Err(e) = project.rename_project(&name).await {
@@ -830,7 +830,7 @@ impl NodeEditor {
         let identifiers  = self.visualization.list_visualizations().await;
         let identifiers  = identifiers.unwrap_or_default();
         let project_name = self.graph.model.project.project_name().to_string();
-        graph_editor.project_name.frp.name.emit(project_name);
+        graph_editor.breadcrumbs.project_name.frp.name.emit(project_name);
         for identifier in identifiers {
             let visualization = self.visualization.load_visualization(&identifier).await;
             let visualization = visualization.map(|visualization| {

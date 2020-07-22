@@ -2,6 +2,11 @@
 
 use crate::prelude::*;
 
+use super::GLYPH_WIDTH;
+use super::HORIZONTAL_MARGIN;
+use super::VERTICAL_MARGIN;
+use super::TEXT_SIZE;
+
 use enso_frp as frp;
 use ensogl::data::color;
 use ensogl::display;
@@ -20,17 +25,6 @@ use nalgebra::Vector2;
 
 
 
-// =================
-// === Constants ===
-// =================
-
-const TEXT_SIZE         : f32 = 12.0;
-const GLYPH_WIDTH       : f32 = 7.224_609_4; // FIXME[dg] hardcoded literal. Copied from port.rs
-const VERTICAL_MARGIN   : f32 = GLYPH_WIDTH * 2.0;
-const HORIZONTAL_MARGIN : f32 = GLYPH_WIDTH;
-
-
-
 // ==================
 // === Background ===
 // ==================
@@ -40,7 +34,7 @@ mod background {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32) {
-            let bg_color = color::Rgba::new(0.0,0.0,0.0,0.000_01);
+            let bg_color = color::Rgba::new(0.0,0.0,0.0,0.000_001);
             Plane().fill(bg_color).into()
         }
     }
@@ -159,7 +153,6 @@ impl BreadcrumbModel {
 
         let width       = self.width();
         let height      = TEXT_SIZE + VERTICAL_MARGIN * 2.0;
-
         let color       = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
         self.label.set_font_size(TEXT_SIZE);
         self.label.set_font_color(color);
@@ -167,7 +160,7 @@ impl BreadcrumbModel {
         self.label.set_text(format!("> {}", self.name));
         self.label.set_position(Vector3::new(HORIZONTAL_MARGIN,-TEXT_SIZE-VERTICAL_MARGIN,0.0));
         self.view.shape.sprite.size.set(Vector2::new(width,height));
-        self.view.set_position(Vector3::new(width/2.0,-height/2.0,0.0));
+        self.view.set_position(Vector3::new(width,-height,0.0)/2.0);
         self.add_child(&self.label);
 
         self
@@ -178,7 +171,7 @@ impl BreadcrumbModel {
         //FIXME[dg]: Remove text separators.
         let number_of_separator_glyphs = 2;
         let glyphs = (self.name.len() + number_of_separator_glyphs) as f32;
-        glyphs * GLYPH_WIDTH + HORIZONTAL_MARGIN * 2.0
+        glyphs * GLYPH_WIDTH + HORIZONTAL_MARGIN
     }
 }
 
