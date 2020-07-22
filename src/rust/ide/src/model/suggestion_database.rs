@@ -264,7 +264,7 @@ mod test {
             module        : "TestProject.TestModule".to_string(),
             arguments     : vec![],
             return_type   : "TestAtom".to_string(),
-            documentation : None
+            documentation : Some("Test *Atom*".to_string())
         };
         let db_entry = SuggestionsDatabaseEntry {id:12, suggestion:entry};
         let response = language_server::response::GetSuggestionDatabase {
@@ -272,8 +272,14 @@ mod test {
             current_version : 456
         };
         let db = SuggestionDatabase::from_ls_response(response);
+        let response_doc =
+            "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"UTF-8\" \
+            /><link rel=\"stylesheet\" href=\"style.css\" /><title></title></head><body><div class=\
+            \"Doc\"><div class=\"Synopsis\"><div class=\"Raw\">Test <b>Atom</b></div></div></div>\
+            </body></html>";
         assert_eq!(db.entries.borrow().len(), 1);
         assert_eq!(*db.get(12).unwrap().name, "TextAtom".to_string());
+        assert_eq!(db.get(12).unwrap().documentation, Some(response_doc.to_string()));
         assert_eq!(db.version.get(), 456);
     }
 
