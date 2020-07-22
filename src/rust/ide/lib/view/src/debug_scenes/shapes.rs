@@ -108,7 +108,7 @@ fn init(app:&Application) {
 
     world.add_child(&text_area);
 
-    text_area.add_cursor(0.bytes());
+    text_area.add_cursor_old(0.bytes());
 //    text_area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
     text_area.insert("open€ \"data.csv\"\nline2 continuation\nline3 continuation");
 

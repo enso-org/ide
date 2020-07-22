@@ -24,6 +24,8 @@ use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::gui::component::Animation;
+use enso_frp::stream::ValueProvider;
+use enso_frp::io::keyboard::Key;
 
 
 
@@ -306,6 +308,8 @@ impl Lines {
 
 ensogl::def_command_api! { Commands
     /// Set the text cursor at the mouse cursor position.
+    insert_char_of_last_pressed_key,
+    /// Set the text cursor at the mouse cursor position.
     set_cursor_at_mouse_position,
     /// Add a new cursor at the mouse cursor position.
     add_cursor_at_mouse_position,
@@ -361,9 +365,9 @@ impl Deref for Area {
 }
 
 impl Area {
-    pub fn new(scene:&Scene) -> Self {
+    pub fn new(app:&Application) -> Self {
         let network = frp::Network::new();
-        let data    = AreaData::new(scene,&network);
+        let data    = AreaData::new(app,&network);
         let output  = FrpOutputs::new(&network);
         let frp     = Frp::new(network,data.frp.clone_ref(),output);
         Self {data,frp} . init()
@@ -385,28 +389,18 @@ impl Area {
             mouse_cursor <- any(cursor_over,cursor_out);
             self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
 
-            mouse_down_pos <- mouse.position.sample(&model.frp.command.set_cursor_at_mouse_position);
-            _eval <- mouse_down_pos.map2(&model.scene.frp.shape, f!([model](screen_pos,shape) {
+            mouse_on_set_cursor <- mouse.position.sample(&model.frp.command.set_cursor_at_mouse_position);
+            mouse_on_add_cursor <- mouse.position.sample(&model.frp.command.add_cursor_at_mouse_position);
 
-                let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
-                let origin_clip_space  = model.scene.camera().view_projection_matrix() * origin_world_space;
-                let inv_object_matrix  = model.transform_matrix().try_inverse().unwrap();
+            eval mouse_on_set_cursor ([model](screen_pos) {
+                let location = model.get_in_text_location(*screen_pos);
+                model.buffer.frp.input.set_cursor.emit(location);
+            });
 
-                let clip_space_z = origin_clip_space.z;
-                let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
-                let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
-                let clip_space   = Vector4(clip_space_x,clip_space_y,clip_space_z,origin_clip_space.w);
-                let world_space  = model.scene.camera().inversed_view_projection_matrix() * clip_space;
-                let object_space = inv_object_matrix * world_space;
-
-                let line_index = (-object_space.y / LINE_HEIGHT) as usize;
-                let line_index = std::cmp::min(line_index,model.lines.len() - 1);
-                let div_index  = model.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
-                let div        = model.lines.rc.borrow()[line_index].divs[div_index];
-
-                model.buffer.frp.input.set_cursor.emit(Location(buffer::Line(line_index),div.byte_offset));
-
-            }));
+            eval mouse_on_add_cursor ([model](screen_pos) {
+                let location = model.get_in_text_location(*screen_pos);
+                model.buffer.frp.input.add_cursor.emit(location);
+            });
 
             _eval <- model.buffer.frp.output.selection.map2
                 (&model.scene.frp.frame_time,f!([model,pos](selections,time) {
@@ -444,6 +438,11 @@ impl Area {
                     *selection_map = new_selection_map;
             }));
 
+            eval_ model.buffer.frp.output.changed ([model] {
+                println!("CHANGED");
+                model.redraw();
+            });
+
 //            _eval <- pos.value.map2 (&model.scene.frp.frame_time, f!([model](p,time) {
 //                model.selection_map.borrow()[0].set_position_xy(*p);
 //                model.selection_map.borrow()[0].shape.start_time.set(*time);
@@ -453,6 +452,17 @@ impl Area {
             eval_ command.move_cursor_right (model.buffer.frp.input.move_carets.emit(Some(Movement::Right)));
             eval_ command.move_cursor_up    (model.buffer.frp.input.move_carets.emit(Some(Movement::Up)));
             eval_ command.move_cursor_down  (model.buffer.frp.input.move_carets.emit(Some(Movement::Down)));
+
+            key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample(&command.insert_char_of_last_pressed_key);
+            trace key_on_char_to_insert;
+            char_to_insert        <= key_on_char_to_insert.map(|k| {
+                match k {
+                    Key::Character(s) => Some(s.clone()),
+                    _                 => None
+                }
+            });
+            trace char_to_insert;
+            eval char_to_insert ((s) model.buffer.frp.input.insert.emit(s));
         }
 
         self
@@ -537,8 +547,8 @@ impl Deref for AreaData {
 impl AreaData {
     /// Constructor.
     pub fn new
-    (scene:&Scene, network:&frp::Network) -> Self {
-        let scene          = scene.clone_ref();
+    (app:&Application, network:&frp::Network) -> Self {
+        let scene          = app.display.scene().clone_ref();
         let logger         = Logger::new("text_area");
         let bg_logger      = Logger::sub(&logger,"background");
         let selection_map  = default();
@@ -555,6 +565,29 @@ impl AreaData {
         background.shape.sprite.size.set(Vector2(150.0,100.0));
         background.mod_position(|p| p.x += 50.0);
         Self {scene,logger,frp,display_object,glyph_system,buffer,lines,selection_map,background} . init()
+    }
+
+    fn to_object_space(&self, screen_pos:Vector2) -> Vector2 {
+        let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
+        let origin_clip_space  = self.scene.camera().view_projection_matrix() * origin_world_space;
+        let inv_object_matrix  = self.transform_matrix().try_inverse().unwrap();
+
+        let shape        = self.scene.frp.shape.value();
+        let clip_space_z = origin_clip_space.z;
+        let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
+        let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
+        let clip_space   = Vector4(clip_space_x,clip_space_y,clip_space_z,origin_clip_space.w);
+        let world_space  = self.scene.camera().inversed_view_projection_matrix() * clip_space;
+        (inv_object_matrix * world_space).xy()
+    }
+
+    fn get_in_text_location(&self, screen_pos:Vector2) -> Location {
+        let object_space = self.to_object_space(screen_pos);
+        let line_index   = (-object_space.y / LINE_HEIGHT) as usize;
+        let line_index   = std::cmp::min(line_index,self.lines.len() - 1);
+        let div_index    = self.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
+        let div          = self.lines.rc.borrow()[line_index].divs[div_index];
+        Location(buffer::Line(line_index),div.byte_offset)
     }
 
     pub fn line_count(&self) -> usize {
@@ -648,22 +681,23 @@ impl application::command::Provider for Area {
 
 impl application::View for Area {
     fn new(app:&Application) -> Self {
-        Area::new(&app.display.scene())
+        Area::new(app)
     }
 }
 
 impl application::shortcut::DefaultShortcutProvider for Area {
-    fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
+    fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use enso_frp::io::keyboard::Key;
         use enso_frp::io::mouse;
 //        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_position")
 //        ]
-        vec! [ Self::self_shortcut(shortcut::Action::press (&[Key::ArrowLeft]  , &[])             , "move_cursor_left"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight] , &[])             , "move_cursor_right"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowUp]    , &[])             , "move_cursor_up"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowDown]  , &[])             , "move_cursor_down"),
-               Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton])          , "set_cursor_at_mouse_position"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::Meta],&[mouse::PrimaryButton]) , "add_cursor_at_mouse_position"),
+        vec! [ Self::self_shortcut(shortcut::Action::press (&[Key::ArrowLeft]  , shortcut::Pattern::Any)    , "move_cursor_left"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight] , shortcut::Pattern::Any)    , "move_cursor_right"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowUp]    , shortcut::Pattern::Any)    , "move_cursor_up"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowDown]  , shortcut::Pattern::Any)    , "move_cursor_down"),
+               Self::self_shortcut(shortcut::Action::press (shortcut::Pattern::Any,&[])                     , "insert_char_of_last_pressed_key"),
+               Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton])                    , "set_cursor_at_mouse_position"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::Meta],&[mouse::PrimaryButton])           , "add_cursor_at_mouse_position"),
         ]
     }
 }

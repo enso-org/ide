@@ -150,7 +150,7 @@ impl ViewBuffer {
     }
 
     /// Add a new cursor for the given byte offset.
-    pub fn add_cursor(&self, offset:Bytes) {
+    pub fn add_cursor_old(&self, offset:Bytes) {
         let id = self.next_selection_id.get();
         self.next_selection_id.set(id+1);
         self.add_selection(Selection::new_cursor(offset,id))
@@ -160,6 +160,13 @@ impl ViewBuffer {
         let id = self.next_selection_id.get();
         self.next_selection_id.set(id+1);
         Selection::new_cursor(offset,id)
+    }
+
+    pub fn add_cursor(&self, offset:Bytes) -> selection::Group {
+        let mut selection = self.selection.borrow().clone();
+        let new_selection = self.new_cursor(offset);
+        selection.add(new_selection);
+        selection
     }
 
     /// Insert new text in the place of current selections / cursors.
@@ -192,11 +199,14 @@ define_frp! {
         move_carets      : Option<Movement>,
         modify_selection : Option<Movement>,
         set_cursor       : Location,
+        add_cursor       : Location,
+        insert           : String,
         clear_selection  : (),
     }
 
     Output {
         selection : selection::Group,
+        changed   : (),
     }
 }
 
@@ -233,18 +243,28 @@ impl View {
 
         frp::extend! { network
 
+            eval input.insert ((s) model.insert(s));
+            output.source.changed <+ input.insert.constant(());
+
+            selection_on_insert <- input.insert.map(f_!(model.moved_selection2(Some(Movement::Right),false)));
+
             selection_on_move  <- input.move_carets.map(f!((t) model.moved_selection2(*t,false)));
             selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(*t,true)));
             selection_on_clear <- input.clear_selection.constant(default());
 
             selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(model.offset_of_view_location(t)).into()));
+            selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(model.offset_of_view_location(t))));
 
             output.source.selection <+ selection_on_move;
             output.source.selection <+ selection_on_mod;
             output.source.selection <+ selection_on_clear;
             output.source.selection <+ selection_on_set_cursor;
+            output.source.selection <+ selection_on_add_cursor;
+            output.source.selection <+ selection_on_insert;
+
 
             eval output.source.selection ((t) model.set_selection(t));
+
         }
         let frp = Frp::new(network,input,output);
         Self {frp,model}

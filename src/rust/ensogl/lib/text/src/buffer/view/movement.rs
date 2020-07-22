@@ -79,34 +79,22 @@ impl ViewModel {
     // TODO: Write tests to verify that it's safe regarding integer ovewrflow.
     fn vertical_motion
     (&self, region:Selection, line_delta:isize, modify:bool) -> (Bytes,Option<Bytes>) {
-        println!("-------------");
-
         let move_up    = line_delta < 0;
         let line_delta = line_delta.saturating_abs() as usize;
         let location   = self.vertical_motion_selection_to_caret(region,move_up,modify);
         let n_lines    = self.line_of_offset(self.data().len());
 
         if move_up && line_delta > location.line.value {
-            println!("top line");
             return (Bytes(0), Some(location.offset));
         }
 
         let line = if move_up { location.line.value - line_delta }
         else       { location.line.value.saturating_add(line_delta) };
 
-
-        println!("location: {:?}", location);
-
-
         let column     = self.column_of_location(location.line,location.offset);
         let tgt_offset = self.line_offset_of_location_X(Line(line),column);
 
-        println!("column: {:?}", column);
-        println!("tgt_offset: {:?}", tgt_offset);
-
-
         if line > n_lines.value {
-            println!("bottom");
             return (self.data().len(),Some(location.offset));
         }
 
@@ -132,7 +120,6 @@ impl ViewModel {
     }
 
     fn line_offset_of_location_X(&self, line:Line, line_column:usize) -> Bytes {
-        println!("line_offset_of_location_X {:?} {:?}", line, line_column);
         let start_offset = self.offset_of_line(line);
         let mut offset = start_offset;
         let mut column = 0;
@@ -317,7 +304,6 @@ impl ViewModel {
             Movement::RightWord => todo!(),
         };
         let start = if modify { region.start } else { end };
-        println!(">>> {:?}",(start,end));
         Selection::new(start,end,region.id).with_column(horiz)
     }
 }
