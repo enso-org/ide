@@ -219,15 +219,6 @@ pub mod tests {
     }
 
     impl MockData {
-        // pub fn controller1(&self) -> Handle {
-        //     let parser = parser::Parser::new_or_panic();
-        //     let method = self.graph.method();
-        //     let project = Rc::new(model::project::MockAPI::new());
-        //     let ctx = Rc::new(self.ctx.create());
-        //     println!("Method is: {:?}",method);
-        //     Handle::new_internal(graph,project,ctx)
-        // }
-
         pub fn controller(&self) -> Handle {
             let parser      = parser::Parser::new_or_panic();
             let module      = self.module.plain(&parser);

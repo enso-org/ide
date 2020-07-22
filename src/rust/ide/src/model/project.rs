@@ -100,8 +100,7 @@ pub mod test {
     pub fn expect_execution_ctx(project:&mut MockAPI, ctx:model::ExecutionContext) {
         let ctx2 = ctx.clone_ref();
         project.expect_create_execution_context()
-            // TODO below "with" limitation should be restored as the usage is fixed
-            // .withf_st    (move |root_definition| root_definition == &ctx.current_method())
+            .withf_st    (move |root_definition| dbg!(root_definition) == dbg!(&ctx.current_method()))
             .returning_st(move |_root_definition| ready(Ok(ctx2.clone_ref())).boxed_local());
     }
 }
