@@ -359,7 +359,7 @@ impl Searcher {
         let definition_ast = graph.graph_definition_info()?.body().item.clone_ref();
         let self_type      = None;
         let def_span       = double_representation::module::definition_span(&module_ast,&graph_id)?;
-        let position       = TextLocation::convert_span(definition_ast.repr(),&def_span).end.into();
+        let position       = TextLocation::convert_span(module_ast.repr(),&def_span).end.into();
         let request        = ls.completion(&file,&position,&self_type,&return_type,&tags);
         let data           = self.data.clone_ref();
         let database       = self.database.clone_ref();
@@ -390,6 +390,7 @@ impl Searcher {
         Ok(())
     }
 }
+
 
 
 // =============
@@ -468,9 +469,11 @@ mod test {
                 current_version: default(),
             };
 
+            let file_end          = data.module.code.chars().count();
+            let expected_location = TextLocation {line:0, column:file_end};
             expect_call!(client.completion(
                 module      = data.module.path.file_path().clone(),
-                position    = TextLocation {line:0, column:5}.into(), // TODO should be something else likely
+                position    = expected_location.into(),
                 self_type   = None,
                 return_type = None,
                 tag         = None
