@@ -8,7 +8,7 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
-use enso_protocol::language_server::MethodPointer;
+
 
 
 // =======================
@@ -236,7 +236,7 @@ impl Searcher {
     pub async fn new
     ( parent   : impl AnyLogger
     , project  : &model::Project
-    , method   : MethodPointer
+    , method   : language_server::MethodPointer
     ) -> FallibleResult<Self> {
         let graph = controller::ExecutedGraph::new(&parent,project.clone_ref(),method).await?;
         Ok(Self::new_from_graph_controller(parent,project,graph))
