@@ -1723,7 +1723,6 @@ impl EdgeModelData {
     (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end: PortType) -> Option<f32> {
         let shape      = self.get_shape(shape_id)?;
         let shape_role = self.get_shape_role(shape_id)?;
-        println!("{:?}", shape_role);
 
         let cut_angle_correction = self.get_cut_angle_correction(shape_role);
         let target_angle         = self.get_target_angle(target_end);
@@ -1752,7 +1751,7 @@ impl EdgeModelData {
     /// for these here based on the specific layout state we are in.
     fn get_cut_angle_correction(&self, shape_role:ShapeRole) -> f32 {
         let layout_state = self.layout_state.get();
-        println!("{:?}", layout_state);
+
         let flip = 2.0 * RIGHT_ANGLE;
 
         // These rules are derived from the algorithm in `redraw`. In some layout configurations
