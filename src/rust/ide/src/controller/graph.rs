@@ -400,10 +400,10 @@ impl EndpointInfo {
 
 /// Handle providing graph controller interface.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct Handle {
     /// Identifier of the graph accessed through this controller.
     pub id     : Rc<Id>,
-    /// Model of the module which this graph belongs to.
     pub module : model::Module,
     parser     : Parser,
     logger     : Logger,

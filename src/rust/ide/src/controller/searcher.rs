@@ -8,7 +8,13 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
+<<<<<<< HEAD
 
+=======
+use enso_protocol::language_server::MethodPointer;
+use crate::controller::graph::NewNodeInfo;
+use crate::model::module::NodeMetadata;
+>>>>>>> a8a7bf7c... Implement adding nodes
 
 
 // =======================
@@ -321,6 +327,23 @@ impl Searcher {
         self.data.borrow_mut().fragments_added_by_picking.push(picked_completion);
         self.reload_list();
         Ok(new_input)
+    }
+
+    pub fn add_node(&self, position:Option<model::module::Position>) -> FallibleResult<ast::Id> {
+        let data_borrowed = self.data.borrow();
+        let expression    = data_borrowed.input.repr();
+        let mut new_node = NewNodeInfo::new_pushed_back(expression);
+        new_node.metadata = Some(NodeMetadata {position});
+        let id            = self.graph.graph().add_node(new_node)?;
+        let imports       = data_borrowed.fragments_added_by_picking.iter()
+            .map(|frag| &frag.picked_suggestion.module);
+        let mut module = double_representation::module::Info {ast:self.graph.graph().module.ast()};
+        for import in imports {
+            let import = double_representation::module::ImportInfo::from_qualified_name(&import);
+            module.add_import(&self.parser,import);
+        }
+        self.graph.graph().module.update_ast(module.ast);
+        Ok(id)
     }
 
     fn invalidate_fragments_added_by_picking(&self) {

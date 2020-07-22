@@ -224,6 +224,9 @@ impl Info {
     }
 
     /// Add a new import declaration to a module.
+    ///
+    /// This function will try to keep imports in lexicographic order. It returns the index where
+    /// import was added (index of import - an element on the list returned by `enumerate_imports`).
     // TODO [mwu]
     //   Ideally we should not require parser but should use some sane way of generating AST from
     //   the `ImportInfo` value.
