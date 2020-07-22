@@ -84,7 +84,9 @@ impl Entry {
     pub fn code_to_insert(&self) -> String {
         let module = self.module.name();
         if self.self_type.as_ref().contains(&module) {
-            iformat!("{module}.{self.name}")
+            format!("{}.{}",module,self.name)
+        } else if self.self_type.as_ref().contains(&constants::keywords::HERE) {
+            format!("{}.{}",constants::keywords::HERE,self.name)
         } else {
             self.name.clone()
         }

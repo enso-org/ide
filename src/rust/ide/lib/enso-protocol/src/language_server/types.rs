@@ -537,6 +537,8 @@ pub enum SuggestionEntryType {Atom,Method,Function,Local}
 /// A Suggestion Entry.
 #[derive(Hash, Debug, Clone, PartialEq, Eq,Serialize,Deserialize)]
 #[allow(missing_docs)]
+#[serde(tag="type")]
+#[serde(rename_all="camelCase")]
 pub enum SuggestionEntry {
     #[serde(rename_all="camelCase")]
     Atom {
