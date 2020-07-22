@@ -11,6 +11,7 @@ use language_server::types::SuggestionDatabaseUpdateEvent;
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionEntryId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
+pub use parser::DocParser as DocParser;
 
 
 // =============
@@ -51,16 +52,18 @@ impl Entry {
         let this = match entry {
             SuggestionEntryAtom {name,module,arguments,return_type,documentation} =>
                 Self {
-                    name,arguments,return_type,documentation,
+                    name,arguments,return_type,
                     module    : module.try_into()?,
                     self_type : None,
+                    documentation: Entry::gen_doc(documentation),
                     kind      : EntryKind::Atom,
                 },
             SuggestionEntryMethod {name,module,arguments,self_type,return_type,documentation} =>
                 Self {
-                    name,arguments,return_type,documentation,
+                    name,arguments,return_type,
                     module    : module.try_into()?,
                     self_type : Some(self_type),
+                    documentation: Entry::gen_doc(documentation),
                     kind      : EntryKind::Method,
                 },
             SuggestionEntryFunction {name,module,arguments,return_type,..} =>
@@ -97,6 +100,21 @@ impl Entry {
     /// Returns entry with the changed name.
     pub fn with_name(self, name:impl Into<String>) -> Self {
         Self {name:name.into(),..self}
+    }
+
+    /// Generates HTML documentation for documented suggestion
+    fn gen_doc(doc: Option<String>) -> Option<String> {
+        match doc {
+            Some(d) => {
+                let parser = DocParser::new_or_panic();
+                let output = parser.generate_html_doc_pure(d);
+                match output {
+                    Ok(result) => Some(result),
+                    Err(_)     => None,
+                }
+            },
+            None    => None,
+        }
     }
 }
 
