@@ -764,6 +764,7 @@ pub mod tests {
     use ast::test_utils::expect_shape;
     use data::text::Index;
     use data::text::TextChange;
+    use enso_protocol::language_server::MethodPointer;
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -814,6 +815,10 @@ pub mod tests {
             let module = self.module_data().plain(&parser);
             let id     = self.graph_id.clone();
             Handle::new(logger,module,parser,id).unwrap()
+        }
+
+        pub fn method(&self) -> MethodPointer {
+            self.module_path.method_pointer(self.graph_id.to_string())
         }
     }
 

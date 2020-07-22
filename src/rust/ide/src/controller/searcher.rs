@@ -337,7 +337,7 @@ impl Searcher {
     fn reload_list(&self) {
         let next_completion = self.data.borrow().input.next_completion_id();
         let new_suggestions = if next_completion == CompletedFragmentId::Function {
-            if let Err(err) = self.get_suggestion_list_from_engine(None,None).is_err() {
+            if let Err(err) = self.get_suggestion_list_from_engine(None,None) {
                 error!(self.logger,"Cannot request engine for suggestions: {err}");
             }
             Suggestions::Loading
@@ -402,6 +402,7 @@ mod test {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
+    use controller::graph::executed::tests::MockData as ExecutedGraphMockData;
     use json_rpc::expect_call;
     use utils::test::traits::*;
 
@@ -413,16 +414,16 @@ mod test {
     }
 
     impl Fixture {
-        fn new(client_setup:impl FnOnce(&mut language_server::MockClient)) -> Self {
-            let mut client  = language_server::MockClient::default();
-            let graph_data  = controller::graph::tests::MockData::new();
-
-            client_setup(&mut client);
+        fn new_custom<F>(client_setup:F) -> Self
+        where F : FnOnce(&mut ExecutedGraphMockData,&mut language_server::MockClient) {
+            let mut graph_data = controller::graph::executed::tests::MockData::default();
+            let mut client     = language_server::MockClient::default();
+            client_setup(&mut graph_data,&mut client);
             let searcher = Searcher {
                 logger          : default(),
                 data            : default(),
                 notifier        : default(),
-                graph           : ExecutedGraph::graph_data.graph(),
+                graph           : graph_data.controller(),
                 database        : default(),
                 language_server : language_server::Connection::new_mock_rc(client),
                 parser          : Parser::new_or_panic(),
@@ -451,20 +452,25 @@ mod test {
             let entry9 = searcher.database.get(9).unwrap();
             Fixture{searcher,entry1,entry2,entry9}
         }
+
+        fn new() -> Self {
+            Self::new_custom(|_,_| {})
+        }
     }
 
 
     #[wasm_bindgen_test]
     fn loading_list() {
         let mut test = TestWithLocalPoolExecutor::set_up();
-        let Fixture{searcher,entry1,entry9,..} = Fixture::new(|client| {
+        let Fixture{searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
             let completion_response = language_server::response::Completion {
                 results: vec![1,5,9],
                 current_version: default(),
             };
+
             expect_call!(client.completion(
-                module      = "Test.Test".to_string(),
-                position    = TextLocation::at_document_begin().into(),
+                module      = data.module.path.file_path().clone(),
+                position    = TextLocation {line:0, column:5}.into(), // TODO should be something else likely
                 self_type   = None,
                 return_type = None,
                 tag         = None
@@ -553,7 +559,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn picked_completions_list_maintaining() {
-        let Fixture{searcher,entry1,entry2,..} = Fixture::new(|_|{});
+        let Fixture{searcher,entry1,entry2,..} = Fixture::new();
         let frags_borrow = || Ref::map(searcher.data.borrow(),|d| &d.fragments_added_by_picking);
 
         // Picking first suggestion.
