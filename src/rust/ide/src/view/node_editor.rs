@@ -735,7 +735,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let exit_node_action = async move {
             let result = controller.exit_node().await;
             debug!(logger,"Exiting node result: {result:?}.");
-            if let Ok(_) = result {
+            if result.is_ok() {
                 graph_editor.breadcrumbs.frp.pop_breadcrumb.emit(())
             }
         };
