@@ -54,14 +54,20 @@ impl Entry {
                     name,arguments,return_type,
                     module        : module.try_into()?,
                     self_type     : None,
-                    documentation : Entry::gen_doc(documentation),
+                    documentation : match documentation {
+                        Some(doc) => Some(Entry::gen_doc(doc)?),
+                        None      => None
+                    },
                     kind          : EntryKind::Atom,
                 },
             Method {name,module,arguments,self_type,return_type,documentation} => Self {
                     name,arguments,return_type,
                     module        : module.try_into()?,
                     self_type     : Some(self_type),
-                    documentation : Entry::gen_doc(documentation),
+                    documentation : match documentation {
+                        Some(doc) => Some(Entry::gen_doc(doc)?),
+                        None      => None
+                    },
                     kind          : EntryKind::Method,
                 },
             Function {name,module,arguments,return_type,..} => Self {
@@ -101,18 +107,10 @@ impl Entry {
     }
 
     /// Generates HTML documentation for documented suggestion.
-    fn gen_doc(doc: Option<String>) -> Option<String> {
-        match doc {
-            Some(d) => {
-                let parser = DocParser::new_or_panic();
-                let output = parser.generate_html_doc_pure(d);
-                match output {
-                    Ok(result) => Some(result),
-                    Err(_)     => None,
-                }
-            },
-            None => None,
-        }
+    fn gen_doc(doc: String) -> FallibleResult<String> {
+        let parser = DocParser::new()?;
+        let output = parser.generate_html_doc_pure(doc);
+        Ok(output?)
     }
 }
 
