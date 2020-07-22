@@ -7,11 +7,11 @@ use crate::double_representation::module::QualifiedName;
 use enso_protocol::language_server;
 use language_server::types::SuggestionsDatabaseVersion;
 use language_server::types::SuggestionDatabaseUpdateEvent;
+use parser::DocParser as DocParser;
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionEntryId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
-pub use parser::DocParser as DocParser;
 
 
 // =============
@@ -53,18 +53,18 @@ impl Entry {
             SuggestionEntryAtom {name,module,arguments,return_type,documentation} =>
                 Self {
                     name,arguments,return_type,
-                    module    : module.try_into()?,
-                    self_type : None,
-                    documentation: Entry::gen_doc(documentation),
-                    kind      : EntryKind::Atom,
+                    module        : module.try_into()?,
+                    self_type     : None,
+                    documentation : Entry::gen_doc(documentation),
+                    kind          : EntryKind::Atom,
                 },
             SuggestionEntryMethod {name,module,arguments,self_type,return_type,documentation} =>
                 Self {
                     name,arguments,return_type,
-                    module    : module.try_into()?,
-                    self_type : Some(self_type),
-                    documentation: Entry::gen_doc(documentation),
-                    kind      : EntryKind::Method,
+                    module        : module.try_into()?,
+                    self_type     : Some(self_type),
+                    documentation : Entry::gen_doc(documentation),
+                    kind          : EntryKind::Method,
                 },
             SuggestionEntryFunction {name,module,arguments,return_type,..} =>
                 Self {
@@ -102,7 +102,7 @@ impl Entry {
         Self {name:name.into(),..self}
     }
 
-    /// Generates HTML documentation for documented suggestion
+    /// Generates HTML documentation for documented suggestion.
     fn gen_doc(doc: Option<String>) -> Option<String> {
         match doc {
             Some(d) => {
@@ -113,7 +113,7 @@ impl Entry {
                     Err(_)     => None,
                 }
             },
-            None    => None,
+            None => None,
         }
     }
 }
@@ -215,6 +215,12 @@ mod test {
     use super::*;
 
     use enso_protocol::language_server::SuggestionsDatabaseEntry;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+
+
+    wasm_bindgen_test_configure!(run_in_browser);
 
 
 
@@ -247,7 +253,7 @@ mod test {
         assert_eq!(module_method_entry.code_to_insert(), "Main.moduleMethod".to_string());
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn initialize_database() {
         // Empty db
         let response = language_server::response::GetSuggestionDatabase {
