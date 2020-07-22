@@ -106,16 +106,14 @@ trait EdgeShape : display::Object {
 
     // === Snapping ===
 
-    /// Snaps the provided point to the closest location on the shape. This function has to work
-    /// properly for all points in the shape canvas.
-    fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32>;
+    /// Snaps the provided point to the closest location on the shape.
+    fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>>;
 
-    /// Snaps the provided point to the closest location on the shape. This function has to work
-    /// properly for all points in the shape canvas.
-    fn snap(&self, point:Vector2<f32>) -> Vector2<f32> {
+    /// Snaps the provided point to the closest location on the shape.
+    fn snap(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
         let local         = self.global_to_local_position(point);
-        let local_snapped = self.snap_local(local);
-        self.local_to_global_position(local_snapped)
+        let local_snapped = self.snap_local(local)?;
+        Some(self.local_to_global_position(local_snapped))
     }
 
 
@@ -369,8 +367,24 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 nalgebra::Rotation2::new(-RIGHT_ANGLE + self.shape.angle.get() + angle.angle())
             }
 
-            fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32> {
-                point.normalize() * self.shape.radius.get() // FIXME: can we do it nicer?
+            fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                let radius = self.shape.radius.get();
+                let center = Vector2::zero();
+                let point_to_center = point.xy() - center;
+
+                let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
+                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
+                let start_angle   =  self.shape.start_angle.get();
+                let end_angle     =  start_angle + self.shape.angle.get();
+                let upper_bound   = start_angle.max(end_angle);
+                let lower_bound   = start_angle.min(end_angle);
+
+                let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
+                if correct_quadrant {
+                     Some(Vector2::new(closest_point.x, closest_point.y))
+                } else {
+                    None
+                }
             }
         }
     }
@@ -435,9 +449,25 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
                 point_rotation(point)
             }
 
-            fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32> {
-                point.normalize() * self.shape.radius.get()
-           }
+            fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                let radius = self.shape.radius.get();
+                let center = Vector2::zero();
+                let point_to_center = point.xy() - center;
+
+                let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
+                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
+                let start_angle   =  self.shape.start_angle.get();
+                let end_angle     =  start_angle + self.shape.angle.get();
+                let upper_bound   = start_angle.max(end_angle);
+                let lower_bound   = start_angle.min(end_angle);
+
+                let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
+                if correct_quadrant {
+                     Some(Vector2::new(closest_point.x, closest_point.y))
+                } else {
+                    None
+                }
+            }
         }
     }
 }}
@@ -480,8 +510,11 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
                 nalgebra::Rotation2::new(0.0)
             }
 
-            fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32> {
-                Vector2(0.0,point.y)
+            fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                #[allow(deprecated)]
+                let height = self.sprite().size.get().y;
+                let y      = point.y.clamp(-height/2.0, height/2.0);
+                Some(Vector2::new(0.0, y))
             }
         }
     }
@@ -536,8 +569,8 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                  nalgebra::Rotation2::new(-RIGHT_ANGLE)
             }
 
-            fn snap_local(&self, point:Vector2<f32>) -> Vector2<f32> {
-                Vector2(0.0,point.y)
+            fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                Some(Vector2::new(0.0, point.y))
             }
         }
     }
@@ -790,12 +823,12 @@ impl LayoutState {
     /// Indicates whether the `OutputPort` is below the `InputPort` in the current layout configuration.
     fn is_output_above_input(self) -> bool {
         match self {
-            LayoutState::UpLeft => false,
-            LayoutState::UpRight => false,
+            LayoutState::UpLeft             => false,
+            LayoutState::UpRight            => false,
             LayoutState::TopCenterRightLoop => false,
-            LayoutState::TopCenterLeftLoop => false,
-            LayoutState::DownLeft => true,
-            LayoutState::DownRight => true, // FIXME: no alignment
+            LayoutState::TopCenterLeftLoop  => false,
+            LayoutState::DownLeft           => true,
+            LayoutState::DownRight          => true,
         }
     }
 
@@ -1090,7 +1123,8 @@ impl Edge {
         let input           = &self.frp;
         let target_position = &self.target_position;
         let target_attached = &self.target_attached;
-        let _source_attached = &self.source_attached; // FIXME - why such lines are left?
+        // FIXME This should be used for #672
+        let _source_attached = &self.source_attached;
         let source_width    = &self.source_width;
         let source_height   = &self.source_height;
         let hover_position  = &self.hover_position;
@@ -1112,8 +1146,14 @@ impl Edge {
             eval input.source_height   ((t) source_height.set(*t));
             eval input.hover_position  ((t) hover_position.set(*t));
 
-            eval shape_events.on_mouse_over ((id) hover_target.set(Some(*id)));
-            eval shape_events.on_mouse_out  ((_)  hover_target.set(None));
+            eval shape_events.on_mouse_over ((id) {
+                hover_target.set(Some(*id));
+                println!("EVENT ID {:?}", id);
+            });
+            eval shape_events.on_mouse_out  ((_)  {
+                hover_target.set(None);
+                println!("EVENT ID NONE");
+            });
 
             eval_ input.redraw (model.redraw());
         }
@@ -1784,7 +1824,7 @@ impl EdgeModelData {
     /// Check whether the provided point is close enough to be snapped to the edge.
     fn try_point_snap(&self, point:Vector2<f32>, hover_shape_id:display::object::Id) -> Option<SnapTarget> {
         let hover_shape    = self.get_shape(hover_shape_id)?;
-        let snap_position  = hover_shape.snap(point);
+        let snap_position  = hover_shape.snap(point)?;
         Some(SnapTarget::new(snap_position,hover_shape_id))
     }
 
@@ -1803,10 +1843,9 @@ impl EdgeModelData {
     fn try_enable_hover_split
     (&self, position:Vector2<f32>, hover_shape_id:display::object::Id, part:EndDesignation)
     -> Result<SnapTarget, ()>{
-        println!("{:?}, {:?}", hover_shape_id, position);
         let snap_data      = self.try_point_snap(position,hover_shape_id).ok_or(())?;
         let semantic_split = SemanticSplit::new(&self,snap_data.target_shape_id).ok_or(())?;
-        let angle      = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
+        let angle          = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
 
         // Completely disable/enable hovering for shapes that are not close the split base don their
         // relative position within the shape. This avoids issues with splitting not working
