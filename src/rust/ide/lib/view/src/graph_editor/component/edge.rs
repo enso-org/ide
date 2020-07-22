@@ -77,10 +77,11 @@ trait EdgeShape : display::Object {
     /// coordinate system.
     fn set_focus_split_center_local(&self, center:Vector2<f32>);
 
-    // TODO: Docs. What does it mean to have 0 angle? What does it mean to have 90 deg angle?
+    /// Set the angle of the half plane that will be focused. Rotation starts with the plane
+    /// focusing the left half plane.
     fn set_focus_split_angle(&self, angle:f32);
 
-    /// Set the hover split for this shape. The `split` indicates where the shape should be
+    /// Set the focus split for this shape. The `split` indicates where the shape should be
     /// split and how the split should be rotated.
     fn set_focus_split(&self, split:FocusSplit) {
         let angle  = self.global_to_local_rotation(split.angle);
@@ -91,14 +92,14 @@ trait EdgeShape : display::Object {
 
     /// Focus the whole edge.
     fn focus_none(&self) {
-        // FIXME: why these values work?
+        // Set the focus split in the top right corner and highlight everything to the right of it.
         self.set_focus_split_center_local(Vector2(INFINITE,INFINITE));
         self.set_focus_split_angle(RIGHT_ANGLE);
     }
 
     /// Do not focus any part of the edge.
     fn focus_all(&self) {
-        // FIXME: why these values work?
+        // Set the focus split in the top right corner and highlight everything below it.
         self.set_focus_split_center_local(Vector2(INFINITE,INFINITE));
         self.set_focus_split_angle(2.0 * RIGHT_ANGLE);
     }
@@ -361,10 +362,8 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 &self.events
             }
 
-            // FIXME: why this implementation is different fro the impl in `define_corner_end` ?
             fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-                let angle = point_rotation(point);
-                nalgebra::Rotation2::new(-RIGHT_ANGLE + self.shape.angle.get() + angle.angle())
+                point_rotation(point)
             }
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
@@ -806,17 +805,17 @@ enum ShapeRole {
 /// Indicates the state the shape layout is in. Can be used to adjust behaviour based on state
 /// to address edge cases for specific layouts. The terms are used to follow the direction of the
 /// edge from `Output` to `Input`.
+///
+/// Each state represents a unique layout in terms of: adjacency of shapes (some shapes may
+/// disappear in some layout), or the relative geometric position of shapes.
+///
+/// This list is not exhaustive.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 enum LayoutState {
     UpLeft,
     UpRight,
     DownLeft,
     DownRight,
-    // FIXME: why we need to distinguish such cases? Sounds like a very detailed case whoch should be covered by more generic rules
-    /// The edge goes up and the top loops back to the right.
-    TopCenterRightLoop,
-    /// The edge goes up and the top loops back to the left.
-    TopCenterLeftLoop,
 }
 
 impl LayoutState {
@@ -825,8 +824,6 @@ impl LayoutState {
         match self {
             LayoutState::UpLeft             => false,
             LayoutState::UpRight            => false,
-            LayoutState::TopCenterRightLoop => false,
-            LayoutState::TopCenterLeftLoop  => false,
             LayoutState::DownLeft           => true,
             LayoutState::DownRight          => true,
         }
@@ -841,28 +838,24 @@ impl LayoutState {
     /// This enables us to infer which parts are next to each other, and which ones are
     /// "source-side"/"target-side".
     ///
-    /// // FIXME: more information needed here. What does it mean that "we treat the equivalent shape from front and back as the same"
-    /// //        when is this used and what is this used for? See comment below - not all mappings are correct here.
-    /// In general, we treat the equivalent shape from front and back as the same, but also the
-    /// arrow needs to be handled together with the main line. Other shapes might be in the same
-    /// bucket if they are invisible in some layout configurations.
+    /// In general, we treat the equivalent shape from front and back as the same, as they tend to
+    /// occupy the same space within the shape and thus need to be handled together. But,
+    /// for example, also the arrow needs to be handled together with the main line. Other shapes
+    /// might be in the same bucket if they are invisible in some layout configurations and thus no
+    /// longer count for adjacency.
     ///
-    /// Usage note: The important information we create here is the correct adjacency of shapes.
-    /// This is used to determine which shapes are adjacent to correctly render the split
-    /// passing from one shape to the next.
+    /// The important information we create here is the adjacency of shapes. This is used to
+    /// determine which shapes are adjacent to correctly render the split passing from one shape to
+    /// the next and avoid rendering a split on a shape that can be all focus on or all focus off.
+    /// This is then used to determine the `SemanticSplit` of the shape. See the documentation
+    /// there for more information.
     fn semantically_binned_edges(self, edge_data:&EdgeModelData) -> Vec<Vec<display::object::Id>> {
         let front = &edge_data.front;
         let back  = &edge_data.back;
-        // TODO: this only covers cases that made problems. Might not actually be exhaustive.
         match self {
             Self::DownLeft | Self::DownRight => {
                 vec![
                     vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
-                    // FIXME: I am not sure if this is correct. `front.corner` is a different shape than
-                    //        back corner. The front corner = ring - node shape, while the back corner = ring * node shape (intersection).
-                    //        See their definition for reference. They are used together. If we will use
-                    //        front corner without back corner, then there would be a sall gap between edge and the node.
-                    //        Back corner fills the gap and is placed below the node.
                     vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
                     // All collapsed and visible only as a single line
                     vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
@@ -875,7 +868,7 @@ impl LayoutState {
                 ]
 
             },
-            _ => {
+            Self::UpLeft | Self::UpRight => {
                     vec![
                         vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
                         vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
@@ -1148,11 +1141,9 @@ impl Edge {
 
             eval shape_events.on_mouse_over ((id) {
                 hover_target.set(Some(*id));
-                println!("EVENT ID {:?}", id);
             });
             eval shape_events.on_mouse_out  ((_)  {
                 hover_target.set(None);
-                println!("EVENT ID NONE");
             });
 
             eval_ input.redraw (model.redraw());
@@ -1174,11 +1165,10 @@ impl display::Object for Edge {
 // === EdgeModel ===
 // =================
 
-// FIXME: this needs a better name and docs. What is "end connection of an edge"? Edge is an connection.
 /// Indicates the type of end connection of the Edge.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
-pub enum EndDesignation {
+pub enum PortType {
     InputPort,
     OutputPort
 }
@@ -1258,7 +1248,6 @@ impl EdgeModelData {
         // let fully_attached   = self.target_attached.get() && self.source_attached.get();
         let fully_attached          = self.target_attached.get();
         let node_half_width         = self.source_width.get() / 2.0;
-        // FIXME This should be set externally, just like `source_node_half_height`.
         let target_node_half_height = NODE_HEIGHT / 2.0;
         let source_node_half_height = self.source_height.get() / 2.0;
         let source_node_circle      = Vector2(node_half_width- source_node_half_height, 0.0);
@@ -1268,9 +1257,9 @@ impl EdgeModelData {
 
         match (fully_attached, self.hover_position.get(), self.hover_target.get()) {
             (true, Some(hover_position), Some(hover_target)) => {
-                let highlight_part = self.end_designation_for_position(hover_position);
-                let hover_split_result = self.try_enable_hover_split(hover_position,hover_target,highlight_part);
-                if let Ok(snap_data) = hover_split_result {
+                let highlight_part = self.port_to_detach_for_position(hover_position);
+                let focus_split_result = self.try_enable_focus_split(hover_position, hover_target, highlight_part);
+                if let Ok(snap_data) = focus_split_result {
                     let joint_position = snap_data.position - self.display_object.position().xy();
                     self.joint.set_position_xy(joint_position);
                     self.joint.shape.sprite.size.set(Vector2(LINE_WIDTH,LINE_WIDTH));
@@ -1532,8 +1521,8 @@ impl EdgeModelData {
             // === Layout State Update ===
             // Corner case: we are above the node and the corners loop back
             match (side < 0.0, corner_2_3_side < 0.0) {
-                (false, true) => self.layout_state.set(LayoutState::TopCenterRightLoop),
-                (true, true)  => self.layout_state.set(LayoutState::TopCenterLeftLoop),
+                (false, true) => self.layout_state.set(LayoutState::UpLeft),
+                (true, true)  => self.layout_state.set(LayoutState::UpRight),
                 _             => (),
             };
 
@@ -1668,7 +1657,6 @@ impl EdgeModelData {
 
 
         // === Port Line ===
-
         fg.port_line.layout_v(port_line_start,port_line_len);
     }
 }
@@ -1686,37 +1674,37 @@ impl EdgeModelData {
         point.y > mid_y
     }
 
-    // FIXME: "except when that is impractical due to a low y-difference [...]" - needs better
-    //         explanation what is "low y-difference" with info what we do in such situation.
-    /// Returns whether the given hover position belongs to the `Input` or `Output` part of the
-    /// edge. This is determined based on the y-position only, except when that is impractical due
-    /// to a low y-difference between `Input` and `Output`.
-    pub fn end_designation_for_position(&self, point:Vector2<f32>) -> EndDesignation {
+    /// Returns whether the given position should detach the the `Input` or `Output` part of the
+    /// edge.
+    ///
+    /// We determine the target port primarily based y-position. We only use the y distance to the
+    /// start/end of the edge and whichever is closer, is the target. However, this becomes
+    /// problematic if the start and end of the edge have the same y-position or even if they are
+    /// almost level. That is why, we then switch to using the euclidean distance instead.
+    pub fn port_to_detach_for_position(&self, point:Vector2<f32>) -> PortType {
         if self.input_and_output_y_too_close() {
             return self.closest_end_for_point(point)
         }
-        let input_in_upper_half = self.layout_state.get().is_input_above_output();
-        let point_in_upper_half = self.is_in_upper_half(point);
+        let input_port_is_in_upper_half = self.layout_state.get().is_input_above_output();
+        let point_is_in_upper_half = self.is_in_upper_half(point);
 
-        // FIXME: This can be simplified by `point_in_upper_half == input_in_upper_half`.
-        //        My question here is whether this is justified by some logic. Should be explained
-        //        in the docs above.
-        if point_in_upper_half != input_in_upper_half {
-            EndDesignation::InputPort
+        // We always detach the port that is on the opposite side of the cursor.
+        if point_is_in_upper_half != input_port_is_in_upper_half {
+            PortType::InputPort
         } else {
-            EndDesignation::OutputPort
+            PortType::OutputPort
         }
     }
 
     /// Return the `EndDesignation` for the closest end of the edge for the given point. Uses
     /// euclidean distance between point and `Input`/`Output`.
-    fn closest_end_for_point(&self, point:Vector2<f32>) -> EndDesignation {
+    fn closest_end_for_point(&self, point:Vector2<f32>) -> PortType {
         let target_position = self.target_position.get().xy();
         let source_position = self.position().xy() - Vector2(0.0,self.source_height.get() / 2.0);
         let target_distance = (point - target_position).norm();
         let source_distance = (point - source_position).norm();
-        if source_distance > target_distance { EndDesignation::OutputPort }
-        else                                 { EndDesignation::InputPort }
+        if source_distance > target_distance { PortType::OutputPort }
+        else                                 { PortType::InputPort }
     }
 
     /// Indicates whether the height difference between input and output is too small to  use the
@@ -1732,7 +1720,7 @@ impl EdgeModelData {
     /// Return the correct cut angle for the given `shape_id` at the `position` to highlight the
     /// `target_end`. Will return `None` if the `shape_id` is not a valid sub-shape of this edge.
     fn cut_angle_for_shape
-    (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end:EndDesignation) -> Option<f32> {
+    (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end: PortType) -> Option<f32> {
         let shape      = self.get_shape(shape_id)?;
         let shape_role = self.get_shape_role(shape_id)?;
         println!("{:?}", shape_role);
@@ -1747,24 +1735,16 @@ impl EdgeModelData {
 
     /// Return the cut angle value needed to highlight the given end of the shape. This takes into
     /// account the current layout.
-    fn get_target_angle(&self, target_end:EndDesignation) -> f32 {
+    fn get_target_angle(&self, target_end: PortType) -> f32 {
         let output_on_top = self.layout_state.get().is_output_above_input();
         match (output_on_top,target_end) {
-            (false,EndDesignation::InputPort)  => 2.0 * RIGHT_ANGLE,
-            (false,EndDesignation::OutputPort) => 0.0,
-            (true,EndDesignation::InputPort)   => 0.0,
-            (true,EndDesignation::OutputPort)  => 2.0 * RIGHT_ANGLE,
+            (false, PortType::InputPort)  => 2.0 * RIGHT_ANGLE,
+            (false, PortType::OutputPort) => 0.0,
+            (true, PortType::InputPort)   => 0.0,
+            (true, PortType::OutputPort)  => 2.0 * RIGHT_ANGLE,
         }
     }
 
-    // TODO: This needs a much better documentation with an example. Seems overly coplex to me and
-    //       I'm wondering if we can implement it in a simpler way than this. Especially, the amount
-    //       of layourt states is really big and I have a feeling we can simplify it a lot.
-    //
-    // TODO: Anyway, we need docs / description which would make reading the code below easy - the
-    //       reader should understand each rule introduced here. Maybe we should add docs to each
-    //       rule explaining when it happens? I hope there is easier way to explain it though.
-    //       For now, I have hard time to understand why these rules work.
     /// These corrections are needed as sometimes shapes are in places that lead to inconsistent
     /// results, e.g., the side line leaving the node from left/right or right/left. The shape
     /// itself does not have enough information about its own placement to determine which end
@@ -1772,30 +1752,28 @@ impl EdgeModelData {
     /// for these here based on the specific layout state we are in.
     fn get_cut_angle_correction(&self, shape_role:ShapeRole) -> f32 {
         let layout_state = self.layout_state.get();
-
+        println!("{:?}", layout_state);
         let flip = 2.0 * RIGHT_ANGLE;
 
+        // These rules are derived from the algorithm in `redraw`. In some layout configurations
+        // shapes are inverted top/down or left/right and we need to apply the appropriate
+        // corrections here. Sometimes these are just the side-effect of some layouting mechanics
+        // without visual justification (e.g., the `PortLine` sometimes ends up with a negative
+        // height and is thus flipped upside down.
         match (layout_state,shape_role)  {
+
+            (LayoutState::UpLeft, ShapeRole::PortLine )   => flip,
+            (LayoutState::UpRight, ShapeRole::PortLine  ) => flip,
+
             (LayoutState::DownLeft, ShapeRole::SideLine ) => flip,
             (LayoutState::DownLeft, ShapeRole::Corner   ) => flip,
+            (LayoutState::UpLeft, ShapeRole::Corner   )   => flip,
 
-            (LayoutState::UpLeft, ShapeRole::PortLine ) => flip,
-            (LayoutState::UpLeft, ShapeRole::Corner   ) => flip,
 
-            (LayoutState::UpRight, ShapeRole::PortLine  ) => flip,
             (LayoutState::UpRight, ShapeRole::Corner3   ) => flip,
             (LayoutState::UpRight, ShapeRole::SideLine2 ) => flip,
             (LayoutState::UpRight, ShapeRole::Corner2   ) => flip,
             (LayoutState::UpRight, ShapeRole::SideLine  ) => flip,
-
-            (LayoutState::TopCenterRightLoop, ShapeRole::SideLine ) => flip,
-            (LayoutState::TopCenterRightLoop, ShapeRole::PortLine ) => flip,
-
-            (LayoutState::TopCenterLeftLoop, ShapeRole::SideLine2 ) => flip,
-            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner2   ) => flip,
-            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner    ) => flip,
-            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner3   ) => flip,
-            (LayoutState::TopCenterLeftLoop, ShapeRole::PortLine  ) => flip,
 
             (_, ShapeRole::Arrow)  => RIGHT_ANGLE,
 
@@ -1822,10 +1800,10 @@ impl EdgeModelData {
     }
 
     /// Check whether the provided point is close enough to be snapped to the edge.
-    fn try_point_snap(&self, point:Vector2<f32>, hover_shape_id:display::object::Id) -> Option<SnapTarget> {
-        let hover_shape    = self.get_shape(hover_shape_id)?;
-        let snap_position  = hover_shape.snap(point)?;
-        Some(SnapTarget::new(snap_position,hover_shape_id))
+    fn try_point_snap(&self, point:Vector2<f32>, focus_shape_id:display::object::Id) -> Option<SnapTarget> {
+        let focus_shape    = self.get_shape(focus_shape_id)?;
+        let snap_position  = focus_shape.snap(point)?;
+        Some(SnapTarget::new(snap_position,focus_shape_id))
     }
 
     /// Disable the splitting of the shape.
@@ -1835,34 +1813,31 @@ impl EdgeModelData {
         }
     }
 
-    // FIXME: lets rename all "hover-like" names to "focus-like" names (see refactoring above).
-    //        These names should have semantic meaning (we are focusing an edge), not a behavioral
-    //        meaning (we are focusing ON hover).
     /// FocusSplit the shape at the given `position` and highlight the given `EndDesignation`. This
     /// might fail if the given position is too far from the shape.
-    fn try_enable_hover_split
-    (&self, position:Vector2<f32>, hover_shape_id:display::object::Id, part:EndDesignation)
+    fn try_enable_focus_split
+    (&self, position:Vector2<f32>, focus_shape_id:display::object::Id, part: PortType)
     -> Result<SnapTarget, ()>{
-        let snap_data      = self.try_point_snap(position,hover_shape_id).ok_or(())?;
+        let snap_data      = self.try_point_snap(position,focus_shape_id).ok_or(())?;
         let semantic_split = SemanticSplit::new(&self,snap_data.target_shape_id).ok_or(())?;
         let angle          = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
 
-        // Completely disable/enable hovering for shapes that are not close the split base don their
+        // Completely disable/enable focus for shapes that are not close the split base don their
         // relative position within the shape. This avoids issues with splitting not working
         // correctly when a split would intersect the edge at multiple points.
         semantic_split.output_side_shapes().iter().for_each(|shape_id| {
             if let Some(shape) = self.get_shape(*shape_id) {
                 match part {
-                    EndDesignation::OutputPort => shape.focus_all(),
-                    EndDesignation::InputPort => shape.focus_none(),
+                    PortType::OutputPort => shape.focus_all(),
+                    PortType::InputPort => shape.focus_none(),
                 }
             }
         });
         semantic_split.input_side_shapes().iter().for_each(|shape_id|{
             if let Some(shape) = self.get_shape(*shape_id) {
                 match part {
-                    EndDesignation::OutputPort => shape.focus_none(),
-                    EndDesignation::InputPort => shape.focus_all(),
+                    PortType::OutputPort => shape.focus_none(),
+                    PortType::InputPort => shape.focus_all(),
                 }
             }
         });
