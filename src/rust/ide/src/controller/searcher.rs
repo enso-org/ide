@@ -121,7 +121,7 @@ pub struct ParsedInput {
 }
 
 impl ParsedInput {
-    /// Contructor from the plain input.
+    /// Constructor from the plain input.
     fn new(mut input:String, parser:&Parser) -> FallibleResult<Self> {
         let leading_spaces = input.chars().take_while(|c| *c == ' ').count();
         // To properly guess what is "still typed argument" we simulate type of one letter by user.
@@ -356,7 +356,6 @@ impl Searcher {
         let graph_id       = &*graph.id;
         let module_ast     = graph.module.ast();
         let file           = graph.module.path().file_path();
-        let definition_ast = graph.graph_definition_info()?.body().item.clone_ref();
         let self_type      = None;
         let def_span       = double_representation::module::definition_span(&module_ast,&graph_id)?;
         let position       = TextLocation::convert_span(module_ast.repr(),&def_span).end.into();
