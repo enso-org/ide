@@ -32,7 +32,7 @@ pub enum InvalidQualifiedName {
 ///
 /// See https://dev.enso.org/docs/distribution/packaging.html for more information about the
 /// package structure.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Hash,Shrinkwrap)]
 pub struct QualifiedName {
     #[shrinkwrap(main_field)]
     text      : String,

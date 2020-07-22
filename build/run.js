@@ -111,7 +111,7 @@ commands.build.js = async function() {
 
 commands.build.rust = async function(argv) {
     console.log(`Building WASM target.`)
-    let args = ['build','--target','web','--no-typescript','--out-dir',paths.dist.wasm.root,'ide']
+    let args = ['build','--target','web','--no-typescript','--out-dir',paths.dist.wasm.root,'ide/lib/view']
     if (argv.dev) { args.push('--dev') }
     await run_cargo('wasm-pack',args)
     await patch_file(paths.dist.wasm.glue, js_workaround_patcher)

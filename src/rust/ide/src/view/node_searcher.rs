@@ -3,9 +3,6 @@
 
 use crate::prelude::*;
 
-use crate::controller::graph::LocationHint;
-use crate::controller::graph::NewNodeInfo;
-use crate::model::module::NodeMetadata;
 use crate::model::module::Position;
 use crate::view::node_editor::NodeEditor;
 
@@ -91,7 +88,7 @@ impl NodeSearcher {
             self.text_field.clear_content();
             self.text_field.set_focus();
             let graph      = self.node_editor.graph.controller().clone_ref();
-            let controller = controller::Searcher::new_from_graph_controller(&self.logger,&self.project,graph);
+            let controller = controller::Searcher::new_from_graph_controller(&self.logger,&self.project,graph,None).unwrap();
             let logger     = self.logger.clone_ref();
             let weak       = Rc::downgrade(&self.controller);
             executor::global::spawn(controller.subscribe().for_each(move |notification| {

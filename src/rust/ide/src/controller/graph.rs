@@ -989,7 +989,7 @@ main =
             // === Add node ===
             let id       = ast::Id::new_v4();
             let position = Some(model::module::Position::new(10.0,20.0));
-            let metadata = NodeMetadata {position};
+            let metadata = NodeMetadata {position,..default()};
             let info     = NewNodeInfo {
                 expression    : "a+b".into(),
                 metadata      : Some(metadata),
