@@ -25,7 +25,7 @@ use ensogl::display::shape::text::text_field::FocusManager;
 
 // FIXME[dg] hardcoded literal for glyph of height 12.0. Copied from port.rs
 const GLYPH_WIDTH       : f32 = 7.224_609_4;
-const VERTICAL_MARGIN   : f32 = GLYPH_WIDTH * 2.0;
+const VERTICAL_MARGIN   : f32 = GLYPH_WIDTH;
 const HORIZONTAL_MARGIN : f32 = GLYPH_WIDTH;
 const TEXT_SIZE         : f32 = 12.0;
 
@@ -140,37 +140,47 @@ impl Animations {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct BreadcrumbsModel {
-    logger           : Logger,
-    animations       : Animations,
-    display_object   : display::object::Instance,
-    pub project_name : ProjectName,
-    scene            : Scene,
-    breadcrumbs      : Rc<RefCell<Vec<Breadcrumb>>>,
-    breadcrumb_pop   : frp::Source
+    logger                : Logger,
+    animations            : Animations,
+    display_object        : display::object::Instance,
+    pub project_name      : ProjectName,
+    breadcrumbs_container : display::object::Instance,
+    scene                 : Scene,
+    breadcrumbs           : Rc<RefCell<Vec<Breadcrumb>>>,
+    breadcrumb_pop        : frp::Source
 }
 
 impl BreadcrumbsModel {
     /// Create new BreadcrumbsModel.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S, frp:&Frp, focus_manager:&FocusManager) -> Self {
-        let scene          = scene.into();
-        let project_name   = ProjectName::new(scene,focus_manager);
-        let logger         = Logger::new("Breadcrumbs");
-        let display_object = display::object::Instance::new(&logger);
-        let animations     = Animations::new(&frp.network);
-        let scene          = scene.clone_ref();
-        let breadcrumbs    = default();
-        let breadcrumb_pop = frp.outputs.breadcrumb_pop.clone_ref();
-        Self{logger,display_object,animations,scene,breadcrumbs,breadcrumb_pop,project_name}.init()
+        let scene                 = scene.into();
+        let project_name          = ProjectName::new(scene,focus_manager);
+        let logger                = Logger::new("Breadcrumbs");
+        let display_object        = display::object::Instance::new(&logger);
+        let breadcrumbs_container = display::object::Instance::new(&logger);
+        let animations            = Animations::new(&frp.network);
+        let scene                 = scene.clone_ref();
+        let breadcrumbs           = default();
+        let breadcrumb_pop        = frp.outputs.breadcrumb_pop.clone_ref();
+        Self{logger,display_object,animations,scene,breadcrumbs,breadcrumb_pop,project_name,
+            breadcrumbs_container}.init()
     }
 
     fn init(self) -> Self {
         self.add_child(&self.project_name);
+        self.add_child(&self.breadcrumbs_container);
+        self.project_name.set_position(Vector3::new(HORIZONTAL_MARGIN,0.0,0.0));
+        self.set_project_name_width(self.project_name.width());
         self.push_breadcrumb("Main",&default());
         self
     }
 
     fn width(&self) -> f32 {
-        self.breadcrumbs.borrow().iter().fold(self.project_name.width(), |acc,breadcrumb| acc + breadcrumb.width())
+        self.breadcrumbs.borrow().iter().fold(0.0, |acc,breadcrumb| acc + breadcrumb.width())
+    }
+
+    fn set_project_name_width(&self, width:f32) {
+        self.breadcrumbs_container.set_position(Vector3::new(HORIZONTAL_MARGIN + width,0.0,0.0));
     }
 
     fn select_breadcrumb(&self, index:usize) {
@@ -190,13 +200,25 @@ impl BreadcrumbsModel {
         let breadcrumb_index = self.breadcrumbs.borrow().len();
         let model            = self.clone_ref();
 
+
+        // === User Interaction ===
+
         frp::extend! { network
             eval_ breadcrumb.frp.outputs.selected(model.select_breadcrumb(breadcrumb_index));
         }
 
+
+        // === GUI Update ===
+
+        frp::extend! { network
+            eval self.project_name.frp.outputs.width((width) {
+                model.set_project_name_width(*width)
+            });
+        }
+
         info!(self.logger,"Pushing {breadcrumb.info.name} breadcrumb");
         breadcrumb.set_position(Vector3::new(self.width(),0.0,0.0));
-        self.add_child(&breadcrumb);
+        self.breadcrumbs_container.add_child(&breadcrumb);
         self.breadcrumbs.borrow_mut().push(breadcrumb);
     }
 

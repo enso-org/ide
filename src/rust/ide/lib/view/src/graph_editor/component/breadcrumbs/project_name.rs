@@ -88,16 +88,18 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    pub name : frp::Source<String>
+    pub name  : frp::Source<String>,
+    pub width : frp::Source<f32>
 }
 
 impl FrpOutputs {
     /// Create new FrpOutputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            def name = source();
+            def name  = source();
+            def width = source();
         }
-        Self{name}
+        Self{name,width}
     }
 }
 
@@ -176,6 +178,7 @@ pub struct ProjectNameModel {
     text_field     : TextField,
     project_name   : Rc<RefCell<String>>,
     name_output    : frp::Source<String>,
+    width_output   : frp::Source<f32>
 }
 
 impl ProjectNameModel {
@@ -194,8 +197,10 @@ impl ProjectNameModel {
         let view                  = component::ShapeView::<background::Shape>::new(&view_logger, scene);
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let name_output           = frp.outputs.name.clone();
+        let width_output          = frp.outputs.width.clone();
         let animations            = Animations::new(&frp.network);
-        Self{logger,view,display_object,text_field,project_name,name_output,animations}.init()
+        Self{logger,view,display_object,text_field,project_name,name_output,animations,
+            width_output}.init()
     }
 
     /// Get the width of the ProjectName view.
@@ -210,7 +215,6 @@ impl ProjectNameModel {
         let line_height = self.text_field.line_height();
         let height      = line_height + VERTICAL_MARGIN * 2.0;
         let offset_y    = 1.8;
-        //self.text_field.set_position(Vector3::new(0.0,-line_height-VERTICAL_MARGIN,0.0));
         self.text_field.set_position(Vector3::new(0.0,-offset_y-VERTICAL_MARGIN,0.0));
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.view.set_position(Vector3::new(width,-height,0.0)/2.0);
@@ -232,6 +236,7 @@ impl ProjectNameModel {
     fn update_text_field_content(&self) {
         self.text_field.set_content(&self.project_name.borrow());
         self.update_alignment();
+        self.width_output.emit(self.width());
     }
 
     fn set_opacity(&self, value:f32) {
@@ -317,6 +322,7 @@ impl ProjectName {
                 }
                 // Keep only one line.
                 project_name.text_field.set_content(&new_name);
+                project_name.width_output.emit(project_name.width());
                 project_name.update_alignment();
             }
         });
