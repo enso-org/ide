@@ -374,8 +374,8 @@ impl ShapeView {
         }
     }
 
-    fn set_color(&self, port_id:PortId, color:color::Lcha) {
-        let color = color::Rgba::from(color);
+    fn set_color<C:Into<color::Rgba>>(&self, port_id:PortId, color:C) {
+        let color = color.into();
         let color = Vector3::<f32>::new(color.red,color.green,color.blue);
         match self {
             ShapeView::Single{ view } => {
