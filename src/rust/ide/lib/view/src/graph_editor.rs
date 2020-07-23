@@ -658,7 +658,11 @@ impl display::Object for Edge {
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct Type(pub ImString);
 
-
+impl From<String> for Type {
+    fn from(s: String) -> Self {
+        Type(s.into())
+    }
+}
 
 // =============================
 // === OptionalMethodPointer ===

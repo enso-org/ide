@@ -61,8 +61,7 @@ struct DummyTypeGenerator {
 impl DummyTypeGenerator {
     fn get_dummy_type(&mut self) -> Type {
         self.type_counter += 1;
-        Type(ImString::new(format!("dummy_type_{}",self.type_counter)))
-
+        Type::from(format!("dummy_type_{}",self.type_counter))
     }
 }
 
