@@ -144,6 +144,39 @@ impl Handle {
         futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
     }
 
+    /// Enter node by given node ID and method pointer.
+    ///
+    /// This will cause pushing a new stack frame to the execution context and changing the graph
+    /// controller to point to a new definition.
+    pub async fn enter_method_pointer
+    (&self, node:double_representation::node::Id, method_ptr:&MethodPointer) -> FallibleResult<()> {
+        let graph = controller::Graph::new_method(&self.logger,&self.project,&method_ptr).await?;
+        let call  = model::execution_context::LocalCall {
+            call       : node,
+            definition : method_ptr.clone()
+        };
+        self.execution_ctx.push(call).await?;
+
+        debug!(self.logger,"Replacing graph with {graph:?}.");
+        self.graph.replace(graph);
+        debug!(self.logger,"Sending graph invalidation signal.");
+        self.notifier.publish(Notification::EnteredNode(node)).await;
+
+        Ok(())
+    }
+
+    /// Attempts to get the method pointer of the specified node.
+    ///
+    /// Fails if there's no information about target method pointer (e.g. because node value hasn't
+    /// been yet computed by the engine) or if method graph cannot be created (see
+    /// `graph_for_method` documentation).
+    pub fn node_method_pointer
+    (&self, node:double_representation::node::Id) -> FallibleResult<Rc<MethodPointer>> {
+        let registry   = self.execution_ctx.computed_value_info_registry();
+        let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
+        node_info.method_pointer.as_ref().cloned().ok_or_else(|| NoResolvedMethod(node).into())
+    }
+
     /// Enter node by given ID.
     ///
     /// This will cause pushing a new stack frame to the execution context and changing the graph
@@ -154,22 +187,8 @@ impl Handle {
     /// `graph_for_method` documentation).
     pub async fn enter_node(&self, node:double_representation::node::Id) -> FallibleResult<()> {
         debug!(self.logger, "Entering node {node}.");
-        let registry   = self.execution_ctx.computed_value_info_registry();
-        let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
-        let method_ptr = node_info.method_pointer.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
-        let graph      = controller::Graph::new_method(&self.logger,&self.project,&method_ptr).await?;
-        let call       = model::execution_context::LocalCall {
-            call       : node,
-            definition : method_ptr.as_ref().clone()
-        };
-        self.execution_ctx.push(call).await?;
-
-        debug!(self.logger,"Replacing graph with {graph:?}.");
-        self.graph.replace(graph);
-        debug!(self.logger,"Sending graph invalidation signal.");
-        self.notifier.publish(Notification::EnteredNode(node)).await;
-
-        Ok(())
+        let method_ptr = self.node_method_pointer(node)?;
+        self.enter_method_pointer(node,&method_ptr).await
     }
 
     /// Leave the current node. Reverse of `enter_node`.

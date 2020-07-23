@@ -16,6 +16,8 @@ use ensogl::display::scene::Scene;
 use logger::enabled::Logger;
 use logger::AnyLogger;
 use ensogl::display::shape::text::text_field::FocusManager;
+use std::cmp;
+use enso_protocol::language_server::MethodPointer;
 
 
 
@@ -39,7 +41,7 @@ const TEXT_SIZE         : f32 = 12.0;
 #[allow(missing_docs)]
 pub struct FrpInputs {
     /// Push breadcrumb.
-    pub push_breadcrumb : frp::Source<(String,uuid::Uuid)>,
+    pub push_breadcrumb : frp::Source<(Rc<MethodPointer>,uuid::Uuid)>,
     /// Pop breadcrumb.
     pub pop_breadcrumb : frp::Source,
 }
@@ -64,16 +66,18 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    pub breadcrumb_pop : frp::Source
+    pub breadcrumb_push : frp::Source<(Rc<MethodPointer>,uuid::Uuid)>,
+    pub breadcrumb_pop  : frp::Source
 }
 
 impl FrpOutputs {
     /// Create new FrpOutputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            def breadcrumb_pop = source();
+            def breadcrumb_push = source();
+            def breadcrumb_pop  = source();
         }
-        Self{breadcrumb_pop}
+        Self{breadcrumb_push,breadcrumb_pop}
     }
 }
 
@@ -147,7 +151,9 @@ pub struct BreadcrumbsModel {
     breadcrumbs_container : display::object::Instance,
     scene                 : Scene,
     breadcrumbs           : Rc<RefCell<Vec<Breadcrumb>>>,
-    breadcrumb_pop        : frp::Source
+    breadcrumb_pop        : frp::Source,
+    breadcrumb_push       : frp::Source<(Rc<MethodPointer>,uuid::Uuid)>,
+    current_index         : Rc<Cell<usize>>
 }
 
 impl BreadcrumbsModel {
@@ -162,8 +168,10 @@ impl BreadcrumbsModel {
         let scene                 = scene.clone_ref();
         let breadcrumbs           = default();
         let breadcrumb_pop        = frp.outputs.breadcrumb_pop.clone_ref();
-        Self{logger,display_object,animations,scene,breadcrumbs,breadcrumb_pop,project_name,
-            breadcrumbs_container}.init()
+        let breadcrumb_push       = frp.outputs.breadcrumb_push.clone_ref();
+        let current_index         = default();
+        Self{logger,display_object,animations,scene,breadcrumbs,breadcrumb_pop,breadcrumb_push,
+            project_name,breadcrumbs_container,current_index}.init()
     }
 
     fn init(self) -> Self {
@@ -171,7 +179,11 @@ impl BreadcrumbsModel {
         self.add_child(&self.breadcrumbs_container);
         self.project_name.set_position(Vector3::new(HORIZONTAL_MARGIN,0.0,0.0));
         self.set_project_name_width(self.project_name.width());
-        self.push_breadcrumb("Main",&default());
+        //FIXME[dg]: This is a workaround. Main shouldn't be a MethodPointer.
+        let mut method_pointer = enso_protocol::language_server::MethodPointer::default();
+        method_pointer.name    = "Main".to_string();
+        let method_pointer     = Rc::new(method_pointer);
+        self.push_breadcrumb(&method_pointer,&default());
         self
     }
 
@@ -184,47 +196,89 @@ impl BreadcrumbsModel {
     }
 
     fn select_breadcrumb(&self, index:usize) {
-        // If we have more crumbs after `index`, we will pop them.
-        let breadcrumb_length = self.breadcrumbs.borrow().len();
-        let last_index        = breadcrumb_length - 1;
-        let pop_amount        = last_index - index;
-        for _ in 0..pop_amount {
-            self.breadcrumb_pop.emit(());
+        let current_index = self.current_index.get();
+        match index.cmp(&current_index) {
+            cmp::Ordering::Less => {
+                // If we have more crumbs after `index`, we will pop them.
+                let pop_amount    = current_index - index;
+                for _ in 0..pop_amount {
+                    self.breadcrumb_pop.emit(());
+                }
+            },
+            cmp::Ordering::Greater => {
+                for index in current_index..index {
+                    println!("Index: select_breadcrumb {}", index);
+                    let info = self.breadcrumbs.borrow().get(index).map(|breadcrumb| {
+                        (breadcrumb.info.method_pointer.clone(),breadcrumb.info.expression_id)
+                    }).as_ref().cloned();
+                    if let Some((method_pointer,expression_id)) = info {
+                        println!("Index: select_breadcrumb {}", expression_id);
+                        self.breadcrumb_push.emit((method_pointer,expression_id));
+                    }
+                }
+            },
+            cmp::Ordering::Equal => ()
         }
         info!(self.logger,"Selecting breadcrumb #{index}");
     }
 
-    fn push_breadcrumb(&self, name:impl Str,expression_id:&uuid::Uuid) {
-        let breadcrumb       = Breadcrumb::new(&self.scene,name,*expression_id);
-        let network          = &breadcrumb.frp.network;
-        let breadcrumb_index = self.breadcrumbs.borrow().len();
-        let model            = self.clone_ref();
+    fn push_breadcrumb(&self, method_pointer:&Rc<MethodPointer>, expression_id:&uuid::Uuid) {
+        let current_index = self.current_index.get();
+        let next_index    = current_index + 1;
+
+        let breadcrumb_exists =
+            self.breadcrumbs.borrow_mut().get(current_index).map(|breadcrumb| {
+                breadcrumb.info.expression_id
+            }).filter(|other_expression_id| other_expression_id == expression_id).is_some();
+
+        if breadcrumb_exists {
+            debug!(self.logger, "Entering an existing {method_pointer.name} breadcrumb.");
+            //TODO[dg]: Highlight breadcrumb.
+        } else {
+            debug!(self.logger, "Creating a new {method_pointer.name} breadcrumb.");
+            self.remove_breadcrumbs_history();
+            let breadcrumb       = Breadcrumb::new(&self.scene,method_pointer,expression_id);
+            let network          = &breadcrumb.frp.network;
+            let breadcrumb_index = next_index;
+            let model            = self.clone_ref();
 
 
-        // === User Interaction ===
+            // === User Interaction ===
 
-        frp::extend! { network
-            eval_ breadcrumb.frp.outputs.selected(model.select_breadcrumb(breadcrumb_index));
+            frp::extend! { network
+                eval_ breadcrumb.frp.outputs.selected(model.select_breadcrumb(breadcrumb_index));
+            }
+
+
+            // === GUI Update ===
+
+            frp::extend! { network
+                eval self.project_name.frp.outputs.width((width) {
+                        model.set_project_name_width(*width)
+                });
+            }
+
+            info!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
+            breadcrumb.set_position(Vector3::new(self.width(), 0.0, 0.0));
+            self.breadcrumbs_container.add_child(&breadcrumb);
+            self.breadcrumbs.borrow_mut().push(breadcrumb);
         }
-
-
-        // === GUI Update ===
-
-        frp::extend! { network
-            eval self.project_name.frp.outputs.width((width) {
-                model.set_project_name_width(*width)
-            });
-        }
-
-        info!(self.logger,"Pushing {breadcrumb.info.name} breadcrumb");
-        breadcrumb.set_position(Vector3::new(self.width(),0.0,0.0));
-        self.breadcrumbs_container.add_child(&breadcrumb);
-        self.breadcrumbs.borrow_mut().push(breadcrumb);
+        self.current_index.set(next_index);
     }
 
     fn pop_breadcrumb(&self) {
-        info!(self.logger, "Popping breadcrumb view.");
-        self.breadcrumbs.borrow_mut().pop().map(|breadcrumb| breadcrumb.unset_parent());
+        if self.current_index.get() > 0 {
+            info!(self.logger, "Popping breadcrumb view.");
+            self.current_index.set(self.current_index.get() - 1);
+        }
+        //self.breadcrumbs.borrow_mut().pop().map(|breadcrumb| breadcrumb.unset_parent());
+    }
+
+    fn remove_breadcrumbs_history(&self) {
+        for breadcrumb in self.breadcrumbs.borrow_mut().split_off(self.current_index.get()) {
+            info!(self.logger, "Removing {breadcrumb.info.method_pointer.name}.");
+            breadcrumb.unset_parent();
+        }
     }
 }
 
@@ -256,8 +310,8 @@ impl Breadcrumbs {
         let model   = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
-            eval frp.push_breadcrumb(((name,expression_id)) {
-                model.push_breadcrumb(name,expression_id)
+            eval frp.push_breadcrumb(((method_pointer,expression_id)) {
+                model.push_breadcrumb(method_pointer,expression_id)
             });
             eval_ frp.pop_breadcrumb(model.pop_breadcrumb());
         }

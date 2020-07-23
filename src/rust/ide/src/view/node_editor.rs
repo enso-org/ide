@@ -21,7 +21,7 @@ use ide_view::graph_editor::EdgeTarget;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
-
+use enso_protocol::language_server::MethodPointer;
 
 
 // ==============
@@ -181,6 +181,9 @@ impl GraphEditorIntegratedWithController {
         let breadcrumbs = &model.editor.breadcrumbs;
         frp::extend! {network
             eval_ breadcrumbs.frp.outputs.breadcrumb_pop(model.node_exited_in_ui(&()).ok());
+            eval  breadcrumbs.frp.outputs.breadcrumb_push((id) {
+                model.expression_entered_in_ui(id).ok()
+            });
         }
 
         // === Project Renaming ===
@@ -707,28 +710,35 @@ impl GraphEditorIntegratedWithControllerModel {
         Ok(())
     }
 
-    fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
-        debug!(self.logger,"Requesting entering the node {node_id}.");
-        let id             = self.get_controller_node_id(*node_id)?;
-        let info           = self.lookup_computed_info(&id);
+    fn expression_entered_in_ui(&self, info:&(Rc<MethodPointer>,Uuid)) -> FallibleResult<()> {
+        let (method_pointer,expression_id) = info;
+        println!("Entered in UI: {}",expression_id);
+        let method_pointer = method_pointer.clone();
         let controller     = self.controller.clone_ref();
         let logger         = self.logger.clone_ref();
         let graph_editor   = self.editor.clone_ref();
+        let expression_id  = *expression_id;
         let enter_action   = async move {
-            let result = controller.enter_node(id).await;
-            let method_pointer = info.as_ref().and_then(|info| info.method_pointer.as_ref());
-            match (result,method_pointer) {
-                (Ok(_),Some(method_pointer)) => {
+            match controller.enter_method_pointer(expression_id,&method_pointer).await {
+                Ok(_) => {
+                    println!("Entered in UI inside async: {}", expression_id);
                     info!(logger,"Entering node.");
-                    let breadcrumb_info = (method_pointer.name.clone(),id);
+                    let breadcrumb_info = (method_pointer.clone(),expression_id);
                     graph_editor.breadcrumbs.frp.push_breadcrumb.emit(&breadcrumb_info);
                 },
-                (Err(e),_) => error!(logger,"Couldn't enter node: {e}"),
-                (_,None)   => error!(logger,"Couldn't enter node: Computed info not found.")
+                Err(e) => error!(logger,"Couldn't enter node: {e}")
             }
         };
         executor::global::spawn(enter_action);
         Ok(())
+    }
+
+    fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
+        println!("Entered in UI: {}", node_id);
+        debug!(self.logger,"Requesting entering the node {node_id}.");
+        let expression_id  = self.get_controller_node_id(*node_id)?;
+        let method_pointer = self.controller.node_method_pointer(expression_id)?;
+        self.expression_entered_in_ui(&(method_pointer,expression_id))
     }
 
     fn node_exited_in_ui(&self, _:&()) -> FallibleResult<()> {
