@@ -282,7 +282,7 @@ pub mod joint {
             (
             ) {
                 let radius : Var<Pixels> = "min(input_size.y,input_size.x)".into();
-                let joint                   = Circle(radius/2.0);
+                let joint                   = Circle((radius-PADDING.px())/2.0);
                 let joint_color:color::Rgba = color::Lcha::new(0.6,0.5,0.76,1.0).into();
                 let joint_colored           = joint.fill(joint_color);
                 joint_colored.into()
@@ -1265,7 +1265,8 @@ impl EdgeModelData {
                 if let Ok(snap_data) = focus_split_result {
                     let joint_position = snap_data.position - self.display_object.position().xy();
                     self.joint.set_position_xy(joint_position);
-                    self.joint.shape.sprite.size.set(Vector2(LINE_WIDTH,LINE_WIDTH));
+                    let joint_size = LINE_WIDTH+PADDING;
+                    self.joint.shape.sprite.size.set(Vector2(joint_size,joint_size));
                 } else {
                     self.joint.shape.sprite.size.set(Vector2::zero());
                 }
