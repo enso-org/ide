@@ -27,7 +27,7 @@ use span_tree;
 use crate::graph_editor::node;
 use crate::graph_editor::Type;
 use crate::graph_editor::component::node::Expression;
-use crate::graph_editor::component::type_coloring::{TypeColorMap, DEFAULT_TYPE_COLOR};
+use crate::graph_editor::component::type_coloring::{TypeColorMap, MISSING_TYPE_COLOR};
 
 
 
@@ -751,7 +751,7 @@ impl OutputPorts {
 
     fn set_port_colors_based_on_available_types(&self) {
         self.id_map.borrow().iter().for_each(|(id, crumb)|{
-            let color = self.get_port_color(crumb).unwrap_or(DEFAULT_TYPE_COLOR);
+            let color = self.get_port_color(crumb).unwrap_or(MISSING_TYPE_COLOR);
             self.data.ports.borrow().set_color(*id,color);
         })
     }

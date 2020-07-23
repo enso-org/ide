@@ -25,7 +25,7 @@ use span_tree::SpanTree;
 use super::super::node;
 
 use crate::graph_editor::Type;
-use crate::graph_editor::component::type_coloring::DEFAULT_TYPE_COLOR;
+use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::type_coloring::TypeColorMap;
 
 
@@ -274,7 +274,7 @@ impl Manager {
                                         return cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(port_color))
                                     }
                                 }
-                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(DEFAULT_TYPE_COLOR))
+                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(MISSING_TYPE_COLOR))
                             }));
                             // FIXME: the following lines leak memory in the current FRP
                             // implementation because self.frp does not belong to this network and

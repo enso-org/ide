@@ -19,7 +19,7 @@ pub mod builtin;
 pub mod data;
 
 use crate::graph_editor::component::node;
-use crate::graph_editor::component::type_coloring::DEFAULT_TYPE_COLOR;
+use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization;
 
@@ -1495,7 +1495,7 @@ impl GraphEditorModel {
 
     fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
        match self.try_get_edge_color(edge_id) {
-           None        => DEFAULT_TYPE_COLOR,
+           None        => MISSING_TYPE_COLOR,
            Some(color) => color,
        }
     }
@@ -2349,7 +2349,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         if let Some(color) = model.detached_edge_color() {
             cursor::Style::new_color(color).press()
         } else {
-            cursor::Style::new_color_no_animation(DEFAULT_TYPE_COLOR).press()
+            cursor::Style::new_color_no_animation(MISSING_TYPE_COLOR).press()
         }
     }));
     cursor_style_on_edge_drag_stop <- outputs.all_edges_attached.constant(default());

@@ -12,7 +12,7 @@ use std::hash::Hasher;
 
 
 /// Color that should be used if no type information is available.
-pub const DEFAULT_TYPE_COLOR : color::Lcha = color::Lcha::new(0.5, 0.0, 0.0, 1.0);
+pub const MISSING_TYPE_COLOR: color::Lcha = color::Lcha::new(0.5, 0.0, 0.0, 1.0);
 
 
 
