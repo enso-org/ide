@@ -367,6 +367,8 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
             }
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                // FIXME: These bounds check should not be required and should be removed once
+                // issue #689 is  resolved.
                 let radius = self.shape.radius.get();
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
@@ -449,6 +451,8 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
             }
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                // FIXME: These bounds check should not be required and should be removed once
+                // issue #689 is  resolved.
                 let radius = self.shape.radius.get();
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
@@ -510,6 +514,8 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
             }
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
+                // FIXME: These bounds check should not be required and should be removed once
+                // issue #689 is  resolved.
                 #[allow(deprecated)]
                 let height = self.sprite().size.get().y;
                 let y      = point.y.clamp(-height/2.0, height/2.0);
