@@ -443,7 +443,7 @@ macro_rules! define_corner_end { () => {
 
                 let split_shape = FocusedEdge::new(
                 shape,&focus_split_center.px(),&focus_split_angle.into());
-                let shape       = split_shape.fill(color.clone(), focus_color.clone());
+                let shape       = split_shape.fill(&color,&focus_color);
 
                 let hover_width = width + HOVER_EXTENSION.px() * 2.0;
                 let hover_area  = corner_base_shape(&radius,&hover_width,&angle,&start_angle);
@@ -521,7 +521,7 @@ macro_rules! define_line { () => {
 
                 let split_shape = FocusedEdge::new(
                     shape,&focus_split_center.px(),&focus_split_angle.into());
-                let shape       = split_shape.fill(color.clone(), focus_color.clone());
+                let shape       = split_shape.fill(&color,&focus_color);
                 hover_area(shape,HOVER_EXTENSION.px()).into()
             }
         }
@@ -583,7 +583,7 @@ macro_rules! define_arrow { () => {
                 let shape_padding = -1.px();
                 let shape         = Triangle(width+&shape_padding,height+&shape_padding);
                 let shape         = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle);
-                let shape         = shape.fill(color.clone(), focus_color.clone());
+                let shape         = shape.fill(&color, &focus_color);
                 shape.into()
             }
         }
