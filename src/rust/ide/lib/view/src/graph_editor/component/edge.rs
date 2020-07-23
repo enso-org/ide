@@ -1273,8 +1273,6 @@ impl EdgeModelData {
                     self.joint.set_position_xy(joint_position);
                     let joint_size = LINE_WIDTH+PADDING;
                     self.joint.shape.sprite.size.set(Vector2(joint_size,joint_size));
-                } else {
-                    self.joint.shape.sprite.size.set(Vector2::zero());
                 }
             },
             _ => {
