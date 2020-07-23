@@ -145,18 +145,17 @@ impl Expression {
     }
 
     fn get_id_for_crumbs(&self, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
-        [&self.input_span_tree, &self.output_span_tree]
-            .iter()
-            .find_map(|span_tree|{
-                if span_tree.root_ref().crumbs == crumbs {
-                    return span_tree.root.expression_id
-                };
-                span_tree
-                    .root_ref()
-                    .get_descendant(crumbs)
-                    .map(|node|{node.expression_id})
-                    .ok()
-                    .flatten()
+        // We don't know whether this is from the input or output span tree, so we need to
+        // check both.
+        let span_trees = [&self.input_span_tree, &self.output_span_tree];
+        // Find the crumbs and map them to their `ast::Id`.
+        span_trees.iter().find_map(|span_tree|{
+            if span_tree.root_ref().crumbs == crumbs {
+                return span_tree.root.expression_id
+            };
+            let span_tree_descendant = span_tree.root_ref().get_descendant(crumbs);
+            let expression_id        = span_tree_descendant.map(|node|{node.expression_id});
+            expression_id.ok().flatten()
         })
     }
 }
