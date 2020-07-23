@@ -55,8 +55,11 @@ impl Entry {
                     module        : module.try_into()?,
                     self_type     : None,
                     documentation : match documentation {
-                        Some(doc) => Some(Entry::gen_doc(doc)?),
-                        None      => None
+                        Some(doc) => match Entry::gen_doc(doc) {
+                            Ok(d)  => Some(d),
+                            Err(_) => None
+                        },
+                        None => None
                     },
                     kind          : EntryKind::Atom,
                 },
@@ -65,8 +68,11 @@ impl Entry {
                     module        : module.try_into()?,
                     self_type     : Some(self_type),
                     documentation : match documentation {
-                        Some(doc) => Some(Entry::gen_doc(doc)?),
-                        None      => None
+                        Some(doc) => match Entry::gen_doc(doc) {
+                            Ok(d)  => Some(d),
+                            Err(_) => None
+                        },
+                        None => None
                     },
                     kind          : EntryKind::Method,
                 },
