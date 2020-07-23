@@ -516,7 +516,7 @@ pub struct Frp {
 }
 
 impl Frp {
-    fn new(network: &frp::Network, id_map:&CrumbsForIds) -> Self {
+    fn new(network: &frp::Network, id_map:&SharedIdCrumbMap) -> Self {
         frp::extend! { network
             def set_size           = source();
             def on_port_mouse_down = source();
@@ -580,7 +580,8 @@ impl OutputPortsData {
         self.update_shape_layout_based_on_size_and_gap();
     }
 
-    fn set_port_number(&self, number_of_ports:u32) {
+    /// Change show many separate output ports exist on the `OutputPort` shape.
+    fn set_number_of_output_ports(&self, number_of_ports:u32) {
         self.ports.borrow().display_object().unset_parent();
         let ports = ShapeView::new(number_of_ports,&self.logger,&self.scene);
         *self.ports.borrow_mut() = ports;
@@ -595,7 +596,7 @@ impl OutputPortsData {
 // === OutputPorts ===
 // ===================
 
-type CrumbsForIds = Rc<RefCell<HashMap<PortId,span_tree::Crumbs>>>;
+type SharedIdCrumbMap = Rc<RefCell<HashMap<PortId,span_tree::Crumbs>>>;
 
 /// Implements the segmented output port area. Provides shapes that can be attached to a `Node` to
 /// add an interactive area with output ports.
@@ -617,7 +618,7 @@ pub struct OutputPorts {
         type_map         : TypeColorMap,
         expression       : Rc<RefCell<Expression>>,
         scene            : Scene,
-        id_map           : CrumbsForIds,
+        id_map           : SharedIdCrumbMap,
 }
 
 impl OutputPorts {
@@ -666,7 +667,7 @@ impl OutputPorts {
         let id_map = id_map;
         *self.id_map.borrow_mut() = id_map;
 
-        self.data.set_port_number(number_of_ports);
+        self.data.set_number_of_output_ports(number_of_ports);
         *self.expression.borrow_mut() = expression;
 
 
