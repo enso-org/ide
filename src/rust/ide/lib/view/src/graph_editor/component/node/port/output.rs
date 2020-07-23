@@ -381,13 +381,13 @@ impl ShapeView {
             ShapeView::Single{ view } => {
                 if port_id.index == 0 {
                     let shape = &view.shape;
-                    shape.color_rgb.set(color.into())
+                    shape.color_rgb.set(color)
                 }
             }
             ShapeView::Multi{ views, .. } => {
                 if let Some(view) = views.get(port_id.index) {
                     let shape = &view.shape;
-                    shape.color_rgb.set(color.into())
+                    shape.color_rgb.set(color)
                 }
             }
         }
@@ -613,7 +613,8 @@ pub struct OutputPorts {
     /// The FRP api of the `OutPutPorts`.
     pub frp              : Frp,
         network          : frp::Network,
-        network_internal : Rc<RefCell<frp::Network>>,
+        // This network will be re-created whenever we change the number of ports.
+        port_network     : Rc<RefCell<frp::Network>>,
         data             : Rc<OutputPortsData>,
         type_map         : TypeColorMap,
         expression       : Rc<RefCell<Expression>>,
@@ -634,9 +635,9 @@ impl OutputPorts {
         let type_map         = default();
         let expression       = Rc::new(RefCell::new(expression));
         let scene            = scene.clone_ref();
-        let network_internal = default();
+        let port_network     = default();
 
-        OutputPorts {scene,data,network,frp,expression,type_map,network_internal,id_map}
+        OutputPorts {scene,data,network,frp,expression,type_map,port_network,id_map}
     }
 
     // TODO: Implement proper sorting and remove.
@@ -656,14 +657,16 @@ impl OutputPorts {
 
         // We want to be able to match each `PortId` to a `Crumb` from the expression, including
         // the root.
-        let number_of_ports = 1 + expression.output_span_tree.root_ref().leaf_iter().count() as u32;
-        let mut id_map      = HashMap::<PortId,span_tree::Crumbs>::from_iter(expression.output_span_tree.root_ref()
-            .leaf_iter()
-            .enumerate()
-            .map(|(index, node)| {
-                (PortId::new(index + 1), node.crumbs)
-        }));
+        let number_of_ports     = 1 + expression.output_span_tree.root_ref().leaf_iter().count() as u32;
+        let expression_nodes    = expression.output_span_tree.root_ref().leaf_iter();
+        // Create a `PortId` for every leaf and store them in tuples.
+        let port_ids_for_crumbs = expression_nodes.enumerate().map(|(index, node)| {
+            (PortId::new(index + 1), node.crumbs)
+        });
+        let mut id_map      = HashMap::<PortId,span_tree::Crumbs>::from_iter(port_ids_for_crumbs);
+        // Also add the root node.
         id_map.insert(PortId::new(0), expression.output_span_tree.root_ref().crumbs);
+
         let id_map = id_map;
         *self.id_map.borrow_mut() = id_map;
 
@@ -738,7 +741,7 @@ impl OutputPorts {
 
         data.ports.borrow().init_frp(&network_internal,port_frp);
 
-        *self.network_internal.borrow_mut() = network_internal;
+        *self.port_network.borrow_mut() = network_internal;
 
         // // FIXME this is a hack to ensure the ports are invisible at startup.
         // // Right now we get some of FRP mouse events on startup that leave the
@@ -766,8 +769,8 @@ impl OutputPorts {
     pub fn set_expression_type(&self, id:ast::Id, maybe_type:Option<Type>) {
         // TODO should we ignore this if it is not part f our expression?
         match maybe_type {
-            Some(r#type) => self.type_map.insert(id,r#type),
-            None         => self.type_map.remove(&id),
+            Some(expression_type) => self.type_map.insert(id,expression_type),
+            None                  => self.type_map.remove(&id),
         };
         self.set_port_colors_based_on_available_types();
     }
