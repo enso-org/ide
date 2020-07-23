@@ -1478,28 +1478,36 @@ impl GraphEditorModel {
         };
     }
 
+    /// Return the color of an edge target. Returns `None` if no type information is associated
+    ///with the target port.
     fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
-        let node = self.nodes.get_cloned_ref(&edge_target.node_id)?;
-        node.view.ports.get_port_color(&edge_target.port)
-            .or_else(|| node.view.output_ports.get_port_color(&edge_target.port))
-
+        let node              = self.nodes.get_cloned_ref(&edge_target.node_id)?;
+        // We don't know whether this is a input or output port, so we need to check both.
+        let input_port_color  = node.view.ports.get_port_color(&edge_target.port);
+        let output_port_color = || node.view.output_ports.get_port_color(&edge_target.port);
+        input_port_color.or_else(output_port_color)
     }
 
+    /// Return the color of an edge based on its connected ports. Returns `None` if no type
+    /// information is associated with either source or target.
     fn try_get_edge_color(&self, edge_id:EdgeId) -> Option<color::Lcha> {
         let edge         = self.edges.get_cloned_ref(&edge_id)?;
         let source_color = edge.source().map(|source| self.try_get_edge_target_color(source)).flatten();
         let target_color = || edge.target().map(|target| self.try_get_edge_target_color(target)).flatten();
         source_color.or_else(target_color)
-
     }
 
+    /// Return a color for the edge. Either based on the edges source/target type, or a default
+    /// color define in `MISSING_TYPE_COLOR`.
     fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
        match self.try_get_edge_color(edge_id) {
-           None        => MISSING_TYPE_COLOR,
            Some(color) => color,
+           None        => MISSING_TYPE_COLOR,
        }
     }
 
+    /// Return a color for the currently detached edge. Note: multiple detached edges should all
+    /// have the same type, as otherwise they could not be connected together.
     pub fn get_color_for_detached_edges(&self) -> Option<color::Lcha> {
         self.edges.detached_edges_iter().find_map(|edge_id| {
             self.try_get_edge_color(edge_id)
