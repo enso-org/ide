@@ -49,15 +49,16 @@ impl Entry {
     /// Create entry from the structure deserialized from the Language Server responses.
     pub fn from_ls_entry(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
+        let logger = Logger::new("SuggestionEntry");
         let this = match entry {
             Atom {name,module,arguments,return_type,documentation} => Self {
                     name,arguments,return_type,
                     module        : module.try_into()?,
                     self_type     : None,
                     documentation : match documentation {
-                        Some(doc) => match Entry::gen_doc(doc) {
+                        Some(doc) => match Entry::gen_doc(doc, logger) {
                             Ok(d)  => Some(d),
-                            Err(_) => None
+                            Err(_) => None,
                         },
                         None => None
                     },
@@ -68,9 +69,9 @@ impl Entry {
                     module        : module.try_into()?,
                     self_type     : Some(self_type),
                     documentation : match documentation {
-                        Some(doc) => match Entry::gen_doc(doc) {
+                        Some(doc) => match Entry::gen_doc(doc, logger) {
                             Ok(d)  => Some(d),
-                            Err(_) => None
+                            Err(_) => None,
                         },
                         None => None
                     },
@@ -113,10 +114,22 @@ impl Entry {
     }
 
     /// Generates HTML documentation for documented suggestion.
-    fn gen_doc(doc: String) -> FallibleResult<String> {
-        let parser = DocParser::new()?;
-        let output = parser.generate_html_doc_pure(doc);
-        Ok(output?)
+    fn gen_doc(doc: String, logger: impl AnyLogger) -> FallibleResult<String> {
+        let dp = match DocParser::new(){
+            Ok(p) => p,
+            Err(err) => {
+                error!(logger,"Doc parser initialization error: {err}");
+                return Err(err.into())
+            },
+        };
+        let output = match dp.generate_html_doc_pure(doc){
+            Ok(o) => o,
+            Err(err) => {
+                error!(logger,"Doc parser parsing error: {err}");
+                return Err(err.into())
+            },
+        };
+        Ok(output)
     }
 }
 
