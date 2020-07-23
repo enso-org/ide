@@ -307,8 +307,10 @@ impl Lines {
 // ===========
 
 ensogl::def_command_api! { Commands
-    /// Set the text cursor at the mouse cursor position.
+    /// Insert character of the last pressed key at every cursor.
     insert_char_of_last_pressed_key,
+    /// Removes the character on the left of every cursor.
+    delete_left,
     /// Set the text cursor at the mouse cursor position.
     set_cursor_at_mouse_position,
     /// Add a new cursor at the mouse cursor position.
@@ -452,6 +454,7 @@ impl Area {
             eval_ command.move_cursor_right (model.buffer.frp.input.move_carets.emit(Some(Movement::Right)));
             eval_ command.move_cursor_up    (model.buffer.frp.input.move_carets.emit(Some(Movement::Up)));
             eval_ command.move_cursor_down  (model.buffer.frp.input.move_carets.emit(Some(Movement::Down)));
+            eval_ command.delete_left       (model.buffer.frp.input.delete_left.emit(()));
 
             key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample(&command.insert_char_of_last_pressed_key);
             trace key_on_char_to_insert;
@@ -695,6 +698,7 @@ impl application::shortcut::DefaultShortcutProvider for Area {
                Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight] , shortcut::Pattern::Any)    , "move_cursor_right"),
                Self::self_shortcut(shortcut::Action::press (&[Key::ArrowUp]    , shortcut::Pattern::Any)    , "move_cursor_up"),
                Self::self_shortcut(shortcut::Action::press (&[Key::ArrowDown]  , shortcut::Pattern::Any)    , "move_cursor_down"),
+               Self::self_shortcut(shortcut::Action::press (&[Key::Backspace]  , shortcut::Pattern::Any)    , "delete_left"),
                Self::self_shortcut(shortcut::Action::press (shortcut::Pattern::Any,&[])                     , "insert_char_of_last_pressed_key"),
                Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton])                    , "set_cursor_at_mouse_position"),
                Self::self_shortcut(shortcut::Action::press (&[Key::Meta],&[mouse::PrimaryButton])           , "add_cursor_at_mouse_position"),

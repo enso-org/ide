@@ -177,6 +177,15 @@ impl ViewBuffer {
         }
     }
 
+    fn delete_left(&self) {
+        for selection in &*self.selection.borrow() {
+            let range = selection.range();
+            let start = self.prev_grapheme_offset(range.start).unwrap_or(range.start);
+            let range = range.with_start(start);
+            self.buffer.data.borrow_mut().insert(range,&("".into()));
+        }
+    }
+
     /// Perform undo operation.
     pub fn undo(&self) {
         self.buffer.data.borrow_mut().undo();
@@ -201,6 +210,7 @@ define_frp! {
         set_cursor       : Location,
         add_cursor       : Location,
         insert           : String,
+        delete_left      : (),
         clear_selection  : (),
     }
 
@@ -245,8 +255,12 @@ impl View {
 
             eval input.insert ((s) model.insert(s));
             output.source.changed <+ input.insert.constant(());
-
             selection_on_insert <- input.insert.map(f_!(model.moved_selection2(Some(Movement::Right),false)));
+
+            eval_ input.delete_left (model.delete_left());
+            output.source.changed <+ input.delete_left;
+            selection_on_delete_left <- input.delete_left.map(f_!(model.moved_selection2(Some(Movement::Left),false)));
+
 
             selection_on_move  <- input.move_carets.map(f!((t) model.moved_selection2(*t,false)));
             selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(*t,true)));
@@ -261,9 +275,12 @@ impl View {
             output.source.selection <+ selection_on_set_cursor;
             output.source.selection <+ selection_on_add_cursor;
             output.source.selection <+ selection_on_insert;
+            output.source.selection <+ selection_on_delete_left;
 
 
             eval output.source.selection ((t) model.set_selection(t));
+
+
 
         }
         let frp = Frp::new(network,input,output);
