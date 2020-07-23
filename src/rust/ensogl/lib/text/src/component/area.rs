@@ -234,11 +234,13 @@ impl Line {
     }
 
     fn div_index_by_byte_offset(&self, offset:Bytes) -> usize {
-        self.divs.binary_search_by(|t|t.byte_offset.partial_cmp(&offset).unwrap()).unwrap_both()
+        let ix = self.divs.binary_search_by(|t|t.byte_offset.partial_cmp(&offset).unwrap());
+        ix.unwrap_both().min(self.divs.len()-1)
     }
 
     fn div_by_byte_offset(&self, offset:Bytes) -> Div {
-        self.divs[self.div_index_by_byte_offset(offset)]
+        let ix = self.div_index_by_byte_offset(offset);
+        self.divs[ix]
     }
 
     fn resize_with(&mut self, size:usize, cons:impl Fn()->Glyph) {
@@ -289,13 +291,16 @@ impl Lines {
 
     pub fn line_index_of_byte_offset(&self, tgt_offset:Bytes) -> usize {
         let lines = self.rc.borrow();
-        let max_index  = lines.len() - 1;
+        let max_index  = lines.len().saturating_sub(1);
         let mut index  = 0;
         let mut offset = 0.bytes();
-        loop {
-            offset += lines[index].byte_size();
-            if offset > tgt_offset || index == max_index { break }
-            index += 1;
+        let empty_line = index == max_index;
+        if !empty_line {
+            loop {
+                offset += lines[index].byte_size();
+                if offset > tgt_offset || index == max_index { break }
+                index += 1;
+            }
         }
         index
     }
@@ -440,16 +445,7 @@ impl Area {
                     *selection_map = new_selection_map;
             }));
 
-            eval_ model.buffer.frp.output.changed ([model] {
-                println!("CHANGED");
-                model.redraw();
-            });
-
-//            _eval <- pos.value.map2 (&model.scene.frp.frame_time, f!([model](p,time) {
-//                model.selection_map.borrow()[0].set_position_xy(*p);
-//                model.selection_map.borrow()[0].shape.start_time.set(*time);
-//            }));
-
+            eval_ model.buffer.frp.output.changed (model.redraw());
             eval_ command.move_cursor_left  (model.buffer.frp.input.move_carets.emit(Some(Movement::Left)));
             eval_ command.move_cursor_right (model.buffer.frp.input.move_carets.emit(Some(Movement::Right)));
             eval_ command.move_cursor_up    (model.buffer.frp.input.move_carets.emit(Some(Movement::Up)));
@@ -457,14 +453,12 @@ impl Area {
             eval_ command.delete_left       (model.buffer.frp.input.delete_left.emit(()));
 
             key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample(&command.insert_char_of_last_pressed_key);
-            trace key_on_char_to_insert;
             char_to_insert        <= key_on_char_to_insert.map(|k| {
                 match k {
                     Key::Character(s) => Some(s.clone()),
                     _                 => None
                 }
             });
-            trace char_to_insert;
             eval char_to_insert ((s) model.buffer.frp.input.insert.emit(s));
         }
 
@@ -621,7 +615,7 @@ impl AreaData {
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];
         let mut byte_offset = 0.bytes();
-        line.resize_with(content.len(),||self.glyph_system.new_glyph());
+        line.resize_with(content.chars().count(),||self.glyph_system.new_glyph());
         for (glyph,chr) in line.glyphs.iter_mut().zip(content.chars()) {
             let style     = line_style.next().unwrap_or_default();
             let chr_size  = style.size.raw;
@@ -637,7 +631,6 @@ impl AreaData {
             glyph.set_char(info.char);
             glyph.set_color(style.color);
             glyph.size.set(size);
-
 
             divs.push(Div::new(info.offset,byte_offset));
             byte_offset += chr_bytes;

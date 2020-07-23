@@ -60,6 +60,26 @@ impl Selection {
         std::cmp::max(self.start, self.end)
     }
 
+    pub fn with_start(&self, start:Bytes) -> Self {
+        Self {start,..*self}
+    }
+
+    pub fn with_end(&self, end:Bytes) -> Self {
+        Self {end,..*self}
+    }
+
+    pub fn map_start(&self, f:impl Fn(Bytes)->Bytes) -> Self {
+        self.with_start(f(self.start))
+    }
+
+    pub fn map_end(&self, f:impl Fn(Bytes)->Bytes) -> Self {
+        self.with_end(f(self.end))
+    }
+
+    pub fn map(&self, f:impl Fn(Bytes)->Bytes) -> Self {
+        self.with_start(f(self.start)).with_end(f(self.end))
+    }
+
     /// Determines whether the selection is a caret (ie has an empty interior).
     pub fn is_caret(self) -> bool {
         self.start == self.end

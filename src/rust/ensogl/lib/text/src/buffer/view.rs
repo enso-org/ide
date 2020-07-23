@@ -170,20 +170,35 @@ impl ViewBuffer {
     }
 
     /// Insert new text in the place of current selections / cursors.
-    pub fn insert(&self, text:impl Into<Data>) {
-        let text = text.into();
+    pub fn insert(&self, text:impl Into<Data>) -> selection::Group {
+        let mut result = selection::Group::new();
+        let text       = text.into();
+        let size       = text.len();
+        let mut offset = 0.bytes();
         for selection in &*self.selection.borrow() {
-            self.buffer.data.borrow_mut().insert(selection.range(),&text);
+            let current_selection = selection.map(|t|t+offset);
+            self.buffer.data.borrow_mut().insert(current_selection.range(),&text);
+            offset += size;
+            let new_selection = selection.map(|t|t+offset);
+            result.add(new_selection);
         }
+        result
     }
 
-    fn delete_left(&self) {
+    fn delete_left(&self) -> selection::Group {
+        let mut result = selection::Group::new();
+        let mut offset = 0.bytes();
         for selection in &*self.selection.borrow() {
-            let range = selection.range();
-            let start = self.prev_grapheme_offset(range.start).unwrap_or(range.start);
-            let range = range.with_start(start);
+            let current_selection = selection.map(|t|t-offset);
+            let range         = current_selection.range();
+            let start         = self.prev_grapheme_offset(range.start).unwrap_or(range.start);
+            let range         = range.with_start(start);
             self.buffer.data.borrow_mut().insert(range,&("".into()));
+            offset += range.size();
+            let new_selection = selection.map(|t|t-offset);
+            result.add(new_selection);
         }
+        result
     }
 
     /// Perform undo operation.
@@ -253,13 +268,11 @@ impl View {
 
         frp::extend! { network
 
-            eval input.insert ((s) model.insert(s));
-            output.source.changed <+ input.insert.constant(());
-            selection_on_insert <- input.insert.map(f_!(model.moved_selection2(Some(Movement::Right),false)));
+            selection_on_insert <- input.insert.map(f!((s) model.insert(s)));
+            output.source.changed <+ selection_on_insert.constant(());
 
-            eval_ input.delete_left (model.delete_left());
-            output.source.changed <+ input.delete_left;
-            selection_on_delete_left <- input.delete_left.map(f_!(model.moved_selection2(Some(Movement::Left),false)));
+            selection_on_delete_left <- input.delete_left.map(f_!(model.delete_left()));
+            output.source.changed <+ selection_on_delete_left.constant(());
 
 
             selection_on_move  <- input.move_carets.map(f!((t) model.moved_selection2(*t,false)));
@@ -409,7 +422,8 @@ impl ViewModel {
     // FIXME: this is inefficient now
     pub fn lines(&self) -> Vec<String> {
         let range = self.line_offset_range();
-        self.buffer.data.borrow().data.rope.lines(range.start.value .. range.end.value).map(|t| t.into()).collect_vec()
+        let lines = self.buffer.data.borrow().data.rope.lines(range.start.value .. range.end.value).map(|t| t.into()).collect_vec();
+        if lines.is_empty() { vec!["".into()] } else { lines }
     }
 
 //    pub fn get(&self, line:Line) -> String {

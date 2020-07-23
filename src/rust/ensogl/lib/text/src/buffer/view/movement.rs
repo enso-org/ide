@@ -211,6 +211,17 @@ impl ViewModel {
         result
     }
 
+    pub fn selection_after_insert(&self, bytes:Bytes) -> selection::Group {
+        let mut result = selection::Group::new();
+        let mut offset = bytes;
+        for &selection in self.selection.borrow().iter() {
+            let new_selection = selection.map(|t| t + offset);
+            offset += bytes;
+            result.add(new_selection);
+        }
+        result
+    }
+
     /// Compute the result of movement on one selection region.
     pub fn moved_selection_region
     (&self, movement:Movement, region:Selection, modify:bool) -> Selection {
@@ -304,6 +315,7 @@ impl ViewModel {
             Movement::RightWord => todo!(),
         };
         let start = if modify { region.start } else { end };
+        println!(":: {:?}",(start,end));
         Selection::new(start,end,region.id).with_column(horiz)
     }
 }

@@ -46,6 +46,11 @@ impl<T> Range<T> {
         Self {start,end}
     }
 
+    pub fn map(&self,f:impl Fn(T)->T) -> Self
+    where T : Clone {
+        self.with_start(f(self.start.clone())).with_end(f(self.end.clone()))
+    }
+
     pub fn with_mod_start(&self,f:impl Fn(T)->T) -> Self
     where T : Clone {
         self.with_start(f(self.start.clone()))
