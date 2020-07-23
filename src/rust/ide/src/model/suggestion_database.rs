@@ -47,34 +47,32 @@ pub struct Entry {
 
 impl Entry {
     /// Create entry from the structure deserialized from the Language Server responses.
-    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
+    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry, logger:impl AnyLogger)
+        -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
-        let logger = Logger::new("SuggestionEntry");
+        let convert_doc = |documentation| match documentation {
+            Some(doc) => match Entry::gen_doc(doc) {
+                Ok(d)  => Some(d),
+                Err(err) => {
+                    error!(logger,"Doc parser error: {err}");
+                    None
+                },
+            },
+            None => None
+        };
         let this = match entry {
             Atom {name,module,arguments,return_type,documentation} => Self {
                     name,arguments,return_type,
                     module        : module.try_into()?,
                     self_type     : None,
-                    documentation : match documentation {
-                        Some(doc) => match Entry::gen_doc(doc, logger) {
-                            Ok(d)  => Some(d),
-                            Err(_) => None,
-                        },
-                        None => None
-                    },
+                    documentation : convert_doc(documentation),
                     kind          : EntryKind::Atom,
                 },
             Method {name,module,arguments,self_type,return_type,documentation} => Self {
                     name,arguments,return_type,
                     module        : module.try_into()?,
                     self_type     : Some(self_type),
-                    documentation : match documentation {
-                        Some(doc) => match Entry::gen_doc(doc, logger) {
-                            Ok(d)  => Some(d),
-                            Err(_) => None,
-                        },
-                        None => None
-                    },
+                    documentation : convert_doc(documentation),
                     kind          : EntryKind::Method,
                 },
             Function {name,module,arguments,return_type,..} => Self {
@@ -114,29 +112,18 @@ impl Entry {
     }
 
     /// Generates HTML documentation for documented suggestion.
-    fn gen_doc(doc: String, logger: impl AnyLogger) -> FallibleResult<String> {
-        let dp = match DocParser::new(){
-            Ok(p) => p,
-            Err(err) => {
-                error!(logger,"Doc parser initialization error: {err}");
-                return Err(err.into())
-            },
-        };
-        let output = match dp.generate_html_doc_pure(doc){
-            Ok(o) => o,
-            Err(err) => {
-                error!(logger,"Doc parser parsing error: {err}");
-                return Err(err.into())
-            },
-        };
-        Ok(output)
+    fn gen_doc(doc: String) -> FallibleResult<String> {
+        let parser = DocParser::new()?;
+        let output = parser.generate_html_doc_pure(doc);
+        Ok(output?)
     }
 }
 
 impl TryFrom<language_server::types::SuggestionEntry> for Entry {
     type Error = failure::Error;
     fn try_from(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
-        Self::from_ls_entry(entry)
+        let logger = Logger::new("SuggestionEntry");
+        Self::from_ls_entry(entry, logger)
     }
 }
 
@@ -173,7 +160,8 @@ impl SuggestionDatabase {
         let mut entries = HashMap::new();
         for ls_entry in response.entries {
             let id = ls_entry.id;
-            match Entry::from_ls_entry(ls_entry.suggestion) {
+            let logger_entry = Logger::new("SuggestionEntry");
+            match Entry::from_ls_entry(ls_entry.suggestion, logger_entry) {
                 Ok(entry) => { entries.insert(id, Rc::new(entry)); },
                 Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); },
             }
