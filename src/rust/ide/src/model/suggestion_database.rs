@@ -50,14 +50,12 @@ impl Entry {
     pub fn from_ls_entry(entry:language_server::types::SuggestionEntry, logger:impl AnyLogger)
         -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
-        let convert_doc = |documentation: Option<String>| documentation.and_then({ |doc|
-            match Entry::gen_doc(doc) {
-                Ok(d)  => Some(d),
-                Err(err) => {
-                    error!(logger,"Doc parser error: {err}");
-                    None
-                },
-            }
+        let convert_doc = |doc: Option<String>| doc.and_then(|doc| match Entry::gen_doc(doc) {
+            Ok(d)  => Some(d),
+            Err(err) => {
+                error!(logger,"Doc parser error: {err}");
+                None
+            },
         });
         let this = match entry {
             Atom {name,module,arguments,return_type,documentation} => Self {
