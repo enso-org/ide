@@ -871,17 +871,16 @@ impl LayoutState {
 ///   - shapes that are at the split;
 ///   - shapes that are output side of the split.
 ///
-/// Note that "at the split" also includes the shapes adjacent to the actual split because they
-/// need to be treated as if they were at the split location to avoid glitches at the shape
-/// boundaries.
-///
 /// This allows us to apply special handling to these groups. This is required as a simple geometric
-/// split based on a line, will lead to double intersections with the edge. Thus we avoid the
+/// split based on a line, can lead to double intersections with the edge. Thus we avoid the
 /// geometric intersections, for shapes away from the intersection point, and instead color them
 /// based on their position within the edge.
 ///
 /// We have seven "slots" of shapes within the edge that can be ordered from output port to input
 /// port: `SideLine` `Corner`, `MainLine`/`Arrow`, `Corner2`, `SideLine2`, `Corner3`, `PortLine`.
+/// Note that it does not matter, if we have multiple adjacent shapes in the same bucket (as can
+/// be the case with back/front shapes), as long as no self-intersection is possible for these
+/// shapes.
 ///
 /// Example: We need to split on the `SideLine2` and highlight the shapes closer to the
 /// output port. That means we need to do the geometric split on  `Corner2`, `SideLine2`, `Corner3`,
@@ -890,9 +889,8 @@ impl LayoutState {
 /// not be highlighted can be accessed via `input_side_shapes`.
 #[derive(Clone,Debug)]
 struct SemanticSplit {
-    /// Ids of the shapes in the order they appear in the edge. Shapes that fill the same "slot" in
-    /// the shape and must be handled together, are binned into a sub-vector. That can be the case
-    /// for shapes that are present in the back and the front of the shape.
+    /// Ids of the shapes in the order they appear in the edge. Shapes that fill the same "slot"
+    /// are binned into a sub-vector and can be handled together.
     ordered_part_ids : Vec<Vec<display::object::Id>>,
     /// The index the shape where the edge split occurs in the `ordered_part_ids`.
     split_index      : usize,
@@ -933,21 +931,6 @@ impl SemanticSplit {
         let back   = &edge_data.back;
         let layout = edge_data.layout_state.get();
         match layout {
-            LayoutState::DownLeft | LayoutState::DownRight => {
-                vec![
-                    vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
-                    vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
-                    // All collapsed and visible only as a single line
-                    vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
-                         EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ,
-                         EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ,
-                         EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ,
-                         EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ,
-                    ],
-                    vec![EdgeShape::id(&front.port_line)                                   ],
-                ]
-
-            },
             _ => {
                 vec![
                     vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
@@ -975,17 +958,17 @@ impl SemanticSplit {
 
     /// Shapes that are output side of the split.
     fn output_side_shapes(&self) -> Vec<display::object::Id> {
-        self.index_filtered_shapes(move |index| (index + 1) < self.split_index as i32)
+        self.index_filtered_shapes(move |index| (index) < self.split_index as i32)
     }
 
     /// Shapes that are input side of the split.
     fn input_side_shapes(&self) -> Vec<display::object::Id> {
-        self.index_filtered_shapes(move |index| index > (self.split_index as i32 + 1))
+        self.index_filtered_shapes(move |index| index > (self.split_index as i32))
     }
 
-    /// Shapes that are at the split location and adjacent to it.
+    /// Shapes that are at the split location.
     fn split_shapes(&self) -> Vec<display::object::Id> {
-        self.index_filtered_shapes(move |index| (index - self.split_index as i32).abs() <=1)
+        self.index_filtered_shapes(move |index| (index == self.split_index as i32))
     }
 }
 
@@ -1735,11 +1718,11 @@ impl EdgeModelData {
         delta_y > 0.0 && delta_y < MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION
     }
 
-    // FIXE: several lines are too long.
     /// Return the correct cut angle for the given `shape_id` at the `position` to highlight the
     /// `target_end`. Will return `None` if the `shape_id` is not a valid sub-shape of this edge.
     fn cut_angle_for_shape
-    (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end: PortType) -> Option<f32> {
+    (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end: PortType)
+    -> Option<f32> {
         let shape      = self.get_shape(shape_id)?;
         let shape_role = self.get_shape_role(shape_id)?;
 
