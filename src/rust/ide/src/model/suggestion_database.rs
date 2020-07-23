@@ -107,7 +107,7 @@ impl Entry {
             None
         } else if let Some(self_type) = &self.self_type {
             Some(MethodId {
-                module          : self.module.to_string().clone(),
+                module          : self.module.to_string(),
                 defined_on_type : self_type.clone(),
                 name            : self.name.clone()
             })
@@ -202,6 +202,7 @@ impl SuggestionDatabase {
         self.version.set(event.current_version);
     }
 
+    /// Search the database for an entry of method identified by given id.
     pub fn lookup_method(&self, id:MethodId) -> Option<Rc<Entry>> {
         self.entries.borrow().values().cloned().find(|entry| entry.method_id().contains(&id))
     }

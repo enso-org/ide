@@ -9,8 +9,9 @@ use ast::crumbs::ChildAst;
 use ast::crumbs::ModuleCrumb;
 use ast::known;
 use ast::BlockLine;
-use enso_protocol::language_server;
 use data::text::ByteIndex;
+use enso_protocol::language_server;
+
 
 
 // =====================
@@ -32,7 +33,7 @@ pub enum InvalidQualifiedName {
 ///
 /// See https://dev.enso.org/docs/distribution/packaging.html for more information about the
 /// package structure.
-#[derive(Clone,Debug,Hash,Shrinkwrap)]
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct QualifiedName {
     #[shrinkwrap(main_field)]
     text      : String,
@@ -89,6 +90,12 @@ impl PartialEq<QualifiedName> for QualifiedName {
 }
 
 impl Eq for QualifiedName {}
+
+impl Hash for QualifiedName {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.text.hash(state)
+    }
+}
 
 
 // ==================

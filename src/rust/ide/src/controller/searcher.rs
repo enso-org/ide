@@ -657,22 +657,22 @@ mod test {
 
         // Picking first suggestion.
         let new_input = searcher.pick_completion(entry1.clone_ref()).unwrap();
-        assert_eq!(new_input, "TestFunction1 ");
+        assert_eq!(new_input, "testFunction1 ");
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
 
         // Typing more args by hand.
-        searcher.set_input("TestFunction1 some_arg pat".to_string()).unwrap();
+        searcher.set_input("testFunction1 some_arg pat".to_string()).unwrap();
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
 
         // Picking argument's suggestion.
         let new_input = searcher.pick_completion(entry2.clone_ref()).unwrap();
-        assert_eq!(new_input, "TestFunction1 some_arg TestVar1 ");
+        assert_eq!(new_input, "testFunction1 some_arg TestVar1 ");
         let new_input = searcher.pick_completion(entry2.clone_ref()).unwrap();
-        assert_eq!(new_input, "TestFunction1 some_arg TestVar1 TestVar1 ");
+        assert_eq!(new_input, "testFunction1 some_arg TestVar1 TestVar1 ");
         let (function,arg1,arg2) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(function.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&function.picked_suggestion,&entry1));
@@ -682,7 +682,7 @@ mod test {
         assert!(Rc::ptr_eq(&arg2.picked_suggestion,&entry2));
 
         // Backspacing back to the second arg.
-        searcher.set_input("TestFunction1 some_arg TestVar1 TestV".to_string()).unwrap();
+        searcher.set_input("testFunction1 some_arg TestVar1 TestV".to_string()).unwrap();
         let (picked,arg) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(picked.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&picked.picked_suggestion,&entry1));
@@ -690,13 +690,13 @@ mod test {
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
 
         // Editing the picked function.
-        searcher.set_input("TestFunction2 some_arg TestVar1 TestV".to_string()).unwrap();
+        searcher.set_input("testFunction2 some_arg TestVar1 TestV".to_string()).unwrap();
         let (arg,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn adding_node() {
         let _test                       = TestWithLocalPoolExecutor::set_up();
         let Fixture{searcher,entry3,..} = Fixture::new();
@@ -726,7 +726,7 @@ mod test {
         assert_eq!(node2.metadata.unwrap().intended_method, Some(expected_intended_method));
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn initialized_data_when_editing_node() {
         let _test                       = TestWithLocalPoolExecutor::set_up();
         let Fixture{searcher,entry3,..} = Fixture::new();
