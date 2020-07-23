@@ -7,7 +7,7 @@ use crate::double_representation::module::QualifiedName;
 use enso_protocol::language_server;
 use language_server::types::SuggestionsDatabaseVersion;
 use language_server::types::SuggestionDatabaseUpdatesEvent;
-use parser::DocParser as DocParser;
+use parser::DocParser;
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionEntryId as EntryId;
