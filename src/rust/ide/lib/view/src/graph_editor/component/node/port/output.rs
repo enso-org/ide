@@ -220,7 +220,7 @@ pub mod multi_port_area {
 
     ensogl::define_shape_system! {
         (style:Style, grow:f32, index:f32, port_num:f32, opacity:f32, padding_left:f32,
-        padding_right:f32, color_rgba:Vector4<f32>) {
+        padding_right:f32, color_rgb:Vector3<f32>) {
             let overall_width  : Var<Pixels> = "input_size.x".into();
             let overall_height : Var<Pixels> = "input_size.y".into();
 
@@ -248,8 +248,7 @@ pub mod multi_port_area {
             let port_area = port_area.difference(&left_shape_crop);
             let port_area = port_area.intersection(&right_shape_crop);
 
-            // FIXME: Use color from style and apply transparency there.
-            let color     = Var::<color::Rgba>::from("srgba(input_color_rgba.x,input_color_rgba.y,input_color_rgba.z,input_opacity)");
+            let color     = Var::<color::Rgba>::from("srgba(input_color_rgb,input_opacity)");
             let port_area = port_area.fill(color);
 
             (port_area + hover_area).into()
@@ -280,14 +279,14 @@ pub mod single_port_area {
     use ensogl::display::shape::*;
 
     ensogl::define_shape_system! {
-        (style:Style, grow:f32, opacity:f32, color_rgba:Vector4<f32>) {
+        (style:Style, grow:f32, opacity:f32, color_rgb:Vector3<f32>) {
             let overall_width  : Var<Pixels> = "input_size.x".into();
             let overall_height : Var<Pixels> = "input_size.y".into();
 
             let base_shape_data = BaseShapeData::new(&overall_width,&overall_height,&grow);
             let BaseShapeData{ port_area,hover_area, .. } = base_shape_data;
 
-            let color     = Var::<color::Rgba>::from("srgba(input_color_rgba.x,input_color_rgba.y,input_color_rgba.z,input_opacity)");
+            let color     = Var::<color::Rgba>::from("srgba(input_color_rgb,input_opacity)");
             let port_area = port_area.fill(color);
 
             let hover_area = hover_area.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
@@ -377,18 +376,18 @@ impl ShapeView {
 
     fn set_color(&self, port_id:PortId, color:color::Lcha) {
         let color = color::Rgba::from(color);
-
+        let color = Vector3::<f32>::new(color.red,color.green,color.blue);
         match self {
             ShapeView::Single{ view } => {
                 if port_id.index == 0 {
                     let shape = &view.shape;
-                    shape.color_rgba.set(color.into())
+                    shape.color_rgb.set(color.into())
                 }
             }
             ShapeView::Multi{ views, .. } => {
                 if let Some(view) = views.get(port_id.index) {
                     let shape = &view.shape;
-                    shape.color_rgba.set(color.into())
+                    shape.color_rgb.set(color.into())
                 }
             }
         }
