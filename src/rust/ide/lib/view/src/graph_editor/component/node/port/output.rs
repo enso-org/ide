@@ -379,13 +379,13 @@ impl ShapeView {
         let color = color::Rgba::from(color);
 
         match self {
-            ShapeView::Single { view } => {
+            ShapeView::Single{ view } => {
                 if port_id.index == 0 {
                     let shape = &view.shape;
                     shape.color_rgba.set(color.into())
                 }
             }
-            ShapeView::Multi { views, .. } => {
+            ShapeView::Multi{ views, .. } => {
                 if let Some(view) = views.get(port_id.index) {
                     let shape = &view.shape;
                     shape.color_rgba.set(color.into())
@@ -398,8 +398,8 @@ impl ShapeView {
 impl display::Object for ShapeView {
     fn display_object(&self) -> &display::object::Instance {
         match self {
-            ShapeView::Single { view }               => view.display_object(),
-            ShapeView::Multi  { display_object, .. } => display_object,
+            ShapeView::Single{ view }               => view.display_object(),
+            ShapeView::Multi{ display_object, .. } => display_object,
         }
     }
 }

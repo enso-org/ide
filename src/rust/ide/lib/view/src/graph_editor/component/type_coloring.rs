@@ -28,8 +28,8 @@ fn type_to_hash(type_information:Type) -> u64 {
 
 /// Return the color that corresponds to the given type. Can be used to color edges and ports.
 pub fn color_for_type(type_information:Type) -> color::Lch {
-    let hue =  (type_to_hash(type_information) % 360) as f32 / 360.0;
-    color::Lch::new(0.5, 0.8, hue)
+    let hue = (type_to_hash(type_information) % 360) as f32 / 360.0;
+    color::Lch::new(0.5,0.8,hue)
 }
 
 

@@ -70,7 +70,7 @@ fn visit_span_tree_nodes<F:FnMut(&span_tree::Node)>(span_tree:&span_tree::SpanTr
     let mut to_visit = vec![span_tree.root_ref()];
     loop {
         match to_visit.pop() {
-            None => break,
+            None       => break,
             Some(node) => {
                 let skip          = node.kind.is_empty();
                 if !skip { f(&node) };
