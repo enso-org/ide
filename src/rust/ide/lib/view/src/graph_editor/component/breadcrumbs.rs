@@ -207,12 +207,10 @@ impl BreadcrumbsModel {
             },
             cmp::Ordering::Greater => {
                 for index in current_index..index {
-                    println!("Index: select_breadcrumb {}", index);
                     let info = self.breadcrumbs.borrow().get(index).map(|breadcrumb| {
                         (breadcrumb.info.method_pointer.clone(),breadcrumb.info.expression_id)
                     }).as_ref().cloned();
                     if let Some((method_pointer,expression_id)) = info {
-                        println!("Index: select_breadcrumb {}", expression_id);
                         self.breadcrumb_push.emit((method_pointer,expression_id));
                     }
                 }
