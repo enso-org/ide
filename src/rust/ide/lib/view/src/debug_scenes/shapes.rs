@@ -53,6 +53,13 @@ where T:frp::HasOutput<Output=Out>, T:Into<frp::Stream<Out>>, Out:frp::Data {
     (runner,condition)
 }
 
+
+
+// ==================
+// === Mock Types ===
+// ==================
+
+/// Allows the creation of arbitrary unique `Type`s.
 #[derive(Clone,Debug,Default)]
 struct DummyTypeGenerator {
     type_counter : u32
@@ -65,6 +72,8 @@ impl DummyTypeGenerator {
     }
 }
 
+/// Allows executing a closure for every node in a span tree. Can be used to initialise the debug
+/// scene with type information information about every node.
 fn visit_span_tree_nodes<F:FnMut(&span_tree::Node)>(span_tree:&span_tree::SpanTree, mut f:F) {
     let mut to_visit = vec![span_tree.root_ref()];
     loop {
@@ -79,6 +88,13 @@ fn visit_span_tree_nodes<F:FnMut(&span_tree::Node)>(span_tree:&span_tree::SpanTr
     }
 }
 
+
+/// Allows modifying every node in a span tree through a closure. Can be used to initialise the
+/// span tree with type information for the debug scene.
+fn visit_span_tree_nodes_mut<F:FnMut(&mut span_tree::Node)>(span_tree:&mut span_tree::SpanTree, mut f:F) {
+    visit_node_and_children_mut(&mut span_tree.root, &mut f);
+}
+
 fn visit_node_and_children_mut<F:FnMut(&mut span_tree::Node)>(node: &mut span_tree::Node, f: &mut F) {
     f(node);
     node.children.iter_mut().for_each(|child| {
@@ -86,9 +102,11 @@ fn visit_node_and_children_mut<F:FnMut(&mut span_tree::Node)>(node: &mut span_tr
     })
 }
 
-fn visit_span_tree_nodes_mut<F:FnMut(&mut span_tree::Node)>(span_tree:&mut span_tree::SpanTree, mut f:F) {
-    visit_node_and_children_mut(&mut span_tree.root, &mut f);
-}
+
+
+// ========================
+// === Init Application ===
+// ========================
 
 fn init(app:&Application) {
 
@@ -106,7 +124,6 @@ fn init(app:&Application) {
     app.themes.set_enabled(&["dark"]);
 
     let _bg = app.display.scene().style_sheet.var("application.background.color");
-
 
 
     let world     = &app.display;
