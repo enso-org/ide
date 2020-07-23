@@ -76,7 +76,7 @@ trait EdgeShape : display::Object {
     fn id     (&self) -> display::object::Id { self.sprite().id() }
     fn events (&self) -> &ShapeViewEvents;
     fn set_color(&self, color:color::Rgba);
-    fn set_color_highlight(&self, color:color::Rgba);
+    fn set_color_focus(&self, color:color::Rgba);
 
 
 
@@ -101,14 +101,14 @@ trait EdgeShape : display::Object {
 
     /// Focus the whole edge.
     fn focus_none(&self) {
-        // Set the focus split in the top right corner and highlight everything to the right of it.
+        // Set the focus split in the top right corner and focus everything to the right of it.
         self.set_focus_split_center_local(Vector2(INFINITE,INFINITE));
         self.set_focus_split_angle(RIGHT_ANGLE);
     }
 
     /// Do not focus any part of the edge.
     fn focus_all(&self) {
-        // Set the focus split in the top right corner and highlight everything below it.
+        // Set the focus split in the top right corner and focus everything below it.
         self.set_focus_split_center_local(Vector2(INFINITE,INFINITE));
         self.set_focus_split_angle(2.0 * RIGHT_ANGLE);
     }
@@ -379,7 +379,7 @@ macro_rules! define_corner_start { () => {
                 self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
-            fn set_color_highlight(&self, color:color::Rgba) {
+            fn set_color_focus(&self, color:color::Rgba) {
                 let color_vec = Vector4::new(color.red,color.green,color.blue,color.alpha);
                 self.shape.focus_color_rgba.set(color_vec);
             }
@@ -473,7 +473,7 @@ macro_rules! define_corner_end { () => {
                 self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
-            fn set_color_highlight(&self, color:color::Rgba) {
+            fn set_color_focus(&self, color:color::Rgba) {
                 self.shape.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
@@ -547,7 +547,7 @@ macro_rules! define_line { () => {
                 self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
-            fn set_color_highlight(&self, color:color::Rgba) {
+            fn set_color_focus(&self, color:color::Rgba) {
                 self.shape.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
@@ -616,7 +616,7 @@ macro_rules! define_arrow { () => {
                 self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
-            fn set_color_highlight(&self, color:color::Rgba) {
+            fn set_color_focus(&self, color:color::Rgba) {
                 self.shape.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
@@ -929,11 +929,11 @@ impl LayoutState {
 /// be the case with back/front shapes), as long as no self-intersection is possible for these
 /// shapes.
 ///
-/// Example: We need to split on the `SideLine2` and highlight the shapes closer to the
+/// Example: We need to split on the `SideLine2` and focus the shapes closer to the
 /// output port. That means we need to do the geometric split on  `Corner2`, `SideLine2`, `Corner3`,
-/// which we can access via `split_shapes` and apply the highlighting to `SideLine` `Corner` and
+/// which we can access via `split_shapes` and apply the focusing to `SideLine` `Corner` and
 /// `MainLine`/`Arrow`, which we can access via `output_side_shapes`. The remaining shapes that must
-/// not be highlighted can be accessed via `input_side_shapes`.
+/// not be focused can be accessed via `input_side_shapes`.
 #[derive(Clone,Debug)]
 struct SemanticSplit {
     /// Ids of the shapes in the order they appear in the edge. Shapes that fill the same "slot"
@@ -1282,12 +1282,12 @@ impl EdgeModelData {
               layout_state,hover_target,joint}
     }
 
-    /// Set the color of the edge. Also updates the highlight color (which will be a dimmed version
+    /// Set the color of the edge. Also updates the focus color (which will be a dimmed version
     /// of the main color).
     pub fn set_color(&self, color:color::Lcha) {
         let focus_color = color::Lcha::new(color.lightness * SPLIT_COLOR_LIGHTNESS_FACTOR,color.chroma,color.hue,color.alpha);
         self.shapes().iter().for_each(|shape| {
-            shape.set_color_highlight(focus_color.into());
+            shape.set_color_focus(focus_color.into());
             shape.set_color(color.into())
         })
     }
@@ -1317,8 +1317,8 @@ impl EdgeModelData {
 
         match (fully_attached, self.hover_position.get(), self.hover_target.get()) {
             (true, Some(hover_position), Some(hover_target)) => {
-                let highlight_part = self.port_to_detach_for_position(hover_position);
-                let focus_split_result = self.try_enable_focus_split(hover_position, hover_target, highlight_part);
+                let focus_part = self.port_to_detach_for_position(hover_position);
+                let focus_split_result = self.try_enable_focus_split(hover_position, hover_target, focus_part);
                 if let Ok(snap_data) = focus_split_result {
                     let joint_position = snap_data.position - self.display_object.position().xy();
                     self.joint.set_position_xy(joint_position);
@@ -1775,7 +1775,7 @@ impl EdgeModelData {
         delta_y > 0.0 && delta_y < MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION
     }
 
-    /// Return the correct cut angle for the given `shape_id` at the `position` to highlight the
+    /// Return the correct cut angle for the given `shape_id` at the `position` to focus the
     /// `target_end`. Will return `None` if the `shape_id` is not a valid sub-shape of this edge.
     fn cut_angle_for_shape
     (&self, shape_id:display::object::Id, position:Vector2<f32>, target_end: PortType)
@@ -1791,7 +1791,7 @@ impl EdgeModelData {
         Some(shape_normal - base_rotation + cut_angle_correction + target_angle)
     }
 
-    /// Return the cut angle value needed to highlight the given end of the shape. This takes into
+    /// Return the cut angle value needed to focus the given end of the shape. This takes into
     /// account the current layout.
     fn get_target_angle(&self, target_end: PortType) -> f32 {
         let output_on_top = self.layout_state.get().is_output_above_input();
@@ -1899,7 +1899,7 @@ impl EdgeModelData {
         }
     }
 
-    /// FocusSplit the shape at the given `position` and highlight the given `EndDesignation`. This
+    /// FocusSplit the shape at the given `position` and focus the given `EndDesignation`. This
     /// might fail if the given position is too far from the shape.
     fn try_enable_focus_split
     (&self, position:Vector2<f32>, focus_shape_id:display::object::Id, part: PortType)

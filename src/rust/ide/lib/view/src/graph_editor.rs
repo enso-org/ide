@@ -831,7 +831,7 @@ impl Edges {
         self.all.insert(edge.id(),edge);
     }
 
-    pub fn detached_edges(&self) -> impl Iterator<Item=EdgeId> {
+    pub fn detached_edges_iter(&self) -> impl Iterator<Item=EdgeId> {
         let detached_target = self.detached_target.raw.borrow();
         let detached_source = self.detached_source.raw.borrow();
         let mut detached = detached_target.iter().copied().collect_vec();
@@ -1500,8 +1500,8 @@ impl GraphEditorModel {
        }
     }
 
-    pub fn detached_edge_color(&self) -> Option<color::Lcha> {
-        self.edges.detached_edges().find_map(|edge_id| {
+    pub fn get_color_for_detached_edges(&self) -> Option<color::Lcha> {
+        self.edges.detached_edges_iter().find_map(|edge_id| {
             self.try_get_edge_color(edge_id)
         })
     }
@@ -2346,7 +2346,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     frp::extend! { network
 
     cursor_style_edge_drag <- edge_endpoint_set.map(f_!([model]{
-        if let Some(color) = model.detached_edge_color() {
+        if let Some(color) = model.get_color_for_detached_edges() {
             cursor::Style::new_color(color).press()
         } else {
             cursor::Style::new_color_no_animation(MISSING_TYPE_COLOR).press()
