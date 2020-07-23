@@ -655,7 +655,7 @@ impl display::Object for Edge {
 /// Typename information that may be associated with the given Port.
 ///
 /// `None` means that type for the port is unknown.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Hash,Shrinkwrap)]
 pub struct Type(pub ImString);
 
 impl From<String> for Type {
