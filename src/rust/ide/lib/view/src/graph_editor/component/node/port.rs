@@ -188,7 +188,7 @@ pub struct Manager {
     ports          : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
     width          : Rc<Cell<f32>>,
     port_networks  : Rc<RefCell<Vec<frp::Network>>>,
-    type_map       : TypeColorMap,
+    type_color_map : TypeColorMap,
     pub frp        : Events,
 }
 
@@ -205,7 +205,7 @@ impl Manager {
         let scene          = scene.clone_ref();
         let expression     = default();
         let port_networks  = default();
-        let type_map       = default();
+        let type_color_map = default();
         let label          = component::ShapeView::<label::Shape>::new(&logger,&scene);
         let ports          = default();
         let width          = default();
@@ -219,7 +219,7 @@ impl Manager {
 
         display_object.add_child(&label);
 
-        Self {logger,display_object,frp,label,ports,width,scene,expression,port_networks,type_map}
+        Self {logger,display_object,frp,label,ports,width,scene,expression,port_networks,type_color_map}
     }
 
     pub fn set_expression(&self, expression:impl Into<Expression>) {
@@ -247,7 +247,7 @@ impl Manager {
                     if !skip {
                         let logger      = Logger::sub(&self.logger,"port");
                         let port        = component::ShapeView::<shape::Shape>::new(&logger,&self.scene);
-                        let type_map    = &self.type_map;
+                        let type_map    = &self.type_color_map;
 
                         let unit        = 7.224_609_4;
                         let width       = unit * span.size.value as f32;
@@ -316,7 +316,7 @@ impl Manager {
 
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         let ast_id = self.expression.borrow().get_id_for_crumbs(crumbs)?;
-        self.type_map.type_color(ast_id)
+        self.type_color_map.type_color(ast_id)
     }
 
     pub fn width(&self) -> f32 {
@@ -325,8 +325,8 @@ impl Manager {
 
     pub fn set_expression_type(&self, id:ast::Id, maybe_type:Option<Type>) {
         match maybe_type {
-            Some(r#type) => self.type_map.insert(id,r#type),
-            None         => self.type_map.remove(&id),
+            Some(r#type) => self.type_color_map.insert(id,r#type),
+            None         => self.type_color_map.remove(&id),
         };
     }
 }
