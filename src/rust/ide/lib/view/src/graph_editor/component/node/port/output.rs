@@ -558,7 +558,7 @@ impl OutputPortsData {
         let gap_width      = Cell::new(SEGMENT_GAP_WIDTH);
         let ports          = ShapeView::new(number_of_ports,&logger,scene);
         let ports          = RefCell::new(ports);
-        let scene          = scene.clone();
+        let scene          = scene.clone_ref();
 
         OutputPortsData {display_object,logger,size,ports,gap_width,scene}.init()
     }
