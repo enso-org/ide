@@ -51,7 +51,7 @@ impl Entry {
         -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
         let convert_doc = |doc: Option<String>| doc.and_then(|doc| match Entry::gen_doc(doc) {
-            Ok(d)  => Some(d),
+            Ok(d)    => Some(d),
             Err(err) => {
                 error!(logger,"Doc parser error: {err}");
                 None
