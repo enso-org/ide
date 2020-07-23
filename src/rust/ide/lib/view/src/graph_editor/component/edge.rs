@@ -35,6 +35,8 @@ const HOVER_EXTENSION    : f32 = 10.0;
 
 const MOUSE_OFFSET       : f32 = 2.0;
 const NODE_PADDING       : f32 = node::SHADOW_SIZE;
+
+// The padding needs to be large enough to accommodate the extended hover area without clipping it.
 const PADDING            : f32 = 4.0 + HOVER_EXTENSION;
 const RIGHT_ANGLE        : f32 = std::f32::consts::PI / 2.0;
 
@@ -45,6 +47,11 @@ const INFINITE : f32 = 99999.0;
 
 const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 
+
+
+// ===================
+// === Vector Math ===
+// ===================
 
 
 fn up() -> Vector2<f32> {
@@ -187,7 +194,7 @@ trait AnyEdgeShape {
 /// Add an invisible hover area to the provided shape. The base shape should already be colored
 /// otherwise coloring it later will also color the hover area.
 fn hover_area(base_shape:AnyShape, size:Var<Pixels>) -> AnyShape {
-    let hover_area = base_shape.grow(size).fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
+    let hover_area = base_shape.grow(size).fill(HOVER_COLOR);
     (hover_area + base_shape).into()
 }
 
@@ -278,16 +285,13 @@ impl SnapTarget {
 pub mod joint {
     use super::*;
 
-    ensogl::define_shape_system! {
-            (
-            ) {
-                let radius : Var<Pixels> = "min(input_size.y,input_size.x)".into();
-                let joint                   = Circle((radius-PADDING.px())/2.0);
-                let joint_color:color::Rgba = color::Lcha::new(0.6,0.5,0.76,1.0).into();
-                let joint_colored           = joint.fill(joint_color);
-                joint_colored.into()
-            }
-        }
+    ensogl::define_shape_system! { () {
+        let radius:Var<Pixels>      = "input_size.y".into();
+        let joint                   = Circle((radius-PADDING.px())/2.0);
+        let joint_color:color::Rgba = color::Lcha::new(0.6,0.5,0.76,1.0).into();
+        let joint_colored           = joint.fill(joint_color);
+        joint_colored.into()
+    }}
 }
 
 fn corner_base_shape
@@ -312,24 +316,26 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
         use super::*;
 
         ensogl::define_shape_system! {
-            ( radius:f32
-            , angle:f32
-            , start_angle:f32
-            , pos:Vector2<f32>
-            , dim:Vector2<f32>
-            , focus_split_center:Vector2<f32>
-            , focus_split_angle:f32
+            ( radius             : f32
+            , angle              : f32
+            , start_angle        : f32
+            , pos                : Vector2<f32>
+            , dim                : Vector2<f32>
+            , focus_split_center : Vector2<f32>
+            , focus_split_angle  : f32
             ) {
                 let width  = &LINE_WIDTH.px();
                 let shape  = corner_base_shape(&radius,width,&angle,&start_angle);
 
                 let shadow_size = 10.px();
                 let node_radius = &shadow_size + 1.px() * dim.y();
-                let node_shape  = Rect(
-                    (&shadow_size*2.0 + 2.px() * dim.x(),&node_radius*2.0)).corners_radius(node_radius);
+                let node_width  = &shadow_size*2.0 + 2.px() * dim.x();
+                let node_heigt  = &node_radius*2.0;
+
+                let node_shape  = Rect((node_width,node_heigt)).corners_radius(node_radius);
                 let node_shape  = node_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
-                let tx       = - 1.px() * pos.x();
-                let ty       = - 1.px() * pos.y();
+                let tx          = - 1.px() * pos.x();
+                let ty          = - 1.px() * pos.y();
                 let node_shape  = node_shape.translate((tx,ty));
 
                 let shape    = shape.difference(node_shape);
@@ -368,7 +374,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                 // FIXME: These bounds check should not be required and should be removed once
-                // issue #689 is  resolved.
+                // issue #689 is resolved.
                 let radius = self.shape.radius.get();
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
@@ -452,15 +458,15 @@ macro_rules! define_corner_end {($color:expr, $highlight_color:expr) => {
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                 // FIXME: These bounds check should not be required and should be removed once
-                // issue #689 is  resolved.
+                // issue #689 is resolved.
                 let radius = self.shape.radius.get();
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
 
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
                 let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
-                let start_angle   =  self.shape.start_angle.get();
-                let end_angle     =  start_angle + self.shape.angle.get();
+                let start_angle   = self.shape.start_angle.get();
+                let end_angle     = start_angle + self.shape.angle.get();
                 let upper_bound   = start_angle.max(end_angle);
                 let lower_bound   = start_angle.min(end_angle);
 
@@ -515,7 +521,7 @@ macro_rules! define_line {($color:expr, $highlight_color:expr) => {
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                 // FIXME: These bounds check should not be required and should be removed once
-                // issue #689 is  resolved.
+                // issue #689 is resolved.
                 #[allow(deprecated)]
                 let height = self.sprite().size.get().y;
                 let y      = point.y.clamp(-height/2.0, height/2.0);
@@ -535,9 +541,10 @@ macro_rules! define_arrow {($color:expr, $highlight_color:expr) => {
                 let height : Var<Pixels> = "input_size.y".into();
                 let focus_split_angle  = focus_split_angle.into();
                 let focus_split_center = focus_split_center.px();
-                let shape = Triangle(width-1.0.px(),height-1.0.px());
-                let shape = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle);
-                let shape = shape.fill($color,$highlight_color);
+                let shape_padding = -1.px();
+                let shape         = Triangle(width+&shape_padding,height+&shape_padding);
+                let shape         = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle);
+                let shape         = shape.fill($color,$highlight_color);
                 shape.into()
             }
         }
@@ -850,7 +857,6 @@ impl LayoutState {
     fn is_input_above_output(self) -> bool {
         !self.is_output_above_input()
     }
-
 }
 
 
@@ -868,7 +874,6 @@ impl LayoutState {
 /// Note that "at the split" also includes the shapes adjacent to the actual split because they
 /// need to be treated as if they were at the split location to avoid glitches at the shape
 /// boundaries.
-/// // FIXE: please, tell more about these glitches - I do not understand why they happen after this description
 ///
 /// This allows us to apply special handling to these groups. This is required as a simple geometric
 /// split based on a line, will lead to double intersections with the edge. Thus we avoid the
@@ -911,7 +916,7 @@ impl SemanticSplit {
         Some(SemanticSplit {ordered_part_ids,split_index})
     }
 
-    /// Return a ordered vector that contains the ids of the shapes in the order they appear in the
+    /// Return an ordered vector that contains the ids of the shapes in the order they appear in the
     /// edge. Shapes that are to be handled as in the same place, are binned into a sub-vector.
     /// This enables us to infer which parts are next to each other, and which ones are
     /// "source-side"/"target-side".
@@ -1009,9 +1014,9 @@ pub struct ShapeViewEventsProxy {
 impl ShapeViewEventsProxy {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def on_mouse_over = source();
-            def on_mouse_out  = source();
-            def on_mouse_down = source();
+            on_mouse_over <- source();
+            on_mouse_out  <- source();
+            on_mouse_down <- source();
 
             mouse_down <- on_mouse_down.constant(());
             mouse_over <- on_mouse_over.constant(());
@@ -1029,7 +1034,7 @@ impl ShapeViewEventsProxy {
 pub struct Frp {
     pub source_width    : frp::Source<f32>,
     pub source_height   : frp::Source<f32>,
-    pub target_position : frp::Source<Vector2>,
+    pub target_position : frp::Source<Vector2<f32>>,
     pub target_attached : frp::Source<bool>,
     pub source_attached : frp::Source<bool>,
     pub redraw          : frp::Source,
@@ -1154,12 +1159,8 @@ impl Edge {
             eval input.source_height   ((t) source_height.set(*t));
             eval input.hover_position  ((t) hover_position.set(*t));
 
-            eval shape_events.on_mouse_over ((id) {
-                hover_target.set(Some(*id));
-            });
-            eval shape_events.on_mouse_out  ((_)  {
-                hover_target.set(None);
-            });
+            eval  shape_events.on_mouse_over ((id) hover_target.set(Some(*id)));
+            eval_ shape_events.on_mouse_out  (     hover_target.set(None));
 
             eval_ input.redraw (model.redraw());
         }
@@ -1255,7 +1256,9 @@ impl EdgeModelData {
     #[allow(clippy::cognitive_complexity)]
     pub fn redraw(&self) {
 
+
         // === Variables ===
+
 
         let fg               = &self.front;
         let bg               = &self.back;
@@ -1268,7 +1271,9 @@ impl EdgeModelData {
         let source_node_circle      = Vector2(node_half_width- source_node_half_height, 0.0);
         let source_node_radius      = source_node_half_height;
 
+
         // === Update Highlights ===
+
 
         match (fully_attached, self.hover_position.get(), self.hover_target.get()) {
             (true, Some(hover_position), Some(hover_target)) => {
@@ -1342,12 +1347,12 @@ impl EdgeModelData {
         let is_down        = if is_flat_side {downward_flat} else {downward_far};
 
         // === Layout State ===
-        // Initial guess at our layout. Will be refined for some edge cases when we have more
-        // layout informaiton.
+        // Initial guess at our layout. Can still be changed further down in the layout code in
+        // case we encounter a layout where the corners need to loop back.
         let state = match (is_down,(side < 0.0)) {
-            (true,true) => LayoutState::DownLeft,
-            (true,false) => LayoutState::DownRight,
-            (false,true) => LayoutState::UpLeft,
+            (true,true)   => LayoutState::DownLeft,
+            (true,false)  => LayoutState::DownRight,
+            (false,true)  => LayoutState::UpLeft,
             (false,false) => LayoutState::UpRight,
         };
         self.layout_state.set(state);
@@ -1843,7 +1848,7 @@ impl EdgeModelData {
         let semantic_split = SemanticSplit::new(&self,snap_data.target_shape_id).ok_or(())?;
         let angle          = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
 
-        // Completely disable/enable focus for shapes that are not close the split base don their
+        // Completely disable/enable focus for shapes that are not close to the split based on their
         // relative position within the shape. This avoids issues with splitting not working
         // correctly when a split would intersect the edge at multiple points.
         semantic_split.output_side_shapes().iter().for_each(|shape_id| {
