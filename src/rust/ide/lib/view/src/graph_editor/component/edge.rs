@@ -1768,6 +1768,26 @@ impl EdgeModelData {
     /// itself does not have enough information about its own placement to determine which end
     /// is pointed towards the `Target` or `Source` part of the whole edge. So we need to account
     /// for these here based on the specific layout state we are in.
+    ///
+    /// Example:
+    /// ```text
+    ///
+    ///    Case 1
+    ///
+    ///           (===)----...
+    ///         Node     Side Line
+    ///
+    ///    Case 2
+    ///
+    ///          ...----(===)
+    ///     Side Line     Node
+    /// ```
+    ///
+    /// In both case 1 and 2 the side line is oriented left to right just placed in a different
+    /// location. However, in Case 1 the left side of the line is "output side" and in Case 2 the
+    /// right side is "output side". So if we want to set an equivalent angle, we need to apply a
+    /// correction based on this layout property.
+    ///
     fn get_cut_angle_correction(&self, shape_role:ShapeRole) -> f32 {
         let layout_state = self.layout_state.get();
 
