@@ -771,7 +771,6 @@ pub fn sort_hack_1(scene:&Scene) {
     let logger = Logger::new("hack_sort");
     component::ShapeView::<back::corner::Shape>::new(&logger,scene);
     component::ShapeView::<back::line::Shape>::new(&logger,scene);
-    component::ShapeView::<back::arrow::Shape>::new(&logger,scene);
 }
 
 // TODO: Implement proper sorting and remove.
@@ -780,6 +779,10 @@ pub fn sort_hack_2(scene:&Scene) {
     let logger = Logger::new("hack_sort");
     component::ShapeView::<front::corner::Shape>::new(&logger,scene);
     component::ShapeView::<front::line::Shape>::new(&logger,scene);
+
+    // Joint needs to be above all shapes, but below the arrows.
+    component::ShapeView::<joint::Shape>::new(&logger,scene);
+    component::ShapeView::<back::arrow::Shape>::new(&logger,scene);
     component::ShapeView::<front::arrow::Shape>::new(&logger,scene);
 }
 
