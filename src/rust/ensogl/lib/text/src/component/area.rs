@@ -453,9 +453,10 @@ impl Area {
             eval_ command.delete_left       (model.buffer.frp.input.delete_left.emit(()));
 
             key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample(&command.insert_char_of_last_pressed_key);
-            char_to_insert        <= key_on_char_to_insert.map(|k| {
-                match k {
+            char_to_insert        <= key_on_char_to_insert.map(|key| {
+                match key {
                     Key::Character(s) => Some(s.clone()),
+                    Key::Enter        => Some("\n".into()),
                     _                 => None
                 }
             });
