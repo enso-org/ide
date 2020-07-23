@@ -810,15 +810,22 @@ enum ShapeRole {
 /// edge from `Output` to `Input`.
 ///
 /// Each state represents a unique layout in terms of: adjacency of shapes (some shapes may
-/// disappear in some layout), or the relative geometric position of shapes.
+/// disappear in some layout), or the relative geometric position of shapes. For example, the
+/// `TopCenterRightLoop` has the main line leaving the node right to left, while corner2 and
+/// corner3 are left to right relative to each other. Compare the `UpRight`, which is almost the
+/// same, but has the main line leave the source node left to right.
 ///
-/// This list is not exhaustive.
+/// This list is not exhaustive and new constellations should be added as needed.
 #[derive(Clone,Copy,Debug,Eq,PartialEq)]
 enum LayoutState {
     UpLeft,
     UpRight,
     DownLeft,
     DownRight,
+    /// The edge goes right / up / left / down.
+    TopCenterRightLoop,
+    /// The edge goes left / up / right / down.
+    TopCenterLeftLoop,
 }
 
 impl LayoutState {
@@ -827,6 +834,8 @@ impl LayoutState {
         match self {
             LayoutState::UpLeft             => false,
             LayoutState::UpRight            => false,
+            LayoutState::TopCenterRightLoop => false,
+            LayoutState::TopCenterLeftLoop  => false,
             LayoutState::DownLeft           => true,
             LayoutState::DownRight          => true,
         }
@@ -836,55 +845,6 @@ impl LayoutState {
         !self.is_output_above_input()
     }
 
-    /// Return a ordered vector that contains the ids of the shapes in the order they appear in the
-    /// edge. Shapes that are to be handled as in the same place, are binned into a sub-vector.
-    /// This enables us to infer which parts are next to each other, and which ones are
-    /// "source-side"/"target-side".
-    ///
-    /// In general, we treat the equivalent shape from front and back as the same, as they tend to
-    /// occupy the same space within the shape and thus need to be handled together. But,
-    /// for example, also the arrow needs to be handled together with the main line. Other shapes
-    /// might be in the same bucket if they are invisible in some layout configurations and thus no
-    /// longer count for adjacency.
-    ///
-    /// The important information we create here is the adjacency of shapes. This is used to
-    /// determine which shapes are adjacent to correctly render the split passing from one shape to
-    /// the next and avoid rendering a split on a shape that can be all focus on or all focus off.
-    /// This is then used to determine the `SemanticSplit` of the shape. See the documentation
-    /// there for more information.
-    fn semantically_binned_edges(self, edge_data:&EdgeModelData) -> Vec<Vec<display::object::Id>> {
-        let front = &edge_data.front;
-        let back  = &edge_data.back;
-        match self {
-            Self::DownLeft | Self::DownRight => {
-                vec![
-                    vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
-                    vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
-                    // All collapsed and visible only as a single line
-                    vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
-                         EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ,
-                         EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ,
-                         EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ,
-                         EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ,
-                    ],
-                    vec![EdgeShape::id(&front.port_line)                                   ],
-                ]
-
-            },
-            Self::UpLeft | Self::UpRight => {
-                    vec![
-                        vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
-                        vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
-                        vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
-                             EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ],
-                        vec![EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ],
-                        vec![EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ],
-                        vec![EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ],
-                        vec![EdgeShape::id(&front.port_line)                                   ],
-                    ]
-                }
-        }
-    }
 }
 
 
@@ -930,8 +890,7 @@ struct SemanticSplit {
 impl SemanticSplit {
 
     fn new(edge_data:&EdgeModelData, split_shape:display::object::Id) -> Option<Self> {
-        let layout           = edge_data.layout_state.get();
-        let ordered_part_ids = layout.semantically_binned_edges(edge_data);
+        let ordered_part_ids = Self::semantically_binned_edges(edge_data);
 
         // Find the object id in our `ordered_part_ids`
         let mut split_index  = None;
@@ -944,6 +903,53 @@ impl SemanticSplit {
         let split_index = split_index?;
 
         Some(SemanticSplit {ordered_part_ids,split_index})
+    }
+
+    /// Return a ordered vector that contains the ids of the shapes in the order they appear in the
+    /// edge. Shapes that are to be handled as in the same place, are binned into a sub-vector.
+    /// This enables us to infer which parts are next to each other, and which ones are
+    /// "source-side"/"target-side".
+    ///
+    /// In general, we treat the equivalent shape from front and back as the same, as they tend to
+    /// occupy the same space within the shape and thus need to be handled together. But,
+    /// for example, also the arrow needs to be handled together with the main line.
+    ///
+    /// The important information we create here is the rough adjacency of shapes. This is used to
+    /// determine which shapes are adjacent to avoid rendering a split on a shape that can be all
+    /// focus on or all focus off.
+    fn semantically_binned_edges(edge_data:&EdgeModelData) -> Vec<Vec<display::object::Id>> {
+        let front  = &edge_data.front;
+        let back   = &edge_data.back;
+        let layout = edge_data.layout_state.get();
+        match layout {
+            LayoutState::DownLeft | LayoutState::DownRight => {
+                vec![
+                    vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
+                    vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
+                    // All collapsed and visible only as a single line
+                    vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
+                         EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ,
+                         EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ,
+                         EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ,
+                         EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ,
+                    ],
+                    vec![EdgeShape::id(&front.port_line)                                   ],
+                ]
+
+            },
+            _ => {
+                vec![
+                    vec![EdgeShape::id(&front.side_line),  EdgeShape::id(&back.side_line)  ],
+                    vec![EdgeShape::id(&front.corner),     EdgeShape::id(&back.corner)     ],
+                    vec![EdgeShape::id(&front.main_line),  EdgeShape::id(&back.main_line),
+                         EdgeShape::id(&front.arrow),      EdgeShape::id(&back.arrow)      ],
+                    vec![EdgeShape::id(&front.corner2),    EdgeShape::id(&back.corner2)    ],
+                    vec![EdgeShape::id(&front.side_line2), EdgeShape::id(&back.side_line2) ],
+                    vec![EdgeShape::id(&front.corner3),    EdgeShape::id(&back.corner3)    ],
+                    vec![EdgeShape::id(&front.port_line)                                   ],
+                ]
+            }
+        }
     }
 
     /// Return `Id`s that match the given index condition `cond`.
@@ -1525,8 +1531,8 @@ impl EdgeModelData {
             // === Layout State Update ===
             // Corner case: we are above the node and the corners loop back
             match (side < 0.0, corner_2_3_side < 0.0) {
-                (false, true) => self.layout_state.set(LayoutState::UpLeft),
-                (true, true)  => self.layout_state.set(LayoutState::UpRight),
+                (false, true) => self.layout_state.set(LayoutState::TopCenterRightLoop),
+                (true, true)  => self.layout_state.set(LayoutState::TopCenterLeftLoop),
                 _             => (),
             };
 
@@ -1765,18 +1771,26 @@ impl EdgeModelData {
         // height and is thus flipped upside down.
         match (layout_state,shape_role)  {
 
-            (LayoutState::UpLeft, ShapeRole::PortLine )   => flip,
-            (LayoutState::UpRight, ShapeRole::PortLine  ) => flip,
-
             (LayoutState::DownLeft, ShapeRole::SideLine ) => flip,
             (LayoutState::DownLeft, ShapeRole::Corner   ) => flip,
-            (LayoutState::UpLeft, ShapeRole::Corner   )   => flip,
 
+            (LayoutState::UpLeft, ShapeRole::PortLine ) => flip,
+            (LayoutState::UpLeft, ShapeRole::Corner   ) => flip,
 
+            (LayoutState::UpRight, ShapeRole::PortLine  ) => flip,
             (LayoutState::UpRight, ShapeRole::Corner3   ) => flip,
             (LayoutState::UpRight, ShapeRole::SideLine2 ) => flip,
             (LayoutState::UpRight, ShapeRole::Corner2   ) => flip,
             (LayoutState::UpRight, ShapeRole::SideLine  ) => flip,
+
+            (LayoutState::TopCenterRightLoop, ShapeRole::SideLine ) => flip,
+            (LayoutState::TopCenterRightLoop, ShapeRole::PortLine ) => flip,
+
+            (LayoutState::TopCenterLeftLoop, ShapeRole::SideLine2 ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner2   ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner    ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::Corner3   ) => flip,
+            (LayoutState::TopCenterLeftLoop, ShapeRole::PortLine  ) => flip,
 
             (_, ShapeRole::Arrow)  => RIGHT_ANGLE,
 
