@@ -65,7 +65,9 @@ pub struct FrpInputs {
     /// Set the project name.
     pub name : frp::Source<String>,
     /// Reset the project name to the one before editing.
-    pub cancel_editing : frp::Source
+    pub cancel_editing : frp::Source,
+    /// Commit current project name.
+    pub commit : frp::Source
 }
 
 impl FrpInputs {
@@ -74,8 +76,9 @@ impl FrpInputs {
         frp::extend! {network
             def cancel_editing = source();
             def name           = source();
+            def commit         = source();
         }
-        Self{cancel_editing,name}
+        Self{cancel_editing,name,commit}
     }
 }
 
@@ -254,6 +257,12 @@ impl ProjectNameModel {
         self.update_text_field_content();
     }
 
+    fn commit(&self) {
+        let name = self.text_field.get_content();
+        self.name_output.emit(&name);
+        *self.project_name.borrow_mut() = name;
+    }
+
     fn is_focused(&self) -> bool {
         self.text_field.is_focused()
     }
@@ -294,6 +303,7 @@ impl ProjectName {
             });
             eval_ frp.inputs.cancel_editing(model.reset_name());
             eval frp.inputs.name((name) {model.rename(name)});
+            eval_ frp.inputs.commit(model.commit());
         }
 
 
@@ -316,13 +326,13 @@ impl ProjectName {
                 // If the text edit callback is called, the TextEdit must be still alive.
                 let field_content = project_name.text_field.get_content();
                 let new_name      = field_content.replace("\n", "");
-                if change.inserted == "\n" {
-                    project_name.rename(&new_name);
-                }
                 // Keep only one line.
                 project_name.text_field.set_content(&new_name);
                 project_name.width_output.emit(project_name.width());
                 project_name.update_alignment();
+                if change.inserted == "\n" {
+                    project_name.commit();
+                }
             }
         });
         self

@@ -79,7 +79,12 @@ mod icon {
                 let arrow         = Triangle(size.px(),size.px()).rotate((PI/2.0).radians());
                 let arrow         = arrow.translate_x(0.5.px());
                 let shape         = ring + arrow;
-                let color         = format!("vec4(1.0,1.0,1.0,mix(0.4,0.7,{}))",opacity);
+                let full_color    = format!("vec4({},{},{},{})"
+                    ,FULL_COLOR.red,FULL_COLOR.green,FULL_COLOR.blue,FULL_COLOR.alpha);
+                let transparent_color = format!("vec4({},{},{},{})"
+                    ,TRANSPARENT_COLOR.red,TRANSPARENT_COLOR.green,TRANSPARENT_COLOR.blue
+                    ,TRANSPARENT_COLOR.alpha);
+                let color = format!("mix({},{},{})",transparent_color,full_color,opacity);
                 let color : Var<color::Rgba> = color.into();
                 shape.fill(color).into()
         }
@@ -118,14 +123,16 @@ mod separator {
 /// ProjectName's animations handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    opacity : Animation<f32>
+    opacity  : Animation<f32>,
+    fade_in  : Animation<f32>
 }
 
 impl Animations {
     /// Create new animations handlers.
     pub fn new(network:&frp::Network) -> Self {
-        let opacity = Animation::new(&network);
-        Self{opacity}
+        let opacity  = Animation::new(&network);
+        let fade_in  = Animation::new(&network);
+        Self{opacity,fade_in}
     }
 }
 
@@ -139,7 +146,8 @@ impl Animations {
 #[allow(missing_docs)]
 pub struct FrpInputs {
     pub select   : frp::Source,
-    pub deselect : frp::Source
+    pub deselect : frp::Source,
+    pub fade_in  : frp::Source
 }
 
 impl FrpInputs {
@@ -148,8 +156,9 @@ impl FrpInputs {
         frp::extend! {network
             def select   = source();
             def deselect = source();
+            def fade_in  = source();
         }
-        Self{select,deselect}
+        Self{select,deselect,fade_in}
     }
 }
 
@@ -274,7 +283,9 @@ impl BreadcrumbModel {
 
     fn init(self) -> Self {
         self.add_child(&self.view);
-        self.add_child(&self.separator);
+        self.view.add_child(&self.separator);
+        self.separator.add_child(&self.icon);
+        self.icon.add_child(&self.label);
 
         let color  = if self.is_selected() { FULL_COLOR } else { TRANSPARENT_COLOR };
 
@@ -284,18 +295,16 @@ impl BreadcrumbModel {
         self.label.set_position(Vector3::new(ICON_SIZE/2.0 + ICON_MARGIN,-ICON_SIZE/4.0,0.0));
 
         let width  = self.width();
-        let height = self.label.font_size() + VERTICAL_MARGIN * 2.0;
+        let height = self.height();
         let offset = self.compute_separator_margin() + SEPARATOR_SIZE/2.0;
 
         self.view.shape.sprite.size.set(Vector2::new(width,height));
-        self.view.set_position(Vector3::new(width,-height,0.0)/2.0);
+        self.fade_in(0.0);
         self.separator.shape.sprite.size.set(Vector2::new(SEPARATOR_SIZE,SEPARATOR_SIZE));
-        self.separator.set_position(Vector3::new(offset,-height/2.0,0.0));
-        self.separator.add_child(&self.icon);
+        self.separator.set_position(Vector3::new(offset-width/2.0,0.0,0.0));
         self.icon.shape.sprite.size.set(Vector2::new(ICON_SIZE,ICON_SIZE));
         self.icon.shape.opacity.set(self.is_selected() as i32 as f32);
         self.icon.set_position(Vector3::new(offset+ICON_SIZE/2.0,0.0,0.0));
-        self.icon.add_child(&self.label);
 
         self
     }
@@ -311,6 +320,17 @@ impl BreadcrumbModel {
     /// Get the width of the breadcrumb view.
     pub fn width(&self) -> f32 {
         self.compute_separator_margin()*2.0+SEPARATOR_SIZE+ICON_SIZE+ICON_MARGIN+self.label_width()
+    }
+
+    /// Get the height of the breadcrumb view.
+    pub fn height(&self) -> f32 {
+        self.label.font_size() + VERTICAL_MARGIN * 2.0
+    }
+
+    fn fade_in(&self, value:f32) {
+        let width  = self.width();
+        let height = self.height();
+        self.view.set_position(Vector3::new(width * value,-height,0.0)/2.0);
     }
 
     fn set_opacity(&self, value:f32) {
@@ -364,6 +384,7 @@ impl Breadcrumb {
         let network = &frp.network;
 
         frp::extend! { network
+            eval_ frp.fade_in(model.animations.fade_in.set_target_value(1.0));
             eval_ frp.select(model.select());
             eval_ frp.deselect(model.deselect());
             eval_ model.view.events.mouse_over(model.animations.opacity.set_target_value(1.0));
@@ -377,6 +398,7 @@ impl Breadcrumb {
         // === Animations ===
 
         frp::extend! {network
+            eval model.animations.fade_in.value((value) model.fade_in(*value));
             eval model.animations.opacity.value((value) model.set_opacity(*value));
         }
 

@@ -1481,6 +1481,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
 
+
+    // ============================
+    // === Project Name Editing ===
+    // ============================
+
+
+    // === Commit project name edit ===
+
+    frp::extend! { network
+        eval_ touch.background.selected({
+            model.breadcrumbs.project_name.frp.commit.emit(())
+        });
+    }
+
     // === Cancel project name editing ===
 
     frp::extend! { network

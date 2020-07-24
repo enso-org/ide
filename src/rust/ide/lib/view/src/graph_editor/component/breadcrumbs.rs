@@ -258,6 +258,7 @@ impl BreadcrumbsModel {
 
             info!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
             breadcrumb.set_position(Vector3::new(self.width(), 0.0, 0.0));
+            breadcrumb.frp.fade_in.emit(());
             self.breadcrumbs_container.add_child(&breadcrumb);
             self.breadcrumbs.borrow_mut().push(breadcrumb);
         }
