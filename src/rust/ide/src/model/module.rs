@@ -292,10 +292,10 @@ impl Position {
 ///
 /// It is very similar to MethodPointer from language_server API, however it may point to the method
 /// outside the currently opened project.
-#[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
 #[allow(missing_docs)]
 pub struct MethodId {
-    pub module          : String,
+    pub module          : QualifiedName,
     pub defined_on_type : String,
     pub name            : String,
 }

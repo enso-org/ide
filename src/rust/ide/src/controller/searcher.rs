@@ -759,7 +759,7 @@ mod test {
         assert_eq!(module.ast().repr(), expected_code);
         let (node1,node2) = searcher.graph.graph().nodes().unwrap().expect_tuple();
         let expected_intended_method = Some(MethodId {
-            module          : "Test.Test".to_string(),
+            module          : "Test.Test".to_string().try_into().unwrap(),
             defined_on_type : "Test".to_string(),
             name            : "testMethod1".to_string(),
         });
@@ -791,7 +791,7 @@ mod test {
 
         // Node had intended method, but it's outdated.
         let intended_method = MethodId {
-            module          : "Test.Test".to_string(),
+            module          : "Test.Test".to_string().try_into().unwrap(),
             defined_on_type : "Test".to_string(),
             name            : "testMethod1".to_string()
         };

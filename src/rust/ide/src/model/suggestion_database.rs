@@ -107,7 +107,7 @@ impl Entry {
             None
         } else if let Some(self_type) = &self.self_type {
             Some(MethodId {
-                module          : self.module.to_string(),
+                module          : self.module.clone(),
                 defined_on_type : self_type.clone(),
                 name            : self.name.clone(),
             })
@@ -282,9 +282,9 @@ mod test {
             ..non_method.clone()
         };
         let expected = MethodId {
-            module: "Test.Test".to_string(),
-            defined_on_type: "Number".to_string(),
-            name: "method".to_string()
+            module          : "Test.Test".to_string().try_into().unwrap(),
+            defined_on_type : "Number".to_string(),
+            name            : "method".to_string()
         };
         assert_eq!(non_method.method_id() , None);
         assert_eq!(method.method_id()     , Some(expected));

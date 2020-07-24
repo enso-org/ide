@@ -11,6 +11,8 @@ use ast::known;
 use ast::BlockLine;
 use data::text::ByteIndex;
 use enso_protocol::language_server;
+use serde::Deserialize;
+use serde::Serialize;
 
 
 
@@ -33,7 +35,9 @@ pub enum InvalidQualifiedName {
 ///
 /// See https://dev.enso.org/docs/distribution/packaging.html for more information about the
 /// package structure.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Deserialize,Shrinkwrap,Serialize)]
+#[serde(into="String")]
+#[serde(try_from="String")]
 pub struct QualifiedName {
     #[shrinkwrap(main_field)]
     text      : String,
@@ -74,6 +78,12 @@ impl TryFrom<String> for QualifiedName {
         let name_start = text.rfind(ast::opr::predefined::ACCESS).ok_or(error)? + 1;
         let name_part  = ByteIndex::new(name_start)..ByteIndex::new(text.len());
         Ok(QualifiedName {text,name_part})
+    }
+}
+
+impl Into<String> for QualifiedName {
+    fn into(self) -> String {
+        self.text
     }
 }
 
