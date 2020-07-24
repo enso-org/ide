@@ -229,6 +229,7 @@ pub struct Searcher {
     database        : Rc<model::SuggestionDatabase>,
     language_server : Rc<language_server::Connection>,
     parser          : Parser,
+    this            : Rc<Option<double_representation::node::Id>>,
 }
 
 impl Searcher {
@@ -237,15 +238,19 @@ impl Searcher {
     ( parent   : impl AnyLogger
     , project  : &model::Project
     , method   : language_server::MethodPointer
+    , this     : Option<double_representation::node::Id>
     ) -> FallibleResult<Self> {
         let graph = controller::ExecutedGraph::new(&parent,project.clone_ref(),method).await?;
-        Ok(Self::new_from_graph_controller(parent,project,graph))
+        Ok(Self::new_from_graph_controller(parent,project,graph,this))
     }
 
     /// Create new Searcher Controller, when you have Executed Graph Controller handy.
     pub fn new_from_graph_controller
-    (parent:impl AnyLogger, project:&model::Project, graph:controller::ExecutedGraph)
-    -> Self {
+    ( parent  : impl AnyLogger
+    , project : &model::Project
+    , graph   : controller::ExecutedGraph
+    , this    : Option<double_representation::node::Id>
+    ) -> Self {
         let logger = Logger::sub(parent,"Searcher Controller");
         let this = Self {
             logger,graph,
@@ -254,6 +259,7 @@ impl Searcher {
             database        : project.suggestion_db(),
             language_server : project.json_rpc(),
             parser          : project.parser(),
+            this            : Rc::new(this),
         };
         this.reload_list();
         this
@@ -304,7 +310,7 @@ impl Searcher {
             },
             Some(mut expression) => {
                 let new_argument = ast::prefix::Argument {
-                    sast      : ast::Shifted::new(pattern_offset,added_ast),
+                        sast      : ast::Shifted::new(pattern_offset,added_ast),
                     prefix_id : default(),
                 };
                 expression.args.push(new_argument);
@@ -351,21 +357,32 @@ impl Searcher {
     fn get_suggestion_list_from_engine
     (&self, return_type:Option<String>, tags:Option<Vec<language_server::SuggestionEntryType>>)
     -> FallibleResult<()> {
-        let ls             = &self.language_server;
+        let ls             = self.language_server.clone_ref();
         let graph          = self.graph.graph();
+        let executed_graph = self.graph.clone();
         let graph_id       = &*graph.id;
         let module_ast     = graph.module.ast();
-        let file           = graph.module.path().file_path();
-        let self_type      = None;
+        let file           = graph.module.path().file_path().clone();
+        let self_type      = self.this.map(|this_node_id| self.graph.expression_type(this_node_id));
         let def_span       = double_representation::module::definition_span(&module_ast,&graph_id)?;
         let position       = TextLocation::convert_span(module_ast.repr(),&def_span).end.into();
-        let request        = ls.completion(&file,&position,&self_type,&return_type,&tags);
         let data           = self.data.clone_ref();
         let database       = self.database.clone_ref();
         let logger         = self.logger.clone_ref();
         let notifier       = self.notifier.clone_ref();
         executor::global::spawn(async move {
-            info!(logger,"Requesting new suggestion list.");
+            let this_type = match self_type {
+                Some(future_type) => match future_type.await {
+                    Some(typename) => Some(typename.into()),
+                    None     => {
+                        error!(logger,"Failed to obtain type for this node.");
+                        None
+                    },
+                }
+                None              => None,
+            };
+            info!(logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
+            let request  = ls.completion(&file,&position,&this_type,&return_type,&tags);
             let response = request.await;
             info!(logger,"Received suggestions from Language Server.");
             let new_suggestions = match response {
@@ -406,6 +423,12 @@ mod test {
     use json_rpc::expect_call;
     use utils::test::traits::*;
 
+    #[derive(Debug,Default)]
+    struct MockData {
+        graph : controller::graph::executed::tests::MockData,
+        this  : Option<ast::Id>
+    }
+
     struct Fixture {
         searcher : Searcher,
         entry1   : CompletionSuggestion,
@@ -415,18 +438,19 @@ mod test {
 
     impl Fixture {
         fn new_custom<F>(client_setup:F) -> Self
-        where F : FnOnce(&mut ExecutedGraphMockData,&mut language_server::MockClient) {
-            let mut graph_data = controller::graph::executed::tests::MockData::default();
+        where F : FnOnce(&mut MockData,&mut language_server::MockClient) {
+            let mut data = MockData::default();
             let mut client     = language_server::MockClient::default();
-            client_setup(&mut graph_data,&mut client);
+            client_setup(&mut data,&mut client);
             let searcher = Searcher {
                 logger          : default(),
                 data            : default(),
                 notifier        : default(),
-                graph           : graph_data.controller(),
+                graph           : data.graph.controller(),
                 database        : default(),
                 language_server : language_server::Connection::new_mock_rc(client),
                 parser          : Parser::new_or_panic(),
+                this            : Rc::new(data.this),
             };
             let entry1 = model::suggestion_database::Entry {
                 name          : "TestFunction1".to_string(),
@@ -459,6 +483,39 @@ mod test {
     }
 
 
+    #[test]
+    fn loading_list_w_self() {
+        let self_typename = "Vec";
+        let mut test = TestWithLocalPoolExecutor::set_up();
+        let Fixture{searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
+            data.this = Some(ast::Id::new_v4());
+            let completion_response = language_server::response::Completion {
+                results: vec![1,5,9],
+                current_version: default(),
+            };
+
+            let file_end          = data.graph.module.code.chars().count();
+            let expected_location = TextLocation {line:0, column:file_end};
+            expect_call!(client.completion(
+                module      = data.graph.module.path.file_path().clone(),
+                position    = expected_location.into(),
+                self_type   = Some(self_typename.to_owned()),
+                return_type = None,
+                tag         = None
+            ) => Ok(completion_response));
+        });
+
+        let mut subscriber = searcher.subscribe();
+        searcher.reload_list();
+        assert!(searcher.suggestions().is_loading());
+        test.run_until_stalled();
+        let expected_list = vec![Suggestion::Completion(entry1),Suggestion::Completion(entry9)];
+        assert_eq!(searcher.suggestions().list(), Some(&expected_list));
+        let notification = subscriber.next().boxed_local().expect_ready();
+        assert_eq!(notification, Some(Notification::NewSuggestionList));
+    }
+
+
     #[wasm_bindgen_test]
     fn loading_list() {
         let mut test = TestWithLocalPoolExecutor::set_up();
@@ -468,10 +525,10 @@ mod test {
                 current_version: default(),
             };
 
-            let file_end          = data.module.code.chars().count();
+            let file_end          = data.graph.module.code.chars().count();
             let expected_location = TextLocation {line:0, column:file_end};
             expect_call!(client.completion(
-                module      = data.module.path.file_path().clone(),
+                module      = data.graph.module.path.file_path().clone(),
                 position    = expected_location.into(),
                 self_type   = None,
                 return_type = None,

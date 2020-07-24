@@ -143,6 +143,18 @@ impl Handle {
         futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
     }
 
+
+    pub fn expression_type(&self, id:ast::Id) -> StaticBoxFuture<Option<ImString>> {
+        // registry.get_type(id)
+        // let registry = self.execution_ctx.computed_value_info_registry();
+        // if let Some(typename) = registry.get(&id).and_then(|info| info.typename.clone().map(Ok)) {
+        //     futures::future::ready(typename).boxed_local()
+        // } else {
+        //     futures::future::ready(Err(futures::channel::oneshot::Canceled.into())).boxed_local()
+        // }
+        todo!()
+    }
+
     /// Enter node by given ID.
     ///
     /// This will cause pushing a new stack frame to the execution context and changing the graph

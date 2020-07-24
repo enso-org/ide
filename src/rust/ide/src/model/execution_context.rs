@@ -15,6 +15,7 @@ use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::VisualisationConfiguration;
 use flo_stream::Subscriber;
 use std::collections::HashMap;
+use utils::future::ready_boxed;
 use uuid::Uuid;
 
 
@@ -115,6 +116,50 @@ impl ComputedValueInfoRegistry {
     /// Look up the registry for information about given expression.
     pub fn get(&self, id:&ExpressionId) -> Option<Rc<ComputedValueInfo>> {
         self.map.borrow_mut().get(id).cloned()
+    }
+
+    // pub fn get_from_info<F,T>(self:&Rc<Self>, id:ExpressionId, mut f:F) -> StaticBoxFuture<Option<T>>
+    // where F : FnMut(Rc<ComputedValueInfo>) -> Option<T> + 'static,
+    //       T : 'static {
+    //     let weak = Rc::downgrade(&self);
+    //     if let Some(ret) = self.get(&id).and_then(&mut f) {
+    //         ready_boxed(Some(ret))
+    //     } else {
+    //         let info_updates = self.subscribe().filter_map(move |update| {
+    //             let result = update.contains(&id).and_option_from(|| {
+    //                 weak.upgrade().and_then(|this| this.get(&id)).and_then(&mut f)
+    //             });
+    //             futures::future::ready(result)
+    //         });
+    //         let ret = info_updates.into_future().map(|(head_value,_stream_tail)| head_value);
+    //         ret.boxed_local()
+    //     }
+    // }
+    //
+    // pub fn get_type(self:&Rc<Self>, id:ExpressionId) -> StaticBoxFuture<Option<ImString>> {
+    //     self.get_from_info(id, |info| info.typename.clone())
+    // }
+
+    pub fn get_from_info<F,T>(self:&Rc<Self>, id:ExpressionId, mut f:F) -> StaticBoxFuture<Option<T>>
+    where F : FnMut(Rc<ComputedValueInfo>) -> Option<T> + 'static,
+          T : 'static {
+        let weak = Rc::downgrade(&self);
+        if let Some(ret) = self.get(&id).and_then(&mut f) {
+            ready_boxed(Some(ret))
+        } else {
+            let info_updates = self.subscribe().filter_map(move |update| {
+                let result = update.contains(&id).and_option_from(|| {
+                    weak.upgrade().and_then(|this| this.get(&id)).and_then(&mut f)
+                });
+                futures::future::ready(result)
+            });
+            let ret = info_updates.into_future().map(|(head_value,_stream_tail)| head_value);
+            ret.boxed_local()
+        }
+    }
+
+    pub fn get_type(self:&Rc<Self>, id:ExpressionId) -> StaticBoxFuture<Option<ImString>> {
+        self.get_from_info(id, |info| info.typename.clone())
     }
 }
 
@@ -298,3 +343,52 @@ pub type ExecutionContext = Rc<dyn API>;
 pub type Plain = plain::ExecutionContext;
 /// Execution Context Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::ExecutionContext;
+
+
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
+    #[test]
+    fn getting_future_type_from_registry() {
+        let mut fixture = TestWithLocalPoolExecutor::set_up();
+
+        use utils::test::traits::*;
+        let registry = Rc::new(ComputedValueInfoRegistry::default());
+        let weak = Rc::downgrade(&registry);
+        let id1 = Id::new_v4();
+        let id2 = Id::new_v4();
+        let mut type_future1 = registry.get_type(id1);
+        let mut type_future2 = registry.get_type(id2);
+        type_future1.expect_pending();
+        type_future2.expect_pending();
+        let typename = "Vector";
+        let update1 = ExpressionValuesComputed {
+            updates: vec![ExpressionValueUpdate {
+                id: id1,
+                typename: Some(typename.into()),
+                method_call: None,
+                short_value: None,
+            }],
+            context_id: default()
+        };
+        registry.apply_update(update1);
+        assert_eq!(fixture.expect_completion(type_future1), Some(typename.into()));
+        type_future2.expect_pending();
+        // Next attempt should return value immediately, as it is already in the registry.
+        assert_eq!(fixture.expect_completion(registry.get_type(id1)), Some(typename.into()));
+        // The value for other id should not be obtainable though.
+        fixture.expect_pending(registry.get_type(id2));
+
+        std::mem::drop(registry);
+        assert!(weak.upgrade().is_none()); // make sure we had not leaked handles to registry
+        assert_eq!(fixture.expect_completion(type_future2), None);
+    }
+}
