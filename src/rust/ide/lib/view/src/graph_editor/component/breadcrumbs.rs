@@ -262,6 +262,7 @@ impl BreadcrumbsModel {
             self.breadcrumbs.borrow_mut().push(breadcrumb);
         }
         self.current_index.set(next_index);
+        self.update_selection();
     }
 
     fn pop_breadcrumb(&self) {
@@ -269,7 +270,18 @@ impl BreadcrumbsModel {
             info!(self.logger, "Popping breadcrumb view.");
             self.current_index.set(self.current_index.get() - 1);
         }
-        //self.breadcrumbs.borrow_mut().pop().map(|breadcrumb| breadcrumb.unset_parent());
+        self.update_selection();
+    }
+
+    fn update_selection(&self) {
+        let current_index = self.current_index.get() - 1;
+        for (index,breadcrumb) in self.breadcrumbs.borrow_mut().iter().enumerate() {
+            if index == current_index {
+                breadcrumb.frp.select.emit(());
+            } else {
+                breadcrumb.frp.deselect.emit(());
+            }
+        }
     }
 
     fn remove_breadcrumbs_history(&self) {

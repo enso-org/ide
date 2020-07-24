@@ -9,8 +9,8 @@ use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
 use enso_frp as frp;
 use ensogl::data::color;
 use ensogl::display;
-use ensogl::display::Attribute;
-use ensogl::display::Buffer;
+// use ensogl::display::Attribute;
+// use ensogl::display::Buffer;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::text::text_field::FocusManager;
@@ -46,7 +46,7 @@ mod background {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, selection:f32) {
+        () {
             let bg_color = color::Rgba::new(0.0,0.0,0.0,0.000_001);
             Plane().fill(bg_color).into()
         }
@@ -214,8 +214,7 @@ impl ProjectNameModel {
         let width       = self.width();
         let line_height = self.text_field.line_height();
         let height      = line_height + VERTICAL_MARGIN * 2.0;
-        let offset_y    = 1.8;
-        self.text_field.set_position(Vector3::new(0.0,-offset_y-VERTICAL_MARGIN,0.0));
+        self.text_field.set_position(Vector3::new(0.0,-VERTICAL_MARGIN,0.0));
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.view.set_position(Vector3::new(width,-height,0.0)/2.0);
     }
