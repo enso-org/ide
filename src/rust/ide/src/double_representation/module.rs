@@ -98,6 +98,7 @@ impl Hash for QualifiedName {
 }
 
 
+
 // ==================
 // === ImportInfo ===
 // ==================
@@ -107,7 +108,7 @@ impl Hash for QualifiedName {
 // Currently only supports the unqualified imports like `import Foo.Bar`. Qualified, restricted and
 // and hiding imports are not supported by the parser yet. In future when parser and engine
 // supports them, this structure should be adjusted as well.
-#[derive(Clone,Debug,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub struct ImportInfo {
     /// The segments of the qualified name of the imported target.
     ///

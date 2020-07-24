@@ -62,10 +62,7 @@ impl NodeSearcher {
             if let Some(controller) = node_searcher.controller.get() {
                 controller.set_input(expression.to_string());
                 if change.inserted == "\n" {
-                    let position      = node_searcher.display_object.position();
-                    let position      = position - node_searcher.node_editor.position();
-                    let position      = Some(Position{vector:Vector2::new(position.x,position.y)});
-                    match controller.add_node(position) {
+                    match controller.commit_node() {
                         Ok(_)    => { node_searcher.hide(); }
                         Err(err) => {
                             error!(node_searcher.logger,"Error when creating node: {err}.")
@@ -83,28 +80,40 @@ impl NodeSearcher {
     /// Show NodeSearcher if it is invisible.
     pub fn show(&mut self) {
         if !self.is_shown() {
-            //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
-            self.display_object.add_child(&self.text_field.display_object());
-            self.text_field.clear_content();
-            self.text_field.set_focus();
-            let graph      = self.node_editor.graph.controller().clone_ref();
-            let controller = controller::Searcher::new_from_graph_controller(&self.logger,&self.project,graph,None).unwrap();
             let logger     = self.logger.clone_ref();
+            let position   = self.position();
+            let position   = position - self.node_editor.position();
+            let position   = Some(Position::new(position.x,position.y));
+            let graph      = self.node_editor.graph.controller().clone_ref();
+            let mode       = controller::searcher::Mode::NewNode {position};
+            let controller = controller::Searcher::new_from_graph_controller(&logger,&self.project,
+                graph,mode);
             let weak       = Rc::downgrade(&self.controller);
-            executor::global::spawn(controller.subscribe().for_each(move |notification| {
-                if let Some(opt_controller) = weak.upgrade() {
-                    if let Some(controller) = opt_controller.get() {
-                        match notification {
-                            controller::searcher::Notification::NewSuggestionList => {
-                                let list = controller.suggestions();
-                                info!(logger,"New list in Searcher: {list:?}");
+            match controller {
+                Ok(controller) => {
+                    executor::global::spawn(controller.subscribe().for_each(move |notification| {
+                        if let Some(opt_controller) = weak.upgrade() {
+                            if let Some(controller) = opt_controller.get() {
+                                match notification {
+                                    controller::searcher::Notification::NewSuggestionList => {
+                                        let list = controller.suggestions();
+                                        info!(logger,"New list in Searcher: {list:?}");
+                                    }
+                                }
                             }
                         }
-                    }
+                        futures::future::ready(())
+                    }));
+                    self.controller.set(Some(controller));
+                    //FIXME:Use add_child(&text_field) when replaced by TextField 2.0
+                    self.display_object.add_child(&self.text_field.display_object());
+                    self.text_field.clear_content();
+                    self.text_field.set_focus();
+                },
+                Err(err) => {
+                    error!(logger,"Error while creating Searcher Controller: {err}");
                 }
-                futures::future::ready(())
-            }));
-            self.controller.set(Some(controller))
+            }
         }
     }
 

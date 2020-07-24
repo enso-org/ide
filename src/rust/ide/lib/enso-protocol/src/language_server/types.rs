@@ -387,7 +387,7 @@ pub struct VisualisationConfiguration {
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct LocalCall {
-    pub expression_id : ExpressionId
+    pub expression_id:ExpressionId
 }
 
 /// Points to a method definition.

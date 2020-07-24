@@ -265,12 +265,12 @@ pub struct IdeMetadata {
 #[derive(Debug,Clone,Default,Serialize,Deserialize)]
 pub struct NodeMetadata {
     /// Position in x,y coordinates.
-    pub position: Option<Position>,
+    pub position:Option<Position>,
     /// A method which user intends this node to be, e.g. by picking specific suggestion in
     /// Searcher Panel.
     ///
     /// The methods may be defined for different types, so the name alone don't specify them.
-    pub intended_method: Option<MethodId>,
+    pub intended_method:Option<MethodId>,
 }
 
 /// Used for storing node position.

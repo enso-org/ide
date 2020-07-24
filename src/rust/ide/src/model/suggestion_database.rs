@@ -99,7 +99,7 @@ impl Entry {
         Self {name:name.into(),..self}
     }
 
-    /// Return the MethodPointer of suggested method.
+    /// Return the Method Id of suggested method.
     ///
     /// Returns none, if this is not suggestion for a method.
     pub fn method_id(&self) -> Option<MethodId> {
@@ -109,7 +109,7 @@ impl Entry {
             Some(MethodId {
                 module          : self.module.to_string(),
                 defined_on_type : self_type.clone(),
-                name            : self.name.clone()
+                name            : self.name.clone(),
             })
         } else {
             None
