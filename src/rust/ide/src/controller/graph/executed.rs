@@ -9,7 +9,6 @@ use crate::model::execution_context::ComputedValueInfoRegistry;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
-use crate::model::synchronized::ExecutionContext;
 
 use enso_protocol::language_server::MethodPointer;
 
@@ -41,10 +40,10 @@ pub struct NoResolvedMethod(double_representation::node::Id);
 #[derive(Clone,Debug,PartialEq)]
 pub enum Notification {
     /// The notification passed from the graph controller.
-    Graph(crate::controller::graph::Notification),
+    Graph(controller::graph::Notification),
     /// The notification from the execution context about the computed value information
     /// being updated.
-    ComputedValueInfo(crate::model::execution_context::ComputedValueExpressions),
+    ComputedValueInfo(model::execution_context::ComputedValueExpressions),
     /// Notification emitted when the node has been entered.
     EnteredNode(double_representation::node::Id),
     /// Notification emitted when the node was step out.
@@ -64,10 +63,10 @@ pub struct Handle {
     /// A handle to basic graph operations.
     graph:Rc<RefCell<controller::Graph>>,
     /// Execution Context handle, its call stack top contains `graph`'s definition.
-    execution_ctx:Rc<ExecutionContext>,
+    execution_ctx:model::ExecutionContext,
     /// The handle to project controller is necessary, as entering nodes might need to switch
     /// modules, and only the project can provide their controllers.
-    project:Rc<model::Project>,
+    project:model::Project,
     /// The publisher allowing sending notification to subscribed entities. Note that its outputs is
     /// merged with publishers from the stored graph and execution controllers.
     notifier:crate::notification::Publisher<Notification>,
@@ -77,10 +76,10 @@ impl Handle {
     /// Create handle for the executed graph that will be running the given method.
     pub async fn new
     ( parent  : impl AnyLogger
-    , project : Rc<model::Project>
+    , project : model::Project
     , method  : MethodPointer
     ) -> FallibleResult<Self> {
-        let graph     = controller::Graph::new_method(parent,&*project,&method).await?;
+        let graph     = controller::Graph::new_method(parent,&project,&method).await?;
         let execution = project.create_execution_context(method.clone()).await?;
         Ok(Self::new_internal(graph,project,execution))
     }
@@ -101,8 +100,8 @@ impl Handle {
     /// Then the context when being dropped shall remove itself from the Language Server.
     pub fn new_internal
     ( graph         : controller::Graph
-    , project       : Rc<model::Project>
-    , execution_ctx : Rc<ExecutionContext>
+    , project       : model::Project
+    , execution_ctx : model::ExecutionContext
     ) -> Self {
         let logger   = Logger::sub(&graph.logger,"Executed");
         let graph    = Rc::new(RefCell::new(graph));
@@ -219,35 +218,56 @@ impl Handle {
 // ============
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::execution_context::synchronized::test::Fixture as ExecutionContextFixture;
 
-    use enso_protocol::language_server;
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
+    #[derive(Debug,Default)]
+    pub struct MockData {
+        pub graph  : controller::graph::tests::MockData,
+        pub module : model::module::test::MockData,
+        pub ctx    : model::execution_context::plain::test::MockData,
+    }
+
+    impl MockData {
+        pub fn controller(&self) -> Handle {
+            let parser      = parser::Parser::new_or_panic();
+            let module      = self.module.plain(&parser);
+            let method      = self.graph.method();
+            let mut project = model::project::MockAPI::new();
+            let ctx         = Rc::new(self.ctx.create());
+            model::project::test::expect_parser(&mut project,&parser);
+            model::project::test::expect_module(&mut project,module);
+            model::project::test::expect_execution_ctx(&mut project,ctx);
+
+            let project = Rc::new(project);
+            Handle::new(Logger::default(),project.clone_ref(),method).boxed_local().expect_ok()
+        }
+
+    }
+
     // Test that checks that value computed notification is properly relayed by the executed graph.
     #[wasm_bindgen_test]
     fn dispatching_value_computed_notification() {
         // Setup the controller.
         let mut fixture    = TestWithLocalPoolExecutor::set_up();
-        let mut ls         = language_server::MockClient::default();
-        let execution_data = model::synchronized::execution_context::tests::MockData::new();
-        let execution      = execution_data.context_provider(&mut ls);
-        let graph_data     = controller::graph::tests::MockData::new_inline("1 + 2");
-        let connection     = language_server::Connection::new_mock_rc(ls);
-        let (_,graph)      = graph_data.create_controllers_with_ls(connection.clone_ref());
-        let execution      = Rc::new(execution(connection.clone_ref()));
-        let project        = model::project::test::setup_mock_project(|_| {}, |_| {});
-        let executed_graph = Handle::new_internal(graph,Rc::new(project),execution.clone_ref());
+        let graph_data     = controller::graph::tests::MockData::new();
+        let graph          = graph_data.graph();
+        let execution_data = model::execution_context::plain::test::MockData::new();
+        let execution      = Rc::new(execution_data.create());
+        let project        = Rc::new(model::project::MockAPI::new());
+        let executed_graph = Handle::new_internal(graph,project,execution.clone_ref());
 
         // Generate notification.
-        let notification = execution_data.mock_values_computed_update();
+        let notification = ExecutionContextFixture::mock_values_computed_update(&execution_data);
         let update       = &notification.updates[0];
 
         // Notification not yet send.
@@ -257,7 +277,7 @@ mod tests {
         assert!(registry.get(&update.id).is_none());
 
         // Sending notification.
-        execution.handle_expression_values_computed(notification.clone()).unwrap();
+        execution.computed_value_info_registry.apply_update(notification.clone());
         fixture.run_until_stalled();
 
         // Observing that notification was relayed.

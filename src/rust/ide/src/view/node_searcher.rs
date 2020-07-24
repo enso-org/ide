@@ -9,7 +9,6 @@ use crate::model::module::NodeMetadata;
 use crate::model::module::Position;
 use crate::view::node_editor::NodeEditor;
 
-use data::text::TextLocation;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::Scene;
@@ -24,7 +23,7 @@ use ensogl::traits::*;
 pub struct NodeSearcher {
     display_object : display::object::Instance,
     node_editor    : NodeEditor,
-    project        : Rc<model::Project>,
+    project        : model::Project,
     controller     : Rc<CloneCell<Option<controller::Searcher>>>,
     text_field     : TextField,
     logger         : Logger,
@@ -37,8 +36,8 @@ impl NodeSearcher {
     , node_editor   : NodeEditor
     , fonts         : &mut font::Registry
     , focus_manager : &FocusManager
-    , project       : Rc<model::Project>)
-    -> Self {
+    , project       : model::Project
+    ) -> Self {
         let scene          = scene.into();
         let camera         = scene.camera();
         let screen         = camera.screen();
@@ -89,12 +88,8 @@ impl NodeSearcher {
             self.display_object.add_child(&self.text_field.display_object());
             self.text_field.clear_content();
             self.text_field.set_focus();
-            let module     = self.node_editor.displayed_module();
-            //TODO[ao]: Now we use some predefined location, until this task will be done:
-            // https://github.com/enso-org/ide/issues/653 . This code should be replaced with
-            // the proper Searcher view integration anyway.
-            let position   = TextLocation { line:2, column:4 };
-            let controller = controller::Searcher::new(&self.logger,&*self.project,module,position);
+            let graph      = self.node_editor.graph.controller().clone_ref();
+            let controller = controller::Searcher::new_from_graph_controller(&self.logger,&self.project,graph);
             let logger     = self.logger.clone_ref();
             let weak       = Rc::downgrade(&self.controller);
             executor::global::spawn(controller.subscribe().for_each(move |notification| {
