@@ -81,8 +81,7 @@ impl NodeSearcher {
     pub fn show(&mut self) {
         if !self.is_shown() {
             let logger     = self.logger.clone_ref();
-            let position   = self.position();
-            let position   = position - self.node_editor.position();
+            let position   = self.position() - self.node_editor.position();
             let position   = Some(Position::new(position.x,position.y));
             let graph      = self.node_editor.graph.controller().clone_ref();
             let mode       = controller::searcher::Mode::NewNode {position};
@@ -92,13 +91,12 @@ impl NodeSearcher {
             match controller {
                 Ok(controller) => {
                     executor::global::spawn(controller.subscribe().for_each(move |notification| {
-                        if let Some(opt_controller) = weak.upgrade() {
-                            if let Some(controller) = opt_controller.get() {
-                                match notification {
-                                    controller::searcher::Notification::NewSuggestionList => {
-                                        let list = controller.suggestions();
-                                        info!(logger,"New list in Searcher: {list:?}");
-                                    }
+                        let opt_controller = weak.upgrade().and_then(|controller| controller.get());
+                        if let Some(controller) = opt_controller {
+                            match notification {
+                                controller::searcher::Notification::NewSuggestionList => {
+                                    let list = controller.suggestions();
+                                    info!(logger,"New list in Searcher: {list:?}");
                                 }
                             }
                         }

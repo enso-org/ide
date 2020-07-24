@@ -3,15 +3,17 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NewNodeInfo;
-use crate::model::module::{NodeMetadata, Position};
+use crate::double_representation::module::ImportInfo;
 use crate::model::module::MethodId;
+use crate::model::module::NodeMetadata;
+use crate::model::module::Position;
 use crate::notification;
 
 use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
-use crate::double_representation::module::ImportInfo;
+
 
 
 // =======================
@@ -524,6 +526,7 @@ mod test {
     use utils::test::traits::*;
 
     struct Fixture {
+        test     : TestWithLocalPoolExecutor,
         searcher : Searcher,
         entry1   : CompletionSuggestion,
         entry2   : CompletionSuggestion,
@@ -534,6 +537,7 @@ mod test {
     impl Fixture {
         fn new_custom<F>(client_setup:F) -> Self
         where F : FnOnce(&mut ExecutedGraphMockData,&mut language_server::MockClient) {
+            let test           = TestWithLocalPoolExecutor::set_up();
             let mut graph_data = controller::graph::executed::tests::MockData::default();
             let mut client     = language_server::MockClient::default();
             client_setup(&mut graph_data,&mut client);
@@ -577,7 +581,7 @@ mod test {
             let entry3 = searcher.database.get(3).unwrap();
             searcher.database.put_entry(9,entry9);
             let entry9 = searcher.database.get(9).unwrap();
-            Fixture{searcher,entry1,entry2,entry3,entry9}
+            Fixture{test,searcher,entry1,entry2,entry3,entry9}
         }
 
         fn new() -> Self {
@@ -588,8 +592,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn loading_list() {
-        let mut test = TestWithLocalPoolExecutor::set_up();
-        let Fixture{searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
+        let Fixture{mut test,searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
             let completion_response = language_server::response::Completion {
                 results: vec![1,5,9],
                 current_version: default(),
@@ -688,7 +691,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn picked_completions_list_maintaining() {
-        let Fixture{searcher,entry1,entry2,..} = Fixture::new();
+        let Fixture{test:_test,searcher,entry1,entry2,..} = Fixture::new();
         let frags_borrow = || Ref::map(searcher.data.borrow(),|d| &d.fragments_added_by_picking);
 
         // Picking first suggestion.
@@ -734,9 +737,8 @@ mod test {
 
     #[wasm_bindgen_test]
     fn committing_node() {
-        let _test                           = TestWithLocalPoolExecutor::set_up();
-        let Fixture{mut searcher,entry3,..} = Fixture::new();
-        let module                          = searcher.graph.graph().module.clone_ref();
+        let Fixture{test:_test,mut searcher,entry3,..} = Fixture::new();
+        let module                                     = searcher.graph.graph().module.clone_ref();
         // Setup searcher.
         let parser        = Parser::new_or_panic();
         let picked_method = FragmentAddedByPickingSuggestion {
@@ -774,8 +776,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn initialized_data_when_editing_node() {
-        let _test                       = TestWithLocalPoolExecutor::set_up();
-        let Fixture{searcher,entry3,..} = Fixture::new();
+        let Fixture{test:_test,searcher,entry3,..} = Fixture::new();
 
         let graph    = searcher.graph.graph();
         let (node,)  = graph.nodes().unwrap().expect_tuple();
@@ -790,9 +791,9 @@ mod test {
 
         // Node had intended method, but it's outdated.
         let intended_method = MethodId {
-            module: "Test.Test".to_string(),
-            defined_on_type: "Test".to_string(),
-            name: "testMethod1".to_string()
+            module          : "Test.Test".to_string(),
+            defined_on_type : "Test".to_string(),
+            name            : "testMethod1".to_string()
         };
         graph.module.with_node_metadata(node_id, Box::new(|md| {
             md.intended_method = Some(intended_method);
