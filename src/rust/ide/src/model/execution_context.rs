@@ -10,7 +10,6 @@ use crate::notification::Publisher;
 
 use enso_protocol::language_server;
 use enso_protocol::language_server::ExpressionValueUpdate;
-use enso_protocol::language_server::ExpressionValuesComputed;
 use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::VisualisationConfiguration;
 use flo_stream::Subscriber;
@@ -360,7 +359,7 @@ mod tests {
         let mut type_future2 = registry.get_type(id2);
         type_future1.expect_pending();
         type_future2.expect_pending();
-        let typename = "Vector";
+        let typename = crate::test::mock::data::TYPE_NAME;
         let update1  = value_update_with_type(id1,typename);
         registry.apply_updates(vec![update1]);
         assert_eq!(fixture.expect_completion(type_future1), Some(typename.into()));
@@ -370,7 +369,7 @@ mod tests {
         // The value for other id should not be obtainable though.
         fixture.expect_pending(registry.get_type(id2));
 
-        std::mem::drop(registry);
+        drop(registry);
         assert!(weak.upgrade().is_none()); // make sure we had not leaked handles to registry
         assert_eq!(fixture.expect_completion(type_future2), None);
     }

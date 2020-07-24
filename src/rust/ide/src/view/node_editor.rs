@@ -822,6 +822,15 @@ impl NodeEditor {
         info!(self.logger, "Initialized.");
         Ok(self)
     }
+
+    /// Get the id of the last selected node.
+    pub fn last_selected_node(&self) -> FallibleResult<Option<ast::Id>> {
+        let last_selected = self.graph.model.editor.last_selected_node();
+        match last_selected.map(|id| self.graph.model.get_controller_node_id(id)) {
+            Some(id_conversion_result) => Ok(Some(id_conversion_result?)),
+            None                       => Ok(None),
+        }
+    }
 }
 
 impl display::Object for NodeEditor {

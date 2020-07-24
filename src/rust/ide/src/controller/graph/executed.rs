@@ -143,18 +143,10 @@ impl Handle {
         futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
     }
 
-
+    /// Get a type of the given expression as soon as it is available.
     pub fn expression_type(&self, id:ast::Id) -> StaticBoxFuture<Option<ImString>> {
         let registry = self.execution_ctx.computed_value_info_registry();
         registry.clone_ref().get_type(id)
-        // registry.get_type(id)
-        // let registry = self.execution_ctx.computed_value_info_registry();
-        // if let Some(typename) = registry.get(&id).and_then(|info| info.typename.clone().map(Ok)) {
-        //     futures::future::ready(typename).boxed_local()
-        // } else {
-        //     futures::future::ready(Err(futures::channel::oneshot::Canceled.into())).boxed_local()
-        // }
-        // todo!()
     }
 
     /// Enter node by given ID.
@@ -217,7 +209,6 @@ pub mod tests {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::execution_context::synchronized::test::Fixture as ExecutionContextFixture;
 
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;

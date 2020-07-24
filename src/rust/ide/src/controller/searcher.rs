@@ -8,7 +8,7 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
-
+use utils::future::ready_boxed;
 
 
 // =======================
@@ -354,16 +354,39 @@ impl Searcher {
         self.data.borrow_mut().suggestions = new_suggestions;
     }
 
+    fn in_this_type_position(&self) -> bool {
+        self.data.borrow().input.next_completion_id() == CompletedFragmentId::Function
+    }
+
+    fn this_type_for_suggestions(&self) -> StaticBoxFuture<Option<String>> {
+        let logger    = self.logger.clone_ref();
+        if self.in_this_type_position() {
+            match self.this.deref() {
+                Some(this_node_id) => {
+                    self.graph.expression_type(*this_node_id).map(move |opt_type| match opt_type {
+                        Some(typename) => Some(typename.into()),
+                        None => {
+                            error!(logger, "Failed to obtain type for this node.");
+                            None
+                        },
+                    }).boxed_local()
+                }
+                None => ready_boxed(None)
+            }
+        } else {
+            ready_boxed(None)
+        }
+    }
+
     fn get_suggestion_list_from_engine
     (&self, return_type:Option<String>, tags:Option<Vec<language_server::SuggestionEntryType>>)
     -> FallibleResult<()> {
         let ls             = self.language_server.clone_ref();
         let graph          = self.graph.graph();
-        let executed_graph = self.graph.clone();
         let graph_id       = &*graph.id;
         let module_ast     = graph.module.ast();
         let file           = graph.module.path().file_path().clone();
-        let self_type      = self.this.map(|this_node_id| self.graph.expression_type(this_node_id));
+        let this_type      = self.this_type_for_suggestions();
         let def_span       = double_representation::module::definition_span(&module_ast,&graph_id)?;
         let position       = TextLocation::convert_span(module_ast.repr(),&def_span).end.into();
         let data           = self.data.clone_ref();
@@ -371,16 +394,7 @@ impl Searcher {
         let logger         = self.logger.clone_ref();
         let notifier       = self.notifier.clone_ref();
         executor::global::spawn(async move {
-            let this_type = match self_type {
-                Some(future_type) => match future_type.await {
-                    Some(typename) => Some(typename.into()),
-                    None     => {
-                        error!(logger,"Failed to obtain type for this node.");
-                        None
-                    },
-                }
-                None              => None,
-            };
+            let this_type = this_type.await;
             info!(logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
             let request  = ls.completion(&file,&position,&this_type,&return_type,&tags);
             let response = request.await;
@@ -419,7 +433,6 @@ mod test {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
-    use controller::graph::executed::tests::MockData as ExecutedGraphMockData;
     use enso_protocol::language_server::types::test::value_update_with_type;
     use json_rpc::expect_call;
     use utils::test::traits::*;
@@ -485,10 +498,10 @@ mod test {
 
     #[test]
     fn loading_list_w_self() {
-        let self_typename = "Vec";
+        let this_typename = crate::test::mock::data::TYPE_NAME;
         let this_node_id  = ast::Id::new_v4();
         let mut test = TestWithLocalPoolExecutor::set_up();
-        let Fixture{searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
+        let Fixture{searcher,..} = Fixture::new_custom(|data,client| {
             data.this = Some(this_node_id);
             let completion_response = language_server::response::Completion {
                 results         : vec![1,5,9],
@@ -500,20 +513,19 @@ mod test {
             expect_call!(client.completion(
                 module      = data.graph.module.path.file_path().clone(),
                 position    = expected_location.into(),
-                self_type   = Some(self_typename.to_owned()),
+                self_type   = Some(this_typename.to_owned()),
                 return_type = None,
                 tag         = None
             ) => Ok(completion_response));
         });
 
-        let mut subscriber = searcher.subscribe();
         searcher.reload_list();
         assert!(searcher.suggestions().is_loading());
         test.run_until_stalled();
         // Nothing appeared, because we wait for type information for this node.
         assert!(searcher.suggestions().is_loading());
 
-        let update = value_update_with_type(this_node_id,"Vec");
+        let update = value_update_with_type(this_node_id,this_typename);
         searcher.graph.computed_value_info_registry().apply_updates(vec![update]);
         assert!(searcher.suggestions().is_loading());
         test.run_until_stalled();
