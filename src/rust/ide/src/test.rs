@@ -14,6 +14,7 @@ pub mod mock {
         pub const MODULE_NAME     : &str = "Mock_Module";
         pub const CODE            : &str = "main = 2 + 2";
         pub const DEFINITION_NAME : &str = "main";
+        pub const TYPE_NAME       : &str = "Mock_Type";
 
         pub fn module_path() -> crate::model::module::Path {
             crate::model::module::Path::from_mock_module_name(MODULE_NAME)

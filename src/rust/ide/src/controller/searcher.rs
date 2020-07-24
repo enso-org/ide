@@ -420,6 +420,7 @@ mod test {
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use controller::graph::executed::tests::MockData as ExecutedGraphMockData;
+    use enso_protocol::language_server::types::test::value_update_with_type;
     use json_rpc::expect_call;
     use utils::test::traits::*;
 
@@ -482,16 +483,16 @@ mod test {
         }
     }
 
-
     #[test]
     fn loading_list_w_self() {
         let self_typename = "Vec";
+        let this_node_id  = ast::Id::new_v4();
         let mut test = TestWithLocalPoolExecutor::set_up();
         let Fixture{searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
-            data.this = Some(ast::Id::new_v4());
+            data.this = Some(this_node_id);
             let completion_response = language_server::response::Completion {
-                results: vec![1,5,9],
-                current_version: default(),
+                results         : vec![1,5,9],
+                current_version : default(),
             };
 
             let file_end          = data.graph.module.code.chars().count();
@@ -509,10 +510,14 @@ mod test {
         searcher.reload_list();
         assert!(searcher.suggestions().is_loading());
         test.run_until_stalled();
-        let expected_list = vec![Suggestion::Completion(entry1),Suggestion::Completion(entry9)];
-        assert_eq!(searcher.suggestions().list(), Some(&expected_list));
-        let notification = subscriber.next().boxed_local().expect_ready();
-        assert_eq!(notification, Some(Notification::NewSuggestionList));
+        // Nothing appeared, because we wait for type information for this node.
+        assert!(searcher.suggestions().is_loading());
+
+        let update = value_update_with_type(this_node_id,"Vec");
+        searcher.graph.computed_value_info_registry().apply_updates(vec![update]);
+        assert!(searcher.suggestions().is_loading());
+        test.run_until_stalled();
+        assert!(!searcher.suggestions().is_loading());
     }
 
 
