@@ -12,7 +12,7 @@ pub mod mock {
     pub mod data {
         pub const PROJECT_NAME    : &str = "MockProject";
         pub const MODULE_NAME     : &str = "Mock_Module";
-        pub const CODE            : &str = "main = 2 + 2";
+        pub const CODE            : &str = "main = \n    sum = 2 + 2";
         pub const DEFINITION_NAME : &str = "main";
         pub const TYPE_NAME       : &str = "Mock_Type";
 

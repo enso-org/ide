@@ -9,6 +9,7 @@ use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
 use utils::future::ready_boxed;
+use span_tree::SpanTree;
 
 
 // =======================
@@ -198,8 +199,8 @@ pub struct FragmentAddedByPickingSuggestion {
 
 impl FragmentAddedByPickingSuggestion {
     /// Check if the picked fragment is still unmodified by user.
-    fn is_still_unmodified(&self, input:&ParsedInput) -> bool {
-        input.completed_fragment(self.id).contains(&self.picked_suggestion.code_to_insert())
+    fn is_still_unmodified(&self, input:&ParsedInput, this_var:Option<&str>) -> bool {
+        input.completed_fragment(self.id).contains(&self.picked_suggestion.code_to_insert(this_var))
     }
 }
 
@@ -292,6 +293,24 @@ impl Searcher {
         Ok(())
     }
 
+    fn this_var_for(&self, id:CompletedFragmentId) -> Option<String> {
+        let node_id = self.this.as_ref().as_ref()?;
+        let node = self.graph.graph().node(*node_id).ok()?;
+        let ast  = node.info.pattern()?;
+        // dbg!(ast.repr());
+        // let tree = dbg!(SpanTree::new(ast).ok()?);
+        // let first_leaf = dbg!(tree.root_ref().leaf_iter().nth(0)?);
+        // let leaf_ast = ast.get_traversing(&first_leaf.ast_crumbs).ok()?;
+        let leaf_ast = ast;
+        Some(leaf_ast.repr())
+    }
+
+    fn code_to_insert(&self, suggestion:&CompletionSuggestion, id:CompletedFragmentId) -> String {
+        let id   = self.data.borrow().input.next_completion_id();
+        let this = self.this_var_for(id);
+        suggestion.code_to_insert(this.as_ref().map(String::as_str))
+    }
+
     /// Pick a completion suggestion.
     ///
     /// This function should be called when user chooses some completion suggestion. The picked
@@ -299,8 +318,9 @@ impl Searcher {
     /// function.
     pub fn pick_completion
     (&self, picked_suggestion:CompletionSuggestion) -> FallibleResult<String> {
-        let added_ast         = self.parser.parse_line(&picked_suggestion.code_to_insert())?;
         let id                = self.data.borrow().input.next_completion_id();
+        let code_to_insert    = self.code_to_insert(&picked_suggestion,id);
+        let added_ast         = self.parser.parse_line(&code_to_insert)?;
         let picked_completion = FragmentAddedByPickingSuggestion {id,picked_suggestion};
         let pattern_offset    = self.data.borrow().input.pattern_offset;
         let new_expression    = match self.data.borrow_mut().input.expression.take() {
@@ -333,7 +353,10 @@ impl Searcher {
         let mut data = self.data.borrow_mut();
         let data     = data.deref_mut();
         let input    = &data.input;
-        data.fragments_added_by_picking.drain_filter(|frag| !frag.is_still_unmodified(input));
+        data.fragments_added_by_picking.drain_filter(|frag| {
+            let this = self.this_var_for(frag.id);
+            !frag.is_still_unmodified(input,this.as_ref().map(String::as_str))
+        });
     }
 
     /// Reload Suggestion List.
@@ -440,7 +463,7 @@ mod test {
     #[derive(Debug,Default)]
     struct MockData {
         graph : controller::graph::executed::tests::MockData,
-        this  : Option<ast::Id>
+        selected_node : bool
     }
 
     struct Fixture {
@@ -456,15 +479,21 @@ mod test {
             let mut data = MockData::default();
             let mut client     = language_server::MockClient::default();
             client_setup(&mut data,&mut client);
+            let graph = data.graph.controller();
+            let this = if data.selected_node {
+                Some(graph.graph().nodes().unwrap()[0].info.id())
+            } else {
+                None
+            };
             let searcher = Searcher {
                 logger          : default(),
                 data            : default(),
                 notifier        : default(),
-                graph           : data.graph.controller(),
+                graph,
                 database        : default(),
                 language_server : language_server::Connection::new_mock_rc(client),
                 parser          : Parser::new_or_panic(),
-                this            : Rc::new(data.this),
+                this            : Rc::new(this),
             };
             let entry1 = model::suggestion_database::Entry {
                 name          : "TestFunction1".to_string(),
@@ -499,17 +528,17 @@ mod test {
     #[test]
     fn loading_list_w_self() {
         let this_typename = crate::test::mock::data::TYPE_NAME;
-        let this_node_id  = ast::Id::new_v4();
         let mut test = TestWithLocalPoolExecutor::set_up();
-        let Fixture{searcher,..} = Fixture::new_custom(|data,client| {
-            data.this = Some(this_node_id);
+        let Fixture{searcher,entry1,..} = Fixture::new_custom(|data,client| {
+            //data.this = Some(this_node_id);
+            data.selected_node = true;
             let completion_response = language_server::response::Completion {
                 results         : vec![1,5,9],
                 current_version : default(),
             };
 
             let file_end          = data.graph.module.code.chars().count();
-            let expected_location = TextLocation {line:0, column:file_end};
+            let expected_location = TextLocation {line:1, column:15}; // FIXME check what
             expect_call!(client.completion(
                 module      = data.graph.module.path.file_path().clone(),
                 position    = expected_location.into(),
@@ -525,11 +554,18 @@ mod test {
         // Nothing appeared, because we wait for type information for this node.
         assert!(searcher.suggestions().is_loading());
 
+        let this_node_id = searcher.this.unwrap();
         let update = value_update_with_type(this_node_id,this_typename);
         searcher.graph.computed_value_info_registry().apply_updates(vec![update]);
         assert!(searcher.suggestions().is_loading());
         test.run_until_stalled();
         assert!(!searcher.suggestions().is_loading());
+        //let suggestion = searcher.suggestions().list().unwrap()[0].clone();
+        searcher.pick_completion(entry1);
+        println!("{}",searcher.data.borrow().input.repr());
+        ;
+
+
     }
 
 

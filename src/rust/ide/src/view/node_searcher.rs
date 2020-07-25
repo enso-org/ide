@@ -89,7 +89,11 @@ impl NodeSearcher {
             self.text_field.clear_content();
             self.text_field.set_focus();
             let graph      = self.node_editor.graph.controller().clone_ref();
-            let this_node  = self.node_editor.last_selected_node().unwrap_or_default(); // TODO at least log error
+            let this_node  = self.node_editor.last_selected_node().unwrap_or_else(|e| {
+                error!(self.logger,"Failed to obtain information about the last selected node. \
+                {e}");
+                default()
+            });
             let controller = controller::Searcher::new_from_graph_controller(&self.logger,&self.project,graph,this_node);
             let logger     = self.logger.clone_ref();
             let weak       = Rc::downgrade(&self.controller);

@@ -81,12 +81,14 @@ impl Entry {
     }
 
     /// Returns the code which should be inserted to Searcher input when suggestion is picked.
-    pub fn code_to_insert(&self) -> String {
+    pub fn code_to_insert(&self, this_var:Option<&str>) -> String {
         let module = self.module.name();
         if self.self_type.as_ref().contains(&module) {
-            format!("{}.{}",module,self.name)
-        } else if self.self_type.as_ref().contains(&constants::keywords::HERE) {
+            format!("{}.{}",this_var.unwrap_or(module),self.name)
+        } else if self.self_type.as_ref().contains(&constants::keywords::HERE) { // TODO when this happens? why would the *type* be "here"?
             format!("{}.{}",constants::keywords::HERE,self.name)
+        } else if let Some(this_var) = this_var {
+            format!("{}.{}",this_var,self.name)
         } else {
             self.name.clone()
         }
@@ -235,9 +237,9 @@ mod test {
             ..method_entry.clone()
         };
 
-        assert_eq!(atom_entry.code_to_insert()         , "Atom".to_string());
-        assert_eq!(method_entry.code_to_insert()       , "method".to_string());
-        assert_eq!(module_method_entry.code_to_insert(), "Main.moduleMethod".to_string());
+        assert_eq!(atom_entry.code_to_insert(None)         , "Atom".to_string());
+        assert_eq!(method_entry.code_to_insert(None)       , "method".to_string());
+        assert_eq!(module_method_entry.code_to_insert(None), "Main.moduleMethod".to_string());
     }
 
     #[test]
