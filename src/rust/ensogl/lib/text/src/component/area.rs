@@ -424,7 +424,7 @@ impl Area {
                         let pos_x = div.x_offset;
                         let pos_y = -LINE_HEIGHT/2.0 - LINE_HEIGHT * line_index as f32;
                         let pos   = Vector2(pos_x,pos_y);
-                        let selection = match selection_map.remove(&id) {
+                        let selection = match selection_map.id_map.remove(&id) {
                             Some(selection) => {
                                 selection.position.set_target_value(pos);
                                 selection
@@ -435,17 +435,24 @@ impl Area {
                                 model.add_child(&selection);
                                 selection.position.set_target_value(pos);
                                 selection.position.skip();
+                                let selection_network = &selection.network;
+                                frp::extend! { selection_network
+                                    // FIXME[WD]: This is ultra-slow. Redrawing all glyphs on each
+                                    //            animation frame. Multiple times, once per cursor.
+                                    eval_ selection.position.value (model.redraw());
+                                }
                                 selection
                             }
                         };
 
                         selection.shape.start_time.set(*time);
-                        new_selection_map.insert(id,selection);
+                        new_selection_map.id_map.insert(id,selection);
+                        new_selection_map.location_map.entry(line_index).or_default().insert(offset_in_line,id);
                     }
                     *selection_map = new_selection_map;
             }));
 
-            eval_ model.buffer.frp.output.changed (model.redraw());
+//            eval_ model.buffer.frp.output.changed (model.redraw());
             eval_ command.move_cursor_left  (model.buffer.frp.input.move_carets.emit(Some(Movement::Left)));
             eval_ command.move_cursor_right (model.buffer.frp.input.move_carets.emit(Some(Movement::Right)));
             eval_ command.move_cursor_up    (model.buffer.frp.input.move_carets.emit(Some(Movement::Up)));
@@ -501,7 +508,7 @@ impl Selection {
         let view    = &self.shape_view;
         frp::extend! { network
             _eval <- self.position.value.map(f!((p) {
-                view.shape.set_position_xy(*p);
+                view.set_position_xy(*p);
             }));
         }
         self
@@ -518,9 +525,11 @@ impl display::Object for Selection {
 
 
 
-
-
-type SelectionMap = HashMap<usize,Selection>;
+#[derive(Clone,Debug,Default)]
+pub struct SelectionMap {
+    id_map       : HashMap<usize,Selection>,
+    location_map : HashMap<usize,HashMap<Bytes,usize>>
+}
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct AreaData {
@@ -608,7 +617,12 @@ impl AreaData {
     }
 
     fn redraw_line(&self, view_line_number:usize, content:String) { // fixme content:Cow<str>
+        let cursor_map    = self.selection_map.borrow().location_map.get(&view_line_number).cloned().unwrap_or_default();
+
+//        println!("=== REDRAW {:?} ===", view_line_number);
+//        println!("{:#?}",cursor_map);
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
+        let line_object    = line.display_object().clone_ref();
         let line_range     = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
         let mut line_style = self.buffer.sub_style(line_range.start .. line_range.end).iter();
         line.byte_size     = self.buffer.line_byte_size(buffer::Line(view_line_number));
@@ -616,8 +630,11 @@ impl AreaData {
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];
         let mut byte_offset = 0.bytes();
+        let mut last_cursor = None;
+        let mut last_cursor_origin = default();
         line.resize_with(content.chars().count(),||self.glyph_system.new_glyph());
         for (glyph,chr) in line.glyphs.iter_mut().zip(content.chars()) {
+
             let style     = line_style.next().unwrap_or_default();
             let chr_size  = style.size.raw;
             let info      = pen.advance(chr,chr_size);
@@ -632,6 +649,29 @@ impl AreaData {
             glyph.set_char(info.char);
             glyph.set_color(style.color);
             glyph.size.set(size);
+
+            cursor_map.get(&byte_offset).for_each(|id| {
+//                match self.selection_map.borrow().id_map.get(id) {
+//                    Some(cursor) => cursor.add_child(glyph),
+//                    None         => self.add_child(glyph),
+//                }
+                self.selection_map.borrow().id_map.get(id).for_each(|cursor| {
+                    last_cursor = Some(cursor.clone_ref());
+                    last_cursor_origin = Vector2(info.offset,cursor.position().y - line_object.position().y);
+                });
+////                    cursor.add_child(glyph);
+//                    println!("!!!!! {:?} {:?} {:?} {:?} {:?}",id,view_line_number,byte_offset,chr,cursor.shape_view.position());
+//
+//                });
+            });
+
+            match &last_cursor {
+                Some(cursor) => {
+                    cursor.add_child(glyph);
+                    glyph.mod_position_xy(|p| p - last_cursor_origin);
+                },
+                None         => line_object.add_child(glyph),
+            }
 
             divs.push(Div::new(info.offset,byte_offset));
             byte_offset += chr_bytes;
