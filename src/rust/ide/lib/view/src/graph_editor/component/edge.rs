@@ -328,9 +328,9 @@ macro_rules! define_corner_start { () => {
             , color_rgba:Vector4<f32>
             , focus_color_rgba:Vector4<f32>
             ) {
-                let width           = &LINE_WIDTH.px();
-                let shape           = corner_base_shape(&radius,width,&angle,&start_angle);
-                let color           = Var::<color::Rgba>::from(color_rgba);
+                let width       = &LINE_WIDTH.px();
+                let shape       = corner_base_shape(&radius,width,&angle,&start_angle);
+                let color       = Var::<color::Rgba>::from(color_rgba);
                 let focus_color = Var::<color::Rgba>::from(focus_color_rgba);
 
 
@@ -425,9 +425,9 @@ macro_rules! define_corner_end { () => {
             , color_rgba:Vector4<f32>
             , focus_color_rgba:Vector4<f32>
             ) {
-                let width           = &LINE_WIDTH.px();
-                let shape           = corner_base_shape(&radius,width,&angle,&start_angle);
-                let color           = Var::<color::Rgba>::from(color_rgba);
+                let width       = &LINE_WIDTH.px();
+                let shape       = corner_base_shape(&radius,width,&angle,&start_angle);
+                let color       = Var::<color::Rgba>::from(color_rgba);
                 let focus_color = Var::<color::Rgba>::from(focus_color_rgba);
 
                 let shadow_size = 10.px() + 1.px();
@@ -513,10 +513,10 @@ macro_rules! define_line { () => {
         ensogl::define_shape_system! {
             (focus_split_center:Vector2<f32>, focus_split_angle:f32, color_rgba:Vector4<f32>,
              focus_color_rgba:Vector4<f32>) {
-                let width           = LINE_WIDTH.px();
-                let height : Var<Pixels> = "input_size.y".into();
-                let shape           = Rect((width.clone(),height));
-                let color           = Var::<color::Rgba>::from(color_rgba);
+                let width       = LINE_WIDTH.px();
+                let height      = Var::<Pixels>::from("input_size.y");
+                let shape       = Rect((width.clone(),height));
+                let color       = Var::<color::Rgba>::from(color_rgba);
                 let focus_color = Var::<color::Rgba>::from(focus_color_rgba);
 
                 let split_shape = FocusedEdge::new(
@@ -576,10 +576,11 @@ macro_rules! define_arrow { () => {
              focus_color_rgba:Vector4<f32>) {
                 let width  : Var<Pixels> = "input_size.x".into();
                 let height : Var<Pixels> = "input_size.y".into();
-                let color              = Var::<color::Rgba>::from(color_rgba);
-                let focus_color    = Var::<color::Rgba>::from(focus_color_rgba);
-                let focus_split_angle  = focus_split_angle.into();
-                let focus_split_center = focus_split_center.px();
+                let color                = Var::<color::Rgba>::from(color_rgba);
+                let focus_color          = Var::<color::Rgba>::from(focus_color_rgba);
+                let focus_split_angle    = focus_split_angle.into();
+                let focus_split_center   = focus_split_center.px();
+
                 let shape_padding = -1.px();
                 let shape         = Triangle(width+&shape_padding,height+&shape_padding);
                 let shape         = FocusedEdge::new(shape,&focus_split_center,&focus_split_angle);

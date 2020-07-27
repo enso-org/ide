@@ -659,7 +659,7 @@ impl display::Object for Edge {
 pub struct Type(pub ImString);
 
 impl From<String> for Type {
-    fn from(s: String) -> Self {
+    fn from(s:String) -> Self {
         Type(s.into())
     }
 }
@@ -832,9 +832,9 @@ impl Edges {
     }
 
     pub fn detached_edges_iter(&self) -> impl Iterator<Item=EdgeId> {
-        let detached_target = self.detached_target.raw.borrow();
-        let detached_source = self.detached_source.raw.borrow();
-        let mut detached = detached_target.iter().copied().collect_vec();
+        let detached_target      = self.detached_target.raw.borrow();
+        let detached_source      = self.detached_source.raw.borrow();
+        let mut detached         = detached_target.iter().copied().collect_vec();
         let detached_source_iter = detached_source.iter().copied();
         detached.extend(detached_source_iter);
         detached.into_iter()
@@ -1479,10 +1479,9 @@ impl GraphEditorModel {
     }
 
     /// Return the color of an edge target. Returns `None` if no type information is associated
-    ///with the target port.
+    /// with the target port.
     fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
         let node              = self.nodes.get_cloned_ref(&edge_target.node_id)?;
-        // We don't know whether this is a input or output port, so we need to check both.
         let input_port_color  = node.view.ports.get_port_color(&edge_target.port);
         let output_port_color = || node.view.output_ports.get_port_color(&edge_target.port);
         input_port_color.or_else(output_port_color)
@@ -2068,7 +2067,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Set Expression Type ===
     frp::extend! { network
-    eval inputs.set_expression_type (((node_id,ast_id,maybe_type)) model.set_node_expression_type(*node_id,*ast_id,maybe_type.clone()));
+
+    eval inputs.set_expression_type (((node_id,ast_id,maybe_type)) {
+        model.set_node_expression_type(*node_id,*ast_id,maybe_type.clone())
+    });
+
     }
 
 

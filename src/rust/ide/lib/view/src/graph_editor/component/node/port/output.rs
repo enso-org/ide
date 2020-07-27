@@ -22,13 +22,14 @@ use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::component;
+use span_tree::SpanTree;
 use span_tree;
 
-use crate::graph_editor::node;
 use crate::graph_editor::Type;
-use crate::graph_editor::component::type_coloring::{TypeColorMap, MISSING_TYPE_COLOR};
-use span_tree::SpanTree;
 use crate::graph_editor::component::node::port::get_id_for_crumbs;
+use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
+use crate::graph_editor::component::type_coloring::TypeColorMap;
+use crate::graph_editor::node;
 
 
 // =================
@@ -324,7 +325,7 @@ enum ShapeView {
 }
 
 impl ShapeView {
-    /// Constructor.
+    /// Constructor. If the port count is 0, we will still show a single port.
     fn new(number_of_ports:u32, logger:&Logger, scene:&Scene) -> Self {
         if number_of_ports <= 1 {
             ShapeView::Single { view: component::ShapeView::new(&logger,&scene) }
@@ -354,11 +355,11 @@ impl ShapeView {
     /// parameters.
     fn update_shape_layout_based_on_size_and_gap(&self, size:Vector2<f32>, gap_width:f32) {
         match self {
-            ShapeView::Single { view } => {
+            ShapeView::Single{ view } => {
                 let shape = &view.shape;
                 shape.sprite.size.set(size);
             }
-            ShapeView::Multi { views, .. } => {
+            ShapeView::Multi{ views, .. } => {
                 let port_num  = views.len() as f32;
                 for (index,view) in views.iter().enumerate(){
                     let shape = &view.shape;
@@ -397,7 +398,7 @@ impl ShapeView {
 impl display::Object for ShapeView {
     fn display_object(&self) -> &display::object::Instance {
         match self {
-            ShapeView::Single{ view }               => view.display_object(),
+            ShapeView::Single{ view }              => view.display_object(),
             ShapeView::Multi{ display_object, .. } => display_object,
         }
     }
@@ -676,7 +677,7 @@ impl OutputPorts {
         let port_ids_for_crumbs = expression_nodes.enumerate().map(|(index, node)| {
             (PortId::new(index + 1), node.crumbs)
         });
-        let mut id_map      = HashMap::<PortId,span_tree::Crumbs>::from_iter(port_ids_for_crumbs);
+        let mut id_map = HashMap::<PortId,span_tree::Crumbs>::from_iter(port_ids_for_crumbs);
         // Also add the root node.
         id_map.insert(PortId::new(0), pattern_span_tree.root_ref().crumbs);
 
