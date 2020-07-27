@@ -131,6 +131,7 @@ pub mod background {
 const CURSOR_PADDING           : f32 = 4.0;
 const CURSOR_WIDTH             : f32 = 2.0;
 const CURSOR_ALPHA             : f32 = 0.8;
+const SELECTION_ALPHA          : f32 = 0.3;
 const BLINK_SLOPE_IN_DURATION  : f32 = 200.0;
 const BLINK_SLOPE_OUT_DURATION : f32 = 200.0;
 const BLINK_ON_DURATION        : f32 = 300.0;
@@ -164,11 +165,11 @@ const BLINK_PERIOD             : f32 =
 pub mod cursor {
     use super::*;
     ensogl::define_shape_system! {
-        (style:Style, selection:f32, start_time:f32, width:f32) {
-            let width     : Var<Pixels> = "input_size.x".into();
+        (style:Style, selection:f32, start_time:f32, letter_width:f32) {
+            let width     : Var<f32> = "input_size.x".into();
             let height    : Var<Pixels> = "input_size.y".into();
-            let width_abs : Var<Pixels> = "abs(input_size.x)".into(); // FIXME[WD]: Pixels should not be usize
-            let rect_width = width_abs - 2.px() * CURSOR_PADDING;
+            let width_abs : Var<f32> = "abs(input_size.x)".into(); // FIXME[WD]: Pixels should not be usize
+            let rect_width = width_abs - 2.0 * CURSOR_PADDING;
             let time   : Var<f32>    = "input_time".into();
             let one    : Var<f32>    = 1.0.into();
             let time                 = time - start_time;
@@ -177,11 +178,13 @@ pub mod cursor {
             let sampler              = time % BLINK_PERIOD;
             let slope_out            = sampler.smoothstep(BLINK_ON_DURATION,on_time);
             let slope_in             = sampler.smoothstep(off_time,BLINK_PERIOD);
-            let alpha                = (one - slope_out + slope_in) * CURSOR_ALPHA;
-            let shape                = Rect((rect_width,LINE_HEIGHT.px())).corners_radius(2.px()).translate_x(width/2.0);
+            let blinking_alpha       = (one - slope_out + slope_in) * CURSOR_ALPHA;
+
+            let sel_width            = &rect_width - CURSOR_WIDTH;
+            let alpha_weight         = sel_width.smoothstep(0.0,letter_width);
+            let alpha                = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
+            let shape                = Rect((1.px() * rect_width,LINE_HEIGHT.px())).corners_radius(2.px()).translate_x(1.px()*width/2.0);
             let shape                = shape.fill(format!("srgba(1.0,1.0,1.0,{})",alpha.glsl()));
-//            let bg = Rect((1000.px(),1000.px())).fill("srgba(1.0,0.0,0.0,1.0)".to_string());
-//            let shape = bg + shape;
             shape.into()
         }
     }
@@ -608,6 +611,8 @@ impl AreaData {
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
+        println!("on_modified_selection {:?}", do_edit);
+        {
         let mut selection_map     = self.selection_map.borrow_mut();
         let mut new_selection_map = SelectionMap::default();
         for selection in selections {
@@ -635,7 +640,6 @@ impl AreaData {
                     if width == 0.0 && selection.width.simulator.target_value() != 0.0 {
                         if pos.x != selection.position.simulator.target_value().x {
                             selection.flip_sides();
-                            println!("!!");
                         }
                     }
 
@@ -645,6 +649,7 @@ impl AreaData {
                 None => {
                     let selection = Selection::new(&logger,&self.scene,do_edit);
                     selection.shape.sprite.size.set(Vector2(4.0,20.0));
+                    selection.shape.letter_width.set(7.0); // FIXME
                     self.add_child(&selection);
                     selection.position.set_target_value(pos);
                     selection.position.skip();
@@ -658,8 +663,6 @@ impl AreaData {
                     selection
                 }
             };
-
-            println!("WIDTH: {:?}",width);
             selection.width.set_target_value(width);
 
             selection.edit_mode.set(do_edit);
@@ -669,6 +672,8 @@ impl AreaData {
             new_selection_map.location_map.entry(start_line_index).or_default().insert(start_offset_in_line,id);
         }
         *selection_map = new_selection_map;
+        }
+        self.redraw()
     }
 
     fn to_object_space(&self, screen_pos:Vector2) -> Vector2 {
@@ -714,6 +719,7 @@ impl AreaData {
     }
 
     fn redraw_line(&self, view_line_number:usize, content:String) { // fixme content:Cow<str>
+        println!("redraw_line");
         let cursor_map    = self.selection_map.borrow().location_map.get(&view_line_number).cloned().unwrap_or_default();
 
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
