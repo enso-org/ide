@@ -10,11 +10,14 @@ pub mod mock {
     //! consistent data.
     #[allow(missing_docs)]
     pub mod data {
-        pub const PROJECT_NAME    : &str = "MockProject";
-        pub const MODULE_NAME     : &str = "Mock_Module";
-        pub const CODE            : &str = "main = \n    sum = 2 + 2";
-        pub const DEFINITION_NAME : &str = "main";
-        pub const TYPE_NAME       : &str = "Mock_Type";
+        use enso_protocol::language_server::Position;
+
+        pub const PROJECT_NAME    : &str     = "MockProject";
+        pub const MODULE_NAME     : &str     = "Mock_Module";
+        pub const CODE            : &str     = "main = \n    sum = 2 + 2";
+        pub const DEFINITION_NAME : &str     = "main";
+        pub const TYPE_NAME       : &str     = "Mock_Type";
+        pub const MAIN_FINISH     : Position = Position {line:1, character:15};
 
         pub fn module_path() -> crate::model::module::Path {
             crate::model::module::Path::from_mock_module_name(MODULE_NAME)

@@ -501,15 +501,19 @@ mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::test::mock::data::MAIN_FINISH;
 
     use enso_protocol::language_server::types::test::value_update_with_type;
     use json_rpc::expect_call;
     use utils::test::traits::*;
 
-    #[derive(Debug,Default)]
+    #[derive(Debug,Derivative)]
+    #[derivative(Default)]
     struct MockData {
         graph         : controller::graph::executed::tests::MockData,
-        selected_node : bool
+        selected_node : bool,
+        #[derivative(Default(value="MAIN_FINISH"))]
+        code_location : enso_protocol::language_server::Position,
     }
 
     struct Fixture {
@@ -569,7 +573,7 @@ mod test {
         }
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn loading_list_w_self() {
         let this_typename = crate::test::mock::data::TYPE_NAME;
         let mut test = TestWithLocalPoolExecutor::set_up();
@@ -581,11 +585,9 @@ mod test {
                 current_version : default(),
             };
 
-            let file_end          = data.graph.module.code.chars().count();
-            let expected_location = TextLocation {line:1, column:15}; // FIXME solve somehow nicer
             expect_call!(client.completion(
                 module      = data.graph.module.path.file_path().clone(),
-                position    = expected_location.into(),
+                position    = data.code_location,
                 self_type   = Some(this_typename.to_owned()),
                 return_type = None,
                 tag         = None
@@ -621,11 +623,9 @@ mod test {
                 current_version: default(),
             };
 
-            let file_end          = data.graph.module.code.chars().count();
-            let expected_location = TextLocation {line:0, column:file_end};
             expect_call!(client.completion(
                 module      = data.graph.module.path.file_path().clone(),
-                position    = expected_location.into(),
+                position    = data.code_location,
                 self_type   = None,
                 return_type = None,
                 tag         = None
