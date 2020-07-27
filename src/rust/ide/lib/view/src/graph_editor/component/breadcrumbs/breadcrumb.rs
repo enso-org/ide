@@ -72,8 +72,8 @@ mod icon {
 
     ensogl::define_shape_system! {
         (opacity:f32) {
-                let outer_circle  = Circle((ICON_RADIUS - 0.5).px());
-                let inner_circle  = Circle((ICON_RADIUS - 0.5 - ICON_RING_WIDTH).px());
+                let outer_circle  = Circle((ICON_RADIUS).px());
+                let inner_circle  = Circle((ICON_RADIUS - ICON_RING_WIDTH).px());
                 let ring          = outer_circle - inner_circle;
                 let size          = ICON_ARROW_SIZE;
                 let arrow         = Triangle(size.px(),size.px()).rotate((PI/2.0).radians());
@@ -102,14 +102,14 @@ mod separator {
 
     ensogl::define_shape_system! {
         () {
-                let size           = SEPARATOR_SIZE - 0.5;
-                let angle          = PI/2.0;
-                let front_triangle = Triangle(size.px(),size.px()).rotate(angle.radians());
-                let back_triangle  = Triangle(size.px(),size.px()).rotate(angle.radians());
-                let back_triangle  = back_triangle.translate_x(-SEPARATOR_LINE_WIDTH.px());
-                let shape          = front_triangle - back_triangle;
-                let color          = TRANSPARENT_COLOR;
-                shape.fill(color).into()
+            let size           = SEPARATOR_SIZE;
+            let angle          = PI/2.0;
+            let front_triangle = Triangle(size.px(),size.px()).rotate(angle.radians());
+            let back_triangle  = Triangle(size.px(),size.px()).rotate(angle.radians());
+            let back_triangle  = back_triangle.translate_x(-SEPARATOR_LINE_WIDTH.px());
+            let shape          = front_triangle - back_triangle;
+            let color          = TRANSPARENT_COLOR;
+            shape.fill(color).into()
         }
     }
 }
@@ -154,9 +154,9 @@ impl FrpInputs {
     /// Create new FrpInputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            def select   = source();
-            def deselect = source();
-            def fade_in  = source();
+            select   <- source();
+            deselect <- source();
+            fade_in  <- source();
         }
         Self{select,deselect,fade_in}
     }
@@ -179,8 +179,8 @@ impl FrpOutputs {
     /// Create new FrpOutputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend!{ network
-            def selected = source();
-            def size     = source();
+            selected <- source();
+            size     <- source();
         }
         Self{selected,size}
     }
@@ -259,7 +259,7 @@ pub struct BreadcrumbModel {
 }
 
 impl BreadcrumbModel {
-    /// Create a new BreadcrumbModel.
+    /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>
     (scene:S, frp:&Frp,method_pointer:&Rc<MethodPointer>, expression_id:&uuid::Uuid) -> Self {
         let scene          = scene.into();
@@ -292,7 +292,7 @@ impl BreadcrumbModel {
         self.label.set_font_size(TEXT_SIZE);
         self.label.set_font_color(color);
         self.label.set_text(&self.info.method_pointer.name);
-        self.label.set_position(Vector3::new(ICON_SIZE/2.0 + ICON_MARGIN,-ICON_SIZE/4.0,0.0));
+        self.label.set_position(Vector3(ICON_SIZE/2.0 + ICON_MARGIN,-ICON_SIZE/4.0,0.0));
 
         let width  = self.width();
         let height = self.height();
@@ -300,11 +300,11 @@ impl BreadcrumbModel {
 
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.fade_in(0.0);
-        self.separator.shape.sprite.size.set(Vector2::new(SEPARATOR_SIZE,SEPARATOR_SIZE));
-        self.separator.set_position(Vector3::new(offset-width/2.0,0.0,0.0));
-        self.icon.shape.sprite.size.set(Vector2::new(ICON_SIZE,ICON_SIZE));
+        self.separator.shape.sprite.size.set(Vector2::new(SEPARATOR_SIZE+1.0,SEPARATOR_SIZE+1.0));
+        self.separator.set_position(Vector3(offset-width/2.0,0.0,0.0));
+        self.icon.shape.sprite.size.set(Vector2::new(ICON_SIZE+1.0,ICON_SIZE+1.0));
         self.icon.shape.opacity.set(self.is_selected() as i32 as f32);
-        self.icon.set_position(Vector3::new(offset+ICON_SIZE/2.0,0.0,0.0));
+        self.icon.set_position(Vector3(offset+ICON_SIZE/2.0,0.0,0.0));
 
         self
     }
@@ -317,12 +317,12 @@ impl BreadcrumbModel {
         self.info.method_pointer.name.len() as f32 * GLYPH_WIDTH
     }
 
-    /// Get the width of the breadcrumb view.
+    /// Get the width of the view.
     pub fn width(&self) -> f32 {
         self.compute_separator_margin()*2.0+SEPARATOR_SIZE+ICON_SIZE+ICON_MARGIN+self.label_width()
     }
 
-    /// Get the height of the breadcrumb view.
+    /// Get the height of the view.
     pub fn height(&self) -> f32 {
         self.label.font_size() + VERTICAL_MARGIN * 2.0
     }
@@ -330,7 +330,7 @@ impl BreadcrumbModel {
     fn fade_in(&self, value:f32) {
         let width  = self.width();
         let height = self.height();
-        self.view.set_position(Vector3::new(width * value,-height,0.0)/2.0);
+        self.view.set_position(Vector3(width * value,-height,0.0)/2.0);
     }
 
     fn set_opacity(&self, value:f32) {
@@ -366,7 +366,6 @@ impl display::Object for BreadcrumbModel {
 // === Breadcrumb ===
 // ==================
 
-/// The project name's view used for visualizing the project name and renaming it.
 #[derive(Debug,Clone,CloneRef,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct Breadcrumb {
@@ -376,7 +375,7 @@ pub struct Breadcrumb {
 }
 
 impl Breadcrumb {
-    /// Create a new ProjectName view.
+    /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>
     (scene:S, method_pointer:&Rc<MethodPointer>, expression_id:&uuid::Uuid) -> Self {
         let frp     = Frp::new();
@@ -388,9 +387,9 @@ impl Breadcrumb {
             eval_ frp.select(model.select());
             eval_ frp.deselect(model.deselect());
             eval_ model.view.events.mouse_over(model.animations.opacity.set_target_value(1.0));
-            eval_ model.view.events.mouse_out({
+            eval_ model.view.events.mouse_out(
                 model.animations.opacity.set_target_value(model.is_selected() as i32 as f32);
-            });
+            );
             eval_ model.view.events.mouse_down(frp.outputs.selected.emit(()));
         }
 

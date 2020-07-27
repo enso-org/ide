@@ -9,8 +9,6 @@ use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
 use enso_frp as frp;
 use ensogl::data::color;
 use ensogl::display;
-// use ensogl::display::Attribute;
-// use ensogl::display::Buffer;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::text::text_field::FocusManager;
@@ -33,7 +31,7 @@ use ensogl::animation::linear_interpolation;
 const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
 const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
 
-/// Project name used as a placeholder in ProjectName view when it's initialized.
+/// Project name used as a placeholder in `ProjectName` view when it's initialized.
 pub const UNKNOWN_PROJECT_NAME:&str = "Unknown";
 
 
@@ -149,7 +147,7 @@ impl Default for Frp {
 // === Animations ===
 // ==================
 
-/// ProjectName's animations handlers.
+/// Animation handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
     opacity  : Animation<f32>,
@@ -157,7 +155,7 @@ pub struct Animations {
 }
 
 impl Animations {
-    /// Create new animations handlers.
+    /// Create new animation handlers.
     pub fn new(network:&frp::Network) -> Self {
         let opacity = Animation::new(&network);
         let position = Animation::new(&network);
@@ -185,13 +183,13 @@ pub struct ProjectNameModel {
 }
 
 impl ProjectNameModel {
-    /// Create new ProjectNameModel.
+    /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S,frp:&Frp,focus_manager:&FocusManager) -> Self {
         let scene                 = scene.into();
         let logger                = Logger::new("ProjectName");
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
-        let size                  = Vector2::new(scene.camera().screen().width,TEXT_SIZE);
+        let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
         let base_color            = TRANSPARENT_TEXT_COLOR;
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
@@ -217,9 +215,9 @@ impl ProjectNameModel {
         let width       = self.width();
         let line_height = self.text_field.line_height();
         let height      = line_height + VERTICAL_MARGIN * 2.0;
-        self.text_field.set_position(Vector3::new(0.0,-VERTICAL_MARGIN,0.0));
-        self.view.shape.sprite.size.set(Vector2::new(width,height));
-        self.view.set_position(Vector3::new(width,-height,0.0)/2.0);
+        self.text_field.set_position(Vector3(0.0,-VERTICAL_MARGIN,0.0));
+        self.view.shape.sprite.size.set(Vector2(width,height));
+        self.view.set_position(Vector3(width,-height,0.0)/2.0);
     }
 
     fn init(self) -> Self {
@@ -280,7 +278,7 @@ impl display::Object for ProjectNameModel {
 // === ProjectName ===
 // ===================
 
-/// The project name's view used for visualizing the project name and renaming it.
+/// The view used for displaying and renaming it.
 #[derive(Debug,Clone,CloneRef,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct ProjectName {
@@ -290,7 +288,7 @@ pub struct ProjectName {
 }
 
 impl ProjectName {
-    /// Create a new ProjectName view.
+    /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S,focus_manager:&FocusManager) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
