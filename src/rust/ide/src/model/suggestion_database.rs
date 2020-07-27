@@ -8,6 +8,7 @@ use crate::model::module::MethodId;
 use enso_protocol::language_server;
 use language_server::types::SuggestionsDatabaseVersion;
 use language_server::types::SuggestionDatabaseUpdatesEvent;
+use parser::DocParser;
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionEntryId as EntryId;
@@ -48,36 +49,46 @@ pub struct Entry {
 
 impl Entry {
     /// Create entry from the structure deserialized from the Language Server responses.
-    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
+    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry, logger:impl AnyLogger)
+        -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
+        let convert_doc = |doc: Option<String>| doc.and_then(|doc| match Entry::gen_doc(doc) {
+            Ok(d)    => Some(d),
+            Err(err) => {
+                error!(logger,"Doc parser error: {err}");
+                None
+            },
+        });
         let this = match entry {
             Atom {name,module,arguments,return_type,documentation} => Self {
-                name,arguments,return_type,documentation,
-                module    : module.try_into()?,
-                self_type : None,
-                kind      : EntryKind::Atom,
-            },
+                    name,arguments,return_type,
+                    module        : module.try_into()?,
+                    self_type     : None,
+                    documentation : convert_doc(documentation),
+                    kind          : EntryKind::Atom,
+                },
             Method {name,module,arguments,self_type,return_type,documentation} => Self {
-                name,arguments,return_type,documentation,
-                module    : module.try_into()?,
-                self_type : Some(self_type),
-                kind      : EntryKind::Method,
-            },
+                    name,arguments,return_type,
+                    module        : module.try_into()?,
+                    self_type     : Some(self_type),
+                    documentation : convert_doc(documentation),
+                    kind          : EntryKind::Method,
+                },
             Function {name,module,arguments,return_type,..} => Self {
-                name,arguments,return_type,
-                module        : module.try_into()?,
-                self_type     : None,
-                documentation : default(),
-                kind          : EntryKind::Function,
-            },
+                    name,arguments,return_type,
+                    module        : module.try_into()?,
+                    self_type     : None,
+                    documentation : default(),
+                    kind          : EntryKind::Function,
+                },
             Local {name,module,return_type,..} => Self {
-                name,return_type,
-                arguments     : default(),
-                module        : module.try_into()?,
-                self_type     : None,
-                documentation : default(),
-                kind          : EntryKind::Local,
-            },
+                    name,return_type,
+                    arguments     : default(),
+                    module        : module.try_into()?,
+                    self_type     : None,
+                    documentation : default(),
+                    kind          : EntryKind::Local,
+                },
         };
         Ok(this)
     }
@@ -115,12 +126,20 @@ impl Entry {
             None
         }
     }
+
+    /// Generates HTML documentation for documented suggestion.
+    fn gen_doc(doc: String) -> FallibleResult<String> {
+        let parser = DocParser::new()?;
+        let output = parser.generate_html_doc_pure(doc);
+        Ok(output?)
+    }
 }
 
 impl TryFrom<language_server::types::SuggestionEntry> for Entry {
     type Error = failure::Error;
     fn try_from(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
-        Self::from_ls_entry(entry)
+        let logger = Logger::new("SuggestionEntry");
+        Self::from_ls_entry(entry, logger)
     }
 }
 
@@ -157,7 +176,8 @@ impl SuggestionDatabase {
         let mut entries = HashMap::new();
         for ls_entry in response.entries {
             let id = ls_entry.id;
-            match Entry::from_ls_entry(ls_entry.suggestion) {
+            let logger_entry = Logger::new("SuggestionEntry");
+            match Entry::from_ls_entry(ls_entry.suggestion, logger_entry) {
                 Ok(entry) => { entries.insert(id, Rc::new(entry)); },
                 Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); },
             }
@@ -232,6 +252,12 @@ mod test {
     use super::*;
 
     use enso_protocol::language_server::SuggestionsDatabaseEntry;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+
+
+    wasm_bindgen_test_configure!(run_in_browser);
 
 
 
@@ -290,7 +316,7 @@ mod test {
         assert_eq!(method.method_id()     , Some(expected));
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn initialize_database() {
         // Empty db
         let response = language_server::response::GetSuggestionDatabase {
@@ -307,7 +333,7 @@ mod test {
             module        : "TestProject.TestModule".to_string(),
             arguments     : vec![],
             return_type   : "TestAtom".to_string(),
-            documentation : None
+            documentation : Some("Test *Atom*".to_string())
         };
         let db_entry = SuggestionsDatabaseEntry {id:12, suggestion:entry};
         let response = language_server::response::GetSuggestionDatabase {
@@ -315,8 +341,14 @@ mod test {
             current_version : 456
         };
         let db = SuggestionDatabase::from_ls_response(response);
+        let response_doc =
+            "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"UTF-8\" \
+            /><link rel=\"stylesheet\" href=\"style.css\" /><title></title></head><body><div class=\
+            \"Doc\"><div class=\"Synopsis\"><div class=\"Raw\">Test <b>Atom</b></div></div></div>\
+            </body></html>";
         assert_eq!(db.entries.borrow().len(), 1);
         assert_eq!(*db.get(12).unwrap().name, "TextAtom".to_string());
+        assert_eq!(db.get(12).unwrap().documentation, Some(response_doc.to_string()));
         assert_eq!(db.version.get(), 456);
     }
 
