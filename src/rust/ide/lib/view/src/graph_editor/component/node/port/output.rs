@@ -616,10 +616,12 @@ pub struct OutputPorts {
         // This network will be re-created whenever we change the number of ports.
         port_network      : Rc<RefCell<frp::Network>>,
         data              : Rc<OutputPortsData>,
-        type_color_map: TypeColorMap,
+        type_color_map    : TypeColorMap,
         pattern_span_tree : Rc<RefCell<SpanTree>>,
         scene             : Scene,
         id_map            : SharedIdCrumbMap,
+        delay_show        : Tween,
+        delay_hide        : Tween
 }
 
 impl OutputPorts {
@@ -632,12 +634,24 @@ impl OutputPorts {
         let number_of_ports    = pattern_span_tree.root_ref().leaf_iter().count();
         let data               = OutputPortsData::new(scene,number_of_ports as u32);
         let data               = Rc::new(data);
-        let type_map           = default();
+        let type_color_map     = default();
         let pattern_span_tree = Rc::new(RefCell::new(pattern_span_tree));
         let scene              = scene.clone_ref();
         let port_network       = default();
 
-        OutputPorts{scene,data,network,frp,pattern_span_tree, type_color_map: type_map,port_network,id_map}
+
+        // TODO memory leak from tween?
+        // Timer used to measure whether the hover has been long enough to show the ports.
+        let delay_show = Tween::new(&network);
+        delay_show.set_duration(SHOW_DELAY_DURATION);
+
+        // Timer used to measure whether the mouse has been gone long enough to hide all ports.
+        let delay_hide = Tween::new(&network);
+        delay_hide.set_duration(HIDE_DELAY_DURATION);
+
+
+        OutputPorts{scene,data,network,frp,pattern_span_tree,type_color_map,port_network,id_map,
+                     delay_show,delay_hide}
     }
 
     // TODO: Implement proper sorting and remove.
@@ -681,14 +695,8 @@ impl OutputPorts {
         // duration of the tween matters and that this value is reached after that time.
         const TWEEN_END_VALUE:f32 = 1.0;
 
-        // TODO memory leak from tween?
-        // Timer used to measure whether the hover has been long enough to show the ports.
-        let delay_show = Tween::new(&self.network);
-        delay_show.set_duration(SHOW_DELAY_DURATION);
-
-        // Timer used to measure whether the mouse has been gone long enough to hide all ports.
-        let delay_hide = Tween::new(&self.network);
-        delay_hide.set_duration(HIDE_DELAY_DURATION);
+        let delay_show = &self.delay_show;
+        let delay_hide = &self.delay_show;
 
         let mouse_down = frp.on_port_mouse_down.clone_ref();
         let mouse_over = frp.on_port_mouse_over.clone_ref();
