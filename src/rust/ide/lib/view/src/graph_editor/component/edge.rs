@@ -287,13 +287,15 @@ impl SnapTarget {
 pub mod joint {
     use super::*;
 
-    ensogl::define_shape_system! { () {
-        let radius:Var<Pixels>      = "input_size.y".into();
-        let joint                   = Circle((radius-PADDING.px())/2.0);
-        let joint_color:color::Rgba = color::Lcha::new(0.6,0.5,0.76,1.0).into();
-        let joint_colored           = joint.fill(joint_color);
-        joint_colored.into()
-    }}
+    ensogl::define_shape_system! {
+            (color_rgba:Vector4<f32>) {
+                let radius        = Var::<Pixels>::from("input_size.y");
+                let joint         = Circle((radius-PADDING.px())/2.0);
+                let joint_color   = Var::<color::Rgba>::from(color_rgba);
+                let joint_colored = joint.fill(joint_color);
+                joint_colored.into()
+            }
+        }
 }
 
 fn corner_base_shape
@@ -1287,10 +1289,13 @@ impl EdgeModelData {
     /// of the main color).
     pub fn set_color(&self, color:color::Lcha) {
         let focus_color = color::Lcha::new(color.lightness * SPLIT_COLOR_LIGHTNESS_FACTOR,color.chroma,color.hue,color.alpha);
+        let color_rgba:color::Rgba = color.into();
         self.shapes().iter().for_each(|shape| {
             shape.set_color_focus(focus_color.into());
-            shape.set_color(color.into())
-        })
+            shape.set_color(color_rgba)
+        });
+
+        self.joint.shape.color_rgba.set(color_rgba.into());
     }
 
     /// Redraws the connection.
