@@ -143,22 +143,17 @@ impl Expression {
         let output_span_tree = default();
         Self {code,input_span_tree,output_span_tree}
     }
-
-    fn get_id_for_crumbs(&self, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
-        // We don't know whether this is from the input or output span tree, so we need to
-        // check both.
-        let span_trees = [&self.input_span_tree, &self.output_span_tree];
-        // Find the crumbs and map them to their `ast::Id`.
-        span_trees.iter().find_map(|span_tree|{
-            if span_tree.root_ref().crumbs == crumbs {
-                return span_tree.root.expression_id
-            };
-            let span_tree_descendant = span_tree.root_ref().get_descendant(crumbs);
-            let expression_id        = span_tree_descendant.map(|node|{node.expression_id});
-            expression_id.ok().flatten()
-        })
-    }
 }
+
+fn get_id_for_crumbs(span_tree:&SpanTree, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
+    if span_tree.root_ref().crumbs == crumbs {
+        return span_tree.root.expression_id
+    };
+    let span_tree_descendant = span_tree.root_ref().get_descendant(crumbs);
+    let expression_id        = span_tree_descendant.map(|node|{node.expression_id});
+    expression_id.ok().flatten()
+}
+
 
 impl Debug for Expression {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
@@ -261,7 +256,7 @@ impl Manager {
 
                         let hover   = &port.shape.hover;
                         let crumbs  = node.crumbs.clone();
-                        let ast_id   = expression.get_id_for_crumbs(&crumbs);
+                        let ast_id   = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
                         frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
                             def _foo = port.events.mouse_out  . map(f_!(hover.set(0.0);));
@@ -315,7 +310,7 @@ impl Manager {
     }
 
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
-        let ast_id = self.expression.borrow().get_id_for_crumbs(crumbs)?;
+        let ast_id = get_id_for_crumbs(&self.expression.borrow().input_span_tree,&crumbs)?;
         self.type_color_map.type_color(ast_id)
     }
 
@@ -324,10 +319,7 @@ impl Manager {
     }
 
     pub fn set_expression_type(&self, id:ast::Id, maybe_type:Option<Type>) {
-        match maybe_type {
-            Some(r#type) => self.type_color_map.insert(id,r#type),
-            None         => self.type_color_map.remove(&id),
-        };
+        self.type_color_map.update_entry(id,maybe_type);
     }
 }
 

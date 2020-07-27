@@ -26,9 +26,9 @@ use span_tree;
 
 use crate::graph_editor::node;
 use crate::graph_editor::Type;
-use crate::graph_editor::component::node::Expression;
 use crate::graph_editor::component::type_coloring::{TypeColorMap, MISSING_TYPE_COLOR};
-
+use span_tree::SpanTree;
+use crate::graph_editor::component::node::port::get_id_for_crumbs;
 
 
 // =================
@@ -611,33 +611,33 @@ type SharedIdCrumbMap = Rc<RefCell<HashMap<PortId,span_tree::Crumbs>>>;
 #[derive(Debug,Clone,CloneRef)]
 pub struct OutputPorts {
     /// The FRP api of the `OutPutPorts`.
-    pub frp              : Frp,
-        network          : frp::Network,
+    pub frp               : Frp,
+        network           : frp::Network,
         // This network will be re-created whenever we change the number of ports.
-        port_network     : Rc<RefCell<frp::Network>>,
-        data             : Rc<OutputPortsData>,
-        type_map         : TypeColorMap,
-        expression       : Rc<RefCell<Expression>>,
-        scene            : Scene,
-        id_map           : SharedIdCrumbMap,
+        port_network      : Rc<RefCell<frp::Network>>,
+        data              : Rc<OutputPortsData>,
+        type_color_map: TypeColorMap,
+        pattern_span_tree : Rc<RefCell<SpanTree>>,
+        scene             : Scene,
+        id_map            : SharedIdCrumbMap,
 }
 
 impl OutputPorts {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let expression       = Expression::default();
-        let network          = default();
-        let id_map           = default();
-        let frp              = Frp::new(&network,&id_map);
-        let number_of_ports  = expression.output_span_tree.root_ref().leaf_iter().count();
-        let data             = OutputPortsData::new(scene,number_of_ports as u32);
-        let data             = Rc::new(data);
-        let type_map         = default();
-        let expression       = Rc::new(RefCell::new(expression));
-        let scene            = scene.clone_ref();
-        let port_network     = default();
+        let pattern_span_tree  = SpanTree::default();
+        let network            = default();
+        let id_map             = default();
+        let frp                = Frp::new(&network,&id_map);
+        let number_of_ports    = pattern_span_tree.root_ref().leaf_iter().count();
+        let data               = OutputPortsData::new(scene,number_of_ports as u32);
+        let data               = Rc::new(data);
+        let type_map           = default();
+        let pattern_span_tree = Rc::new(RefCell::new(pattern_span_tree));
+        let scene              = scene.clone_ref();
+        let port_network       = default();
 
-        OutputPorts {scene,data,network,frp,expression,type_map,port_network,id_map}
+        OutputPorts{scene,data,network,frp,pattern_span_tree, type_color_map: type_map,port_network,id_map}
     }
 
     // TODO: Implement proper sorting and remove.
@@ -648,30 +648,29 @@ impl OutputPorts {
         component::ShapeView::<single_port_area::Shape>::new(&logger,scene);
     }
 
-    /// Set the expression for which output ports should be presented. Triggers a rebinding of the
+    /// Set the pattern for which output ports should be presented. Triggers a rebinding of the
     /// internal FRP and updates the shape appearance.
-    pub fn set_expression(&self, expression:impl Into<Expression>) {
-        let expression = expression.into();
+    pub fn set_pattern_span_tree(&self, pattern_span_tree:&SpanTree) {
 
         // === Update data / shapes ===
 
         // We want to be able to match each `PortId` to a `Crumb` from the expression, including
         // the root.
-        let number_of_ports     = 1 + expression.output_span_tree.root_ref().leaf_iter().count() as u32;
-        let expression_nodes    = expression.output_span_tree.root_ref().leaf_iter();
+        let number_of_ports     = 1 + pattern_span_tree.root_ref().leaf_iter().count() as u32;
+        let expression_nodes    = pattern_span_tree.root_ref().leaf_iter();
         // Create a `PortId` for every leaf and store them in tuples.
         let port_ids_for_crumbs = expression_nodes.enumerate().map(|(index, node)| {
             (PortId::new(index + 1), node.crumbs)
         });
         let mut id_map      = HashMap::<PortId,span_tree::Crumbs>::from_iter(port_ids_for_crumbs);
         // Also add the root node.
-        id_map.insert(PortId::new(0), expression.output_span_tree.root_ref().crumbs);
+        id_map.insert(PortId::new(0), pattern_span_tree.root_ref().crumbs);
 
         let id_map = id_map;
         *self.id_map.borrow_mut() = id_map;
 
         self.data.set_number_of_output_ports(number_of_ports);
-        *self.expression.borrow_mut() = expression;
+        *self.pattern_span_tree.borrow_mut() = pattern_span_tree.clone();
 
 
         // === Update FRP bindings ===
@@ -761,17 +760,13 @@ impl OutputPorts {
 
     /// Return the color of the port indicated by the given `Crumb`.
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
-        let ast_id = self.expression.borrow().get_id_for_crumbs(crumbs)?;
-        self.type_map.type_color(ast_id)
+        let ast_id = get_id_for_crumbs(&self.pattern_span_tree.borrow(),&crumbs)?;
+        self.type_color_map.type_color(ast_id)
     }
 
     /// Set the type information for the given `ast::Id`.
-    pub fn set_expression_type(&self, id:ast::Id, maybe_type:Option<Type>) {
-        // TODO should we ignore this if it is not part f our expression?
-        match maybe_type {
-            Some(expression_type) => self.type_map.insert(id,expression_type),
-            None                  => self.type_map.remove(&id),
-        };
+    pub fn set_pattern_type(&self, id:ast::Id, maybe_type:Option<Type>) {
+        self.type_color_map.update_entry(id,maybe_type);
         self.set_port_colors_based_on_available_types();
     }
 }

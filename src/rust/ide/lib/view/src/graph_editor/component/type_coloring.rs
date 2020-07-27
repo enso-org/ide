@@ -53,7 +53,7 @@ fn type_to_hash(type_information:Type) -> u64 {
 /// `Allows to keep track of the type and color of a `ast::Id`. It allows to store the
 /// `ast::Id` -> `Type` mapping and infer the colour for the given `ast::Id` from that through the
 /// `type_color` method.
-#[derive(Clone,CloneRef,Debug,Default,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Default)]
 pub struct TypeColorMap {
     data: SharedHashMap<ast::Id,Type>,
 }
@@ -64,5 +64,13 @@ impl TypeColorMap {
         self.data.get_cloned(&ast_id).map(|type_information| {
             color_for_type(type_information).into()
         })
+    }
+
+    /// Set the type for the given `ast::Id`. Discards the type, if `None` is given as value.
+    pub fn update_entry(&self, key:ast::Id, value:Option<Type>) {
+        match value {
+            Some(value) => self.data.insert(key,value),
+            None        => self.data.remove(&key),
+        };
     }
 }

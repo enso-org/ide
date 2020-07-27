@@ -281,8 +281,9 @@ impl NodeModel {
 
     fn set_expression(&self, expr:impl Into<Expression>) {
         let expr = expr.into();
-        self.ports.set_expression(expr.clone());
-        self.output_ports.set_expression(expr);
+        self.output_ports.set_pattern_span_tree(&expr.output_span_tree);
+        self.ports.set_expression(expr);
+
 
         let width = self.width();
         let height = self.height();
@@ -321,7 +322,7 @@ impl Node {
             eval inputs.set_expression ((expr) model.set_expression(expr));
             eval inputs.set_expression_type (((ast_id,maybe_type)) {
                 model.ports.set_expression_type(*ast_id,maybe_type.clone());
-                model.output_ports.set_expression_type(*ast_id,maybe_type.clone())
+                model.output_ports.set_pattern_type(*ast_id,maybe_type.clone())
             });
 
             eval inputs.set_visualization ((content)
