@@ -128,6 +128,7 @@ pub mod background {
 // === Cursor ===
 // ==============
 
+const LINE_VERTICAL_OFFSET     : f32 = 4.0;
 const CURSOR_PADDING           : f32 = 4.0;
 const CURSOR_WIDTH             : f32 = 2.0;
 const CURSOR_ALPHA             : f32 = 0.8;
@@ -440,7 +441,7 @@ impl Area {
                     model.on_modified_selection(selections,*time,false)
             ));
 
-//            eval_ model.buffer.frp.output.changed (model.redraw());
+            eval_ model.buffer.frp.output.changed (model.redraw());
             eval_ command.cursor_move_left  (model.buffer.frp.input.cursors_move.emit(Some(Movement::Left)));
             eval_ command.cursor_move_right (model.buffer.frp.input.cursors_move.emit(Some(Movement::Right)));
             eval_ command.cursor_move_up    (model.buffer.frp.input.cursors_move.emit(Some(Movement::Up)));
@@ -498,9 +499,6 @@ impl Selection {
         let width      = Animation::new(&network);
         let edit_mode  = Rc::new(Cell::new(edit_mode));
 
-//        width.update_spring(|spring| spring*0.1);
-
-
         position.update_spring(|spring| spring*2.0);
         Self {shape_view,network,position,width,edit_mode} . init()
     }
@@ -509,20 +507,6 @@ impl Selection {
         let network = &self.network;
         let view    = &self.shape_view;
         frp::extend! { network
-//            _eval <- self.position.value.map2(&self.width.value,f!([view](p,sel_width) {
-//                let side = sel_width.signum();
-//                println!("SIDE {:?}",side);
-//                let x    = p.x - (CURSOR_PADDING + CURSOR_WIDTH/2.0) * side;
-//                let pos = Vector2(x,p.y);
-//                view.set_position_xy(pos);
-//            }));
-//            eval self.width.value([view](sel_width) {
-//                let sel_width = *sel_width;
-//                let side      = sel_width.signum();
-//                let width     = (CURSOR_PADDING * 2.0 + CURSOR_WIDTH) * side + sel_width;
-//                view.shape.sprite.size.set(Vector2(width,20.0))
-//            });
-
             _eval <- all_with(&self.position.value,&self.width.value,f!([view](p,sel_width){
                 let sel_width = *sel_width;
                 let side      = sel_width.signum();
@@ -611,7 +595,6 @@ impl AreaData {
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
-        println!("on_modified_selection {:?}", do_edit);
         {
         let mut selection_map     = self.selection_map.borrow_mut();
         let mut new_selection_map = SelectionMap::default();
@@ -623,8 +606,6 @@ impl AreaData {
             let end_line_offset = self.buffer.offset_of_view_line(buffer::Line(end_line_index));
             let start_offset_in_line = selection.start - start_line_offset;
             let end_offset_in_line = selection.end - end_line_offset;
-//            println!("!!!!");
-//            println!(">> {:?}", end_offset_in_line - start_offset_in_line);
             let min_div = self.lines.rc.borrow()[start_line_index].div_by_byte_offset(start_offset_in_line);
             let max_div = self.lines.rc.borrow()[end_line_index].div_by_byte_offset(end_offset_in_line);
             let logger = Logger::sub(&self.logger,"cursor");
@@ -719,7 +700,6 @@ impl AreaData {
     }
 
     fn redraw_line(&self, view_line_number:usize, content:String) { // fixme content:Cow<str>
-        println!("redraw_line");
         let cursor_map    = self.selection_map.borrow().location_map.get(&view_line_number).cloned().unwrap_or_default();
 
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
@@ -755,7 +735,7 @@ impl AreaData {
                 self.selection_map.borrow().id_map.get(id).for_each(|cursor| {
                     if cursor.edit_mode.get() {
                         last_cursor = Some(cursor.clone_ref());
-                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING - CURSOR_WIDTH/2.0, cursor.position().y - line_object.position().y);
+                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING - CURSOR_WIDTH/2.0, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET );
                     }
                 });
             });
@@ -780,7 +760,7 @@ impl AreaData {
 
     fn new_line(&self, index:usize) -> Line {
         let line     = Line::new(&self.logger);
-        let y_offset = - ((index + 1) as f32) * LINE_HEIGHT + 4.0; // FIXME line height?
+        let y_offset = - ((index + 1) as f32) * LINE_HEIGHT + LINE_VERTICAL_OFFSET; // FIXME line height?
         line.set_position_y(y_offset);
         self.add_child(&line);
         line
