@@ -25,6 +25,7 @@ use std::num::NonZeroU32;
 
 use super::edge;
 use crate::graph_editor::component::visualization;
+use crate::graph_editor::component::documentation_view;
 use crate::graph_editor::component::node::port::output::OutputPorts;
 
 
@@ -246,6 +247,14 @@ impl NodeModel {
         });
 
         display_object.add_child(&visualization);
+
+        // let documentation_view = documentation_view::Container::new(&logger,&scene);
+        // documentation_view.mod_position(|t| {
+        //     t.x = 60.0;
+        //     t.y = 120.0;
+        // });
+        //
+        // display_object.add_child(&documentation_view);
 
         ports.mod_position(|p| {
             p.x = TEXT_OFF;
