@@ -2,6 +2,11 @@
 
 use crate::prelude::*;
 
+use crate::controller::graph::NewNodeInfo;
+use crate::double_representation::module::ImportInfo;
+use crate::model::module::MethodId;
+use crate::model::module::NodeMetadata;
+use crate::model::module::Position;
 use crate::notification;
 
 use data::text::TextLocation;
@@ -152,6 +157,15 @@ impl ParsedInput {
         }
     }
 
+    fn new_from_ast(ast:&Ast) -> Self {
+        let prefix = ast::prefix::Chain::new_non_strict(&ast);
+        ParsedInput {
+            expression     : Some(ast::Shifted::new(default(),prefix)),
+            pattern_offset : 0,
+            pattern        : default(),
+        }
+    }
+
     /// Returns the id of the next fragment potentially filled by picking completion suggestion.
     fn next_completion_id(&self) -> CompletedFragmentId {
         match &self.expression {
@@ -229,6 +243,16 @@ impl ThisNode {
 // === Searcher Controller ===
 // ===========================
 
+/// Describes how Searcher was brought to screen and how should behave when committing expression.
+#[derive(Copy,Clone,Debug)]
+#[allow(missing_docs)]
+pub enum Mode {
+    /// Searcher should add a new node at given position.
+    NewNode {position:Option<Position>},
+    /// Searcher should edit existing node's expression.
+    EditNode {node_id:ast::Id}
+}
+
 /// A fragment filled by single picked completion suggestion.
 ///
 /// We store such information in Searcher to better suggest the potential arguments, and to know
@@ -259,6 +283,37 @@ pub struct Data {
     pub fragments_added_by_picking : Vec<FragmentAddedByPickingSuggestion>,
 }
 
+impl Data {
+    /// Initialize Searcher state when editing node.
+    ///
+    /// When searcher is brought by editing node, the input should be an expression of this node.
+    /// Committing node will then edit the exiting node's expression instead of adding a new one.
+    /// Additionally searcher should restore information about intended method, so we will be able
+    /// to suggest arguments.
+    fn new_with_edited_node
+    (graph:&controller::Graph, database:&model::SuggestionDatabase, edited_node_id:ast::Id)
+    -> FallibleResult<Self> {
+        let edited_node      = graph.node(edited_node_id)?;
+        let input            = ParsedInput::new_from_ast(edited_node.info.expression());
+        let suggestions      = default();
+        let intended_method  = edited_node.metadata.and_then(|md| md.intended_method);
+        let initial_entry    = intended_method.and_then(|m| database.lookup_method(m));
+        let initial_fragment = initial_entry.and_then(|entry| {
+            let fragment = FragmentAddedByPickingSuggestion {
+                id                : CompletedFragmentId::Function,
+                picked_suggestion : entry
+            };
+            // TODO [mwu]
+            //   Consider if we want to deal with "this" node in the editing case?
+            fragment.is_still_unmodified(&input,None).and_option(Some(fragment))
+        });
+        let mut fragments_added_by_picking = Vec::<FragmentAddedByPickingSuggestion>::new();
+        initial_fragment.for_each(|f| fragments_added_by_picking.push(f));
+        Ok(Data {input,suggestions,fragments_added_by_picking})
+    }
+}
+
+
 /// Searcher Controller.
 ///
 /// This is an object providing all required functionalities for Searcher View: mainly it is the
@@ -270,6 +325,7 @@ pub struct Searcher {
     data            : Rc<RefCell<Data>>,
     notifier        : notification::Publisher<Notification>,
     graph           : controller::ExecutedGraph,
+    mode            : Immutable<Mode>,
     database        : Rc<model::SuggestionDatabase>,
     language_server : Rc<language_server::Connection>,
     parser          : Parser,
@@ -282,10 +338,11 @@ impl Searcher {
     ( parent         : impl AnyLogger
     , project        : &model::Project
     , method         : language_server::MethodPointer
+    , mode           : Mode
     , selected_nodes : Vec<double_representation::node::Id>
     ) -> FallibleResult<Self> {
         let graph = controller::ExecutedGraph::new(&parent,project.clone_ref(),method).await?;
-        Ok(Self::new_from_graph_controller(parent,project,graph,selected_nodes))
+        Self::new_from_graph_controller(parent,project,graph,mode,selected_nodes)
     }
 
     // /// Check if the picked fragment is still unmodified by user.
@@ -301,20 +358,28 @@ impl Searcher {
     ( parent         : impl AnyLogger
     , project        : &model::Project
     , graph          : controller::ExecutedGraph
+    , mode           : Mode
     , selected_nodes : Vec<double_representation::node::Id>
-    ) -> Self {
-        let logger = Logger::sub(parent,"Searcher Controller");
+    ) -> FallibleResult<Self> {
+        let logger   = Logger::sub(parent,"Searcher Controller");
+        let database = project.suggestion_db();
+        let data     = if let Mode::EditNode{node_id} = mode {
+            Data::new_with_edited_node(&graph.graph(),&*database,node_id)?
+        } else {
+            default()
+        };
         let this   = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
         let this   = Self {
             logger,graph,this,
-            data            : default(),
+            data            : Rc::new(RefCell::new(data)),
             notifier        : default(),
+            mode            : Immutable(mode),
             database        : project.suggestion_db(),
             language_server : project.json_rpc(),
             parser          : project.parser(),
         };
         this.reload_list();
-        this
+        Ok(this)
     }
 
     /// Subscribe to controller's notifications.
@@ -396,6 +461,34 @@ impl Searcher {
         Ok(new_input)
     }
 
+    /// Commit the current input as a new node expression.
+    ///
+    /// If the searcher was brought by editing existing node, the input is set as a new node
+    /// expression, otherwise a new node is added. This will also add all imports required by
+    /// picked suggestions.
+    pub fn commit_node(&self) -> FallibleResult<ast::Id> {
+        let data_borrowed   = self.data.borrow();
+        let expression      = data_borrowed.input.repr();
+        let intended_method = self.intended_method();
+
+        let id = match *self.mode {
+            Mode::NewNode {position} => {
+                let mut new_node    = NewNodeInfo::new_pushed_back(expression);
+                new_node.metadata   = Some(NodeMetadata {position,intended_method});
+                self.graph.graph().add_node(new_node)?
+            },
+            Mode::EditNode {node_id} => {
+                self.graph.graph().set_expression(node_id,expression)?;
+                self.graph.graph().module.with_node_metadata(node_id,Box::new(|md| {
+                    md.intended_method = intended_method
+                }));
+                node_id
+            }
+        };
+        self.add_required_imports();
+        Ok(id)
+    }
+
     fn invalidate_fragments_added_by_picking(&self) {
         let mut data = self.data.borrow_mut();
         let data     = data.deref_mut();
@@ -404,6 +497,22 @@ impl Searcher {
             let this = self.this_var_for(frag.id);
             !frag.is_still_unmodified(input,this)
         });
+    }
+
+    fn add_required_imports(&self) {
+        let data_borrowed = self.data.borrow();
+        let fragments     = data_borrowed.fragments_added_by_picking.iter();
+        let imports       = fragments.map(|frag| &frag.picked_suggestion.module);
+        let module_ast    = self.graph.graph().module.ast();
+        let mut module    = double_representation::module::Info {ast:module_ast};
+        for import in imports {
+            let import        = ImportInfo::from_qualified_name(&import);
+            let already_there = module.iter_imports().any(|imp| imp == import);
+            if !already_there {
+                module.add_import(&self.parser,import);
+            }
+        }
+        self.graph.graph().module.update_ast(module.ast);
     }
 
     /// Reload Suggestion List.
@@ -493,6 +602,17 @@ impl Searcher {
         });
         Ok(())
     }
+
+    /// Returns the Id of method user intends to be called in this node.
+    ///
+    /// The method may be picked by user from suggestion, but there are many methods with the same
+    /// name.
+    fn intended_method(&self) -> Option<MethodId> {
+        let borrowed_data = self.data.borrow();
+        let mut fragments = borrowed_data.fragments_added_by_picking.iter();
+        let function_frag = fragments.find(|frag| frag.id == CompletedFragmentId::Function)?;
+        function_frag.picked_suggestion.method_id()
+    }
 }
 
 
@@ -522,17 +642,20 @@ mod test {
     }
 
     struct Fixture {
+        test     : TestWithLocalPoolExecutor,
         searcher : Searcher,
         entry1   : CompletionSuggestion,
         entry2   : CompletionSuggestion,
+        entry3   : CompletionSuggestion,
         entry9   : CompletionSuggestion,
     }
 
     impl Fixture {
         fn new_custom<F>(client_setup:F) -> Self
         where F : FnOnce(&mut MockData,&mut language_server::MockClient) {
-            let mut data = MockData::default();
-            let mut client     = language_server::MockClient::default();
+            let test       = TestWithLocalPoolExecutor::set_up();
+            let mut data   = MockData::default();
+            let mut client = language_server::MockClient::default();
             client_setup(&mut data,&mut client);
             let graph = data.graph.controller();
             let node  = &graph.graph().nodes().unwrap()[0];
@@ -543,13 +666,14 @@ mod test {
                 data            : default(),
                 notifier        : default(),
                 graph,
+                mode            : Immutable(Mode::NewNode {position:default()}),
                 database        : default(),
                 language_server : language_server::Connection::new_mock_rc(client),
                 parser          : Parser::new_or_panic(),
                 this            : Rc::new(this),
             };
             let entry1 = model::suggestion_database::Entry {
-                name          : "TestFunction1".to_string(),
+                name          : "testFunction1".to_string(),
                 kind          : model::suggestion_database::EntryKind::Function,
                 module        : "Test.Test".to_string().try_into().unwrap(),
                 arguments     : vec![],
@@ -562,15 +686,23 @@ mod test {
                 kind : model::suggestion_database::EntryKind::Local,
                 ..entry1.clone()
             };
-            let entry9 = entry1.clone().with_name("TestFunction2");
+            let entry3 = model::suggestion_database::Entry {
+                name          : "testMethod1".to_string(),
+                kind          : model::suggestion_database::EntryKind::Method,
+                self_type     : Some("Test".to_string()),
+                ..entry1.clone()
+            };
+            let entry9 = entry1.clone().with_name("testFunction2");
 
             searcher.database.put_entry(1,entry1);
             let entry1 = searcher.database.get(1).unwrap();
             searcher.database.put_entry(2,entry2);
             let entry2 = searcher.database.get(2).unwrap();
+            searcher.database.put_entry(3,entry3);
+            let entry3 = searcher.database.get(3).unwrap();
             searcher.database.put_entry(9,entry9);
             let entry9 = searcher.database.get(9).unwrap();
-            Fixture{searcher,entry1,entry2,entry9}
+            Fixture{test,searcher,entry1,entry2,entry3,entry9}
         }
 
         fn new() -> Self {
@@ -621,8 +753,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn loading_list() {
-        let mut test = TestWithLocalPoolExecutor::set_up();
-        let Fixture{searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
+        let Fixture{mut test,searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
             let completion_response = language_server::response::Completion {
                 results: vec![1,5,9],
                 current_version: default(),
@@ -719,27 +850,27 @@ mod test {
 
     #[wasm_bindgen_test]
     fn picked_completions_list_maintaining() {
-        let Fixture{searcher,entry1,entry2,..} = Fixture::new();
+        let Fixture{test:_test,searcher,entry1,entry2,..} = Fixture::new();
         let frags_borrow = || Ref::map(searcher.data.borrow(),|d| &d.fragments_added_by_picking);
 
         // Picking first suggestion.
         let new_input = searcher.pick_completion(entry1.clone_ref()).unwrap();
-        assert_eq!(new_input, "TestFunction1 ");
+        assert_eq!(new_input, "testFunction1 ");
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
 
         // Typing more args by hand.
-        searcher.set_input("TestFunction1 some_arg pat".to_string()).unwrap();
+        searcher.set_input("testFunction1 some_arg pat".to_string()).unwrap();
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
 
         // Picking argument's suggestion.
         let new_input = searcher.pick_completion(entry2.clone_ref()).unwrap();
-        assert_eq!(new_input, "TestFunction1 some_arg TestVar1 ");
+        assert_eq!(new_input, "testFunction1 some_arg TestVar1 ");
         let new_input = searcher.pick_completion(entry2.clone_ref()).unwrap();
-        assert_eq!(new_input, "TestFunction1 some_arg TestVar1 TestVar1 ");
+        assert_eq!(new_input, "testFunction1 some_arg TestVar1 TestVar1 ");
         let (function,arg1,arg2) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(function.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&function.picked_suggestion,&entry1));
@@ -749,7 +880,7 @@ mod test {
         assert!(Rc::ptr_eq(&arg2.picked_suggestion,&entry2));
 
         // Backspacing back to the second arg.
-        searcher.set_input("TestFunction1 some_arg TestVar1 TestV".to_string()).unwrap();
+        searcher.set_input("testFunction1 some_arg TestVar1 TestV".to_string()).unwrap();
         let (picked,arg) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(picked.id, CompletedFragmentId::Function);
         assert!(Rc::ptr_eq(&picked.picked_suggestion,&entry1));
@@ -757,9 +888,87 @@ mod test {
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
 
         // Editing the picked function.
-        searcher.set_input("TestFunction2 some_arg TestVar1 TestV".to_string()).unwrap();
+        searcher.set_input("testFunction2 some_arg TestVar1 TestV".to_string()).unwrap();
         let (arg,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
+    }
+
+    #[wasm_bindgen_test]
+    fn committing_node() {
+        let Fixture{test:_test,mut searcher,entry3,..} = Fixture::new();
+        let module                                     = searcher.graph.graph().module.clone_ref();
+        // Setup searcher.
+        let parser        = Parser::new_or_panic();
+        let picked_method = FragmentAddedByPickingSuggestion {
+            id                : CompletedFragmentId::Function,
+            picked_suggestion : entry3,
+        };
+        with(searcher.data.borrow_mut(), |mut data| {
+            data.fragments_added_by_picking.push(picked_method);
+            data.input = ParsedInput::new("Test.testMethod1".to_string(),&parser).unwrap();
+        });
+
+        // Add new node.
+        let position  = Some(Position::new(4.0, 5.0));
+        searcher.mode = Immutable(Mode::NewNode {position});
+        searcher.commit_node().unwrap();
+
+        let expected_code = "import Test.Test\nmain = \n    2 + 2\n    Test.testMethod1";
+        assert_eq!(module.ast().repr(), expected_code);
+        let (node1,node2) = searcher.graph.graph().nodes().unwrap().expect_tuple();
+        let expected_intended_method = Some(MethodId {
+            module          : "Test.Test".to_string().try_into().unwrap(),
+            defined_on_type : "Test".to_string(),
+            name            : "testMethod1".to_string(),
+        });
+        assert_eq!(node2.metadata.unwrap().intended_method, expected_intended_method);
+
+        // Edit existing node.
+        searcher.mode = Immutable(Mode::EditNode {node_id:node1.info.id()});
+        searcher.commit_node().unwrap();
+        let expected_code = "import Test.Test\nmain = \n    Test.testMethod1\n    Test.testMethod1";
+        let (node1,_)     = searcher.graph.graph().nodes().unwrap().expect_tuple();
+        assert_eq!(node1.metadata.unwrap().intended_method, expected_intended_method);
+        assert_eq!(module.ast().repr(), expected_code);
+    }
+
+    #[wasm_bindgen_test]
+    fn initialized_data_when_editing_node() {
+        let Fixture{test:_test,searcher,entry3,..} = Fixture::new();
+
+        let graph    = searcher.graph.graph();
+        let (node,)  = graph.nodes().unwrap().expect_tuple();
+        let node_id  = node.info.id();
+        let database = searcher.database;
+
+        // Node had not intended method.
+        let searcher_data = Data::new_with_edited_node(&graph,&database,node_id).unwrap();
+        assert_eq!(searcher_data.input.repr(), node.info.expression().repr());
+        assert!(searcher_data.fragments_added_by_picking.is_empty());
+        assert!(searcher_data.suggestions.is_loading());
+
+        // Node had intended method, but it's outdated.
+        let intended_method = MethodId {
+            module          : "Test.Test".to_string().try_into().unwrap(),
+            defined_on_type : "Test".to_string(),
+            name            : "testMethod1".to_string()
+        };
+        graph.module.with_node_metadata(node_id, Box::new(|md| {
+            md.intended_method = Some(intended_method);
+        }));
+        let searcher_data = Data::new_with_edited_node(&graph,&database,node_id).unwrap();
+        assert_eq!(searcher_data.input.repr(), node.info.expression().repr());
+        assert!(searcher_data.fragments_added_by_picking.is_empty());
+        assert!(searcher_data.suggestions.is_loading());
+
+        // Node had up-to-date intended method.
+        graph.set_expression(node_id,"Test.testMethod1 12").unwrap();
+        // We set metadata in previous section.
+        let searcher_data = Data::new_with_edited_node(&graph,&database,node_id).unwrap();
+        assert_eq!(searcher_data.input.repr(), "Test.testMethod1 12");
+        assert!(searcher_data.suggestions.is_loading());
+        let (initial_fragment,) = searcher_data.fragments_added_by_picking.expect_tuple();
+        assert!(Rc::ptr_eq(&initial_fragment.picked_suggestion,&entry3))
     }
 }
