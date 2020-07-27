@@ -393,6 +393,8 @@ impl Deref for Area {
     }
 }
 
+TODO : edycja przy zaznzaczeniu, zaznaczenie wielolinijkowe
+
 impl Area {
     pub fn new(app:&Application) -> Self {
         let network = frp::Network::new();
