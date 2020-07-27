@@ -951,7 +951,9 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_output.emit(Some(target));
              });
 
-             eval_ node.view.output_ports.frp.port_mouse_out ( model.frp.hover_node_output.emit(None));
+             eval_ node.view.output_ports.frp.port_mouse_out (
+                model.frp.hover_node_output.emit(None)
+            );
         }
 
 //        self.visualizations.push(node.visualization().clone_ref());
@@ -980,8 +982,11 @@ impl GraphEditorModelWithNetwork {
     }
 
     fn create_edge
-    (&self, edge_click:&frp::Source<EdgeId>, edge_over:&frp::Source<EdgeId>,
-     edge_out:&frp::Source<EdgeId>) -> EdgeId {
+    ( &self
+    , edge_click : &frp::Source<EdgeId>
+    , edge_over  : &frp::Source<EdgeId>
+    , edge_out   : &frp::Source<EdgeId>
+    ) -> EdgeId {
         let edge    = Edge::new(component::Edge::new(&self.scene));
         let edge_id = edge.id();
         self.add_child(&edge);
@@ -999,8 +1004,11 @@ impl GraphEditorModelWithNetwork {
     }
 
     fn new_edge_from_output
-    (&self,edge_click:&frp::Source<EdgeId>,edge_over:&frp::Source<EdgeId>,
-     edge_out:&frp::Source<EdgeId>) -> EdgeId {
+    ( &self
+    , edge_click:&frp::Source<EdgeId>
+    , edge_over:&frp::Source<EdgeId>
+    , edge_out:&frp::Source<EdgeId>
+    ) -> EdgeId {
         let edge_id        = self.create_edge(edge_click,edge_over,edge_out);
         let first_detached = self.edges.detached_target.is_empty();
         self.edges.detached_target.insert(edge_id);
@@ -1011,11 +1019,11 @@ impl GraphEditorModelWithNetwork {
     }
 
     fn new_edge_from_input
-    (&self,
-      edge_click:&frp::Source<EdgeId>,
-      edge_over:&frp::Source<EdgeId>,
-      edge_out:&frp::Source<EdgeId>)
-    -> EdgeId {
+    ( &self
+    , edge_click : &frp::Source<EdgeId>
+    , edge_over  : &frp::Source<EdgeId>
+    , edge_out   : &frp::Source<EdgeId>
+    ) -> EdgeId {
         let edge_id        = self.create_edge(edge_click,edge_over,edge_out);
         let first_detached = self.edges.detached_source.is_empty();
         self.edges.detached_source.insert(edge_id);
@@ -1729,9 +1737,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval  edge_over((edge_id) edge_hover.emit(Some(*edge_id)));
     eval_ edge_out(edge_hover.emit(None));
 
-    edge_over_pos <- map2(&cursor_pos_in_scene,&edge_hover,|pos, edge_id| {
+    edge_over_pos <- map2(&cursor_pos_in_scene,&edge_hover,|pos, edge_id|
         edge_id.map(|id| (id, *pos))
-    }).unwrap();
+    ).unwrap();
 
     // We do not want edge hover to occur for detached edges.
     set_edge_hover <- edge_over_pos.gate_not(&has_detached_edge);
@@ -1796,10 +1804,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         Some(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
     new_input_edge <- create_edge_from_input.map(f!([model,edge_mouse_down,edge_over,edge_out]((target)){
-        if model.is_node_connected_at_input(target.node_id,target.port.to_vec()) {
-            return None
-        };
-        Some(model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out))
+        let already_connected = model.is_node_connected_at_input(target.node_id,target.port.to_vec());
+        already_connected.as_some(model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
 
     outputs.edge_added <+ new_output_edge;
@@ -2008,7 +2014,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edge_refresh_cursor_pos_on_hover  <- edge_refresh_on_node_hover._0();
 
     refresh_target      <- any(&edge_refresh_cursor_pos_on_hover,&edge_refresh_cursor_pos_no_hover);
-    refresh_source      <- edge_refresh_cursor_pos_no_hover.map(|pos| *pos);
+    let refresh_source  = edge_refresh_cursor_pos_no_hover.clone_ref();
     snap_source_to_node <- edge_refresh_on_node_hover._1();
 
     eval refresh_target ([edges](position) {

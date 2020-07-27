@@ -40,7 +40,8 @@ const NODE_PADDING       : f32 = node::SHADOW_SIZE;
 const PADDING            : f32 = 4.0 + HOVER_EXTENSION;
 const RIGHT_ANGLE        : f32 = std::f32::consts::PI / 2.0;
 
-// TODO: Maybe find a better name.
+/// The threshold for the y-distance between nodes at which we switch from using the y-distance
+/// only to determine the closest port to using the full cartesian distance.
 const MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION : f32 = 45.0;
 
 const INFINITE : f32 = 99999.0;
@@ -52,7 +53,6 @@ const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 // ===================
 // === Vector Math ===
 // ===================
-
 
 fn up() -> Vector2<f32> {
     Vector2(1.0,0.0)
@@ -387,11 +387,7 @@ macro_rules! define_corner_start {($color:expr, $highlight_color:expr) => {
                 let lower_bound   = start_angle.min(end_angle);
 
                 let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
-                if correct_quadrant {
-                     Some(Vector2::new(closest_point.x, closest_point.y))
-                } else {
-                    None
-                }
+                correct_quadrant.as_some(Vector2::new(closest_point.x, closest_point.y))
             }
         }
     }
