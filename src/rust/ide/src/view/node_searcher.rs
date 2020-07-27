@@ -88,13 +88,13 @@ impl NodeSearcher {
             self.display_object.add_child(&self.text_field.display_object());
             self.text_field.clear_content();
             self.text_field.set_focus();
-            let graph      = self.node_editor.graph.controller().clone_ref();
-            let this_node  = self.node_editor.last_selected_node().unwrap_or_else(|e| {
-                error!(self.logger,"Failed to obtain information about the last selected node. \
-                {e}");
+            let graph          = self.node_editor.graph.controller().clone_ref();
+            let selected_nodes = self.node_editor.selected_nodes().unwrap_or_else(|e| {
+                error!(self.logger,"Failed to obtain information about selected nodes. {e}");
                 default()
             });
-            let controller = controller::Searcher::new_from_graph_controller(&self.logger,&self.project,graph,this_node);
+            let controller = controller::Searcher::new_from_graph_controller(&self.logger,
+                &self.project,graph,selected_nodes);
             let logger     = self.logger.clone_ref();
             let weak       = Rc::downgrade(&self.controller);
             executor::global::spawn(controller.subscribe().for_each(move |notification| {

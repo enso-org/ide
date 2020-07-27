@@ -204,16 +204,21 @@ impl ThisNode {
     ///
     /// Returns `None` if the given node's information cannot be retrieved or if the node does not
     /// introduce a variable.
-    pub fn new(id:double_representation::node::Id, graph:&controller::Graph) -> Option<Self> {
+    pub fn new(nodes:Vec<double_representation::node::Id>, graph:&controller::Graph)
+    -> Option<Self> {
+        let id   = *nodes.first()?;
         let node = graph.node(id).ok()?;
-        let ast  = node.info.pattern()?;
-        // TODO? [mwu]
-        //   Here we just require that the whole node's pattern is a single var, like `var = expr`.
-        //   This prevents using pattern subpart (like `x` in `Point x y = get_pos`), or basically
-        //   any node that doesn't stick to `var = expr` form.
-        //   If we wanted to support pattern subparts, the engine would need to send us value
-        //   updates for matched.
-        let var = ast::identifier::as_var(&ast)?.clone();
+        let var  = if let Some(ast) = node.info.pattern() {
+            // TODO? [mwu]
+            //   Here we just require that the whole node's pattern is a single var, like `var = expr`.
+            //   This prevents using pattern subpart (like `x` in `Point x y = get_pos`), or basically
+            //   any node that doesn't stick to `var = expr` form.
+            //   If we wanted to support pattern subparts, the engine would need to send us value
+            //   updates for matched.
+            ast::identifier::as_var(&ast)?.clone()
+        } else {
+            graph.variable_name_for(&node.info).ok()?.repr()
+        };
         Some(ThisNode {id,var})
     }
 }
@@ -274,13 +279,13 @@ pub struct Searcher {
 impl Searcher {
     /// Create new Searcher Controller.
     pub async fn new
-    ( parent   : impl AnyLogger
-    , project  : &model::Project
-    , method   : language_server::MethodPointer
-    , this     : Option<double_representation::node::Id>
+    ( parent         : impl AnyLogger
+    , project        : &model::Project
+    , method         : language_server::MethodPointer
+    , selected_nodes : Vec<double_representation::node::Id>
     ) -> FallibleResult<Self> {
         let graph = controller::ExecutedGraph::new(&parent,project.clone_ref(),method).await?;
-        Ok(Self::new_from_graph_controller(parent,project,graph,this))
+        Ok(Self::new_from_graph_controller(parent,project,graph,selected_nodes))
     }
 
     // /// Check if the picked fragment is still unmodified by user.
@@ -293,13 +298,13 @@ impl Searcher {
 
     /// Create new Searcher Controller, when you have Executed Graph Controller handy.
     pub fn new_from_graph_controller
-    ( parent  : impl AnyLogger
-    , project : &model::Project
-    , graph   : controller::ExecutedGraph
-    , this    : Option<double_representation::node::Id>
+    ( parent         : impl AnyLogger
+    , project        : &model::Project
+    , graph          : controller::ExecutedGraph
+    , selected_nodes : Vec<double_representation::node::Id>
     ) -> Self {
         let logger = Logger::sub(parent,"Searcher Controller");
-        let this   = Rc::new(this.and_then(|id| ThisNode::new(id,&graph.graph())));
+        let this   = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
         let this   = Self {
             logger,graph,this,
             data            : default(),
@@ -531,7 +536,7 @@ mod test {
             client_setup(&mut data,&mut client);
             let graph = data.graph.controller();
             let node  = &graph.graph().nodes().unwrap()[0];
-            let this  = ThisNode::new(node.info.id(),&graph.graph());
+            let this  = ThisNode::new(vec![node.info.id()],&graph.graph());
             let this  = data.selected_node.and_option(this);
             let searcher = Searcher {
                 logger          : default(),

@@ -823,13 +823,15 @@ impl NodeEditor {
         Ok(self)
     }
 
-    /// Get the id of the last selected node.
-    pub fn last_selected_node(&self) -> FallibleResult<Option<ast::Id>> {
-        let last_selected = self.graph.model.editor.last_selected_node();
-        match last_selected.map(|id| self.graph.model.get_controller_node_id(id)) {
-            Some(id_conversion_result) => Ok(Some(id_conversion_result?)),
-            None                       => Ok(None),
-        }
+    /// Get ids of the nodes selected in the editor.
+    ///
+    /// They shall be ordered by the order of the selecting. Node selected as first shall be at
+    /// the beginning.
+    pub fn selected_nodes(&self) -> FallibleResult<Vec<ast::Id>> {
+        let node_view_ids = self.graph.model.editor.selected_nodes().into_iter();
+        let node_ids      = node_view_ids.map(|id| self.graph.model.get_controller_node_id(id));
+        let node_ids : Result<Vec<_>,_> = node_ids.collect();
+        node_ids.map_err(Into::into)
     }
 }
 
