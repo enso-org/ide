@@ -315,7 +315,6 @@ impl ViewModel {
             Movement::RightWord => todo!(),
         };
         let start = if modify { region.start } else { end };
-        println!(":: {:?}",(start,end));
         Selection::new(start,end,region.id).with_column(horiz)
     }
 }

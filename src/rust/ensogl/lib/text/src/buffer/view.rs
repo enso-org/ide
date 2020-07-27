@@ -220,18 +220,19 @@ impl ViewBuffer {
 
 define_frp! {
     Input {
-        move_carets      : Option<Movement>,
-        modify_selection : Option<Movement>,
-        set_cursor       : Location,
-        add_cursor       : Location,
-        insert           : String,
-        delete_left      : (),
-        clear_selection  : (),
+        cursors_move    : Option<Movement>,
+        cursors_select  : Option<Movement>,
+        set_cursor      : Location,
+        add_cursor      : Location,
+        insert          : String,
+        delete_left     : (),
+        clear_selection : (),
     }
 
     Output {
-        selection : selection::Group,
-        changed   : (),
+        edit_selection     : selection::Group,
+        non_edit_selection : selection::Group,
+        changed            : (),
     }
 }
 
@@ -274,24 +275,24 @@ impl View {
             selection_on_delete_left <- input.delete_left.map(f_!(model.delete_left()));
             output.source.changed <+ selection_on_delete_left.constant(());
 
-
-            selection_on_move  <- input.move_carets.map(f!((t) model.moved_selection2(*t,false)));
-            selection_on_mod   <- input.modify_selection.map(f!((t) model.moved_selection2(*t,true)));
+            selection_on_move  <- input.cursors_move.map(f!((t) model.moved_selection2(*t,false)));
+            selection_on_mod   <- input.cursors_select.map(f!((t) model.moved_selection2(*t,true)));
             selection_on_clear <- input.clear_selection.constant(default());
 
             selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(model.offset_of_view_location(t)).into()));
             selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(model.offset_of_view_location(t))));
 
-            output.source.selection <+ selection_on_move;
-            output.source.selection <+ selection_on_mod;
-            output.source.selection <+ selection_on_clear;
-            output.source.selection <+ selection_on_set_cursor;
-            output.source.selection <+ selection_on_add_cursor;
-            output.source.selection <+ selection_on_insert;
-            output.source.selection <+ selection_on_delete_left;
+            output.source.non_edit_selection <+ selection_on_move;
+            output.source.non_edit_selection <+ selection_on_mod;
+            output.source.edit_selection <+ selection_on_clear;
+            output.source.non_edit_selection <+ selection_on_set_cursor;
+            output.source.non_edit_selection <+ selection_on_add_cursor;
+            output.source.edit_selection <+ selection_on_insert;
+            output.source.edit_selection <+ selection_on_delete_left;
 
 
-            eval output.source.selection ((t) model.set_selection(t));
+            eval output.source.edit_selection ((t) model.set_selection(t));
+            eval output.source.non_edit_selection ((t) model.set_selection(t));
 
 
 
