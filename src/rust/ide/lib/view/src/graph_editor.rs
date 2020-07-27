@@ -21,6 +21,7 @@ pub mod data;
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization;
+use crate::graph_editor::component::documentation_view;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -981,6 +982,7 @@ pub struct GraphEditorModel {
     pub cursor         : cursor::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
+    // pub doc_view       : documentation_view,
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
