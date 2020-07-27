@@ -42,7 +42,7 @@ impl Selection {
 
     /// Range of this selection.
     pub fn range(&self) -> Range<Bytes> {
-        (self.start .. self.end).into()
+        (self.min() .. self.max()).into()
     }
 
     /// Size of this selection in bytes.
@@ -52,12 +52,12 @@ impl Selection {
 
     /// Gets the earliest offset within the selection, ie the minimum of both edges.
     pub fn min(self) -> Bytes {
-        std::cmp::min(self.start, self.end)
+        std::cmp::min(self.start,self.end)
     }
 
     /// Gets the latest offset within the selection, ie the maximum of both edges.
     pub fn max(self) -> Bytes {
-        std::cmp::max(self.start, self.end)
+        std::cmp::max(self.start,self.end)
     }
 
     pub fn with_start(&self, start:Bytes) -> Self {
@@ -78,6 +78,11 @@ impl Selection {
 
     pub fn map(&self, f:impl Fn(Bytes)->Bytes) -> Self {
         self.with_start(f(self.start)).with_end(f(self.end))
+    }
+
+    pub fn as_caret(&self) -> Self {
+        let end = self.start;
+        Self {end,..*self}
     }
 
     /// Determines whether the selection is a caret (ie has an empty interior).

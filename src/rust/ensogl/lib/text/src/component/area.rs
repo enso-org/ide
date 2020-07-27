@@ -393,8 +393,6 @@ impl Deref for Area {
     }
 }
 
-TODO : edycja przy zaznzaczeniu, zaznaczenie wielolinijkowe
-
 impl Area {
     pub fn new(app:&Application) -> Self {
         let network = frp::Network::new();
@@ -476,10 +474,15 @@ impl Area {
 
 
 
-
+/// ## Implementation Notes
+/// Selection contains a `right_side` display object which is always placed on its right side. It is
+/// used for smooth glyph animation. For example, after several glyphs were selected and removed,
+/// the selection will gradually shrink. Making all following glyphs children of the `right_side`
+/// object will make the following glyphs animate while the selection is shrinking.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Selection {
     shape_view : component::ShapeView<cursor::Shape>,
+    right_side : display::object::Instance,
     network    : frp::Network,
     position   : Animation<Vector2>,
     width      : Animation<f32>,
@@ -500,17 +503,21 @@ impl Selection {
         let position   = Animation::new(&network);
         let width      = Animation::new(&network);
         let edit_mode  = Rc::new(Cell::new(edit_mode));
+        let right_side        = display::object::Instance::new(Logger::new("cursor"));
 
         position.update_spring(|spring| spring*2.0);
-        Self {shape_view,network,position,width,edit_mode} . init()
+        Self {shape_view,right_side,network,position,width,edit_mode} . init()
     }
 
     fn init(self) -> Self {
+        self.add_child(&self.right_side);
         let network = &self.network;
         let view    = &self.shape_view;
+        let right_side     = &self.right_side;
         frp::extend! { network
-            _eval <- all_with(&self.position.value,&self.width.value,f!([view](p,sel_width){
+            _eval <- all_with(&self.position.value,&self.width.value,f!([view,right_side](p,sel_width){
                 let sel_width = *sel_width;
+                right_side.set_position_x(sel_width);
                 let side      = sel_width.signum();
                 let width     = (CURSOR_PADDING * 2.0 + CURSOR_WIDTH) * side + sel_width;
                 view.shape.sprite.size.set(Vector2(width,20.0));
@@ -744,7 +751,7 @@ impl AreaData {
 
             match &last_cursor {
                 Some(cursor) => {
-                    cursor.add_child(glyph);
+                    cursor.right_side.add_child(glyph);
                     glyph.mod_position_xy(|p| p - last_cursor_origin);
                 },
                 None         => line_object.add_child(glyph),
