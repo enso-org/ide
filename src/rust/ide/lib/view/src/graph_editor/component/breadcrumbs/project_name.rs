@@ -20,7 +20,6 @@ use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use logger::enabled::Logger;
 use logger::AnyLogger;
-use nalgebra::Vector2;
 use ensogl::animation::linear_interpolation;
 
 
@@ -72,9 +71,9 @@ impl FrpInputs {
     /// Create new FrpInputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            def cancel_editing = source();
-            def name           = source();
-            def commit         = source();
+            cancel_editing <- source();
+            name           <- source();
+            commit         <- source();
         }
         Self{cancel_editing,name,commit}
     }
@@ -89,18 +88,20 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    pub name  : frp::Source<String>,
-    pub width : frp::Source<f32>
+    pub name       : frp::Source<String>,
+    pub width      : frp::Source<f32>,
+    pub mouse_down : frp::Any
 }
 
 impl FrpOutputs {
     /// Create new FrpOutputs.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            def name  = source();
-            def width = source();
+            name       <- source();
+            width      <- source();
+            mouse_down <- any_mut();
         }
-        Self{name,width}
+        Self{name,width,mouse_down}
     }
 }
 
@@ -157,7 +158,7 @@ pub struct Animations {
 impl Animations {
     /// Create new animation handlers.
     pub fn new(network:&frp::Network) -> Self {
-        let opacity = Animation::new(&network);
+        let opacity  = Animation::new(&network);
         let position = Animation::new(&network);
         Self{opacity,position}
     }
@@ -300,8 +301,9 @@ impl ProjectName {
                 model.animations.opacity.set_target_value(model.is_focused() as i32 as f32);
             });
             eval_ frp.inputs.cancel_editing(model.reset_name());
-            eval frp.inputs.name((name) {model.rename(name)});
+            eval  frp.inputs.name((name) {model.rename(name)});
             eval_ frp.inputs.commit(model.commit());
+            frp.outputs.mouse_down <+ model.view.events.mouse_down;
         }
 
 

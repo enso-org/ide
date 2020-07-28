@@ -158,11 +158,6 @@ impl BreadcrumbsModel {
         self.add_child(&self.breadcrumbs_container);
         self.project_name.set_position(Vector3(HORIZONTAL_MARGIN,0.0,0.0));
         self.set_project_name_width(self.project_name.width());
-        //FIXME[dg]: This is a workaround. Main shouldn't be a MethodPointer.
-        let mut method_pointer = enso_protocol::language_server::MethodPointer::default();
-        method_pointer.name    = "Main".to_string();
-        let method_pointer     = Rc::new(method_pointer);
-        self.push_breadcrumb(&method_pointer,&default());
         self
     }
 
@@ -226,15 +221,6 @@ impl BreadcrumbsModel {
                 eval_ breadcrumb.frp.outputs.selected(model.select_breadcrumb(breadcrumb_index));
             }
 
-
-            // === GUI Update ===
-
-            frp::extend! { network
-                eval self.project_name.frp.outputs.width((width) {
-                    model.set_project_name_width(*width)
-                });
-            }
-
             info!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
             breadcrumb.set_position(Vector3(self.width(),0.0,0.0));
             breadcrumb.frp.fade_in.emit(());
@@ -246,17 +232,18 @@ impl BreadcrumbsModel {
     }
 
     fn pop_breadcrumb(&self) {
+        debug!(self.logger, "Popping {self.current_index.get()}");
         if self.current_index.get() > 0 {
             info!(self.logger, "Popping breadcrumb view.");
             self.current_index.set(self.current_index.get() - 1);
+            self.update_selection();
         }
-        self.update_selection();
     }
 
     fn update_selection(&self) {
-        let current_index = self.current_index.get() - 1;
+        let current_index = self.current_index.get();
         for (index,breadcrumb) in self.breadcrumbs.borrow_mut().iter().enumerate() {
-            if index == current_index {
+            if index + 1 == current_index {
                 breadcrumb.frp.select.emit(());
             } else {
                 breadcrumb.frp.deselect.emit(());
@@ -305,6 +292,24 @@ impl Breadcrumbs {
             });
             eval_ frp.pop_breadcrumb(model.pop_breadcrumb());
         }
+
+
+        // === GUI Update ===
+
+        frp::extend! { network
+            eval model.project_name.frp.outputs.width((width) {
+                model.set_project_name_width(*width)
+            });
+        }
+
+
+        // === User Interaction ===
+
+        frp::extend! {network
+            eval_ model.project_name.frp.outputs.mouse_down(model.select_breadcrumb(0));
+        }
+
+
         Self{frp,model}
     }
 }
