@@ -1098,38 +1098,6 @@ impl GraphEditorModel {
         Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name}//visualizations }
     }
 
-    fn create_edge(&self) -> EdgeId {
-        let edge    = Edge::new(component::Edge::new(&self.scene));
-        let edge_id = edge.id();
-        self.add_child(&edge);
-        self.edges.insert(edge.clone_ref());
-        edge_id
-    }
-
-    fn new_edge_from_output(&self) -> EdgeId {
-        let edge_id = self.create_edge();
-
-        let first_detached = self.edges.detached_target.is_empty();
-        self.edges.detached_target.insert(edge_id);
-        if first_detached {
-            self.frp.some_edge_targets_detached.emit(());
-        }
-
-        edge_id
-    }
-
-    fn new_edge_from_input(&self) -> EdgeId {
-        let edge_id = self.create_edge();
-
-        let first_detached = self.edges.detached_source.is_empty();
-        self.edges.detached_source.insert(edge_id);
-        if first_detached {
-            self.frp.some_edge_sources_detached.emit(());
-        }
-
-        edge_id
-    }
-
     pub fn all_nodes(&self) -> Vec<NodeId> {
         self.nodes.all.keys()
     }
