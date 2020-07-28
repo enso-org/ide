@@ -159,15 +159,15 @@ impl BreadcrumbsModel {
         self.add_child(&self.project_name);
         self.add_child(&self.breadcrumbs_container);
         self.project_name.set_position(Vector3(HORIZONTAL_MARGIN,0.0,0.0));
-        self.set_project_name_width(self.project_name.width());
+        self.relayout_for_project_name_width(self.project_name.width());
         self
     }
 
     fn width(&self) -> f32 {
-        self.breadcrumbs.borrow().iter().fold(0.0, |acc,breadcrumb| acc + breadcrumb.width())
+        self.breadcrumbs.borrow().iter().map(|breadcrumb| breadcrumb.width()).sum()
     }
 
-    fn set_project_name_width(&self, width:f32) {
+    fn relayout_for_project_name_width(&self, width:f32) {
         self.breadcrumbs_container.set_position(Vector3(HORIZONTAL_MARGIN + width,0.0,0.0));
     }
 
@@ -176,8 +176,8 @@ impl BreadcrumbsModel {
         match index.cmp(&current_index) {
             cmp::Ordering::Less => {
                 // If we have more crumbs after `index`, we will pop them.
-                let pop_amount = current_index - index;
-                for _ in 0..pop_amount {
+                let popped_count = current_index - index;
+                for _ in 0..popped_count {
                     self.frp_outputs.breadcrumb_pop.emit(());
                 }
             },
@@ -188,6 +188,8 @@ impl BreadcrumbsModel {
                     }).as_ref().cloned();
                     if let Some((method_pointer,expression_id)) = info {
                         self.frp_outputs.breadcrumb_push.emit((Some(method_pointer),expression_id));
+                    } else {
+                        break;
                     }
                 }
             },
@@ -302,7 +304,7 @@ impl Breadcrumbs {
 
         frp::extend! { network
             eval model.project_name.frp.outputs.width((width) {
-                model.set_project_name_width(*width)
+                model.relayout_for_project_name_width(*width)
             });
         }
 

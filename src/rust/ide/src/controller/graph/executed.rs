@@ -147,6 +147,10 @@ impl Handle {
     ///
     /// This will cause pushing a new stack frame to the execution context and changing the graph
     /// controller to point to a new definition.
+    ///
+    /// Fails if there's no information about target node (e.g. because node value hasn't
+    /// been yet computed by the engine) or if method graph cannot be created (see
+    /// `graph_for_method` documentation).
     pub async fn enter_method_pointer
     (&self, node:double_representation::node::Id, method_ptr:&MethodPointer) -> FallibleResult<()> {
         let graph = controller::Graph::new_method(&self.logger,&self.project,&method_ptr).await?;
@@ -171,6 +175,7 @@ impl Handle {
     /// `graph_for_method` documentation).
     pub fn node_method_pointer
     (&self, node:double_representation::node::Id) -> FallibleResult<Rc<MethodPointer>> {
+        debug!(self.logger, "Entering node {node}.");
         let registry   = self.execution_ctx.computed_value_info_registry();
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
         node_info.method_pointer.as_ref().cloned().ok_or_else(|| NoResolvedMethod(node).into())
@@ -181,11 +186,10 @@ impl Handle {
     /// This will cause pushing a new stack frame to the execution context and changing the graph
     /// controller to point to a new definition.
     ///
-    /// Fails if there's no information about target method pointer (e.g. because node value hasn't
+    /// Fails if there's no information about target node (e.g. because node value hasn't
     /// been yet computed by the engine) or if method graph cannot be created (see
     /// `graph_for_method` documentation).
     pub async fn enter_node(&self, node:double_representation::node::Id) -> FallibleResult<()> {
-        debug!(self.logger, "Entering node {node}.");
         let method_ptr = self.node_method_pointer(node)?;
         self.enter_method_pointer(node,&method_ptr).await
     }

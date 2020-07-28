@@ -21,7 +21,6 @@ use ide_view::graph_editor::EdgeTarget;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
-use enso_protocol::language_server::MethodPointer;
 
 
 
