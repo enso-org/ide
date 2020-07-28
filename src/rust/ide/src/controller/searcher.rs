@@ -248,9 +248,12 @@ impl ThisNode {
 #[allow(missing_docs)]
 pub enum Mode {
     /// Searcher should add a new node at given position.
-    NewNode {position:Option<Position>},
+    NewNode {
+        position:Option<Position>,
+        //this_var:Option<ThisNode>,
+    },
     /// Searcher should edit existing node's expression.
-    EditNode {node_id:ast::Id}
+    EditNode {node_id:ast::Id},
 }
 
 /// A fragment filled by single picked completion suggestion.
@@ -303,9 +306,10 @@ impl Data {
                 id                : CompletedFragmentId::Function,
                 picked_suggestion : entry
             };
-            // TODO [mwu]
-            //   Consider if we want to deal with "this" node in the editing case?
-            fragment.is_still_unmodified(&input,None).and_option(Some(fragment))
+            // When editing node, we don't have any special handling for "this" node.
+            // This might be revisited in the future.
+            let this_var = None;
+            fragment.is_still_unmodified(&input,this_var).and_option(Some(fragment))
         });
         let mut fragments_added_by_picking = Vec::<FragmentAddedByPickingSuggestion>::new();
         initial_fragment.for_each(|f| fragments_added_by_picking.push(f));
@@ -641,6 +645,17 @@ mod test {
         code_location : enso_protocol::language_server::Position,
     }
 
+    impl MockData {
+        fn change_main_body(&mut self, line:&str) {
+            let code     = dbg!(crate::test::mock::main_from_lines(&[line]));
+            let location = data::text::TextLocation::at_document_end(&code);
+            // TODO [mwu] Not nice that we end up with duplicated mock data for code.
+            self.graph.module.code = code.clone();
+            self.graph.graph.code  = code;
+            self.code_location     = location.into();
+        }
+    }
+
     struct Fixture {
         test     : TestWithLocalPoolExecutor,
         searcher : Searcher,
@@ -710,44 +725,58 @@ mod test {
         }
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn loading_list_w_self() {
-        let this_typename = crate::test::mock::data::TYPE_NAME;
-        let mut test = TestWithLocalPoolExecutor::set_up();
-        let Fixture{searcher,entry1,..} = Fixture::new_custom(|data,client| {
-            //data.this = Some(this_node_id);
-            data.selected_node = true;
-            let completion_response = language_server::response::Completion {
-                results         : vec![1,5,9],
-                current_version : default(),
-            };
+        struct Case {
+            /// The single line of the initial `main` body.
+            node_line       : &'static str,
+            /// Expected input after accepting "entry1" twice. `{}` will expand to the entry's
+            /// function name.
+            expected_input : &'static str,
+        };
 
-            expect_call!(client.completion(
+        let cases = [
+            Case {node_line:"2+2", expected_input:"sum1.{} {} "},
+            Case {node_line:"the_sum = 2 + 2", expected_input:"the_sum.{} {} "},
+            Case {node_line:"[x,y] = 2 + 2", expected_input:"{} {} "},
+        ];
+
+        for case in &cases {
+            let this_typename = crate::test::mock::data::TYPE_NAME;
+            let Fixture { mut test, searcher, entry1, .. } = Fixture::new_custom(|data, client| {
+                data.change_main_body(case.node_line);
+                data.selected_node = true;
+                let completion_response = language_server::response::Completion {
+                    results: vec![1, 5, 9],
+                    current_version: default(),
+                };
+
+                expect_call!(client.completion(
                 module      = data.graph.module.path.file_path().clone(),
                 position    = data.code_location,
                 self_type   = Some(this_typename.to_owned()),
                 return_type = None,
                 tag         = None
             ) => Ok(completion_response));
-        });
+            });
 
-        searcher.reload_list();
-        assert!(searcher.suggestions().is_loading());
-        test.run_until_stalled();
-        // Nothing appeared, because we wait for type information for this node.
-        assert!(searcher.suggestions().is_loading());
+            searcher.reload_list();
+            assert!(searcher.suggestions().is_loading());
+            test.run_until_stalled();
+            // Nothing appeared, because we wait for type information for this node.
+            assert!(searcher.suggestions().is_loading());
 
-        let this_node_id = searcher.this.deref().as_ref().unwrap().id;
-        let update       = value_update_with_type(this_node_id,this_typename);
-        searcher.graph.computed_value_info_registry().apply_updates(vec![update]);
-        assert!(searcher.suggestions().is_loading());
-        test.run_until_stalled();
-        assert!(!searcher.suggestions().is_loading());
-        searcher.pick_completion(entry1.clone_ref()).unwrap();
-        searcher.pick_completion(entry1).unwrap();
-        // The "this" variable (namely the "sum") should be part only of the function segment,
-        // not the argument.
-        assert_eq!(searcher.data.borrow().input.repr(), "sum.TestFunction1 TestFunction1 ");
+            let this_node_id = searcher.this.deref().as_ref().unwrap().id;
+            let update = value_update_with_type(this_node_id, this_typename);
+            searcher.graph.computed_value_info_registry().apply_updates(vec![update]);
+            assert!(searcher.suggestions().is_loading());
+            test.run_until_stalled();
+            assert!(!searcher.suggestions().is_loading());
+            searcher.pick_completion(entry1.clone_ref()).unwrap();
+            searcher.pick_completion(entry1).unwrap();
+            let expected_input = case.expected_input.replace("{}","testFunction1");
+            assert_eq!(searcher.data.borrow().input.repr(),expected_input);
+        }
     }
 
 

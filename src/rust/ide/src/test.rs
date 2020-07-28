@@ -1,15 +1,22 @@
 //! Module for support code for writing tests.
 
-//! Utilities for mocking IDE components.
+use crate::prelude::*;
+
+/// Utilities for mocking IDE components.
 #[cfg(test)]
 pub mod mock {
-    //! Data used to create mock IDE components.
-    //!
-    //! Contains a number of constants and functions building more complex structures from them.
-    //! The purpose is to allow different parts of tests that mock different models using
-    //! consistent data.
+    use super::*;
+
+
+    /// Data used to create mock IDE components.
+    ///
+    /// Contains a number of constants and functions building more complex structures from them.
+    /// The purpose is to allow different parts of tests that mock different models using
+    /// consistent data.
     #[allow(missing_docs)]
     pub mod data {
+        use super::*;
+
         use enso_protocol::language_server::Position;
 
         pub const PROJECT_NAME    : &str     = "MockProject";
@@ -30,5 +37,14 @@ pub mod mock {
         pub fn graph_id() -> crate::double_representation::graph::Id {
             crate::double_representation::graph::Id::new_plain_name(DEFINITION_NAME)
         }
+    }
+
+    pub fn indent(line:impl AsRef<str>) -> String {
+        iformat!("    {line.as_ref()}")
+    }
+
+    pub fn main_from_lines(lines:impl IntoIterator<Item:AsRef<str>>) -> String {
+        let body = lines.into_iter().map(indent).join("\n");
+        iformat!("main = \n{body}")
     }
 }
