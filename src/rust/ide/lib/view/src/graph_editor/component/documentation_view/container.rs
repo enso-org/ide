@@ -40,15 +40,14 @@ pub mod background {
     use super::*;
 
     ensogl::define_shape_system! {
-        (selected:f32,radius:f32,roundness:f32) {
+        (style:Style,selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius        = 1.px() * &radius;
-            // let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let color_bg      = color::Rgba::new(1.0,0.0,0.0,1.0);
+            let color_bg      = style.get("graph_editor.node.background.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background    = background.fill(color_bg);
+            let background    = background.fill(color::Rgba::from(color_bg));
             background.into()
         }
     }
@@ -64,9 +63,9 @@ pub mod overlay {
         (selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let radius        = 1.px() * &radius;
+            let radius        = 2.px() * &radius;
             let corner_radius = &radius * &roundness;
-            let color_overlay = color::Rgba::new(1.0,0.0,0.0,1.0);
+            let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
             let overlay       = Rect((&width,&height)).corners_radius(&corner_radius);
             let overlay       = overlay.fill(color_overlay);
             overlay.into()
@@ -217,7 +216,8 @@ impl ContainerModel {
         self.set_visibility(!self.is_visible())
     }
 
-    fn set_doc_data(&self, data:&String) {
+    // TODO TODO TODO TODO
+    fn set_doc_data(&self, data:&str) {
         self.data.borrow().for_each_ref(|_x| data)
     }
 
@@ -291,8 +291,7 @@ impl Container {
         }
 
         inputs.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
-        //size.skip();
-        model.set_doc_data(&"<html></html>".to_string());
+        model.set_doc_data(&"<html></html>");
         self
     }
 }
