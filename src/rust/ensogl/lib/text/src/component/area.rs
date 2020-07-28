@@ -478,7 +478,7 @@ impl Area {
 /// Selection contains a `right_side` display object which is always placed on its right side. It is
 /// used for smooth glyph animation. For example, after several glyphs were selected and removed,
 /// the selection will gradually shrink. Making all following glyphs children of the `right_side`
-/// object will make the following glyphs animate while the selection is shrinking.
+/// object will make the following glyphs  animate while the selection is shrinking.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Selection {
     shape_view : component::ShapeView<cursor::Shape>,
@@ -519,10 +519,13 @@ impl Selection {
                 let sel_width = *sel_width;
                 right_side.set_position_x(sel_width);
                 let side      = sel_width.signum();
+                println!("!@ {:?}",side);
                 let width     = (CURSOR_PADDING * 2.0 + CURSOR_WIDTH) * side + sel_width;
+//                let width     = (CURSOR_PADDING * 2.0 - 1.0) * side + sel_width;
                 view.shape.sprite.size.set(Vector2(width,20.0));
 
                 let x    = p.x - (CURSOR_PADDING + CURSOR_WIDTH/2.0) * side;
+//                let x    = p.x - (CURSOR_PADDING - 0.5) * side;
                 let pos = Vector2(x,p.y);
                 view.set_position_xy(pos);
             }));
@@ -627,10 +630,14 @@ impl AreaData {
 
             let selection = match selection_map.id_map.remove(&id) {
                 Some(selection) => {
-                    if width == 0.0 && selection.width.simulator.target_value() != 0.0 {
-                        if pos.x != selection.position.simulator.target_value().x {
-                            selection.flip_sides();
-                        }
+                    let select_left  = selection.width.simulator.target_value() < 0.0;
+                    let select_right = selection.width.simulator.target_value() > 0.0;
+                    let mid_point    = selection.position.simulator.target_value().x + selection.width.simulator.target_value() / 2.0;
+                    let go_left      = pos.x < mid_point;
+                    let go_right     = pos.x > mid_point;
+                    let need_flip    = (select_left && go_left) || (select_right && go_right);
+                    if width == 0.0 && need_flip {
+                        selection.flip_sides();
                     }
 
                     selection.position.set_target_value(pos);
@@ -744,7 +751,8 @@ impl AreaData {
                 self.selection_map.borrow().id_map.get(id).for_each(|cursor| {
                     if cursor.edit_mode.get() {
                         last_cursor = Some(cursor.clone_ref());
-                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING - CURSOR_WIDTH/2.0, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET );
+                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING - CURSOR_WIDTH/2.0, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET);
+//                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING + 0.5, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET );
                     }
                 });
             });

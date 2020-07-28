@@ -189,23 +189,15 @@ impl ViewBuffer {
         println!("delete_left");
         let mut result = selection::Group::new();
         let mut offset = 0.bytes();
-        for selection in &*self.selection.borrow() {
-            println!(">>> {:?}", selection);
-            let this_selection = selection.map(|t|t-offset);
-            println!("1");
-            let range          = this_selection.range();
-            let prev           = || self.prev_grapheme_offset(range.start).unwrap_or(range.start);
-            println!("2 {:?}", range);
-            let start          = if this_selection.is_caret() {prev()} else {range.start};
-            println!("3 {:?}", start);
-            let range          = range.with_start(start);
-            println!("4 {:?}",range);
+        for rel_selection in &*self.selection.borrow() {
+            let selection = rel_selection.map(|t|t-offset);
+            let range     = selection.range();
+            let prev      = || self.prev_grapheme_offset(range.start).unwrap_or(range.start);
+            let start     = if selection.is_caret() {prev()} else {range.start};
+            let range     = range.with_start(start);
+            offset += range.size();
             self.buffer.data.borrow_mut().insert(range,&("".into()));
-            println!("5");
-//            offset += range.size();
-//            println!("6 {:?} {:?}",selection.as_caret(),offset);
-            let new_selection = selection.map(|_|start);
-            println!("7");
+            let new_selection = rel_selection.map(|_|start);
             result.add(new_selection);
         }
         result
