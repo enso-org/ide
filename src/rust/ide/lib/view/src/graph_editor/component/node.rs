@@ -203,6 +203,7 @@ pub struct NodeModel {
     pub drag_area      : component::ShapeView<drag_area::Shape>,
     pub ports          : port::Manager,
     pub visualization  : visualization::Container,
+    pub documentation_view  : documentation_view::Container,
     pub output_ports   : OutputPorts,
 }
 
@@ -248,13 +249,13 @@ impl NodeModel {
 
         display_object.add_child(&visualization);
 
-        // let documentation_view = documentation_view::Container::new(&logger,&scene);
-        // documentation_view.mod_position(|t| {
-        //     t.x = 60.0;
-        //     t.y = 120.0;
-        // });
-        //
-        // display_object.add_child(&documentation_view);
+        let documentation_view = documentation_view::Container::new(&logger,&scene);
+        documentation_view.mod_position(|t| {
+            t.x = 60.0;
+            t.y = 120.0;
+        });
+
+        display_object.add_child(&documentation_view);
 
         ports.mod_position(|p| {
             p.x = TEXT_OFF;
@@ -271,7 +272,7 @@ impl NodeModel {
 
 
         Self {scene,display_object,logger,frp,main_area,drag_area,output_ports,ports
-             ,visualization} . init()
+             ,visualization,documentation_view} . init()
     }
 
     fn init(self) -> Self {

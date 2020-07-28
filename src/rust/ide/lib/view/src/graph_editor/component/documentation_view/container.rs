@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::graph_editor::documentation_view;
+// use crate::graph_editor::documentation_view;
 
 
 use enso_frp as frp;
@@ -219,7 +219,7 @@ impl ContainerModel {
     }
 
     fn set_doc_data(&self, data:&String) {
-        self.data.borrow().for_each_ref(|x| data)
+        self.data.borrow().for_each_ref(|_x| data)
     }
 
     fn update_shape_sizes(&self) {
@@ -278,7 +278,7 @@ impl Container {
         Self {model,frp,network} . init(scene)
     }
 
-    fn init(self,scene:&Scene) -> Self {
+    fn init(self,_scene:&Scene) -> Self {
         let inputs  = &self.frp;
         let network = &self.network;
         let model   = &self.model;
