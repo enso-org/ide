@@ -45,10 +45,10 @@ pub mod background {
             let height : Var<Pixels> = "input_size.y".into();
             let radius        = 1.px() * &radius;
             // let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let color_bg      = color::Lcha::new(1.0,0.0,0.0,1.0);
+            let color_bg      = color::Rgba::new(1.0,0.0,0.0,1.0);
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background    = background.fill(color::Rgba::from(color_bg));
+            let background    = background.fill(color_bg);
             background.into()
         }
     }
@@ -66,11 +66,10 @@ pub mod overlay {
             let height : Var<Pixels> = "input_size.y".into();
             let radius        = 1.px() * &radius;
             let corner_radius = &radius * &roundness;
-            let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
+            let color_overlay = color::Rgba::new(1.0,0.0,0.0,1.0);
             let overlay       = Rect((&width,&height)).corners_radius(&corner_radius);
             let overlay       = overlay.fill(color_overlay);
-            let out           = overlay;
-            out.into()
+            overlay.into()
         }
     }
 }
@@ -191,7 +190,7 @@ impl ContainerModel {
         self.init_corner_roundness();
         // FIXME: These 2 lines fix a bug with display objects visible on stage.
         self.set_visibility(true);
-        // self.set_visibility(false);
+        self.set_visibility(false);
         self
     }
 
@@ -292,7 +291,7 @@ impl Container {
         }
 
         inputs.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
-        size.skip();
+        //size.skip();
         model.set_doc_data(&"<html></html>".to_string());
         self
     }

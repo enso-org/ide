@@ -21,7 +21,7 @@ pub mod data;
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization;
-use crate::graph_editor::component::documentation_view;
+// use crate::graph_editor::component::documentation_view;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -1105,7 +1105,7 @@ impl GraphEditorModel {
     fn enable_visualization(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.visualization.frp.set_visibility.emit(true);
+            node.documentation_view.frp.set_visibility.emit(true);
         }
     }
 
@@ -1113,7 +1113,7 @@ impl GraphEditorModel {
     fn disable_visualization(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.visualization.frp.set_visibility.emit(false);
+            node.documentation_view.frp.set_visibility.emit(false);
         }
     }
 
@@ -2047,7 +2047,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_tgt_nodes_off    <- viz_tgt_nodes.map(f!([model](node_ids) {
         node_ids.iter().cloned().filter(|node_id| {
             model.nodes.get_cloned_ref(node_id)
-                .map(|node| !node.visualization.is_visible())
+                .map(|node| !node.documentation_view.is_visible())
                 .unwrap_or_default()
         }).collect_vec()
     }));
