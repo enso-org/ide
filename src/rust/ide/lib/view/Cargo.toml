@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 ast                  = { version = "0.1.0", path = "../ast/impl"                    }
+parser               = { version = "0.1.0", path = "../parser"                      }
 enso-frp             = { version = "0.1.0", path = "../../../lib/frp"               }
 enso-prelude         = { version = "0.1.0", path = "../../../lib/enso-prelude"      }
 ensogl               = { version = "0.1.0", path = "../../../ensogl"                }
