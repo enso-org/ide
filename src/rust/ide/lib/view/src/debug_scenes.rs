@@ -2,6 +2,7 @@
 
 //TODO[ao] many of those should be moved to analogous crate in ensogl/lib directory.
 
+pub mod documentation_generator_view;
 pub mod dom_symbols;
 pub mod easing_animator;
 pub mod frp;
