@@ -278,6 +278,10 @@ impl Min for f32 {
     }
 }
 
+pub fn min<T:Min>(a:T, b:T) -> T {
+    a.min(b)
+}
+
 
 
 // ===========
@@ -296,6 +300,10 @@ impl Max for f32 {
     fn max(self, other:Self) -> Self {
         self.max(other)
     }
+}
+
+pub fn max<T:Max>(a:T, b:T) -> T {
+    a.max(b)
 }
 
 

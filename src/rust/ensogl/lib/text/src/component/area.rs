@@ -503,30 +503,29 @@ impl Selection {
         let position   = Animation::new(&network);
         let width      = Animation::new(&network);
         let edit_mode  = Rc::new(Cell::new(edit_mode));
-        let right_side        = display::object::Instance::new(Logger::new("cursor"));
+        let right_side = display::object::Instance::new(Logger::new("cursor"));
 
         position.update_spring(|spring| spring*2.0);
+//        position.update_spring(|spring| spring*0.1);
+//        width.update_spring(|spring| spring*0.1);
         Self {shape_view,right_side,network,position,width,edit_mode} . init()
     }
 
     fn init(self) -> Self {
         self.add_child(&self.right_side);
-        let network = &self.network;
-        let view    = &self.shape_view;
-        let right_side     = &self.right_side;
+        let network    = &self.network;
+        let view       = &self.shape_view;
+        let right_side = &self.right_side;
         frp::extend! { network
-            _eval <- all_with(&self.position.value,&self.width.value,f!([view,right_side](p,sel_width){
-                let sel_width = *sel_width;
-                right_side.set_position_x(sel_width);
-                let side      = sel_width.signum();
-                println!("!@ {:?}",side);
-                let width     = (CURSOR_PADDING * 2.0 + CURSOR_WIDTH) * side + sel_width;
-//                let width     = (CURSOR_PADDING * 2.0 - 1.0) * side + sel_width;
-                view.shape.sprite.size.set(Vector2(width,20.0));
-
-                let x    = p.x - (CURSOR_PADDING + CURSOR_WIDTH/2.0) * side;
-//                let x    = p.x - (CURSOR_PADDING - 0.5) * side;
-                let pos = Vector2(x,p.y);
+            _eval <- all_with(&self.position.value,&self.width.value,f!([view,right_side](p,width){
+                let side         = width.signum();
+                let a_width      = width.abs();
+                let (width,off)  = if a_width < CURSOR_WIDTH { (CURSOR_WIDTH,-CURSOR_WIDTH/2.0) } else { (a_width - 1.0,0.5) };
+                let canvas_width = (CURSOR_PADDING * 2.0 + width) * side;
+                let x            = p.x - (CURSOR_PADDING - off) * side;
+                let pos          = Vector2(x,p.y);
+                right_side.set_position_x((a_width + CURSOR_PADDING - off) * side);
+                view.shape.sprite.size.set(Vector2(canvas_width,20.0));
                 view.set_position_xy(pos);
             }));
         }
@@ -751,8 +750,8 @@ impl AreaData {
                 self.selection_map.borrow().id_map.get(id).for_each(|cursor| {
                     if cursor.edit_mode.get() {
                         last_cursor = Some(cursor.clone_ref());
-                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING - CURSOR_WIDTH/2.0, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET);
-//                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING + 0.5, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET );
+//                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING - CURSOR_WIDTH/2.0, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET);
+                        last_cursor_origin = Vector2(info.offset, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET );
                     }
                 });
             });
