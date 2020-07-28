@@ -43,9 +43,14 @@ pub fn is_assignment_opr(ast:&Ast) -> bool {
     is_opr_named(ast,predefined::ASSIGNMENT)
 }
 
-/// Checks if given Ast is an assignment operator identifier.
+/// Checks if given Ast is an arrow operator identifier.
 pub fn is_arrow_opr(ast:&Ast) -> bool {
     is_opr_named(ast,predefined::ARROW)
+}
+
+/// Checks if given Ast is an access operator identifier.
+pub fn is_access_opr(ast:&Ast) -> bool {
+    is_opr_named(ast,predefined::ACCESS)
 }
 
 /// If given Ast is a specific infix operator application, returns it.

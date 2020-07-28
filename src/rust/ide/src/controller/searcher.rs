@@ -620,6 +620,18 @@ impl Searcher {
         Ok(())
     }
 
+    fn return_type_of_next_completion(&self) -> String {
+
+    }
+
+    fn possible_function_calls(&self, ast:&Ast) -> SmallVec<[CompletionSuggestion;8]> {
+        if let Some(name) = ast::identifier::name(ast) {
+            self.database.lookup_by_name_and_location(name,position)
+        } else if let Ok(infix) = ast::known::Infix::try_new(ast.clone_ref()) {
+
+        }
+    }
+
     /// Returns the Id of method user intends to be called in this node.
     ///
     /// The method may be picked by user from suggestion, but there are many methods with the same
