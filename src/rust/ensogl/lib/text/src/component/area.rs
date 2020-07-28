@@ -504,10 +504,15 @@ impl Selection {
         let width      = Animation::new(&network);
         let edit_mode  = Rc::new(Cell::new(edit_mode));
         let right_side = display::object::Instance::new(Logger::new("cursor"));
+        let debug      = false; // Change to true to slow-down movement for debug purposes.
+        if  debug {
+            position . update_spring (|spring| spring * 0.1);
+            width    . update_spring (|spring| spring * 0.1);
+        } else {
+            position . update_spring (|spring| spring * 1.5);
+            width    . update_spring (|spring| spring * 1.5);
 
-        position.update_spring(|spring| spring*2.0);
-//        position.update_spring(|spring| spring*0.1);
-//        width.update_spring(|spring| spring*0.1);
+        }
         Self {shape_view,right_side,network,position,width,edit_mode} . init()
     }
 
