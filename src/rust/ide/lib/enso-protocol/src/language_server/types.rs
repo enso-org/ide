@@ -19,7 +19,7 @@ pub type Event = json_rpc::handler::Event<Notification>;
 
 /// A path is a representation of a path relative to a specified content root.
 // FIXME [mwu] Consider rename to something like `FilePath`, see https://github.com/luna/enso/issues/708
-#[derive(Clone,Debug,Default,Serialize,Deserialize,Hash,PartialEq,Eq)]
+#[derive(Clone,Debug,Serialize,Deserialize,Hash,PartialEq,Eq)]
 #[serde(rename_all="camelCase")]
 pub struct Path {
     /// Path's root id.
@@ -391,7 +391,7 @@ pub struct LocalCall {
 }
 
 /// Points to a method definition.
-#[derive(Hash,Debug,Default,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct MethodPointer {
