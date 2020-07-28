@@ -90,7 +90,8 @@ impl FrpInputs {
 pub struct FrpOutputs {
     pub name       : frp::Source<String>,
     pub width      : frp::Source<f32>,
-    pub mouse_down : frp::Any
+    pub mouse_down : frp::Any,
+    pub edit_mode  : frp::Source<bool>
 }
 
 impl FrpOutputs {
@@ -100,8 +101,9 @@ impl FrpOutputs {
             name       <- source();
             width      <- source();
             mouse_down <- any_mut();
+            edit_mode  <- source();
         }
-        Self{name,width,mouse_down}
+        Self{name,width,mouse_down,edit_mode}
     }
 }
 
@@ -180,7 +182,8 @@ pub struct ProjectNameModel {
     text_field     : TextField,
     project_name   : Rc<RefCell<String>>,
     name_output    : frp::Source<String>,
-    width_output   : frp::Source<f32>
+    width_output   : frp::Source<f32>,
+    edit_mode      : frp::Source<bool>
 }
 
 impl ProjectNameModel {
@@ -200,9 +203,10 @@ impl ProjectNameModel {
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let name_output           = frp.outputs.name.clone();
         let width_output          = frp.outputs.width.clone();
+        let edit_mode             = frp.outputs.edit_mode.clone();
         let animations            = Animations::new(&frp.network);
         Self{logger,view,display_object,text_field,project_name,name_output,animations,
-            width_output}.init()
+            width_output,edit_mode}.init()
     }
 
     /// Get the width of the ProjectName view.
@@ -257,9 +261,11 @@ impl ProjectNameModel {
     }
 
     fn commit(&self) {
+        debug!(self.logger, "Committing name.");
         let name = self.text_field.get_content();
         self.name_output.emit(&name);
         *self.project_name.borrow_mut() = name;
+        self.edit_mode.emit(false);
     }
 
     fn is_focused(&self) -> bool {
@@ -304,6 +310,7 @@ impl ProjectName {
             eval  frp.inputs.name((name) {model.rename(name)});
             eval_ frp.inputs.commit(model.commit());
             frp.outputs.mouse_down <+ model.view.events.mouse_down;
+            eval_ model.view.events.mouse_down(frp.outputs.edit_mode.emit(true));
         }
 
 

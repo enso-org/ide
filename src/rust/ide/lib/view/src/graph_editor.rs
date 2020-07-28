@@ -1502,8 +1502,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Commit project name edit ===
 
+    let project_name = &model.breadcrumbs.project_name;
+
     frp::extend! { network
-        eval_ touch.background.selected({
+        commit_if_changed <- touch.background.selected.gate(&project_name.frp.outputs.edit_mode);
+        eval_ commit_if_changed({
             model.breadcrumbs.project_name.frp.commit.emit(())
         });
     }
