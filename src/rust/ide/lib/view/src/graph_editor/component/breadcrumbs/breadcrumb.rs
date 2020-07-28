@@ -7,6 +7,8 @@ use super::HORIZONTAL_MARGIN;
 use super::VERTICAL_MARGIN;
 use super::TEXT_SIZE;
 
+use crate::graph_editor::MethodPointer;
+
 use enso_frp as frp;
 use ensogl::animation::linear_interpolation;
 use ensogl::data::color;
@@ -21,7 +23,6 @@ use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::display::Sprite;
 use ensogl::gui::component;
 use ensogl::gui::component::Animation;
-use enso_protocol::language_server::MethodPointer;
 use logger::enabled::Logger;
 use logger::AnyLogger;
 use nalgebra::Vector2;
@@ -233,7 +234,7 @@ impl Frp {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct BreadcrumbInfo {
-    pub method_pointer : Rc<MethodPointer>,
+    pub method_pointer : MethodPointer,
     pub expression_id  : uuid::Uuid
 }
 
@@ -261,7 +262,7 @@ pub struct BreadcrumbModel {
 impl BreadcrumbModel {
     /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>
-    (scene:S, frp:&Frp,method_pointer:&Rc<MethodPointer>, expression_id:&uuid::Uuid) -> Self {
+    (scene:S, frp:&Frp,method_pointer:&MethodPointer, expression_id:&uuid::Uuid) -> Self {
         let scene          = scene.into();
         let logger         = Logger::new("Breadcrumbs");
         let display_object = display::object::Instance::new(&logger);
@@ -377,7 +378,7 @@ pub struct Breadcrumb {
 impl Breadcrumb {
     /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>
-    (scene:S, method_pointer:&Rc<MethodPointer>, expression_id:&uuid::Uuid) -> Self {
+    (scene:S, method_pointer:&MethodPointer, expression_id:&uuid::Uuid) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(BreadcrumbModel::new(scene,&frp,method_pointer,expression_id));
         let network = &frp.network;

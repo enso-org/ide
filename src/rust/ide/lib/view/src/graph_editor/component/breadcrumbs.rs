@@ -9,8 +9,9 @@ pub mod project_name;
 pub use breadcrumb::Breadcrumb;
 pub use project_name::ProjectName;
 
+use crate::graph_editor::MethodPointer;
+
 use enso_frp as frp;
-use enso_protocol::language_server::MethodPointer;
 use ensogl::display;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
@@ -42,7 +43,7 @@ const TEXT_SIZE         : f32 = 12.0;
 #[allow(missing_docs)]
 pub struct FrpInputs {
     /// Push breadcrumb.
-    pub push_breadcrumb : frp::Source<(Option<Rc<MethodPointer>>,Uuid)>,
+    pub push_breadcrumb : frp::Source<(Option<MethodPointer>,Uuid)>,
     /// Pop breadcrumb.
     pub pop_breadcrumb : frp::Source,
 }
@@ -67,7 +68,7 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    pub breadcrumb_push : frp::Source<(Option<Rc<MethodPointer>>,Uuid)>,
+    pub breadcrumb_push : frp::Source<(Option<MethodPointer>,Uuid)>,
     pub breadcrumb_pop  : frp::Source
 }
 
@@ -195,7 +196,7 @@ impl BreadcrumbsModel {
         info!(self.logger,"Selecting breadcrumb #{index}");
     }
 
-    fn push_breadcrumb(&self, method_pointer:&Option<Rc<MethodPointer>>, expression_id:&Uuid) {
+    fn push_breadcrumb(&self, method_pointer:&Option<MethodPointer>, expression_id:&Uuid) {
         if let Some(method_pointer) = method_pointer {
             let current_index = self.current_index.get();
             let next_index = current_index + 1;
