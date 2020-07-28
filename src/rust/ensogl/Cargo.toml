@@ -28,21 +28,21 @@ logger                     = { version = "0.1.0" , path = "../lib/logger"       
 optics                     = { version = "0.1.0" , path = "../lib/optics"            }
 enso-shapely               = { version = "0.1.0" , path = "../lib/enso-shapely/impl" }
 
-bit_field                  = { version = "0.10.0"                                }
-console_error_panic_hook   = { version = "0.1.6"                                 }
-enum_dispatch              = { version = "0.2.0"                                 }
-failure                    = { version = "0.1.5"                                 }
-Inflector                  = { version = "0.11.4"                                }
-itertools                  = { version = "0.8"                                   }
-js-sys                     = { version = "0.3.28"                                }
-nalgebra                   = { version = "0.21.1"                                }
-num_enum                   = { version = "0.4.2"                                 }
-num-traits                 = { version = "0.2"                                   }
-paste                      = { version = "0.1.6"                                 }
-rustc-hash                 = { version = "1.0.1"                                 }
-shrinkwraprs               = { version = "0.3.0"                                 }
-smallvec                   = { version = "1.0.0"                                 }
-typenum                    = { version = "1.11.2"                                }
+bit_field                  = { version = "0.10.0"                                  }
+console_error_panic_hook   = { version = "0.1.6"                                   }
+enum_dispatch              = { version = "0.2.0"                                   }
+failure                    = { version = "0.1.5"                                   }
+Inflector                  = { version = "0.11.4"                                  }
+itertools                  = { version = "0.8"                                     }
+js-sys                     = { version = "0.3.28"                                  }
+nalgebra                   = { version = "0.21.1" , features = ["serde-serialize"] }
+num_enum                   = { version = "0.4.2"                                   }
+num-traits                 = { version = "0.2"                                     }
+paste                      = { version = "0.1.6"                                   }
+rustc-hash                 = { version = "1.0.1"                                   }
+shrinkwraprs               = { version = "0.3.0"                                   }
+smallvec                   = { version = "1.0.0"                                   }
+typenum                    = { version = "1.11.2"                                  }
 
 # We require exact version of wasm-bindgen because we do patching final js in our build process,
 # and this is vulnerable to any wasm-bindgen version change.
