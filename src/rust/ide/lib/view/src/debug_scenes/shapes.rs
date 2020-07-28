@@ -72,23 +72,6 @@ impl DummyTypeGenerator {
     }
 }
 
-/// Allows executing a closure for every node in a span tree. Can be used to initialise the debug
-/// scene with type information information about every node.
-fn visit_span_tree_nodes<F:FnMut(&span_tree::Node)>(span_tree:&span_tree::SpanTree, mut f:F) {
-    let mut to_visit = vec![span_tree.root_ref()];
-    loop {
-        match to_visit.pop() {
-            None       => break,
-            Some(node) => {
-                let skip          = node.kind.is_empty();
-                if !skip { f(&node) };
-                to_visit.extend(node.children_iter());
-            }
-        }
-    }
-}
-
-
 /// Allows modifying every node in a span tree through a closure. Can be used to initialise the
 /// span tree with type information for the debug scene.
 fn visit_span_tree_nodes_mut<F:FnMut(&mut span_tree::Node)>(span_tree:&mut span_tree::SpanTree, mut f:F) {
@@ -146,13 +129,13 @@ fn init(app:&Application) {
     let mut dummy_type_generator = DummyTypeGenerator::default();
     let expression_1 = expression_mock();
     graph_editor.frp.set_node_expression.emit((node1_id,expression_1.clone()));
-    visit_span_tree_nodes(&expression_1.input_span_tree, |node| {
+    expression_1.input_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let  Some(expr_id) = node.expression_id {
             let dummy_type = Some(dummy_type_generator.get_dummy_type());
             graph_editor.frp.set_expression_type.emit((node1_id,expr_id,dummy_type));
         }
     });
-    visit_span_tree_nodes(&expression_1.output_span_tree, |node| {
+    expression_1.output_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let  Some(expr_id) = node.expression_id {
             let dummy_type = Some(dummy_type_generator.get_dummy_type());
             graph_editor.frp.set_expression_type.emit((node1_id,expr_id,dummy_type));
@@ -161,13 +144,13 @@ fn init(app:&Application) {
 
     let expression_2 = expression_mock2();
     graph_editor.frp.set_node_expression.emit((node2_id,expression_2.clone()));
-    visit_span_tree_nodes(&expression_2.input_span_tree, |node| {
+    expression_2.input_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let  Some(expr_id) = node.expression_id {
             let dummy_type = Some(dummy_type_generator.get_dummy_type());
             graph_editor.frp.set_expression_type.emit((node2_id,expr_id,dummy_type));
         }
     });
-    visit_span_tree_nodes(&expression_2.output_span_tree, |node| {
+    expression_2.output_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let  Some(expr_id) = node.expression_id {
             let dummy_type = Some(dummy_type_generator.get_dummy_type());
             graph_editor.frp.set_expression_type.emit((node2_id,expr_id,dummy_type));
