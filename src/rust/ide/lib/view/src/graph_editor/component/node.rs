@@ -252,7 +252,7 @@ impl NodeModel {
         let documentation_view = documentation_view::Container::new(&logger,&scene);
         documentation_view.mod_position(|t| {
             t.x = 60.0;
-            t.y = 120.0;
+            t.y = 150.0;
         });
 
         display_object.add_child(&documentation_view);

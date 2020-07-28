@@ -307,6 +307,13 @@ ensogl::def_command_api! { Commands
     /// Steps out of the current node, popping the topmost stack frame from the crumb list.
     exit_node,
 
+    /// Toggle the visibility of the selected documentation_view.
+    toggle_documentation_view_visibility,
+    /// Simulates a documentation_view open press event. In case the event will be shortly followed by `release_documentation_view_visibility`, the documentation_view will be shown permanently. In other case, it will be disabled as soon as the `release_documentation_view_visibility` is emitted.
+    press_documentation_view_visibility,
+    /// Simulates a documentation_view open release event. See `press_documentation_view_visibility` to learn more.
+    release_documentation_view_visibility,
+
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
     enable_node_multi_select,
     /// Disable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
@@ -541,6 +548,8 @@ generate_frp_outputs! {
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
 
+    documentation_view_enabled  : NodeId,
+    documentation_view_disabled : NodeId,
 }
 
 
@@ -1105,7 +1114,7 @@ impl GraphEditorModel {
     fn enable_visualization(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.documentation_view.frp.set_visibility.emit(true);
+            node.visualization.frp.set_visibility.emit(true);
         }
     }
 
@@ -1113,7 +1122,7 @@ impl GraphEditorModel {
     fn disable_visualization(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.documentation_view.frp.set_visibility.emit(false);
+            node.visualization.frp.set_visibility.emit(false);
         }
     }
 
@@ -1121,6 +1130,21 @@ impl GraphEditorModel {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.visualization.frp.enable_fullscreen.emit(());
+        }
+    }
+
+    // === Documentation view show/hide ===
+    fn enable_documentation_view(&self, node_id:impl Into<NodeId>) {
+        let node_id = node_id.into();
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            node.documentation_view.frp.set_visibility.emit(true);
+        }
+    }
+
+    fn disable_documentation_view(&self, node_id:impl Into<NodeId>) {
+        let node_id = node_id.into();
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            node.documentation_view.frp.set_visibility.emit(false);
         }
     }
 
@@ -1390,6 +1414,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())],&[])  , "double_press_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])  , "release_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("\\".into())],&[]) , "press_documentation_view_visibility")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character("\\".into())],&[]) , "release_documentation_view_visibility")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "toggle_node_multi_select")
@@ -2047,7 +2073,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_tgt_nodes_off    <- viz_tgt_nodes.map(f!([model](node_ids) {
         node_ids.iter().cloned().filter(|node_id| {
             model.nodes.get_cloned_ref(node_id)
-                .map(|node| !node.documentation_view.is_visible())
+                .map(|node| !node.visualization.is_visible())
                 .unwrap_or_default()
         }).collect_vec()
     }));
@@ -2063,6 +2089,34 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     outputs.visualization_disabled <+ viz_preview_disable;
     outputs.visualization_enable_fullscreen <+ viz_fullscreen_on;
 
+    // === Documentation View toggle ===
+
+    let doc_press_ev      = inputs.press_documentation_view_visibility.clone_ref();
+    let doc_release       = inputs.release_documentation_view_visibility.clone_ref();
+    doc_pressed          <- bool(&doc_release,&doc_press_ev);
+    doc_was_pressed      <- doc_pressed.previous();
+    doc_press            <- doc_press_ev.gate_not(&doc_was_pressed);
+    doc_press_time       <- doc_press   . map(|_| web::performance().now() as f32);
+    doc_release_time     <- doc_release . map(|_| web::performance().now() as f32);
+    doc_press_time_diff  <- doc_release_time.map2(&doc_press_time,|t1,t0| t1-t0);
+    doc_preview_mode     <- doc_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
+    doc_preview_mode_end <- doc_release.gate(&doc_preview_mode);
+    doc_tgt_nodes        <- doc_press.map(f_!(model.selected_nodes()));
+    doc_tgt_nodes_off    <- doc_tgt_nodes.map(f!([model](node_ids) {
+        node_ids.iter().cloned().filter(|node_id| {
+            model.nodes.get_cloned_ref(node_id)
+                .map(|node| !node.documentation_view.is_visible())
+                .unwrap_or_default()
+        }).collect_vec()
+    }));
+
+    doc_tgt_nodes_all_on <- doc_tgt_nodes_off.map(|t| t.is_empty());
+    doc_enable           <= doc_tgt_nodes.gate_not(&doc_tgt_nodes_all_on);
+    doc_disable          <= doc_tgt_nodes.gate(&doc_tgt_nodes_all_on);
+    doc_preview_disable  <= doc_tgt_nodes_off.sample(&doc_preview_mode_end);
+    outputs.documentation_view_enabled  <+ doc_enable;
+    outputs.documentation_view_disabled <+ doc_disable;
+    outputs.documentation_view_disabled <+ doc_preview_disable;
 
     // === Register Visualization ===
 
@@ -2097,6 +2151,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval outputs.visualization_enabled  ((id) model.enable_visualization(id));
     eval outputs.visualization_disabled ((id) model.disable_visualization(id));
     eval outputs.visualization_enable_fullscreen ((id) model.enable_visualization_fullscreen(id));
+    eval outputs.documentation_view_enabled      ((id) model.enable_documentation_view(id));
+    eval outputs.documentation_view_disabled     ((id) model.disable_documentation_view(id));
 
 
     // === Edge discovery ===

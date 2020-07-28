@@ -188,8 +188,8 @@ impl ContainerModel {
     fn init(self) -> Self {
         self.update_shape_sizes();
         self.init_corner_roundness();
-        // FIXME: These 2 lines fix a bug with display objects visible on stage.
         self.set_visibility(true);
+        self.set_size(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
         self.set_visibility(false);
         self
     }
