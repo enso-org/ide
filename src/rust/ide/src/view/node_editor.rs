@@ -16,6 +16,7 @@ use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::application::Application;
 use ide_view::graph_editor;
+use ide_view::graph_editor::component::breadcrumbs::LocalCall;
 use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::EdgeTarget;
 use ide_view::graph_editor::GraphEditor;
@@ -710,19 +711,19 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn expression_entered_in_ui
-    (&self, info:&(Option<graph_editor::MethodPointer>,Uuid)) -> FallibleResult<()> {
-        let (method_pointer,expression_id) = info;
-        if let Some(method_pointer) = method_pointer.as_ref().cloned() {
+    (&self, local_call:&Option<LocalCall>) -> FallibleResult<()> {
+        if let Some(local_call) = local_call {
+            let method_pointer = local_call.definition.clone();
+            let expression_id  = local_call.call;
             let controller     = self.controller.clone_ref();
             let logger         = self.logger.clone_ref();
             let graph_editor   = self.editor.clone_ref();
-            let expression_id  = *expression_id;
             let enter_action   = async move {
                 match controller.enter_method_pointer(expression_id,&method_pointer).await {
                     Ok(_) => {
                         info!(logger,"Entering node.");
-                        let breadcrumb_info = (Some(method_pointer),expression_id);
-                        graph_editor.breadcrumbs.frp.push_breadcrumb.emit(&breadcrumb_info);
+                        let local_call = LocalCall{definition:method_pointer,call:expression_id};
+                        graph_editor.breadcrumbs.frp.push_breadcrumb.emit(&Some(local_call));
                     },
                     Err(e) => error!(logger,"Couldn't enter node: {e}")
                 }
@@ -737,7 +738,8 @@ impl GraphEditorIntegratedWithControllerModel {
         let expression_id  = self.get_controller_node_id(*node_id)?;
         let method_pointer = self.controller.node_method_pointer(expression_id)?;
         let method_pointer = graph_editor::MethodPointer(method_pointer);
-        self.expression_entered_in_ui(&(Some(method_pointer),expression_id))
+        let local_call     = LocalCall{call:expression_id,definition:method_pointer};
+        self.expression_entered_in_ui(&Some(local_call))
     }
 
     fn node_exited_in_ui(&self, _:&()) -> FallibleResult<()> {

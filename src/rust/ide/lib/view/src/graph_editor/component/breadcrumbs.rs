@@ -12,6 +12,7 @@ pub use project_name::ProjectName;
 use crate::graph_editor::MethodPointer;
 
 use enso_frp as frp;
+use enso_protocol::language_server::ExpressionId;
 use ensogl::display;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
@@ -19,7 +20,23 @@ use ensogl::display::shape::text::text_field::FocusManager;
 use logger::enabled::Logger;
 use logger::AnyLogger;
 use std::cmp;
-use uuid::Uuid;
+
+
+
+// =================
+// === LocalCall ===
+// =================
+
+/// A specific function call occurring within another function's definition body.
+///
+/// This is a single item in ExecutionContext stack.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct LocalCall {
+    /// An expression being a call to a method.
+    pub call       : ExpressionId,
+    /// A pointer to the called method.
+    pub definition : MethodPointer,
+}
 
 
 
@@ -43,7 +60,7 @@ const TEXT_SIZE         : f32 = 12.0;
 #[allow(missing_docs)]
 pub struct FrpInputs {
     /// Push breadcrumb.
-    pub push_breadcrumb : frp::Source<(Option<MethodPointer>,Uuid)>,
+    pub push_breadcrumb : frp::Source<Option<LocalCall>>,
     /// Pop breadcrumb.
     pub pop_breadcrumb : frp::Source,
 }
@@ -68,7 +85,7 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    pub breadcrumb_push : frp::Source<(Option<MethodPointer>,Uuid)>,
+    pub breadcrumb_push : frp::Source<Option<LocalCall>>,
     pub breadcrumb_pop  : frp::Source
 }
 
@@ -187,7 +204,8 @@ impl BreadcrumbsModel {
                         (breadcrumb.info.method_pointer.clone(),breadcrumb.info.expression_id)
                     }).as_ref().cloned();
                     if let Some((method_pointer,expression_id)) = info {
-                        self.frp_outputs.breadcrumb_push.emit((Some(method_pointer),expression_id));
+                        let local_call = LocalCall{call:expression_id,definition:method_pointer};
+                        self.frp_outputs.breadcrumb_push.emit(Some(local_call));
                     } else {
                         break;
                     }
@@ -198,8 +216,10 @@ impl BreadcrumbsModel {
         info!(self.logger,"Selecting breadcrumb #{index}");
     }
 
-    fn push_breadcrumb(&self, method_pointer:&Option<MethodPointer>, expression_id:&Uuid) {
-        if let Some(method_pointer) = method_pointer {
+    fn push_breadcrumb(&self, local_call:&Option<LocalCall>) {
+        if let Some(local_call) = local_call {
+            let method_pointer = &local_call.definition;
+            let expression_id  = &local_call.call;
             let current_index = self.current_index.get();
             let next_index = current_index + 1;
 
@@ -293,8 +313,8 @@ impl Breadcrumbs {
         let model   = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
-            eval frp.push_breadcrumb(((method_pointer,expression_id)) {
-                model.push_breadcrumb(method_pointer,expression_id)
+            eval frp.push_breadcrumb((local_call) {
+                model.push_breadcrumb(local_call)
             });
             eval_ frp.pop_breadcrumb(model.pop_breadcrumb());
         }
