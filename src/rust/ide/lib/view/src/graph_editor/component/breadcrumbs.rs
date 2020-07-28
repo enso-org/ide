@@ -66,7 +66,7 @@ pub struct FrpInputs {
 }
 
 impl FrpInputs {
-    /// Create new FrpInputs.
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
             push_breadcrumb <- source();
@@ -90,7 +90,7 @@ pub struct FrpOutputs {
 }
 
 impl FrpOutputs {
-    /// Create new FrpOutputs.
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
             breadcrumb_push <- source();
@@ -128,7 +128,7 @@ impl Default for Frp {
 }
 
 impl Frp {
-    /// Create new Frp.
+    /// Constructor.
     pub fn new() -> Self {
         let network = frp::Network::new();
         let inputs  = FrpInputs::new(&network);
@@ -157,7 +157,7 @@ pub struct BreadcrumbsModel {
 }
 
 impl BreadcrumbsModel {
-    /// Create new BreadcrumbsModel.
+    /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S, frp:&Frp, focus_manager:&FocusManager) -> Self {
         let scene                 = scene.into();
         let project_name          = ProjectName::new(scene,focus_manager);
@@ -319,7 +319,7 @@ pub struct Breadcrumbs {
 }
 
 impl Breadcrumbs {
-    /// Create a new Breadcrumbs view.
+    /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S, focus_manager:&FocusManager) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));

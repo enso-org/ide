@@ -129,7 +129,7 @@ pub struct Animations {
 }
 
 impl Animations {
-    /// Create new animations handlers.
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         let opacity  = Animation::new(&network);
         let fade_in  = Animation::new(&network);
@@ -152,7 +152,7 @@ pub struct FrpInputs {
 }
 
 impl FrpInputs {
-    /// Create new FrpInputs.
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
             select   <- source();
@@ -177,7 +177,7 @@ pub struct FrpOutputs {
 }
 
 impl FrpOutputs {
-    /// Create new FrpOutputs.
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend!{ network
             selected <- source();
@@ -215,7 +215,7 @@ impl Default for Frp {
 }
 
 impl Frp {
-    /// Create new Frp.
+    /// Constructor.
     pub fn new() -> Self {
         let network = frp::Network::new();
         let inputs  = FrpInputs::new(&network);
