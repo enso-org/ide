@@ -981,6 +981,7 @@ pub struct GraphEditorModel {
     pub cursor         : cursor::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
+    network            : frp::Network,
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
@@ -999,16 +1000,28 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
-//        let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
+//      let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
         let breadcrumbs    = component::Breadcrumbs::new(scene,focus_manager);
-        display_object.add_child(&breadcrumbs);
-        let screen = scene.camera().screen();
-        breadcrumbs.set_position(Vector3::new(-screen.width,screen.height,0.0)/2.0);
-        let scene = scene.clone_ref();
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,breadcrumbs}//visualizations }
+        let scene          = scene.clone_ref();
+        let network        = network.clone_ref();
+        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,breadcrumbs
+            ,network}.init()//visualizations }
+    }
+
+    fn init(self) -> Self {
+        let network     = &self.network;
+        let screen      = self.scene.camera().screen();
+        let scene       = self.scene.clone_ref();
+        let breadcrumbs = self.breadcrumbs.clone_ref();
+        self.add_child(&self.breadcrumbs);
+        self.breadcrumbs.set_position(Vector3(-screen.width,screen.height,0.0)/2.0);
+        frp::extend! {network
+            eval scene.frp.shape((shape) breadcrumbs.set_position(Vector3(-shape.width,shape.height,0.0)/2.0));
+        }
+        self
     }
 
     fn create_edge(&self) -> EdgeId {
