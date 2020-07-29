@@ -567,7 +567,7 @@ impl Searcher {
     fn this_arg_type_for_next_completion(&self) -> impl Future<Output=Option<String>> {
         let next_id = self.data.borrow().input.next_completion_id();
         let logger  = self.logger.clone_ref();
-        let graph   = self.graph.clone();
+        let graph   = self.graph.clone_ref();
         let this    = self.this_arg.clone();
         async move {
             let is_function_fragment = next_id == CompletedFragmentId::Function;
