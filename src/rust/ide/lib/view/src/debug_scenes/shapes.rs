@@ -72,19 +72,6 @@ impl DummyTypeGenerator {
     }
 }
 
-/// Allows modifying every node in a span tree through a closure. Can be used to initialise the
-/// span tree with type information for the debug scene.
-fn visit_span_tree_nodes_mut<F:FnMut(&mut span_tree::Node)>(span_tree:&mut span_tree::SpanTree, mut f:F) {
-    visit_node_and_children_mut(&mut span_tree.root, &mut f);
-}
-
-fn visit_node_and_children_mut<F:FnMut(&mut span_tree::Node)>(node: &mut span_tree::Node, f: &mut F) {
-    f(node);
-    node.children.iter_mut().for_each(|child| {
-        visit_node_and_children_mut(&mut child.node, f);
-    })
-}
-
 
 
 // ========================
@@ -239,16 +226,18 @@ use span_tree::traits::*;
 
 pub fn expression_mock() -> Expression {
     let code             = "open \"data.csv\"".into();
-    let mut output_span_tree = span_tree::SpanTree::default();
-    let mut input_span_tree  = span_tree::builder::TreeBuilder::new(15)
-        .add_leaf(0,4,span_tree::node::Kind::Operation,PrefixCrumb::Func)
+    let output_span_tree = span_tree::SpanTree::default();
+    let input_span_tree  = span_tree::builder::TreeBuilder::new(15)
+        .add_child(0,4,span_tree::node::Kind::Operation,PrefixCrumb::Func)
+        .set_expression_id(Uuid::new_v4())
+        .done()
         .add_empty_child(5,span_tree::node::InsertType::BeforeTarget)
-        .add_leaf(5,10,span_tree::node::Kind::Target{is_removable:false},PrefixCrumb::Arg)
+        .add_child(5,10,span_tree::node::Kind::Target{is_removable:false},PrefixCrumb::Arg)
+        .set_expression_id(Uuid::new_v4())
+        .done()
         .add_empty_child(15,span_tree::node::InsertType::Append)
         .set_expression_id(Uuid::new_v4())
         .build();
-    visit_span_tree_nodes_mut(&mut input_span_tree, |node| node.expression_id = Some(Uuid::new_v4()));
-    visit_span_tree_nodes_mut(&mut output_span_tree, |node| node.expression_id = Some(Uuid::new_v4()));
     Expression {code,input_span_tree,output_span_tree}
 }
 
@@ -257,26 +246,35 @@ pub fn expression_mock2() -> Expression {
     let val              = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_cr};
     let parens_cr        = ast::crumbs::MatchCrumb::Segs {val,index:0};
     let code             = "make_maps size (distribution normal)".into();
-    let mut output_span_tree = span_tree::SpanTree::default();
-    let mut input_span_tree  = span_tree::builder::TreeBuilder::new(36)
+    let output_span_tree = span_tree::SpanTree::default();
+    let input_span_tree  = span_tree::builder::TreeBuilder::new(36)
         .add_child(0,14,span_tree::node::Kind::Chained,PrefixCrumb::Func)
-        .add_leaf(0,9,span_tree::node::Kind::Operation,PrefixCrumb::Func)
-        .add_empty_child(10,span_tree::node::InsertType::BeforeTarget)
-        .add_leaf(10,4,span_tree::node::Kind::Target {is_removable:true},PrefixCrumb::Arg)
-        .add_empty_child(14,span_tree::node::InsertType::Append)
-        .done()
+            .add_child(0,9,span_tree::node::Kind::Operation,PrefixCrumb::Func)
+                .set_expression_id(Uuid::new_v4())
+                .done()
+            .add_empty_child(10,span_tree::node::InsertType::BeforeTarget)
+            .add_child(10,4,span_tree::node::Kind::Target {is_removable:true},PrefixCrumb::Arg)
+                .set_expression_id(Uuid::new_v4())
+                .done()
+            .add_empty_child(14,span_tree::node::InsertType::Append)
+            .set_expression_id(Uuid::new_v4())
+            .done()
         .add_child(15,21,span_tree::node::Kind::Argument {is_removable:true},PrefixCrumb::Arg)
-        .add_child(1,19,span_tree::node::Kind::Argument {is_removable:false},parens_cr)
-        .add_leaf(0,12,span_tree::node::Kind::Operation,PrefixCrumb::Func)
-        .add_empty_child(13,span_tree::node::InsertType::BeforeTarget)
-        .add_leaf(13,6,span_tree::node::Kind::Target {is_removable:false},PrefixCrumb::Arg)
-        .add_empty_child(19,span_tree::node::InsertType::Append)
-        .done()
-        .done()
+            .set_expression_id(Uuid::new_v4())
+            .add_child(1,19,span_tree::node::Kind::Argument {is_removable:false},parens_cr)
+                .set_expression_id(Uuid::new_v4())
+                .add_child(0,12,span_tree::node::Kind::Operation,PrefixCrumb::Func)
+                    .set_expression_id(Uuid::new_v4())
+                    .done()
+                .add_empty_child(13,span_tree::node::InsertType::BeforeTarget)
+                .add_child(13,6,span_tree::node::Kind::Target {is_removable:false},PrefixCrumb::Arg)
+                    .set_expression_id(Uuid::new_v4())
+                    .done()
+                .add_empty_child(19,span_tree::node::InsertType::Append)
+                .done()
+            .done()
         .add_empty_child(36,span_tree::node::InsertType::Append)
         .build();
-    visit_span_tree_nodes_mut(&mut input_span_tree, |node| node.expression_id = Some(Uuid::new_v4()));
-    visit_span_tree_nodes_mut(&mut output_span_tree, |node| node.expression_id = Some(Uuid::new_v4()));
     Expression {code,input_span_tree,output_span_tree}
 }
 
