@@ -641,9 +641,9 @@ pub mod test {
     pub fn value_update_with_type(id:ExpressionId, typename:impl Into<String>) -> ExpressionValueUpdate {
         ExpressionValueUpdate {
             id,
-            typename: Some(typename.into()),
-            method_call: None,
-            short_value: None,
+            typename    : Some(typename.into()),
+            method_call : None,
+            short_value : None,
         }
     }
 }
