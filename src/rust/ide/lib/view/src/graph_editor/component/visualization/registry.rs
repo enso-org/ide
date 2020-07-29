@@ -40,6 +40,7 @@ impl Registry {
         let registry = Self::new();
         registry.add(builtin::visualization::native::BubbleChart::definition());
         registry.add(builtin::visualization::native::RawText::definition());
+        registry.add(builtin::visualization::native::DocumentationView::definition());
         registry.try_add_java_script(builtin::visualization::java_script::bubble_visualization());
         registry
     }

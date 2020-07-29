@@ -25,7 +25,6 @@ use std::num::NonZeroU32;
 
 use super::edge;
 use crate::graph_editor::component::visualization;
-use crate::graph_editor::component::documentation_view;
 use crate::graph_editor::component::node::port::output::OutputPorts;
 
 
@@ -203,7 +202,6 @@ pub struct NodeModel {
     pub drag_area      : component::ShapeView<drag_area::Shape>,
     pub ports          : port::Manager,
     pub visualization  : visualization::Container,
-    pub documentation_view  : documentation_view::Container,
     pub output_ports   : OutputPorts,
 }
 
@@ -249,14 +247,6 @@ impl NodeModel {
 
         display_object.add_child(&visualization);
 
-        let documentation_view = documentation_view::Container::new(&logger,&scene);
-        documentation_view.mod_position(|t| {
-            t.x = 60.0;
-            t.y = 150.0;
-        });
-
-        display_object.add_child(&documentation_view);
-
         ports.mod_position(|p| {
             p.x = TEXT_OFF;
             p.y = NODE_HEIGHT/2.0;
@@ -272,7 +262,7 @@ impl NodeModel {
 
 
         Self {scene,display_object,logger,frp,main_area,drag_area,output_ports,ports
-             ,visualization,documentation_view} . init()
+             ,visualization} . init()
     }
 
     fn init(self) -> Self {
