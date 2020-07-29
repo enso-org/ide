@@ -173,6 +173,14 @@ impl ViewBuffer {
         self.selection.borrow().oldest().cloned().into()
     }
 
+    pub fn newest_caret(&self) -> selection::Group {
+        self.newest_selection().to_carets()
+    }
+
+    pub fn oldest_caret(&self) -> selection::Group {
+        self.oldest_selection().to_carets()
+    }
+
     /// Add a new cursor for the given byte offset.
     pub fn add_cursor_old(&self, offset:Bytes) {
         let id = self.next_selection_id.get();
@@ -262,6 +270,8 @@ define_frp! {
         keep_last_caret_only       : (),
         keep_oldest_selection_only : (),
         keep_newest_selection_only : (),
+        keep_oldest_caret_only     : (),
+        keep_newest_caret_only     : (),
     }
 
     Output {
@@ -320,6 +330,8 @@ impl View {
 
             selection_on_keep_last <- input.keep_newest_selection_only.map(f_!(model.newest_selection()));
             selection_on_keep_first <- input.keep_oldest_selection_only.map(f_!(model.oldest_selection()));
+            selection_on_keep_last_caret <- input.keep_newest_caret_only.map(f_!(model.newest_caret()));
+            selection_on_keep_first_caret <- input.keep_oldest_caret_only.map(f_!(model.oldest_caret()));
 
             selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(model.offset_of_view_location(t)).into()));
             selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(model.offset_of_view_location(t))));
@@ -329,6 +341,8 @@ impl View {
             output.source.edit_selection     <+ selection_on_clear;
             output.source.non_edit_selection <+ selection_on_keep_last;
             output.source.non_edit_selection <+ selection_on_keep_first;
+            output.source.non_edit_selection <+ selection_on_keep_last_caret;
+            output.source.non_edit_selection <+ selection_on_keep_first_caret;
             output.source.non_edit_selection <+ selection_on_keep_last_caret;
             output.source.non_edit_selection <+ selection_on_keep_first_caret;
             output.source.non_edit_selection <+ selection_on_set_cursor;

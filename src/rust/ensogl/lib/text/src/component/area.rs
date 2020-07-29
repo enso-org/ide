@@ -363,6 +363,14 @@ ensogl::def_command_api! { Commands
     keep_first_caret_only,
     /// Discard all but the last selection and convert it to caret.
     keep_last_caret_only,
+    /// Discard all but the newest selection.
+    keep_newest_selection_only,
+    /// Discard all but the oldest selection.
+    keep_oldest_selection_only,
+    /// Discard all but the newest selection and convert it to caret.
+    keep_newest_caret_only,
+    /// Discard all but the oldest selection and convert it to caret.
+    keep_oldest_caret_only,
 }
 
 impl application::command::CommandApi for Area {
@@ -469,6 +477,11 @@ impl Area {
             eval_ command.keep_last_selection_only (model.buffer.frp.input.keep_last_selection_only.emit(()));
             eval_ command.keep_first_caret_only (model.buffer.frp.input.keep_first_caret_only.emit(()));
             eval_ command.keep_last_caret_only (model.buffer.frp.input.keep_last_caret_only.emit(()));
+
+            eval_ command.keep_newest_selection_only (model.buffer.frp.input.keep_newest_selection_only.emit(()));
+            eval_ command.keep_oldest_selection_only (model.buffer.frp.input.keep_oldest_selection_only.emit(()));
+            eval_ command.keep_newest_caret_only (model.buffer.frp.input.keep_newest_caret_only.emit(()));
+            eval_ command.keep_oldest_caret_only (model.buffer.frp.input.keep_oldest_caret_only.emit(()));
 
             eval_ command.cursor_move_left  (model.buffer.frp.input.cursors_move.emit(Some(Movement::Left)));
             eval_ command.cursor_move_right (model.buffer.frp.input.cursors_move.emit(Some(Movement::Right)));
@@ -868,7 +881,7 @@ impl application::shortcut::DefaultShortcutProvider for Area {
                Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowUp]    , shortcut::Pattern::Any) , "cursor_select_up"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowDown]  , shortcut::Pattern::Any) , "cursor_select_down"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace]             , shortcut::Pattern::Any) , "delete_left"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                , shortcut::Pattern::Any) , "keep_first_caret_only"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                , shortcut::Pattern::Any) , "keep_oldest_caret_only"),
                Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                             , "insert_char_of_last_pressed_key"),
                Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "set_cursor_at_mouse_position"),
                Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "start_mouse_selection"),
