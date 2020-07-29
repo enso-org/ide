@@ -15,8 +15,6 @@ pub mod mock {
     /// consistent data.
     #[allow(missing_docs)]
     pub mod data {
-        use super::*;
-
         use enso_protocol::language_server::Position;
 
         pub const PROJECT_NAME    : &str     = "MockProject";

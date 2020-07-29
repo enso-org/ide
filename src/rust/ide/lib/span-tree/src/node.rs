@@ -185,7 +185,8 @@ impl<'a> Ref<'a> {
 
     /// Iterator over all leaves of subtree rooted in the `self`.
     pub fn leaf_iter(self) -> Box<dyn Iterator<Item=Ref<'a>> + 'a> {
-        // FIXME rather should be part of the `LeafIterator`
+        // FIXME rather should be part of the `LeafIterator`,
+        //       see https://github.com/enso-org/ide/issues/698
         if self.children.is_empty() {
             Box::new(std::iter::once(self))
         } else {

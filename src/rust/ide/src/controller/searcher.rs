@@ -13,7 +13,6 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
-use utils::future::ready_boxed;
 
 
 
@@ -128,7 +127,8 @@ pub struct ParsedInput {
 
 impl ParsedInput {
     /// Constructor from the plain input.
-    fn new(mut input:String, parser:&Parser) -> FallibleResult<Self> {
+    fn new(input:impl Into<String>, parser:&Parser) -> FallibleResult<Self> {
+        let mut input      = input.into();
         let leading_spaces = input.chars().take_while(|c| *c == ' ').count();
         // To properly guess what is "still typed argument" we simulate type of one letter by user.
         // This letter will be added to the last argument (or function if there is no argument), or
@@ -207,10 +207,12 @@ impl HasRepr for ParsedInput {
 /// code inserted when it is selected.
 #[derive(Clone,Debug)]
 pub struct ThisNode {
-    /// Identifier of the node.
+    /// Identifier of the node that will be connected if the initial suggestion is picked.
     pub id:double_representation::node::Id,
-    /// Name of the variable that this node is assigned to.
+    /// Name of the variable that will be used to connect with the selected node.
     pub var:String,
+    /// If the pattern with variable needs to be introduced on the node.
+    pub needs_to_introduce_pattern:bool,
 }
 
 impl ThisNode {
@@ -222,18 +224,29 @@ impl ThisNode {
     -> Option<Self> {
         let id   = *nodes.first()?;
         let node = graph.node(id).ok()?;
-        let var  = if let Some(ast) = node.info.pattern() {
-            // TODO? [mwu]
-            //   Here we just require that the whole node's pattern is a single var, like `var = expr`.
-            //   This prevents using pattern subpart (like `x` in `Point x y = get_pos`), or basically
-            //   any node that doesn't stick to `var = expr` form.
-            //   If we wanted to support pattern subparts, the engine would need to send us value
-            //   updates for matched.
-            ast::identifier::as_var(&ast)?.clone()
+        let (var,needs_to_introduce_pattern) = if let Some(ast) = node.info.pattern() {
+            // TODO [mwu]
+            //   Here we just require that the whole node's pattern is a single var, like
+            //   `var = expr`. This prevents using pattern subpart (like `x` in
+            //   `Point x y = get_pos`), or basically any node that doesn't stick to `var = expr`
+            //   form. If we wanted to support pattern subparts, the engine would need to send us
+            //   value updates for matched pattern pieces. See the issue:
+            //   https://github.com/enso-org/enso/issues/1038
+            (ast::identifier::as_var(&ast)?.clone(),false)
         } else {
-            graph.variable_name_for(&node.info).ok()?.repr()
+            (graph.variable_name_for(&node.info).ok()?.repr(),true)
         };
-        Some(ThisNode {id,var})
+        Some(ThisNode {id,var,needs_to_introduce_pattern})
+    }
+
+    /// Introduce a pattern with variable on the node serving as provider of "this" argument.
+    ///
+    /// Does nothing if node already has a pattern.
+    pub fn introduce_pattern(&self, graph:controller::Graph) -> FallibleResult<()> {
+        if self.needs_to_introduce_pattern {
+            graph.set_pattern_on(self.id,ast::Ast::var(&self.var))?;
+        }
+        Ok(())
     }
 }
 
@@ -248,10 +261,7 @@ impl ThisNode {
 #[allow(missing_docs)]
 pub enum Mode {
     /// Searcher should add a new node at given position.
-    NewNode {
-        position:Option<Position>,
-        //this_var:Option<ThisNode>,
-    },
+    NewNode {position:Option<Position>},
     /// Searcher should edit existing node's expression.
     EditNode {node_id:ast::Id},
 }
@@ -333,7 +343,7 @@ pub struct Searcher {
     database        : Rc<model::SuggestionDatabase>,
     language_server : Rc<language_server::Connection>,
     parser          : Parser,
-    this            : Rc<Option<ThisNode>>,
+    this_arg        : Rc<Option<ThisNode>>,
 }
 
 impl Searcher {
@@ -348,14 +358,6 @@ impl Searcher {
         let graph = controller::ExecutedGraph::new(&parent,project.clone_ref(),method).await?;
         Self::new_from_graph_controller(parent,project,graph,mode,selected_nodes)
     }
-
-    // /// Check if the picked fragment is still unmodified by user.
-    // pub fn is_fragment_unmodified(&self, fragment:&FragmentAddedByPickingSuggestion) -> bool {
-    //     let this_var      = self.this_var_for(fragment.id);
-    //     let default_code  = fragment.picked_suggestion.code_to_insert(this_var);
-    //     let fragment_code = self.data.borrow().input.completed_fragment(fragment.id);
-    //     fragment_code.contains(&default_code.as_str())
-    // }
 
     /// Create new Searcher Controller, when you have Executed Graph Controller handy.
     pub fn new_from_graph_controller
@@ -372,9 +374,9 @@ impl Searcher {
         } else {
             default()
         };
-        let this   = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
-        let this   = Self {
-            logger,graph,this,
+        let this_arg = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
+        let ret      = Self {
+            logger,graph,this_arg,
             data            : Rc::new(RefCell::new(data)),
             notifier        : default(),
             mode            : Immutable(mode),
@@ -382,8 +384,8 @@ impl Searcher {
             language_server : project.json_rpc(),
             parser          : project.parser(),
         };
-        this.reload_list();
-        Ok(this)
+        ret.reload_list();
+        Ok(ret)
     }
 
     /// Subscribe to controller's notifications.
@@ -413,10 +415,13 @@ impl Searcher {
         Ok(())
     }
 
+    fn this_var(&self) -> Option<&str> {
+        self.this_arg.deref().as_ref().map(|this| this.var.as_ref())
+    }
+
     /// The variable name that is used for `this` argument due to the selected node.
     fn this_var_for(&self, id:CompletedFragmentId) -> Option<&str> {
-        let this = self.this.deref().as_ref()?;
-        (id == CompletedFragmentId::Function).then(this.var.as_str())
+        (id == CompletedFragmentId::Function).and_option(self.this_var())
     }
 
     /// Code that will be inserted by expanding given suggestion at given location.
@@ -446,7 +451,7 @@ impl Searcher {
             },
             Some(mut expression) => {
                 let new_argument = ast::prefix::Argument {
-                        sast      : ast::Shifted::new(pattern_offset,added_ast),
+                    sast      : ast::Shifted::new(pattern_offset,added_ast),
                     prefix_id : default(),
                 };
                 expression.args.push(new_argument);
@@ -465,6 +470,20 @@ impl Searcher {
         Ok(new_input)
     }
 
+    /// Check if the first fragment in the input (i.e. the one representing the called function)
+    /// is still unmodified.
+    ///
+    /// False if it was modified after picking or if it wasn't picked at all.
+    pub fn is_function_fragment_unmodified(&self) -> bool {
+        let this_var = self.this_var();
+        with(self.data.borrow(), |data| {
+            data.fragments_added_by_picking.first().contains_if(|frag| {
+                let is_function = frag.id == CompletedFragmentId::Function;
+                is_function && frag.is_still_unmodified(&data.input,this_var)
+            })
+        })
+    }
+
     /// Commit the current input as a new node expression.
     ///
     /// If the searcher was brought by editing existing node, the input is set as a new node
@@ -479,7 +498,13 @@ impl Searcher {
             Mode::NewNode {position} => {
                 let mut new_node    = NewNodeInfo::new_pushed_back(expression);
                 new_node.metadata   = Some(NodeMetadata {position,intended_method});
-                self.graph.graph().add_node(new_node)?
+                let graph           = self.graph.graph();
+                if self.is_function_fragment_unmodified() {
+                    if let Some(this) = self.this_arg.deref().as_ref() {
+                        this.introduce_pattern(graph.clone_ref())?;
+                    }
+                }
+                graph.add_node(new_node)?
             },
             Mode::EditNode {node_id} => {
                 self.graph.graph().set_expression(node_id,expression)?;
@@ -537,49 +562,37 @@ impl Searcher {
         self.data.borrow_mut().suggestions = new_suggestions;
     }
 
-    /// Check if the current completion context should use information from the selected "this"
-    /// node.
-    fn in_this_type_position(&self) -> bool {
-        self.data.borrow().input.next_completion_id() == CompletedFragmentId::Function
-    }
-
     /// Get the typename of "this" value for current completion context. Returns `Future`, as the
     /// type information might not have came yet from the Language Server.
-    fn this_type_for_suggestions(&self) -> StaticBoxFuture<Option<String>> {
-        let logger    = self.logger.clone_ref();
-        if self.in_this_type_position() {
-            match self.this.deref() {
-                Some(ThisNode {id,..}) => {
-                    self.graph.expression_type(*id).map(move |opt_type| match opt_type {
-                        Some(typename) => Some(typename.into()),
-                        None => {
-                            error!(logger, "Failed to obtain type for this node.");
-                            None
-                        },
-                    }).boxed_local()
-                }
-                None => ready_boxed(None)
-            }
-        } else {
-            ready_boxed(None)
+    fn this_arg_type_for_next_completion(&self) -> impl Future<Output=Option<String>> {
+        let next_id = self.data.borrow().input.next_completion_id();
+        let logger  = self.logger.clone_ref();
+        let graph   = self.graph.clone();
+        let this    = self.this_arg.clone();
+        async move {
+            let is_function_fragment = next_id == CompletedFragmentId::Function;
+            is_function_fragment.then(())?;
+            let ThisNode {id,..} = this.deref().as_ref()?;
+            let opt_type         = graph.expression_type(*id).await.map(Into::into);
+            opt_type.map_none(move || error!(logger, "Failed to obtain type for this node."))
         }
     }
 
     fn get_suggestion_list_from_engine
     (&self, return_type:Option<String>, tags:Option<Vec<language_server::SuggestionEntryType>>)
     -> FallibleResult<()> {
-        let ls             = self.language_server.clone_ref();
-        let graph          = self.graph.graph();
-        let graph_id       = &*graph.id;
-        let module_ast     = graph.module.ast();
-        let file           = graph.module.path().file_path().clone();
-        let this_type      = self.this_type_for_suggestions();
-        let def_span       = double_representation::module::definition_span(&module_ast,&graph_id)?;
-        let position       = TextLocation::convert_span(module_ast.repr(),&def_span).end.into();
-        let data           = self.data.clone_ref();
-        let database       = self.database.clone_ref();
-        let logger         = self.logger.clone_ref();
-        let notifier       = self.notifier.clone_ref();
+        let ls         = self.language_server.clone_ref();
+        let graph      = self.graph.graph();
+        let graph_id   = &*graph.id;
+        let module_ast = graph.module.ast();
+        let file       = graph.module.path().file_path().clone();
+        let this_type  = self.this_arg_type_for_next_completion();
+        let def_span   = double_representation::module::definition_span(&module_ast,&graph_id)?;
+        let position   = TextLocation::convert_span(module_ast.repr(),&def_span).end.into();
+        let data       = self.data.clone_ref();
+        let database   = self.database.clone_ref();
+        let logger     = self.logger.clone_ref();
+        let notifier   = self.notifier.clone_ref();
         executor::global::spawn(async move {
             let this_type = this_type.await;
             info!(logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
@@ -640,6 +653,7 @@ mod test {
     #[derivative(Default)]
     struct MockData {
         graph         : controller::graph::executed::tests::MockData,
+        /// If the node in `main` function will be selected while opening searcher.
         selected_node : bool,
         #[derivative(Default(value="MAIN_FINISH"))]
         code_location : enso_protocol::language_server::Position,
@@ -657,6 +671,8 @@ mod test {
     }
 
     struct Fixture {
+        #[allow(dead_code)]
+        data     : MockData,
         test     : TestWithLocalPoolExecutor,
         searcher : Searcher,
         entry1   : CompletionSuggestion,
@@ -685,7 +701,7 @@ mod test {
                 database        : default(),
                 language_server : language_server::Connection::new_mock_rc(client),
                 parser          : Parser::new_or_panic(),
-                this            : Rc::new(this),
+                this_arg            : Rc::new(this),
             };
             let entry1 = model::suggestion_database::Entry {
                 name          : "testFunction1".to_string(),
@@ -717,7 +733,7 @@ mod test {
             let entry3 = searcher.database.get(3).unwrap();
             searcher.database.put_entry(9,entry9);
             let entry9 = searcher.database.get(9).unwrap();
-            Fixture{test,searcher,entry1,entry2,entry3,entry9}
+            Fixture{data,test,searcher,entry1,entry2,entry3,entry9}
         }
 
         fn new() -> Self {
@@ -725,24 +741,37 @@ mod test {
         }
     }
 
+
+    /// Test checks that:
+    /// 1) if the selected node is assigned to a single variable (or can be assigned), the list is
+    ///    not immediately presented;
+    /// 2) instead the searcher model obtains the type information for the selected node and uses it
+    ///    to query Language Server for the suggestion list;
+    /// 3) the first (and only the first) picked completion gets the selected node variable's
+    ///    access prepended.
     #[test]
     fn loading_list_w_self() {
+        let mock_type = crate::test::mock::data::TYPE_NAME;
+
+        /// The case is: `main` contains a single, selected node. Searcher is brought up.
+        /// Mock `entry1` suggestion is picked twice.
         struct Case {
             /// The single line of the initial `main` body.
-            node_line       : &'static str,
+            node_line:&'static str,
+            /// If the searcher should enter "connect to this" mode at all and wait for type info.
+            sets_this:bool,
             /// Expected input after accepting "entry1" twice. `{}` will expand to the entry's
             /// function name.
-            expected_input : &'static str,
+            expected_input:&'static str,
         };
 
         let cases = [
-            Case {node_line:"2+2", expected_input:"sum1.{} {} "},
-            Case {node_line:"the_sum = 2 + 2", expected_input:"the_sum.{} {} "},
-            Case {node_line:"[x,y] = 2 + 2", expected_input:"{} {} "},
+            Case {node_line:"2+2",             sets_this:true,  expected_input:"sum1.{} {} "},
+            Case {node_line:"the_sum = 2 + 2", sets_this:true,  expected_input:"the_sum.{} {} "},
+            Case {node_line:"[x,y] = 2 + 2",   sets_this:false, expected_input:"{} {} "},
         ];
 
         for case in &cases {
-            let this_typename = crate::test::mock::data::TYPE_NAME;
             let Fixture { mut test, searcher, entry1, .. } = Fixture::new_custom(|data, client| {
                 data.change_main_body(case.node_line);
                 data.selected_node = true;
@@ -754,27 +783,32 @@ mod test {
                 expect_call!(client.completion(
                 module      = data.graph.module.path.file_path().clone(),
                 position    = data.code_location,
-                self_type   = Some(this_typename.to_owned()),
+                self_type   = case.sets_this.as_some(mock_type.to_owned()),
                 return_type = None,
                 tag         = None
             ) => Ok(completion_response));
             });
 
             searcher.reload_list();
-            assert!(searcher.suggestions().is_loading());
-            test.run_until_stalled();
-            // Nothing appeared, because we wait for type information for this node.
-            assert!(searcher.suggestions().is_loading());
 
-            let this_node_id = searcher.this.deref().as_ref().unwrap().id;
-            let update = value_update_with_type(this_node_id, this_typename);
-            searcher.graph.computed_value_info_registry().apply_updates(vec![update]);
-            assert!(searcher.suggestions().is_loading());
+            // The suggestion list should stall only if we actually use "this" argument.
+            if case.sets_this {
+                assert!(searcher.suggestions().is_loading());
+                test.run_until_stalled();
+                // Nothing appeared, because we wait for type information for this node.
+                assert!(searcher.suggestions().is_loading());
+
+                let this_node_id = searcher.this_arg.deref().as_ref().unwrap().id;
+                let update = value_update_with_type(this_node_id,mock_type);
+                searcher.graph.computed_value_info_registry().apply_updates(vec![update]);
+                assert!(searcher.suggestions().is_loading());
+            }
+
             test.run_until_stalled();
             assert!(!searcher.suggestions().is_loading());
             searcher.pick_completion(entry1.clone_ref()).unwrap();
-            searcher.pick_completion(entry1).unwrap();
-            let expected_input = case.expected_input.replace("{}","testFunction1");
+            searcher.pick_completion(entry1.clone_ref()).unwrap();
+            let expected_input = case.expected_input.replace("{}",&entry1.name);
             assert_eq!(searcher.data.borrow().input.repr(),expected_input);
         }
     }
@@ -921,6 +955,73 @@ mod test {
         let (arg,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
+    }
+
+    #[test]
+    fn adding_node_introducing_this_var() {
+        struct Case {
+            line   : &'static str,
+            result : String,
+            run    : Box<dyn FnOnce(&mut Fixture)>,
+        };
+
+        impl Case {
+            fn new(line:&'static str, result:&[&str], run:impl FnOnce(&mut Fixture)+'static )
+            -> Self {
+                Case {
+                    line,
+                    result : crate::test::mock::main_from_lines(result),
+                    run    : Box::new(run),
+                }
+            }
+        }
+
+
+        let cases = vec![
+            // No need to introduce variable name, as the input was manually written, not picked.
+            Case::new("2 + 2",&["2 + 2","testFunction1"], |f| {
+                let new_parsed_input = ParsedInput::new("testFunction1",&f.searcher.parser);
+                f.searcher.data.borrow_mut().input = new_parsed_input.unwrap();
+            }),
+            // Need to introduce variable name, as the completion was picked.
+            Case::new("2 + 2",&["sum1 = 2 + 2","sum1.testFunction1"], |f| {
+                f.searcher.pick_completion(f.entry1.clone()).unwrap();
+            }),
+            // No need to introduce variable name, as the input was modified after picking.
+            Case::new("2 + 2",&["2 + 2","var.testFunction1"], |f| {
+                f.searcher.pick_completion(f.entry1.clone()).unwrap();
+                let new_parsed_input = ParsedInput::new("var.testFunction1",&f.searcher.parser);
+                f.searcher.data.borrow_mut().input = new_parsed_input.unwrap();
+            }),
+            // Need to introduce variable name, as the completion was picked and edit was no-op.
+            Case::new("2 + 2",&["sum1 = 2 + 2","sum1.testFunction1"], |f| {
+                f.searcher.pick_completion(f.entry1.clone()).unwrap();
+                // TODO [mwu] is this ok that the trailing space is actually required for this?
+                let new_parsed_input = ParsedInput::new("sum1.testFunction1 ",&f.searcher.parser);
+                f.searcher.data.borrow_mut().input = dbg!(new_parsed_input.unwrap());
+            }),
+            // Variable name already present, need to use it. And not break it.
+            Case::new("my_var = 2 + 2",&["my_var = 2 + 2","my_var.testFunction1"], |f| {
+                f.searcher.pick_completion(f.entry1.clone()).unwrap();
+            }),
+            // Variable names unusable (subpatterns are not yet supported).
+            // Don't use "this" argument adjustments at all.
+            Case::new("[x,y] = 2 + 2",&["[x,y] = 2 + 2","testFunction1"], |f| {
+                f.searcher.pick_completion(f.entry1.clone()).unwrap();
+            }),
+        ];
+
+        for (i,case) in cases.into_iter().enumerate() {
+            dbg!(i);
+            let mut fixture = Fixture::new_custom(|data, _| {
+                data.selected_node = true;
+                data.change_main_body(case.line);
+            });
+            (case.run)(&mut fixture);
+            fixture.searcher.commit_node().unwrap();
+            let updated_def = fixture.searcher.graph.graph().definition().unwrap().item;
+            assert_eq!(updated_def.ast.repr(),case.result);
+        }
     }
 
     #[wasm_bindgen_test]

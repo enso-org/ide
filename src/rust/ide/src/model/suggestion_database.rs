@@ -98,7 +98,8 @@ impl Entry {
         let module = self.module.name();
         if self.self_type.as_ref().contains(&module) {
             format!("{}.{}",this_var.unwrap_or(module),self.name)
-        } else if self.self_type.as_ref().contains(&constants::keywords::HERE) { // TODO when this happens? why would the *type* be "here"?
+        } else if self.self_type.as_ref().contains(&constants::keywords::HERE) {
+            // TODO [mwu] When this happens? The *type* likely should not be "here".
             format!("{}.{}",constants::keywords::HERE,self.name)
         } else if let Some(this_var) = this_var {
             format!("{}.{}",this_var,self.name)
@@ -287,9 +288,15 @@ mod test {
             ..method_entry.clone()
         };
 
-        assert_eq!(atom_entry.code_to_insert(None)         , "Atom".to_string());
-        assert_eq!(method_entry.code_to_insert(None)       , "method".to_string());
-        assert_eq!(module_method_entry.code_to_insert(None), "Main.moduleMethod".to_string());
+        let this_var = None;
+        assert_eq!(atom_entry.code_to_insert(this_var)         , "Atom");
+        assert_eq!(method_entry.code_to_insert(this_var)       , "method");
+        assert_eq!(module_method_entry.code_to_insert(this_var), "Main.moduleMethod");
+
+        let this_var = Some("var");
+        assert_eq!(atom_entry.code_to_insert(this_var)         , "var.Atom");
+        assert_eq!(method_entry.code_to_insert(this_var)       , "var.method");
+        assert_eq!(module_method_entry.code_to_insert(this_var), "var.moduleMethod");
     }
 
     #[test]
