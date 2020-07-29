@@ -781,12 +781,12 @@ mod test {
                 };
 
                 expect_call!(client.completion(
-                module      = data.graph.module.path.file_path().clone(),
-                position    = data.code_location,
-                self_type   = case.sets_this.as_some(mock_type.to_owned()),
-                return_type = None,
-                tag         = None
-            ) => Ok(completion_response));
+                    module      = data.graph.module.path.file_path().clone(),
+                    position    = data.code_location,
+                    self_type   = case.sets_this.as_some(mock_type.to_owned()),
+                    return_type = None,
+                    tag         = None
+                ) => Ok(completion_response));
             });
 
             searcher.reload_list();
