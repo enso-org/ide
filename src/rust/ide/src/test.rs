@@ -1,12 +1,9 @@
 //! Module for support code for writing tests.
 
-use crate::prelude::*;
-
 /// Utilities for mocking IDE components.
 #[cfg(test)]
 pub mod mock {
-    use super::*;
-
+    use crate::prelude::*;
 
     /// Data used to create mock IDE components.
     ///

@@ -749,7 +749,7 @@ mod test {
     ///    to query Language Server for the suggestion list;
     /// 3) the first (and only the first) picked completion gets the selected node variable's
     ///    access prepended.
-    #[test]
+    #[wasm_bindgen_test]
     fn loading_list_w_self() {
         let mock_type = crate::test::mock::data::TYPE_NAME;
 
@@ -957,7 +957,7 @@ mod test {
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn adding_node_introducing_this_var() {
         struct Case {
             line   : &'static str,
