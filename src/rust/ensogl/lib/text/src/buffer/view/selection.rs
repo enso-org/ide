@@ -132,6 +132,12 @@ impl Deref for Group {
     }
 }
 
+impl DerefMut for Group {
+    fn deref_mut(&mut self) -> &mut [Selection] {
+        &mut self.sorted_regions
+    }
+}
+
 impl Group {
     /// Constructor.
     pub fn new() -> Group {
@@ -220,5 +226,15 @@ impl<'t> IntoIterator for &'t Group {
     type IntoIter = slice::Iter<'t,Selection>;
     fn into_iter(self) -> Self::IntoIter {
         self.sorted_regions.iter()
+    }
+}
+
+impl FromIterator<Selection> for Group {
+    fn from_iter<T:IntoIterator<Item=Selection>>(iter:T) -> Self {
+        let mut group = Group::new();
+        for selection in iter {
+            group.add(selection);
+        }
+        group
     }
 }

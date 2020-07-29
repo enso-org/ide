@@ -201,6 +201,10 @@ impl ViewBuffer {
         selection
     }
 
+    pub fn set_oldest_selection_end(&self, offset:Bytes) -> selection::Group {
+        self.oldest_selection().iter_mut().map(|t| t.with_end(offset)).collect()
+    }
+
     /// Insert new text in the place of current selections / cursors.
     pub fn insert(&self, text:impl Into<Data>) -> selection::Group {
         let text       = text.into();
@@ -261,6 +265,7 @@ define_frp! {
         cursors_select             : Option<Movement>,
         set_cursor                 : Location,
         add_cursor                 : Location,
+        set_oldest_selection_end   : Location,
         insert                     : String,
         delete_left                : (),
         clear_selection            : (),
@@ -335,6 +340,7 @@ impl View {
 
             selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(model.offset_of_view_location(t)).into()));
             selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(model.offset_of_view_location(t))));
+            selection_on_set_oldest_end <- input.set_oldest_selection_end.map(f!([model](t) model.set_oldest_selection_end(model.offset_of_view_location(t))));
 
             output.source.non_edit_selection <+ selection_on_move;
             output.source.non_edit_selection <+ selection_on_mod;
@@ -347,6 +353,7 @@ impl View {
             output.source.non_edit_selection <+ selection_on_keep_first_caret;
             output.source.non_edit_selection <+ selection_on_set_cursor;
             output.source.non_edit_selection <+ selection_on_add_cursor;
+            output.source.non_edit_selection <+ selection_on_set_oldest_end;
             output.source.edit_selection     <+ selection_on_insert;
             output.source.edit_selection     <+ selection_on_delete_left;
 
