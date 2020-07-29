@@ -374,9 +374,9 @@ impl Searcher {
         } else {
             default()
         };
+        let this_arg = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
         let ret      = Self {
-            logger,graph,
-            this_arg        : Rc::new(ThisNode::new(selected_nodes,&graph.graph())),
+            logger,graph,this_arg,
             data            : Rc::new(RefCell::new(data)),
             notifier        : default(),
             mode            : Immutable(mode),
