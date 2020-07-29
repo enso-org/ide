@@ -114,8 +114,8 @@ impl From<RangeToInclusive<Bytes>> for Range<Bytes> {
 
 impl From<Range<Bytes>> for rope::Interval {
     fn from(t:Range<Bytes>) -> Self {
-        let start = t.start.value;
-        let end   = t.end.value;
+        let start = t.start.value as usize;
+        let end   = t.end.value   as usize;
         Self {start,end}
     }
 }

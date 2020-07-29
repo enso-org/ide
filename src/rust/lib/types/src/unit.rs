@@ -178,6 +178,7 @@ macro_rules! signed_unit {
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
             $crate::impl_Unit_x_Unit_to_Unit!  {Sub::sub for $name}
             $crate::impl_Unit_x_Unit_to_Unit!  {Add::add for $name}
+            $crate::impl_Unit_x_Unit_to_Unit!  {SaturatingAdd::saturating_add for $name}
             $crate::impl_Unit_x_FIELD_to_Unit! {Mul::mul for $name :: $field_type}
             $crate::impl_Unit_x_FIELD_to_Unit! {Div::div for $name :: $field_type}
             $crate::impl_FIELD_x_Unit_to_Unit! {Mul::mul for $name :: $field_type}

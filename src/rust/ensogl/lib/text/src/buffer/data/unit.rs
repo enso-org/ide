@@ -28,7 +28,7 @@ pub use traits::*;
 
 unit! {
 /// An offset in the buffer in bytes.
-Bytes::bytes(usize)
+Bytes::bytes(i32)
 }
 
 impl<T:Into<Bytes>> bytes::Into for Range<T> {
@@ -37,6 +37,18 @@ impl<T:Into<Bytes>> bytes::Into for Range<T> {
         let start = self.start.bytes();
         let end   = self.end.bytes();
         Range {start,end}
+    }
+}
+
+impl From<usize> for Bytes {
+    fn from(t:usize) -> Self {
+        (t as i32).into()
+    }
+}
+
+impl From<&usize> for Bytes {
+    fn from(t:&usize) -> Self {
+        (*t as i32).into()
     }
 }
 

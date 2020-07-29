@@ -57,7 +57,7 @@ impl_clone_ref_as_clone!(Data);
 impl Data {
     /// Return the len of the text in bytes.
     pub fn len(&self) -> Bytes {
-        Bytes(self.rope.len())
+        Bytes(self.rope.len() as i32)
     }
 
     /// Check whether the text is empty.
@@ -79,13 +79,13 @@ impl Data {
     /// Return the offset to the next grapheme if any. See the documentation of the library to
     /// learn more about graphemes.
     pub fn next_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.rope.next_grapheme_offset(offset.value).map(Bytes)
+        self.rope.next_grapheme_offset(offset.value as usize).map(|t| Bytes(t as i32))
     }
 
     /// Return the offset to the previous grapheme if any. See the documentation of the library to
     /// learn more about graphemes.
     pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.rope.prev_grapheme_offset(offset.value).map(Bytes)
+        self.rope.prev_grapheme_offset(offset.value as usize).map(|t| Bytes(t as i32))
     }
 }
 

@@ -171,22 +171,25 @@ impl ViewBuffer {
 
     /// Insert new text in the place of current selections / cursors.
     pub fn insert(&self, text:impl Into<Data>) -> selection::Group {
-        let mut result = selection::Group::new();
         let text       = text.into();
-        let size       = text.len();
+        let text_size  = text.len();
+        let mut result = selection::Group::new();
         let mut offset = 0.bytes();
-        for selection in &*self.selection.borrow() {
-            let current_selection = selection.map(|t|t+offset);
-            self.buffer.data.borrow_mut().insert(current_selection.range(),&text);
-            offset += size;
-            let new_selection = selection.map(|t|t+offset);
+        for rel_selection in &*self.selection.borrow() {
+            let selection = rel_selection.map(|t|t-offset);
+            let range     = selection.range();
+            let prev      = || self.prev_grapheme_offset(range.start).unwrap_or(range.start);
+            let start     = range.start;//if selection.is_caret() {prev()} else {range.start};
+            let range     = range.with_start(start);
+            offset += (range.size() - text_size);
+            self.buffer.data.borrow_mut().insert(range,&text);
+            let new_selection = rel_selection.map(|_|start+text_size);
             result.add(new_selection);
         }
         result
     }
 
     fn delete_left(&self) -> selection::Group {
-        println!("delete_left");
         let mut result = selection::Group::new();
         let mut offset = 0.bytes();
         for rel_selection in &*self.selection.borrow() {
@@ -425,7 +428,7 @@ impl ViewModel {
     // FIXME: this is inefficient now
     pub fn lines(&self) -> Vec<String> {
         let range = self.line_offset_range();
-        let lines = self.buffer.data.borrow().data.rope.lines(range.start.value .. range.end.value).map(|t| t.into()).collect_vec();
+        let lines = self.buffer.data.borrow().data.rope.lines(range.start.value as usize .. range.end.value as usize).map(|t| t.into()).collect_vec();
         if lines.is_empty() { vec!["".into()] } else { lines }
     }
 
@@ -461,11 +464,11 @@ impl LineOffset for ViewModel {
 
     fn offset_of_line(&self,line:Line) -> Bytes {
         let line = std::cmp::min(line.value,self.data().measure::<data::metric::Lines>() + 1);
-        Bytes(self.data().offset_of_line(line))
+        self.data().offset_of_line(line).into()
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
-        Line(self.data().line_of_offset(offset.value))
+        Line(self.data().line_of_offset(offset.value as usize))
     }
 }
 
@@ -484,12 +487,12 @@ pub trait LineOffset {
 
     /// Returns the byte offset corresponding to the given line.
     fn offset_of_line(&self, line:Line) -> Bytes {
-        Bytes(self.data().offset_of_line(line.value))
+        self.data().offset_of_line(line.value).into()
     }
 
     /// Returns the visible line number containing the given offset.
     fn line_of_offset(&self, offset:Bytes) -> Line {
-        Line(self.data().line_of_offset(offset.value))
+        Line(self.data().line_of_offset(offset.value as usize))
     }
 
     // How should we count "column"? Valid choices include:

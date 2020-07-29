@@ -270,21 +270,21 @@ impl ViewModel {
 
             Movement::StartOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.min()
-                let mut cursor = data::Cursor::new(&text, region.end.value);
-                let offset     = Bytes(cursor.prev::<data::metric::Lines>().unwrap_or(0));
+                let mut cursor = data::Cursor::new(&text, region.end.value as usize);
+                let offset     = cursor.prev::<data::metric::Lines>().unwrap_or(0).bytes();
                 no_horiz(offset)
             }
 
             Movement::EndOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.max()
-                let mut cursor = data::Cursor::new(&text, region.end.value);
+                let mut cursor = data::Cursor::new(&text, region.end.value as usize);
                 let     offset = match cursor.next::<data::metric::Lines>() {
                     None            => text.len(),
                     Some(next_line_offset) => {
-                        let next_line_offset = Bytes(next_line_offset);
+                        let next_line_offset = next_line_offset.bytes();
                         if cursor.is_boundary::<data::metric::Lines>() {
                             text.prev_grapheme_offset(next_line_offset).unwrap_or(region.end)
-                        } else if Bytes(cursor.pos()) == text.len() {
+                        } else if cursor.pos().bytes() == text.len() {
                             text.len()
                         } else {
                             region.end
@@ -296,11 +296,11 @@ impl ViewModel {
 
             Movement::EndOfParagraphKill => {
                 // Note: TextEdit would start at modify ? region.end : region.max()
-                let mut cursor = data::Cursor::new(&text, region.end.value);
+                let mut cursor = data::Cursor::new(&text, region.end.value as usize);
                 let     offset = match cursor.next::<data::metric::Lines>() {
                     None            => region.end,
                     Some(next_line_offset) => {
-                        let next_line_offset = Bytes(next_line_offset);
+                        let next_line_offset = next_line_offset.bytes();
                         if cursor.is_boundary::<data::metric::Lines>() {
                             let eol = text.prev_grapheme_offset(next_line_offset);
                             let opt = eol.and_then(|t|(t!=region.end).as_some(t));

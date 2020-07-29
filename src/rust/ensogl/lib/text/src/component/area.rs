@@ -132,6 +132,7 @@ const LINE_VERTICAL_OFFSET     : f32 = 4.0;
 const CURSOR_PADDING           : f32 = 4.0;
 const CURSOR_WIDTH             : f32 = 2.0;
 const CURSOR_ALPHA             : f32 = 0.8;
+const CURSORS_SPACING          : f32 = 1.0;
 const SELECTION_ALPHA          : f32 = 0.3;
 const BLINK_SLOPE_IN_DURATION  : f32 = 200.0;
 const BLINK_SLOPE_OUT_DURATION : f32 = 200.0;
@@ -184,8 +185,10 @@ pub mod cursor {
             let sel_width            = &rect_width - CURSOR_WIDTH;
             let alpha_weight         = sel_width.smoothstep(0.0,letter_width);
             let alpha                = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
-            let shape                = Rect((1.px() * rect_width,LINE_HEIGHT.px())).corners_radius(2.px()).translate_x(1.px()*width/2.0);
+            let shape                = Rect((1.px() * rect_width,LINE_HEIGHT.px())).corners_radius(2.px());
             let shape                = shape.fill(format!("srgba(1.0,1.0,1.0,{})",alpha.glsl()));
+//            let bg                   = Rect((1000.px(),1000.px())).fill(format!("srgba(1.0,0.0,0.0,1.0)"));
+//            let shape = bg + shape;
             shape.into()
         }
     }
@@ -481,12 +484,14 @@ impl Area {
 /// object will make the following glyphs  animate while the selection is shrinking.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Selection {
-    shape_view : component::ShapeView<cursor::Shape>,
-    right_side : display::object::Instance,
-    network    : frp::Network,
-    position   : Animation<Vector2>,
-    width      : Animation<f32>,
-    edit_mode  : Rc<Cell<bool>>,
+    logger         : Logger,
+    display_object : display::object::Instance,
+    right_side     : display::object::Instance,
+    shape_view     : component::ShapeView<cursor::Shape>,
+    network        : frp::Network,
+    position       : Animation<Vector2>,
+    width          : Animation<f32>,
+    edit_mode      : Rc<Cell<bool>>,
 }
 
 impl Deref for Selection {
@@ -498,13 +503,15 @@ impl Deref for Selection {
 
 impl Selection {
     pub fn new(logger:impl AnyLogger, scene:&Scene, edit_mode:bool) -> Self {
-        let network    = frp::Network::new();
-        let shape_view = component::ShapeView::<cursor::Shape>::new(logger,scene);
-        let position   = Animation::new(&network);
-        let width      = Animation::new(&network);
-        let edit_mode  = Rc::new(Cell::new(edit_mode));
-        let right_side = display::object::Instance::new(Logger::new("cursor"));
-        let debug      = false; // Change to true to slow-down movement for debug purposes.
+        let logger         = Logger::new("selection");
+        let display_object = display::object::Instance::new(&logger);
+        let right_side     = display::object::Instance::new(&logger);
+        let network        = frp::Network::new();
+        let shape_view     = component::ShapeView::<cursor::Shape>::new(&logger,scene);
+        let position       = Animation::new(&network);
+        let width          = Animation::new(&network);
+        let edit_mode      = Rc::new(Cell::new(edit_mode));
+        let debug          = false; // Change to true to slow-down movement for debug purposes.
         if  debug {
             position . update_spring (|spring| spring * 0.1);
             width    . update_spring (|spring| spring * 0.1);
@@ -513,25 +520,37 @@ impl Selection {
             width    . update_spring (|spring| spring * 1.5);
 
         }
-        Self {shape_view,right_side,network,position,width,edit_mode} . init()
+        Self {logger,display_object,right_side,shape_view,network,position,width,edit_mode} . init()
     }
 
     fn init(self) -> Self {
-        self.add_child(&self.right_side);
-        let network    = &self.network;
-        let view       = &self.shape_view;
+        self.add_child(&self.shape_view);
+        self.shape_view.add_child(&self.right_side);
+        let network = &self.network;
+        let view    = &self.shape_view;
+        let object  = &self.display_object;
+        let width   = &self.width;
         let right_side = &self.right_side;
         frp::extend! { network
-            _eval <- all_with(&self.position.value,&self.width.value,f!([view,right_side](p,width){
-                let side         = width.signum();
-                let a_width      = width.abs();
-                let (width,off)  = if a_width < CURSOR_WIDTH { (CURSOR_WIDTH,-CURSOR_WIDTH/2.0) } else { (a_width - 1.0,0.5) };
-                let canvas_width = (CURSOR_PADDING * 2.0 + width) * side;
-                let x            = p.x - (CURSOR_PADDING - off) * side;
-                let pos          = Vector2(x,p.y);
-                right_side.set_position_x((a_width + CURSOR_PADDING - off) * side);
-                view.shape.sprite.size.set(Vector2(canvas_width,20.0));
-                view.set_position_xy(pos);
+            _eval <- all_with(&self.position.value,&self.width.value,f!([view,object,right_side](p,width){
+                let side       = width.signum();
+                let abs_width  = width.abs();
+                let width      = max(CURSOR_WIDTH, abs_width - CURSORS_SPACING);
+                let view_width = CURSOR_PADDING * 2.0 + width;
+                let view_x     = (abs_width/2.0) * side;
+
+//                let x            = p.x - CURSOR_PADDING * side;
+//                let pos          = Vector2(x,p.y);
+                object.set_position_xy(*p);
+                right_side.set_position_x(abs_width/2.0);
+//                let view_x       = if side < 0.0 {  }
+//                if side >= 0.0 {
+//                    right_side.set_position_x((abs_width + CURSOR_PADDING - off) * side);
+//                } else {
+//                    right_side.set_position_x((CURSOR_PADDING) * side);
+//                }
+                view.shape.sprite.size.set(Vector2(view_width,20.0));
+                view.set_position_x(view_x);
             }));
         }
         self
@@ -549,7 +568,7 @@ impl Selection {
 
 impl display::Object for Selection {
     fn display_object(&self) -> &display::object::Instance {
-        &self.shape_view.display_object()
+        &self.display_object
     }
 }
 
@@ -604,8 +623,8 @@ impl AreaData {
         background.shape.sprite.size.set(Vector2(150.0,100.0));
         background.mod_position(|p| p.x += 50.0);
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<cursor::Shape>);
-        shape_system.shape_system.set_alignment(alignment::Alignment::center_left());
+        // let shape_system = scene.shapes.shape_system(PhantomData::<cursor::Shape>);
+        // shape_system.shape_system.set_alignment(alignment::Alignment::center_left());
 
         Self {scene,logger,frp,display_object,glyph_system,buffer,lines,selection_map,background} . init()
     }
@@ -640,7 +659,10 @@ impl AreaData {
                     let go_left      = pos.x < mid_point;
                     let go_right     = pos.x > mid_point;
                     let need_flip    = (select_left && go_left) || (select_right && go_right);
+                    println!("{:?} {:?} {:?} {:?}",select_left,go_left,select_right,go_right);
+                    println!("pos: {:?}, new_pos: {:?}",selection.position.simulator.target_value().x,pos.x);
                     if width == 0.0 && need_flip {
+                        println!("FLIP");
                         selection.flip_sides();
                     }
 
