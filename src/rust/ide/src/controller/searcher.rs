@@ -216,7 +216,7 @@ pub struct ThisNode {
 }
 
 impl ThisNode {
-    /// Retrieve information about the `self` node.
+    /// Retrieve information about the `self` node. The first selected node will be used for this.
     ///
     /// Returns `None` if the given node's information cannot be retrieved or if the node does not
     /// introduce a variable.
