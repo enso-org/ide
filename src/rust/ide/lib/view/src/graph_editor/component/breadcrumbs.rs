@@ -202,12 +202,15 @@ impl BreadcrumbsModel {
             cmp::Ordering::Greater => {
                 for index in current_index..index {
                     let info = self.breadcrumbs.borrow().get(index).map(|breadcrumb| {
-                        (breadcrumb.info.method_pointer.clone(),breadcrumb.info.expression_id)
+                        let definition = breadcrumb.info.method_pointer.clone();
+                        let call       = breadcrumb.info.expression_id;
+                        LocalCall{call,definition}
                     }).as_ref().cloned();
-                    if let Some((method_pointer,expression_id)) = info {
-                        let local_call = LocalCall{call:expression_id,definition:method_pointer};
-                        self.frp_outputs.breadcrumb_push.emit(Some(local_call));
+                    if info.is_some() {
+                        self.frp_outputs.breadcrumb_push.emit(info);
                     } else {
+                        error!(self.logger, "LocalCall info is invalid.");
+                        self.remove_breadcrumbs_history(index);
                         break;
                     }
                 }
@@ -227,16 +230,16 @@ impl BreadcrumbsModel {
             let next_index = current_index + 1;
 
             let breadcrumb_exists =
-                self.breadcrumbs.borrow_mut().get(current_index).map(|breadcrumb| {
-                    breadcrumb.info.expression_id
-                }).filter(|other_expression_id| other_expression_id == expression_id).is_some();
+                self.breadcrumbs.borrow_mut().get(current_index).contains_if(|breadcrumb| {
+                    breadcrumb.info.expression_id == *expression_id
+                });
 
             if breadcrumb_exists {
                 debug!(self.logger, "Entering an existing {method_pointer.name} breadcrumb.");
                 //TODO[dg]: Highlight breadcrumb.
             } else {
                 debug!(self.logger, "Creating a new {method_pointer.name} breadcrumb.");
-                self.remove_breadcrumbs_history();
+                self.remove_breadcrumbs_history(self.current_index.get());
                 let breadcrumb = Breadcrumb::new(&self.scene, method_pointer, expression_id);
                 let network = &breadcrumb.frp.network;
                 let breadcrumb_index = next_index;
@@ -289,8 +292,8 @@ impl BreadcrumbsModel {
         sources
     }
 
-    fn remove_breadcrumbs_history(&self) {
-        for breadcrumb in self.breadcrumbs.borrow_mut().split_off(self.current_index.get()) {
+    fn remove_breadcrumbs_history(&self, index:usize) {
+        for breadcrumb in self.breadcrumbs.borrow_mut().split_off(index) {
             info!(self.logger, "Removing {breadcrumb.info.method_pointer.name}.");
             breadcrumb.unset_parent();
         }

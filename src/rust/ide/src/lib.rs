@@ -67,7 +67,6 @@ pub mod prelude {
     pub use std::ops::Range;
 
     pub use utils::fail::FallibleResult;
-    pub use utils::option::OptionExt;
     pub use utils::vec::VecExt;
 
     pub use uuid::Uuid;

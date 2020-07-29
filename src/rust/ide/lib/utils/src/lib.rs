@@ -16,6 +16,5 @@ pub use enso_prelude as prelude;
 pub mod channel;
 pub mod env;
 pub mod fail;
-pub mod option;
 pub mod test;
 pub mod vec;
