@@ -1804,8 +1804,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         Some(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
     new_input_edge <- create_edge_from_input.map(f!([model,edge_mouse_down,edge_over,edge_out]((target)){
-        let not_connected = !model.is_node_connected_at_input(target.node_id,target.port.to_vec());
-        not_connected.as_some(model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out))
+        if model.is_node_connected_at_input(target.node_id,target.port.to_vec()) {
+            return None
+        };
+        Some(model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
 
     outputs.edge_added <+ new_output_edge;
