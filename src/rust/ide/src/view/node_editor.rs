@@ -522,8 +522,13 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     /// Handle notification received from controller about values having been entered.
-    pub fn on_node_entered(&self, _id:double_representation::node::Id) -> FallibleResult<()> {
+    pub fn on_node_entered
+    ( &self
+    , id         : double_representation::node::Id
+    , definition : graph_editor::MethodPointer) -> FallibleResult<()> {
+        let local_call = LocalCall{definition,call:id};
         self.editor.frp.deselect_all_nodes.emit_event(&());
+        self.editor.breadcrumbs.frp.push_breadcrumb.emit(&Some(local_call));
         self.request_detaching_all_visualizations();
         self.refresh_graph_view()
     }
@@ -564,10 +569,13 @@ impl GraphEditorIntegratedWithControllerModel {
         use controller::graph::Notification::Invalidate;
 
         let result = match notification {
-            Some(Notification::Graph(Invalidate))         => self.on_invalidated(),
-            Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
-            Some(Notification::EnteredNode(id))           => self.on_node_entered(*id),
-            Some(Notification::SteppedOutOfNode(id))      => self.on_node_exited(*id),
+            Some(Notification::Graph(Invalidate))              => self.on_invalidated(),
+            Some(Notification::ComputedValueInfo(update))      => self.on_values_computed(update),
+            Some(Notification::SteppedOutOfNode(id))           => self.on_node_exited(*id),
+            Some(Notification::EnteredNode(id,method_pointer)) => {
+                let method_pointer = graph_editor::MethodPointer(Rc::new(method_pointer.clone()));
+                self.on_node_entered(*id,method_pointer)
+            },
             other => {
                 warning!(self.logger,"Handling notification {other:?} is not implemented; \
                     performing full invalidation");
@@ -717,15 +725,11 @@ impl GraphEditorIntegratedWithControllerModel {
             let expression_id  = local_call.call;
             let controller     = self.controller.clone_ref();
             let logger         = self.logger.clone_ref();
-            let graph_editor   = self.editor.clone_ref();
             let enter_action   = async move {
                 info!(logger,"Entering node.");
-                match controller.enter_method_pointer(expression_id,&method_pointer).await {
-                    Ok(_) => {
-                        let local_call = LocalCall{definition:method_pointer,call:expression_id};
-                        graph_editor.breadcrumbs.frp.push_breadcrumb.emit(&Some(local_call));
-                    },
-                    Err(e) => error!(logger,"Couldn't enter node: {e}")
+                let result = controller.enter_method_pointer(expression_id,&method_pointer).await;
+                if let Err(e) = result {
+                    error!(logger,"Couldn't enter node: {e}")
                 }
             };
             executor::global::spawn(enter_action);

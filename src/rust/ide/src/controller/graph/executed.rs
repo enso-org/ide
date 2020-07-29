@@ -45,7 +45,7 @@ pub enum Notification {
     /// being updated.
     ComputedValueInfo(model::execution_context::ComputedValueExpressions),
     /// Notification emitted when the node has been entered.
-    EnteredNode(double_representation::node::Id),
+    EnteredNode(double_representation::node::Id,MethodPointer),
     /// Notification emitted when the node was step out.
     SteppedOutOfNode(double_representation::node::Id),
 }
@@ -162,7 +162,7 @@ impl Handle {
         debug!(self.logger,"Replacing graph with {graph:?}.");
         self.graph.replace(graph);
         debug!(self.logger,"Sending graph invalidation signal.");
-        self.notifier.publish(Notification::EnteredNode(node)).await;
+        self.notifier.publish(Notification::EnteredNode(node,method_ptr.clone())).await;
 
         Ok(())
     }
