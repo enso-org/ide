@@ -16,41 +16,41 @@ use wasm_bindgen::prelude::*;
 
 fn generate_mock_doc() -> String {
     let inp_only_doc = r#"DEPRECATED
-                             REMOVED - replaced by Foo Bar
-                             ADDED
-                             MODIFIED
-                             UPCOMING
-                             ALAMAKOTA a kot ma Ale
-                             This is a test of Enso Documentation Parser. This is a short synopsis.
+                          REMOVED - replaced by Foo Bar
+                          ADDED
+                          MODIFIED
+                          UPCOMING
+                          ALAMAKOTA a kot ma Ale
+                          This is a test of Enso Documentation Parser. This is a short synopsis.
 
-                             Here you can write the body of documentation. On top you can see tags
-                             added to this piece of code. You can customise your text with _Italic_
-                             ~Strikethrough~ or *Bold*. ~_*Combined*_~ is funny
+                          Here you can write the body of documentation. On top you can see tags
+                          added to this piece of code. You can customise your text with _Italic_
+                          ~Strikethrough~ or *Bold*. ~_*Combined*_~ is funny
 
 
-                             There are 3 kinds of sections
-                               - Important
-                               - Info
-                               - Example
-                                 * You can use example to add multiline code to your documentation
+                          There are 3 kinds of sections
+                            - Important
+                            - Info
+                            - Example
+                              * You can use example to add multiline code to your documentation
 
-                             ! Important
-                               Here is a small test of Important Section
+                          ! Important
+                            Here is a small test of Important Section
 
-                             ? Info
-                               Here is a small test of Info Section
+                          ? Info
+                            Here is a small test of Info Section
 
-                             > Example
-                               Here is a small test of Example Section
-                                   Import Foo
-                                   def Bar a
-                             "#;
+                          > Example
+                            Here is a small test of Example Section
+                                Import Foo
+                                def Bar a
+                          "#;
     let default_input = String::from(inp_only_doc);
     let program = std::env::args().nth(1).unwrap_or(default_input);
 
     let parser = parser::DocParser::new_or_panic();
     let output = parser.generate_html_doc_pure(program);
-    output.unwrap_or(String::from("<h1>hello EnsoGL</h1>"))
+    output.unwrap_or_else(|_| String::from("<h1>hello EnsoGL</h1>"))
 }
 
 
