@@ -124,8 +124,8 @@ mod separator {
 /// ProjectName's animations handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    opacity  : Animation<f32>,
-    fade_in  : Animation<f32>
+    opacity : Animation<f32>,
+    fade_in : Animation<f32>
 }
 
 impl Animations {
@@ -235,7 +235,7 @@ impl Frp {
 #[allow(missing_docs)]
 pub struct BreadcrumbInfo {
     pub method_pointer : MethodPointer,
-    pub expression_id  : uuid::Uuid
+    pub expression_id  : ast::Id
 }
 
 
@@ -262,7 +262,7 @@ pub struct BreadcrumbModel {
 impl BreadcrumbModel {
     /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>
-    (scene:S, frp:&Frp,method_pointer:&MethodPointer, expression_id:&uuid::Uuid) -> Self {
+    (scene:S, frp:&Frp,method_pointer:&MethodPointer, expression_id:&ast::Id) -> Self {
         let scene          = scene.into();
         let logger         = Logger::new("Breadcrumbs");
         let display_object = display::object::Instance::new(&logger);
@@ -378,7 +378,7 @@ pub struct Breadcrumb {
 impl Breadcrumb {
     /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>
-    (scene:S, method_pointer:&MethodPointer, expression_id:&uuid::Uuid) -> Self {
+    (scene:S, method_pointer:&MethodPointer, expression_id:&ast::Id) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(BreadcrumbModel::new(scene,&frp,method_pointer,expression_id));
         let network = &frp.network;

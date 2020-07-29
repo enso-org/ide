@@ -28,14 +28,14 @@ use std::cmp;
 // =================
 
 /// A specific function call occurring within another function's definition body.
-///
-/// This is a single item in ExecutionContext stack.
+/// It's closely related to the `LocalCall` type defined in `Language Server` types, but uses the
+/// new type `MethodPointer` defined in `GraphEditor`.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct LocalCall {
     /// An expression being a call to a method.
-    pub call       : ExpressionId,
+    pub call:ExpressionId,
     /// A pointer to the called method.
-    pub definition : MethodPointer,
+    pub definition:MethodPointer,
 }
 
 
@@ -60,9 +60,9 @@ const TEXT_SIZE         : f32 = 12.0;
 #[allow(missing_docs)]
 pub struct FrpInputs {
     /// Push breadcrumb.
-    pub push_breadcrumb : frp::Source<Option<LocalCall>>,
+    pub push_breadcrumb:frp::Source<Option<LocalCall>>,
     /// Pop breadcrumb.
-    pub pop_breadcrumb : frp::Source,
+    pub pop_breadcrumb:frp::Source,
 }
 
 impl FrpInputs {

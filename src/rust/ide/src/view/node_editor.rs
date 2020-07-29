@@ -719,9 +719,9 @@ impl GraphEditorIntegratedWithControllerModel {
             let logger         = self.logger.clone_ref();
             let graph_editor   = self.editor.clone_ref();
             let enter_action   = async move {
+                info!(logger,"Entering node.");
                 match controller.enter_method_pointer(expression_id,&method_pointer).await {
                     Ok(_) => {
-                        info!(logger,"Entering node.");
                         let local_call = LocalCall{definition:method_pointer,call:expression_id};
                         graph_editor.breadcrumbs.frp.push_breadcrumb.emit(&Some(local_call));
                     },
@@ -748,12 +748,10 @@ impl GraphEditorIntegratedWithControllerModel {
         let logger       = self.logger.clone_ref();
         let graph_editor = self.editor.clone_ref();
         let exit_node_action = async move {
+            info!(logger,"Exiting node.");
             let result = controller.exit_node().await;
             match result {
-                Ok(_) => {
-                    info!(logger,"Exiting node.");
-                    graph_editor.breadcrumbs.frp.pop_breadcrumb.emit(())
-                },
+                Ok(_)  => graph_editor.breadcrumbs.frp.pop_breadcrumb.emit(()),
                 Err(e) => error!(logger,"Couldn't exit node: {e}")
             }
         };

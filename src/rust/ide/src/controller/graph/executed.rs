@@ -148,11 +148,10 @@ impl Handle {
     /// This will cause pushing a new stack frame to the execution context and changing the graph
     /// controller to point to a new definition.
     ///
-    /// Fails if there's no information about target node (e.g. because node value hasn't
-    /// been yet computed by the engine) or if method graph cannot be created (see
-    /// `graph_for_method` documentation).
+    /// Fails if method graph cannot be created (see `graph_for_method` documentation).
     pub async fn enter_method_pointer
     (&self, node:double_representation::node::Id, method_ptr:&MethodPointer) -> FallibleResult<()> {
+        debug!(self.logger, "Entering node {node}.");
         let graph = controller::Graph::new_method(&self.logger,&self.project,&method_ptr).await?;
         let call  = model::execution_context::LocalCall {
             call       : node,
@@ -171,11 +170,9 @@ impl Handle {
     /// Attempts to get the method pointer of the specified node.
     ///
     /// Fails if there's no information about target method pointer (e.g. because node value hasn't
-    /// been yet computed by the engine) or if method graph cannot be created (see
-    /// `graph_for_method` documentation).
+    /// been yet computed by the engine).
     pub fn node_method_pointer
     (&self, node:double_representation::node::Id) -> FallibleResult<Rc<MethodPointer>> {
-        debug!(self.logger, "Entering node {node}.");
         let registry   = self.execution_ctx.computed_value_info_registry();
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
         node_info.method_pointer.as_ref().cloned().ok_or_else(|| NoResolvedMethod(node).into())
@@ -186,7 +183,7 @@ impl Handle {
     /// This will cause pushing a new stack frame to the execution context and changing the graph
     /// controller to point to a new definition.
     ///
-    /// Fails if there's no information about target node (e.g. because node value hasn't
+    /// Fails if there's no information about target method pointer (e.g. because node value hasn't
     /// been yet computed by the engine) or if method graph cannot be created (see
     /// `graph_for_method` documentation).
     pub async fn enter_node(&self, node:double_representation::node::Id) -> FallibleResult<()> {

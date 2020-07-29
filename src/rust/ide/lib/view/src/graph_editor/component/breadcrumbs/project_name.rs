@@ -60,11 +60,11 @@ mod background {
 #[allow(missing_docs)]
 pub struct FrpInputs {
     /// Set the project name.
-    pub name : frp::Source<String>,
+    pub name:frp::Source<String>,
     /// Reset the project name to the one before editing.
-    pub cancel_editing : frp::Source,
+    pub cancel_editing:frp::Source,
     /// Commit current project name.
-    pub commit : frp::Source
+    pub commit:frp::Source
 }
 
 impl FrpInputs {
