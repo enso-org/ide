@@ -138,6 +138,10 @@ impl Group {
         Group::default()
     }
 
+    pub fn to_carets(&self) -> Group {
+        Self {sorted_regions : self.sorted_regions.iter().map(|t| t.as_caret()).collect()}
+    }
+
     /// Add a region to the selection. This method implements merging logic.
     ///
     /// Two non-caret regions merge if their interiors intersect. Merely touching at the edges does
@@ -194,6 +198,12 @@ impl From<Selection> for Group {
     fn from(t:Selection) -> Self {
         let sorted_regions = vec![t];
         Self {sorted_regions}
+    }
+}
+
+impl From<Option<Selection>> for Group {
+    fn from(t:Option<Selection>) -> Self {
+        t.map(|s|s.into()).unwrap_or_default()
     }
 }
 

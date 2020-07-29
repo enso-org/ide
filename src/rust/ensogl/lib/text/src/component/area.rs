@@ -1,32 +1,30 @@
 use crate::prelude::*;
 
-use crate::typeface::glyph;
-use crate::typeface::pen;
-use crate::typeface::glyph::Glyph;
-use crate::buffer;
 use crate::buffer::data::unit::*;
 use crate::buffer::Movement;
-
-use ensogl::application;
-
-use ensogl::display::Buffer;
-use ensogl::display::Attribute;
-use ensogl::display::Sprite;
-use ensogl::display::scene::Scene;
-use ensogl::display::shape::*;
-use ensogl::data::color;
-use ensogl::display;
-use ensogl::gui::component;
+use crate::buffer;
+use crate::typeface::glyph::Glyph;
+use crate::typeface::glyph;
+use crate::typeface::pen;
 use crate::typeface;
-use ensogl::gui::cursor as mouse_cursor;
+
 use enso_frp as frp;
-use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
+use enso_frp::io::keyboard::Key;
+use enso_frp::stream::ValueProvider;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
+use ensogl::application;
+use ensogl::data::color;
+use ensogl::display::Attribute;
+use ensogl::display::Buffer;
+use ensogl::display::scene::Scene;
+use ensogl::display::shape::*;
+use ensogl::display::Sprite;
+use ensogl::display;
 use ensogl::gui::component::Animation;
-use enso_frp::stream::ValueProvider;
-use enso_frp::io::keyboard::Key;
-use ensogl::display::layout::alignment;
+use ensogl::gui::component;
+use ensogl::gui::cursor as mouse_cursor;
+use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
 
 
 
@@ -337,6 +335,10 @@ ensogl::def_command_api! { Commands
     set_cursor_at_mouse_position,
     /// Add a new cursor at the mouse cursor position.
     add_cursor_at_mouse_position,
+    /// Start the selection at the mouse cursor position.
+    start_mouse_selection,
+    /// Stop the selection at the mouse cursor position.
+    stop_mouse_selection,
     /// Move the cursor to the left by one grapheme cluster.
     cursor_move_left,
     /// Move the cursor to the right by one grapheme cluster.
@@ -353,6 +355,14 @@ ensogl::def_command_api! { Commands
     cursor_select_down,
     /// Extend the cursor selection up one line.
     cursor_select_up,
+    /// Discard all but the first selection.
+    keep_first_selection_only,
+    /// Discard all but the last selection.
+    keep_last_selection_only,
+    /// Discard all but the first selection and convert it to caret.
+    keep_first_caret_only,
+    /// Discard all but the last selection and convert it to caret.
+    keep_last_caret_only,
 }
 
 impl application::command::CommandApi for Area {
@@ -415,14 +425,23 @@ impl Area {
         let pos     = Animation :: <Vector2> :: new(&network);
         pos.update_spring(|spring| spring*2.0);
 
+        let command = &model.frp.command;
+
         frp::extend! { network
             cursor_over  <- self.background.events.mouse_over.constant(mouse_cursor::Style::new_text_cursor());
             cursor_out   <- self.background.events.mouse_out.constant(mouse_cursor::Style::default());
             mouse_cursor <- any(cursor_over,cursor_out);
             self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
 
-            mouse_on_set_cursor <- mouse.position.sample(&model.frp.command.set_cursor_at_mouse_position);
-            mouse_on_add_cursor <- mouse.position.sample(&model.frp.command.add_cursor_at_mouse_position);
+            set_cursor_at_mouse_position <- any
+                ( &command.set_cursor_at_mouse_position
+                , &command.start_mouse_selection
+                );
+            mouse_on_set_cursor <- mouse.position.sample(&set_cursor_at_mouse_position);
+            mouse_on_add_cursor <- mouse.position.sample(&command.add_cursor_at_mouse_position);
+
+            selecting <- bool(&command.stop_mouse_selection,&command.start_mouse_selection);
+            trace selecting;
 
             eval mouse_on_set_cursor ([model](screen_pos) {
                 let location = model.get_in_text_location(*screen_pos);
@@ -445,6 +464,12 @@ impl Area {
             ));
 
             eval_ model.buffer.frp.output.changed (model.redraw());
+
+            eval_ command.keep_first_selection_only (model.buffer.frp.input.keep_first_selection_only.emit(()));
+            eval_ command.keep_last_selection_only (model.buffer.frp.input.keep_last_selection_only.emit(()));
+            eval_ command.keep_first_caret_only (model.buffer.frp.input.keep_first_caret_only.emit(()));
+            eval_ command.keep_last_caret_only (model.buffer.frp.input.keep_last_caret_only.emit(()));
+
             eval_ command.cursor_move_left  (model.buffer.frp.input.cursors_move.emit(Some(Movement::Left)));
             eval_ command.cursor_move_right (model.buffer.frp.input.cursors_move.emit(Some(Movement::Right)));
             eval_ command.cursor_move_up    (model.buffer.frp.input.cursors_move.emit(Some(Movement::Up)));
@@ -512,46 +537,34 @@ impl Selection {
         let width          = Animation::new(&network);
         let edit_mode      = Rc::new(Cell::new(edit_mode));
         let debug          = false; // Change to true to slow-down movement for debug purposes.
-        if  debug {
-            position . update_spring (|spring| spring * 0.1);
-            width    . update_spring (|spring| spring * 0.1);
-        } else {
-            position . update_spring (|spring| spring * 1.5);
-            width    . update_spring (|spring| spring * 1.5);
-
-        }
+        let spring_factor  = if debug { 0.1 } else { 1.5 };
+        position . update_spring (|spring| spring * spring_factor);
+        width    . update_spring (|spring| spring * spring_factor);
         Self {logger,display_object,right_side,shape_view,network,position,width,edit_mode} . init()
     }
 
     fn init(self) -> Self {
-        self.add_child(&self.shape_view);
-        self.shape_view.add_child(&self.right_side);
-        let network = &self.network;
-        let view    = &self.shape_view;
-        let object  = &self.display_object;
-        let width   = &self.width;
+        let network    = &self.network;
+        let view       = &self.shape_view;
+        let object     = &self.display_object;
+        let width      = &self.width;
         let right_side = &self.right_side;
+        self.add_child(view);
+        view.add_child(right_side);
         frp::extend! { network
-            _eval <- all_with(&self.position.value,&self.width.value,f!([view,object,right_side](p,width){
-                let side       = width.signum();
-                let abs_width  = width.abs();
-                let width      = max(CURSOR_WIDTH, abs_width - CURSORS_SPACING);
-                let view_width = CURSOR_PADDING * 2.0 + width;
-                let view_x     = (abs_width/2.0) * side;
-
-//                let x            = p.x - CURSOR_PADDING * side;
-//                let pos          = Vector2(x,p.y);
-                object.set_position_xy(*p);
-                right_side.set_position_x(abs_width/2.0);
-//                let view_x       = if side < 0.0 {  }
-//                if side >= 0.0 {
-//                    right_side.set_position_x((abs_width + CURSOR_PADDING - off) * side);
-//                } else {
-//                    right_side.set_position_x((CURSOR_PADDING) * side);
-//                }
-                view.shape.sprite.size.set(Vector2(view_width,20.0));
-                view.set_position_x(view_x);
-            }));
+            _eval <- all_with(&self.position.value,&self.width.value,
+                f!([view,object,right_side](p,width){
+                    let side       = width.signum();
+                    let abs_width  = width.abs();
+                    let width      = max(CURSOR_WIDTH, abs_width - CURSORS_SPACING);
+                    let view_width = CURSOR_PADDING * 2.0 + width;
+                    let view_x     = (abs_width/2.0) * side;
+                    object.set_position_xy(*p);
+                    right_side.set_position_x(abs_width/2.0);
+                    view.shape.sprite.size.set(Vector2(view_width,20.0));
+                    view.set_position_x(view_x);
+                })
+            );
         }
         self
     }
@@ -623,8 +636,8 @@ impl AreaData {
         background.shape.sprite.size.set(Vector2(150.0,100.0));
         background.mod_position(|p| p.x += 50.0);
 
-        // let shape_system = scene.shapes.shape_system(PhantomData::<cursor::Shape>);
-        // shape_system.shape_system.set_alignment(alignment::Alignment::center_left());
+        let shape_system = scene.shapes.shape_system(PhantomData::<cursor::Shape>);
+        shape_system.shape_system.set_pointer_events(false);
 
         Self {scene,logger,frp,display_object,glyph_system,buffer,lines,selection_map,background} . init()
     }
@@ -846,18 +859,21 @@ impl application::shortcut::DefaultShortcutProvider for Area {
         use enso_frp::io::mouse;
 //        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_position")
 //        ]
-        vec! [ Self::self_shortcut(shortcut::Action::press (&[Key::ArrowLeft]             , shortcut::Pattern::Any) , "cursor_move_left"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowRight]            , shortcut::Pattern::Any) , "cursor_move_right"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowUp]               , shortcut::Pattern::Any) , "cursor_move_up"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::ArrowDown]             , shortcut::Pattern::Any) , "cursor_move_down"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::Shift,Key::ArrowLeft]  , shortcut::Pattern::Any) , "cursor_select_left"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::Shift,Key::ArrowRight] , shortcut::Pattern::Any) , "cursor_select_right"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::Shift,Key::ArrowUp]    , shortcut::Pattern::Any) , "cursor_select_up"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::Shift,Key::ArrowDown]  , shortcut::Pattern::Any) , "cursor_select_down"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::Backspace]             , shortcut::Pattern::Any) , "delete_left"),
-               Self::self_shortcut(shortcut::Action::press (shortcut::Pattern::Any,&[])                             , "insert_char_of_last_pressed_key"),
-               Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton])                            , "set_cursor_at_mouse_position"),
-               Self::self_shortcut(shortcut::Action::press (&[Key::Meta],&[mouse::PrimaryButton])                   , "add_cursor_at_mouse_position"),
+        vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowLeft]             , shortcut::Pattern::Any) , "cursor_move_left"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowRight]            , shortcut::Pattern::Any) , "cursor_move_right"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowUp]               , shortcut::Pattern::Any) , "cursor_move_up"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowDown]             , shortcut::Pattern::Any) , "cursor_move_down"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowLeft]  , shortcut::Pattern::Any) , "cursor_select_left"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowRight] , shortcut::Pattern::Any) , "cursor_select_right"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowUp]    , shortcut::Pattern::Any) , "cursor_select_up"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowDown]  , shortcut::Pattern::Any) , "cursor_select_down"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace]             , shortcut::Pattern::Any) , "delete_left"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                , shortcut::Pattern::Any) , "keep_first_caret_only"),
+               Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                             , "insert_char_of_last_pressed_key"),
+               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "set_cursor_at_mouse_position"),
+               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "start_mouse_selection"),
+               Self::self_shortcut(shortcut::Action::release (&[],&[mouse::PrimaryButton])                            , "stop_mouse_selection"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                   , "add_cursor_at_mouse_position"),
         ]
     }
 }
