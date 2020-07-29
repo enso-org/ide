@@ -374,9 +374,9 @@ impl Searcher {
         } else {
             default()
         };
-        let this_arg = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
         let ret      = Self {
-            logger,graph,this_arg,
+            logger,graph,
+            this_arg        : Rc::new(ThisNode::new(selected_nodes,&graph.graph())),
             data            : Rc::new(RefCell::new(data)),
             notifier        : default(),
             mode            : Immutable(mode),
@@ -568,7 +568,7 @@ impl Searcher {
         let next_id = self.data.borrow().input.next_completion_id();
         let logger  = self.logger.clone_ref();
         let graph   = self.graph.clone_ref();
-        let this    = self.this_arg.clone();
+        let this    = self.this_arg.clone_ref();
         async move {
             let is_function_fragment = next_id == CompletedFragmentId::Function;
             is_function_fragment.then(())?;
