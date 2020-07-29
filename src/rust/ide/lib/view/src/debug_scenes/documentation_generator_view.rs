@@ -50,8 +50,7 @@ fn generate_mock_doc() -> String {
 
     let parser = parser::DocParser::new_or_panic();
     let output = parser.generate_html_doc_pure(program);
-    let output_unwrapped = output.unwrap_or(String::from("<h1>hello EnsoGL</h1>"));
-    output_unwrapped
+    output.unwrap_or(String::from("<h1>hello EnsoGL</h1>"))
 }
 
 
