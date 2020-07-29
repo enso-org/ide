@@ -165,6 +165,14 @@ impl ViewBuffer {
         self.last_selection().to_carets()
     }
 
+    pub fn newest_selection(&self) -> selection::Group {
+        self.selection.borrow().newest().cloned().into()
+    }
+
+    pub fn oldest_selection(&self) -> selection::Group {
+        self.selection.borrow().oldest().cloned().into()
+    }
+
     /// Add a new cursor for the given byte offset.
     pub fn add_cursor_old(&self, offset:Bytes) {
         let id = self.next_selection_id.get();
@@ -241,17 +249,19 @@ impl ViewBuffer {
 
 define_frp! {
     Input {
-        cursors_move              : Option<Movement>,
-        cursors_select            : Option<Movement>,
-        set_cursor                : Location,
-        add_cursor                : Location,
-        insert                    : String,
-        delete_left               : (),
-        clear_selection           : (),
-        keep_first_selection_only : (),
-        keep_last_selection_only  : (),
-        keep_first_caret_only     : (),
-        keep_last_caret_only      : (),
+        cursors_move               : Option<Movement>,
+        cursors_select             : Option<Movement>,
+        set_cursor                 : Location,
+        add_cursor                 : Location,
+        insert                     : String,
+        delete_left                : (),
+        clear_selection            : (),
+        keep_first_selection_only  : (),
+        keep_last_selection_only   : (),
+        keep_first_caret_only      : (),
+        keep_last_caret_only       : (),
+        keep_oldest_selection_only : (),
+        keep_newest_selection_only : (),
     }
 
     Output {
@@ -305,9 +315,11 @@ impl View {
             selection_on_clear <- input.clear_selection.constant(default());
             selection_on_keep_last <- input.keep_last_selection_only.map(f_!(model.last_selection()));
             selection_on_keep_first <- input.keep_first_selection_only.map(f_!(model.first_selection()));
-
             selection_on_keep_last_caret <- input.keep_last_caret_only.map(f_!(model.last_caret()));
             selection_on_keep_first_caret <- input.keep_first_caret_only.map(f_!(model.first_caret()));
+
+            selection_on_keep_last <- input.keep_newest_selection_only.map(f_!(model.newest_selection()));
+            selection_on_keep_first <- input.keep_oldest_selection_only.map(f_!(model.oldest_selection()));
 
             selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(model.offset_of_view_location(t)).into()));
             selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(model.offset_of_view_location(t))));
