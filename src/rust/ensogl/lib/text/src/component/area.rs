@@ -331,6 +331,8 @@ ensogl::def_command_api! { Commands
     insert_char_of_last_pressed_key,
     /// Removes the character on the left of every cursor.
     delete_left,
+    /// Removes the word on the left of every cursor.
+    delete_word_left,
     /// Set the text cursor at the mouse cursor position.
     set_cursor_at_mouse_position,
     /// Add a new cursor at the mouse cursor position.
@@ -339,22 +341,32 @@ ensogl::def_command_api! { Commands
     start_newest_selection_end_follow_mouse,
     /// Stop the selection at the mouse cursor position.
     stop_oldest_selection_end_follow_mouse,
-    /// Move the cursor to the left by one grapheme cluster.
+    /// Move the cursor to the left by one character.
     cursor_move_left,
-    /// Move the cursor to the right by one grapheme cluster.
+    /// Move the cursor to the right by one character.
     cursor_move_right,
+    /// Move the cursor to the left by one word.
+    cursor_move_left_word,
+    /// Move the cursor to the right by one word.
+    cursor_move_right_word,
     /// Move the cursor down one line.
     cursor_move_down,
     /// Move the cursor up one line.
     cursor_move_up,
-    /// Extend the cursor selection to the left by one grapheme cluster.
+    /// Extend the cursor selection to the left by one character.
     cursor_select_left,
-    /// Extend the cursor selection to the right by one grapheme cluster.
+    /// Extend the cursor selection to the right by one character.
     cursor_select_right,
     /// Extend the cursor selection down one line.
     cursor_select_down,
     /// Extend the cursor selection up one line.
     cursor_select_up,
+    /// Extend the cursor selection to the left by one word.
+    cursor_select_left_word,
+    /// Extend the cursor selection to the right by one word.
+    cursor_select_right_word,
+    /// Select the word at cursor position.
+    select_word_at_cursor,
     /// Discard all but the first selection.
     keep_first_selection_only,
     /// Discard all but the last selection.
@@ -511,12 +523,21 @@ impl Area {
             eval_ command.cursor_move_up    (model.buffer.frp.input.cursors_move.emit(Some(Movement::Up)));
             eval_ command.cursor_move_down  (model.buffer.frp.input.cursors_move.emit(Some(Movement::Down)));
 
+            eval_ command.cursor_move_left_word  (model.buffer.frp.input.cursors_move.emit(Some(Movement::LeftWord)));
+            eval_ command.cursor_move_right_word (model.buffer.frp.input.cursors_move.emit(Some(Movement::RightWord)));
+
             eval_ command.cursor_select_left  (model.buffer.frp.input.cursors_select.emit(Some(Movement::Left)));
             eval_ command.cursor_select_right (model.buffer.frp.input.cursors_select.emit(Some(Movement::Right)));
             eval_ command.cursor_select_up    (model.buffer.frp.input.cursors_select.emit(Some(Movement::Up)));
             eval_ command.cursor_select_down  (model.buffer.frp.input.cursors_select.emit(Some(Movement::Down)));
 
+            eval_ command.cursor_select_left_word  (model.buffer.frp.input.cursors_select.emit(Some(Movement::LeftWord)));
+            eval_ command.cursor_select_right_word (model.buffer.frp.input.cursors_select.emit(Some(Movement::RightWord)));
+
+            eval_ command.select_word_at_cursor (model.buffer.frp.input.cursors_select.emit(Some(Movement::Word)));
+
             eval_ command.delete_left       (model.buffer.frp.input.delete_left.emit(()));
+            eval_ command.delete_word_left  (model.buffer.frp.input.delete_word_left.emit(()));
 
             key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample(&command.insert_char_of_last_pressed_key);
             char_to_insert        <= key_on_char_to_insert.map(|key| {
@@ -895,24 +916,30 @@ impl application::shortcut::DefaultShortcutProvider for Area {
         use enso_frp::io::mouse;
 //        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_position")
 //        ]
-        vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowLeft]             , shortcut::Pattern::Any) , "cursor_move_left"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowRight]            , shortcut::Pattern::Any) , "cursor_move_right"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowUp]               , shortcut::Pattern::Any) , "cursor_move_up"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowDown]             , shortcut::Pattern::Any) , "cursor_move_down"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowLeft]  , shortcut::Pattern::Any) , "cursor_select_left"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowRight] , shortcut::Pattern::Any) , "cursor_select_right"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowUp]    , shortcut::Pattern::Any) , "cursor_select_up"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowDown]  , shortcut::Pattern::Any) , "cursor_select_down"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace]             , shortcut::Pattern::Any) , "delete_left"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                , shortcut::Pattern::Any) , "keep_oldest_caret_only"),
-               Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                             , "insert_char_of_last_pressed_key"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift],&[mouse::PrimaryButton])                  , "set_newest_selection_end_to_mouse_position"),
-               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "set_cursor_at_mouse_position"),
-               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "start_newest_selection_end_follow_mouse"),
-               Self::self_shortcut(shortcut::Action::release (&[],&[mouse::PrimaryButton])                            , "stop_oldest_selection_end_follow_mouse"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                   , "add_cursor_at_mouse_position"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                   , "start_newest_selection_end_follow_mouse"),
-               Self::self_shortcut(shortcut::Action::release (&[Key::Meta],&[mouse::PrimaryButton])                   , "stop_oldest_selection_end_follow_mouse"),
+        vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowLeft]                       , shortcut::Pattern::Any) , "cursor_move_left"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowRight]                      , shortcut::Pattern::Any) , "cursor_move_right"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowUp]                         , shortcut::Pattern::Any) , "cursor_move_up"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowDown]                       , shortcut::Pattern::Any) , "cursor_move_down"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::ArrowLeft]             , shortcut::Pattern::Any) , "cursor_move_left_word"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::ArrowRight]            , shortcut::Pattern::Any) , "cursor_move_right_word"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowLeft]            , shortcut::Pattern::Any) , "cursor_select_left"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowRight]           , shortcut::Pattern::Any) , "cursor_select_right"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Shift,Key::ArrowLeft]  , shortcut::Pattern::Any) , "cursor_select_left_word"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Shift,Key::ArrowRight] , shortcut::Pattern::Any) , "cursor_select_right_word"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowUp]              , shortcut::Pattern::Any) , "cursor_select_up"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowDown]            , shortcut::Pattern::Any) , "cursor_select_down"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace]                       , shortcut::Pattern::Any) , "delete_left"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Backspace]             , shortcut::Pattern::Any) , "delete_word_left"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_caret_only"),
+               Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                                       , "insert_char_of_last_pressed_key"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift],&[mouse::PrimaryButton])                            , "set_newest_selection_end_to_mouse_position"),
+               Self::self_shortcut(shortcut::Action::double_press (&[],&[mouse::PrimaryButton])                                 , "select_word_at_cursor"),
+               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                                      , "set_cursor_at_mouse_position"),
+               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                                      , "start_newest_selection_end_follow_mouse"),
+               Self::self_shortcut(shortcut::Action::release (&[],&[mouse::PrimaryButton])                                      , "stop_oldest_selection_end_follow_mouse"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "add_cursor_at_mouse_position"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "start_newest_selection_end_follow_mouse"),
+               Self::self_shortcut(shortcut::Action::release (&[Key::Meta],&[mouse::PrimaryButton])                             , "stop_oldest_selection_end_follow_mouse"),
         ]
     }
 }

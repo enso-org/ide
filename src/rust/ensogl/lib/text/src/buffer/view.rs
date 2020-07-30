@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 pub mod movement;
 pub mod selection;
+pub mod word;
 
 pub use movement::*;
 pub use selection::Selection;
@@ -215,40 +216,44 @@ impl ViewBuffer {
 
     /// Insert new text in the place of current selections / cursors.
     pub fn insert(&self, text:impl Into<Data>) -> selection::Group {
+        self.modify(Movement::LeftSelectionBorder,text)
+    }
+
+    fn delete_left(&self) -> selection::Group {
+        self.modify(Movement::Left,"")
+    }
+
+    /// Insert new text in the place of current selections / cursors.
+    pub fn modify(&self, movement:Movement, text:impl Into<Data>) -> selection::Group {
         let text       = text.into();
         let text_size  = text.len();
         let mut result = selection::Group::new();
         let mut offset = 0.bytes();
         for rel_selection in &*self.selection.borrow() {
-            let selection = rel_selection.map(|t|t-offset);
-            let range     = selection.range();
-            let prev      = || self.prev_grapheme_offset(range.start).unwrap_or(range.start);
-            let start     = range.start;//if selection.is_caret() {prev()} else {range.start};
-            let range     = range.with_start(start);
-            offset += (range.size() - text_size);
+            let selection     = rel_selection.map(|t|t-offset);
+            let new_selection =  self.moved_selection_region(movement,selection,false);
+            let range         = range_between(selection,new_selection);
+            offset            += (range.size() - text_size);
             self.buffer.data.borrow_mut().insert(range,&text);
-            let new_selection = rel_selection.map(|_|start+text_size);
+            let new_selection = new_selection.map(|t|t+text_size);
             result.add(new_selection);
         }
         result
     }
 
-    fn delete_left(&self) -> selection::Group {
-        let mut result = selection::Group::new();
-        let mut offset = 0.bytes();
-        for rel_selection in &*self.selection.borrow() {
-            let selection = rel_selection.map(|t|t-offset);
-            let range     = selection.range();
-            let prev      = || self.prev_grapheme_offset(range.start).unwrap_or(range.start);
-            let start     = if selection.is_caret() {prev()} else {range.start};
-            let range     = range.with_start(start);
-            offset += range.size();
-            self.buffer.data.borrow_mut().insert(range,&("".into()));
-            let new_selection = rel_selection.map(|_|start);
-            result.add(new_selection);
-        }
-        result
-    }
+//    fn delete_left(&self) -> selection::Group {
+//        let mut result = selection::Group::new();
+//        let mut offset = 0.bytes();
+//        for rel_selection in &*self.selection.borrow() {
+//            let selection     = rel_selection.map(|t|t-offset);
+//            let new_selection = self.moved_selection_region(Movement::Left,selection,false);
+//            let range         = range_between(selection,new_selection);
+//            offset += range.size();
+//            self.buffer.data.borrow_mut().insert(range,&("".into()));
+//            result.add(new_selection);
+//        }
+//        result
+//    }
 
     /// Perform undo operation.
     pub fn undo(&self) {
@@ -259,6 +264,13 @@ impl ViewBuffer {
     pub fn redo(&self) {
         self.buffer.data.borrow_mut().redo();
     }
+}
+
+
+fn range_between(a:Selection, b:Selection) -> data::range::Range<Bytes> {
+    let min = std::cmp::min(a.min(),b.min());
+    let max = std::cmp::max(a.max(),b.max());
+    (min .. max).into()
 }
 
 
@@ -277,6 +289,7 @@ define_frp! {
         set_oldest_selection_end   : Location,
         insert                     : String,
         delete_left                : (),
+        delete_word_left           : (),
         clear_selection            : (),
         keep_first_selection_only  : (),
         keep_last_selection_only   : (),
@@ -531,6 +544,21 @@ impl ViewModel {
 }
 
 impl LineOffset for ViewModel {
+    fn data(&self) -> Data {
+        self.buffer.data.borrow().data.clone() // FIXME
+    }
+
+    fn offset_of_line(&self,line:Line) -> Bytes {
+        let line = std::cmp::min(line.value,self.data().measure::<data::metric::Lines>() + 1);
+        self.data().offset_of_line(line).into()
+    }
+
+    fn line_of_offset(&self,offset:Bytes) -> Line {
+        Line(self.data().line_of_offset(offset.value as usize))
+    }
+}
+
+impl LineOffset for ViewBuffer {
     fn data(&self) -> Data {
         self.buffer.data.borrow().data.clone() // FIXME
     }

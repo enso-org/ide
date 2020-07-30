@@ -3,6 +3,7 @@
 use super::*;
 use crate::buffer::data;
 use crate::buffer::data::unit::*;
+use crate::buffer::view::word::WordCursor;
 
 
 
@@ -17,10 +18,15 @@ pub enum Movement {
     Left,
     /// Move to the right by one grapheme cluster.
     Right,
+    /// Move to the left selection border. Cursor will not be modified.
+    LeftSelectionBorder,
+    /// Move to the right selection border. Cursor will not be modified.
+    RightSelectionBorder,
     /// Move to the left by one word.
     LeftWord,
     /// Move to the right by one word.
     RightWord,
+    Word,
     /// Move to left end of visible line.
     LeftOfLine,
     /// Move to right end of visible line.
@@ -29,10 +35,10 @@ pub enum Movement {
     Up,
     /// Move down one visible line.
     Down,
-    /// Move up one viewport height.
-    UpPage,
-    /// Move down one viewport height.
-    DownPage,
+//    /// Move up one viewport height.
+//    UpPage,
+//    /// Move down one viewport height.
+//    DownPage,
     /// Move up to the next line that can preserve the cursor position.
     UpExactPosition,
     /// Move down to the next line that can preserve the cursor position.
@@ -55,20 +61,17 @@ pub enum Movement {
 // === Movement Handling ===
 // =========================
 
-impl ViewModel {
+impl ViewBuffer {
     /// Convert selection to caret location after a vertical movement.
     fn vertical_motion_selection_to_caret
-    (&self, selection:Selection, move_up:bool, modify:bool) -> Location {
+    (&self, selection: Selection, move_up: bool, modify: bool) -> Location {
         let offset =
-            if      modify  { selection.end }
-            else if move_up { selection.min() }
-            else            { selection.max() };
+            if modify { selection.end } else if move_up { selection.min() } else { selection.max() };
         self.offset_to_line_col(offset)
 
 //        let column   = selection.column.unwrap_or(location.column);
 //        Location(location.line,column)
     }
-
 
     /// Compute movement based on vertical motion by the given number of lines.
     ///
@@ -78,38 +81,37 @@ impl ViewModel {
     /// Note: This code is quite careful to avoid integer overflow.
     // TODO: Write tests to verify that it's safe regarding integer ovewrflow.
     fn vertical_motion
-    (&self, region:Selection, line_delta:isize, modify:bool) -> (Bytes,Option<Bytes>) {
-        let move_up    = line_delta < 0;
+    (&self, region: Selection, line_delta: isize, modify: bool) -> (Bytes,Bytes,Option<Bytes>) {
+        let move_up = line_delta < 0;
         let line_delta = line_delta.saturating_abs() as usize;
-        let location   = self.vertical_motion_selection_to_caret(region,move_up,modify);
-        let n_lines    = self.line_of_offset(self.data().len());
+        let location = self.vertical_motion_selection_to_caret(region, move_up, modify);
+        let n_lines = self.line_of_offset(self.data().len());
 
         if move_up && line_delta > location.line.value {
-            return (Bytes(0), Some(location.offset));
+            return (region.start,Bytes(0), Some(location.offset));
         }
 
-        let line = if move_up { location.line.value - line_delta }
-        else       { location.line.value.saturating_add(line_delta) };
+        let line = if move_up { location.line.value - line_delta } else { location.line.value.saturating_add(line_delta) };
 
-        let column     = self.column_of_location(location.line,location.offset);
-        let tgt_offset = self.line_offset_of_location_X(Line(line),column);
+        let column = self.column_of_location(location.line, location.offset);
+        let tgt_offset = self.line_offset_of_location_X(Line(line), column);
 
         if line > n_lines.value {
-            return (self.data().len(),Some(location.offset));
+            return (region.start,self.data().len(), Some(location.offset));
         }
 
-        let line       = Line(line);
-        let new_offset = self.line_col_to_offset(line,tgt_offset);
-        (new_offset,Some(location.offset))
+        let line = Line(line);
+        let new_offset = self.line_col_to_offset(line, tgt_offset);
+        (region.start,new_offset, Some(location.offset))
     }
 
-    fn column_of_location(&self, line:Line, line_offset:Bytes) -> usize {
+    fn column_of_location(&self, line: Line, line_offset: Bytes) -> usize {
         let mut offset = self.offset_of_line(line);
         let tgt_offset = offset + line_offset;
         let mut column = 0;
         while offset < tgt_offset {
             match self.next_grapheme_offset(offset) {
-                None      => break,
+                None => break,
                 Some(off) => {
                     column += 1;
                     offset = off;
@@ -119,13 +121,13 @@ impl ViewModel {
         column
     }
 
-    fn line_offset_of_location_X(&self, line:Line, line_column:usize) -> Bytes {
+    fn line_offset_of_location_X(&self, line: Line, line_column: usize) -> Bytes {
         let start_offset = self.offset_of_line(line);
         let mut offset = start_offset;
         let mut column = 0;
         while column < line_column {
             match self.next_grapheme_offset(offset) {
-                None      => break,
+                None => break,
                 Some(off) => {
                     column += 1;
                     offset = off;
@@ -161,17 +163,16 @@ impl ViewModel {
     /// Compute movement based on vertical motion by the given number of lines skipping
     /// any line that is shorter than the current cursor position.
     fn vertical_motion_exact_pos
-    (&self, region:Selection, move_up:bool, modify:bool) -> (Bytes,Option<Bytes>) {
-        let location         = self.vertical_motion_selection_to_caret(region, move_up, modify);
-        let lines_count      = self.line_of_offset(self.data().len());
-        let line_offset      = self.offset_of_line(location.line);
+    (&self, region: Selection, move_up: bool, modify: bool) -> (Bytes,Bytes,Option<Bytes>) {
+        let location = self.vertical_motion_selection_to_caret(region, move_up, modify);
+        let lines_count = self.line_of_offset(self.data().len());
+        let line_offset = self.offset_of_line(location.line);
         let next_line_offset = self.offset_of_line(location.line.saturating_add(1.line()));
-        let line_len         = next_line_offset - line_offset;
+        let line_len = next_line_offset - line_offset;
         if move_up && location.line == Line(0) {
-            return (self.line_col_to_offset(location.line,location.offset), Some(location.offset));
+            return (region.start,self.line_col_to_offset(location.line, location.offset), Some(location.offset));
         }
-        let mut line = if move_up { location.line - 1.line() }
-                       else       { location.line.saturating_add(1.line()) };
+        let mut line = if move_up { location.line - 1.line() } else { location.line.saturating_add(1.line()) };
 
         // If the active columns is longer than the current line, use the current line length.
         let line_last_column = line_len;
@@ -195,23 +196,23 @@ impl ViewModel {
             line = if move_up { line - 1.line() } else { line.saturating_add(1.line()) };
         }
 
-        (self.line_col_to_offset(line, col), Some(col))
+        (region.start,self.line_col_to_offset(line, col), Some(col))
     }
 
     /// Apply the movement to each region in the selection, and returns the union of the results.
     ///
     /// If `modify` is `true`, the selections are modified, otherwise the results of individual region
     /// movements become carets. Modify is often mapped to the `shift` button in text editors.
-    pub fn moved_selection(&self, movement:Movement, modify:bool) -> selection::Group {
+    pub fn moved_selection(&self, movement: Movement, modify: bool) -> selection::Group {
         let mut result = selection::Group::new();
         for &selection in self.selection.borrow().iter() {
-            let new_selection = self.moved_selection_region(movement,selection,modify);
+            let new_selection = self.moved_selection_region(movement, selection, modify);
             result.add(new_selection);
         }
         result
     }
 
-    pub fn selection_after_insert(&self, bytes:Bytes) -> selection::Group {
+    pub fn selection_after_insert(&self, bytes: Bytes) -> selection::Group {
         let mut result = selection::Group::new();
         let mut offset = bytes;
         for &selection in self.selection.borrow().iter() {
@@ -225,36 +226,44 @@ impl ViewModel {
     /// Compute the result of movement on one selection region.
     pub fn moved_selection_region
     (&self, movement:Movement, region:Selection, modify:bool) -> Selection {
-        let text        = self.data();
-        let no_horiz    = |t|(t,None);
-        let (end,horiz) : (Bytes,Option<Bytes>) = match movement {
+        let text        = &self.data();
+        let no_horiz    = |s,t|(s,t,None);
+        let (start,end,horiz) : (Bytes,Bytes,Option<Bytes>) = match movement {
             Movement::Up                => self.vertical_motion(region, -1, modify),
             Movement::Down              => self.vertical_motion(region,  1, modify),
             Movement::UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),
             Movement::DownExactPosition => self.vertical_motion_exact_pos(region, false, modify),
-            Movement::UpPage            => self.vertical_motion(region, -self.page_scroll_height(), modify),
-            Movement::DownPage          => self.vertical_motion(region,  self.page_scroll_height(), modify),
-            Movement::StartOfDocument   => no_horiz(Bytes(0)),
-            Movement::EndOfDocument     => no_horiz(text.len()),
+//            Movement::UpPage            => self.vertical_motion(region, -self.page_scroll_height(), modify),
+//            Movement::DownPage          => self.vertical_motion(region,  self.page_scroll_height(), modify),
+            Movement::StartOfDocument   => no_horiz(region.start,Bytes(0)),
+            Movement::EndOfDocument     => no_horiz(region.start,text.len()),
 
             Movement::Left => {
-                let def     = (Bytes(0),region.column);
+                let def     = (region.start,Bytes(0),region.column);
                 let do_move = region.is_caret() || modify;
-                if  do_move { text.prev_grapheme_offset(region.end).map(no_horiz).unwrap_or(def) }
-                else        { no_horiz(region.min()) }
+                if  do_move { text.prev_grapheme_offset(region.end).map(|t|no_horiz(region.start,t)).unwrap_or(def) }
+                else        { no_horiz(region.start,region.min()) }
             }
 
             Movement::Right => {
-                let def     = (region.end,region.column);
+                let def     = (region.start,region.end,region.column);
                 let do_move = region.is_caret() || modify;
-                if  do_move { text.next_grapheme_offset(region.end).map(no_horiz).unwrap_or(def) }
-                else        { no_horiz(region.max()) }
+                if  do_move { text.next_grapheme_offset(region.end).map(|t|no_horiz(region.start,t)).unwrap_or(def) }
+                else        { no_horiz(region.start,region.max()) }
+            }
+
+            Movement::LeftSelectionBorder => {
+                no_horiz(region.start,region.min())
+            }
+
+            Movement::RightSelectionBorder => {
+                no_horiz(region.start,region.max())
             }
 
             Movement::LeftOfLine => {
                 let line   = self.line_of_offset(region.end);
                 let offset = self.offset_of_line(line);
-                no_horiz(offset)
+                no_horiz(region.start,offset)
             }
 
             Movement::RightOfLine => {
@@ -265,14 +274,14 @@ impl ViewModel {
                 let offset           = if last_line { text_len } else {
                     text.prev_grapheme_offset(next_line_offset).unwrap_or(text_len)
                 };
-                no_horiz(offset)
+                no_horiz(region.start,offset)
             }
 
             Movement::StartOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.min()
                 let mut cursor = data::Cursor::new(&text, region.end.value as usize);
                 let offset     = cursor.prev::<data::metric::Lines>().unwrap_or(0).bytes();
-                no_horiz(offset)
+                no_horiz(region.start,offset)
             }
 
             Movement::EndOfParagraph => {
@@ -291,7 +300,7 @@ impl ViewModel {
                         }
                     }
                 };
-                no_horiz(offset)
+                no_horiz(region.start,offset)
             }
 
             Movement::EndOfParagraphKill => {
@@ -308,13 +317,28 @@ impl ViewModel {
                         } else { next_line_offset }
                     }
                 };
-                no_horiz(offset)
+                no_horiz(region.start,offset)
             }
 
-            Movement::LeftWord => todo!(),
-            Movement::RightWord => todo!(),
+            Movement::LeftWord => {
+                let mut word_cursor = WordCursor::new(text,region.end);
+                let offset = word_cursor.prev_boundary().unwrap_or(0.bytes());
+                (region.start,offset, None)
+            }
+
+            Movement::RightWord => {
+                let mut word_cursor = WordCursor::new(text,region.end);
+                let offset = word_cursor.next_boundary().unwrap_or_else(|| text.len());
+                (region.start,offset, None)
+            }
+
+            Movement::Word => {
+                let mut word_cursor = WordCursor::new(text,region.end);
+                let (start,end) = word_cursor.select_word();
+                (start,end,None)
+            }
         };
-        let start = if modify { region.start } else { end };
+        let start = if modify { start } else { end };
         Selection::new(start,end,region.id).with_column(horiz)
     }
 }
