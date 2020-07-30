@@ -696,21 +696,13 @@ mod test {
     use utils::test::traits::*;
     use crate::model::suggestion_database::Argument;
     use enso_protocol::language_server::SuggestionEntryId;
-    use std::borrow::Borrow;
-    //
-    // fn no_results_completion_response() {
-    //     language_server::response::Completion {
-    //         results         : vec![],
-    //         current_version : default(),
-    //     };
-    // }
 
-    // fn completion_response(results:&[SuggestionEntryId]) {
-    //     language_server::response::Completion {
-    //         results         : results.into_vec(),
-    //         current_version : default(),
-    //     };
-    // }
+    fn completion_response(results:&[SuggestionEntryId]) -> language_server::response::Completion {
+        language_server::response::Completion {
+            results         : results.to_vec(),
+            current_version : default(),
+        }
+    }
 
     #[derive(Debug,Derivative)]
     #[derivative(Default)]
@@ -726,10 +718,27 @@ mod test {
         fn change_main_body(&mut self, line:&str) {
             let code     = dbg!(crate::test::mock::main_from_lines(&[line]));
             let location = data::text::TextLocation::at_document_end(&code);
-            // TODO [mwu] Not nice that we end up with duplicated mock data for code.
+            // TODO [mwu] Not nice that we ended up with duplicated mock data for code.
             self.graph.module.code = code.clone();
             self.graph.graph.code  = code;
             self.code_location     = location.into();
+        }
+
+        fn expect_completion
+        ( &self
+        , client:&mut language_server::MockClient
+        , self_type:Option<&str>
+        , return_type:Option<&str>
+        , result:&[SuggestionEntryId]
+        ) {
+            let completion_response = completion_response(result);
+            expect_call!(client.completion(
+                    module      = self.graph.module.path.file_path().clone(),
+                    position    = self.code_location,
+                    self_type   = self_type.map(Into::into),
+                    return_type = return_type.map(Into::into),
+                    tag         = None
+                ) => Ok(completion_response));
         }
     }
 
@@ -852,14 +861,12 @@ mod test {
             let Fixture { mut test, searcher, entry1, .. } = Fixture::new_custom(|data,client| {
                 data.change_main_body(case.node_line);
                 data.selected_node = true;
-                // let completion_response = completion_response(&[1,5,9]);
-                // expect_call!(client.completion(
-                //     module      = data.graph.module.path.file_path().clone(),
-                //     position    = data.code_location,
-                //     self_type   = case.sets_this.as_some(mock_type.to_owned()),
-                //     return_type = None,
-                //     tag         = None
-                // ) => Ok(completion_response));
+                // We expect following calls:
+                // 1) for the function - with the "this" filled (if the test case says so);
+                // 2) for subsequent completion - without "this"
+                data.expect_completion(client,case.sets_this.as_some(mock_type),None,&[1,5,9]);
+                data.expect_completion(client,None,None,&[1,5,9]);
+                data.expect_completion(client,None,None,&[1,5,9]);
             });
 
             searcher.reload_list();
@@ -912,18 +919,7 @@ mod test {
     #[wasm_bindgen_test]
     fn loading_list() {
         let Fixture{mut test,searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
-            let completion_response = language_server::response::Completion {
-                results: vec![1,5,9],
-                current_version: default(),
-            };
-
-            expect_call!(client.completion(
-                module      = data.graph.module.path.file_path().clone(),
-                position    = data.code_location,
-                self_type   = None,
-                return_type = None,
-                tag         = None
-            ) => Ok(completion_response));
+            data.expect_completion(client,None,None,&[1,5,9]);
         });
 
         let mut subscriber = searcher.subscribe();
@@ -1008,7 +1004,13 @@ mod test {
 
     #[wasm_bindgen_test]
     fn picked_completions_list_maintaining() {
-        let Fixture{test:_test,searcher,entry1,entry2,..} = Fixture::new();
+        let Fixture{test:_test,searcher,entry1,entry2,..} = Fixture::new_custom(|data,client| {
+            data.expect_completion(client,None,None,&[]);
+            data.expect_completion(client,None,None,&[]);
+            data.expect_completion(client,None,None,&[]);
+            data.expect_completion(client,None,None,&[]);
+            data.expect_completion(client,None,None,&[]);
+        });
         let frags_borrow = || Ref::map(searcher.data.borrow(),|d| &d.fragments_added_by_picking);
 
         // Picking first suggestion.
@@ -1052,7 +1054,7 @@ mod test {
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn adding_node_introducing_this_var() {
         struct Case {
             line   : &'static str,
@@ -1107,22 +1109,10 @@ mod test {
         ];
 
         for (i,case) in cases.into_iter().enumerate() {
-            dbg!(i);
             let mut fixture = Fixture::new_custom(|data, client| {
                 data.selected_node = true;
                 data.change_main_body(case.line);
-
-                let completion_response = language_server::response::Completion {
-                    results: vec![],
-                    current_version: default(),
-                };
-                expect_call!(client.completion(
-                    module      = data.graph.module.path.file_path().clone(),
-                    position    = data.code_location,
-                    self_type   = None,
-                    return_type = None,
-                    tag         = None
-                ) => Ok(completion_response));
+                data.expect_completion(client,None,None,&[]);
             });
             (case.run)(&mut fixture);
             fixture.searcher.commit_node().unwrap();
