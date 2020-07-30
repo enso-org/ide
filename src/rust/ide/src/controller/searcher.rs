@@ -324,8 +324,12 @@ impl Data {
         initial_fragment.for_each(|f| fragments_added_by_picking.push(f));
         Ok(Data {input,suggestions,fragments_added_by_picking})
     }
-}
 
+    fn find_picked_fragment(&self, id:CompletedFragmentId)
+    -> Option<&FragmentAddedByPickingSuggestion> {
+        self.fragments_added_by_picking.iter().find(|fragment| fragment.id == id)
+    }
+}
 
 /// Searcher Controller.
 ///
@@ -408,6 +412,7 @@ impl Searcher {
     /// This function should be called each time user modifies Searcher input in view. It may result
     /// in a new suggestion list (the aprriopriate notification will be emitted).
     pub fn set_input(&self, new_input:String) -> FallibleResult<()> {
+        debug!(self.logger, "Manually setting input to {new_input}");
         let parsed_input = ParsedInput::new(new_input,&self.parser)?;
         let old_id       = self.data.borrow().input.next_completion_id();
         let new_id       = parsed_input.next_completion_id();
@@ -558,8 +563,13 @@ impl Searcher {
         let new_suggestions = if next_completion == CompletedFragmentId::Function {
             self.get_suggestion_list_from_engine(std::iter::once(None),None);
             Suggestions::Loading
+        } else if let CompletedFragmentId::Argument {index} = next_completion {
+            debug!(self.logger,"Preparing list for argument {index}.");
+            let return_type = self.return_type_for_next_completion().iter();
+            self.get_suggestion_list_from_engine(return_type,None);
+            Suggestions::Loading
         } else {
-            // TODO[ao] Requesting for argument.
+            // TODO impossible
             Suggestions::Loaded {list:default()}
         };
         self.data.borrow_mut().suggestions = new_suggestions;
@@ -581,6 +591,21 @@ impl Searcher {
         }
     }
 
+    /// Get the type that suggestions for the next completion should return.
+    ///
+    /// Generally this corresponds to the type of the currently filled function argument.
+    fn return_type_for_next_completion(&self) -> Option<String> {
+        let suggestion    = self.intended_function_suggestion()?;
+        let completion_id = self.data.borrow().input.next_completion_id();
+        if let CompletedFragmentId::Argument {index} = completion_id {
+            let index     = index + if self.has_this_argument() { 1 } else { 0 };
+            let parameter = suggestion.arguments.get(index)?;
+            Some(parameter.repr_type.clone())
+        } else {
+            None
+        }
+    }
+
     fn get_suggestion_list_from_engine
     (&self, return_types:impl IntoIterator<Item=Option<String>> + 'static, tags:Option<Vec<language_server::SuggestionEntryType>>) {
         let ls        = self.language_server.clone_ref();
@@ -590,10 +615,11 @@ impl Searcher {
         let this      = self.clone_ref();
         executor::global::spawn(async move {
             let this_type = this_type.await;
-            info!(logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
-            let requests  = return_types.into_iter().map(move |return_type| {
+            info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
+            let requests  = return_types.into_iter().map(|return_type| {
+                info!(this.logger, "Requesting suggestions for returnType {return_type:?}");
                 let file = graph.module.path().file_path();
-                ls.completion(&file,&position,&this_type,&return_type,&tags)
+                ls.completion(file,&position,&this_type,&return_type,&tags)
             });
             let responses = futures::future::join_all(requests).await;
             info!(this.logger,"Received suggestions from Language Server.");
@@ -649,15 +675,32 @@ impl Searcher {
         not_local_name.and_option_from(imported)
     }
 
+    /// Get the suggestion that was selected by the user into the function.
+    ///
+    /// This suggestion shall be used to request better suggestions from the engine.
+    fn intended_function_suggestion(&self) -> Option<CompletionSuggestion> {
+        let id       = CompletedFragmentId::Function;
+        let fragment = self.data.borrow().find_picked_fragment(id).cloned();
+        fragment.map(|f| f.picked_suggestion.clone_ref())
+    }
+
     /// Returns the Id of method user intends to be called in this node.
     ///
     /// The method may be picked by user from suggestion, but there are many methods with the same
     /// name.
     fn intended_method(&self) -> Option<MethodId> {
-        let borrowed_data = self.data.borrow();
-        let mut fragments = borrowed_data.fragments_added_by_picking.iter();
-        let function_frag = fragments.find(|frag| frag.id == CompletedFragmentId::Function)?;
-        function_frag.picked_suggestion.method_id()
+        self.intended_function_suggestion()?.method_id()
+    }
+
+    /// If the function fragment has been filled and also contains the initial "this" argument.
+    ///
+    /// While we maintain chain consisting of target and applied arguments, the target itself might
+    /// need to count for a one argument, as it may of form `this.method`.
+    fn has_this_argument(&self) -> bool {
+        // TODO confirm that we can ignore cases when expression is not yet filled
+        self.data.borrow().input.expression.as_ref()
+            .and_then(|expr| ast::opr::Chain::try_new_of(&expr.func,ast::opr::predefined::ACCESS))
+            .is_some()
     }
 }
 
@@ -704,12 +747,13 @@ mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::suggestion_database::Scope;
+    use crate::model::suggestion_database::Argument;
     use crate::test::mock::data::MAIN_FINISH;
 
     use enso_protocol::language_server::types::test::value_update_with_type;
     use json_rpc::expect_call;
     use utils::test::traits::*;
-    use crate::model::suggestion_database::Scope;
 
     #[derive(Debug,Derivative)]
     #[derivative(Default)]
@@ -788,6 +832,20 @@ mod test {
                 kind          : model::suggestion_database::EntryKind::Method,
                 self_type     : Some("Test".to_string()),
                 scope         : Scope::Everywhere,
+                arguments     : vec![
+                    Argument {
+                        repr_type     : "Any".to_string(),
+                        name          : "this".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    },
+                    Argument {
+                        repr_type     : "Number".to_string(),
+                        name          : "num_arg".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    }
+                ],
                 ..entry1.clone()
             };
             let entry9 = entry1.clone().with_name("testFunction2");
@@ -880,6 +938,28 @@ mod test {
         }
     }
 
+    #[test]
+    fn arguments_suggestions_for_picked_function() {
+        let mut fixture = Fixture::new_custom(|data,client| {
+            let completion_response = language_server::response::Completion {
+                results         : default(),
+                current_version : default(),
+            };
+            expect_call!(client.completion(
+                module      = data.graph.module.path.file_path().clone(),
+                position    = data.code_location,
+                self_type   = None,
+                return_type = Some("Number".to_owned()),
+                tag         = None
+            ) => Ok(completion_response));
+        });
+
+        let Fixture{test,searcher,entry3,..} = &mut fixture;
+        searcher.pick_completion(entry3.clone_ref()).unwrap();
+        test.run_until_stalled();
+        println!("{:?}",searcher.suggestions());
+        println!("{}",searcher.data.borrow().input.repr());
+    }
 
     #[wasm_bindgen_test]
     fn loading_list() {
@@ -1024,7 +1104,7 @@ mod test {
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn adding_node_introducing_this_var() {
         struct Case {
             line   : &'static str,
