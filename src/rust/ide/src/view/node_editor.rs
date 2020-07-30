@@ -728,9 +728,7 @@ impl GraphEditorIntegratedWithControllerModel {
             let enter_action   = async move {
                 info!(logger,"Entering node.");
                 let result = controller.enter_method_pointer(&local_call).await;
-                if let Err(e) = result {
-                    error!(logger,"Couldn't enter node: {e}")
-                }
+                debug!(logger,"Entering node result: {result:?}.");
             };
             executor::global::spawn(enter_action);
         }
@@ -752,9 +750,8 @@ impl GraphEditorIntegratedWithControllerModel {
         let logger       = self.logger.clone_ref();
         let exit_node_action = async move {
             info!(logger,"Exiting node.");
-            if let Err(e) = controller.exit_node().await {
-                error!(logger,"Couldn't exist node: {e}.")
-            }
+            let result = controller.exit_node().await;
+            debug!(logger,"Exiting node result: {result:?}.");
         };
         executor::global::spawn(exit_node_action);
         Ok(())
