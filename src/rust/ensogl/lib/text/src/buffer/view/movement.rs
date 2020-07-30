@@ -14,6 +14,7 @@ use crate::buffer::view::word::WordCursor;
 /// Keyboard cursor navigation patterns.
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum Movement {
+    All,
     /// Move to the left by one grapheme cluster.
     Left,
     /// Move to the right by one grapheme cluster.
@@ -229,6 +230,7 @@ impl ViewBuffer {
         let text        = &self.data();
         let no_horiz    = |s,t|(s,t,None);
         let (start,end,horiz) : (Bytes,Bytes,Option<Bytes>) = match movement {
+            Movement::All               => no_horiz(0.bytes(),text.len()),
             Movement::Up                => self.vertical_motion(region, -1, modify),
             Movement::Down              => self.vertical_motion(region,  1, modify),
             Movement::UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),

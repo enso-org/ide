@@ -230,10 +230,10 @@ impl ViewBuffer {
         let mut result = selection::Group::new();
         let mut offset = 0.bytes();
         for rel_selection in &*self.selection.borrow() {
-            let selection     = rel_selection.map(|t|t-offset);
+            let selection     = rel_selection.map(|t|t+offset);
             let new_selection =  self.moved_selection_region(movement,selection,false);
             let range         = range_between(selection,new_selection);
-            offset            += (range.size() - text_size);
+            offset            += text_size - range.size();
             self.buffer.data.borrow_mut().insert(range,&text);
             let new_selection = new_selection.map(|t|t+text_size);
             result.add(new_selection);
@@ -241,19 +241,13 @@ impl ViewBuffer {
         result
     }
 
-//    fn delete_left(&self) -> selection::Group {
-//        let mut result = selection::Group::new();
-//        let mut offset = 0.bytes();
-//        for rel_selection in &*self.selection.borrow() {
-//            let selection     = rel_selection.map(|t|t-offset);
-//            let new_selection = self.moved_selection_region(Movement::Left,selection,false);
-//            let range         = range_between(selection,new_selection);
-//            offset += range.size();
-//            self.buffer.data.borrow_mut().insert(range,&("".into()));
-//            result.add(new_selection);
-//        }
-//        result
-//    }
+    fn increase_indentation(&self) -> selection::Group {
+        todo!() // This needs phantom cursors
+    }
+
+    fn decrease_indentation(&self) -> selection::Group {
+        todo!() // This needs phantom cursors
+    }
 
     /// Perform undo operation.
     pub fn undo(&self) {
@@ -288,6 +282,9 @@ define_frp! {
         set_newest_selection_end   : Location,
         set_oldest_selection_end   : Location,
         insert                     : String,
+        increase_indentation       : (),
+        decrease_indentation       : (),
+        remove_all_cursors         : (),
         delete_left                : (),
         delete_word_left           : (),
         clear_selection            : (),
@@ -344,6 +341,11 @@ impl View {
             selection_on_insert <- input.insert.map(f!((s) model.insert(s)));
             output.source.changed <+ selection_on_insert.constant(());
 
+            selection_on_increase_indentation <- input.increase_indentation.map(f_!(model.increase_indentation()));
+            selection_on_decrease_indentation <- input.decrease_indentation.map(f_!(model.decrease_indentation()));
+            output.source.changed <+ selection_on_increase_indentation.constant(());
+            output.source.changed <+ selection_on_decrease_indentation.constant(());
+
             selection_on_delete_left <- input.delete_left.map(f_!(model.delete_left()));
             output.source.changed <+ selection_on_delete_left.constant(());
 
@@ -365,6 +367,8 @@ impl View {
             selection_on_set_newest_end <- input.set_newest_selection_end.map(f!([model](t) model.set_newest_selection_end(model.offset_of_view_location(t))));
             selection_on_set_oldest_end <- input.set_oldest_selection_end.map(f!([model](t) model.set_oldest_selection_end(model.offset_of_view_location(t))));
 
+            selection_on_remove_all <- input.remove_all_cursors.map(|_| default());
+
             output.source.non_edit_selection <+ selection_on_move;
             output.source.non_edit_selection <+ selection_on_mod;
             output.source.edit_selection     <+ selection_on_clear;
@@ -379,7 +383,10 @@ impl View {
             output.source.non_edit_selection <+ selection_on_set_newest_end;
             output.source.non_edit_selection <+ selection_on_set_oldest_end;
             output.source.edit_selection     <+ selection_on_insert;
+            output.source.non_edit_selection <+ selection_on_increase_indentation;
+            output.source.non_edit_selection <+ selection_on_decrease_indentation;
             output.source.edit_selection     <+ selection_on_delete_left;
+            output.source.non_edit_selection <+ selection_on_remove_all;
 
 
             eval output.source.edit_selection ((t) model.set_selection(t));

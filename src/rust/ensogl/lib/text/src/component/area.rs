@@ -329,6 +329,10 @@ impl Lines {
 ensogl::def_command_api! { Commands
     /// Insert character of the last pressed key at every cursor.
     insert_char_of_last_pressed_key,
+    /// Increase the indentation of all lines containing cursors.
+    increase_indentation,
+    /// Decrease the indentation of all lines containing cursors.
+    decrease_indentation,
     /// Removes the character on the left of every cursor.
     delete_left,
     /// Removes the word on the left of every cursor.
@@ -337,6 +341,8 @@ ensogl::def_command_api! { Commands
     set_cursor_at_mouse_position,
     /// Add a new cursor at the mouse cursor position.
     add_cursor_at_mouse_position,
+    /// Remove all cursors.
+    remove_all_cursors,
     /// Start the selection at the mouse cursor position.
     start_newest_selection_end_follow_mouse,
     /// Stop the selection at the mouse cursor position.
@@ -365,6 +371,8 @@ ensogl::def_command_api! { Commands
     cursor_select_left_word,
     /// Extend the cursor selection to the right by one word.
     cursor_select_right_word,
+    /// Select all characters.
+    select_all,
     /// Select the word at cursor position.
     select_word_at_cursor,
     /// Discard all but the first selection.
@@ -466,8 +474,6 @@ impl Area {
 
             selecting <- bool(&command.stop_oldest_selection_end_follow_mouse,&command.start_newest_selection_end_follow_mouse);
 
-            trace selecting;
-
             eval mouse_on_set_cursor ([model](screen_pos) {
                 let location = model.get_in_text_location(*screen_pos);
                 model.buffer.frp.input.set_cursor.emit(location);
@@ -508,6 +514,8 @@ impl Area {
 
             eval_ model.buffer.frp.output.changed (model.redraw());
 
+            eval_ command.remove_all_cursors (model.buffer.frp.input.remove_all_cursors.emit(()));
+
             eval_ command.keep_first_selection_only (model.buffer.frp.input.keep_first_selection_only.emit(()));
             eval_ command.keep_last_selection_only (model.buffer.frp.input.keep_last_selection_only.emit(()));
             eval_ command.keep_first_caret_only (model.buffer.frp.input.keep_first_caret_only.emit(()));
@@ -534,10 +542,14 @@ impl Area {
             eval_ command.cursor_select_left_word  (model.buffer.frp.input.cursors_select.emit(Some(Movement::LeftWord)));
             eval_ command.cursor_select_right_word (model.buffer.frp.input.cursors_select.emit(Some(Movement::RightWord)));
 
+            eval_ command.select_all            (model.buffer.frp.input.cursors_select.emit(Some(Movement::All)));
             eval_ command.select_word_at_cursor (model.buffer.frp.input.cursors_select.emit(Some(Movement::Word)));
 
             eval_ command.delete_left       (model.buffer.frp.input.delete_left.emit(()));
             eval_ command.delete_word_left  (model.buffer.frp.input.delete_word_left.emit(()));
+
+            eval_ command.increase_indentation  (model.buffer.frp.input.increase_indentation.emit(()));
+            eval_ command.decrease_indentation  (model.buffer.frp.input.decrease_indentation.emit(()));
 
             key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample(&command.insert_char_of_last_pressed_key);
             char_to_insert        <= key_on_char_to_insert.map(|key| {
@@ -729,13 +741,7 @@ impl AreaData {
                     let go_left      = pos.x < mid_point;
                     let go_right     = pos.x > mid_point;
                     let need_flip    = (select_left && go_left) || (select_right && go_right);
-                    println!("{:?} {:?} {:?} {:?}",select_left,go_left,select_right,go_right);
-                    println!("pos: {:?}, new_pos: {:?}",selection.position.simulator.target_value().x,pos.x);
-                    if width == 0.0 && need_flip {
-                        println!("FLIP");
-                        selection.flip_sides();
-                    }
-
+                    if width == 0.0 && need_flip { selection.flip_sides() }
                     selection.position.set_target_value(pos);
                     selection
                 }
@@ -929,6 +935,8 @@ impl application::shortcut::DefaultShortcutProvider for Area {
                Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowUp]              , shortcut::Pattern::Any) , "cursor_select_up"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowDown]            , shortcut::Pattern::Any) , "cursor_select_down"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace]                       , shortcut::Pattern::Any) , "delete_left"),
+//               Self::self_shortcut(shortcut::Action::press   (&[Key::Tab]                             , shortcut::Pattern::Any) , "increase_indentation"),
+//               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Tab]                  , shortcut::Pattern::Any) , "decrease_indentation"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Backspace]             , shortcut::Pattern::Any) , "delete_word_left"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_caret_only"),
                Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                                       , "insert_char_of_last_pressed_key"),
@@ -940,6 +948,8 @@ impl application::shortcut::DefaultShortcutProvider for Area {
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "add_cursor_at_mouse_position"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "start_newest_selection_end_follow_mouse"),
                Self::self_shortcut(shortcut::Action::release (&[Key::Meta],&[mouse::PrimaryButton])                             , "stop_oldest_selection_end_follow_mouse"),
+               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("a".into())],&[])                      , "select_all"),
         ]
     }
 }
+// TODO: undo, redo, multicursor up/down, check with different views, scrolling, parens, vertical indent lines, line numbers
