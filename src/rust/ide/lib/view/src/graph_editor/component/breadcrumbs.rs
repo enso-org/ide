@@ -41,20 +41,24 @@ const TEXT_SIZE         : f32 = 12.0;
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpInputs {
-    /// Push breadcrumb.
-    pub push_breadcrumb:frp::Source<Option<LocalCall>>,
-    /// Pop breadcrumb.
-    pub pop_breadcrumb:frp::Source,
+    pub push_breadcrumb             : frp::Source<Option<LocalCall>>,
+    pub pop_breadcrumb              : frp::Source,
+    pub outside_press               : frp::Source,
+    pub cancel_project_name_editing : frp::Source,
+    pub project_name                : frp::Source<String>,
 }
 
 impl FrpInputs {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            push_breadcrumb <- source();
-            pop_breadcrumb  <- source();
+            push_breadcrumb             <- source();
+            pop_breadcrumb              <- source();
+            outside_press               <- source();
+            cancel_project_name_editing <- source();
+            project_name                <- source();
         }
-        Self{push_breadcrumb,pop_breadcrumb}
+        Self{push_breadcrumb,pop_breadcrumb,outside_press,cancel_project_name_editing,project_name}
     }
 }
 
@@ -68,7 +72,8 @@ impl FrpInputs {
 #[allow(missing_docs)]
 pub struct FrpOutputs {
     pub breadcrumb_push : frp::Source<Option<LocalCall>>,
-    pub breadcrumb_pop  : frp::Source
+    pub breadcrumb_pop  : frp::Source,
+    pub project_name    : frp::Any<String>
 }
 
 impl FrpOutputs {
@@ -77,8 +82,9 @@ impl FrpOutputs {
         frp::extend! {network
             breadcrumb_push <- source();
             breadcrumb_pop  <- source();
+            project_name    <- any_mut();
         }
-        Self{breadcrumb_push,breadcrumb_pop}
+        Self{breadcrumb_push,breadcrumb_pop,project_name}
     }
 }
 
@@ -130,7 +136,7 @@ impl Frp {
 pub struct BreadcrumbsModel {
     logger                : Logger,
     display_object        : display::object::Instance,
-    pub project_name      : ProjectName,
+    project_name          : ProjectName,
     breadcrumbs_container : display::object::Instance,
     scene                 : Scene,
     breadcrumbs           : Rc<RefCell<Vec<Breadcrumb>>>,
@@ -316,6 +322,8 @@ impl Breadcrumbs {
             eval_ frp.pop_breadcrumb(
                 model.pop_breadcrumb().iter().for_each(|source| source.emit(()))
             );
+            eval frp.project_name((name) model.project_name.frp.name.emit(name));
+            frp.outputs.project_name <+ model.project_name.frp.outputs.name;
         }
 
 
@@ -334,8 +342,12 @@ impl Breadcrumbs {
             eval_ model.project_name.frp.outputs.mouse_down(
                 model.select_breadcrumb(0).iter().for_each(|source| source.emit(()))
             );
+            eval_ frp.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
+            commit_if_changed <- frp.outside_press.gate(&model.project_name.frp.outputs.edit_mode);
+            eval_ commit_if_changed({
+                model.project_name.frp.commit.emit(())
+            });
         }
-
 
         Self{frp,model}
     }

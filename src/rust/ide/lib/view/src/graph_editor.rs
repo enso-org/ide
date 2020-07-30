@@ -677,6 +677,7 @@ impl From<enso_protocol::language_server::MethodPointer> for MethodPointer {
 }
 
 
+
 // =================
 // === LocalCall ===
 // =================
@@ -1523,23 +1524,24 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Commit project name edit ===
 
-    let project_name = &model.breadcrumbs.project_name;
-
     frp::extend! { network
-        commit_if_changed <- touch.background.selected.gate(&project_name.frp.outputs.edit_mode);
-        eval_ commit_if_changed({
-            model.breadcrumbs.project_name.frp.commit.emit(())
-        });
+        eval_ touch.background.selected(model.breadcrumbs.frp.outside_press.emit(()));
     }
+
 
     // === Cancel project name editing ===
 
     frp::extend! { network
         eval_ inputs.cancel_project_name_editing(
-            model.breadcrumbs.project_name.frp.cancel_editing.emit(())
+            model.breadcrumbs.frp.cancel_project_name_editing.emit(())
         );
     }
 
+
+
+    // =========================
+    // === User Interactions ===
+    // =========================
 
     // === Mouse Cursor Transform ===
     frp::extend! { network

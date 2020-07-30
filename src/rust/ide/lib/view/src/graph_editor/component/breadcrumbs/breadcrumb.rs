@@ -41,6 +41,7 @@ const ICON_RING_WIDTH      : f32 = 2.0;
 const ICON_ARROW_SIZE      : f32 = 5.0;
 const SEPARATOR_SIZE       : f32 = 8.0;
 const SEPARATOR_LINE_WIDTH : f32 = 3.0;
+const PADDING              : f32 = 1.0;
 const SEPARATOR_MARGIN     : f32 = HORIZONTAL_MARGIN;
 const FULL_COLOR           : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
 const TRANSPARENT_COLOR    : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
@@ -301,9 +302,11 @@ impl BreadcrumbModel {
 
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.fade_in(0.0);
-        self.separator.shape.sprite.size.set(Vector2::new(SEPARATOR_SIZE+1.0,SEPARATOR_SIZE+1.0));
+        let separator_size = SEPARATOR_SIZE + PADDING;
+        let icon_size      = ICON_SIZE + PADDING;
+        self.separator.shape.sprite.size.set(Vector2::new(separator_size,separator_size));
         self.separator.set_position(Vector3(offset-width/2.0,0.0,0.0));
-        self.icon.shape.sprite.size.set(Vector2::new(ICON_SIZE+1.0,ICON_SIZE+1.0));
+        self.icon.shape.sprite.size.set(Vector2::new(icon_size,icon_size));
         self.icon.shape.opacity.set(self.is_selected() as i32 as f32);
         self.icon.set_position(Vector3(offset+ICON_SIZE/2.0,0.0,0.0));
 

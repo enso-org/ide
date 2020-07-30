@@ -193,11 +193,12 @@ impl GraphEditorIntegratedWithController {
 
         // === Project Renaming ===
 
-        let project_name = &model.editor.breadcrumbs.project_name;
+        let breadcrumbs = &model.editor.breadcrumbs;
         frp::extend! {network
-            eval project_name.frp.outputs.name((name) {model.rename_project(name);});
+            eval breadcrumbs.frp.outputs.project_name((name) {
+                model.rename_project(name);
+            });
         }
-        model.editor.breadcrumbs.project_name.frp.cancel_editing.emit(());
 
 
         // === UI Actions ===
@@ -310,14 +311,14 @@ impl GraphEditorIntegratedWithControllerModel {
 impl GraphEditorIntegratedWithControllerModel {
     fn rename_project(&self, name:impl Str) {
         if self.project.name() != name.as_ref() {
-            let project      = self.project.clone_ref();
-            let project_name = self.editor.breadcrumbs.project_name.clone_ref();
-            let logger       = self.logger.clone_ref();
-            let name         = name.into();
+            let project     = self.project.clone_ref();
+            let breadcrumbs = self.editor.breadcrumbs.clone_ref();
+            let logger      = self.logger.clone_ref();
+            let name        = name.into();
             executor::global::spawn(async move {
                 if let Err(e) = project.rename_project(name).await {
                     info!(logger, "The project couldn't be renamed: {e}");
-                    project_name.frp.cancel_editing.emit(());
+                    breadcrumbs.frp.cancel_project_name_editing.emit(());
                 }
             });
         }
@@ -844,7 +845,7 @@ impl NodeEditor {
         let identifiers  = self.visualization.list_visualizations().await;
         let identifiers  = identifiers.unwrap_or_default();
         let project_name = self.graph.model.project.name().to_string();
-        graph_editor.breadcrumbs.project_name.frp.name.emit(project_name);
+        graph_editor.breadcrumbs.frp.project_name.emit(project_name);
         for identifier in identifiers {
             let visualization = self.visualization.load_visualization(&identifier).await;
             let visualization = visualization.map(|visualization| {
