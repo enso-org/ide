@@ -306,7 +306,6 @@ ensogl::def_command_api! { Commands
     /// Steps out of the current node, popping the topmost stack frame from the crumb list.
     exit_node,
 
-
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
     enable_node_multi_select,
     /// Disable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
@@ -540,6 +539,7 @@ generate_frp_outputs! {
     visualization_disabled : NodeId,
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
+
 }
 
 
@@ -2095,6 +2095,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval outputs.visualization_enabled  ((id) model.enable_visualization(id));
     eval outputs.visualization_disabled ((id) model.disable_visualization(id));
     eval outputs.visualization_enable_fullscreen ((id) model.enable_visualization_fullscreen(id));
+
 
     // === Edge discovery ===
 
