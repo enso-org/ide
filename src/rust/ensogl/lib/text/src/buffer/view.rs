@@ -10,6 +10,7 @@ pub use movement::*;
 pub use selection::Selection;
 
 
+use crate::buffer::style::Style;
 use crate::buffer::data;
 use crate::buffer::data::Data;
 use crate::buffer::data::unit::*;
@@ -100,6 +101,18 @@ const SCROLL_OVERLAP : isize = 2;
 const DEFAULT_LINE_COUNT : usize = 10;
 
 
+#[derive(Debug,Clone,Default)]
+pub struct HistoryData {
+    pub undo_stack : Vec<(Data,Style,selection::Group)>,
+    pub redo_stack : Vec<(Data,Style,selection::Group)>,
+}
+
+#[derive(Debug,Clone,CloneRef,Default)]
+pub struct History {
+    pub data : Rc<RefCell<HistoryData>>
+}
+
+
 
 // ==================
 // === ViewBuffer ===
@@ -114,6 +127,7 @@ pub struct ViewBuffer {
     pub buffer            : Buffer,
     pub selection         : Rc<RefCell<selection::Group>>,
     pub next_selection_id : Rc<Cell<usize>>,
+    pub history           : History,
 }
 
 impl Deref for ViewBuffer {
@@ -127,7 +141,8 @@ impl From<Buffer> for ViewBuffer {
     fn from(buffer:Buffer) -> Self {
         let selection         = default();
         let next_selection_id = default();
-        Self {buffer,selection,next_selection_id}
+        let history           = default();
+        Self {buffer,selection,next_selection_id,history}
     }
 }
 
@@ -145,6 +160,24 @@ impl Default for ViewBuffer {
 
 // FIXME: Make all these utils private, and use FRP to control the model instead.
 impl ViewBuffer {
+
+    fn commit_history(&self) {
+        let data      = self.buffer.data();
+        let style     = self.buffer.style();
+        let selection = self.selection.borrow().clone();
+        self.history.data.borrow_mut().undo_stack.push((data,style,selection));
+    }
+
+    fn undo(&self) -> Option<selection::Group> {
+        let item      = self.history.data.borrow_mut().undo_stack.pop();
+        item.map(|(data,style,selection)| {
+            println!("SETTING DATA: {:?}", data);
+            self.buffer.set_data(data);
+            self.buffer.set_style(style);
+            selection
+        })
+    }
+
     /// Add a new selection to the current view.
     pub fn add_selection(&self, selection:impl Into<Selection>) {
         self.selection.borrow_mut().add(selection.into())
@@ -225,6 +258,7 @@ impl ViewBuffer {
 
     /// Insert new text in the place of current selections / cursors.
     pub fn modify(&self, movement:Movement, text:impl Into<Data>) -> selection::Group {
+        self.commit_history();
         let text       = text.into();
         let text_size  = text.len();
         let mut result = selection::Group::new();
@@ -247,16 +281,6 @@ impl ViewBuffer {
 
     fn decrease_indentation(&self) -> selection::Group {
         todo!() // This needs phantom cursors
-    }
-
-    /// Perform undo operation.
-    pub fn undo(&self) {
-        self.buffer.data.borrow_mut().undo();
-    }
-
-    /// Perform redo operation.
-    pub fn redo(&self) {
-        self.buffer.data.borrow_mut().redo();
     }
 }
 
@@ -296,6 +320,8 @@ define_frp! {
         keep_newest_selection_only : (),
         keep_oldest_caret_only     : (),
         keep_newest_caret_only     : (),
+        undo                       : (),
+        redo                       : (),
     }
 
     Output {
@@ -369,6 +395,10 @@ impl View {
 
             selection_on_remove_all <- input.remove_all_cursors.map(|_| default());
 
+            selection_on_undo <= input.undo.map(f_!(model.undo()));
+//            output.source.changed <+ selection_on_undo.constant(());
+            output.source.edit_selection     <+ selection_on_undo;
+
             output.source.non_edit_selection <+ selection_on_move;
             output.source.non_edit_selection <+ selection_on_mod;
             output.source.edit_selection     <+ selection_on_clear;
@@ -391,6 +421,8 @@ impl View {
 
             eval output.source.edit_selection ((t) model.set_selection(t));
             eval output.source.non_edit_selection ((t) model.set_selection(t));
+
+//            eval_ output.changed (model.commit_history());
 
 
 

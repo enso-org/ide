@@ -123,8 +123,6 @@ fn init(app:&Application) {
     text_area.set_position_x(10.0);
 //    text_area.set((0..4).bytes(),text::Size(20.0));
 
-    text_area.insert("!!!!");
-    text_area.undo();
 
     text_area.redraw();
 

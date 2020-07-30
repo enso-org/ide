@@ -394,7 +394,11 @@ ensogl::def_command_api! { Commands
     /// Set the oldest selection end to mouse position.
     set_newest_selection_end_to_mouse_position,
     /// Set the newest selection end to mouse position.
-    set_oldest_selection_end_to_mouse_position
+    set_oldest_selection_end_to_mouse_position,
+    /// Undo the last operation.
+    undo,
+    /// Redo the last operation.
+    redo,
 }
 
 impl application::command::CommandApi for Area {
@@ -485,13 +489,17 @@ impl Area {
             });
 
             _eval <- model.buffer.frp.output.edit_selection.map2
-                (&model.scene.frp.frame_time,f!((selections,time)
-                    model.on_modified_selection(selections,*time,true)
+                (&model.scene.frp.frame_time,f!([model](selections,time) {
+                        model.redraw(); // FIXME: added for undo redo hack
+                        model.on_modified_selection(selections,*time,true)
+                    }
             ));
 
             _eval <- model.buffer.frp.output.non_edit_selection.map2
-                (&model.scene.frp.frame_time,f!((selections,time)
+                (&model.scene.frp.frame_time,f!([model](selections,time) {
+                    model.redraw(); // FIXME: added for undo redo hack
                     model.on_modified_selection(selections,*time,false)
+                }
             ));
 
             set_newest_selection_end_1 <- mouse.position.gate(&selecting);
@@ -550,6 +558,9 @@ impl Area {
 
             eval_ command.increase_indentation  (model.buffer.frp.input.increase_indentation.emit(()));
             eval_ command.decrease_indentation  (model.buffer.frp.input.decrease_indentation.emit(()));
+
+            eval_ command.undo (model.buffer.frp.input.undo.emit(()));
+            eval_ command.redo (model.buffer.frp.input.redo.emit(()));
 
             key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample(&command.insert_char_of_last_pressed_key);
             char_to_insert        <= key_on_char_to_insert.map(|key| {
@@ -809,6 +820,7 @@ impl AreaData {
 
     // FIXME: make private
     pub fn redraw(&self) {
+//        println!("REDRAW");
         let lines      = self.buffer.lines();
         let line_count = lines.len();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
@@ -818,6 +830,7 @@ impl AreaData {
     }
 
     fn redraw_line(&self, view_line_number:usize, content:String) { // fixme content:Cow<str>
+//        println!("LINE: {:?}",content);
         let cursor_map    = self.selection_map.borrow().location_map.get(&view_line_number).cloned().unwrap_or_default();
 
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
@@ -938,7 +951,7 @@ impl application::shortcut::DefaultShortcutProvider for Area {
 //               Self::self_shortcut(shortcut::Action::press   (&[Key::Tab]                             , shortcut::Pattern::Any) , "increase_indentation"),
 //               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Tab]                  , shortcut::Pattern::Any) , "decrease_indentation"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Backspace]             , shortcut::Pattern::Any) , "delete_word_left"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_caret_only"),
+//               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_caret_only"),
                Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                                       , "insert_char_of_last_pressed_key"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Shift],&[mouse::PrimaryButton])                            , "set_newest_selection_end_to_mouse_position"),
                Self::self_shortcut(shortcut::Action::double_press (&[],&[mouse::PrimaryButton])                                 , "select_word_at_cursor"),
@@ -949,6 +962,10 @@ impl application::shortcut::DefaultShortcutProvider for Area {
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "start_newest_selection_end_follow_mouse"),
                Self::self_shortcut(shortcut::Action::release (&[Key::Meta],&[mouse::PrimaryButton])                             , "stop_oldest_selection_end_follow_mouse"),
                Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("a".into())],&[])                      , "select_all"),
+//               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("z".into())],&[])                      , "undo"),
+//               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("y".into())],&[])                      , "redo"),
+//               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Shift,Key::Character("z".into())],&[])           , "redo"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
         ]
     }
 }
