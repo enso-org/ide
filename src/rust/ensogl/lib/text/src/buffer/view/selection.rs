@@ -156,6 +156,14 @@ impl Group {
         self.sorted_regions.iter().min_by(|x,y| x.id.cmp(&y.id))
     }
 
+    pub fn newest_mut(&mut self) -> Option<&mut Selection> {
+        self.sorted_regions.iter_mut().max_by(|x,y| x.id.cmp(&y.id))
+    }
+
+    pub fn oldest_mut(&mut self) -> Option<&mut Selection> {
+        self.sorted_regions.iter_mut().min_by(|x,y| x.id.cmp(&y.id))
+    }
+
     /// Add a region to the selection. This method implements merging logic.
     ///
     /// Two non-caret regions merge if their interiors intersect. Merely touching at the edges does

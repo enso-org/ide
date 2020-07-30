@@ -336,9 +336,9 @@ ensogl::def_command_api! { Commands
     /// Add a new cursor at the mouse cursor position.
     add_cursor_at_mouse_position,
     /// Start the selection at the mouse cursor position.
-    start_mouse_selection,
+    start_newest_selection_end_follow_mouse,
     /// Stop the selection at the mouse cursor position.
-    stop_mouse_selection,
+    stop_oldest_selection_end_follow_mouse,
     /// Move the cursor to the left by one grapheme cluster.
     cursor_move_left,
     /// Move the cursor to the right by one grapheme cluster.
@@ -371,7 +371,9 @@ ensogl::def_command_api! { Commands
     keep_newest_caret_only,
     /// Discard all but the oldest selection and convert it to caret.
     keep_oldest_caret_only,
-    /// Discard all but the oldest selection and set its end to mouse position.
+    /// Set the oldest selection end to mouse position.
+    set_newest_selection_end_to_mouse_position,
+    /// Set the newest selection end to mouse position.
     set_oldest_selection_end_to_mouse_position
 }
 
@@ -443,17 +445,16 @@ impl Area {
             mouse_cursor <- any(cursor_over,cursor_out);
             self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
 
-            set_cursor_at_mouse_position <- any
-                ( &command.set_cursor_at_mouse_position
-                , &command.start_mouse_selection
-                );
-            mouse_on_set_cursor <- mouse.position.sample(&set_cursor_at_mouse_position);
+//            set_cursor_at_mouse_position <- any
+//                ( &command.set_cursor_at_mouse_position
+////                , &command.start_newest_selection_end_follow_mouse
+//                );
+            mouse_on_set_cursor <- mouse.position.sample(&command.set_cursor_at_mouse_position);
             mouse_on_add_cursor <- mouse.position.sample(&command.add_cursor_at_mouse_position);
 
-            selecting <- bool(&command.stop_mouse_selection,&command.start_mouse_selection);
+            selecting <- bool(&command.stop_oldest_selection_end_follow_mouse,&command.start_newest_selection_end_follow_mouse);
+
             trace selecting;
-
-
 
             eval mouse_on_set_cursor ([model](screen_pos) {
                 let location = model.get_in_text_location(*screen_pos);
@@ -475,14 +476,23 @@ impl Area {
                     model.on_modified_selection(selections,*time,false)
             ));
 
-            set_oldest_selection_end_1 <- mouse.position.gate(&selecting);
-            set_oldest_selection_end_2 <- mouse.position.sample(&command.set_oldest_selection_end_to_mouse_position);
-            set_oldest_selection_end   <- any(&set_oldest_selection_end_1,&set_oldest_selection_end_2);
+            set_newest_selection_end_1 <- mouse.position.gate(&selecting);
+            set_newest_selection_end_2 <- mouse.position.sample(&command.set_newest_selection_end_to_mouse_position);
+            set_newest_selection_end   <- any(&set_newest_selection_end_1,&set_newest_selection_end_2);
 
-            eval set_oldest_selection_end([model](screen_pos) {
+            eval set_newest_selection_end([model](screen_pos) {
                 let location = model.get_in_text_location(*screen_pos);
-                model.buffer.frp.input.set_oldest_selection_end.emit(location);
+                model.buffer.frp.input.set_newest_selection_end.emit(location);
             });
+
+//            set_newest_selection_end_1 <- mouse.position.gate(&mod_selecting);
+//            set_newest_selection_end_2 <- mouse.position.sample(&command.set_newest_selection_end_to_mouse_position);
+//            set_newest_selection_end   <- any(&set_newest_selection_end_1,&set_newest_selection_end_2);
+//
+//            eval set_newest_selection_end([model](screen_pos) {
+//                let location = model.get_in_text_location(*screen_pos);
+//                model.buffer.frp.input.set_newest_selection_end.emit(location);
+//            });
 
             eval_ model.buffer.frp.output.changed (model.redraw());
 
@@ -896,11 +906,13 @@ impl application::shortcut::DefaultShortcutProvider for Area {
                Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace]             , shortcut::Pattern::Any) , "delete_left"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                , shortcut::Pattern::Any) , "keep_oldest_caret_only"),
                Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                             , "insert_char_of_last_pressed_key"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift],&[mouse::PrimaryButton])                  , "set_oldest_selection_end_to_mouse_position"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift],&[mouse::PrimaryButton])                  , "set_newest_selection_end_to_mouse_position"),
                Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "set_cursor_at_mouse_position"),
-               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "start_mouse_selection"),
-               Self::self_shortcut(shortcut::Action::release (&[],&[mouse::PrimaryButton])                            , "stop_mouse_selection"),
+               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                            , "start_newest_selection_end_follow_mouse"),
+               Self::self_shortcut(shortcut::Action::release (&[],&[mouse::PrimaryButton])                            , "stop_oldest_selection_end_follow_mouse"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                   , "add_cursor_at_mouse_position"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                   , "start_newest_selection_end_follow_mouse"),
+               Self::self_shortcut(shortcut::Action::release (&[Key::Meta],&[mouse::PrimaryButton])                   , "stop_oldest_selection_end_follow_mouse"),
         ]
     }
 }
