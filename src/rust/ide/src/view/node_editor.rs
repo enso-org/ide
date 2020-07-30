@@ -542,9 +542,9 @@ impl GraphEditorIntegratedWithControllerModel {
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.request_detaching_all_visualizations();
         self.refresh_graph_view()?;
+        self.editor.breadcrumbs.frp.pop_breadcrumb.emit(());
         let id = self.get_displayed_node_id(id)?;
         self.editor.frp.select_node.emit_event(&id);
-        self.editor.breadcrumbs.frp.pop_breadcrumb.emit(());
         Ok(())
     }
 
