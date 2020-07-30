@@ -421,7 +421,7 @@ impl GraphEditorIntegratedWithControllerModel {
             // sub-parts).
             for expression_part in node.info.expression().iter_recursive() {
                 if let Some(id) = expression_part.id {
-                    self.refresh_computed_info(id)
+                    self.refresh_computed_info(id);
                 }
             }
         }
@@ -445,16 +445,20 @@ impl GraphEditorIntegratedWithControllerModel {
         let info     = self.lookup_computed_info(&id);
         let info     = info.as_ref();
         let typename = info.and_then(|info| info.typename.clone().map(graph_editor::Type));
-        self.set_type(id,typename);
-        let method_pointer = info.and_then(|info| {
-            info.method_pointer.clone().map(graph_editor::MethodPointer)
-        });
-        self.set_method_pointer(id,method_pointer);
+        if let Some(node_id) = self.node_views.borrow().get_by_left(&id).cloned() {
+            self.set_type(node_id,id,typename);
+            let method_pointer = info.and_then(|info| {
+                info.method_pointer.clone().map(graph_editor::MethodPointer)
+            });
+            self.set_method_pointer(id,method_pointer);
+        } else {
+            debug!(self.logger, "Failed to get `NodeId` for ID: {id:?}.");
+        }
     }
 
     /// Set given type (or lack of such) on the given sub-expression.
-    fn set_type(&self, id:ExpressionId, typename:Option<graph_editor::Type>) {
-        let event = (id,typename);
+    fn set_type(&self, node_id:graph_editor::NodeId, id:ExpressionId, typename:Option<graph_editor::Type>) {
+        let event = (node_id,id,typename);
         self.editor.frp.inputs.set_expression_type.emit_event(&event);
     }
 
@@ -821,6 +825,17 @@ impl NodeEditor {
         }
         info!(self.logger, "Initialized.");
         Ok(self)
+    }
+
+    /// Get ids of the nodes selected in the editor.
+    ///
+    /// They shall be ordered by the order of the selecting. Node selected as first shall be at
+    /// the beginning.
+    pub fn selected_nodes(&self) -> FallibleResult<Vec<ast::Id>> {
+        let node_view_ids = self.graph.model.editor.selected_nodes().into_iter();
+        let node_ids      = node_view_ids.map(|id| self.graph.model.get_controller_node_id(id));
+        let node_ids : Result<Vec<_>,_> = node_ids.collect();
+        node_ids.map_err(Into::into)
     }
 }
 
