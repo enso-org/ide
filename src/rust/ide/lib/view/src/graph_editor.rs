@@ -670,6 +670,11 @@ pub struct Type(pub ImString);
 #[derive(Clone,Debug,Shrinkwrap,PartialEq,Eq)]
 pub struct MethodPointer(pub Rc<enso_protocol::language_server::MethodPointer>);
 
+impl From<enso_protocol::language_server::MethodPointer> for MethodPointer {
+    fn from(method_pointer:enso_protocol::language_server::MethodPointer) -> Self {
+        Self(Rc::new(method_pointer))
+    }
+}
 
 
 // =================

@@ -527,7 +527,7 @@ impl GraphEditorIntegratedWithControllerModel {
 
     /// Handle notification received from controller about values having been entered.
     pub fn on_node_entered(&self, local_call:&LocalCall) -> FallibleResult<()> {
-        let definition = graph_editor::MethodPointer(Rc::new(local_call.definition.clone()));
+        let definition = local_call.definition.clone().into();
         let call       = local_call.call.clone();
         let local_call = graph_editor::LocalCall{definition,call};
         self.editor.frp.deselect_all_nodes.emit_event(&());
@@ -722,10 +722,10 @@ impl GraphEditorIntegratedWithControllerModel {
     fn expression_entered_in_ui
     (&self, local_call:&Option<LocalCall>) -> FallibleResult<()> {
         if let Some(local_call) = local_call {
-            let local_call     = local_call.clone();
-            let controller     = self.controller.clone_ref();
-            let logger         = self.logger.clone_ref();
-            let enter_action   = async move {
+            let local_call   = local_call.clone();
+            let controller   = self.controller.clone_ref();
+            let logger       = self.logger.clone_ref();
+            let enter_action = async move {
                 info!(logger,"Entering node.");
                 let result = controller.enter_method_pointer(&local_call).await;
                 debug!(logger,"Entering node result: {result:?}.");
@@ -746,8 +746,8 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn node_exited_in_ui(&self, _:&()) -> FallibleResult<()> {
         debug!(self.logger,"Requesting exiting the current node.");
-        let controller   = self.controller.clone_ref();
-        let logger       = self.logger.clone_ref();
+        let controller = self.controller.clone_ref();
+        let logger     = self.logger.clone_ref();
         let exit_node_action = async move {
             info!(logger,"Exiting node.");
             let result = controller.exit_node().await;

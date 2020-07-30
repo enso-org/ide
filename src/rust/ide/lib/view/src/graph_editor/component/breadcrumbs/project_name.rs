@@ -261,8 +261,8 @@ impl ProjectNameModel {
     }
 
     fn commit(&self) {
-        debug!(self.logger, "Committing name.");
         let name = self.text_field.get_content();
+        debug!(self.logger, "Committing name: '{name}'.");
         self.name_output.emit(&name);
         *self.project_name.borrow_mut() = name;
         self.edit_mode.emit(false);
