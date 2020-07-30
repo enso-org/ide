@@ -27,6 +27,7 @@ pub enum EntryKind {
     Atom,Function,Local,Method
 }
 
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Scope {
     Everywhere,
     InModule{ range:Range<TextLocation> }
@@ -257,6 +258,21 @@ impl SuggestionDatabase {
         }).collect()
     }
 
+    pub fn lookup_locals_by_name_and_location
+    (&self, name:impl Str, location:TextLocation) -> SmallVec<[Rc<Entry>;8]> {
+        self.entries.borrow().values().cloned().filter(|entry| {
+            (entry.kind == EntryKind::Function || entry.kind == EntryKind::Local) &&
+            &entry.name == name.as_ref() && entry.scope.contains(location)
+        }).collect()
+    }
+
+    pub fn lookup_by_name_and_module
+    (&self, name:impl Str, module:&QualifiedName) -> Option<Rc<Entry>> {
+        self.entries.borrow().values().cloned().find(|entry| {
+            &entry.name == name.as_ref() && &entry.module == module
+        })
+    }
+
     /// Put the entry to the database. Using this function likely break the synchronization between
     /// Language Server and IDE, and should be used only in tests.
     #[cfg(test)]
@@ -301,7 +317,8 @@ mod test {
             arguments     : vec![],
             return_type   : "Number".to_string(),
             documentation : None,
-            self_type     : None
+            self_type     : None,
+            scope         : Scope::Everywhere,
         };
         let method_entry = Entry {
             name      : "method".to_string(),
@@ -335,7 +352,8 @@ mod test {
             arguments     : vec![],
             return_type   : "Number".to_string(),
             documentation : None,
-            self_type     : None
+            self_type     : None,
+            scope         : Scope::Everywhere,
         };
         let method = Entry {
             name      : "method".to_string(),

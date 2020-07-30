@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NewNodeInfo;
-use crate::double_representation::module::ImportInfo;
+use crate::double_representation::module::{ImportInfo, QualifiedName};
 use crate::model::module::MethodId;
 use crate::model::module::NodeMetadata;
 use crate::model::module::Position;
@@ -13,7 +13,6 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
-
 
 
 // =======================
@@ -335,15 +334,16 @@ impl Data {
 /// accepting the Searcher input (pressing "Enter").
 #[derive(Clone,CloneRef,Debug)]
 pub struct Searcher {
-    logger          : Logger,
-    data            : Rc<RefCell<Data>>,
-    notifier        : notification::Publisher<Notification>,
-    graph           : controller::ExecutedGraph,
-    mode            : Immutable<Mode>,
-    database        : Rc<model::SuggestionDatabase>,
-    language_server : Rc<language_server::Connection>,
-    parser          : Parser,
-    this_arg        : Rc<Option<ThisNode>>,
+    logger           : Logger,
+    data             : Rc<RefCell<Data>>,
+    notifier         : notification::Publisher<Notification>,
+    graph            : controller::ExecutedGraph,
+    mode             : Immutable<Mode>,
+    database         : Rc<model::SuggestionDatabase>,
+    language_server  : Rc<language_server::Connection>,
+    parser           : Parser,
+    this_arg         : Rc<Option<ThisNode>>,
+    position_in_code : Immutable<TextLocation>,
 }
 
 impl Searcher {
@@ -374,15 +374,20 @@ impl Searcher {
         } else {
             default()
         };
-        let this_arg = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
-        let ret      = Self {
+        let module_ast = graph.graph().module.ast();
+        let def_id     = graph.graph().id;
+        let def_span   = double_representation::module::definition_span(&module_ast,&def_id)?;
+        let position   = TextLocation::convert_span(module_ast.repr(),&def_span).end;
+        let this_arg   = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
+        let ret        = Self {
             logger,graph,this_arg,
-            data            : Rc::new(RefCell::new(data)),
-            notifier        : default(),
-            mode            : Immutable(mode),
-            database        : project.suggestion_db(),
-            language_server : project.json_rpc(),
-            parser          : project.parser(),
+            data             : Rc::new(RefCell::new(data)),
+            notifier         : default(),
+            mode             : Immutable(mode),
+            database         : project.suggestion_db(),
+            language_server  : project.json_rpc(),
+            parser           : project.parser(),
+            position_in_code : Immutable(position),
         };
         ret.reload_list();
         Ok(ret)
@@ -551,9 +556,7 @@ impl Searcher {
     fn reload_list(&self) {
         let next_completion = self.data.borrow().input.next_completion_id();
         let new_suggestions = if next_completion == CompletedFragmentId::Function {
-            if let Err(err) = self.get_suggestion_list_from_engine(None,None) {
-                error!(self.logger,"Cannot request engine for suggestions: {err}");
-            }
+            self.get_suggestion_list_from_engine(std::iter::once(None),None);
             Suggestions::Loading
         } else {
             // TODO[ao] Requesting for argument.
@@ -579,57 +582,71 @@ impl Searcher {
     }
 
     fn get_suggestion_list_from_engine
-    (&self, return_type:Option<String>, tags:Option<Vec<language_server::SuggestionEntryType>>)
-    -> FallibleResult<()> {
-        let ls         = self.language_server.clone_ref();
-        let graph      = self.graph.graph();
-        let graph_id   = &*graph.id;
-        let module_ast = graph.module.ast();
-        let file       = graph.module.path().file_path().clone();
-        let this_type  = self.this_arg_type_for_next_completion();
-        let def_span   = double_representation::module::definition_span(&module_ast,&graph_id)?;
-        let position   = TextLocation::convert_span(module_ast.repr(),&def_span).end.into();
-        let data       = self.data.clone_ref();
-        let database   = self.database.clone_ref();
-        let logger     = self.logger.clone_ref();
-        let notifier   = self.notifier.clone_ref();
+    (&self, return_types:impl IntoIterator<Item=Option<String>> + 'static, tags:Option<Vec<language_server::SuggestionEntryType>>) {
+        let ls        = self.language_server.clone_ref();
+        let this_type = self.this_arg_type_for_next_completion();
+        let graph     = self.graph.graph();
+        let position  = self.position_in_code.deref().into();
+        let this      = self.clone_ref();
         executor::global::spawn(async move {
             let this_type = this_type.await;
             info!(logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
-            let request  = ls.completion(&file,&position,&this_type,&return_type,&tags);
-            let response = request.await;
-            info!(logger,"Received suggestions from Language Server.");
-            let new_suggestions = match response {
-                Ok(list) => {
-                    let entry_ids   = list.results.into_iter();
-                    let entries     = entry_ids.filter_map(|id| {
-                        let entry = database.get(id);
-                        if entry.is_none() {
-                            error!(logger,"Missing entry {id} in Suggestion Database.");
-                        }
-                        entry
-                    });
-                    let suggestions = entries.map(Suggestion::Completion);
-                    Suggestions::Loaded {list:Rc::new(suggestions.collect())}
-                },
+            let requests  = return_types.into_iter().map(move |return_type| {
+                let file = graph.module.path().file_path();
+                ls.completion(&file,&position,&this_type,&return_type,&tags)
+            });
+            let responses = futures::future::join_all(requests).await;
+            info!(this.logger,"Received suggestions from Language Server.");
+            let new_suggestions = match this.convert_language_server_response(responses) {
+                Ok(list)   => Suggestions::Loaded {list:Rc::new(list)},
                 Err(error) => Suggestions::Error(Rc::new(error.into()))
             };
-            data.borrow_mut().suggestions = new_suggestions;
-            notifier.publish(Notification::NewSuggestionList).await;
+            this.data.borrow_mut().suggestions = new_suggestions;
+            this.notifier.publish(Notification::NewSuggestionList).await;
         });
-        Ok(())
     }
 
-    fn return_type_of_next_completion(&self) -> String {
-
+    fn convert_language_server_response
+    (&self, responses:Vec<json_rpc::Result<language_server::response::Completion>>)
+    -> FallibleResult<Vec<Suggestion>> {
+        let mut suggestions = Vec::new();
+        for response in responses {
+            let response = response?;
+            let entries  = response.results.iter().filter_map(|id| {
+                let entry = self.database.get(*id);
+                if entry.is_none() {
+                    error!(self.logger,"Missing entry {id} in Suggestion Database.");
+                }
+                entry
+            });
+            let new_suggestions = entries.map(Suggestion::Completion);
+            suggestions.extend(new_suggestions);
+        }
+        Ok(suggestions)
     }
 
     fn possible_function_calls(&self, ast:&Ast) -> SmallVec<[CompletionSuggestion;8]> {
-        if let Some(name) = ast::identifier::name(ast) {
-            self.database.lookup_by_name_and_location(name,position)
-        } else if let Ok(infix) = ast::known::Infix::try_new(ast.clone_ref()) {
-
+        if let Some(call) = SimpleFunctionCall::try_new(ast) {
+            if let Some(module) = self.module_method_called(&call) {
+                self.database.lookup_by_name_and_module(call.function_name,&module).into_iter().collect()
+            } else {
+                self.database.lookup_by_name_and_location(call.function_name,*self.position_in_code)
+            }
+        } else {
+            SmallVec::new()
         }
+    }
+
+    fn module_method_called(&self, call:&SimpleFunctionCall) -> Option<QualifiedName> {
+        let module_ast    = self.graph.graph().module.ast();
+        let position      = *self.position_in_code;
+        let module        = double_representation::module::Info {ast:module_ast};
+        let this_name     = ast::identifier::name(call.this_argument.as_ref()?)?;
+        let not_local_name = self.database.lookup_locals_by_name_and_location(this_name,position).is_empty();
+        let imported      = || module.iter_imports().find_map(|import| {
+            import.qualified_name().ok().filter(|module| module.name() == this_name)
+        });
+        not_local_name.and_option_from(imported)
     }
 
     /// Returns the Id of method user intends to be called in this node.
@@ -641,6 +658,38 @@ impl Searcher {
         let mut fragments = borrowed_data.fragments_added_by_picking.iter();
         let function_frag = fragments.find(|frag| frag.id == CompletedFragmentId::Function)?;
         function_frag.picked_suggestion.method_id()
+    }
+}
+
+
+struct SimpleFunctionCall {
+    this_argument : Option<Ast>,
+    function_name : String,
+}
+
+impl SimpleFunctionCall {
+    fn try_new(call:&Ast) -> Option<Self> {
+        if let Some(name) = ast::identifier::name(call) {
+            Some(Self {
+                this_argument : None,
+                function_name : name.clone(),
+            })
+        } else if let Ok(infix) = ast::known::Infix::try_new(call.clone_ref()) {
+            if ast::opr::is_access_opr(&infix.opr) {
+                if let Some(name) = ast::identifier::name(&infix.rarg) {
+                    Some(Self {
+                        this_argument : Some(infix.larg.clone_ref()),
+                        function_name : name.clone(),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -660,6 +709,7 @@ mod test {
     use enso_protocol::language_server::types::test::value_update_with_type;
     use json_rpc::expect_call;
     use utils::test::traits::*;
+    use crate::model::suggestion_database::Scope;
 
     #[derive(Debug,Derivative)]
     #[derivative(Default)]
@@ -700,10 +750,12 @@ mod test {
             let mut data   = MockData::default();
             let mut client = language_server::MockClient::default();
             client_setup(&mut data,&mut client);
-            let graph = data.graph.controller();
-            let node  = &graph.graph().nodes().unwrap()[0];
-            let this  = ThisNode::new(vec![node.info.id()],&graph.graph());
-            let this  = data.selected_node.and_option(this);
+            let end_of_code = TextLocation::at_document_end(&data.graph.module.code);
+            let code_range  = TextLocation::at_document_begin()..end_of_code;
+            let graph       = data.graph.controller();
+            let node        = &graph.graph().nodes().unwrap()[0];
+            let this        = ThisNode::new(vec![node.info.id()],&graph.graph());
+            let this        = data.selected_node.and_option(this);
             let searcher = Searcher {
                 logger          : default(),
                 data            : default(),
@@ -713,7 +765,8 @@ mod test {
                 database        : default(),
                 language_server : language_server::Connection::new_mock_rc(client),
                 parser          : Parser::new_or_panic(),
-                this_arg            : Rc::new(this),
+                this_arg        : Rc::new(this),
+                position_in_code : Immutable(end_of_code),
             };
             let entry1 = model::suggestion_database::Entry {
                 name          : "testFunction1".to_string(),
@@ -722,7 +775,8 @@ mod test {
                 arguments     : vec![],
                 return_type   : "Number".to_string(),
                 documentation : default(),
-                self_type     : None
+                self_type     : None,
+                scope         : Scope::InModule {range:code_range},
             };
             let entry2 = model::suggestion_database::Entry {
                 name : "TestVar1".to_string(),
@@ -733,6 +787,7 @@ mod test {
                 name          : "testMethod1".to_string(),
                 kind          : model::suggestion_database::EntryKind::Method,
                 self_type     : Some("Test".to_string()),
+                scope         : Scope::Everywhere,
                 ..entry1.clone()
             };
             let entry9 = entry1.clone().with_name("testFunction2");
@@ -1112,5 +1167,34 @@ mod test {
         assert!(searcher_data.suggestions.is_loading());
         let (initial_fragment,) = searcher_data.fragments_added_by_picking.expect_tuple();
         assert!(Rc::ptr_eq(&initial_fragment.picked_suggestion,&entry3))
+    }
+
+    #[test]
+    fn simple_function_call_parsing() {
+        let parser = Parser::new_or_panic();
+
+        let ast  = parser.parse_line("foo").unwrap();
+        let call = SimpleFunctionCall::try_new(&ast).expect("Returned None for \"foo\"");
+        assert!(call.this_argument.is_none());
+        assert_eq!(call.function_name, "foo");
+
+        let ast = parser.parse_line("Main.foo").unwrap();
+        let call = SimpleFunctionCall::try_new(&ast).expect("Returned None for \"Main.foo\"");
+        assert_eq!(call.this_argument.unwrap().repr(), "Main");
+        assert_eq!(call.function_name                , "foo");
+
+        let ast = parser.parse_line("(2 + 3).foo").unwrap();
+        let call = SimpleFunctionCall::try_new(&ast).expect("Returned None for \"(2 + 3).foo\"");
+        assert_eq!(call.this_argument.unwrap().repr(), "(2 + 3)");
+        assert_eq!(call.function_name                , "foo");
+
+        let ast = parser.parse_line("foo + 3").unwrap();
+        assert!(SimpleFunctionCall::try_new(&ast).is_none());
+
+        let ast = parser.parse_line("foo bar baz").unwrap();
+        assert!(SimpleFunctionCall::try_new(&ast).is_none());
+
+        let ast = parser.parse_line("Main . (foo bar)").unwrap();
+        assert!(SimpleFunctionCall::try_new(&ast).is_none());
     }
 }
