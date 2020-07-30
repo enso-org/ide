@@ -171,7 +171,7 @@ impl BreadcrumbsModel {
     }
 
     fn select_breadcrumb(&self, index:usize) -> Vec<frp::Source> {
-        let mut sources = Vec::new();
+        let mut sources   = Vec::new();
         let current_index = self.current_index.get();
         match index.cmp(&current_index) {
             cmp::Ordering::Less => {
@@ -199,7 +199,7 @@ impl BreadcrumbsModel {
             },
             cmp::Ordering::Equal => ()
         }
-        info!(self.logger,"Selecting breadcrumb #{index}");
+        info!(self.logger,"Selecting breadcrumb #{index}.");
         sources
     }
 
@@ -208,8 +208,8 @@ impl BreadcrumbsModel {
         if let Some(local_call) = local_call {
             let method_pointer = &local_call.definition;
             let expression_id  = &local_call.call;
-            let current_index = self.current_index.get();
-            let next_index = current_index + 1;
+            let current_index  = self.current_index.get();
+            let next_index     = current_index + 1;
 
             let breadcrumb_exists =
                 self.breadcrumbs.borrow_mut().get(current_index).contains_if(|breadcrumb| {
@@ -222,10 +222,10 @@ impl BreadcrumbsModel {
             } else {
                 debug!(self.logger, "Creating a new {method_pointer.name} breadcrumb.");
                 self.remove_breadcrumbs_history_beginning_from(self.current_index.get());
-                let breadcrumb = Breadcrumb::new(&self.scene, method_pointer, expression_id);
-                let network = &breadcrumb.frp.network;
+                let breadcrumb       = Breadcrumb::new(&self.scene, method_pointer, expression_id);
+                let network          = &breadcrumb.frp.network;
                 let breadcrumb_index = next_index;
-                let model = self.clone_ref();
+                let model            = self.clone_ref();
 
 
                 // === User Interaction ===
@@ -262,7 +262,7 @@ impl BreadcrumbsModel {
     }
 
     fn update_selection(&self) -> Vec<frp::Source> {
-        let mut sources = Vec::new();
+        let mut sources   = Vec::new();
         let current_index = self.current_index.get();
         for (index,breadcrumb) in self.breadcrumbs.borrow_mut().iter().enumerate() {
             if index + 1 == current_index {

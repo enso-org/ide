@@ -182,8 +182,12 @@ impl GraphEditorIntegratedWithController {
         let breadcrumbs = &model.editor.breadcrumbs;
         frp::extend! {network
             eval_ breadcrumbs.frp.outputs.breadcrumb_pop(model.node_exited_in_ui(&()).ok());
-            eval  breadcrumbs.frp.outputs.breadcrumb_push((id) {
-                model.expression_entered_in_ui(id).ok()
+            eval  breadcrumbs.frp.outputs.breadcrumb_push((local_call) {
+                model.expression_entered_in_ui(&local_call.as_ref().map(|local_call| {
+                    let definition = (**local_call.definition).clone();
+                    let call       = local_call.call;
+                    LocalCall{definition,call}
+                })).ok()
             });
         }
 
@@ -716,15 +720,14 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn expression_entered_in_ui
-    (&self, local_call:&Option<graph_editor::LocalCall>) -> FallibleResult<()> {
+    (&self, local_call:&Option<LocalCall>) -> FallibleResult<()> {
         if let Some(local_call) = local_call {
-            let method_pointer = local_call.definition.clone();
-            let expression_id  = local_call.call;
+            let local_call     = local_call.clone();
             let controller     = self.controller.clone_ref();
             let logger         = self.logger.clone_ref();
             let enter_action   = async move {
                 info!(logger,"Entering node.");
-                let result = controller.enter_method_pointer(expression_id,&method_pointer).await;
+                let result = controller.enter_method_pointer(&local_call).await;
                 if let Err(e) = result {
                     error!(logger,"Couldn't enter node: {e}")
                 }
@@ -736,10 +739,10 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult<()> {
         debug!(self.logger,"Requesting entering the node {node_id}.");
-        let expression_id  = self.get_controller_node_id(*node_id)?;
-        let method_pointer = self.controller.node_method_pointer(expression_id)?;
-        let method_pointer = graph_editor::MethodPointer(method_pointer);
-        let local_call     = graph_editor::LocalCall{call:expression_id,definition:method_pointer};
+        let call           = self.get_controller_node_id(*node_id)?;
+        let method_pointer = self.controller.node_method_pointer(call)?;
+        let definition     = (*method_pointer).clone();
+        let local_call     = LocalCall{call,definition};
         self.expression_entered_in_ui(&Some(local_call))
     }
 

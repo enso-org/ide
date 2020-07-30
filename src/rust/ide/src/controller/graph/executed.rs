@@ -151,19 +151,16 @@ impl Handle {
     ///
     /// Fails if method graph cannot be created (see `graph_for_method` documentation).
     pub async fn enter_method_pointer
-    (&self, node:double_representation::node::Id, method_ptr:&MethodPointer) -> FallibleResult<()> {
-        debug!(self.logger, "Entering node {node}.");
-        let graph = controller::Graph::new_method(&self.logger,&self.project,&method_ptr).await?;
-        let call  = LocalCall {
-            call       : node,
-            definition : method_ptr.clone()
-        };
-        self.execution_ctx.push(call.clone()).await?;
-
+    (&self, local_call:&LocalCall) -> FallibleResult<()> {
+        debug!(self.logger, "Entering node {local_call.call}.");
+        let method_ptr = &local_call.definition;
+        let graph      = controller::Graph::new_method(&self.logger,&self.project,method_ptr);
+        let graph      = graph.await?;
+        self.execution_ctx.push(local_call.clone()).await?;
         debug!(self.logger,"Replacing graph with {graph:?}.");
         self.graph.replace(graph);
         debug!(self.logger,"Sending graph invalidation signal.");
-        self.notifier.publish(Notification::EnteredNode(call)).await;
+        self.notifier.publish(Notification::EnteredNode(local_call.clone())).await;
 
         Ok(())
     }
@@ -188,8 +185,10 @@ impl Handle {
     /// been yet computed by the engine) or if method graph cannot be created (see
     /// `graph_for_method` documentation).
     pub async fn enter_node(&self, node:double_representation::node::Id) -> FallibleResult<()> {
-        let method_ptr = self.node_method_pointer(node)?;
-        self.enter_method_pointer(node,&method_ptr).await
+        let definition = self.node_method_pointer(node)?;
+        let definition = (*definition).clone();
+        let local_call = LocalCall{call:node,definition};
+        self.enter_method_pointer(&local_call).await
     }
 
     /// Leave the current node. Reverse of `enter_node`.

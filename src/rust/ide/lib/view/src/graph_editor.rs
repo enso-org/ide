@@ -1516,7 +1516,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Project Name Editing ===
     // ============================
 
-
     // === Commit project name edit ===
 
     let project_name = &model.breadcrumbs.project_name;
@@ -1531,9 +1530,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Cancel project name editing ===
 
     frp::extend! { network
-        eval_ inputs.cancel_project_name_editing({
+        eval_ inputs.cancel_project_name_editing(
             model.breadcrumbs.project_name.frp.cancel_editing.emit(())
-        });
+        );
     }
 
 
