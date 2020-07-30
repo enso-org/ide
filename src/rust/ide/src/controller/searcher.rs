@@ -561,12 +561,12 @@ impl Searcher {
     fn reload_list(&self) {
         let next_completion = self.data.borrow().input.next_completion_id();
         let new_suggestions = if next_completion == CompletedFragmentId::Function {
-            self.get_suggestion_list_from_engine(std::iter::once(None),None);
+            self.get_suggestion_list_from_engine(std::iter::empty(),None);
             Suggestions::Loading
         } else if let CompletedFragmentId::Argument {index} = next_completion {
             debug!(self.logger,"Preparing list for argument {index}.");
-            let return_type = self.return_type_for_next_completion().iter();
-            self.get_suggestion_list_from_engine(return_type,None);
+            let return_types = self.return_types_for_next_completion();
+            self.get_suggestion_list_from_engine(return_types,None);
             Suggestions::Loading
         } else {
             // TODO impossible
@@ -594,25 +594,35 @@ impl Searcher {
     /// Get the type that suggestions for the next completion should return.
     ///
     /// Generally this corresponds to the type of the currently filled function argument.
-    fn return_type_for_next_completion(&self) -> Option<String> {
-        let suggestion    = self.intended_function_suggestion()?;
+    fn return_types_for_next_completion(&self) -> Vec<String> {
+        let suggestions = if let Some(intended) = self.intended_function_suggestion() {
+            std::iter::once(intended).collect()
+        } else {
+            self.possible_function_calls()
+        };
         let completion_id = self.data.borrow().input.next_completion_id();
         if let CompletedFragmentId::Argument {index} = completion_id {
-            let index     = index + if self.has_this_argument() { 1 } else { 0 };
-            let parameter = suggestion.arguments.get(index)?;
-            Some(parameter.repr_type.clone())
+            suggestions.into_iter().filter_map(|suggestion| {
+                let index     = index + if self.has_this_argument() { 1 } else { 0 };
+                let parameter = suggestion.arguments.get(index)?;
+                Some(parameter.repr_type.clone())
+            }).collect()
         } else {
-            None
+            Vec::new()
         }
     }
 
     fn get_suggestion_list_from_engine
-    (&self, return_types:impl IntoIterator<Item=Option<String>> + 'static, tags:Option<Vec<language_server::SuggestionEntryType>>) {
-        let ls        = self.language_server.clone_ref();
-        let this_type = self.this_arg_type_for_next_completion();
-        let graph     = self.graph.graph();
-        let position  = self.position_in_code.deref().into();
-        let this      = self.clone_ref();
+    (&self, return_types:impl IntoIterator<Item=String>, tags:Option<Vec<language_server::SuggestionEntryType>>) {
+        let ls               = self.language_server.clone_ref();
+        let this_type        = self.this_arg_type_for_next_completion();
+        let graph            = self.graph.graph();
+        let position         = self.position_in_code.deref().into();
+        let mut return_types = return_types.into_iter().map(Some).collect_vec();
+        let this             = self.clone_ref();
+        if return_types.is_empty() {
+            return_types.push(None)
+        }
         executor::global::spawn(async move {
             let this_type = this_type.await;
             info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
@@ -651,16 +661,20 @@ impl Searcher {
         Ok(suggestions)
     }
 
-    fn possible_function_calls(&self, ast:&Ast) -> SmallVec<[CompletionSuggestion;8]> {
-        if let Some(call) = SimpleFunctionCall::try_new(ast) {
+    fn possible_function_calls(&self) -> Vec<CompletionSuggestion> {
+        let opt_result = || {
+            let call_ast = self.data.borrow().input.expression.as_ref()?.func.clone_ref();
+            let call     = SimpleFunctionCall::try_new(&call_ast)?;
             if let Some(module) = self.module_method_called(&call) {
-                self.database.lookup_by_name_and_module(call.function_name,&module).into_iter().collect()
+                let entry = self.database.lookup_by_name_and_module(call.function_name,&module);
+                Some(entry.into_iter().collect())
             } else {
-                self.database.lookup_by_name_and_location(call.function_name,*self.position_in_code)
+                let name     = &call.function_name;
+                let location = *self.position_in_code;
+                Some(self.database.lookup_by_name_and_location(name,location))
             }
-        } else {
-            SmallVec::new()
-        }
+        };
+        opt_result().unwrap_or(Vec::new())
     }
 
     fn module_method_called(&self, call:&SimpleFunctionCall) -> Option<QualifiedName> {

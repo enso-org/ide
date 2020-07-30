@@ -252,14 +252,14 @@ impl SuggestionDatabase {
     }
 
     pub fn lookup_by_name_and_location
-    (&self, name:impl Str, location:TextLocation) -> SmallVec<[Rc<Entry>;8]> {
+    (&self, name:impl Str, location:TextLocation) -> Vec<Rc<Entry>> {
         self.entries.borrow().values().cloned().filter(|entry| {
             &entry.name == name.as_ref() && entry.scope.contains(location)
         }).collect()
     }
 
     pub fn lookup_locals_by_name_and_location
-    (&self, name:impl Str, location:TextLocation) -> SmallVec<[Rc<Entry>;8]> {
+    (&self, name:impl Str, location:TextLocation) -> Vec<Rc<Entry>> {
         self.entries.borrow().values().cloned().filter(|entry| {
             (entry.kind == EntryKind::Function || entry.kind == EntryKind::Local) &&
             &entry.name == name.as_ref() && entry.scope.contains(location)
