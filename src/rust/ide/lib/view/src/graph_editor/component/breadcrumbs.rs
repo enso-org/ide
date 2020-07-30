@@ -9,10 +9,9 @@ pub mod project_name;
 pub use breadcrumb::Breadcrumb;
 pub use project_name::ProjectName;
 
-use crate::graph_editor::MethodPointer;
+use crate::graph_editor::LocalCall;
 
 use enso_frp as frp;
-use enso_protocol::language_server::ExpressionId;
 use ensogl::display;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
@@ -20,23 +19,6 @@ use ensogl::display::shape::text::text_field::FocusManager;
 use logger::enabled::Logger;
 use logger::AnyLogger;
 use std::cmp;
-
-
-
-// =================
-// === LocalCall ===
-// =================
-
-/// A specific function call occurring within another function's definition body.
-/// It's closely related to the `LocalCall` type defined in `Language Server` types, but uses the
-/// new type `MethodPointer` defined in `GraphEditor`.
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct LocalCall {
-    /// An expression being a call to a method.
-    pub call:ExpressionId,
-    /// A pointer to the called method.
-    pub definition:MethodPointer,
-}
 
 
 
@@ -209,8 +191,8 @@ impl BreadcrumbsModel {
                     if info.is_some() {
                         self.frp_outputs.breadcrumb_push.emit(info);
                     } else {
-                        error!(self.logger, "LocalCall info is invalid.");
-                        self.remove_breadcrumbs_history(index);
+                        error!(self.logger, "LocalCall info is not present.");
+                        self.remove_breadcrumbs_history_beginning_from(index);
                         break;
                     }
                 }
@@ -239,7 +221,7 @@ impl BreadcrumbsModel {
                 //TODO[dg]: Highlight breadcrumb.
             } else {
                 debug!(self.logger, "Creating a new {method_pointer.name} breadcrumb.");
-                self.remove_breadcrumbs_history(self.current_index.get());
+                self.remove_breadcrumbs_history_beginning_from(self.current_index.get());
                 let breadcrumb = Breadcrumb::new(&self.scene, method_pointer, expression_id);
                 let network = &breadcrumb.frp.network;
                 let breadcrumb_index = next_index;
@@ -292,7 +274,7 @@ impl BreadcrumbsModel {
         sources
     }
 
-    fn remove_breadcrumbs_history(&self, index:usize) {
+    fn remove_breadcrumbs_history_beginning_from(&self, index:usize) {
         for breadcrumb in self.breadcrumbs.borrow_mut().split_off(index) {
             info!(self.logger, "Removing {breadcrumb.info.method_pointer.name}.");
             breadcrumb.unset_parent();

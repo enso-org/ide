@@ -6,6 +6,7 @@
 use crate::prelude::*;
 
 use crate::model::execution_context::ComputedValueInfoRegistry;
+use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
@@ -45,7 +46,7 @@ pub enum Notification {
     /// being updated.
     ComputedValueInfo(model::execution_context::ComputedValueExpressions),
     /// Notification emitted when the node has been entered.
-    EnteredNode(double_representation::node::Id,MethodPointer),
+    EnteredNode(LocalCall),
     /// Notification emitted when the node was step out.
     SteppedOutOfNode(double_representation::node::Id),
 }
@@ -153,16 +154,16 @@ impl Handle {
     (&self, node:double_representation::node::Id, method_ptr:&MethodPointer) -> FallibleResult<()> {
         debug!(self.logger, "Entering node {node}.");
         let graph = controller::Graph::new_method(&self.logger,&self.project,&method_ptr).await?;
-        let call  = model::execution_context::LocalCall {
+        let call  = LocalCall {
             call       : node,
             definition : method_ptr.clone()
         };
-        self.execution_ctx.push(call).await?;
+        self.execution_ctx.push(call.clone()).await?;
 
         debug!(self.logger,"Replacing graph with {graph:?}.");
         self.graph.replace(graph);
         debug!(self.logger,"Sending graph invalidation signal.");
-        self.notifier.publish(Notification::EnteredNode(node,method_ptr.clone())).await;
+        self.notifier.publish(Notification::EnteredNode(call)).await;
 
         Ok(())
     }

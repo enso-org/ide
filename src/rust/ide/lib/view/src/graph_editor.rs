@@ -672,6 +672,23 @@ pub struct MethodPointer(pub Rc<enso_protocol::language_server::MethodPointer>);
 
 
 
+// =================
+// === LocalCall ===
+// =================
+
+/// A specific function call occurring within another function's definition body.
+/// It's closely related to the `LocalCall` type defined in `Language Server` types, but uses the
+/// new type `MethodPointer` defined in `GraphEditor`.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct LocalCall {
+    /// An expression being a call to a method.
+    pub call:enso_protocol::language_server::ExpressionId,
+    /// A pointer to the called method.
+    pub definition:MethodPointer,
+}
+
+
+
 // ==================
 // === EdgeTarget ===
 // ==================

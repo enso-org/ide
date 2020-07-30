@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::controller::graph::NodeTrees;
 use crate::model::execution_context::ComputedValueInfo;
+use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
@@ -16,7 +17,6 @@ use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::application::Application;
 use ide_view::graph_editor;
-use ide_view::graph_editor::component::breadcrumbs::LocalCall;
 use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::EdgeTarget;
 use ide_view::graph_editor::GraphEditor;
@@ -522,11 +522,10 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     /// Handle notification received from controller about values having been entered.
-    pub fn on_node_entered
-    ( &self
-    , id         : double_representation::node::Id
-    , definition : graph_editor::MethodPointer) -> FallibleResult<()> {
-        let local_call = LocalCall{definition,call:id};
+    pub fn on_node_entered(&self, local_call:&LocalCall) -> FallibleResult<()> {
+        let definition = graph_editor::MethodPointer(Rc::new(local_call.definition.clone()));
+        let call       = local_call.call.clone();
+        let local_call = graph_editor::LocalCall{definition,call};
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.editor.breadcrumbs.frp.push_breadcrumb.emit(&Some(local_call));
         self.request_detaching_all_visualizations();
@@ -540,6 +539,7 @@ impl GraphEditorIntegratedWithControllerModel {
         self.refresh_graph_view()?;
         let id = self.get_displayed_node_id(id)?;
         self.editor.frp.select_node.emit_event(&id);
+        self.editor.breadcrumbs.frp.pop_breadcrumb.emit(());
         Ok(())
     }
 
@@ -569,13 +569,10 @@ impl GraphEditorIntegratedWithControllerModel {
         use controller::graph::Notification::Invalidate;
 
         let result = match notification {
-            Some(Notification::Graph(Invalidate))              => self.on_invalidated(),
-            Some(Notification::ComputedValueInfo(update))      => self.on_values_computed(update),
-            Some(Notification::SteppedOutOfNode(id))           => self.on_node_exited(*id),
-            Some(Notification::EnteredNode(id,method_pointer)) => {
-                let method_pointer = graph_editor::MethodPointer(Rc::new(method_pointer.clone()));
-                self.on_node_entered(*id,method_pointer)
-            },
+            Some(Notification::Graph(Invalidate))         => self.on_invalidated(),
+            Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
+            Some(Notification::SteppedOutOfNode(id))      => self.on_node_exited(*id),
+            Some(Notification::EnteredNode(local_call))   => self.on_node_entered(local_call),
             other => {
                 warning!(self.logger,"Handling notification {other:?} is not implemented; \
                     performing full invalidation");
@@ -719,7 +716,7 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn expression_entered_in_ui
-    (&self, local_call:&Option<LocalCall>) -> FallibleResult<()> {
+    (&self, local_call:&Option<graph_editor::LocalCall>) -> FallibleResult<()> {
         if let Some(local_call) = local_call {
             let method_pointer = local_call.definition.clone();
             let expression_id  = local_call.call;
@@ -742,7 +739,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let expression_id  = self.get_controller_node_id(*node_id)?;
         let method_pointer = self.controller.node_method_pointer(expression_id)?;
         let method_pointer = graph_editor::MethodPointer(method_pointer);
-        let local_call     = LocalCall{call:expression_id,definition:method_pointer};
+        let local_call     = graph_editor::LocalCall{call:expression_id,definition:method_pointer};
         self.expression_entered_in_ui(&Some(local_call))
     }
 
@@ -750,13 +747,10 @@ impl GraphEditorIntegratedWithControllerModel {
         debug!(self.logger,"Requesting exiting the current node.");
         let controller   = self.controller.clone_ref();
         let logger       = self.logger.clone_ref();
-        let graph_editor = self.editor.clone_ref();
         let exit_node_action = async move {
             info!(logger,"Exiting node.");
-            let result = controller.exit_node().await;
-            match result {
-                Ok(_)  => graph_editor.breadcrumbs.frp.pop_breadcrumb.emit(()),
-                Err(e) => error!(logger,"Couldn't exit node: {e}")
+            if let Err(e) = controller.exit_node().await {
+                error!(logger,"Couldn't exist node: {e}.")
             }
         };
         executor::global::spawn(exit_node_action);
