@@ -695,6 +695,22 @@ mod test {
     use json_rpc::expect_call;
     use utils::test::traits::*;
     use crate::model::suggestion_database::Argument;
+    use enso_protocol::language_server::SuggestionEntryId;
+    use std::borrow::Borrow;
+    //
+    // fn no_results_completion_response() {
+    //     language_server::response::Completion {
+    //         results         : vec![],
+    //         current_version : default(),
+    //     };
+    // }
+
+    // fn completion_response(results:&[SuggestionEntryId]) {
+    //     language_server::response::Completion {
+    //         results         : results.into_vec(),
+    //         current_version : default(),
+    //     };
+    // }
 
     #[derive(Debug,Derivative)]
     #[derivative(Default)]
@@ -833,21 +849,17 @@ mod test {
         ];
 
         for case in &cases {
-            let Fixture { mut test, searcher, entry1, .. } = Fixture::new_custom(|data, client| {
+            let Fixture { mut test, searcher, entry1, .. } = Fixture::new_custom(|data,client| {
                 data.change_main_body(case.node_line);
                 data.selected_node = true;
-                let completion_response = language_server::response::Completion {
-                    results: vec![1, 5, 9],
-                    current_version: default(),
-                };
-
-                expect_call!(client.completion(
-                    module      = data.graph.module.path.file_path().clone(),
-                    position    = data.code_location,
-                    self_type   = case.sets_this.as_some(mock_type.to_owned()),
-                    return_type = None,
-                    tag         = None
-                ) => Ok(completion_response));
+                // let completion_response = completion_response(&[1,5,9]);
+                // expect_call!(client.completion(
+                //     module      = data.graph.module.path.file_path().clone(),
+                //     position    = data.code_location,
+                //     self_type   = case.sets_this.as_some(mock_type.to_owned()),
+                //     return_type = None,
+                //     tag         = None
+                // ) => Ok(completion_response));
             });
 
             searcher.reload_list();
@@ -1096,9 +1108,21 @@ mod test {
 
         for (i,case) in cases.into_iter().enumerate() {
             dbg!(i);
-            let mut fixture = Fixture::new_custom(|data, _| {
+            let mut fixture = Fixture::new_custom(|data, client| {
                 data.selected_node = true;
                 data.change_main_body(case.line);
+
+                let completion_response = language_server::response::Completion {
+                    results: vec![],
+                    current_version: default(),
+                };
+                expect_call!(client.completion(
+                    module      = data.graph.module.path.file_path().clone(),
+                    position    = data.code_location,
+                    self_type   = None,
+                    return_type = None,
+                    tag         = None
+                ) => Ok(completion_response));
             });
             (case.run)(&mut fixture);
             fixture.searcher.commit_node().unwrap();
