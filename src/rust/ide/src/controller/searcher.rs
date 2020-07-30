@@ -1186,7 +1186,7 @@ mod test {
             }),
         ];
 
-        for (i,case) in cases.into_iter().enumerate() {
+        for case in cases.into_iter() {
             let mut fixture = Fixture::new_custom(|data, client| {
                 data.selected_node = true;
                 data.change_main_body(case.line);
