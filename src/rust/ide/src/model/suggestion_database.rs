@@ -13,7 +13,7 @@ use parser::DocParser;
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionEntryId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
-
+use data::text::TextLocation;
 
 
 // =============
@@ -25,6 +25,21 @@ pub use language_server::types::SuggestionsDatabaseUpdate as Update;
 #[allow(missing_docs)]
 pub enum EntryKind {
     Atom,Function,Local,Method
+}
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum Scope {
+    Everywhere,
+    InModule{ range:Range<TextLocation> }
+}
+
+impl Scope {
+    pub fn contains(&self, location:TextLocation) -> bool {
+        match self {
+            Self::Everywhere         => true,
+            Self::InModule   {range} => range.contains(&location),
+        }
+    }
 }
 
 /// The Suggestion Database Entry.
@@ -45,6 +60,8 @@ pub struct Entry {
     pub documentation : Option<String>,
     /// A type of the "self" argument. This field is `None` for non-method suggestions.
     pub self_type : Option<String>,
+    /// A scope where this suggestion can be applied.
+    pub scope : Scope,
 }
 
 impl Entry {
@@ -66,6 +83,7 @@ impl Entry {
                     self_type     : None,
                     documentation : convert_doc(documentation),
                     kind          : EntryKind::Atom,
+                    scope         : Scope::Everywhere,
                 },
             Method {name,module,arguments,self_type,return_type,documentation} => Self {
                     name,arguments,return_type,
@@ -73,21 +91,24 @@ impl Entry {
                     self_type     : Some(self_type),
                     documentation : convert_doc(documentation),
                     kind          : EntryKind::Method,
+                    scope         : Scope::Everywhere,
                 },
-            Function {name,module,arguments,return_type,..} => Self {
+            Function {name,module,arguments,return_type,scope} => Self {
                     name,arguments,return_type,
                     module        : module.try_into()?,
                     self_type     : None,
                     documentation : default(),
                     kind          : EntryKind::Function,
+                    scope         : Scope::InModule {range:scope.into()},
                 },
-            Local {name,module,return_type,..} => Self {
+            Local {name,module,return_type,scope} => Self {
                     name,return_type,
                     arguments     : default(),
                     module        : module.try_into()?,
                     self_type     : None,
                     documentation : default(),
                     kind          : EntryKind::Local,
+                    scope         : Scope::InModule {range:scope.into()},
                 },
         };
         Ok(this)
@@ -230,6 +251,28 @@ impl SuggestionDatabase {
         self.entries.borrow().values().cloned().find(|entry| entry.method_id().contains(&id))
     }
 
+    pub fn lookup_by_name_and_location
+    (&self, name:impl Str, location:TextLocation) -> Vec<Rc<Entry>> {
+        self.entries.borrow().values().cloned().filter(|entry| {
+            &entry.name == name.as_ref() && entry.scope.contains(location)
+        }).collect()
+    }
+
+    pub fn lookup_locals_by_name_and_location
+    (&self, name:impl Str, location:TextLocation) -> Vec<Rc<Entry>> {
+        self.entries.borrow().values().cloned().filter(|entry| {
+            (entry.kind == EntryKind::Function || entry.kind == EntryKind::Local) &&
+            &entry.name == name.as_ref() && entry.scope.contains(location)
+        }).collect()
+    }
+
+    pub fn lookup_by_name_and_module
+    (&self, name:impl Str, module:&QualifiedName) -> Option<Rc<Entry>> {
+        self.entries.borrow().values().cloned().find(|entry| {
+            &entry.name == name.as_ref() && &entry.module == module
+        })
+    }
+
     /// Put the entry to the database. Using this function likely break the synchronization between
     /// Language Server and IDE, and should be used only in tests.
     #[cfg(test)]
@@ -274,7 +317,8 @@ mod test {
             arguments     : vec![],
             return_type   : "Number".to_string(),
             documentation : None,
-            self_type     : None
+            self_type     : None,
+            scope         : Scope::Everywhere,
         };
         let method_entry = Entry {
             name      : "method".to_string(),
@@ -308,7 +352,8 @@ mod test {
             arguments     : vec![],
             return_type   : "Number".to_string(),
             documentation : None,
-            self_type     : None
+            self_type     : None,
+            scope         : Scope::Everywhere,
         };
         let method = Entry {
             name      : "method".to_string(),

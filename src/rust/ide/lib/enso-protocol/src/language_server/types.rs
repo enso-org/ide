@@ -528,6 +528,17 @@ pub struct SuggestionEntryScope {
     pub end   : Position,
 }
 
+impls!{ From + &From <Range<data::text::TextLocation>> for SuggestionEntryScope { |range|
+    SuggestionEntryScope {
+        start : range.start.into(),
+        end   : range.end.into(),
+    }
+}}
+
+impls!{ Into + &Into <Range<data::text::TextLocation>> for SuggestionEntryScope { |this|
+    this.start.into()..this.end.into()
+}}
+
 /// A type of suggestion entry.
 #[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
