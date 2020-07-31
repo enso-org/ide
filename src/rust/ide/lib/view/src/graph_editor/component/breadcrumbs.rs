@@ -145,7 +145,6 @@ pub struct BreadcrumbsModel {
     scene                 : Scene,
     breadcrumbs           : Rc<RefCell<Vec<Breadcrumb>>>,
     frp_inputs            : FrpInputs,
-    frp_outputs           : FrpOutputs,
     current_index         : Rc<Cell<usize>>
 }
 
@@ -160,9 +159,8 @@ impl BreadcrumbsModel {
         let scene                 = scene.clone_ref();
         let breadcrumbs           = default();
         let frp_inputs            = frp.inputs.clone_ref();
-        let frp_outputs           = frp.outputs.clone_ref();
         let current_index         = default();
-        Self{logger,display_object,scene,breadcrumbs,frp_outputs,project_name,breadcrumbs_container,
+        Self{logger,display_object,scene,breadcrumbs,project_name,breadcrumbs_container,
             frp_inputs,current_index}.init()
     }
 
@@ -241,7 +239,6 @@ impl BreadcrumbsModel {
                 let network          = &breadcrumb.frp.network;
                 let breadcrumb_index = new_index;
                 let frp_inputs       = self.frp_inputs.clone_ref();
-                let frp_outputs      = self.frp_outputs.clone_ref();
 
 
                 // === User Interaction ===
@@ -249,16 +246,6 @@ impl BreadcrumbsModel {
                 frp::extend! { network
                     eval_ breadcrumb.frp.outputs.selected(
                         frp_inputs.select_breadcrumb.emit(breadcrumb_index);
-                    );
-                    popped_count <= frp_outputs.breadcrumb_select.map(f!([](selected)
-                        (0..selected.0).collect_vec()
-                    ));
-                    local_calls  <= frp_outputs.breadcrumb_select.map(f!([](selected)
-                        selected.1.clone()
-                    ));
-                    eval popped_count((_) frp_outputs.breadcrumb_pop.emit(()));
-                    eval local_calls((local_call)
-                        frp_outputs.breadcrumb_push.emit(local_call)
                     );
                 }
 
@@ -380,17 +367,28 @@ impl Breadcrumbs {
         // === User Interaction ===
 
         frp::extend! {network
-            _mouse_down <- model.project_name.frp.outputs.mouse_down.map(f!([model] (_) {
+            _mouse_down <- model.project_name.frp.outputs.mouse_down.map(f!([frp,model] (_) {
                 let (popped_count,local_calls) = model.select_breadcrumb(0);
                 for _ in 0..popped_count {
-                    model.frp_outputs.breadcrumb_pop.emit(());
+                    frp.outputs.breadcrumb_pop.emit(());
                 }
                 for local_call in local_calls {
-                    model.frp_outputs.breadcrumb_push.emit(local_call);
+                    frp.outputs.breadcrumb_push.emit(local_call);
                 }
             }));
             eval_ frp.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
             eval_ frp.outside_press(model.project_name.frp.outside_press.emit(()));
+            
+            popped_count <= frp.outputs.breadcrumb_select.map(f!([](selected)
+                (0..selected.0).collect_vec()
+            ));
+            local_calls  <= frp.outputs.breadcrumb_select.map(f!([](selected)
+                selected.1.clone()
+            ));
+            eval popped_count((_) frp.outputs.breadcrumb_pop.emit(()));
+            eval local_calls((local_call)
+                frp.outputs.breadcrumb_push.emit(local_call)
+            );
         }
 
         Self{frp,model}
