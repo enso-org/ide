@@ -27,14 +27,26 @@ pub enum EntryKind {
     Atom,Function,Local,Method
 }
 
-// TODO [mwu] Consider rename, we already use "scope" with a different meaning.
+/// Describes the visibility range of some entry (i.e. identifier available as suggestion).
+///
+/// Methods are visible "Everywhere", as they are imported on a module level, so they are not
+/// specific to any particular span in the module file.
+/// However local variables and local function have limited visibility.
+///
+// TODO [mwu] It should be specified what is relation between scope and different module files.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Scope {
+    /// The entry is visible in the whole module where it was defined. It can be also brought to
+    /// other modules by import declarations.
     Everywhere,
-    InModule{ range:Range<TextLocation> }
+    /// Local symbol that is visible only in a particular section of the module where it has been
+    /// defined.
+    #[allow(missing_docs)]
+    InModule {range:Range<TextLocation>}
 }
 
 impl Scope {
+    /// Check if the entry described by this `Scope` can be visible in the given location.
     pub fn contains(&self, location:TextLocation) -> bool {
         match self {
             Self::Everywhere         => true,
@@ -61,7 +73,7 @@ pub struct Entry {
     pub documentation : Option<String>,
     /// A type of the "self" argument. This field is `None` for non-method suggestions.
     pub self_type : Option<String>,
-    /// A scope where this suggestion can be applied.
+    /// A scope where this suggestion is visible.
     pub scope : Scope,
 }
 
@@ -129,11 +141,6 @@ impl Entry {
             self.name.clone()
         }
     }
-
-    // /// Returns entry with the changed name.
-    // pub fn with_name(self, name:impl Into<String>) -> Self {
-    //     Self {name:name.into(),..self}
-    // }
 
     /// Return the Method Id of suggested method.
     ///

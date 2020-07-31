@@ -627,7 +627,7 @@ impl Searcher {
             });
             let responses = futures::future::join_all(requests).await;
             info!(this.logger,"Received suggestions from Language Server.");
-            let new_suggestions = match this.convert_language_server_response(responses) {
+            let new_suggestions = match this.suggestions_from_responses(responses) {
                 Ok(list)   => Suggestions::Loaded {list:Rc::new(list)},
                 Err(error) => Suggestions::Error(Rc::new(error.into()))
             };
@@ -636,9 +636,8 @@ impl Searcher {
         });
     }
 
-    // REVIEW [mwu] docstring + shouldn't this be "responses" (plural)?
-    // or rename to describe more what this is for like "suggestions_from_responses"
-    fn convert_language_server_response
+    /// Process multiple completion responses from the engine into a single list of suggestion.
+    fn suggestions_from_responses
     (&self, responses:Vec<json_rpc::Result<language_server::response::Completion>>)
     -> FallibleResult<Vec<Suggestion>> {
         let mut suggestions = Vec::new();
@@ -676,6 +675,8 @@ impl Searcher {
         let position        = *self.position_in_code;
         let module          = double_representation::module::Info {ast:module_ast};
         let this_name       = ast::identifier::name(call.this_argument.as_ref()?)?;
+        // REVIEW [mwu] This looks strange to me. Locals are local functions (sugared lambdas), not
+        // methods. Why we require having a "this" argument before looking up the locals?
         let matching_locals = self.database.lookup_locals_by_name_and_location(this_name,position);
         let not_local_name  = matching_locals.is_empty();
         let imported        = || module.iter_imports().find_map(|import| {
@@ -812,6 +813,8 @@ mod test {
         entry2   : CompletionSuggestion,
         entry3   : CompletionSuggestion,
         entry9   : CompletionSuggestion,
+        entry10  : CompletionSuggestion,
+        entry11  : CompletionSuggestion,
     }
 
     impl Fixture {
@@ -896,6 +899,47 @@ mod test {
                 ..entry1.clone()
             };
 
+
+            let entry10 = model::suggestion_database::Entry {
+                name      : "overloaded".to_string(),
+                self_type : Some("Text".to_string()),
+                kind      : model::suggestion_database::EntryKind::Method,
+                arguments     : vec![
+                    Argument {
+                        repr_type     : "Any".to_string(),
+                        name          : "this".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    },
+                    Argument {
+                        repr_type     : "Foo".to_string(),
+                        name          : "foo_arg".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    },
+                ],
+                ..entry1.clone()
+            };
+
+            let entry11 = model::suggestion_database::Entry {
+                self_type : Some("Number".to_string()),
+                arguments     : vec![
+                    Argument {
+                        repr_type     : "Any".to_string(),
+                        name          : "this".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    },
+                    Argument {
+                        repr_type     : "Bar".to_string(),
+                        name          : "bar_arg".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    },
+                ],
+                ..entry10.clone()
+            };
+
             searcher.database.put_entry(1,entry1);
             let entry1 = searcher.database.get(1).unwrap();
             searcher.database.put_entry(2,entry2);
@@ -904,7 +948,11 @@ mod test {
             let entry3 = searcher.database.get(3).unwrap();
             searcher.database.put_entry(9,entry9);
             let entry9 = searcher.database.get(9).unwrap();
-            Fixture{data,test,searcher,entry1,entry2,entry3,entry9}
+            searcher.database.put_entry(10,entry10);
+            let entry10 = searcher.database.get(10).unwrap();
+            searcher.database.put_entry(11,entry11);
+            let entry11 = searcher.database.get(11).unwrap();
+            Fixture{data,test,searcher,entry1,entry2,entry3,entry9,entry10,entry11}
         }
 
         fn new() -> Self {
@@ -1142,6 +1190,34 @@ mod test {
         let (arg,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
+    }
+
+    #[test]
+    fn non_picked_function_arg_suggestions() {
+        let mut fixture = Fixture::new_custom(|data,client| {
+            data.expect_completion(client,None,None,&[1]);
+            //data.expect_completion(client,None,None,&[2]);
+            //data.expect_completion(client,None,None,&[]);
+            // TODO
+        });
+        let Fixture{searcher,entry10,entry11,..} = &mut fixture;
+
+        // Entry10 and 11 are overloaded methods named "overloaded" defined on Number and Text.
+        // Make sure that fixture is still as assumed.
+        assert_eq!(entry10.name,entry11.name);
+        assert_eq!(entry10.name,"overloaded");
+
+        // This should ask for "this" types for Number and Text.
+        searcher.set_input("overloaded ".to_string()).unwrap();
+        println!("{:?}",searcher.possible_function_calls());
+        // TODO [mwu] here and below check that suggestions were properly aggregated
+        //
+        // // This should ask for the latter argument of both arguments (Bar or Foo types).
+        // searcher.set_input("foo.overloaded ".to_string()).unwrap();
+        //
+        // // As above. We don't want to get into the trickery of resolving whether `Number` allows us
+        // // to resolve the overload set. (it could be even shadowed by something else)
+        // searcher.set_input("overloaded Number ".to_string()).unwrap();
     }
 
     #[wasm_bindgen_test]
