@@ -18,7 +18,6 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::text::text_field::FocusManager;
 use logger::enabled::Logger;
 use logger::AnyLogger;
-use std::cmp;
 
 
 
@@ -173,38 +172,45 @@ impl BreadcrumbsModel {
     }
 
     fn relayout_for_project_name_width(&self, width:f32) {
-        self.breadcrumbs_container.set_position(Vector3(HORIZONTAL_MARGIN + width,0.0,0.0));
+        self.breadcrumbs_container.set_position_x(HORIZONTAL_MARGIN + width);
     }
 
-    fn select_breadcrumb(&self, index:usize) -> (usize,Vec<Option<LocalCall>>) {
-        let mut local_calls  = Vec::new();
-        let mut popped_count = 0;
-        let current_index = self.current_index.get();
-        match index.cmp(&current_index) {
-            cmp::Ordering::Less => {
-                // If we have more crumbs after `index`, we will pop them.
-                popped_count = current_index - index;
-            },
-            cmp::Ordering::Greater => {
-                for index in current_index..index {
-                    let info = self.breadcrumbs.borrow().get(index).map(|breadcrumb| {
-                        let definition = breadcrumb.info.method_pointer.clone();
-                        let call       = breadcrumb.info.expression_id;
-                        LocalCall{call,definition}
-                    }).as_ref().cloned();
-                    if info.is_some() {
-                        local_calls.push(info);
-                    } else {
-                        error!(self.logger, "LocalCall info is not present.");
-                        self.remove_breadcrumbs_history_beginning_from(index);
-                        break;
-                    }
-                }
-            },
-            cmp::Ordering::Equal => ()
+    fn get_breadcrumb(&self, index:usize) -> Option<Breadcrumb> {
+        if index > 0 {
+            self.breadcrumbs.borrow_mut().get(index - 1).map(|breadcrumb| breadcrumb.clone_ref())
+        } else {
+            None
         }
+    }
+
+    /// Selects the breadcrumb identified by its `index` and returns `(popped_count,local_calls)`,
+    /// where `popped_count` is the number of breadcrumbs in the right side of `index` that needs to
+    /// be popped or a list of `LocalCall`s identifying the breadcrumbs we need to push.
+    fn select_breadcrumb(&self, index:usize) -> (usize,Vec<Option<LocalCall>>) {
         info!(self.logger,"Selecting breadcrumb #{index}.");
-        (popped_count,local_calls)
+        let current_index = self.current_index.get();
+        if index < current_index {
+            (current_index - index, default())
+        } else if index > current_index {
+            let mut local_calls = Vec::new();
+            for index in current_index..index {
+                let info = self.breadcrumbs.borrow().get(index).map(|breadcrumb| {
+                    let definition = breadcrumb.info.method_pointer.clone();
+                    let call       = breadcrumb.info.expression_id;
+                    LocalCall{call,definition}
+                }).as_ref().cloned();
+                if info.is_some() {
+                    local_calls.push(info);
+                } else {
+                    error!(self.logger, "LocalCall info is not present.");
+                    self.remove_breadcrumbs_history_beginning_from(index);
+                    break;
+                }
+            }
+            (default(),local_calls)
+        } else {
+            (default(),default())
+        }
     }
 
     fn push_breadcrumb(&self, local_call:&Option<LocalCall>) -> Option<(usize,usize)> {
@@ -233,15 +239,15 @@ impl BreadcrumbsModel {
                 // === User Interaction ===
 
                 frp::extend! { network
-                    _selected <- breadcrumb.frp.outputs.selected.map(move |_| {
-                        let (popped_count,local_calls) = model.select_breadcrumb(breadcrumb_index);
-                        for _ in 0..popped_count {
-                            model.frp_outputs.breadcrumb_pop.emit(());
-                        }
-                        for local_call in local_calls {
-                            model.frp_outputs.breadcrumb_push.emit(local_call);
-                        }
-                    });
+                    selected <- breadcrumb.frp.outputs.selected.map(f!((_)
+                        model.select_breadcrumb(breadcrumb_index)
+                    ));
+                    popped_count <= selected.map(f!([](selected) (0..selected.0).collect_vec()));
+                    local_calls  <= selected.map(f!([](selected) selected.1.clone()));
+                    eval popped_count((_) model.frp_outputs.breadcrumb_pop.emit(()));
+                    eval local_calls((local_call)
+                        model.frp_outputs.breadcrumb_push.emit(local_call)
+                    );
                 }
 
                 info!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
@@ -308,34 +314,29 @@ impl Breadcrumbs {
 
         // === Breadcrumb selection ===
 
-        let update_selection = f!([model]((old_index,new_index)) {
-            if old_index > 0 {
-                model.breadcrumbs.borrow_mut().get(old_index-1).map(|breadcrumb:&Breadcrumb| {
-                    breadcrumb.frp.deselect.emit(())
-                });
-            }
-            if new_index > 0 {
-                model.breadcrumbs.borrow_mut().get(new_index-1).map(|breadcrumb:&Breadcrumb| {
-                    breadcrumb.frp.select.emit(())
-                });
-            }
-            (old_index,new_index)
-        });
-
-        let update_selection_clone = update_selection.clone();
         frp::extend! { network
-            _push_breadcrumb <- frp.push_breadcrumb.map(f!([model](local_call) {
-                let indices = model.push_breadcrumb(local_call);
-                indices.map(&update_selection_clone).map(|(_,new_index)| {
-                    if new_index > 0 {
-                        model.breadcrumbs.borrow_mut().get(new_index-1).map(|breadcrumb| {
-                            breadcrumb.frp.fade_in.emit(());
-                        });
-                    }
-                });
+
+            // === Pushing ===
+            indices <= frp.push_breadcrumb.map(f!((local_call) model.push_breadcrumb(local_call)));
+            old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
+            new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
+            eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
+                breadcrumb.frp.deselect.emit(());
             }));
-            _pop_breadcrumb <- frp.pop_breadcrumb.map(f!([model](_) {
-                model.pop_breadcrumb().map(&update_selection);
+            eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
+                breadcrumb.frp.select.emit(());
+                breadcrumb.frp.fade_in.emit(());
+            }));
+
+            // === Popping ===
+            indices <= frp.pop_breadcrumb.map(f!((_) model.pop_breadcrumb()));
+            old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
+            new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
+            eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
+                breadcrumb.frp.deselect.emit(());
+            }));
+            eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
+                breadcrumb.frp.select.emit(());
             }));
         }
 
