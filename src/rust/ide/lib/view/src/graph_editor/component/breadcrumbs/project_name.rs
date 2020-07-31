@@ -64,7 +64,8 @@ pub struct FrpInputs {
     /// Reset the project name to the one before editing.
     pub cancel_editing:frp::Source,
     /// Commit current project name.
-    pub commit:frp::Source
+    pub commit        : frp::Source,
+    pub outside_press : frp::Source
 }
 
 impl FrpInputs {
@@ -74,8 +75,9 @@ impl FrpInputs {
             cancel_editing <- source();
             name           <- source();
             commit         <- source();
+            outside_press  <- source();
         }
-        Self{cancel_editing,name,commit}
+        Self{cancel_editing,name,commit,outside_press}
     }
 }
 
@@ -311,6 +313,10 @@ impl ProjectName {
             eval_ frp.inputs.commit(model.commit());
             frp.outputs.mouse_down <+ model.view.events.mouse_down;
             eval_ model.view.events.mouse_down(frp.outputs.edit_mode.emit(true));
+            commit_if_changed <- frp.outside_press.gate(&frp.outputs.edit_mode);
+            eval_ commit_if_changed({
+                frp.commit.emit(())
+            });
         }
 
 

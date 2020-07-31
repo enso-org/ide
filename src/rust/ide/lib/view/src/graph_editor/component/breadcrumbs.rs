@@ -371,10 +371,7 @@ impl Breadcrumbs {
                 }
             }));
             eval_ frp.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
-            commit_if_changed <- frp.outside_press.gate(&model.project_name.frp.outputs.edit_mode);
-            eval_ commit_if_changed({
-                model.project_name.frp.commit.emit(())
-            });
+            eval_ frp.outside_press(model.project_name.frp.outside_press.emit(()));
         }
 
         Self{frp,model}
