@@ -380,7 +380,7 @@ pub struct FrpInputs {
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
     pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
-    pub set_documentation_data       : frp::Source<String>,
+    pub set_documentation_data       : frp::Source<visualization::Data>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     hover_node_output          : frp::Source<Option<EdgeTarget>>,
@@ -2194,6 +2194,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
          if let Some(node) = nodes.get_cloned(node_id) {
              node.visualization.frp.set_data.emit(data);
          }
+     }));
+
+    def _set_doc_data = inputs.set_documentation_data.map(f!((data) {
+         model.doc_view.frp.send_data.emit(data);
      }));
 
      nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));

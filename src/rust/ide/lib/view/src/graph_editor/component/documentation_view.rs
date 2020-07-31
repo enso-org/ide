@@ -562,8 +562,8 @@ impl DocumentationViewModel {
 pub struct DocumentationView {
     #[shrinkwrap(main_field)]
     pub model   : DocumentationViewModel,
-    frp     : visualization::instance::Frp,
-    network : frp::Network,
+    pub frp     : visualization::instance::Frp,
+    network     : frp::Network,
 }
 
 impl DocumentationView {
