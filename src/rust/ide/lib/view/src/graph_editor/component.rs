@@ -5,6 +5,7 @@ pub mod edge;
 pub mod edge2;
 pub mod node;
 pub mod visualization;
+pub mod documentation_view;
 pub mod project_name;
 
 pub use edge::Edge;

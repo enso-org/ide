@@ -13,7 +13,6 @@ use ensogl::display;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 
-
 fn get_doc_style() -> String {
     let css = r#"<style>
 .docVis {
@@ -459,16 +458,18 @@ impl DocumentationViewModel {
         let logger  = Logger::new("DocumentationView");
         let div     = web::create_div();
         let dom     = DomSymbol::new(&div);
-        let size    = Rc::new(Cell::new(Vector2(300.0,400.0)));
+        let screen = scene.camera().screen();
+        let size    = Rc::new(Cell::new(Vector2(300.0,screen.height - 20.0)));
 
-        dom.dom().set_style_or_warn("white-space"     ,"pre"                     ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                    ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                    ,&logger);
-        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.7)",&logger);
-        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                    ,&logger);
-        dom.dom().set_style_or_warn("border-radius"   ,"14px"                    ,&logger);
-        dom.dom().set_style_or_warn("width"           ,"100% !important"         ,&logger);
-        dom.dom().set_style_or_warn("height"          ,"100% !important"         ,&logger);
+        dom.dom().set_style_or_warn("white-space"     ,"normal"                             ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                               ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                               ,&logger);
+        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"          ,&logger);
+        dom.dom().set_style_or_warn("padding"         ,"5px"                                ,&logger);
+        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                               ,&logger);
+        dom.dom().set_style_or_warn("border-radius"   ,"14px"                               ,&logger);
+        dom.dom().set_style_or_warn("width"           ,format!("{}px", 290)                 ,&logger);
+        dom.dom().set_style_or_warn("height"          ,format!("{}px", screen.height - 30.0),&logger);
 
         scene.dom.layers.main.manage(&dom);
         DocumentationViewModel{dom,logger,size}.init()
@@ -484,14 +485,27 @@ impl DocumentationViewModel {
         self.reload_style();
     }
 
+    // TODO: Receive real documentation string
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
         let data_inner = match data {
             Data::Json {content} => content,
             _ => todo!() // FIXME
         };
         let data_str = serde_json::to_string_pretty(&**data_inner);
-        let _data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
+        let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
 
+        let parser = parser::DocParser::new_or_panic();
+        let output = parser.generate_html_doc_pure(data_str);
+        let output = output.unwrap_or_else(|_| String::from("<h1>hello EnsoGL</h1>"));
+
+        let data_str = format!(r#"<div class="docVis">{}{}</iframe>"#,
+                               get_doc_style(), output);
+        self.dom.dom().set_inner_html(&data_str);
+        Ok(())
+    }
+
+    /// Generates placeholder HTML doc.
+    pub fn gen_placeholder(&self) -> Result<(),DataError> {
         let inp_only_doc = r#"DEPRECATED
                           REMOVED - replaced by Foo Bar
                           ADDED
@@ -528,7 +542,7 @@ impl DocumentationViewModel {
         let output = parser.generate_html_doc_pure(program);
         let output = output.unwrap_or_else(|_| String::from("<h1>hello EnsoGL</h1>"));
 
-        let data_str = format!(r#"<div style="border-radius=14px;" class="docVis">{}{}</div>"#,
+        let data_str = format!(r#"<div class="docVis">{}{}</iframe>"#,
                                get_doc_style(), output);
         self.dom.dom().set_inner_html(&data_str);
         Ok(())
@@ -543,12 +557,12 @@ impl DocumentationViewModel {
 // === DocumentationView ===
 // =========================
 
-/// Sample visualization that renders the given data as text. Useful for debugging and testing.
-#[derive(Debug,Shrinkwrap)]
+/// Visualization that renders the given documentation as a HTML page
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct DocumentationView {
     #[shrinkwrap(main_field)]
-    model   : DocumentationViewModel,
+    pub model   : DocumentationViewModel,
     frp     : visualization::instance::Frp,
     network : frp::Network,
 }

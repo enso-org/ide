@@ -22,6 +22,7 @@ use crate::graph_editor::component::node;
 use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization;
+use crate::graph_editor::component::documentation_view::DocumentationView;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -1067,6 +1068,7 @@ pub struct GraphEditorModel {
     pub cursor         : cursor::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
+    pub doc_view       : DocumentationView,
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
@@ -1086,16 +1088,20 @@ impl GraphEditorModel {
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
 //        let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
+        let doc_view       = DocumentationView::new(&scene);
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
         let project_name   = component::ProjectName::new(scene,focus_manager);
         display_object.add_child(&project_name);
+        display_object.add_child(&doc_view);
         let screen = scene.camera().screen();
         let margin = 10.0;
         project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
+        doc_view.set_position(Vector3::new((screen.width - 320.0) / 2.0 ,0.0,0.0));
+        doc_view.model.gen_placeholder();
         let scene = scene.clone_ref();
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name}//visualizations }
+        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name,doc_view}//visualizations }
     }
 
     pub fn all_nodes(&self) -> Vec<NodeId> {
