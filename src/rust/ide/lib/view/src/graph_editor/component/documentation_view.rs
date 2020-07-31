@@ -459,7 +459,7 @@ impl DocumentationViewModel {
         let div     = web::create_div();
         let dom     = DomSymbol::new(&div);
         let screen = scene.camera().screen();
-        let size    = Rc::new(Cell::new(Vector2(300.0,screen.height - 20.0)));
+        let size    = Rc::new(Cell::new(Vector2(290.0,screen.height - 30.0)));
 
         dom.dom().set_style_or_warn("white-space"     ,"normal"                             ,&logger);
         dom.dom().set_style_or_warn("overflow-y"      ,"auto"                               ,&logger);
@@ -505,7 +505,7 @@ impl DocumentationViewModel {
     }
 
     /// Generates placeholder HTML doc.
-    pub fn gen_placeholder(&self) -> Result<(),DataError> {
+    pub fn gen_placeholder(&self) {
         let inp_only_doc = r#"DEPRECATED
                           REMOVED - replaced by Foo Bar
                           ADDED
@@ -544,8 +544,7 @@ impl DocumentationViewModel {
 
         let data_str = format!(r#"<div class="docVis">{}{}</iframe>"#,
                                get_doc_style(), output);
-        self.dom.dom().set_inner_html(&data_str);
-        Ok(())
+        self.dom.dom().set_inner_html(&data_str)
     }
 
     fn reload_style(&self) {

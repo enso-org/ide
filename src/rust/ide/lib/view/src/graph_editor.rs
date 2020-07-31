@@ -380,6 +380,7 @@ pub struct FrpInputs {
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
     pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
+    pub set_documentation_data       : frp::Source<String>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     hover_node_output          : frp::Source<Option<EdgeTarget>>,
@@ -418,6 +419,7 @@ impl FrpInputs {
             cycle_visualization          <- source();
             set_visualization            <- source();
             register_visualization       <- source();
+            set_documentation_data       <- source();
 
             hover_node_input             <- source();
             hover_node_output            <- source();
@@ -434,10 +436,10 @@ impl FrpInputs {
              ,unset_edge_source,unset_edge_target
              ,set_node_position,set_expression_type,set_method_pointer,select_node,remove_node
              ,set_node_expression,connect_nodes,deselect_all_nodes,cycle_visualization
-             ,set_visualization,register_visualization,some_edge_targets_detached
-             ,some_edge_sources_detached,all_edge_targets_attached,hover_node_input
-             ,all_edge_sources_attached,hover_node_output,press_node_output
-             ,set_detached_edge_sources,all_edges_attached
+             ,set_visualization,register_visualization,set_documentation_data
+             ,some_edge_targets_detached,some_edge_sources_detached,all_edge_targets_attached
+             ,hover_node_input,all_edge_sources_attached,hover_node_output,press_node_output
+             ,set_detached_edge_sources,all_edges_attached,
         }
     }
 }
