@@ -18,6 +18,8 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::text::text_field::FocusManager;
 use logger::enabled::Logger;
 use logger::AnyLogger;
+use enso_protocol::language_server::MethodPointer;
+use enso_protocol::language_server::types::Path;
 
 
 
@@ -64,6 +66,25 @@ impl FrpInputs {
     }
 }
 
+#[derive(Debug,Clone,CloneRef)]
+#[allow(missing_docs)]
+pub struct DebugFrpInputs {
+    pub push_breadcrumb   : frp::Source<Option<LocalCall>>,
+    pub pop_breadcrumb    : frp::Source,
+    pub select_breadcrumb : frp::Source<usize>
+}
+
+impl DebugFrpInputs {
+    /// Constructor.
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend!{ network
+            push_breadcrumb   <- source();
+            pop_breadcrumb    <- source();
+            select_breadcrumb <- source();
+        }
+        Self{push_breadcrumb,pop_breadcrumb,select_breadcrumb}
+    }
+}
 
 
 // ==================
@@ -103,6 +124,7 @@ impl FrpOutputs {
 pub struct Frp {
     pub inputs  : FrpInputs,
     pub outputs : FrpOutputs,
+    pub debug   : DebugFrpInputs,
     pub network : frp::Network,
 }
 
@@ -125,7 +147,8 @@ impl Frp {
         let network = frp::Network::new();
         let inputs  = FrpInputs::new(&network);
         let outputs = FrpOutputs::new(&network);
-        Self{network,inputs,outputs}
+        let debug   = DebugFrpInputs::new(&network);
+        Self{network,inputs,outputs,debug}
     }
 }
 
@@ -145,6 +168,7 @@ pub struct BreadcrumbsModel {
     scene                 : Scene,
     breadcrumbs           : Rc<RefCell<Vec<Breadcrumb>>>,
     frp_inputs            : FrpInputs,
+    frp_debug             : DebugFrpInputs,
     current_index         : Rc<Cell<usize>>
 }
 
@@ -159,9 +183,10 @@ impl BreadcrumbsModel {
         let scene                 = scene.clone_ref();
         let breadcrumbs           = default();
         let frp_inputs            = frp.inputs.clone_ref();
+        let frp_debug             = frp.debug.clone_ref();
         let current_index         = default();
         Self{logger,display_object,scene,breadcrumbs,project_name,breadcrumbs_container,
-            frp_inputs,current_index}.init()
+            frp_inputs,current_index,frp_debug}.init()
     }
 
     fn init(self) -> Self {
@@ -261,6 +286,51 @@ impl BreadcrumbsModel {
         }
     }
 
+    fn debug_select_breadcrumb(&self,index:usize) -> (usize,Vec<Option<LocalCall>>) {
+        debug!(self.logger, "Debug select {index}.");
+        self.select_breadcrumb(index)
+    }
+
+    fn debug_push_breadcrumb(&self, local_call:&Option<LocalCall>) -> Option<(usize,usize)> {
+        debug!(self.logger, "Debug push.");
+        let is_new_breadcrumb = local_call.is_none();
+        let local_call        = local_call.clone().or_else(|| {
+            let defined_on_type = default();
+            let root_id         = default();
+            let segments        = default();
+            let file            = Path{root_id,segments};
+            let name            = "Hardcoded".to_string();
+            let method_pointer  = MethodPointer{defined_on_type,file,name};
+            let definition      = method_pointer.into();
+            let call            = uuid::Uuid::new_v4();
+            Some(LocalCall{definition,call})
+        });
+        let result = self.push_breadcrumb(&local_call);
+
+        if is_new_breadcrumb {
+            result.as_ref().map(|(_, new_index)| self.get_breadcrumb(*new_index).map(|breadcrumb| {
+
+                // === User Interaction ===
+
+                let new_index  = *new_index;
+                let breadcrumb = breadcrumb.clone();
+                let network    = &breadcrumb.frp.network;
+                let frp_debug  = &self.frp_debug;
+                frp::extend! { network
+                    eval_ breadcrumb.frp.outputs.selected(
+                        frp_debug.select_breadcrumb.emit(new_index);
+                    );
+                }
+            }));
+        }
+        result
+    }
+
+    fn debug_pop_breadcrumb(&self) -> Option<(usize,usize)> {
+        debug!(self.logger,"Debug pop.");
+        self.pop_breadcrumb()
+    }
+
     fn pop_breadcrumb(&self) -> Option<(usize,usize)> {
         debug!(self.logger, "Popping {self.current_index.get()}");
         if self.current_index.get() > 0 {
@@ -317,7 +387,7 @@ impl Breadcrumbs {
 
             // === Selecting ===
 
-            _breadcrum_selection <- frp.select_breadcrumb.map(f!([model,frp](index)
+            _breadcrumb_selection <- frp.select_breadcrumb.map(f!([model,frp](index)
                 frp.outputs.breadcrumb_select.emit(model.select_breadcrumb(*index));
             ));
 
@@ -344,6 +414,58 @@ impl Breadcrumbs {
             eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
                 breadcrumb.frp.select.emit(());
             }));
+        }
+
+
+        // === Debug ===
+
+        frp::extend! { network
+
+            // === Push ===
+
+            indices <= frp.debug.push_breadcrumb.map(f!((local_call)
+                model.debug_push_breadcrumb(local_call)
+            ));
+            old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
+            new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
+            eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
+                breadcrumb.frp.deselect.emit(());
+            }));
+            eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
+                breadcrumb.frp.select.emit(());
+                breadcrumb.frp.fade_in.emit(());
+            }));
+
+
+            // === Pop ===
+
+            indices <= frp.debug.pop_breadcrumb.map(f!((_) model.debug_pop_breadcrumb()));
+            old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
+            new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
+            eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
+                breadcrumb.frp.deselect.emit(());
+            }));
+            eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
+                breadcrumb.frp.select.emit(());
+            }));
+
+
+            // === Select ===
+            selected <- frp.debug.select_breadcrumb.map(f!((index)
+                model.debug_select_breadcrumb(*index))
+            );
+
+            popped_count <= selected.map(f!([](selected)
+                (0..selected.0).collect_vec()
+            ));
+            local_calls  <= frp.outputs.breadcrumb_select.map(f!([](selected)
+                selected.1.clone()
+            ));
+            eval popped_count((_) frp.debug.pop_breadcrumb.emit(()));
+            eval local_calls((local_call)
+                frp.debug.push_breadcrumb.emit(local_call)
+            );
+
         }
 
 
