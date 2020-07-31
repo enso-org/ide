@@ -653,7 +653,6 @@ impl Searcher {
         Ok(suggestions)
     }
 
-    // REVIEW [mwu] consider rename with "matching" in place of "possible" (or similar)
     fn possible_function_calls(&self) -> Vec<CompletionSuggestion> {
         let opt_result = || {
             let call_ast = self.data.borrow().input.expression.as_ref()?.func.clone_ref();
@@ -675,15 +674,11 @@ impl Searcher {
         let position        = *self.position_in_code;
         let module          = double_representation::module::Info {ast:module_ast};
         let this_name       = ast::identifier::name(call.this_argument.as_ref()?)?;
-        // REVIEW [mwu] This looks strange to me. Locals are local functions (sugared lambdas), not
-        // methods. Why we require having a "this" argument before looking up the locals?
         let matching_locals = self.database.lookup_locals_by_name_and_location(this_name,position);
         let not_local_name  = matching_locals.is_empty();
         let imported        = || module.iter_imports().find_map(|import| {
             import.qualified_name().ok().filter(|module| module.name() == this_name)
         });
-        // REVIEW [mwu] tbh I'd emplace lambda directly in the and_option_from invocation arg
-        // or even went for explicit if. This was somehow difficult for me to parse.
         not_local_name.and_option_from(imported)
     }
 
