@@ -27,6 +27,7 @@ pub enum EntryKind {
     Atom,Function,Local,Method
 }
 
+// TODO [mwu] Consider rename, we already use "scope" with a different meaning.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Scope {
     Everywhere,
@@ -129,10 +130,10 @@ impl Entry {
         }
     }
 
-    /// Returns entry with the changed name.
-    pub fn with_name(self, name:impl Into<String>) -> Self {
-        Self {name:name.into(),..self}
-    }
+    // /// Returns entry with the changed name.
+    // pub fn with_name(self, name:impl Into<String>) -> Self {
+    //     Self {name:name.into(),..self}
+    // }
 
     /// Return the Method Id of suggested method.
     ///

@@ -53,6 +53,13 @@ pub fn is_access_opr(ast:&Ast) -> bool {
     is_opr_named(ast,predefined::ACCESS)
 }
 
+/// Interpret Ast as accessor chain, like `Int.method`.
+///
+/// Returns `None` if the parameter is not an access.
+pub fn as_access_chain(ast:&Ast) -> Option<Chain> {
+    Chain::try_new_of(ast,predefined::ACCESS)
+}
+
 /// If given Ast is a specific infix operator application, returns it.
 pub fn to_specific_infix(ast:&Ast, name:&str) -> Option<known::Infix> {
     let infix = known::Infix::try_from(ast).ok()?;
@@ -67,6 +74,11 @@ pub fn to_assignment(ast:&Ast) -> Option<known::Infix> {
 /// If given Ast is an arrow infix expression, returns it as Some known::Infix.
 pub fn to_arrow(ast:&Ast) -> Option<known::Infix> {
     to_specific_infix(ast,predefined::ARROW)
+}
+
+/// If given Ast is an access infix expression, returns it as Some known::Infix.
+pub fn to_access(ast:&Ast) -> Option<known::Infix> {
+    to_specific_infix(ast,predefined::ACCESS)
 }
 
 /// Checks if a given node is an assignment infix expression.

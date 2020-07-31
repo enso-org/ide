@@ -3,7 +3,8 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NewNodeInfo;
-use crate::double_representation::module::{ImportInfo, QualifiedName};
+use crate::double_representation::module::ImportInfo;
+use crate::double_representation::module::QualifiedName;
 use crate::model::module::MethodId;
 use crate::model::module::NodeMetadata;
 use crate::model::module::Position;
@@ -13,6 +14,7 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
+use failure::_core::fmt::Formatter;
 
 
 // =======================
@@ -47,18 +49,12 @@ pub enum Suggestions {
 impl Suggestions {
     /// Check if suggestion list is still loading.
     pub fn is_loading(&self) -> bool {
-        match self {
-            Self::Loading => true,
-            _             => false,
-        }
+        matches!(self,Self::Loading)
     }
 
     /// Check if retrieving suggestion list was unsuccessful
     pub fn is_error(&self) -> bool {
-        match self {
-            Self::Error(_) => true,
-            _              => false,
-        }
+        matches!(self,Self::Error(_))
     }
 
     /// Get the list of suggestions. Returns None if still loading or error was returned.
@@ -190,6 +186,12 @@ impl HasRepr for ParsedInput {
         repr.extend(itertools::repeat_n(' ',self.pattern_offset));
         repr.push_str(&self.pattern);
         repr
+    }
+}
+
+impl Display for ParsedInput {
+    fn fmt(&self, f:&mut Formatter<'_>) -> fmt::Result {
+        write!(f,"{}",self.repr())
     }
 }
 
@@ -559,20 +561,14 @@ impl Searcher {
     /// The current list will be set as "Loading" and Language Server will be requested for a new
     /// list - once it be retrieved, the new list will be set and notification will be emitted.
     fn reload_list(&self) {
-        let next_completion = self.data.borrow().input.next_completion_id();
-        let new_suggestions = if next_completion == CompletedFragmentId::Function {
-            self.get_suggestion_list_from_engine(std::iter::empty(),None);
-            Suggestions::Loading
-        } else if let CompletedFragmentId::Argument {index} = next_completion {
-            debug!(self.logger,"Preparing list for argument {index}.");
-            let return_types = self.return_types_for_next_completion();
-            self.get_suggestion_list_from_engine(return_types,None);
-            Suggestions::Loading
-        } else {
-            // TODO impossible
-            Suggestions::Loaded {list:default()}
+        let this_type    = self.this_arg_type_for_next_completion();
+        let return_types = match self.data.borrow().input.next_completion_id() {
+            CompletedFragmentId::Function         => vec![],
+            CompletedFragmentId::Argument {index} =>
+                self.return_types_for_argument_completion(index),
         };
-        self.data.borrow_mut().suggestions = new_suggestions;
+        self.get_suggestion_list_from_engine(this_type,return_types,None);
+        self.data.borrow_mut().suggestions = Suggestions::Loading;
     }
 
     /// Get the typename of "this" value for current completion context. Returns `Future`, as the
@@ -594,28 +590,26 @@ impl Searcher {
     /// Get the type that suggestions for the next completion should return.
     ///
     /// Generally this corresponds to the type of the currently filled function argument.
-    fn return_types_for_next_completion(&self) -> Vec<String> {
+    fn return_types_for_argument_completion(&self, arg_index:usize) -> Vec<String> {
         let suggestions = if let Some(intended) = self.intended_function_suggestion() {
             std::iter::once(intended).collect()
         } else {
             self.possible_function_calls()
         };
-        let completion_id = self.data.borrow().input.next_completion_id();
-        if let CompletedFragmentId::Argument {index} = completion_id {
-            suggestions.into_iter().filter_map(|suggestion| {
-                let index     = index + if self.has_this_argument() { 1 } else { 0 };
-                let parameter = suggestion.arguments.get(index)?;
-                Some(parameter.repr_type.clone())
-            }).collect()
-        } else {
-            Vec::new()
-        }
+        suggestions.into_iter().filter_map(|suggestion| {
+            let arg_index = arg_index + if self.has_this_argument() { 1 } else { 0 };
+            let parameter = suggestion.arguments.get(arg_index)?;
+            Some(parameter.repr_type.clone())
+        }).collect()
     }
 
     fn get_suggestion_list_from_engine
-    (&self, return_types:impl IntoIterator<Item=String>, tags:Option<Vec<language_server::SuggestionEntryType>>) {
+    ( &self
+    , this_type    : impl Future<Output=Option<String>> + 'static
+    , return_types : impl IntoIterator<Item=String>
+    , tags         : Option<Vec<language_server::SuggestionEntryType>>
+    ) {
         let ls               = self.language_server.clone_ref();
-        let this_type        = self.this_arg_type_for_next_completion();
         let graph            = self.graph.graph();
         let position         = self.position_in_code.deref().into();
         let mut return_types = return_types.into_iter().map(Some).collect_vec();
@@ -642,6 +636,8 @@ impl Searcher {
         });
     }
 
+    // REVIEW [mwu] docstring + shouldn't this be "responses" (plural)?
+    // or rename to describe more what this is for like "suggestions_from_responses"
     fn convert_language_server_response
     (&self, responses:Vec<json_rpc::Result<language_server::response::Completion>>)
     -> FallibleResult<Vec<Suggestion>> {
@@ -649,18 +645,16 @@ impl Searcher {
         for response in responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {
-                let entry = self.database.get(*id);
-                if entry.is_none() {
-                    error!(self.logger,"Missing entry {id} in Suggestion Database.");
-                }
-                entry
+                self.database.get(*id).map_none(||
+                    error!(self.logger,"Missing entry {id} in Suggestion Database.")
+                ).map(Suggestion::Completion)
             });
-            let new_suggestions = entries.map(Suggestion::Completion);
-            suggestions.extend(new_suggestions);
+            suggestions.extend(entries);
         }
         Ok(suggestions)
     }
 
+    // REVIEW [mwu] consider rename with "matching" in place of "possible" (or similar)
     fn possible_function_calls(&self) -> Vec<CompletionSuggestion> {
         let opt_result = || {
             let call_ast = self.data.borrow().input.expression.as_ref()?.func.clone_ref();
@@ -678,14 +672,17 @@ impl Searcher {
     }
 
     fn module_method_called(&self, call:&SimpleFunctionCall) -> Option<QualifiedName> {
-        let module_ast    = self.graph.graph().module.ast();
-        let position      = *self.position_in_code;
-        let module        = double_representation::module::Info {ast:module_ast};
-        let this_name     = ast::identifier::name(call.this_argument.as_ref()?)?;
-        let not_local_name = self.database.lookup_locals_by_name_and_location(this_name,position).is_empty();
-        let imported      = || module.iter_imports().find_map(|import| {
+        let module_ast      = self.graph.graph().module.ast();
+        let position        = *self.position_in_code;
+        let module          = double_representation::module::Info {ast:module_ast};
+        let this_name       = ast::identifier::name(call.this_argument.as_ref()?)?;
+        let matching_locals = self.database.lookup_locals_by_name_and_location(this_name,position);
+        let not_local_name  = matching_locals.is_empty();
+        let imported        = || module.iter_imports().find_map(|import| {
             import.qualified_name().ok().filter(|module| module.name() == this_name)
         });
+        // REVIEW [mwu] tbh I'd emplace lambda directly in the and_option_from invocation arg
+        // or even went for explicit if. This was somehow difficult for me to parse.
         not_local_name.and_option_from(imported)
     }
 
@@ -711,9 +708,8 @@ impl Searcher {
     /// While we maintain chain consisting of target and applied arguments, the target itself might
     /// need to count for a one argument, as it may of form `this.method`.
     fn has_this_argument(&self) -> bool {
-        // TODO confirm that we can ignore cases when expression is not yet filled
         self.data.borrow().input.expression.as_ref()
-            .and_then(|expr| ast::opr::Chain::try_new_of(&expr.func,ast::opr::predefined::ACCESS))
+            .and_then(|expr| ast::opr::as_access_chain(&expr.func))
             .is_some()
     }
 }
@@ -731,21 +727,13 @@ impl SimpleFunctionCall {
                 this_argument : None,
                 function_name : name.clone(),
             })
-        } else if let Ok(infix) = ast::known::Infix::try_new(call.clone_ref()) {
-            if ast::opr::is_access_opr(&infix.opr) {
-                if let Some(name) = ast::identifier::name(&infix.rarg) {
-                    Some(Self {
-                        this_argument : Some(infix.larg.clone_ref()),
-                        function_name : name.clone(),
-                    })
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
         } else {
-            None
+            let infix = ast::opr::to_access(call)?;
+            let name  = ast::identifier::name(&infix.rarg)?;
+            Some(Self {
+                this_argument : Some(infix.larg.clone_ref()),
+                function_name : name.clone(),
+            })
         }
     }
 }
@@ -832,6 +820,7 @@ mod test {
             let test       = TestWithLocalPoolExecutor::set_up();
             let mut data   = MockData::default();
             let mut client = language_server::MockClient::default();
+            client.require_all_calls();
             client_setup(&mut data,&mut client);
             let end_of_code = TextLocation::at_document_end(&data.graph.module.code);
             let code_range  = TextLocation::at_document_begin()..end_of_code;
@@ -887,7 +876,25 @@ mod test {
                 ],
                 ..entry1.clone()
             };
-            let entry9 = entry1.clone().with_name("testFunction2");
+
+            let entry9 = model::suggestion_database::Entry {
+                name : "testFunction2".to_string(),
+                arguments     : vec![
+                    Argument {
+                        repr_type     : "Text".to_string(),
+                        name          : "text_arg".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    },
+                    Argument {
+                        repr_type     : "Number".to_string(),
+                        name          : "num_arg".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    },
+                ],
+                ..entry1.clone()
+            };
 
             searcher.database.put_entry(1,entry1);
             let entry1 = searcher.database.get(1).unwrap();
@@ -971,27 +978,32 @@ mod test {
         }
     }
 
-    #[test]
-    fn arguments_suggestions_for_picked_function() {
+    #[wasm_bindgen_test]
+    fn arguments_suggestions_for_picked_method() {
         let mut fixture = Fixture::new_custom(|data,client| {
-            let completion_response = language_server::response::Completion {
-                results         : default(),
-                current_version : default(),
-            };
-            expect_call!(client.completion(
-                module      = data.graph.module.path.file_path().clone(),
-                position    = data.code_location,
-                self_type   = None,
-                return_type = Some("Number".to_owned()),
-                tag         = None
-            ) => Ok(completion_response));
+            data.expect_completion(client,None,Some("Number"),&[20]);
         });
-
         let Fixture{test,searcher,entry3,..} = &mut fixture;
         searcher.pick_completion(entry3.clone_ref()).unwrap();
+        assert!(searcher.suggestions().is_loading());
         test.run_until_stalled();
-        println!("{:?}",searcher.suggestions());
-        println!("{}",searcher.data.borrow().input.repr());
+        assert!(!searcher.suggestions().is_loading());
+    }
+
+    #[wasm_bindgen_test]
+    fn arguments_suggestions_for_picked_function() {
+        let mut fixture = Fixture::new_custom(|data,client| {
+            data.expect_completion(client,None,Some("Text"),&[]);   // First arg suggestion.
+            data.expect_completion(client,None,Some("Number"),&[]); // Second arg suggestion.
+            data.expect_completion(client,None,None,&[]);           // Oversaturated arg position.
+        });
+
+
+        let Fixture{searcher,entry9,..} = &mut fixture;
+        searcher.pick_completion(entry9.clone_ref()).unwrap();
+        assert_eq!(searcher.data.borrow().input.repr(),"testFunction2 ");
+        searcher.set_input("testFunction2 'foo' ".to_owned()).unwrap();
+        searcher.set_input("testFunction2 'foo' 10 ".to_owned()).unwrap();
     }
 
     #[wasm_bindgen_test]
@@ -1155,8 +1167,7 @@ mod test {
         let cases = vec![
             // No need to introduce variable name, as the input was manually written, not picked.
             Case::new("2 + 2",&["2 + 2","testFunction1"], |f| {
-                let new_parsed_input = ParsedInput::new("testFunction1",&f.searcher.parser);
-                f.searcher.data.borrow_mut().input = new_parsed_input.unwrap();
+                f.searcher.set_input("testFunction1 ".to_owned()).unwrap();
             }),
             // Need to introduce variable name, as the completion was picked.
             Case::new("2 + 2",&["sum1 = 2 + 2","sum1.testFunction1"], |f| {
@@ -1277,7 +1288,7 @@ mod test {
         assert!(Rc::ptr_eq(&initial_fragment.picked_suggestion,&entry3))
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn simple_function_call_parsing() {
         let parser = Parser::new_or_panic();
 
