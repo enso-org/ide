@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use super::command;
 
-use crate::control::io::keyboard::listener::KeyboardFrpBindings;
 use crate::frp::io::keyboard::Keyboard;
 use crate::frp::io::keyboard;
 use crate::frp::io::mouse::Mouse;

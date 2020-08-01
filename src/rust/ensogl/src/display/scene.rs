@@ -751,15 +751,19 @@ impl Extensions {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Keyboard {
     pub frp  : enso_frp::io::Keyboard,
+    pub frp2 : enso_frp::io::event::Keyboard,
     bindings : Rc<KeyboardFrpBindings>,
+    bindings2 : Rc<enso_frp::io::event::KeyboardFrpBindings>,
 }
 
 impl Keyboard {
     pub fn new() -> Self {
-        let logger   = Logger::new("keyboard");
-        let frp      = enso_frp::io::Keyboard::default();
-        let bindings = Rc::new(KeyboardFrpBindings::new(&logger,&frp));
-        Self {frp,bindings}
+        let logger    = Logger::new("keyboard");
+        let frp       = enso_frp::io::Keyboard::default();
+        let frp2      = enso_frp::io::event::Keyboard::default();
+        let bindings  = Rc::new(KeyboardFrpBindings::new(&logger,&frp));
+        let bindings2 = Rc::new(enso_frp::io::event::KeyboardFrpBindings::new(&logger,&frp2));
+        Self {frp,frp2,bindings,bindings2}
     }
 }
 

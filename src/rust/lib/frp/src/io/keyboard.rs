@@ -16,6 +16,23 @@ use enso_callback as callback;
 /// A key representation.
 pub use keyboard_types::Key;
 
+#[derive(Clone,Debug,Eq,Hash,PartialEq)]
+pub struct InputEvent {
+    pub label : String,
+}
+
+#[derive(Clone,Debug,Eq,Hash,PartialEq)]
+pub struct PhysicalInputEvent {
+    pub code : String,
+}
+
+impl InputEvent {
+    pub fn new(label:impl Into<String>) -> Self {
+        let label = label.into();
+        Self {label}
+    }
+}
+
 
 
 // ===============
