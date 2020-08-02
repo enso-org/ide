@@ -15,29 +15,6 @@ use wasm_bindgen::JsCast;
 // === Key ===
 // ===========
 
-#[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
-pub struct Event {
-    pub label : String,
-}
-
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
-pub struct PhysicalEvent {
-    pub code : String,
-}
-
-impl Event {
-    pub fn new(label:impl Into<String>) -> Self {
-        let label = label.into();
-        Self {label}
-    }
-}
-
-
-#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
-pub enum Side {
-    Left,Right
-}
-
 /// For reference, see the following links:
 /// - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code/code_values
 #[derive(Clone,Debug,Eq,Hash,PartialEq)]
@@ -47,6 +24,11 @@ pub enum Key {
     Meta    (Side),
     Shift   (Side),
     Other   (String)
+}
+
+#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
+pub enum Side {
+    Left,Right
 }
 
 impl Key {
@@ -85,10 +67,9 @@ impl Default for Key {
 
 
 
-
-// ================
-// === Keyboard ===
-// ================
+// =====================
+// === KeyboardModel ===
+// =====================
 
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct KeyboardModel {
@@ -132,13 +113,19 @@ impl KeyboardModel {
     }
 }
 
+
+
+// ======================
+// === KeyboardSource ===
+// ======================
+
 #[derive(Clone,CloneRef,Debug)]
-pub struct FrpSource {
+pub struct KeyboardSource {
     pub up   : frp::Source<Key>,
     pub down : frp::Source<Key>,
 }
 
-impl FrpSource {
+impl KeyboardSource {
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             down <- source();
@@ -149,13 +136,18 @@ impl FrpSource {
 }
 
 
+
+// ================
+// === Keyboard ===
+// ================
+
 /// Keyboard FRP bindings.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Keyboard {
     pub network : frp::Network,
     model       : KeyboardModel,
-    pub source  : FrpSource,
+    pub source  : KeyboardSource,
     pub down    : frp::Stream<Key>,
     pub up      : frp::Stream<Key>,
 }
@@ -164,7 +156,7 @@ impl Keyboard {
     pub fn new() -> Self {
         let network = frp::Network::new();
         let model   = KeyboardModel::default();
-        let source  = FrpSource::new(&network);
+        let source  = KeyboardSource::new(&network);
         frp::extend! { network
             eval source.down ((key) model.set(key));
             eval source.up   ((key) model.unset(key));
@@ -186,8 +178,6 @@ impl Default for Keyboard {
         Self::new()
     }
 }
-
-
 
 
 
@@ -247,12 +237,12 @@ impl Drop for Listener {
 
 /// A handle of listener emitting events on bound FRP graph.
 #[derive(Debug)]
-pub struct KeyboardFrpBindings {
+pub struct DomBindings {
     key_down : Listener,
     key_up   : Listener
 }
 
-impl KeyboardFrpBindings {
+impl DomBindings {
     /// Create new Keyboard and Frp bindings.
     pub fn new(logger:impl AnyLogger, keyboard:&Keyboard) -> Self {
         let key_down = Listener::new_key_down(&logger,f!((event:KeyboardEvent)

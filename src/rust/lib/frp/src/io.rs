@@ -1,6 +1,6 @@
 //! Root module for Input / Output FRP bindings
 
-pub mod event;
+pub mod keyboard2;
 pub mod keyboard;
 pub mod mouse;
 
