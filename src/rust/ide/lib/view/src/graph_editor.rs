@@ -548,8 +548,7 @@ generate_frp_outputs! {
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
 
-    documentation_enabled  : (),
-    documentation_disabled : (),
+    documentation_visible : bool,
 }
 
 
@@ -1192,12 +1191,12 @@ impl GraphEditorModel {
         }
     }
 
-    fn enable_documentation(&self) {
-        self.scene.add_child(&self.doc_view);
-    }
-
-    fn disable_documentation(&self) {
-        self.scene.remove_child(&self.doc_view);
+    fn set_documentation_visibility(&self, is_vis: bool) {
+        if is_vis {
+            self.scene.remove_child(&self.doc_view);
+        } else {
+            self.scene.add_child(&self.doc_view);
+        }
     }
 
     pub fn is_doc_visible(&self) -> bool {
@@ -2173,7 +2172,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
    // === Vis Set ===
-   frp::extend! { network
+   frp::extend! { TRACE_ALL network
 
    def _update_vis_data = inputs.set_visualization.map(f!([logger,nodes,scene,visualizations]((node_id,vis_path)) {
        match (&nodes.get_cloned_ref(node_id), vis_path) {
@@ -2216,10 +2215,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
          if let Some(node) = nodes.get_cloned(node_id) {
              node.visualization.frp.set_data.emit(data);
          }
-     }));
-
-    def _set_doc_data = inputs.set_documentation_data.map(f!((data) {
-         model.doc_view.frp.send_data.emit(data);
      }));
 
      nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
@@ -2282,37 +2277,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     outputs.visualization_disabled <+ viz_preview_disable;
     outputs.visualization_enable_fullscreen <+ viz_fullscreen_on;
 
-    // === Documentation toggle ===
-
-    let doc_press_ev      = inputs.press_documentation_visibility.clone_ref();
-    let doc_release       = inputs.release_documentation_visibility.clone_ref();
-    doc_pressed          <- bool(&doc_release,&doc_press_ev);
-    doc_was_pressed      <- doc_pressed.previous();
-    doc_press            <- doc_press_ev.gate_not(&doc_was_pressed);
-    doc_press_time       <- doc_press   . map(|_| web::performance().now() as f32);
-    doc_release_time     <- doc_release . map(|_| web::performance().now() as f32);
-    doc_press_time_diff  <- doc_release_time.map2(&doc_press_time,|t1,t0| t1-t0);
-    doc_preview_mode     <- doc_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
-    doc_preview_mode_end <- doc_release.gate(&doc_preview_mode);
-    // doc_tgt_nodes        <- doc_press.map(f_!(model.selected_nodes()));
-    // doc_tgt_nodes_off    <- doc_tgt_nodes.map(f!([model](node_ids) {
-    //     node_ids.iter().cloned().filter(|node_id| {
-    //         model.nodes.get_cloned_ref(node_id)
-    //             .map(|_| !model.visualization.is_visible())
-    //             .unwrap_or_default()
-    //     }).collect_vec()
-    // }));
-    //
-    // doc_tgt_nodes_all_on <- doc_tgt_nodes_off.map(|t| t.is_empty());
-    // doc_enable           <= doc_tgt_nodes.gate_not(&doc_tgt_nodes_all_on);
-    // doc_disable          <= doc_tgt_nodes.gate(&doc_tgt_nodes_all_on);
-    // doc_preview_disable  <= doc_tgt_nodes_off.sample(&doc_preview_mode_end);
-    //
-    // outputs.documentation_enabled  <+ doc_enable;
-    // outputs.documentation_disabled <+ doc_disable;
-    // outputs.documentation_disabled <+ doc_preview_disable;
-
-
     // === Register Visualization ===
 
     def _register_visualization = inputs.register_visualization.map(f!([visualizations](handle) {
@@ -2346,8 +2310,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval outputs.visualization_enabled  ((id) model.enable_visualization(id));
     eval outputs.visualization_disabled ((id) model.disable_visualization(id));
     eval outputs.visualization_enable_fullscreen ((id) model.enable_visualization_fullscreen(id));
-    eval outputs.visualization_enabled  ((_) model.enable_documentation());
-    eval outputs.visualization_disabled ((_) model.disable_documentation());
 
 
     // === Edge discovery ===
@@ -2369,6 +2331,35 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Remove implementation ===
     outputs.node_removed <+ inputs.remove_node;
+
+    }
+
+    // === Documentation Set ===
+    frp::extend! { TRACE_ALL network
+
+    def _set_doc_data = inputs.set_documentation_data.map(f!((data) {
+         model.doc_view.frp.send_data.emit(data);
+     }));
+
+    // === Documentation toggle ===
+
+    let doc_press_ev      = inputs.press_documentation_visibility.clone_ref();
+    let doc_release       = inputs.release_documentation_visibility.clone_ref();
+    doc_pressed          <- bool(&doc_release,&doc_press_ev);
+    doc_was_pressed      <- doc_pressed.previous();
+    doc_press            <- doc_press_ev.gate_not(&doc_was_pressed);
+    doc_press_time       <- doc_press   . map(|_| web::performance().now() as f32);
+    doc_release_time     <- doc_release . map(|_| web::performance().now() as f32);
+    doc_press_time_diff  <- doc_release_time.map2(&doc_press_time,|t1,t0| t1-t0);
+    doc_preview_mode     <- doc_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
+    doc_preview_mode_end <- doc_release.gate(&doc_preview_mode);
+    doc_press_on_off     <- doc_press.map(f_!(model.is_doc_visible()));
+    outputs.documentation_visible  <+ doc_press_on_off;
+
+
+    // === OUTPUTS REBIND ===
+
+    eval outputs.documentation_visible  ((vis) model.set_documentation_visibility(*vis));
 
     }
 
