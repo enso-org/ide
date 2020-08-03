@@ -458,7 +458,7 @@ impl Breadcrumbs {
             popped_count <= selected.map(f!([](selected)
                 (0..selected.0).collect_vec()
             ));
-            local_calls  <= frp.outputs.breadcrumb_select.map(f!([](selected)
+            local_calls  <= selected.map(f!([](selected)
                 selected.1.clone()
             ));
             eval popped_count((_) frp.debug.pop_breadcrumb.emit(()));
