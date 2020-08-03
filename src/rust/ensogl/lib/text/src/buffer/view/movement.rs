@@ -1,4 +1,4 @@
-//! Text cursor movement implementation.
+//! Text cursor transform implementation.
 
 use super::*;
 use crate::buffer::data;
@@ -7,9 +7,9 @@ use crate::buffer::view::word::WordCursor;
 
 
 
-// ======================
+// =================
 // === Transform ===
-// ======================
+// =================
 
 /// Selection transformation patterns. Used for the needs of keyboard and mouse interaction.
 #[derive(Clone,Copy,Debug,PartialEq)]
@@ -56,9 +56,9 @@ pub enum Transform {
 
 
 
-// =========================
+// ==========================
 // === Transform Handling ===
-// =========================
+// ==========================
 
 impl ViewBuffer {
     /// Convert selection to caret location after a vertical movement.
@@ -95,15 +95,15 @@ impl ViewBuffer {
         (selection.start,new_offset,None) // FIXME None -> Some(location.offset)
     }
 
-    fn column_of_location(&self, line: Line, line_offset: Bytes) -> usize {
+    fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column {
         let mut offset = self.offset_of_line(line);
         let tgt_offset = offset + line_offset;
-        let mut column = 0;
+        let mut column = 0.column();
         while offset < tgt_offset {
             match self.next_grapheme_offset(offset) {
                 None => break,
                 Some(off) => {
-                    column += 1;
+                    column += 1.column();
                     offset = off;
                 }
             }
@@ -111,15 +111,15 @@ impl ViewBuffer {
         column
     }
 
-    fn line_offset_of_location_X(&self, line: Line, line_column: usize) -> Bytes {
+    fn line_offset_of_location_X(&self, line:Line, line_column:Column) -> Bytes {
         let start_offset = self.offset_of_line(line);
         let mut offset = start_offset;
-        let mut column = 0;
+        let mut column = 0.column();
         while column < line_column {
             match self.next_grapheme_offset(offset) {
                 None => break,
                 Some(off) => {
-                    column += 1;
+                    column += 1.column();
                     offset = off;
                 }
             }
@@ -246,7 +246,7 @@ impl ViewBuffer {
             Transform::StartOfParagraph => {
                 // Note: TextEdit would start at modify ? region.end : region.min()
                 let mut cursor = data::Cursor::new(&text, region.end.value as usize);
-                let offset     = cursor.prev::<data::metric::Lines>().unwrap_or(0).bytes();
+                let offset     = cursor.prev::<data::metric::Lines>().unwrap_or(0).into();
                 no_horiz(region.start,offset)
             }
 
@@ -256,10 +256,11 @@ impl ViewBuffer {
                 let     offset = match cursor.next::<data::metric::Lines>() {
                     None            => text.len(),
                     Some(next_line_offset) => {
-                        let next_line_offset = next_line_offset.bytes();
+                        let next_line_offset   = next_line_offset.into();
+                        let cursor_pos : Bytes = cursor.pos().into();
                         if cursor.is_boundary::<data::metric::Lines>() {
                             text.prev_grapheme_offset(next_line_offset).unwrap_or(region.end)
-                        } else if cursor.pos().bytes() == text.len() {
+                        } else if cursor_pos == text.len() {
                             text.len()
                         } else {
                             region.end
@@ -275,7 +276,7 @@ impl ViewBuffer {
                 let     offset = match cursor.next::<data::metric::Lines>() {
                     None            => region.end,
                     Some(next_line_offset) => {
-                        let next_line_offset = next_line_offset.bytes();
+                        let next_line_offset : Bytes = next_line_offset.into();
                         if cursor.is_boundary::<data::metric::Lines>() {
                             let eol = text.prev_grapheme_offset(next_line_offset);
                             let opt = eol.and_then(|t|(t!=region.end).as_some(t));

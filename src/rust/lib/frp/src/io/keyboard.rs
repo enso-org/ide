@@ -77,7 +77,6 @@ impl KeyMask {
 
     /// Set the `key` bit with the new state.
     pub fn set(&mut self, key:&Key, state:bool) {
-        println!("KEY {:?} {:?}",key,key.legacy_keycode());
         self.bits.set_bit(key.legacy_keycode() as usize,state);
     }
 //    nie ma meta left i meta right, dla meta legacy+keycopde to 0, trzeba wlasne przyciski zrobic

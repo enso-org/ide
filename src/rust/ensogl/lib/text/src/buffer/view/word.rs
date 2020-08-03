@@ -32,7 +32,7 @@ impl<'a> WordCursor<'a> {
                 candidate = self.cursor.pos();
             }
             self.cursor.set(candidate);
-            candidate.bytes()
+            candidate.into()
         })
     }
 
@@ -46,7 +46,7 @@ impl<'a> WordCursor<'a> {
                 candidate = self.cursor.pos();
             }
             self.cursor.set(candidate);
-            candidate.bytes()
+            candidate.into()
         })
     }
 
@@ -109,7 +109,7 @@ impl<'a> WordCursor<'a> {
             cls_after  = self.next_codepoint_class();
         }
         self.cursor.set(end);
-        (start.bytes(),end.bytes())
+        (start.into(),end.into())
     }
 
     fn next_codepoint_class(&mut self) -> Option<CharClass> {

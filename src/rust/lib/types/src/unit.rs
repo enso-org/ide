@@ -191,10 +191,17 @@ macro_rules! signed_unit {
                 fn $vname(self) -> Self::Output;
             }
 
-            impl<T:std::convert::Into<$name>> Into for T {
+            impl Into for $field_type {
                 type Output = $name;
                 fn $vname(self) -> Self::Output {
-                    self.into()
+                    $name {value:self}
+                }
+            }
+
+            impl Into for &$field_type {
+                type Output = $name;
+                fn $vname(self) -> Self::Output {
+                    $name {value:self.clone()}
                 }
             }
 
@@ -235,10 +242,17 @@ macro_rules! signed_unit_float_like {
                 fn $vname(self) -> Self::Output;
             }
 
-            impl<T:std::convert::Into<$name>> Into for T {
+            impl Into for $field_type {
                 type Output = $name;
                 fn $vname(self) -> Self::Output {
-                    self.into()
+                    $name {value:self}
+                }
+            }
+
+            impl Into for &$field_type {
+                type Output = $name;
+                fn $vname(self) -> Self::Output {
+                    $name {value:self.clone()}
                 }
             }
 

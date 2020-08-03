@@ -499,7 +499,8 @@ impl ViewModel {
     }
 
     pub fn last_line_number(&self) -> Line {
-        self.first_line_number() + self.line_count().line()
+        let line_count : Line = self.line_count().into();
+        self.first_line_number() + line_count
     }
 
     pub fn line_count(&self) -> usize {
@@ -588,7 +589,7 @@ impl LineOffset for ViewModel {
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).line());
+        let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).into());
         self.data().offset_of_line(line)
     }
 
@@ -603,7 +604,7 @@ impl LineOffset for ViewBuffer {
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).line());
+        let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).into());
         self.data().offset_of_line(line)
     }
 

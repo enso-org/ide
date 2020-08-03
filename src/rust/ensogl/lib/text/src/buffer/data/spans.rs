@@ -45,6 +45,10 @@ impl<T:Clone> Spans<T> {
 
     /// Convert the span tree to vector of non-overlapping ranges and their values.
     pub fn to_vector(&self) -> Vec<(Range<Bytes>,T)> {
-        self.raw.iter().map(|t|((t.0.start.bytes()..t.0.end.bytes()).into(),t.1.clone())).collect()
+        self.raw.iter().map(|t|{
+            let start : Bytes = t.0.start.into();
+            let end   : Bytes = t.0.end.into();
+            ((start..end).into(),t.1.clone())
+        }).collect()
     }
 }

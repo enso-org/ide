@@ -160,7 +160,7 @@ impl BufferData {
 //        self.undo_stack.push((self.data.clone(),self.style.clone()));
 //        self.redo_stack = default();
         self.data.rope.edit(range.into_rope_interval(),text.rope.clone());
-        self.style.modify(range,text.len().bytes());
+        self.style.modify(range,text.len());
     }
 //
 //    pub fn undo(&mut self) {
