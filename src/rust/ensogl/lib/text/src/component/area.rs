@@ -820,7 +820,6 @@ impl AreaData {
 
     // FIXME: make private
     pub fn redraw(&self) {
-//        println!("REDRAW");
         let lines      = self.buffer.lines();
         let line_count = lines.len();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
@@ -830,7 +829,6 @@ impl AreaData {
     }
 
     fn redraw_line(&self, view_line_number:usize, content:String) { // fixme content:Cow<str>
-//        println!("LINE: {:?}",content);
         let cursor_map    = self.selection_map.borrow().location_map.get(&view_line_number).cloned().unwrap_or_default();
 
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];

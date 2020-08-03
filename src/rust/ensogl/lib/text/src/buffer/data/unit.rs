@@ -32,7 +32,7 @@ Bytes::bytes(i32)
 
 impl Bytes {
     pub fn as_usize(self) -> usize {
-        self.value.min(0) as usize
+        self.value.max(0) as usize
     }
 }
 
@@ -70,7 +70,7 @@ Line::line(i32)
 
 impl Line {
     pub fn as_usize(self) -> usize {
-        self.value.min(0) as usize
+        self.value.max(0) as usize
     }
 
     // FIXME
