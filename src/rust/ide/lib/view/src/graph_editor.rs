@@ -279,9 +279,9 @@ ensogl::def_status_api! { FrpStatus
 }
 
 ensogl::def_command_api! { Commands
-    /// Push
+    /// Push a hardcoded breadcrumb without notifying the controller.
     debug_push_breadcrumb,
-    ///
+    /// Pop a breadcrumb without notifying the controller.
     debug_pop_breadcrumb,
     /// Cancel project name editing, restablishing the old name.
     cancel_project_name_editing,
