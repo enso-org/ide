@@ -55,6 +55,21 @@ impl_clone_ref_as_clone!(Data);
 
 
 impl Data {
+    pub fn grapheme_count(&self) -> usize {
+        let mut offset = 0;
+        let mut count  = 0;
+        loop {
+            match self.rope.next_grapheme_offset(offset) {
+                None      => break,
+                Some(off) => {
+                    offset = off;
+                    count += 1;
+                }
+            }
+        }
+        return count
+    }
+
     /// Return the len of the text in bytes.
     pub fn len(&self) -> Bytes {
         Bytes(self.rope.len() as i32)

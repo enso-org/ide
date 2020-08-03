@@ -201,12 +201,12 @@ pub mod cursor {
 #[derive(Clone,Copy,Debug)]
 pub struct Div {
     x_offset    : f32,
-    byte_offset : Bytes,
+//    byte_offset : Bytes,
 }
 
 impl Div {
-    pub fn new(x_offset:f32, byte_offset:Bytes) -> Self {
-        Self {x_offset, byte_offset}
+    pub fn new(x_offset:f32) -> Self {
+        Self {x_offset}
     }
 }
 
@@ -248,13 +248,18 @@ impl Line {
         self.centers.binary_search_by(|t|t.partial_cmp(&offset).unwrap()).unwrap_both()
     }
 
-    fn div_index_by_byte_offset(&self, offset:Bytes) -> usize {
-        let ix = self.divs.binary_search_by(|t|t.byte_offset.partial_cmp(&offset).unwrap());
-        ix.unwrap_both().min(self.divs.len()-1)
-    }
+//    fn div_index_by_byte_offset(&self, offset:Bytes) -> usize {
+//        let ix = self.divs.binary_search_by(|t|t.byte_offset.partial_cmp(&offset).unwrap());
+//        ix.unwrap_both().min(self.divs.len()-1)
+//    }
+//
+//    fn div_by_byte_offset(&self, offset:Bytes) -> Div {
+//        let ix = self.div_index_by_byte_offset(offset);
+//        self.divs[ix]
+//    }
 
-    fn div_by_byte_offset(&self, offset:Bytes) -> Div {
-        let ix = self.div_index_by_byte_offset(offset);
+    fn div_by_column(&self, column:Column) -> Div {
+        let ix = column.as_usize().min(self.divs.len() - 1);
         self.divs[ix]
     }
 
@@ -556,9 +561,6 @@ impl Area {
             eval_ command.delete_left       (model.buffer.frp.input.delete_left.emit(()));
             eval_ command.delete_word_left  (model.buffer.frp.input.delete_word_left.emit(()));
 
-            eval_ command.increase_indentation  (model.buffer.frp.input.increase_indentation.emit(()));
-            eval_ command.decrease_indentation  (model.buffer.frp.input.decrease_indentation.emit(()));
-
             eval_ command.undo (model.buffer.frp.input.undo.emit(()));
             eval_ command.redo (model.buffer.frp.input.redo.emit(()));
 
@@ -672,7 +674,7 @@ impl display::Object for Selection {
 #[derive(Clone,Debug,Default)]
 pub struct SelectionMap {
     id_map       : HashMap<usize,Selection>,
-    location_map : HashMap<usize,HashMap<Bytes,usize>>
+    location_map : HashMap<usize,HashMap<Column,usize>>
 }
 
 #[derive(Clone,CloneRef,Debug)]
@@ -726,26 +728,35 @@ impl AreaData {
         {
         let mut selection_map     = self.selection_map.borrow_mut();
         let mut new_selection_map = SelectionMap::default();
-        for selection in selections {
-            let id         = selection.id;
-            let start_line_index = self.lines.line_index_of_byte_offset(selection.start);
-            let end_line_index = self.lines.line_index_of_byte_offset(selection.end);
+        for sel in selections {
+            println!(">>> {:?}", sel);
+            let id         = sel.id;
+            println!("> 1");
+            let start_line_index = sel.start.line.as_usize();
+            let end_line_index = sel.end.line.as_usize();
             let start_line_offset = self.buffer.offset_of_view_line(start_line_index.into());
             let end_line_offset = self.buffer.offset_of_view_line(end_line_index.into());
-            let start_offset_in_line = selection.start - start_line_offset;
-            let end_offset_in_line = selection.end - end_line_offset;
-            let min_div = self.lines.rc.borrow()[start_line_index].div_by_byte_offset(start_offset_in_line);
-            let max_div = self.lines.rc.borrow()[end_line_index].div_by_byte_offset(end_offset_in_line);
+            println!("> 2 {:?} {:?} {:?}",start_line_index,end_line_index,self.lines.rc.borrow().len());
+//            let start_offset_in_line = sel.start - start_line_offset;
+//            let end_offset_in_line = sel.end - end_line_offset;
+            let min_div = self.lines.rc.borrow()[start_line_index].div_by_column(sel.start.column);
+            println!("> 2.1");
+            let max_div = self.lines.rc.borrow()[end_line_index].div_by_column(sel.end.column);
+            println!("> 2.2");
             let logger = Logger::sub(&self.logger,"cursor");
+            println!("> 3");
 
             let min_pos_x = min_div.x_offset;
             let max_pos_x = max_div.x_offset;
             let min_pos_y = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line_index as f32;
             let pos   = Vector2(min_pos_x,min_pos_y);
             let width = max_pos_x - min_pos_x;
+            println!("> 4");
 
             let selection = match selection_map.id_map.remove(&id) {
                 Some(selection) => {
+                    println!("> 5");
+
                     let select_left  = selection.width.simulator.target_value() < 0.0;
                     let select_right = selection.width.simulator.target_value() > 0.0;
                     let mid_point    = selection.position.simulator.target_value().x + selection.width.simulator.target_value() / 2.0;
@@ -757,6 +768,8 @@ impl AreaData {
                     selection
                 }
                 None => {
+                    println!("> 6");
+
                     let selection = Selection::new(&logger,&self.scene,do_edit);
                     selection.shape.sprite.size.set(Vector2(4.0,20.0));
                     selection.shape.letter_width.set(7.0); // FIXME
@@ -773,13 +786,15 @@ impl AreaData {
                     selection
                 }
             };
+            println!("> 7");
+
             selection.width.set_target_value(width);
 
             selection.edit_mode.set(do_edit);
 
             selection.shape.start_time.set(time);
             new_selection_map.id_map.insert(id,selection);
-            new_selection_map.location_map.entry(start_line_index).or_default().insert(start_offset_in_line,id);
+            new_selection_map.location_map.entry(start_line_index).or_default().insert(sel.start.column,id);
         }
         *selection_map = new_selection_map;
         }
@@ -807,7 +822,7 @@ impl AreaData {
         let div_index    = self.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
         let div          = self.lines.rc.borrow()[line_index].divs[div_index];
         let line         = line_index.into();
-        let column       = self.buffer.column_of_location(line,div.byte_offset);
+        let column       = div_index.into();
         Location(line,column)
     }
 
@@ -824,6 +839,7 @@ impl AreaData {
     pub fn redraw(&self) {
         let lines      = self.buffer.lines();
         let line_count = lines.len();
+        println!("RESIZE LINES: {:?}",line_count);
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
         for (view_line_number,content) in lines.into_iter().enumerate() {
             self.redraw_line(view_line_number,content)
@@ -841,7 +857,7 @@ impl AreaData {
 
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];
-        let mut byte_offset = 0.bytes();
+        let mut byte_offset = 0.column();
         let mut last_cursor = None;
         let mut last_cursor_origin = default();
         line.resize_with(content.chars().count(),||self.glyph_system.new_glyph());
@@ -880,12 +896,12 @@ impl AreaData {
                 None         => line_object.add_child(glyph),
             }
 
-            divs.push(Div::new(info.offset,byte_offset));
-            byte_offset += chr_bytes;
+            divs.push(Div::new(info.offset));
+            byte_offset += 1.column();//chr_bytes;
 
         }
 
-        divs.push(Div::new(pen.advance_final(),byte_offset));
+        divs.push(Div::new(pen.advance_final()));
         line.set_divs(divs);
 
     }

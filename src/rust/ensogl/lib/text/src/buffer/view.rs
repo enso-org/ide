@@ -216,34 +216,34 @@ impl ViewBuffer {
     }
 
     /// Add a new cursor for the given byte offset.
-    pub fn add_cursor_old(&self, offset:Bytes) {
+    pub fn add_cursor_old(&self, location:Location) {
         let id = self.next_selection_id.get();
         self.next_selection_id.set(id+1);
-        self.add_selection(Selection::new_cursor(offset,id))
+        self.add_selection(Selection::new_cursor(location,id))
     }
 
-    pub fn new_cursor(&self, offset:Bytes) -> Selection {
+    pub fn new_cursor(&self, location:Location) -> Selection {
         let id = self.next_selection_id.get();
         self.next_selection_id.set(id+1);
-        Selection::new_cursor(offset,id)
+        Selection::new_cursor(location,id)
     }
 
-    pub fn add_cursor(&self, offset:Bytes) -> selection::Group {
+    pub fn add_cursor(&self, location:Location) -> selection::Group {
         let mut selection = self.selection.borrow().clone();
-        let new_selection = self.new_cursor(offset);
+        let new_selection = self.new_cursor(location);
         selection.add(new_selection);
         selection
     }
 
-    pub fn set_newest_selection_end(&self, offset:Bytes) -> selection::Group {
+    pub fn set_newest_selection_end(&self, location:Location) -> selection::Group {
         let mut group = self.selection.borrow().clone();
-        group.newest_mut().for_each(|s| s.end=offset);
+        group.newest_mut().for_each(|s| s.end=location);
         group
     }
 
-    pub fn set_oldest_selection_end(&self, offset:Bytes) -> selection::Group {
+    pub fn set_oldest_selection_end(&self, location:Location) -> selection::Group {
         let mut group = self.selection.borrow().clone();
-        group.oldest_mut().for_each(|s| s.end=offset);
+        group.oldest_mut().for_each(|s| s.end=location);
         group
     }
 
@@ -256,40 +256,92 @@ impl ViewBuffer {
         self.modify(Transform::Left,"")
     }
 
-    /// Insert new text in the place of current selections / cursors.
+//    /// Insert new text in the place of current selections / cursors.
+//    pub fn modify(&self, movement:Transform, text:impl Into<Data>) -> selection::Group {
+//        self.commit_history();
+//        let text       = text.into();
+//        let text_size  = text.len();
+//        let mut line   = 0.line();
+//        let mut offset = 0.column();
+//        let mut result = selection::Group::new();
+//        for rel_selection in &*self.selection.borrow() {
+//            if rel_selection.start.line != line {
+//                line   = rel_selection.start.line;
+//                offset = 0.column();
+//            }
+//            let selection     = rel_selection.map(|t|t+offset);
+//            let new_selection = self.moved_selection_region(movement,selection,false);
+//            let text_size : Column = text.grapheme_count().into();
+//            let selection_min = std::cmp::min(selection.min(),new_selection.min());
+//            let selection_max = std::cmp::max(selection.max(),new_selection.max());
+//            let range    : data::range::Range<Bytes>      = (self.line_col_to_offset(selection_min) .. self.line_col_to_offset(selection_max)).into();
+//            let cols_diff     = selection_max.column - selection_min.column;
+//            let diff          = text_size - cols_diff;
+//            println!("diff {:?} {:?} {:?} {:?}",text,selection_min,selection_max,text_size);
+//            println!("range {:?}",range);
+//            offset += diff;
+//            self.buffer.data.borrow_mut().insert(range,&text);
+//            let new_selection = new_selection.map(|t|t+text_size);
+//            result.add(new_selection);
+//        }
+//        result
+//    }
+
     pub fn modify(&self, movement:Transform, text:impl Into<Data>) -> selection::Group {
+        println!("MODIFY");
         self.commit_history();
         let text       = text.into();
         let text_size  = text.len();
         let mut result = selection::Group::new();
         let mut offset = 0.bytes();
         for rel_selection in &*self.selection.borrow() {
-            let selection     = rel_selection.map(|t|t+offset);
-            let new_selection =  self.moved_selection_region(movement,selection,false);
-            let range         = range_between(selection,new_selection);
+            println!("----");
+            println!("rel_selection {:?}", rel_selection);
+            let rel_selection = self.to_bytes_selection(*rel_selection);
+            println!("rel_selection {:?}",rel_selection);
+            let selection_b     = rel_selection.map(|t|t+offset);
+            println!("selection_b {:?}",selection_b);
+            let selection     = self.to_location_selection(selection_b);
+            println!("selection {:?}",selection);
+            let new_selection = self.moved_selection_region(movement,selection,false);
+            println!("new_selection {:?}",new_selection);
+            let new_selection = self.to_bytes_selection(new_selection);
+            println!("new_selection {:?}",new_selection);
+            let range         = range_between(selection_b,new_selection);
+            println!("range {:?}",range);
             offset            += text_size - range.size();
+            println!("offset {:?}",offset);
             self.buffer.data.borrow_mut().insert(range,&text);
             let new_selection = new_selection.map(|t|t+text_size);
+            println!("new_selection {:?}",new_selection);
+            let new_selection = self.to_location_selection(new_selection);
+            println!("new_selection {:?}",new_selection);
             result.add(new_selection);
         }
         result
     }
 
-    fn increase_indentation(&self) -> selection::Group {
-        todo!() // This needs phantom cursors
+    fn to_bytes_selection(&self, selection:Selection) -> Selection<Bytes> {
+        let start = self.line_col_to_offset(selection.start).unwrap_or_default();
+        let end   = self.line_col_to_offset(selection.end).unwrap_or_default();
+        let id    = selection.id;
+        Selection {start,end,id}
     }
 
-    fn decrease_indentation(&self) -> selection::Group {
-        todo!() // This needs phantom cursors
+    fn to_location_selection(&self, selection:Selection<Bytes>) -> Selection {
+        let start = self.offset_to_location(selection.start);
+        let end   = self.offset_to_location(selection.end);
+        let id    = selection.id;
+        Selection {start,end,id}
     }
 }
 
-
-fn range_between(a:Selection, b:Selection) -> data::range::Range<Bytes> {
+fn range_between(a:Selection<Bytes>, b:Selection<Bytes>) -> data::range::Range<Bytes> {
     let min = std::cmp::min(a.min(),b.min());
     let max = std::cmp::max(a.max(),b.max());
     (min .. max).into()
 }
+
 
 
 
@@ -306,8 +358,6 @@ define_frp! {
         set_newest_selection_end   : Location,
         set_oldest_selection_end   : Location,
         insert                     : String,
-        increase_indentation       : (),
-        decrease_indentation       : (),
         remove_all_cursors         : (),
         delete_left                : (),
         delete_word_left           : (),
@@ -367,11 +417,6 @@ impl View {
             selection_on_insert <- input.insert.map(f!((s) model.insert(s)));
             output.source.changed <+ selection_on_insert.constant(());
 
-            selection_on_increase_indentation <- input.increase_indentation.map(f_!(model.increase_indentation()));
-            selection_on_decrease_indentation <- input.decrease_indentation.map(f_!(model.decrease_indentation()));
-            output.source.changed <+ selection_on_increase_indentation.constant(());
-            output.source.changed <+ selection_on_decrease_indentation.constant(());
-
             selection_on_delete_left <- input.delete_left.map(f_!(model.delete_left()));
             output.source.changed <+ selection_on_delete_left.constant(());
 
@@ -388,10 +433,10 @@ impl View {
             selection_on_keep_last_caret <- input.keep_newest_caret_only.map(f_!(model.newest_caret()));
             selection_on_keep_first_caret <- input.keep_oldest_caret_only.map(f_!(model.oldest_caret()));
 
-            selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(model.offset_of_view_location(t)).into()));
-            selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(model.offset_of_view_location(t))));
-            selection_on_set_newest_end <- input.set_newest_selection_end.map(f!([model](t) model.set_newest_selection_end(model.offset_of_view_location(t))));
-            selection_on_set_oldest_end <- input.set_oldest_selection_end.map(f!([model](t) model.set_oldest_selection_end(model.offset_of_view_location(t))));
+            selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(*t).into()));
+            selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(*t)));
+            selection_on_set_newest_end <- input.set_newest_selection_end.map(f!([model](t) model.set_newest_selection_end(*t)));
+            selection_on_set_oldest_end <- input.set_oldest_selection_end.map(f!([model](t) model.set_oldest_selection_end(*t)));
 
             selection_on_remove_all <- input.remove_all_cursors.map(|_| default());
 
@@ -413,8 +458,6 @@ impl View {
             output.source.non_edit_selection <+ selection_on_set_newest_end;
             output.source.non_edit_selection <+ selection_on_set_oldest_end;
             output.source.edit_selection     <+ selection_on_insert;
-            output.source.non_edit_selection <+ selection_on_increase_indentation;
-            output.source.non_edit_selection <+ selection_on_decrease_indentation;
             output.source.edit_selection     <+ selection_on_delete_left;
             output.source.non_edit_selection <+ selection_on_remove_all;
 
@@ -516,10 +559,12 @@ impl ViewModel {
     }
 
     pub fn last_line_offset(&self) -> Bytes {
+        println!("last_line_number {:?}",self.last_line_number());
         self.offset_of_line(self.last_line_number())
     }
 
     pub fn line_offset_range(&self) -> Range<Bytes> {
+        println!("line_offset_range {:?} {:?}",self.first_line_offset(),self.last_line_offset());
         self.first_line_offset() .. self.last_line_offset()
     }
 
@@ -592,13 +637,20 @@ impl LineOffset for ViewModel {
         self.column_of_location_X(line,line_offset)
     }
 
-    fn line_col_to_offset(&self, location:Location) -> Bytes {
-        self.line_offset_of_location_X(location)
+    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
+        self.line_offset_of_location_X2(location)
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
         let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).into());
         self.data().offset_of_line(line)
+    }
+
+    fn offset_of_line2(&self,line:Line) -> Option<Bytes> {
+        let max_line = (self.data().measure::<data::metric::Lines>() + 1).into();
+        if line > max_line { None } else {
+            Some(self.data().offset_of_line(line))
+        }
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
@@ -615,13 +667,22 @@ impl LineOffset for ViewBuffer {
         self.column_of_location_X(line,line_offset)
     }
 
-    fn line_col_to_offset(&self, location:Location) -> Bytes {
-        self.line_offset_of_location_X(location)
+    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
+        self.line_offset_of_location_X2(location)
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
         let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).into());
         self.data().offset_of_line(line)
+    }
+
+    fn offset_of_line2(&self,line:Line) -> Option<Bytes> {
+        println!("offset_of_line2 {:?}",line);
+        let max_line = (self.data().measure::<data::metric::Lines>()).into();
+        println!("max_line {:?}",max_line);
+        if line > max_line { None } else {
+            Some(self.data().offset_of_line(line))
+        }
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
@@ -647,7 +708,10 @@ pub trait LineOffset {
         self.data().offset_of_line(line)
     }
 
-    /// Returns the visible line number containing the given offset.
+    fn offset_of_line2(&self,line:Line) -> Option<Bytes>;
+
+
+        /// Returns the visible line number containing the given offset.
     fn line_of_offset(&self, offset:Bytes) -> Line {
         self.data().line_of_offset(offset)
     }
@@ -671,7 +735,7 @@ pub trait LineOffset {
         Location(line,column)
     }
 
-    fn line_col_to_offset(&self, location:Location) -> Bytes;// {
+    fn line_col_to_offset(&self, location:Location) -> Option<Bytes>;// {
 //        let mut offset = self.offset_of_line(line).saturating_add(col.value.bytes()); // fixme: raw.bytes seems wrong
 //        let len = self.data().len();
 //        if offset >= len {

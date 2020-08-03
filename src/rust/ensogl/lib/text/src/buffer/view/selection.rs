@@ -11,6 +11,7 @@ use crate::buffer::data::Range;
 // === Selection ===
 // =================
 
+
 /// Text selection. In case the `start` and `end` offsets are equal, the selection is interpreted as
 /// a caret. The `column` field is a saved horizontal position used primarily for line up/down
 /// movement. Please note that the start of the selection is not always smaller then its end.
@@ -18,62 +19,60 @@ use crate::buffer::data::Range;
 /// end. Use the `min` and `max` methods to discover the edges.
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Default)]
 #[allow(missing_docs)]
-pub struct Selection {
-    pub start  : Bytes,
-    pub end    : Bytes,
-    pub column : Option<Column>,
-    pub id     : usize,
+pub struct Selection<T=Location> {
+    pub start : T,
+    pub end   : T,
+    pub id    : usize,
 }
 
-impl Selection {
+impl<T:Copy+Ord+Eq> Selection<T> {
     /// Constructor.
-    pub fn new(start:Bytes, end:Bytes, id:usize) -> Self {
-        let column = default();
-        Self {start,end,column,id}
+    pub fn new(start:T, end:T, id:usize) -> Self {
+        Self {start,end,id}
     }
 
     /// Cursor constructor (zero-length selection).
-    pub fn new_cursor(offset:Bytes, id:usize) -> Self {
+    pub fn new_cursor(offset:T, id:usize) -> Self {
         Self::new(offset,offset,id)
     }
 
     /// Range of this selection.
-    pub fn range(&self) -> Range<Bytes> {
+    pub fn range(&self) -> Range<T> {
         (self.min() .. self.max()).into()
     }
 
-    /// Size of this selection in bytes.
-    pub fn size(&self) -> Bytes {
-        self.end - self.start
-    }
+//    /// Size of this selection in bytes.
+//    pub fn size(&self) -> Bytes {
+//        self.end - self.start
+//    }
 
     /// Gets the earliest offset within the selection, ie the minimum of both edges.
-    pub fn min(self) -> Bytes {
+    pub fn min(self) -> T {
         std::cmp::min(self.start,self.end)
     }
 
     /// Gets the latest offset within the selection, ie the maximum of both edges.
-    pub fn max(self) -> Bytes {
+    pub fn max(self) -> T {
         std::cmp::max(self.start,self.end)
     }
 
-    pub fn with_start(&self, start:Bytes) -> Self {
+    pub fn with_start(&self, start:T) -> Self {
         Self {start,..*self}
     }
 
-    pub fn with_end(&self, end:Bytes) -> Self {
+    pub fn with_end(&self, end:T) -> Self {
         Self {end,..*self}
     }
 
-    pub fn map_start(&self, f:impl Fn(Bytes)->Bytes) -> Self {
+    pub fn map_start(&self, f:impl Fn(T)->T) -> Self {
         self.with_start(f(self.start))
     }
 
-    pub fn map_end(&self, f:impl Fn(Bytes)->Bytes) -> Self {
+    pub fn map_end(&self, f:impl Fn(T)->T) -> Self {
         self.with_end(f(self.end))
     }
 
-    pub fn map(&self, f:impl Fn(Bytes)->Bytes) -> Self {
+    pub fn map(&self, f:impl Fn(T)->T) -> Self {
         self.with_start(f(self.start)).with_end(f(self.end))
     }
 
@@ -87,21 +86,21 @@ impl Selection {
         self.start == self.end
     }
 
-    /// Returns a selection with the given horizontal position.
-    pub fn with_column(self, column:Option<Column>) -> Self {
-        Self {column,..self}
-    }
+//    /// Returns a selection with the given horizontal position.
+//    pub fn with_column(self, column:Option<Column>) -> Self {
+//        Self {column,..self}
+//    }
 
     /// Indicate whether this region should merge with the next.
     /// Assumption: regions are sorted (self.min() <= other.min())
-    pub fn should_merge_sorted(self, other:Selection) -> bool {
+    pub fn should_merge_sorted(self, other:Selection<T>) -> bool {
         let non_zero_overlap = other.min() < self.max();
         let zero_overlap     = (self.is_caret() || other.is_caret()) && other.min() == self.max();
         non_zero_overlap || zero_overlap
     }
 
     /// Merge self with an overlapping region. Retains direction of self.
-    pub fn merge_with(self, other:Selection) -> Selection {
+    pub fn merge_with(self, other:Selection<T>) -> Selection<T> {
         let is_forward  = self.end >= self.start;
         let new_min     = std::cmp::min(self.min(), other.min());
         let new_max     = std::cmp::max(self.max(), other.max());
@@ -170,7 +169,7 @@ impl Group {
     /// Performance note: should be O(1) if the new region strictly comes after all the others in
     /// the selection, otherwise O(n).
     pub fn add(&mut self, region:Selection) {
-        let mut ix = self.selection_on_the_left_to(region.min());
+        let mut ix = self.selection_index_on_the_left_to(region.min());
         if ix == self.sorted_regions.len() {
             self.sorted_regions.push(region);
             return;
@@ -204,11 +203,11 @@ impl Group {
 
     /// The smallest index so that offset > region.max() for all preceding
     /// regions.
-    pub fn selection_on_the_left_to(&self, offset:Bytes) -> usize {
-        if self.sorted_regions.is_empty() || offset > self.sorted_regions.last().unwrap().max() {
+    pub fn selection_index_on_the_left_to(&self, location:Location) -> usize {
+        if self.sorted_regions.is_empty() || location > self.sorted_regions.last().unwrap().max() {
             self.sorted_regions.len()
         } else {
-            self.sorted_regions.binary_search_by(|r| r.max().cmp(&offset)).unwrap_both()
+            self.sorted_regions.binary_search_by(|r| r.max().cmp(&location)).unwrap_both()
         }
     }
 }
