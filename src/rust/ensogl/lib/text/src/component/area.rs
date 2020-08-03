@@ -222,7 +222,7 @@ pub struct Line {
     glyphs         : Vec<Glyph>,
     divs           : Vec<Div>,
     centers        : Vec<f32>,
-    byte_size      : Bytes,
+//    byte_size      : Bytes,
 }
 
 impl Line {
@@ -232,8 +232,8 @@ impl Line {
         let glyphs         = default();
         let divs           = default();
         let centers        = default();
-        let byte_size      = default();
-        Self {display_object,glyphs,divs,centers,byte_size}
+//        let byte_size      = default();
+        Self {display_object,glyphs,divs,centers}//,byte_size}
     }
 
     /// Set the division points (offsets between letters). Also updates center points.
@@ -272,9 +272,9 @@ impl Line {
         });
     }
 
-    fn byte_size(&self) -> Bytes {
-        self.byte_size
-    }
+//    fn byte_size(&self) -> Bytes {
+//        self.byte_size
+//    }
 }
 
 impl display::Object for Line {
@@ -308,22 +308,22 @@ impl Lines {
             line
         })
     }
-
-    pub fn line_index_of_byte_offset(&self, tgt_offset:Bytes) -> usize {
-        let lines = self.rc.borrow();
-        let max_index  = lines.len().saturating_sub(1);
-        let mut index  = 0;
-        let mut offset = 0.bytes();
-        let empty_line = index == max_index;
-        if !empty_line {
-            loop {
-                offset += lines[index].byte_size();
-                if offset > tgt_offset || index == max_index { break }
-                index += 1;
-            }
-        }
-        index
-    }
+//
+//    pub fn line_index_of_byte_offset(&self, tgt_offset:Bytes) -> usize {
+//        let lines = self.rc.borrow();
+//        let max_index  = lines.len().saturating_sub(1);
+//        let mut index  = 0;
+//        let mut offset = 0.bytes();
+//        let empty_line = index == max_index;
+//        if !empty_line {
+//            loop {
+//                offset += lines[index].byte_size();
+//                if offset > tgt_offset || index == max_index { break }
+//                index += 1;
+//            }
+//        }
+//        index
+//    }
 }
 
 
@@ -839,7 +839,7 @@ impl AreaData {
     pub fn redraw(&self) {
         let lines      = self.buffer.lines();
         let line_count = lines.len();
-        println!("RESIZE LINES: {:?}",line_count);
+        println!("RESIZE LINES: {:?}: {:?}",line_count,lines);
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
         for (view_line_number,content) in lines.into_iter().enumerate() {
             self.redraw_line(view_line_number,content)
@@ -851,9 +851,11 @@ impl AreaData {
 
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
         let line_object    = line.display_object().clone_ref();
-        let line_range     = self.buffer.range_of_view_line_raw(view_line_number.into());
+        println!("##1 ({:?})",view_line_number);
+        let line_range     = self.buffer.view_line_byte_range(view_line_number.into());
+        println!("##2");
         let mut line_style = self.buffer.sub_style(line_range.start .. line_range.end).iter();
-        line.byte_size     = self.buffer.line_byte_size(view_line_number.into());
+//        line.byte_size     = self.buffer.line_byte_size(view_line_number.into());
 
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];

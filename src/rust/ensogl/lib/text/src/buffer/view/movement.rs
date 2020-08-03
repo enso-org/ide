@@ -85,7 +85,7 @@ impl ViewBuffer {
     }
 
     pub fn column_of_location_X(&self, line:Line, line_offset:Bytes) -> Column {
-        let mut offset = self.offset_of_line(line);
+        let mut offset = self.offset_of_line(line).unwrap();
         let tgt_offset = offset + line_offset;
         let mut column = 0.column();
         while offset < tgt_offset {
@@ -101,7 +101,7 @@ impl ViewBuffer {
     }
 
     pub fn line_offset_of_location_X(&self, location:Location) -> Bytes {
-        let start_offset = self.offset_of_line(location.line);
+        let start_offset = self.offset_of_line(location.line).unwrap();
         let mut offset = start_offset;
         let mut column = 0.column();
         while column < location.column {
@@ -117,8 +117,8 @@ impl ViewBuffer {
     }
 
     pub fn line_offset_of_location_X2(&self, location:Location) -> Option<Bytes> {
-        let line_offset      = self.offset_of_line2(location.line)?;
-        let next_line_offset = self.offset_of_line2(location.line + 1.line());
+        let line_offset      = self.offset_of_line(location.line)?;
+        let next_line_offset = self.offset_of_line(location.line + 1.line());
         println!("next_line_offset {:?}",next_line_offset);
         let max_offset       = next_line_offset.and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.last_offset());
         println!("max_offset {:?}",max_offset);
@@ -219,7 +219,7 @@ impl ViewBuffer {
                 let line             = region.end.line;
                 let text_len         = text.len();
                 let is_last_line     = line == self.last_line();
-                let next_line_offset = self.offset_of_line(line+1.line());
+                let next_line_offset = self.offset_of_line(line+1.line()).unwrap();
                 let offset           = if is_last_line { text_len } else {
                     text.prev_grapheme_offset(next_line_offset).unwrap_or(text_len)
                 };

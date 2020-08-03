@@ -541,9 +541,14 @@ impl ViewModel {
         self.first_line_number.get()
     }
 
-    pub fn last_line_number(&self) -> Line {
+    pub fn last_view_line_number(&self) -> Line {
+        let max_line          = self.last_line_number();
         let line_count : Line = self.line_count().into();
-        self.first_line_number() + line_count
+        max_line.min(self.first_line_number() + line_count)
+    }
+
+    pub fn last_line_number(&self) -> Line {
+        self.line_of_offset(self.data().len())
     }
 
     pub fn line_count(&self) -> usize {
@@ -551,16 +556,16 @@ impl ViewModel {
     }
 
     pub fn line_range(&self) -> Range<Line> {
-        self.first_line_number() .. self.last_line_number()
+        self.first_line_number() .. self.last_view_line_number()
     }
 
     pub fn first_line_offset(&self) -> Bytes {
-        self.offset_of_line(self.first_line_number())
+        self.offset_of_line(self.first_line_number()).unwrap() // FIXME
     }
 
     pub fn last_line_offset(&self) -> Bytes {
-        println!("last_line_number {:?}",self.last_line_number());
-        self.offset_of_line(self.last_line_number())
+        println!("last_view_line_number {:?}",self.last_view_line_number());
+        self.offset_of_line(self.last_view_line_number()).unwrap()
     }
 
     pub fn line_offset_range(&self) -> Range<Bytes> {
@@ -568,27 +573,55 @@ impl ViewModel {
         self.first_line_offset() .. self.last_line_offset()
     }
 
-    pub fn offset_of_view_line(&self, view_line:Line) -> Bytes {
+    pub fn view_end_offset(&self) -> Bytes {
+        let next_line = self.last_view_line_number() + 1.line();
+        println!("?? next_line, off {:?} {:?}",next_line, self.offset_of_line(next_line));
+        self.offset_of_line(next_line).and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.data().len())
+    }
+
+    /// Return the offset after the last character of a given line if the line exists.
+    pub fn end_offset_of_line(&self, line:Line) -> Option<Bytes> {
+        let next_line  = self.last_view_line_number() + 1.line();
+        let opt_result = self.offset_of_line(next_line).and_then(|t| self.prev_grapheme_offset(t));
+        opt_result.or_else(|| (line <= self.last_line_number()).as_some_from(|| self.data().len()))
+    }
+
+    /// Return the offset after the last character of a given view line if the line exists.
+    pub fn end_offset_of_view_line(&self, line:Line) -> Option<Bytes> {
+        self.end_offset_of_line(line + self.first_line_number.get())
+    }
+
+    pub fn view_range(&self) -> Range<Bytes> {
+        self.first_line_offset() .. self.view_end_offset()
+    }
+
+    pub fn offset_of_view_line(&self, view_line:Line) -> Option<Bytes> {
         let line = self.first_line_number() + view_line;
         self.offset_of_line(line)
     }
 
-    pub fn offset_of_view_location(&self, location:impl Into<Location>) -> Bytes {
-        let location = location.into();
-        self.offset_of_view_line(location.line) + self.line_offset_of_location_X(location)
+//    pub fn offset_of_view_location(&self, location:impl Into<Location>) -> Bytes {
+//        let location = location.into();
+//        self.offset_of_view_line(location.line) + self.line_offset_of_location_X(location)
+//    }
+
+//    pub fn line_byte_size(&self, line:Line) -> Bytes {
+//        let start = self.offset_of_view_line(line);
+//        let end   = self.offset_of_view_line(line + 1.line());
+//        end - start
+//    }
+
+    /// Byte range of the given line.
+    pub fn line_byte_range(&self, line:Line) -> Range<Bytes> {
+        let start = self.offset_of_line(line);
+        let end   = self.end_offset_of_line(line);
+        start.and_then(|s| end.map(|e| s..e)).unwrap_or_else(|| default()..default())
     }
 
-    pub fn line_byte_size(&self, line:Line) -> Bytes {
-        let start = self.offset_of_view_line(line);
-        let end   = self.offset_of_view_line(line + 1.line());
-        end - start
-    }
-
-    // FIXME: this sohuld not include line break.
-    pub fn range_of_view_line_raw(&self, view_line:Line) -> Range<Bytes> {
-        let start = self.offset_of_view_line(view_line);
-        let end   = self.offset_of_view_line(view_line + 1.line());
-        start .. end
+    /// Byte range of the given view line.
+    pub fn view_line_byte_range(&self, view_line:Line) -> Range<Bytes> {
+        let line = view_line + self.first_line_number.get();
+        self.line_byte_range(line)
     }
 
 //    pub fn lines(&self) -> buffer::Lines {
@@ -596,20 +629,23 @@ impl ViewModel {
 //        self.buffer.data.borrow().data.rope.lines(range.start.raw .. range.end.raw)
 //    }
 
-    // FIXME: this is inefficient now
+    /// Return all lines of this buffer view.
     pub fn lines(&self) -> Vec<String> {
-        let range = self.line_offset_range();
-        let lines = self.buffer.data.borrow().data.rope.lines(range.start.value as usize .. range.end.value as usize).map(|t| t.into()).collect_vec();
-        if lines.is_empty() { vec!["".into()] } else { lines }
+        let range        = self.view_range();
+        let rope_range   = range.start.as_usize() .. range.end.as_usize();
+        let mut lines    = self.buffer.borrow().lines(rope_range).map(|t|t.into()).collect_vec();
+        let missing_last = lines.len() == self.last_line_number().as_usize();
+        if  missing_last { lines.push("".into()) }
+        lines
     }
 
 //    pub fn get(&self, line:Line) -> String {
-//        let last_line_number = self.line_of_offset(self.data().len());
+//        let last_view_line_number = self.line_of_offset(self.data().len());
 //        let start   = self.offset_of_line(line);
 //        let end     = self.offset_of_line(line+1);
 //        let end     = self.buffer.text.prev_grapheme_offset(end).unwrap_or(end);
 //        let content = self.buffer.text.rope.subseq(start.raw .. end.raw);
-//        println!("buffer line count: {}", last_line_number.raw);
+//        println!("buffer line count: {}", last_view_line_number.raw);
 //        content.into()
 //    }
 
@@ -641,13 +677,8 @@ impl LineOffset for ViewModel {
         self.line_offset_of_location_X2(location)
     }
 
-    fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).into());
-        self.data().offset_of_line(line)
-    }
-
-    fn offset_of_line2(&self,line:Line) -> Option<Bytes> {
-        let max_line = (self.data().measure::<data::metric::Lines>() + 1).into();
+    fn offset_of_line(&self,line:Line) -> Option<Bytes> {
+        let max_line = (self.data().measure::<data::metric::Lines>()).into();
         if line > max_line { None } else {
             Some(self.data().offset_of_line(line))
         }
@@ -671,13 +702,8 @@ impl LineOffset for ViewBuffer {
         self.line_offset_of_location_X2(location)
     }
 
-    fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).into());
-        self.data().offset_of_line(line)
-    }
-
-    fn offset_of_line2(&self,line:Line) -> Option<Bytes> {
-        println!("offset_of_line2 {:?}",line);
+    fn offset_of_line(&self,line:Line) -> Option<Bytes> {
+        println!("offset_of_line {:?}",line);
         let max_line = (self.data().measure::<data::metric::Lines>()).into();
         println!("max_line {:?}",max_line);
         if line > max_line { None } else {
@@ -703,12 +729,7 @@ pub trait LineOffset {
 
     fn data(&self) -> Data;
 
-    /// Returns the byte offset corresponding to the given line.
-    fn offset_of_line(&self, line:Line) -> Bytes {
-        self.data().offset_of_line(line)
-    }
-
-    fn offset_of_line2(&self,line:Line) -> Option<Bytes>;
+    fn offset_of_line(&self,line:Line) -> Option<Bytes>;
 
 
         /// Returns the visible line number containing the given offset.
@@ -730,7 +751,7 @@ pub trait LineOffset {
 
     fn offset_to_location(&self, offset:Bytes) -> Location {
         let line         = self.line_of_offset(offset);
-        let line_offset  = (offset - self.offset_of_line(line));
+        let line_offset  = (offset - self.offset_of_line(line).unwrap());
         let column       = self.column_of_location(line,line_offset);
         Location(line,column)
     }

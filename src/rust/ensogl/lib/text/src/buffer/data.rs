@@ -111,6 +111,15 @@ impl Data {
         self.rope.line_of_offset(offset.as_usize()).into()
     }
 
+    /// An iterator over the lines of a rope.
+    ///
+    /// Lines are ended with either Unix (`\n`) or MS-DOS (`\r\n`) style line endings.
+    /// The line ending is stripped from the resulting string. The final line ending
+    /// is optional.
+    ///
+    pub fn lines<T:rope::IntervalBounds>(&self, range:T) -> rope::Lines {
+        self.rope.lines(range)
+    }
 
 }
 
