@@ -119,9 +119,7 @@ impl ViewBuffer {
     pub fn line_offset_of_location_X2(&self, location:Location) -> Option<Bytes> {
         let line_offset      = self.offset_of_line(location.line)?;
         let next_line_offset = self.offset_of_line(location.line + 1.line());
-        println!("next_line_offset {:?}",next_line_offset);
         let max_offset       = next_line_offset.and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.last_offset());
-        println!("max_offset {:?}",max_offset);
         let mut offset = line_offset;
         let mut column = 0.column();
         while column < location.column {
@@ -164,8 +162,6 @@ impl ViewBuffer {
         let offset      = self.line_col_to_offset(location)?;
         let prev_offset = self.prev_grapheme_offset(offset);
         let out = prev_offset.map(|off| self.offset_to_location(off));
-        println!("!!> {:?} {:?}", offset, prev_offset);
-        println!("!!! {:?} {:?}", location, out);
         out
     }
 

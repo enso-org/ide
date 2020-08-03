@@ -256,69 +256,37 @@ impl ViewBuffer {
         self.modify(Transform::Left,"")
     }
 
-//    /// Insert new text in the place of current selections / cursors.
-//    pub fn modify(&self, movement:Transform, text:impl Into<Data>) -> selection::Group {
-//        self.commit_history();
-//        let text       = text.into();
-//        let text_size  = text.len();
-//        let mut line   = 0.line();
-//        let mut offset = 0.column();
-//        let mut result = selection::Group::new();
-//        for rel_selection in &*self.selection.borrow() {
-//            if rel_selection.start.line != line {
-//                line   = rel_selection.start.line;
-//                offset = 0.column();
-//            }
-//            let selection     = rel_selection.map(|t|t+offset);
-//            let new_selection = self.moved_selection_region(movement,selection,false);
-//            let text_size : Column = text.grapheme_count().into();
-//            let selection_min = std::cmp::min(selection.min(),new_selection.min());
-//            let selection_max = std::cmp::max(selection.max(),new_selection.max());
-//            let range    : data::range::Range<Bytes>      = (self.line_col_to_offset(selection_min) .. self.line_col_to_offset(selection_max)).into();
-//            let cols_diff     = selection_max.column - selection_min.column;
-//            let diff          = text_size - cols_diff;
-//            println!("diff {:?} {:?} {:?} {:?}",text,selection_min,selection_max,text_size);
-//            println!("range {:?}",range);
-//            offset += diff;
-//            self.buffer.data.borrow_mut().insert(range,&text);
-//            let new_selection = new_selection.map(|t|t+text_size);
-//            result.add(new_selection);
-//        }
-//        result
-//    }
-
-    pub fn modify(&self, movement:Transform, text:impl Into<Data>) -> selection::Group {
-        println!("MODIFY");
+    /// Generic buffer modify utility. First, it transforms all selections with the provided
+    /// `transform`, and then it replaces the resulting selection diff with the provided `text`.
+    /// See its usages across the file to learn more.
+    ///
+    /// ## Implementation details.
+    /// This function converts all selections to byte-based ones first, and then applies all
+    /// modification rules. This way, it can work in an 1D byte-based space (as opposed to 2D
+    /// location-based space), which makes handling multiple cursors much easier.
+    pub fn modify(&self, transform:Transform, text:impl Into<Data>) -> selection::Group {
         self.commit_history();
-        let text       = text.into();
-        let text_size  = text.len();
-        let mut result = selection::Group::new();
-        let mut offset = 0.bytes();
-        for rel_selection in &*self.selection.borrow() {
-            println!("----");
-            println!("rel_selection {:?}", rel_selection);
-            let rel_selection = self.to_bytes_selection(*rel_selection);
-            println!("rel_selection {:?}",rel_selection);
-            let selection_b     = rel_selection.map(|t|t+offset);
-            println!("selection_b {:?}",selection_b);
-            let selection     = self.to_location_selection(selection_b);
-            println!("selection {:?}",selection);
-            let new_selection = self.moved_selection_region(movement,selection,false);
-            println!("new_selection {:?}",new_selection);
-            let new_selection = self.to_bytes_selection(new_selection);
-            println!("new_selection {:?}",new_selection);
-            let range         = range_between(selection_b,new_selection);
-            println!("range {:?}",range);
-            offset            += text_size - range.size();
-            println!("offset {:?}",offset);
-            self.buffer.data.borrow_mut().insert(range,&text);
-            let new_selection = new_selection.map(|t|t+text_size);
-            println!("new_selection {:?}",new_selection);
-            let new_selection = self.to_location_selection(new_selection);
-            println!("new_selection {:?}",new_selection);
-            result.add(new_selection);
+        let text                    = text.into();
+        let text_byte_size          = text.len();
+        let mut new_selection_group = selection::Group::new();
+        let mut byte_offset         = 0.bytes();
+        for rel_byte_selection in self.byte_selections() {
+            let byte_selection     = rel_byte_selection.map(|t|t+byte_offset);
+            let selection          = self.to_location_selection(byte_selection);
+            let new_selection      = self.moved_selection_region(transform,selection,false);
+            let new_byte_selection = self.to_bytes_selection(new_selection);
+            let byte_range         = range_between(byte_selection,new_byte_selection);
+            byte_offset           += text_byte_size - byte_range.size();
+            self.buffer.data.borrow_mut().insert(byte_range,&text);
+            let new_byte_selection = new_byte_selection.map(|t|t+text_byte_size);
+            let new_selection      = self.to_location_selection(new_byte_selection);
+            new_selection_group.add(new_selection);
         }
-        result
+        new_selection_group
+    }
+
+    fn byte_selections(&self) -> Vec<Selection<Bytes>> {
+        self.selection.borrow().iter().map(|s|self.to_bytes_selection(*s)).collect()
     }
 
     fn to_bytes_selection(&self, selection:Selection) -> Selection<Bytes> {
@@ -703,9 +671,7 @@ impl LineOffset for ViewBuffer {
     }
 
     fn offset_of_line(&self,line:Line) -> Option<Bytes> {
-        println!("offset_of_line {:?}",line);
         let max_line = (self.data().measure::<data::metric::Lines>()).into();
-        println!("max_line {:?}",max_line);
         if line > max_line { None } else {
             Some(self.data().offset_of_line(line))
         }
