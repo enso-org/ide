@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use crate::buffer::data::unit::*;
-use crate::buffer::Movement;
+use crate::buffer::Transform;
 use crate::buffer;
 use crate::typeface::glyph::Glyph;
 use crate::typeface::glyph;
@@ -534,24 +534,24 @@ impl Area {
             eval_ command.keep_newest_caret_only (model.buffer.frp.input.keep_newest_caret_only.emit(()));
             eval_ command.keep_oldest_caret_only (model.buffer.frp.input.keep_oldest_caret_only.emit(()));
 
-            eval_ command.cursor_move_left  (model.buffer.frp.input.cursors_move.emit(Some(Movement::Left)));
-            eval_ command.cursor_move_right (model.buffer.frp.input.cursors_move.emit(Some(Movement::Right)));
-            eval_ command.cursor_move_up    (model.buffer.frp.input.cursors_move.emit(Some(Movement::Up)));
-            eval_ command.cursor_move_down  (model.buffer.frp.input.cursors_move.emit(Some(Movement::Down)));
+            eval_ command.cursor_move_left  (model.buffer.frp.input.cursors_move.emit(Some(Transform::Left)));
+            eval_ command.cursor_move_right (model.buffer.frp.input.cursors_move.emit(Some(Transform::Right)));
+            eval_ command.cursor_move_up    (model.buffer.frp.input.cursors_move.emit(Some(Transform::Up)));
+            eval_ command.cursor_move_down  (model.buffer.frp.input.cursors_move.emit(Some(Transform::Down)));
 
-            eval_ command.cursor_move_left_word  (model.buffer.frp.input.cursors_move.emit(Some(Movement::LeftWord)));
-            eval_ command.cursor_move_right_word (model.buffer.frp.input.cursors_move.emit(Some(Movement::RightWord)));
+            eval_ command.cursor_move_left_word  (model.buffer.frp.input.cursors_move.emit(Some(Transform::LeftWord)));
+            eval_ command.cursor_move_right_word (model.buffer.frp.input.cursors_move.emit(Some(Transform::RightWord)));
 
-            eval_ command.cursor_select_left  (model.buffer.frp.input.cursors_select.emit(Some(Movement::Left)));
-            eval_ command.cursor_select_right (model.buffer.frp.input.cursors_select.emit(Some(Movement::Right)));
-            eval_ command.cursor_select_up    (model.buffer.frp.input.cursors_select.emit(Some(Movement::Up)));
-            eval_ command.cursor_select_down  (model.buffer.frp.input.cursors_select.emit(Some(Movement::Down)));
+            eval_ command.cursor_select_left  (model.buffer.frp.input.cursors_select.emit(Some(Transform::Left)));
+            eval_ command.cursor_select_right (model.buffer.frp.input.cursors_select.emit(Some(Transform::Right)));
+            eval_ command.cursor_select_up    (model.buffer.frp.input.cursors_select.emit(Some(Transform::Up)));
+            eval_ command.cursor_select_down  (model.buffer.frp.input.cursors_select.emit(Some(Transform::Down)));
 
-            eval_ command.cursor_select_left_word  (model.buffer.frp.input.cursors_select.emit(Some(Movement::LeftWord)));
-            eval_ command.cursor_select_right_word (model.buffer.frp.input.cursors_select.emit(Some(Movement::RightWord)));
+            eval_ command.cursor_select_left_word  (model.buffer.frp.input.cursors_select.emit(Some(Transform::LeftWord)));
+            eval_ command.cursor_select_right_word (model.buffer.frp.input.cursors_select.emit(Some(Transform::RightWord)));
 
-            eval_ command.select_all            (model.buffer.frp.input.cursors_select.emit(Some(Movement::All)));
-            eval_ command.select_word_at_cursor (model.buffer.frp.input.cursors_select.emit(Some(Movement::Word)));
+            eval_ command.select_all            (model.buffer.frp.input.cursors_select.emit(Some(Transform::All)));
+            eval_ command.select_word_at_cursor (model.buffer.frp.input.cursors_select.emit(Some(Transform::Word)));
 
             eval_ command.delete_left       (model.buffer.frp.input.delete_left.emit(()));
             eval_ command.delete_word_left  (model.buffer.frp.input.delete_word_left.emit(()));

@@ -1,4 +1,5 @@
-//! Efficient rope implementation. Currently, the module just re-exports common `xi-rope` types.
+//! Efficient rope implementation. Currently, the module just re-exports and renames some of the
+//! `xi-rope` types.
 
 
 

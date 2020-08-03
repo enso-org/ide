@@ -14,9 +14,8 @@ use enso_types::newtype;
 
 /// Common traits.
 pub mod traits {
-    pub use super::bytes::Into  as TRAIT_bytes_into;
-    pub use super::line::Into   as TRAIT_line_into;
-//    pub use super::column::Into as TRAIT_column_into;
+    pub use super::bytes::Into as TRAIT_bytes_into;
+    pub use super::line::Into  as TRAIT_line_into;
 }
 pub use traits::*;
 
@@ -65,15 +64,9 @@ Line::line(usize)
 
 
 
-// ==============
-// === Column ===
-// ==============
-
-//unsigned_unit_proxy! {
-///// A type representing horizontal measurements
-//Column::column(Bytes)
-//}
-
+// ================
+// === Location ===
+// ================
 
 newtype! {
 /// A type representing 2d measurements.

@@ -249,15 +249,15 @@ impl ViewBuffer {
 
     /// Insert new text in the place of current selections / cursors.
     pub fn insert(&self, text:impl Into<Data>) -> selection::Group {
-        self.modify(Movement::LeftSelectionBorder,text)
+        self.modify(Transform::LeftSelectionBorder,text)
     }
 
     fn delete_left(&self) -> selection::Group {
-        self.modify(Movement::Left,"")
+        self.modify(Transform::Left,"")
     }
 
     /// Insert new text in the place of current selections / cursors.
-    pub fn modify(&self, movement:Movement, text:impl Into<Data>) -> selection::Group {
+    pub fn modify(&self, movement:Transform, text:impl Into<Data>) -> selection::Group {
         self.commit_history();
         let text       = text.into();
         let text_size  = text.len();
@@ -299,8 +299,8 @@ fn range_between(a:Selection, b:Selection) -> data::range::Range<Bytes> {
 
 define_frp! {
     Input {
-        cursors_move               : Option<Movement>,
-        cursors_select             : Option<Movement>,
+        cursors_move               : Option<Transform>,
+        cursors_select             : Option<Transform>,
         set_cursor                 : Location,
         add_cursor                 : Location,
         set_newest_selection_end   : Location,
@@ -484,7 +484,7 @@ impl ViewModel {
     }
 
     // FIXME: rename
-    fn moved_selection2(&self, movement:Option<Movement>, modify:bool) -> selection::Group {
+    fn moved_selection2(&self, movement:Option<Transform>, modify:bool) -> selection::Group {
         movement.map(|t| self.moved_selection(t,modify)).unwrap_or_default()
     }
 
