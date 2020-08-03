@@ -21,6 +21,7 @@ pub mod data;
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
+use crate::graph_editor::component::visualization::MockDocGenerator;
 use crate::graph_editor::component::visualization;
 use crate::graph_editor::component::documentation_view::DocumentationView;
 
@@ -1107,7 +1108,6 @@ impl GraphEditorModel {
         let margin = 10.0;
         project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
         doc_view.set_position(Vector3::new((screen.width - 320.0) / 2.0 ,0.0,0.0));
-        doc_view.model.gen_placeholder();
         display_object.remove_child(&doc_view);
         let scene = scene.clone_ref();
         Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name,doc_view}//visualizations }
@@ -2207,7 +2207,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             let data    = Rc::new(sample_data_generator.generate_data()); // FIXME: why rc?
             let content = serde_json::to_value(data).unwrap();
             let data    = visualization::Data::from(content);
-            inputs.set_visualization_data.emit((*node_id,data));
+            inputs.set_visualization_data.emit((*node_id,data.clone()));
+
+            let sample_doc_generator = MockDocGenerator::default();
+            let data    = sample_doc_generator.generate_data();
+            let content = serde_json::to_value(data).unwrap();
+            let data    = visualization::Data::from(content);
+            inputs.set_documentation_data.emit(data);
         }
     }));
 
@@ -2335,7 +2341,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
     // === Documentation Set ===
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
     def _set_doc_data = inputs.set_documentation_data.map(f!((data) {
          model.doc_view.frp.send_data.emit(data);
@@ -2343,17 +2349,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Documentation toggle ===
 
-    let doc_press_ev      = inputs.press_documentation_visibility.clone_ref();
-    let doc_release       = inputs.release_documentation_visibility.clone_ref();
-    doc_pressed          <- bool(&doc_release,&doc_press_ev);
-    doc_was_pressed      <- doc_pressed.previous();
-    doc_press            <- doc_press_ev.gate_not(&doc_was_pressed);
-    doc_press_time       <- doc_press   . map(|_| web::performance().now() as f32);
-    doc_release_time     <- doc_release . map(|_| web::performance().now() as f32);
-    doc_press_time_diff  <- doc_release_time.map2(&doc_press_time,|t1,t0| t1-t0);
-    doc_preview_mode     <- doc_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
-    doc_preview_mode_end <- doc_release.gate(&doc_preview_mode);
-    doc_press_on_off     <- doc_press.map(f_!(model.is_doc_visible()));
+    let doc_press_ev                = inputs.press_documentation_visibility.clone_ref();
+    let doc_release                 = inputs.release_documentation_visibility.clone_ref();
+    doc_pressed                    <- bool(&doc_release,&doc_press_ev);
+    doc_was_pressed                <- doc_pressed.previous();
+    doc_press                      <- doc_press_ev.gate_not(&doc_was_pressed);
+    doc_press_on_off               <- doc_press.map(f_!(model.is_doc_visible()));
     outputs.documentation_visible  <+ doc_press_on_off;
 
 

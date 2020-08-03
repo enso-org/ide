@@ -485,65 +485,32 @@ impl DocumentationViewModel {
         self.reload_style();
     }
 
-    // TODO: Receive real documentation string
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
         let data_inner = match data {
             Data::Json {content} => content,
-            _ => todo!() // FIXME
+            _ => todo!()
         };
+        let placeholder_str = "<h3>Enso Documentation Viewer</h3><p>No documentation available</p>";
+
         let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
+        let data_str = data_str.replace("\\n", "\n");
+        let data_str = data_str.replace("\"", "");
 
         let parser = parser::DocParser::new_or_panic();
         let output = parser.generate_html_doc_pure(data_str);
-        let output = output.unwrap_or_else(|_| String::from("<h1>hello EnsoGL</h1>"));
+        let output = output.unwrap_or_else(|_| String::from(placeholder_str));
 
-        let data_str = format!(r#"<div class="docVis">{}{}</iframe>"#,
+        let data_str = format!(r#"<div class="docVis">{}{}</div>"#,
                                get_doc_style(), output);
         self.dom.dom().set_inner_html(&data_str);
         Ok(())
     }
 
-    /// Generates placeholder HTML doc.
-    pub fn gen_placeholder(&self) {
-        let inp_only_doc = r#"DEPRECATED
-                          REMOVED - replaced by Foo Bar
-                          ADDED
-                          MODIFIED
-                          UPCOMING
-                          ALAMAKOTA a kot ma Ale
-                          This is a test of Enso Documentation Parser. This is a short synopsis.
-
-                          Here you can write the body of documentation. On top you can see tags
-                          added to this piece of code. You can customise your text with _Italic_
-                          ~Strikethrough~ or *Bold*. ~_*Combined*_~ is funny
-
-
-                          There are 3 kinds of sections
-                            - Important
-                            - Info
-                            - Example
-                              * You can use example to add multiline code to your documentation
-
-                          ! Important
-                            Here is a small test of Important Section
-
-                          ? Info
-                            Here is a small test of Info Section
-
-                          > Example
-                            Here is a small test of Example Section
-                                Import Foo
-                                def Bar a"#;
-        let default_input = String::from(inp_only_doc);
-        let program = std::env::args().nth(1).unwrap_or(default_input);
-
-        let parser = parser::DocParser::new_or_panic();
-        let output = parser.generate_html_doc_pure(program);
-        let output = output.unwrap_or_else(|_| String::from("<h1>hello EnsoGL</h1>"));
-
-        let data_str = format!(r#"<div class="docVis">{}{}</iframe>"#,
-                               get_doc_style(), output);
+    /// Generates welcome screen HTML.
+    pub fn welcome_screen(&self) {
+        let data_str = format!(r#"<div class="docVis">{}<h3>Enso Documentation Viewer</h3>
+        <p>No documentation available</p></div>"#, get_doc_style());
         self.dom.dom().set_inner_html(&data_str)
     }
 
@@ -581,6 +548,7 @@ impl DocumentationView {
         let network = default();
         let frp   = visualization::instance::Frp::new(&network);
         let model = DocumentationViewModel::new(scene);
+        model.welcome_screen();
         Self {model,frp,network} . init()
     }
 

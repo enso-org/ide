@@ -145,3 +145,44 @@ impl MockDataGenerator3D {
         ]
     }
 }
+
+
+/// The `MockDocGenerator` creates sample documentation string in the format of `String`.
+#[derive(Clone,CloneRef,Copy,Debug,Default)]
+pub struct MockDocGenerator;
+
+impl MockDocGenerator {
+    /// Generate new data set.
+    pub fn generate_data(&self) -> String {
+        let inp_only_doc = r#"DEPRECATED
+                          REMOVED - replaced by Foo Bar
+                          ADDED
+                          MODIFIED
+                          UPCOMING
+                          ALAMAKOTA a kot ma Ale
+                          This is a test of Enso Documentation Parser. This is a short synopsis.
+
+                          Here you can write the body of documentation. On top you can see tags
+                          added to this piece of code. You can customise your text with _Italic_
+                          ~Strikethrough~ or *Bold*. ~_*Combined*_~ is funny
+
+
+                          There are 3 kinds of sections
+                            - Important
+                            - Info
+                            - Example
+                              * You can use example to add multiline code to your documentation
+
+                          ! Important
+                            Here is a small test of Important Section
+
+                          ? Info
+                            Here is a small test of Info Section
+
+                          > Example
+                            Here is a small test of Example Section
+                                Import Foo
+                                def Bar a"#;
+        inp_only_doc.to_string()
+    }
+}
