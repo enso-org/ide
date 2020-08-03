@@ -73,14 +73,14 @@ impl ViewBuffer {
 
     /// Compute movement based on vertical motion by the given number of lines.
     fn vertical_motion
-    (&self, selection:Selection, line_delta:Line, modify:bool) -> (Bytes,Bytes,Option<Bytes>) {
+    (&self, selection:Selection, line_delta:Line, modify:bool) -> (Bytes,Bytes,Option<Column>) {
         let move_up    = line_delta < 0.line();
         let line_delta = line_delta.abs();
         let location   = self.vertical_motion_selection_to_caret(selection, move_up, modify);
         let n_lines    = self.line_of_offset(self.data().len());
 
         if move_up && line_delta > location.line {
-            return (selection.start,Bytes(0), Some(location.offset));
+            return (selection.start,Bytes(0),None); // FIXME None -> Some(location.offset)
         }
 
         let line = if move_up { location.line - line_delta } else { location.line.saturating_add(line_delta) };
@@ -88,11 +88,11 @@ impl ViewBuffer {
         let tgt_offset = self.line_offset_of_location_X(line,column);
 
         if line > n_lines {
-            return (selection.start,self.data().len(), Some(location.offset));
+            return (selection.start,self.data().len(),None) // FIXME None -> Some(location.offset)
         }
 
         let new_offset = self.line_col_to_offset(line, tgt_offset);
-        (selection.start,new_offset, Some(location.offset))
+        (selection.start,new_offset,None) // FIXME None -> Some(location.offset)
     }
 
     fn column_of_location(&self, line: Line, line_offset: Bytes) -> usize {
@@ -130,14 +130,14 @@ impl ViewBuffer {
     /// Compute movement based on vertical motion by the given number of lines skipping
     /// any line that is shorter than the current cursor position.
     fn vertical_motion_exact_pos
-    (&self, region: Selection, move_up: bool, modify: bool) -> (Bytes,Bytes,Option<Bytes>) {
+    (&self, region: Selection, move_up: bool, modify: bool) -> (Bytes,Bytes,Option<Column>) {
         let location = self.vertical_motion_selection_to_caret(region, move_up, modify);
         let lines_count = self.line_of_offset(self.data().len());
         let line_offset = self.offset_of_line(location.line);
         let next_line_offset = self.offset_of_line(location.line.saturating_add(1.line()));
         let line_len = next_line_offset - line_offset;
         if move_up && location.line == Line(0) {
-            return (region.start,self.line_col_to_offset(location.line, location.offset), Some(location.offset));
+            return (region.start,self.line_col_to_offset(location.line, location.offset),None) // FIXME None -> Some(location.offset)
         }
         let mut line = if move_up { location.line - 1.line() } else { location.line.saturating_add(1.line()) };
 
@@ -163,7 +163,7 @@ impl ViewBuffer {
             line = if move_up { line - 1.line() } else { line.saturating_add(1.line()) };
         }
 
-        (region.start,self.line_col_to_offset(line, col), Some(col))
+        (region.start,self.line_col_to_offset(line, col),None) // FIXME None -> Some(col)
     }
 
     /// Apply the movement to each region in the selection, and returns the union of the results.
@@ -195,7 +195,7 @@ impl ViewBuffer {
     (&self, movement:Transform, region:Selection, modify:bool) -> Selection {
         let text        = &self.data();
         let no_horiz    = |s,t|(s,t,None);
-        let (start,end,horiz) : (Bytes,Bytes,Option<Bytes>) = match movement {
+        let (start,end,horiz) : (Bytes,Bytes,Option<Column>) = match movement {
             Transform::All               => no_horiz(0.bytes(),text.len()),
             Transform::Up                => self.vertical_motion(region, -1.line(), modify),
             Transform::Down              => self.vertical_motion(region,  1.line(), modify),
@@ -305,6 +305,6 @@ impl ViewBuffer {
             }
         };
         let start = if modify { start } else { end };
-        Selection::new(start,end,region.id).with_column(horiz)
+        Selection::new(start,end,region.id).with_column(None) // FIXME None -> horiz
     }
 }

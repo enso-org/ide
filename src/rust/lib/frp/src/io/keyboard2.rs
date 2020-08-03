@@ -160,14 +160,10 @@ impl Keyboard {
         frp::extend! { network
             eval source.down ((key) model.set(key));
             eval source.up   ((key) model.unset(key));
-
             down         <- source.down.map(|t|t.clone());
             meta_down    <- source.down.map(f_!(model.is_meta_down()));
             meta_release <= source.down.gate(&meta_down).map(f_!(model.release_meta_dependent()));
             up           <- any(&source.up,&meta_release);
-
-            trace down;
-            trace up;
         }
         Keyboard {network,model,source,down,up}
     }

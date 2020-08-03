@@ -93,6 +93,40 @@ impl From<&usize> for Line {
 
 
 
+// ==============
+// === Column ===
+// ==============
+
+unit! {
+/// A type representing horizontal measurements expressed as number of grapheme clusters.
+Column::column(i32)
+}
+
+impl Column {
+    pub fn as_usize(self) -> usize {
+        self.value.max(0) as usize
+    }
+
+    // FIXME
+    pub fn abs(&self) -> Self {
+        self.value.saturating_abs().into()
+    }
+}
+
+impl From<usize> for Column {
+    fn from(t:usize) -> Self {
+        (t as i32).into()
+    }
+}
+
+impl From<&usize> for Column {
+    fn from(t:&usize) -> Self {
+        (*t as i32).into()
+    }
+}
+
+
+
 // ================
 // === Location ===
 // ================
