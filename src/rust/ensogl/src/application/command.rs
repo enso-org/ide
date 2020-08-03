@@ -167,7 +167,6 @@ impl EndpointDocs {
 pub struct Registry {
     pub logger    : Logger,
     pub instances : Rc<RefCell<HashMap<String,Vec<ProviderInstance>>>>,
-    // todo docs
 }
 
 impl Registry {
