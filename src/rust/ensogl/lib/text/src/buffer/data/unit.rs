@@ -30,6 +30,12 @@ unit! {
 Bytes::bytes(i32)
 }
 
+impl Bytes {
+    pub fn as_usize(self) -> usize {
+        self.value.min(0) as usize
+    }
+}
+
 impl<T:Into<Bytes>> bytes::Into for Range<T> {
     type Output = Range<Bytes>;
     fn bytes(self) -> Self::Output {
@@ -59,7 +65,30 @@ impl From<&usize> for Bytes {
 
 unit! {
 /// A type representing vertical measurements.
-Line::line(usize)
+Line::line(i32)
+}
+
+impl Line {
+    pub fn as_usize(self) -> usize {
+        self.value.min(0) as usize
+    }
+
+    // FIXME
+    pub fn abs(&self) -> Self {
+        self.value.saturating_abs().into()
+    }
+}
+
+impl From<usize> for Line {
+    fn from(t:usize) -> Self {
+        (t as i32).into()
+    }
+}
+
+impl From<&usize> for Line {
+    fn from(t:&usize) -> Self {
+        (*t as i32).into()
+    }
 }
 
 

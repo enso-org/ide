@@ -73,25 +73,24 @@ impl ViewBuffer {
 
     /// Compute movement based on vertical motion by the given number of lines.
     fn vertical_motion
-    (&self, selection:Selection, line_delta:isize, modify:bool) -> (Bytes,Bytes,Option<Bytes>) {
-        let move_up    = line_delta < 0;
-        let line_delta = line_delta.saturating_abs() as usize;
+    (&self, selection:Selection, line_delta:Line, modify:bool) -> (Bytes,Bytes,Option<Bytes>) {
+        let move_up    = line_delta < 0.line();
+        let line_delta = line_delta.abs();
         let location   = self.vertical_motion_selection_to_caret(selection, move_up, modify);
         let n_lines    = self.line_of_offset(self.data().len());
 
-        if move_up && line_delta > location.line.value {
+        if move_up && line_delta > location.line {
             return (selection.start,Bytes(0), Some(location.offset));
         }
 
-        let line = if move_up { location.line.value - line_delta } else { location.line.value.saturating_add(line_delta) };
+        let line = if move_up { location.line - line_delta } else { location.line.saturating_add(line_delta) };
         let column = self.column_of_location(location.line, location.offset);
-        let tgt_offset = self.line_offset_of_location_X(Line(line), column);
+        let tgt_offset = self.line_offset_of_location_X(line,column);
 
-        if line > n_lines.value {
+        if line > n_lines {
             return (selection.start,self.data().len(), Some(location.offset));
         }
 
-        let line = Line(line);
         let new_offset = self.line_col_to_offset(line, tgt_offset);
         (selection.start,new_offset, Some(location.offset))
     }
@@ -198,8 +197,8 @@ impl ViewBuffer {
         let no_horiz    = |s,t|(s,t,None);
         let (start,end,horiz) : (Bytes,Bytes,Option<Bytes>) = match movement {
             Transform::All               => no_horiz(0.bytes(),text.len()),
-            Transform::Up                => self.vertical_motion(region, -1, modify),
-            Transform::Down              => self.vertical_motion(region,  1, modify),
+            Transform::Up                => self.vertical_motion(region, -1.line(), modify),
+            Transform::Down              => self.vertical_motion(region,  1.line(), modify),
             Transform::UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),
             Transform::DownExactPosition => self.vertical_motion_exact_pos(region, false, modify),
             Transform::StartOfDocument   => no_horiz(region.start,Bytes(0)),

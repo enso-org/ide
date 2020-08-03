@@ -79,14 +79,24 @@ impl Data {
     /// Return the offset to the next grapheme if any. See the documentation of the library to
     /// learn more about graphemes.
     pub fn next_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.rope.next_grapheme_offset(offset.value as usize).map(|t| Bytes(t as i32))
+        self.rope.next_grapheme_offset(offset.as_usize()).map(|t| Bytes(t as i32))
     }
 
     /// Return the offset to the previous grapheme if any. See the documentation of the library to
     /// learn more about graphemes.
     pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.rope.prev_grapheme_offset(offset.value as usize).map(|t| Bytes(t as i32))
+        self.rope.prev_grapheme_offset(offset.as_usize()).map(|t| Bytes(t as i32))
     }
+
+    pub fn offset_of_line(&self, line:Line) -> Bytes {
+        self.rope.offset_of_line(line.as_usize()).into()
+    }
+
+    pub fn line_of_offset(&self, offset:Bytes) -> Line {
+        self.rope.line_of_offset(offset.as_usize()).into()
+    }
+
+
 }
 
 

@@ -588,12 +588,12 @@ impl LineOffset for ViewModel {
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line.value,self.data().measure::<data::metric::Lines>() + 1);
-        self.data().offset_of_line(line).into()
+        let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).line());
+        self.data().offset_of_line(line)
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
-        Line(self.data().line_of_offset(offset.value as usize))
+        self.data().line_of_offset(offset)
     }
 }
 
@@ -603,12 +603,12 @@ impl LineOffset for ViewBuffer {
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
-        let line = std::cmp::min(line.value,self.data().measure::<data::metric::Lines>() + 1);
-        self.data().offset_of_line(line).into()
+        let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).line());
+        self.data().offset_of_line(line)
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
-        Line(self.data().line_of_offset(offset.value as usize))
+        self.data().line_of_offset(offset)
     }
 }
 
@@ -627,12 +627,12 @@ pub trait LineOffset {
 
     /// Returns the byte offset corresponding to the given line.
     fn offset_of_line(&self, line:Line) -> Bytes {
-        self.data().offset_of_line(line.value).into()
+        self.data().offset_of_line(line)
     }
 
     /// Returns the visible line number containing the given offset.
     fn line_of_offset(&self, offset:Bytes) -> Line {
-        Line(self.data().line_of_offset(offset.value as usize))
+        self.data().line_of_offset(offset)
     }
 
     // How should we count "column"? Valid choices include:

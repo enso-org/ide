@@ -730,8 +730,8 @@ impl AreaData {
             let id         = selection.id;
             let start_line_index = self.lines.line_index_of_byte_offset(selection.start);
             let end_line_index = self.lines.line_index_of_byte_offset(selection.end);
-            let start_line_offset = self.buffer.offset_of_view_line(buffer::Line(start_line_index));
-            let end_line_offset = self.buffer.offset_of_view_line(buffer::Line(end_line_index));
+            let start_line_offset = self.buffer.offset_of_view_line(start_line_index.line());
+            let end_line_offset = self.buffer.offset_of_view_line(end_line_index.line());
             let start_offset_in_line = selection.start - start_line_offset;
             let end_offset_in_line = selection.end - end_line_offset;
             let min_div = self.lines.rc.borrow()[start_line_index].div_by_byte_offset(start_offset_in_line);
@@ -806,7 +806,7 @@ impl AreaData {
         let line_index   = std::cmp::min(line_index,self.lines.len() - 1);
         let div_index    = self.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
         let div          = self.lines.rc.borrow()[line_index].divs[div_index];
-        Location(buffer::Line(line_index),div.byte_offset)
+        Location(line_index.line(),div.byte_offset)
     }
 
     pub fn line_count(&self) -> usize {
@@ -835,9 +835,9 @@ impl AreaData {
 
         let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
         let line_object    = line.display_object().clone_ref();
-        let line_range     = self.buffer.range_of_view_line_raw(buffer::Line(view_line_number));
+        let line_range     = self.buffer.range_of_view_line_raw(view_line_number.line());
         let mut line_style = self.buffer.sub_style(line_range.start .. line_range.end).iter();
-        line.byte_size     = self.buffer.line_byte_size(buffer::Line(view_line_number));
+        line.byte_size     = self.buffer.line_byte_size(view_line_number.line());
 
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];
