@@ -19,8 +19,7 @@ use crate::graph_editor::component::documentation_view::get_doc_style;
 
 fn generate_mock_doc() -> String {
     let sample_data_gen = MockDocGenerator::default();
-    let inp_only_doc    = sample_data_gen.generate_data();
-    let default_input   = String::from(inp_only_doc);
+    let default_input    = sample_data_gen.generate_data();
     let program         = std::env::args().nth(1).unwrap_or(default_input);
 
     let parser = parser::DocParser::new_or_panic();

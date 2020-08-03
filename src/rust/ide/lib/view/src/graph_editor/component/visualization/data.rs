@@ -153,7 +153,7 @@ pub struct MockDocGenerator;
 
 impl MockDocGenerator {
     /// Generate new data set.
-    pub fn generate_data(&self) -> String {
+    pub fn generate_data(self) -> String {
         let inp_only_doc = r#"DEPRECATED
                           REMOVED - replaced by Foo Bar
                           ADDED

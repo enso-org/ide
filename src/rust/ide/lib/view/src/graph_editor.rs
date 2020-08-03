@@ -2208,13 +2208,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             let content = serde_json::to_value(data).unwrap();
             let data    = visualization::Data::from(content);
             inputs.set_visualization_data.emit((*node_id,data.clone()));
-
-            let sample_doc_generator = MockDocGenerator::default();
-            let data    = sample_doc_generator.generate_data();
-            let content = serde_json::to_value(data).unwrap();
-            let data    = visualization::Data::from(content);
-            inputs.set_documentation_data.emit(data);
         }
+
+        let sample_doc_generator = MockDocGenerator::default();
+        let data    = sample_doc_generator.generate_data();
+        let content = serde_json::to_value(data).unwrap();
+        let data    = visualization::Data::from(content);
+        inputs.set_documentation_data.emit(data);
     }));
 
     def _set_data = inputs.set_visualization_data.map(f!([nodes]((node_id,data)) {
