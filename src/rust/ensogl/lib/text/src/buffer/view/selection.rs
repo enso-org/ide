@@ -7,6 +7,19 @@ use crate::buffer::data::Range;
 
 
 
+// =====================
+// === SelectionData ===
+// =====================
+
+
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Default)]
+#[allow(missing_docs)]
+pub struct SlectionData<T=Location> {
+    pub start : T,
+    pub end   : T
+}
+
+
 // =================
 // === Selection ===
 // =================

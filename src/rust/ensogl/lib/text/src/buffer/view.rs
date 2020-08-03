@@ -547,6 +547,14 @@ impl ViewModel {
         self.offset_of_line(next_line).and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.data().len())
     }
 
+    pub fn end_offset(&self) -> Bytes {
+        self.data().len()
+    }
+
+    pub fn end_location(&self) -> Location {
+        self.offset_to_location(self.end_offset())
+    }
+
     /// Return the offset after the last character of a given line if the line exists.
     pub fn end_offset_of_line(&self, line:Line) -> Option<Bytes> {
         let next_line  = self.last_view_line_number() + 1.line();
@@ -568,6 +576,18 @@ impl ViewModel {
         self.offset_of_line(line)
     }
 
+    pub fn crop_selection(&self, selection:Selection) -> Selection {
+        let min_line = 0.line();
+        let max_line = self.last_line();
+        let max_loc  = self.end_location();
+        let start    = selection.start;
+        let start    = if selection.start.line < min_line { default() } else { start };
+        let start    = if selection.start.line > max_line { max_loc   } else { start };
+        let end      = selection.end;
+        let end      = if selection.end.line   < min_line { default() } else { end };
+        let end      = if selection.end.line   > max_line { max_loc   } else { end };
+        selection.with_start(start).with_end(end)
+    }
 //    pub fn offset_of_view_location(&self, location:impl Into<Location>) -> Bytes {
 //        let location = location.into();
 //        self.offset_of_view_line(location.line) + self.line_offset_of_location_X(location)
