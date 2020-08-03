@@ -13,7 +13,8 @@ use ensogl::display;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 
-fn get_doc_style() -> String {
+/// Generates Documentation View stylesheet.
+pub fn get_doc_style() -> String {
     let css = r#"<style>
 .docVis {
   -webkit-font-smoothing: antialiased;
@@ -494,12 +495,15 @@ impl DocumentationViewModel {
 
         let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
+        // Fixes a Doc Parser Bug - to be removed when rewritten to rust
         let data_str = data_str.replace("\\n", "\n");
         let data_str = data_str.replace("\"", "");
 
         let parser = parser::DocParser::new_or_panic();
         let output = parser.generate_html_doc_pure(data_str);
         let output = output.unwrap_or_else(|_| String::from(placeholder_str));
+        // Fixes a Doc Parser related idea, where stylesheet was a separate file
+        let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");
 
         let data_str = format!(r#"<div class="docVis">{}{}</div>"#,
                                get_doc_style(), output);
