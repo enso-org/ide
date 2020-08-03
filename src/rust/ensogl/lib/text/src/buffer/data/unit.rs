@@ -136,5 +136,15 @@ newtype! {
 /// A type representing 2d measurements.
 Location {
     line   : Line,
-    offset : Bytes,
+    column : Column,
 }}
+
+impl Location {
+    pub fn with_line(self,line:Line) -> Self {
+        Self {line,..self}
+    }
+
+    pub fn with_column(self,column:Column) -> Self {
+        Self {column,..self}
+    }
+}

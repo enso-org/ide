@@ -530,7 +530,7 @@ impl ViewModel {
 
     pub fn offset_of_view_location(&self, location:impl Into<Location>) -> Bytes {
         let location = location.into();
-        self.offset_of_view_line(location.line) + location.offset
+        self.offset_of_view_line(location.line) + self.line_offset_of_location_X(location)
     }
 
     pub fn line_byte_size(&self, line:Line) -> Bytes {
@@ -588,6 +588,14 @@ impl LineOffset for ViewModel {
         self.buffer.data.borrow().data.clone() // FIXME
     }
 
+    fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column {
+        self.column_of_location_X(line,line_offset)
+    }
+
+    fn line_col_to_offset(&self, location:Location) -> Bytes {
+        self.line_offset_of_location_X(location)
+    }
+
     fn offset_of_line(&self,line:Line) -> Bytes {
         let line = std::cmp::min(line,(self.data().measure::<data::metric::Lines>() + 1).into());
         self.data().offset_of_line(line)
@@ -601,6 +609,14 @@ impl LineOffset for ViewModel {
 impl LineOffset for ViewBuffer {
     fn data(&self) -> Data {
         self.buffer.data.borrow().data.clone() // FIXME
+    }
+
+    fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column {
+        self.column_of_location_X(line,line_offset)
+    }
+
+    fn line_col_to_offset(&self, location:Location) -> Bytes {
+        self.line_offset_of_location_X(location)
     }
 
     fn offset_of_line(&self,line:Line) -> Bytes {
@@ -636,6 +652,8 @@ pub trait LineOffset {
         self.data().line_of_offset(offset)
     }
 
+    fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column;
+
     // How should we count "column"? Valid choices include:
     // * Unicode codepoints
     // * grapheme clusters
@@ -646,39 +664,40 @@ pub trait LineOffset {
     // Of course, all these are identical for ASCII. For now we use UTF-8 code units
     // for simplicity.
 
-    fn offset_to_line_col(&self, offset:Bytes) -> Location {
-        let line = self.line_of_offset(offset);
-        let col  = (offset - self.offset_of_line(line));
-        Location(line,col)
+    fn offset_to_location(&self, offset:Bytes) -> Location {
+        let line         = self.line_of_offset(offset);
+        let line_offset  = (offset - self.offset_of_line(line));
+        let column       = self.column_of_location(line,line_offset);
+        Location(line,column)
     }
 
-    fn line_col_to_offset(&self, line:Line, col:Bytes) -> Bytes {
-        let mut offset = self.offset_of_line(line).saturating_add(col.value.bytes()); // fixme: raw.bytes seems wrong
-        let len = self.data().len();
-        if offset >= len {
-            offset = len;
-            if self.line_of_offset(offset) <= line {
-                return offset;
-            }
-        } else {
-            // Snap to grapheme cluster boundary
-            offset = self.data().prev_grapheme_offset(offset + 1.bytes()).unwrap_or_default();
-        }
-
-        // clamp to end of line
-        let next_line_offset = self.offset_of_line(line + 1.line());
-        if offset >= next_line_offset {
-            if let Some(prev) = self.data().prev_grapheme_offset(next_line_offset) {
-                offset = prev;
-            }
-        }
-        offset
-    }
+    fn line_col_to_offset(&self, location:Location) -> Bytes;// {
+//        let mut offset = self.offset_of_line(line).saturating_add(col.value.bytes()); // fixme: raw.bytes seems wrong
+//        let len = self.data().len();
+//        if offset >= len {
+//            offset = len;
+//            if self.line_of_offset(offset) <= line {
+//                return offset;
+//            }
+//        } else {
+//            // Snap to grapheme cluster boundary
+//            offset = self.data().prev_grapheme_offset(offset + 1.bytes()).unwrap_or_default();
+//        }
+//
+//        // clamp to end of line
+//        let next_line_offset = self.offset_of_line(line + 1.line());
+//        if offset >= next_line_offset {
+//            if let Some(prev) = self.data().prev_grapheme_offset(next_line_offset) {
+//                offset = prev;
+//            }
+//        }
+//        offset
+//    }
 
 //    /// Get the line range of a selected region.
 //    fn get_line_range(&self, text: &Text, region: &Selection) -> std::ops::Range<usize> {
-//        let (first_line_number, _) = self.offset_to_line_col(text, region.min());
-//        let (mut last_line, last_col) = self.offset_to_line_col(text, region.max());
+//        let (first_line_number, _) = self.offset_to_location(text, region.min());
+//        let (mut last_line, last_col) = self.offset_to_location(text, region.max());
 //        if last_col == 0 && last_line > first_line_number {
 //            last_line -= 1;
 //        }

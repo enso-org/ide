@@ -38,10 +38,10 @@ pub enum Transform {
     Up,
     /// Move down one visible line.
     Down,
-    /// Move up to the next line that can preserve the cursor position.
-    UpExactPosition,
-    /// Move down to the next line that can preserve the cursor position.
-    DownExactPosition,
+//    /// Move up to the next line that can preserve the cursor position.
+//    UpExactPosition,
+//    /// Move down to the next line that can preserve the cursor position.
+//    DownExactPosition,
     /// Move to the start of the text line.
     StartOfParagraph,
     /// Move to the end of the text line.
@@ -64,38 +64,33 @@ impl ViewBuffer {
     /// Convert selection to caret location after a vertical movement.
     fn vertical_motion_selection_to_caret
     (&self, selection:Selection, move_up:bool, modify:bool) -> Location {
-        let offset = if modify { selection.end } else if move_up { selection.min() } else { selection.max() };
-        self.offset_to_line_col(offset)
-
-//        let column   = selection.column.unwrap_or(location.column);
-//        Location(location.line,column)
+        let end    = selection.end;
+        let offset = if modify {end} else if move_up {selection.min()} else {selection.max()};
+        self.offset_to_location(offset)
     }
 
     /// Compute movement based on vertical motion by the given number of lines.
     fn vertical_motion
     (&self, selection:Selection, line_delta:Line, modify:bool) -> (Bytes,Bytes,Option<Column>) {
-        let move_up    = line_delta < 0.line();
-        let line_delta = line_delta.abs();
-        let location   = self.vertical_motion_selection_to_caret(selection, move_up, modify);
-        let n_lines    = self.line_of_offset(self.data().len());
-
-        if move_up && line_delta > location.line {
-            return (selection.start,Bytes(0),None); // FIXME None -> Some(location.offset)
+        let move_up       = line_delta < 0.line();
+        let location      = self.vertical_motion_selection_to_caret(selection,move_up,modify);
+        let line          = location.line + line_delta;
+        if line < 0.line() {
+            (selection.start,Bytes(0),None) // FIXME None -> Some(location.offset)
+        } else if line > self.last_line() {
+            (selection.start,self.data().len(),None) // FIXME None -> Some(location.offset)
+        } else {
+            let tgt_location = location.with_line(line);
+            let new_offset = self.line_offset_of_location_X2(tgt_location);
+            (selection.start, new_offset, None) // FIXME None -> Some(location.offset)
         }
-
-        let line = if move_up { location.line - line_delta } else { location.line.saturating_add(line_delta) };
-        let column = self.column_of_location(location.line, location.offset);
-        let tgt_offset = self.line_offset_of_location_X(line,column);
-
-        if line > n_lines {
-            return (selection.start,self.data().len(),None) // FIXME None -> Some(location.offset)
-        }
-
-        let new_offset = self.line_col_to_offset(line, tgt_offset);
-        (selection.start,new_offset,None) // FIXME None -> Some(location.offset)
     }
 
-    fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column {
+    fn last_line(&self) -> Line {
+        self.line_of_offset(self.data().len())
+    }
+
+    pub fn column_of_location_X(&self, line:Line, line_offset:Bytes) -> Column {
         let mut offset = self.offset_of_line(line);
         let tgt_offset = offset + line_offset;
         let mut column = 0.column();
@@ -111,11 +106,11 @@ impl ViewBuffer {
         column
     }
 
-    fn line_offset_of_location_X(&self, line:Line, line_column:Column) -> Bytes {
-        let start_offset = self.offset_of_line(line);
+    pub fn line_offset_of_location_X(&self, location:Location) -> Bytes {
+        let start_offset = self.offset_of_line(location.line);
         let mut offset = start_offset;
         let mut column = 0.column();
-        while column < line_column {
+        while column < location.column {
             match self.next_grapheme_offset(offset) {
                 None => break,
                 Some(off) => {
@@ -127,43 +122,22 @@ impl ViewBuffer {
         offset - start_offset
     }
 
-    /// Compute movement based on vertical motion by the given number of lines skipping
-    /// any line that is shorter than the current cursor position.
-    fn vertical_motion_exact_pos
-    (&self, region: Selection, move_up: bool, modify: bool) -> (Bytes,Bytes,Option<Column>) {
-        let location = self.vertical_motion_selection_to_caret(region, move_up, modify);
-        let lines_count = self.line_of_offset(self.data().len());
-        let line_offset = self.offset_of_line(location.line);
-        let next_line_offset = self.offset_of_line(location.line.saturating_add(1.line()));
-        let line_len = next_line_offset - line_offset;
-        if move_up && location.line == Line(0) {
-            return (region.start,self.line_col_to_offset(location.line, location.offset),None) // FIXME None -> Some(location.offset)
-        }
-        let mut line = if move_up { location.line - 1.line() } else { location.line.saturating_add(1.line()) };
-
-        // If the active columns is longer than the current line, use the current line length.
-        let line_last_column = line_len;
-        let col = if line_last_column < location.offset { line_last_column - 1.bytes() } else { location.offset };
-
-        loop {
-            let line_len = self.offset_of_line(line + 1.line()) - self.offset_of_line(line);
-
-            // If the line is longer than the current cursor position, break.
-            // We use > instead of >= because line_len includes newline.
-            if line_len > col {
-                break;
+    pub fn line_offset_of_location_X2(&self, location:Location) -> Bytes {
+        let start_offset     = self.offset_of_line(location.line);
+        let next_line_offset = self.offset_of_line(location.line + 1.line());
+        let max_offset       = self.prev_grapheme_offset(next_line_offset).unwrap_or(next_line_offset);
+        let mut offset = start_offset;
+        let mut column = 0.column();
+        while column < location.column {
+            match self.next_grapheme_offset(offset) {
+                None => break,
+                Some(off) => {
+                    column += 1.column();
+                    offset = off;
+                }
             }
-
-            // If you are trying to add a selection past the end of the file or before the first line, return original selection
-            if line >= lines_count || (line == Line(0) && move_up) {
-                line = location.line;
-                break;
-            }
-
-            line = if move_up { line - 1.line() } else { line.saturating_add(1.line()) };
         }
-
-        (region.start,self.line_col_to_offset(line, col),None) // FIXME None -> Some(col)
+        offset.min(max_offset)
     }
 
     /// Apply the movement to each region in the selection, and returns the union of the results.
@@ -199,8 +173,8 @@ impl ViewBuffer {
             Transform::All               => no_horiz(0.bytes(),text.len()),
             Transform::Up                => self.vertical_motion(region, -1.line(), modify),
             Transform::Down              => self.vertical_motion(region,  1.line(), modify),
-            Transform::UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),
-            Transform::DownExactPosition => self.vertical_motion_exact_pos(region, false, modify),
+//            Transform::UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),
+//            Transform::DownExactPosition => self.vertical_motion_exact_pos(region, false, modify),
             Transform::StartOfDocument   => no_horiz(region.start,Bytes(0)),
             Transform::EndOfDocument     => no_horiz(region.start,text.len()),
 

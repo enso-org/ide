@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use crate::buffer::data::unit::*;
 use crate::buffer::Transform;
-use crate::buffer;
+use crate::{buffer, LineOffset};
 use crate::typeface::glyph::Glyph;
 use crate::typeface::glyph;
 use crate::typeface::pen;
@@ -806,7 +806,9 @@ impl AreaData {
         let line_index   = std::cmp::min(line_index,self.lines.len() - 1);
         let div_index    = self.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
         let div          = self.lines.rc.borrow()[line_index].divs[div_index];
-        Location(line_index.into(),div.byte_offset)
+        let line         = line_index.into();
+        let column       = self.buffer.column_of_location(line,div.byte_offset);
+        Location(line,column)
     }
 
     pub fn line_count(&self) -> usize {
