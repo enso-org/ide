@@ -32,8 +32,6 @@ pub enum EntryKind {
 /// Methods are visible "Everywhere", as they are imported on a module level, so they are not
 /// specific to any particular span in the module file.
 /// However local variables and local function have limited visibility.
-///
-// TODO [mwu] It should be specified what is relation between scope and different module files.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Scope {
     /// The entry is visible in the whole module where it was defined. It can be also brought to
@@ -45,15 +43,7 @@ pub enum Scope {
     InModule {range:Range<TextLocation>}
 }
 
-impl Scope {
-    /// Check if the entry described by this `Scope` can be visible in the given location.
-    pub fn contains(&self, location:TextLocation) -> bool {
-        match self {
-            Self::Everywhere         => true,
-            Self::InModule   {range} => range.contains(&location),
-        }
-    }
-}
+
 
 /// The Suggestion Database Entry.
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -159,6 +149,14 @@ impl Entry {
         }
     }
 
+    /// Checks if entry is visible at given location in a specific module.
+    pub fn is_visible_at(&self, module:&QualifiedName, location:TextLocation) -> bool {
+        match &self.scope {
+            Scope::Everywhere         => true,
+            Scope::InModule   {range} => self.module == *module && range.contains(&location),
+        }
+    }
+
     /// Generates HTML documentation for documented suggestion.
     fn gen_doc(doc: String) -> FallibleResult<String> {
         let parser = DocParser::new()?;
@@ -259,25 +257,31 @@ impl SuggestionDatabase {
         self.entries.borrow().values().cloned().find(|entry| entry.method_id().contains(&id))
     }
 
+    /// Search the database for entries with given name and visible at given location in module.
     pub fn lookup_by_name_and_location
-    (&self, name:impl Str, location:TextLocation) -> Vec<Rc<Entry>> {
-        self.entries.borrow().values().cloned().filter(|entry| {
-            &entry.name == name.as_ref() && entry.scope.contains(location)
-        }).collect()
+    (&self, name:impl Str, module:&QualifiedName, location:TextLocation) -> Vec<Rc<Entry>> {
+        self.entries.borrow().values().filter(|entry| {
+            &entry.name == name.as_ref() && entry.is_visible_at(module,location)
+        }).cloned().collect()
     }
 
+    /// Search the database for Local or Function entries with given name and visible at given
+    /// location in module.
     pub fn lookup_locals_by_name_and_location
-    (&self, name:impl Str, location:TextLocation) -> Vec<Rc<Entry>> {
+    (&self, name:impl Str, module:&QualifiedName, location:TextLocation) -> Vec<Rc<Entry>> {
         self.entries.borrow().values().cloned().filter(|entry| {
-            (entry.kind == EntryKind::Function || entry.kind == EntryKind::Local) &&
-            &entry.name == name.as_ref() && entry.scope.contains(location)
+            let is_local = entry.kind == EntryKind::Function || entry.kind == EntryKind::Local;
+            is_local && &entry.name == name.as_ref() && entry.is_visible_at(module,location)
         }).collect()
     }
 
-    pub fn lookup_by_name_and_module
+    /// Search the database for Method entry with given name and defined for given module.
+    pub fn lookup_module_method
     (&self, name:impl Str, module:&QualifiedName) -> Option<Rc<Entry>> {
         self.entries.borrow().values().cloned().find(|entry| {
-            &entry.name == name.as_ref() && &entry.module == module
+            let is_method             = entry.kind == EntryKind::Method;
+            let is_defined_for_module = entry.self_type.contains(&module.name());
+            is_method && is_defined_for_module && &entry.name == name.as_ref()
         })
     }
 

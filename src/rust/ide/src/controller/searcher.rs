@@ -14,7 +14,7 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
-use failure::_core::fmt::Formatter;
+
 
 
 // =======================
@@ -190,7 +190,7 @@ impl HasRepr for ParsedInput {
 }
 
 impl Display for ParsedInput {
-    fn fmt(&self, f:&mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"{}",self.repr())
     }
 }
@@ -350,6 +350,7 @@ pub struct Searcher {
     parser           : Parser,
     this_arg         : Rc<Option<ThisNode>>,
     position_in_code : Immutable<TextLocation>,
+    project_name     : ImString,
 }
 
 impl Searcher {
@@ -394,6 +395,7 @@ impl Searcher {
             language_server  : project.json_rpc(),
             parser           : project.parser(),
             position_in_code : Immutable(position),
+            project_name     : project.name(),
         };
         ret.reload_list();
         Ok(ret)
@@ -544,8 +546,7 @@ impl Searcher {
         let data_borrowed = self.data.borrow();
         let fragments     = data_borrowed.fragments_added_by_picking.iter();
         let imports       = fragments.map(|frag| &frag.picked_suggestion.module);
-        let module_ast    = self.graph.graph().module.ast();
-        let mut module    = double_representation::module::Info {ast:module_ast};
+        let mut module    = double_representation::module::Info {ast:self.module_ast()};
         for import in imports {
             let import        = ImportInfo::from_qualified_name(&import);
             let already_there = module.iter_imports().any(|imp| imp == import);
@@ -657,26 +658,30 @@ impl Searcher {
         let opt_result = || {
             let call_ast = self.data.borrow().input.expression.as_ref()?.func.clone_ref();
             let call     = SimpleFunctionCall::try_new(&call_ast)?;
-            if let Some(module) = self.module_method_called(&call) {
-                let entry = self.database.lookup_by_name_and_module(call.function_name,&module);
+            if let Some(module) = self.module_whose_method_is_called(&call) {
+                let name  = call.function_name;
+                let entry = self.database.lookup_module_method(name,&module);
                 Some(entry.into_iter().collect())
             } else {
                 let name     = &call.function_name;
+                let module   = self.module_qualified_name();
                 let location = *self.position_in_code;
-                Some(self.database.lookup_by_name_and_location(name,location))
+                Some(self.database.lookup_by_name_and_location(name,&module,location))
             }
         };
         opt_result().unwrap_or(Vec::new())
     }
 
-    fn module_method_called(&self, call:&SimpleFunctionCall) -> Option<QualifiedName> {
-        let module_ast      = self.graph.graph().module.ast();
+    /// For the simple function call checks if the function was called
+    fn module_whose_method_is_called(&self, call:&SimpleFunctionCall) -> Option<QualifiedName> {
         let position        = *self.position_in_code;
-        let module          = double_representation::module::Info {ast:module_ast};
+        let module          = double_representation::module::Info {ast:self.module_ast()};
         let this_name       = ast::identifier::name(call.this_argument.as_ref()?)?;
-        let matching_locals = self.database.lookup_locals_by_name_and_location(this_name,position);
-        let not_local_name  = matching_locals.is_empty();
-        let imported        = || module.iter_imports().find_map(|import| {
+        let module_name     = self.module_qualified_name();
+        let matching_locals = self.database.lookup_locals_by_name_and_location
+            (this_name,&module_name,position);
+        let not_local_name = matching_locals.is_empty();
+        let imported       = || module.iter_imports().find_map(|import| {
             import.qualified_name().ok().filter(|module| module.name() == this_name)
         });
         not_local_name.and_option_from(imported)
@@ -707,6 +712,14 @@ impl Searcher {
         self.data.borrow().input.expression.as_ref()
             .and_then(|expr| ast::opr::as_access_chain(&expr.func))
             .is_some()
+    }
+
+    fn module_ast(&self) -> ast::known::Module {
+        self.graph.graph().module.ast()
+    }
+
+    fn module_qualified_name(&self) -> QualifiedName {
+        self.graph.graph().module.path().qualified_module_name(&*self.project_name)
     }
 }
 
@@ -827,16 +840,17 @@ mod test {
             let this        = ThisNode::new(vec![node.info.id()],&graph.graph());
             let this        = data.selected_node.and_option(this);
             let searcher = Searcher {
-                logger          : default(),
-                data            : default(),
-                notifier        : default(),
                 graph,
-                mode            : Immutable(Mode::NewNode {position:default()}),
-                database        : default(),
-                language_server : language_server::Connection::new_mock_rc(client),
-                parser          : Parser::new_or_panic(),
-                this_arg        : Rc::new(this),
+                logger           : default(),
+                data             : default(),
+                notifier         : default(),
+                mode             : Immutable(Mode::NewNode {position:default()}),
+                database         : default(),
+                language_server  : language_server::Connection::new_mock_rc(client),
+                parser           : Parser::new_or_panic(),
+                this_arg         : Rc::new(this),
                 position_in_code : Immutable(end_of_code),
+                project_name     : ImString::new(&data.graph.graph.project_name),
             };
             let entry1 = model::suggestion_database::Entry {
                 name          : "testFunction1".to_string(),
