@@ -59,9 +59,8 @@ impl DocumentationViewModel {
         self.reload_style();
     }
 
-    fn placeholder_str() -> String {
-        "<h3>Enso Documentation Viewer</h3><p>No documentation available</p>".to_string()
-    }
+    const PLACEHOLDER_STR: &'static str = "<h3>Enso Documentation Viewer</h3>\
+                                           <p>No documentation available</p>";
 
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
         let data_inner = match data {
@@ -77,7 +76,7 @@ impl DocumentationViewModel {
 
         let parser = parser::DocParser::new_or_panic();
         let output = parser.generate_html_doc_pure(data_str);
-        let output = output.unwrap_or_else(|_| DocumentationViewModel::placeholder_str());
+        let output = output.unwrap_or_else(|_| String::from(DocumentationViewModel::PLACEHOLDER_STR));
         // Fixes a Doc Parser related idea, where stylesheet was a separate file
         let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");
 
@@ -88,7 +87,7 @@ impl DocumentationViewModel {
 
     /// Generates welcome screen HTML.
     pub fn welcome_screen(&self) {
-        let placeholder = DocumentationViewModel::placeholder_str();
+        let placeholder = DocumentationViewModel::PLACEHOLDER_STR;
         let data_str    = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), placeholder);
         self.dom.dom().set_inner_html(&data_str)
     }
