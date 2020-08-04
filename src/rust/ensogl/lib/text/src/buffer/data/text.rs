@@ -89,6 +89,22 @@ impl Text {
         (..self.byte_size()).into()
     }
 
+    pub fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
+        let mut offset = self.offset_of_line(line)?;
+        let tgt_offset = offset + line_offset;
+        let mut column = 0.column();
+        while offset < tgt_offset {
+            match self.next_grapheme_offset(offset) {
+                None => return None,
+                Some(off) => {
+                    column += 1.column();
+                    offset = off;
+                }
+            }
+        }
+        Some(column)
+    }
+
     /// Constraint the provided range so it will be contained of the range of this data. This ensures that
     /// the provided range will be valid for operations on this data.
     pub fn clamp_range(&self, range:impl RangeBounds) -> Range<Bytes> {

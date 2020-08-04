@@ -650,8 +650,8 @@ impl LineOffset for ViewModel {
         self.buffer.data.borrow().text.clone() // FIXME
     }
 
-    fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column {
-        self.column_of_location_X(line,line_offset)
+    fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
+        self.buffer.line_and_offset_to_column(line,line_offset)
     }
 
     fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
@@ -672,8 +672,8 @@ impl LineOffset for ViewBuffer {
         self.buffer.data.borrow().text.clone() // FIXME
     }
 
-    fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column {
-        self.column_of_location_X(line,line_offset)
+    fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
+        self.buffer.line_and_offset_to_column(line,line_offset)
     }
 
     fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
@@ -710,7 +710,7 @@ pub trait LineOffset {
         self.data().line_of_offset(offset)
     }
 
-    fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column;
+    fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column>;
 
     // How should we count "column"? Valid choices include:
     // * Unicode codepoints
@@ -725,7 +725,7 @@ pub trait LineOffset {
     fn offset_to_location(&self, offset:Bytes) -> Location {
         let line         = self.line_of_offset(offset);
         let line_offset  = (offset - self.offset_of_line(line).unwrap());
-        let column       = self.column_of_location(line,line_offset);
+        let column       = self.line_and_offset_to_column(line,line_offset).unwrap();
         Location(line,column)
     }
 

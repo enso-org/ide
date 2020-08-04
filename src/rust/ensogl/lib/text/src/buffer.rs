@@ -130,6 +130,10 @@ impl Buffer {
         self.data.borrow().sub_style(range)
     }
 
+    pub fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
+        self.data.borrow().line_and_offset_to_column(line,line_offset)
+    }
+
     /// Return the offset to the next grapheme if any. See the documentation of the library to
     /// learn more about graphemes.
     pub fn next_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {

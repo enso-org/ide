@@ -77,39 +77,6 @@ impl ViewBuffer {
     }
 
 
-
-    pub fn column_of_location_X(&self, line:Line, line_offset:Bytes) -> Column {
-        let mut offset = self.offset_of_line(line).unwrap();
-        let tgt_offset = offset + line_offset;
-        let mut column = 0.column();
-        while offset < tgt_offset {
-            match self.next_grapheme_offset(offset) {
-                None => break,
-                Some(off) => {
-                    column += 1.column();
-                    offset = off;
-                }
-            }
-        }
-        column
-    }
-
-//    pub fn line_offset_of_location_X(&self, location:Location) -> Bytes {
-//        let start_offset = self.offset_of_line(location.line).unwrap();
-//        let mut offset = start_offset;
-//        let mut column = 0.column();
-//        while column < location.column {
-//            match self.next_grapheme_offset(offset) {
-//                None => break,
-//                Some(off) => {
-//                    column += 1.column();
-//                    offset = off;
-//                }
-//            }
-//        }
-//        offset - start_offset
-//    }
-
     pub fn line_offset_of_location_X2(&self, location:Location) -> Option<Bytes> {
         if location.line < 0.line() {
             return Some(0.bytes())
