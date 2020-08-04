@@ -22,7 +22,7 @@ pub mod traits {
     pub use super::DefaultSetter as TRAIT_DefaultSetter;
 }
 
-pub use data::Data;
+pub use data::Text;
 pub use data::Range;
 pub use data::unit::*;
 pub use view::*;
@@ -89,12 +89,12 @@ impl Buffer {
         self.data.borrow_mut()
     }
 
-    pub fn data(&self) -> Data {
+    pub fn data(&self) -> Text {
         self.data.borrow().data.clone()
     }
 
     pub fn last_line(&self) -> Line {
-        self.line_of_offset(self.data().byte_size())
+        self.data.borrow().last_line()
     }
 
     pub fn line_of_offset(&self, offset:Bytes) -> Line {
@@ -109,7 +109,7 @@ impl Buffer {
         self.data.borrow().style.clone()
     }
 
-    pub fn set_data(&self, data:Data) {
+    pub fn set_data(&self, data:Text) {
         self.data.borrow_mut().data = data;
     }
 
@@ -148,12 +148,12 @@ impl Buffer {
 /// Text container with associated styles.
 #[derive(Debug,Default)]
 pub struct BufferData {
-    pub(crate) data  : Data,
+    pub(crate) data  : Text,
     pub(crate) style : Style,
 }
 
 impl Deref for BufferData {
-    type Target = Data;
+    type Target = Text;
     fn deref(&self) -> &Self::Target {
         &self.data
     }
@@ -165,7 +165,7 @@ impl BufferData {
     }
 
     pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
-        let range = self.crop_range(range);
+        let range = self.clamp_range(range);
         self.style.sub(range)
     }
 
@@ -173,8 +173,8 @@ impl BufferData {
         self.style.clone()
     }
 
-    pub fn insert(&mut self, range:impl data::RangeBounds, text:&Data) {
-        let range = self.crop_range(range);
+    pub fn insert(&mut self, range:impl data::RangeBounds, text:&Text) {
+        let range = self.clamp_range(range);
         self.data.rope.edit(range.into_rope_interval(),text.rope.clone());
         self.style.modify(range,text.byte_size());
     }

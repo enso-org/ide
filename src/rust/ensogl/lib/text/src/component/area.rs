@@ -729,7 +729,7 @@ impl AreaData {
         let mut selection_map     = self.selection_map.borrow_mut();
         let mut new_selection_map = SelectionMap::default();
         for sel in selections {
-            let sel = self.buffer.crop_selection(*sel);
+            let sel = self.buffer.clamp_selection(*sel);
             let id         = sel.id;
             let start_line_index = sel.start.line.as_usize();
             let end_line_index = sel.end.line.as_usize();

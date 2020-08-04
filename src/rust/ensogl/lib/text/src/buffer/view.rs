@@ -12,7 +12,7 @@ pub use selection::Selection;
 
 use crate::buffer::style::Style;
 use crate::buffer::data;
-use crate::buffer::data::Data;
+use crate::buffer::data::Text;
 use crate::buffer::data::unit::*;
 use crate::buffer::Buffer;
 
@@ -103,8 +103,8 @@ const DEFAULT_LINE_COUNT : usize = 10;
 
 #[derive(Debug,Clone,Default)]
 pub struct HistoryData {
-    pub undo_stack : Vec<(Data,Style,selection::Group)>,
-    pub redo_stack : Vec<(Data,Style,selection::Group)>,
+    pub undo_stack : Vec<(Text,Style,selection::Group)>,
+    pub redo_stack : Vec<(Text,Style,selection::Group)>,
 }
 
 #[derive(Debug,Clone,CloneRef,Default)]
@@ -248,7 +248,7 @@ impl ViewBuffer {
     }
 
     /// Insert new text in the place of current selections / cursors.
-    pub fn insert(&self, text:impl Into<Data>) -> selection::Group {
+    pub fn insert(&self, text:impl Into<Text>) -> selection::Group {
         self.modify(Transform::LeftSelectionBorder,text)
     }
 
@@ -264,7 +264,7 @@ impl ViewBuffer {
     /// This function converts all selections to byte-based ones first, and then applies all
     /// modification rules. This way, it can work in an 1D byte-based space (as opposed to 2D
     /// location-based space), which makes handling multiple cursors much easier.
-    pub fn modify(&self, transform:Transform, text:impl Into<Data>) -> selection::Group {
+    pub fn modify(&self, transform:Transform, text:impl Into<Text>) -> selection::Group {
         self.commit_history();
         let text                    = text.into();
         let text_byte_size          = text.byte_size();
@@ -510,13 +510,9 @@ impl ViewModel {
     }
 
     pub fn last_view_line_number(&self) -> Line {
-        let max_line          = self.last_line_number();
+        let max_line          = self.last_line();
         let line_count : Line = self.line_count().into();
         max_line.min(self.first_line_number() + line_count)
-    }
-
-    pub fn last_line_number(&self) -> Line {
-        self.line_of_offset(self.data().byte_size())
     }
 
     pub fn line_count(&self) -> usize {
@@ -556,7 +552,7 @@ impl ViewModel {
     pub fn end_offset_of_line(&self, line:Line) -> Option<Bytes> {
         let next_line  = self.last_view_line_number() + 1.line();
         let opt_result = self.offset_of_line(next_line).and_then(|t| self.prev_grapheme_offset(t));
-        opt_result.or_else(|| (line <= self.last_line_number()).as_some_from(|| self.data().byte_size()))
+        opt_result.or_else(|| (line <= self.last_line()).as_some_from(|| self.data().byte_size()))
     }
 
     /// Return the offset after the last character of a given view line if the line exists.
@@ -573,7 +569,7 @@ impl ViewModel {
         self.offset_of_line(line)
     }
 
-    pub fn crop_selection(&self, selection:Selection) -> Selection {
+    pub fn clamp_selection(&self, selection:Selection) -> Selection {
         let min_line = 0.line();
         let max_line = self.last_line();
         let max_loc  = self.end_location();
@@ -619,7 +615,7 @@ impl ViewModel {
         let range        = self.view_range();
         let rope_range   = range.start.as_usize() .. range.end.as_usize();
         let mut lines    = self.buffer.borrow().lines(rope_range).map(|t|t.into()).collect_vec();
-        let missing_last = lines.len() == self.last_line_number().as_usize();
+        let missing_last = lines.len() == self.last_line().as_usize();
         if  missing_last { lines.push("".into()) }
         lines
     }
@@ -650,7 +646,7 @@ impl ViewModel {
 }
 
 impl LineOffset for ViewModel {
-    fn data(&self) -> Data {
+    fn data(&self) -> Text {
         self.buffer.data.borrow().data.clone() // FIXME
     }
 
@@ -664,6 +660,8 @@ impl LineOffset for ViewModel {
 
     fn offset_of_line(&self,line:Line) -> Option<Bytes> {
         let max_line = (self.data().measure::<data::metric::Lines>()).into();
+        let max_line2 = self.last_line();
+        let max_line3 = self.last_line();
         if line > max_line { None } else {
             Some(self.data().offset_of_line(line))
         }
@@ -675,7 +673,7 @@ impl LineOffset for ViewModel {
 }
 
 impl LineOffset for ViewBuffer {
-    fn data(&self) -> Data {
+    fn data(&self) -> Text {
         self.buffer.data.borrow().data.clone() // FIXME
     }
 
@@ -710,7 +708,7 @@ impl LineOffset for ViewBuffer {
 pub trait LineOffset {
     // use own breaks if present, or text if not (no line wrapping)
 
-    fn data(&self) -> Data;
+    fn data(&self) -> Text;
 
     fn offset_of_line(&self,line:Line) -> Option<Bytes>;
 
