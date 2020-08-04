@@ -93,6 +93,18 @@ impl Buffer {
         self.data.borrow().data.clone()
     }
 
+    pub fn last_line(&self) -> Line {
+        self.line_of_offset(self.data().byte_size())
+    }
+
+    pub fn line_of_offset(&self, offset:Bytes) -> Line {
+        self.data.borrow().line_of_offset(offset)
+    }
+
+    fn last_offset(&self) -> Bytes {
+        self.data().byte_size()
+    }
+
     pub fn style(&self) -> Style {
         self.data.borrow().style.clone()
     }
@@ -164,7 +176,7 @@ impl BufferData {
     pub fn insert(&mut self, range:impl data::RangeBounds, text:&Data) {
         let range = self.crop_range(range);
         self.data.rope.edit(range.into_rope_interval(),text.rope.clone());
-        self.style.modify(range,text.len());
+        self.style.modify(range,text.byte_size());
     }
 }
 

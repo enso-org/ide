@@ -267,7 +267,7 @@ impl ViewBuffer {
     pub fn modify(&self, transform:Transform, text:impl Into<Data>) -> selection::Group {
         self.commit_history();
         let text                    = text.into();
-        let text_byte_size          = text.len();
+        let text_byte_size          = text.byte_size();
         let mut new_selection_group = selection::Group::new();
         let mut byte_offset         = 0.bytes();
         for rel_byte_selection in self.byte_selections() {
@@ -516,7 +516,7 @@ impl ViewModel {
     }
 
     pub fn last_line_number(&self) -> Line {
-        self.line_of_offset(self.data().len())
+        self.line_of_offset(self.data().byte_size())
     }
 
     pub fn line_count(&self) -> usize {
@@ -532,23 +532,20 @@ impl ViewModel {
     }
 
     pub fn last_line_offset(&self) -> Bytes {
-        println!("last_view_line_number {:?}",self.last_view_line_number());
         self.offset_of_line(self.last_view_line_number()).unwrap()
     }
 
     pub fn line_offset_range(&self) -> Range<Bytes> {
-        println!("line_offset_range {:?} {:?}",self.first_line_offset(),self.last_line_offset());
         self.first_line_offset() .. self.last_line_offset()
     }
 
     pub fn view_end_offset(&self) -> Bytes {
         let next_line = self.last_view_line_number() + 1.line();
-        println!("?? next_line, off {:?} {:?}",next_line, self.offset_of_line(next_line));
-        self.offset_of_line(next_line).and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.data().len())
+        self.offset_of_line(next_line).and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.data().byte_size())
     }
 
     pub fn end_offset(&self) -> Bytes {
-        self.data().len()
+        self.data().byte_size()
     }
 
     pub fn end_location(&self) -> Location {
@@ -559,7 +556,7 @@ impl ViewModel {
     pub fn end_offset_of_line(&self, line:Line) -> Option<Bytes> {
         let next_line  = self.last_view_line_number() + 1.line();
         let opt_result = self.offset_of_line(next_line).and_then(|t| self.prev_grapheme_offset(t));
-        opt_result.or_else(|| (line <= self.last_line_number()).as_some_from(|| self.data().len()))
+        opt_result.or_else(|| (line <= self.last_line_number()).as_some_from(|| self.data().byte_size()))
     }
 
     /// Return the offset after the last character of a given view line if the line exists.

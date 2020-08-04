@@ -55,6 +55,7 @@ impl_clone_ref_as_clone!(Data);
 
 
 impl Data {
+    /// The number of grapheme clusters in this text.
     pub fn grapheme_count(&self) -> usize {
         let mut offset = 0;
         let mut count  = 0;
@@ -71,7 +72,7 @@ impl Data {
     }
 
     /// Return the len of the text in bytes.
-    pub fn len(&self) -> Bytes {
+    pub fn byte_size(&self) -> Bytes {
         Bytes(self.rope.len() as i32)
     }
 
@@ -82,13 +83,13 @@ impl Data {
 
     /// Range of the text in bytes.
     pub fn range(&self) -> Range<Bytes> {
-        (..self.len()).into()
+        (..self.byte_size()).into()
     }
 
     /// Crop the provided range so it will be contained of the range of this data. This ensures that
     /// the provided range will be valid for operations on this data.
     pub fn crop_range(&self, range:impl RangeBounds) -> Range<Bytes> {
-        range.with_upper_bound(self.len())
+        range.with_upper_bound(self.byte_size())
     }
 
     /// Return the offset to the next grapheme if any. See the documentation of the library to

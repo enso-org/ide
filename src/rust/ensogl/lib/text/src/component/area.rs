@@ -725,20 +725,16 @@ impl AreaData {
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
-        println!("=== MOD SEL ===");
         {
         let mut selection_map     = self.selection_map.borrow_mut();
         let mut new_selection_map = SelectionMap::default();
         for sel in selections {
             let sel = self.buffer.crop_selection(*sel);
-            println!("-----");
             let id         = sel.id;
             let start_line_index = sel.start.line.as_usize();
             let end_line_index = sel.end.line.as_usize();
-            println!("start end line ix: {:?} {:?}",start_line_index,end_line_index);
             let start_line_offset = self.buffer.offset_of_view_line(start_line_index.into());
             let end_line_offset = self.buffer.offset_of_view_line(end_line_index.into());
-            println!("start end line off: {:?} {:?}",start_line_offset,end_line_offset);
             let min_div = self.lines.rc.borrow()[start_line_index].div_by_column(sel.start.column);
             let max_div = self.lines.rc.borrow()[end_line_index].div_by_column(sel.end.column);
             let logger = Logger::sub(&self.logger,"cursor");

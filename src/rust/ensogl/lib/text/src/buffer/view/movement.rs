@@ -76,13 +76,7 @@ impl ViewBuffer {
         selection::Shape(selection.start,tgt_location)
     }
 
-    pub fn last_line(&self) -> Line {
-        self.line_of_offset(self.data().len())
-    }
 
-    fn last_offset(&self) -> Bytes {
-        self.data().len()
-    }
 
     pub fn column_of_location_X(&self, line:Line, line_offset:Bytes) -> Column {
         let mut offset = self.offset_of_line(line).unwrap();
@@ -180,11 +174,11 @@ impl ViewBuffer {
         let text        = &self.data();
         let shape       = |start,end| selection::Shape(start,end);
         let shape : selection::Shape = match movement {
-            Transform::All               => shape(default(),self.offset_to_location(text.len())),
+            Transform::All               => shape(default(),self.offset_to_location(text.byte_size())),
             Transform::Up                => self.vertical_motion(region, -1.line(), modify),
             Transform::Down              => self.vertical_motion(region,  1.line(), modify),
             Transform::StartOfDocument   => shape(region.start,default()),
-            Transform::EndOfDocument     => shape(region.start,self.offset_to_location(text.len())),
+            Transform::EndOfDocument     => shape(region.start,self.offset_to_location(text.byte_size())),
 
             Transform::Left => {
                 let def     = shape(region.start,default());
@@ -215,11 +209,11 @@ impl ViewBuffer {
 
             Transform::RightOfLine => {
                 let line             = region.end.line;
-                let text_len         = text.len();
+                let text_byte_size   = text.byte_size();
                 let is_last_line     = line == self.last_line();
                 let next_line_offset = self.offset_of_line(line+1.line()).unwrap();
-                let offset           = if is_last_line { text_len } else {
-                    text.prev_grapheme_offset(next_line_offset).unwrap_or(text_len)
+                let offset           = if is_last_line { text_byte_size } else {
+                    text.prev_grapheme_offset(next_line_offset).unwrap_or(text_byte_size)
                 };
                 let end = self.offset_to_location(offset);
                 shape(region.start,end)
@@ -236,7 +230,7 @@ impl ViewBuffer {
             Transform::RightWord => {
                 let end_offset      = self.line_col_to_offset(region.end).unwrap_or_default();
                 let mut word_cursor = WordCursor::new(text,end_offset);
-                let offset          = word_cursor.next_boundary().unwrap_or_else(|| text.len());
+                let offset          = word_cursor.next_boundary().unwrap_or_else(|| text.byte_size());
                 let end             = self.offset_to_location(offset);
                 shape(region.start,end)
             }

@@ -320,16 +320,20 @@ impl Group {
         }
     }
 
-    /// The smallest index so that offset > region.max() for all preceding
-    /// regions.
+    /// The smallest index so that offset > region.max() for all preceding regions. Note that the
+    /// index may be bigger than available indexes, which will mean that the new location should
+    /// be inserted on the far right side.
     pub fn selection_index_on_the_left_to(&self, location:Location) -> usize {
-        if self.sorted_selections.is_empty() || location > self.sorted_selections.last().unwrap().max() {
-            self.sorted_selections.len()
-        } else {
+        if self.sorted_selections.last().map(|t| location <= t.max()) == Some(true) {
             self.sorted_selections.binary_search_by(|r| r.max().cmp(&location)).unwrap_both()
+        } else {
+            self.sorted_selections.len()
         }
     }
 }
+
+
+// === Conversions ===
 
 impl From<Selection> for Group {
     fn from(t:Selection) -> Self {
@@ -343,6 +347,9 @@ impl From<Option<Selection>> for Group {
         t.map(|s|s.into()).unwrap_or_default()
     }
 }
+
+
+// === Iterators ===
 
 impl<'t> IntoIterator for &'t Group {
     type Item     = &'t Selection;
