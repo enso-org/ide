@@ -2,7 +2,8 @@ use crate::prelude::*;
 
 use crate::buffer::data::unit::*;
 use crate::buffer::Transform;
-use crate::{buffer, LineOffset};
+use crate::buffer;
+//use crate::{buffer, LineOffset};
 use crate::typeface::glyph::Glyph;
 use crate::typeface::glyph;
 use crate::typeface::pen;

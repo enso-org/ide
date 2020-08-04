@@ -302,6 +302,33 @@ impl ViewBuffer {
         let id    = selection.id;
         Selection::new(start,end,id)
     }
+
+    fn data(&self) -> Text {
+        self.buffer.data.borrow().text.clone() // FIXME
+    }
+
+    fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
+        self.buffer.line_and_offset_to_column(line,line_offset)
+    }
+
+    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
+        self.line_offset_of_location_X2(location)
+    }
+
+    fn offset_of_line(&self,line:Line) -> Option<Bytes> {
+        self.buffer.offset_of_line(line)
+    }
+
+    fn line_of_offset(&self,offset:Bytes) -> Line {
+        self.data().line_of_offset(offset)
+    }
+
+    fn offset_to_location(&self, offset:Bytes) -> Location {
+        let line         = self.line_of_offset(offset);
+        let line_offset  = (offset - self.offset_of_line(line).unwrap());
+        let column       = self.line_and_offset_to_column(line,line_offset).unwrap();
+        Location(line,column)
+    }
 }
 
 fn range_between(a:Selection<Bytes>, b:Selection<Bytes>) -> data::range::Range<Bytes> {
@@ -432,10 +459,6 @@ impl View {
 
             eval output.source.edit_selection ((t) model.set_selection(t));
             eval output.source.non_edit_selection ((t) model.set_selection(t));
-
-//            eval_ output.changed (model.commit_history());
-
-
 
         }
         let frp = Frp::new(network,input,output);
@@ -581,16 +604,6 @@ impl ViewModel {
         let end      = if selection.end.line   > max_line { max_loc   } else { end };
         selection.with_start(start).with_end(end)
     }
-//    pub fn offset_of_view_location(&self, location:impl Into<Location>) -> Bytes {
-//        let location = location.into();
-//        self.offset_of_view_line(location.line) + self.line_offset_of_location_X(location)
-//    }
-
-//    pub fn line_byte_size(&self, line:Line) -> Bytes {
-//        let start = self.offset_of_view_line(line);
-//        let end   = self.offset_of_view_line(line + 1.line());
-//        end - start
-//    }
 
     /// Byte range of the given line.
     pub fn line_byte_range(&self, line:Line) -> Range<Bytes> {
@@ -605,11 +618,6 @@ impl ViewModel {
         self.line_byte_range(line)
     }
 
-//    pub fn lines(&self) -> buffer::Lines {
-//        let range = self.line_offset_range();
-//        self.buffer.data.borrow().data.rope.lines(range.start.raw .. range.end.raw)
-//    }
-
     /// Return all lines of this buffer view.
     pub fn lines(&self) -> Vec<String> {
         let range        = self.view_range();
@@ -620,146 +628,4 @@ impl ViewModel {
         lines
     }
 
-//    pub fn get(&self, line:Line) -> String {
-//        let last_view_line_number = self.line_of_offset(self.data().len());
-//        let start   = self.offset_of_line(line);
-//        let end     = self.offset_of_line(line+1);
-//        let end     = self.buffer.text.prev_grapheme_offset(end).unwrap_or(end);
-//        let content = self.buffer.text.rope.subseq(start.raw .. end.raw);
-//        println!("buffer line count: {}", last_view_line_number.raw);
-//        content.into()
-//    }
-
-//    fn scroll_to_cursor(&mut self, text: &Text) {
-//        let end = self.sel_regions().last().unwrap().end;
-//        let line = self.line_of_offset(text, end);
-//        if line < self.first_line_number {
-//            self.first_line_number = line;
-//        } else if self.first_line_number + self.height <= line {
-//            self.first_line_number = line - (self.height - 1);
-//        }
-//        // We somewhat arbitrarily choose the last region for setting the old-style
-//        // selection state, and for scrolling it into view if needed. This choice can
-//        // likely be improved.
-//        self.scroll_to = Some(end);
-//    }
-}
-
-impl LineOffset for ViewModel {
-    fn data(&self) -> Text {
-        self.buffer.data.borrow().text.clone() // FIXME
-    }
-
-    fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
-        self.buffer.line_and_offset_to_column(line,line_offset)
-    }
-
-    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
-        self.line_offset_of_location_X2(location)
-    }
-
-    fn offset_of_line(&self,line:Line) -> Option<Bytes> {
-        self.buffer.offset_of_line(line)
-    }
-
-    fn line_of_offset(&self,offset:Bytes) -> Line {
-        self.data().line_of_offset(offset)
-    }
-}
-
-impl LineOffset for ViewBuffer {
-    fn data(&self) -> Text {
-        self.buffer.data.borrow().text.clone() // FIXME
-    }
-
-    fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
-        self.buffer.line_and_offset_to_column(line,line_offset)
-    }
-
-    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
-        self.line_offset_of_location_X2(location)
-    }
-
-    fn offset_of_line(&self,line:Line) -> Option<Bytes> {
-        self.buffer.offset_of_line(line)
-    }
-
-    fn line_of_offset(&self,offset:Bytes) -> Line {
-        self.data().line_of_offset(offset)
-    }
-}
-
-
-
-// ==================
-// === LineOffset ===
-// ==================
-
-/// A trait from which lines and columns in a document can be calculated
-/// into offsets inside a text an vice versa.
-pub trait LineOffset {
-    // use own breaks if present, or text if not (no line wrapping)
-
-    fn data(&self) -> Text;
-
-    fn offset_of_line(&self,line:Line) -> Option<Bytes>;
-
-
-        /// Returns the visible line number containing the given offset.
-    fn line_of_offset(&self, offset:Bytes) -> Line {
-        self.data().line_of_offset(offset)
-    }
-
-    fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column>;
-
-    // How should we count "column"? Valid choices include:
-    // * Unicode codepoints
-    // * grapheme clusters
-    // * Unicode width (so CJK counts as 2)
-    // * Actual measurement in text layout
-    // * Code units in some encoding
-    //
-    // Of course, all these are identical for ASCII. For now we use UTF-8 code units
-    // for simplicity.
-
-    fn offset_to_location(&self, offset:Bytes) -> Location {
-        let line         = self.line_of_offset(offset);
-        let line_offset  = (offset - self.offset_of_line(line).unwrap());
-        let column       = self.line_and_offset_to_column(line,line_offset).unwrap();
-        Location(line,column)
-    }
-
-    fn line_col_to_offset(&self, location:Location) -> Option<Bytes>;// {
-//        let mut offset = self.offset_of_line(line).saturating_add(col.value.bytes()); // fixme: raw.bytes seems wrong
-//        let len = self.data().len();
-//        if offset >= len {
-//            offset = len;
-//            if self.line_of_offset(offset) <= line {
-//                return offset;
-//            }
-//        } else {
-//            // Snap to grapheme cluster boundary
-//            offset = self.data().prev_grapheme_offset(offset + 1.bytes()).unwrap_or_default();
-//        }
-//
-//        // clamp to end of line
-//        let next_line_offset = self.offset_of_line(line + 1.line());
-//        if offset >= next_line_offset {
-//            if let Some(prev) = self.data().prev_grapheme_offset(next_line_offset) {
-//                offset = prev;
-//            }
-//        }
-//        offset
-//    }
-
-//    /// Get the line range of a selected region.
-//    fn get_line_range(&self, text: &Text, region: &Selection) -> std::ops::Range<usize> {
-//        let (first_line_number, _) = self.offset_to_location(text, region.min());
-//        let (mut last_line, last_col) = self.offset_to_location(text, region.max());
-//        if last_col == 0 && last_line > first_line_number {
-//            last_line -= 1;
-//        }
-//
-//        first_line_number..(last_line + 1)
-//    }
 }
