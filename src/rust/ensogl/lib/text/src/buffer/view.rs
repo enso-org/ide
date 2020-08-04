@@ -180,7 +180,7 @@ impl ViewBuffer {
 
     /// Add a new selection to the current view.
     pub fn add_selection(&self, selection:impl Into<Selection>) {
-        self.selection.borrow_mut().add(selection.into())
+        self.selection.borrow_mut().merge(selection.into())
     }
 
     pub fn first_selection(&self) -> selection::Group {
@@ -192,11 +192,11 @@ impl ViewBuffer {
     }
 
     pub fn first_caret(&self) -> selection::Group {
-        self.first_selection().to_carets()
+        self.first_selection().snap_selections_to_start()
     }
 
     pub fn last_caret(&self) -> selection::Group {
-        self.last_selection().to_carets()
+        self.last_selection().snap_selections_to_start()
     }
 
     pub fn newest_selection(&self) -> selection::Group {
@@ -208,11 +208,11 @@ impl ViewBuffer {
     }
 
     pub fn newest_caret(&self) -> selection::Group {
-        self.newest_selection().to_carets()
+        self.newest_selection().snap_selections_to_start()
     }
 
     pub fn oldest_caret(&self) -> selection::Group {
-        self.oldest_selection().to_carets()
+        self.oldest_selection().snap_selections_to_start()
     }
 
     /// Add a new cursor for the given byte offset.
@@ -231,7 +231,7 @@ impl ViewBuffer {
     pub fn add_cursor(&self, location:Location) -> selection::Group {
         let mut selection = self.selection.borrow().clone();
         let new_selection = self.new_cursor(location);
-        selection.add(new_selection);
+        selection.merge(new_selection);
         selection
     }
 
@@ -280,7 +280,7 @@ impl ViewBuffer {
             self.buffer.data.borrow_mut().insert(byte_range,&text);
             let new_byte_selection = new_byte_selection.map(|t|t+text_byte_size);
             let new_selection      = self.to_location_selection(new_byte_selection);
-            new_selection_group.add(new_selection);
+            new_selection_group.merge(new_selection);
         }
         new_selection_group
     }
@@ -293,14 +293,14 @@ impl ViewBuffer {
         let start = self.line_col_to_offset(selection.start).unwrap_or_default();
         let end   = self.line_col_to_offset(selection.end).unwrap_or_default();
         let id    = selection.id;
-        Selection {start,end,id}
+        Selection::new(start,end,id)
     }
 
     fn to_location_selection(&self, selection:Selection<Bytes>) -> Selection {
         let start = self.offset_to_location(selection.start);
         let end   = self.offset_to_location(selection.end);
         let id    = selection.id;
-        Selection {start,end,id}
+        Selection::new(start,end,id)
     }
 }
 

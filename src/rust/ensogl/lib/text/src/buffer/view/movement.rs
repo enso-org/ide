@@ -4,6 +4,7 @@ use super::*;
 use crate::buffer::data;
 use crate::buffer::data::unit::*;
 use crate::buffer::view::word::WordCursor;
+use crate::buffer::view::selection;
 
 
 
@@ -60,7 +61,7 @@ impl ViewBuffer {
 
     /// Compute movement based on vertical motion by the given number of lines.
     fn vertical_motion
-    (&self, selection:Selection, line_delta:Line, modify:bool) -> (Location,Location) {
+    (&self, selection:Selection, line_delta:Line, modify:bool) -> selection::Shape {
         let move_up      = line_delta < 0.line();
         let location     = self.vertical_motion_selection_to_location(selection,move_up,modify);
         let min_line     = 0.line();
@@ -72,7 +73,7 @@ impl ViewBuffer {
         let bottom       = location.line + line_delta;
         let line         = if snap_top {border_step} else if snap_bottom {next_line} else {bottom};
         let tgt_location = location.with_line(line);
-        (selection.start, tgt_location)
+        selection::Shape(selection.start,tgt_location)
     }
 
     pub fn last_line(&self) -> Line {
@@ -144,7 +145,7 @@ impl ViewBuffer {
         let mut result = selection::Group::new();
         for &selection in self.selection.borrow().iter() {
             let new_selection = self.moved_selection_region(movement, selection, modify);
-            result.add(new_selection);
+            result.merge(new_selection);
         }
         result
     }
@@ -177,40 +178,39 @@ impl ViewBuffer {
     pub fn moved_selection_region
     (&self, movement:Transform, region:Selection, modify:bool) -> Selection {
         let text        = &self.data();
-        let (start,end) : (Location,Location) = match movement {
-            Transform::All               => (default(),self.offset_to_location(text.len())),
+        let shape       = |start,end| selection::Shape(start,end);
+        let shape : selection::Shape = match movement {
+            Transform::All               => shape(default(),self.offset_to_location(text.len())),
             Transform::Up                => self.vertical_motion(region, -1.line(), modify),
             Transform::Down              => self.vertical_motion(region,  1.line(), modify),
-//            Transform::UpExactPosition   => self.vertical_motion_exact_pos(region, true, modify),
-//            Transform::DownExactPosition => self.vertical_motion_exact_pos(region, false, modify),
-            Transform::StartOfDocument   => (region.start,default()),
-            Transform::EndOfDocument     => (region.start,self.offset_to_location(text.len())),
+            Transform::StartOfDocument   => shape(region.start,default()),
+            Transform::EndOfDocument     => shape(region.start,self.offset_to_location(text.len())),
 
             Transform::Left => {
-                let def     = (region.start,default());
+                let def     = shape(region.start,default());
                 let do_move = region.is_caret() || modify;
-                if  do_move { self.prev_grapheme_location(region.end).map(|t|(region.start,t)).unwrap_or(def) }
-                else        { (region.start,region.min()) }
+                if  do_move { self.prev_grapheme_location(region.end).map(|t|shape(region.start,t)).unwrap_or(def) }
+                else        { shape(region.start,region.min()) }
             }
 
             Transform::Right => {
-                let def     = (region.start,region.end);
+                let def     = shape(region.start,region.end);
                 let do_move = region.is_caret() || modify;
-                if  do_move { self.next_grapheme_location(region.end).map(|t|(region.start,t)).unwrap_or(def) }
-                else        { (region.start,region.max()) }
+                if  do_move { self.next_grapheme_location(region.end).map(|t|shape(region.start,t)).unwrap_or(def) }
+                else        { shape(region.start,region.max()) }
             }
 
             Transform::LeftSelectionBorder => {
-                (region.start,region.min())
+                shape(region.start,region.min())
             }
 
             Transform::RightSelectionBorder => {
-                (region.start,region.max())
+                shape(region.start,region.max())
             }
 
             Transform::LeftOfLine => {
                 let end = Location(region.end.line,0.column());
-                (region.start,end)
+                shape(region.start,end)
             }
 
             Transform::RightOfLine => {
@@ -222,7 +222,7 @@ impl ViewBuffer {
                     text.prev_grapheme_offset(next_line_offset).unwrap_or(text_len)
                 };
                 let end = self.offset_to_location(offset);
-                (region.start,end)
+                shape(region.start,end)
             }
 
             Transform::LeftWord => {
@@ -230,7 +230,7 @@ impl ViewBuffer {
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offset          = word_cursor.prev_boundary().unwrap_or(0.bytes());
                 let end             = self.offset_to_location(offset);
-                (region.start,end)
+                shape(region.start,end)
             }
 
             Transform::RightWord => {
@@ -238,7 +238,7 @@ impl ViewBuffer {
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offset          = word_cursor.next_boundary().unwrap_or_else(|| text.len());
                 let end             = self.offset_to_location(offset);
-                (region.start,end)
+                shape(region.start,end)
             }
 
             Transform::Word => {
@@ -247,10 +247,11 @@ impl ViewBuffer {
                 let offsets         = word_cursor.select_word();
                 let start           = self.offset_to_location(offsets.0);
                 let end             = self.offset_to_location(offsets.1);
-                (start,end)
+                shape(start,end)
             }
         };
-        let start = if modify { start } else { end };
-        Selection::new(start,end,region.id) // FIXME None -> horiz
+        let start = if modify { shape.start } else { shape.end };
+        let end   = shape.end;
+        Selection(start,end,region.id)
     }
 }
