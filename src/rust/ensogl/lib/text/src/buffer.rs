@@ -90,7 +90,7 @@ impl Buffer {
     }
 
     pub fn data(&self) -> Text {
-        self.data.borrow().data.clone()
+        self.data.borrow().text.clone()
     }
 
     pub fn last_line(&self) -> Line {
@@ -101,6 +101,10 @@ impl Buffer {
         self.data.borrow().line_of_offset(offset)
     }
 
+    fn offset_of_line(&self,line:Line) -> Option<Bytes> {
+        self.data.borrow().offset_of_line(line)
+    }
+
     fn last_offset(&self) -> Bytes {
         self.data().byte_size()
     }
@@ -109,8 +113,8 @@ impl Buffer {
         self.data.borrow().style.clone()
     }
 
-    pub fn set_data(&self, data:Text) {
-        self.data.borrow_mut().data = data;
+    pub fn set_data(&self, text:Text) {
+        self.data.borrow_mut().text = text;
     }
 
     pub fn set_style(&self, style:Style) {
@@ -129,13 +133,13 @@ impl Buffer {
     /// Return the offset to the next grapheme if any. See the documentation of the library to
     /// learn more about graphemes.
     pub fn next_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.data.borrow().data.next_grapheme_offset(offset)
+        self.data.borrow().text.next_grapheme_offset(offset)
     }
 
     /// Return the offset to the previous grapheme if any. See the documentation of the library to
     /// learn more about graphemes.
     pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
-        self.data.borrow().data.prev_grapheme_offset(offset)
+        self.data.borrow().text.prev_grapheme_offset(offset)
     }
 }
 
@@ -148,14 +152,14 @@ impl Buffer {
 /// Text container with associated styles.
 #[derive(Debug,Default)]
 pub struct BufferData {
-    pub(crate) data  : Text,
+    pub(crate) text  : Text,
     pub(crate) style : Style,
 }
 
 impl Deref for BufferData {
     type Target = Text;
     fn deref(&self) -> &Self::Target {
-        &self.data
+        &self.text
     }
 }
 
@@ -175,7 +179,7 @@ impl BufferData {
 
     pub fn insert(&mut self, range:impl data::RangeBounds, text:&Text) {
         let range = self.clamp_range(range);
-        self.data.rope.edit(range.into_rope_interval(),text.rope.clone());
+        self.text.rope.edit(range.into_rope_interval(),text.rope.clone());
         self.style.modify(range,text.byte_size());
     }
 }

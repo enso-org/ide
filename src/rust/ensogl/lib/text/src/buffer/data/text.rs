@@ -95,6 +95,10 @@ impl Text {
         range.with_upper_bound(self.byte_size())
     }
 
+    pub fn offset_of_line(&self,line:Line) -> Option<Bytes> {
+        (line <= self.last_line()).as_some_from(|| self.rope.offset_of_line(line.as_usize()).into())
+    }
+
 //    pub fn clamp_selection(&self, selection:Selection) -> Selection {
 //        let min_line = 0.line();
 //        let max_line = self.last_line();
@@ -118,10 +122,6 @@ impl Text {
     /// learn more about graphemes.
     pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
         self.rope.prev_grapheme_offset(offset.as_usize()).map(|t| Bytes(t as i32))
-    }
-
-    pub fn offset_of_line(&self, line:Line) -> Bytes {
-        self.rope.offset_of_line(line.as_usize()).into()
     }
 
     pub fn line_of_offset(&self, offset:Bytes) -> Line {

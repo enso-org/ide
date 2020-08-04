@@ -647,7 +647,7 @@ impl ViewModel {
 
 impl LineOffset for ViewModel {
     fn data(&self) -> Text {
-        self.buffer.data.borrow().data.clone() // FIXME
+        self.buffer.data.borrow().text.clone() // FIXME
     }
 
     fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column {
@@ -659,12 +659,7 @@ impl LineOffset for ViewModel {
     }
 
     fn offset_of_line(&self,line:Line) -> Option<Bytes> {
-        let max_line = (self.data().measure::<data::metric::Lines>()).into();
-        let max_line2 = self.last_line();
-        let max_line3 = self.last_line();
-        if line > max_line { None } else {
-            Some(self.data().offset_of_line(line))
-        }
+        self.buffer.offset_of_line(line)
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
@@ -674,7 +669,7 @@ impl LineOffset for ViewModel {
 
 impl LineOffset for ViewBuffer {
     fn data(&self) -> Text {
-        self.buffer.data.borrow().data.clone() // FIXME
+        self.buffer.data.borrow().text.clone() // FIXME
     }
 
     fn column_of_location(&self, line:Line, line_offset:Bytes) -> Column {
@@ -686,10 +681,7 @@ impl LineOffset for ViewBuffer {
     }
 
     fn offset_of_line(&self,line:Line) -> Option<Bytes> {
-        let max_line = (self.data().measure::<data::metric::Lines>()).into();
-        if line > max_line { None } else {
-            Some(self.data().offset_of_line(line))
-        }
+        self.buffer.offset_of_line(line)
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
