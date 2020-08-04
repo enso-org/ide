@@ -13,6 +13,7 @@ use ensogl::display::scene::Scene;
 use enso_prelude::CloneRef;
 
 
+
 // ================
 // === Registry ===
 // ================

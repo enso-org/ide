@@ -456,11 +456,11 @@ pub struct DocumentationViewModel {
 impl DocumentationViewModel {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
-        let logger  = Logger::new("DocumentationView");
-        let div     = web::create_div();
-        let dom     = DomSymbol::new(&div);
+        let logger = Logger::new("DocumentationView");
+        let div    = web::create_div();
+        let dom    = DomSymbol::new(&div);
         let screen = scene.camera().screen();
-        let size    = Rc::new(Cell::new(Vector2(290.0,screen.height - 30.0)));
+        let size   = Rc::new(Cell::new(Vector2(290.0,screen.height - 30.0)));
 
         dom.dom().set_style_or_warn("white-space"     ,"normal"                             ,&logger);
         dom.dom().set_style_or_warn("overflow-y"      ,"auto"                               ,&logger);
@@ -486,12 +486,15 @@ impl DocumentationViewModel {
         self.reload_style();
     }
 
+    fn placeholder_str() -> String {
+        "<h3>Enso Documentation Viewer</h3><p>No documentation available</p>".to_string()
+    }
+
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
         let data_inner = match data {
             Data::Json {content} => content,
-            _ => todo!()
+            _                    => todo!(),
         };
-        let placeholder_str = "<h3>Enso Documentation Viewer</h3><p>No documentation available</p>";
 
         let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
@@ -501,20 +504,19 @@ impl DocumentationViewModel {
 
         let parser = parser::DocParser::new_or_panic();
         let output = parser.generate_html_doc_pure(data_str);
-        let output = output.unwrap_or_else(|_| String::from(placeholder_str));
+        let output = output.unwrap_or_else(|_| DocumentationViewModel::placeholder_str());
         // Fixes a Doc Parser related idea, where stylesheet was a separate file
         let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");
 
-        let data_str = format!(r#"<div class="docVis">{}{}</div>"#,
-                               get_doc_style(), output);
+        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), output);
         self.dom.dom().set_inner_html(&data_str);
         Ok(())
     }
 
     /// Generates welcome screen HTML.
     pub fn welcome_screen(&self) {
-        let data_str = format!(r#"<div class="docVis">{}<h3>Enso Documentation Viewer</h3>
-        <p>No documentation available</p></div>"#, get_doc_style());
+        let placeholder = DocumentationViewModel::placeholder_str();
+        let data_str    = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), placeholder);
         self.dom.dom().set_inner_html(&data_str)
     }
 
@@ -532,9 +534,9 @@ impl DocumentationViewModel {
 #[allow(missing_docs)]
 pub struct DocumentationView {
     #[shrinkwrap(main_field)]
-    pub model   : DocumentationViewModel,
-    pub frp     : visualization::instance::Frp,
-    network     : frp::Network,
+    pub model : DocumentationViewModel,
+    pub frp   : visualization::instance::Frp,
+    network   : frp::Network,
 }
 
 impl DocumentationView {

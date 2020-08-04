@@ -2172,7 +2172,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
    // === Vis Set ===
-   frp::extend! { TRACE_ALL network
+   frp::extend! { network
 
    def _update_vis_data = inputs.set_visualization.map(f!([logger,nodes,scene,visualizations]((node_id,vis_path)) {
        match (&nodes.get_cloned_ref(node_id), vis_path) {
@@ -2207,7 +2207,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             let data    = Rc::new(sample_data_generator.generate_data()); // FIXME: why rc?
             let content = serde_json::to_value(data).unwrap();
             let data    = visualization::Data::from(content);
-            inputs.set_visualization_data.emit((*node_id,data.clone()));
+            inputs.set_visualization_data.emit((*node_id,data));
         }
 
         let sample_doc_generator = MockDocGenerator::default();
@@ -2283,6 +2283,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     outputs.visualization_disabled <+ viz_preview_disable;
     outputs.visualization_enable_fullscreen <+ viz_fullscreen_on;
 
+
     // === Register Visualization ===
 
     def _register_visualization = inputs.register_visualization.map(f!([visualizations](handle) {
@@ -2346,6 +2347,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     def _set_doc_data = inputs.set_documentation_data.map(f!((data) {
          model.doc_view.frp.send_data.emit(data);
      }));
+
 
     // === Documentation toggle ===
 
