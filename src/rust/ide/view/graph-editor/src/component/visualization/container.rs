@@ -546,7 +546,7 @@ impl Container {
         let registry = &model.registry;
 
 
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
             eval  inputs.set_visibility                 ((v) model.set_visibility(*v));
             eval_ inputs.toggle_visibility              (model.toggle_visibility());
             eval  inputs.set_visualization              ((v) model.set_visualization(v.clone()));

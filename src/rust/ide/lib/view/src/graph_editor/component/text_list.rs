@@ -27,20 +27,22 @@ pub trait TextListItem = Debug + Clone + Display + PartialEq + 'static;
 // === Constants ===
 // =================
 
-const LINE_HEIGHT  : f32 = 15.0;
-const LINE_SPACING : f32 = 2.0;
+const LINE_HEIGHT  : f32 = 30.0;
 
 const MAX_CHARACTERS_PER_LINE : usize = 25;
 
 const TEXT_PADDING   : f32 = node::NODE_SHAPE_RADIUS;
 const TEXT_FONT_SIZE : f32 = 11.0;
 
+const MOUSE_OUT_DELAY_TIME_MS : f32 =  150.0;
+
+
 
 // ========================
 // === Background Shape ===
 // ========================
 
-/// Text list background shape definition.
+/// Text list background shape definition. Covers the background of the whole list.
 pub mod background {
     use super::*;
 
@@ -65,6 +67,7 @@ pub mod background {
 // === TextItem ===
 // ================
 
+/// Text shape definition. Renders the actual text of an item.
 pub mod text {
     use super::*;
 
@@ -86,7 +89,7 @@ pub mod text {
             &self.obj
         }
     }
-    #[derive(Clone, CloneRef, Debug)]
+    #[derive(Clone,CloneRef,Debug)]
     #[allow(missing_docs)]
     pub struct ShapeSystem {
         pub glyph_system: GlyphSystem,
@@ -107,7 +110,7 @@ pub mod text {
         }
 
         fn new_instance(&self) -> Self::Shape {
-            let color = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
+            let color = color::Rgba::new(1.0,1.0,1.0,0.7);
             let obj   = display::object::Instance::new(Logger::new("test"));
             let label = self.glyph_system.new_line();
             label.set_font_size(TEXT_FONT_SIZE);
@@ -120,18 +123,20 @@ pub mod text {
 }
 
 
+
 // ==========================
-// === TextItemBackground ===
+// === Text Item Background ===
 // ==========================
 
-/// Text list background shape definition.
+/// Text item background shape definition. Is invisible and covers the background of a single item.
+/// Used to get mouse events for the item.
 pub mod text_item_hover {
     use super::*;
 
     ensogl::define_shape_system! {
         () {
-            let width         = Var::<Pixels>::from("input_size.x");
-            let height        = Var::<Pixels>::from("input_size.y");
+            let width        = Var::<Pixels>::from("input_size.x");
+            let height       = Var::<Pixels>::from("input_size.y");
             let shape        = Rect((&width,&height));
             let shape_filled = shape.fill(color::Rgba::new(1.0,0.0,0.0,0.000_001));
 
@@ -140,11 +145,13 @@ pub mod text_item_hover {
     }
 }
 
-// ==========================
-// === TextItemBackground ===
-// ==========================
 
-/// Text list background shape definition.
+
+// ===========================
+// === Text Item Highlight ===
+// ===========================
+
+/// Text item highlight shape definition. Used to indicate the currently active or hovered item.
 pub mod text_item_highlight {
     use super::*;
 
@@ -162,14 +169,15 @@ pub mod text_item_highlight {
 }
 
 
+
 // ===========
 // === Frp ===
 // ===========
 
-
+/// FRP api of the `TextList`.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct Frp<T:TextListItem> {
-    // TODO remove RC in favor of new type
     pub set_content     : frp::Source<Vec<T>>,
     pub set_width       : frp::Source<f32>,
     pub set_preselected : frp::Source<Option<T>>,
@@ -183,11 +191,10 @@ pub struct Frp<T:TextListItem> {
     set_selection   : frp::Source<Option<T>>,
     on_item_hover   : frp::Source<Option<T>>,
     on_mouse_out    : frp::Source,
-
 }
 
 impl<T:TextListItem> Frp<T> {
-    pub fn new(network:&frp::Network) -> Self {
+    fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             set_content     <- source();
             set_selection   <- source();
@@ -209,12 +216,12 @@ impl<T:TextListItem> Frp<T> {
 
 
 
-// =====================
-// === TextListModel ===
-// =====================
+// =======================
+// === Text List Model ===
+// =======================
 
 #[derive(Clone,Debug)]
-pub struct TextListModel<T:TextListItem> {
+struct TextListModel<T:TextListItem> {
     scene                    : Scene,
     logger                   : Logger,
     display_object           : display::object::Instance,
@@ -228,7 +235,6 @@ pub struct TextListModel<T:TextListItem> {
 
 impl<T:TextListItem> TextListModel<T> {
     fn new(scene:&Scene) -> Self {
-
         let logger                   = Logger::new("TextListModel");
         let display_object           = display::object::Instance::new(&logger);
         let background_shape         = component::ShapeView::new(&logger,scene);
@@ -247,9 +253,11 @@ impl<T:TextListItem> TextListModel<T> {
                       item_network,content_background_views,highlight_shape}
     }
 
+    /// Create a textual representation for the given content item.
     fn format_item(item:&T) -> String {
-        let formatted    = format!("{}", item);
-        let max_output   = formatted.chars().take(MAX_CHARACTERS_PER_LINE);
+        let formatted     = format!("{}",item);
+        // We cut of strings that are to long and replace the end with "...".
+        let max_output    = formatted.chars().take(MAX_CHARACTERS_PER_LINE);
         let dots_required =  max_output.clone().count() > (MAX_CHARACTERS_PER_LINE - 3);
         if dots_required {
             let shortened = formatted.chars().take( max_output.count() - 3);
@@ -259,8 +267,10 @@ impl<T:TextListItem> TextListModel<T> {
         max_output.collect()
     }
 
+    /// Update the content items and create the appropriate shapes.
+    /// *Important*: to avoid memory leaks, this does not update the FRP bindings. To do that
+    /// `init_item_frp` needs to be called.
     fn set_content(&self, content:&[T]) {
-
         let mut content_views            = Vec::with_capacity(content.len());
         let mut content_background_views = Vec::with_capacity(content.len());
 
@@ -288,48 +298,9 @@ impl<T:TextListItem> TextListModel<T> {
         *self.content_items.borrow_mut()            = content.to_owned();
 
         let item_count      = self.content_items.borrow().len();
-        self.set_background_height(item_count);
+        self.set_background_to_cover_items(item_count);
         debug_assert_eq!(self.content_views.borrow().len()           , self.content_items.borrow().len());
         debug_assert_eq!(self.content_background_views.borrow().len(), self.content_items.borrow().len());
-    }
-
-    fn set_background_height(&self, item_count:usize) {
-        let base_size       = self.item_size();
-        let background_size = Vector2::new(base_size.x,base_size.y * item_count as f32);
-        self.background_shape.shape.size.set(background_size);
-        let background_position = Vector2::new(background_size.x/2.0, -background_size.y/2.0);
-        self.background_shape.set_position_xy(background_position);
-    }
-
-    fn set_layout_expanded(&self) {
-        let content_views       = self.content_views.borrow();
-        let content_hover_views = self.content_background_views.borrow();
-        let views_with_items_iter = izip!(content_views.iter(),content_hover_views.iter());
-
-        for (index, (label,hover_view)) in views_with_items_iter.enumerate() {
-            self.display_object.add_child(&label);
-            self.display_object.add_child(&hover_view);
-            label.set_position_xy(self.text_base_position(index as f32));
-            hover_view.set_position_xy(self.item_base_position(index as f32));
-        };
-
-        self.set_background_height(self.item_count());
-    }
-
-    fn item_count(&self) -> usize {
-        self.content_items.borrow().len()
-    }
-
-    fn set_layout_collapsed(&self) {
-        let first_item = self.content_items.borrow().get(0).cloned();
-        self.set_preselected_item_preview_layout(first_item);
-        self.set_background_height(1);
-        self.deactivate_highlight();
-    }
-
-    fn item_size(&self) -> Vector2 {
-        let line_height = LINE_HEIGHT * LINE_SPACING;
-        Vector2::new(200.0,line_height)
     }
 
     fn init_item_frp(&self, frp:&Frp<T>) {
@@ -339,8 +310,8 @@ impl<T:TextListItem> TextListModel<T> {
         let items           = self.content_items.borrow();
         let views_and_items = content_views.iter().zip(items.iter());
 
-        for (view, item) in views_and_items {
-            frp::extend! { TRACE_ALL item_network
+        for (view,item) in views_and_items {
+            frp::extend! { item_network
                 let item_shared  = item.clone();
                 eval_ view.events.mouse_down  (frp.set_selection.emit(Some(item_shared.clone())));
                 let item_shared  = item.clone();
@@ -352,25 +323,73 @@ impl<T:TextListItem> TextListModel<T> {
         *self.item_network.borrow_mut() = item_network;
     }
 
+    fn item_count(&self) -> usize {
+        self.content_items.borrow().len()
+    }
+
     fn set_width(&self, _width:f32) {
        // TODO implement
     }
 
+    /// Hide the highlight shape.
+    fn deactivate_highlight(&self) {
+        self.highlight_shape.set_position_xy(self.item_base_position(0.0));
+        self.highlight_shape.shape.sprite.size.set(Vector2::zero());
+    }
+
+    /// Set the given item as selected. That means it moves to the top of the list.
+    fn set_preselected_item(&self, item:Option<T>) {
+        if let Some(item) = item {
+            self.set_item_to_first_position(item);
+        }
+    }
+
+    fn set_item_to_first_position(&self, item:T) {
+        let index = self.content_items.borrow().iter().position(|other| *other == item);
+        if let Some(index) = index {
+            self.content_items.borrow_mut().swap(0,index);
+            self.content_views.borrow_mut().swap(0,index);
+            self.content_background_views.borrow_mut().swap(0,index);
+        }
+    }
+}
+
+impl<T:TextListItem> display::Object for TextListModel<T> {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
+}
+
+
+// === Layout logic ===
+
+impl<T:TextListItem> TextListModel<T> {
+
+    /// Return the position of an item at the given index.
     fn item_base_position(&self, index:f32) -> Vector2<f32> {
-        let item_height = LINE_HEIGHT * LINE_SPACING;
+        let item_height = LINE_HEIGHT;
         Vector2::new(100.0,-item_height*(index + 0.5))
     }
 
+    /// Return the position of the text that belongs to the item at the given index.
     fn text_base_position(&self, index:f32) -> Vector2<f32> {
-        let text_offset_y = LINE_HEIGHT * 0.25;
+        // Text baseline is different, so we correct this here.
+        let text_offset_y = LINE_HEIGHT * 0.5;
         Vector2::new(TEXT_PADDING,self.item_base_position(index).y - text_offset_y)
     }
 
-    fn set_preselected_item_preview_layout(&self, item:Option<T>) {
+    /// Return the extent of a single content item.
+    fn item_size(&self) -> Vector2 {
+        let line_height = LINE_HEIGHT;
+        Vector2::new(200.0,line_height)
+    }
+
+    /// Hide all items except for the given `item`.
+    fn show_single_item(&self, item:Option<T>) {
         if let Some(item) = item {
-            let content_views       = self.content_views.borrow();
-            let content_hover_views = self.content_background_views.borrow();
-            let items               = self.content_items.borrow();
+            let content_views         = self.content_views.borrow();
+            let content_hover_views   = self.content_background_views.borrow();
+            let items                 = self.content_items.borrow();
             let views_with_items_iter = izip!(content_views.iter(),content_hover_views.iter(),items.iter());
 
             for (label,hover_view,content_item) in views_with_items_iter {
@@ -387,32 +406,41 @@ impl<T:TextListItem> TextListModel<T> {
         }
     }
 
-    fn deactivate_highlight(&self) {
-        self.highlight_shape.set_position_xy(self.item_base_position(0.0));
-        self.highlight_shape.shape.sprite.size.set(Vector2::zero());
+    /// Show the text list as an single collapsed item. The item shown is the currently
+    /// selected item.
+    fn set_layout_collapsed(&self) {
+        // We always have the selected item at the first position.
+        let first_item = self.content_items.borrow().get(0).cloned();
+        self.show_single_item(first_item);
+        self.set_background_to_cover_items(1);
+        self.deactivate_highlight();
     }
 
-    fn set_item_to_first_position(&self, item:T) {
-        let index = self.content_items.borrow().iter().position(|other| *other == item);
-        if let Some(index) = index {
-            // TODO: consider sorting tail of list
-            self.content_items.borrow_mut().swap(0,index);
-            self.content_views.borrow_mut().swap(0,index);
-            self.content_background_views.borrow_mut().swap(0,index);
-        }
+    /// Show the text list as an expanded list of all available items.
+    fn set_layout_expanded(&self) {
+        let content_views       = self.content_views.borrow();
+        let content_hover_views = self.content_background_views.borrow();
+        let views_with_items_iter = izip!(content_views.iter(),content_hover_views.iter());
+
+        for (index, (label,hover_view)) in views_with_items_iter.enumerate() {
+            self.display_object.add_child(&label);
+            self.display_object.add_child(&hover_view);
+            label.set_position_xy(self.text_base_position(index as f32));
+            hover_view.set_position_xy(self.item_base_position(index as f32));
+        };
+
+        self.set_background_to_cover_items(self.item_count());
     }
 
-    fn set_preselected_item(&self, item:Option<T>) {
-        if let Some(item) = item {
-            self.set_item_to_first_position(item);
-        }
+    /// Set the background size to cover the given number of items.
+    fn set_background_to_cover_items(&self, item_count:usize) {
+        let base_size       = self.item_size();
+        let background_size = Vector2::new(base_size.x,base_size.y * item_count as f32);
+        self.background_shape.shape.size.set(background_size);
+        let background_position = Vector2::new(background_size.x/2.0,-background_size.y/2.0);
+        self.background_shape.set_position_xy(background_position);
     }
-}
 
-impl<T:TextListItem> display::Object for TextListModel<T> {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
-    }
 }
 
 
@@ -421,27 +449,29 @@ impl<T:TextListItem> display::Object for TextListModel<T> {
 // === TextList ===
 // ================
 
-/// FIXME: This is a proposal for an abstraction over all components. It enforces an FRP-only api,
-/// and memory leak-free ownership of the network.
+/// A list of items that allows selection. Behaves like a dropdown menu.
+///
+/// The `TextList` can present a list of `TextListItem`s from which one can be selected.
+/// It has two layout modes: (1) collapsed, where only the currently selected list item is visible
+/// and (2) expanded, where all available items are visible.
 #[derive(Clone,CloneRef,Debug)]
-pub struct FrpEntity<T:Clone+display::Object+Debug,F:CloneRef+Debug> {
-        model   : Rc<T>,
+#[allow(missing_docs)]
+pub struct TextList<T:TextListItem> {
+        model   : Rc<TextListModel<T>>,
         network : frp::Network,
-    pub frp     : F
+    pub frp     : Frp<T>
 }
 
-impl<T:Clone+display::Object+Debug,F:CloneRef+Debug> display::Object for FrpEntity<T,F> {
+impl<T:TextListItem> display::Object for TextList<T> {
     fn display_object(&self) -> &display::object::Instance {
         &self.model.display_object()
     }
 }
 
-
-
-pub type TextList<T> = FrpEntity<TextListModel<T>,Frp<T>>;
-
 impl<T:TextListItem> TextList<T> {
-    pub(crate) fn new(scene:&Scene) -> Self {
+    /// Constructor for the `TextList`. The list is empty by default and needs to be populated
+    /// via the frp api.
+    pub fn new(scene:&Scene) -> Self {
         let model   = TextListModel::new(scene);
         let model   = Rc::new(model);
         let network = frp::Network::new();
@@ -460,36 +490,35 @@ impl<T:TextListItem> TextList<T> {
         let highlight_position = Animation::<f32>::new(&network);
         let highlight_shape    = &model.highlight_shape;
 
+        // We use a delay tween to avoid emitting a mouse out event when we only switch from one
+        // item to another.
         let mouse_out_timer = Tween::new(&network);
-        mouse_out_timer.set_duration(150.0);
+        mouse_out_timer.set_duration(MOUSE_OUT_DELAY_TIME_MS);
+
+        // Arbitrary sentinel value to check for the end of the tween.
         const TWEEN_END_VALUE:f32 = 1.0;
 
         frp::extend! { network
 
+            // External API
+            eval frp.set_preselected ((item) model.set_preselected_item(item.clone()));
             eval frp.set_content ([frp,model](content) {
                 model.set_content(content);
                 model.init_item_frp(&frp);
                 model.set_preselected_item(content.get(0).cloned());
                 model.set_layout_collapsed();
             });
-
             eval_ frp.set_layout_collapsed ( model.set_layout_collapsed() );
-             eval_ frp.set_layout_expanded ([highlight_size,highlight_position,model] {
+            eval_ frp.set_layout_expanded ([highlight_size,highlight_position,model] {
                 // We want to ensure highlight appearance is animated
                 highlight_position.set_value(0.0);
                 highlight_size.set_value(0.0);
                 model.set_layout_expanded();
             });
-
             eval frp.set_preselected ((item) model.set_preselected_item(item.clone()));
             eval frp.set_width        ((size) model.set_width(*size));
-
             eval frp.on_item_hover ([mouse_out_timer,highlight_size,highlight_position,model](item) {
                 match item {
-                    None => {
-                        mouse_out_timer.reset();
-                        mouse_out_timer.set_target_value(TWEEN_END_VALUE);
-                    },
                     Some(item) => {
                         model.set_layout_expanded();
                         mouse_out_timer.stop();
@@ -498,30 +527,34 @@ impl<T:TextListItem> TextList<T> {
                             highlight_size.set_target_value(1.0);
                             highlight_position.set_target_value(index as f32);
                         }
-                    }
+                    },
+                    None => {
+                        mouse_out_timer.reset();
+                        mouse_out_timer.set_target_value(TWEEN_END_VALUE);
+                    },
                 }
             });
 
-            // --- Highlight
+            // Animations
             eval highlight_size.value    ([model,highlight_shape](value) {
                 let base_size = model.item_size();
                 highlight_shape.shape.sprite.size.set(base_size * (*value));
             });
-             eval highlight_position.value ([highlight_shape,model](value) {
-                highlight_shape.set_position_xy(model.item_base_position(*value))
-             });
+            eval highlight_position.value ([highlight_shape,model](value) {
+               highlight_shape.set_position_xy(model.item_base_position(*value))
+            });
 
-             eval frp.set_preselected ((item) model.set_preselected_item(item.clone()));
-
-             mouse_out_timer_finished    <- mouse_out_timer.value.map(|t| *t>=TWEEN_END_VALUE );
-             on_mouse_out_timer_finished <- mouse_out_timer_finished.gate(&mouse_out_timer_finished).constant(());
-
-             eval_ on_mouse_out_timer_finished ( frp.on_mouse_out.emit(()));
+            // Mouse out tween
+            mouse_out_timer_finished    <- mouse_out_timer.value.map(|t| *t>=TWEEN_END_VALUE );
+            on_mouse_out_timer_finished <- mouse_out_timer_finished.gate(&mouse_out_timer_finished).constant(());
+            eval_ on_mouse_out_timer_finished ( frp.on_mouse_out.emit(()));
 
         }
         self
     }
 
+    // TODO: Implement proper sorting and remove.
+    /// Hack function used to register the elements for the sorting purposes. To be removed.
     pub fn order_hack(scene:&Scene) {
         let logger = Logger::new("hack_sort");
         component::ShapeView::<background::Shape>::new(&logger,scene);
