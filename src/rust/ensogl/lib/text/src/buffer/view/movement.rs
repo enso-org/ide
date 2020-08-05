@@ -83,7 +83,7 @@ impl ViewBuffer {
         }
         let mut column = 0.column();
         let mut offset = self.byte_offset_from_line_index(location.line).ok()?;
-        let max_offset = self.line_end_byte_offset(location.line).ok()?;
+        let max_offset = self.end_byte_offset_from_line_index(location.line).ok()?;
         while column < location.column {
             match self.next_grapheme_offset(offset) {
                 None => break,

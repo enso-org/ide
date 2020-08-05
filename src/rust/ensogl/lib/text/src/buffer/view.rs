@@ -567,7 +567,7 @@ impl ViewModel {
 
     /// Return the offset after the last character of a given view line if the line exists.
     pub fn end_offset_of_view_line(&self, line:Line) -> Option<Bytes> {
-        self.line_end_byte_offset(line + self.first_line_number.get()).ok()
+        self.end_byte_offset_from_line_index(line + self.first_line_number.get()).ok()
     }
 
     pub fn view_range(&self) -> Range<Bytes> {
@@ -595,7 +595,7 @@ impl ViewModel {
     /// Byte range of the given line.
     pub fn line_byte_range(&self, line:Line) -> Range<Bytes> {
         let start = self.byte_offset_from_line_index(line);
-        let end   = self.line_end_byte_offset(line);
+        let end   = self.end_byte_offset_from_line_index(line);
         start.and_then(|s| end.map(|e| s..e)).unwrap_or_else(|_| default()..default())
     }
 
