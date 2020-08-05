@@ -630,7 +630,7 @@ impl Searcher {
             info!(this.logger,"Received suggestions from Language Server.");
             let new_suggestions = match this.suggestions_from_responses(responses) {
                 Ok(list)   => Suggestions::Loaded {list:Rc::new(list)},
-                Err(error) => Suggestions::Error(Rc::new(error.into()))
+                Err(error) => Suggestions::Error(Rc::new(error))
             };
             this.data.borrow_mut().suggestions = new_suggestions;
             this.notifier.publish(Notification::NewSuggestionList).await;
@@ -669,7 +669,7 @@ impl Searcher {
                 Some(self.database.lookup_by_name_and_location(name,&module,location))
             }
         };
-        opt_result().unwrap_or(Vec::new())
+        opt_result().unwrap_or_default()
     }
 
     /// For the simple function call checks if the function was called
@@ -727,7 +727,8 @@ impl Searcher {
     }
 }
 
-
+/// A simple function call is an AST where function is a single identifier with optional
+/// argument applied by `ACCESS` operator (dot).
 struct SimpleFunctionCall {
     this_argument : Option<Ast>,
     function_name : String,
@@ -824,6 +825,7 @@ mod test {
         entry1   : CompletionSuggestion,
         entry2   : CompletionSuggestion,
         entry3   : CompletionSuggestion,
+        entry4   : CompletionSuggestion,
         entry9   : CompletionSuggestion,
     }
 
@@ -935,9 +937,10 @@ mod test {
             searcher.database.put_entry(3,entry3);
             let entry3 = searcher.database.get(3).unwrap();
             searcher.database.put_entry(4,entry4);
+            let entry4 = searcher.database.get(4).unwrap();
             searcher.database.put_entry(9,entry9);
             let entry9 = searcher.database.get(9).unwrap();
-            Fixture{data,test,searcher,entry1,entry2,entry3,entry9}
+            Fixture{data,test,searcher,entry1,entry2,entry3,entry4,entry9}
         }
 
         fn new() -> Self {
@@ -1199,6 +1202,7 @@ mod test {
             data.expect_completion(client,None,None,&[]);
             data.expect_completion(client,None,None,&[]);
             data.expect_completion(client,None,None,&[]);
+            data.expect_completion(client,None,None,&[]);
         });
         let frags_borrow = || Ref::map(searcher.data.borrow(),|d| &d.fragments_added_by_picking);
 
@@ -1311,13 +1315,13 @@ mod test {
 
     #[wasm_bindgen_test]
     fn committing_node() {
-        let Fixture{test:_test,mut searcher,entry3,..} = Fixture::new();
+        let Fixture{test:_test,mut searcher,entry4,..} = Fixture::new();
         let module                                     = searcher.graph.graph().module.clone_ref();
         // Setup searcher.
         let parser        = Parser::new_or_panic();
         let picked_method = FragmentAddedByPickingSuggestion {
             id                : CompletedFragmentId::Function,
-            picked_suggestion : entry3,
+            picked_suggestion : entry4,
         };
         with(searcher.data.borrow_mut(), |mut data| {
             data.fragments_added_by_picking.push(picked_method);
@@ -1350,7 +1354,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn initialized_data_when_editing_node() {
-        let Fixture{test:_test,searcher,entry3,..} = Fixture::new();
+        let Fixture{test:_test,searcher,entry4,..} = Fixture::new();
 
         let graph    = searcher.graph.graph();
         let (node,)  = graph.nodes().unwrap().expect_tuple();
@@ -1384,7 +1388,7 @@ mod test {
         assert_eq!(searcher_data.input.repr(), "Test.testMethod1 12");
         assert!(searcher_data.suggestions.is_loading());
         let (initial_fragment,) = searcher_data.fragments_added_by_picking.expect_tuple();
-        assert!(Rc::ptr_eq(&initial_fragment.picked_suggestion,&entry3))
+        assert!(Rc::ptr_eq(&initial_fragment.picked_suggestion,&entry4))
     }
 
     #[wasm_bindgen_test]
