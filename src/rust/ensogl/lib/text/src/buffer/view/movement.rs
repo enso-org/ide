@@ -76,26 +76,6 @@ impl ViewBuffer {
         selection::Shape(selection.start,tgt_location)
     }
 
-
-//    pub fn line_offset_of_location_X2(&self, location:Location) -> Option<Bytes> {
-//        if location.line < 0.line() {
-//            return Some(0.bytes())
-//        }
-//        let mut column = 0.column();
-//        let mut offset = self.byte_offset_from_line_index(location.line).ok()?;
-//        let max_offset = self.end_byte_offset_from_line_index(location.line).ok()?;
-//        while column < location.column {
-//            match self.next_grapheme_offset(offset) {
-//                None => break,
-//                Some(off) => {
-//                    column += 1.column();
-//                    offset = off;
-//                }
-//            }
-//        }
-//        Some(offset.min(max_offset))
-//    }
-
     /// Apply the movement to each region in the selection, and returns the union of the results.
     ///
     /// If `modify` is `true`, the selections are modified, otherwise the results of individual region
@@ -109,22 +89,10 @@ impl ViewBuffer {
         result
     }
 
-//    pub fn selection_after_insert(&self, bytes: Bytes) -> selection::Group {
-//        let mut result = selection::Group::new();
-//        let mut offset = bytes;
-//        for &selection in self.selection.borrow().iter() {
-//            let new_selection = selection.map(|t| t + offset);
-//            offset += bytes;
-//            result.add(new_selection);
-//        }
-//        result
-//    }
-
     pub fn prev_grapheme_location(&self, location:Location) -> Option<Location> {
         let offset      = self.byte_offset_from_location_snapped(location);
         let prev_offset = self.prev_grapheme_offset(offset);
-        let out = prev_offset.map(|off| self.offset_to_location(off));
-        out
+        prev_offset.map(|off| self.offset_to_location(off))
     }
 
     pub fn next_grapheme_location(&self, location:Location) -> Option<Location> {

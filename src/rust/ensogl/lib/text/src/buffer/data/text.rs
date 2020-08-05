@@ -96,19 +96,11 @@ impl Text {
         self.rope.prev_grapheme_offset(offset.as_usize()).map(|t| Bytes(t as i32))
     }
 
-    pub fn line_of_offset(&self, offset:Bytes) -> Line {
-        self.rope.line_of_offset(offset.as_usize()).into()
-    }
-
     /// An iterator over the lines of a rope.
     ///
     /// Lines are ended with either Unix (`\n`) or MS-DOS (`\r\n`) style line endings. The line
     /// ending is stripped from the resulting string. The final line ending is optional.
     pub fn lines<T:rope::IntervalBounds>(&self, range:T) -> rope::Lines {
-        println!("---------");
-        println!("last_line_index: {:?}",self.last_line_index());
-        println!("last_line_byte_offset: {:?}",self.last_line_byte_offset());
-        println!("byte_size(): {:?}",self.byte_size());
         self.rope.lines(range)
     }
 
@@ -283,6 +275,48 @@ impl From<LineIndexError> for ColumnFromByteOffsetError {
     }
 }
 
+impl Text {
+    /// Snaps the `LocationError<Column>` to the closest valid column.
+    pub fn snap_column_location_error(&self, err:LocationError<Column>) -> Column {
+        use LocationError::*;
+        match err {
+            LineIndexNegative           => 0.column(),
+            LineIndexTooBig             => self.last_line_end_column(),
+            LineTooShort       (column) => column,
+            NotClusterBoundary (column) => column,
+        }
+    }
+
+    /// Snaps the `LocationError<Bytes>` to the closest valid byte offset.
+    pub fn snap_bytes_location_error(&self, err:LocationError<Bytes>) -> Bytes {
+        use LocationError::*;
+        match err {
+            LineIndexNegative           => 0.bytes(),
+            LineIndexTooBig             => self.last_line_end_byte_offset(),
+            LineTooShort       (offset) => offset,
+            NotClusterBoundary (offset) => offset,
+        }
+    }
+
+    /// Snaps the `LocationResult<Column>` to the closest valid column.
+    pub fn snap_column_location_result
+    (&self, result:Result<Column,LocationError<Column>>) -> Column {
+        match result {
+            Ok(column) => column,
+            Err(err)   => self.snap_column_location_error(err),
+        }
+    }
+
+    /// Snaps the `LocationResult<Bytes>` to the closest valid byte offset.
+    pub fn snap_bytes_location_result
+    (&self, result:Result<Bytes,LocationError<Bytes>>) -> Bytes {
+        match result {
+            Ok(bytes) => bytes,
+            Err(err)  => self.snap_bytes_location_error(err),
+        }
+    }
+}
+
 
 // === Impls ===
 
@@ -358,40 +392,8 @@ impl Text {
         self.snap_column_location_result(column)
     }
 
-    pub fn snap_column_location_error(&self, err:LocationError<Column>) -> Column {
-        use LocationError::*;
-        match err {
-            LineIndexNegative           => 0.column(),
-            LineIndexTooBig             => self.last_line_end_column(),
-            LineTooShort       (column) => column,
-            NotClusterBoundary (column) => column,
-        }
-    }
 
-    pub fn snap_bytes_location_error(&self, err:LocationError<Bytes>) -> Bytes {
-        use LocationError::*;
-        match err {
-            LineIndexNegative           => 0.bytes(),
-            LineIndexTooBig             => self.last_line_end_byte_offset(),
-            LineTooShort       (offset) => offset,
-            NotClusterBoundary (offset) => offset,
-        }
-    }
-
-    pub fn snap_column_location_result(&self, result:Result<Column,LocationError<Column>>) -> Column {
-        match result {
-            Ok(column) => column,
-            Err(err)   => self.snap_column_location_error(err),
-        }
-    }
-
-    pub fn snap_bytes_location_result(&self, result:Result<Bytes,LocationError<Bytes>>) -> Bytes {
-        match result {
-            Ok(bytes) => bytes,
-            Err(err)  => self.snap_bytes_location_error(err),
-        }
-    }
-
+    /// Byte offset of the given location.
     pub fn byte_offset_from_location(&self, location:Location) -> Result<Bytes,LocationError<Bytes>> {
         let mut column = 0.column();
         let mut offset = self.byte_offset_from_line_index(location.line)?;
@@ -412,11 +414,20 @@ impl Text {
         }
     }
 
+    /// Byte offset of the given location. The result will be snapped to the closest valid value.
     pub fn byte_offset_from_location_snapped(&self, location:Location) -> Bytes {
         let offset = self.byte_offset_from_location(location);
         self.snap_bytes_location_result(offset)
     }
 
+
+    // FIXME: safety
+    fn location_from_byte_offset(&self, offset:Bytes) -> Location {
+        let line         = self.line_index_from_byte_offset_unchecked(offset);
+        let line_offset  = (offset - self.byte_offset_from_line_index(line).unwrap());
+        let column       = self.column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset);
+        Location(line,column)
+    }
 }
 
 

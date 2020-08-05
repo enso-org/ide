@@ -98,8 +98,8 @@ impl Buffer {
         self.data.borrow().last_line_index()
     }
 
-    pub fn line_of_offset(&self, offset:Bytes) -> Line {
-        self.data.borrow().line_of_offset(offset)
+    pub fn line_index_from_byte_offset_snapped(&self, offset:Bytes) -> Line {
+        self.data.borrow().line_index_from_byte_offset_snapped(offset)
     }
 
     fn byte_offset_from_line_index(&self,line:Line) -> Result<Bytes,LineIndexError> {

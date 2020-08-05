@@ -311,12 +311,10 @@ impl ViewBuffer {
 //        self.line_offset_of_location_X2(location)
 //    }
 
-    fn line_of_offset(&self,offset:Bytes) -> Line {
-        self.data().line_of_offset(offset)
-    }
+
 
     fn offset_to_location(&self, offset:Bytes) -> Location {
-        let line         = self.line_of_offset(offset);
+        let line         = self.line_index_from_byte_offset_snapped(offset);
         let line_offset  = (offset - self.byte_offset_from_line_index(line).unwrap());
         let column       = self.column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset);
         Location(line,column)
