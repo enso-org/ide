@@ -543,6 +543,13 @@ pub struct TextCell {
     pub cell : RefCell<Text>
 }
 
+impl TextCell {
+    pub fn set(&self, new_text:impl Into<Text>) {
+        let new_text = new_text.into();
+        *self.cell.borrow_mut() = new_text;
+    }
+}
+
 /// See docs in `Text`.
 #[allow(missing_docs)]
 impl TextCell {

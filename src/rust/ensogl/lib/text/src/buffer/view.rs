@@ -162,17 +162,17 @@ impl Default for ViewBuffer {
 impl ViewBuffer {
 
     fn commit_history(&self) {
-        let data      = self.buffer.data();
+        let text      = self.buffer.text();
         let style     = self.buffer.style();
         let selection = self.selection.borrow().clone();
-        self.history.data.borrow_mut().undo_stack.push((data,style,selection));
+        self.history.data.borrow_mut().undo_stack.push((text,style,selection));
     }
 
     fn undo(&self) -> Option<selection::Group> {
         let item      = self.history.data.borrow_mut().undo_stack.pop();
-        item.map(|(data,style,selection)| {
-            println!("SETTING DATA: {:?}", data);
-            self.buffer.set_data(data);
+        item.map(|(text,style,selection)| {
+            println!("SETTING DATA: {:?}", text);
+            self.buffer.set_text(text);
             self.buffer.set_style(style);
             selection
         })
@@ -277,7 +277,7 @@ impl ViewBuffer {
             let new_byte_selection = self.to_bytes_selection(new_selection);
             let byte_range         = range_between(byte_selection,new_byte_selection);
             byte_offset           += text_byte_size - byte_range.size();
-            self.buffer.data.borrow_mut().insert(byte_range,&text);
+            self.buffer.data.insert(byte_range,&text);
             let new_byte_selection = new_byte_selection.map(|t|t+text_byte_size);
             let new_selection      = self.to_location_selection(new_byte_selection);
             new_selection_group.merge(new_selection);
@@ -304,7 +304,7 @@ impl ViewBuffer {
     }
 
     fn data(&self) -> Text {
-        self.buffer.data.borrow().text.clone() // FIXME
+        self.buffer.data.text.cell.borrow().clone() // FIXME
     }
 
 //    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
@@ -607,7 +607,7 @@ impl ViewModel {
     pub fn lines(&self) -> Vec<String> {
         let range        = self.view_range();
         let rope_range   = range.start.as_usize() .. range.end.as_usize();
-        let mut lines    = self.buffer.borrow().lines(rope_range).map(|t|t.into()).collect_vec();
+        let mut lines    = self.buffer.data.text.cell.borrow().lines(rope_range).map(|t|t.into()).collect_vec();
         let missing_last = lines.len() == self.last_line_index().as_usize();
         if  missing_last { lines.push("".into()) }
         lines
