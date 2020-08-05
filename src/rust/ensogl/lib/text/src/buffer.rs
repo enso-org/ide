@@ -110,6 +110,10 @@ impl Buffer {
         self.data.borrow().end_byte_offset_from_line_index(line)
     }
 
+    pub fn byte_offset_from_location_snapped(&self, location:Location) -> Bytes {
+        self.data.borrow().byte_offset_from_location_snapped(location)
+    }
+
     fn last_offset(&self) -> Bytes {
         self.data().byte_size()
     }

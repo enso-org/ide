@@ -290,8 +290,8 @@ impl ViewBuffer {
     }
 
     fn to_bytes_selection(&self, selection:Selection) -> Selection<Bytes> {
-        let start = self.line_col_to_offset(selection.start).unwrap_or_default();
-        let end   = self.line_col_to_offset(selection.end).unwrap_or_default();
+        let start = self.byte_offset_from_location_snapped(selection.start);
+        let end   = self.byte_offset_from_location_snapped(selection.end);
         let id    = selection.id;
         Selection::new(start,end,id)
     }
@@ -307,9 +307,9 @@ impl ViewBuffer {
         self.buffer.data.borrow().text.clone() // FIXME
     }
 
-    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
-        self.line_offset_of_location_X2(location)
-    }
+//    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
+//        self.line_offset_of_location_X2(location)
+//    }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
         self.data().line_of_offset(offset)

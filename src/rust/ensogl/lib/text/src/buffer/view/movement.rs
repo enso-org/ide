@@ -77,24 +77,24 @@ impl ViewBuffer {
     }
 
 
-    pub fn line_offset_of_location_X2(&self, location:Location) -> Option<Bytes> {
-        if location.line < 0.line() {
-            return Some(0.bytes())
-        }
-        let mut column = 0.column();
-        let mut offset = self.byte_offset_from_line_index(location.line).ok()?;
-        let max_offset = self.end_byte_offset_from_line_index(location.line).ok()?;
-        while column < location.column {
-            match self.next_grapheme_offset(offset) {
-                None => break,
-                Some(off) => {
-                    column += 1.column();
-                    offset = off;
-                }
-            }
-        }
-        Some(offset.min(max_offset))
-    }
+//    pub fn line_offset_of_location_X2(&self, location:Location) -> Option<Bytes> {
+//        if location.line < 0.line() {
+//            return Some(0.bytes())
+//        }
+//        let mut column = 0.column();
+//        let mut offset = self.byte_offset_from_line_index(location.line).ok()?;
+//        let max_offset = self.end_byte_offset_from_line_index(location.line).ok()?;
+//        while column < location.column {
+//            match self.next_grapheme_offset(offset) {
+//                None => break,
+//                Some(off) => {
+//                    column += 1.column();
+//                    offset = off;
+//                }
+//            }
+//        }
+//        Some(offset.min(max_offset))
+//    }
 
     /// Apply the movement to each region in the selection, and returns the union of the results.
     ///
@@ -121,14 +121,14 @@ impl ViewBuffer {
 //    }
 
     pub fn prev_grapheme_location(&self, location:Location) -> Option<Location> {
-        let offset      = self.line_col_to_offset(location)?;
+        let offset      = self.byte_offset_from_location_snapped(location);
         let prev_offset = self.prev_grapheme_offset(offset);
         let out = prev_offset.map(|off| self.offset_to_location(off));
         out
     }
 
     pub fn next_grapheme_location(&self, location:Location) -> Option<Location> {
-        let offset      = self.line_col_to_offset(location)?;
+        let offset      = self.byte_offset_from_location_snapped(location);
         let next_offset = self.next_grapheme_offset(offset);
         next_offset.map(|off| self.offset_to_location(off))
     }
@@ -185,7 +185,7 @@ impl ViewBuffer {
             }
 
             Transform::LeftWord => {
-                let end_offset      = self.line_col_to_offset(region.end).unwrap_or_default();
+                let end_offset      = self.byte_offset_from_location_snapped(region.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offset          = word_cursor.prev_boundary().unwrap_or(0.bytes());
                 let end             = self.offset_to_location(offset);
@@ -193,7 +193,7 @@ impl ViewBuffer {
             }
 
             Transform::RightWord => {
-                let end_offset      = self.line_col_to_offset(region.end).unwrap_or_default();
+                let end_offset      = self.byte_offset_from_location_snapped(region.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offset          = word_cursor.next_boundary().unwrap_or_else(|| text.byte_size());
                 let end             = self.offset_to_location(offset);
@@ -201,7 +201,7 @@ impl ViewBuffer {
             }
 
             Transform::Word => {
-                let end_offset      = self.line_col_to_offset(region.end).unwrap_or_default();
+                let end_offset      = self.byte_offset_from_location_snapped(region.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offsets         = word_cursor.select_word();
                 let start           = self.offset_to_location(offsets.0);

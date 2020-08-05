@@ -231,20 +231,20 @@ impl Text {
 
 // === Errors ===
 
-pub enum LocationError {
+pub enum LocationError<T> {
     LineIndexNegative,
     LineIndexTooBig,
-    LineTooShort,
-    NotClusterBoundary(Column)
+    LineTooShort       (T),
+    NotClusterBoundary (T)
 }
 
 pub enum ColumnFromByteOffsetError {
     OffsetNegative,
     OffsetTooBig,
-    NotClusterBoundary(Column)
+    NotClusterBoundary (Column)
 }
 
-impl From<ColumnFromByteOffsetError> for LocationError {
+impl From<ColumnFromByteOffsetError> for LocationError<Column> {
     fn from(err:ColumnFromByteOffsetError) -> Self {
         use LocationError::*;
         match err {
@@ -255,7 +255,7 @@ impl From<ColumnFromByteOffsetError> for LocationError {
     }
 }
 
-impl From<LineIndexError> for LocationError {
+impl<T> From<LineIndexError> for LocationError<T> {
     fn from(err:LineIndexError) -> Self {
         use LocationError::*;
         match err {
@@ -298,6 +298,10 @@ impl Text {
         self.column_from_byte_offset(self.byte_size()).unwrap()
     }
 
+    pub fn last_line_end_byte_offset(&self) -> Bytes {
+        self.byte_size()
+    }
+
     /// The column number of the given byte offset.
     pub fn column_from_byte_offset(&self, tgt_offset:Bytes)
     -> Result<Column,ColumnFromByteOffsetError> {
@@ -336,7 +340,7 @@ impl Text {
 
     /// The column from line number and byte offset within the line.
     pub fn column_from_line_index_and_in_line_byte_offset(&self, line:Line, in_line_offset:Bytes)
-    -> Result<Column,LocationError> {
+    -> Result<Column,LocationError<Column>> {
         use LocationError::*;
         let mut offset = self.byte_offset_from_line_index(line)?;
         let tgt_offset = offset + in_line_offset;
@@ -344,44 +348,74 @@ impl Text {
         Ok(column)
     }
 
+
     /// The column from line number and byte offset within the line. The result will be snapped to
     /// the closest valid value. In case the offset points inside of a grapheme cluster, it will be
     /// snapped to its right side.
     pub fn column_from_line_index_and_in_line_byte_offset_snapped
     (&self, line:Line, in_line_offset:Bytes) -> Column {
+        let column = self.column_from_line_index_and_in_line_byte_offset(line,in_line_offset);
+        self.snap_column_location_result(column)
+    }
+
+    pub fn snap_column_location_error(&self, err:LocationError<Column>) -> Column {
         use LocationError::*;
-        match self.column_from_line_index_and_in_line_byte_offset(line,in_line_offset) {
-            Ok(column)                      => column,
-            Err(LineIndexNegative)          => 0.column(),
-            Err(LineIndexTooBig)            => self.last_line_end_column(),
-            Err(LineTooShort)               => self.line_end_column(line).unwrap(),
-            Err(NotClusterBoundary(column)) => column,
+        match err {
+            LineIndexNegative           => 0.column(),
+            LineIndexTooBig             => self.last_line_end_column(),
+            LineTooShort       (column) => column,
+            NotClusterBoundary (column) => column,
         }
     }
 
-    pub fn byte_offset_from_location(&self, location:Location) -> Result<Bytes,LocationError> {
+    pub fn snap_bytes_location_error(&self, err:LocationError<Bytes>) -> Bytes {
+        use LocationError::*;
+        match err {
+            LineIndexNegative           => 0.bytes(),
+            LineIndexTooBig             => self.last_line_end_byte_offset(),
+            LineTooShort       (offset) => offset,
+            NotClusterBoundary (offset) => offset,
+        }
+    }
+
+    pub fn snap_column_location_result(&self, result:Result<Column,LocationError<Column>>) -> Column {
+        match result {
+            Ok(column) => column,
+            Err(err)   => self.snap_column_location_error(err),
+        }
+    }
+
+    pub fn snap_bytes_location_result(&self, result:Result<Bytes,LocationError<Bytes>>) -> Bytes {
+        match result {
+            Ok(bytes) => bytes,
+            Err(err)  => self.snap_bytes_location_error(err),
+        }
+    }
+
+    pub fn byte_offset_from_location(&self, location:Location) -> Result<Bytes,LocationError<Bytes>> {
         let mut column = 0.column();
         let mut offset = self.byte_offset_from_line_index(location.line)?;
         let max_offset = self.end_byte_offset_from_line_index(location.line)?;
         while column < location.column {
             match self.next_grapheme_offset(offset) {
-                None      => return Err(LocationError::LineTooShort),
+                None      => return Err(LocationError::LineTooShort(offset)),
                 Some(off) => {
+                    offset  = off;
                     column += 1.column();
-                    offset = off;
                 }
             }
         }
         if offset > max_offset {
-            Err(LocationError::LineTooShort)
+            Err(LocationError::LineTooShort(max_offset))
         } else {
             Ok(offset)
         }
     }
 
-//    pub fn byte_offset_from_location_snapped(&self, location:Location) -> Bytes {
-//
-//    }
+    pub fn byte_offset_from_location_snapped(&self, location:Location) -> Bytes {
+        let offset = self.byte_offset_from_location(location);
+        self.snap_bytes_location_result(offset)
+    }
 
 }
 
