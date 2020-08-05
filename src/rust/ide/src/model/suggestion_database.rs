@@ -5,6 +5,7 @@ use crate::prelude::*;
 use crate::double_representation::module::QualifiedName;
 use crate::model::module::MethodId;
 
+use data::text::TextLocation;
 use enso_protocol::language_server;
 use language_server::types::SuggestionsDatabaseVersion;
 use language_server::types::SuggestionDatabaseUpdatesEvent;
@@ -13,7 +14,7 @@ use parser::DocParser;
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionEntryId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
-use data::text::TextLocation;
+
 
 
 // =============

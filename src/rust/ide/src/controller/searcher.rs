@@ -590,7 +590,8 @@ impl Searcher {
 
     /// Get the type that suggestions for the next completion should return.
     ///
-    /// Generally this corresponds to the type of the currently filled function argument.
+    /// Generally this corresponds to the type of the currently filled function argument. Returns
+    /// empty list if no type could be determined.
     fn return_types_for_argument_completion(&self, arg_index:usize) -> Vec<String> {
         let suggestions = if let Some(intended) = self.intended_function_suggestion() {
             std::iter::once(intended).collect()
@@ -672,7 +673,8 @@ impl Searcher {
         opt_result().unwrap_or_default()
     }
 
-    /// For the simple function call checks if the function was called
+    /// For the simple function call checks if the function is called on the module (if it can be
+    /// easily determined) and returns the module's qualified name if it is.
     fn module_whose_method_is_called(&self, call:&SimpleFunctionCall) -> Option<QualifiedName> {
         let position        = *self.position_in_code;
         let this_name       = ast::identifier::name(call.this_argument.as_ref()?)?;
