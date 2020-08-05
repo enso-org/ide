@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::data;
 
+use fmt::Formatter;
 
 
 // ============
@@ -43,5 +44,11 @@ impl Path {
     pub fn builtin(name:impl Into<Name>) -> Self {
         let library = data::builtin_library();
         Self::new(library,name)
+    }
+}
+
+impl Display for Path {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.name)
     }
 }

@@ -10,8 +10,11 @@
 
 use crate::prelude::*;
 
+use crate::graph_editor::component::node::icon;
+use crate::graph_editor::component::text_list::TextList;
 use crate::data::EnsoCode;
 use crate::visualization;
+
 
 use enso_frp as frp;
 use ensogl::data::color;
@@ -26,6 +29,7 @@ use ensogl::gui::component;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_theme as theme;
+
 
 
 
@@ -142,41 +146,46 @@ pub mod overlay {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub set_visibility     : frp::Source<bool>,
-    pub toggle_visibility  : frp::Source,
-    pub set_visualization  : frp::Source<Option<visualization::Instance>>,
-    pub set_data           : frp::Source<visualization::Data>,
-    pub select             : frp::Source,
-    pub deselect           : frp::Source,
-    pub set_size           : frp::Source<Vector2>,
-    pub enable_fullscreen  : frp::Source,
-    pub disable_fullscreen : frp::Source,
-    pub preprocessor       : frp::Stream<EnsoCode>,
-    scene_shape            : frp::Sampler<scene::Shape>,
-    size                   : frp::Sampler<Vector2>,
-    preprocessor_select    : frp::Source<EnsoCode>,
+    pub set_visibility                 : frp::Source<bool>,
+    pub toggle_visibility              : frp::Source,
+    pub set_visualization              : frp::Source<Option<visualization::Instance>>,
+    pub set_data                       : frp::Source<visualization::Data>,
+    pub set_visualization_alternatives : frp::Source<Vec<visualization::Path>>,
+    pub select                         : frp::Source,
+    pub deselect                       : frp::Source,
+    pub set_size                       : frp::Source<Vector2>,
+    pub enable_fullscreen              : frp::Source,
+    pub disable_fullscreen             : frp::Source,
+    pub  preprocessor                   : frp::Stream<EnsoCode>,
+
+    scene_shape                        : frp::Sampler<scene::Shape>,
+    size                               : frp::Sampler<Vector2>,
+    preprocessor_select                : frp::Source<EnsoCode>,
 }
 
 impl Frp {
     fn new(network:&frp::Network, scene:&Scene) -> Self {
         frp::extend! { network
-            set_visibility      <- source();
-            toggle_visibility   <- source();
-            set_visualization   <- source();
-            set_data            <- source();
-            select              <- source();
-            deselect            <- source();
-            set_size            <- source();
-            enable_fullscreen   <- source();
-            disable_fullscreen  <- source();
-            preprocessor_select <- source();
-            size                <- set_size.sampler();
+            set_visibility                 <- source();
+            toggle_visibility              <- source();
+            set_visualization              <- source();
+            set_data                       <- source();
+            set_visualization_alternatives <- source();
+            select                         <- source();
+            deselect                       <- source();
+
+            set_size                       <- source();
+            enable_fullscreen              <- source();
+            disable_fullscreen             <- source();
+            preprocessor_select            <- source();
+            size                           <- set_size.sampler();
+
             let preprocessor     = preprocessor_select.clone_ref().into();
         };
         let scene_shape = scene.shape().clone_ref();
         Self {set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
               set_size,enable_fullscreen,disable_fullscreen,scene_shape,size,preprocessor,
-              preprocessor_select}
+              preprocessor_select,set_visualization_alternatives}
     }
 }
 
@@ -315,11 +324,19 @@ pub struct ContainerModel {
     view            : View,
     fullscreen_view : FullscreenView,
     is_fullscreen   : Rc<Cell<bool>>,
+    registry        : visualization::Registry,
+
+    visualization_chooser_icon : component::ShapeView<icon::visualization_chooser::Shape>,
+    visualization_chooser      : TextList<visualization::Path>,
 }
+
+
 
 impl ContainerModel {
     /// Constructor.
-    pub fn new(logger:&Logger, scene:&Scene, network:&frp::Network) -> Self {
+    pub fn new
+    (logger:&Logger, scene:&Scene, network:&frp::Network, registry:visualization::Registry)
+    -> Self {
         let logger          = Logger::sub(logger,"visualization_container");
         let display_object  = display::object::Instance::new(&logger);
         let visualization   = default();
@@ -328,7 +345,18 @@ impl ContainerModel {
         let fullscreen_view = FullscreenView::new(&logger,scene);
         let scene           = scene.clone_ref();
         let is_fullscreen   = default();
-        Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen}
+
+        TextList::<visualization::Path>::order_hack(&scene);
+
+        let visualization_chooser_icon = component::ShapeView::<icon::visualization_chooser::Shape>::new(&logger,&scene);
+        view.add_child(&visualization_chooser_icon);
+        visualization_chooser_icon.shape.sprite.size.set(Vector2::new(10.0,10.0));
+
+        let visualization_chooser = TextList::new(&scene);
+        view.add_child(&visualization_chooser);
+
+        Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen,
+            visualization_chooser,visualization_chooser_icon,registry}
             . init()
     }
 
@@ -338,6 +366,9 @@ impl ContainerModel {
         // FIXME: These 2 lines fix a bug with display objects visible on stage.
         self.set_visibility(true);
         self.set_visibility(false);
+
+        self.show_visualisation_chooser();
+        self.hide_visualisation_chooser();
         self
     }
 
@@ -415,6 +446,13 @@ impl ContainerModel {
             // self.fullscreen_view.background.shape.sprite.size.set(zero());
         }
 
+        let icon_offset = Vector2::new(CORNER_RADIUS, CORNER_RADIUS);
+        self.visualization_chooser_icon.set_position_xy((size/2.0) - icon_offset);
+        self.visualization_chooser.set_position_x(-(size.x/2.0));
+        self.visualization_chooser.set_position_y(size.y/2.0);
+        self.visualization_chooser.frp.set_width.emit(size.x);
+
+
         if let Some(viz) = &*self.visualization.borrow() {
             viz.set_size.emit(size);
         }
@@ -428,6 +466,21 @@ impl ContainerModel {
         self.view.overlay.shape.roundness.set(value);
         // self.view.background.shape.roundness.set(value);
         // self.fullscreen_view.background.shape.roundness.set(value);
+    }
+
+    fn show_visualisation_chooser(&self) {
+        self.visualization_chooser.display_object().set_parent(&self)
+    }
+    fn hide_visualisation_chooser(&self) {
+        self.visualization_chooser.unset_parent()
+    }
+
+    fn show_visualisation(&self) {
+        self.visualization.borrow().as_ref().map(|vis| self.display_object.add_child(vis));
+    }
+
+    fn hide_visualisation(&self) {
+        self.visualization.borrow().as_ref().map(|vis| vis.unset_parent());
     }
 }
 
@@ -459,9 +512,9 @@ pub struct Container {
 
 impl Container {
     /// Constructor.
-    pub fn new(logger:&Logger,scene:&Scene) -> Self {
+    pub fn new(logger:&Logger,scene:&Scene,registry:visualization::Registry) -> Self {
         let network = frp::Network::new();
-        let model   = Rc::new(ContainerModel::new(logger,scene,&network));
+        let model   = Rc::new(ContainerModel::new(logger,scene,&network,registry));
         let frp     = model.frp.clone_ref();
         Self {model,frp,network} . init(scene)
     }
@@ -487,13 +540,19 @@ impl Container {
         let model      = &self.model;
         let fullscreen = Animation::new(network);
         let size       = Animation::<Vector2>::new(network);
-        let fullscreen_position = Animation::<Vector3>::new(network);
+        let fullscreen_position        = Animation::<Vector3>::new(network);
+        let visualization_chooser_icon = &model.visualization_chooser_icon.events;
+        let visualization_chooser     = &model.visualization_chooser.frp;
+        let registry = &model.registry;
 
-        frp::extend! { network
-            eval  inputs.set_visibility    ((v) model.set_visibility(*v));
-            eval_ inputs.toggle_visibility (model.toggle_visibility());
-            eval  inputs.set_visualization ((v) model.set_visualization(v.clone()));
-            eval  inputs.set_data          ((t) model.set_visualization_data(t));
+
+        frp::extend! { TRACE_ALL network
+            eval  inputs.set_visibility                 ((v) model.set_visibility(*v));
+            eval_ inputs.toggle_visibility              (model.toggle_visibility());
+            eval  inputs.set_visualization              ((v) model.set_visualization(v.clone()));
+            eval  inputs.set_data                       ((t) model.set_visualization_data(t));
+            eval  inputs.set_visualization_alternatives ((t) model.visualization_chooser.frp.set_content.emit(t););
+
             eval_ inputs.enable_fullscreen (model.set_visibility(true));
             eval_ inputs.enable_fullscreen (model.enable_fullscreen());
             eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
@@ -523,7 +582,62 @@ impl Container {
 
             eval fullscreen_position.value ((p) model.fullscreen_view.set_position(*p));
             eval model.frp.preprocessor    ((code) inputs.preprocessor_select.emit(code));
+
+
+            visualisation_chooser_active  <- source::<bool>();
+
+
+            // eval_ visualization_chooser_icon.mouse_over (visualisation_chooser_preview.emit(true));
+            eval_ visualization_chooser_icon.mouse_down (visualisation_chooser_active.emit(true));
+            // eval_ visualization_chooser_icon.mouse_out  (model.hide_visualisation_chooser());
+            // eval_ visualization_chooser.mouse_out       (model.hide_visualisation_chooser());
+
+            hide_if_preview <- visualization_chooser_icon.mouse_out.gate_not(&visualisation_chooser_active);
+            show_if_preview <- visualization_chooser_icon.mouse_over.gate_not(&visualisation_chooser_active);
+            hide_visualisation_chooser <- any(&hide_if_preview,&visualization_chooser.mouse_out);
+
+            eval_ show_if_preview ({
+                model.visualization_chooser.frp.set_layout_collapsed.emit(());
+                model.show_visualisation_chooser();
+            });
+
+            eval hide_visualisation_chooser ([visualisation_chooser_active](_) {
+                visualisation_chooser_active.emit(false);
+            });
+
+            show_visualisation_chooser <- visualisation_chooser_active.gate(&visualisation_chooser_active);
+            hide_visualisation_chooser <- visualisation_chooser_active.gate_not(&visualisation_chooser_active);
+
+            eval_ show_visualisation_chooser ({
+                model.show_visualisation_chooser();
+                model.visualization_chooser.frp.set_layout_expanded.emit(());
+                // FIXME we need to hide the visualisation because it will be occluded by HTML
+                // visualisation. This needs better occlusion/layer management to be fixed.
+                model.hide_visualisation();
+            });
+            eval_ hide_visualisation_chooser ({
+                model.hide_visualisation_chooser();
+                model.show_visualisation();
+            });
+
+
+            eval visualization_chooser.selection([model,registry,scene,visualisation_chooser_active](visualization_path) {
+                if let Some(visualization_path) = visualization_path {
+                    if let Some(definition) = registry.definition_from_path(visualization_path) {
+                        if let Ok(visualization) = definition.new_instance(&scene) {
+                            model.set_visualization(Some(visualization));
+                            model.visualization_chooser.frp.set_preselected.emit(Some(visualization_path.clone_ref()));
+                        }
+                    }
+                }
+                visualisation_chooser_active.emit(false);
+            });
+
+
         }
+
+        // Init value
+        visualisation_chooser_active.emit(false);
 
         inputs.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
         size.skip();

@@ -4,6 +4,7 @@
 // WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
 
 pub mod port;
+pub mod icon;
 
 pub use port::Expression;
 
@@ -38,7 +39,6 @@ pub const CORNER_RADIUS      : f32 = 14.0;
 pub const NODE_HEIGHT        : f32 = 28.0;
 pub const TEXT_OFF           : f32 = 10.0;
 pub const SHADOW_SIZE        : f32 = 10.0;
-
 
 
 // ============
@@ -181,14 +181,15 @@ pub struct NodeModel {
     pub main_area      : component::ShapeView<shape::Shape>,
     pub drag_area      : component::ShapeView<drag_area::Shape>,
     pub ports          : port::Manager,
-    pub visualization  : visualization::Container,
     pub output_ports   : OutputPorts,
-}
+
+    pub visualization  : visualization::Container,
+    }
 
 
 impl NodeModel {
     /// Constructor.
-    pub fn new(app:&Application, network:&frp::Network) -> Self {
+    pub fn new(app:&Application, network:&frp::Network,registry:visualization::Registry) -> Self {
         let scene  = app.display.scene();
         let logger = Logger::new("node");
         edge::sort_hack_1(scene);
@@ -215,7 +216,7 @@ impl NodeModel {
         let input = FrpInputs::new(&network);
         let frp   = FrpEndpoints::new(&network,input);
 
-        let visualization = visualization::Container::new(&logger,&scene);
+        let visualization = visualization::Container::new(&logger,&scene,registry);
         visualization.mod_position(|t| {
             t.x = 60.0;
             t.y = -120.0;
@@ -280,9 +281,9 @@ impl NodeModel {
 }
 
 impl Node {
-    pub fn new(app:&Application) -> Self {
+    pub fn new(app:&Application,registry:visualization::Registry) -> Self {
         let frp_network      = frp::Network::new();
-        let model            = Rc::new(NodeModel::new(app,&frp_network));
+        let model            = Rc::new(NodeModel::new(app,&frp_network,registry));
         let inputs           = &model.frp.input;
         let selection        = Animation::<f32>::new(&frp_network);
 

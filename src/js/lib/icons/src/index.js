@@ -116,7 +116,7 @@ const path  = require('path')
 
 const thisPath = path.resolve(__dirname)
 const root     = path.resolve(thisPath,'..','..','..','..','..')
-const distPath = path.resolve(root,'dist','icons')
+const distPath = path.resolve(root,'dist','icon')
 const donePath = path.resolve(distPath,'init')
 
 
@@ -129,7 +129,7 @@ async function genIcons() {
         return
     }
 
-    console.log("Generating SVG icons.")
+    console.log("Generating SVG icon.")
     await fs.mkdir(path.resolve(distPath,'svg'), {recursive:true})
     await fs.mkdir(path.resolve(distPath,'png'), {recursive:true})
     for (let size of sizes) {
@@ -141,7 +141,7 @@ async function genIcons() {
     /// AND KEEPS THE METADATA INFORMATION ABOUT DPI OF 144.
     /// It is required to properly display png images on MacOS.
     /// There is currently no other way in `sharp` to do it.
-    console.log("Generating PNG icons.")
+    console.log("Generating PNG icon.")
     for (let size of sizes) {
         let inName  = `icon_${size}x${size}.svg`
         let outName = `icon_${size}x${size}.png`

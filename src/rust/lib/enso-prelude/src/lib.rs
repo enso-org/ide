@@ -44,6 +44,7 @@ pub use enclose::enclose;
 pub use failure::Fail;
 pub use ifmt::*;
 pub use itertools::Itertools;
+pub use itertools::izip;
 pub use lazy_static::lazy_static;
 pub use num::Num;
 pub use paste;

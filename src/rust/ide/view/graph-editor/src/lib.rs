@@ -1002,7 +1002,7 @@ impl GraphEditorModelWithNetwork {
     , input_press    : &frp::Source<EdgeTarget>
     , expression_set : &frp::Source<(NodeId,String)>
     ) -> NodeId {
-        let view    = component::Node::new(&self.app);
+        let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
         let node    = Node::new(view);
         let node_id = node.id();
         self.add_child(&node);
@@ -1126,15 +1126,16 @@ impl GraphEditorModelWithNetwork {
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct GraphEditorModel {
-    pub logger             : Logger,
-    pub display_object     : display::object::Instance,
-    pub app                : Application,
-    pub breadcrumbs        : component::Breadcrumbs,
-    pub cursor             : cursor::Cursor,
-    pub nodes              : Nodes,
-    pub edges              : Edges,
-    touch_state            : TouchState,
-    frp                    : FrpInputs,
+    pub logger         : Logger,
+    pub display_object : display::object::Instance,
+    pub app            : Application,
+    pub breadcrumbs    : component::Breadcrumbs,
+    pub cursor         : cursor::Cursor,
+    pub nodes          : Nodes,
+    pub edges          : Edges,
+    pub visualizations : visualization::Registry,
+    touch_state        : TouchState,
+    frp                : FrpInputs,
 }
 
 
@@ -1152,11 +1153,14 @@ impl GraphEditorModel {
         let display_object     = display::object::Instance::new(&logger);
         let nodes              = Nodes::new(&logger);
         let edges              = default();
+        let visualizations     = visualization::Registry::with_default_visualizations();
         let frp                = FrpInputs::new(network);
         let touch_state        = TouchState::new(network,&scene.mouse.frp);
         let breadcrumbs        = component::Breadcrumbs::new(scene,focus_manager);
         let app                = app.clone_ref();
-        Self {logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs}.init()
+        Self {
+            logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,visualizations
+        }.init()
     }
 
     fn init(self) -> Self {
@@ -1281,6 +1285,11 @@ impl GraphEditorModel {
         let expr    = expr.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.frp.set_expression.emit(expr);
+
+            // FIXME use enso type of expression
+            let visualizations       = self.visualizations.valid_sources(&"Any".into());
+            let visualizations_paths = visualizations.iter().map(|definition| definition.signature.path.clone());
+            node.visualization.frp.set_visualization_alternatives.emit(visualizations_paths.collect_vec());
         }
         for edge_id in self.node_out_edges(node_id) {
             self.refresh_edge_source_size(edge_id);
@@ -1695,7 +1704,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let inputs         = &model.frp;
     let mouse          = &scene.mouse.frp;
     let touch          = &model.touch_state;
-    let visualizations = visualization::Registry::with_default_visualizations();
+    let visualizations = &model.visualizations;
     let logger         = &model.logger;
     let outputs        = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
@@ -2334,7 +2343,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                 let vis_definition = visualizations.definition_from_path(vis_path);
                 if let Some(definition) = vis_definition {
                     match definition.new_instance(&scene) {
-                        Ok(vis)  => node.visualization.frp.set_visualization.emit(Some(vis)),
+                        Ok(vis)  => {
+                            let alternatives = visualizations.valid_alternatives(&definition);
+                            node.visualization.frp.set_visualization.emit(Some(vis));
+                            node.visualization.frp.set_visualization_alternatives.emit(alternatives);
+                        },
                         Err(err) => {
                             logger.warning(
                                 || format!("Failed to instantiate visualisation: {:?}",err));

@@ -86,6 +86,12 @@ impl Registry {
         instance.into()
     }
 
+    pub fn valid_alternatives(&self, reference:&visualization::Definition) -> Vec<visualization::Path> {
+        let alternative_definition = self.valid_sources(&reference.signature.input_type);
+        let paths = alternative_definition.iter().map(|definition| definition.signature.path.clone());
+        paths.collect()
+    }
+
 }
 
 impl Default for Registry {
