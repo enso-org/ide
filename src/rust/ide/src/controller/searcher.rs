@@ -418,12 +418,12 @@ impl Searcher {
     pub fn set_input(&self, new_input:String) -> FallibleResult<()> {
         debug!(self.logger, "Manually setting input to {new_input}");
         let parsed_input = ParsedInput::new(new_input,&self.parser)?;
-        let old_id       = self.data.borrow().input.next_completion_id();
-        let new_id       = parsed_input.next_completion_id();
+        let old_expr     = self.data.borrow().input.expression.clone();
+        let new_expr     = parsed_input.expression.clone();
 
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
-        if old_id != new_id {
+        if old_expr.repr() != new_expr.repr() {
             self.reload_list()
         }
         Ok(())
@@ -546,7 +546,7 @@ impl Searcher {
         let data_borrowed = self.data.borrow();
         let fragments     = data_borrowed.fragments_added_by_picking.iter();
         let imports       = fragments.map(|frag| &frag.picked_suggestion.module);
-        let mut module    = double_representation::module::Info {ast:self.module_ast()};
+        let mut module    = self.module();
         for import in imports {
             let import        = ImportInfo::from_qualified_name(&import);
             let already_there = module.iter_imports().any(|imp| imp == import);
@@ -675,16 +675,20 @@ impl Searcher {
     /// For the simple function call checks if the function was called
     fn module_whose_method_is_called(&self, call:&SimpleFunctionCall) -> Option<QualifiedName> {
         let position        = *self.position_in_code;
-        let module          = double_representation::module::Info {ast:self.module_ast()};
         let this_name       = ast::identifier::name(call.this_argument.as_ref()?)?;
         let module_name     = self.module_qualified_name();
         let matching_locals = self.database.lookup_locals_by_name_and_location
             (this_name,&module_name,position);
         let not_local_name = matching_locals.is_empty();
-        let imported       = || module.iter_imports().find_map(|import| {
-            import.qualified_name().ok().filter(|module| module.name() == this_name)
-        });
-        not_local_name.and_option_from(imported)
+        not_local_name.and_option_from(|| {
+            if this_name == constants::keywords::HERE || this_name == module_name.name() {
+                Some(module_name)
+            } else {
+                self.module().iter_imports().find_map(|import| {
+                    import.qualified_name().ok().filter(|module| module.name() == this_name)
+                })
+            }
+        })
     }
 
     /// Get the suggestion that was selected by the user into the function.
@@ -714,8 +718,8 @@ impl Searcher {
             .is_some()
     }
 
-    fn module_ast(&self) -> ast::known::Module {
-        self.graph.graph().module.ast()
+    fn module(&self) -> double_representation::module::Info {
+        double_representation::module::Info {ast:self.graph.graph().module.ast()}
     }
 
     fn module_qualified_name(&self) -> QualifiedName {
@@ -803,12 +807,12 @@ mod test {
         ) {
             let completion_response = completion_response(result);
             expect_call!(client.completion(
-                    module      = self.graph.module.path.file_path().clone(),
-                    position    = self.code_location,
-                    self_type   = self_type.map(Into::into),
-                    return_type = return_type.map(Into::into),
-                    tag         = None
-                ) => Ok(completion_response));
+                module      = self.graph.module.path.file_path().clone(),
+                position    = self.code_location,
+                self_type   = self_type.map(Into::into),
+                return_type = return_type.map(Into::into),
+                tag         = None
+            ) => Ok(completion_response));
         }
     }
 
@@ -821,8 +825,6 @@ mod test {
         entry2   : CompletionSuggestion,
         entry3   : CompletionSuggestion,
         entry9   : CompletionSuggestion,
-        entry10  : CompletionSuggestion,
-        entry11  : CompletionSuggestion,
     }
 
     impl Fixture {
@@ -834,7 +836,7 @@ mod test {
             client.require_all_calls();
             client_setup(&mut data,&mut client);
             let end_of_code = TextLocation::at_document_end(&data.graph.module.code);
-            let code_range  = TextLocation::at_document_begin()..end_of_code;
+            let code_range  = TextLocation::at_document_begin()..=end_of_code;
             let graph       = data.graph.controller();
             let node        = &graph.graph().nodes().unwrap()[0];
             let this        = ThisNode::new(vec![node.info.id()],&graph.graph());
@@ -855,7 +857,7 @@ mod test {
             let entry1 = model::suggestion_database::Entry {
                 name          : "testFunction1".to_string(),
                 kind          : model::suggestion_database::EntryKind::Function,
-                module        : "Test.Test".to_string().try_into().unwrap(),
+                module        : crate::test::mock::data::module_qualified_name(),
                 arguments     : vec![],
                 return_type   : "Number".to_string(),
                 documentation : default(),
@@ -870,7 +872,7 @@ mod test {
             let entry3 = model::suggestion_database::Entry {
                 name          : "testMethod1".to_string(),
                 kind          : model::suggestion_database::EntryKind::Method,
-                self_type     : Some("Test".to_string()),
+                self_type     : Some(crate::test::mock::data::MODULE_NAME.to_string()),
                 scope         : Scope::Everywhere,
                 arguments     : vec![
                     Argument {
@@ -888,7 +890,25 @@ mod test {
                 ],
                 ..entry1.clone()
             };
-
+            let entry4 = model::suggestion_database::Entry {
+                self_type : Some("Test".to_string()),
+                module    : "Test.Test".to_string().try_into().unwrap(),
+                arguments : vec![
+                    Argument {
+                        repr_type     : "Any".to_string(),
+                        name          : "this".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    },
+                    Argument {
+                        repr_type     : "String".to_string(),
+                        name          : "num_arg".to_string(),
+                        default_value : None,
+                        is_suspended  : false
+                    }
+                ],
+                ..entry3.clone()
+            };
             let entry9 = model::suggestion_database::Entry {
                 name : "testFunction2".to_string(),
                 arguments     : vec![
@@ -908,60 +928,16 @@ mod test {
                 ..entry1.clone()
             };
 
-
-            let entry10 = model::suggestion_database::Entry {
-                name      : "overloaded".to_string(),
-                self_type : Some("Text".to_string()),
-                kind      : model::suggestion_database::EntryKind::Method,
-                arguments     : vec![
-                    Argument {
-                        repr_type     : "Any".to_string(),
-                        name          : "this".to_string(),
-                        default_value : None,
-                        is_suspended  : false
-                    },
-                    Argument {
-                        repr_type     : "Foo".to_string(),
-                        name          : "foo_arg".to_string(),
-                        default_value : None,
-                        is_suspended  : false
-                    },
-                ],
-                ..entry1.clone()
-            };
-
-            let entry11 = model::suggestion_database::Entry {
-                self_type : Some("Number".to_string()),
-                arguments     : vec![
-                    Argument {
-                        repr_type     : "Any".to_string(),
-                        name          : "this".to_string(),
-                        default_value : None,
-                        is_suspended  : false
-                    },
-                    Argument {
-                        repr_type     : "Bar".to_string(),
-                        name          : "bar_arg".to_string(),
-                        default_value : None,
-                        is_suspended  : false
-                    },
-                ],
-                ..entry10.clone()
-            };
-
             searcher.database.put_entry(1,entry1);
             let entry1 = searcher.database.get(1).unwrap();
             searcher.database.put_entry(2,entry2);
             let entry2 = searcher.database.get(2).unwrap();
             searcher.database.put_entry(3,entry3);
             let entry3 = searcher.database.get(3).unwrap();
+            searcher.database.put_entry(4,entry4);
             searcher.database.put_entry(9,entry9);
             let entry9 = searcher.database.get(9).unwrap();
-            searcher.database.put_entry(10,entry10);
-            let entry10 = searcher.database.get(10).unwrap();
-            searcher.database.put_entry(11,entry11);
-            let entry11 = searcher.database.get(11).unwrap();
-            Fixture{data,test,searcher,entry1,entry2,entry3,entry9,entry10,entry11}
+            Fixture{data,test,searcher,entry1,entry2,entry3,entry9}
         }
 
         fn new() -> Self {
@@ -1061,6 +1037,72 @@ mod test {
         assert_eq!(searcher.data.borrow().input.repr(),"testFunction2 ");
         searcher.set_input("testFunction2 'foo' ".to_owned()).unwrap();
         searcher.set_input("testFunction2 'foo' 10 ".to_owned()).unwrap();
+    }
+
+    #[wasm_bindgen_test]
+    fn non_picked_function_arg_suggestions() {
+        let mut fixture = Fixture::new_custom(|data,client| {
+            data.graph.module.code.insert_str(0,"import Test.Test\n\n");
+            data.code_location.line += 2;
+            data.expect_completion(client,None,Some("String"),&[1]);
+            data.expect_completion(client,None,Some("Number"),&[]);
+            data.expect_completion(client,None,Some("Number"),&[]);
+            data.expect_completion(client,None,Some("Number"),&[]);
+            data.expect_completion(client,None,None,&[1,2,3,4,9]);
+        });
+        let Fixture{searcher,..} = &mut fixture;
+
+        // Known functions cases
+        let module_name = crate::test::mock::data::MODULE_NAME;
+        searcher.set_input("Test.testMethod1 ".to_string()).unwrap();
+        searcher.set_input("here.testMethod1 ".to_string()).unwrap();
+        searcher.set_input(iformat!("{module_name}.testMethod1 ")).unwrap();
+        searcher.set_input("testFunction2 \"str\" ".to_string()).unwrap();
+
+        // Unknown functions case
+        searcher.set_input("unknownFunction ".to_string()).unwrap();
+    }
+
+    #[wasm_bindgen_test]
+    fn non_picked_function_arg_suggestion_ambiguous() {
+        fn run_case(input:impl Str, setup:impl FnOnce(&mut Fixture)) {
+            // In each case we expect that we can pick two methods with the same name, but different
+            // second argument, so the controller should call Engine for each type.
+            const EXPECTED_REQUESTS:usize                            = 2;
+            let requested_types:Rc<RefCell<HashSet<Option<String>>>> = default();
+            let requested_types2                                     = requested_types.clone();
+            let mut fixture = Fixture::new_custom(move |data,client| {
+                data.graph.module.code.insert_str(0,"import Test.Test\n\n");
+                data.code_location.line += 2;
+                for _ in 0..EXPECTED_REQUESTS {
+                    let requested_types = requested_types2.clone();
+                    client.expect.completion(move |_path,_position,_self_type,return_type,_tags| {
+                        iprintln!("Requested {return_type:?}");
+                        requested_types.borrow_mut().insert(return_type.clone());
+                        Ok(completion_response(&[]))
+                    });
+                }
+            });
+            setup(&mut fixture);
+            let Fixture{test,searcher,..} = &mut fixture;
+            searcher.set_input(input.into()).unwrap();
+            test.run_until_stalled();
+            iprintln!(">>>>> {requested_types.borrow().deref():?}");
+            assert_eq!(requested_types.borrow().len(),EXPECTED_REQUESTS);
+            assert!(requested_types.borrow().contains(&Some("Number".to_string())));
+            assert!(requested_types.borrow().contains(&Some("String".to_string())));
+        }
+
+        run_case("testMethod1 (foo bar) ".to_string(), |_|{});
+        run_case("(foo bar).testMethod1 ".to_string(), |_|{});
+        // Here the "Test" module is shadowed by local, so the call is ambiguous
+        run_case("Test.testMethod1 ".to_string(), |fixture|{
+            let shadowing = model::suggestion_database::Entry {
+                name : "test".to_string(),
+                ..(*fixture.entry2).clone()
+            };
+            fixture.searcher.database.put_entry(133,shadowing)
+        });
     }
 
     #[wasm_bindgen_test]
@@ -1199,34 +1241,6 @@ mod test {
         let (arg,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
         assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
-    }
-
-    #[test]
-    fn non_picked_function_arg_suggestions() {
-        let mut fixture = Fixture::new_custom(|data,client| {
-            data.expect_completion(client,None,None,&[1]);
-            //data.expect_completion(client,None,None,&[2]);
-            //data.expect_completion(client,None,None,&[]);
-            // TODO
-        });
-        let Fixture{searcher,entry10,entry11,..} = &mut fixture;
-
-        // Entry10 and 11 are overloaded methods named "overloaded" defined on Number and Text.
-        // Make sure that fixture is still as assumed.
-        assert_eq!(entry10.name,entry11.name);
-        assert_eq!(entry10.name,"overloaded");
-
-        // This should ask for "this" types for Number and Text.
-        searcher.set_input("overloaded ".to_string()).unwrap();
-        println!("{:?}",searcher.possible_function_calls());
-        // TODO [mwu] here and below check that suggestions were properly aggregated
-        //
-        // // This should ask for the latter argument of both arguments (Bar or Foo types).
-        // searcher.set_input("foo.overloaded ".to_string()).unwrap();
-        //
-        // // As above. We don't want to get into the trickery of resolving whether `Number` allows us
-        // // to resolve the overload set. (it could be even shadowed by something else)
-        // searcher.set_input("overloaded Number ".to_string()).unwrap();
     }
 
     #[wasm_bindgen_test]

@@ -40,7 +40,7 @@ pub enum Scope {
     /// Local symbol that is visible only in a particular section of the module where it has been
     /// defined.
     #[allow(missing_docs)]
-    InModule {range:Range<TextLocation>}
+    InModule {range:RangeInclusive<TextLocation>}
 }
 
 
@@ -157,6 +157,11 @@ impl Entry {
         }
     }
 
+    /// Checks if entry name matches the given name. The matching is case-insensitive.
+    pub fn matches_name(&self, name:impl Str) -> bool {
+        self.name.to_lowercase() == name.as_ref().to_lowercase()
+    }
+
     /// Generates HTML documentation for documented suggestion.
     fn gen_doc(doc: String) -> FallibleResult<String> {
         let parser = DocParser::new()?;
@@ -261,7 +266,7 @@ impl SuggestionDatabase {
     pub fn lookup_by_name_and_location
     (&self, name:impl Str, module:&QualifiedName, location:TextLocation) -> Vec<Rc<Entry>> {
         self.entries.borrow().values().filter(|entry| {
-            &entry.name == name.as_ref() && entry.is_visible_at(module,location)
+            entry.matches_name(name.as_ref()) && entry.is_visible_at(module,location)
         }).cloned().collect()
     }
 
@@ -271,7 +276,7 @@ impl SuggestionDatabase {
     (&self, name:impl Str, module:&QualifiedName, location:TextLocation) -> Vec<Rc<Entry>> {
         self.entries.borrow().values().cloned().filter(|entry| {
             let is_local = entry.kind == EntryKind::Function || entry.kind == EntryKind::Local;
-            is_local && &entry.name == name.as_ref() && entry.is_visible_at(module,location)
+            is_local && entry.matches_name(name.as_ref()) && entry.is_visible_at(module,location)
         }).collect()
     }
 
@@ -281,7 +286,7 @@ impl SuggestionDatabase {
         self.entries.borrow().values().cloned().find(|entry| {
             let is_method             = entry.kind == EntryKind::Method;
             let is_defined_for_module = entry.self_type.contains(&module.name());
-            is_method && is_defined_for_module && &entry.name == name.as_ref()
+            is_method && is_defined_for_module && entry.matches_name(name.as_ref())
         })
     }
 
