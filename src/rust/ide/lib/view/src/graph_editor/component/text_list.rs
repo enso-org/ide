@@ -231,6 +231,7 @@ struct TextListModel<T:TextListItem> {
     highlight_shape          : component::ShapeView<text_item_highlight::Shape>,
     content_items            : RefCell<Vec<T>>,
     item_network             : RefCell<frp::Network>,
+    width                    : Cell<f32>,
 }
 
 impl<T:TextListItem> TextListModel<T> {
@@ -244,13 +245,14 @@ impl<T:TextListItem> TextListModel<T> {
         let content_background_views = default();
         let content_views            = default();
         let item_network             = default();
+        let width                    = default();
 
         background_shape.display_object().set_parent(&display_object);
         highlight_shape.display_object().set_parent(&display_object);
         highlight_shape.shape.sprite.size.set(Vector2::zero());
 
         TextListModel{scene,display_object,logger,content_items,background_shape,content_views,
-                      item_network,content_background_views,highlight_shape}
+                      item_network,content_background_views,highlight_shape,width}
     }
 
     /// Create a textual representation for the given content item.
@@ -327,8 +329,8 @@ impl<T:TextListItem> TextListModel<T> {
         self.content_items.borrow().len()
     }
 
-    fn set_width(&self, _width:f32) {
-       // TODO implement
+    fn set_width(&self, width:f32) {
+       self.width.set(width);
     }
 
     /// Hide the highlight shape.
@@ -368,20 +370,20 @@ impl<T:TextListItem> TextListModel<T> {
     /// Return the position of an item at the given index.
     fn item_base_position(&self, index:f32) -> Vector2<f32> {
         let item_height = LINE_HEIGHT;
-        Vector2::new(100.0,-item_height*(index + 0.5))
+        Vector2::new(self.width.get()/2.0,-item_height*(index + 0.5))
     }
 
     /// Return the position of the text that belongs to the item at the given index.
     fn text_base_position(&self, index:f32) -> Vector2<f32> {
         // Text baseline is different, so we correct this here.
-        let text_offset_y = LINE_HEIGHT * 0.5;
+        let text_offset_y = TEXT_FONT_SIZE / 2.0;
         Vector2::new(TEXT_PADDING,self.item_base_position(index).y - text_offset_y)
     }
 
     /// Return the extent of a single content item.
     fn item_size(&self) -> Vector2 {
         let line_height = LINE_HEIGHT;
-        Vector2::new(200.0,line_height)
+        Vector2::new(self.width.get(),line_height)
     }
 
     /// Hide all items except for the given `item`.
@@ -511,6 +513,8 @@ impl<T:TextListItem> TextList<T> {
             eval_ frp.set_layout_collapsed ( model.set_layout_collapsed() );
             eval_ frp.set_layout_expanded ([highlight_size,highlight_position,model] {
                 // We want to ensure highlight appearance is animated
+                highlight_position.set_target_value(0.0);
+                highlight_size.set_target_value(0.0);
                 highlight_position.set_value(0.0);
                 highlight_size.set_value(0.0);
                 model.set_layout_expanded();
@@ -560,6 +564,5 @@ impl<T:TextListItem> TextList<T> {
         component::ShapeView::<background::Shape>::new(&logger,scene);
         component::ShapeView::<text_item_highlight::Shape>::new(&logger,scene);
         component::ShapeView::<text_item_hover::Shape>::new(&logger,scene);
-
     }
  }
