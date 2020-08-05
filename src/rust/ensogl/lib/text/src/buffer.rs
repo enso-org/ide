@@ -23,6 +23,7 @@ pub mod traits {
 }
 
 pub use data::Text;
+pub use data::TextCell;
 pub use data::text::LineIndexError;
 pub use data::Range;
 pub use data::unit::*;
@@ -86,9 +87,9 @@ impl Buffer {
         self.data.borrow()
     }
 
-    pub fn borrow_mut(&self) -> RefMut<'_,BufferData> {
-        self.data.borrow_mut()
-    }
+//    pub fn borrow_mut(&self) -> RefMut<'_,BufferData> {
+//        self.data.borrow_mut()
+//    }
 
     pub fn data(&self) -> Text {
         self.data.borrow().text.clone()
@@ -119,7 +120,7 @@ impl Buffer {
     }
 
     pub fn style(&self) -> Style {
-        self.data.borrow().style.clone()
+        self.data.borrow().style()
     }
 
     pub fn set_data(&self, text:Text) {
@@ -127,7 +128,7 @@ impl Buffer {
     }
 
     pub fn set_style(&self, style:Style) {
-        self.data.borrow_mut().style = style;
+        *self.data.borrow().style.borrow_mut() = style;
     }
 
     /// Creates a new `View` for the buffer.
@@ -167,7 +168,7 @@ impl Buffer {
 #[derive(Debug,Default)]
 pub struct BufferData {
     pub(crate) text  : Text,
-    pub(crate) style : Style,
+    pub(crate) style : Rc<RefCell<Style>>,
 }
 
 impl Deref for BufferData {
@@ -184,17 +185,17 @@ impl BufferData {
 
     pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
         let range = self.clamp_byte_range(range);
-        self.style.sub(range)
+        self.style.borrow().sub(range)
     }
 
     pub fn style(&self) -> Style {
-        self.style.clone()
+        self.style.borrow().clone()
     }
 
     pub fn insert(&mut self, range:impl data::RangeBounds, text:&Text) {
         let range = self.clamp_byte_range(range);
         self.text.rope.edit(range.into_rope_interval(),text.rope.clone());
-        self.style.modify(range,text.byte_size());
+        self.style.borrow_mut().modify(range,text.byte_size());
     }
 }
 

@@ -112,12 +112,12 @@ macro_rules! define_styles {
                 fn modify
                 (&self, range:impl data::RangeBounds, len:Bytes, data:Option<$field_type>) {
                     let range = self.data.borrow().clamp_byte_range(range);
-                    self.data.borrow_mut().style.$field.replace_resize(range,len,data)
+                    self.data.borrow().style.borrow_mut().$field.replace_resize(range,len,data)
                 }
 
                 fn set(&self, range:impl data::RangeBounds, data:Option<$field_type>) {
                     let range = self.data.borrow().clamp_byte_range(range);
-                    self.data.borrow_mut().style.$field.replace_resize(range,range.size(),data)
+                    self.data.borrow().style.borrow_mut().$field.replace_resize(range,range.size(),data)
                 }
             }
 
@@ -133,7 +133,7 @@ macro_rules! define_styles {
 
             impl DefaultSetter<$field_type> for Buffer {
                 fn set_default(&self, data:$field_type) {
-                    self.data.borrow_mut().style.$field.default = data;
+                    self.data.borrow().style.borrow_mut().$field.default = data;
                 }
             }
         )*

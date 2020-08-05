@@ -12,5 +12,6 @@ pub use rope::Cursor;
 pub use rope::metric;
 pub use spans::Spans;
 pub use text::Text;
+pub use text::TextCell;
 pub use unit::*;
 pub use unit::traits;
