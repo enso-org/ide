@@ -22,20 +22,20 @@ use ast::prelude::FallibleResult;
 
 
 
-/// Generates `DocumentationView` stylesheet.
+/// Generates documentation view stylesheet.
 pub fn get_doc_style() -> String {
-    format!("<style>{}</style>", include_str!("documentation_view/style.css"))
+    format!("<style>{}</style>", include_str!("../../../component/documentation_view/style.css"))
 }
 
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct DocumentationViewModel {
+pub struct ViewModel {
     logger : Logger,
     dom    : DomSymbol,
     size   : Rc<Cell<Vector2>>,
 }
 
-impl DocumentationViewModel {
+impl ViewModel {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
         let logger          = Logger::new("DocumentationView");
@@ -61,7 +61,7 @@ impl DocumentationViewModel {
         dom.dom().set_style_or_warn("height"          ,format!("{}px", doc_view_height),&logger);
 
         scene.dom.layers.main.manage(&dom);
-        DocumentationViewModel{dom,logger,size}.init()
+        ViewModel {dom,logger,size}.init()
     }
 
     fn init(self) -> Self {
@@ -69,18 +69,18 @@ impl DocumentationViewModel {
         self
     }
 
-    /// Sets size of the `DocumentationView`.
+    /// Sets size of the documentation view.
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
         self.reload_style();
     }
 
-    /// Gets size of the `DocumentationView`.
+    /// Gets size of the documentation view.
     pub fn get_size(&self) -> Vector2<f32> {
         self.size.get()
     }
 
-    /// Content in the `DocumentationView` when the data is yet to be received.
+    /// Content in the documentation view when the data is yet to be received.
     const PLACEHOLDER_STR: &'static str = "<h3>Enso Documentation Viewer</h3>\
                                            <p>No documentation available</p>";
 
@@ -103,8 +103,8 @@ impl DocumentationViewModel {
         let data_str = data_str.replace("\\n", "\n");
         let data_str = data_str.replace("\"", "");
 
-        let output = DocumentationViewModel::gen_doc(data_str);
-        let output = output.unwrap_or_else(|_| String::from(DocumentationViewModel::PLACEHOLDER_STR));
+        let output = ViewModel::gen_doc(data_str);
+        let output = output.unwrap_or_else(|_| String::from(ViewModel::PLACEHOLDER_STR));
         // Fixes a Doc Parser related idea, where stylesheet was a separate file
         let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");
 
@@ -113,9 +113,9 @@ impl DocumentationViewModel {
         Ok(())
     }
 
-    /// Loads an HTML file into the `DocumentationView` when there is no docstring available.
+    /// Loads an HTML file into the documentation view when there is no docstring available.
     fn load_no_doc_screen(&self) {
-        let placeholder = DocumentationViewModel::PLACEHOLDER_STR;
+        let placeholder = ViewModel::PLACEHOLDER_STR;
         let data_str    = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), placeholder);
         self.dom.dom().set_inner_html(&data_str)
     }
@@ -125,21 +125,21 @@ impl DocumentationViewModel {
     }
 }
 
-// =========================
-// === DocumentationView ===
-// =========================
+// ============
+// === View ===
+// ============
 
 /// Visualization that renders the given documentation as a HTML page
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[allow(missing_docs)]
-pub struct DocumentationView {
+pub struct View {
     #[shrinkwrap(main_field)]
-    pub model : DocumentationViewModel,
+    pub model : ViewModel,
     pub frp   : visualization::instance::Frp,
     network   : frp::Network,
 }
 
-impl DocumentationView {
+impl View {
     /// Definition of this visualization.
     pub fn definition() -> Definition {
         let path = Path::builtin("Documentation View Visualization (native)");
@@ -153,7 +153,7 @@ impl DocumentationView {
     pub fn new(scene:&Scene) -> Self {
         let network = default();
         let frp   = visualization::instance::Frp::new(&network);
-        let model = DocumentationViewModel::new(scene);
+        let model = ViewModel::new(scene);
         model.load_no_doc_screen();
         Self {model,frp,network} . init()
     }
@@ -174,13 +174,13 @@ impl DocumentationView {
     }
 }
 
-impl From<DocumentationView> for Instance {
-    fn from(t:DocumentationView) -> Self {
+impl From<View> for Instance {
+    fn from(t: View) -> Self {
         Self::new(&t,&t.frp,&t.network)
     }
 }
 
-impl display::Object for DocumentationView {
+impl display::Object for View {
     fn display_object(&self) -> &display::object::Instance {
         &self.dom.display_object()
     }

@@ -15,7 +15,7 @@ use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
 
 use crate::graph_editor::component::visualization::MockDocGenerator;
-use crate::graph_editor::component::documentation_view::get_doc_style;
+use crate::graph_editor::builtin::visualization::native::documentation::get_doc_style;
 
 fn generate_mock_doc() -> String {
     let sample_data_gen = MockDocGenerator::default();

@@ -23,7 +23,7 @@ use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization::MockDocGenerator;
 use crate::graph_editor::component::visualization;
-use crate::graph_editor::component::documentation_view::DocumentationView;
+use crate::graph_editor::builtin::visualization::native::documentation::View;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -1077,7 +1077,7 @@ pub struct GraphEditorModel {
     pub cursor         : cursor::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
-    pub doc_view       : DocumentationView,
+    pub doc_view       : View,
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
@@ -1097,7 +1097,7 @@ impl GraphEditorModel {
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
 //      let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
-        let doc_view       = DocumentationView::new(&scene);
+        let doc_view       = View::new(&scene);
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);

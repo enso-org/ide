@@ -7,7 +7,6 @@ use crate::prelude::*;
 use crate::graph_editor::builtin;
 use crate::graph_editor::component::visualization;
 use crate::graph_editor::data::EnsoType;
-use crate::graph_editor::component;
 
 use ensogl::display::scene::Scene;
 use enso_prelude::CloneRef;
@@ -41,7 +40,7 @@ impl Registry {
         let registry = Self::new();
         registry.add(builtin::visualization::native::BubbleChart::definition());
         registry.add(builtin::visualization::native::RawText::definition());
-        registry.add(component::documentation_view::DocumentationView::definition());
+        registry.add(builtin::visualization::native::View::definition());
         registry.try_add_java_script(builtin::visualization::java_script::bubble_visualization());
         registry
     }
