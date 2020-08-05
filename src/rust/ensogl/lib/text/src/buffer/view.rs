@@ -318,7 +318,7 @@ impl ViewBuffer {
     fn offset_to_location(&self, offset:Bytes) -> Location {
         let line         = self.line_of_offset(offset);
         let line_offset  = (offset - self.byte_offset_from_line_index(line).unwrap());
-        let column       = self.column_from_line_and_offset(line,line_offset).unwrap();
+        let column       = self.column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset);
         Location(line,column)
     }
 }
@@ -563,16 +563,11 @@ impl ViewModel {
         self.offset_to_location(self.end_offset())
     }
 
-    /// Return the offset after the last character of a given line if the line exists.
-    pub fn end_offset_of_line(&self, line:Line) -> Option<Bytes> {
-        let next_line  = self.last_view_line_number() + 1.line();
-        let opt_result = self.byte_offset_from_line_index(next_line).ok().and_then(|t| self.prev_grapheme_offset(t));
-        opt_result.or_else(|| (line <= self.last_line_index()).as_some_from(|| self.data().byte_size()))
-    }
+
 
     /// Return the offset after the last character of a given view line if the line exists.
     pub fn end_offset_of_view_line(&self, line:Line) -> Option<Bytes> {
-        self.end_offset_of_line(line + self.first_line_number.get())
+        self.line_end_byte_offset(line + self.first_line_number.get()).ok()
     }
 
     pub fn view_range(&self) -> Range<Bytes> {
@@ -599,9 +594,9 @@ impl ViewModel {
 
     /// Byte range of the given line.
     pub fn line_byte_range(&self, line:Line) -> Range<Bytes> {
-        let start = self.byte_offset_from_line_index(line).ok();
-        let end   = self.end_offset_of_line(line);
-        start.and_then(|s| end.map(|e| s..e)).unwrap_or_else(|| default()..default())
+        let start = self.byte_offset_from_line_index(line);
+        let end   = self.line_end_byte_offset(line);
+        start.and_then(|s| end.map(|e| s..e)).unwrap_or_else(|_| default()..default())
     }
 
     /// Byte range of the given view line.

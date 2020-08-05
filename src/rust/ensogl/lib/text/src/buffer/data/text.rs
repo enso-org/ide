@@ -60,15 +60,12 @@ impl Text {
         let mut offset = 0;
         let mut count  = 0;
         loop {
-            match self.rope.next_grapheme_offset(offset) {
-                None      => break,
-                Some(off) => {
-                    offset = off;
-                    count += 1;
-                }
-            }
+            if let Some(off) = self.rope.next_grapheme_offset(offset) {
+                offset = off;
+                count += 1;
+            } else { break }
         }
-        return count
+        count
     }
 
     /// Return the len of the text in bytes.
@@ -122,13 +119,13 @@ impl Text {
 // === Line Indexing ===
 
 #[derive(Clone,Copy,Debug)]
-pub enum ByteOffsetFromLineIndexError {
+pub enum LineIndexError {
     LineIndexNegative,
     LineIndexTooBig,
 }
 
 #[derive(Clone,Copy,Debug)]
-pub enum LineIndexFromByteOffsetError {
+pub enum ByteOffsetError {
     OffsetNegative,
     OffsetTooBig,
 }
@@ -156,6 +153,31 @@ impl Text {
         self.byte_offset_from_line_index_unchecked(self.last_line_index())
     }
 
+    /// Check whether the provided line index is valid in this text.
+    pub fn check_line_index(&self, line:Line) -> Result<(),LineIndexError> {
+        use LineIndexError::*;
+        if      line < 0.line()               {Err(LineIndexNegative)}
+        else if line > self.last_line_index() {Err(LineIndexTooBig)}
+        else                                  {Ok(())}
+    }
+
+    /// Check whether the provided byte offset is valid in this text.
+    pub fn check_byte_offset(&self, offset:Bytes) -> Result<(),ByteOffsetError> {
+        use ByteOffsetError::*;
+        if      offset < 0.bytes()        {Err(OffsetNegative)}
+        else if offset > self.byte_size() {Err(OffsetTooBig)}
+        else                              {Ok(())}
+    }
+
+    /// Return the offset after the last character of a given line if the line exists.
+    pub fn line_end_byte_offset(&self, line:Line) -> Result<Bytes,LineIndexError> {
+        self.check_line_index(line)?;
+        let next_line      = line + 1.line();
+        let next_line_off  = self.byte_offset_from_line_index(next_line).ok();
+        let next_line_prev = next_line_off.and_then(|t| self.prev_grapheme_offset(t));
+        Ok(next_line_prev.unwrap_or_else(|| self.byte_size()))
+    }
+
     /// The line byte offset. Panics in case the line index was invalid.
     pub fn byte_offset_from_line_index_unchecked(&self, line:Line) -> Bytes {
         self.rope.offset_of_line(line.as_usize()).into()
@@ -167,27 +189,21 @@ impl Text {
     }
 
     /// The byte offset of the given line index.
-    pub fn byte_offset_from_line_index(&self, line:Line)
-    -> Result<Bytes,ByteOffsetFromLineIndexError> {
-        use ByteOffsetFromLineIndexError::*;
-        if      line < 0.line()               {Err(LineIndexNegative)}
-        else if line > self.last_line_index() {Err(LineIndexTooBig)}
-        else                                  {Ok(self.byte_offset_from_line_index_unchecked(line))}
+    pub fn byte_offset_from_line_index(&self, line:Line) -> Result<Bytes,LineIndexError> {
+        self.check_line_index(line)?;
+        Ok(self.byte_offset_from_line_index_unchecked(line))
     }
 
     /// The line index of the given byte offset.
-    pub fn line_index_from_byte_offset(&self, offset:Bytes)
-    -> Result<Line,LineIndexFromByteOffsetError> {
-        use LineIndexFromByteOffsetError::*;
-        if      offset < 0.bytes()        {Err(OffsetNegative)}
-        else if offset > self.byte_size() {Err(OffsetTooBig)}
-        else                              {Ok(self.line_from_byte_offset_unchecked(offset))}
+    pub fn line_index_from_byte_offset(&self, offset:Bytes) -> Result<Line,ByteOffsetError> {
+        self.check_byte_offset(offset)?;
+        Ok(self.line_from_byte_offset_unchecked(offset))
     }
 
     /// The byte offset of the given line. Snapped to the closest valid byte offset in case the
     /// line index was invalid.
     pub fn byte_offset_from_line_index_snapped(&self, line:Line) -> Bytes {
-        use ByteOffsetFromLineIndexError::*;
+        use LineIndexError::*;
         match self.byte_offset_from_line_index(line) {
             Ok(offset)             => offset,
             Err(LineIndexNegative) => self.first_line_byte_offset(),
@@ -198,7 +214,7 @@ impl Text {
     /// The line index of the given byte offset. Snapped to the closest valid line index in case the
     /// byte offset was invalid.
     pub fn line_index_from_byte_offset_snapped(&self, offset:Bytes) -> Line {
-        use LineIndexFromByteOffsetError::*;
+        use ByteOffsetError::*;
         match self.line_index_from_byte_offset(offset) {
             Ok(index)           => index,
             Err(OffsetNegative) => self.first_line_index(),
@@ -208,21 +224,140 @@ impl Text {
 }
 
 
-// === Column Indexing ===
 
-pub enum ColumnFromLineAndOffsetError {
+// =======================
+// === Column Indexing ===
+// =======================
+
+// === Errors ===
+
+pub enum ColumnFromLineIndexAndInLineByteOffsetError {
     LineIndexNegative,
     LineIndexTooBig,
     LineTooShort,
-    NotClusterBoundary(Bytes,Bytes)
+    NotClusterBoundary(Column)
 }
 
-impl Text {
-//    /// Compute the column based on line number and byte offset within the line. The column will
-//    /// be snapped to the right side of the grapheme cluster in case the offset will point inside
-//    /// of a cluster. Returns `None` if matching was impossible, which can happen if the line number
-//    /// was negative, bigger then total line number, or the line offset was bigger than line length.
+pub enum ColumnFromByteOffsetError {
+    OffsetNegative,
+    OffsetTooBig,
+    NotClusterBoundary(Column)
+}
 
+impl From<ColumnFromByteOffsetError> for ColumnFromLineIndexAndInLineByteOffsetError {
+    fn from(err:ColumnFromByteOffsetError) -> Self {
+        use ColumnFromLineIndexAndInLineByteOffsetError::*;
+        match err {
+            ColumnFromByteOffsetError::OffsetNegative        => LineIndexNegative,
+            ColumnFromByteOffsetError::OffsetTooBig          => LineIndexTooBig,
+            ColumnFromByteOffsetError::NotClusterBoundary(t) => NotClusterBoundary(t),
+        }
+    }
+}
+
+impl From<LineIndexError> for ColumnFromLineIndexAndInLineByteOffsetError {
+    fn from(err:LineIndexError) -> Self {
+        use ColumnFromLineIndexAndInLineByteOffsetError::*;
+        match err {
+            LineIndexError::LineIndexNegative => LineIndexNegative,
+            LineIndexError::LineIndexTooBig   => LineIndexTooBig,
+        }
+    }
+}
+
+impl From<ByteOffsetError> for ColumnFromByteOffsetError {
+    fn from(err:ByteOffsetError) -> Self {
+        match err {
+            ByteOffsetError::OffsetNegative => ColumnFromByteOffsetError::OffsetNegative,
+            ByteOffsetError::OffsetTooBig   => ColumnFromByteOffsetError::OffsetTooBig,
+        }
+    }
+}
+
+impl From<LineIndexError> for ColumnFromByteOffsetError {
+    fn from(err:LineIndexError) -> Self {
+        match err {
+            LineIndexError::LineIndexNegative => ColumnFromByteOffsetError::OffsetNegative,
+            LineIndexError::LineIndexTooBig   => ColumnFromByteOffsetError::OffsetTooBig,
+        }
+    }
+}
+
+
+// === Impls ===
+
+impl Text {
+    /// The last column number of the given line.
+    pub fn line_end_column(&self, line:Line) -> Result<Column,LineIndexError> {
+        let offset = self.line_end_byte_offset(line)?;
+        Ok(self.column_from_byte_offset(offset).unwrap())
+    }
+
+    /// The last column number of the last line.
+    pub fn last_line_end_column(&self) -> Column {
+        self.column_from_byte_offset(self.byte_size()).unwrap()
+    }
+
+    /// The column number of the given byte offset.
+    pub fn column_from_byte_offset(&self, tgt_offset:Bytes)
+    -> Result<Column,ColumnFromByteOffsetError> {
+        use ColumnFromByteOffsetError::*;
+        let line_index = self.line_index_from_byte_offset(tgt_offset)?;
+        let mut offset = self.byte_offset_from_line_index(line_index)?;
+        let mut column = 0.column();
+        while offset < tgt_offset {
+            match self.next_grapheme_offset(offset) {
+                None      => return Err(OffsetTooBig),
+                Some(off) => {
+                    offset  = off;
+                    column += 1.column();
+                }
+            }
+        }
+        if offset != tgt_offset {
+            Err(NotClusterBoundary(column))
+        } else {
+            Ok(column)
+        }
+    }
+
+    /// The column number of the given byte offset. The result will be snapped to the closest valid
+    /// value. In case the offset points inside of a grapheme cluster, it will be snapped to its
+    /// right side.
+    pub fn column_from_byte_offset_snapped(&self, tgt_offset:Bytes) -> Column {
+        use ColumnFromByteOffsetError::*;
+        match self.column_from_byte_offset(tgt_offset) {
+            Ok(column)                      => column,
+            Err(OffsetNegative)             => 0.column(),
+            Err(OffsetTooBig)               => self.last_line_end_column(),
+            Err(NotClusterBoundary(column)) => column,
+        }
+    }
+
+    /// The column from line number and byte offset within the line.
+    pub fn column_from_line_index_and_in_line_byte_offset(&self, line:Line, in_line_offset:Bytes)
+    -> Result<Column,ColumnFromLineIndexAndInLineByteOffsetError> {
+        use ColumnFromLineIndexAndInLineByteOffsetError::*;
+        let mut offset = self.byte_offset_from_line_index(line)?;
+        let tgt_offset = offset + in_line_offset;
+        let column     = self.column_from_byte_offset(tgt_offset)?;
+        Ok(column)
+    }
+
+    /// The column from line number and byte offset within the line. The result will be snapped to
+    /// the closest valid value. In case the offset points inside of a grapheme cluster, it will be
+    /// snapped to its right side.
+    pub fn column_from_line_index_and_in_line_byte_offset_snapped
+    (&self, line:Line, in_line_offset:Bytes) -> Column {
+        use ColumnFromLineIndexAndInLineByteOffsetError::*;
+        match self.column_from_line_index_and_in_line_byte_offset(line,in_line_offset) {
+            Ok(column)                      => column,
+            Err(LineIndexNegative)          => 0.column(),
+            Err(LineIndexTooBig)            => self.last_line_end_column(),
+            Err(LineTooShort)               => self.line_end_column(line).unwrap(),
+            Err(NotClusterBoundary(column)) => column,
+        }
+    }
 
 //    pub fn column_from_line_and_offset(&self, line:Line, line_offset:Bytes) -> Option<Column> {
 //        let mut offset = self.byte_offset_from_line_index(line).ok()?;
@@ -239,25 +374,13 @@ impl Text {
 //        }
 //        Some(column)
 //    }
-
-    pub fn column_from_line_and_offset(&self, line:Line, line_offset:Bytes) -> Option<Column> {
-        let mut offset = self.byte_offset_from_line_index(line).ok()?;
-        let tgt_offset = offset + line_offset;
-        let mut column = 0.column();
-        while offset < tgt_offset {
-            match self.next_grapheme_offset(offset) {
-                None => return None,
-                Some(off) => {
-                    column += 1.column();
-                    offset = off;
-                }
-            }
-        }
-        Some(column)
-    }
 }
 
+
+
+// ===================
 // === Conversions ===
+// ===================
 
 impl From<Rope>     for Text { fn from(t:Rope)     -> Self { Self {rope:t} } }
 impl From<&Rope>    for Text { fn from(t:&Rope)    -> Self { t.clone().into() } }

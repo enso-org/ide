@@ -23,7 +23,7 @@ pub mod traits {
 }
 
 pub use data::Text;
-pub use data::text::ByteOffsetFromLineIndexError;
+pub use data::text::LineIndexError;
 pub use data::Range;
 pub use data::unit::*;
 pub use view::*;
@@ -102,8 +102,12 @@ impl Buffer {
         self.data.borrow().line_of_offset(offset)
     }
 
-    fn byte_offset_from_line_index(&self,line:Line) -> Result<Bytes,ByteOffsetFromLineIndexError> {
+    fn byte_offset_from_line_index(&self,line:Line) -> Result<Bytes,LineIndexError> {
         self.data.borrow().byte_offset_from_line_index(line)
+    }
+
+    pub fn line_end_byte_offset(&self, line:Line) -> Result<Bytes,LineIndexError> {
+        self.data.borrow().line_end_byte_offset(line)
     }
 
     fn last_offset(&self) -> Bytes {
@@ -131,8 +135,9 @@ impl Buffer {
         self.data.borrow().sub_style(range)
     }
 
-    pub fn column_from_line_and_offset(&self, line:Line, line_offset:Bytes) -> Option<Column> {
-        self.data.borrow().column_from_line_and_offset(line,line_offset)
+    pub fn column_from_line_index_and_in_line_byte_offset_snapped
+    (&self, line:Line, line_offset:Bytes) -> Column {
+        self.data.borrow().column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset)
     }
 
     /// Return the offset to the next grapheme if any. See the documentation of the library to
