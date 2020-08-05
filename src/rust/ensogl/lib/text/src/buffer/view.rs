@@ -277,7 +277,7 @@ impl ViewBuffer {
             let new_byte_selection = self.to_bytes_selection(new_selection);
             let byte_range         = range_between(byte_selection,new_byte_selection);
             byte_offset           += text_byte_size - byte_range.size();
-            self.buffer.data.insert(byte_range,&text);
+            self.buffer.replace(byte_range,&text);
             let new_byte_selection = new_byte_selection.map(|t|t+text_byte_size);
             let new_selection      = self.to_location_selection(new_byte_selection);
             new_selection_group.merge(new_selection);

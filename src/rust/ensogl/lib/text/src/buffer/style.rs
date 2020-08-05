@@ -170,9 +170,9 @@ impl StyleIterator {
 // ================
 
 /// Style property, like `color` or `bold`. Records text spans it is applied to and a default value
-/// used for places not covered by spans. Please note that the default value is can be changed at
-/// runtime, which is useful for example when defining text field which should use white letters by
-/// default (when new letter is written).
+/// used for places not covered by spans. Please note that the default value can be changed at
+/// runtime, which is useful when defining text field which should use white letters by default
+/// (when new letter is written).
 #[derive(Clone,Debug,Default)]
 #[allow(missing_docs)]
 pub struct Property<T:Clone> {
@@ -218,9 +218,9 @@ impl<T:Clone> DerefMut for Property<T> {
 
 
 
-// ========================
-// === Style Definition ===
-// ========================
+// =============
+// === Style ===
+// =============
 
 def_style_property!(Size(f32));
 def_style_property!(Bold(bool));

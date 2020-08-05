@@ -36,9 +36,10 @@ pub use style::*;
 // === Buffer ===
 // ==============
 
+/// Internally mutable text container with associated styles.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct Buffer {
-    pub(crate) data : Rc<BufferData>
+    data : Rc<BufferData>
 }
 
 impl Deref for Buffer {
@@ -66,7 +67,7 @@ impl Buffer {
 // === BufferData ===
 // ==================
 
-/// Text container with associated styles.
+/// Internal data of `Buffer`.
 #[derive(Debug,Default)]
 pub struct BufferData {
     pub(crate) text  : TextCell,
@@ -81,32 +82,40 @@ impl Deref for BufferData {
 }
 
 impl BufferData {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
+    /// Text clone. Note that this is a fast clone, as text is immutable.
     pub fn text(&self) -> Text {
         self.text.cell.borrow().clone()
     }
 
+    /// Style clone.
+    pub fn style(&self) -> Style {
+        self.style.borrow().clone()
+    }
+
+    /// Sets the new text content.
     pub fn set_text(&self, text:impl Into<Text>) {
         self.text.set(text);
     }
 
+    /// Set new styles.
     pub fn set_style(&self, style:Style) {
         *self.style.borrow_mut() = style;
     }
 
+    /// Query style information for the provided range.
     pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
         let range = self.clamp_byte_range(range);
         self.style.borrow().sub(range)
     }
 
-    pub fn style(&self) -> Style {
-        self.style.borrow().clone()
-    }
-
-    pub fn insert(&self, range:impl data::RangeBounds, text:&Text) {
+    /// Replaces the provided range with the provided text. The style will be set to default within
+    /// the range.
+    pub fn replace(&self, range:impl data::RangeBounds, text:&Text) {
         let range = self.clamp_byte_range(range);
         self.text.replace(range,text);
         self.style.borrow_mut().modify(range,text.byte_size());
