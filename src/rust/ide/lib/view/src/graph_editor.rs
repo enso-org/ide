@@ -1096,21 +1096,26 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
-//        let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
+//      let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
         let doc_view       = DocumentationView::new(&scene);
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
         let project_name   = component::ProjectName::new(scene,focus_manager);
         display_object.add_child(&project_name);
-        display_object.add_child(&doc_view);
-        let screen = scene.camera().screen();
-        let margin = 10.0;
+        let screen     = scene.camera().screen();
+        let margin     = 10.0;
+        let doc_size   = doc_view.model.get_size();
+        let doc_width  = doc_size[0];
+        let doc_margin = 30.0;
         project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
-        doc_view.set_position(Vector3::new((screen.width - 320.0) / 2.0 ,0.0,0.0));
+        doc_view.set_position(Vector3::new((screen.width - (doc_width + doc_margin)) / 2.0,0.0,0.0));
+        // FIXME: These 2 lines fix a bug with display objects visible on stage.
+        //        The same bug appears in `ContainerModel`
+        display_object.add_child(&doc_view);
         display_object.remove_child(&doc_view);
         let scene = scene.clone_ref();
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name,doc_view}//visualizations }
+        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name,doc_view}//visualizations}
     }
 
     pub fn all_nodes(&self) -> Vec<NodeId> {
@@ -1191,15 +1196,12 @@ impl GraphEditorModel {
         }
     }
 
-    fn set_documentation_visibility(&self, is_vis: bool) {
-        if is_vis {
-            self.scene.remove_child(&self.doc_view);
-        } else {
-            self.scene.add_child(&self.doc_view);
-        }
+    fn set_documentation_visibility(&self, is_vis:bool) {
+        if is_vis { self.scene.remove_child(&self.doc_view) }
+        else      { self.scene.add_child(&self.doc_view)    }
     }
 
-    pub fn is_doc_visible(&self) -> bool {
+    fn is_doc_visible(&self) -> bool {
         self.doc_view.has_parent()
     }
 
@@ -2211,9 +2213,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
 
         let sample_doc_generator = MockDocGenerator::default();
-        let data    = sample_doc_generator.generate_data();
-        let content = serde_json::to_value(data).unwrap();
-        let data    = visualization::Data::from(content);
+        let data                 = sample_doc_generator.generate_data();
+        let content              = serde_json::to_value(data).unwrap();
+        let data                 = visualization::Data::from(content);
         inputs.set_documentation_data.emit(data);
     }));
 
@@ -2221,13 +2223,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
          if let Some(node) = nodes.get_cloned(node_id) {
              node.visualization.frp.set_data.emit(data);
          }
-     }));
+    }));
 
-     nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
-     node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
+    nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
+    node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
 
-     let cycle_count = Rc::new(Cell::new(0));
-     def _cycle_visualization = node_to_cycle.map(f!([scene,nodes,visualizations,logger](node_id) {
+    let cycle_count = Rc::new(Cell::new(0));
+    def _cycle_visualization = node_to_cycle.map(f!([scene,nodes,visualizations,logger](node_id) {
         let visualizations = visualizations.valid_sources(&"Any".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
         let vis  = &visualizations[cycle_count.get()];
@@ -2344,25 +2346,23 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Documentation Set ===
     frp::extend! { network
 
-    def _set_doc_data = inputs.set_documentation_data.map(f!((data) {
-         model.doc_view.frp.send_data.emit(data);
-     }));
+    def _set_doc_data = inputs.set_documentation_data.map(f!((data) model.doc_view.frp.send_data.emit(data)));
 
 
     // === Documentation toggle ===
 
-    let doc_press_ev                = inputs.press_documentation_visibility.clone_ref();
-    let doc_release                 = inputs.release_documentation_visibility.clone_ref();
-    doc_pressed                    <- bool(&doc_release,&doc_press_ev);
-    doc_was_pressed                <- doc_pressed.previous();
-    doc_press                      <- doc_press_ev.gate_not(&doc_was_pressed);
-    doc_press_on_off               <- doc_press.map(f_!(model.is_doc_visible()));
-    outputs.documentation_visible  <+ doc_press_on_off;
+    let doc_press_ev               = inputs.press_documentation_visibility.clone_ref();
+    let doc_release                = inputs.release_documentation_visibility.clone_ref();
+    doc_pressed                   <- bool(&doc_release,&doc_press_ev);
+    doc_was_pressed               <- doc_pressed.previous();
+    doc_press                     <- doc_press_ev.gate_not(&doc_was_pressed);
+    doc_press_on_off              <- doc_press.map(f_!(model.is_doc_visible()));
+    outputs.documentation_visible <+ doc_press_on_off;
 
 
     // === OUTPUTS REBIND ===
 
-    eval outputs.documentation_visible  ((vis) model.set_documentation_visibility(*vis));
+    eval outputs.documentation_visible ((vis) model.set_documentation_visibility(*vis));
 
     }
 

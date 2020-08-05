@@ -19,7 +19,7 @@ use crate::graph_editor::component::documentation_view::get_doc_style;
 
 fn generate_mock_doc() -> String {
     let sample_data_gen = MockDocGenerator::default();
-    let default_input    = sample_data_gen.generate_data();
+    let default_input   = sample_data_gen.generate_data();
     let program         = std::env::args().nth(1).unwrap_or(default_input);
 
     let parser = parser::DocParser::new_or_panic();
@@ -39,17 +39,17 @@ pub fn run_example_documentation_generator_view() {
 
     web::forward_panic_hook_to_console();
     web::set_stdout();
-    let world         = World::new(&web::get_html_element_by_id("root").unwrap());
-    let scene         = world.scene();
-    let camera        = scene.camera();
-    let screen        = camera.screen();
-    let navigator     = Navigator::new(scene,camera);
+    let world           = World::new(&web::get_html_element_by_id("root").unwrap());
+    let scene           = world.scene();
+    let camera          = scene.camera();
+    let screen          = camera.screen();
+    let navigator       = Navigator::new(scene,camera);
     let dom_front_layer = &scene.dom.layers.main;
     let dom_back_layer  = &scene.dom.layers.overlay;
 
     let div = web::create_div();
-    div.set_style_or_panic("width"  , "100% !important");
-    div.set_style_or_panic("height" , "100% !important");
+    div.set_style_or_panic("width" ,"100% !important");
+    div.set_style_or_panic("height","100% !important");
     div.set_inner_html(&full_file);
 
     let width  = screen.width;

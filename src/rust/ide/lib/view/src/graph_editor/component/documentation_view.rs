@@ -3,8 +3,14 @@
 
 use crate::prelude::*;
 
-use crate::graph_editor::component::visualization::*;
 use crate::graph_editor::component::visualization;
+use crate::graph_editor::component::visualization::Instance;
+use crate::graph_editor::component::visualization::Data;
+use crate::graph_editor::component::visualization::Signature;
+use crate::graph_editor::component::visualization::Path;
+use crate::graph_editor::component::visualization::Format;
+use crate::graph_editor::component::visualization::DataError;
+use crate::graph_editor::component::visualization::Definition;
 
 use enso_frp as frp;
 use ensogl::display::DomSymbol;
@@ -12,8 +18,11 @@ use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
+use ast::prelude::FallibleResult;
 
-/// Generates Documentation View stylesheet.
+
+
+/// Generates `DocumentationView` stylesheet.
 pub fn get_doc_style() -> String {
     format!("<style>{}</style>", include_str!("documentation_view/style.css"))
 }
@@ -29,21 +38,27 @@ pub struct DocumentationViewModel {
 impl DocumentationViewModel {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
-        let logger = Logger::new("DocumentationView");
-        let div    = web::create_div();
-        let dom    = DomSymbol::new(&div);
-        let screen = scene.camera().screen();
-        let size   = Rc::new(Cell::new(Vector2(290.0,screen.height - 30.0)));
+        let logger          = Logger::new("DocumentationView");
+        let div             = web::create_div();
+        let dom             = DomSymbol::new(&div);
+        let screen          = scene.camera().screen();
+        // diminished by 30px as it looks much better on screen with rounded corners when it has
+        // some spacing from top and bottom
+        let doc_view_margin = 30.0;
+        let doc_view_height = screen.height - doc_view_margin;
+        let doc_view_width  = 300.0;
+        let size_vec        = Vector2(doc_view_width,doc_view_height);
+        let size            = Rc::new(Cell::new(size_vec));
 
-        dom.dom().set_style_or_warn("white-space"     ,"normal"                             ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                               ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                               ,&logger);
-        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"          ,&logger);
-        dom.dom().set_style_or_warn("padding"         ,"5px"                                ,&logger);
-        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                               ,&logger);
-        dom.dom().set_style_or_warn("border-radius"   ,"14px"                               ,&logger);
-        dom.dom().set_style_or_warn("width"           ,format!("{}px", 290)                 ,&logger);
-        dom.dom().set_style_or_warn("height"          ,format!("{}px", screen.height - 30.0),&logger);
+        dom.dom().set_style_or_warn("white-space"     ,"normal"                        ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                          ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                          ,&logger);
+        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"     ,&logger);
+        dom.dom().set_style_or_warn("padding"         ,"5px"                           ,&logger);
+        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                          ,&logger);
+        dom.dom().set_style_or_warn("border-radius"   ,"14px"                          ,&logger);
+        dom.dom().set_style_or_warn("width"           ,format!("{}px", doc_view_width) ,&logger);
+        dom.dom().set_style_or_warn("height"          ,format!("{}px", doc_view_height),&logger);
 
         scene.dom.layers.main.manage(&dom);
         DocumentationViewModel{dom,logger,size}.init()
@@ -54,13 +69,27 @@ impl DocumentationViewModel {
         self
     }
 
+    /// Sets size of the `DocumentationView`.
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
         self.reload_style();
     }
 
+    /// Gets size of the `DocumentationView`.
+    pub fn get_size(&self) -> Vector2<f32> {
+        self.size.get()
+    }
+
+    /// Content in the `DocumentationView` when the data is yet to be received.
     const PLACEHOLDER_STR: &'static str = "<h3>Enso Documentation Viewer</h3>\
                                            <p>No documentation available</p>";
+
+    /// Generates HTML documentation for documented suggestion.
+    fn gen_doc(doc: String) -> FallibleResult<String> {
+        let parser = parser::DocParser::new()?;
+        let output = parser.generate_html_doc_pure(doc);
+        Ok(output?)
+    }
 
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
         let data_inner = match data {
@@ -74,8 +103,7 @@ impl DocumentationViewModel {
         let data_str = data_str.replace("\\n", "\n");
         let data_str = data_str.replace("\"", "");
 
-        let parser = parser::DocParser::new_or_panic();
-        let output = parser.generate_html_doc_pure(data_str);
+        let output = DocumentationViewModel::gen_doc(data_str);
         let output = output.unwrap_or_else(|_| String::from(DocumentationViewModel::PLACEHOLDER_STR));
         // Fixes a Doc Parser related idea, where stylesheet was a separate file
         let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");
@@ -85,8 +113,8 @@ impl DocumentationViewModel {
         Ok(())
     }
 
-    /// Generates welcome screen HTML.
-    pub fn welcome_screen(&self) {
+    /// Loads an HTML file into the `DocumentationView` when there is no docstring available.
+    fn load_no_doc_screen(&self) {
         let placeholder = DocumentationViewModel::PLACEHOLDER_STR;
         let data_str    = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), placeholder);
         self.dom.dom().set_inner_html(&data_str)
@@ -126,7 +154,7 @@ impl DocumentationView {
         let network = default();
         let frp   = visualization::instance::Frp::new(&network);
         let model = DocumentationViewModel::new(scene);
-        model.welcome_screen();
+        model.load_no_doc_screen();
         Self {model,frp,network} . init()
     }
 
