@@ -21,10 +21,22 @@ use ensogl::system::web::StyleSetter;
 use ast::prelude::FallibleResult;
 
 
+// =================
+// === Constants ===
+// =================
+
+pub const DOC_VIEW_WIDTH  : f32 = 300.0;
+pub const DOC_VIEW_MARGIN : f32 = 15.0;
+
+const CORNER_RADIUS : f32 = crate::graph_editor::component::node::CORNER_RADIUS;
+/// Content in the documentation view when the data is yet to be received.
+const PLACEHOLDER_STR: &'static str = "<h3>Enso Documentation Viewer</h3>\
+                                           <p>No documentation available</p>";
+
 
 /// Generates documentation view stylesheet.
 pub fn get_doc_style() -> String {
-    format!("<style>{}</style>", include_str!("../../../component/documentation_view/style.css"))
+    format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
 
 #[derive(Clone,CloneRef,Debug)]
@@ -42,12 +54,8 @@ impl ViewModel {
         let div             = web::create_div();
         let dom             = DomSymbol::new(&div);
         let screen          = scene.camera().screen();
-        // diminished by 30px as it looks much better on screen with rounded corners when it has
-        // some spacing from top and bottom
-        let doc_view_margin = 30.0;
-        let doc_view_height = screen.height - doc_view_margin;
-        let doc_view_width  = 300.0;
-        let size_vec        = Vector2(doc_view_width,doc_view_height);
+        let doc_view_height = screen.height - (DOC_VIEW_MARGIN * 2.0);
+        let size_vec        = Vector2(DOC_VIEW_WIDTH,doc_view_height);
         let size            = Rc::new(Cell::new(size_vec));
 
         dom.dom().set_style_or_warn("white-space"     ,"normal"                        ,&logger);
@@ -56,8 +64,8 @@ impl ViewModel {
         dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"     ,&logger);
         dom.dom().set_style_or_warn("padding"         ,"5px"                           ,&logger);
         dom.dom().set_style_or_warn("pointer-events"  ,"auto"                          ,&logger);
-        dom.dom().set_style_or_warn("border-radius"   ,"14px"                          ,&logger);
-        dom.dom().set_style_or_warn("width"           ,format!("{}px", doc_view_width) ,&logger);
+        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px", CORNER_RADIUS)  ,&logger);
+        dom.dom().set_style_or_warn("width"           ,format!("{}px", DOC_VIEW_WIDTH) ,&logger);
         dom.dom().set_style_or_warn("height"          ,format!("{}px", doc_view_height),&logger);
 
         scene.dom.layers.main.manage(&dom);
@@ -74,15 +82,6 @@ impl ViewModel {
         self.size.set(size);
         self.reload_style();
     }
-
-    /// Gets size of the documentation view.
-    pub fn get_size(&self) -> Vector2<f32> {
-        self.size.get()
-    }
-
-    /// Content in the documentation view when the data is yet to be received.
-    const PLACEHOLDER_STR: &'static str = "<h3>Enso Documentation Viewer</h3>\
-                                           <p>No documentation available</p>";
 
     /// Generates HTML documentation for documented suggestion.
     fn gen_doc(doc: String) -> FallibleResult<String> {
@@ -104,7 +103,7 @@ impl ViewModel {
         let data_str = data_str.replace("\"", "");
 
         let output = ViewModel::gen_doc(data_str);
-        let output = output.unwrap_or_else(|_| String::from(ViewModel::PLACEHOLDER_STR));
+        let output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
         // Fixes a Doc Parser related idea, where stylesheet was a separate file
         let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");
 
@@ -115,8 +114,7 @@ impl ViewModel {
 
     /// Loads an HTML file into the documentation view when there is no docstring available.
     fn load_no_doc_screen(&self) {
-        let placeholder = ViewModel::PLACEHOLDER_STR;
-        let data_str    = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), placeholder);
+        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), PLACEHOLDER_STR);
         self.dom.dom().set_inner_html(&data_str)
     }
 
