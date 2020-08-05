@@ -28,10 +28,9 @@ use ast::prelude::FallibleResult;
 pub const DOC_VIEW_WIDTH  : f32 = 300.0;
 pub const DOC_VIEW_MARGIN : f32 = 15.0;
 
-const CORNER_RADIUS : f32 = crate::graph_editor::component::node::CORNER_RADIUS;
+const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 /// Content in the documentation view when the data is yet to be received.
-const PLACEHOLDER_STR: &'static str = "<h3>Enso Documentation Viewer</h3>\
-                                           <p>No documentation available</p>";
+const PLACEHOLDER_STR : &str = "<h3>Enso Documentation Viewer</h3><p>No documentation available</p>";
 
 
 /// Generates documentation view stylesheet.
