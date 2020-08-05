@@ -81,11 +81,9 @@ impl ViewBuffer {
         if location.line < 0.line() {
             return Some(0.bytes())
         }
-        let line_offset      = self.byte_offset_from_line_index(location.line).ok()?;
-        let next_line_offset = self.byte_offset_from_line_index(location.line + 1.line()).ok();
-        let max_offset       = next_line_offset.and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.last_offset());
-        let mut offset = line_offset;
         let mut column = 0.column();
+        let mut offset = self.byte_offset_from_line_index(location.line).ok()?;
+        let max_offset = self.line_end_byte_offset(location.line).ok()?;
         while column < location.column {
             match self.next_grapheme_offset(offset) {
                 None => break,

@@ -358,22 +358,6 @@ impl Text {
             Err(NotClusterBoundary(column)) => column,
         }
     }
-
-//    pub fn column_from_line_and_offset(&self, line:Line, line_offset:Bytes) -> Option<Column> {
-//        let mut offset = self.byte_offset_from_line_index(line).ok()?;
-//        let tgt_offset = offset + line_offset;
-//        let mut column = 0.column();
-//        while offset < tgt_offset {
-//            match self.next_grapheme_offset(offset) {
-//                None => return None,
-//                Some(off) => {
-//                    column += 1.column();
-//                    offset = off;
-//                }
-//            }
-//        }
-//        Some(column)
-//    }
 }
 
 
