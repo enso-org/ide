@@ -107,8 +107,9 @@ impl Text {
 }
 
 
-
+// =====================
 // === Line Indexing ===
+// =====================
 
 #[derive(Clone,Copy,Debug)]
 pub enum LineIndexError {
@@ -123,6 +124,22 @@ pub enum ByteOffsetError {
 }
 
 impl Text {
+    /// Check whether the provided line index is valid in this text.
+    pub fn validate_line_index(&self, line:Line) -> Result<(),LineIndexError> {
+        use LineIndexError::*;
+        if      line < 0.line()               {Err(LineIndexNegative)}
+        else if line > self.last_line_index() {Err(LineIndexTooBig)}
+        else                                  {Ok(())}
+    }
+
+    /// Check whether the provided byte offset is valid in this text.
+    pub fn validate_byte_offset(&self, offset:Bytes) -> Result<(),ByteOffsetError> {
+        use ByteOffsetError::*;
+        if      offset < 0.bytes()        {Err(OffsetNegative)}
+        else if offset > self.byte_size() {Err(OffsetTooBig)}
+        else                              {Ok(())}
+    }
+
     /// The first valid line index in this text.
     pub fn first_line_index(&self) -> Line {
         0.line()
@@ -131,6 +148,12 @@ impl Text {
     /// The first valid line byte offset in this text.
     pub fn first_line_byte_offset(&self) -> Bytes {
         0.bytes()
+    }
+
+    pub fn first_line_location(&self) -> Location {
+        let line   = self.first_line_index();
+        let column = 0.column();
+        Location(line,column)
     }
 
     /// The last valid line index in this text. If the text ends with the newline character,
@@ -145,25 +168,9 @@ impl Text {
         self.byte_offset_from_line_index_unchecked(self.last_line_index())
     }
 
-    /// Check whether the provided line index is valid in this text.
-    pub fn check_line_index(&self, line:Line) -> Result<(),LineIndexError> {
-        use LineIndexError::*;
-        if      line < 0.line()               {Err(LineIndexNegative)}
-        else if line > self.last_line_index() {Err(LineIndexTooBig)}
-        else                                  {Ok(())}
-    }
-
-    /// Check whether the provided byte offset is valid in this text.
-    pub fn check_byte_offset(&self, offset:Bytes) -> Result<(),ByteOffsetError> {
-        use ByteOffsetError::*;
-        if      offset < 0.bytes()        {Err(OffsetNegative)}
-        else if offset > self.byte_size() {Err(OffsetTooBig)}
-        else                              {Ok(())}
-    }
-
     /// Return the offset after the last character of a given line if the line exists.
     pub fn end_byte_offset_from_line_index(&self, line:Line) -> Result<Bytes,LineIndexError> {
-        self.check_line_index(line)?;
+        self.validate_line_index(line)?;
         let next_line      = line + 1.line();
         let next_line_off  = self.byte_offset_from_line_index(next_line).ok();
         let next_line_prev = next_line_off.and_then(|t| self.prev_grapheme_offset(t));
@@ -182,13 +189,13 @@ impl Text {
 
     /// The byte offset of the given line index.
     pub fn byte_offset_from_line_index(&self, line:Line) -> Result<Bytes,LineIndexError> {
-        self.check_line_index(line)?;
+        self.validate_line_index(line)?;
         Ok(self.byte_offset_from_line_index_unchecked(line))
     }
 
     /// The line index of the given byte offset.
     pub fn line_index_from_byte_offset(&self, offset:Bytes) -> Result<Line,ByteOffsetError> {
-        self.check_byte_offset(offset)?;
+        self.validate_byte_offset(offset)?;
         Ok(self.line_index_from_byte_offset_unchecked(offset))
     }
 
@@ -332,8 +339,16 @@ impl Text {
         self.column_from_byte_offset(self.byte_size()).unwrap()
     }
 
+    /// The byte offset of the end of the last line. Equal to the byte size of the whole text.
     pub fn last_line_end_byte_offset(&self) -> Bytes {
         self.byte_size()
+    }
+
+    /// The location of the last character in the text.
+    pub fn last_line_end_location(&self) -> Location {
+        let line   = self.last_line_index();
+        let column = self.last_line_end_column();
+        Location(line,column)
     }
 
     /// The column number of the given byte offset.
@@ -382,7 +397,6 @@ impl Text {
         Ok(column)
     }
 
-
     /// The column from line number and byte offset within the line. The result will be snapped to
     /// the closest valid value. In case the offset points inside of a grapheme cluster, it will be
     /// snapped to its right side.
@@ -391,7 +405,6 @@ impl Text {
         let column = self.column_from_line_index_and_in_line_byte_offset(line,in_line_offset);
         self.snap_column_location_result(column)
     }
-
 
     /// Byte offset of the given location.
     pub fn byte_offset_from_location(&self, location:Location) -> Result<Bytes,LocationError<Bytes>> {
@@ -420,13 +433,24 @@ impl Text {
         self.snap_bytes_location_result(offset)
     }
 
+    /// The location of the provided byte offset.
+    pub fn location_from_byte_offset(&self, offset:Bytes) -> Result<Location,ByteOffsetError> {
+        let line        = self.line_index_from_byte_offset(offset)?;
+        let line_offset = (offset - self.byte_offset_from_line_index(line).unwrap());
+        let column      = self.column_from_line_index_and_in_line_byte_offset(line,line_offset);
+        let column      = column.unwrap();
+        Ok(Location(line,column))
+    }
 
-    // FIXME: safety
-    fn location_from_byte_offset(&self, offset:Bytes) -> Location {
-        let line         = self.line_index_from_byte_offset_unchecked(offset);
-        let line_offset  = (offset - self.byte_offset_from_line_index(line).unwrap());
-        let column       = self.column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset);
-        Location(line,column)
+    /// The location of the provided byte offset. The result will be snapped to the closest valid
+    /// value.
+    pub fn location_from_byte_offset_snapped(&self, offset:Bytes) -> Location {
+        use ByteOffsetError::*;
+        match self.location_from_byte_offset(offset) {
+            Ok(location)        => location,
+            Err(OffsetNegative) => self.first_line_location(),
+            Err(OffsetTooBig)   => self.last_line_end_location(),
+        }
     }
 }
 
