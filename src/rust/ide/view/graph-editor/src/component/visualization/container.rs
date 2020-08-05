@@ -363,10 +363,9 @@ impl ContainerModel {
     fn init(self) -> Self {
         self.update_shape_sizes();
         self.init_corner_roundness();
-        // FIXME: These 2 lines fix a bug with display objects visible on stage.
+        // FIXME: These 4 lines fix a bug with display objects visible on stage.
         self.set_visibility(true);
         self.set_visibility(false);
-
         self.show_visualisation_chooser();
         self.hide_visualisation_chooser();
         self
@@ -582,28 +581,22 @@ impl Container {
 
             eval fullscreen_position.value ((p) model.fullscreen_view.set_position(*p));
             eval model.frp.preprocessor    ((code) inputs.preprocessor_select.emit(code));
-
-
+        }
+        // Visualisation chooser frp bindings
+        frp::extend! { network
             visualisation_chooser_active  <- source::<bool>();
 
-
-            // eval_ visualization_chooser_icon.mouse_over (visualisation_chooser_preview.emit(true));
             eval_ visualization_chooser_icon.mouse_down (visualisation_chooser_active.emit(true));
-            // eval_ visualization_chooser_icon.mouse_out  (model.hide_visualisation_chooser());
-            // eval_ visualization_chooser.mouse_out       (model.hide_visualisation_chooser());
 
-            hide_if_preview <- visualization_chooser_icon.mouse_out.gate_not(&visualisation_chooser_active);
-            show_if_preview <- visualization_chooser_icon.mouse_over.gate_not(&visualisation_chooser_active);
+            hide_if_preview            <- visualization_chooser_icon.mouse_out.gate_not(&visualisation_chooser_active);
+            show_if_preview            <- visualization_chooser_icon.mouse_over.gate_not(&visualisation_chooser_active);
             hide_visualisation_chooser <- any(&hide_if_preview,&visualization_chooser.mouse_out);
 
             eval_ show_if_preview ({
                 model.visualization_chooser.frp.set_layout_collapsed.emit(());
                 model.show_visualisation_chooser();
             });
-
-            eval hide_visualisation_chooser ([visualisation_chooser_active](_) {
-                visualisation_chooser_active.emit(false);
-            });
+            eval_ hide_visualisation_chooser ( visualisation_chooser_active.emit(false) );
 
             show_visualisation_chooser <- visualisation_chooser_active.gate(&visualisation_chooser_active);
             hide_visualisation_chooser <- visualisation_chooser_active.gate_not(&visualisation_chooser_active);
@@ -620,7 +613,6 @@ impl Container {
                 model.show_visualisation();
             });
 
-
             eval visualization_chooser.selection([model,registry,scene,visualisation_chooser_active](visualization_path) {
                 if let Some(visualization_path) = visualization_path {
                     if let Some(definition) = registry.definition_from_path(visualization_path) {
@@ -632,8 +624,6 @@ impl Container {
                 }
                 visualisation_chooser_active.emit(false);
             });
-
-
         }
 
         // Init value

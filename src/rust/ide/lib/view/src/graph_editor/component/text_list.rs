@@ -68,6 +68,8 @@ pub mod background {
 // ================
 
 /// Text shape definition. Renders the actual text of an item.
+/// TODO consider generalising with `node::label`, but we want a different font size here, which
+/// seems non-trivial to parametrise.
 pub mod text {
     use super::*;
 
@@ -124,9 +126,9 @@ pub mod text {
 
 
 
-// ==========================
+// ============================
 // === Text Item Background ===
-// ==========================
+// ============================
 
 /// Text item background shape definition. Is invisible and covers the background of a single item.
 /// Used to get mouse events for the item.
@@ -306,7 +308,6 @@ impl<T:TextListItem> TextListModel<T> {
     }
 
     fn init_item_frp(&self, frp:&Frp<T>) {
-
         let item_network    = frp::Network::new();
         let content_views   = self.content_background_views.borrow();
         let items           = self.content_items.borrow();
@@ -367,13 +368,15 @@ impl<T:TextListItem> display::Object for TextListModel<T> {
 
 impl<T:TextListItem> TextListModel<T> {
 
-    /// Return the position of an item at the given index.
+    /// Return the position of an item at the given index. Fractional indices are allowed for smooth
+    /// transitions.
     fn item_base_position(&self, index:f32) -> Vector2<f32> {
         let item_height = LINE_HEIGHT;
         Vector2::new(self.width.get()/2.0,-item_height*(index + 0.5))
     }
 
-    /// Return the position of the text that belongs to the item at the given index.
+    /// Return the position of the text that belongs to the item at the given index. Fractional
+    /// indices are allowed for smooth transitions.
     fn text_base_position(&self, index:f32) -> Vector2<f32> {
         // Text baseline is different, so we correct this here.
         let text_offset_y = TEXT_FONT_SIZE / 2.0;
@@ -392,7 +395,9 @@ impl<T:TextListItem> TextListModel<T> {
             let content_views         = self.content_views.borrow();
             let content_hover_views   = self.content_background_views.borrow();
             let items                 = self.content_items.borrow();
-            let views_with_items_iter = izip!(content_views.iter(),content_hover_views.iter(),items.iter());
+            let views_with_items_iter = izip!(content_views.iter(),
+                                              content_hover_views.iter(),
+                                              items.iter());
 
             for (label,hover_view,content_item) in views_with_items_iter {
                 if *content_item == item {
@@ -420,8 +425,8 @@ impl<T:TextListItem> TextListModel<T> {
 
     /// Show the text list as an expanded list of all available items.
     fn set_layout_expanded(&self) {
-        let content_views       = self.content_views.borrow();
-        let content_hover_views = self.content_background_views.borrow();
+        let content_views         = self.content_views.borrow();
+        let content_hover_views   = self.content_background_views.borrow();
         let views_with_items_iter = izip!(content_views.iter(),content_hover_views.iter());
 
         for (index, (label,hover_view)) in views_with_items_iter.enumerate() {
@@ -436,10 +441,10 @@ impl<T:TextListItem> TextListModel<T> {
 
     /// Set the background size to cover the given number of items.
     fn set_background_to_cover_items(&self, item_count:usize) {
-        let base_size       = self.item_size();
-        let background_size = Vector2::new(base_size.x,base_size.y * item_count as f32);
-        self.background_shape.shape.size.set(background_size);
+        let base_size           = self.item_size();
+        let background_size     = Vector2::new(base_size.x,base_size.y * item_count as f32);
         let background_position = Vector2::new(background_size.x/2.0,-background_size.y/2.0);
+        self.background_shape.shape.size.set(background_size);
         self.background_shape.set_position_xy(background_position);
     }
 
@@ -455,7 +460,8 @@ impl<T:TextListItem> TextListModel<T> {
 ///
 /// The `TextList` can present a list of `TextListItem`s from which one can be selected.
 /// It has two layout modes: (1) collapsed, where only the currently selected list item is visible
-/// and (2) expanded, where all available items are visible.
+/// and (2) expanded, where all available items are visible and the currently hovered item is
+/// highlighted.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct TextList<T:TextListItem> {
@@ -483,7 +489,6 @@ impl<T:TextListItem> TextList<T> {
     }
 
     fn init_frp(self) -> Self {
-
         let network = &self.network;
         let frp     = &self.frp;
         let model   = &self.model;
@@ -501,7 +506,6 @@ impl<T:TextListItem> TextList<T> {
         const TWEEN_END_VALUE:f32 = 1.0;
 
         frp::extend! { network
-
             // External API
             eval frp.set_preselected ((item) model.set_preselected_item(item.clone()));
             eval frp.set_content ([frp,model](content) {
@@ -512,7 +516,7 @@ impl<T:TextListItem> TextList<T> {
             });
             eval_ frp.set_layout_collapsed ( model.set_layout_collapsed() );
             eval_ frp.set_layout_expanded ([highlight_size,highlight_position,model] {
-                // We want to ensure highlight appearance is animated
+                // We want to ensure highlight appearance is reset
                 highlight_position.set_target_value(0.0);
                 highlight_size.set_target_value(0.0);
                 highlight_position.set_value(0.0);
@@ -521,6 +525,7 @@ impl<T:TextListItem> TextList<T> {
             });
             eval frp.set_preselected ((item) model.set_preselected_item(item.clone()));
             eval frp.set_width        ((size) model.set_width(*size));
+             // Internal shape API
             eval frp.on_item_hover ([mouse_out_timer,highlight_size,highlight_position,model](item) {
                 match item {
                     Some(item) => {
@@ -538,7 +543,6 @@ impl<T:TextListItem> TextList<T> {
                     },
                 }
             });
-
             // Animations
             eval highlight_size.value    ([model,highlight_shape](value) {
                 let base_size = model.item_size();
@@ -547,7 +551,6 @@ impl<T:TextListItem> TextList<T> {
             eval highlight_position.value ([highlight_shape,model](value) {
                highlight_shape.set_position_xy(model.item_base_position(*value))
             });
-
             // Mouse out tween
             mouse_out_timer_finished    <- mouse_out_timer.value.map(|t| *t>=TWEEN_END_VALUE );
             on_mouse_out_timer_finished <- mouse_out_timer_finished.gate(&mouse_out_timer_finished).constant(());
