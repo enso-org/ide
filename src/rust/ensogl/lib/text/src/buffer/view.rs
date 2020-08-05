@@ -307,16 +307,8 @@ impl ViewBuffer {
         self.buffer.data.borrow().text.clone() // FIXME
     }
 
-    fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
-        self.buffer.line_and_offset_to_column(line,line_offset)
-    }
-
     fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
         self.line_offset_of_location_X2(location)
-    }
-
-    fn offset_of_line(&self,line:Line) -> Option<Bytes> {
-        self.buffer.offset_of_line(line)
     }
 
     fn line_of_offset(&self,offset:Bytes) -> Line {
@@ -325,8 +317,8 @@ impl ViewBuffer {
 
     fn offset_to_location(&self, offset:Bytes) -> Location {
         let line         = self.line_of_offset(offset);
-        let line_offset  = (offset - self.offset_of_line(line).unwrap());
-        let column       = self.line_and_offset_to_column(line,line_offset).unwrap();
+        let line_offset  = (offset - self.byte_offset_from_line_index(line).unwrap());
+        let column       = self.column_from_line_and_offset(line,line_offset).unwrap();
         Location(line,column)
     }
 }
@@ -533,7 +525,7 @@ impl ViewModel {
     }
 
     pub fn last_view_line_number(&self) -> Line {
-        let max_line          = self.last_line();
+        let max_line          = self.last_line_index();
         let line_count : Line = self.line_count().into();
         max_line.min(self.first_line_number() + line_count)
     }
@@ -547,11 +539,11 @@ impl ViewModel {
     }
 
     pub fn first_line_offset(&self) -> Bytes {
-        self.offset_of_line(self.first_line_number()).unwrap() // FIXME
+        self.byte_offset_from_line_index(self.first_line_number()).unwrap() // FIXME
     }
 
     pub fn last_line_offset(&self) -> Bytes {
-        self.offset_of_line(self.last_view_line_number()).unwrap()
+        self.byte_offset_from_line_index(self.last_view_line_number()).unwrap()
     }
 
     pub fn line_offset_range(&self) -> Range<Bytes> {
@@ -560,7 +552,7 @@ impl ViewModel {
 
     pub fn view_end_offset(&self) -> Bytes {
         let next_line = self.last_view_line_number() + 1.line();
-        self.offset_of_line(next_line).and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.data().byte_size())
+        self.byte_offset_from_line_index(next_line).ok().and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.data().byte_size())
     }
 
     pub fn end_offset(&self) -> Bytes {
@@ -574,8 +566,8 @@ impl ViewModel {
     /// Return the offset after the last character of a given line if the line exists.
     pub fn end_offset_of_line(&self, line:Line) -> Option<Bytes> {
         let next_line  = self.last_view_line_number() + 1.line();
-        let opt_result = self.offset_of_line(next_line).and_then(|t| self.prev_grapheme_offset(t));
-        opt_result.or_else(|| (line <= self.last_line()).as_some_from(|| self.data().byte_size()))
+        let opt_result = self.byte_offset_from_line_index(next_line).ok().and_then(|t| self.prev_grapheme_offset(t));
+        opt_result.or_else(|| (line <= self.last_line_index()).as_some_from(|| self.data().byte_size()))
     }
 
     /// Return the offset after the last character of a given view line if the line exists.
@@ -589,12 +581,12 @@ impl ViewModel {
 
     pub fn offset_of_view_line(&self, view_line:Line) -> Option<Bytes> {
         let line = self.first_line_number() + view_line;
-        self.offset_of_line(line)
+        self.byte_offset_from_line_index(line).ok()
     }
 
     pub fn clamp_selection(&self, selection:Selection) -> Selection {
         let min_line = 0.line();
-        let max_line = self.last_line();
+        let max_line = self.last_line_index();
         let max_loc  = self.end_location();
         let start    = selection.start;
         let start    = if selection.start.line < min_line { default() } else { start };
@@ -607,7 +599,7 @@ impl ViewModel {
 
     /// Byte range of the given line.
     pub fn line_byte_range(&self, line:Line) -> Range<Bytes> {
-        let start = self.offset_of_line(line);
+        let start = self.byte_offset_from_line_index(line).ok();
         let end   = self.end_offset_of_line(line);
         start.and_then(|s| end.map(|e| s..e)).unwrap_or_else(|| default()..default())
     }
@@ -623,7 +615,7 @@ impl ViewModel {
         let range        = self.view_range();
         let rope_range   = range.start.as_usize() .. range.end.as_usize();
         let mut lines    = self.buffer.borrow().lines(rope_range).map(|t|t.into()).collect_vec();
-        let missing_last = lines.len() == self.last_line().as_usize();
+        let missing_last = lines.len() == self.last_line_index().as_usize();
         if  missing_last { lines.push("".into()) }
         lines
     }

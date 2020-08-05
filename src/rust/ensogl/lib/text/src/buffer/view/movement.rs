@@ -65,7 +65,7 @@ impl ViewBuffer {
         let move_up      = line_delta < 0.line();
         let location     = self.vertical_motion_selection_to_location(selection,move_up,modify);
         let min_line     = 0.line();
-        let max_line     = self.last_line();
+        let max_line     = self.last_line_index();
         let border_step  = if move_up { -1.line() } else { 1.line() };
         let snap_top     = location.line < min_line;
         let snap_bottom  = location.line > max_line;
@@ -81,8 +81,8 @@ impl ViewBuffer {
         if location.line < 0.line() {
             return Some(0.bytes())
         }
-        let line_offset      = self.offset_of_line(location.line)?;
-        let next_line_offset = self.offset_of_line(location.line + 1.line());
+        let line_offset      = self.byte_offset_from_line_index(location.line).ok()?;
+        let next_line_offset = self.byte_offset_from_line_index(location.line + 1.line()).ok();
         let max_offset       = next_line_offset.and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.last_offset());
         let mut offset = line_offset;
         let mut column = 0.column();
@@ -177,8 +177,8 @@ impl ViewBuffer {
             Transform::RightOfLine => {
                 let line             = region.end.line;
                 let text_byte_size   = text.byte_size();
-                let is_last_line     = line == self.last_line();
-                let next_line_offset = self.offset_of_line(line+1.line()).unwrap();
+                let is_last_line     = line == self.last_line_index();
+                let next_line_offset = self.byte_offset_from_line_index(line+1.line()).unwrap();
                 let offset           = if is_last_line { text_byte_size } else {
                     text.prev_grapheme_offset(next_line_offset).unwrap_or(text_byte_size)
                 };

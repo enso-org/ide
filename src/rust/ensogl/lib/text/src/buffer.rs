@@ -23,6 +23,7 @@ pub mod traits {
 }
 
 pub use data::Text;
+pub use data::text::ByteOffsetFromLineIndexError;
 pub use data::Range;
 pub use data::unit::*;
 pub use view::*;
@@ -93,16 +94,16 @@ impl Buffer {
         self.data.borrow().text.clone()
     }
 
-    pub fn last_line(&self) -> Line {
-        self.data.borrow().last_line()
+    pub fn last_line_index(&self) -> Line {
+        self.data.borrow().last_line_index()
     }
 
     pub fn line_of_offset(&self, offset:Bytes) -> Line {
         self.data.borrow().line_of_offset(offset)
     }
 
-    fn offset_of_line(&self,line:Line) -> Option<Bytes> {
-        self.data.borrow().offset_of_line(line)
+    fn byte_offset_from_line_index(&self,line:Line) -> Result<Bytes,ByteOffsetFromLineIndexError> {
+        self.data.borrow().byte_offset_from_line_index(line)
     }
 
     fn last_offset(&self) -> Bytes {
@@ -130,8 +131,8 @@ impl Buffer {
         self.data.borrow().sub_style(range)
     }
 
-    pub fn line_and_offset_to_column(&self, line:Line, line_offset:Bytes) -> Option<Column> {
-        self.data.borrow().line_and_offset_to_column(line,line_offset)
+    pub fn column_from_line_and_offset(&self, line:Line, line_offset:Bytes) -> Option<Column> {
+        self.data.borrow().column_from_line_and_offset(line,line_offset)
     }
 
     /// Return the offset to the next grapheme if any. See the documentation of the library to
@@ -173,7 +174,7 @@ impl BufferData {
     }
 
     pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
-        let range = self.clamp_range(range);
+        let range = self.clamp_byte_range(range);
         self.style.sub(range)
     }
 
@@ -182,7 +183,7 @@ impl BufferData {
     }
 
     pub fn insert(&mut self, range:impl data::RangeBounds, text:&Text) {
-        let range = self.clamp_range(range);
+        let range = self.clamp_byte_range(range);
         self.text.rope.edit(range.into_rope_interval(),text.rope.clone());
         self.style.modify(range,text.byte_size());
     }
