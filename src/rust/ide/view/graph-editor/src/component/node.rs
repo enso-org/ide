@@ -273,6 +273,7 @@ impl NodeModel {
         self.output_ports.frp.set_size.emit(size);
         self.output_ports.mod_position(|t| t.x = width/2.0);
         self.output_ports.mod_position(|t| t.y = height/2.0);
+
     }
 
     pub fn visualization(&self) -> &visualization::Container {

@@ -353,7 +353,6 @@ impl ContainerModel {
         visualization_chooser_icon.shape.sprite.size.set(Vector2::new(10.0,10.0));
 
         let visualization_chooser = TextList::new(&scene);
-        view.add_child(&visualization_chooser);
 
         Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen,
             visualization_chooser,visualization_chooser_icon,registry}
@@ -366,8 +365,6 @@ impl ContainerModel {
         // FIXME: These 4 lines fix a bug with display objects visible on stage.
         self.set_visibility(true);
         self.set_visibility(false);
-        self.show_visualisation_chooser();
-        self.hide_visualisation_chooser();
         self
     }
 
@@ -385,12 +382,18 @@ impl ContainerModel {
     fn set_visibility(&self, visibility:bool) {
         if visibility {
             self.add_child(&self.view);
-            self.hide_visualisation();
+            self.show_visualisation();
             self.scene.add_child(&self.fullscreen_view);
+            // By default the chooser is hidden at first.
+            self.hide_visualisation_chooser();
         }
         else {
-            self.remove_child(&self.view);
+            // FIXME: If we hide the children also, they stay visible and no longer move
+            // with the parent
             self.show_visualisation();
+            self.show_visualisation_chooser();
+
+            self.remove_child(&self.view);
             self.scene.remove_child(&self.fullscreen_view);
         }
     }
@@ -470,7 +473,7 @@ impl ContainerModel {
     }
 
     fn show_visualisation_chooser(&self) {
-        self.visualization_chooser.display_object().set_parent(&self.view)
+        self.view.add_child(& self.visualization_chooser);
     }
 
     fn hide_visualisation_chooser(&self) {
@@ -579,7 +582,6 @@ impl Container {
                     let pp = Vector3(pos.x,pos.y,pos.z);
                     let current_pos = pp * weight_inv;
                     model.fullscreen_view.set_position(current_pos);
-
             }));
 
             eval fullscreen_position.value ((p) model.fullscreen_view.set_position(*p));

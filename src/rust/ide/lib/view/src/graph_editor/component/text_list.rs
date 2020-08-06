@@ -249,12 +249,16 @@ impl<T:TextListItem> TextListModel<T> {
         let item_network             = default();
         let width                    = default();
 
-        background_shape.display_object().set_parent(&display_object);
-        highlight_shape.display_object().set_parent(&display_object);
-        highlight_shape.shape.sprite.size.set(Vector2::zero());
 
         TextListModel{scene,display_object,logger,content_items,background_shape,content_views,
-                      item_network,content_background_views,highlight_shape,width}
+                      item_network,content_background_views,highlight_shape,width}.init()
+    }
+
+    fn init(self)-> Self {
+        self.add_child(&self.background_shape);
+        self.add_child(&self.highlight_shape);
+        self.highlight_shape.shape.sprite.size.set(Vector2::zero());
+        self
     }
 
     /// Create a textual representation for the given content item.
@@ -286,15 +290,11 @@ impl<T:TextListItem> TextListModel<T> {
             let label_background = component::ShapeView::<text_item_hover::Shape>::new(&self.logger,&self.scene);
             label_background.shape.size.set(self.item_size());
 
-            // Remove default parent
-            self.display_object.add_child(&label);
-            self.display_object.add_child(&label_background);
-            label.unset_parent();
-            label_background.unset_parent();
+            self.add_child(&label);
+            self.add_child(&label_background);
 
             content_views.push(label);
             content_background_views.push(label_background);
-
         };
 
         *self.content_views.borrow_mut()            = content_views;
@@ -403,8 +403,8 @@ impl<T:TextListItem> TextListModel<T> {
                 if *content_item == item {
                     label.set_position_xy(self.text_base_position(0.0));
                     hover_view.set_position_xy(self.item_base_position(0.0));
-                    self.display_object.add_child(label);
-                    self.display_object.add_child(hover_view);
+                    self.add_child(&label);
+                    self.add_child(&hover_view);
                 } else {
                     label.unset_parent();
                     hover_view.unset_parent();
