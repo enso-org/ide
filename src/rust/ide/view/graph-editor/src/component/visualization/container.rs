@@ -385,10 +385,12 @@ impl ContainerModel {
     fn set_visibility(&self, visibility:bool) {
         if visibility {
             self.add_child(&self.view);
+            self.hide_visualisation();
             self.scene.add_child(&self.fullscreen_view);
         }
         else {
             self.remove_child(&self.view);
+            self.show_visualisation();
             self.scene.remove_child(&self.fullscreen_view);
         }
     }
@@ -468,14 +470,15 @@ impl ContainerModel {
     }
 
     fn show_visualisation_chooser(&self) {
-        self.visualization_chooser.display_object().set_parent(&self)
+        self.visualization_chooser.display_object().set_parent(&self.view)
     }
+
     fn hide_visualisation_chooser(&self) {
         self.visualization_chooser.unset_parent()
     }
 
     fn show_visualisation(&self) {
-        self.visualization.borrow().as_ref().map(|vis| self.display_object.add_child(vis));
+        self.visualization.borrow().as_ref().map(|vis| vis.display_object().set_parent(&self.view));
     }
 
     fn hide_visualisation(&self) {
