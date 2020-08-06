@@ -22,7 +22,6 @@ pub mod traits {
 
 pub use data::Text;
 pub use data::TextCell;
-pub use data::text::LineIndexError;
 pub use data::Range;
 pub use data::unit::*;
 pub use view::*;
