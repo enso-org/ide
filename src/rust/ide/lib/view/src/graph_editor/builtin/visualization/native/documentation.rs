@@ -107,8 +107,16 @@ impl ViewModel {
         data_str.replace("\"", "")
     }
 
+    /// Creates a container for generated content and embeds it with stylesheet.
+    fn push_to_dom(&self, content:String) {
+        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, doc_style(), content);
+        self.dom.dom().set_inner_html(&data_str)
+    }
+
+    /// Receives data, processes and presents it in the documentation view.
     fn receive_data(&self, data:&visualization::Data) -> Result<(),visualization::DataError> {
-        self.push_to_dom(String::from("Please wait ..."));
+        // FIXME: Somehow this gets presented __after__ all of the functions here happen
+        self.push_to_dom(String::from("<p>Please wait ...</p>"));
 
         let data_inner = match data {
             visualization::Data::Json {content} => content,
@@ -118,7 +126,7 @@ impl ViewModel {
         let data_str   = ViewModel::prepare_data_string(data_inner);
         let output     = ViewModel::gen_html_from(data_str);
         let mut output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
-        if output     == "" { output = String::from(PLACEHOLDER_STR); }
+        if output     == "" { output = String::from(PLACEHOLDER_STR) }
         // FIXME : Doc Parser related idea, where stylesheet was a separate file.
         let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
         let output     = output.replace(import_css, "");
@@ -130,12 +138,6 @@ impl ViewModel {
     /// Loads an HTML file into the documentation view when there is no docstring available.
     fn load_no_doc_screen(&self) {
         self.push_to_dom(String::from(PLACEHOLDER_STR))
-    }
-
-    /// Creates a container for generated content and embeds it with stylesheet.
-    fn push_to_dom(&self, content:String) {
-        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, doc_style(), content);
-        self.dom.dom().set_inner_html(&data_str)
     }
 
     fn reload_style(&self) {

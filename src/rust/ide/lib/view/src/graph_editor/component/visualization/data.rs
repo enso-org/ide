@@ -171,6 +171,76 @@ type Option a
 
     ## The `None` type indicates a lack of a value.
     type None
+
+type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+
+type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+
+type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+
+type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+
+type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+
+type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+    type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+    type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
+
+    ## The `None` type indicates a lack of a value.
+    type None
+
+
 "#;
         inp_only_doc.to_string()
     }
