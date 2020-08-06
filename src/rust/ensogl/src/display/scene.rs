@@ -363,6 +363,37 @@ impl Mouse {
 
 
 
+// ================
+// === Keyboard ===
+// ================
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Keyboard {
+    pub frp  : enso_frp::io::Keyboard,
+    pub frp2 : enso_frp::io::keyboard2::Keyboard,
+    bindings : Rc<KeyboardFrpBindings>,
+    bindings2 : Rc<enso_frp::io::keyboard2::DomBindings>,
+}
+
+impl Keyboard {
+    pub fn new() -> Self {
+        let logger    = Logger::new("keyboard");
+        let frp       = enso_frp::io::Keyboard::default();
+        let frp2      = enso_frp::io::keyboard2::Keyboard::default();
+        let bindings  = Rc::new(KeyboardFrpBindings::new(&logger,&frp));
+        let bindings2 = Rc::new(enso_frp::io::keyboard2::DomBindings::new(&logger, &frp2));
+        Self {frp,frp2,bindings,bindings2}
+    }
+}
+
+impl Default for Keyboard {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
+
 // ===========
 // === Dom ===
 // ===========
@@ -746,27 +777,6 @@ impl Extensions {
         entry.downcast_ref::<T>().unwrap().clone_ref()
     }
 }
-
-
-#[derive(Clone,CloneRef,Debug)]
-pub struct Keyboard {
-    pub frp  : enso_frp::io::Keyboard,
-    pub frp2 : enso_frp::io::keyboard2::Keyboard,
-    bindings : Rc<KeyboardFrpBindings>,
-    bindings2 : Rc<enso_frp::io::keyboard2::DomBindings>,
-}
-
-impl Keyboard {
-    pub fn new() -> Self {
-        let logger    = Logger::new("keyboard");
-        let frp       = enso_frp::io::Keyboard::default();
-        let frp2      = enso_frp::io::keyboard2::Keyboard::default();
-        let bindings  = Rc::new(KeyboardFrpBindings::new(&logger,&frp));
-        let bindings2 = Rc::new(enso_frp::io::keyboard2::DomBindings::new(&logger, &frp2));
-        Self {frp,frp2,bindings,bindings2}
-    }
-}
-
 
 
 

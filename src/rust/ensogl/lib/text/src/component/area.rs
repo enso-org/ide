@@ -11,7 +11,6 @@ use crate::typeface;
 
 use enso_frp as frp;
 use enso_frp::io::keyboard::Key;
-use enso_frp::stream::ValueProvider;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::application;
@@ -167,9 +166,10 @@ pub mod cursor {
     use super::*;
     ensogl::define_shape_system! {
         (style:Style, selection:f32, start_time:f32, letter_width:f32) {
-            let width     : Var<f32> = "input_size.x".into();
-            let height    : Var<Pixels> = "input_size.y".into();
-            let width_abs : Var<f32> = "abs(input_size.x)".into(); // FIXME[WD]: Pixels should not be usize
+            // FIXME: use these:
+            // let width     : Var<f32> = "input_size.x".into();
+            // let height    : Var<Pixels> = "input_size.y".into();
+            let width_abs : Var<f32> = "abs(input_size.x)".into();
             let rect_width = width_abs - 2.0 * CURSOR_PADDING;
             let time   : Var<f32>    = "input_time".into();
             let one    : Var<f32>    = 1.0.into();
@@ -467,8 +467,6 @@ impl Area {
         let pos     = Animation :: <Vector2> :: new(&network);
         pos.update_spring(|spring| spring*2.0);
 
-        let command = &model.frp.command;
-
         frp::extend! { network
             cursor_over  <- self.background.events.mouse_over.constant(mouse_cursor::Style::new_text_cursor());
             cursor_out   <- self.background.events.mouse_out.constant(mouse_cursor::Style::default());
@@ -611,7 +609,7 @@ impl Deref for Selection {
 
 impl Selection {
     pub fn new(logger:impl AnyLogger, scene:&Scene, edit_mode:bool) -> Self {
-        let logger         = Logger::new("selection");
+        let logger         = Logger::sub(logger,"selection");
         let display_object = display::object::Instance::new(&logger);
         let right_side     = display::object::Instance::new(&logger);
         let network        = frp::Network::new();
@@ -630,7 +628,6 @@ impl Selection {
         let network    = &self.network;
         let view       = &self.shape_view;
         let object     = &self.display_object;
-        let width      = &self.width;
         let right_side = &self.right_side;
         self.add_child(view);
         view.add_child(right_side);
@@ -734,8 +731,6 @@ impl AreaData {
             let id         = sel.id;
             let start_line_index = sel.start.line.as_usize();
             let end_line_index = sel.end.line.as_usize();
-            let start_line_offset = self.buffer.offset_of_view_line(start_line_index.into());
-            let end_line_offset = self.buffer.offset_of_view_line(end_line_index.into());
             let min_div = self.lines.rc.borrow()[start_line_index].div_by_column(sel.start.column);
             let max_div = self.lines.rc.borrow()[end_line_index].div_by_column(sel.end.column);
             let logger = Logger::sub(&self.logger,"cursor");
@@ -810,7 +805,6 @@ impl AreaData {
         let line_index   = (-object_space.y / LINE_HEIGHT) as usize;
         let line_index   = std::cmp::min(line_index,self.lines.len() - 1);
         let div_index    = self.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
-        let div          = self.lines.rc.borrow()[line_index].divs[div_index];
         let line         = line_index.into();
         let column       = div_index.into();
         Location(line,column)
@@ -936,7 +930,6 @@ impl application::View for Area {
 
 impl application::shortcut::DefaultShortcutProvider for Area {
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
-        use enso_frp::io::keyboard::Key;
         use enso_frp::io::mouse;
 //        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_position")
 //        ]

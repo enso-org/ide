@@ -1,14 +1,17 @@
+#![allow(missing_docs)]
+// FIXME[WD]: THIS FILE IS IN WORK IN PROGRESS STATE. WILL BE FINISHED IN THE NEXT PR.
+
 //! FRP keyboard bindings.
 
 use crate::prelude::*;
 
 use crate as frp;
-use enso_callback as callback;
 use ensogl_system_web as web;
 use web_sys::KeyboardEvent;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlElement;
 use wasm_bindgen::JsCast;
+
 
 
 // ===========
@@ -18,6 +21,7 @@ use wasm_bindgen::JsCast;
 /// For reference, see the following links:
 /// - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code/code_values
 #[derive(Clone,Debug,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub enum Key {
     Alt     (Side),
     Control (Side),
@@ -26,7 +30,9 @@ pub enum Key {
     Other   (String)
 }
 
+/// The key placement enum.
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub enum Side {
     Left,Right
 }
@@ -97,10 +103,10 @@ impl KeyboardModel {
         self.set.borrow_mut().remove(key);
     }
 
+    #[allow(clippy::unnecessary_filter_map)] // Allows not cloning the element.
     pub fn release_meta_dependent(&self) -> Vec<Key> {
         let mut to_release = Vec::new();
         let new_set        = self.set.borrow_mut().drain().filter_map(|key| {
-            let is_meta_independent = key.is_meta_independent();
             if !key.is_meta_independent() {
                 to_release.push(key);
                 None

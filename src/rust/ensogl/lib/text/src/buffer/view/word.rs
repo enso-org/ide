@@ -121,6 +121,12 @@ impl<'a> WordCursor<'a> {
     }
 }
 
+impl<'a> Debug for WordCursor<'a> {
+    fn fmt(&self, fmt:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(fmt,"WordCursor")
+    }
+}
+
 
 
 // ================
@@ -201,12 +207,12 @@ fn char_class(codepoint:char) -> CharClass {
         return CharClass::Space;
     } else if codepoint <= '\u{3f}' {
         // Hardcoded:!"#$%&'()*+,-./:;<=>?
-        if (0xfc00fffe00000000u64 >> (codepoint as u32)) & 1 != 0 {
+        if (0xfc00_fffe_0000_0000u64 >> (codepoint as u32)) & 1 != 0 {
             return CharClass::Punctuation;
         }
     } else if codepoint <= '\u{7f}' {
         // Hardcoded:@[\]^`{|}~
-        if (0x7800000178000001u64 >> ((codepoint as u32) & 0x3f)) & 1 != 0 {
+        if (0x7800_0001_7800_0001u64 >> ((codepoint as u32) & 0x3f)) & 1 != 0 {
             return CharClass::Punctuation;
         }
     }

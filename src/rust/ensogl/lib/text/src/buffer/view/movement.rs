@@ -1,7 +1,6 @@
 //! Text cursor transform implementation.
 
 use super::*;
-use crate::buffer::data;
 use crate::buffer::data::unit::*;
 use crate::buffer::view::word::WordCursor;
 use crate::buffer::view::selection;
@@ -66,7 +65,7 @@ impl ViewBuffer {
         let location     = self.vertical_motion_selection_to_location(selection,move_up,modify);
         let min_line     = 0.line();
         let max_line     = self.last_line_index();
-        let border_step  = if move_up { -1.line() } else { 1.line() };
+        let border_step  = if move_up { (-1).line() } else { 1.line() };
         let snap_top     = location.line < min_line;
         let snap_bottom  = location.line > max_line;
         let next_line    = max_line + border_step;
@@ -112,7 +111,7 @@ impl ViewBuffer {
             }
 
             Transform::Up => {
-                self.vertical_motion(region,-1.line(),modify)
+                self.vertical_motion(region,(-1).line(),modify)
             }
 
             Transform::Down => {
@@ -169,7 +168,7 @@ impl ViewBuffer {
             Transform::LeftWord => {
                 let end_offset      = self.byte_offset_from_location_snapped(region.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
-                let offset          = word_cursor.prev_boundary().unwrap_or(0.bytes());
+                let offset          = word_cursor.prev_boundary().unwrap_or_else(|| 0.bytes());
                 let end             = self.offset_to_location(offset);
                 shape(region.start,end)
             }

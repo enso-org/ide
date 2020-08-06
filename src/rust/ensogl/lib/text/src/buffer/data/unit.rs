@@ -3,7 +3,6 @@
 
 use crate::prelude::*;
 use enso_types::unit;
-use enso_types::unsigned_unit_proxy;
 use enso_types::newtype;
 
 
@@ -75,7 +74,7 @@ impl Line {
     }
 
     // FIXME
-    pub fn abs(&self) -> Self {
+    pub fn abs(self) -> Self {
         self.value.saturating_abs().into()
     }
 }
@@ -109,7 +108,7 @@ impl Column {
     }
 
     // FIXME
-    pub fn abs(&self) -> Self {
+    pub fn abs(self) -> Self {
         self.value.saturating_abs().into()
     }
 }

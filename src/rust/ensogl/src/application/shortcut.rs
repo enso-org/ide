@@ -42,11 +42,14 @@ impl<T:Into<keyboard::KeyMask>> From<T> for Pattern<keyboard::KeyMask> {
 
 
 
-// ==================
+// =====================
 // === ActionPattern ===
-// ==================
+// =====================
 
+/// A pattern for mouse actions.
 pub type MousePattern = Pattern<mouse::ButtonMask>;
+
+/// A pattern for keyboard actions.
 pub type KeyboardPattern = Pattern<keyboard::KeyMask>;
 
 /// A mask for keyboard and mouse events. Consists of separate `Pattern` for the mouse and

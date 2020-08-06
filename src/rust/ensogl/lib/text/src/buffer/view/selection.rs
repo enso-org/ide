@@ -32,6 +32,8 @@ pub struct Shape<T=Location> {
     pub end   : T
 }
 
+/// Constructor.
+#[allow(non_snake_case)]
 pub fn Shape<T:Data>(start:T, end:T) -> Shape<T> {
     Shape::new(start,end)
 }
@@ -136,6 +138,8 @@ impl<T> DerefMut for Selection<T> {
     }
 }
 
+/// Constructor.
+#[allow(non_snake_case)]
 pub fn Selection<T:Data>(start:T, end:T, id:usize) -> Selection<T> {
     Selection::new(start,end,id)
 }

@@ -304,15 +304,9 @@ impl ViewBuffer {
         self.buffer.data.text.cell.borrow().clone() // FIXME
     }
 
-//    fn line_col_to_offset(&self, location:Location) -> Option<Bytes> {
-//        self.line_offset_of_location_X2(location)
-//    }
-
-
-
     fn offset_to_location(&self, offset:Bytes) -> Location {
         let line         = self.line_index_from_byte_offset_snapped(offset);
-        let line_offset  = (offset - self.byte_offset_from_line_index(line).unwrap());
+        let line_offset  = offset - self.byte_offset_from_line_index(line).unwrap();
         let column       = self.column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset);
         Location(line,column)
     }
@@ -410,10 +404,10 @@ impl View {
             selection_on_keep_last_caret <- input.keep_last_caret_only.map(f_!(model.last_caret()));
             selection_on_keep_first_caret <- input.keep_first_caret_only.map(f_!(model.first_caret()));
 
-            selection_on_keep_last <- input.keep_newest_selection_only.map(f_!(model.newest_selection()));
-            selection_on_keep_first <- input.keep_oldest_selection_only.map(f_!(model.oldest_selection()));
-            selection_on_keep_last_caret <- input.keep_newest_caret_only.map(f_!(model.newest_caret()));
-            selection_on_keep_first_caret <- input.keep_oldest_caret_only.map(f_!(model.oldest_caret()));
+            selection_on_keep_newest <- input.keep_newest_selection_only.map(f_!(model.newest_selection()));
+            selection_on_keep_oldest <- input.keep_oldest_selection_only.map(f_!(model.oldest_selection()));
+            selection_on_keep_newest_caret <- input.keep_newest_caret_only.map(f_!(model.newest_caret()));
+            selection_on_keep_oldest_caret <- input.keep_oldest_caret_only.map(f_!(model.oldest_caret()));
 
             selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(*t).into()));
             selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(*t)));
@@ -431,8 +425,12 @@ impl View {
             output.source.edit_selection     <+ selection_on_clear;
             output.source.non_edit_selection <+ selection_on_keep_last;
             output.source.non_edit_selection <+ selection_on_keep_first;
+            output.source.non_edit_selection <+ selection_on_keep_newest;
+            output.source.non_edit_selection <+ selection_on_keep_oldest;
             output.source.non_edit_selection <+ selection_on_keep_last_caret;
             output.source.non_edit_selection <+ selection_on_keep_first_caret;
+            output.source.non_edit_selection <+ selection_on_keep_newest_caret;
+            output.source.non_edit_selection <+ selection_on_keep_oldest_caret;
             output.source.non_edit_selection <+ selection_on_keep_last_caret;
             output.source.non_edit_selection <+ selection_on_keep_first_caret;
             output.source.non_edit_selection <+ selection_on_set_cursor;

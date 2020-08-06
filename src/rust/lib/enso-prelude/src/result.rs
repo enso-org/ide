@@ -13,9 +13,10 @@ impl<V,E> ResultOps for Result<V,E> {
     type Error = E;
 
     fn unwrap(self) -> Self::Value {
+        #[allow(clippy::match_wild_err_arm)]
         match self {
-            Ok(v)  => v,
-            Err(e) => panic!("called `Result::unwrap()` on a `Err` value."),
+            Ok  (v) => v,
+            Err (_) => panic!("called `Result::unwrap()` on a `Err` value."),
         }
     }
 }

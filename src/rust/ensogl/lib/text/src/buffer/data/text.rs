@@ -7,7 +7,6 @@ use super::rope::Rope;
 use super::unit::*;
 use super::range::Range;
 use super::range::RangeBounds;
-use super::super::view::selection::Selection; // FIXME layout
 
 
 
@@ -65,11 +64,9 @@ impl Text {
     pub fn grapheme_count(&self) -> usize {
         let mut offset = 0;
         let mut count  = 0;
-        loop {
-            if let Some(off) = self.rope.next_grapheme_offset(offset) {
-                offset = off;
-                count += 1;
-            } else { break }
+        while let Some(off) = self.rope.next_grapheme_offset(offset) {
+            offset = off;
+            count += 1;
         }
         count
     }
@@ -358,8 +355,7 @@ impl Text {
     /// The column from line number and byte offset within the line.
     pub fn column_from_line_index_and_in_line_byte_offset(&self, line:Line, in_line_offset:Bytes)
     -> Result<Column,LocationError<Column>> {
-        use LocationError::*;
-        let mut offset = self.byte_offset_from_line_index(line)?;
+        let offset     = self.byte_offset_from_line_index(line)?;
         let tgt_offset = offset + in_line_offset;
         let column     = self.column_from_byte_offset(tgt_offset)?;
         Ok(column)
@@ -382,7 +378,7 @@ impl Text {
     /// The location of the provided byte offset.
     pub fn location_from_byte_offset(&self, offset:Bytes) -> Result<Location,ByteOffsetError> {
         let line        = self.line_index_from_byte_offset(offset)?;
-        let line_offset = (offset - self.byte_offset_from_line_index(line).unwrap());
+        let line_offset = offset - self.byte_offset_from_line_index(line).unwrap();
         let column      = self.column_from_line_index_and_in_line_byte_offset(line,line_offset);
         let column      = column.unwrap();
         Ok(Location(line,column))
