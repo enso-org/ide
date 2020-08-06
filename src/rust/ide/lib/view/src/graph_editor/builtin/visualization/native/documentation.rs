@@ -125,6 +125,7 @@ impl ViewModel {
         let mut output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
         if output     == "" { output = String::from(PLACEHOLDER_STR) }
         // FIXME : Doc Parser related idea, where stylesheet was a separate file.
+        //         Will be fixed after a commit in Engine repo and in next PR.
         let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
         let output     = output.replace(import_css, "");
 
@@ -133,6 +134,7 @@ impl ViewModel {
     }
 
     /// Loads an HTML file into the documentation view when there is no docstring available yet.
+    /// TODO : This will be replaced with a spinner in next PR.
     fn load_no_doc_screen(&self) {
         self.push_to_dom(String::from("<p>Please wait...</p>"))
     }
