@@ -4,13 +4,6 @@
 use crate::prelude::*;
 
 use crate::graph_editor::component::visualization;
-use crate::graph_editor::component::visualization::{Instance, Json};
-use crate::graph_editor::component::visualization::Data;
-use crate::graph_editor::component::visualization::Signature;
-use crate::graph_editor::component::visualization::Path;
-use crate::graph_editor::component::visualization::Format;
-use crate::graph_editor::component::visualization::DataError;
-use crate::graph_editor::component::visualization::Definition;
 
 use enso_frp as frp;
 use ensogl::display::DomSymbol;
@@ -28,10 +21,9 @@ use ast::prelude::FallibleResult;
 pub const DOC_VIEW_WIDTH  : f32 = 300.0;
 pub const DOC_VIEW_MARGIN : f32 = 15.0;
 
-const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 /// Content in the documentation view when the data is yet to be received.
 const PLACEHOLDER_STR : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
-
+const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 
 /// Generates documentation view stylesheet.
 pub fn get_doc_style() -> String {
@@ -85,58 +77,57 @@ impl ViewModel {
 
     /// Generates HTML documentation from documented Enso code.
     fn gen_html_from(doc: String) -> FallibleResult<String> {
-        println!("{}", doc);
         let parser = parser::DocParser::new()?;
         let output = parser.generate_html_docs(doc);
-        println!("{:?}", output);
         Ok(output?)
     }
 
     /// Generates HTML documentation from pure Enso documentation.
     fn gen_html_from_pure(doc: String) -> FallibleResult<String> {
-        println!("{}", doc);
         let parser = parser::DocParser::new()?;
         let output = parser.generate_html_doc_pure(doc);
-        println!("{:?}", output);
         Ok(output?)
     }
 
     /// Prepares data string for Doc Parser to work with after getting deserialization.
     /// FIXME : Removes characters that are not supported by Doc Parser yet
     ///         https://github.com/enso-org/enso/issues/1063
-    fn prepare_data_string(data_inner: &Json) -> String {
+    fn prepare_data_string(data_inner: &visualization::Json) -> String {
         let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
-        // Fixes a Doc Parser Bug - to be removed when rewritten to rust
         let data_str = data_str.replace("\\n", "\n");
         let data_str = data_str.replace("\"", "");
         data_str
     }
 
-    fn receive_data(&self, data:&Data) -> Result<(),DataError> {
+    fn receive_data(&self, data:&visualization::Data) -> Result<(),visualization::DataError> {
         let data_str = format!(r#"<div class="docVis">{}"Please Wait ..."</div>"#, get_doc_style());
         self.dom.dom().set_inner_html(&data_str);
 
         let data_inner = match data {
-            Data::Json {content} => content,
-            _                    => todo!(),
+            visualization::Data::Json {content} => content,
+            _                                   => todo!(),
         };
 
-        let data_str = ViewModel::prepare_data_string(data_inner);
+        let data_str   = ViewModel::prepare_data_string(data_inner);
+        let output     = ViewModel::gen_html_from(data_str);
+        let mut output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
+        if output     == "" { output = String::from(PLACEHOLDER_STR); }
+        // FIXME : Doc Parser related idea, where stylesheet was a separate file
+        let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
+        let output     = output.replace(import_css, "");
 
-        let output = ViewModel::gen_html_from(data_str);
-        let output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
-        // Fixes a Doc Parser related idea, where stylesheet was a separate file
-        let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");
-
-        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), output);
-        self.dom.dom().set_inner_html(&data_str);
+        self.push_to_dom(output);
         Ok(())
     }
 
     /// Loads an HTML file into the documentation view when there is no docstring available.
     fn load_no_doc_screen(&self) {
-        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), PLACEHOLDER_STR);
+        self.push_to_dom(String::from(PLACEHOLDER_STR))
+    }
+
+    fn push_to_dom(&self, content:String) {
+        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), content);
         self.dom.dom().set_inner_html(&data_str)
     }
 
@@ -161,10 +152,10 @@ pub struct View {
 
 impl View {
     /// Definition of this visualization.
-    pub fn definition() -> Definition {
-        let path = Path::builtin("Documentation View Visualization (native)");
-        Definition::new(
-            Signature::new_for_any_type(path,Format::Json),
+    pub fn definition() -> visualization::Definition {
+        let path = visualization::Path::builtin("Documentation View");
+        visualization::Definition::new(
+            visualization::Signature::new_for_any_type(path,visualization::Format::Json),
             |scene| { Ok(Self::new(scene).into()) }
         )
     }
@@ -194,7 +185,7 @@ impl View {
     }
 }
 
-impl From<View> for Instance {
+impl From<View> for visualization::Instance {
     fn from(t: View) -> Self {
         Self::new(&t,&t.frp,&t.network)
     }
