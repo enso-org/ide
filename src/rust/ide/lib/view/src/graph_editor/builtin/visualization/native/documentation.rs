@@ -4,7 +4,7 @@
 use crate::prelude::*;
 
 use crate::graph_editor::component::visualization;
-use crate::graph_editor::component::visualization::Instance;
+use crate::graph_editor::component::visualization::{Instance, Json};
 use crate::graph_editor::component::visualization::Data;
 use crate::graph_editor::component::visualization::Signature;
 use crate::graph_editor::component::visualization::Path;
@@ -30,7 +30,7 @@ pub const DOC_VIEW_MARGIN : f32 = 15.0;
 
 const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 /// Content in the documentation view when the data is yet to be received.
-const PLACEHOLDER_STR : &str = "<h3>Enso Documentation Viewer</h3><p>No documentation available</p>";
+const PLACEHOLDER_STR : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
 
 
 /// Generates documentation view stylesheet.
@@ -101,17 +101,28 @@ impl ViewModel {
         Ok(output?)
     }
 
-    fn receive_data(&self, data:&Data) -> Result<(),DataError> {
-        let data_inner = match data {
-            Data::Json {content} => content,
-            _                    => todo!(),
-        };
-
+    /// Prepares data string for Doc Parser to work with after getting deserialization.
+    /// FIXME : Removes characters that are not supported by Doc Parser yet
+    ///         https://github.com/enso-org/enso/issues/1063
+    fn prepare_data_string(data_inner: &Json) -> String {
         let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
         // Fixes a Doc Parser Bug - to be removed when rewritten to rust
         let data_str = data_str.replace("\\n", "\n");
         let data_str = data_str.replace("\"", "");
+        data_str
+    }
+
+    fn receive_data(&self, data:&Data) -> Result<(),DataError> {
+        let data_str = format!(r#"<div class="docVis">{}"Please Wait ..."</div>"#, get_doc_style());
+        self.dom.dom().set_inner_html(&data_str);
+
+        let data_inner = match data {
+            Data::Json {content} => content,
+            _                    => todo!(),
+        };
+
+        let data_str = ViewModel::prepare_data_string(data_inner);
 
         let output = ViewModel::gen_html_from(data_str);
         let output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
