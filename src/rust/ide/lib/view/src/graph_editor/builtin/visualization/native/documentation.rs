@@ -115,9 +115,6 @@ impl ViewModel {
 
     /// Receives data, processes and presents it in the documentation view.
     fn receive_data(&self, data:&visualization::Data) -> Result<(),visualization::DataError> {
-        // FIXME: Somehow this gets presented __after__ all of the functions here happen
-        self.push_to_dom(String::from("<p>Please wait ...</p>"));
-
         let data_inner = match data {
             visualization::Data::Json {content} => content,
             _                                   => todo!(),
@@ -135,9 +132,9 @@ impl ViewModel {
         Ok(())
     }
 
-    /// Loads an HTML file into the documentation view when there is no docstring available.
+    /// Loads an HTML file into the documentation view when there is no docstring available yet.
     fn load_no_doc_screen(&self) {
-        self.push_to_dom(String::from(PLACEHOLDER_STR))
+        self.push_to_dom(String::from("<p>Please wait...</p>"))
     }
 
     fn reload_style(&self) {
