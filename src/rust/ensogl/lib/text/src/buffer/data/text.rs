@@ -15,7 +15,8 @@ use super::super::view::selection::Selection; // FIXME layout
 // === Text ===
 // ============
 
-/// Efficient text container used by the text buffer. Implemented as a rope under the hood.
+/// Efficient, immutable text container used by the text buffer. Implemented as a rope under the
+/// hood. Use `TextCell` if you are looking for an internally mutable version.
 ///
 /// A [rope](https://en.wikipedia.org/wiki/Rope_(data_structure)) is a data structure for strings,
 /// specialized for incremental editing operations. Most operations (such as insert, delete,
@@ -110,11 +111,13 @@ impl Text {
     }
 
     /// Replaces the provided range with the provided text.
-    pub fn replace(&mut self, range:impl RangeBounds, text:&Text) {
+    pub fn replace(&mut self, range:impl RangeBounds, text:impl Into<Text>) {
+        let text  = text.into();
         let range = self.clamp_byte_range(range);
-        self.rope.edit(range.into_rope_interval(),text.rope.clone());
+        self.rope.edit(range.into_rope_interval(),text.rope);
     }
 }
+
 
 // === First Line ===
 
@@ -544,6 +547,10 @@ pub struct TextCell {
 }
 
 impl TextCell {
+    pub fn get(&self) -> Text {
+        self.cell.borrow().clone()
+    }
+
     pub fn set(&self, new_text:impl Into<Text>) {
         let new_text = new_text.into();
         *self.cell.borrow_mut() = new_text;
@@ -589,7 +596,7 @@ impl TextCell {
 //        self.cell.borrow().lines(range)
 //    }
 
-    pub fn replace(&self, range:impl RangeBounds, text:&Text) {
+    pub fn replace(&self, range:impl RangeBounds, text:impl Into<Text>) {
         self.cell.borrow_mut().replace(range,text)
     }
 

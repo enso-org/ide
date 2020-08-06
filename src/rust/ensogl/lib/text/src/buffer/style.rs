@@ -96,7 +96,7 @@ macro_rules! define_styles {
                 Self {$($field),*}
             }
 
-            pub fn modify(&mut self, range:Range<Bytes>, len:Bytes) {
+            pub fn set_resize_with_default(&mut self, range:Range<Bytes>, len:Bytes) {
                 $(self.$field.replace_resize(range,len,None);)*
             }
 
@@ -109,31 +109,21 @@ macro_rules! define_styles {
 
         $(
             impl Setter<Option<$field_type>> for Buffer {
-                fn modify
-                (&self, range:impl data::RangeBounds, len:Bytes, data:Option<$field_type>) {
+                fn replace(&self, range:impl data::RangeBounds, data:Option<$field_type>) {
                     let range = self.data.clamp_byte_range(range);
-                    self.data.style.borrow_mut().$field.replace_resize(range,len,data)
-                }
-
-                fn set(&self, range:impl data::RangeBounds, data:Option<$field_type>) {
-                    let range = self.data.clamp_byte_range(range);
-                    self.data.style.borrow_mut().$field.replace_resize(range,range.size(),data)
+                    self.data.style.cell.borrow_mut().$field.replace_resize(range,range.size(),data)
                 }
             }
 
             impl Setter<$field_type> for Buffer {
-                fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:$field_type) {
-                    self.modify(range,len,Some(data))
-                }
-
-                fn set(&self, range:impl data::RangeBounds, data:$field_type) {
-                    self.set(range,Some(data))
+                fn replace(&self, range:impl data::RangeBounds, data:$field_type) {
+                    self.replace(range,Some(data))
                 }
             }
 
             impl DefaultSetter<$field_type> for Buffer {
                 fn set_default(&self, data:$field_type) {
-                    self.data.style.borrow_mut().$field.default = data;
+                    self.data.style.cell.borrow_mut().$field.default = data;
                 }
             }
         )*
@@ -238,4 +228,37 @@ define_styles! {
     bold      : Bold,
     italics   : Italic,
     underline : Underline,
+}
+
+
+
+// =================
+// === StyleCell ===
+// =================
+
+#[derive(Clone,Debug,Default)]
+pub struct StyleCell {
+    cell : RefCell<Style>
+}
+
+impl StyleCell {
+    pub fn new() -> Self {
+        default()
+    }
+
+    pub fn get(&self) -> Style {
+        self.cell.borrow().clone()
+    }
+
+    pub fn set(&self, style:Style) {
+        *self.cell.borrow_mut() = style;
+    }
+
+    pub fn sub(&self, range:Range<Bytes>) -> Style {
+        self.cell.borrow().sub(range)
+    }
+
+    pub fn set_resize_with_default(&self, range:Range<Bytes>, len:Bytes) {
+        self.cell.borrow_mut().set_resize_with_default(range,len)
+    }
 }

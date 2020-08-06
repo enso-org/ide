@@ -14,6 +14,7 @@ use crate::buffer::style::Style;
 use crate::buffer::data;
 use crate::buffer::data::Text;
 use crate::buffer::data::unit::*;
+use crate::buffer::Setter;
 use crate::buffer::Buffer;
 
 use enso_frp as frp;
@@ -92,10 +93,6 @@ macro_rules! define_frp {
 // =================
 // === Constants ===
 // =================
-
-/// When paging through a file, the number of lines from the previous page that will also be visible
-/// in the next.
-const SCROLL_OVERLAP : isize = 2;
 
 /// Default visible line count in a new buffer view.
 const DEFAULT_LINE_COUNT : usize = 10;
@@ -510,12 +507,6 @@ impl ViewModel {
     // FIXME: rename
     fn moved_selection2(&self, movement:Option<Transform>, modify:bool) -> selection::Group {
         movement.map(|t| self.moved_selection(t,modify)).unwrap_or_default()
-    }
-
-    /// Computes the actual desired amount of scrolling (generally slightly less than the height of
-    /// the viewport, to allow overlap).
-    fn page_scroll_height(&self) -> isize {
-        std::cmp::max(self.line_count.get() as isize - SCROLL_OVERLAP, 1)
     }
 
     pub fn first_line_number(&self) -> Line {

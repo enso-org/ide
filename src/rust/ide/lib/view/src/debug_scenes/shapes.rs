@@ -114,10 +114,10 @@ fn init(app:&Application) {
     text_area.insert("ab\ncd\nef");
 
 
-    text_area.set((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
-    text_area.set((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
-    text_area.set((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
-    text_area.set((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
+    text_area.replace((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
+    text_area.replace((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
+    text_area.replace((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
+    text_area.replace((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
 
     text_area.set_default(color::Rgba::new(1.0,1.0,1.0,0.7));
     text_area.set_default(text::Size(12.0));

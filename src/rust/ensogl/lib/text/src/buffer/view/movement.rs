@@ -104,14 +104,28 @@ impl ViewBuffer {
     /// Compute the result of movement on one selection region.
     pub fn moved_selection_region
     (&self, movement:Transform, region:Selection, modify:bool) -> Selection {
-        let text        = &self.data();
-        let shape       = |start,end| selection::Shape(start,end);
+        let text  = &self.data();
+        let shape = |start,end| selection::Shape(start,end);
         let shape : selection::Shape = match movement {
-            Transform::All               => shape(default(),self.offset_to_location(text.byte_size())),
-            Transform::Up                => self.vertical_motion(region, -1.line(), modify),
-            Transform::Down              => self.vertical_motion(region,  1.line(), modify),
-            Transform::StartOfDocument   => shape(region.start,default()),
-            Transform::EndOfDocument     => shape(region.start,self.offset_to_location(text.byte_size())),
+            Transform::All => {
+                shape(default(),self.offset_to_location(text.byte_size()))
+            }
+
+            Transform::Up => {
+                self.vertical_motion(region,-1.line(),modify)
+            }
+
+            Transform::Down => {
+                self.vertical_motion(region,1.line(),modify)
+            }
+
+            Transform::StartOfDocument => {
+                shape(region.start,default())
+            }
+
+            Transform::EndOfDocument => {
+                shape(region.start,self.offset_to_location(text.byte_size()))
+            }
 
             Transform::Left => {
                 let def     = shape(region.start,default());

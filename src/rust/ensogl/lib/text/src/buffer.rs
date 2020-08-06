@@ -71,7 +71,7 @@ impl Buffer {
 #[derive(Debug,Default)]
 pub struct BufferData {
     pub(crate) text  : TextCell,
-    pub(crate) style : RefCell<Style>,
+    pub(crate) style : StyleCell,
 }
 
 impl Deref for BufferData {
@@ -87,38 +87,30 @@ impl BufferData {
         default()
     }
 
-    /// Text clone. Note that this is a fast clone, as text is immutable.
+    /// Text getter.
     pub fn text(&self) -> Text {
-        self.text.cell.borrow().clone()
+        self.text.get()
     }
 
-    /// Style clone.
-    pub fn style(&self) -> Style {
-        self.style.borrow().clone()
-    }
-
-    /// Sets the new text content.
+    /// Text setter.
     pub fn set_text(&self, text:impl Into<Text>) {
         self.text.set(text);
     }
 
-    /// Set new styles.
+    /// Style getter.
+    pub fn style(&self) -> Style {
+        self.style.get()
+    }
+
+    /// Style setter.
     pub fn set_style(&self, style:Style) {
-        *self.style.borrow_mut() = style;
+        self.style.set(style)
     }
 
     /// Query style information for the provided range.
     pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
         let range = self.clamp_byte_range(range);
-        self.style.borrow().sub(range)
-    }
-
-    /// Replaces the provided range with the provided text. The style will be set to default within
-    /// the range.
-    pub fn replace(&self, range:impl data::RangeBounds, text:&Text) {
-        let range = self.clamp_byte_range(range);
-        self.text.replace(range,text);
-        self.style.borrow_mut().modify(range,text.byte_size());
+        self.style.sub(range)
     }
 }
 
@@ -129,10 +121,24 @@ impl BufferData {
 // ==============
 
 pub trait Setter<T> {
-    fn modify(&self, range:impl data::RangeBounds, len:Bytes, data:T);
-    fn set(&self, range:impl data::RangeBounds, data:T);
+    fn replace(&self, range:impl data::RangeBounds, data:T);
 }
 
 pub trait DefaultSetter<T> {
     fn set_default(&self, data:T);
+}
+
+impl Setter<Text> for Buffer {
+    fn replace(&self, range:impl data::RangeBounds, text:Text) {
+        let range = self.clamp_byte_range(range);
+        let size  = text.byte_size();
+        self.text.replace(range,text);
+        self.style.set_resize_with_default(range,size);
+    }
+}
+
+impl Setter<&Text> for Buffer {
+    fn replace(&self, range:impl data::RangeBounds, text:&Text) {
+        self.replace(range,text.clone())
+    }
 }

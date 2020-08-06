@@ -15,18 +15,18 @@ pub use nalgebra::Matrix4x2;
 pub use nalgebra::Matrix4x3;
 pub use nalgebra::MatrixMN;
 
+pub use std::ops::Add;
+pub use std::ops::Div;
+pub use std::ops::Mul;
+pub use std::ops::Neg;
+pub use std::ops::Sub;
+
 use nalgebra;
 use nalgebra::Scalar;
 use nalgebra::Matrix;
 use nalgebra::ComplexField;
 use nalgebra::Dim;
 use nalgebra::storage::Storage;
-
-pub use std::ops::Add;
-pub use std::ops::Div;
-pub use std::ops::Mul;
-pub use std::ops::Neg;
-pub use std::ops::Sub;
 
 
 
@@ -260,50 +260,18 @@ impl Clamp for f32 {
 
 
 
-// ===========
-// === Min ===
-// ===========
+// =================
+// === Min / Max ===
+// =================
 
-#[allow(missing_docs)]
-pub trait Min {
-    fn min(self, other:Self) -> Self;
+/// Compares and returns the minimum of two values.
+pub fn min<T:PartialOrd>(a:T, b:T) -> T {
+    if b < a { b } else { a }
 }
 
-
-// === Impls ===
-
-impl Min for f32 {
-    fn min(self, other:Self) -> Self {
-        self.min(other)
-    }
-}
-
-pub fn min<T:Min>(a:T, b:T) -> T {
-    a.min(b)
-}
-
-
-
-// ===========
-// === Max ===
-// ===========
-
-#[allow(missing_docs)]
-pub trait Max {
-    fn max(self, other:Self) -> Self;
-}
-
-
-// === Impls ===
-
-impl Max for f32 {
-    fn max(self, other:Self) -> Self {
-        self.max(other)
-    }
-}
-
-pub fn max<T:Max>(a:T, b:T) -> T {
-    a.max(b)
+/// Compares and returns the maximum of two values.
+pub fn max<T:PartialOrd>(a:T, b:T) -> T {
+    if b > a { b } else { a }
 }
 
 
