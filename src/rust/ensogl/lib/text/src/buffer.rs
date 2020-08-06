@@ -106,7 +106,7 @@ impl BufferData {
 
     /// Query style information for the provided range.
     pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
-        let range = self.clamp_byte_range(range);
+        let range = self.snap_byte_range(range);
         self.style.sub(range)
     }
 }
@@ -117,17 +117,23 @@ impl BufferData {
 // === Setter ===
 // ==============
 
+/// Generic setter for buffer data and metadata, like colors, font weight, etc.
 pub trait Setter<T> {
+    /// Replace the range with the provided value. The exact meaning of this function depends on the
+    /// provided data type. See implementations provided in the `style` module.
     fn replace(&self, range:impl data::RangeBounds, data:T);
 }
 
+/// Generic setter for default value for metadata like colors, font weight, etc.
 pub trait DefaultSetter<T> {
+    /// Replace the default value of the metadata. The exact meaning of this function depends on the
+    /// provided data type. See implementations provided in the `style` module.
     fn set_default(&self, data:T);
 }
 
 impl Setter<Text> for Buffer {
     fn replace(&self, range:impl data::RangeBounds, text:Text) {
-        let range = self.clamp_byte_range(range);
+        let range = self.snap_byte_range(range);
         let size  = text.byte_size();
         self.text.replace(range,text);
         self.style.set_resize_with_default(range,size);

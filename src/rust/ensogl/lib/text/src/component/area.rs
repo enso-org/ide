@@ -727,7 +727,7 @@ impl AreaData {
         let mut selection_map     = self.selection_map.borrow_mut();
         let mut new_selection_map = SelectionMap::default();
         for sel in selections {
-            let sel = self.buffer.clamp_selection(*sel);
+            let sel = self.buffer.snap_selection(*sel);
             let id         = sel.id;
             let start_line_index = sel.start.line.as_usize();
             let end_line_index = sel.end.line.as_usize();
@@ -824,19 +824,19 @@ impl AreaData {
         let lines      = self.buffer.lines();
         let line_count = lines.len();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
-        for (view_line_number,content) in lines.into_iter().enumerate() {
-            self.redraw_line(view_line_number,content)
+        for (view_line_index,content) in lines.into_iter().enumerate() {
+            self.redraw_line(view_line_index,content)
         }
     }
 
-    fn redraw_line(&self, view_line_number:usize, content:String) { // fixme content:Cow<str>
-        let cursor_map    = self.selection_map.borrow().location_map.get(&view_line_number).cloned().unwrap_or_default();
+    fn redraw_line(&self, view_line_index:usize, content:String) { // fixme content:Cow<str>
+        let cursor_map    = self.selection_map.borrow().location_map.get(&view_line_index).cloned().unwrap_or_default();
 
-        let line           = &mut self.lines.rc.borrow_mut()[view_line_number];
+        let line           = &mut self.lines.rc.borrow_mut()[view_line_index];
         let line_object    = line.display_object().clone_ref();
-        let line_range     = self.buffer.view_line_byte_range(view_line_number.into());
+        let line_range     = self.buffer.byte_range_from_view_line_index_snapped(view_line_index.into());
         let mut line_style = self.buffer.sub_style(line_range.start .. line_range.end).iter();
-//        line.byte_size     = self.buffer.line_byte_size(view_line_number.into());
+//        line.byte_size     = self.buffer.line_byte_size(view_line_index.into());
 
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];

@@ -42,6 +42,7 @@ macro_rules! define_styles {
 
         /// The value of a style at some point in the buffer.
         #[derive(Clone,Copy,Debug,Default)]
+        #[allow(missing_docs)]
         pub struct StyleValue {
             $(pub $field : $field_type),*
         }
@@ -96,6 +97,9 @@ macro_rules! define_styles {
                 Self {$($field),*}
             }
 
+            /// Replace the provided `range` with the `None` value (default), repeated over `len`
+            /// bytes. Use with care, as it's very easy to provide incorrect byte size value, which
+            /// may result in styles being applied to parts of grapheme clusters only.
             pub fn set_resize_with_default(&mut self, range:Range<Bytes>, len:Bytes) {
                 $(self.$field.replace_resize(range,len,None);)*
             }
@@ -110,7 +114,7 @@ macro_rules! define_styles {
         $(
             impl Setter<Option<$field_type>> for Buffer {
                 fn replace(&self, range:impl data::RangeBounds, data:Option<$field_type>) {
-                    let range = self.data.clamp_byte_range(range);
+                    let range = self.snap_byte_range(range);
                     self.data.style.cell.borrow_mut().$field.replace_resize(range,range.size(),data)
                 }
             }
@@ -123,7 +127,7 @@ macro_rules! define_styles {
 
             impl DefaultSetter<$field_type> for Buffer {
                 fn set_default(&self, data:$field_type) {
-                    self.data.style.cell.borrow_mut().$field.default = data;
+                    self.style.cell.borrow_mut().$field.default = data;
                 }
             }
         )*
@@ -236,28 +240,36 @@ define_styles! {
 // === StyleCell ===
 // =================
 
+/// Internally mutable version of `Style`.
 #[derive(Clone,Debug,Default)]
 pub struct StyleCell {
     cell : RefCell<Style>
 }
 
 impl StyleCell {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
+    /// Getter of the current style value.
     pub fn get(&self) -> Style {
         self.cell.borrow().clone()
     }
 
+    /// Setter of the style value.
     pub fn set(&self, style:Style) {
         *self.cell.borrow_mut() = style;
     }
 
+    /// Return style narrowed to the given range.
     pub fn sub(&self, range:Range<Bytes>) -> Style {
         self.cell.borrow().sub(range)
     }
 
+    /// Replace the provided `range` with the `None` value (default), repeated over `len`
+    /// bytes. Use with care, as it's very easy to provide incorrect byte size value, which
+    /// may result in styles being applied to parts of grapheme clusters only.
     pub fn set_resize_with_default(&self, range:Range<Bytes>, len:Bytes) {
         self.cell.borrow_mut().set_resize_with_default(range,len)
     }

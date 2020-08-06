@@ -88,12 +88,14 @@ impl ViewBuffer {
         result
     }
 
+    /// Location of the previous grapheme cluster if any.
     pub fn prev_grapheme_location(&self, location:Location) -> Option<Location> {
         let offset      = self.byte_offset_from_location_snapped(location);
         let prev_offset = self.prev_grapheme_offset(offset);
         prev_offset.map(|off| self.offset_to_location(off))
     }
 
+    /// Location of the next grapheme cluster if any.
     pub fn next_grapheme_location(&self, location:Location) -> Option<Location> {
         let offset      = self.byte_offset_from_location_snapped(location);
         let next_offset = self.next_grapheme_offset(offset);

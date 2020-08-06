@@ -31,6 +31,7 @@ Bytes::bytes(i32)
 }
 
 impl Bytes {
+    /// Saturating conversion to `usize`.
     pub fn as_usize(self) -> usize {
         self.value.max(0) as usize
     }
@@ -69,11 +70,13 @@ Line::line(i32)
 }
 
 impl Line {
+    /// Saturating conversion to `usize`.
     pub fn as_usize(self) -> usize {
         self.value.max(0) as usize
     }
 
     // FIXME
+    /// ...
     pub fn abs(self) -> Self {
         self.value.saturating_abs().into()
     }
@@ -103,11 +106,13 @@ Column::column(i32)
 }
 
 impl Column {
+    /// Saturating conversion to `usize`.
     pub fn as_usize(self) -> usize {
         self.value.max(0) as usize
     }
 
     // FIXME
+    /// ...
     pub fn abs(self) -> Self {
         self.value.saturating_abs().into()
     }
@@ -139,11 +144,13 @@ Location {
 }}
 
 impl Location {
-    pub fn with_line(self,line:Line) -> Self {
+    /// Line setter.
+    pub fn with_line(self, line:Line) -> Self {
         Self {line,..self}
     }
 
-    pub fn with_column(self,column:Column) -> Self {
+    /// Column setter.
+    pub fn with_column(self, column:Column) -> Self {
         Self {column,..self}
     }
 }

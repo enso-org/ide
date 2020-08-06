@@ -1,4 +1,4 @@
-/// Implementation of a cursor allowing word-based traversal.
+//! Implementation of a cursor allowing word-based traversal.
 
 use crate::prelude::*;
 use crate::buffer::data::unit::*;

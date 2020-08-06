@@ -1,3 +1,5 @@
+//! View part of the text editor.
+
 use crate::prelude::*;
 
 pub mod movement;
@@ -10,11 +12,13 @@ pub use selection::Selection;
 use crate::buffer::style::Style;
 use crate::buffer::data;
 use crate::buffer::data::Text;
+use crate::buffer::data::text::BoundsError;
 use crate::buffer::data::unit::*;
 use crate::buffer::Setter;
 use crate::buffer::Buffer;
 
 use enso_frp as frp;
+
 
 
 // ==================
@@ -29,7 +33,9 @@ macro_rules! define_frp {
         Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
         Output { $($out_field : ident : $out_field_type : ty),* $(,)? }
     ) => {
+        /// FRP endpoints. Contains FRP network, inputs, and outputs.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(missing_docs)]
         pub struct Frp {
             pub network : frp::Network,
             pub input   : FrpInputs,
@@ -37,17 +43,21 @@ macro_rules! define_frp {
         }
 
         impl Frp {
+            /// Constructor.
             pub fn new(network:frp::Network, input:FrpInputs, output:FrpOutputs) -> Self {
                 Self {network,input,output}
             }
         }
 
+        /// Inputs of the FRP network.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(missing_docs)]
         pub struct FrpInputs {
             $(pub $in_field : frp::Source<$in_field_type>),*
         }
 
         impl FrpInputs {
+            /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
                 frp::extend! { network
                     $($in_field <- source();)*
@@ -56,18 +66,23 @@ macro_rules! define_frp {
             }
         }
 
+        /// Sources of the outputs of the FRP network. Used to emit output values.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(missing_docs)]
         pub struct FrpOutputsSource {
             $($out_field : frp::Any<$out_field_type>),*
         }
 
+        /// Outputs of the FRP network.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(missing_docs)]
         pub struct FrpOutputs {
             source : FrpOutputsSource,
             $(pub $out_field : frp::Stream<$out_field_type>),*
         }
 
         impl FrpOutputsSource {
+            /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
                 frp::extend! { network
                     $($out_field <- any(...);)*
@@ -77,6 +92,7 @@ macro_rules! define_frp {
         }
 
         impl FrpOutputs {
+            /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
                 let source = FrpOutputsSource::new(network);
                 $(let $out_field = source.$out_field.clone_ref().into();)*
@@ -179,7 +195,6 @@ impl ViewBuffer {
         })
     }
 
-    /// Add a new selection to the current view.
     fn add_selection(&self, selection:impl Into<Selection>) {
         self.selection.borrow_mut().merge(selection.into())
     }
@@ -216,6 +231,7 @@ impl ViewBuffer {
         self.oldest_selection().snap_selections_to_start()
     }
 
+    // FIXME: remove
     /// Add a new cursor for the given byte offset.
     pub fn add_cursor_old(&self, location:Location) {
         let id = self.next_selection_id.get();
@@ -223,31 +239,32 @@ impl ViewBuffer {
         self.add_selection(Selection::new_cursor(location,id))
     }
 
-    pub fn new_cursor(&self, location:Location) -> Selection {
+    fn new_cursor(&self, location:Location) -> Selection {
         let id = self.next_selection_id.get();
         self.next_selection_id.set(id+1);
         Selection::new_cursor(location,id)
     }
 
-    pub fn add_cursor(&self, location:Location) -> selection::Group {
+    fn add_cursor(&self, location:Location) -> selection::Group {
         let mut selection = self.selection.borrow().clone();
         let new_selection = self.new_cursor(location);
         selection.merge(new_selection);
         selection
     }
 
-    pub fn set_newest_selection_end(&self, location:Location) -> selection::Group {
+    fn set_newest_selection_end(&self, location:Location) -> selection::Group {
         let mut group = self.selection.borrow().clone();
         group.newest_mut().for_each(|s| s.end=location);
         group
     }
 
-    pub fn set_oldest_selection_end(&self, location:Location) -> selection::Group {
+    fn set_oldest_selection_end(&self, location:Location) -> selection::Group {
         let mut group = self.selection.borrow().clone();
         group.oldest_mut().for_each(|s| s.end=location);
         group
     }
 
+    // FIXME: make private
     /// Insert new text in the place of current selections / cursors.
     pub fn insert(&self, text:impl Into<Text>) -> selection::Group {
         self.modify(Transform::LeftSelectionBorder,text)
@@ -265,7 +282,7 @@ impl ViewBuffer {
     /// This function converts all selections to byte-based ones first, and then applies all
     /// modification rules. This way, it can work in an 1D byte-based space (as opposed to 2D
     /// location-based space), which makes handling multiple cursors much easier.
-    pub fn modify(&self, transform:Transform, text:impl Into<Text>) -> selection::Group {
+    fn modify(&self, transform:Transform, text:impl Into<Text>) -> selection::Group {
         self.commit_history();
         let text                    = text.into();
         let text_byte_size          = text.byte_size();
@@ -471,10 +488,10 @@ impl Default for View {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct ViewModel {
-    pub frp           : FrpInputs,
-    pub view_buffer   : ViewBuffer,
-    first_line_number : Rc<Cell<Line>>,
-    line_count        : Rc<Cell<usize>>,
+    pub frp               : FrpInputs,
+    pub view_buffer       : ViewBuffer,
+    first_view_line_index : Rc<Cell<Line>>,
+    view_line_count       : Rc<Cell<usize>>,
 }
 
 impl Deref for ViewModel {
@@ -487,11 +504,11 @@ impl Deref for ViewModel {
 impl ViewModel {
     /// Constructor.
     pub fn new(network:&frp::Network, view_buffer:impl Into<ViewBuffer>) -> Self {
-        let frp               = FrpInputs::new(network);
-        let view_buffer       = view_buffer.into();
-        let first_line_number = default();
-        let line_count        = Rc::new(Cell::new(DEFAULT_LINE_COUNT));
-        Self {frp,view_buffer,first_line_number,line_count}
+        let frp                   = FrpInputs::new(network);
+        let view_buffer           = view_buffer.into();
+        let first_view_line_index = default();
+        let view_line_count       = Rc::new(Cell::new(DEFAULT_LINE_COUNT));
+        Self {frp,view_buffer,first_view_line_index,view_line_count}
     }
 }
 
@@ -511,94 +528,73 @@ impl ViewModel {
         movement.map(|t| self.moved_selection(t,modify)).unwrap_or_default()
     }
 
-    pub fn first_line_number(&self) -> Line {
-        self.first_line_number.get()
+    /// Index of the first line of this buffer view.
+    pub fn first_view_line_index(&self) -> Line {
+        self.first_view_line_index.get()
     }
 
-    pub fn last_view_line_number(&self) -> Line {
+    /// Index of the last line of this buffer view.
+    pub fn last_view_line_index(&self) -> Line {
         let max_line          = self.last_line_index();
-        let line_count : Line = self.line_count().into();
-        max_line.min(self.first_line_number() + line_count)
+        let view_line_count : Line = self.view_line_count().into();
+        max_line.min(self.first_view_line_index() + view_line_count)
     }
 
-    pub fn line_count(&self) -> usize {
-        self.line_count.get()
+    /// Number of lines visible in this buffer view.
+    pub fn view_line_count(&self) -> usize {
+        self.view_line_count.get()
     }
 
-    pub fn line_range(&self) -> Range<Line> {
-        self.first_line_number() .. self.last_view_line_number()
+    /// Range of line indexes of this buffer view.
+    pub fn view_line_range(&self) -> Range<Line> {
+        self.first_view_line_index() .. self.last_view_line_index()
     }
 
-    pub fn first_line_offset(&self) -> Bytes {
-        self.byte_offset_from_line_index(self.first_line_number()).unwrap() // FIXME
+    /// Byte offset of the first line of this buffer view.
+    pub fn first_view_line_byte_offset(&self) -> Bytes {
+        self.byte_offset_from_line_index(self.first_view_line_index()).unwrap() // FIXME
     }
 
-    pub fn last_line_offset(&self) -> Bytes {
-        self.byte_offset_from_line_index(self.last_view_line_number()).unwrap()
+    /// Byte offset of the last line of this buffer view.
+    pub fn last_view_line_byte_offset(&self) -> Bytes {
+        self.byte_offset_from_line_index(self.last_view_line_index()).unwrap()
     }
 
-    pub fn line_offset_range(&self) -> Range<Bytes> {
-        self.first_line_offset() .. self.last_line_offset()
+    /// Byte offset range of lines visible in this buffer view.
+    pub fn view_line_byte_offset_range(&self) -> Range<Bytes> {
+        self.first_view_line_byte_offset() .. self.last_view_line_byte_offset()
     }
 
-    pub fn view_end_offset(&self) -> Bytes {
-        let next_line = self.last_view_line_number() + 1.line();
-        self.byte_offset_from_line_index(next_line).ok().and_then(|t|self.prev_grapheme_offset(t)).unwrap_or_else(||self.data().byte_size())
+    /// Byte offset of the end of this buffer view. Snapped to the closest valid value.
+    pub fn view_end_byte_offset_snapped(&self) -> Bytes {
+        self.end_byte_offset_from_line_index_snapped(self.last_view_line_index())
     }
-
-    pub fn end_offset(&self) -> Bytes {
-        self.data().byte_size()
-    }
-
-    pub fn end_location(&self) -> Location {
-        self.offset_to_location(self.end_offset())
-    }
-
-
 
     /// Return the offset after the last character of a given view line if the line exists.
     pub fn end_offset_of_view_line(&self, line:Line) -> Option<Bytes> {
-        self.end_byte_offset_from_line_index(line + self.first_line_number.get()).ok()
+        self.end_byte_offset_from_line_index(line + self.first_view_line_index.get()).ok()
     }
 
-    pub fn view_range(&self) -> Range<Bytes> {
-        self.first_line_offset() .. self.view_end_offset()
+    /// The byte range of this buffer view.
+    pub fn view_byte_range(&self) -> Range<Bytes> {
+        self.first_view_line_byte_offset() .. self.view_end_byte_offset_snapped()
     }
 
-    pub fn offset_of_view_line(&self, view_line:Line) -> Option<Bytes> {
-        let line = self.first_line_number() + view_line;
-        self.byte_offset_from_line_index(line).ok()
-    }
-
-    pub fn clamp_selection(&self, selection:Selection) -> Selection {
-        let min_line = 0.line();
-        let max_line = self.last_line_index();
-        let max_loc  = self.end_location();
-        let start    = selection.start;
-        let start    = if selection.start.line < min_line { default() } else { start };
-        let start    = if selection.start.line > max_line { max_loc   } else { start };
-        let end      = selection.end;
-        let end      = if selection.end.line   < min_line { default() } else { end };
-        let end      = if selection.end.line   > max_line { max_loc   } else { end };
-        selection.with_start(start).with_end(end)
-    }
-
-    /// Byte range of the given line.
-    pub fn line_byte_range(&self, line:Line) -> Range<Bytes> {
-        let start = self.byte_offset_from_line_index(line);
-        let end   = self.end_byte_offset_from_line_index(line);
-        start.and_then(|s| end.map(|e| s..e)).unwrap_or_else(|_| default()..default())
+    /// The byte offset of the given buffer view line index.
+    pub fn byte_offset_from_view_line_index(&self, view_line:Line) -> Result<Bytes,BoundsError> {
+        let line = self.first_view_line_index() + view_line;
+        self.byte_offset_from_line_index(line)
     }
 
     /// Byte range of the given view line.
-    pub fn view_line_byte_range(&self, view_line:Line) -> Range<Bytes> {
-        let line = view_line + self.first_line_number.get();
-        self.line_byte_range(line)
+    pub fn byte_range_from_view_line_index_snapped(&self, view_line:Line) -> Range<Bytes> {
+        let line = view_line + self.first_view_line_index.get();
+        self.byte_range_from_line_index_snapped(line)
     }
 
     /// Return all lines of this buffer view.
     pub fn lines(&self) -> Vec<String> {
-        let range        = self.view_range();
+        let range        = self.view_byte_range();
         let rope_range   = range.start.as_usize() .. range.end.as_usize();
         let mut lines    = self.buffer.data.text.cell.borrow().lines(rope_range).map(|t|t.into()).collect_vec();
         let missing_last = lines.len() == self.last_line_index().as_usize();

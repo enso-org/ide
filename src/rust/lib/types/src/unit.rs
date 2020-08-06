@@ -58,6 +58,7 @@ macro_rules! unit {
 #[macro_export]
 macro_rules! unsigned_unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        #[allow(missing_docs)]
         pub mod $vname {
             use super::*;
             use std::ops::AddAssign;
@@ -97,6 +98,7 @@ macro_rules! unsigned_unit {
 #[macro_export]
 macro_rules! unsigned_unit_proxy {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        #[allow(missing_docs)]
         pub mod $vname {
             use super::*;
             use std::ops::AddAssign;
@@ -132,6 +134,7 @@ macro_rules! unsigned_unit_proxy {
 #[macro_export]
 macro_rules! unsigned_unit_float_like {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        #[allow(missing_docs)]
         pub mod $vname {
             use super::*;
             use std::ops::AddAssign;
@@ -171,6 +174,7 @@ macro_rules! unsigned_unit_float_like {
 #[macro_export]
 macro_rules! signed_unit {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
+        #[allow(missing_docs)]
         pub mod $vname {
             use super::*;
             use std::ops::AddAssign;
@@ -218,7 +222,7 @@ macro_rules! signed_unit {
 #[macro_export]
 macro_rules! signed_unit_float_like {
     ($(#$meta:tt)* $name:ident :: $vname:ident ($field_type:ty)) => {
-        /// Unit module.
+        #[allow(missing_docs)]
         pub mod $vname {
             use super::*;
             use std::ops::AddAssign;
@@ -314,7 +318,9 @@ macro_rules! newtype_struct_def {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
         $(#$meta)*
         #[derive(Clone,Copy,Debug,Default,Eq,Hash,Ord,PartialEq,PartialOrd)]
-        pub struct $name { $(pub $field : $field_type),* }
+        pub struct $name {
+            $(#[allow(missing_docs)] pub $field : $field_type),*
+        }
     }
 }
 
@@ -323,9 +329,10 @@ macro_rules! newtype_struct_def {
 macro_rules! newtype_struct_def_float_like {
     ($(#$meta:tt)* $name:ident { $($field:ident : $field_type:ty),* $(,)? }) => {
         $(#$meta)*
-        #[allow(missing_docs)]
         #[derive(Clone,Copy,Debug,Default,PartialEq,PartialOrd)]
-        pub struct $name { $(pub $field : $field_type),* }
+        pub struct $name {
+            $(#[allow(missing_docs)] pub $field : $field_type),*
+        }
     }
 }
 
