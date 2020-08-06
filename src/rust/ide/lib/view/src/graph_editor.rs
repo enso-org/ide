@@ -1530,8 +1530,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
         eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.frp.debug.push_breadcrumb.emit(None));
-        eval_ inputs.debug_pop_breadcrumb(model.breadcrumbs.frp.debug.pop_breadcrumb.emit(()));
+        eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.frp.debug.pop_breadcrumb.emit(()));
     }
+
+
 
     // ============================
     // === Project Name Editing ===
