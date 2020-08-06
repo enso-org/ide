@@ -1105,10 +1105,10 @@ impl GraphEditorModel {
         display_object.add_child(&project_name);
         let screen     = scene.camera().screen();
         let margin     = 10.0;
-        project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
+        project_name.set_position_y(screen.height / 2.0 - margin);
         let doc_width  = documentation::DOC_VIEW_WIDTH;
         let doc_margin = documentation::DOC_VIEW_MARGIN;
-        doc_view.set_position(Vector3::new((screen.width - doc_width) / 2.0 - doc_margin,0.0,0.0));
+        doc_view.set_position_x((screen.width - doc_width) / 2.0 - doc_margin);
         // FIXME: These 2 lines fix a bug with display objects visible on stage.
         //        The same bug appears in `ContainerModel`
         display_object.add_child(&doc_view);
