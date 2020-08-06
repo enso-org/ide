@@ -318,8 +318,8 @@ impl Text {
 
     /// The column number of the given byte offset.
     pub fn column_from_byte_offset(&self, tgt_offset:Bytes)
-    -> Result<Column,ColumnFromByteOffsetError> {
-        use ColumnFromByteOffsetError::*;
+    -> Result<Column,ByteLocationError> {
+        use ByteLocationError::*;
         let line_index = self.line_index_from_byte_offset(tgt_offset)?;
         let mut offset = self.byte_offset_from_line_index(line_index)?;
         let mut column = 0.column();
@@ -343,7 +343,7 @@ impl Text {
     /// value. In case the offset points inside of a grapheme cluster, it will be snapped to its
     /// right side.
     pub fn column_from_byte_offset_snapped(&self, tgt_offset:Bytes) -> Column {
-        use ColumnFromByteOffsetError::*;
+        use ByteLocationError::*;
         match self.column_from_byte_offset(tgt_offset) {
             Ok(column)                      => column,
             Err(OffsetNegative)             => 0.column(),
@@ -402,19 +402,27 @@ impl Text {
 // === Errors ===
 // ==============
 
+/// Error indicating the usage of incorrect line index - negative, or bigger than the total number
+/// of lines.
 #[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
 pub enum LineIndexError {
     LineIndexNegative,
     LineIndexTooBig,
 }
 
+/// Error indicating the usage of incorrect byte offset - negative, or bigger than the total byte
+/// size of the text.
 #[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
 pub enum ByteOffsetError {
     OffsetNegative,
     OffsetTooBig,
 }
 
+/// Error indicating the usage of incorrect location.
 #[derive(Clone,Copy,Debug)]
+#[allow(missing_docs)]
 pub enum LocationError<T> {
     LineIndexNegative,
     LineIndexTooBig,
@@ -422,20 +430,22 @@ pub enum LocationError<T> {
     NotClusterBoundary (T)
 }
 
+/// Error indicating the usage of incorrect location expressed in byte offset.
 #[derive(Clone,Copy,Debug)]
-pub enum ColumnFromByteOffsetError {
+#[allow(missing_docs)]
+pub enum ByteLocationError {
     OffsetNegative,
     OffsetTooBig,
     NotClusterBoundary (Column)
 }
 
-impl From<ColumnFromByteOffsetError> for LocationError<Column> {
-    fn from(err:ColumnFromByteOffsetError) -> Self {
+impl From<ByteLocationError> for LocationError<Column> {
+    fn from(err:ByteLocationError) -> Self {
         use LocationError::*;
         match err {
-            ColumnFromByteOffsetError::OffsetNegative        => LineIndexNegative,
-            ColumnFromByteOffsetError::OffsetTooBig          => LineIndexTooBig,
-            ColumnFromByteOffsetError::NotClusterBoundary(t) => NotClusterBoundary(t),
+            ByteLocationError::OffsetNegative        => LineIndexNegative,
+            ByteLocationError::OffsetTooBig          => LineIndexTooBig,
+            ByteLocationError::NotClusterBoundary(t) => NotClusterBoundary(t),
         }
     }
 }
@@ -450,20 +460,20 @@ impl<T> From<LineIndexError> for LocationError<T> {
     }
 }
 
-impl From<ByteOffsetError> for ColumnFromByteOffsetError {
+impl From<ByteOffsetError> for ByteLocationError {
     fn from(err:ByteOffsetError) -> Self {
         match err {
-            ByteOffsetError::OffsetNegative => ColumnFromByteOffsetError::OffsetNegative,
-            ByteOffsetError::OffsetTooBig   => ColumnFromByteOffsetError::OffsetTooBig,
+            ByteOffsetError::OffsetNegative => ByteLocationError::OffsetNegative,
+            ByteOffsetError::OffsetTooBig   => ByteLocationError::OffsetTooBig,
         }
     }
 }
 
-impl From<LineIndexError> for ColumnFromByteOffsetError {
+impl From<LineIndexError> for ByteLocationError {
     fn from(err:LineIndexError) -> Self {
         match err {
-            LineIndexError::LineIndexNegative => ColumnFromByteOffsetError::OffsetNegative,
-            LineIndexError::LineIndexTooBig   => ColumnFromByteOffsetError::OffsetTooBig,
+            LineIndexError::LineIndexNegative => ByteLocationError::OffsetNegative,
+            LineIndexError::LineIndexTooBig   => ByteLocationError::OffsetTooBig,
         }
     }
 }
@@ -690,7 +700,7 @@ impl TextCell {
     }
 
     pub fn column_from_byte_offset(&self, tgt_offset:Bytes)
-    -> Result<Column,ColumnFromByteOffsetError> {
+    -> Result<Column,ByteLocationError> {
         self.cell.borrow().column_from_byte_offset(tgt_offset)
     }
 

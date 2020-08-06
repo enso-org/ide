@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 //! Root of text buffer implementation. The text buffer is a sophisticated model for text styling
 //! and editing operations.
 

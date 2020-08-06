@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use crate::prelude::*;
 
 pub mod movement;
@@ -8,7 +6,6 @@ pub mod word;
 
 pub use movement::*;
 pub use selection::Selection;
-
 
 use crate::buffer::style::Style;
 use crate::buffer::data;
@@ -25,7 +22,8 @@ use enso_frp as frp;
 // ==================
 
 // FIXME: these are generic FRP utilities. To be refactored out after the API settles down.
-// FIXME: They are already copy-pasted in the EnsoGL code. To be unified and refactored.
+// FIXME: They are already copy-pasted in the EnsoGL code. To be unified and refactored as part of
+// FIXME: the cleaning PR.
 macro_rules! define_frp {
     (
         Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
@@ -98,15 +96,22 @@ macro_rules! define_frp {
 const DEFAULT_LINE_COUNT : usize = 10;
 
 
-#[derive(Debug,Clone,Default)]
-pub struct HistoryData {
-    pub undo_stack : Vec<(Text,Style,selection::Group)>,
-    pub redo_stack : Vec<(Text,Style,selection::Group)>,
-}
 
+// ===============
+// === History ===
+// ===============
+
+/// Modifications history. Contains data used by undo / redo mechanism.
 #[derive(Debug,Clone,CloneRef,Default)]
 pub struct History {
-    pub data : Rc<RefCell<HistoryData>>
+    data : Rc<RefCell<HistoryData>>
+}
+
+/// Internal representation of `History`.
+#[derive(Debug,Clone,Default)]
+pub struct HistoryData {
+    undo_stack : Vec<(Text,Style,selection::Group)>,
+    redo_stack : Vec<(Text,Style,selection::Group)>,
 }
 
 
@@ -115,9 +120,10 @@ pub struct History {
 // === ViewBuffer ===
 // ==================
 
-/// Specialized form of `Buffer` with view-related information, such as selection. This form of
-/// buffer is mainly used by `View`, but can also be combined with other `ViewBuffer`s to display
-/// cursors, selections, and edits of several users at the same time.
+/// Specialized form of `Buffer` with view-related information, such as selection and undo redo
+/// history (containing also cursor movement history). This form of buffer is mainly used by `View`,
+/// but can also be combined with other `ViewBuffer`s to display cursors, selections, and edits of
+/// several users at the same time.
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct ViewBuffer {
@@ -155,9 +161,7 @@ impl Default for ViewBuffer {
     }
 }
 
-// FIXME: Make all these utils private, and use FRP to control the model instead.
 impl ViewBuffer {
-
     fn commit_history(&self) {
         let text      = self.buffer.text();
         let style     = self.buffer.style();
@@ -176,39 +180,39 @@ impl ViewBuffer {
     }
 
     /// Add a new selection to the current view.
-    pub fn add_selection(&self, selection:impl Into<Selection>) {
+    fn add_selection(&self, selection:impl Into<Selection>) {
         self.selection.borrow_mut().merge(selection.into())
     }
 
-    pub fn first_selection(&self) -> selection::Group {
+    fn first_selection(&self) -> selection::Group {
         self.selection.borrow().first().cloned().into()
     }
 
-    pub fn last_selection(&self) -> selection::Group {
+    fn last_selection(&self) -> selection::Group {
         self.selection.borrow().last().cloned().into()
     }
 
-    pub fn first_caret(&self) -> selection::Group {
+    fn first_caret(&self) -> selection::Group {
         self.first_selection().snap_selections_to_start()
     }
 
-    pub fn last_caret(&self) -> selection::Group {
+    fn last_caret(&self) -> selection::Group {
         self.last_selection().snap_selections_to_start()
     }
 
-    pub fn newest_selection(&self) -> selection::Group {
+    fn newest_selection(&self) -> selection::Group {
         self.selection.borrow().newest().cloned().into()
     }
 
-    pub fn oldest_selection(&self) -> selection::Group {
+    fn oldest_selection(&self) -> selection::Group {
         self.selection.borrow().oldest().cloned().into()
     }
 
-    pub fn newest_caret(&self) -> selection::Group {
+    fn newest_caret(&self) -> selection::Group {
         self.newest_selection().snap_selections_to_start()
     }
 
-    pub fn oldest_caret(&self) -> selection::Group {
+    fn oldest_caret(&self) -> selection::Group {
         self.oldest_selection().snap_selections_to_start()
     }
 
