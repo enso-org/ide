@@ -2345,7 +2345,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Documentation Set ===
     frp::extend! { network
 
-    def _set_doc_data = inputs.set_documentation_data.map(f!((data) model.doc_view.frp.send_data.emit(data)));
+    eval inputs.set_documentation_data ((data) model.doc_view.frp.send_data.emit(data));
 
 
     // === Documentation toggle ===
