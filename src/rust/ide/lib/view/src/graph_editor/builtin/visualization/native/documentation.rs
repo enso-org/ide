@@ -26,6 +26,10 @@ const PLACEHOLDER_STR : &str = "<h3>Documentation Viewer</h3><p>No documentation
 const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 
 /// Generates documentation view stylesheet.
+///
+/// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+///      The imported stylesheet is undergoing drastic changes
+///      Expect them to land with https://github.com/enso-org/ide/issues/709
 pub fn get_doc_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
@@ -90,7 +94,7 @@ impl ViewModel {
     }
 
     /// Prepares data string for Doc Parser to work with after getting deserialization.
-    /// FIXME : Removes characters that are not supported by Doc Parser yet
+    /// FIXME : Removes characters that are not supported by Doc Parser yet.
     ///         https://github.com/enso-org/enso/issues/1063
     fn prepare_data_string(data_inner: &visualization::Json) -> String {
         let data_str = serde_json::to_string_pretty(&**data_inner);
@@ -113,7 +117,7 @@ impl ViewModel {
         let output     = ViewModel::gen_html_from(data_str);
         let mut output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
         if output     == "" { output = String::from(PLACEHOLDER_STR); }
-        // FIXME : Doc Parser related idea, where stylesheet was a separate file
+        // FIXME : Doc Parser related idea, where stylesheet was a separate file.
         let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
         let output     = output.replace(import_css, "");
 
@@ -140,7 +144,7 @@ impl ViewModel {
 // === View ===
 // ============
 
-/// Visualization that renders the given documentation as a HTML page
+/// Visualization that renders the given documentation as a HTML page.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct View {
