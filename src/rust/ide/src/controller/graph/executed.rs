@@ -9,7 +9,6 @@ use crate::model::execution_context::ComputedValueInfoRegistry;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
-use crate::model::synchronized::ExecutionContext;
 
 use enso_protocol::language_server::MethodPointer;
 
@@ -41,10 +40,10 @@ pub struct NoResolvedMethod(double_representation::node::Id);
 #[derive(Clone,Debug,PartialEq)]
 pub enum Notification {
     /// The notification passed from the graph controller.
-    Graph(crate::controller::graph::Notification),
+    Graph(controller::graph::Notification),
     /// The notification from the execution context about the computed value information
     /// being updated.
-    ComputedValueInfo(crate::model::execution_context::ComputedValueExpressions),
+    ComputedValueInfo(model::execution_context::ComputedValueExpressions),
     /// Notification emitted when the node has been entered.
     EnteredNode(double_representation::node::Id),
     /// Notification emitted when the node was step out.
@@ -64,10 +63,10 @@ pub struct Handle {
     /// A handle to basic graph operations.
     graph:Rc<RefCell<controller::Graph>>,
     /// Execution Context handle, its call stack top contains `graph`'s definition.
-    execution_ctx:Rc<ExecutionContext>,
+    execution_ctx:model::ExecutionContext,
     /// The handle to project controller is necessary, as entering nodes might need to switch
     /// modules, and only the project can provide their controllers.
-    project:controller::Project,
+    project:model::Project,
     /// The publisher allowing sending notification to subscribed entities. Note that its outputs is
     /// merged with publishers from the stored graph and execution controllers.
     notifier:crate::notification::Publisher<Notification>,
@@ -76,12 +75,13 @@ pub struct Handle {
 impl Handle {
     /// Create handle for the executed graph that will be running the given method.
     pub async fn new
-    ( project:&controller::Project
-    , method:MethodPointer
+    ( parent  : impl AnyLogger
+    , project : model::Project
+    , method  : MethodPointer
     ) -> FallibleResult<Self> {
-        let graph     = controller::Graph::new_method(&project, &method).await?;
+        let graph     = controller::Graph::new_method(parent,&project,&method).await?;
         let execution = project.create_execution_context(method.clone()).await?;
-        Ok(Self::new_internal(graph,&project,execution))
+        Ok(Self::new_internal(graph,project,execution))
     }
 
     /// Create handle for given graph and execution context.
@@ -99,13 +99,12 @@ impl Handle {
     /// the last copy of this controller is dropped.
     /// Then the context when being dropped shall remove itself from the Language Server.
     pub fn new_internal
-    ( graph:controller::Graph
-    , project:&controller::Project
-    , execution_ctx:Rc<ExecutionContext>
+    ( graph         : controller::Graph
+    , project       : model::Project
+    , execution_ctx : model::ExecutionContext
     ) -> Self {
         let logger   = Logger::sub(&graph.logger,"Executed");
         let graph    = Rc::new(RefCell::new(graph));
-        let project  = project.clone_ref();
         let notifier = default();
         Handle {logger,graph,execution_ctx,project,notifier}
     }
@@ -144,6 +143,12 @@ impl Handle {
         futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
     }
 
+    /// Get a type of the given expression as soon as it is available.
+    pub fn expression_type(&self, id:ast::Id) -> StaticBoxFuture<Option<ImString>> {
+        let registry = self.execution_ctx.computed_value_info_registry();
+        registry.clone_ref().get_type(id)
+    }
+
     /// Enter node by given ID.
     ///
     /// This will cause pushing a new stack frame to the execution context and changing the graph
@@ -156,11 +161,11 @@ impl Handle {
         debug!(self.logger, "Entering node {node}.");
         let registry   = self.execution_ctx.computed_value_info_registry();
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
-        let method_ptr = node_info.method_call.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
-        let graph      = controller::Graph::new_method(&self.project,&method_ptr).await?;
+        let method_ptr = node_info.method_pointer.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
+        let graph      = controller::Graph::new_method(&self.logger,&self.project,&method_ptr).await?;
         let call       = model::execution_context::LocalCall {
             call       : node,
-            definition : method_ptr.clone()
+            definition : method_ptr.as_ref().clone()
         };
         self.execution_ctx.push(call).await?;
 
@@ -179,7 +184,7 @@ impl Handle {
     pub async fn exit_node(&self) -> FallibleResult<()> {
         let frame  = self.execution_ctx.pop().await?;
         let method = self.execution_ctx.current_method();
-        let graph  = controller::Graph::new_method(&self.project,&method).await?;
+        let graph  = controller::Graph::new_method(&self.logger,&self.project,&method).await?;
         self.graph.replace(graph);
         self.notifier.publish(Notification::SteppedOutOfNode(frame.call)).await;
         Ok(())
@@ -200,52 +205,75 @@ impl Handle {
 // ============
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::execution_context::ExpressionId;
 
-    use enso_protocol::language_server;
+    use enso_protocol::language_server::types::test::value_update_with_type;
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
-    /// Test that checks that value computed notification is properly relayed by the executed graph.
+    #[derive(Debug,Default)]
+    pub struct MockData {
+        pub graph  : controller::graph::tests::MockData,
+        pub module : model::module::test::MockData,
+        pub ctx    : model::execution_context::plain::test::MockData,
+    }
+
+    impl MockData {
+        pub fn controller(&self) -> Handle {
+            let parser      = parser::Parser::new_or_panic();
+            let module      = self.module.plain(&parser);
+            let method      = self.graph.method();
+            let mut project = model::project::MockAPI::new();
+            let ctx         = Rc::new(self.ctx.create());
+            model::project::test::expect_parser(&mut project,&parser);
+            model::project::test::expect_module(&mut project,module);
+            model::project::test::expect_execution_ctx(&mut project,ctx);
+
+            let project = Rc::new(project);
+            Handle::new(Logger::default(),project.clone_ref(),method).boxed_local().expect_ok()
+        }
+
+    }
+
+    // Test that checks that value computed notification is properly relayed by the executed graph.
     #[wasm_bindgen_test]
     fn dispatching_value_computed_notification() {
         // Setup the controller.
         let mut fixture    = TestWithLocalPoolExecutor::set_up();
-        let mut ls         = language_server::MockClient::default();
-        let execution_data = model::synchronized::execution_context::tests::MockData::new();
-        let execution      = execution_data.context_provider(&mut ls);
-        let graph_data     = controller::graph::tests::MockData::new_inline("1 + 2");
-        let connection     = language_server::Connection::new_mock_rc(ls);
-        let (_,graph)      = graph_data.create_controllers_with_ls(connection.clone_ref());
-        let execution      = Rc::new(execution(connection.clone_ref()));
-        let project        = controller::project::test::setup_mock_project(|_| {}, |_| {});
-        let executed_graph = Handle::new_internal(graph,&project,execution.clone_ref());
+        let graph_data     = controller::graph::tests::MockData::new();
+        let graph          = graph_data.graph();
+        let execution_data = model::execution_context::plain::test::MockData::new();
+        let execution      = Rc::new(execution_data.create());
+        let project        = Rc::new(model::project::MockAPI::new());
+        let executed_graph = Handle::new_internal(graph,project,execution.clone_ref());
 
         // Generate notification.
-        let notification = execution_data.mock_values_computed_update();
-        let update       = &notification.updates[0];
+        let updated_id = ExpressionId::new_v4();
+        let typename   = crate::test::mock::data::TYPE_NAME;
+        let update     = value_update_with_type(updated_id,typename);
 
         // Notification not yet send.
         let registry          = executed_graph.computed_value_info_registry();
         let mut notifications = executed_graph.subscribe().boxed_local();
         notifications.expect_pending();
-        assert!(registry.get(&update.id).is_none());
+        assert!(registry.get(&updated_id).is_none());
 
         // Sending notification.
-        execution.handle_expression_values_computed(notification.clone()).unwrap();
+        execution.computed_value_info_registry.apply_updates(vec![update]);
         fixture.run_until_stalled();
 
         // Observing that notification was relayed.
         let observed_notification = notifications.expect_next();
-        let typename_in_registry  = registry.get(&update.id).unwrap().typename.clone();
-        let expected_typename     = update.typename.clone().map(ImString::new);
-        assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![update.id]));
+        let typename_in_registry  = registry.get(&updated_id).unwrap().typename.clone();
+        let expected_typename     = Some(ImString::new(typename));
+        assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![updated_id]));
         assert_eq!(typename_in_registry,expected_typename);
         notifications.expect_pending();
     }

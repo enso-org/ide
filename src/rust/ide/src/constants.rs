@@ -15,9 +15,17 @@ pub const SERIALIZE_TO_JSON_EXPRESSION:&str = "x -> x.json_serialize";
 /// Endpoint used by default by a locally run Project Manager.
 pub const PROJECT_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30535";
 
-//TODO[dg]:The default project name will be defined in https://github.com/enso-org/ide/issues/584.
 /// Default project name used by IDE on startup.
-pub const DEFAULT_PROJECT_NAME:&str = "Project";
+pub const DEFAULT_PROJECT_NAME:&str = "Unnamed";
 
 /// Visualization folder where IDE can look for user-defined visualizations per project.
 pub const VISUALIZATION_DIRECTORY:&str = "visualization";
+
+/// A module with language-specific constants.
+pub mod keywords {
+    /// A keyword indicating current module.
+    pub const HERE:&str = "here";
+
+    /// The "void" atom returned by function meant to not return any argument.
+    pub const NOTHING:&str = "Nothing";
+}

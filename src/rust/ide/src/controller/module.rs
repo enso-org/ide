@@ -1,13 +1,9 @@
 //! Module Controller.
-//!
-//! The module controller keeps cached module state (module state is AST+Metadata or equivalent),
-//! and uses it for synchronizing state for text and graph representations. It provides method
-//! for registering text and graph changes. If for example text represntation will be changed, there
-//! will be notifications for both text change and graph change.
 
 use crate::prelude::*;
 
 use crate::double_representation::text::apply_code_change_to_id_map;
+use crate::double_representation::module;
 use crate::model::module::Path;
 
 use ast;
@@ -16,6 +12,7 @@ use data::text::*;
 use enso_protocol::language_server;
 use enso_protocol::types::Sha3_224;
 use parser::Parser;
+
 
 
 // ==============
@@ -39,8 +36,7 @@ pub struct InvalidGraphId(controller::graph::Id);
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
-    pub path            : Rc<Path>,
-    pub model           : Rc<model::synchronized::Module>,
+    pub model           : model::Module,
     pub language_server : Rc<language_server::Connection>,
     pub parser          : Parser,
     pub logger          : Logger,
@@ -48,25 +44,20 @@ pub struct Handle {
 
 impl Handle {
     /// Create a module controller for given path.
-    ///
-    /// This function won't load module from file - it just get the state in `model` argument.
-    pub fn new
-    ( parent          : impl AnyLogger
-    , path            : Path
-    , model           : Rc<model::synchronized::Module>
-    , language_server : Rc<language_server::Connection>
-    , parser          : Parser
-    ) -> Self {
-        let logger = Logger::sub(parent,format!("Module Controller {}", path));
-        let path   = Rc::new(path);
-        Handle {path,model,language_server,parser,logger}
+    pub async fn new
+    (parent:impl AnyLogger, path:Path, project:&model::Project) -> FallibleResult<Self> {
+        let logger          = Logger::sub(parent,format!("Module Controller {}", path));
+        let model           = project.module(path).await?;
+        let language_server = project.json_rpc();
+        let parser          = project.parser();
+        Ok(Handle {model,language_server,parser,logger})
     }
 
     /// Save the module to file.
     pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
         let content = self.model.serialized_content();
-        let path    = self.path.clone_ref();
-        let ls      = self.language_server.clone();
+        let path    = self.model.path().clone_ref();
+        let ls      = self.language_server.clone_ref();
         async move {
             let version = Sha3_224::new(content?.content.as_bytes());
             Ok(ls.client.save_text_file(path.file_path(),&version).await?)
@@ -129,15 +120,52 @@ impl Handle {
         };
 
         let defined_on_type = if crumb.extended_target.is_empty() {
-            self.path.module_name().to_string()
+            self.model.path().module_name().to_string()
         } else {
             crumb.extended_target.iter().map(|segment| segment.as_str()).join(".")
         };
         Ok(language_server::MethodPointer {
-            file : self.path.file_path().clone(),
+            file : self.model.path().file_path().clone(),
             defined_on_type,
             name : crumb.name.item.clone(),
         })
+    }
+
+    /// Modify module by modifying its `Info` description (which is a wrapper directly over module's
+    /// AST).
+    pub fn modify<R>(&self, f:impl FnOnce(&mut module::Info) -> R) -> R {
+        let mut module = self.module_info();
+        let ret        = f(&mut module);
+        self.model.update_ast(module.ast);
+        ret
+    }
+
+    /// Obtains the `Info` value describing this module's AST.
+    pub fn module_info(&self) -> module::Info {
+        let ast = self.model.ast();
+        double_representation::module::Info {ast}
+    }
+
+    /// Adds a new import to the module.
+    ///
+    /// May create duplicate entries if such import was already present.
+    pub fn add_import(&self, target:&module::QualifiedName) {
+        let import = module::ImportInfo::from_qualified_name(target);
+        self.modify(|info| info.add_import(&self.parser, import));
+    }
+
+    /// Removes an import declaration that brings given target.
+    ///
+    /// Fails, if there was no such declaration found.
+    pub fn remove_import(&self, target:&module::QualifiedName) -> FallibleResult<()> {
+        let import = module::ImportInfo::from_qualified_name(target);
+        self.modify(|info| info.remove_import(&import))
+    }
+
+    /// Retrieve a vector describing all import declarations currently present in the module.
+    pub fn imports(&self) -> Vec<module::ImportInfo> {
+        let module = self.module_info();
+        module.iter_imports().collect()
     }
 
     /// Creates a mocked module controller.
@@ -148,12 +176,11 @@ impl Handle {
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
     ) -> FallibleResult<Self> {
-        let logger = Logger::new("Mocked Module Controller");
-        let ast    = parser.parse(code.to_string(),id_map)?.try_into()?;
-        let model  = model::Module::new(ast, default());
-        let model  = model::synchronized::Module::mock(path.clone(),model);
-        let path   = Rc::new(path);
-        Ok(Handle {path,model,language_server,parser,logger})
+        let logger   = Logger::new("Mocked Module Controller");
+        let ast      = parser.parse(code.to_string(),id_map)?.try_into()?;
+        let metadata = default();
+        let model    = Rc::new(model::module::Plain::new(path,ast,metadata));
+        Ok(Handle {model,language_server,parser,logger})
     }
 
     #[cfg(test)]
@@ -189,20 +216,18 @@ mod test {
             let ls       = language_server::Connection::new_mock_rc(default());
             let parser   = Parser::new().unwrap();
             let location = Path::from_mock_module_name("Test");
-
+            let code     = "2+2";
             let uuid1    = Uuid::new_v4();
             let uuid2    = Uuid::new_v4();
             let uuid3    = Uuid::new_v4();
             let uuid4    = Uuid::new_v4();
-            let module   = "2+2";
             let id_map   = ast::IdMap::new(vec!
                 [ (Span::new(Index::new(0),Size::new(1)),uuid1)
                 , (Span::new(Index::new(1),Size::new(1)),uuid2)
                 , (Span::new(Index::new(2),Size::new(1)),uuid3)
                 , (Span::new(Index::new(0),Size::new(3)),uuid4)
                 ]);
-
-            let controller = Handle::new_mock(location,module,id_map,ls,parser).unwrap();
+            let controller = Handle::new_mock(location,code,id_map,ls,parser).unwrap();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(0),"2".to_string());

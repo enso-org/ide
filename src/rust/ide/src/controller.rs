@@ -17,16 +17,16 @@
 
 pub mod graph;
 pub mod module;
-pub mod project;
 pub mod text;
 pub mod visualization;
+pub mod searcher;
 
 pub use graph::Handle           as Graph;
 pub use graph::executed::Handle as ExecutedGraph;
 pub use module::Handle          as Module;
-pub use project::Handle         as Project;
 pub use text::Handle            as Text;
 pub use visualization::Handle   as Visualization;
+pub use searcher::Searcher;
 
 
 

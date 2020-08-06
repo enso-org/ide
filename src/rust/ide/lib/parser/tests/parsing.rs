@@ -1,4 +1,5 @@
 #![feature(generators, generator_trait)]
+#![feature(matches_macro)]
 
 use parser::prelude::*;
 
@@ -83,6 +84,19 @@ impl Fixture {
         self.test_shape(unfinished,|shape:&Unrecognized| {
             assert_eq!(shape.str,"`");
         });
+    }
+
+    #[allow(dead_code)] // TODO [mwu] https://github.com/enso-org/enso/issues/1016
+    fn deserialize_unexpected(&mut self) {
+        let unexpected = "import";
+        let ast = self.parser.parse_line(unexpected).unwrap();
+        // This does not deserialize to "Unexpected" but to a very complex macro match tree that has
+        // Unexpected somewhere within. We just make sure that it is somewhere, and that confirms
+        // that we are able to deserialize such node.
+        let has_unexpected = ast.iter_recursive().find(|ast| {
+            matches!(ast.shape(), Shape::Unexpected(_))
+        });
+        assert!(has_unexpected.is_some());
     }
 
     fn deserialize_invalid_quote(&mut self) {
@@ -346,7 +360,11 @@ impl Fixture {
     /// match node. Node contents is not covered.
     fn deserialize_macro_matches(&mut self) {
         let macro_usages = vec!
-            [ "foo -> bar"
+            [ "[]", "[1,2,3]"
+            , "{x}"
+            , "unsafe x", "private x"
+            , "polyglot java import com.example.MyClass"
+            , "foo -> bar"
             , "()"
             , "(foo -> bar)"
             , "a b c -> bar"
@@ -383,6 +401,7 @@ impl Fixture {
         self.blank_line_round_trip();
         self.deserialize_metadata();
         self.deserialize_unrecognized();
+        //self.deserialize_unexpected(); // TODO [mwu] https://github.com/enso-org/enso/issues/1016
         self.deserialize_invalid_quote();
         self.deserialize_inline_block();
         self.deserialize_blank();

@@ -174,9 +174,10 @@ has_tokens!(ShiftedVec1<T>, self.head, self.tail);
 // === Invalid ===
 // ===============
 
-has_tokens!(Unrecognized, self.str  );
-has_tokens!(InvalidQuote, self.quote);
-has_tokens!(InlineBlock , self.quote);
+has_tokens!(Unrecognized  , self.str);
+has_tokens!(Unexpected<T> , self.stream);
+has_tokens!(InvalidQuote  , self.quote);
+has_tokens!(InlineBlock   , self.quote);
 
 
 // ===================
@@ -330,10 +331,14 @@ has_tokens!(Ambiguous<T>, self.segs);
 
 spaceless_ast!(Comment);
 spaceless_ast!(Import<T>);
+spaceless_ast!(JavaImport<T>);
 spaceless_ast!(Mixfix<T>);
 spaceless_ast!(Group<T>);
+spaceless_ast!(SequenceLiteral<T>);
+spaceless_ast!(TypesetLiteral<T>);
 spaceless_ast!(Def<T>);
 spaceless_ast!(Foreign);
+spaceless_ast!(Modified<T>);
 
 
 
@@ -370,7 +375,7 @@ mod tests {
     // === Import ===
 
     fn make_import() -> Shape<Ast> {
-        Import {path : vec![]}.into()
+        Import {path : Ast::var("Target")}.into()
     }
 
     #[test]

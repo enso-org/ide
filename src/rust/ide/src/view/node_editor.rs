@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NodeTrees;
+use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
@@ -108,8 +109,14 @@ impl<Parameter:frp::Data> FencedAction<Parameter> {
 // ==============================
 
 /// The gap between nodes in pixels on default node layout (when user did not set any position of
-/// node - possible when node was added by editing text).
-const DEFAULT_GAP_BETWEEN_NODES:f32 = 44.0;
+/// node - possibly when node was added by editing text).
+const DEFAULT_GAP_BETWEEN_NODES : f32 =    4.0;
+/// The default X position of the node when user did not set any position of node - possibly when
+/// node was added by editing text.
+const DEFAULT_NODE_X_POSITION   : f32 = -100.0;
+/// The default Y position of the node when user did not set any position of node - possibly when
+/// node was added by editing text.
+const DEFAULT_NODE_Y_POSITION   : f32 =  200.0;
 
 /// A structure which handles integration between controller and graph_editor EnsoGl control.
 /// All changes made by user in view are reflected in controller, and all controller notifications
@@ -127,6 +134,11 @@ impl GraphEditorIntegratedWithController {
     pub fn graph_editor(&self) -> GraphEditor {
         self.model.editor.clone_ref()
     }
+
+    /// Get the controller associated with this graph editor.
+    pub fn controller(&self) -> &controller::ExecutedGraph {
+        &self.model.controller
+    }
 }
 
 #[derive(Debug)]
@@ -134,7 +146,7 @@ struct GraphEditorIntegratedWithControllerModel {
     logger             : Logger,
     editor             : GraphEditor,
     controller         : controller::ExecutedGraph,
-    project_controller : controller::Project,
+    project            : model::Project,
     node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
     connection_views   : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
@@ -150,7 +162,7 @@ impl GraphEditorIntegratedWithController {
     ( logger     : Logger
     , app        : &Application
     , controller : controller::ExecutedGraph
-    , project    : controller::Project) -> Self {
+    , project    : model::Project) -> Self {
         let model = GraphEditorIntegratedWithControllerModel::new(logger,app,controller,project);
         let model       = Rc::new(model);
         let editor_outs = &model.editor.frp.outputs;
@@ -162,6 +174,19 @@ impl GraphEditorIntegratedWithController {
                 }
             }));
         }
+
+
+        // === Project Renaming ===
+
+        let project_name = &model.editor.project_name;
+        frp::extend! {network
+            eval project_name.frp.outputs.name((name) {model.rename_project(name);});
+        }
+        model.editor.project_name.frp.cancel_editing.emit(());
+
+
+        // === UI Actions ===
+
         let node_removed = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_removed_in_ui,&invalidate.trigger);
         let node_entered = Self::ui_action(&model,
@@ -247,21 +272,40 @@ impl GraphEditorIntegratedWithControllerModel {
     ( logger     : Logger
     , app        : &Application
     , controller : controller::ExecutedGraph
-    , project    : controller::Project) -> Self {
+    , project    : model::Project) -> Self {
         let editor           = app.new_view::<GraphEditor>();
         let node_views       = default();
         let connection_views = default();
         let expression_views = default();
         let visualizations   = default();
         let this = GraphEditorIntegratedWithControllerModel {editor,controller,node_views,
-            expression_views,connection_views,logger,visualizations,
-            project_controller: project
+            expression_views,connection_views,logger,visualizations,project
         };
 
         if let Err(err) = this.refresh_graph_view() {
             error!(this.logger,"Error while initializing graph editor: {err}.");
         }
         this
+    }
+}
+
+
+// === Project renaming ===
+
+impl GraphEditorIntegratedWithControllerModel {
+    fn rename_project(&self, name:impl Str) {
+        if self.project.name() != name.as_ref() {
+            let project      = self.project.clone_ref();
+            let project_name = self.editor.project_name.clone_ref();
+            let logger       = self.logger.clone_ref();
+            let name         = name.into();
+            executor::global::spawn(async move {
+                if let Err(e) = project.rename_project(name).await {
+                    info!(logger, "The project couldn't be renamed: {e}");
+                    project_name.frp.cancel_editing.emit(());
+                }
+            });
+        }
     }
 }
 
@@ -289,7 +333,9 @@ impl GraphEditorIntegratedWithControllerModel {
         for (i,node_info) in nodes.iter().enumerate() {
             let id          = node_info.info.id();
             let node_trees  = trees.remove(&id).unwrap_or_else(default);
-            let default_pos = Vector2(0.0, i as f32 * -DEFAULT_GAP_BETWEEN_NODES);
+            let x           = DEFAULT_NODE_X_POSITION;
+            let y           = DEFAULT_NODE_Y_POSITION + i as f32 * -DEFAULT_GAP_BETWEEN_NODES;
+            let default_pos = Vector2(x,y);
             let displayed   = self.node_views.borrow_mut().get_by_left(&id).cloned();
             match displayed {
                 Some(displayed) => self.refresh_node_view(displayed, node_info, node_trees),
@@ -318,7 +364,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let displayed_id = self.editor.add_node();
         self.refresh_node_view(displayed_id, info, trees);
         // If position wasn't present in metadata, we must initialize it.
-        if info.metadata.and_then(|md| md.position).is_none() {
+        if info.metadata.as_ref().and_then(|md| md.position).is_none() {
             self.editor.frp.inputs.set_node_position.emit_event(&(displayed_id,default_pos));
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
@@ -357,7 +403,7 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn refresh_node_view
     (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
-        let position = node.metadata.and_then(|md| md.position);
+        let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
             self.editor.frp.inputs.set_node_position.emit_event(&(id,position.vector));
         }
@@ -375,33 +421,51 @@ impl GraphEditorIntegratedWithControllerModel {
             // sub-parts).
             for expression_part in node.info.expression().iter_recursive() {
                 if let Some(id) = expression_part.id {
-                    self.refresh_type_on(id)
+                    self.refresh_computed_info(id);
                 }
             }
         }
 
     }
 
-    /// Like `refresh_type_on` but for multiple expressions.
-    fn refresh_types_on(&self, expressions_to_refresh:&[ExpressionId]) -> FallibleResult<()> {
+    /// Like `refresh_computed_info` but for multiple expressions.
+    fn refresh_computed_infos(&self, expressions_to_refresh:&[ExpressionId]) -> FallibleResult<()> {
         debug!(self.logger, "Refreshing type information for IDs: {expressions_to_refresh:?}.");
         for id in expressions_to_refresh {
-            self.refresh_type_on(*id)
+            self.refresh_computed_info(*id)
         }
         Ok(())
     }
 
-    /// Look up the typename for the given expression in the execution controller's registry and
-    /// pass the data to the editor view.
-    fn refresh_type_on(&self, id:ExpressionId) {
-        let typename = self.lookup_typename(&id);
-        self.set_type(id,typename)
+    /// Look up the computed information for a given expression and pass the information to the
+    /// graph editor view.
+    ///
+    /// The computed value information includes the expression type and the target method pointer.
+    fn refresh_computed_info(&self, id:ExpressionId) {
+        let info     = self.lookup_computed_info(&id);
+        let info     = info.as_ref();
+        let typename = info.and_then(|info| info.typename.clone().map(graph_editor::Type));
+        if let Some(node_id) = self.node_views.borrow().get_by_left(&id).cloned() {
+            self.set_type(node_id,id,typename);
+            let method_pointer = info.and_then(|info| {
+                info.method_pointer.clone().map(graph_editor::MethodPointer)
+            });
+            self.set_method_pointer(id,method_pointer);
+        } else {
+            debug!(self.logger, "Failed to get `NodeId` for ID: {id:?}.");
+        }
     }
 
     /// Set given type (or lack of such) on the given sub-expression.
-    fn set_type(&self, id:ExpressionId, typename:graph_editor::OptionalType) {
-        let event = (id,typename);
+    fn set_type(&self, node_id:graph_editor::NodeId, id:ExpressionId, typename:Option<graph_editor::Type>) {
+        let event = (node_id,id,typename);
         self.editor.frp.inputs.set_expression_type.emit_event(&event);
+    }
+
+    /// Set given method pointer (or lack of such) on the given sub-expression.
+    fn set_method_pointer(&self, id:ExpressionId, method:Option<graph_editor::MethodPointer>) {
+        let event = (id,method);
+        self.editor.frp.inputs.set_method_pointer.emit_event(&event);
     }
 
     fn refresh_connection_views
@@ -469,7 +533,7 @@ impl GraphEditorIntegratedWithControllerModel {
 
     /// Handle notification received from controller about values having been computed.
     pub fn on_values_computed(&self, expressions:&[ExpressionId]) -> FallibleResult<()> {
-        self.refresh_types_on(&expressions)
+        self.refresh_computed_infos(&expressions)
     }
 
     /// Request controller to detach all attached visualizations.
@@ -528,9 +592,9 @@ impl GraphEditorIntegratedWithControllerModel {
     fn node_moved_in_ui(&self, param:&(graph_editor::NodeId, Vector2)) -> FallibleResult<()> {
         let (displayed_id,pos) = param;
         let id                 = self.get_controller_node_id(*displayed_id)?;
-        self.controller.graph().module.with_node_metadata(id, |md| {
+        self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
             md.position = Some(model::module::Position::new(pos.x,pos.y));
-        });
+        }));
         Ok(())
     }
 
@@ -567,9 +631,9 @@ impl GraphEditorIntegratedWithControllerModel {
         //   Because of that for now we will just hardcode the `visualization_module` using
         //   fixed defaults. In future this will be changed, then the editor will also get access
         //   to the customised values.
-        let project_name         = self.project_controller.project_name.as_ref();
+        let project_name:String  = self.project.name().into();
         let module_name          = crate::view::project::INITIAL_MODULE_NAME;
-        let visualisation_module = QualifiedName::from_module_segments(&[module_name],project_name);
+        let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
         let id                   = VisualizationId::new_v4();
         let expression           = crate::constants::SERIALIZE_TO_JSON_EXPRESSION.into();
         let ast_id               = self.get_controller_node_id(*node_id)?;
@@ -706,11 +770,9 @@ impl GraphEditorIntegratedWithControllerModel {
         self.visualizations.get_copied(&node_id).ok_or_else(err)
     }
 
-    fn lookup_typename(&self, id:&ExpressionId) -> graph_editor::OptionalType {
+    fn lookup_computed_info(&self, id:&ExpressionId) -> Option<Rc<ComputedValueInfo>> {
         let registry = self.controller.computed_value_info_registry();
-        let info     = registry.get(id);
-        let typename = info.and_then(|info| info.typename.clone());
-        graph_editor::OptionalType(typename)
+        registry.get(id)
     }
 }
 
@@ -736,7 +798,7 @@ impl NodeEditor {
     ( logger        : impl AnyLogger
     , app           : &Application
     , controller    : controller::ExecutedGraph
-    , project       : controller::Project
+    , project       : model::Project
     , visualization : controller::Visualization) -> FallibleResult<Self> {
         let logger         = Logger::sub(logger,"NodeEditor");
         let display_object = display::object::Instance::new(&logger);
@@ -752,6 +814,8 @@ impl NodeEditor {
         let graph_editor = self.graph.graph_editor();
         let identifiers  = self.visualization.list_visualizations().await;
         let identifiers  = identifiers.unwrap_or_default();
+        let project_name = self.graph.model.project.name().to_string();
+        graph_editor.project_name.frp.name.emit(project_name);
         for identifier in identifiers {
             let visualization = self.visualization.load_visualization(&identifier).await;
             let visualization = visualization.map(|visualization| {
@@ -761,6 +825,17 @@ impl NodeEditor {
         }
         info!(self.logger, "Initialized.");
         Ok(self)
+    }
+
+    /// Get ids of the nodes selected in the editor.
+    ///
+    /// They shall be ordered by the order of the selecting. Node selected as first shall be at
+    /// the beginning.
+    pub fn selected_nodes(&self) -> FallibleResult<Vec<ast::Id>> {
+        let node_view_ids = self.graph.model.editor.selected_nodes().into_iter();
+        let node_ids      = node_view_ids.map(|id| self.graph.model.get_controller_node_id(id));
+        let node_ids : Result<Vec<_>,_> = node_ids.collect();
+        node_ids.map_err(Into::into)
     }
 }
 
