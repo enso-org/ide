@@ -38,14 +38,20 @@ macro_rules! define_frp {
         #[allow(missing_docs)]
         pub struct Frp {
             pub network : frp::Network,
-            pub input   : FrpInputs,
-            pub output  : FrpOutputs,
+            pub output  : FrpEndpoints,
+        }
+
+        impl Deref for Frp {
+            type Target = FrpEndpoints;
+            fn deref(&self) -> &Self::Target {
+                &self.output
+            }
         }
 
         impl Frp {
             /// Constructor.
-            pub fn new(network:frp::Network, input:FrpInputs, output:FrpOutputs) -> Self {
-                Self {network,input,output}
+            pub fn new(network:frp::Network, output:FrpEndpoints) -> Self {
+                Self {network,output}
             }
         }
 
@@ -76,9 +82,17 @@ macro_rules! define_frp {
         /// Outputs of the FRP network.
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]
-        pub struct FrpOutputs {
-            source : FrpOutputsSource,
+        pub struct FrpEndpoints {
+            pub input  : FrpInputs,
+            source     : FrpOutputsSource,
             $(pub $out_field : frp::Stream<$out_field_type>),*
+        }
+
+        impl Deref for FrpEndpoints {
+            type Target = FrpInputs;
+            fn deref(&self) -> &Self::Target {
+                &self.input
+            }
         }
 
         impl FrpOutputsSource {
@@ -91,12 +105,12 @@ macro_rules! define_frp {
             }
         }
 
-        impl FrpOutputs {
+        impl FrpEndpoints {
             /// Constructor.
-            pub fn new(network:&frp::Network) -> Self {
+            pub fn new(network:&frp::Network, input:FrpInputs) -> Self {
                 let source = FrpOutputsSource::new(network);
                 $(let $out_field = source.$out_field.clone_ref().into();)*
-                Self {source,$($out_field),*}
+                Self {input,source,$($out_field),*}
             }
         }
     };
@@ -407,7 +421,7 @@ impl View {
         let network = frp::Network::new();
         let model   = ViewModel::new(&network,view_buffer);
         let input   = model.frp.clone_ref();
-        let output  = FrpOutputs::new(&network);
+        let output  = FrpEndpoints::new(&network,input.clone_ref());
 
         frp::extend! { network
 
@@ -467,7 +481,7 @@ impl View {
             eval output.source.non_edit_selection ((t) model.set_selection(t));
 
         }
-        let frp = Frp::new(network,input,output);
+        let frp = Frp::new(network,output);
         Self {frp,model}
     }
 }

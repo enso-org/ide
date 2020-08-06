@@ -25,7 +25,7 @@ use ensogl::display::Sprite;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
-use ensogl::gui::cursor as mouse_cursor;
+use ensogl::gui;
 use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
 
 
@@ -42,7 +42,9 @@ macro_rules! define_frp {
         Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
         Output { $($out_field : ident : $out_field_type : ty),* $(,)? }
     ) => {
+        /// Frp network and endpoints.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(missing_docs)]
         pub struct Frp {
             pub network : frp::Network,
             pub input   : FrpInputs,
@@ -50,18 +52,22 @@ macro_rules! define_frp {
         }
 
         impl Frp {
+            /// Constructor.
             pub fn new(network:frp::Network, input:FrpInputs, output:FrpOutputs) -> Self {
                 Self {network,input,output}
             }
         }
 
+        /// Frp inputs.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(missing_docs)]
         pub struct FrpInputs {
             $(pub command : $commands_name,)?
             $(pub $in_field : frp::Source<$in_field_type>),*
         }
 
         impl FrpInputs {
+            /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
                 $(
                     #[allow(non_snake_case)]
@@ -74,18 +80,22 @@ macro_rules! define_frp {
             }
         }
 
+        /// Frp output setters.
         #[derive(Debug,Clone,CloneRef)]
         pub struct FrpOutputsSetter {
             $($out_field : frp::Any<$out_field_type>),*
         }
 
+        /// Frp outputs.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(missing_docs)]
         pub struct FrpOutputs {
             setter           : FrpOutputsSetter,
             $(pub $out_field : frp::Stream<$out_field_type>),*
         }
 
         impl FrpOutputsSetter {
+            /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
                 frp::extend! { network
                     $($out_field <- any(...);)*
@@ -95,6 +105,7 @@ macro_rules! define_frp {
         }
 
         impl FrpOutputs {
+            /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
                 let setter = FrpOutputsSetter::new(network);
                 $(let $out_field = setter.$out_field.clone_ref().into();)*
@@ -224,6 +235,7 @@ impl Deref for Selection {
 }
 
 impl Selection {
+    /// Constructor.
     pub fn new(logger:impl AnyLogger, scene:&Scene, edit_mode:bool) -> Self {
         let logger         = Logger::sub(logger,"selection");
         let display_object = display::object::Instance::new(&logger);
@@ -283,8 +295,11 @@ impl display::Object for Selection {
 
 
 
+// ====================
+// === SelectionMap ===
+// ====================
 
-
+/// Mapping between selection id, `Selection`, and text location.
 #[derive(Clone,Debug,Default)]
 pub struct SelectionMap {
     id_map       : HashMap<usize,Selection>,
@@ -474,7 +489,7 @@ define_frp! {
     Commands { Commands }
     Input {}
     Output {
-        mouse_cursor_style : mouse_cursor::Style,
+        mouse_cursor_style : gui::cursor::Style,
     }
 }
 
@@ -489,6 +504,7 @@ pub const LINE_HEIGHT : f32 = 14.0;
 
 /// The visual text area implementation.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct Area {
     data    : AreaData,
     pub frp : Frp,
@@ -516,33 +532,34 @@ impl Area {
         let mouse   = &self.scene.mouse.frp;
         let model   = &self.data;
         let input   = &model.frp_inputs;
-        let command = &input.command;
+        let cmd     = &input.command;
+        let bg      = &self.background;
 
         let pos     = Animation :: <Vector2> :: new(&network);
         pos.update_spring(|spring| spring*2.0);
 
         frp::extend! { network
-            cursor_over  <- self.background.events.mouse_over.constant(mouse_cursor::Style::new_text_cursor());
-            cursor_out   <- self.background.events.mouse_out.constant(mouse_cursor::Style::default());
+            cursor_over  <- bg.events.mouse_over.constant(gui::cursor::Style::new_text_cursor());
+            cursor_out   <- bg.events.mouse_out.constant(gui::cursor::Style::default());
             mouse_cursor <- any(cursor_over,cursor_out);
             self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
 
-            mouse_on_set_cursor <- mouse.position.sample(&command.set_cursor_at_mouse_position);
-            mouse_on_add_cursor <- mouse.position.sample(&command.add_cursor_at_mouse_position);
+            mouse_on_set_cursor <- mouse.position.sample(&cmd.set_cursor_at_mouse_position);
+            mouse_on_add_cursor <- mouse.position.sample(&cmd.add_cursor_at_mouse_position);
 
             selecting <- bool
-                ( &command.stop_newest_selection_end_follow_mouse
-                , &command.start_newest_selection_end_follow_mouse
+                ( &cmd.stop_newest_selection_end_follow_mouse
+                , &cmd.start_newest_selection_end_follow_mouse
                 );
 
             eval mouse_on_set_cursor ([model](screen_pos) {
                 let location = model.get_in_text_location(*screen_pos);
-                model.frp.input.set_cursor.emit(location);
+                model.frp.set_cursor.emit(location);
             });
 
             eval mouse_on_add_cursor ([model](screen_pos) {
                 let location = model.get_in_text_location(*screen_pos);
-                model.frp.input.add_cursor.emit(location);
+                model.frp.add_cursor.emit(location);
             });
 
             _eval <- model.frp.output.edit_selection.map2
@@ -559,66 +576,65 @@ impl Area {
                 }
             ));
 
-            set_newest_selection_end_1 <- mouse.position.gate(&selecting);
-            set_newest_selection_end_2 <- mouse.position.sample(&command.set_newest_selection_end_to_mouse_position);
-            set_newest_selection_end   <- any(&set_newest_selection_end_1,&set_newest_selection_end_2);
+            set_sel_end_1 <- mouse.position.gate(&selecting);
+            set_sel_end_2 <- mouse.position.sample(&cmd.set_newest_selection_end_to_mouse_position);
+            set_newest_selection_end <- any(&set_sel_end_1,&set_sel_end_2);
 
             eval set_newest_selection_end([model](screen_pos) {
                 let location = model.get_in_text_location(*screen_pos);
-                model.frp.input.set_newest_selection_end.emit(location);
+                model.frp.set_newest_selection_end.emit(location);
             });
-
 
             eval_ model.frp.output.changed (model.redraw());
 
-            eval_ command.remove_all_cursors (model.frp.input.remove_all_cursors.emit(()));
+            eval_ cmd.remove_all_cursors (model.frp.remove_all_cursors.emit(()));
 
-            eval_ command.keep_first_selection_only (model.frp.input.keep_first_selection_only.emit(()));
-            eval_ command.keep_last_selection_only (model.frp.input.keep_last_selection_only.emit(()));
-            eval_ command.keep_first_caret_only (model.frp.input.keep_first_caret_only.emit(()));
-            eval_ command.keep_last_caret_only (model.frp.input.keep_last_caret_only.emit(()));
+            eval_ cmd.keep_first_selection_only (model.frp.keep_first_selection_only.emit(()));
+            eval_ cmd.keep_last_selection_only  (model.frp.keep_last_selection_only.emit(()));
+            eval_ cmd.keep_first_caret_only     (model.frp.keep_first_caret_only.emit(()));
+            eval_ cmd.keep_last_caret_only      (model.frp.keep_last_caret_only.emit(()));
 
-            eval_ command.keep_newest_selection_only (model.frp.input.keep_newest_selection_only.emit(()));
-            eval_ command.keep_oldest_selection_only (model.frp.input.keep_oldest_selection_only.emit(()));
-            eval_ command.keep_newest_caret_only (model.frp.input.keep_newest_caret_only.emit(()));
-            eval_ command.keep_oldest_caret_only (model.frp.input.keep_oldest_caret_only.emit(()));
+            eval_ cmd.keep_newest_selection_only (model.frp.keep_newest_selection_only.emit(()));
+            eval_ cmd.keep_oldest_selection_only (model.frp.keep_oldest_selection_only.emit(()));
+            eval_ cmd.keep_newest_caret_only     (model.frp.keep_newest_caret_only.emit(()));
+            eval_ cmd.keep_oldest_caret_only     (model.frp.keep_oldest_caret_only.emit(()));
 
-            eval_ command.cursor_move_left  (model.frp.input.cursors_move.emit(Some(Transform::Left)));
-            eval_ command.cursor_move_right (model.frp.input.cursors_move.emit(Some(Transform::Right)));
-            eval_ command.cursor_move_up    (model.frp.input.cursors_move.emit(Some(Transform::Up)));
-            eval_ command.cursor_move_down  (model.frp.input.cursors_move.emit(Some(Transform::Down)));
+            eval_ cmd.cursor_move_left  (model.frp.cursors_move.emit(Some(Transform::Left)));
+            eval_ cmd.cursor_move_right (model.frp.cursors_move.emit(Some(Transform::Right)));
+            eval_ cmd.cursor_move_up    (model.frp.cursors_move.emit(Some(Transform::Up)));
+            eval_ cmd.cursor_move_down  (model.frp.cursors_move.emit(Some(Transform::Down)));
 
-            eval_ command.cursor_move_left_word  (model.frp.input.cursors_move.emit(Some(Transform::LeftWord)));
-            eval_ command.cursor_move_right_word (model.frp.input.cursors_move.emit(Some(Transform::RightWord)));
+            eval_ cmd.cursor_move_left_word  (model.frp.cursors_move.emit(Some(Transform::LeftWord)));
+            eval_ cmd.cursor_move_right_word (model.frp.cursors_move.emit(Some(Transform::RightWord)));
 
-            eval_ command.cursor_select_left  (model.frp.input.cursors_select.emit(Some(Transform::Left)));
-            eval_ command.cursor_select_right (model.frp.input.cursors_select.emit(Some(Transform::Right)));
-            eval_ command.cursor_select_up    (model.frp.input.cursors_select.emit(Some(Transform::Up)));
-            eval_ command.cursor_select_down  (model.frp.input.cursors_select.emit(Some(Transform::Down)));
+            eval_ cmd.cursor_select_left  (model.frp.cursors_select.emit(Some(Transform::Left)));
+            eval_ cmd.cursor_select_right (model.frp.cursors_select.emit(Some(Transform::Right)));
+            eval_ cmd.cursor_select_up    (model.frp.cursors_select.emit(Some(Transform::Up)));
+            eval_ cmd.cursor_select_down  (model.frp.cursors_select.emit(Some(Transform::Down)));
 
-            eval_ command.cursor_select_left_word  (model.frp.input.cursors_select.emit(Some(Transform::LeftWord)));
-            eval_ command.cursor_select_right_word (model.frp.input.cursors_select.emit(Some(Transform::RightWord)));
+            eval_ cmd.cursor_select_left_word  (model.frp.cursors_select.emit(Some(Transform::LeftWord)));
+            eval_ cmd.cursor_select_right_word (model.frp.cursors_select.emit(Some(Transform::RightWord)));
 
-            eval_ command.select_all            (model.frp.input.cursors_select.emit(Some(Transform::All)));
-            eval_ command.select_word_at_cursor (model.frp.input.cursors_select.emit(Some(Transform::Word)));
+            eval_ cmd.select_all            (model.frp.cursors_select.emit(Some(Transform::All)));
+            eval_ cmd.select_word_at_cursor (model.frp.cursors_select.emit(Some(Transform::Word)));
 
-            eval_ command.delete_left       (model.frp.input.delete_left.emit(()));
-            eval_ command.delete_word_left  (model.frp.input.delete_word_left.emit(()));
+            eval_ cmd.delete_left      (model.frp.delete_left.emit(()));
+            eval_ cmd.delete_word_left (model.frp.delete_word_left.emit(()));
 
-            eval_ command.undo (model.frp.input.undo.emit(()));
-            eval_ command.redo (model.frp.input.redo.emit(()));
+            eval_ cmd.undo (model.frp.undo.emit(()));
+            eval_ cmd.redo (model.frp.redo.emit(()));
 
-            key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample(&command.insert_char_of_last_pressed_key);
-            char_to_insert        <= key_on_char_to_insert.map(|key| {
+            key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample
+                (&cmd.insert_char_of_last_pressed_key);
+            char_to_insert <= key_on_char_to_insert.map(|key| {
                 match key {
                     Key::Character(s) => Some(s.clone()),
                     Key::Enter        => Some("\n".into()),
                     _                 => None
                 }
             });
-            eval char_to_insert ((s) model.frp.input.insert.emit(s));
+            eval char_to_insert ((s) model.frp.insert.emit(s));
         }
-
         self
     }
 }
@@ -684,24 +700,23 @@ impl AreaData {
         let mut selection_map     = self.selection_map.borrow_mut();
         let mut new_selection_map = SelectionMap::default();
         for sel in selections {
-            let sel = self.buffer.snap_selection(*sel);
+            let sel        = self.buffer.snap_selection(*sel);
             let id         = sel.id;
-            let start_line_index = sel.start.line.as_usize();
-            let end_line_index = sel.end.line.as_usize();
-            let min_pos_x = self.lines.rc.borrow()[start_line_index].div_by_column(sel.start.column);
-            let max_pos_x = self.lines.rc.borrow()[end_line_index].div_by_column(sel.end.column);
-            let logger = Logger::sub(&self.logger,"cursor");
-
-            let min_pos_y = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line_index as f32;
-            let pos   = Vector2(min_pos_x,min_pos_y);
-            let width = max_pos_x - min_pos_x;
-
-            let selection = match selection_map.id_map.remove(&id) {
+            let start_line = sel.start.line.as_usize();
+            let end_line   = sel.end.line.as_usize();
+            let min_pos_x  = self.lines.rc.borrow()[start_line].div_by_column(sel.start.column);
+            let max_pos_x  = self.lines.rc.borrow()[end_line].div_by_column(sel.end.column);
+            let logger     = Logger::sub(&self.logger,"cursor");
+            let min_pos_y  = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line as f32;
+            let pos        = Vector2(min_pos_x,min_pos_y);
+            let width      = max_pos_x - min_pos_x;
+            let selection  = match selection_map.id_map.remove(&id) {
                 Some(selection) => {
-
                     let select_left  = selection.width.simulator.target_value() < 0.0;
                     let select_right = selection.width.simulator.target_value() > 0.0;
-                    let mid_point    = selection.position.simulator.target_value().x + selection.width.simulator.target_value() / 2.0;
+                    let tgt_pos_x    = selection.position.simulator.target_value().x;
+                    let tgt_width    = selection.width.simulator.target_value();
+                    let mid_point    = tgt_pos_x + tgt_width / 2.0;
                     let go_left      = pos.x < mid_point;
                     let go_right     = pos.x > mid_point;
                     let need_flip    = (select_left && go_left) || (select_right && go_right);
@@ -710,31 +725,28 @@ impl AreaData {
                     selection
                 }
                 None => {
-
                     let selection = Selection::new(&logger,&self.scene,do_edit);
-                    selection.shape.sprite.size.set(Vector2(4.0,20.0));
-                    selection.shape.letter_width.set(7.0); // FIXME
+                    selection.shape.sprite.size.set(Vector2(4.0,20.0)); // FIXME hardcoded values
+                    selection.shape.letter_width.set(7.0); // FIXME hardcoded values
                     self.add_child(&selection);
                     selection.position.set_target_value(pos);
                     selection.position.skip();
                     let selection_network = &selection.network;
-                    let model = self.clone_ref(); // FIXME: memory leak
+                    let model = self.clone_ref(); // FIXME: memory leak. To be fixed with the below note.
                     frp::extend! { selection_network
-                                    // FIXME[WD]: This is ultra-slow. Redrawing all glyphs on each
-                                    //            animation frame. Multiple times, once per cursor.
-                                    eval_ selection.position.value (model.redraw());
-                                }
+                        // FIXME[WD]: This is ultra-slow. Redrawing all glyphs on each
+                        //            animation frame. Multiple times, once per cursor.
+                        eval_ selection.position.value (model.redraw());
+                    }
                     selection
                 }
             };
 
             selection.width.set_target_value(width);
-
             selection.edit_mode.set(do_edit);
-
             selection.shape.start_time.set(time);
             new_selection_map.id_map.insert(id,selection);
-            new_selection_map.location_map.entry(start_line_index).or_default().insert(sel.start.column,id);
+            new_selection_map.location_map.entry(start_line).or_default().insert(sel.start.column,id);
         }
         *selection_map = new_selection_map;
         }
@@ -765,16 +777,13 @@ impl AreaData {
         Location(line,column)
     }
 
-    pub fn line_count(&self) -> usize {
-        self.lines.count()
-    }
-
     fn init(self) -> Self {
         self.redraw();
         self
     }
 
     // FIXME: make private
+    /// Redraw the text.
     pub fn redraw(&self) {
         let lines      = self.buffer.lines();
         let line_count = lines.len();
@@ -784,14 +793,13 @@ impl AreaData {
         }
     }
 
-    fn redraw_line(&self, view_line_index:usize, content:String) { // fixme content:Cow<str>
-        let cursor_map    = self.selection_map.borrow().location_map.get(&view_line_index).cloned().unwrap_or_default();
-
+    fn redraw_line(&self, view_line_index:usize, content:String) {
+        let cursor_map = self.selection_map.borrow()
+            .location_map.get(&view_line_index).cloned().unwrap_or_default();
         let line           = &mut self.lines.rc.borrow_mut()[view_line_index];
         let line_object    = line.display_object().clone_ref();
         let line_range     = self.buffer.byte_range_from_view_line_index_snapped(view_line_index.into());
         let mut line_style = self.buffer.sub_style(line_range.start .. line_range.end).iter();
-//        line.byte_size     = self.buffer.line_byte_size(view_line_index.into());
 
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];
@@ -819,34 +827,31 @@ impl AreaData {
             cursor_map.get(&byte_offset).for_each(|id| {
                 self.selection_map.borrow().id_map.get(id).for_each(|cursor| {
                     if cursor.edit_mode.get() {
-                        last_cursor = Some(cursor.clone_ref());
-//                        last_cursor_origin = Vector2(info.offset - CURSOR_PADDING - CURSOR_WIDTH/2.0, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET);
-                        last_cursor_origin = Vector2(info.offset, LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET );
+                        let pos_y          = LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET;
+                        last_cursor        = Some(cursor.clone_ref());
+                        last_cursor_origin = Vector2(info.offset,pos_y);
                     }
                 });
             });
 
             match &last_cursor {
+                None         => line_object.add_child(glyph),
                 Some(cursor) => {
                     cursor.right_side.add_child(glyph);
                     glyph.mod_position_xy(|p| p - last_cursor_origin);
                 },
-                None         => line_object.add_child(glyph),
             }
-
             divs.push(info.offset);
-            byte_offset += 1.column();//chr_bytes;
-
+            byte_offset += 1.column();
         }
 
         divs.push(pen.advance_final());
         line.set_divs(divs);
-
     }
 
     fn new_line(&self, index:usize) -> Line {
         let line     = Line::new(&self.logger);
-        let y_offset = - ((index + 1) as f32) * LINE_HEIGHT + LINE_VERTICAL_OFFSET; // FIXME line height?
+        let y_offset = - ((index + 1) as f32) * LINE_HEIGHT + LINE_VERTICAL_OFFSET;
         line.set_position_y(y_offset);
         self.add_child(&line);
         line
@@ -883,6 +888,8 @@ impl application::View for Area {
     }
 }
 
+// FIXME[WD]: Some of the shortcuts are commented out and some are assigned to strange key bindings
+//            because the shortcut manager is broken. To be fixed after fixing the shortcut manager.
 impl application::shortcut::DefaultShortcutProvider for Area {
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use enso_frp::io::mouse;
@@ -922,4 +929,6 @@ impl application::shortcut::DefaultShortcutProvider for Area {
         ]
     }
 }
-// TODO: undo, redo, multicursor up/down, check with different views, scrolling, parens, vertical indent lines, line numbers
+
+// TODO[WD]: The following shortcuts are missing and its worth adding them in the future:
+// undo, redo, multicursor up/down, check with different views, scrolling, parens, lines indent
