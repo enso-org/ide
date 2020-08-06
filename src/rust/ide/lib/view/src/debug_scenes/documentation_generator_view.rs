@@ -15,7 +15,7 @@ use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
 
 use crate::graph_editor::component::visualization::MockDocGenerator;
-use crate::graph_editor::builtin::visualization::native::documentation::get_doc_style;
+use crate::graph_editor::builtin::visualization::native::documentation::doc_style;
 
 fn generate_mock_doc() -> String {
     let sample_data_gen = MockDocGenerator::default();
@@ -34,7 +34,7 @@ fn generate_mock_doc() -> String {
 #[allow(clippy::many_single_char_names)]
 pub fn run_example_documentation_generator_view() {
     let output_unwrapped = generate_mock_doc();
-    let css = get_doc_style();
+    let css = doc_style();
     let full_file: String = format!("{}{}", css, output_unwrapped);
 
     web::forward_panic_hook_to_console();

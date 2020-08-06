@@ -30,7 +30,7 @@ const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADI
 /// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 ///      The imported stylesheet is undergoing drastic changes
 ///      Expect them to land with https://github.com/enso-org/ide/issues/709
-pub fn get_doc_style() -> String {
+pub fn doc_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
 
@@ -104,8 +104,7 @@ impl ViewModel {
         let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
         let data_str = data_str.replace("\\n", "\n");
-        let data_str = data_str.replace("\"", "");
-        data_str
+        data_str.replace("\"", "")
     }
 
     fn receive_data(&self, data:&visualization::Data) -> Result<(),visualization::DataError> {
@@ -135,7 +134,7 @@ impl ViewModel {
 
     /// Creates a container for generated content and embeds it with stylesheet.
     fn push_to_dom(&self, content:String) {
-        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, get_doc_style(), content);
+        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, doc_style(), content);
         self.dom.dom().set_inner_html(&data_str)
     }
 
