@@ -154,35 +154,24 @@ pub struct MockDocGenerator;
 impl MockDocGenerator {
     /// Generate new data set.
     pub fn generate_data(self) -> String {
-        let inp_only_doc = r#"DEPRECATED
-                          REMOVED - replaced by Foo Bar
-                          ADDED
-                          MODIFIED
-                          UPCOMING
-                          ALAMAKOTA a kot ma Ale
-                          This is a test of Enso Documentation Parser. This is a short synopsis.
+        let inp_only_doc = r#"
+##
+   ADDED in 2.0
+   Optional values.
 
-                          Here you can write the body of documentation. On top you can see tags
-                          added to this piece of code. You can customise your text with _Italic_
-                          ~Strikethrough~ or *Bold*. ~_*Combined*_~ is funny
+   Type `Option` represents an optional value: every `Option` is either `Some`
+   and contains a value, or `None`, and does not.
 
+   ? Information
+     `Option`s are commonly paired with pattern matching to query the presence of
+     a value and take action, always accounting for the None case.
+type Option a
+    ## The `Some` type indicates a presence of a value.
+    type Some a
 
-                          There are 3 kinds of sections
-                            - Important
-                            - Info
-                            - Example
-                              * You can use example to add multiline code to your documentation
-
-                          ! Important
-                            Here is a small test of Important Section
-
-                          ? Info
-                            Here is a small test of Info Section
-
-                          > Example
-                            Here is a small test of Example Section
-                                Import Foo
-                                def Bar a"#;
+    ## The `None` type indicates a lack of a value.
+    type None
+"#;
         inp_only_doc.to_string()
     }
 }

@@ -46,6 +46,7 @@ pub struct ViewModel {
     size   : Rc<Cell<Vector2>>,
 }
 
+#[allow(dead_code)]
 impl ViewModel {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
@@ -82,10 +83,21 @@ impl ViewModel {
         self.reload_style();
     }
 
-    /// Generates HTML documentation for documented suggestion.
-    fn gen_doc(doc: String) -> FallibleResult<String> {
+    /// Generates HTML documentation from documented Enso code.
+    fn gen_html_from(doc: String) -> FallibleResult<String> {
+        println!("{}", doc);
+        let parser = parser::DocParser::new()?;
+        let output = parser.generate_html_docs(doc);
+        println!("{:?}", output);
+        Ok(output?)
+    }
+
+    /// Generates HTML documentation from pure Enso documentation.
+    fn gen_html_from_pure(doc: String) -> FallibleResult<String> {
+        println!("{}", doc);
         let parser = parser::DocParser::new()?;
         let output = parser.generate_html_doc_pure(doc);
+        println!("{:?}", output);
         Ok(output?)
     }
 
@@ -101,7 +113,7 @@ impl ViewModel {
         let data_str = data_str.replace("\\n", "\n");
         let data_str = data_str.replace("\"", "");
 
-        let output = ViewModel::gen_doc(data_str);
+        let output = ViewModel::gen_html_from(data_str);
         let output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
         // Fixes a Doc Parser related idea, where stylesheet was a separate file
         let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");

@@ -326,14 +326,14 @@
 }
 .Documentation .ASTHead {
     margin: 20px auto 5px;
-    background-color: #ffffff;
+    /*background-color: #fafafa;*/
 }
 .Documentation .ASTHead .DefTitle {
     font-size: 42px;
     margin: 0;
 }
 .Documentation .ASTData .ASTHead {
-    background-color: #fafafa;
+    /*background-color: #fafafa;*/
 }
 .Documentation .ASTData .ASTHead .DefTitle {
     font-size: x-large;
