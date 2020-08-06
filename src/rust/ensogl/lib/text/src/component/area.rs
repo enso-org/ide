@@ -785,7 +785,7 @@ impl AreaData {
     // FIXME: make private
     /// Redraw the text.
     pub fn redraw(&self) {
-        let lines      = self.buffer.lines();
+        let lines      = self.buffer.view_lines();
         let line_count = lines.len();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
         for (view_line_index,content) in lines.into_iter().enumerate() {

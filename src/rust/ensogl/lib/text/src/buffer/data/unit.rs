@@ -64,6 +64,8 @@ impl From<&usize> for Bytes {
 // === Line ===
 // ============
 
+// TODO: Improvement idea. Create `i32Saturated` type which will have all operations saturated.
+//       This will make this unit safer.
 unit! {
 /// A type representing vertical measurements.
 Line::line(i32)
@@ -75,8 +77,7 @@ impl Line {
         self.value.max(0) as usize
     }
 
-    // FIXME
-    /// ...
+    /// Compute the absolute value of this line.
     pub fn abs(self) -> Self {
         self.value.saturating_abs().into()
     }
@@ -100,6 +101,8 @@ impl From<&usize> for Line {
 // === Column ===
 // ==============
 
+// TODO: Improvement idea. Create `i32Saturated` type which will have all operations saturated.
+//       This will make this unit safer.
 unit! {
 /// A type representing horizontal measurements expressed as number of grapheme clusters.
 Column::column(i32)
@@ -111,8 +114,7 @@ impl Column {
         self.value.max(0) as usize
     }
 
-    // FIXME
-    /// ...
+    /// Compute the absolute value of this column.
     pub fn abs(self) -> Self {
         self.value.saturating_abs().into()
     }

@@ -85,34 +85,19 @@ fn init(app:&Application) {
 
     let node1_id = graph_editor.add_node();
     let node2_id = graph_editor.add_node();
-//
+
     graph_editor.frp.set_node_position.emit((node1_id,Vector2(-150.0,50.0)));
     graph_editor.frp.set_node_position.emit((node2_id,Vector2(50.0,50.0)));
-//
+
     graph_editor.frp.set_node_expression.emit((node1_id,expression_mock()));
     graph_editor.frp.set_node_expression.emit((node2_id,expression_mock2()));
 
-//    frp::new_network! { network
-//        def trigger = source::<()>();
-//        let (runner,condition) = fence(&network,&trigger);
-//        def _eval = runner.map(f_!( {
-//            graph_editor.frp.connect_nodes.emit((EdgeTarget::new(node1_id,default()),EdgeTarget::new(node2_id,vec![1,0,2])));
-//        }));
-//        def _debug = graph_editor.frp.outputs.edge_added.map2(&condition, |id,cond| {
-//            let owner = if *cond { "GUI" } else { "ME" };
-//            println!("Edge {:?} added by {}!",id,owner)
-//        });
-//
-//    }
-
-
     world.add_child(&text_area);
 
-    text_area.add_cursor_old(default());
+    text_area.add_cursor_DEBUG(default());
 //    text_area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
 //    text_area.insert("open€ \"data.csv\"\nline2 continuation\nline3 continuation");
     text_area.insert("ab\ncd\nef");
-
 
     text_area.replace((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
     text_area.replace((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
@@ -122,8 +107,6 @@ fn init(app:&Application) {
     text_area.set_default(color::Rgba::new(1.0,1.0,1.0,0.7));
     text_area.set_default(text::Size(12.0));
     text_area.set_position_x(10.0);
-//    text_area.set((0..4).bytes(),text::Size(20.0));
-
 
     text_area.redraw();
 

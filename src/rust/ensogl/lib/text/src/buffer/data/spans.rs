@@ -33,7 +33,7 @@ impl<T:Clone> Spans<T> {
     /// Replace the provided `range` with the new `value` spanned over `length` bytes. Use with
     /// caution, as it can easily lead to wrong amount of bytes covered by the span.
     pub fn replace_resize(&mut self, range:Range<Bytes>, length:Bytes, value:T) {
-        let mut builder = rope::spans::Builder::new(length.value as usize);
+        let mut builder = rope::spans::Builder::new(length.as_usize());
         builder.add_span(..,value);
         self.raw.edit(range.into_rope_interval(),builder.build())
     }

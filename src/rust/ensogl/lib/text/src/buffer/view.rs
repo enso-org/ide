@@ -245,9 +245,10 @@ impl ViewBuffer {
         self.oldest_selection().snap_selections_to_start()
     }
 
-    // FIXME: remove
+    // FIXME: debug utility. To be removed in the future.
     /// Add a new cursor for the given byte offset.
-    pub fn add_cursor_old(&self, location:Location) {
+    #[allow(non_snake_case)]
+    pub fn add_cursor_DEBUG(&self, location:Location) {
         let id = self.next_selection_id.get();
         self.next_selection_id.set(id+1);
         self.add_selection(Selection::new_cursor(location,id))
@@ -278,7 +279,7 @@ impl ViewBuffer {
         group
     }
 
-    // FIXME: make private
+    // FIXME: this should be made private in the future PRs.
     /// Insert new text in the place of current selections / cursors.
     pub fn insert(&self, text:impl Into<Text>) -> selection::Group {
         self.modify(Transform::LeftSelectionBorder,text)
@@ -335,14 +336,10 @@ impl ViewBuffer {
         Selection::new(start,end,id)
     }
 
-    fn data(&self) -> Text {
-        self.buffer.data.text.cell.borrow().clone() // FIXME
-    }
-
     fn offset_to_location(&self, offset:Bytes) -> Location {
-        let line         = self.line_index_from_byte_offset_snapped(offset);
-        let line_offset  = offset - self.byte_offset_from_line_index(line).unwrap();
-        let column       = self.column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset);
+        let line = self.line_index_from_byte_offset_snapped(offset);
+        let line_offset = offset - self.byte_offset_from_line_index(line).unwrap();
+        let column = self.column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset);
         Location(line,column)
     }
 }
@@ -352,7 +349,6 @@ fn range_between(a:Selection<Bytes>, b:Selection<Bytes>) -> data::range::Range<B
     let max = std::cmp::max(a.max(),b.max());
     (min .. max).into()
 }
-
 
 
 
@@ -422,64 +418,58 @@ impl View {
         let model   = ViewModel::new(&network,view_buffer);
         let input   = model.frp.clone_ref();
         let output  = FrpEndpoints::new(&network,input.clone_ref());
+        let m       = &model;
 
         frp::extend! { network
+            sel_on_insert         <- input.insert.map(f!((s) m.insert(s)));
+            output.source.changed <+ sel_on_insert.constant(());
 
-            selection_on_insert <- input.insert.map(f!((s) model.insert(s)));
-            output.source.changed <+ selection_on_insert.constant(());
+            sel_on_delete_left    <- input.delete_left.map(f_!(m.delete_left()));
+            output.source.changed <+ sel_on_delete_left.constant(());
 
-            selection_on_delete_left <- input.delete_left.map(f_!(model.delete_left()));
-            output.source.changed <+ selection_on_delete_left.constant(());
+            sel_on_move           <- input.cursors_move.map(f!((t) m.moved_selection2(*t,false)));
+            sel_on_mod            <- input.cursors_select.map(f!((t) m.moved_selection2(*t,true)));
+            sel_on_clear          <- input.clear_selection.constant(default());
+            sel_on_keep_last      <- input.keep_last_selection_only.map(f_!(m.last_selection()));
+            sel_on_keep_first     <- input.keep_first_selection_only.map(f_!(m.first_selection()));
+            sel_on_keep_lst_caret <- input.keep_last_caret_only.map(f_!(m.last_caret()));
+            sel_on_keep_fst_caret <- input.keep_first_caret_only.map(f_!(m.first_caret()));
 
-            selection_on_move  <- input.cursors_move.map(f!((t) model.moved_selection2(*t,false)));
-            selection_on_mod   <- input.cursors_select.map(f!((t) model.moved_selection2(*t,true)));
-            selection_on_clear <- input.clear_selection.constant(default());
-            selection_on_keep_last <- input.keep_last_selection_only.map(f_!(model.last_selection()));
-            selection_on_keep_first <- input.keep_first_selection_only.map(f_!(model.first_selection()));
-            selection_on_keep_last_caret <- input.keep_last_caret_only.map(f_!(model.last_caret()));
-            selection_on_keep_first_caret <- input.keep_first_caret_only.map(f_!(model.first_caret()));
+            sel_on_keep_newest       <- input.keep_newest_selection_only.map(f_!(m.newest_selection()));
+            sel_on_keep_oldest       <- input.keep_oldest_selection_only.map(f_!(m.oldest_selection()));
+            sel_on_keep_newest_caret <- input.keep_newest_caret_only.map(f_!(m.newest_caret()));
+            sel_on_keep_oldest_caret <- input.keep_oldest_caret_only.map(f_!(m.oldest_caret()));
 
-            selection_on_keep_newest <- input.keep_newest_selection_only.map(f_!(model.newest_selection()));
-            selection_on_keep_oldest <- input.keep_oldest_selection_only.map(f_!(model.oldest_selection()));
-            selection_on_keep_newest_caret <- input.keep_newest_caret_only.map(f_!(model.newest_caret()));
-            selection_on_keep_oldest_caret <- input.keep_oldest_caret_only.map(f_!(model.oldest_caret()));
+            sel_on_set_cursor        <- input.set_cursor.map(f!((t) m.new_cursor(*t).into()));
+            sel_on_add_cursor        <- input.add_cursor.map(f!((t) m.add_cursor(*t)));
+            sel_on_set_newest_end    <- input.set_newest_selection_end.map(f!((t) m.set_newest_selection_end(*t)));
+            sel_on_set_oldest_end    <- input.set_oldest_selection_end.map(f!((t) m.set_oldest_selection_end(*t)));
 
-            selection_on_set_cursor <- input.set_cursor.map(f!([model](t) model.new_cursor(*t).into()));
-            selection_on_add_cursor <- input.add_cursor.map(f!([model](t) model.add_cursor(*t)));
-            selection_on_set_newest_end <- input.set_newest_selection_end.map(f!([model](t) model.set_newest_selection_end(*t)));
-            selection_on_set_oldest_end <- input.set_oldest_selection_end.map(f!([model](t) model.set_oldest_selection_end(*t)));
+            sel_on_remove_all <- input.remove_all_cursors.map(|_| default());
+            sel_on_undo       <= input.undo.map(f_!(m.undo()));
 
-            selection_on_remove_all <- input.remove_all_cursors.map(|_| default());
+            output.source.edit_selection     <+ sel_on_undo;
+            output.source.non_edit_selection <+ sel_on_move;
+            output.source.non_edit_selection <+ sel_on_mod;
+            output.source.edit_selection     <+ sel_on_clear;
+            output.source.non_edit_selection <+ sel_on_keep_last;
+            output.source.non_edit_selection <+ sel_on_keep_first;
+            output.source.non_edit_selection <+ sel_on_keep_newest;
+            output.source.non_edit_selection <+ sel_on_keep_oldest;
+            output.source.non_edit_selection <+ sel_on_keep_lst_caret;
+            output.source.non_edit_selection <+ sel_on_keep_fst_caret;
+            output.source.non_edit_selection <+ sel_on_keep_newest_caret;
+            output.source.non_edit_selection <+ sel_on_keep_oldest_caret;
+            output.source.non_edit_selection <+ sel_on_set_cursor;
+            output.source.non_edit_selection <+ sel_on_add_cursor;
+            output.source.non_edit_selection <+ sel_on_set_newest_end;
+            output.source.non_edit_selection <+ sel_on_set_oldest_end;
+            output.source.edit_selection     <+ sel_on_insert;
+            output.source.edit_selection     <+ sel_on_delete_left;
+            output.source.non_edit_selection <+ sel_on_remove_all;
 
-            selection_on_undo <= input.undo.map(f_!(model.undo()));
-//            output.source.changed <+ selection_on_undo.constant(());
-            output.source.edit_selection     <+ selection_on_undo;
-
-            output.source.non_edit_selection <+ selection_on_move;
-            output.source.non_edit_selection <+ selection_on_mod;
-            output.source.edit_selection     <+ selection_on_clear;
-            output.source.non_edit_selection <+ selection_on_keep_last;
-            output.source.non_edit_selection <+ selection_on_keep_first;
-            output.source.non_edit_selection <+ selection_on_keep_newest;
-            output.source.non_edit_selection <+ selection_on_keep_oldest;
-            output.source.non_edit_selection <+ selection_on_keep_last_caret;
-            output.source.non_edit_selection <+ selection_on_keep_first_caret;
-            output.source.non_edit_selection <+ selection_on_keep_newest_caret;
-            output.source.non_edit_selection <+ selection_on_keep_oldest_caret;
-            output.source.non_edit_selection <+ selection_on_keep_last_caret;
-            output.source.non_edit_selection <+ selection_on_keep_first_caret;
-            output.source.non_edit_selection <+ selection_on_set_cursor;
-            output.source.non_edit_selection <+ selection_on_add_cursor;
-            output.source.non_edit_selection <+ selection_on_set_newest_end;
-            output.source.non_edit_selection <+ selection_on_set_oldest_end;
-            output.source.edit_selection     <+ selection_on_insert;
-            output.source.edit_selection     <+ selection_on_delete_left;
-            output.source.non_edit_selection <+ selection_on_remove_all;
-
-
-            eval output.source.edit_selection ((t) model.set_selection(t));
-            eval output.source.non_edit_selection ((t) model.set_selection(t));
-
+            eval output.source.edit_selection     ((t) m.set_selection(t));
+            eval output.source.non_edit_selection ((t) m.set_selection(t));
         }
         let frp = Frp::new(network,output);
         Self {frp,model}
@@ -607,13 +597,7 @@ impl ViewModel {
     }
 
     /// Return all lines of this buffer view.
-    pub fn lines(&self) -> Vec<String> {
-        let range        = self.view_byte_range();
-        let rope_range   = range.start.as_usize() .. range.end.as_usize();
-        let mut lines    = self.buffer.data.text.cell.borrow().lines(rope_range).map(|t|t.into()).collect_vec();
-        let missing_last = lines.len() == self.last_line_index().as_usize();
-        if  missing_last { lines.push("".into()) }
-        lines
+    pub fn view_lines(&self) -> Vec<String> {
+        self.lines_vec(self.view_byte_range())
     }
-
 }

@@ -62,7 +62,10 @@ impl KeyMask {
     pub fn set(&mut self, key:&Key, state:bool) {
         self.bits.set_bit(key.legacy_keycode() as usize,state);
     }
-//    nie ma meta left i meta right, dla meta legacy+keycopde to 0, trzeba wlasne przyciski zrobic
+    // FIXME FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME
+    // The above code is very bad. It uses `legacy_keycode` which works for a small amount of
+    // buttons only. For example, for `meta` key, it returns just `0`. Its accidental that it works
+    // now.
 
     /// Clone the mask and set the `key` bit with the new state.
     pub fn with_set(&self, key:&Key, state:bool) -> Self {

@@ -105,7 +105,7 @@ impl ViewBuffer {
     /// Compute the result of movement on one selection region.
     pub fn moved_selection_region
     (&self, movement:Transform, region:Selection, modify:bool) -> Selection {
-        let text  = &self.data();
+        let text  = &self.text();
         let shape = |start,end| selection::Shape(start,end);
         let shape : selection::Shape = match movement {
             Transform::All => {

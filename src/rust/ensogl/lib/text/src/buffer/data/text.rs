@@ -240,7 +240,6 @@ impl Text {
 // === Into Byte Offset ===
 
 impl Text {
-
     /// Return the offset after the last character of a given line if the line exists.
     pub fn end_byte_offset_from_line_index(&self, line:Line) -> Result<Bytes,BoundsError> {
         self.validate_line_index(line)?;
@@ -555,7 +554,7 @@ impl From<&&Text>   for String { fn from(t:&&Text) -> Self { (*t).into() } }
 #[derive(Debug,Clone,Default,Deref)]
 #[allow(missing_docs)]
 pub struct TextCell {
-    pub cell : RefCell<Text>
+    cell : RefCell<Text>
 }
 
 impl TextCell {
@@ -568,6 +567,15 @@ impl TextCell {
     pub fn set(&self, new_text:impl Into<Text>) {
         let new_text = new_text.into();
         *self.cell.borrow_mut() = new_text;
+    }
+
+    /// Get all lines in the provided range as strings.
+    pub fn lines_vec(&self, range:std::ops::Range<Bytes>) -> Vec<String> {
+        let rope_range   = range.start.as_usize() .. range.end.as_usize();
+        let mut lines    = self.cell.borrow().lines(rope_range).map(|t|t.into()).collect_vec();
+        let missing_last = lines.len() == self.last_line_index().as_usize();
+        if  missing_last { lines.push("".into()) }
+        lines
     }
 }
 
@@ -613,10 +621,6 @@ impl TextCell {
     pub fn prev_grapheme_offset(&self, offset:Bytes) -> Option<Bytes> {
         self.cell.borrow().prev_grapheme_offset(offset)
     }
-
-//    pub fn lines<T:rope::IntervalBounds>(&self, range:T) -> rope::Lines {
-//        self.cell.borrow().lines(range)
-//    }
 
     pub fn replace(&self, range:impl RangeBounds, text:impl Into<Text>) {
         self.cell.borrow_mut().replace(range,text)
