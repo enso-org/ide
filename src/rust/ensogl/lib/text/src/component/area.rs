@@ -114,7 +114,7 @@ pub mod background {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32) {
-            let out = Rect((1000.px(),1000.px())).corners_radius(8.px()).fill(color::Rgba::new(1.0,1.0,1.0,0.05));
+            let out = Rect((1000.px(),1000.px())).fill(color::Rgba::new(1.0,1.0,1.0,0.05));
             out.into()
         }
     }
@@ -132,6 +132,7 @@ const CURSOR_WIDTH             : f32 = 2.0;
 const CURSOR_ALPHA             : f32 = 0.8;
 const CURSORS_SPACING          : f32 = 1.0;
 const SELECTION_ALPHA          : f32 = 0.3;
+const SELECTION_CORNER_RADIUS  : f32 = 2.0;
 const BLINK_SLOPE_IN_DURATION  : f32 = 200.0;
 const BLINK_SLOPE_OUT_DURATION : f32 = 200.0;
 const BLINK_ON_DURATION        : f32 = 300.0;
@@ -166,28 +167,23 @@ pub mod cursor {
     use super::*;
     ensogl::define_shape_system! {
         (style:Style, selection:f32, start_time:f32, letter_width:f32) {
-            // FIXME: use these:
-            // let width     : Var<f32> = "input_size.x".into();
-            // let height    : Var<Pixels> = "input_size.y".into();
-            let width_abs : Var<f32> = "abs(input_size.x)".into();
-            let rect_width = width_abs - 2.0 * CURSOR_PADDING;
-            let time   : Var<f32>    = "input_time".into();
-            let one    : Var<f32>    = 1.0.into();
-            let time                 = time - start_time;
-            let on_time              = BLINK_ON_DURATION + BLINK_SLOPE_OUT_DURATION;
-            let off_time             = on_time + BLINK_OFF_DURATION;
-            let sampler              = time % BLINK_PERIOD;
-            let slope_out            = sampler.smoothstep(BLINK_ON_DURATION,on_time);
-            let slope_in             = sampler.smoothstep(off_time,BLINK_PERIOD);
-            let blinking_alpha       = (one - slope_out + slope_in) * CURSOR_ALPHA;
-
-            let sel_width            = &rect_width - CURSOR_WIDTH;
-            let alpha_weight         = sel_width.smoothstep(0.0,letter_width);
-            let alpha                = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
-            let shape                = Rect((1.px() * rect_width,LINE_HEIGHT.px())).corners_radius(2.px());
-            let shape                = shape.fill(format!("srgba(1.0,1.0,1.0,{})",alpha.glsl()));
-//            let bg                   = Rect((1000.px(),1000.px())).fill(format!("srgba(1.0,0.0,0.0,1.0)"));
-//            let shape = bg + shape;
+            let width_abs      = Var::<f32>::from("abs(input_size.x)");
+            let rect_width     = width_abs - 2.0 * CURSOR_PADDING;
+            let time           = Var::<f32>::from("input_time");
+            let one            = Var::<f32>::from(1.0);
+            let time           = time - start_time;
+            let on_time        = BLINK_ON_DURATION + BLINK_SLOPE_OUT_DURATION;
+            let off_time       = on_time + BLINK_OFF_DURATION;
+            let sampler        = time % BLINK_PERIOD;
+            let slope_out      = sampler.smoothstep(BLINK_ON_DURATION,on_time);
+            let slope_in       = sampler.smoothstep(off_time,BLINK_PERIOD);
+            let blinking_alpha = (one - slope_out + slope_in) * CURSOR_ALPHA;
+            let sel_width      = &rect_width - CURSOR_WIDTH;
+            let alpha_weight   = sel_width.smoothstep(0.0,letter_width);
+            let alpha          = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
+            let shape          = Rect((1.px() * rect_width,LINE_HEIGHT.px()));
+            let shape          = shape.corners_radius(SELECTION_CORNER_RADIUS.px());
+            let shape          = shape.fill(format!("srgba(1.0,1.0,1.0,{})",alpha.glsl()));
             shape.into()
         }
     }
