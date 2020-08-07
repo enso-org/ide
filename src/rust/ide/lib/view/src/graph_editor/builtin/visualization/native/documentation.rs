@@ -28,7 +28,8 @@ const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADI
 /// Gets documentation view stylesheet from a CSS file.
 ///
 /// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-///      The imported stylesheet is undergoing drastic changes
+///      This file is generated currently from SASS file and will be moved to rust-based
+///      generator to achieve compatibility with IDE's theme manager.
 ///      Expect them to land with https://github.com/enso-org/ide/issues/709
 pub fn doc_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
