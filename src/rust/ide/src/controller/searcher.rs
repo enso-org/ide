@@ -1,4 +1,5 @@
 //! This module contains all structures related to Searcher Controller.
+pub mod list;
 
 use crate::prelude::*;
 
@@ -17,20 +18,22 @@ use parser::Parser;
 
 
 
-// =======================
-// === Suggestion List ===
-// =======================
+// =====================
+// === Notifications ===
+// =====================
 
-/// Suggestion for input completion: possible functions, arguments, etc.
-pub type CompletionSuggestion = Rc<model::suggestion_database::Entry>;
-
-/// A single suggestion on the Searcher suggestion list.
-#[derive(Clone,CloneRef,Debug,Eq,PartialEq)]
-pub enum Suggestion {
-    /// Suggestion for input completion: possible functions, arguments, etc.
-    Completion(CompletionSuggestion)
-    // In future, other suggestion types will be added (like suggestions of actions, etc.).
+/// The notification emitted by Searcher Controller
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+pub enum Notification {
+    /// A new Suggestion list is available.
+    NewSuggestionList
 }
+
+
+
+// ===================
+// === Suggestions ===
+// ===================
 
 /// List of suggestions available in Searcher.
 #[derive(Clone,CloneRef,Debug)]
@@ -72,18 +75,6 @@ impl Default for Suggestions {
     }
 }
 
-
-
-// =====================
-// === Notifications ===
-// =====================
-
-/// The notification emitted by Searcher Controller
-#[derive(Copy,Clone,Debug,Eq,PartialEq)]
-pub enum Notification {
-    /// A new Suggestion list is available.
-    NewSuggestionList
-}
 
 
 // ===================
