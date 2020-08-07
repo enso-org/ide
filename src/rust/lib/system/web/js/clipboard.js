@@ -85,7 +85,7 @@ export function readText(callback) {
         navigator.clipboard.readText().then(function(text) {
             callback(text)
         }, function(err) {
-            callback(text)
+            callback(lastPaste)
         })
     }
 }
