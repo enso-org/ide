@@ -61,6 +61,13 @@ impl Text {
         self.rope.is_empty()
     }
 
+    /// Return text narrowed to the given range.
+    pub fn sub(&self, range:impl RangeBounds) -> Text {
+        let range = self.snap_byte_range(range);
+        let rope  = self.rope.subseq(range.into_rope_interval());
+        Text {rope}
+    }
+
     /// The number of grapheme clusters in this text.
     pub fn grapheme_count(&self) -> usize {
         let mut offset = 0;
@@ -590,6 +597,10 @@ impl TextCell {
 
     pub fn is_empty(&self) -> bool {
         self.cell.borrow().is_empty()
+    }
+
+    pub fn sub(&self, range:impl RangeBounds) -> Text {
+        self.cell.borrow().sub(range)
     }
 
     pub fn grapheme_count(&self) -> usize {

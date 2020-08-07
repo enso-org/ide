@@ -372,6 +372,7 @@ define_frp! {
         set_newest_selection_end   : Location,
         set_oldest_selection_end   : Location,
         insert                     : String,
+        paste                      : Vec<String>,
         remove_all_cursors         : (),
         delete_left                : (),
         delete_word_left           : (),
@@ -429,6 +430,8 @@ impl View {
         let m       = &model;
 
         frp::extend! { network
+            trace input.paste;
+
             sel_on_insert         <- input.insert.map(f!((s) m.insert(s)));
             output.source.text_changed <+ sel_on_insert.constant(());
 
@@ -533,6 +536,15 @@ impl ViewModel {
     /// Return all active selections.
     pub fn selections(&self) -> selection::Group {
         self.selection.borrow().clone()
+    }
+
+    /// Return all selections as vector of strings. For carets, the string will be empty.
+    pub fn selections_contents(&self) -> Vec<String> {
+        let mut result = Vec::<String>::new();
+        for selection in self.byte_selections() {
+            result.push(self.buffer.text.sub(selection.range()).into())
+        }
+        result
     }
 
     // FIXME: rename

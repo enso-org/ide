@@ -26,7 +26,18 @@ use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use ensogl::gui;
+use ensogl::system::web::clipboard;
 use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
+
+
+
+// =================
+// === Constants ===
+// =================
+
+/// Record separator ASCII code. Used for separating of copied strings. It is defined as the `\RS`
+/// escape code (`x1E`) (https://en.wikipedia.org/wiki/ASCII).
+pub const RECORD_SEPARATOR : &str = "\x1E";
 
 
 
@@ -473,6 +484,10 @@ ensogl::def_command_api! { Commands
     undo,
     /// Redo the last operation.
     redo,
+    /// Copy selected text to clipboard,
+    copy,
+    /// Paste selected text from clipboard,
+    paste,
 }
 
 impl application::command::CommandApi for Area {
@@ -487,7 +502,9 @@ impl application::command::CommandApi for Area {
 
 define_frp! {
     Commands { Commands }
-    Input {}
+    Input {
+        paste_string : String,
+    }
     Output {
         mouse_cursor_style : gui::cursor::Style,
     }
@@ -584,6 +601,11 @@ impl Area {
                 let location = model.get_in_text_location(*screen_pos);
                 model.frp.set_newest_selection_end.emit(location);
             });
+
+            eval input.paste_string ((s) model.frp.paste.emit(model.decode_paste(s)));
+
+            eval_ cmd.copy (model.copy());
+            eval_ cmd.paste (model.paste());
 
             eval_ model.frp.output.text_changed (model.redraw());
 
@@ -858,6 +880,27 @@ impl AreaData {
         self.add_child(&line);
         line
     }
+
+    fn copy(&self) {
+        let selections = self.buffer.selections_contents();
+        let encoded    = match selections.as_slice() {
+            []  => "".to_string(),
+            [s] => s.clone(),
+            lst => lst.join(RECORD_SEPARATOR),
+        };
+        clipboard::write_text(encoded);
+    }
+
+    fn paste(&self) {
+        let paste_string = self.frp_inputs.paste_string.clone_ref();
+        clipboard::read_text(move |t|{
+            paste_string.emit(t);
+        });
+    }
+
+    fn decode_paste(&self, encoded:&str) -> Vec<String> {
+        encoded.split(RECORD_SEPARATOR).map(|s|s.into()).collect()
+    }
 }
 
 impl display::Object for AreaData {
@@ -925,11 +968,14 @@ impl application::shortcut::DefaultShortcutProvider for Area {
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "add_cursor_at_mouse_position"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "start_newest_selection_end_follow_mouse"),
                Self::self_shortcut(shortcut::Action::release (&[Key::Meta],&[mouse::PrimaryButton])                             , "stop_newest_selection_end_follow_mouse"),
-               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("a".into())],&[])                      , "select_all"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Character("a".into())],&[])                      , "select_all"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Character("c".into())],&[])                      , "copy"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Character("v".into())],&[])                      , "paste"),
 //               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("z".into())],&[])                      , "undo"),
 //               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("y".into())],&[])                      , "redo"),
 //               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Shift,Key::Character("z".into())],&[])           , "redo"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
+//                Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "copy"),
         ]
     }
 }
