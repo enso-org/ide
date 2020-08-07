@@ -21,7 +21,7 @@ use ast::prelude::FallibleResult;
 pub const DOC_VIEW_WIDTH  : f32 = 300.0;
 pub const DOC_VIEW_MARGIN : f32 = 15.0;
 
-/// Content in the documentation view when the data is yet to be received.
+/// Content in the documentation view when there is no data available.
 const PLACEHOLDER_STR : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
 const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 
