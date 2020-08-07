@@ -37,8 +37,8 @@ use std::f32::consts::PI;
 const ICON_MARGIN          : f32 = HORIZONTAL_MARGIN;
 const ICON_RADIUS          : f32 = 8.0;
 const ICON_SIZE            : f32 = ICON_RADIUS * 2.0;
-const ICON_RING_WIDTH      : f32 = 2.0;
-const ICON_ARROW_SIZE      : f32 = 5.0;
+const ICON_RING_WIDTH      : f32 = (ICON_RADIUS/4.0) as i32 as f32;
+const ICON_ARROW_SIZE      : f32 = (ICON_RADIUS/1.5) as i32 as f32;
 const SEPARATOR_SIZE       : f32 = 8.0;
 const SEPARATOR_LINE_WIDTH : f32 = 3.0;
 const PADDING              : f32 = 1.0;
@@ -301,7 +301,7 @@ impl BreadcrumbModel {
         self.label.set_font_size(TEXT_SIZE);
         self.label.set_font_color(color);
         self.label.set_text(&self.info.method_pointer.name);
-        self.label.set_position(Vector3(ICON_SIZE/2.0 + ICON_MARGIN,-ICON_SIZE/4.0,0.0));
+        self.label.set_position(Vector3(ICON_RADIUS + ICON_MARGIN,-TEXT_SIZE/3.0,0.0));
 
         let width  = self.width();
         let height = self.height();

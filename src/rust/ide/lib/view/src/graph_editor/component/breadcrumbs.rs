@@ -15,12 +15,12 @@ use enso_frp as frp;
 use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::types::Path;
 use ensogl::display;
+use ensogl::display::camera::Camera2d;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::text::text_field::FocusManager;
 use logger::AnyLogger;
 use logger::enabled::Logger;
-
 
 
 // =================
@@ -196,7 +196,8 @@ pub struct BreadcrumbsModel {
     breadcrumbs           : Rc<RefCell<Vec<Breadcrumb>>>,
     frp_inputs            : FrpInputs,
     frp_debug             : DebugFrpInputs,
-    current_index         : Rc<Cell<usize>>
+    current_index         : Rc<Cell<usize>>,
+    camera                : Camera2d,
 }
 
 impl BreadcrumbsModel {
@@ -212,8 +213,9 @@ impl BreadcrumbsModel {
         let frp_inputs            = frp.inputs.clone_ref();
         let frp_debug             = frp.debug.clone_ref();
         let current_index         = default();
+        let camera                = scene.camera().clone_ref();
         Self{logger,display_object,scene,breadcrumbs,project_name,breadcrumbs_container,
-            frp_inputs,current_index,frp_debug}.init()
+            frp_inputs,current_index,frp_debug,camera}.init()
     }
 
     fn init(self) -> Self {
@@ -222,6 +224,20 @@ impl BreadcrumbsModel {
         self.project_name.set_position(Vector3(HORIZONTAL_MARGIN,0.0,0.0));
         self.relayout_for_project_name_width(self.project_name.width());
         self
+    }
+
+    fn camera_changed(&self) {
+        let camera                   = &self.camera;
+        let screen                   = camera.screen();
+        let fovy_slope               = camera.half_fovy_slope();
+        let distance                 = camera.position().z;
+        let distance_to_show_full_ui = screen.height / 2.0 / fovy_slope;
+        let scale                    = distance / distance_to_show_full_ui;
+        let camera_position          = camera.position();
+        let x_position               = camera_position.x-screen.width/2.0*scale;
+        let y_position               = camera_position.y+screen.height/2.0*scale;
+        self.set_position(Vector3(x_position,y_position,0.0));
+        self.set_scale(Vector3::new(scale,scale,scale));
     }
 
     fn width(&self) -> f32 {
@@ -477,9 +493,7 @@ impl Breadcrumbs {
 
             // === Relayout ===
 
-            eval scene.frp.shape((shape)
-                model.set_position(Vector3(-shape.width,shape.height,0.0)/2.0)
-            );
+            eval_ scene.frp.camera_changed(model.camera_changed());
         }
 
         Self{frp,model}
