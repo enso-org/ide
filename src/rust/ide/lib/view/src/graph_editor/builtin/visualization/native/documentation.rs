@@ -74,7 +74,6 @@ impl ViewModel {
         dom.dom().set_style_or_warn("height"          ,format!("{}px", doc_view_height),&logger);
 
         scene.dom.layers.main.manage(&dom);
-        scene.dom.layers.main.update_view_projection(&scene.views.viz_fullscreen.camera);
 
         ViewModel {dom,logger,size}.init()
     }
