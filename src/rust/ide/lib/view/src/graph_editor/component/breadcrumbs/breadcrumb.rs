@@ -144,11 +144,14 @@ impl Animations {
 // === FrpInputs ===
 // =================
 
+/// Breadcrumb frp network inputs.
 #[derive(Debug,Clone,CloneRef)]
-#[allow(missing_docs)]
 pub struct FrpInputs {
+    /// Select the breadcrumb, triggering the selection animation.
     pub select   : frp::Source,
+    /// Select the breadcrumb, triggering the deselection animation.
     pub deselect : frp::Source,
+    /// Triggers the fade in animation, which only makes sense during the breadcrumb creation.
     pub fade_in  : frp::Source
 }
 
@@ -170,10 +173,12 @@ impl FrpInputs {
 // === FrpOutputs ===
 // ==================
 
+/// Breadcrumb frp network outputs.
 #[derive(Debug,Clone,CloneRef)]
-#[allow(missing_docs)]
 pub struct FrpOutputs {
+    /// Signalizes that the breadcrumb was selected.
     pub selected : frp::Source,
+    /// Signalizes that the breadcrumb's size changed.
     pub size     : frp::Source<Vector2<f32>>
 }
 
@@ -194,6 +199,7 @@ impl FrpOutputs {
 // === Frp ===
 // ===========
 
+/// A breadcrumb frp structure with its endpoints and network representation.
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct Frp {
@@ -245,8 +251,8 @@ pub struct BreadcrumbInfo {
 // === BreadcrumbModel ===
 // ========================
 
+/// Breadcrumbs model.
 #[derive(Debug,Clone,CloneRef)]
-#[allow(missing_docs)]
 pub struct BreadcrumbModel {
     logger         : Logger,
     display_object : display::object::Instance,
@@ -257,6 +263,7 @@ pub struct BreadcrumbModel {
     label          : Line,
     animations     : Animations,
     is_selected    : Rc<Cell<bool>>,
+    /// Breadcrumb information such as name and expression id.
     pub info       : Rc<BreadcrumbInfo>
 }
 
@@ -370,6 +377,7 @@ impl display::Object for BreadcrumbModel {
 // === Breadcrumb ===
 // ==================
 
+/// The breadcrumb's view which displays its name and exposes mouse press interactions.
 #[derive(Debug,Clone,CloneRef,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct Breadcrumb {
