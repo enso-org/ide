@@ -14,6 +14,7 @@ use ensogl::system::web::StyleSetter;
 use ast::prelude::FallibleResult;
 
 
+
 // =================
 // === Constants ===
 // =================
@@ -25,17 +26,21 @@ pub const DOC_VIEW_MARGIN : f32 = 15.0;
 const PLACEHOLDER_STR : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
 const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 
-/// Gets documentation view stylesheet from a CSS file.
+/// Get documentation view stylesheet from a CSS file.
 ///
-/// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-///      This file is generated currently from SASS file and will be moved to rust-based
-///      generator to achieve compatibility with IDE's theme manager.
-///      Expect them to land with https://github.com/enso-org/ide/issues/709
+/// TODO [MM] : This file is generated currently from SASS file, and generated code should never
+///             be included in a codebase, so it will be moved to rust-based generator to achieve
+///             compatibility with IDE's theme manager.
+///             Expect them to land with https://github.com/enso-org/ide/issues/709
 pub fn doc_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
 
 
+
+// =================
+// === ViewModel ===
+// =================
 
 /// Model of Native visualization that generates documentation for given Enso code and embeds
 /// it in a HTML container.
@@ -47,7 +52,6 @@ pub struct ViewModel {
     size   : Rc<Cell<Vector2>>,
 }
 
-#[allow(dead_code)]
 impl ViewModel {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
@@ -78,27 +82,20 @@ impl ViewModel {
         self
     }
 
-    /// Sets size of the documentation view.
+    /// Set size of the documentation view.
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
         self.reload_style();
     }
 
-    /// Generates HTML documentation from documented Enso code.
+    /// Generate HTML documentation from documented Enso code.
     fn gen_html_from(program:String) -> FallibleResult<String> {
         let parser = parser::DocParser::new()?;
         let output = parser.generate_html_docs(program);
         Ok(output?)
     }
 
-    /// Generates HTML documentation from pure Enso documentation.
-    fn gen_html_from_pure(doc:String) -> FallibleResult<String> {
-        let parser = parser::DocParser::new()?;
-        let output = parser.generate_html_doc_pure(doc);
-        Ok(output?)
-    }
-
-    /// Prepares data string for Doc Parser to work with after getting deserialization.
+    /// Prepare data string for Doc Parser to work with after getting deserialization.
     /// FIXME : Removes characters that are not supported by Doc Parser yet.
     ///         https://github.com/enso-org/enso/issues/1063
     fn prepare_data_string(data_inner:&visualization::Json) -> String {
@@ -108,13 +105,13 @@ impl ViewModel {
         data_str.replace("\"", "")
     }
 
-    /// Creates a container for generated content and embeds it with stylesheet.
+    /// Create a container for generated content and embed it with stylesheet.
     fn push_to_dom(&self, content:String) {
         let data_str = format!(r#"<div class="docVis">{}{}</div>"#, doc_style(), content);
         self.dom.dom().set_inner_html(&data_str)
     }
 
-    /// Receives data, processes and presents it in the documentation view.
+    /// Receive data, process and present it in the documentation view.
     fn receive_data(&self, data:&visualization::Data) -> Result<(),visualization::DataError> {
         let data_inner = match data {
             visualization::Data::Json {content} => content,
@@ -134,7 +131,7 @@ impl ViewModel {
         Ok(())
     }
 
-    /// Loads an HTML file into the documentation view when there is no docstring available yet.
+    /// Load an HTML file into the documentation view when user is waiting for data to be received.
     /// TODO : This will be replaced with a spinner in next PR.
     fn load_no_doc_screen(&self) {
         self.push_to_dom(String::from("<p>Please wait...</p>"))

@@ -31,7 +31,6 @@ fn generate_mock_doc() -> String {
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-#[allow(clippy::many_single_char_names)]
 pub fn run_example_documentation_generator_view() {
     let output_unwrapped = generate_mock_doc();
     let css = doc_style();
@@ -61,10 +60,7 @@ pub fn run_example_documentation_generator_view() {
     let object     = DomSymbol::new(&div);
     dom_front_layer.manage(&object);
     world.add_child(&object);
-    let r          = (255.0) as u8;
-    let g          = (255.0) as u8;
-    let b          = (255.0) as u8;
-    let color      = iformat!("rgb({r},{g},{b})");
+    let color = "rgb(255.0,255.0,255.0)";
     div.set_style_or_panic("background-color",color);
 
     object.dom().append_or_panic(&div);
