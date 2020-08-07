@@ -25,9 +25,10 @@ use enso_frp as frp;
 // === Frp Macros ===
 // ==================
 
-// FIXME: these are generic FRP utilities. To be refactored out after the API settles down.
-// FIXME: They are already copy-pasted in the EnsoGL code. To be unified and refactored as part of
-// FIXME: the cleaning PR.
+// FIXME[WD] these are generic FRP utilities. To be refactored out after the API settles down.
+// FIXME[WD] They are already copy-pasted in the EnsoGL code. To be unified and refactored as part of
+// FIXME[WD] the cleaning PR.
+// FIXME[WD] Issue: https://github.com/enso-org/ide/issues/670
 macro_rules! define_frp {
     (
         Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
@@ -245,7 +246,8 @@ impl ViewBuffer {
         self.oldest_selection().snap_selections_to_start()
     }
 
-    // FIXME: debug utility. To be removed in the future.
+    // FIXME[WD] debug utility. To be removed in the future.
+    // FIXME[WD] should be part of https://github.com/enso-org/ide/issues/670
     /// Add a new cursor for the given byte offset.
     #[allow(non_snake_case)]
     pub fn add_cursor_DEBUG(&self, location:Location) {
@@ -279,12 +281,17 @@ impl ViewBuffer {
         group
     }
 
-    // FIXME: this should be made private in the future PRs.
+    // FIXME[WD] this should be made private in the future PRs.
+    // FIXME[WD] Should be part of https://github.com/enso-org/ide/issues/670
     /// Insert new text in the place of current selections / cursors.
     pub fn insert(&self, text:impl Into<Text>) -> selection::Group {
         self.modify(Transform::LeftSelectionBorder,text)
     }
 
+    // TODO
+    // Delete left should first delete the vowel (if any) and do not move cursor. After pressing
+    // backspace second time, the consonant should be removed. Please read this topic to learn
+    // more: https://phabricator.wikimedia.org/T53472
     fn delete_left(&self) -> selection::Group {
         self.modify(Transform::Left,"")
     }
@@ -382,9 +389,10 @@ define_frp! {
     }
 
     Output {
+        // FIXME: add docs
         edit_selection     : selection::Group,
         non_edit_selection : selection::Group,
-        changed            : (),
+        text_changed       : (),
     }
 }
 
@@ -422,10 +430,10 @@ impl View {
 
         frp::extend! { network
             sel_on_insert         <- input.insert.map(f!((s) m.insert(s)));
-            output.source.changed <+ sel_on_insert.constant(());
+            output.source.text_changed <+ sel_on_insert.constant(());
 
             sel_on_delete_left    <- input.delete_left.map(f_!(m.delete_left()));
-            output.source.changed <+ sel_on_delete_left.constant(());
+            output.source.text_changed <+ sel_on_delete_left.constant(());
 
             sel_on_move           <- input.cursors_move.map(f!((t) m.moved_selection2(*t,false)));
             sel_on_mod            <- input.cursors_select.map(f!((t) m.moved_selection2(*t,true)));

@@ -79,10 +79,10 @@ impl ViewBuffer {
     ///
     /// If `modify` is `true`, the selections are modified, otherwise the results of individual region
     /// movements become carets. Modify is often mapped to the `shift` button in text editors.
-    pub fn moved_selection(&self, movement: Transform, modify: bool) -> selection::Group {
+    pub fn moved_selection(&self, transform:Transform, modify: bool) -> selection::Group {
         let mut result = selection::Group::new();
         for &selection in self.selection.borrow().iter() {
-            let new_selection = self.moved_selection_region(movement, selection, modify);
+            let new_selection = self.moved_selection_region(transform,selection,modify);
             result.merge(new_selection);
         }
         result
@@ -104,10 +104,10 @@ impl ViewBuffer {
 
     /// Compute the result of movement on one selection region.
     pub fn moved_selection_region
-    (&self, movement:Transform, region:Selection, modify:bool) -> Selection {
+    (&self, transform:Transform, region:Selection, modify:bool) -> Selection {
         let text  = &self.text();
         let shape = |start,end| selection::Shape(start,end);
-        let shape : selection::Shape = match movement {
+        let shape : selection::Shape = match transform {
             Transform::All => {
                 shape(default(),self.offset_to_location(text.byte_size()))
             }

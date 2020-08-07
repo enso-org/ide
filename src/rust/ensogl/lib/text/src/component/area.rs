@@ -585,7 +585,7 @@ impl Area {
                 model.frp.set_newest_selection_end.emit(location);
             });
 
-            eval_ model.frp.output.changed (model.redraw());
+            eval_ model.frp.output.text_changed (model.redraw());
 
             eval_ cmd.remove_all_cursors (model.frp.remove_all_cursors.emit(()));
 
@@ -686,6 +686,7 @@ impl AreaData {
         display_object.add_child(&background);
 
         // FIXME: Hardcoded position. To be refactored in the future PRs.
+        // FIXME: Should be resolved as part of https://github.com/enso-org/ide/issues/462
         background.shape.sprite.size.set(Vector2(150.0,100.0));
         background.mod_position(|p| p.x += 50.0);
 
@@ -753,6 +754,7 @@ impl AreaData {
         self.redraw()
     }
 
+    /// Transforms screen position to the object (display object) coordinate system.
     fn to_object_space(&self, screen_pos:Vector2) -> Vector2 {
         let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
         let origin_clip_space  = self.scene.camera().view_projection_matrix() * origin_world_space;
@@ -890,6 +892,8 @@ impl application::View for Area {
 
 // FIXME[WD]: Some of the shortcuts are commented out and some are assigned to strange key bindings
 //            because the shortcut manager is broken. To be fixed after fixing the shortcut manager.
+//            Moreover, the lines should fit 100 chars after introducing the new cmd engine.
+//            Should be resolved as part of https://github.com/enso-org/ide/issues/713
 impl application::shortcut::DefaultShortcutProvider for Area {
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use enso_frp::io::mouse;

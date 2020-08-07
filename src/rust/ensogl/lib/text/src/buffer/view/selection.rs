@@ -7,12 +7,12 @@ use crate::buffer::data::Range;
 
 
 
-// ============
-// === Data ===
-// ============
+// ================
+// === Boundary ===
+// ================
 
-/// Selection data type. In most cases it's either `Location` or `Bytes`.
-pub trait Data = Copy + Ord + Eq;
+/// Selection boundary data type. In most cases it's either `Location` or `Bytes`.
+pub trait Boundary = Copy + Ord + Eq;
 
 
 
@@ -21,8 +21,7 @@ pub trait Data = Copy + Ord + Eq;
 // =============
 
 /// Text selection shape. In case the `start` and `end` offsets are equal, the selection is
-/// interpreted as a caret. The `column` field is a saved horizontal position used primarily for
-/// line up/down movement. Please note that the start of the selection is not always smaller then
+/// interpreted as a caret. Please note that the start of the selection is not always smaller then
 /// its end. If the selection was dragged from right to left, the start byte offset will be bigger
 /// than the end. Use the `min` and `max` methods to discover the edges.
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Default)]
@@ -34,11 +33,11 @@ pub struct Shape<T=Location> {
 
 /// Constructor.
 #[allow(non_snake_case)]
-pub fn Shape<T:Data>(start:T, end:T) -> Shape<T> {
+pub fn Shape<T:Boundary>(start:T, end:T) -> Shape<T> {
     Shape::new(start,end)
 }
 
-impl<T:Data> Shape<T> {
+impl<T:Boundary> Shape<T> {
     /// Constructor.
     pub fn new(start:T, end:T) -> Self {
         Self {start,end}
@@ -140,11 +139,11 @@ impl<T> DerefMut for Selection<T> {
 
 /// Constructor.
 #[allow(non_snake_case)]
-pub fn Selection<T:Data>(start:T, end:T, id:usize) -> Selection<T> {
+pub fn Selection<T:Boundary>(start:T, end:T, id:usize) -> Selection<T> {
     Selection::new(start,end,id)
 }
 
-impl<T:Data> Selection<T> {
+impl<T:Boundary> Selection<T> {
     /// Constructor.
     pub fn new(start:T, end:T, id:usize) -> Self {
         let shape = Shape::new(start,end);

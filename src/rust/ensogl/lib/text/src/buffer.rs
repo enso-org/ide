@@ -90,7 +90,7 @@ impl BufferData {
     }
 
     /// Text setter.
-    pub fn set_text(&self, text:impl Into<Text>) {
+    pub(crate) fn set_text(&self, text:impl Into<Text>) {
         self.text.set(text);
     }
 
@@ -100,7 +100,7 @@ impl BufferData {
     }
 
     /// Style setter.
-    pub fn set_style(&self, style:Style) {
+    pub(crate) fn set_style(&self, style:Style) {
         self.style.set(style)
     }
 

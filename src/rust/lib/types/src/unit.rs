@@ -15,7 +15,7 @@
 //!
 //! ## Macro Naming Pattern
 //! Many macros defined in this module use a specific naming, for example
-//! `impl_Unit_x_FIELD_to_Unit`. You should interpret it as a macro defining a transformation
+//! `impl_UNIT_x_FIELD_to_UNIT`. You should interpret it as a macro defining a transformation
 //! similar to `fn<Unit,Field>(unit:Unit, field:Field) -> Unit`, where `Field` is a specific field
 //! of the `Unit` (in most cases units have single field).
 
@@ -64,14 +64,14 @@ macro_rules! unsigned_unit {
             use std::ops::AddAssign;
 
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Sub::sub for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Add::add for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {SaturatingAdd::saturating_add for $name}
-            $crate::impl_Unit_x_FIELD_to_Unit! {Mul::mul for $name :: $field_type}
-            $crate::impl_Unit_x_FIELD_to_Unit! {Div::div for $name :: $field_type}
-            $crate::impl_FIELD_x_Unit_to_Unit! {Mul::mul for $name :: $field_type}
-            $crate::impl_Unit_x_Unit_to_FIELD! {Div::div for $name :: $field_type}
-            $crate::impl_Unit_x_Unit!          {AddAssign::add_assign for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div::div for $name :: $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div::div for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
 
             pub trait Into {
                 type Output;
@@ -104,10 +104,10 @@ macro_rules! unsigned_unit_proxy {
             use std::ops::AddAssign;
 
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Sub::sub for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Add::add for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {SaturatingAdd::saturating_add for $name}
-            $crate::impl_Unit_x_Unit!          {AddAssign::add_assign for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
 
             pub trait Into {
                 type Output;
@@ -140,14 +140,14 @@ macro_rules! unsigned_unit_float_like {
             use std::ops::AddAssign;
 
             $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Sub::sub for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Add::add for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {SaturatingAdd::saturating_add for $name}
-            $crate::impl_Unit_x_FIELD_to_Unit! {Mul::mul for $name :: $field_type}
-            $crate::impl_Unit_x_FIELD_to_Unit! {Div::div for $name :: $field_type}
-            $crate::impl_FIELD_x_Unit_to_Unit! {Mul::mul for $name :: $field_type}
-            $crate::impl_Unit_x_Unit_to_FIELD! {Div::div for $name :: $field_type}
-            $crate::impl_Unit_x_Unit!          {AddAssign::add_assign for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div::div for $name :: $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div::div for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
 
             pub trait Into {
                 type Output;
@@ -180,15 +180,15 @@ macro_rules! signed_unit {
             use std::ops::AddAssign;
 
             $crate::newtype_struct! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Sub::sub for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Add::add for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {SaturatingAdd::saturating_add for $name}
-            $crate::impl_Unit_x_FIELD_to_Unit! {Mul::mul for $name :: $field_type}
-            $crate::impl_Unit_x_FIELD_to_Unit! {Div::div for $name :: $field_type}
-            $crate::impl_FIELD_x_Unit_to_Unit! {Mul::mul for $name :: $field_type}
-            $crate::impl_Unit_x_Unit_to_FIELD! {Div::div for $name :: $field_type}
-            $crate::impl_Unit_x_Unit!          {AddAssign::add_assign for $name}
-            $crate::impl_Unit_to_Unit!         {Neg::neg for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {SaturatingAdd::saturating_add for $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div::div for $name :: $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div::div for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
+            $crate::impl_UNIT_to_UNIT!         {Neg::neg for $name}
 
             pub trait Into {
                 type Output;
@@ -228,14 +228,14 @@ macro_rules! signed_unit_float_like {
             use std::ops::AddAssign;
 
             $crate::newtype_struct_float_like! {$(#$meta)* $name {value : $field_type}}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Sub::sub for $name}
-            $crate::impl_Unit_x_Unit_to_Unit!  {Add::add for $name}
-            $crate::impl_Unit_x_FIELD_to_Unit! {Mul::mul for $name :: $field_type}
-            $crate::impl_Unit_x_FIELD_to_Unit! {Div::div for $name :: $field_type}
-            $crate::impl_FIELD_x_Unit_to_Unit! {Mul::mul for $name :: $field_type}
-            $crate::impl_Unit_x_Unit_to_FIELD! {Div::div for $name :: $field_type}
-            $crate::impl_Unit_x_Unit!          {AddAssign::add_assign for $name}
-            $crate::impl_Unit_to_Unit!         {Neg::neg for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Sub::sub for $name}
+            $crate::impl_UNIT_x_UNIT_to_UNIT!  {Add::add for $name}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_FIELD_to_UNIT! {Div::div for $name :: $field_type}
+            $crate::impl_FIELD_x_UNIT_to_UNIT! {Mul::mul for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT_to_FIELD! {Div::div for $name :: $field_type}
+            $crate::impl_UNIT_x_UNIT!          {AddAssign::add_assign for $name}
+            $crate::impl_UNIT_to_UNIT!         {Neg::neg for $name}
 
             /// Unit conversion and associated method. It has associated type in order to allow
             /// complex conversions, like `(10,10).px()` be converted the same way as
@@ -383,7 +383,7 @@ macro_rules! newtype_struct_impls {
 
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
-macro_rules! impl_Unit_x_Unit_to_Unit {
+macro_rules! impl_UNIT_x_UNIT_to_UNIT {
     ($trait:ident :: $opr:ident for $name:ident) => {
         $crate::impl_T_x_T_to_T! {$trait :: $opr for  $name {value}}
     }
@@ -487,7 +487,7 @@ macro_rules! impl_T_x_S_to_T {
 
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
-macro_rules! impl_Unit_x_FIELD_to_Unit {
+macro_rules! impl_UNIT_x_FIELD_to_UNIT {
     ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
         $crate::impl_T_x_FIELD_to_T! {$trait :: $opr for $name {value : $field_type}}
     }
@@ -538,7 +538,7 @@ macro_rules! impl_T_x_FIELD_to_T {
 
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
-macro_rules! impl_FIELD_x_Unit_to_Unit {
+macro_rules! impl_FIELD_x_UNIT_to_UNIT {
     ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
         $crate::impl_FIELD_x_T_to_T! {$trait :: $opr for $name {value : $field_type}}
     }
@@ -590,7 +590,7 @@ macro_rules! impl_FIELD_x_T_to_T {
 
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
-macro_rules! impl_Unit_x_Unit_to_FIELD {
+macro_rules! impl_UNIT_x_UNIT_to_FIELD {
     ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
         $crate::impl_T_x_T_to_FIELD! {$trait :: $opr for $name {value : $field_type}}
     }
@@ -638,7 +638,7 @@ macro_rules! impl_T_x_T_to_FIELD {
 
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
-macro_rules! impl_Unit_to_Unit {
+macro_rules! impl_UNIT_to_UNIT {
     ($trait:ident :: $opr:ident for $name:ident) => {
         $crate::impl_T_to_T! {$trait :: $opr for $name {value}}
     }
@@ -675,7 +675,7 @@ macro_rules! impl_T_to_T {
 
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
-macro_rules! impl_Unit_x_Unit {
+macro_rules! impl_UNIT_x_UNIT {
     ($trait:ident :: $opr:ident for $name:ident) => {
         $crate::impl_T_x_T! {$trait :: $opr for $name {value}}
     }
@@ -723,7 +723,7 @@ macro_rules! impl_T_x_T {
 
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
-macro_rules! impl_Unit_x_FIELD {
+macro_rules! impl_UNIT_x_FIELD {
     ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
         $crate::impl_T_x_FIELD! {$trait :: $opr for $name {value : $field_type}}
     }

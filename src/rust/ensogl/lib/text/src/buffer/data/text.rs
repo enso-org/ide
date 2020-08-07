@@ -325,6 +325,8 @@ impl Text {
 // === Into Line Index ===
 
 impl Text {
+    // FIXME: what happens when we put offset between \r and \n ?
+
     /// The line of a given byte offset. Panics in case the offset was invalid.
     pub fn line_index_from_byte_offset_unchecked(&self, offset:Bytes) -> Line {
         self.rope.line_of_offset(offset.as_usize()).into()
@@ -760,3 +762,5 @@ impl TextCell {
         self.cell.borrow().location_from_byte_offset_snapped(offset)
     }
 }
+
+// FIXME: use either caret or cursor name
