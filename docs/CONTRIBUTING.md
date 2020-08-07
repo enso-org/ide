@@ -51,17 +51,14 @@ application icon if built on Linux or Windows due to non-trival icon
 generation on these platforms. In order to develop the source code you will
 need the following setup:
 
-- **The Rust Toolchain**
+- **The Rust Toolchain (nightly-2019-11-04)**
 
-  If you don't have Rust installed yet, you can use the 
-  [the Rust toolchain installer](https://rustup.rs) to install it. This 
-  project uses several features available only in the nightly Rust
-  toolchain. The exact version required is specified through the 
-  `rust-toolchain` file in the repository root and the correct version will be 
-  installed by cargo automatically. To install all other required components 
-  run the following commands:
+  This project uses several features available only in the nightly Rust
+  toolchain.  Please use the
+  [the Rust toolchain installer](https://rustup.rs) to install it:
 
   ```bash
+  rustup toolchain install nightly-2019-11-04 # Install the nightly channel.
   rustup component add clippy                 # Install the linter.
   cargo install wasm-pack --version 0.8.1     # Install the wasm-pack toolkit.
   cargo install cargo-watch                   # To enable ./run watch utility
