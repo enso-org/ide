@@ -183,11 +183,11 @@ impl View {
 
     fn init(self) -> Self {
         let network = &self.network;
-        let model   = self.model.clone_ref();
-        let frp     = self.frp.clone_ref();
+        let model   = &self.model;
+        let frp     = &self.frp;
         frp::extend! { network
             eval frp.set_size  ((size) model.set_size(*size));
-            eval frp.send_data ([frp](data) {
+            eval frp.send_data ([frp, model](data) {
                 if let Err(e) = model.receive_data(data) {
                     frp.data_receive_error.emit(Some(e));
                 }
