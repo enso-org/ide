@@ -96,8 +96,8 @@ impl ViewModel {
     }
 
     /// Prepare data string for Doc Parser to work with after getting deserialization.
-    /// FIXME : Removes characters that are not supported by Doc Parser yet.
-    ///         https://github.com/enso-org/enso/issues/1063
+    /// FIXME [MM]:  Removes characters that are not supported by Doc Parser yet.
+    ///              https://github.com/enso-org/enso/issues/1063
     fn prepare_data_string(data_inner:&visualization::Json) -> String {
         let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
@@ -122,8 +122,12 @@ impl ViewModel {
         let output     = ViewModel::gen_html_from(data_str);
         let mut output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
         if output     == "" { output = String::from(PLACEHOLDER_STR) }
-        // FIXME : Doc Parser related idea, where stylesheet was a separate file.
-        //         Will be fixed after a commit in Engine repo and in next PR.
+        // FIXME [MM] : Because of how Doc Parser was implemented in Engine repo, there is need to
+        //              remove stylesheet link from generated code, that would otherwise point to
+        //              non-existing file, as now stylesheet is connected by include_str! macro, and
+        //              soon will be replaced by a style generator.
+        //              This hack will be removed when https://github.com/enso-org/enso/issues/1063
+        //              will land in Engine's repo, also fixing non-existent character bug.
         let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
         let output     = output.replace(import_css, "");
 
@@ -132,7 +136,7 @@ impl ViewModel {
     }
 
     /// Load an HTML file into the documentation view when user is waiting for data to be received.
-    /// TODO : This will be replaced with a spinner in next PR.
+    /// TODO [MM] : This will be replaced with a spinner in next PR.
     fn load_no_doc_screen(&self) {
         self.push_to_dom(String::from("<p>Please wait...</p>"))
     }
