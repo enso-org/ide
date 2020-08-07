@@ -237,7 +237,7 @@ impl BreadcrumbsModel {
             }
             (default(),local_calls)
         } else {
-            (default(),default())
+            default()
         }
     }
 
@@ -388,42 +388,18 @@ impl Breadcrumbs {
             ));
 
 
-            // === Pushing ===
+            // === Stack Operations ===
 
-            indices <= frp.push_breadcrumb.map(f!((local_call) model.push_breadcrumb(local_call)));
-            old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
-            new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
-            eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
-                breadcrumb.frp.deselect.emit(());
-            }));
-            eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
-                breadcrumb.frp.select.emit(());
-                breadcrumb.frp.fade_in.emit(());
-            }));
-
-            // === Popping ===
-
-            indices <= frp.pop_breadcrumb.map(f!((_) model.pop_breadcrumb()));
-            old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
-            new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
-            eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
-                breadcrumb.frp.deselect.emit(());
-            }));
-            eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
-                breadcrumb.frp.select.emit(());
-            }));
-        }
-
-
-        // === Debug ===
-
-        frp::extend! { network
-
-            // === Push ===
-
-            indices <= frp.debug.push_breadcrumb.map(f!((local_call)
+            push_indices <= frp.push_breadcrumb.map(f!((local_call)
+                model.push_breadcrumb(local_call))
+            );
+            pop_indices <= frp.pop_breadcrumb.map(f_!(model.pop_breadcrumb()));
+            debug_push_indices <= frp.debug.push_breadcrumb.map(f!((local_call)
                 model.debug_push_breadcrumb(local_call)
             ));
+            debug_pop_indices <= frp.debug.pop_breadcrumb.map(f_!(model.debug_pop_breadcrumb()));
+
+            indices <- any4(&push_indices,&pop_indices,&debug_push_indices,&debug_pop_indices);
             old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
             new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
             eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
@@ -432,19 +408,6 @@ impl Breadcrumbs {
             eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
                 breadcrumb.frp.select.emit(());
                 breadcrumb.frp.fade_in.emit(());
-            }));
-
-
-            // === Pop ===
-
-            indices <= frp.debug.pop_breadcrumb.map(f!((_) model.debug_pop_breadcrumb()));
-            old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
-            new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
-            eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
-                breadcrumb.frp.deselect.emit(());
-            }));
-            eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
-                breadcrumb.frp.select.emit(());
             }));
 
 
@@ -458,38 +421,24 @@ impl Breadcrumbs {
             local_calls  <= selected.map(|selected| selected.1.clone());
             eval_ popped_count(frp.debug.pop_breadcrumb.emit(()));
             eval local_calls((local_call) frp.debug.push_breadcrumb.emit(local_call));
-        }
 
 
-        // === Project Name ===
+            // === Project Name ===
 
-        frp::extend! { network
             eval frp.project_name((name) model.project_name.frp.name.emit(name));
             frp.outputs.project_name <+ model.project_name.frp.outputs.name;
-        }
 
 
-        // === GUI Update ===
+            // === GUI Update ===
 
-        frp::extend! { network
             eval model.project_name.frp.outputs.width((width) {
                 model.relayout_for_project_name_width(*width)
             });
-        }
 
 
-        // === User Interaction ===
+            // === User Interaction ===
 
-        frp::extend! {network
-            _mouse_down <- model.project_name.frp.outputs.mouse_down.map(f_!([frp,model] {
-                let (popped_count,local_calls) = model.select_breadcrumb(0);
-                for _ in 0..popped_count {
-                    frp.outputs.breadcrumb_pop.emit(());
-                }
-                for local_call in local_calls {
-                    frp.outputs.breadcrumb_push.emit(local_call);
-                }
-            }));
+            eval_ model.project_name.frp.outputs.mouse_down(frp.select_breadcrumb.emit(0));
             eval_ frp.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
             eval_ frp.outside_press(model.project_name.frp.outside_press.emit(()));
             
