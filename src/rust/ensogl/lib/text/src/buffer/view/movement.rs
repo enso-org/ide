@@ -53,7 +53,7 @@ pub enum Transform {
 // ==========================
 
 impl ViewBuffer {
-    /// Convert selection to caret location after a vertical movement.
+    /// Convert selection to cursor location after a vertical movement.
     fn vertical_motion_selection_to_location
     (&self, selection:Selection, move_up:bool, modify:bool) -> Location {
         let end = selection.end;
@@ -80,7 +80,7 @@ impl ViewBuffer {
     /// Apply the movement to each region in the selection, and returns the union of the results.
     ///
     /// If `modify` is `true`, the selections are modified, otherwise the results of individual region
-    /// movements become carets. Modify is often mapped to the `shift` button in text editors.
+    /// movements become cursors. Modify is often mapped to the `shift` button in text editors.
     pub fn moved_selection(&self, transform:Transform, modify: bool) -> selection::Group {
         let mut result = selection::Group::new();
         for &selection in self.selection.borrow().iter() {
@@ -92,14 +92,14 @@ impl ViewBuffer {
 
     /// Location of the previous grapheme cluster if any.
     pub fn prev_grapheme_location(&self, location:Location) -> Option<Location> {
-        let offset      = self.byte_offset_from_location_snapped(location);
+        let offset      = self.byte_offset_of_location_snapped(location);
         let prev_offset = self.prev_grapheme_offset(offset);
         prev_offset.map(|off| self.offset_to_location(off))
     }
 
     /// Location of the next grapheme cluster if any.
     pub fn next_grapheme_location(&self, location:Location) -> Option<Location> {
-        let offset      = self.byte_offset_from_location_snapped(location);
+        let offset      = self.byte_offset_of_location_snapped(location);
         let next_offset = self.next_grapheme_offset(offset);
         next_offset.map(|off| self.offset_to_location(off))
     }
@@ -132,14 +132,14 @@ impl ViewBuffer {
 
             Transform::Left => {
                 let def     = shape(selection.start,default());
-                let do_move = selection.is_caret() || modify;
+                let do_move = selection.is_cursor() || modify;
                 if  do_move { self.prev_grapheme_location(selection.end).map(|t|shape(selection.start,t)).unwrap_or(def) }
                 else        { shape(selection.start,selection.min()) }
             }
 
             Transform::Right => {
                 let def     = shape(selection.start,selection.end);
-                let do_move = selection.is_caret() || modify;
+                let do_move = selection.is_cursor() || modify;
                 if  do_move { self.next_grapheme_location(selection.end).map(|t|shape(selection.start,t)).unwrap_or(def) }
                 else        { shape(selection.start,selection.max()) }
             }
@@ -161,7 +161,7 @@ impl ViewBuffer {
                 let line             = selection.end.line;
                 let text_byte_size   = text.byte_size();
                 let is_last_line     = line == self.last_line_index();
-                let next_line_offset = self.byte_offset_from_line_index(line+1.line()).unwrap();
+                let next_line_offset = self.byte_offset_of_line_index(line+1.line()).unwrap();
                 let offset           = if is_last_line { text_byte_size } else {
                     text.prev_grapheme_offset(next_line_offset).unwrap_or(text_byte_size)
                 };
@@ -170,7 +170,7 @@ impl ViewBuffer {
             }
 
             Transform::LeftWord => {
-                let end_offset      = self.byte_offset_from_location_snapped(selection.end);
+                let end_offset      = self.byte_offset_of_location_snapped(selection.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offset          = word_cursor.prev_boundary().unwrap_or_else(|| 0.bytes());
                 let end             = self.offset_to_location(offset);
@@ -178,7 +178,7 @@ impl ViewBuffer {
             }
 
             Transform::RightWord => {
-                let end_offset      = self.byte_offset_from_location_snapped(selection.end);
+                let end_offset      = self.byte_offset_of_location_snapped(selection.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offset          = word_cursor.next_boundary().unwrap_or_else(|| text.byte_size());
                 let end             = self.offset_to_location(offset);
@@ -186,7 +186,7 @@ impl ViewBuffer {
             }
 
             Transform::Word => {
-                let end_offset      = self.byte_offset_from_location_snapped(selection.end);
+                let end_offset      = self.byte_offset_of_location_snapped(selection.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offsets         = word_cursor.select_word();
                 let start           = self.offset_to_location(offsets.0);
@@ -195,8 +195,8 @@ impl ViewBuffer {
             }
 
             Transform::Line => {
-                let start_offset = self.byte_offset_from_line_index_snapped(selection.start.line);
-                let end_offset   = self.end_byte_offset_from_line_index_snapped(selection.end.line);
+                let start_offset = self.byte_offset_of_line_index_snapped(selection.start.line);
+                let end_offset   = self.end_byte_offset_of_line_index_snapped(selection.end.line);
                 let start        = self.offset_to_location(start_offset);
                 let end          = self.offset_to_location(end_offset);
                 shape(start,end)

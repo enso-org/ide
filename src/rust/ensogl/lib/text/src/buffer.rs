@@ -106,7 +106,7 @@ impl BufferData {
 
     /// Query style information for the provided range.
     pub fn sub_style(&self, range:impl data::RangeBounds) -> Style {
-        let range = self.snap_byte_range(range);
+        let range = self.crop_byte_range(range);
         self.style.sub(range)
     }
 }
@@ -133,7 +133,7 @@ pub trait DefaultSetter<T> {
 
 impl Setter<Text> for Buffer {
     fn replace(&self, range:impl data::RangeBounds, text:Text) {
-        let range = self.snap_byte_range(range);
+        let range = self.crop_byte_range(range);
         let size  = text.byte_size();
         self.text.replace(range,text);
         self.style.set_resize_with_default(range,size);

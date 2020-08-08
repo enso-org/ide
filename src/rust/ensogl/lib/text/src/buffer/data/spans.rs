@@ -30,8 +30,13 @@ impl<T:Clone> Spans<T> {
         self.raw.is_empty()
     }
 
-    /// Replace the provided `range` with the new `value` spanned over `length` bytes. Use with
-    /// caution, as it can easily lead to wrong amount of bytes covered by the span.
+    /// Replace the provided `range` with the new `value` spanned over `length` bytes.
+    ///
+    /// Spans are like byte chunk where each byte is associated with a value. This function first
+    /// removes the subsequence of bytes described in `range` (shifting later bytes to the left),
+    /// and then creates a new byte subsequence of the length `length` and associates it with the
+    /// `value`. Use with caution, as it can easily lead to wrong amount of bytes covered by the
+    /// span.
     pub fn replace_resize(&mut self, range:Range<Bytes>, length:Bytes, value:T) {
         let mut builder = rope::spans::Builder::new(length.as_usize());
         builder.add_span(..,value);

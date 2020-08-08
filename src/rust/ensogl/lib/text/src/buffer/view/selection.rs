@@ -1,4 +1,4 @@
-//! Text selection and carets implementation.
+//! Text selection and cursor implementation.
 
 use crate::prelude::*;
 
@@ -21,7 +21,7 @@ pub trait Boundary = Copy + Ord + Eq;
 // =============
 
 /// Text selection shape. In case the `start` and `end` offsets are equal, the selection is
-/// interpreted as a caret. Please note that the start of the selection is not always smaller then
+/// interpreted as a cursor. Please note that the start of the selection is not always smaller then
 /// its end. If the selection was dragged from right to left, the start byte offset will be bigger
 /// than the end. Use the `min` and `max` methods to discover the edges.
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Default)]
@@ -89,22 +89,22 @@ impl<T:Boundary> Shape<T> {
         self.with_start(f(self.start)).with_end(f(self.end))
     }
 
-    /// Produce caret by snapping the end edge to the start one.
+    /// Produce cursor by snapping the end edge to the start one.
     pub fn snap_to_start(&self) -> Self {
         let start = self.start;
         let end   = start;
         Self {start,end}
     }
 
-    /// Produce caret by snapping the end edge to the start one.
+    /// Produce cursor by snapping the end edge to the start one.
     pub fn snap_to_end(&self) -> Self {
         let end   = self.end;
         let start = end;
         Self {start,end}
     }
 
-    /// Determine whether the selection is a caret.
-    pub fn is_caret(self) -> bool {
+    /// Determine whether the selection is a cursor.
+    pub fn is_cursor(self) -> bool {
         self.start == self.end
     }
 }
@@ -191,12 +191,12 @@ impl<T:Boundary> Selection<T> {
         self.map_shape(|s|s.map(f))
     }
 
-    /// Convert selection to caret by snapping the end edge to the start one.
+    /// Convert selection to cursor by snapping the end edge to the start one.
     pub fn snap_to_start(&self) -> Self {
         self.map_shape(|s|s.snap_to_start())
     }
 
-    /// Convert selection to caret by snapping the start edge to the end one.
+    /// Convert selection to cursor by snapping the start edge to the end one.
     pub fn snap_to_end(&self) -> Self {
         self.map_shape(|s|s.snap_to_end())
     }
@@ -205,7 +205,7 @@ impl<T:Boundary> Selection<T> {
     /// Assumption: regions are sorted (self.min() <= other.min())
     pub fn should_merge_sorted(self, other:Selection<T>) -> bool {
         let non_zero_overlap = other.min() < self.max();
-        let zero_overlap     = (self.is_caret() || other.is_caret()) && other.min() == self.max();
+        let zero_overlap     = (self.is_cursor() || other.is_cursor()) && other.min() == self.max();
         non_zero_overlap || zero_overlap
     }
 
@@ -226,6 +226,9 @@ impl<T:Boundary> Selection<T> {
 // =============
 
 /// A set of zero or more selections.
+///
+/// The selections are kept in sorted order in order to maintain a good performance in algorithms.
+/// It is used in many places, including selection merging process.
 #[derive(Clone,Debug,Default)]
 pub struct Group {
     sorted_selections : Vec<Selection>,
@@ -250,13 +253,13 @@ impl Group {
         Group::default()
     }
 
-    /// Convert selections to carets by snapping end edges to start ones.
+    /// Convert selections to cursors by snapping end edges to start ones.
     pub fn snap_selections_to_start(&self) -> Group {
         let sorted_selections = self.sorted_selections.iter().map(|t| t.snap_to_start()).collect();
         Self {sorted_selections }
     }
 
-    /// Convert selections to carets by snapping start edges to end ones.
+    /// Convert selections to cursors by snapping start edges to end ones.
     pub fn snap_selections_to_end(&self) -> Group {
         let sorted_selections = self.sorted_selections.iter().map(|t| t.snap_to_end()).collect();
         Self {sorted_selections }
@@ -284,9 +287,9 @@ impl Group {
 
     /// Merge new selection with the group. This method implements merging logic.
     ///
-    /// Two non-caret regions merge if their interiors intersect. Merely touching at the edges does
-    /// not cause a merge. A caret merges with a non-caret if it is in the interior or on either
-    /// edge. Two carets merge if they are the same offset.
+    /// Two non-cursor regions merge if their interiors intersect. Merely touching at the edges does
+    /// not cause a merge. A cursor merges with a non-cursor if it is in the interior or on either
+    /// edge. Two cursors merge if they are the same offset.
     ///
     /// Performance note: should be O(1) if the new region strictly comes after all the others in
     /// the selection, otherwise O(n).

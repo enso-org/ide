@@ -222,11 +222,11 @@ impl ViewBuffer {
         self.selection.borrow().last().cloned().into()
     }
 
-    fn first_caret(&self) -> selection::Group {
+    fn first_cursor(&self) -> selection::Group {
         self.first_selection().snap_selections_to_start()
     }
 
-    fn last_caret(&self) -> selection::Group {
+    fn last_cursor(&self) -> selection::Group {
         self.last_selection().snap_selections_to_start()
     }
 
@@ -238,11 +238,11 @@ impl ViewBuffer {
         self.selection.borrow().oldest().cloned().into()
     }
 
-    fn newest_caret(&self) -> selection::Group {
+    fn newest_cursor(&self) -> selection::Group {
         self.newest_selection().snap_selections_to_start()
     }
 
-    fn oldest_caret(&self) -> selection::Group {
+    fn oldest_cursor(&self) -> selection::Group {
         self.oldest_selection().snap_selections_to_start()
     }
 
@@ -305,7 +305,7 @@ impl ViewBuffer {
         self.modify(Transform::Left,"")
     }
 
-    /// Generic buffer modify utility. First, it transforms all selections with the provided
+    /// Generic buffer modify utility. For each selection, it transforms it with the provided
     /// `transform`, and then it replaces the resulting selection diff with the provided `text`.
     /// See its usages across the file to learn more.
     ///
@@ -361,8 +361,8 @@ impl ViewBuffer {
     }
 
     fn to_bytes_selection(&self, selection:Selection) -> Selection<Bytes> {
-        let start = self.byte_offset_from_location_snapped(selection.start);
-        let end   = self.byte_offset_from_location_snapped(selection.end);
+        let start = self.byte_offset_of_location_snapped(selection.start);
+        let end   = self.byte_offset_of_location_snapped(selection.end);
         let id    = selection.id;
         Selection::new(start,end,id)
     }
@@ -375,9 +375,9 @@ impl ViewBuffer {
     }
 
     fn offset_to_location(&self, offset:Bytes) -> Location {
-        let line = self.line_index_from_byte_offset_snapped(offset);
-        let line_offset = offset - self.byte_offset_from_line_index(line).unwrap();
-        let column = self.column_from_line_index_and_in_line_byte_offset_snapped(line,line_offset);
+        let line = self.line_index_of_byte_offset_snapped(offset);
+        let line_offset = offset - self.byte_offset_of_line_index(line).unwrap();
+        let column = self.column_of_line_index_and_in_line_byte_offset_snapped(line,line_offset);
         Location(line,column)
     }
 }
@@ -410,21 +410,20 @@ define_frp! {
         clear_selection            : (),
         keep_first_selection_only  : (),
         keep_last_selection_only   : (),
-        keep_first_caret_only      : (),
-        keep_last_caret_only       : (),
+        keep_first_cursor_only     : (),
+        keep_last_cursor_only      : (),
         keep_oldest_selection_only : (),
         keep_newest_selection_only : (),
-        keep_oldest_caret_only     : (),
-        keep_newest_caret_only     : (),
+        keep_oldest_cursor_only    : (),
+        keep_newest_cursor_only    : (),
         undo                       : (),
         redo                       : (),
     }
 
     Output {
-        // FIXME: add docs
-        edit_selection     : selection::Group,
-        non_edit_selection : selection::Group,
-        text_changed       : (),
+        selection_edit_mode     : selection::Group,
+        selection_non_edit_mode : selection::Group,
+        text_changed            : (),
     }
 }
 
@@ -476,13 +475,13 @@ impl View {
             sel_on_clear          <- input.clear_selection.constant(default());
             sel_on_keep_last      <- input.keep_last_selection_only.map(f_!(m.last_selection()));
             sel_on_keep_first     <- input.keep_first_selection_only.map(f_!(m.first_selection()));
-            sel_on_keep_lst_caret <- input.keep_last_caret_only.map(f_!(m.last_caret()));
-            sel_on_keep_fst_caret <- input.keep_first_caret_only.map(f_!(m.first_caret()));
+            sel_on_keep_lst_cursor <- input.keep_last_cursor_only.map(f_!(m.last_cursor()));
+            sel_on_keep_fst_cursor <- input.keep_first_cursor_only.map(f_!(m.first_cursor()));
 
             sel_on_keep_newest       <- input.keep_newest_selection_only.map(f_!(m.newest_selection()));
             sel_on_keep_oldest       <- input.keep_oldest_selection_only.map(f_!(m.oldest_selection()));
-            sel_on_keep_newest_caret <- input.keep_newest_caret_only.map(f_!(m.newest_caret()));
-            sel_on_keep_oldest_caret <- input.keep_oldest_caret_only.map(f_!(m.oldest_caret()));
+            sel_on_keep_newest_cursor <- input.keep_newest_cursor_only.map(f_!(m.newest_cursor()));
+            sel_on_keep_oldest_cursor <- input.keep_oldest_cursor_only.map(f_!(m.oldest_cursor()));
 
             sel_on_set_cursor        <- input.set_cursor.map(f!((t) m.new_cursor(*t).into()));
             sel_on_add_cursor        <- input.add_cursor.map(f!((t) m.add_cursor(*t)));
@@ -492,29 +491,29 @@ impl View {
             sel_on_remove_all <- input.remove_all_cursors.map(|_| default());
             sel_on_undo       <= input.undo.map(f_!(m.undo()));
 
-            output.source.edit_selection     <+ sel_on_undo;
-            output.source.non_edit_selection <+ sel_on_move;
-            output.source.non_edit_selection <+ sel_on_mod;
-            output.source.edit_selection     <+ sel_on_clear;
-            output.source.non_edit_selection <+ sel_on_keep_last;
-            output.source.non_edit_selection <+ sel_on_keep_first;
-            output.source.non_edit_selection <+ sel_on_keep_newest;
-            output.source.non_edit_selection <+ sel_on_keep_oldest;
-            output.source.non_edit_selection <+ sel_on_keep_lst_caret;
-            output.source.non_edit_selection <+ sel_on_keep_fst_caret;
-            output.source.non_edit_selection <+ sel_on_keep_newest_caret;
-            output.source.non_edit_selection <+ sel_on_keep_oldest_caret;
-            output.source.non_edit_selection <+ sel_on_set_cursor;
-            output.source.non_edit_selection <+ sel_on_add_cursor;
-            output.source.non_edit_selection <+ sel_on_set_newest_end;
-            output.source.non_edit_selection <+ sel_on_set_oldest_end;
-            output.source.edit_selection     <+ sel_on_insert;
-            output.source.edit_selection     <+ sel_on_paste;
-            output.source.edit_selection     <+ sel_on_delete_left;
-            output.source.non_edit_selection <+ sel_on_remove_all;
+            output.source.selection_edit_mode     <+ sel_on_undo;
+            output.source.selection_non_edit_mode <+ sel_on_move;
+            output.source.selection_non_edit_mode <+ sel_on_mod;
+            output.source.selection_edit_mode     <+ sel_on_clear;
+            output.source.selection_non_edit_mode <+ sel_on_keep_last;
+            output.source.selection_non_edit_mode <+ sel_on_keep_first;
+            output.source.selection_non_edit_mode <+ sel_on_keep_newest;
+            output.source.selection_non_edit_mode <+ sel_on_keep_oldest;
+            output.source.selection_non_edit_mode <+ sel_on_keep_lst_cursor;
+            output.source.selection_non_edit_mode <+ sel_on_keep_fst_cursor;
+            output.source.selection_non_edit_mode <+ sel_on_keep_newest_cursor;
+            output.source.selection_non_edit_mode <+ sel_on_keep_oldest_cursor;
+            output.source.selection_non_edit_mode <+ sel_on_set_cursor;
+            output.source.selection_non_edit_mode <+ sel_on_add_cursor;
+            output.source.selection_non_edit_mode <+ sel_on_set_newest_end;
+            output.source.selection_non_edit_mode <+ sel_on_set_oldest_end;
+            output.source.selection_edit_mode     <+ sel_on_insert;
+            output.source.selection_edit_mode     <+ sel_on_paste;
+            output.source.selection_edit_mode     <+ sel_on_delete_left;
+            output.source.selection_non_edit_mode <+ sel_on_remove_all;
 
-            eval output.source.edit_selection     ((t) m.set_selection(t));
-            eval output.source.non_edit_selection ((t) m.set_selection(t));
+            eval output.source.selection_edit_mode     ((t) m.set_selection(t));
+            eval output.source.selection_non_edit_mode ((t) m.set_selection(t));
         }
         let frp = Frp::new(network,output);
         Self {frp,model}
@@ -572,7 +571,7 @@ impl ViewModel {
         self.selection.borrow().clone()
     }
 
-    /// Return all selections as vector of strings. For carets, the string will be empty.
+    /// Return all selections as vector of strings. For cursors, the string will be empty.
     pub fn selections_contents(&self) -> Vec<String> {
         let mut result = Vec::<String>::new();
         for selection in self.byte_selections() {
@@ -610,12 +609,12 @@ impl ViewModel {
 
     /// Byte offset of the first line of this buffer view.
     pub fn first_view_line_byte_offset(&self) -> Bytes {
-        self.byte_offset_from_line_index(self.first_view_line_index()).unwrap() // FIXME
+        self.byte_offset_of_line_index(self.first_view_line_index()).unwrap() // FIXME
     }
 
     /// Byte offset of the last line of this buffer view.
     pub fn last_view_line_byte_offset(&self) -> Bytes {
-        self.byte_offset_from_line_index(self.last_view_line_index()).unwrap()
+        self.byte_offset_of_line_index(self.last_view_line_index()).unwrap()
     }
 
     /// Byte offset range of lines visible in this buffer view.
@@ -625,12 +624,12 @@ impl ViewModel {
 
     /// Byte offset of the end of this buffer view. Snapped to the closest valid value.
     pub fn view_end_byte_offset_snapped(&self) -> Bytes {
-        self.end_byte_offset_from_line_index_snapped(self.last_view_line_index())
+        self.end_byte_offset_of_line_index_snapped(self.last_view_line_index())
     }
 
     /// Return the offset after the last character of a given view line if the line exists.
     pub fn end_offset_of_view_line(&self, line:Line) -> Option<Bytes> {
-        self.end_byte_offset_from_line_index(line + self.first_view_line_index.get()).ok()
+        self.end_byte_offset_of_line_index(line + self.first_view_line_index.get()).ok()
     }
 
     /// The byte range of this buffer view.
@@ -639,15 +638,15 @@ impl ViewModel {
     }
 
     /// The byte offset of the given buffer view line index.
-    pub fn byte_offset_from_view_line_index(&self, view_line:Line) -> Result<Bytes,BoundsError> {
+    pub fn byte_offset_of_view_line_index(&self, view_line:Line) -> Result<Bytes,BoundsError> {
         let line = self.first_view_line_index() + view_line;
-        self.byte_offset_from_line_index(line)
+        self.byte_offset_of_line_index(line)
     }
 
     /// Byte range of the given view line.
-    pub fn byte_range_from_view_line_index_snapped(&self, view_line:Line) -> Range<Bytes> {
+    pub fn byte_range_of_view_line_index_snapped(&self, view_line:Line) -> Range<Bytes> {
         let line = view_line + self.first_view_line_index.get();
-        self.byte_range_from_line_index_snapped(line)
+        self.byte_range_of_line_index_snapped(line)
     }
 
     /// Return all lines of this buffer view.

@@ -165,7 +165,7 @@ const BLINK_PERIOD             : f32 =
     BLINK_SLOPE_IN_DURATION + BLINK_SLOPE_OUT_DURATION + BLINK_ON_DURATION + BLINK_OFF_DURATION;
 
 
-/// Text caret and selection shape definition. If the shape is narrow, it is considered a cursor,
+/// Text cursor and selection shape definition. If the shape is narrow, it is considered a cursor,
 /// and thus, it blinks.
 ///
 /// ## Blinking Implementation
@@ -219,7 +219,7 @@ pub mod selection {
 // === Selection ===
 // =================
 
-/// Visual representation of text caret and text selection.
+/// Visual representation of text cursor and text selection.
 ///
 /// ## Implementation Notes
 /// Selection contains a `right_side` display object which is always placed on its right side. It is
@@ -324,6 +324,10 @@ pub struct SelectionMap {
 // ============
 
 /// Visual line representation.
+///
+/// **Design Notes**
+/// The `divs` and `centers` are kept as vectors for performance reasons. Especially, when clicking
+/// inside of the text area, it allows us to binary search the place of the mouse pointer.
 #[derive(Debug)]
 pub struct Line {
     display_object : display::object::Instance,
@@ -464,18 +468,18 @@ ensogl::def_command_api! { Commands
     keep_first_selection_only,
     /// Discard all but the last selection.
     keep_last_selection_only,
-    /// Discard all but the first selection and convert it to caret.
-    keep_first_caret_only,
-    /// Discard all but the last selection and convert it to caret.
-    keep_last_caret_only,
+    /// Discard all but the first selection and convert it to cursor.
+    keep_first_cursor_only,
+    /// Discard all but the last selection and convert it to cursor.
+    keep_last_cursor_only,
     /// Discard all but the newest selection.
     keep_newest_selection_only,
     /// Discard all but the oldest selection.
     keep_oldest_selection_only,
-    /// Discard all but the newest selection and convert it to caret.
-    keep_newest_caret_only,
-    /// Discard all but the oldest selection and convert it to caret.
-    keep_oldest_caret_only,
+    /// Discard all but the newest selection and convert it to cursor.
+    keep_newest_cursor_only,
+    /// Discard all but the oldest selection and convert it to cursor.
+    keep_oldest_cursor_only,
     /// Set the oldest selection end to mouse position.
     set_newest_selection_end_to_mouse_position,
     /// Set the newest selection end to mouse position.
@@ -578,14 +582,14 @@ impl Area {
                 model.frp.add_cursor.emit(location);
             });
 
-            _eval <- model.frp.output.edit_selection.map2
+            _eval <- model.frp.output.selection_edit_mode.map2
                 (&model.scene.frp.frame_time,f!([model](selections,time) {
                         model.redraw(); // FIXME: added for undo redo. Should not be needed.
                         model.on_modified_selection(selections,*time,true)
                     }
             ));
 
-            _eval <- model.frp.output.non_edit_selection.map2
+            _eval <- model.frp.output.selection_non_edit_mode.map2
                 (&model.scene.frp.frame_time,f!([model](selections,time) {
                     model.redraw(); // FIXME: added for undo redo. Should not be needed.
                     model.on_modified_selection(selections,*time,false)
@@ -626,13 +630,13 @@ impl Area {
 
             eval_ cmd.keep_first_selection_only (model.frp.keep_first_selection_only.emit(()));
             eval_ cmd.keep_last_selection_only  (model.frp.keep_last_selection_only.emit(()));
-            eval_ cmd.keep_first_caret_only     (model.frp.keep_first_caret_only.emit(()));
-            eval_ cmd.keep_last_caret_only      (model.frp.keep_last_caret_only.emit(()));
+            eval_ cmd.keep_first_cursor_only     (model.frp.keep_first_cursor_only.emit(()));
+            eval_ cmd.keep_last_cursor_only      (model.frp.keep_last_cursor_only.emit(()));
 
             eval_ cmd.keep_newest_selection_only (model.frp.keep_newest_selection_only.emit(()));
             eval_ cmd.keep_oldest_selection_only (model.frp.keep_oldest_selection_only.emit(()));
-            eval_ cmd.keep_newest_caret_only     (model.frp.keep_newest_caret_only.emit(()));
-            eval_ cmd.keep_oldest_caret_only     (model.frp.keep_oldest_caret_only.emit(()));
+            eval_ cmd.keep_newest_cursor_only     (model.frp.keep_newest_cursor_only.emit(()));
+            eval_ cmd.keep_oldest_cursor_only     (model.frp.keep_oldest_cursor_only.emit(()));
 
             eval_ cmd.cursor_move_left  (model.frp.cursors_move.emit(Some(Transform::Left)));
             eval_ cmd.cursor_move_right (model.frp.cursors_move.emit(Some(Transform::Right)));
@@ -835,7 +839,7 @@ impl AreaData {
             .location_map.get(&view_line_index).cloned().unwrap_or_default();
         let line           = &mut self.lines.rc.borrow_mut()[view_line_index];
         let line_object    = line.display_object().clone_ref();
-        let line_range     = self.buffer.byte_range_from_view_line_index_snapped(view_line_index.into());
+        let line_range     = self.buffer.byte_range_of_view_line_index_snapped(view_line_index.into());
         let mut line_style = self.buffer.sub_style(line_range.start .. line_range.end).iter();
 
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
@@ -970,7 +974,7 @@ impl application::shortcut::DefaultShortcutProvider for Area {
 //               Self::self_shortcut(shortcut::Action::press   (&[Key::Tab]                             , shortcut::Pattern::Any) , "increase_indentation"),
 //               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Tab]                  , shortcut::Pattern::Any) , "decrease_indentation"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Backspace]             , shortcut::Pattern::Any) , "delete_word_left"),
-//               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_caret_only"),
+//               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_cursor_only"),
                Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                                       , "insert_char_of_last_pressed_key"),
                Self::self_shortcut(shortcut::Action::press   (&[Key::Shift],&[mouse::PrimaryButton])                            , "set_newest_selection_end_to_mouse_position"),
                Self::self_shortcut(shortcut::Action::double_press (&[],&[mouse::PrimaryButton])                                 , "select_word_at_cursor"),

@@ -114,7 +114,7 @@ macro_rules! define_styles {
         $(
             impl Setter<Option<$field_type>> for Buffer {
                 fn replace(&self, range:impl data::RangeBounds, data:Option<$field_type>) {
-                    let range = self.snap_byte_range(range);
+                    let range = self.crop_byte_range(range);
                     self.data.style.cell.borrow_mut().$field.replace_resize(range,range.size(),data)
                 }
             }
