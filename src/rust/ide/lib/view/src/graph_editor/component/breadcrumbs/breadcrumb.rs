@@ -79,7 +79,7 @@ mod icon {
                 let ring          = outer_circle - inner_circle;
                 let size          = ICON_ARROW_SIZE;
                 let arrow         = Triangle(size.px(),size.px()).rotate((PI/2.0).radians());
-                let arrow         = arrow.translate_x(0.5.px());
+                let arrow         = arrow.translate_x(1.0.px());
                 let shape         = ring + arrow;
                 let full_color    = format!("vec4({},{},{},{})"
                     ,FULL_COLOR.red,FULL_COLOR.green,FULL_COLOR.blue,FULL_COLOR.alpha);
