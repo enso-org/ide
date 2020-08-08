@@ -551,7 +551,6 @@ impl Area {
         let input   = &model.frp_inputs;
         let cmd     = &input.command;
         let bg      = &self.background;
-
         let pos     = Animation :: <Vector2> :: new(&network);
         pos.update_spring(|spring| spring*2.0);
 
@@ -604,8 +603,22 @@ impl Area {
 
             eval input.paste_string ((s) model.frp.paste.emit(model.decode_paste(s)));
 
-            eval_ cmd.copy (model.copy());
+
+
+            // === Copy / Paste ===
+
+            copy_sels      <- cmd.copy.map(f_!(model.selections_contents()));
+            all_empty_sels <- copy_sels.map(|s|s.iter().all(|t|t.is_empty()));
+            line_sel_mode  <- copy_sels.gate(&all_empty_sels);
+
+            eval_ line_sel_mode (model.frp.cursors_select.emit(Some(Transform::Line)));
+            non_line_sel_mode_sels <- copy_sels.gate_not(&all_empty_sels);
+            line_sel_mode_sels     <- line_sel_mode.map(f_!(model.selections_contents()));
+            sels                   <- any(&line_sel_mode_sels,&non_line_sel_mode_sels);
+            eval sels ((s) model.copy(s));
             eval_ cmd.paste (model.paste());
+
+
 
             eval_ model.frp.output.text_changed (model.redraw());
 
@@ -881,9 +894,8 @@ impl AreaData {
         line
     }
 
-    fn copy(&self) {
-        let selections = self.buffer.selections_contents();
-        let encoded    = match selections.as_slice() {
+    fn copy(&self, selections:&[String]) {
+        let encoded = match selections {
             []  => "".to_string(),
             [s] => s.clone(),
             lst => lst.join(RECORD_SEPARATOR),

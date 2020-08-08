@@ -30,6 +30,8 @@ pub enum Transform {
     RightWord,
     /// Select the word at every cursor.
     Word,
+    /// Select the line at every cursor.
+    Line,
     /// Move to left end of visible line.
     LeftOfLine,
     /// Move to right end of visible line.
@@ -104,7 +106,7 @@ impl ViewBuffer {
 
     /// Compute the result of movement on one selection region.
     pub fn moved_selection_region
-    (&self, transform:Transform, region:Selection, modify:bool) -> Selection {
+    (&self, transform:Transform, selection:Selection, modify:bool) -> Selection {
         let text  = &self.text();
         let shape = |start,end| selection::Shape(start,end);
         let shape : selection::Shape = match transform {
@@ -113,50 +115,50 @@ impl ViewBuffer {
             }
 
             Transform::Up => {
-                self.vertical_motion(region,(-1).line(),modify)
+                self.vertical_motion(selection,(-1).line(),modify)
             }
 
             Transform::Down => {
-                self.vertical_motion(region,1.line(),modify)
+                self.vertical_motion(selection,1.line(),modify)
             }
 
             Transform::StartOfDocument => {
-                shape(region.start,default())
+                shape(selection.start,default())
             }
 
             Transform::EndOfDocument => {
-                shape(region.start,self.offset_to_location(text.byte_size()))
+                shape(selection.start,self.offset_to_location(text.byte_size()))
             }
 
             Transform::Left => {
-                let def     = shape(region.start,default());
-                let do_move = region.is_caret() || modify;
-                if  do_move { self.prev_grapheme_location(region.end).map(|t|shape(region.start,t)).unwrap_or(def) }
-                else        { shape(region.start,region.min()) }
+                let def     = shape(selection.start,default());
+                let do_move = selection.is_caret() || modify;
+                if  do_move { self.prev_grapheme_location(selection.end).map(|t|shape(selection.start,t)).unwrap_or(def) }
+                else        { shape(selection.start,selection.min()) }
             }
 
             Transform::Right => {
-                let def     = shape(region.start,region.end);
-                let do_move = region.is_caret() || modify;
-                if  do_move { self.next_grapheme_location(region.end).map(|t|shape(region.start,t)).unwrap_or(def) }
-                else        { shape(region.start,region.max()) }
+                let def     = shape(selection.start,selection.end);
+                let do_move = selection.is_caret() || modify;
+                if  do_move { self.next_grapheme_location(selection.end).map(|t|shape(selection.start,t)).unwrap_or(def) }
+                else        { shape(selection.start,selection.max()) }
             }
 
             Transform::LeftSelectionBorder => {
-                shape(region.start,region.min())
+                shape(selection.start,selection.min())
             }
 
             Transform::RightSelectionBorder => {
-                shape(region.start,region.max())
+                shape(selection.start,selection.max())
             }
 
             Transform::LeftOfLine => {
-                let end = Location(region.end.line,0.column());
-                shape(region.start,end)
+                let end = Location(selection.end.line,0.column());
+                shape(selection.start,end)
             }
 
             Transform::RightOfLine => {
-                let line             = region.end.line;
+                let line             = selection.end.line;
                 let text_byte_size   = text.byte_size();
                 let is_last_line     = line == self.last_line_index();
                 let next_line_offset = self.byte_offset_from_line_index(line+1.line()).unwrap();
@@ -164,36 +166,44 @@ impl ViewBuffer {
                     text.prev_grapheme_offset(next_line_offset).unwrap_or(text_byte_size)
                 };
                 let end = self.offset_to_location(offset);
-                shape(region.start,end)
+                shape(selection.start,end)
             }
 
             Transform::LeftWord => {
-                let end_offset      = self.byte_offset_from_location_snapped(region.end);
+                let end_offset      = self.byte_offset_from_location_snapped(selection.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offset          = word_cursor.prev_boundary().unwrap_or_else(|| 0.bytes());
                 let end             = self.offset_to_location(offset);
-                shape(region.start,end)
+                shape(selection.start,end)
             }
 
             Transform::RightWord => {
-                let end_offset      = self.byte_offset_from_location_snapped(region.end);
+                let end_offset      = self.byte_offset_from_location_snapped(selection.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offset          = word_cursor.next_boundary().unwrap_or_else(|| text.byte_size());
                 let end             = self.offset_to_location(offset);
-                shape(region.start,end)
+                shape(selection.start,end)
             }
 
             Transform::Word => {
-                let end_offset      = self.byte_offset_from_location_snapped(region.end);
+                let end_offset      = self.byte_offset_from_location_snapped(selection.end);
                 let mut word_cursor = WordCursor::new(text,end_offset);
                 let offsets         = word_cursor.select_word();
                 let start           = self.offset_to_location(offsets.0);
                 let end             = self.offset_to_location(offsets.1);
                 shape(start,end)
             }
+
+            Transform::Line => {
+                let start_offset = self.byte_offset_from_line_index_snapped(selection.start.line);
+                let end_offset   = self.end_byte_offset_from_line_index_snapped(selection.end.line);
+                let start        = self.offset_to_location(start_offset);
+                let end          = self.offset_to_location(end_offset);
+                shape(start,end)
+            }
         };
         let start = if modify { shape.start } else { shape.end };
         let end   = shape.end;
-        Selection(start,end,region.id)
+        Selection(start,end,selection.id)
     }
 }
