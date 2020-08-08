@@ -601,7 +601,6 @@ impl Area {
                 model.frp.set_newest_selection_end.emit(location);
             });
 
-            eval input.paste_string ((s) model.frp.paste.emit(model.decode_paste(s)));
 
 
 
@@ -617,6 +616,7 @@ impl Area {
             sels                   <- any(&line_sel_mode_sels,&non_line_sel_mode_sels);
             eval sels ((s) model.copy(s));
             eval_ cmd.paste (model.paste());
+            eval input.paste_string ((s) model.frp.paste.emit(model.decode_paste(s)));
 
 
 
@@ -987,7 +987,7 @@ impl application::shortcut::DefaultShortcutProvider for Area {
 //               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("y".into())],&[])                      , "redo"),
 //               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Shift,Key::Character("z".into())],&[])           , "redo"),
 //                Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "copy"),
+               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "paste"),
         ]
     }
 }

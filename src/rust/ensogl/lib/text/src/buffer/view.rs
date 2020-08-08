@@ -288,6 +288,15 @@ impl ViewBuffer {
         self.modify(Transform::LeftSelectionBorder,text)
     }
 
+    /// Paste new text in the place of current selections / cursors. In case of pasting multiple
+    /// chunks (e.g. after copying multiple selections), the chunks will be pasted into subsequent
+    /// selections. In case there are more chunks than selections, end chunks will be dropped. In
+    /// case there is more selections than chunks, end selections will be replaced with empty
+    /// strings.
+    fn paste(&self, text:&[String]) -> selection::Group {
+        self.modify_iter(Transform::LeftSelectionBorder,text.iter())
+    }
+
     // TODO
     // Delete left should first delete the vowel (if any) and do not move cursor. After pressing
     // backspace second time, the consonant should be removed. Please read this topic to learn
@@ -311,6 +320,28 @@ impl ViewBuffer {
         let mut new_selection_group = selection::Group::new();
         let mut byte_offset         = 0.bytes();
         for rel_byte_selection in self.byte_selections() {
+            let byte_selection     = rel_byte_selection.map(|t|t+byte_offset);
+            let selection          = self.to_location_selection(byte_selection);
+            let new_selection      = self.moved_selection_region(transform,selection,false);
+            let new_byte_selection = self.to_bytes_selection(new_selection);
+            let byte_range         = range_between(byte_selection,new_byte_selection);
+            byte_offset           += text_byte_size - byte_range.size();
+            self.buffer.replace(byte_range,&text);
+            let new_byte_selection = new_byte_selection.map(|t|t+text_byte_size);
+            let new_selection      = self.to_location_selection(new_byte_selection);
+            new_selection_group.merge(new_selection);
+        }
+        new_selection_group
+    }
+
+    fn modify_iter<I,S>(&self, transform:Transform, mut iter:I) -> selection::Group
+    where I:Iterator<Item=S>, S:Into<Text> {
+        self.commit_history();
+        let mut new_selection_group = selection::Group::new();
+        let mut byte_offset         = 0.bytes();
+        for rel_byte_selection in self.byte_selections() {
+            let text               = iter.next().map(|t|t.into()).unwrap_or_default();
+            let text_byte_size     = text.byte_size();
             let byte_selection     = rel_byte_selection.map(|t|t+byte_offset);
             let selection          = self.to_location_selection(byte_selection);
             let new_selection      = self.moved_selection_region(transform,selection,false);
@@ -430,10 +461,12 @@ impl View {
         let m       = &model;
 
         frp::extend! { network
-            trace input.paste;
 
             sel_on_insert         <- input.insert.map(f!((s) m.insert(s)));
             output.source.text_changed <+ sel_on_insert.constant(());
+
+            sel_on_paste         <- input.paste.map(f!((s) m.paste(s)));
+            output.source.text_changed <+ sel_on_paste.constant(());
 
             sel_on_delete_left    <- input.delete_left.map(f_!(m.delete_left()));
             output.source.text_changed <+ sel_on_delete_left.constant(());
@@ -476,6 +509,7 @@ impl View {
             output.source.non_edit_selection <+ sel_on_set_newest_end;
             output.source.non_edit_selection <+ sel_on_set_oldest_end;
             output.source.edit_selection     <+ sel_on_insert;
+            output.source.edit_selection     <+ sel_on_paste;
             output.source.edit_selection     <+ sel_on_delete_left;
             output.source.non_edit_selection <+ sel_on_remove_all;
 
