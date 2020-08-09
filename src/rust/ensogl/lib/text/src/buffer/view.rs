@@ -9,14 +9,17 @@ pub mod word;
 pub use movement::*;
 pub use selection::Selection;
 
+use crate::buffer;
 use crate::buffer::style::Style;
 use crate::buffer::data;
 use crate::buffer::data::Text;
 use crate::buffer::data::text::BoundsError;
 use crate::buffer::data::unit::*;
 use crate::buffer::Setter;
+use crate::buffer::DefaultSetter;
 use crate::buffer::Buffer;
 
+use ensogl::data::color;
 use enso_frp as frp;
 
 
@@ -203,15 +206,10 @@ impl ViewBuffer {
     fn undo(&self) -> Option<selection::Group> {
         let item      = self.history.data.borrow_mut().undo_stack.pop();
         item.map(|(text,style,selection)| {
-            println!("SETTING DATA: {:?}", text);
             self.buffer.set_text(text);
             self.buffer.set_style(style);
             selection
         })
-    }
-
-    fn add_selection(&self, selection:impl Into<Selection>) {
-        self.selection.borrow_mut().merge(selection.into())
     }
 
     fn first_selection(&self) -> selection::Group {
@@ -246,16 +244,6 @@ impl ViewBuffer {
         self.oldest_selection().snap_selections_to_start()
     }
 
-    // FIXME[WD] debug utility. To be removed in the future.
-    // FIXME[WD] should be part of https://github.com/enso-org/ide/issues/670
-    /// Add a new cursor for the given byte offset.
-    #[allow(non_snake_case)]
-    pub fn add_cursor_DEBUG(&self, location:Location) {
-        let id = self.next_selection_id.get();
-        self.next_selection_id.set(id+1);
-        self.add_selection(Selection::new_cursor(location,id))
-    }
-
     fn new_cursor(&self, location:Location) -> Selection {
         let id = self.next_selection_id.get();
         self.next_selection_id.set(id+1);
@@ -281,10 +269,8 @@ impl ViewBuffer {
         group
     }
 
-    // FIXME[WD] this should be made private in the future PRs.
-    // FIXME[WD] Should be part of https://github.com/enso-org/ide/issues/670
     /// Insert new text in the place of current selections / cursors.
-    pub fn insert(&self, text:impl Into<Text>) -> selection::Group {
+    fn insert(&self, text:impl Into<Text>) -> selection::Group {
         self.modify(Transform::LeftSelectionBorder,text)
     }
 
@@ -418,6 +404,9 @@ define_frp! {
         keep_newest_cursor_only    : (),
         undo                       : (),
         redo                       : (),
+        set_deault_color           : color::Rgba,
+        set_color_bytes            : (buffer::Range<Bytes>,color::Rgba),
+        set_default_color          : color::Rgba,
     }
 
     Output {
@@ -490,6 +479,10 @@ impl View {
 
             sel_on_remove_all <- input.remove_all_cursors.map(|_| default());
             sel_on_undo       <= input.undo.map(f_!(m.undo()));
+
+            eval input.set_deault_color  ((color) m.set_default(*color));
+            eval input.set_color_bytes   (((range,color)) m.replace(range,*color));
+            eval input.set_default_color ((color) m.set_default(*color));
 
             output.source.selection_edit_mode     <+ sel_on_undo;
             output.source.selection_non_edit_mode <+ sel_on_move;

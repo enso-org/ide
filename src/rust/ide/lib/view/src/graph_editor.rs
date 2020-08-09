@@ -305,6 +305,8 @@ ensogl::def_command_api! { Commands
     enter_selected_node,
     /// Steps out of the current node, popping the topmost stack frame from the crumb list.
     exit_node,
+    /// Edit the expression of the node at mouse cursor,
+    edit_node,
 
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
     enable_node_multi_select,
@@ -1523,6 +1525,7 @@ impl application::command::Provider for GraphEditor {
 
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
+        use enso_frp::io::mouse;
         use keyboard::Key;
         vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
@@ -1544,6 +1547,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[mouse::PrimaryButton])            , "edit_node"),
              ]
     }
 }
@@ -2263,6 +2267,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     node_to_enter        <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     outputs.node_entered <+ node_to_enter;
     outputs.node_exited  <+ inputs.exit_node;
+
+
+    // === Editing Nodes ===
+
+    trace inputs.edit_node;
 
 
     // === OUTPUTS REBIND ===

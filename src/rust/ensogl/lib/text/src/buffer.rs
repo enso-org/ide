@@ -16,7 +16,7 @@ pub mod view;
 /// Common traits.
 pub mod traits {
     pub use super::data::traits::*;
-    pub use super::Setter        as TRAIT_Setter;
+    // pub use super::Setter        as TRAIT_Setter;
     pub use super::DefaultSetter as TRAIT_DefaultSetter;
 }
 
@@ -118,7 +118,7 @@ impl BufferData {
 // ==============
 
 /// Generic setter for buffer data and metadata, like colors, font weight, etc.
-pub trait Setter<T> {
+trait Setter<T> {
     /// Replace the range with the provided value. The exact meaning of this function depends on the
     /// provided data type. See implementations provided in the `style` module.
     fn replace(&self, range:impl data::RangeBounds, data:T);

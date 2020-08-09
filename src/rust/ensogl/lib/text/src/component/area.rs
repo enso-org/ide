@@ -507,7 +507,13 @@ impl application::command::CommandApi for Area {
 define_frp! {
     Commands { Commands }
     Input {
-        paste_string : String,
+        set_cursor            : Location,
+        add_cursor            : Location,
+        paste_string          : String,
+        insert                : String,
+        set_color_bytes       : (buffer::Range<Bytes>,color::Rgba),
+        set_default_color     : color::Rgba,
+        set_default_text_size : f32,
     }
     Output {
         mouse_cursor_style : gui::cursor::Style,
@@ -556,6 +562,8 @@ impl Area {
         let cmd     = &input.command;
         let bg      = &self.background;
         let pos     = Animation :: <Vector2> :: new(&network);
+        let keyboard = &model.scene.keyboard;
+        let m       = &model;
         pos.update_spring(|spring| spring*2.0);
 
         frp::extend! { network
@@ -564,23 +572,20 @@ impl Area {
             mouse_cursor <- any(cursor_over,cursor_out);
             self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
 
-            mouse_on_set_cursor <- mouse.position.sample(&cmd.set_cursor_at_mouse_position);
-            mouse_on_add_cursor <- mouse.position.sample(&cmd.add_cursor_at_mouse_position);
 
-            selecting <- bool
-                ( &cmd.stop_newest_selection_end_follow_mouse
-                , &cmd.start_newest_selection_end_follow_mouse
-                );
+            // === Set / Add cursor ===
 
-            eval mouse_on_set_cursor ([model](screen_pos) {
-                let location = model.get_in_text_location(*screen_pos);
-                model.frp.set_cursor.emit(location);
-            });
+            mouse_on_set_cursor     <- mouse.position.sample(&cmd.set_cursor_at_mouse_position);
+            mouse_on_add_cursor     <- mouse.position.sample(&cmd.add_cursor_at_mouse_position);
+            loc_on_set_cursor_mouse <- mouse_on_set_cursor.map(f!((p) m.get_in_text_location(*p)));
+            loc_on_add_cursor_mouse <- mouse_on_add_cursor.map(f!((p) m.get_in_text_location(*p)));
+            loc_on_set_cursor       <- any(&input.set_cursor,&loc_on_set_cursor_mouse);
+            loc_on_add_cursor       <- any(&input.add_cursor,&loc_on_add_cursor_mouse);
 
-            eval mouse_on_add_cursor ([model](screen_pos) {
-                let location = model.get_in_text_location(*screen_pos);
-                model.frp.add_cursor.emit(location);
-            });
+            eval loc_on_set_cursor ((loc) model.frp.set_cursor.emit(loc));
+            eval loc_on_add_cursor ((loc) model.frp.add_cursor.emit(loc));
+
+
 
             _eval <- model.frp.output.selection_edit_mode.map2
                 (&model.scene.frp.frame_time,f!([model](selections,time) {
@@ -595,6 +600,11 @@ impl Area {
                     model.on_modified_selection(selections,*time,false)
                 }
             ));
+
+            selecting <- bool
+                ( &cmd.stop_newest_selection_end_follow_mouse
+                , &cmd.start_newest_selection_end_follow_mouse
+                );
 
             set_sel_end_1 <- mouse.position.gate(&selecting);
             set_sel_end_2 <- mouse.position.sample(&cmd.set_newest_selection_end_to_mouse_position);
@@ -663,16 +673,19 @@ impl Area {
             eval_ cmd.undo (model.frp.undo.emit(()));
             eval_ cmd.redo (model.frp.redo.emit(()));
 
-            key_on_char_to_insert <- model.scene.keyboard.frp.on_pressed.sample
-                (&cmd.insert_char_of_last_pressed_key);
-            char_to_insert <= key_on_char_to_insert.map(|key| {
-                match key {
-                    Key::Character(s) => Some(s.clone()),
-                    Key::Enter        => Some("\n".into()),
-                    _                 => None
-                }
-            });
-            eval char_to_insert ((s) model.frp.insert.emit(s));
+
+            // === Insert ===
+
+            key_to_insert <- keyboard.frp.on_pressed.sample(&cmd.insert_char_of_last_pressed_key);
+            key_to_insert <= key_to_insert.map(f!((key) model.key_to_string(key)));
+            str_to_insert <- any(&input.insert,&key_to_insert);
+            eval str_to_insert ((s) model.frp.insert.emit(s));
+
+
+            // === Colors ===
+
+            eval input.set_default_color ((t) model.frp.set_default_color.emit(*t));
+            eval input.set_color_bytes   ((t) model.frp.set_color_bytes.emit(*t));
         }
         self
     }
@@ -916,6 +929,14 @@ impl AreaData {
 
     fn decode_paste(&self, encoded:&str) -> Vec<String> {
         encoded.split(RECORD_SEPARATOR).map(|s|s.into()).collect()
+    }
+
+    fn key_to_string(&self, key:&Key) -> Option<String> {
+        match key {
+            Key::Character(s) => Some(s.clone()),
+            Key::Enter        => Some("\n".into()),
+            _                 => None
+        }
     }
 }
 
