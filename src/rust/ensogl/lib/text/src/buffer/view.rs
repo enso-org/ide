@@ -40,17 +40,16 @@ macro_rules! define_frp_caller {
 
     ($field:ident ($t1:ty,$t2:ty)) => {
         #[allow(missing_docs)]
-        pub fn $field(&self,t1:impl Into<$t1>,t2:impl Into<$t2>) {
-            let t1 = t1.into();
-            let t2 = t2.into();
+        pub fn $field(&self,t1:impl IntoParam<$t1>,t2:impl IntoParam<$t2>) {
+            let t1 = t1.into_param();
+            let t2 = t2.into_param();
             self.$field.emit((t1,t2));
         }
     };
 
     ($field:ident $t1:ty) => {
         #[allow(missing_docs)]
-        pub fn $field(&self,t1:impl ToRef<$t1>) {
-            let t1 = t1.to_ref();
+        pub fn $field(&self,t1:impl IntoParam<$t1>) {
             self.$field.emit(t1);
         }
     };
@@ -63,6 +62,8 @@ macro_rules! define_frp {
         Input  { $($in_field  : ident ($($in_field_type  : tt)*)),* $(,)? }
         Output { $($out_field : ident ($($out_field_type : tt)*)),* $(,)? }
     ) => {
+        use enso_frp::IntoParam;
+
         /// Frp network and endpoints.
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]

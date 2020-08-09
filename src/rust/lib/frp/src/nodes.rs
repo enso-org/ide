@@ -628,17 +628,26 @@ impl<Out:Data> OwnedSource<Out> {
 
 impl<Out:Data> OwnedSource<Out> {
     /// Emit new event.
-    pub fn emit<T:ToRef<Out>>(&self, value:T) {
-        self.emit_event(value.to_ref())
+    pub fn emit<T:IntoParam<Out>>(&self, value:T) {
+        self.emit_event(&value.into_param())
     }
 }
 
 impl<Out:Data> Source<Out> {
     /// Emit new event.
-    pub fn emit<T:ToRef<Out>>(&self, value:T) {
-        self.emit_event(value.to_ref())
+    pub fn emit<T:IntoParam<Out>>(&self, value:T) {
+        self.emit_event(&value.into_param())
     }
 }
+
+/// The parameter of FRP system. It allows passing wide range of values to the `emit` function for
+/// easy of use.
+#[allow(missing_docs)]
+pub trait     IntoParam<T>                { fn into_param(self) -> T; }
+impl<T>       IntoParam<T>         for  T { fn into_param(self) -> T {self} }
+impl<T:Clone> IntoParam<T>         for &T { fn into_param(self) -> T {self.clone()} }
+impl<T>       IntoParam<Option<T>> for T  { fn into_param(self) -> Option<T> {Some(self)} }
+impl<T:Clone> IntoParam<Option<T>> for &T { fn into_param(self) -> Option<T> {Some(self.clone())} }
 
 
 

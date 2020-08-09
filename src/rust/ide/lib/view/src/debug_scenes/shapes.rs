@@ -154,7 +154,7 @@ fn init(app:&Application) {
 //    text_area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
 //    text_area.insert("open€ \"data.csv\"\nline2 continuation\nline3 continuation");
 //     text_area.insert("ab\ncd\nef");
-    text_area.set_color_bytes(1.bytes()..3.bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
+    text_area.set_color_bytes(text::Range::from(1.bytes()..3.bytes()),color::Rgba::new(0.0,1.0,0.0,1.0));
     text_area.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
     text_area.set_default_text_size(text::Size(12.0));
 

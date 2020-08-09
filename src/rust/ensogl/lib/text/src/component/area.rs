@@ -469,15 +469,15 @@ impl Area {
     }
 
     fn init(self) -> Self {
-        let network = &self.frp.network;
-        let model   = &self.data;
-        let mouse   = &model.scene.mouse.frp;
-        let input   = &model.frp_inputs;
-        let cmd     = &input.command;
-        let bg      = &model.background;
-        let pos     = Animation :: <Vector2> :: new(&network);
+        let network  = &self.frp.network;
+        let model    = &self.data;
+        let mouse    = &model.scene.mouse.frp;
+        let input    = &model.frp_inputs;
+        let cmd      = &input.command;
+        let bg       = &model.background;
+        let pos      = Animation :: <Vector2> :: new(&network);
         let keyboard = &model.scene.keyboard;
-        let m       = &model;
+        let m        = &model;
         pos.update_spring(|spring| spring*2.0);
 
         frp::extend! { network
@@ -496,22 +496,22 @@ impl Area {
             loc_on_set_cursor       <- any(&input.set_cursor,&loc_on_set_cursor_mouse);
             loc_on_add_cursor       <- any(&input.add_cursor,&loc_on_add_cursor_mouse);
 
-            eval loc_on_set_cursor ((loc) model.buffer.frp.set_cursor.emit(loc));
-            eval loc_on_add_cursor ((loc) model.buffer.frp.add_cursor.emit(loc));
+            eval loc_on_set_cursor ((loc) m.buffer.frp.set_cursor(loc));
+            eval loc_on_add_cursor ((loc) m.buffer.frp.add_cursor(loc));
 
 
 
-            _eval <- model.buffer.frp.selection_edit_mode.map2
-                (&model.scene.frp.frame_time,f!([model](selections,time) {
-                        model.redraw(); // FIXME: added for undo redo. Should not be needed.
-                        model.on_modified_selection(selections,*time,true)
+            _eval <- m.buffer.frp.selection_edit_mode.map2
+                (&m.scene.frp.frame_time,f!([m](selections,time) {
+                        m.redraw(); // FIXME: added for undo redo. Should not be needed.
+                        m.on_modified_selection(selections,*time,true)
                     }
             ));
 
-            _eval <- model.buffer.frp.selection_non_edit_mode.map2
-                (&model.scene.frp.frame_time,f!([model](selections,time) {
-                    model.redraw(); // FIXME: added for undo redo. Should not be needed.
-                    model.on_modified_selection(selections,*time,false)
+            _eval <- m.buffer.frp.selection_non_edit_mode.map2
+                (&m.scene.frp.frame_time,f!([m](selections,time) {
+                    m.redraw(); // FIXME: added for undo redo. Should not be needed.
+                    m.on_modified_selection(selections,*time,false)
                 }
             ));
 
@@ -524,9 +524,9 @@ impl Area {
             set_sel_end_2 <- mouse.position.sample(&cmd.set_newest_selection_end_to_mouse_position);
             set_newest_selection_end <- any(&set_sel_end_1,&set_sel_end_2);
 
-            eval set_newest_selection_end([model](screen_pos) {
-                let location = model.get_in_text_location(*screen_pos);
-                model.buffer.frp.set_newest_selection_end.emit(location);
+            eval set_newest_selection_end([m](screen_pos) {
+                let location = m.get_in_text_location(*screen_pos);
+                m.buffer.frp.set_newest_selection_end(location);
             });
 
 
@@ -534,73 +534,73 @@ impl Area {
 
             // === Copy / Paste ===
 
-            copy_sels      <- cmd.copy.map(f_!(model.buffer.selections_contents()));
+            copy_sels      <- cmd.copy.map(f_!(m.buffer.selections_contents()));
             all_empty_sels <- copy_sels.map(|s|s.iter().all(|t|t.is_empty()));
             line_sel_mode  <- copy_sels.gate(&all_empty_sels);
 
-            eval_ line_sel_mode (model.buffer.frp.cursors_select(Some(Transform::Line)));
+            eval_ line_sel_mode (m.buffer.frp.cursors_select(Some(Transform::Line)));
             non_line_sel_mode_sels <- copy_sels.gate_not(&all_empty_sels);
-            line_sel_mode_sels     <- line_sel_mode.map(f_!(model.buffer.selections_contents()));
+            line_sel_mode_sels     <- line_sel_mode.map(f_!(m.buffer.selections_contents()));
             sels                   <- any(&line_sel_mode_sels,&non_line_sel_mode_sels);
-            eval sels ((s) model.copy(s));
-            eval_ cmd.paste (model.paste());
-            eval input.paste_string ((s) model.buffer.frp.paste(model.decode_paste(s)));
+            eval sels ((s) m.copy(s));
+            eval_ cmd.paste (m.paste());
+            eval input.paste_string ((s) m.buffer.frp.paste(m.decode_paste(s)));
 
 
 
-            eval_ model.buffer.frp.text_changed (model.redraw());
+            eval_ m.buffer.frp.text_changed (m.redraw());
 
-            eval_ cmd.remove_all_cursors (model.buffer.frp.remove_all_cursors());
+            eval_ cmd.remove_all_cursors (m.buffer.frp.remove_all_cursors());
 
-            eval_ cmd.keep_first_selection_only (model.buffer.frp.keep_first_selection_only());
-            eval_ cmd.keep_last_selection_only  (model.buffer.frp.keep_last_selection_only());
-            eval_ cmd.keep_first_cursor_only     (model.buffer.frp.keep_first_cursor_only());
-            eval_ cmd.keep_last_cursor_only      (model.buffer.frp.keep_last_cursor_only());
+            eval_ cmd.keep_first_selection_only (m.buffer.frp.keep_first_selection_only());
+            eval_ cmd.keep_last_selection_only  (m.buffer.frp.keep_last_selection_only());
+            eval_ cmd.keep_first_cursor_only    (m.buffer.frp.keep_first_cursor_only());
+            eval_ cmd.keep_last_cursor_only     (m.buffer.frp.keep_last_cursor_only());
 
-            eval_ cmd.keep_newest_selection_only (model.buffer.frp.keep_newest_selection_only());
-            eval_ cmd.keep_oldest_selection_only (model.buffer.frp.keep_oldest_selection_only());
-            eval_ cmd.keep_newest_cursor_only     (model.buffer.frp.keep_newest_cursor_only());
-            eval_ cmd.keep_oldest_cursor_only     (model.buffer.frp.keep_oldest_cursor_only());
+            eval_ cmd.keep_newest_selection_only (m.buffer.frp.keep_newest_selection_only());
+            eval_ cmd.keep_oldest_selection_only (m.buffer.frp.keep_oldest_selection_only());
+            eval_ cmd.keep_newest_cursor_only    (m.buffer.frp.keep_newest_cursor_only());
+            eval_ cmd.keep_oldest_cursor_only    (m.buffer.frp.keep_oldest_cursor_only());
 
-            eval_ cmd.cursor_move_left  (model.buffer.frp.cursors_move(Some(Transform::Left)));
-            eval_ cmd.cursor_move_right (model.buffer.frp.cursors_move(Some(Transform::Right)));
-            eval_ cmd.cursor_move_up    (model.buffer.frp.cursors_move(Some(Transform::Up)));
-            eval_ cmd.cursor_move_down  (model.buffer.frp.cursors_move(Some(Transform::Down)));
+            eval_ cmd.cursor_move_left  (m.buffer.frp.cursors_move(Transform::Left));
+            eval_ cmd.cursor_move_right (m.buffer.frp.cursors_move(Transform::Right));
+            eval_ cmd.cursor_move_up    (m.buffer.frp.cursors_move(Transform::Up));
+            eval_ cmd.cursor_move_down  (m.buffer.frp.cursors_move(Transform::Down));
 
-            eval_ cmd.cursor_move_left_word  (model.buffer.frp.cursors_move(Some(Transform::LeftWord)));
-            eval_ cmd.cursor_move_right_word (model.buffer.frp.cursors_move(Some(Transform::RightWord)));
+            eval_ cmd.cursor_move_left_word  (m.buffer.frp.cursors_move(Transform::LeftWord));
+            eval_ cmd.cursor_move_right_word (m.buffer.frp.cursors_move(Transform::RightWord));
 
-            eval_ cmd.cursor_select_left  (model.buffer.frp.cursors_select(Some(Transform::Left)));
-            eval_ cmd.cursor_select_right (model.buffer.frp.cursors_select(Some(Transform::Right)));
-            eval_ cmd.cursor_select_up    (model.buffer.frp.cursors_select(Some(Transform::Up)));
-            eval_ cmd.cursor_select_down  (model.buffer.frp.cursors_select(Some(Transform::Down)));
+            eval_ cmd.cursor_select_left  (m.buffer.frp.cursors_select(Transform::Left));
+            eval_ cmd.cursor_select_right (m.buffer.frp.cursors_select(Transform::Right));
+            eval_ cmd.cursor_select_up    (m.buffer.frp.cursors_select(Transform::Up));
+            eval_ cmd.cursor_select_down  (m.buffer.frp.cursors_select(Transform::Down));
 
-            eval_ cmd.cursor_select_left_word  (model.buffer.frp.cursors_select(Some(Transform::LeftWord)));
-            eval_ cmd.cursor_select_right_word (model.buffer.frp.cursors_select(Some(Transform::RightWord)));
+            eval_ cmd.cursor_select_left_word  (m.buffer.frp.cursors_select(Transform::LeftWord));
+            eval_ cmd.cursor_select_right_word (m.buffer.frp.cursors_select(Transform::RightWord));
 
-            eval_ cmd.select_all            (model.buffer.frp.cursors_select(Some(Transform::All)));
-            eval_ cmd.select_word_at_cursor (model.buffer.frp.cursors_select(Some(Transform::Word)));
+            eval_ cmd.select_all            (m.buffer.frp.cursors_select(Transform::All));
+            eval_ cmd.select_word_at_cursor (m.buffer.frp.cursors_select(Transform::Word));
 
-            eval_ cmd.delete_left      (model.buffer.frp.delete_left());
-            eval_ cmd.delete_word_left (model.buffer.frp.delete_word_left());
+            eval_ cmd.delete_left      (m.buffer.frp.delete_left());
+            eval_ cmd.delete_word_left (m.buffer.frp.delete_word_left());
 
-            eval_ cmd.undo (model.buffer.frp.undo());
-            eval_ cmd.redo (model.buffer.frp.redo());
+            eval_ cmd.undo (m.buffer.frp.undo());
+            eval_ cmd.redo (m.buffer.frp.redo());
 
 
             // === Insert ===
 
             key_to_insert <- keyboard.frp.on_pressed.sample(&cmd.insert_char_of_last_pressed_key);
-            key_to_insert <= key_to_insert.map(f!((key) model.key_to_string(key)));
+            key_to_insert <= key_to_insert.map(f!((key) m.key_to_string(key)));
             str_to_insert <- any(&input.insert,&key_to_insert);
-            eval str_to_insert ((s) model.buffer.frp.insert.emit(s));
+            eval str_to_insert ((s) m.buffer.frp.insert(s));
 
 
             // === Colors ===
 
-            eval input.set_default_color     ((t) model.buffer.frp.set_default_color.emit(*t));
-            eval input.set_default_text_size ((t) model.buffer.frp.set_default_text_size.emit(*t));
-            eval input.set_color_bytes       ((t) model.buffer.frp.set_color_bytes.emit(*t));
+            eval input.set_default_color     ((t) m.buffer.frp.set_default_color(*t));
+            eval input.set_default_text_size ((t) m.buffer.frp.set_default_text_size(*t));
+            eval input.set_color_bytes       ((t) m.buffer.frp.set_color_bytes.emit(*t));
         }
         self
     }
@@ -837,9 +837,7 @@ impl AreaData {
 
     fn paste(&self) {
         let paste_string = self.frp_inputs.paste_string.clone_ref();
-        clipboard::read_text(move |t|{
-            paste_string.emit(t);
-        });
+        clipboard::read_text(move |t| paste_string.emit(t));
     }
 
     fn decode_paste(&self, encoded:&str) -> Vec<String> {
