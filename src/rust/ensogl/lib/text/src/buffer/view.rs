@@ -9,15 +9,16 @@ pub mod word;
 pub use movement::*;
 pub use selection::Selection;
 
-use crate::buffer;
-use crate::buffer::style::Style;
-use crate::buffer::data;
+use crate::buffer::Buffer;
+use crate::buffer::DefaultSetter;
+use crate::buffer::Setter;
 use crate::buffer::data::Text;
 use crate::buffer::data::text::BoundsError;
 use crate::buffer::data::unit::*;
-use crate::buffer::Setter;
-use crate::buffer::DefaultSetter;
-use crate::buffer::Buffer;
+use crate::buffer::data;
+use crate::buffer::style::Style;
+use crate::buffer::style;
+use crate::buffer;
 
 use ensogl::data::color;
 use enso_frp as frp;
@@ -28,28 +29,46 @@ use enso_frp as frp;
 // === Frp Macros ===
 // ==================
 
-// FIXME[WD] these are generic FRP utilities. To be refactored out after the API settles down.
-// FIXME[WD] They are already copy-pasted in the EnsoGL code. To be unified and refactored as part of
-// FIXME[WD] the cleaning PR.
-// FIXME[WD] Issue: https://github.com/enso-org/ide/issues/670
+#[macro_export]
+macro_rules! define_frp_caller {
+    ($field:ident ()) => {
+        #[allow(missing_docs)]
+        pub fn $field(&self) {
+            self.$field.emit(());
+        }
+    };
+
+    ($field:ident ($t1:ty,$t2:ty)) => {
+        #[allow(missing_docs)]
+        pub fn $field(&self,t1:impl Into<$t1>,t2:impl Into<$t2>) {
+            let t1 = t1.into();
+            let t2 = t2.into();
+            self.$field.emit((t1,t2));
+        }
+    };
+
+    ($field:ident $t1:ty) => {
+        #[allow(missing_docs)]
+        pub fn $field(&self,t1:impl ToRef<$t1>) {
+            let t1 = t1.to_ref();
+            self.$field.emit(t1);
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! define_frp {
     (
-        Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
-        Output { $($out_field : ident : $out_field_type : ty),* $(,)? }
+        $(Commands {$commands_name : ident})?
+        Input  { $($in_field  : ident ($($in_field_type  : tt)*)),* $(,)? }
+        Output { $($out_field : ident ($($out_field_type : tt)*)),* $(,)? }
     ) => {
-        /// FRP endpoints. Contains FRP network, inputs, and outputs.
+        /// Frp network and endpoints.
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]
         pub struct Frp {
             pub network : frp::Network,
-            pub output  : FrpEndpoints,
-        }
-
-        impl Deref for Frp {
-            type Target = FrpEndpoints;
-            fn deref(&self) -> &Self::Target {
-                &self.output
-            }
+            output      : FrpEndpoints,
         }
 
         impl Frp {
@@ -59,37 +78,53 @@ macro_rules! define_frp {
             }
         }
 
-        /// Inputs of the FRP network.
-        #[derive(Debug,Clone,CloneRef)]
-        #[allow(missing_docs)]
-        pub struct FrpInputs {
-            $(pub $in_field : frp::Source<$in_field_type>),*
-        }
-
-        impl FrpInputs {
-            /// Constructor.
-            pub fn new(network:&frp::Network) -> Self {
-                frp::extend! { network
-                    $($in_field <- source();)*
-                }
-                Self { $($in_field),* }
+        impl Deref for Frp {
+            type Target = FrpEndpoints;
+            fn deref(&self) -> &Self::Target {
+                &self.output
             }
         }
 
-        /// Sources of the outputs of the FRP network. Used to emit output values.
+        /// Frp inputs.
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]
-        pub struct FrpOutputsSource {
-            $($out_field : frp::Any<$out_field_type>),*
+        #[allow(unused_parens)]
+        pub struct FrpInputs {
+            $(pub command : $commands_name,)?
+            $(pub $in_field : frp::Source<($($in_field_type)*)>),*
         }
 
-        /// Outputs of the FRP network.
+        $(impl Deref for FrpInputs {
+            type Target = $commands_name;
+            fn deref(&self) -> &Self::Target {
+                &self.command
+            }
+        })?
+
+        #[allow(unused_parens)]
+        impl FrpInputs {
+            /// Constructor.
+            pub fn new(network:&frp::Network) -> Self {
+                $(
+                    #[allow(non_snake_case)]
+                    let $commands_name = $commands_name::new(network);
+                )?
+                frp::extend! { network
+                    $($in_field <- source();)*
+                }
+                Self { $(command:$commands_name,)? $($in_field),* }
+            }
+
+            $($crate::define_frp_caller!{$in_field ($($in_field_type)*)})*
+        }
+
+        /// Frp outputs.
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]
         pub struct FrpEndpoints {
-            pub input  : FrpInputs,
-            source     : FrpOutputsSource,
-            $(pub $out_field : frp::Stream<$out_field_type>),*
+            pub input        : FrpInputs,
+            source           : FrpOutputsSource,
+            $(pub $out_field : frp::Stream<$($out_field_type)*>),*
         }
 
         impl Deref for FrpEndpoints {
@@ -99,6 +134,21 @@ macro_rules! define_frp {
             }
         }
 
+        impl FrpEndpoints {
+            /// Constructor.
+            pub fn new(network:&frp::Network, input:FrpInputs) -> Self {
+                let source = FrpOutputsSource::new(network);
+                $(let $out_field = source.$out_field.clone_ref().into();)*
+                Self {source,input,$($out_field),*}
+            }
+        }
+
+        /// Frp output setters.
+        #[derive(Debug,Clone,CloneRef)]
+        struct FrpOutputsSource {
+            $($out_field : frp::Any<$($out_field_type)*>),*
+        }
+
         impl FrpOutputsSource {
             /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
@@ -106,15 +156,6 @@ macro_rules! define_frp {
                     $($out_field <- any(...);)*
                 }
                 Self {$($out_field),*}
-            }
-        }
-
-        impl FrpEndpoints {
-            /// Constructor.
-            pub fn new(network:&frp::Network, input:FrpInputs) -> Self {
-                let source = FrpOutputsSource::new(network);
-                $(let $out_field = source.$out_field.clone_ref().into();)*
-                Self {input,source,$($out_field),*}
             }
         }
     };
@@ -382,37 +423,37 @@ fn range_between(a:Selection<Bytes>, b:Selection<Bytes>) -> data::range::Range<B
 
 define_frp! {
     Input {
-        cursors_move               : Option<Transform>,
-        cursors_select             : Option<Transform>,
-        set_cursor                 : Location,
-        add_cursor                 : Location,
-        set_newest_selection_end   : Location,
-        set_oldest_selection_end   : Location,
-        insert                     : String,
-        paste                      : Vec<String>,
-        remove_all_cursors         : (),
-        delete_left                : (),
-        delete_word_left           : (),
-        clear_selection            : (),
-        keep_first_selection_only  : (),
-        keep_last_selection_only   : (),
-        keep_first_cursor_only     : (),
-        keep_last_cursor_only      : (),
-        keep_oldest_selection_only : (),
-        keep_newest_selection_only : (),
-        keep_oldest_cursor_only    : (),
-        keep_newest_cursor_only    : (),
-        undo                       : (),
-        redo                       : (),
-        set_deault_color           : color::Rgba,
-        set_color_bytes            : (buffer::Range<Bytes>,color::Rgba),
-        set_default_color          : color::Rgba,
+        cursors_move               (Option<Transform>),
+        cursors_select             (Option<Transform>),
+        set_cursor                 (Location),
+        add_cursor                 (Location),
+        set_newest_selection_end   (Location),
+        set_oldest_selection_end   (Location),
+        insert                     (String),
+        paste                      (Vec<String>),
+        remove_all_cursors         (),
+        delete_left                (),
+        delete_word_left           (),
+        clear_selection            (),
+        keep_first_selection_only  (),
+        keep_last_selection_only   (),
+        keep_first_cursor_only     (),
+        keep_last_cursor_only      (),
+        keep_oldest_selection_only (),
+        keep_newest_selection_only (),
+        keep_oldest_cursor_only    (),
+        keep_newest_cursor_only    (),
+        undo                       (),
+        redo                       (),
+        set_default_color          (color::Rgba),
+        set_default_text_size      (style::Size),
+        set_color_bytes            (buffer::Range<Bytes>,color::Rgba),
     }
 
     Output {
-        selection_edit_mode     : selection::Group,
-        selection_non_edit_mode : selection::Group,
-        text_changed            : (),
+        selection_edit_mode     (selection::Group),
+        selection_non_edit_mode (selection::Group),
+        text_changed            (),
     }
 }
 
@@ -480,9 +521,10 @@ impl View {
             sel_on_remove_all <- input.remove_all_cursors.map(|_| default());
             sel_on_undo       <= input.undo.map(f_!(m.undo()));
 
-            eval input.set_deault_color  ((color) m.set_default(*color));
-            eval input.set_color_bytes   (((range,color)) m.replace(range,*color));
-            eval input.set_default_color ((color) m.set_default(*color));
+            eval input.set_default_color     ((t) m.set_default(*t));
+            eval input.set_default_text_size ((t) m.set_default(*t));
+            eval input.set_color_bytes       (((range,color)) m.replace(range,*color));
+            eval input.set_default_color     ((color) m.set_default(*color));
 
             output.source.selection_edit_mode     <+ sel_on_undo;
             output.source.selection_non_edit_mode <+ sel_on_move;

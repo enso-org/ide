@@ -16,8 +16,6 @@ pub mod view;
 /// Common traits.
 pub mod traits {
     pub use super::data::traits::*;
-    // pub use super::Setter        as TRAIT_Setter;
-    pub use super::DefaultSetter as TRAIT_DefaultSetter;
 }
 
 pub use data::Text;
@@ -125,7 +123,7 @@ trait Setter<T> {
 }
 
 /// Generic setter for default value for metadata like colors, font weight, etc.
-pub trait DefaultSetter<T> {
+trait DefaultSetter<T> {
     /// Replace the default value of the metadata. The exact meaning of this function depends on the
     /// provided data type. See implementations provided in the `style` module.
     fn set_default(&self, data:T);

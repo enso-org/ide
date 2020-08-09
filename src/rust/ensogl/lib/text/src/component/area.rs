@@ -6,6 +6,7 @@ use crate::prelude::*;
 use crate::buffer::data::unit::*;
 use crate::buffer::Transform;
 use crate::buffer;
+use crate::buffer::style;
 use crate::typeface::glyph::Glyph;
 use crate::typeface::glyph;
 use crate::typeface::pen;
@@ -38,93 +39,6 @@ use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
 /// Record separator ASCII code. Used for separating of copied strings. It is defined as the `\RS`
 /// escape code (`x1E`) (https://en.wikipedia.org/wiki/ASCII).
 pub const RECORD_SEPARATOR : &str = "\x1E";
-
-
-
-// ==================
-// === Frp Macros ===
-// ==================
-
-// FIXME: these are generic FRP utilities. To be refactored out after the API settles down.
-// FIXME: the same are defined in text/view
-macro_rules! define_frp {
-    (
-        $(Commands {$commands_name : ident})?
-        Input  { $($in_field  : ident : $in_field_type  : ty),* $(,)? }
-        Output { $($out_field : ident : $out_field_type : ty),* $(,)? }
-    ) => {
-        /// Frp network and endpoints.
-        #[derive(Debug,Clone,CloneRef)]
-        #[allow(missing_docs)]
-        pub struct Frp {
-            pub network : frp::Network,
-            pub input   : FrpInputs,
-            pub output  : FrpOutputs,
-        }
-
-        impl Frp {
-            /// Constructor.
-            pub fn new(network:frp::Network, input:FrpInputs, output:FrpOutputs) -> Self {
-                Self {network,input,output}
-            }
-        }
-
-        /// Frp inputs.
-        #[derive(Debug,Clone,CloneRef)]
-        #[allow(missing_docs)]
-        pub struct FrpInputs {
-            $(pub command : $commands_name,)?
-            $(pub $in_field : frp::Source<$in_field_type>),*
-        }
-
-        impl FrpInputs {
-            /// Constructor.
-            pub fn new(network:&frp::Network) -> Self {
-                $(
-                    #[allow(non_snake_case)]
-                    let $commands_name = $commands_name::new(network);
-                )?
-                frp::extend! { network
-                    $($in_field <- source();)*
-                }
-                Self { $(command:$commands_name,)? $($in_field),* }
-            }
-        }
-
-        /// Frp output setters.
-        #[derive(Debug,Clone,CloneRef)]
-        pub struct FrpOutputsSetter {
-            $($out_field : frp::Any<$out_field_type>),*
-        }
-
-        /// Frp outputs.
-        #[derive(Debug,Clone,CloneRef)]
-        #[allow(missing_docs)]
-        pub struct FrpOutputs {
-            setter           : FrpOutputsSetter,
-            $(pub $out_field : frp::Stream<$out_field_type>),*
-        }
-
-        impl FrpOutputsSetter {
-            /// Constructor.
-            pub fn new(network:&frp::Network) -> Self {
-                frp::extend! { network
-                    $($out_field <- any(...);)*
-                }
-                Self {$($out_field),*}
-            }
-        }
-
-        impl FrpOutputs {
-            /// Constructor.
-            pub fn new(network:&frp::Network) -> Self {
-                let setter = FrpOutputsSetter::new(network);
-                $(let $out_field = setter.$out_field.clone_ref().into();)*
-                Self {setter,$($out_field),*}
-            }
-        }
-    };
-}
 
 
 
@@ -504,19 +418,19 @@ impl application::command::CommandApi for Area {
     }
 }
 
-define_frp! {
+crate::define_frp! {
     Commands { Commands }
     Input {
-        set_cursor            : Location,
-        add_cursor            : Location,
-        paste_string          : String,
-        insert                : String,
-        set_color_bytes       : (buffer::Range<Bytes>,color::Rgba),
-        set_default_color     : color::Rgba,
-        set_default_text_size : f32,
+        set_cursor            (Location),
+        add_cursor            (Location),
+        paste_string          (String),
+        insert                (String),
+        set_color_bytes       (buffer::Range<Bytes>,color::Rgba),
+        set_default_color     (color::Rgba),
+        set_default_text_size (style::Size),
     }
     Output {
-        mouse_cursor_style : gui::cursor::Style,
+        mouse_cursor_style (gui::cursor::Style),
     }
 }
 
@@ -538,9 +452,9 @@ pub struct Area {
 }
 
 impl Deref for Area {
-    type Target = AreaData;
+    type Target = Frp;
     fn deref(&self) -> &Self::Target {
-        &self.data
+        &self.frp
     }
 }
 
@@ -549,18 +463,18 @@ impl Area {
     pub fn new(app:&Application) -> Self {
         let network = frp::Network::new();
         let data    = AreaData::new(app,&network);
-        let output  = FrpOutputs::new(&network);
-        let frp     = Frp::new(network,data.frp_inputs.clone_ref(),output);
+        let output  = FrpEndpoints::new(&network,data.frp_inputs.clone_ref());
+        let frp     = Frp::new(network,output);
         Self {data,frp} . init()
     }
 
     fn init(self) -> Self {
         let network = &self.frp.network;
-        let mouse   = &self.scene.mouse.frp;
         let model   = &self.data;
+        let mouse   = &model.scene.mouse.frp;
         let input   = &model.frp_inputs;
         let cmd     = &input.command;
-        let bg      = &self.background;
+        let bg      = &model.background;
         let pos     = Animation :: <Vector2> :: new(&network);
         let keyboard = &model.scene.keyboard;
         let m       = &model;
@@ -570,7 +484,7 @@ impl Area {
             cursor_over  <- bg.events.mouse_over.constant(gui::cursor::Style::new_text_cursor());
             cursor_out   <- bg.events.mouse_out.constant(gui::cursor::Style::default());
             mouse_cursor <- any(cursor_over,cursor_out);
-            self.frp.output.setter.mouse_cursor_style <+ mouse_cursor;
+            self.frp.source.mouse_cursor_style <+ mouse_cursor;
 
 
             // === Set / Add cursor ===
@@ -582,19 +496,19 @@ impl Area {
             loc_on_set_cursor       <- any(&input.set_cursor,&loc_on_set_cursor_mouse);
             loc_on_add_cursor       <- any(&input.add_cursor,&loc_on_add_cursor_mouse);
 
-            eval loc_on_set_cursor ((loc) model.frp.set_cursor.emit(loc));
-            eval loc_on_add_cursor ((loc) model.frp.add_cursor.emit(loc));
+            eval loc_on_set_cursor ((loc) model.buffer.frp.set_cursor.emit(loc));
+            eval loc_on_add_cursor ((loc) model.buffer.frp.add_cursor.emit(loc));
 
 
 
-            _eval <- model.frp.output.selection_edit_mode.map2
+            _eval <- model.buffer.frp.selection_edit_mode.map2
                 (&model.scene.frp.frame_time,f!([model](selections,time) {
                         model.redraw(); // FIXME: added for undo redo. Should not be needed.
                         model.on_modified_selection(selections,*time,true)
                     }
             ));
 
-            _eval <- model.frp.output.selection_non_edit_mode.map2
+            _eval <- model.buffer.frp.selection_non_edit_mode.map2
                 (&model.scene.frp.frame_time,f!([model](selections,time) {
                     model.redraw(); // FIXME: added for undo redo. Should not be needed.
                     model.on_modified_selection(selections,*time,false)
@@ -612,7 +526,7 @@ impl Area {
 
             eval set_newest_selection_end([model](screen_pos) {
                 let location = model.get_in_text_location(*screen_pos);
-                model.frp.set_newest_selection_end.emit(location);
+                model.buffer.frp.set_newest_selection_end.emit(location);
             });
 
 
@@ -620,58 +534,58 @@ impl Area {
 
             // === Copy / Paste ===
 
-            copy_sels      <- cmd.copy.map(f_!(model.selections_contents()));
+            copy_sels      <- cmd.copy.map(f_!(model.buffer.selections_contents()));
             all_empty_sels <- copy_sels.map(|s|s.iter().all(|t|t.is_empty()));
             line_sel_mode  <- copy_sels.gate(&all_empty_sels);
 
-            eval_ line_sel_mode (model.frp.cursors_select.emit(Some(Transform::Line)));
+            eval_ line_sel_mode (model.buffer.frp.cursors_select(Some(Transform::Line)));
             non_line_sel_mode_sels <- copy_sels.gate_not(&all_empty_sels);
-            line_sel_mode_sels     <- line_sel_mode.map(f_!(model.selections_contents()));
+            line_sel_mode_sels     <- line_sel_mode.map(f_!(model.buffer.selections_contents()));
             sels                   <- any(&line_sel_mode_sels,&non_line_sel_mode_sels);
             eval sels ((s) model.copy(s));
             eval_ cmd.paste (model.paste());
-            eval input.paste_string ((s) model.frp.paste.emit(model.decode_paste(s)));
+            eval input.paste_string ((s) model.buffer.frp.paste(model.decode_paste(s)));
 
 
 
-            eval_ model.frp.output.text_changed (model.redraw());
+            eval_ model.buffer.frp.text_changed (model.redraw());
 
-            eval_ cmd.remove_all_cursors (model.frp.remove_all_cursors.emit(()));
+            eval_ cmd.remove_all_cursors (model.buffer.frp.remove_all_cursors());
 
-            eval_ cmd.keep_first_selection_only (model.frp.keep_first_selection_only.emit(()));
-            eval_ cmd.keep_last_selection_only  (model.frp.keep_last_selection_only.emit(()));
-            eval_ cmd.keep_first_cursor_only     (model.frp.keep_first_cursor_only.emit(()));
-            eval_ cmd.keep_last_cursor_only      (model.frp.keep_last_cursor_only.emit(()));
+            eval_ cmd.keep_first_selection_only (model.buffer.frp.keep_first_selection_only());
+            eval_ cmd.keep_last_selection_only  (model.buffer.frp.keep_last_selection_only());
+            eval_ cmd.keep_first_cursor_only     (model.buffer.frp.keep_first_cursor_only());
+            eval_ cmd.keep_last_cursor_only      (model.buffer.frp.keep_last_cursor_only());
 
-            eval_ cmd.keep_newest_selection_only (model.frp.keep_newest_selection_only.emit(()));
-            eval_ cmd.keep_oldest_selection_only (model.frp.keep_oldest_selection_only.emit(()));
-            eval_ cmd.keep_newest_cursor_only     (model.frp.keep_newest_cursor_only.emit(()));
-            eval_ cmd.keep_oldest_cursor_only     (model.frp.keep_oldest_cursor_only.emit(()));
+            eval_ cmd.keep_newest_selection_only (model.buffer.frp.keep_newest_selection_only());
+            eval_ cmd.keep_oldest_selection_only (model.buffer.frp.keep_oldest_selection_only());
+            eval_ cmd.keep_newest_cursor_only     (model.buffer.frp.keep_newest_cursor_only());
+            eval_ cmd.keep_oldest_cursor_only     (model.buffer.frp.keep_oldest_cursor_only());
 
-            eval_ cmd.cursor_move_left  (model.frp.cursors_move.emit(Some(Transform::Left)));
-            eval_ cmd.cursor_move_right (model.frp.cursors_move.emit(Some(Transform::Right)));
-            eval_ cmd.cursor_move_up    (model.frp.cursors_move.emit(Some(Transform::Up)));
-            eval_ cmd.cursor_move_down  (model.frp.cursors_move.emit(Some(Transform::Down)));
+            eval_ cmd.cursor_move_left  (model.buffer.frp.cursors_move(Some(Transform::Left)));
+            eval_ cmd.cursor_move_right (model.buffer.frp.cursors_move(Some(Transform::Right)));
+            eval_ cmd.cursor_move_up    (model.buffer.frp.cursors_move(Some(Transform::Up)));
+            eval_ cmd.cursor_move_down  (model.buffer.frp.cursors_move(Some(Transform::Down)));
 
-            eval_ cmd.cursor_move_left_word  (model.frp.cursors_move.emit(Some(Transform::LeftWord)));
-            eval_ cmd.cursor_move_right_word (model.frp.cursors_move.emit(Some(Transform::RightWord)));
+            eval_ cmd.cursor_move_left_word  (model.buffer.frp.cursors_move(Some(Transform::LeftWord)));
+            eval_ cmd.cursor_move_right_word (model.buffer.frp.cursors_move(Some(Transform::RightWord)));
 
-            eval_ cmd.cursor_select_left  (model.frp.cursors_select.emit(Some(Transform::Left)));
-            eval_ cmd.cursor_select_right (model.frp.cursors_select.emit(Some(Transform::Right)));
-            eval_ cmd.cursor_select_up    (model.frp.cursors_select.emit(Some(Transform::Up)));
-            eval_ cmd.cursor_select_down  (model.frp.cursors_select.emit(Some(Transform::Down)));
+            eval_ cmd.cursor_select_left  (model.buffer.frp.cursors_select(Some(Transform::Left)));
+            eval_ cmd.cursor_select_right (model.buffer.frp.cursors_select(Some(Transform::Right)));
+            eval_ cmd.cursor_select_up    (model.buffer.frp.cursors_select(Some(Transform::Up)));
+            eval_ cmd.cursor_select_down  (model.buffer.frp.cursors_select(Some(Transform::Down)));
 
-            eval_ cmd.cursor_select_left_word  (model.frp.cursors_select.emit(Some(Transform::LeftWord)));
-            eval_ cmd.cursor_select_right_word (model.frp.cursors_select.emit(Some(Transform::RightWord)));
+            eval_ cmd.cursor_select_left_word  (model.buffer.frp.cursors_select(Some(Transform::LeftWord)));
+            eval_ cmd.cursor_select_right_word (model.buffer.frp.cursors_select(Some(Transform::RightWord)));
 
-            eval_ cmd.select_all            (model.frp.cursors_select.emit(Some(Transform::All)));
-            eval_ cmd.select_word_at_cursor (model.frp.cursors_select.emit(Some(Transform::Word)));
+            eval_ cmd.select_all            (model.buffer.frp.cursors_select(Some(Transform::All)));
+            eval_ cmd.select_word_at_cursor (model.buffer.frp.cursors_select(Some(Transform::Word)));
 
-            eval_ cmd.delete_left      (model.frp.delete_left.emit(()));
-            eval_ cmd.delete_word_left (model.frp.delete_word_left.emit(()));
+            eval_ cmd.delete_left      (model.buffer.frp.delete_left());
+            eval_ cmd.delete_word_left (model.buffer.frp.delete_word_left());
 
-            eval_ cmd.undo (model.frp.undo.emit(()));
-            eval_ cmd.redo (model.frp.redo.emit(()));
+            eval_ cmd.undo (model.buffer.frp.undo());
+            eval_ cmd.redo (model.buffer.frp.redo());
 
 
             // === Insert ===
@@ -679,13 +593,14 @@ impl Area {
             key_to_insert <- keyboard.frp.on_pressed.sample(&cmd.insert_char_of_last_pressed_key);
             key_to_insert <= key_to_insert.map(f!((key) model.key_to_string(key)));
             str_to_insert <- any(&input.insert,&key_to_insert);
-            eval str_to_insert ((s) model.frp.insert.emit(s));
+            eval str_to_insert ((s) model.buffer.frp.insert.emit(s));
 
 
             // === Colors ===
 
-            eval input.set_default_color ((t) model.frp.set_default_color.emit(*t));
-            eval input.set_color_bytes   ((t) model.frp.set_color_bytes.emit(*t));
+            eval input.set_default_color     ((t) model.buffer.frp.set_default_color.emit(*t));
+            eval input.set_default_text_size ((t) model.buffer.frp.set_default_text_size.emit(*t));
+            eval input.set_color_bytes       ((t) model.buffer.frp.set_color_bytes.emit(*t));
         }
         self
     }
@@ -711,12 +626,12 @@ pub struct AreaData {
     background     : component::ShapeView<background::Shape>,
 }
 
-impl Deref for AreaData {
-    type Target = buffer::View;
-    fn deref(&self) -> &Self::Target {
-        &self.buffer
-    }
-}
+// impl Deref for AreaData {
+//     type Target = buffer::View;
+//     fn deref(&self) -> &Self::Target {
+//         &self.buffer
+//     }
+// }
 
 impl AreaData {
     /// Constructor.

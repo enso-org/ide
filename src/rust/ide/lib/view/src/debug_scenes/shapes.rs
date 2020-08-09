@@ -154,24 +154,18 @@ fn init(app:&Application) {
 //    text_area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
 //    text_area.insert("open€ \"data.csv\"\nline2 continuation\nline3 continuation");
 //     text_area.insert("ab\ncd\nef");
+    text_area.set_color_bytes(1.bytes()..3.bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
+    text_area.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
+    text_area.set_default_text_size(text::Size(12.0));
 
-    text_area.frp.input.set_color_bytes.emit(&((1.bytes()..3.bytes()).into(),color::Rgba::new(0.0,1.0,0.0,1.0)));
-    text_area.frp.input.set_default_color.emit(color::Rgba::new(1.0,1.0,1.0,0.7));
-    // text_area.replace((1..3).bytes(),color::Rgba::new(0.0,1.0,0.0,1.0));
-    // text_area.replace((8..9).bytes(),color::Rgba::new(1.0,1.0,0.0,1.0));
-    // text_area.replace((10..11).bytes(),color::Rgba::new(1.0,0.0,0.0,1.0));
-    // text_area.replace((14..15).bytes(),color::Rgba::new(0.0,0.0,1.0,1.0));
-
-    text_area.set_default(color::Rgba::new(1.0,1.0,1.0,0.7));
-    text_area.set_default(text::Size(12.0));
     text_area.set_position_x(10.0);
 
-    text_area.redraw();
+    // text_area.redraw();
 
     let cursor = &app.cursor;
 
     frp::new_network! { network
-        eval text_area.frp.output.mouse_cursor_style ((s) cursor.frp.input.set_style.emit(s));
+        eval text_area.frp.mouse_cursor_style ((s) cursor.frp.input.set_style.emit(s));
     }
 
     let mut was_rendered = false;
