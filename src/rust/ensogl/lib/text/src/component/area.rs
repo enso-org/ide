@@ -474,17 +474,17 @@ impl Area {
         let mouse    = &model.scene.mouse.frp;
         let input    = &model.frp_inputs;
         let cmd      = &input.command;
-        let bg       = &model.background;
+        // let bg       = &model.background;
         let pos      = Animation :: <Vector2> :: new(&network);
         let keyboard = &model.scene.keyboard;
         let m        = &model;
         pos.update_spring(|spring| spring*2.0);
 
         frp::extend! { network
-            cursor_over  <- bg.events.mouse_over.constant(gui::cursor::Style::new_text_cursor());
-            cursor_out   <- bg.events.mouse_out.constant(gui::cursor::Style::default());
-            mouse_cursor <- any(cursor_over,cursor_out);
-            self.frp.source.mouse_cursor_style <+ mouse_cursor;
+            // cursor_over  <- bg.events.mouse_over.constant(gui::cursor::Style::new_text_cursor());
+            // cursor_out   <- bg.events.mouse_out.constant(gui::cursor::Style::default());
+            // mouse_cursor <- any(cursor_over,cursor_out);
+            // self.frp.source.mouse_cursor_style <+ mouse_cursor;
 
 
             // === Set / Add cursor ===
@@ -623,15 +623,8 @@ pub struct AreaData {
     glyph_system   : glyph::System,
     lines          : Lines,
     selection_map  : Rc<RefCell<SelectionMap>>,
-    background     : component::ShapeView<background::Shape>,
+    //background     : component::ShapeView<background::Shape>,
 }
-
-// impl Deref for AreaData {
-//     type Target = buffer::View;
-//     fn deref(&self) -> &Self::Target {
-//         &self.buffer
-//     }
-// }
 
 impl AreaData {
     /// Constructor.
@@ -641,7 +634,7 @@ impl AreaData {
         let logger         = Logger::new("text_area");
         let bg_logger      = Logger::sub(&logger,"background");
         let selection_map  = default();
-        let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
+        //let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
         let fonts          = scene.extension::<typeface::font::Registry>();
         let font           = fonts.load("DejaVuSansMono");
         let glyph_system   = typeface::glyph::System::new(&scene,font);
@@ -650,17 +643,16 @@ impl AreaData {
         let buffer         = default();
         let lines          = default();
         let frp_inputs     = FrpInputs::new(network);
-        display_object.add_child(&background);
 
         // FIXME: Hardcoded position. To be refactored in the future PRs.
         // FIXME: Should be resolved as part of https://github.com/enso-org/ide/issues/462
-        background.shape.sprite.size.set(Vector2(150.0,100.0));
-        background.mod_position(|p| p.x += 50.0);
+        //display_object.add_child(&background);
+        //background.shape.sprite.size.set(Vector2(150.0,100.0));
+        //background.mod_position(|p| p.x += 50.0);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<selection::Shape>);
         shape_system.shape_system.set_pointer_events(false);
-        Self {scene,logger,frp_inputs,display_object,glyph_system,buffer,lines,selection_map
-             ,background}.init()
+        Self {scene,logger,frp_inputs,display_object,glyph_system,buffer,lines,selection_map}.init()
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {

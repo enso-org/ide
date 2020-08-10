@@ -40,10 +40,65 @@ macro_rules! define_frp_caller {
 
     ($field:ident ($t1:ty,$t2:ty)) => {
         #[allow(missing_docs)]
-        pub fn $field(&self,t1:impl IntoParam<$t1>,t2:impl IntoParam<$t2>) {
+        pub fn $field
+        ( &self
+        , t1:impl IntoParam<$t1>
+        , t2:impl IntoParam<$t2>
+        ) {
             let t1 = t1.into_param();
             let t2 = t2.into_param();
             self.$field.emit((t1,t2));
+        }
+    };
+
+    ($field:ident ($t1:ty,$t2:ty,$t3:ty)) => {
+        #[allow(missing_docs)]
+        pub fn $field
+        ( &self
+        , t1:impl IntoParam<$t1>
+        , t2:impl IntoParam<$t2>
+        , t3:impl IntoParam<$t3>
+        ) {
+            let t1 = t1.into_param();
+            let t2 = t2.into_param();
+            let t3 = t3.into_param();
+            self.$field.emit((t1,t2,t3));
+        }
+    };
+
+    ($field:ident ($t1:ty,$t2:ty,$t3:ty,$t4:ty)) => {
+        #[allow(missing_docs)]
+        pub fn $field
+        ( &self
+        , t1:impl IntoParam<$t1>
+        , t2:impl IntoParam<$t2>
+        , t3:impl IntoParam<$t3>
+        , t4:impl IntoParam<$t4>
+        ) {
+            let t1 = t1.into_param();
+            let t2 = t2.into_param();
+            let t3 = t3.into_param();
+            let t4 = t4.into_param();
+            self.$field.emit((t1,t2,t3,t4));
+        }
+    };
+
+    ($field:ident ($t1:ty,$t2:ty,$t3:ty,$t4:ty,$t5:ty)) => {
+        #[allow(missing_docs)]
+        pub fn $field
+        ( &self
+        , t1:impl IntoParam<$t1>
+        , t2:impl IntoParam<$t2>
+        , t3:impl IntoParam<$t3>
+        , t4:impl IntoParam<$t4>
+        , t5:impl IntoParam<$t5>
+        ) {
+            let t1 = t1.into_param();
+            let t2 = t2.into_param();
+            let t3 = t3.into_param();
+            let t4 = t4.into_param();
+            let t5 = t5.into_param();
+            self.$field.emit((t1,t2,t3,t4,t5));
         }
     };
 

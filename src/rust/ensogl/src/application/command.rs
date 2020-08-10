@@ -294,6 +294,12 @@ macro_rules! def_command_api {
                 }
                 Self { $($field),* }
             }
+
+            $(
+                pub fn $field(&self) {
+                    self.$field.emit(())
+                }
+            )*
         }
     };
 }

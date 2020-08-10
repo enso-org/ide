@@ -146,21 +146,17 @@ fn init(app:&Application) {
 
     world.add_child(&text_area);
 
-
-    text_area.frp.input.set_cursor.emit(&default());
-    text_area.frp.input.insert.emit("ab\ncd\nef".to_string());
-
-    // text_area.add_cursor_DEBUG(default());
+    text_area.set_cursor(&default());
+    text_area.insert("ab\ncd\nef".to_string());
 //    text_area.insert("Test text €!!!\nline2\nline3\nopen \"data.csv\"");
 //    text_area.insert("open€ \"data.csv\"\nline2 continuation\nline3 continuation");
 //     text_area.insert("ab\ncd\nef");
     text_area.set_color_bytes(text::Range::from(1.bytes()..3.bytes()),color::Rgba::new(0.0,1.0,0.0,1.0));
     text_area.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
     text_area.set_default_text_size(text::Size(12.0));
+    text_area.remove_all_cursors();
 
     text_area.set_position_x(10.0);
-
-    // text_area.redraw();
 
     let cursor = &app.cursor;
 
