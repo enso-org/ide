@@ -10,8 +10,9 @@
 
 use crate::prelude::*;
 
-use crate::graph_editor::component::node::icon;
 use crate::graph_editor::component::text_list::TextList;
+use crate::graph_editor::component::node::quick_action_bar::QuickActionBar;
+
 use crate::data::EnsoCode;
 use crate::visualization;
 
@@ -37,9 +38,10 @@ use ensogl_theme as theme;
 // === Constants ===
 // =================
 
-const DEFAULT_SIZE  : (f32,f32) = (200.0,200.0);
-const CORNER_RADIUS : f32       = super::super::node::CORNER_RADIUS;
-const SHADOW_SIZE   : f32       = super::super::node::SHADOW_SIZE;
+const DEFAULT_SIZE            : (f32,f32) = (200.0,200.0);
+const CORNER_RADIUS           : f32       = super::super::node::CORNER_RADIUS;
+const SHADOW_SIZE             : f32       = super::super::node::SHADOW_SIZE;
+const QUICK_ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
 
 
 // =============
@@ -89,7 +91,6 @@ pub mod background {
         }
     }
 }
-
 
 /// Container background shape definition.
 ///
@@ -326,8 +327,8 @@ pub struct ContainerModel {
     is_fullscreen   : Rc<Cell<bool>>,
     registry        : visualization::Registry,
 
-    visualization_chooser_icon : component::ShapeView<icon::visualization_chooser::Shape>,
-    visualization_chooser      : TextList<visualization::Path>,
+    quick_action_bar      : QuickActionBar,
+    visualization_chooser : TextList<visualization::Path>,
 }
 
 
@@ -348,14 +349,13 @@ impl ContainerModel {
 
         TextList::<visualization::Path>::order_hack(&scene);
 
-        let visualization_chooser_icon = component::ShapeView::<icon::visualization_chooser::Shape>::new(&logger,&scene);
-        view.add_child(&visualization_chooser_icon);
-        visualization_chooser_icon.shape.sprite.size.set(Vector2::new(10.0,10.0));
+        let quick_action_bar = QuickActionBar::new(&scene);
+        view.add_child(&quick_action_bar);
 
         let visualization_chooser = TextList::new(&scene);
 
         Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen,
-            visualization_chooser,visualization_chooser_icon,registry}
+              visualization_chooser,quick_action_bar,registry}
             . init()
     }
 
@@ -438,6 +438,7 @@ impl ContainerModel {
             self.view.background_dom.dom().set_style_or_warn("height","0",&self.logger);
             self.fullscreen_view.background_dom.dom().set_style_or_warn("width", format!("{}px", size[0]), &self.logger);
             self.fullscreen_view.background_dom.dom().set_style_or_warn("height", format!("{}px", size[1]), &self.logger);
+            self.quick_action_bar.frp.set_size.emit(Vector2::zero());
         } else {
             // self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
@@ -448,13 +449,15 @@ impl ContainerModel {
             self.fullscreen_view.background_dom.dom().set_style_or_warn("width", "0", &self.logger);
             self.fullscreen_view.background_dom.dom().set_style_or_warn("height", "0", &self.logger);
             // self.fullscreen_view.background.shape.sprite.size.set(zero());
+
+            let quick_action_size = Vector2::new(size.x, QUICK_ACTION_BAR_HEIGHT);
+            self.quick_action_bar.frp.set_size.emit(quick_action_size);
         }
 
-        let icon_offset = Vector2::new(CORNER_RADIUS, CORNER_RADIUS);
-        self.visualization_chooser_icon.set_position_xy((size/2.0) - icon_offset);
-        self.visualization_chooser.set_position_x(-(size.x/2.0));
-        self.visualization_chooser.set_position_y(size.y/2.0);
-        self.visualization_chooser.frp.set_width.emit(size.x);
+        self.quick_action_bar.set_position_xy(Vector2::new(0.0,(size.y - QUICK_ACTION_BAR_HEIGHT)/2.0));
+        self.visualization_chooser.set_position_x(0.0);
+        self.visualization_chooser.set_position_y((size.y/2.0) - QUICK_ACTION_BAR_HEIGHT);
+        self.visualization_chooser.frp.set_width.emit(size.x / 2.0);
 
 
         if let Some(viz) = &*self.visualization.borrow() {
@@ -545,16 +548,20 @@ impl Container {
         let model      = &self.model;
         let fullscreen = Animation::new(network);
         let size       = Animation::<Vector2>::new(network);
-        let fullscreen_position        = Animation::<Vector3>::new(network);
-        let visualization_chooser_icon = &model.visualization_chooser_icon.events;
-        let visualization_chooser     = &model.visualization_chooser.frp;
+        let fullscreen_position     = Animation::<Vector3>::new(network);
+
+        let visualization_chooser  = &model.visualization_chooser.frp;
+        let quick_action_bar       = &model.quick_action_bar.frp;
         let registry = &model.registry;
 
 
         frp::extend! { network
             eval  inputs.set_visibility                 ((v) model.set_visibility(*v));
             eval_ inputs.toggle_visibility              (model.toggle_visibility());
-            eval  inputs.set_visualization              ((v) model.set_visualization(v.clone()));
+            eval  inputs.set_visualization              ((v) {
+                model.set_visualization(v.clone());
+                model.quick_action_bar.frp.set_label.emit("VisName".to_string());
+            });
             eval  inputs.set_data                       ((t) model.set_visualization_data(t));
             eval  inputs.set_visualization_alternatives ((t) model.visualization_chooser.frp.set_content.emit(t););
 
@@ -589,44 +596,49 @@ impl Container {
         }
         // Visualisation chooser frp bindings
         frp::extend! { network
-            visualisation_chooser_active  <- source::<bool>();
+            visualisation_chooser_active       <- source::<bool>();
+            visualisation_chooser_active_sampler <- visualisation_chooser_active.sampler();
 
-            eval_ visualization_chooser_icon.mouse_down (visualisation_chooser_active.emit(true));
-
-            hide_if_preview            <- visualization_chooser_icon.mouse_out.gate_not(&visualisation_chooser_active);
-            show_if_preview            <- visualization_chooser_icon.mouse_over.gate_not(&visualisation_chooser_active);
-            hide_visualisation_chooser <- any(&hide_if_preview,&visualization_chooser.mouse_out);
-
-            eval_ show_if_preview ({
-                model.visualization_chooser.frp.set_layout_collapsed.emit(());
-                model.show_visualisation_chooser();
-            });
-            eval_ hide_visualisation_chooser ( visualisation_chooser_active.emit(false) );
-
-            show_visualisation_chooser <- visualisation_chooser_active.gate(&visualisation_chooser_active);
-            hide_visualisation_chooser <- visualisation_chooser_active.gate_not(&visualisation_chooser_active);
-
-            eval_ show_visualisation_chooser ({
-                model.show_visualisation_chooser();
-                model.visualization_chooser.frp.set_layout_expanded.emit(());
-                // FIXME we need to hide the visualisation because it will be occluded by HTML
-                // visualisation. This needs better occlusion/layer management to be fixed.
-                model.hide_visualisation();
-            });
+            hide_visualisation_chooser <- quick_action_bar.mouse_out.gate_not(&visualisation_chooser_active);
             eval_ hide_visualisation_chooser ({
+                quick_action_bar.hide_icons.emit(());
+            });
+
+            eval_ quick_action_bar.visualisation_chooser_clicked ([model,visualisation_chooser_active,visualisation_chooser_active_sampler]{
+                if !visualisation_chooser_active_sampler.value() {
+                    model.show_visualisation_chooser();
+                    model.visualization_chooser.frp.set_layout_expanded.emit(());
+                    // FIXME we need to hide the visualisation because it will be occluded by HTML
+                    // visualisation. This needs better occlusion/layer management to be fixed.
+                    model.hide_visualisation();
+                    visualisation_chooser_active.emit(true);
+                } else {
+                    model.hide_visualisation_chooser();
+                    model.show_visualisation();
+                    visualisation_chooser_active.emit(false);
+                }
+
+            });
+            eval_ visualization_chooser.mouse_out ([model,quick_action_bar,visualisation_chooser_active]{
                 model.hide_visualisation_chooser();
                 model.show_visualisation();
+                quick_action_bar.hide_icons.emit(());
+                visualisation_chooser_active.emit(false);
             });
 
-            eval visualization_chooser.selection([model,registry,scene,visualisation_chooser_active](visualization_path) {
+            eval visualization_chooser.selection([model,registry,scene,visualisation_chooser_active,quick_action_bar](visualization_path) {
                 if let Some(visualization_path) = visualization_path {
                     if let Some(definition) = registry.definition_from_path(visualization_path) {
                         if let Ok(visualization) = definition.new_instance(&scene) {
                             model.set_visualization(Some(visualization));
-                            model.visualization_chooser.frp.set_preselected.emit(Some(visualization_path.clone_ref()));
+                            let alternatives = model.registry.valid_alternatives(&definition);
+                            model.frp.set_visualization_alternatives.emit(alternatives);
+                            model.quick_action_bar.frp.set_label.emit(format!("{}", &definition.signature.path));
                         }
                     }
                 }
+                model.hide_visualisation_chooser();
+                quick_action_bar.hide_icons.emit(());
                 visualisation_chooser_active.emit(false);
             });
         }

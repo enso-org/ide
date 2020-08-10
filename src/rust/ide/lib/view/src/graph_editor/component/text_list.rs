@@ -32,7 +32,7 @@ const LINE_HEIGHT  : f32 = 30.0;
 const MAX_CHARACTERS_PER_LINE : usize = 25;
 
 const TEXT_PADDING   : f32 = node::NODE_SHAPE_RADIUS;
-const TEXT_FONT_SIZE : f32 = 11.0;
+const TEXT_FONT_SIZE : f32 = 8.0;
 
 const MOUSE_OUT_DELAY_TIME_MS : f32 =  150.0;
 
@@ -200,7 +200,7 @@ impl<T:TextListItem> Frp<T> {
         frp::extend! { network
             set_content     <- source();
             set_selection   <- source();
-            set_width        <- source();
+            set_width       <- source();
             on_item_hover   <- source();
             set_preselected <- source();
             on_mouse_out    <- source();
@@ -543,6 +543,7 @@ impl<T:TextListItem> TextList<T> {
                     },
                 }
             });
+            eval_ frp.selection ( model.set_layout_collapsed() );
             // Animations
             eval highlight_size.value    ([model,highlight_shape](value) {
                 let base_size = model.item_size();

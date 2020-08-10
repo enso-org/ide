@@ -5,6 +5,7 @@
 
 pub mod port;
 pub mod icon;
+pub mod quick_action_bar;
 
 pub use port::Expression;
 
