@@ -147,7 +147,7 @@ pub mod background {
             let background_rounded = Rect((&width,&height)).corners_radius(&radius);
             let background_sharp   = Rect((&width,&height/2.0)).translate_y(-&height/2.0);
             let background         = background_rounded + background_sharp;
-            let fill_color         = color::Rgba::from(color::Lcha::new(0.0,0.013,0.18,0.6));
+            let fill_color         = color::Rgba::from(color::Lcha::new(0.1,0.013,0.18,0.6));
             let background         = background.fill(fill_color);
             background.into()
         }

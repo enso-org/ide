@@ -55,7 +55,7 @@ pub mod background {
             let select_radius = node::NODE_SHAPE_RADIUS.px() ;
 
             let shape        = Rect((&width,&height)).corners_radius(&select_radius);
-            let fill_color   = color::Rgba::from(color::Lcha::new(0.0,0.013,0.18,0.6));
+            let fill_color   = color::Rgba::from(color::Lcha::new(0.1,0.013,0.18,0.6));
             let shape_filled = shape.fill(fill_color);
 
             shape_filled.into()
