@@ -928,9 +928,9 @@ impl Deref for GraphEditorModelWithNetwork {
 }
 
 impl GraphEditorModelWithNetwork {
-    pub fn new<'t,S:Into<&'t Scene>>(scene:S, cursor:cursor::Cursor, focus_manager:&FocusManager) -> Self {
+    pub fn new(app:&Application, cursor:cursor::Cursor, focus_manager:&FocusManager) -> Self {
         let network = frp::Network::new();
-        let model   = GraphEditorModel::new(scene,cursor,&network,focus_manager);
+        let model   = GraphEditorModel::new(app,cursor,&network,focus_manager);
         Self {model,network}
     }
 
@@ -940,7 +940,7 @@ impl GraphEditorModelWithNetwork {
     , output_press : &frp::Source<EdgeTarget>
     , input_press  : &frp::Source<EdgeTarget>
     ) -> NodeId {
-        let view = component::Node::new(&self.scene);
+        let view = component::Node::new(&self.app);
         let node = Node::new(view);
         let node_id = node.id();
         self.add_child(&node);
@@ -1006,7 +1006,7 @@ impl GraphEditorModelWithNetwork {
     , edge_over  : &frp::Source<EdgeId>
     , edge_out   : &frp::Source<EdgeId>
     ) -> EdgeId {
-        let edge    = Edge::new(component::Edge::new(&self.scene));
+        let edge    = Edge::new(component::Edge::new(&self.app.display.scene()));
         let edge_id = edge.id();
         self.add_child(&edge);
         self.edges.insert(edge.clone_ref());
@@ -1064,7 +1064,7 @@ impl GraphEditorModelWithNetwork {
 pub struct GraphEditorModel {
     pub logger         : Logger,
     pub display_object : display::object::Instance,
-    pub scene          : Scene,
+    pub app            : Application,
     pub project_name   : component::ProjectName,
     pub cursor         : cursor::Cursor,
     pub nodes          : Nodes,
@@ -1077,13 +1077,13 @@ pub struct GraphEditorModel {
 // === Public ===
 
 impl GraphEditorModel {
-    pub fn new<'t,S:Into<&'t Scene>>
-    ( scene         : S
+    pub fn new
+    ( app           : &Application
     , cursor        : cursor::Cursor
     , network       : &frp::Network
     , focus_manager : &FocusManager
     ) -> Self {
-        let scene          = scene.into();
+        let scene          = app.display.scene();
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
@@ -1096,12 +1096,16 @@ impl GraphEditorModel {
         let screen = scene.camera().screen();
         let margin = 10.0;
         project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
-        let scene = scene.clone_ref();
-        Self {logger,display_object,scene,cursor,nodes,edges,touch_state,frp,project_name}//visualizations }
+        let app = app.clone_ref();
+        Self {logger,display_object,app,cursor,nodes,edges,touch_state,frp,project_name}//visualizations }
     }
 
     pub fn all_nodes(&self) -> Vec<NodeId> {
         self.nodes.all.keys()
+    }
+
+    fn scene(&self) -> &Scene {
+        self.app.display.scene()
     }
 }
 
@@ -1615,7 +1619,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let focus_manager  = world.text_field_focus_manager();
     let scene          = world.scene();
     let cursor         = &app.cursor;
-    let model          = GraphEditorModelWithNetwork::new(scene,cursor.clone_ref(),focus_manager);
+    let model          = GraphEditorModelWithNetwork::new(app,cursor.clone_ref(),focus_manager);
     let network        = &model.network;
     let nodes          = &model.nodes;
     let edges          = &model.edges;
@@ -1645,15 +1649,15 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Selection Target Redirection ===
     frp::extend! { network
-    mouse_down_target <- mouse.down.map(f_!(model.scene.mouse.target.get()));
-    mouse_up_target   <- mouse.up.map(f_!(model.scene.mouse.target.get()));
+    mouse_down_target <- mouse.down.map(f_!(model.scene().mouse.target.get()));
+    mouse_up_target   <- mouse.up.map(f_!(model.scene().mouse.target.get()));
     background_up     <- mouse_up_target.map(|t| if t==&display::scene::Target::Background {Some(())} else {None}).unwrap();
 
     eval mouse_down_target([touch,model](target) {
         match target {
             display::scene::Target::Background  => touch.background.down.emit(()),
             display::scene::Target::Symbol {..} => {
-                if let Some(target) = model.scene.shapes.get_mouse_target(*target) {
+                if let Some(target) = model.scene().shapes.get_mouse_target(*target) {
                     target.mouse_down().emit(());
                 }
             }

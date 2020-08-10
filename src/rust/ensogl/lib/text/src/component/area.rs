@@ -64,7 +64,8 @@ pub mod background {
 // === Cursor ===
 // ==============
 
-const LINE_VERTICAL_OFFSET     : f32 = 4.0;
+const LINE_VERTICAL_OFFSET     : f32 = 4.0; // Set manually. May depend on font. To be improved.
+const CURSOR_VERTICAL_OFFSET   : f32 = 1.0; // Set manually. May depend on font. To be improved.
 const CURSOR_PADDING           : f32 = 4.0;
 const CURSOR_WIDTH             : f32 = 2.0;
 const CURSOR_ALPHA             : f32 = 0.8;
@@ -106,7 +107,9 @@ pub mod selection {
     ensogl::define_shape_system! {
         (style:Style, selection:f32, start_time:f32, letter_width:f32) {
             let width_abs      = Var::<f32>::from("abs(input_size.x)");
+            let height         = Var::<f32>::from("input_size.y");
             let rect_width     = width_abs - 2.0 * CURSOR_PADDING;
+            let rect_height    = height    - 2.0 * CURSOR_PADDING;
             let time           = Var::<f32>::from("input_time");
             let one            = Var::<f32>::from(1.0);
             let time           = time - start_time;
@@ -119,7 +122,7 @@ pub mod selection {
             let sel_width      = &rect_width - CURSOR_WIDTH;
             let alpha_weight   = sel_width.smoothstep(0.0,letter_width);
             let alpha          = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
-            let shape          = Rect((1.px() * rect_width,LINE_HEIGHT.px()));
+            let shape          = Rect((1.px() * rect_width,1.px() * rect_height));
             let shape          = shape.corners_radius(SELECTION_CORNER_RADIUS.px());
             let shape          = shape.fill(format!("srgba(1.0,1.0,1.0,{})",alpha.glsl()));
             shape.into()
@@ -174,6 +177,7 @@ impl Selection {
         let spring_factor  = if debug { 0.1 } else { 1.5 };
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);
+
         Self {logger,display_object,right_side,shape_view,network,position,width,edit_mode} . init()
     }
 
@@ -187,15 +191,17 @@ impl Selection {
         frp::extend! { network
             _eval <- all_with(&self.position.value,&self.width.value,
                 f!([view,object,right_side](p,width){
-                    let side       = width.signum();
-                    let abs_width  = width.abs();
-                    let width      = max(CURSOR_WIDTH, abs_width - CURSORS_SPACING);
-                    let view_width = CURSOR_PADDING * 2.0 + width;
-                    let view_x     = (abs_width/2.0) * side;
+                    let side        = width.signum();
+                    let abs_width   = width.abs();
+                    let width       = max(CURSOR_WIDTH, abs_width - CURSORS_SPACING);
+                    let view_width  = CURSOR_PADDING * 2.0 + width;
+                    let view_height = CURSOR_PADDING * 2.0 + LINE_HEIGHT;
+                    let view_x      = (abs_width/2.0) * side;
+                    let view_y      = CURSOR_VERTICAL_OFFSET;
                     object.set_position_xy(*p);
                     right_side.set_position_x(abs_width/2.0);
-                    view.shape.sprite.size.set(Vector2(view_width,20.0));
-                    view.set_position_x(view_x);
+                    view.shape.sprite.size.set(Vector2(view_width,view_height));
+                    view.set_position_xy(Vector2(view_x,view_y));
                 })
             );
         }
@@ -402,10 +408,14 @@ ensogl::def_command_api! { Commands
     undo,
     /// Redo the last operation.
     redo,
-    /// Copy selected text to clipboard,
+    /// Copy selected text to clipboard.
     copy,
-    /// Paste selected text from clipboard,
+    /// Paste selected text from clipboard.
     paste,
+    /// Set the text area in active state. You should rather not need to control it manually, as it is automatically managed by the active state manager.
+    set_active_on,
+    /// Set the text area in non-active state. You should rather not need to control it manually, as it is automatically managed by the active state manager.
+    set_active_off,
 }
 
 impl application::command::CommandApi for Area {
@@ -431,6 +441,7 @@ crate::define_frp! {
     }
     Output {
         mouse_cursor_style (gui::cursor::Style),
+        active             (bool)
     }
 }
 
@@ -444,7 +455,7 @@ crate::define_frp! {
 pub const LINE_HEIGHT : f32 = 14.0;
 
 /// The visual text area implementation.
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Area {
     data    : AreaData,
@@ -487,10 +498,21 @@ impl Area {
             // self.frp.source.mouse_cursor_style <+ mouse_cursor;
 
 
+            // === Active State Management ===
+
+            // FIXME[WD]: Connect the active state to active state management when its ready.
+            active <- bool(&cmd.set_active_off,&cmd.set_active_on);
+            self.frp.source.active <+ active;
+
+
             // === Set / Add cursor ===
 
-            mouse_on_set_cursor     <- mouse.position.sample(&cmd.set_cursor_at_mouse_position);
-            mouse_on_add_cursor     <- mouse.position.sample(&cmd.add_cursor_at_mouse_position);
+            // FIXME[WD]: These aresimulating active state management. To be removed.
+            set_cursor_at_mouse_position <- cmd.set_cursor_at_mouse_position.gate(&active);
+            add_cursor_at_mouse_position <- cmd.add_cursor_at_mouse_position.gate(&active);
+
+            mouse_on_set_cursor     <- mouse.position.sample(&set_cursor_at_mouse_position);
+            mouse_on_add_cursor     <- mouse.position.sample(&add_cursor_at_mouse_position);
             loc_on_set_cursor_mouse <- mouse_on_set_cursor.map(f!((p) m.get_in_text_location(*p)));
             loc_on_add_cursor_mouse <- mouse_on_add_cursor.map(f!((p) m.get_in_text_location(*p)));
             loc_on_set_cursor       <- any(&input.set_cursor,&loc_on_set_cursor_mouse);
@@ -650,8 +672,17 @@ impl AreaData {
         //background.shape.sprite.size.set(Vector2(150.0,100.0));
         //background.mod_position(|p| p.x += 50.0);
 
+        // FIXME[WD]: These settings should be managed wiser. They should be set up during
+        // initialization of the shape system, not for every area creation. To be improved during
+        // refactoring of the architecture some day.
         let shape_system = scene.shapes.shape_system(PhantomData::<selection::Shape>);
+        let symbol       = &shape_system.shape_system.sprite_system.symbol;
         shape_system.shape_system.set_pointer_events(false);
+
+        // FIXME[WD]: This is temporary sorting utility, which places the cursor in front of mouse
+        // pointer. Should be refactored when proper sorting mechanisms are in place.
+        scene.views.main.remove(symbol);
+        scene.views.label.add(symbol);
         Self {scene,logger,frp_inputs,display_object,glyph_system,buffer,lines,selection_map}.init()
     }
 
@@ -686,7 +717,7 @@ impl AreaData {
                 }
                 None => {
                     let selection = Selection::new(&logger,&self.scene,do_edit);
-                    selection.shape.sprite.size.set(Vector2(4.0,20.0)); // FIXME hardcoded values
+                    //selection.shape.sprite.size.set(Vector2(4.0,20.0)); // FIXME hardcoded values
                     selection.shape.letter_width.set(7.0); // FIXME hardcoded values
                     self.add_child(&selection);
                     selection.position.set_target_value(pos);

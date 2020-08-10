@@ -648,6 +648,7 @@ impl<T>       IntoParam<T>         for  T { fn into_param(self) -> T {self} }
 impl<T:Clone> IntoParam<T>         for &T { fn into_param(self) -> T {self.clone()} }
 impl<T>       IntoParam<Option<T>> for T  { fn into_param(self) -> Option<T> {Some(self)} }
 impl<T:Clone> IntoParam<Option<T>> for &T { fn into_param(self) -> Option<T> {Some(self.clone())} }
+impl          IntoParam<String>    for &str { fn into_param(self) -> String {self.into()} }
 
 
 

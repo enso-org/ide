@@ -21,6 +21,7 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
+use ensogl::application::Application;
 
 use super::edge;
 use crate::graph_editor::component::visualization;
@@ -195,7 +196,7 @@ impl Deref for Node {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct NodeModel {
-    pub scene          : Scene,
+    pub app            : Application,
     pub display_object : display::object::Instance,
     pub logger         : Logger,
     pub frp            : Frp,
@@ -214,16 +215,16 @@ pub const SHADOW_SIZE   : f32 = 10.0;
 
 impl NodeModel {
     /// Constructor.
-    pub fn new(scene:&Scene, network:&frp::Network) -> Self {
-
-        let logger  = Logger::new("node");
+    pub fn new(app:&Application, network:&frp::Network) -> Self {
+        let scene  = app.display.scene();
+        let logger = Logger::new("node");
         edge::sort_hack_1(scene);
 
         OutputPorts::order_hack(&scene);
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
-        let main_area   = component::ShapeView::<shape      ::Shape>::new(&main_logger  ,scene);
-        let drag_area   = component::ShapeView::<drag_area  ::Shape>::new(&drag_logger  ,scene);
+        let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
+        let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::sort_hack_2(scene);
 
         port::sort_hack(scene); // FIXME hack for sorting
@@ -236,7 +237,7 @@ impl NodeModel {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-        let ports = port::Manager::new(&logger,scene);
+        let ports = port::Manager::new(&logger,app);
         let scene = scene.clone_ref();
         let input = InputEvents::new(&network);
 
@@ -261,8 +262,8 @@ impl NodeModel {
         let output_ports = OutputPorts::new(&scene);
         display_object.add_child(&output_ports);
 
-
-        Self {scene,display_object,logger,frp,main_area,drag_area,output_ports,ports
+        let app = app.clone_ref();
+        Self {app,display_object,logger,frp,main_area,drag_area,output_ports,ports
              ,visualization} . init()
     }
 
@@ -307,9 +308,9 @@ impl NodeModel {
 }
 
 impl Node {
-    pub fn new(scene:&Scene) -> Self {
+    pub fn new(app:&Application) -> Self {
         let frp_network      = frp::Network::new();
-        let model            = Rc::new(NodeModel::new(scene,&frp_network));
+        let model            = Rc::new(NodeModel::new(app,&frp_network));
         let inputs           = &model.frp.input;
         let selection        = Animation::<f32>::new(&frp_network);
 
