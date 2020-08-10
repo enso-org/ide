@@ -21,25 +21,10 @@ pub enum Suggestion {
 }
 
 impl Suggestion {
-    fn name(&self) -> &String {
+    pub fn name(&self) -> &String {
         match self {
             Self::Completion(completion) => &completion.name
         }
-    }
-
-    fn matches(&self, query:impl Str) -> bool {
-        let mut query_chars     = query.as_ref().chars();
-        let mut next_query_char = query_chars.next();
-        for name_char in self.name().chars() {
-            if let Some(query_char) = next_query_char {
-                if query_char.to_lowercase() == name_char.to_lowercase() {
-                    next_query_char = query_char.next()
-                }
-            } else {
-                break;
-            }
-        }
-        next_query_char.is_none()
     }
 }
 
@@ -64,23 +49,8 @@ pub struct List {
 }
 
 impl List {
-
+    fn new()
 }
 
 
 
-// ===============
-// ===  ===
-// ===============
-
-struct SubsequenceGraph {
-    data : nalgebra::DMatrix<usize>,
-}
-
-impl SubsequenceGraph {
-    fn create_for(word:impl Str, query:impl Str) -> Self {
-        let mut data = nalgebra::DMatrix::<usize>::new();
-        data.resize(query.as_ref().chars().count(),word.as_ref().chars_count());
-
-    }
-}
