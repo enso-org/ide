@@ -14,29 +14,41 @@ use std::collections::hash_map::Entry;
 // === VerticesScore ===
 // =====================
 
+/// The description of path which finishes at some specific vertex.
+#[derive(Clone,Copy,Debug)]
+struct InputPath {
+    value : f32,
+    from  : subsequence_graph::Vertex,
+}
+
 /// The score of single vertex in graph.
 ///
 /// The score is a sum of measure of the vertex alone, and the best score of input path.
-/// The `max_input_score` is updated during the scoring algorithm run. See the `score_match`
+/// The `best_input_path` is updated during the scoring algorithm run. See the `score_match`
 /// function.
 #[derive(Copy,Clone,Debug,Default)]
 struct VertexScore {
     my_measure      : f32,
-    max_input_score : f32,
+    best_input_path : Option<InputPath>,
 }
 
 impl VertexScore {
     fn new(my_measure:f32) -> Self {
-        let max_input_score = std::f32::NEG_INFINITY;
-        VertexScore {my_measure,max_input_score}
+        let best_input_path = default();
+        VertexScore {my_measure,best_input_path}
     }
 
-    fn update_input_score(&mut self, input_score:f32) {
-        self.max_input_score = self.max_input_score.max(input_score);
+    fn update_input_path(&mut self, candidate:InputPath) {
+        let new_score = match self.best_input_path.take() {
+            Some(score) if score.value < candidate.value => candidate,
+            Some(score)                                  => score,
+            None                                         => candidate,
+        };
+        self.best_input_path = Some(new_score)
     }
 
     fn score(&self) -> f32 {
-        self.my_measure + self.max_input_score
+        self.my_measure + self.best_input_path.map_or(0.0, |s| s.value)
     }
 }
 
@@ -52,13 +64,15 @@ impl VerticesScores {
         scores.insert(vertex,VertexScore::new(measure));
     }
 
-    fn update_input_score(&mut self, vertex:subsequence_graph::Vertex, input_score:f32) {
-        let Self(scores) = self;
-        match scores.entry(vertex) {
-            Entry::Occupied(mut entry) => { entry.get_mut().update_input_score(input_score) }
+    fn update_input_path(&mut self, edge:subsequence_graph::Edge, value:f32) {
+        let Self(scores)                     = self;
+        let subsequence_graph::Edge{from,to} = edge;
+        let candidate                        = InputPath{value,from};
+        match scores.entry(to) {
+            Entry::Occupied(mut entry) => { entry.get_mut().update_input_path(candidate) }
             Entry::Vacant(entry)   => {
                 let mut vertex = VertexScore::default();
-                vertex.update_input_score(input_score);
+                vertex.update_input_path(candidate);
                 entry.insert(vertex);
             }
         }
@@ -67,6 +81,45 @@ impl VerticesScores {
     fn get_score(&self, vertex:subsequence_graph::Vertex) -> f32 {
         let Self(scores) = self;
         scores.get(&vertex).map(|v| v.score()).unwrap_or(0.0)
+    }
+
+    fn best_vertex
+    (&self, vertices:impl Iterator<Item=subsequence_graph::Vertex>)
+    -> Option<subsequence_graph::Vertex> {
+        let pairs     = vertices.map(|v| (v,self.get_score(v)));
+        let best_pair = pairs.fold(None, |prev,(vertex,score)| {
+            match prev {
+                Some((_,prev_score)) if score > prev_score => Some((vertex,score)),
+                Some(prev)                                 => Some(prev),
+                None                                       => Some((vertex,score)),
+            }
+        });
+        best_pair.map(|(vertex,_)| vertex)
+    }
+
+    fn best_path_rev(&self, end:subsequence_graph::Vertex) -> BestPathRevIter {
+        BestPathRevIter {
+            scores      : self,
+            next_vertex : Some(end),
+        }
+    }
+}
+
+struct BestPathRevIter<'a> {
+    scores      : &'a VerticesScores,
+    next_vertex : Option<subsequence_graph::Vertex>
+}
+
+impl<'a> Iterator for BestPathRevIter<'a> {
+    type Item = subsequence_graph::Vertex;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = std::mem::take(&mut self.next_vertex);
+        self.next_vertex = (|| {
+            let VerticesScores(scores) = self.scores;
+            Some(scores.get(&next?)?.best_input_path?.from)
+        })();
+        next
     }
 }
 
@@ -96,24 +149,54 @@ pub fn matches(word:impl Str, query:impl Str) -> bool {
     next_query_char.is_none()
 }
 
-/// Score the word-query match.
+/// The result of `find_best_subsequence` function.
+#[derive(Clone,Debug,Default,PartialEq)]
+pub struct Subsequence {
+    /// The score of found subsequence.
+    pub score:f32,
+    /// Indices of `word`'s chars which belong to the subsequence.
+    pub indices:Vec<usize>
+}
+
+impl Subsequence {
+    /// Compare scores of subsequences.
+    ///
+    /// The `f32` does not implement total ordering, however that does not help when we want to
+    /// sort words by their matching score. Therefore this function assumes that all NaNs are the
+    /// lowest values.
+    pub fn compare_scores(&self, rhs:&Subsequence) -> std::cmp::Ordering {
+        if self.score.is_nan() && rhs.score.is_nan() {
+            std::cmp::Ordering::Equal
+        } else if self.score.is_nan() {
+            std::cmp::Ordering::Less
+        } else if rhs.score.is_nan() {
+            std::cmp::Ordering::Greater
+        } else if self.score == rhs.score {
+            std::cmp::Ordering::Equal
+        } else if self.score < rhs.score {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    }
+}
+
+/// Find best subsequence in `word` which equals to `query` in terms of given `metric`.
 ///
-/// The word matches the query if the query is a subsequence of word. However for the peaple some
-/// word are better matches for given query. This function scores the match of word with given
-/// query basing on some arbitrary metric. Returns `None` if word does not match query. Empty query
-/// gives 0.0 score.
+/// Returns `None` if word does not match query. Empty query gives 0.0 score.
 ///
 /// ## Algorithm specification
 ///
 /// In essence, it looks through all possible subsequences of `word` being the `query` and pick the
-/// best scoring. Not directly (because there may be a lot of such subsequences), but by building
-/// the `SubsequenceGraph` and computing best score for each vertex. See `subsequence_graph` module
-/// docs for detailed description of the graph.
-pub fn score_match(word:impl Str, query:impl Str, metric:impl Metric) -> Option<f32> {
-    let word                  = word.as_ref();
-    let query                 = query.as_ref();
+/// one with the best score. Not directly (because there may be a lot of such subsequences), but by
+/// building the `SubsequenceGraph` and computing best score for each vertex. See
+/// `subsequence_graph` module docs for detailed description of the graph.
+pub fn find_best_subsequence
+(word:impl Str, query:impl Str, metric:impl Metric) -> Option<Subsequence> {
+    let word  = word.as_ref();
+    let query = query.as_ref();
     if query.is_empty() {
-        Some(0.0)
+        Some(default())
     } else {
         let last_query_char_index = query.chars().count() - 1;
         let mut scores            = VerticesScores::default();
@@ -122,17 +205,18 @@ pub fn score_match(word:impl Str, query:impl Str, metric:impl Metric) -> Option<
             let measure = metric.measure_vertex(*vertex,word,query);
             scores.init_vertex(*vertex,measure);
         }
-        for vertex in graph.vertices_with_query_char_index(0) {
-            scores.update_input_score(*vertex,0.0);
-        }
         for edge in &graph.edges {
             let from_score  = scores.get_score(edge.from);
             let input_score = from_score + metric.measure_edge(*edge,word,query);
-            scores.update_input_score(edge.to,input_score);
+            scores.update_input_path(*edge,input_score);
         }
-        let end_vertices        = graph.vertices_with_query_char_index(last_query_char_index);
-        let end_vertices_scores = end_vertices.map(|v| scores.get_score(*v));
-        end_vertices_scores.fold(None, |lhs,rhs| Some(lhs.map_or(rhs, |lhs| lhs.max(rhs))))
+        let end_vertices  = graph.vertices_with_query_char_index(last_query_char_index).cloned();
+        let best_vertex   = scores.best_vertex(end_vertices)?;
+        let score         = scores.get_score(best_vertex);
+        let best_path_rev = scores.best_path_rev(best_vertex);
+        let mut indices   = best_path_rev.map(|v| v.word_char_index).collect_vec();
+        indices.reverse();
+        Some(Subsequence {score,indices})
     }
 }
 
@@ -188,29 +272,47 @@ mod test {
     }
 
     #[test]
-    fn match_scoring() {
+    fn finding_best_subsequence() {
         let query = "abc";
-        let word  = "aabxbcc";
+        let word  = "aabxbacc";
 
-        assert_eq!(score_match(word,query,mock_metric::WordIndex)       , Some(11.0));
-        assert_eq!(score_match(word,query,mock_metric::SquareEdgeLength), Some(20.0));
-        assert_eq!(score_match(word,query,mock_metric::Sum::default())  , Some(30.0));
+        let expected = Subsequence {
+            score   : 12.0,
+            indices : vec![1,4,7] // Always pick the latest character possible
+        };
+        assert_eq!(find_best_subsequence(word,query,mock_metric::WordIndex), Some(expected));
+
+        let expected = Subsequence {
+            score   : 29.0,
+            indices : vec![0,2,7] // Prefer the long edges
+        };
+        assert_eq!(find_best_subsequence(word,query,mock_metric::SquareEdgeLength), Some(expected));
+
+        let expected = Subsequence {
+            score   : 38.0,
+            indices : vec![0,2,7] // The edges metric should have more impact
+        };
+        assert_eq!(find_best_subsequence(word,query,mock_metric::Sum::default()), Some(expected));
     }
 
     #[test]
-    fn match_scoring_when_does_not_match() {
+    fn finding_best_subsequence_when_does_not_match() {
         let query = "abc";
         let word  = "aabxbyy";
-        assert_eq!(score_match(word,query,mock_metric::Sum::default()), None);
+        assert_eq!(find_best_subsequence(word,query,mock_metric::Sum::default()), None);
     }
 
     #[test]
-    fn match_scoring_corner_cases() {
+    fn finding_best_subsequence_corner_cases() {
         let query = "";
         let word  = "any";
-        assert_eq!(score_match(word,query,mock_metric::Sum::default()), Some(0.0));
+        let expected = Subsequence {
+            score   : 0.0,
+            indices : vec![],
+        };
+        assert_eq!(find_best_subsequence(word,query,mock_metric::Sum::default()), Some(expected));
         let query = "any";
         let word  = "";
-        assert_eq!(score_match(word,query,mock_metric::Sum::default()), None);
+        assert_eq!(find_best_subsequence(word,query,mock_metric::Sum::default()), None);
     }
 }

@@ -1,5 +1,5 @@
 //! This module contains all structures related to Searcher Controller.
-pub mod list;
+pub mod suggestion;
 
 use crate::prelude::*;
 
@@ -15,6 +15,8 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use parser::Parser;
+
+pub use suggestion::Suggestion;
 
 
 
@@ -43,7 +45,7 @@ pub enum Suggestions {
     /// The suggestion list is loaded.
     #[allow(missing_docs)]
     Loaded {
-        list : Rc<Vec<Suggestion>>
+        list : Rc<suggestion::List>
     },
     /// Loading suggestion list resulted in error.
     Error(Rc<failure::Error>)
@@ -61,7 +63,7 @@ impl Suggestions {
     }
 
     /// Get the list of suggestions. Returns None if still loading or error was returned.
-    pub fn list(&self) -> Option<&Vec<Suggestion>> {
+    pub fn list(&self) -> Option<&suggestion::List> {
         match self {
             Self::Loaded {list} => Some(list),
             _                   => None,
@@ -266,7 +268,7 @@ pub enum Mode {
 #[allow(missing_docs)]
 pub struct FragmentAddedByPickingSuggestion {
     pub id                : CompletedFragmentId,
-    pub picked_suggestion : CompletionSuggestion,
+    pub picked_suggestion : suggestion::Completion,
 }
 
 impl FragmentAddedByPickingSuggestion {
@@ -416,6 +418,9 @@ impl Searcher {
         self.invalidate_fragments_added_by_picking();
         if old_expr.repr() != new_expr.repr() {
             self.reload_list()
+        } else if let Suggestions::Loaded {list} = self.data.borrow().suggestions.clone_ref() {
+            list.update_filtering(&self.data.borrow().input.pattern);
+            executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
         }
         Ok(())
     }
@@ -432,7 +437,7 @@ impl Searcher {
     /// Code that will be inserted by expanding given suggestion at given location.
     ///
     /// Code depends on the location, as the first fragment can introduce `this` variable access.
-    fn code_to_insert(&self, suggestion:&CompletionSuggestion, id:CompletedFragmentId) -> String {
+    fn code_to_insert(&self, suggestion:&suggestion::Completion, id:CompletedFragmentId) -> String {
         let var = self.this_var_for(id);
         suggestion.code_to_insert(var)
     }
@@ -443,7 +448,7 @@ impl Searcher {
     /// suggestion will be remembered, and the searcher's input will be updated and returned by this
     /// function.
     pub fn pick_completion
-    (&self, picked_suggestion:CompletionSuggestion) -> FallibleResult<String> {
+    (&self, picked_suggestion:suggestion::Completion) -> FallibleResult<String> {
         let id                = self.data.borrow().input.next_completion_id();
         let code_to_insert    = self.code_to_insert(&picked_suggestion,id);
         let added_ast         = self.parser.parse_line(&code_to_insert)?;
@@ -632,8 +637,8 @@ impl Searcher {
     /// Process multiple completion responses from the engine into a single list of suggestion.
     fn suggestions_from_responses
     (&self, responses:Vec<json_rpc::Result<language_server::response::Completion>>)
-    -> FallibleResult<Vec<Suggestion>> {
-        let mut suggestions = Vec::new();
+    -> FallibleResult<suggestion::List> {
+        let suggestions = suggestion::List::new();
         for response in responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {
@@ -643,10 +648,11 @@ impl Searcher {
             });
             suggestions.extend(entries);
         }
+        suggestions.update_filtering(&self.data.borrow().input.pattern);
         Ok(suggestions)
     }
 
-    fn possible_function_calls(&self) -> Vec<CompletionSuggestion> {
+    fn possible_function_calls(&self) -> Vec<suggestion::Completion> {
         let opt_result = || {
             let call_ast = self.data.borrow().input.expression.as_ref()?.func.clone_ref();
             let call     = SimpleFunctionCall::try_new(&call_ast)?;
@@ -687,7 +693,7 @@ impl Searcher {
     /// Get the suggestion that was selected by the user into the function.
     ///
     /// This suggestion shall be used to request better suggestions from the engine.
-    fn intended_function_suggestion(&self) -> Option<CompletionSuggestion> {
+    fn intended_function_suggestion(&self) -> Option<suggestion::Completion> {
         let id       = CompletedFragmentId::Function;
         let fragment = self.data.borrow().find_picked_fragment(id).cloned();
         fragment.map(|f| f.picked_suggestion.clone_ref())
@@ -815,11 +821,11 @@ mod test {
         data     : MockData,
         test     : TestWithLocalPoolExecutor,
         searcher : Searcher,
-        entry1   : CompletionSuggestion,
-        entry2   : CompletionSuggestion,
-        entry3   : CompletionSuggestion,
-        entry4   : CompletionSuggestion,
-        entry9   : CompletionSuggestion,
+        entry1   : suggestion::Completion,
+        entry2   : suggestion::Completion,
+        entry3   : suggestion::Completion,
+        entry4   : suggestion::Completion,
+        entry9   : suggestion::Completion,
     }
 
     impl Fixture {
@@ -1112,7 +1118,7 @@ mod test {
         assert!(searcher.suggestions().is_loading());
         test.run_until_stalled();
         let expected_list = vec![Suggestion::Completion(entry1),Suggestion::Completion(entry9)];
-        assert_eq!(searcher.suggestions().list(), Some(&expected_list));
+        assert_eq!(searcher.suggestions().list().unwrap().to_suggestion_vec(), expected_list);
         let notification = subscriber.next().boxed_local().expect_ready();
         assert_eq!(notification, Some(Notification::NewSuggestionList));
     }

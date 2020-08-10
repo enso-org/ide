@@ -21,6 +21,7 @@ pub trait Metric {
     /// How hood is the edge on the path representing the path on the Subsequence Graph?
     fn measure_edge(&self, edge:subsequence_graph::Edge, word:&str, query:&str) -> f32;
 
+    /// Return a new metric being a sum of this and `rhs`.
     fn sum<Rhs:Metric>(self, rhs:Rhs) -> Sum<Self,Rhs> where Self:Sized { Sum(self, rhs) }
 }
 

@@ -22,14 +22,17 @@ use std::cmp::min;
 /// list.
 #[derive(Copy,Clone,Debug,Eq,Hash,Ord,PartialEq,PartialOrd)]
 pub struct Vertex {
-    pub query_char_index : usize,
-    pub word_char_index  : usize,
+    /// Index of character in the query string.
+    pub query_char_index:usize,
+    /// Index of character in the word being matched.
+    pub word_char_index:usize,
 }
 
 /// A graph edge.
 ///
 /// The fields' order is significant, because it affect how those are ordered in graph's edges
 /// list.
+#[allow(missing_docs)]
 #[derive(Copy,Clone,Debug,Eq,Hash,Ord,PartialEq,PartialOrd)]
 pub struct Edge {
     pub from : Vertex,
@@ -89,6 +92,7 @@ impl Graph {
         result
     }
 
+    /// Returns an iterator over all vertices with specific query_char_index.
     pub fn vertices_with_query_char_index(&self, index:usize) -> impl Iterator<Item=&Vertex> {
         let start = Vertex{query_char_index:index    , word_char_index:0};
         let end   = Vertex{query_char_index:index + 1, word_char_index:0};

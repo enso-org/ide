@@ -4,9 +4,9 @@
 //! whose names match the given query, the next step is to order the items, so the best matches
 //! are listed first.
 //!
-//! This crate provides `score_match` function which may be used to score each found element. The
-//! metrics used for scoring may be adjusted by implementing `Metric` trait, or by customizing
-//! parameters of metrics defined in `metric` module.
+//! This crate provides `find_best_subsequence` function which may be used to score each found
+//! element. The metrics used for scoring may be adjusted by implementing `Metric` trait, or by
+//! customizing parameters of metrics defined in `metric` module.
 #![feature(option_result_contains)]
 
 #![warn(missing_docs)]
@@ -25,4 +25,6 @@ pub mod score;
 pub use enso_prelude as prelude;
 pub use metric::Metric;
 pub use subsequence_graph::Graph as SubsequenceGraph;
-pub use score::score_match;
+pub use score::Subsequence;
+pub use score::matches;
+pub use score::find_best_subsequence;
