@@ -6,6 +6,8 @@ use crate::prelude::*;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::data::color;
+use ensogl::display::Attribute;
+use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
@@ -34,7 +36,7 @@ const MAX_CHARACTERS_PER_LINE : usize = 25;
 const TEXT_PADDING   : f32 = node::NODE_SHAPE_RADIUS;
 const TEXT_FONT_SIZE : f32 = 8.0;
 
-const MOUSE_OUT_DELAY_TIME_MS : f32 =  150.0;
+const MOUSE_OUT_DELAY_TIME_MS : f32 =  500.0;
 
 
 
@@ -53,7 +55,7 @@ pub mod background {
             let select_radius = node::NODE_SHAPE_RADIUS.px() ;
 
             let shape        = Rect((&width,&height)).corners_radius(&select_radius);
-            let fill_color   = color::Rgba::from(color::Lcha::new(0.0,0.013,0.18,0.8));
+            let fill_color   = color::Rgba::from(color::Lcha::new(0.0,0.013,0.18,0.6));
             let shape_filled = shape.fill(fill_color);
 
             shape_filled.into()
@@ -158,12 +160,13 @@ pub mod text_item_highlight {
     use super::*;
 
     ensogl::define_shape_system! {
-        () {
+        (opacity:f32) {
             let width         = Var::<Pixels>::from("input_size.x");
             let height        = Var::<Pixels>::from("input_size.y");
             let corner_radius = node::NODE_SHAPE_RADIUS.px();
-            let shape        = Rect((&width,&height)).corners_radius(&corner_radius);
-            let shape_filled = shape.fill(color::Rgba::new(0.2,0.5,7.0,1.0));
+            let shape         = Rect((&width,&height)).corners_radius(&corner_radius);
+            let color         = Var::<color::Rgba>::from("srgba(0.2,0.5,7.0,input_opacity)");
+            let shape_filled = shape.fill(color);
 
             shape_filled.into()
         }
@@ -241,7 +244,7 @@ impl<T:TextListItem> TextListModel<T> {
         let logger                   = Logger::new("TextListModel");
         let display_object           = display::object::Instance::new(&logger);
         let background_shape         = component::ShapeView::new(&logger,scene);
-        let highlight_shape          = component::ShapeView::<text_item_highlight::Shape>::new(&logger,scene);
+        let highlight_shape          = component::ShapeView::new(&logger,scene);
         let scene                    = scene.clone();
         let content_items            = default();
         let content_background_views = default();
@@ -257,7 +260,6 @@ impl<T:TextListItem> TextListModel<T> {
     fn init(self)-> Self {
         self.add_child(&self.background_shape);
         self.add_child(&self.highlight_shape);
-        self.highlight_shape.shape.sprite.size.set(Vector2::zero());
         self
     }
 
@@ -331,13 +333,14 @@ impl<T:TextListItem> TextListModel<T> {
     }
 
     fn set_width(&self, width:f32) {
-       self.width.set(width);
+        self.width.set(width);
+        self.highlight_shape.shape.sprite.size.set(self.item_size());
     }
 
     /// Hide the highlight shape.
     fn deactivate_highlight(&self) {
         self.highlight_shape.set_position_xy(self.item_base_position(0.0));
-        self.highlight_shape.shape.sprite.size.set(Vector2::zero());
+        self.highlight_shape.shape.opacity.set(0.0);
     }
 
     /// Set the given item as selected. That means it moves to the top of the list.
@@ -493,7 +496,7 @@ impl<T:TextListItem> TextList<T> {
         let frp     = &self.frp;
         let model   = &self.model;
 
-        let highlight_size     = Animation::<f32>::new(&network);
+        let highlight_opacity  = Animation::<f32>::new(&network);
         let highlight_position = Animation::<f32>::new(&network);
         let highlight_shape    = &model.highlight_shape;
 
@@ -515,39 +518,39 @@ impl<T:TextListItem> TextList<T> {
                 model.set_layout_collapsed();
             });
             eval_ frp.set_layout_collapsed ( model.set_layout_collapsed() );
-            eval_ frp.set_layout_expanded ([highlight_size,highlight_position,model] {
+            eval_ frp.set_layout_expanded ([highlight_opacity,highlight_position,model] {
                 // We want to ensure highlight appearance is reset
                 highlight_position.set_target_value(0.0);
-                highlight_size.set_target_value(0.0);
+                highlight_opacity.set_target_value(0.0);
                 highlight_position.set_value(0.0);
-                highlight_size.set_value(0.0);
+                highlight_opacity.set_value(0.0);
                 model.set_layout_expanded();
             });
             eval frp.set_preselected ((item) model.set_preselected_item(item.clone()));
             eval frp.set_width        ((size) model.set_width(*size));
              // Internal shape API
-            eval frp.on_item_hover ([mouse_out_timer,highlight_size,highlight_position,model](item) {
+            eval frp.on_item_hover ([mouse_out_timer,highlight_opacity,highlight_position,model](item) {
                 match item {
                     Some(item) => {
                         model.set_layout_expanded();
                         mouse_out_timer.stop();
                         let item_index = model.content_items.borrow().iter().position(|other| other == item);
                         if let Some(index) = item_index {
-                            highlight_size.set_target_value(1.0);
+                            highlight_opacity.set_target_value(1.0);
                             highlight_position.set_target_value(index as f32);
                         }
                     },
                     None => {
                         mouse_out_timer.reset();
                         mouse_out_timer.set_target_value(TWEEN_END_VALUE);
+                         highlight_opacity.set_target_value(0.0);
                     },
                 }
             });
             eval_ frp.selection ( model.set_layout_collapsed() );
             // Animations
-            eval highlight_size.value    ([model,highlight_shape](value) {
-                let base_size = model.item_size();
-                highlight_shape.shape.sprite.size.set(base_size * (*value));
+            eval highlight_opacity.value    ((value) {
+                highlight_shape.shape.opacity.set(*value);
             });
             eval highlight_position.value ([highlight_shape,model](value) {
                highlight_shape.set_position_xy(model.item_base_position(*value))

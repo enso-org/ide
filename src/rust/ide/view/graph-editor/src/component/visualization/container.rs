@@ -454,9 +454,8 @@ impl ContainerModel {
             self.quick_action_bar.frp.set_size.emit(quick_action_size);
         }
 
-        self.quick_action_bar.set_position_xy(Vector2::new(0.0,(size.y - QUICK_ACTION_BAR_HEIGHT)/2.0));
-        self.visualization_chooser.set_position_x(0.0);
-        self.visualization_chooser.set_position_y((size.y/2.0) - QUICK_ACTION_BAR_HEIGHT);
+        self.quick_action_bar.set_position_y((size.y - QUICK_ACTION_BAR_HEIGHT) / 2.0);
+        self.visualization_chooser.set_position_y((size.y / 2.0) - QUICK_ACTION_BAR_HEIGHT * 1.25);
         self.visualization_chooser.frp.set_width.emit(size.x / 2.0);
 
 

@@ -15,6 +15,8 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 
+use super::super::node;
+
 
 
 // =================
@@ -132,6 +134,26 @@ pub mod chooser_hover_area {
     }
 }
 
+/// Invisible rectangular area that can be hovered.
+/// Note: needs to be an extra shape for sorting purposes.
+pub mod background {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        () {
+            let width  : Var<Pixels> = "input_size.x".into();
+            let height : Var<Pixels> = "input_size.y".into();
+            let radius             = node::NODE_SHAPE_RADIUS.px() ;
+            let background_rounded = Rect((&width,&height)).corners_radius(&radius);
+            let background_sharp   = Rect((&width,&height/2.0)).translate_y(-&height/2.0);
+            let background         = background_rounded + background_sharp;
+            let fill_color         = color::Rgba::from(color::Lcha::new(0.0,0.013,0.18,0.6));
+            let background         = background.fill(fill_color);
+            background.into()
+        }
+    }
+}
+
 
 
 // ===========
@@ -192,6 +214,8 @@ struct QuickActionBarModel {
     visualization_chooser_icon    : component::ShapeView<icon::visualization_chooser::Shape>,
     visualisation_chooser_label   : component::ShapeView<text::Shape>,
     visualization_chooser_overlay : component::ShapeView<chooser_hover_area::Shape>,
+    background                    : component::ShapeView<background::Shape>,
+
     display_object                : display::object::Instance,
 
     size                          : Rc<Cell<Vector2>>,
@@ -200,6 +224,7 @@ struct QuickActionBarModel {
 impl QuickActionBarModel {
     fn new(scene:&Scene) -> Self {
         let logger                        = Logger::new("QuickActionBarModel");
+        let background                    = component::ShapeView::new(&logger,scene);
         let hover_area                    = component::ShapeView::new(&logger,scene);
         let visualization_chooser_icon    = component::ShapeView::new(&logger,scene);
         let visualisation_chooser_label   = component::ShapeView::new(&logger,scene);
@@ -214,6 +239,7 @@ impl QuickActionBarModel {
             visualization_chooser_overlay,
             display_object,
             size,
+            background,
         }.init()
     }
 
@@ -226,6 +252,7 @@ impl QuickActionBarModel {
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
         self.hover_area.shape.size.set(size);
+        self.background.shape.size.set(size);
 
         let height        = size.y;
         let width         = size.x;
@@ -253,13 +280,14 @@ impl QuickActionBarModel {
         self.add_child(&self.visualisation_chooser_label);
         self.add_child(&self.visualization_chooser_icon);
         self.add_child(&self.visualization_chooser_overlay);
-
+        self.add_child(&self.background);
     }
 
     fn hide_quick_action_icons(&self) {
         self.visualization_chooser_icon.unset_parent();
         self.visualisation_chooser_label.unset_parent();
         self.visualization_chooser_overlay.unset_parent();
+        self.background.unset_parent();
     }
 }
 
@@ -283,7 +311,7 @@ impl display::Object for QuickActionBarModel {
 /// ```text
 ///     / ---------------------------- \
 ///    |                    <label> V   |
-///     \ ---------------------------- /
+///    |--------------------------------|
 ///
 /// TODO: will be extended with more quick action icons in #538
 /// ```
@@ -318,7 +346,6 @@ impl QuickActionBar {
 
              eval_ frp.hide_icons ( model.hide_quick_action_icons() );
              eval_ frp.show_icons ( model.show_quick_action_icons() );
-
 
             any_component_over <- any(&hover_area.mouse_over,&visualization_chooser_overlay.mouse_over);
             any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser_overlay.mouse_out);
