@@ -395,7 +395,8 @@ pub struct LocalCall {
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct MethodPointer {
-    pub file            : Path,
+    /// The fully qualified module name.
+    pub module          : String,
     pub defined_on_type : String,
     pub name            : String
 }

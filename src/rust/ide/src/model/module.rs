@@ -21,6 +21,7 @@ use serde::Serialize;
 use serde::Deserialize;
 
 pub use double_representation::module::QualifiedName;
+use crate::double_representation::module::InvalidQualifiedName;
 
 // ============
 // == Errors ==
@@ -59,8 +60,84 @@ pub enum ModulePathViolation {
 
 /// Happens if an empty segments list is provided as qualified module name.
 #[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="No qualified name segments were provided.")]
-pub struct EmptyQualifiedName;
+#[fail(display="No name segments were provided.")]
+pub struct EmptyName;
+
+/// Happens if an empty segment is encountered in the module qualified name.
+#[derive(Clone,Debug,Fail)]
+#[fail(display="The `{}` is not a valid name segment.",_0)]
+pub struct InvalidNameSegment(String);
+
+#[derive(Clone,Debug,Shrinkwrap)]
+/// The name segment is a string that starts with an upper-cased character.
+pub struct ReferentName(String);
+
+impl AsRef<str> for ReferentName {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl ReferentName {
+    /// Try interpreting given string as a referent name.
+    pub fn new(name:impl Str) -> Result<ReferentName,InvalidNameSegment> {
+        // TODO [mwu]
+        //  We should be able to call parser or sth to verify that other requirements for the
+        //  referent form identifiers are fulfilled.
+        let first_char = name.as_ref().chars().next();
+        match first_char {
+            Some(c) if c.is_uppercase() => Ok(ReferentName(name.into())),
+            _                           => Err(InvalidNameSegment(name.into())),
+        }
+    }
+}
+
+/// The segments of module name. Allow finding module in the project.
+///
+/// Includes segments of module path but *NOT* the project name (see: `QualifiedName`).
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct Id {
+    /// The vector is non-empty and each segment starts with an upper-cased character.
+    segments:Vec<ReferentName>
+}
+
+impl Id {
+    /// Construct a module's ID value from a name segments sequence.
+    ///
+    /// Fails if the given sequence is empty.
+    pub fn new(segments:impl IntoIterator<Item=ReferentName>) -> Result<Id,EmptyName> {
+        let segments = segments.into_iter().collect_vec();
+        if segments.is_empty() {
+            Err(EmptyName)
+        } else {
+            Ok(Id {segments})
+        }
+    }
+
+    /// Build module's qualified name for a project with a given name.
+    pub fn qualified(&self, project_name:impl Into<String>) -> QualifiedName {
+        // TODO why safe?
+        QualifiedName::from_segments(project_name,&self.segments).unwrap()
+    }
+
+    /// Build module's path in a filesystem under given root ID.
+    pub fn path(&self, root_id:Uuid) -> Path {
+        // TODO why safe?
+        Path::from_name_segments(root_id,&self.segments).unwrap()
+    }
+}
+
+impl From<QualifiedName> for Id {
+    fn from(name:QualifiedName) -> Self {
+        name.id()
+    }
+}
+
+impl From<Path> for Id {
+    fn from(path:Path) -> Self {
+        path.id()
+    }
+}
 
 
 
@@ -79,6 +156,11 @@ pub struct Path {
 }
 
 impl Path {
+    /// Get a path of the module that defines given method.
+    pub fn from_method(root_id:Uuid, method:&MethodPointer) -> Result<Self,InvalidQualifiedName> {
+        QualifiedName::try_from(method).map(|name| name.path(root_id))
+    }
+
     /// Create a path from the file path. Returns Err if given path is not a valid module file.
     pub fn from_file_path(file_path:FilePath) -> Result<Self,InvalidModulePath> {
         use ModulePathViolation::*;
@@ -91,6 +173,7 @@ impl Path {
         let file_name       = file_path.file_name().ok_or_else(error(ContainsNoSegments))?;
         let name_first_char = file_name.chars().next().ok_or_else(error(ContainsEmptySegment))?;
         name_first_char.is_uppercase().ok_or_else(error(NonCapitalizedFileName))?;
+        // TODO need to check non-src intermediate folders to see if they are referent names
         let is_in_src = file_path.segments.first().contains_if(|name| *name == SOURCE_DIRECTORY);
         is_in_src.ok_or_else(error(NotInSourceDirectory))?;
         let file_path = Rc::new(file_path);
@@ -105,11 +188,21 @@ impl Path {
     (root_id:Uuid, name_segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<Path> {
         let mut segments : Vec<String> = vec![SOURCE_DIRECTORY.into()];
         segments.extend(name_segments.into_iter().map(|segment| segment.as_ref().to_string()));
-        let module_file = segments.last_mut().ok_or(EmptyQualifiedName)?;
+        let module_file = segments.last_mut().ok_or(EmptyName)?;
         module_file.push('.');
         module_file.push_str(LANGUAGE_FILE_EXTENSION);
         let file_path = Rc::new(FilePath {root_id,segments});
         Ok(Path {file_path})
+    }
+
+    /// Get the module's identifier.
+    pub fn id(&self) -> Id {
+        let non_src_directories = &self.file_path.segments[1..self.file_path.segments.len()-1];
+        let non_src_directories = non_src_directories.iter().map(ReferentName::new);
+        let module_name         = std::iter::once(ReferentName::new(self.module_name()));
+        let module_segments     = non_src_directories.chain(module_name);
+        // TODO describe
+        Id {segments:Result::from_iter(module_segments).unwrap()}
     }
 
     /// Get the file path.
@@ -144,11 +237,11 @@ impl Path {
     /// Obtain a pointer to a method of the module (i.e. extending the module's atom).
     ///
     /// Note that this cannot be used for a method extending other atom than this module.
-    pub fn method_pointer(&self, method_name:impl Str) -> MethodPointer {
+    pub fn method_pointer(&self, project_name:impl Str, method_name:impl Str) -> MethodPointer {
         MethodPointer {
             defined_on_type : self.module_name().into(),
             name            : method_name.into(),
-            file            : self.file_path.deref().clone(),
+            module          : self.qualified_module_name(project_name).into(),
         }
     }
 
@@ -194,13 +287,6 @@ impl Display for Path {
     }
 }
 
-impl TryFrom<MethodPointer> for Path {
-    type Error = InvalidModulePath;
-
-    fn try_from(value:MethodPointer) -> Result<Self, Self::Error> {
-        value.file.try_into()
-    }
-}
 
 
 // ====================

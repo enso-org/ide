@@ -112,7 +112,7 @@ impl Handle {
     /// definition IDs include information about definition syntax whereas method pointer identifies
     /// the desugared entity.
     pub fn method_pointer
-    (&self, id:&double_representation::graph::Id)
+    (&self, project_name:impl Str, id:&double_representation::graph::Id)
     -> FallibleResult<language_server::MethodPointer> {
         let crumb = match id.crumbs.as_slice() {
             [crumb] => crumb,
@@ -125,9 +125,9 @@ impl Handle {
             crumb.extended_target.iter().map(|segment| segment.as_str()).join(".")
         };
         Ok(language_server::MethodPointer {
-            file : self.model.path().file_path().clone(),
             defined_on_type,
-            name : crumb.name.item.clone(),
+            module : module::QualifiedName::new(project_name,self.model.path()).into(),
+            name   : crumb.name.item.clone(),
         })
     }
 

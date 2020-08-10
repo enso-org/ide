@@ -21,6 +21,7 @@ use std::time::Duration;
 #[allow(unused_imports)]
 use wasm_bindgen_test::wasm_bindgen_test;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
+use ide::double_representation::module::QualifiedName;
 
 /// The endpoint at which the Language Server should be accepting WS connections.
 const SERVER_ENDPOINT:&str = "ws://localhost:30616";
@@ -62,6 +63,9 @@ wasm_bindgen_test_configure!(run_in_browser);
 // #[wasm_bindgen_test::wasm_bindgen_test(async)]
 #[allow(dead_code)]
 async fn ls_text_protocol_test() {
+    // FIXME broken, as cannot know the project name
+    let project_name = "Untitled";
+
     // Setting up.
     let ws        = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
     let ws        = ws.expect("Couldn't connect to WebSocket server.");
@@ -96,9 +100,11 @@ async fn ls_text_protocol_test() {
     let execution_context    = execution_context.expect("Couldn't create execution context.");
     let execution_context_id = execution_context.context_id;
 
+    let module_path     = model::module::Path::try_from(file.clone()).unwrap();
     let defined_on_type = "Main".to_string();
     let name            = "main".to_string();
-    let method_pointer  = MethodPointer{file:file.clone(),defined_on_type,name};
+    let module          = QualifiedName::new(project_name,&module_path);
+    let method_pointer  = MethodPointer{module:module.into(),defined_on_type,name};
     let positional_arguments_expressions = default();
     let this_argument_expression         = default();
     let explicit_call                    = ExplicitCall
@@ -337,7 +343,7 @@ async fn binary_visualization_updates_test_hlp() {
 
     let logger                = Logger::new("Test");
     let module_path           = ide::view::project::initial_module_path(&project).unwrap();
-    let method                = module_path.method_pointer(MAIN_DEFINITION_NAME);
+    let method                = module_path.method_pointer(project.name(),MAIN_DEFINITION_NAME);
     let module_qualified_name = project.qualified_module_name(&module_path);
     let module                = project.module(module_path).await.unwrap();
     println!("Got module: {:?}", module);

@@ -13,7 +13,7 @@ use data::text::ByteIndex;
 use enso_protocol::language_server;
 use serde::Deserialize;
 use serde::Serialize;
-
+use crate::model::module::ReferentName;
 
 
 // =====================
@@ -41,10 +41,32 @@ pub enum InvalidQualifiedName {
 pub struct QualifiedName {
     #[shrinkwrap(main_field)]
     text      : String,
+    /// Span with the module name (the last segment).
     name_part : Range<ByteIndex>,
 }
 
 impl QualifiedName {
+    /// Build a module's qualified name from the project name and module's path.
+    pub fn new(project_name:impl Str, path:&model::module::Path) -> QualifiedName {
+        // We can unwrap here, because `module::Path` invariants guarantee that this is a valid
+        // module path, and feeding segments that are not a valid path is only possible cause of
+        // failure.
+        Self::from_segments(project_name,&path.file_path().segments).unwrap()
+    }
+
+    /// Constructs a qualified name from its text representation.
+    ///
+    /// Fails, if the text is not a valid module's qualified name.
+    pub fn from_text(text:impl Str) -> Result<Self,InvalidQualifiedName> {
+        use ast::opr::predefined::ACCESS;
+        let text_view    = text.as_ref();
+        let error        = InvalidQualifiedName::NoModuleSegment;
+        let name_start   = text_view.rfind(ACCESS).ok_or(error)? + 1;
+        let name_part    = ByteIndex::new(name_start) .. ByteIndex::new(text_view.len());
+        let text         = text.into();
+        Ok(QualifiedName {text,name_part})
+    }
+
     /// Build a module's full qualified name from its name segments and the project name.
     ///
     /// ```
@@ -54,7 +76,7 @@ impl QualifiedName {
     /// assert_eq!(name.to_string(), "Project.Main");
     /// ```
     pub fn from_segments
-    (project_name:impl Str, module_segments:impl IntoIterator<Item:AsRef<str>>)
+    (project_name:impl Into<String>, module_segments:impl IntoIterator<Item:AsRef<str>>)
     -> FallibleResult<QualifiedName> {
         let project_name     = std::iter::once(project_name.into());
         let module_segments  = module_segments.into_iter();
@@ -68,16 +90,52 @@ impl QualifiedName {
     pub fn name(&self) -> &str {
         &self.text[self.name_part.start.value..self.name_part.end.value]
     }
+
+    /// Get the module's identifier.
+    pub fn id(&self) -> model::module::Id {
+        let segments = self.text.split(ast::opr::predefined::ACCESS);
+        // First segment contains the project name, not module name.
+        let segments = segments.skip(1);
+        let segments = Result::<Vec<_>,_>::from_iter(segments.map(ReferentName::new));
+        // TODO explain that we no empty
+        model::module::Id::new(segments.unwrap()).unwrap()
+    }
+
+    /// Get the module's path.
+    pub fn path(&self, root_id:Uuid) -> model::module::Path {
+        self.id().path(root_id)
+    }
+}
+
+impl TryFrom<&str> for QualifiedName {
+    type Error = InvalidQualifiedName;
+
+    fn try_from(text:&str) -> Result<Self,Self::Error> {
+        Self::from_text(text)
+    }
 }
 
 impl TryFrom<String> for QualifiedName {
     type Error = InvalidQualifiedName;
 
     fn try_from(text:String) -> Result<Self,Self::Error> {
-        let error      = InvalidQualifiedName::NoModuleSegment;
-        let name_start = text.rfind(ast::opr::predefined::ACCESS).ok_or(error)? + 1;
-        let name_part  = ByteIndex::new(name_start)..ByteIndex::new(text.len());
-        Ok(QualifiedName {text,name_part})
+        Self::from_text(text)
+    }
+}
+
+impl TryFrom<enso_protocol::language_server::MethodPointer> for QualifiedName {
+    type Error = InvalidQualifiedName;
+
+    fn try_from(method:enso_protocol::language_server::MethodPointer) -> Result<Self,Self::Error> {
+        Self::try_from(method.module)
+    }
+}
+
+impl TryFrom<&enso_protocol::language_server::MethodPointer> for QualifiedName {
+    type Error = InvalidQualifiedName;
+
+    fn try_from(method:&enso_protocol::language_server::MethodPointer) -> Result<Self,Self::Error> {
+        Self::try_from(method.module.clone())
     }
 }
 
@@ -320,8 +378,8 @@ pub fn locate
 /// desugaring implicit extensions methods for modules).
 pub fn lookup_method
 (ast:&known::Module, method:&language_server::MethodPointer) -> FallibleResult<definition::Id> {
-    let module_path = model::module::Path::from_file_path(method.file.clone())?;
-    let explicitly_extends_looked_type = method.defined_on_type == module_path.module_name();
+    let module_path = QualifiedName::try_from(method)?;
+    let explicitly_extends_looked_type = method.defined_on_type == module_path.name();
 
     for child in ast.def_iter() {
         let child_name : &definition::DefinitionName = &child.name.item;
@@ -368,10 +426,14 @@ mod tests {
     use crate::double_representation::definition::DefinitionName;
 
     use enso_protocol::language_server::MethodPointer;
-    use enso_protocol::language_server::Path;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[test]
+    fn qualified_name_validation() {
+        assert!(QualifiedName::try_from("ProjectName").is_err());
+    }
 
     #[wasm_bindgen_test]
     fn import_listing() {
@@ -428,7 +490,7 @@ mod tests {
         let parser = parser::Parser::new_or_panic();
         let foo_method = MethodPointer {
             defined_on_type : "Main".into(),
-            file            : Path::new(default(),&["src","Main.enso"]),
+            module          : "ProjectName.Main".into(),
             name            : "foo".into(),
         };
 
