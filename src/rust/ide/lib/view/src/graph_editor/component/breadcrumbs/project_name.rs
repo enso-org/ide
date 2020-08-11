@@ -331,7 +331,8 @@ impl ProjectName {
             eval_ frp.inputs.commit(model.commit());
             frp.outputs.mouse_down <+ model.view.events.mouse_down;
             eval_ model.view.events.mouse_down(frp.outputs.edit_mode.emit(true));
-            commit_if_changed <- frp.outside_press.gate(&frp.outputs.edit_mode);
+            outside_press     <- any(&frp.outside_press,&frp.deselect);
+            commit_if_changed <- outside_press.gate(&frp.outputs.edit_mode);
             eval_ commit_if_changed({
                 frp.commit.emit(())
             });
