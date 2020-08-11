@@ -1078,6 +1078,14 @@ impl<Out:Data> OwnedAny<Out> {
               T4:EventOutput<Output=Out> {
         Self::new(label).with(t1).with(t2).with(t3).with(t4)
     }
+
+    /// Emit new event. It's questionable if this node type should expose the `emit` functionality,
+    /// but the current usage patterns proven it is a very handy utility. This node is used to
+    /// define sources of frp output streams. Sources allow multiple streams to be attached and
+    /// sometimes emitting events directly from the model is the cleanest solution possible.
+    pub fn emit<T:IntoParam<Out>>(&self, value:T) {
+        self.emit_event(&value.into_param())
+    }
 }
 
 impl<Out:Data> Any<Out> {
@@ -1094,6 +1102,14 @@ impl<Out:Data> Any<Out> {
     where T1:EventOutput<Output=Out> {
         src.register_target(self.into());
         self.upgrade().for_each(|t| t.srcs.borrow_mut().push(Box::new(src.clone_ref())));
+    }
+
+    /// Emit new event. It's questionable if this node type should expose the `emit` functionality,
+    /// but the current usage patterns proven it is a very handy utility. This node is used to
+    /// define sources of frp output streams. Sources allow multiple streams to be attached and
+    /// sometimes emitting events directly from the model is the cleanest solution possible.
+    pub fn emit<T:IntoParam<Out>>(&self, value:T) {
+        self.emit_event(&value.into_param())
     }
 }
 

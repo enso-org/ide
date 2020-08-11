@@ -46,17 +46,20 @@ pub const RECORD_SEPARATOR : &str = "\x1E";
 // === Background ===
 // ==================
 
-/// Canvas node shape definition.
-pub mod background {
-    use super::*;
+// FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
+// This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
 
-    ensogl::define_shape_system! {
-        (style:Style, selection:f32) {
-            let out = Rect((1000.px(),1000.px())).fill(color::Rgba::new(1.0,1.0,1.0,0.05));
-            out.into()
-        }
-    }
-}
+// /// Canvas node shape definition.
+// pub mod background {
+//     use super::*;
+//
+//     ensogl::define_shape_system! {
+//         (style:Style, selection:f32) {
+//             let out = Rect((1000.px(),1000.px())).fill(color::Rgba::new(1.0,1.0,1.0,0.05));
+//             out.into()
+//         }
+//     }
+// }
 
 
 
@@ -65,7 +68,6 @@ pub mod background {
 // ==============
 
 const LINE_VERTICAL_OFFSET     : f32 = 4.0; // Set manually. May depend on font. To be improved.
-const CURSOR_VERTICAL_OFFSET   : f32 = 1.0; // Set manually. May depend on font. To be improved.
 const CURSOR_PADDING           : f32 = 4.0;
 const CURSOR_WIDTH             : f32 = 2.0;
 const CURSOR_ALPHA             : f32 = 0.8;
@@ -197,7 +199,7 @@ impl Selection {
                     let view_width  = CURSOR_PADDING * 2.0 + width;
                     let view_height = CURSOR_PADDING * 2.0 + LINE_HEIGHT;
                     let view_x      = (abs_width/2.0) * side;
-                    let view_y      = CURSOR_VERTICAL_OFFSET;
+                    let view_y      = 0.0;
                     object.set_position_xy(*p);
                     right_side.set_position_x(abs_width/2.0);
                     view.shape.sprite.size.set(Vector2(view_width,view_height));
@@ -428,7 +430,7 @@ impl application::command::CommandApi for Area {
     }
 }
 
-crate::define_frp! {
+crate::define_endpoints! {
     Commands { Commands }
     Input {
         set_cursor            (Location),
@@ -441,7 +443,8 @@ crate::define_frp! {
     }
     Output {
         mouse_cursor_style (gui::cursor::Style),
-        active             (bool)
+        active             (bool),
+        width              (f32),
     }
 }
 
@@ -474,7 +477,8 @@ impl Area {
     pub fn new(app:&Application) -> Self {
         let network = frp::Network::new();
         let data    = AreaData::new(app,&network);
-        let output  = FrpEndpoints::new(&network,data.frp_inputs.clone_ref());
+        let output  = data.frp_endpoints.clone_ref();
+        // let output  = FrpEndpoints::new(&network,data.frp_inputs.clone_ref());
         let frp     = Frp::new(network,output);
         Self {data,frp} . init()
     }
@@ -483,7 +487,7 @@ impl Area {
         let network  = &self.frp.network;
         let model    = &self.data;
         let mouse    = &model.scene.mouse.frp;
-        let input    = &model.frp_inputs;
+        let input    = &model.frp_endpoints.input;
         let cmd      = &input.command;
         // let bg       = &model.background;
         let pos      = Animation :: <Vector2> :: new(&network);
@@ -639,7 +643,7 @@ impl Area {
 pub struct AreaData {
     scene          : Scene,
     logger         : Logger,
-    frp_inputs     : FrpInputs,
+    frp_endpoints  : FrpEndpoints,
     buffer         : buffer::View,
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
@@ -654,7 +658,7 @@ impl AreaData {
     (app:&Application, network:&frp::Network) -> Self {
         let scene          = app.display.scene().clone_ref();
         let logger         = Logger::new("text_area");
-        let bg_logger      = Logger::sub(&logger,"background");
+        let _bg_logger     = Logger::sub(&logger,"background");
         let selection_map  = default();
         //let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
         let fonts          = scene.extension::<typeface::font::Registry>();
@@ -665,6 +669,7 @@ impl AreaData {
         let buffer         = default();
         let lines          = default();
         let frp_inputs     = FrpInputs::new(network);
+        let frp_endpoints  = FrpEndpoints::new(&network,frp_inputs.clone_ref());
 
         // FIXME: Hardcoded position. To be refactored in the future PRs.
         // FIXME: Should be resolved as part of https://github.com/enso-org/ide/issues/462
@@ -683,7 +688,7 @@ impl AreaData {
         // pointer. Should be refactored when proper sorting mechanisms are in place.
         scene.views.main.remove(symbol);
         scene.views.label.add(symbol);
-        Self {scene,logger,frp_inputs,display_object,glyph_system,buffer,lines,selection_map}.init()
+        Self {scene,logger,frp_endpoints,display_object,glyph_system,buffer,lines,selection_map}.init()
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
@@ -774,71 +779,82 @@ impl AreaData {
         self
     }
 
-    // FIXME: make private
     /// Redraw the text.
-    pub fn redraw(&self) {
+    fn redraw(&self) {
         let lines      = self.buffer.view_lines();
         let line_count = lines.len();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
-        for (view_line_index,content) in lines.into_iter().enumerate() {
+        let lengths = lines.into_iter().enumerate().map(|(view_line_index,content)|{
             self.redraw_line(view_line_index,content)
-        }
+        }).collect_vec();
+        let length = lengths.into_iter().max_by(|x,y|x.partial_cmp(y).unwrap()).unwrap_or_default();
+        self.frp_endpoints.source.width.emit(length);
     }
 
-    fn redraw_line(&self, view_line_index:usize, content:String) {
+    fn redraw_line(&self, view_line_index:usize, content:String) -> f32 {
         let cursor_map = self.selection_map.borrow()
             .location_map.get(&view_line_index).cloned().unwrap_or_default();
-        let line           = &mut self.lines.rc.borrow_mut()[view_line_index];
-        let line_object    = line.display_object().clone_ref();
-        let line_range     = self.buffer.byte_range_of_view_line_index_snapped(view_line_index.into());
-        let mut line_style = self.buffer.sub_style(line_range.start .. line_range.end).iter();
-
+        let line            = &mut self.lines.rc.borrow_mut()[view_line_index];
+        let line_object     = line.display_object().clone_ref();
+        let line_range      = self.buffer.byte_range_of_view_line_index_snapped(view_line_index.into());
+        let mut line_style  = self.buffer.sub_style(line_range.start .. line_range.end).iter();
         let mut pen         = pen::Pen::new(&self.glyph_system.font);
         let mut divs        = vec![];
-        let mut byte_offset = 0.column();
+        let mut column      = 0.column();
         let mut last_cursor = None;
-        let mut last_cursor_origin = default();
+        let mut last_cursor_target = default();
         line.resize_with(content.chars().count(),||self.glyph_system.new_glyph());
-        for (glyph,chr) in line.glyphs.iter_mut().zip(content.chars()) {
-
+        let mut iter = line.glyphs.iter_mut().zip(content.chars());
+        loop {
+            let next      = iter.next();
             let style     = line_style.next().unwrap_or_default();
             let chr_size  = style.size.raw;
-            let info      = pen.advance(chr,chr_size);
-            let chr_bytes : Bytes = info.char.len_utf8().into();
-            line_style.drop(chr_bytes - 1.bytes());
-            let glyph_info   = self.glyph_system.font.get_glyph_info(info.char);
-            let size         = glyph_info.scale.scale(chr_size);
-            let glyph_offset = glyph_info.offset.scale(chr_size);
-            let glyph_x      = info.offset + glyph_offset.x;
-            let glyph_y      = glyph_offset.y;
-            glyph.set_position_xy(Vector2(glyph_x,glyph_y));
-            glyph.set_char(info.char);
-            glyph.set_color(style.color);
-            glyph.size.set(size);
+            let char_info = next.as_ref().map(|t|pen::CharInfo::new(t.1,chr_size));
+            let info      = pen.advance(char_info);
 
-            cursor_map.get(&byte_offset).for_each(|id| {
+            cursor_map.get(&column).for_each(|id| {
                 self.selection_map.borrow().id_map.get(id).for_each(|cursor| {
                     if cursor.edit_mode.get() {
                         let pos_y          = LINE_HEIGHT/2.0 - LINE_VERTICAL_OFFSET;
                         last_cursor        = Some(cursor.clone_ref());
-                        last_cursor_origin = Vector2(info.offset,pos_y);
+                        last_cursor_target = Vector2(info.offset,pos_y);
                     }
                 });
             });
 
-            match &last_cursor {
-                None         => line_object.add_child(glyph),
-                Some(cursor) => {
-                    cursor.right_side.add_child(glyph);
-                    glyph.mod_position_xy(|p| p - last_cursor_origin);
-                },
-            }
             divs.push(info.offset);
-            byte_offset += 1.column();
+            let opt_glyph = next.map(|t|t.0);
+            match opt_glyph.zip(info.char) {
+                Some((glyph,chr)) => {
+                    let chr_bytes : Bytes = chr.len_utf8().into();
+                    line_style.drop(chr_bytes - 1.bytes());
+                    let glyph_info   = self.glyph_system.font.glyph_info(chr);
+                    let size         = glyph_info.scale.scale(chr_size);
+                    let glyph_offset = glyph_info.offset.scale(chr_size);
+                    let glyph_x      = info.offset + glyph_offset.x;
+                    let glyph_y      = glyph_offset.y;
+                    glyph.set_position_xy(Vector2(glyph_x,glyph_y));
+                    glyph.set_char(chr);
+                    glyph.set_color(style.color);
+                    glyph.size.set(size);
+                    match &last_cursor {
+                        None         => line_object.add_child(glyph),
+                        Some(cursor) => {
+                            cursor.right_side.add_child(glyph);
+                            glyph.mod_position_xy(|p| p - last_cursor_target);
+                        },
+                    }
+                }
+                None => break
+            }
+            column += 1.column();
         }
 
-        divs.push(pen.advance_final());
+        let last_offset   = divs.last().cloned().unwrap_or_default();
+        let cursor_offset = last_cursor.map(|cursor| last_cursor_target.x - cursor.position().x);
+        let cursor_offset = cursor_offset.unwrap_or_default();
         line.set_divs(divs);
+        last_offset - cursor_offset
     }
 
     fn new_line(&self, index:usize) -> Line {
@@ -859,7 +875,7 @@ impl AreaData {
     }
 
     fn paste(&self) {
-        let paste_string = self.frp_inputs.paste_string.clone_ref();
+        let paste_string = self.frp_endpoints.input.paste_string.clone_ref();
         clipboard::read_text(move |t| paste_string.emit(t));
     }
 

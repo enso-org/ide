@@ -296,6 +296,7 @@ macro_rules! def_command_api {
             }
 
             $(
+                #[allow(missing_docs)]
                 pub fn $field(&self) {
                     self.$field.emit(())
                 }

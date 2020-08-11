@@ -305,8 +305,10 @@ ensogl::def_command_api! { Commands
     enter_selected_node,
     /// Steps out of the current node, popping the topmost stack frame from the crumb list.
     exit_node,
-    /// Edit the expression of the node at mouse cursor,
-    edit_node,
+    /// Enable mode in which the pressed node will be edited.
+    edit_mode_on,
+    /// Disable mode in which the pressed node will be edited.
+    edit_mode_off,
 
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
     enable_node_multi_select,
@@ -950,12 +952,12 @@ impl GraphEditorModelWithNetwork {
 
         frp::new_bridge_network! { [self.network, node.main_area.events.network]
             eval_ node.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
-            eval  node.ports.frp.cursor_style ((style) cursor_style.emit(style));
+            eval node.ports.frp.cursor_style ((style) cursor_style.emit(style));
             eval node.view.output_ports.frp.port_mouse_down ([output_press](crumbs){
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 output_press.emit(target);
             });
-            eval  node.ports.frp.press ([input_press](crumbs)
+            eval node.ports.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 input_press.emit(target);
             );
@@ -1529,7 +1531,6 @@ impl application::command::Provider for GraphEditor {
 
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
-        use enso_frp::io::mouse;
         use keyboard::Key;
         vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
@@ -1551,7 +1552,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[mouse::PrimaryButton])            , "edit_node"),
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "edit_mode_on")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "edit_mode_off")
              ]
     }
 }
@@ -1632,6 +1634,46 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
 
+    // === Selection Target Redirection ===
+
+    frp::extend! { network
+        mouse_down_target <- mouse.down.map(f_!(model.scene().mouse.target.get()));
+        mouse_up_target   <- mouse.up.map(f_!(model.scene().mouse.target.get()));
+        background_up     <- mouse_up_target.map(|t| if t==&display::scene::Target::Background {Some(())} else {None}).unwrap();
+
+        eval mouse_down_target([touch,model](target) {
+            match target {
+                display::scene::Target::Background  => touch.background.down.emit(()),
+                display::scene::Target::Symbol {..} => {
+                    if let Some(target) = model.scene().shapes.get_mouse_target(*target) {
+                        target.mouse_down().emit(());
+                    }
+                }
+            }
+        });
+    }
+
+
+    // === Node Edit Mode ===
+
+    frp::extend! { network
+        edit_mode    <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
+        node_to_edit <- touch.nodes.selected.gate(&edit_mode);
+        eval node_to_edit ([model](id) {
+            if let Some(node) = model.nodes.get_cloned_ref(id) {
+                node.ports.frp.start_edit_mode.emit(());
+            }
+        });
+
+        let stop_editing = touch.background.selected.clone_ref(); // FIXME: add other cases like node select.
+        _eval <- stop_editing.map2(&node_to_edit,f!([model](_,id) {
+            if let Some(node) = model.nodes.get_cloned_ref(id) {
+                node.ports.frp.stop_edit_mode.emit(());
+            }
+        }));
+    }
+
+
     // === Cancel project name editing ===
 
     frp::extend! { network
@@ -1644,25 +1686,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         cursor_pos_in_scene <- cursor.frp.position.map(f!((position) {
             scene.screen_to_scene_coordinates(*position).xy()
         }));
-    }
-
-
-    // === Selection Target Redirection ===
-    frp::extend! { network
-    mouse_down_target <- mouse.down.map(f_!(model.scene().mouse.target.get()));
-    mouse_up_target   <- mouse.up.map(f_!(model.scene().mouse.target.get()));
-    background_up     <- mouse_up_target.map(|t| if t==&display::scene::Target::Background {Some(())} else {None}).unwrap();
-
-    eval mouse_down_target([touch,model](target) {
-        match target {
-            display::scene::Target::Background  => touch.background.down.emit(()),
-            display::scene::Target::Symbol {..} => {
-                if let Some(target) = model.scene().shapes.get_mouse_target(*target) {
-                    target.mouse_down().emit(());
-                }
-            }
-        }
-    });
     }
 
 
@@ -1732,7 +1755,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     );
 
     let node_pressed = touch.nodes.selected.clone_ref();
-
 
     node_was_selected <- node_pressed.map(f!((id) model.nodes.selected.contains(id)));
 
@@ -2052,6 +2074,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // === Move Edges ===
+
     frp::extend! { network
 
     detached_edge           <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
@@ -2271,11 +2294,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     node_to_enter        <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     outputs.node_entered <+ node_to_enter;
     outputs.node_exited  <+ inputs.exit_node;
-
-
-    // === Editing Nodes ===
-
-    trace inputs.edit_node;
 
 
     // === OUTPUTS REBIND ===

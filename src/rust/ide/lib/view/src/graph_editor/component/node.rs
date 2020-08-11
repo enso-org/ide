@@ -284,12 +284,12 @@ impl NodeModel {
         let expr = expr.into();
         self.output_ports.set_pattern_span_tree(&expr.output_span_tree);
         self.ports.set_expression(expr);
+    }
 
-
-        let width = self.width();
+    fn set_width(&self, width:f32) {
         let height = self.height();
-
-        let size = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
+        let width  = width + TEXT_OFF * 2.0;
+        let size   = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
         self.main_area.shape.sprite.size.set(size);
         self.drag_area.shape.sprite.size.set(size);
         self.main_area.mod_position(|t| t.x = width/2.0);
@@ -314,7 +314,6 @@ impl Node {
         let inputs           = &model.frp.input;
         let selection        = Animation::<f32>::new(&frp_network);
 
-
         frp::extend! { frp_network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
             eval_ inputs.select   (selection.set_target_value(1.0));
@@ -329,82 +328,16 @@ impl Node {
             eval inputs.set_visualization ((content)
                 model.visualization.frp.set_visualization.emit(content)
             );
+
+            eval model.ports.frp.width ((w) model.set_width(*w));
         }
 
         Self {frp_network,model}
     }
 }
 
-
 impl display::Object for Node {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
 }
-
-
-
-//// =============
-//// === Icons ===
-//// =============
-//
-///// Icons definitions.
-//pub mod icons {
-//    use super::*;
-//
-//    /// History icon.
-//    pub fn history() -> AnyShape {
-//        let radius_diff    = 0.5.px();
-//        let corners_radius = 2.0.px();
-//        let width_diff     = &corners_radius * 3.0;
-//        let offset         = 2.px();
-//        let width          = 32.px();
-//        let height         = 16.px();
-//        let persp_diff1    = 6.px();
-//
-//        let width2          = &width  - &width_diff;
-//        let width3          = &width2 - &width_diff;
-//        let corners_radius2 = &corners_radius  - &radius_diff;
-//        let corners_radius3 = &corners_radius2 - &radius_diff;
-//        let persp_diff2     = &persp_diff1 * 2.0;
-//
-//        let rect1 = Rect((&width ,&height)).corners_radius(&corners_radius);
-//        let rect2 = Rect((&width2,&height)).corners_radius(&corners_radius2).translate_y(&persp_diff1);
-//        let rect3 = Rect((&width3,&height)).corners_radius(&corners_radius3).translate_y(&persp_diff2);
-//
-//        let rect3 = rect3 - rect2.translate_y(&offset);
-//        let rect2 = rect2 - rect1.translate_y(&offset);
-//
-//        let rect1 = rect1.fill(color::Rgba::new(0.26, 0.69, 0.99, 1.00));
-//        let rect2 = rect2.fill(color::Rgba::new(0.26, 0.69, 0.99, 0.6));
-//        let rect3 = rect3.fill(color::Rgba::new(0.26, 0.69, 0.99, 0.4));
-//
-//        let icon = (rect3 + rect2 + rect1).translate_y(-persp_diff2/2.0);
-//        icon.into()
-//    }
-//}
-//
-///// Ring angle shape definition.
-//pub fn ring_angle<R,W,A>(inner_radius:R, width:W, angle:A) -> AnyShape
-//    where R : Into<Var<Pixels>>,
-//          W : Into<Var<Pixels>>,
-//          A : Into<Var<Angle<Radians>>> {
-//    let inner_radius = inner_radius.into();
-//    let width        = width.into();
-//    let angle        = angle.into();
-//
-//    let angle2  = &angle / 2.0;
-//    let radius  = &width / 2.0;
-//    let inner   = Circle(&inner_radius);
-//    let outer   = Circle(&inner_radius + &width);
-//    let section = Plane().cut_angle(&angle);
-//    let corner1 = Circle(&radius).translate_y(inner_radius + radius);
-//    let corner2 = corner1.rotate(&angle2);
-//    let corner1 = corner1.rotate(-&angle2);
-//    let ring    = &outer - &inner;
-//    let pie     = &ring * &section;
-//    let out     = &pie + &corner1 + &corner2;
-//    let out     = out.fill(color::Rgba::new(0.9,0.9,0.9,1.0));
-//    out.into()
-//}
-//

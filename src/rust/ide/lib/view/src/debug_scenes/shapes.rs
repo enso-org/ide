@@ -140,8 +140,7 @@ fn init(app:&Application) {
         }
     });
 
-    let cursor = &app.cursor;
-
+    // let cursor = &app.cursor;
     // frp::new_network! { network
     //     eval text_area.frp.mouse_cursor_style ((s) cursor.frp.input.set_style.emit(s));
     // }

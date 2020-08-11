@@ -16,7 +16,6 @@ use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
-use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
@@ -65,6 +64,9 @@ pub struct Events {
     pub cursor_style    : frp::Stream<cursor::Style>,
     pub press           : frp::Stream<span_tree::Crumbs>,
     pub hover           : frp::Stream<Option<span_tree::Crumbs>>,
+    pub start_edit_mode : frp::Source,
+    pub stop_edit_mode  : frp::Source,
+    pub width           : frp::Stream<f32>,
     press_source        : frp::Source<span_tree::Crumbs>,
     hover_source        : frp::Source<Option<span_tree::Crumbs>>,
     cursor_style_source : frp::Any<cursor::Style>,
@@ -136,12 +138,6 @@ pub struct Manager {
 
 impl Manager {
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        frp::new_network! { network
-            cursor_style_source <- any_mut::<cursor::Style>();
-            press_source        <- source::<span_tree::Crumbs>();
-            hover_source        <- source::<Option<span_tree::Crumbs>>();
-        }
-
         let logger         = Logger::sub(logger,"port_manager");
         let display_object = display::object::Instance::new(&logger);
         let app            = app.clone_ref();
@@ -150,12 +146,33 @@ impl Manager {
         let type_color_map = default();
         let label          = app.new_view::<text::Area>();
         let ports          = default();
-        let width          = default();
+
+        frp::new_network! { network
+            cursor_style_source <- any_mut::<cursor::Style>();
+            press_source        <- source::<span_tree::Crumbs>();
+            hover_source        <- source::<Option<span_tree::Crumbs>>();
+            start_edit_mode     <- source();
+            stop_edit_mode      <- source();
+
+            eval_ start_edit_mode ([label] {
+                label.set_active_on();
+                label.set_cursor_at_mouse_position();
+            });
+
+            eval_ stop_edit_mode ([label] {
+                label.set_active_off();
+                label.remove_all_cursors();
+            });
+
+            width <- label.width.map(|w|*w);
+        }
+
         let cursor_style   = (&cursor_style_source).into();
         let press          = (&press_source).into();
         let hover          = (&hover_source).into();
         let frp            = Events
-            {network,cursor_style,press,hover,cursor_style_source,press_source,hover_source};
+            {network,cursor_style,press,hover,cursor_style_source,press_source,hover_source
+            ,start_edit_mode,stop_edit_mode,width};
 
         label.mod_position(|t| t.y += 6.0);
 
@@ -166,6 +183,8 @@ impl Manager {
         label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
+
+        let width = default();
 
         Self {logger,display_object,frp,label,ports,width,app,expression,port_networks,type_color_map}
     }
@@ -230,7 +249,7 @@ impl Manager {
                                 }
                                 cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(MISSING_TYPE_COLOR))
                             }));
-                            // FIXME: the following lines leak memory in the current FRP
+                            // FIXME[WD]: the following lines leak memory in the current FRP
                             // implementation because self.frp does not belong to this network and
                             // we are attaching node there. Nothing bad should happen though.
                             self.frp.cursor_style_source.attach(&over);
