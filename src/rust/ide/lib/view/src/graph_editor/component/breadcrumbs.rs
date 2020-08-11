@@ -224,6 +224,7 @@ impl BreadcrumbsModel {
         self.add_child(&self.breadcrumbs_container);
         self.project_name.set_position(Vector3(HORIZONTAL_MARGIN,0.0,0.0));
         self.relayout_for_project_name_width(self.project_name.width());
+        self.project_name.frp.select.emit(());
         self
     }
 
@@ -416,10 +417,10 @@ pub struct Breadcrumbs {
 impl Breadcrumbs {
     /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S, focus_manager:&FocusManager) -> Self {
-        let scene   = scene.into();
-        let frp     = Frp::new();
-        let model   = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
-        let network = &frp.network;
+        let scene        = scene.into();
+        let frp          = Frp::new();
+        let model        = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
+        let network      = &frp.network;
 
         // === Breadcrumb selection ===
 
@@ -446,25 +447,21 @@ impl Breadcrumbs {
             indices <- any4(&push_indices,&pop_indices,&debug_push_indices,&debug_pop_indices);
             old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
             new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
-            eval old_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
-                breadcrumb.frp.deselect.emit(());
-            }));
-            eval new_breadcrumb([] (breadcrumb) breadcrumb.as_ref().map(|breadcrumb| {
-                breadcrumb.frp.select.emit(());
-                breadcrumb.frp.fade_in.emit(());
-            }));
-
-
-            // === Select ===
-
-            selected <- frp.debug.select_breadcrumb.map(f!((index)
-                model.debug_select_breadcrumb(*index))
-            );
-
-            popped_count <= selected.map(|selected| (0..selected.0).collect_vec());
-            local_calls  <= selected.map(|selected| selected.1.clone());
-            eval_ popped_count(frp.debug.pop_breadcrumb.emit(()));
-            eval local_calls((local_call) frp.debug.push_breadcrumb.emit(local_call));
+            eval old_breadcrumb([model] (breadcrumb) {
+                if let Some(breadcrumb) = breadcrumb.as_ref() {
+                    breadcrumb.frp.deselect.emit(());
+                } else {
+                    model.project_name.frp.deselect.emit(());
+                }
+            });
+            eval new_breadcrumb([model] (breadcrumb) {
+                if let Some(breadcrumb) = breadcrumb.as_ref() {
+                    breadcrumb.frp.select.emit(());
+                    breadcrumb.frp.fade_in.emit(());
+                } else {
+                    model.project_name.frp.select.emit(());
+                }
+            });
 
 
             // === Project Name ===
@@ -490,6 +487,20 @@ impl Breadcrumbs {
             local_calls  <= frp.outputs.breadcrumb_select.map(|selected| selected.1.clone());
             eval_ popped_count(frp.outputs.breadcrumb_pop.emit(()));
             eval local_calls((local_call) frp.outputs.breadcrumb_push.emit(local_call));
+
+
+            // === Select ===
+
+            selected_project_name <- model.project_name.frp.outputs.mouse_down.map(f!([model] (_) model.debug_select_breadcrumb(0)));
+            selected_breadcrumb   <- frp.debug.select_breadcrumb.map(f!((index)
+                model.debug_select_breadcrumb(*index))
+            );
+            selected <- any(&selected_project_name,&selected_breadcrumb);
+
+            popped_count <= selected.map(|selected| (0..selected.0).collect_vec());
+            local_calls  <= selected.map(|selected| selected.1.clone());
+            eval_ popped_count(frp.debug.pop_breadcrumb.emit(()));
+            eval local_calls((local_call) frp.debug.push_breadcrumb.emit(local_call));
 
 
             // === Relayout ===

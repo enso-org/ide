@@ -189,7 +189,8 @@ pub struct ProjectNameModel {
     project_name   : Rc<RefCell<String>>,
     name_output    : frp::Source<String>,
     width_output   : frp::Source<f32>,
-    edit_mode      : frp::Source<bool>
+    edit_mode      : frp::Source<bool>,
+    is_selected    : Rc<Cell<bool>>
 }
 
 impl ProjectNameModel {
@@ -211,8 +212,9 @@ impl ProjectNameModel {
         let width_output          = frp.outputs.width.clone();
         let edit_mode             = frp.outputs.edit_mode.clone();
         let animations            = Animations::new(&frp.network);
+        let is_selected           = default();
         Self{logger,view,display_object,text_field,project_name,name_output,animations,
-            width_output,edit_mode}.init()
+            width_output,edit_mode,is_selected}.init()
     }
 
     /// Get the width of the ProjectName view.
@@ -277,6 +279,16 @@ impl ProjectNameModel {
     fn is_focused(&self) -> bool {
         self.text_field.is_focused()
     }
+
+    fn select(&self) {
+        self.is_selected.set(true);
+        self.animations.opacity.set_target_value(1.0);
+    }
+
+    fn deselect(&self) {
+        self.is_selected.set(false);
+        self.animations.opacity.set_target_value(0.0);
+    }
 }
 
 impl display::Object for ProjectNameModel {
@@ -312,6 +324,8 @@ impl ProjectName {
                 //TODO[dg]:Make use of TextField 2.0's frp for getting focus state changes.
                 model.animations.opacity.set_target_value(model.is_focused() as i32 as f32);
             });
+            eval_ frp.select(model.select());
+            eval_ frp.deselect(model.deselect());
             eval_ frp.inputs.cancel_editing(model.reset_name());
             eval  frp.inputs.name((name) {model.rename(name)});
             eval_ frp.inputs.commit(model.commit());
