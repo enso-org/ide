@@ -140,11 +140,6 @@ fn init(app:&Application) {
         }
     });
 
-    // let cursor = &app.cursor;
-    // frp::new_network! { network
-    //     eval text_area.frp.mouse_cursor_style ((s) cursor.frp.input.set_style.emit(s));
-    // }
-
     let mut was_rendered = false;
     let mut loader_hidden = false;
     world.on_frame(move |_| {

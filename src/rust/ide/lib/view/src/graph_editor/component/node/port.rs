@@ -198,7 +198,6 @@ impl Manager {
 
         self.label.set_cursor(&default());
         self.label.select_all();
-        self.label.insert("");
         self.label.insert(&expression.code);
         self.label.remove_all_cursors();
 

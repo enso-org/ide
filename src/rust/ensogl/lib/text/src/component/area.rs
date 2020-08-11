@@ -478,7 +478,6 @@ impl Area {
         let network = frp::Network::new();
         let data    = AreaData::new(app,&network);
         let output  = data.frp_endpoints.clone_ref();
-        // let output  = FrpEndpoints::new(&network,data.frp_inputs.clone_ref());
         let frp     = Frp::new(network,output);
         Self {data,frp} . init()
     }
@@ -489,13 +488,16 @@ impl Area {
         let mouse    = &model.scene.mouse.frp;
         let input    = &model.frp_endpoints.input;
         let cmd      = &input.command;
-        // let bg       = &model.background;
         let pos      = Animation :: <Vector2> :: new(&network);
         let keyboard = &model.scene.keyboard;
         let m        = &model;
         pos.update_spring(|spring| spring*2.0);
 
         frp::extend! { network
+
+            // FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
+            // This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
+
             // cursor_over  <- bg.events.mouse_over.constant(gui::cursor::Style::new_text_cursor());
             // cursor_out   <- bg.events.mouse_out.constant(gui::cursor::Style::default());
             // mouse_cursor <- any(cursor_over,cursor_out);
@@ -505,13 +507,15 @@ impl Area {
             // === Active State Management ===
 
             // FIXME[WD]: Connect the active state to active state management when its ready.
+            // Should be removed as part of https://github.com/enso-org/ide/issues/670
             active <- bool(&cmd.set_active_off,&cmd.set_active_on);
             self.frp.source.active <+ active;
 
 
             // === Set / Add cursor ===
 
-            // FIXME[WD]: These aresimulating active state management. To be removed.
+            // FIXME[WD]: These frp nodes are simulating active state management. To be removed
+            // as part of https://github.com/enso-org/ide/issues/670
             set_cursor_at_mouse_position <- cmd.set_cursor_at_mouse_position.gate(&active);
             add_cursor_at_mouse_position <- cmd.add_cursor_at_mouse_position.gate(&active);
 
@@ -524,8 +528,6 @@ impl Area {
 
             eval loc_on_set_cursor ((loc) m.buffer.frp.set_cursor(loc));
             eval loc_on_add_cursor ((loc) m.buffer.frp.add_cursor(loc));
-
-
 
             _eval <- m.buffer.frp.selection_edit_mode.map2
                 (&m.scene.frp.frame_time,f!([m](selections,time) {
@@ -556,8 +558,6 @@ impl Area {
             });
 
 
-
-
             // === Copy / Paste ===
 
             copy_sels      <- cmd.copy.map(f_!(m.buffer.selections_contents()));
@@ -571,7 +571,6 @@ impl Area {
             eval sels ((s) m.copy(s));
             eval_ cmd.paste (m.paste());
             eval input.paste_string ((s) m.buffer.frp.paste(m.decode_paste(s)));
-
 
 
             eval_ m.buffer.frp.text_changed (m.redraw());
@@ -649,6 +648,8 @@ pub struct AreaData {
     glyph_system   : glyph::System,
     lines          : Lines,
     selection_map  : Rc<RefCell<SelectionMap>>,
+    // FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
+    // This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
     //background     : component::ShapeView<background::Shape>,
 }
 
@@ -660,7 +661,14 @@ impl AreaData {
         let logger         = Logger::new("text_area");
         let _bg_logger     = Logger::sub(&logger,"background");
         let selection_map  = default();
-        //let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
+
+        // FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
+        // This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
+        // let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
+        // display_object.add_child(&background);
+        // background.shape.sprite.size.set(Vector2(150.0,100.0));
+        // background.mod_position(|p| p.x += 50.0);
+
         let fonts          = scene.extension::<typeface::font::Registry>();
         let font           = fonts.load("DejaVuSansMono");
         let glyph_system   = typeface::glyph::System::new(&scene,font);
@@ -670,12 +678,6 @@ impl AreaData {
         let lines          = default();
         let frp_inputs     = FrpInputs::new(network);
         let frp_endpoints  = FrpEndpoints::new(&network,frp_inputs.clone_ref());
-
-        // FIXME: Hardcoded position. To be refactored in the future PRs.
-        // FIXME: Should be resolved as part of https://github.com/enso-org/ide/issues/462
-        //display_object.add_child(&background);
-        //background.shape.sprite.size.set(Vector2(150.0,100.0));
-        //background.mod_position(|p| p.x += 50.0);
 
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
         // initialization of the shape system, not for every area creation. To be improved during
@@ -722,7 +724,6 @@ impl AreaData {
                 }
                 None => {
                     let selection = Selection::new(&logger,&self.scene,do_edit);
-                    //selection.shape.sprite.size.set(Vector2(4.0,20.0)); // FIXME hardcoded values
                     selection.shape.letter_width.set(7.0); // FIXME hardcoded values
                     self.add_child(&selection);
                     selection.position.set_target_value(pos);

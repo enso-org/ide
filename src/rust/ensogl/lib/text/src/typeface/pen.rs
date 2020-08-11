@@ -3,6 +3,7 @@
 //! [freetype documentation](https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html#section-1)
 
 use crate::prelude::*;
+
 use super::font::Font;
 
 
@@ -90,7 +91,9 @@ impl Pen {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::typeface::font::GlyphRenderInfo;
+
     use wasm_bindgen_test::wasm_bindgen_test;
 
     #[wasm_bindgen_test(async)]

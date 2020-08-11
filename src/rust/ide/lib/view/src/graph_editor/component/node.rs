@@ -153,7 +153,7 @@ impl InputEvents {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub input        : InputEvents,
+    pub input  : InputEvents,
 }
 
 impl Deref for Frp {
