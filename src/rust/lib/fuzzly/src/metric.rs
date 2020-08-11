@@ -9,17 +9,17 @@ use crate::subsequence_graph;
 // === Trait ===
 // =============
 
-/// Provides functions for measure query match score for specific word from various aspect.
+/// Provides functions for measure pattern match score for specific text from various aspect.
 ///
-/// The query match is represented as a path in Subsequence Graph (see `subsequence_graph` module).
+/// The pattern match is represented as a path in `SubsequenceGraph` (see it's docs for details).
 /// Its score is counted as a sum of measures "how good is the vertex/edge" for each vertex and
 /// edge on the path.
 pub trait Metric {
     /// How good is vertex on the path on the Subsequence Graph.
-    fn measure_vertex(&self, vertex:subsequence_graph::Vertex, word:&str, query:&str) -> f32;
+    fn measure_vertex(&self, vertex:subsequence_graph::Vertex, text:&str, pattern:&str) -> f32;
 
     /// How good is the edge on the path on the Subsequence Graph.
-    fn measure_edge(&self, edge:subsequence_graph::Edge, word:&str, query:&str) -> f32;
+    fn measure_edge(&self, edge:subsequence_graph::Edge, text:&str, pattern:&str) -> f32;
 
     /// Return a new metric being a sum of this and `rhs`.
     fn sum<Rhs:Metric>(self, rhs:Rhs) -> Sum<Self,Rhs> where Self:Sized { Sum(self, rhs) }
@@ -49,17 +49,17 @@ pub fn default() -> impl Metric {
 pub struct Sum<Metrics1,Metrics2>(Metrics1,Metrics2);
 
 impl<M1:Metric, M2:Metric> Metric for Sum<M1,M2> {
-    fn measure_vertex(&self, vertex:subsequence_graph::Vertex, word:&str, query:&str) -> f32 {
+    fn measure_vertex(&self, vertex:subsequence_graph::Vertex, text:&str, pattern:&str) -> f32 {
         let Self(left,right) = self;
-        let left         = left.measure_vertex(vertex,word,query);
-        let right        = right.measure_vertex(vertex,word,query);
+        let left             = left.measure_vertex(vertex,text,pattern);
+        let right            = right.measure_vertex(vertex,text,pattern);
         left + right
     }
 
-    fn measure_edge(&self, edge:subsequence_graph::Edge, word:&str, query:&str) -> f32 {
+    fn measure_edge(&self, edge:subsequence_graph::Edge, text:&str, pattern:&str) -> f32 {
         let Self(left,right) = self;
-        let left         = left.measure_edge(edge,word,query);
-        let right        = right.measure_edge(edge,word,query);
+        let left             = left.measure_edge(edge,text,pattern);
+        let right            = right.measure_edge(edge,text,pattern);
         left + right
     }
 }
@@ -68,14 +68,14 @@ impl<M1:Metric, M2:Metric> Metric for Sum<M1,M2> {
 // === SubsequentLettersBonus ===
 
 /// A metric which measure how far are matched letters from each other and how far is first matched
-/// char from word beginning and last character from word ending.
+/// char from text beginning and last character from text ending.
 #[derive(Copy,Clone,Debug)]
 pub struct SubsequentLettersBonus {
     /// The base weight of this metric.
     pub base_weight:f32,
-    /// How important is the distance of first matched char from the word beginning.
+    /// How important is the distance of first matched char from the text beginning.
     pub beginning_weight:f32,
-    /// How important is the distance of last matched char from the word ending.
+    /// How important is the distance of last matched char from the text ending.
     pub ending_weight:f32,
 }
 
@@ -90,20 +90,20 @@ impl Default for SubsequentLettersBonus {
 }
 
 impl Metric for SubsequentLettersBonus {
-    fn measure_vertex(&self, vertex:subsequence_graph::Vertex, word: &str, _query: &str) -> f32 {
-        let is_first_query_char = vertex.layer == 0;
-        let is_last_query_char  = word.len().checked_sub(1).contains(&vertex.layer);
-        let first_char_bonus    = if is_first_query_char {
-            self.base_weight / (vertex.position_in_word as f32 + 1.0) * self.beginning_weight
+    fn measure_vertex(&self, vertex:subsequence_graph::Vertex, text: &str, _pattern: &str) -> f32 {
+        let is_first_pattern_char = vertex.layer == 0;
+        let is_last_pattern_char  = text.len().checked_sub(1).contains(&vertex.layer);
+        let first_char_bonus    = if is_first_pattern_char {
+            self.base_weight / (vertex.position_in_text as f32 + 1.0) * self.beginning_weight
         } else {0.0};
-        let last_char_bonus = if is_last_query_char {
-            self.base_weight / (word.len() - vertex.position_in_word) as f32 * self.ending_weight
+        let last_char_bonus = if is_last_pattern_char {
+            self.base_weight / (text.len() - vertex.position_in_text) as f32 * self.ending_weight
         } else {0.0};
         first_char_bonus + last_char_bonus
     }
 
-    fn measure_edge(&self, edge:subsequence_graph::Edge, _word: &str, _query: &str) -> f32 {
-        self.base_weight / (edge.to.position_in_word - edge.from.position_in_word) as f32
+    fn measure_edge(&self, edge:subsequence_graph::Edge, _text: &str, _pattern: &str) -> f32 {
+        self.base_weight / (edge.to.position_in_text - edge.from.position_in_text) as f32
     }
 }
 
@@ -126,10 +126,10 @@ impl Default for CaseMatchBonus {
 }
 
 impl Metric for CaseMatchBonus {
-    fn measure_vertex(&self, vertex:subsequence_graph::Vertex, word:&str, query:&str) -> f32 {
-        let word_ch  = word.chars().nth(vertex.position_in_word);
-        let query_ch = query.chars().nth(vertex.layer);
-        match (word_ch,query_ch) {
+    fn measure_vertex(&self, vertex:subsequence_graph::Vertex, text:&str, pattern:&str) -> f32 {
+        let text_ch    = text.chars().nth(vertex.position_in_text);
+        let pattern_ch = pattern.chars().nth(vertex.layer);
+        match (text_ch,pattern_ch) {
             (Some(w),Some(q)) if w.is_uppercase() == q.is_uppercase() => self.bonus_per_char,
             _                                                         => 0.0,
         }

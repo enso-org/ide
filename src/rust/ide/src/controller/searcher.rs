@@ -411,12 +411,12 @@ impl Searcher {
     pub fn set_input(&self, new_input:String) -> FallibleResult<()> {
         debug!(self.logger, "Manually setting input to {new_input}");
         let parsed_input = ParsedInput::new(new_input,&self.parser)?;
-        let old_expr     = self.data.borrow().input.expression.clone();
-        let new_expr     = parsed_input.expression.clone();
+        let old_expr     = self.data.borrow().input.expression.repr();
+        let new_expr     = parsed_input.expression.repr();
 
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
-        if old_expr.repr() != new_expr.repr() {
+        if old_expr != new_expr {
             self.reload_list()
         } else if let Suggestions::Loaded {list} = self.data.borrow().suggestions.clone_ref() {
             list.update_filtering(&self.data.borrow().input.pattern);

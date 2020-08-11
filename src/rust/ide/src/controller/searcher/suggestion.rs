@@ -66,7 +66,7 @@ impl ListEntry {
     /// Compare how two entries matches filtering pattern.
     ///
     /// The "greater" entry matches better.
-    pub fn compare_matching(&self, rhs:&ListEntry) -> std::cmp::Ordering {
+    pub fn compare_match_scores(&self, rhs:&ListEntry) -> std::cmp::Ordering {
         use MatchInfo::*;
         use std::cmp::Ordering::*;
         match (&self.match_info,&rhs.match_info) {
@@ -118,14 +118,14 @@ impl List {
 
     /// Update the list filtering.
     ///
-    /// The "matching score" of each entry is recalculated and the entries are re-ordered, so the
-    /// best matches will go first.
+    /// The "matching score" of each entry is recalculated against the given pattern and the entries
+    /// are re-ordered, so the best matches will go first.
     pub fn update_filtering(&self, pattern:impl Str) {
         let mut entries_mut = self.entries.borrow_mut();
         for entry in entries_mut.iter_mut() {
             entry.update_matching_info(pattern.as_ref());
         }
-        entries_mut.sort_by(|l,r| l.compare_matching(r).reverse());
+        entries_mut.sort_by(|l,r| l.compare_match_scores(r).reverse());
     }
 
     /// Length of the suggestion list.

@@ -1,4 +1,4 @@
-//! Scoring the query-word match.
+//! Scoring how given text matches the given pattern.
 
 use crate::prelude::*;
 
@@ -129,24 +129,24 @@ impl<'a> Iterator for BestPathRevIter<'a> {
 // === Score Match ===
 // ===================
 
-/// Fast-check if the query matches the word.
+/// Fast-check if the pattern matches text.
 ///
-/// This is faster way than calling `score_match(word,query,metric).is_some()`, therefore it's
-/// recommended to call this function before scoring when we are not sure if the query actually
-/// matches the word.
-pub fn matches(word:impl Str, query:impl Str) -> bool {
-    let mut query_chars     = query.as_ref().chars();
-    let mut next_query_char = query_chars.next();
-    for word_char in word.as_ref().chars() {
-        if let Some(query_char) = next_query_char {
-            if query_char.eq_ignore_ascii_case(&word_char) {
-                next_query_char = query_chars.next()
+/// This is faster way than calling `score_match(text,pattern,metric).is_some()`, therefore it's
+/// recommended to call this function before scoring when we are not sure if the pattern actually
+/// matches the text.
+pub fn matches(text:impl Str, pattern:impl Str) -> bool {
+    let mut pattern_chars     = pattern.as_ref().chars();
+    let mut next_pattern_char = pattern_chars.next();
+    for text_char in text.as_ref().chars() {
+        if let Some(pattern_char) = next_pattern_char {
+            if pattern_char.eq_ignore_ascii_case(&text_char) {
+                next_pattern_char = pattern_chars.next()
             }
         } else {
             break;
         }
     }
-    next_query_char.is_none()
+    next_pattern_char.is_none()
 }
 
 /// The result of `find_best_subsequence` function.
@@ -154,7 +154,7 @@ pub fn matches(word:impl Str, query:impl Str) -> bool {
 pub struct Subsequence {
     /// The score of found subsequence.
     pub score:f32,
-    /// Indices of `word`'s chars which belong to the subsequence.
+    /// Indices of `text`'s chars which belong to the subsequence.
     pub indices:Vec<usize>
 }
 
@@ -162,7 +162,7 @@ impl Subsequence {
     /// Compare scores of subsequences.
     ///
     /// The `f32` does not implement total ordering, however that does not help when we want to
-    /// sort words by their matching score. Therefore this function assumes that all NaNs are the
+    /// sort items by their matching score. Therefore this function assumes that all NaNs are the
     /// lowest values.
     pub fn compare_scores(&self, rhs:&Subsequence) -> std::cmp::Ordering {
         if self.score.is_nan() && rhs.score.is_nan() {
@@ -181,40 +181,41 @@ impl Subsequence {
     }
 }
 
-/// Find best subsequence in `word` which equals to `query` in terms of given `metric`.
+/// Find best subsequence in `text` which case-insensitively equals to `pattern` in terms of given
+/// `metric`.
 ///
-/// Returns `None` if word does not match query. Empty query gives 0.0 score.
+/// Returns `None` if `text` does not match `pattern`. Empty `pattern` gives 0.0 score.
 ///
 /// ## Algorithm specification
 ///
-/// In essence, it looks through all possible subsequences of `word` being the `query` and pick the
-/// one with the best score. Not directly (because there may be a lot of such subsequences), but by
-/// building the `SubsequenceGraph` and computing best score for each vertex. See
+/// In essence, it looks through all possible subsequences of `text` being the `pattern` and pick
+/// the one with the best score. Not directly (because there may be a lot of such subsequences), but
+/// by building the `SubsequenceGraph` and computing best score for each vertex. See
 /// `SubsequenceGraph` docs for detailed description of the graph.
 pub fn find_best_subsequence
-(word:impl Str, query:impl Str, metric:impl Metric) -> Option<Subsequence> {
-    let word  = word.as_ref();
-    let query = query.as_ref();
-    if query.is_empty() {
+(text:impl Str, pattern:impl Str, metric:impl Metric) -> Option<Subsequence> {
+    let text  = text.as_ref();
+    let pattern = pattern.as_ref();
+    if pattern.is_empty() {
         Some(default())
     } else {
-        let last_layer = query.chars().count() - 1;
+        let last_layer = pattern.chars().count() - 1;
         let mut scores = VerticesScores::default();
-        let graph      = SubsequenceGraph::new(word,query);
+        let graph      = SubsequenceGraph::new(text,pattern);
         for vertex in &graph.vertices {
-            let measure = metric.measure_vertex(*vertex,word,query);
+            let measure = metric.measure_vertex(*vertex,text,pattern);
             scores.init_vertex(*vertex,measure);
         }
         for edge in &graph.edges {
             let from_score  = scores.get_score(edge.from);
-            let input_score = from_score + metric.measure_edge(*edge,word,query);
+            let input_score = from_score + metric.measure_edge(*edge,text,pattern);
             scores.update_input_path(*edge,input_score);
         }
         let end_vertices  = graph.vertices_in_layer(last_layer).cloned();
         let best_vertex   = scores.best_vertex(end_vertices)?;
         let score         = scores.get_score(best_vertex);
         let best_path_rev = scores.best_path_rev(best_vertex);
-        let mut indices   = best_path_rev.map(|v| v.position_in_word).collect_vec();
+        let mut indices   = best_path_rev.map(|v| v.position_in_text).collect_vec();
         indices.reverse();
         Some(Subsequence {score,indices})
     }
@@ -240,8 +241,8 @@ mod test {
 
         impl Metric for WordIndex {
             fn measure_vertex
-            (&self, vertex:subsequence_graph::Vertex, _word:&str, _query:&str) -> f32 {
-                vertex.position_in_word as f32
+            (&self, vertex:subsequence_graph::Vertex, _text:&str, _pattern:&str) -> f32 {
+                vertex.position_in_text as f32
             }
 
             fn measure_edge(&self, _:subsequence_graph::Edge, _:&str, _:&str) -> f32 { 0.0 }
@@ -253,8 +254,8 @@ mod test {
         impl Metric for SquareEdgeLength {
             fn measure_vertex(&self, _:subsequence_graph::Vertex, _:&str, _:&str) -> f32 { 0.0 }
 
-            fn measure_edge(&self, edge:subsequence_graph::Edge, _word:&str, _query:&str) -> f32 {
-                (edge.to.position_in_word - edge.from.position_in_word).pow(2) as f32
+            fn measure_edge(&self, edge:subsequence_graph::Edge, _text:&str, _pattern:&str) -> f32 {
+                (edge.to.position_in_text - edge.from.position_in_text).pow(2) as f32
             }
         }
 
@@ -273,46 +274,46 @@ mod test {
 
     #[test]
     fn finding_best_subsequence() {
-        let query = "abc";
-        let word  = "aabxbacc";
+        let pattern = "abc";
+        let text = "aabxbacc";
 
         let expected = Subsequence {
             score   : 12.0,
             indices : vec![1,4,7] // Always pick the latest character possible
         };
-        assert_eq!(find_best_subsequence(word,query,mock_metric::WordIndex), Some(expected));
+        assert_eq!(find_best_subsequence(text,pattern,mock_metric::WordIndex), Some(expected));
 
         let expected = Subsequence {
             score   : 29.0,
             indices : vec![0,2,7] // Prefer the long edges
         };
-        assert_eq!(find_best_subsequence(word,query,mock_metric::SquareEdgeLength), Some(expected));
+        assert_eq!(find_best_subsequence(text,pattern,mock_metric::SquareEdgeLength), Some(expected));
 
         let expected = Subsequence {
             score   : 38.0,
             indices : vec![0,2,7] // The edges metric should have more impact
         };
-        assert_eq!(find_best_subsequence(word,query,mock_metric::Sum::default()), Some(expected));
+        assert_eq!(find_best_subsequence(text,pattern,mock_metric::Sum::default()), Some(expected));
     }
 
     #[test]
     fn finding_best_subsequence_when_does_not_match() {
-        let query = "abc";
-        let word  = "aabxbyy";
-        assert_eq!(find_best_subsequence(word,query,mock_metric::Sum::default()), None);
+        let pattern = "abc";
+        let text    = "aabxbyy";
+        assert_eq!(find_best_subsequence(text,pattern,mock_metric::Sum::default()), None);
     }
 
     #[test]
     fn finding_best_subsequence_corner_cases() {
-        let query = "";
-        let word  = "any";
+        let pattern = "";
+        let text    = "any";
         let expected = Subsequence {
             score   : 0.0,
             indices : vec![],
         };
-        assert_eq!(find_best_subsequence(word,query,mock_metric::Sum::default()), Some(expected));
-        let query = "any";
-        let word  = "";
-        assert_eq!(find_best_subsequence(word,query,mock_metric::Sum::default()), None);
+        assert_eq!(find_best_subsequence(text,pattern,mock_metric::Sum::default()), Some(expected));
+        let pattern = "any";
+        let text    = "";
+        assert_eq!(find_best_subsequence(text,pattern,mock_metric::Sum::default()), None);
     }
 }

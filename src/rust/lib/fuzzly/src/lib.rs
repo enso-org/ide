@@ -1,7 +1,7 @@
 //! Fuzzly Search Utilities.
 //!
-//! This crate is designed to be used in various search engines; when you get the list of things
-//! whose names match the given query, the next step is to order the items, so the best matches
+//! This crate is designed to be used in various search engines; when you get the list of names
+//! matching the given pattern, the next step is to order the items, so the best matches
 //! are listed first. In such case the `find_best_subsequence` function may be used to score (order
 //! priority) for each element.
 //!
