@@ -65,7 +65,9 @@ pub struct FrpInputs {
     pub cancel_editing:frp::Source,
     /// Commit current project name.
     pub commit        : frp::Source,
-    pub outside_press : frp::Source
+    pub outside_press : frp::Source,
+    pub select        : frp::Source,
+    pub deselect      : frp::Source
 }
 
 impl FrpInputs {
@@ -76,8 +78,10 @@ impl FrpInputs {
             name           <- source();
             commit         <- source();
             outside_press  <- source();
+            select         <- source();
+            deselect       <- source();
         }
-        Self{cancel_editing,name,commit,outside_press}
+        Self{cancel_editing,name,commit,outside_press,select,deselect}
     }
 }
 

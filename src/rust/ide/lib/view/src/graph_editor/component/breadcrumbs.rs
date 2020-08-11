@@ -214,6 +214,7 @@ impl BreadcrumbsModel {
         let frp_debug             = frp.debug.clone_ref();
         let current_index         = default();
         let camera                = scene.camera().clone_ref();
+
         Self{logger,display_object,scene,breadcrumbs,project_name,breadcrumbs_container,
             frp_inputs,current_index,frp_debug,camera}.init()
     }
@@ -236,7 +237,7 @@ impl BreadcrumbsModel {
         let camera_position          = camera.position();
         let x_position               = camera_position.x-screen.width/2.0*scale;
         let y_position               = camera_position.y+screen.height/2.0*scale;
-        self.set_position(Vector3(x_position,y_position,0.0));
+        self.set_position(Vector3(x_position.round(),y_position.round(),0.0));
         self.set_scale(Vector3::new(scale,scale,scale));
     }
 
@@ -245,7 +246,7 @@ impl BreadcrumbsModel {
     }
 
     fn relayout_for_project_name_width(&self, width:f32) {
-        self.breadcrumbs_container.set_position_x(HORIZONTAL_MARGIN + width);
+        self.breadcrumbs_container.set_position_x((HORIZONTAL_MARGIN+width).round());
     }
 
     fn get_breadcrumb(&self, index:usize) -> Option<Breadcrumb> {
@@ -316,7 +317,7 @@ impl BreadcrumbsModel {
                 }
 
                 info!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
-                breadcrumb.set_position_x(self.width());
+                breadcrumb.set_position_x(self.width().round());
                 self.breadcrumbs_container.add_child(&breadcrumb);
                 self.breadcrumbs.borrow_mut().push(breadcrumb);
             }
