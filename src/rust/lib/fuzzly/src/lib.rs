@@ -1,12 +1,12 @@
-//! Algorithm for Score the word-query matches.
+//! Fuzzly Search Utilities.
 //!
-//! The algorithm is designed to be used in various search engines; when you get the list of things
+//! This crate is designed to be used in various search engines; when you get the list of things
 //! whose names match the given query, the next step is to order the items, so the best matches
-//! are listed first.
+//! are listed first. In such case the `find_best_subsequence` function may be used to score (order
+//! priority) for each element.
 //!
-//! This crate provides `find_best_subsequence` function which may be used to score each found
-//! element. The metrics used for scoring may be adjusted by implementing `Metric` trait, or by
-//! customizing parameters of metrics defined in `metric` module.
+//! The metrics used for scoring may be adjusted by implementing `Metric` trait, or by customizing
+//! parameters of metrics defined in `metric` module.
 #![feature(option_result_contains)]
 
 #![warn(missing_docs)]

@@ -15,10 +15,10 @@ use crate::subsequence_graph;
 /// Its score is counted as a sum of measures "how good is the vertex/edge" for each vertex and
 /// edge on the path.
 pub trait Metric {
-    /// How good is vertex on the path representing the path on the Subsequence Graph??
+    /// How good is vertex on the path on the Subsequence Graph.
     fn measure_vertex(&self, vertex:subsequence_graph::Vertex, word:&str, query:&str) -> f32;
 
-    /// How hood is the edge on the path representing the path on the Subsequence Graph?
+    /// How good is the edge on the path on the Subsequence Graph.
     fn measure_edge(&self, edge:subsequence_graph::Edge, word:&str, query:&str) -> f32;
 
     /// Return a new metric being a sum of this and `rhs`.
@@ -91,19 +91,19 @@ impl Default for SubsequentLettersBonus {
 
 impl Metric for SubsequentLettersBonus {
     fn measure_vertex(&self, vertex:subsequence_graph::Vertex, word: &str, _query: &str) -> f32 {
-        let is_first_query_char = vertex.query_char_index == 0;
-        let is_last_query_char  = word.len().checked_sub(1).contains(&vertex.query_char_index);
+        let is_first_query_char = vertex.layer == 0;
+        let is_last_query_char  = word.len().checked_sub(1).contains(&vertex.layer);
         let first_char_bonus    = if is_first_query_char {
-            self.base_weight / (vertex.word_char_index as f32 + 1.0) * self.beginning_weight
+            self.base_weight / (vertex.position_in_word as f32 + 1.0) * self.beginning_weight
         } else {0.0};
         let last_char_bonus = if is_last_query_char {
-            self.base_weight / (word.len() - vertex.word_char_index) as f32 * self.ending_weight
+            self.base_weight / (word.len() - vertex.position_in_word) as f32 * self.ending_weight
         } else {0.0};
         first_char_bonus + last_char_bonus
     }
 
     fn measure_edge(&self, edge:subsequence_graph::Edge, _word: &str, _query: &str) -> f32 {
-        self.base_weight / (edge.to.word_char_index - edge.from.word_char_index) as f32
+        self.base_weight / (edge.to.position_in_word - edge.from.position_in_word) as f32
     }
 }
 
@@ -127,8 +127,8 @@ impl Default for CaseMatchBonus {
 
 impl Metric for CaseMatchBonus {
     fn measure_vertex(&self, vertex:subsequence_graph::Vertex, word:&str, query:&str) -> f32 {
-        let word_ch  = word.chars().skip(vertex.word_char_index).next();
-        let query_ch = query.chars().skip(vertex.query_char_index).next();
+        let word_ch  = word.chars().nth(vertex.position_in_word);
+        let query_ch = query.chars().nth(vertex.layer);
         match (word_ch,query_ch) {
             (Some(w),Some(q)) if w.is_uppercase() == q.is_uppercase() => self.bonus_per_char,
             _                                                         => 0.0,

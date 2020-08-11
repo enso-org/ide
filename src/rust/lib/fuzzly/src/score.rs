@@ -171,12 +171,12 @@ impl Subsequence {
             std::cmp::Ordering::Less
         } else if rhs.score.is_nan() {
             std::cmp::Ordering::Greater
-        } else if self.score == rhs.score {
-            std::cmp::Ordering::Equal
         } else if self.score < rhs.score {
             std::cmp::Ordering::Less
-        } else {
+        } else if self.score > rhs.score {
             std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
         }
     }
 }
@@ -190,7 +190,7 @@ impl Subsequence {
 /// In essence, it looks through all possible subsequences of `word` being the `query` and pick the
 /// one with the best score. Not directly (because there may be a lot of such subsequences), but by
 /// building the `SubsequenceGraph` and computing best score for each vertex. See
-/// `subsequence_graph` module docs for detailed description of the graph.
+/// `SubsequenceGraph` docs for detailed description of the graph.
 pub fn find_best_subsequence
 (word:impl Str, query:impl Str, metric:impl Metric) -> Option<Subsequence> {
     let word  = word.as_ref();
@@ -198,9 +198,9 @@ pub fn find_best_subsequence
     if query.is_empty() {
         Some(default())
     } else {
-        let last_query_char_index = query.chars().count() - 1;
-        let mut scores            = VerticesScores::default();
-        let graph                 = SubsequenceGraph::new(word,query);
+        let last_layer = query.chars().count() - 1;
+        let mut scores = VerticesScores::default();
+        let graph      = SubsequenceGraph::new(word,query);
         for vertex in &graph.vertices {
             let measure = metric.measure_vertex(*vertex,word,query);
             scores.init_vertex(*vertex,measure);
@@ -210,11 +210,11 @@ pub fn find_best_subsequence
             let input_score = from_score + metric.measure_edge(*edge,word,query);
             scores.update_input_path(*edge,input_score);
         }
-        let end_vertices  = graph.vertices_with_query_char_index(last_query_char_index).cloned();
+        let end_vertices  = graph.vertices_in_layer(last_layer).cloned();
         let best_vertex   = scores.best_vertex(end_vertices)?;
         let score         = scores.get_score(best_vertex);
         let best_path_rev = scores.best_path_rev(best_vertex);
-        let mut indices   = best_path_rev.map(|v| v.word_char_index).collect_vec();
+        let mut indices   = best_path_rev.map(|v| v.position_in_word).collect_vec();
         indices.reverse();
         Some(Subsequence {score,indices})
     }
@@ -241,7 +241,7 @@ mod test {
         impl Metric for WordIndex {
             fn measure_vertex
             (&self, vertex:subsequence_graph::Vertex, _word:&str, _query:&str) -> f32 {
-                vertex.word_char_index as f32
+                vertex.position_in_word as f32
             }
 
             fn measure_edge(&self, _:subsequence_graph::Edge, _:&str, _:&str) -> f32 { 0.0 }
@@ -254,7 +254,7 @@ mod test {
             fn measure_vertex(&self, _:subsequence_graph::Vertex, _:&str, _:&str) -> f32 { 0.0 }
 
             fn measure_edge(&self, edge:subsequence_graph::Edge, _word:&str, _query:&str) -> f32 {
-                (edge.to.word_char_index - edge.from.word_char_index).pow(2) as f32
+                (edge.to.position_in_word - edge.from.position_in_word).pow(2) as f32
             }
         }
 

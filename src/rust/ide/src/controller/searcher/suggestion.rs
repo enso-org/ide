@@ -52,10 +52,10 @@ pub struct ListEntry {
 impl ListEntry {
     /// Update the current match info according to the new filtering pattern.
     pub fn update_matching_info(&mut self, pattern:impl Str) {
-        let matches     = fuzzly::matches(self.suggestion.name(),query.as_ref());
+        let matches     = fuzzly::matches(self.suggestion.caption(),pattern.as_ref());
         let subsequence = matches.and_option_from(|| {
             let metric = fuzzly::metric::default();
-            fuzzly::find_best_subsequence(self.suggestion.name(),query,metric)
+            fuzzly::find_best_subsequence(self.suggestion.caption(),pattern,metric)
         });
         self.match_info = match subsequence {
             Some(subsequence) => MatchInfo::Matches {subsequence},
@@ -118,12 +118,12 @@ impl List {
 
     /// Update the list filtering.
     ///
-    /// After each change the "matching score" of each entry is recalculated and the entries are
-    /// re-ordered, so the best matches will go first.
+    /// The "matching score" of each entry is recalculated and the entries are re-ordered, so the
+    /// best matches will go first.
     pub fn update_filtering(&self, pattern:impl Str) {
         let mut entries_mut = self.entries.borrow_mut();
         for entry in entries_mut.iter_mut() {
-            entry.update_score(pattern.as_ref());
+            entry.update_matching_info(pattern.as_ref());
         }
         entries_mut.sort_by(|l,r| l.compare_matching(r).reverse());
     }

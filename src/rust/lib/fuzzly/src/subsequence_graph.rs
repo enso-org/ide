@@ -1,11 +1,7 @@
 //! The Subsequence Graph.
-//!
-//!
-// TODO[ao] detailed explanation of graph structure.
 use crate::prelude::*;
 
 use std::collections::BTreeSet;
-use std::cmp::min;
 
 
 
@@ -15,23 +11,23 @@ use std::cmp::min;
 
 /// A graph vertex.
 ///
-/// The vertices are identified by two indexes of chars: in word, and in query. See module docs for
-/// details.
+/// The vertices are identified by two indexes: a layer index and word's char index. See
+/// `Graph` docs for details.
 ///
-/// The fields' order is significant, because it affect how those are ordered in graph's vertices
-/// list.
+/// The field order is significant, because it affects how they are ordered in the `Graph`'s
+/// `vertices`.
 #[derive(Copy,Clone,Debug,Eq,Hash,Ord,PartialEq,PartialOrd)]
 pub struct Vertex {
-    /// Index of character in the query string.
-    pub query_char_index:usize,
-    /// Index of character in the word being matched.
-    pub word_char_index:usize,
+    /// The layer this vertex belongs to.
+    pub layer:usize,
+    /// The position in `word` this vertex represents.
+    pub position_in_word:usize,
 }
 
 /// A graph edge.
 ///
-/// The fields' order is significant, because it affect how those are ordered in graph's edges
-/// list.
+/// The field order is significant, because it affects how they are ordered in the `Graph`'s
+/// `edges`.
 #[allow(missing_docs)]
 #[derive(Copy,Clone,Debug,Eq,Hash,Ord,PartialEq,PartialOrd)]
 pub struct Edge {
@@ -41,8 +37,21 @@ pub struct Edge {
 
 /// The Subsequence Graph.
 ///
-/// See module docs for detailed description of Subsequence Graph. We keep vertices and edges
-/// ordered, because the scoring algorithm requires this ordering to be effective.
+/// This structure helps analyzing all subsequences in given `word` which are case insensitively
+/// equal to given `query`. The graph is directional.
+///
+/// The vertices are arranged in `query.len()` layers: each vertex in i-th layer represents
+/// a possible position of the i-th subsequence element in `word`.
+///
+/// Each arc _v → w_ is spanned between vertices from consecutive layers _i_ and _i_+1, and
+/// indicates that having i-th subsequence element at position represented by _v_ we can pick
+/// (i+1)-th subsequence element at position represented by _w_.
+///
+/// In such graph all paths spanned between first and last layer represents the possible subsequence
+/// of `word`.
+///
+/// We keep vertices and edges ordered, because the scoring algorithm requires this ordering to be
+/// effective.
 #[allow(missing_docs)]
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 pub struct Graph {
@@ -61,13 +70,14 @@ impl Graph {
     fn create_vertices(word:&str, query:&str) -> BTreeSet<Vertex> {
         let mut result                    = BTreeSet::default();
         let mut first_reachable_word_char = 0;
-        for (i,query_ch) in query.chars().enumerate() {
+        for (layer,query_ch) in query.chars().enumerate() {
+            // For each layer we skip positions which won't be reachable.
             let to_skip = first_reachable_word_char;
             first_reachable_word_char = word.len();
-            for (j,word_ch) in word.chars().enumerate().skip(to_skip) {
+            for (position_in_word,word_ch) in word.chars().enumerate().skip(to_skip) {
                 if query_ch.eq_ignore_ascii_case(&word_ch) {
-                    result.insert(Vertex {query_char_index:i, word_char_index:j});
-                    first_reachable_word_char = min(first_reachable_word_char,j);
+                    result.insert(Vertex {layer,position_in_word});
+                    first_reachable_word_char = first_reachable_word_char.min(position_in_word+1);
                 }
             }
         }
@@ -78,12 +88,12 @@ impl Graph {
         let mut result = BTreeSet::default();
         for from in vertices {
             let first_possible_to = Vertex{
-                query_char_index : from.query_char_index + 1,
-                word_char_index  : from.word_char_index  + 1,
+                layer            : from.layer + 1,
+                position_in_word : from.position_in_word + 1,
             };
             let first_impossible_to = Vertex{
-                query_char_index : from.query_char_index + 2,
-                word_char_index  : 0,
+                layer            : from.layer + 2,
+                position_in_word : 0,
             };
             for to in vertices.range(first_possible_to..first_impossible_to) {
                 result.insert(Edge{from:*from, to:*to});
@@ -92,10 +102,10 @@ impl Graph {
         result
     }
 
-    /// Returns an iterator over all vertices with specific query_char_index.
-    pub fn vertices_with_query_char_index(&self, index:usize) -> impl Iterator<Item=&Vertex> {
-        let start = Vertex{query_char_index:index    , word_char_index:0};
-        let end   = Vertex{query_char_index:index + 1, word_char_index:0};
+    /// Returns an iterator over all vertices in given layer.
+    pub fn vertices_in_layer(&self, index:usize) -> impl Iterator<Item=&Vertex> {
+        let start = Vertex{ layer:index    , position_in_word:0};
+        let end   = Vertex{ layer:index + 1, position_in_word:0};
         self.vertices.range(start..end)
     }
 }
@@ -134,8 +144,8 @@ mod test {
                 assert_eq!(graph, expected_graph);
             }
 
-            fn convert_vertex((query_char_index,word_char_index):(usize,usize)) -> Vertex {
-                Vertex{query_char_index,word_char_index}
+            fn convert_vertex((layer,position_in_word):(usize,usize)) -> Vertex {
+                Vertex{ layer,position_in_word }
             }
         }
 
@@ -181,8 +191,18 @@ mod test {
             vertices : vec![(0,1)],
             edges    : vec![],
         };
+        let non_ascii = Case {
+            word     : "test wiadomości push: ęśąćż",
+            query    : "tęś",
+            vertices : vec![(0,0),(0,3),(1,22),(2,23)],
+            edges    : vec!
+                [ ((0,0) ,(1,22))
+                , ((0,3) ,(1,22))
+                , ((1,22),(2,23))
+                ]
+        };
 
-        for case in vec![classic,missing_layer,empty_query,empty_word,longer_query] {
+        for case in vec![classic,missing_layer,empty_query,empty_word,longer_query,non_ascii] {
             case.run()
         }
     }
