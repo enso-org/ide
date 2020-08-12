@@ -1355,7 +1355,7 @@ mod test {
         assert_eq!(module.ast().repr(), expected_code);
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn initialized_data_when_editing_node() {
         let Fixture{test:_test,searcher,entry4,..} = Fixture::new();
 

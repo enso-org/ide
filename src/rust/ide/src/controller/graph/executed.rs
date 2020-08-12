@@ -236,6 +236,8 @@ pub mod tests {
             model::project::test::expect_parser(&mut project,&parser);
             model::project::test::expect_module(&mut project,module);
             model::project::test::expect_execution_ctx(&mut project,ctx);
+            // Root ID is needed to generate module path used to get the module.
+            model::project::test::expect_root_id(&mut project,crate::test::mock::data::ROOT_ID);
 
             let project = Rc::new(project);
             Handle::new(Logger::default(),project.clone_ref(),method).boxed_local().expect_ok()
