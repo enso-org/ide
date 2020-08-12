@@ -304,6 +304,25 @@ impl BreadcrumbModel {
         let animations        = Animations::new(&frp.network);
         let is_selected       = default();
         let relative_position = default();
+
+        let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
+        scene.views.main.remove(&shape_system.shape_system.symbol);
+        scene.views.breadcrumbs.add(&shape_system.shape_system.symbol);
+
+        let shape_system = scene.shapes.shape_system(PhantomData::<icon::Shape>);
+        shape_system.shape_system.set_pointer_events(false);
+        scene.views.main.remove(&shape_system.shape_system.symbol);
+        scene.views.breadcrumbs.add(&shape_system.shape_system.symbol);
+
+        let shape_system = scene.shapes.shape_system(PhantomData::<separator::Shape>);
+        shape_system.shape_system.set_pointer_events(false);
+        scene.views.main.remove(&shape_system.shape_system.symbol);
+        scene.views.breadcrumbs.add(&shape_system.shape_system.symbol);
+
+        let symbol = glyph_system.sprite_system().symbol();
+        scene.views.main.remove(&symbol);
+        scene.views.breadcrumbs.add(&symbol);
+
         Self{logger,view,icon,separator,display_object,glyph_system,label,info,animations
             ,is_selected,relative_position}.init()
     }

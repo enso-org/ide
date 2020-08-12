@@ -248,17 +248,11 @@ impl BreadcrumbsModel {
     }
 
     fn camera_changed(&self) {
-        let camera                   = &self.camera;
-        let screen                   = camera.screen();
-        let fovy_slope               = camera.half_fovy_slope();
-        let distance                 = camera.position().z;
-        let distance_to_show_full_ui = screen.height / 2.0 / fovy_slope;
-        let scale                    = distance / distance_to_show_full_ui;
-        let camera_position          = camera.position();
-        let x_position               = camera_position.x-screen.width/2.0*scale;
-        let y_position               = camera_position.y+screen.height/2.0*scale;
+        let camera     = &self.camera;
+        let screen     = camera.screen();
+        let x_position = -screen.width/2.0;
+        let y_position = screen.height/2.0;
         self.set_position(Vector3(x_position.round(),y_position.round(),0.0));
-        self.set_scale(Vector3::new(scale,scale,scale));
     }
 
     fn width(&self) -> f32 {

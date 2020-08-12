@@ -653,6 +653,7 @@ pub struct Views {
     pub cursor         : View,
     pub label          : View,
     pub viz_fullscreen : View,
+    pub breadcrumbs    : View,
     all                : Rc<RefCell<Vec<WeakView>>>,
     width              : f32,
     height             : f32,
@@ -666,15 +667,17 @@ impl Views {
         let cursor         = View::new(&logger,width,height);
         let label          = View::new_with_camera(&logger,&main.camera);
         let viz_fullscreen = View::new(&logger,width,height);
+        let breadcrumbs    = View::new(&logger,width,height);
         let all            = vec![
             viz.downgrade(),
             main.downgrade(),
             cursor.downgrade(),
             label.downgrade(),
-            viz_fullscreen.downgrade()
+            viz_fullscreen.downgrade(),
+            breadcrumbs.downgrade()
         ];
         let all = Rc::new(RefCell::new(all));
-        Self {logger,viz,main,cursor,label,viz_fullscreen,all,width,height}
+        Self {logger,viz,main,cursor,label,viz_fullscreen,all,width,height,breadcrumbs}
     }
 
     /// Creates a new view for this scene.
