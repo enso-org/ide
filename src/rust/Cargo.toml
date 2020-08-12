@@ -4,6 +4,7 @@ members = [
     "build",
     "ensogl",
     "ensogl/lib/embedded-fonts",
+    "ensogl/lib/examples",
     "ensogl/lib/msdf-sys",
     "ensogl/lib/text",
     "ide",
@@ -34,7 +35,7 @@ members = [
 ]
 
 [profile.dev]
-opt-level = 0
+opt-level = 2
 lto       = false
 debug     = true
 
