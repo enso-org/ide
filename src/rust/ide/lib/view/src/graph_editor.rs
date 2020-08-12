@@ -21,7 +21,9 @@ pub mod data;
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
+use crate::graph_editor::component::visualization::MockDocGenerator;
 use crate::graph_editor::component::visualization;
+use crate::graph_editor::builtin::visualization::native::documentation;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -310,6 +312,13 @@ ensogl::def_command_api! { Commands
     /// Disable mode in which the pressed node will be edited.
     edit_mode_off,
 
+
+    /// Simulates a documentation open press event. In case the event will be shortly followed by `release_documentation_visibility`, the documentation will be shown permanently. In other case, it will be disabled as soon as the `release_documentation_visibility` is emitted.
+    press_documentation_visibility,
+    /// Simulates a documentation open release event. See `press_documentation_visibility` to learn more.
+    release_documentation_visibility,
+
+
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
     enable_node_multi_select,
     /// Disable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
@@ -383,6 +392,7 @@ pub struct FrpInputs {
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
     pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
+    pub set_documentation_data       : frp::Source<visualization::Data>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     hover_node_output          : frp::Source<Option<EdgeTarget>>,
@@ -421,6 +431,7 @@ impl FrpInputs {
             cycle_visualization          <- source();
             set_visualization            <- source();
             register_visualization       <- source();
+            set_documentation_data       <- source();
 
             hover_node_input             <- source();
             hover_node_output            <- source();
@@ -437,9 +448,9 @@ impl FrpInputs {
              ,unset_edge_source,unset_edge_target
              ,set_node_position,set_expression_type,set_method_pointer,select_node,remove_node
              ,set_node_expression,connect_nodes,deselect_all_nodes,cycle_visualization
-             ,set_visualization,register_visualization,some_edge_targets_detached
-             ,some_edge_sources_detached,all_edge_targets_attached,hover_node_input
-             ,all_edge_sources_attached,hover_node_output,press_node_output
+             ,set_visualization,register_visualization,set_documentation_data
+             ,some_edge_targets_detached,some_edge_sources_detached,all_edge_targets_attached
+             ,hover_node_input,all_edge_sources_attached,hover_node_output,press_node_output
              ,set_detached_edge_sources,all_edges_attached
         }
     }
@@ -544,6 +555,7 @@ generate_frp_outputs! {
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
 
+    documentation_visible : bool,
 }
 
 
@@ -1075,6 +1087,7 @@ pub struct GraphEditorModel {
     pub cursor         : cursor::Cursor,
     pub nodes          : Nodes,
     pub edges          : Edges,
+    pub doc_view       : documentation::View,
     touch_state        : TouchState,
     frp                : FrpInputs,
 }
@@ -1093,17 +1106,30 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
-//        let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
+//      let visualizations = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
+        let doc_view       = documentation::View::new(&scene);
         let edges          = default();
         let frp            = FrpInputs::new(network);
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
         let project_name   = component::ProjectName::new(scene,focus_manager);
         display_object.add_child(&project_name);
-        let screen = scene.camera().screen();
-        let margin = 10.0;
-        project_name.set_position(Vector3::new(0.0,screen.height / 2.0 - margin,0.0));
+        let screen     = scene.camera().screen();
+        let margin     = 10.0;
+        project_name.set_position_y(screen.height / 2.0 - margin);
+        let doc_width  = documentation::DOC_VIEW_WIDTH;
+        let doc_margin = documentation::DOC_VIEW_MARGIN;
+        frp::extend! { network
+            eval scene.frp.shape((shape) {
+                doc_view.set_position_x((shape.width - doc_width) / 2.0 - doc_margin);
+                doc_view.frp.set_size.emit(Vector2::new(doc_width,shape.height - (doc_margin * 2.0)));
+            });
+        }
+        // FIXME: These 2 lines fix a bug with display objects visible on stage.
+        //        The same bug appears in `ContainerModel`
+        display_object.add_child(&doc_view);
+        display_object.remove_child(&doc_view);
         let app = app.clone_ref();
-        Self {logger,display_object,app,cursor,nodes,edges,touch_state,frp,project_name}//visualizations }
+        Self {logger,display_object,app,cursor,nodes,edges,touch_state,frp,project_name,doc_view}//visualizations}
     }
 
     pub fn all_nodes(&self) -> Vec<NodeId> {
@@ -1186,6 +1212,15 @@ impl GraphEditorModel {
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.visualization.frp.enable_fullscreen.emit(());
         }
+    }
+
+    fn set_documentation_visibility(&self, is_vis:bool) {
+        if is_vis { self.app.remove_child(&self.doc_view) }
+        else      { self.app.add_child(&self.doc_view)    }
+    }
+
+    fn is_doc_visible(&self) -> bool {
+        self.doc_view.has_parent()
     }
 
     /// Warning! This function does not remove connected edges. It needs to be handled by the
@@ -1542,6 +1577,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())],&[])  , "double_press_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])  , "release_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("\\".into())],&[]) , "press_documentation_visibility")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character("\\".into())],&[]) , "release_documentation_visibility")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "toggle_node_multi_select")
@@ -2217,6 +2254,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             let data    = visualization::Data::from(content);
             inputs.set_visualization_data.emit((*node_id,data));
         }
+
+        let sample_doc_generator = MockDocGenerator::default();
+        let data                 = sample_doc_generator.generate_data();
+        let content              = serde_json::to_value(data).unwrap();
+        let data                 = visualization::Data::from(content);
+        inputs.set_documentation_data.emit(data);
     }));
 
     def _set_data = inputs.set_visualization_data.map(f!([nodes]((node_id,data)) {
@@ -2340,6 +2383,29 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Remove implementation ===
     outputs.node_removed <+ inputs.remove_node;
+
+    }
+
+    // === Documentation Set ===
+    frp::extend! { network
+
+    eval inputs.set_documentation_data ((data) model.doc_view.frp.send_data.emit(data));
+
+
+    // === Documentation toggle ===
+
+    let doc_press_ev               = inputs.press_documentation_visibility.clone_ref();
+    let doc_release                = inputs.release_documentation_visibility.clone_ref();
+    doc_pressed                   <- bool(&doc_release,&doc_press_ev);
+    doc_was_pressed               <- doc_pressed.previous();
+    doc_press                     <- doc_press_ev.gate_not(&doc_was_pressed);
+    doc_press_on_off              <- doc_press.map(f_!(model.is_doc_visible()));
+    outputs.documentation_visible <+ doc_press_on_off;
+
+
+    // === OUTPUTS REBIND ===
+
+    eval outputs.documentation_visible ((vis) model.set_documentation_visibility(*vis));
 
     }
 
