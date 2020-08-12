@@ -155,11 +155,10 @@ pub struct ExecutionFailed {
 #[allow(missing_docs)]
 #[serde(rename_all="camelCase")]
 pub struct ExpressionValueUpdate {
-    pub id          : ExpressionId,
+    pub expression_id  : ExpressionId,
     #[serde(rename = "type")] // To avoid collision with the `type` keyword.
-    pub typename    : Option<String>,
-    pub short_value : Option<String>,
-    pub method_call : Option<MethodPointer>,
+    pub typename       : Option<String>,
+    pub method_pointer : Option<SuggestionEntryId>,
 }
 
 
@@ -652,10 +651,9 @@ pub mod test {
     /// typename.
     pub fn value_update_with_type(id:ExpressionId, typename:impl Into<String>) -> ExpressionValueUpdate {
         ExpressionValueUpdate {
-            id,
-            typename    : Some(typename.into()),
-            method_call : None,
-            short_value : None,
+            expression_id  : id,
+            typename       : Some(typename.into()),
+            method_pointer : None,
         }
     }
 }

@@ -13,6 +13,7 @@ use enso_protocol::language_server;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
+use enso_protocol::language_server::SuggestionEntryId;
 
 
 
@@ -51,7 +52,7 @@ pub trait API:Debug {
     (&'a self, root_definition:language_server::MethodPointer)
     -> BoxFuture<'a,FallibleResult<model::ExecutionContext>>;
 
-    /// Set a new project name..
+    /// Set a new project name.
     fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
 
     /// Returns the primary content root id for this project.
@@ -60,8 +61,18 @@ pub trait API:Debug {
     }
 
     /// Generates full module's qualified name that includes the leading project name segment.
-    fn qualified_module_name(&self, path:&model::module::Path) -> crate::model::module::QualifiedName {
+    fn qualified_module_name
+    (&self, path:&model::module::Path) -> crate::model::module::QualifiedName {
         path.qualified_module_name(self.name().deref())
+    }
+
+    /// Look up given id in the suggestion database and if it is a known method obtain a pointer to
+    /// it.
+    fn method_ptr_from_db_id
+    (&self, id:SuggestionEntryId) -> FallibleResult<language_server::MethodPointer> {
+        let db    = self.suggestion_db();
+        let entry = db.lookup(id)?;
+        language_server::MethodPointer::try_from(entry.as_ref()).map_err(Into::into)
     }
 }
 

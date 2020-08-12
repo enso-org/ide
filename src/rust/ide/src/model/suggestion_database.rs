@@ -14,6 +14,28 @@ use parser::DocParser;
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionEntryId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
+use enso_protocol::language_server::SuggestionEntryId;
+
+
+
+// ==============
+// === Errors ===
+// ==============
+
+#[allow(missing_docs)]
+#[derive(Debug,Fail,Clone,Copy)]
+#[fail(display = "The suggestion with id {} has not been found in the database.", _0)]
+pub struct NoSuchEntry(pub SuggestionEntryId);
+
+#[allow(missing_docs)]
+#[derive(Debug,Fail,Clone)]
+#[fail(display = "Entry named {} does not represent a method.", _0)]
+pub struct NotAMethod(pub String);
+
+#[allow(missing_docs)]
+#[derive(Debug,Fail,Clone)]
+#[fail(display = "Entry named {} is described as method but does not have a `this` parameter.", _0)]
+pub struct MissingThisOnMethod(pub String);
 
 
 
@@ -178,6 +200,46 @@ impl TryFrom<language_server::types::SuggestionEntry> for Entry {
         Self::from_ls_entry(entry, logger)
     }
 }
+//
+//
+// impl TryFrom<Entry> for language_server::MethodPointer {
+//     type Error = failure::Error;
+//     fn try_from(entry:Entry) -> FallibleResult<Self> {
+//         (entry.kind==EntryKind::Method).then(())?;
+//         let defined_on_type = entry.self_type.cloned()?; // TODO method must have self
+//         Ok(language_server::MethodPointer {
+//             defined_on_type,
+//             module : entry.module.into(),
+//             name   : entry.name.into(),
+//         })
+//     }
+// }
+
+impl TryFrom<&Entry> for language_server::MethodPointer {
+    type Error = failure::Error;
+    fn try_from(entry:&Entry) -> FallibleResult<Self> {
+        (entry.kind==EntryKind::Method).ok_or_else(|| NotAMethod(entry.name.clone()))?;
+        let missing_this_err = || MissingThisOnMethod(entry.name.clone());
+        let defined_on_type  = entry.self_type.clone().ok_or_else(missing_this_err)?;
+        Ok(language_server::MethodPointer {
+            defined_on_type,
+            module : entry.module.to_string(),
+            name   : entry.name.clone(),
+        })
+    }
+}
+
+// fn method_ptr_from_suggestion(entry:&Entry) -> Option<language_server::MethodPointer> {
+//     (entry.kind==EntryKind::Method).then(())?;
+//     let defined_on_type = entry.self_type.cloned()?; // TODO method must have self
+//     Some(language_server::MethodPointer {
+//         defined_on_type,
+//         module : entry.module.into(),
+//         name   : entry.name.into(),
+//     })
+// }
+
+
 
 
 
@@ -228,6 +290,11 @@ impl SuggestionDatabase {
     /// Get suggestion entry by id.
     pub fn get(&self, id:EntryId) -> Option<Rc<Entry>> {
         self.entries.borrow().get(&id).cloned()
+    }
+
+    /// Get suggestion entry by id. Returns `Result`.
+    pub fn lookup(&self, id:EntryId) -> Result<Rc<Entry>,NoSuchEntry> {
+        self.get(id).ok_or(NoSuchEntry(id))
     }
 
     /// Apply the update event to the database.

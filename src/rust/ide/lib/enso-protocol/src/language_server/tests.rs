@@ -339,10 +339,9 @@ fn test_computed_value_update() {
         Event::Notification(Notification::ExpressionValuesComputed(expression_value_update)) => {
             assert_eq!(expression_value_update.context_id, context_id);
             let update = &expression_value_update.updates.first().unwrap();
-            assert_eq!(update.id, id);
+            assert_eq!(update.expression_id, id);
             assert_eq!(update.typename.as_ref().map(|ty| ty.as_str()), Some(typename));
-            assert_eq!(update.short_value.as_ref().map(|ty| ty.as_str()), Some(short_value));
-            assert!(update.method_call.is_none());
+            assert!(update.method_pointer.is_none());
         }
         _ => panic!("Expected Notification::ExpressionValuesComputed"),
     }
