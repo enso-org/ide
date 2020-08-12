@@ -331,6 +331,10 @@ impl Normalize for Vector3<f32> {
     }
 }
 
+impl Normalize for Vector4<f32> {
+    fn normalize(&self) -> Self { self.normalize() }
+}
+
 
 
 // ===================

@@ -8,6 +8,9 @@ use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
 use crate::graph_editor::component::breadcrumbs::breadcrumb::LEFT_MARGIN;
 use crate::graph_editor::component::breadcrumbs::breadcrumb::RIGHT_MARGIN;
 use crate::graph_editor::component::breadcrumbs::breadcrumb::TOP_MARGIN;
+use crate::graph_editor::component::breadcrumbs::breadcrumb::LEFT_DESELECTED_COLOR;
+use crate::graph_editor::component::breadcrumbs::breadcrumb::SELECTED_COLOR;
+use crate::graph_editor::component::breadcrumbs::breadcrumb::HOVER_COLOR;
 
 use enso_frp as frp;
 use ensogl::data::color;
@@ -23,15 +26,12 @@ use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use logger::enabled::Logger;
 use logger::AnyLogger;
-use ensogl::animation::linear_interpolation;
+
 
 
 // =================
 // === Constants ===
 // =================
-
-const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
-const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
 
 /// Project name used as a placeholder in `ProjectName` view when it's initialized.
 pub const UNKNOWN_PROJECT_NAME:&str = "Unknown";
@@ -162,16 +162,16 @@ impl Default for Frp {
 /// Animation handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    opacity  : Animation<f32>,
+    color    : Animation<Vector4<f32>>,
     position : Animation<Vector3<f32>>
 }
 
 impl Animations {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
-        let opacity  = Animation::new(&network);
+        let color    = Animation::new(&network);
         let position = Animation::new(&network);
-        Self{opacity,position}
+        Self{color,position}
     }
 }
 
@@ -204,7 +204,7 @@ impl ProjectNameModel {
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
-        let base_color            = TRANSPARENT_TEXT_COLOR;
+        let base_color            = SELECTED_COLOR;
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
         let text_field            = TextField::new(scene,text_field_properties,focus_manager);
@@ -257,9 +257,8 @@ impl ProjectNameModel {
         self.width_output.emit(self.width());
     }
 
-    fn set_opacity(&self, value:f32) {
-        let base_color = linear_interpolation(TRANSPARENT_TEXT_COLOR, TEXT_COLOR, value);
-        self.text_field.set_base_color(base_color);
+    fn set_color(&self, value:Vector4<f32>) {
+        self.text_field.set_base_color(color::Rgba::from(value));
     }
 
     fn set_position(&self, value:Vector3<f32>) {
@@ -281,18 +280,18 @@ impl ProjectNameModel {
         self.edit_mode.emit(false);
     }
 
-    fn is_focused(&self) -> bool {
-        self.text_field.is_focused()
-    }
-
     fn select(&self) {
         self.is_selected.set(true);
-        self.animations.opacity.set_target_value(1.0);
+        self.animations.color.set_target_value(SELECTED_COLOR.into());
     }
 
     fn deselect(&self) {
         self.is_selected.set(false);
-        self.animations.opacity.set_target_value(0.0);
+        self.animations.color.set_target_value(LEFT_DESELECTED_COLOR.into());
+    }
+
+    fn is_selected(&self) -> bool {
+        self.is_selected.get()
     }
 }
 
@@ -324,10 +323,15 @@ impl ProjectName {
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
-            eval_ model.view.events.mouse_over(model.animations.opacity.set_target_value(1.0));
-            eval_ model.view.events.mouse_out({
-                //TODO[dg]:Make use of TextField 2.0's frp for getting focus state changes.
-                model.animations.opacity.set_target_value(model.is_focused() as i32 as f32);
+            eval model.view.events.mouse_over([model] (_) {
+                if !model.is_selected() {
+                    model.animations.color.set_target_value(HOVER_COLOR.into());
+                }
+            });
+            eval model.view.events.mouse_out([model] (_) {
+                if !model.is_selected() {
+                    model.animations.color.set_target_value(LEFT_DESELECTED_COLOR.into());
+                }
             });
             eval_ frp.select(model.select());
             eval_ frp.deselect(model.deselect());
@@ -347,7 +351,7 @@ impl ProjectName {
         // === Animations ===
 
         frp::extend! {network
-            eval model.animations.opacity.value((value) model.set_opacity(*value));
+            eval model.animations.color.value((value) model.set_color(*value));
             eval model.animations.position.value((value) model.set_position(*value));
         }
 

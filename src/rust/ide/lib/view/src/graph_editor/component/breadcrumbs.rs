@@ -23,6 +23,7 @@ use logger::AnyLogger;
 use logger::enabled::Logger;
 
 
+
 // =================
 // === Constants ===
 // =================
@@ -32,6 +33,24 @@ const GLYPH_WIDTH       : f32 = 7.224_609_4;
 const VERTICAL_MARGIN   : f32 = GLYPH_WIDTH;
 const HORIZONTAL_MARGIN : f32 = GLYPH_WIDTH;
 const TEXT_SIZE         : f32 = 12.0;
+
+
+
+// ========================
+// === RelativePosition ===
+// ========================
+
+#[derive(Debug,Clone,Copy)]
+enum RelativePosition {
+    LEFT,
+    RIGHT
+}
+
+impl Default for RelativePosition {
+    fn default() -> Self {
+        RelativePosition::RIGHT
+    }
+}
 
 
 
@@ -445,11 +464,13 @@ impl Breadcrumbs {
             debug_pop_indices <= frp.debug.pop_breadcrumb.map(f_!(model.debug_pop_breadcrumb()));
 
             indices <- any4(&push_indices,&pop_indices,&debug_push_indices,&debug_pop_indices);
-            old_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.0)));
+            old_breadcrumb <- indices.map(f!([model] (indices) {
+                (Some(indices.clone()),model.get_breadcrumb(indices.0))
+            }));
             new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
-            eval old_breadcrumb([model] (breadcrumb) {
+            eval old_breadcrumb([model] ((indices,breadcrumb)) {
                 if let Some(breadcrumb) = breadcrumb.as_ref() {
-                    breadcrumb.frp.deselect.emit(());
+                    indices.map(|indices| breadcrumb.frp.deselect.emit((indices.0,indices.1)));
                 } else {
                     model.project_name.frp.deselect.emit(());
                 }

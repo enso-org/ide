@@ -6,11 +6,11 @@ use super::GLYPH_WIDTH;
 use super::HORIZONTAL_MARGIN;
 use super::VERTICAL_MARGIN;
 use super::TEXT_SIZE;
+use super::RelativePosition;
 
 use crate::graph_editor::MethodPointer;
 
 use enso_frp as frp;
-use ensogl::animation::linear_interpolation;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::Attribute;
@@ -50,8 +50,20 @@ const SEPARATOR_SIZE       : f32 = 8.0;
 const SEPARATOR_LINE_WIDTH : f32 = 3.0;
 const SHAPE_PADDING        : f32 = 1.0;
 const SEPARATOR_MARGIN     : f32 = HORIZONTAL_MARGIN;
-const FULL_COLOR           : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
-const TRANSPARENT_COLOR    : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
+
+
+// === Colors ===
+
+const FULL_COLOR        : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.7);
+const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
+/// Breadcrumb color when selected.
+pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,1.0,0.0,1.0);
+/// Breadcrumb color when it's deselected on the left of the selected breadcrumb.
+pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,1.0);
+/// Breadcrumb color when it's deselected on the right of the selected breadcrumb.
+pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,1.0,1.0);
+/// Breadcrumb color when hovered.
+pub const HOVER_COLOR : color::Rgba = FULL_COLOR;
 
 
 
@@ -80,7 +92,7 @@ mod icon {
     use super::*;
 
     ensogl::define_shape_system! {
-        (opacity:f32) {
+        (red:f32,green:f32,blue:f32,alpha:f32) {
                 let outer_circle  = Circle((ICON_RADIUS).px());
                 let inner_circle  = Circle((ICON_RADIUS - ICON_RING_WIDTH).px());
                 let ring          = outer_circle - inner_circle;
@@ -88,12 +100,7 @@ mod icon {
                 let arrow         = Triangle(size.px(),size.px()).rotate((PI/2.0).radians());
                 let arrow         = arrow.translate_x(1.0.px());
                 let shape         = ring + arrow;
-                let full_color    = format!("vec4({},{},{},{})"
-                    ,FULL_COLOR.red,FULL_COLOR.green,FULL_COLOR.blue,FULL_COLOR.alpha);
-                let transparent_color = format!("vec4({},{},{},{})"
-                    ,TRANSPARENT_COLOR.red,TRANSPARENT_COLOR.green,TRANSPARENT_COLOR.blue
-                    ,TRANSPARENT_COLOR.alpha);
-                let color = format!("mix({},{},{})",transparent_color,full_color,opacity);
+                let color         = format!("vec4({},{},{},{})",red,green,blue,alpha);
                 let color : Var<color::Rgba> = color.into();
                 shape.fill(color).into()
         }
@@ -132,16 +139,16 @@ mod separator {
 /// ProjectName's animations handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    opacity : Animation<f32>,
+    color   : Animation<Vector4<f32>>,
     fade_in : Animation<f32>
 }
 
 impl Animations {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
-        let opacity  = Animation::new(&network);
+        let color    = Animation::new(&network);
         let fade_in  = Animation::new(&network);
-        Self{opacity,fade_in}
+        Self{color,fade_in}
     }
 }
 
@@ -156,8 +163,10 @@ impl Animations {
 pub struct FrpInputs {
     /// Select the breadcrumb, triggering the selection animation.
     pub select   : frp::Source,
-    /// Select the breadcrumb, triggering the deselection animation.
-    pub deselect : frp::Source,
+    /// Select the breadcrumb, triggering the deselection animation, using the (self,new) breadcrumb
+    /// indices to determine if the breadcrumb is on the left or on the right of the newly selected
+    /// breadcrumb.
+    pub deselect : frp::Source<(usize,usize)>,
     /// Triggers the fade in animation, which only makes sense during the breadcrumb creation.
     pub fade_in  : frp::Source
 }
@@ -271,30 +280,32 @@ pub struct BreadcrumbModel {
     animations     : Animations,
     is_selected    : Rc<Cell<bool>>,
     /// Breadcrumb information such as name and expression id.
-    pub info       : Rc<BreadcrumbInfo>
+    pub info          : Rc<BreadcrumbInfo>,
+    relative_position : Rc<Cell<RelativePosition>>
 }
 
 impl BreadcrumbModel {
     /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>
     (scene:S, frp:&Frp,method_pointer:&MethodPointer, expression_id:&ast::Id) -> Self {
-        let scene          = scene.into();
-        let logger         = Logger::new("Breadcrumbs");
-        let display_object = display::object::Instance::new(&logger);
-        let view_logger    = Logger::sub(&logger,"view_logger");
-        let view           = component::ShapeView::<background::Shape>::new(&view_logger, scene);
-        let icon           = component::ShapeView::<icon::Shape>::new(&view_logger, scene);
-        let separator      = component::ShapeView::<separator::Shape>::new(&view_logger, scene);
-        let font           = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
-        let glyph_system   = GlyphSystem::new(scene,font);
-        let label          = glyph_system.new_line();
-        let expression_id  = *expression_id;
-        let method_pointer = method_pointer.clone();
-        let info           = Rc::new(BreadcrumbInfo{method_pointer,expression_id});
-        let animations     = Animations::new(&frp.network);
-        let is_selected    = default();
+        let scene             = scene.into();
+        let logger            = Logger::new("Breadcrumbs");
+        let display_object    = display::object::Instance::new(&logger);
+        let view_logger       = Logger::sub(&logger,"view_logger");
+        let view              = component::ShapeView::<background::Shape>::new(&view_logger, scene);
+        let icon              = component::ShapeView::<icon::Shape>::new(&view_logger, scene);
+        let separator         = component::ShapeView::<separator::Shape>::new(&view_logger, scene);
+        let font              = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
+        let glyph_system      = GlyphSystem::new(scene,font);
+        let label             = glyph_system.new_line();
+        let expression_id     = *expression_id;
+        let method_pointer    = method_pointer.clone();
+        let info              = Rc::new(BreadcrumbInfo{method_pointer,expression_id});
+        let animations        = Animations::new(&frp.network);
+        let is_selected       = default();
+        let relative_position = default();
         Self{logger,view,icon,separator,display_object,glyph_system,label,info,animations
-            ,is_selected}.init()
+            ,is_selected,relative_position}.init()
     }
 
     fn init(self) -> Self {
@@ -321,7 +332,6 @@ impl BreadcrumbModel {
         self.separator.shape.sprite.size.set(Vector2::new(separator_size,separator_size));
         self.separator.set_position_x((offset-width/2.0).round());
         self.icon.shape.sprite.size.set(Vector2::new(icon_size,icon_size));
-        self.icon.shape.opacity.set(self.is_selected() as i32 as f32);
         self.icon.set_position_x((offset+ICON_SIZE/2.0+LEFT_MARGIN+ICON_LEFT_MARGIN).round());
 
         self
@@ -355,20 +365,31 @@ impl BreadcrumbModel {
         self.view.set_position(Vector3(x_position.round(),y_position.round(),0.0));
     }
 
-    fn set_opacity(&self, value:f32) {
-        let color = linear_interpolation(TRANSPARENT_COLOR,FULL_COLOR,value);
+    fn set_color(&self, value:Vector4<f32>) {
+        let color = color::Rgba::from(value);
         self.label.set_font_color(color);
-        self.icon.shape.opacity.set(value);
+        self.icon.shape.red.set(color.red);
+        self.icon.shape.green.set(color.green);
+        self.icon.shape.blue.set(color.blue);
+        self.icon.shape.alpha.set(color.alpha);
     }
 
     fn select(&self) {
         self.is_selected.set(true);
-        self.animations.opacity.set_target_value(1.0);
+        self.animations.color.set_target_value(SELECTED_COLOR.into());
     }
 
-    fn deselect(&self) {
+    fn deselect(&self, old:usize, new:usize) {
+        self.relative_position.set((new>old).as_option().map(|_| RelativePosition::LEFT).unwrap_or(RelativePosition::RIGHT));
         self.is_selected.set(false);
-        self.animations.opacity.set_target_value(0.0);
+        self.animations.color.set_target_value(self.deselected_color().into());
+    }
+
+    fn deselected_color(&self) -> color::Rgba {
+        match self.relative_position.get() {
+            RelativePosition::RIGHT => RIGHT_DESELECTED_COLOR,
+            RelativePosition::LEFT  => LEFT_DESELECTED_COLOR
+        }
     }
 
     fn is_selected(&self) -> bool {
@@ -408,11 +429,18 @@ impl Breadcrumb {
         frp::extend! { network
             eval_ frp.fade_in(model.animations.fade_in.set_target_value(1.0));
             eval_ frp.select(model.select());
-            eval_ frp.deselect(model.deselect());
-            eval_ model.view.events.mouse_over(model.animations.opacity.set_target_value(1.0));
-            eval_ model.view.events.mouse_out(
-                model.animations.opacity.set_target_value(model.is_selected() as i32 as f32);
-            );
+            eval frp.deselect(((old,new)) model.deselect(*old,*new));
+            //FIXME[dg]: selected should be a gate
+            eval model.view.events.mouse_over([model] (_) {
+                if !model.is_selected() {
+                    model.animations.color.set_target_value(HOVER_COLOR.into())
+                }
+            });
+            eval model.view.events.mouse_out([model] (_) {
+                if !model.is_selected() {
+                    model.animations.color.set_target_value(model.deselected_color().into())
+                }
+            });
             eval_ model.view.events.mouse_down(frp.outputs.selected.emit(()));
         }
 
@@ -421,7 +449,7 @@ impl Breadcrumb {
 
         frp::extend! {network
             eval model.animations.fade_in.value((value) model.fade_in(*value));
-            eval model.animations.opacity.value((value) model.set_opacity(*value));
+            eval model.animations.color.value((value) model.set_color(*value));
         }
 
         Self{frp,model}
