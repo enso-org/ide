@@ -22,11 +22,13 @@ use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use ensogl::application::Application;
+use ensogl_text::Text;
 
 use super::edge;
 use crate::graph_editor::component::visualization;
 use crate::graph_editor::component::node::port::output::OutputPorts;
 use crate::graph_editor::Type;
+
 
 
 // =================
@@ -125,41 +127,16 @@ pub mod drag_area {
 // === Frp ===
 // ===========
 
-/// Node events.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct InputEvents {
-    pub select              : frp::Source,
-    pub deselect            : frp::Source,
-    pub set_expression      : frp::Source<Expression>,
-    pub set_expression_type : frp::Source<(ast::Id,Option<Type>)>,
-    pub set_visualization   : frp::Source<Option<visualization::Instance>>,
-}
-
-impl InputEvents {
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! { network
-            def select              = source();
-            def deselect            = source();
-            def set_expression      = source();
-            def set_expression_type = source();
-            def set_visualization   = source();
-        }
-        Self {select,deselect,set_expression,set_expression_type,set_visualization}
+ensogl_text::define_endpoints! {
+    Input {
+        select              (),
+        deselect            (),
+        set_expression      (Expression),
+        set_expression_type ((ast::Id,Option<Type>)),
+        set_visualization   (Option<visualization::Instance>),
     }
-}
-
-
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct Frp {
-    pub input  : InputEvents,
-}
-
-impl Deref for Frp {
-    type Target = InputEvents;
-    fn deref(&self) -> &Self::Target {
-        &self.input
+    Output {
+        expression (Text)
     }
 }
 
@@ -199,7 +176,7 @@ pub struct NodeModel {
     pub app            : Application,
     pub display_object : display::object::Instance,
     pub logger         : Logger,
-    pub frp            : Frp,
+    pub frp            : FrpEndpoints,
     pub main_area      : component::ShapeView<shape::Shape>,
     pub drag_area      : component::ShapeView<drag_area::Shape>,
     pub ports          : port::Manager,
@@ -239,7 +216,8 @@ impl NodeModel {
 
         let ports = port::Manager::new(&logger,app);
         let scene = scene.clone_ref();
-        let input = InputEvents::new(&network);
+        let input = FrpInputs::new(&network);
+        let frp   = FrpEndpoints::new(&network,input);
 
         let visualization = visualization::Container::new(&logger,&scene);
         visualization.mod_position(|t| {
@@ -254,8 +232,6 @@ impl NodeModel {
             p.y = NODE_HEIGHT/2.0;
         });
         display_object.add_child(&ports);
-
-        let frp = Frp{input};
 
 
         // TODO: Determine number of output ports based on node semantics.
@@ -330,6 +306,8 @@ impl Node {
             );
 
             eval model.ports.frp.width ((w) model.set_width(*w));
+
+            model.frp.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
         }
 
         Self {frp_network,model}

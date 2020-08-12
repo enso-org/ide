@@ -7,6 +7,7 @@ use crate::buffer::data::unit::*;
 use crate::buffer::Transform;
 use crate::buffer;
 use crate::buffer::style;
+use crate::buffer::Text;
 use crate::typeface::glyph::Glyph;
 use crate::typeface::glyph;
 use crate::typeface::pen;
@@ -445,6 +446,7 @@ crate::define_endpoints! {
         mouse_cursor_style (gui::cursor::Style),
         active             (bool),
         width              (f32),
+        changed            (Text),
     }
 }
 
@@ -626,6 +628,11 @@ impl Area {
             eval input.set_default_color     ((t) m.buffer.frp.set_default_color(*t));
             eval input.set_default_text_size ((t) m.buffer.frp.set_default_text_size(*t));
             eval input.set_color_bytes       ((t) m.buffer.frp.set_color_bytes.emit(*t));
+
+
+            // === Changes ===
+
+            self.frp.source.changed <+ m.buffer.frp.text_changed.map(f_!(m.buffer.text()));
         }
         self
     }

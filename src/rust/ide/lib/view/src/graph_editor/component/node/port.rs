@@ -5,8 +5,6 @@ pub mod output;
 
 use crate::prelude::*;
 
-//use crate::component::node::port::Registry;
-
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
@@ -22,6 +20,7 @@ use ensogl::gui::component;
 use ensogl::gui::cursor;
 use span_tree::SpanTree;
 use ensogl_text as text;
+use text::Text;
 
 use super::super::node;
 
@@ -67,6 +66,7 @@ pub struct Events {
     pub start_edit_mode : frp::Source,
     pub stop_edit_mode  : frp::Source,
     pub width           : frp::Stream<f32>,
+    pub expression      : frp::Stream<Text>,
     press_source        : frp::Source<span_tree::Crumbs>,
     hover_source        : frp::Source<Option<span_tree::Crumbs>>,
     cursor_style_source : frp::Any<cursor::Style>,
@@ -141,7 +141,6 @@ impl Manager {
         let logger         = Logger::sub(logger,"port_manager");
         let display_object = display::object::Instance::new(&logger);
         let app            = app.clone_ref();
-        let expression     = default();
         let port_networks  = default();
         let type_color_map = default();
         let label          = app.new_view::<text::Area>();
@@ -165,6 +164,8 @@ impl Manager {
             });
 
             width <- label.width.map(|w|*w);
+
+            expression <- label.changed.map(|t|t.clone_ref());
         }
 
         let cursor_style   = (&cursor_style_source).into();
@@ -172,7 +173,7 @@ impl Manager {
         let hover          = (&hover_source).into();
         let frp            = Events
             {network,cursor_style,press,hover,cursor_style_source,press_source,hover_source
-            ,start_edit_mode,stop_edit_mode,width};
+            ,start_edit_mode,stop_edit_mode,width,expression};
 
         label.mod_position(|t| t.y += 6.0);
 
@@ -184,7 +185,8 @@ impl Manager {
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
 
-        let width = default();
+        let expression = default();
+        let width      = default();
 
         Self {logger,display_object,frp,label,ports,width,app,expression,port_networks,type_color_map}
     }

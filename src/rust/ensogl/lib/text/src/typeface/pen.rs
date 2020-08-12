@@ -109,7 +109,7 @@ mod tests {
         let mut result = Vec::new();
         for chr in "AWA".chars() {
             let char_info = CharInfo::new(chr,1.0);
-            result.push(pen.advance(char_info).offset);
+            result.push(pen.advance(Some(char_info)).offset);
         }
         let expected = vec![0.0,0.4,1.1];
         assert_eq!(expected,result);

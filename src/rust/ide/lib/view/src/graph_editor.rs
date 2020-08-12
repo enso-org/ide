@@ -938,12 +938,13 @@ impl GraphEditorModelWithNetwork {
 
     fn new_node
     ( &self
-    , cursor_style : &frp::Source<cursor::Style>
-    , output_press : &frp::Source<EdgeTarget>
-    , input_press  : &frp::Source<EdgeTarget>
+    , cursor_style    : &frp::Source<cursor::Style>
+    , output_press    : &frp::Source<EdgeTarget>
+    , input_press     : &frp::Source<EdgeTarget>
+    , _expression_set : &frp::Source<(NodeId,node::Expression)>
     ) -> NodeId {
-        let view = component::Node::new(&self.app);
-        let node = Node::new(view);
+        let view    = component::Node::new(&self.app);
+        let node    = Node::new(view);
         let node_id = node.id();
         self.add_child(&node);
 
@@ -957,6 +958,7 @@ impl GraphEditorModelWithNetwork {
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 output_press.emit(target);
             });
+
             eval node.ports.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 input_press.emit(target);
@@ -967,17 +969,19 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_input.emit(target);
             });
 
-             eval node.view.output_ports.frp.port_mouse_over ([model](crumbs) {
-                let target = EdgeTarget::new(node_id,crumbs.clone());
-                model.frp.hover_node_output.emit(Some(target));
-             });
+            eval node.view.output_ports.frp.port_mouse_over ([model](crumbs) {
+               let target = EdgeTarget::new(node_id,crumbs.clone());
+               model.frp.hover_node_output.emit(Some(target));
+            });
 
-             eval_ node.view.output_ports.frp.port_mouse_out (
+            eval_ node.view.output_ports.frp.port_mouse_out (
                 model.frp.hover_node_output.emit(None)
             );
+
+            // FIXME[WD]: We cannot connect it here as we do not know new span tree.
+            // eval node.frp.expression((t) expression_set.emit((node_id,t.clone_ref())));
         }
 
-//        self.visualizations.push(node.visualization().clone_ref());
         self.nodes.insert(node_id,node);
 
         node_id
@@ -1792,6 +1796,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     let node_input_touch  = TouchNetwork::<EdgeTarget>::new(&network,&mouse);
     let node_output_touch = TouchNetwork::<EdgeTarget>::new(&network,&mouse);
+    node_expression_set <- source();
+    outputs.node_expression_set <+ node_expression_set;
 
     on_output_connect_drag_mode   <- node_output_touch.down.constant(true);
     on_output_connect_follow_mode <- node_output_touch.selected.constant(false);
@@ -1901,8 +1907,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     outputs.edge_target_set <+ new_edge_target;
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
-    add_node           <- any (inputs.add_node, add_node_at_cursor);
-    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down)));
+    add_node           <- any (inputs.add_node,add_node_at_cursor);
+    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down,&node_expression_set)));
     outputs.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
