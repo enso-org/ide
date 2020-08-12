@@ -449,7 +449,7 @@ impl GraphEditorIntegratedWithControllerModel {
             self.set_type(node_id,id,typename);
             let method_pointer = info.and_then(|info| {
                 info.method_call.and_then(|entry_id| {
-                    let opt_method = self.project.method_ptr_from_db_id(entry_id).ok();
+                    let opt_method = self.project.suggestion_db().lookup_method_ptr(entry_id).ok();
                     opt_method.map(|method| graph_editor::MethodPointer(Rc::new(method)))
                 })
             });

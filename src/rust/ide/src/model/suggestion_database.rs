@@ -23,7 +23,7 @@ use enso_protocol::language_server::SuggestionId;
 // ==============
 
 #[allow(missing_docs)]
-#[derive(Debug,Fail,Clone,Copy)]
+#[derive(Debug,Fail,Clone,Copy,PartialEq)]
 #[fail(display = "The suggestion with id {} has not been found in the database.", _0)]
 pub struct NoSuchEntry(pub SuggestionId);
 
@@ -215,6 +215,14 @@ impl TryFrom<&Entry> for language_server::MethodPointer {
     }
 }
 
+impl TryFrom<Entry> for language_server::MethodPointer {
+    type Error = failure::Error;
+    fn try_from(entry:Entry) -> FallibleResult<Self> {
+        // Could be a little more optimized if really needed.
+        language_server::MethodPointer::try_from(&entry)
+    }
+}
+
 
 
 // ================
@@ -262,13 +270,8 @@ impl SuggestionDatabase {
     }
 
     /// Get suggestion entry by id.
-    pub fn get(&self, id:EntryId) -> Option<Rc<Entry>> {
-        self.entries.borrow().get(&id).cloned()
-    }
-
-    /// Get suggestion entry by id. Returns `Result`.
     pub fn lookup(&self, id:EntryId) -> Result<Rc<Entry>,NoSuchEntry> {
-        self.get(id).ok_or(NoSuchEntry(id))
+        self.entries.borrow().get(&id).cloned().ok_or(NoSuchEntry(id))
     }
 
     /// Apply the update event to the database.
@@ -297,6 +300,15 @@ impl SuggestionDatabase {
             };
         }
         self.version.set(event.current_version);
+    }
+
+
+    /// Look up given id in the suggestion database and if it is a known method obtain a pointer to
+    /// it.
+    pub fn lookup_method_ptr
+    (&self, id:SuggestionId) -> FallibleResult<language_server::MethodPointer> {
+        let entry = self.lookup(id)?;
+        language_server::MethodPointer::try_from(entry.as_ref()).map_err(Into::into)
     }
 
     /// Search the database for an entry of method identified by given id.
@@ -460,8 +472,8 @@ mod test {
             \"Doc\"><div class=\"Synopsis\"><div class=\"Raw\">Test <b>Atom</b></div></div></div>\
             </body></html>";
         assert_eq!(db.entries.borrow().len(), 1);
-        assert_eq!(*db.get(12).unwrap().name, "TextAtom".to_string());
-        assert_eq!(db.get(12).unwrap().documentation, Some(response_doc.to_string()));
+        assert_eq!(*db.lookup(12).unwrap().name, "TextAtom".to_string());
+        assert_eq!(db.lookup(12).unwrap().documentation, Some(response_doc.to_string()));
         assert_eq!(db.version.get(), 456);
     }
 
@@ -504,8 +516,8 @@ mod test {
             current_version : 2
         };
         db.apply_update_event(update);
-        assert_eq!(db.get(2),        None);
-        assert_eq!(db.version.get(), 2   );
+        assert_eq!(db.lookup(2), Err(NoSuchEntry(2)));
+        assert_eq!(db.version.get(), 2);
 
         // Add
         let add_update = Update::Add {id:2, suggestion:new_entry2};
@@ -514,7 +526,7 @@ mod test {
             current_version : 3,
         };
         db.apply_update_event(update);
-        assert_eq!(db.get(2).unwrap().name, "NewEntry2");
-        assert_eq!(db.version.get(),        3          );
+        assert_eq!(db.lookup(2).unwrap().name, "NewEntry2");
+        assert_eq!(db.version.get(), 3);
     }
 }

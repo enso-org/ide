@@ -646,9 +646,10 @@ impl Searcher {
         for response in responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {
-                self.database.get(*id).map_none(||
-                    error!(self.logger,"Missing entry {id} in Suggestion Database.")
-                ).map(Suggestion::Completion)
+                self.database.lookup(*id).map_err(|e|
+                    error!(self.logger,"Response provided a suggestion ID that cannot be resolved: \
+                    {e}")
+                ).map(Suggestion::Completion).ok()
             });
             suggestions.extend(entries);
         }
@@ -933,15 +934,15 @@ mod test {
             };
 
             searcher.database.put_entry(1,entry1);
-            let entry1 = searcher.database.get(1).unwrap();
+            let entry1 = searcher.database.lookup(1).unwrap();
             searcher.database.put_entry(2,entry2);
-            let entry2 = searcher.database.get(2).unwrap();
+            let entry2 = searcher.database.lookup(2).unwrap();
             searcher.database.put_entry(3,entry3);
-            let entry3 = searcher.database.get(3).unwrap();
+            let entry3 = searcher.database.lookup(3).unwrap();
             searcher.database.put_entry(4,entry4);
-            let entry4 = searcher.database.get(4).unwrap();
+            let entry4 = searcher.database.lookup(4).unwrap();
             searcher.database.put_entry(9,entry9);
-            let entry9 = searcher.database.get(9).unwrap();
+            let entry9 = searcher.database.lookup(9).unwrap();
             Fixture{data,test,searcher,entry1,entry2,entry3,entry4,entry9}
         }
 
@@ -1354,7 +1355,7 @@ mod test {
         assert_eq!(module.ast().repr(), expected_code);
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn initialized_data_when_editing_node() {
         let Fixture{test:_test,searcher,entry4,..} = Fixture::new();
 

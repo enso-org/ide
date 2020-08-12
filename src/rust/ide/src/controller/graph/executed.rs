@@ -162,7 +162,7 @@ impl Handle {
         let registry   = self.execution_ctx.computed_value_info_registry();
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
         let entry_id   = *node_info.method_call.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
-        let method_ptr = self.project.method_ptr_from_db_id(entry_id)?;
+        let method_ptr = self.project.suggestion_db().lookup_method_ptr(entry_id)?;
         let graph      = controller::Graph::new_method(&self.logger,&self.project,&method_ptr).await?;
         let call       = model::execution_context::LocalCall {
             call       : node,
