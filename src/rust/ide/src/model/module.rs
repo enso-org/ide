@@ -116,6 +116,7 @@ impl Path {
             let _ : Vec<_> = Result::from_iter(dirs.iter().map(ReferentName::validate))?;
             let correct_extension = file_path.extension() == Some(LANGUAGE_FILE_EXTENSION);
             correct_extension.ok_or_else(error(WrongFileExtension))?;
+            ReferentName::validate(file_path.file_stem().unwrap_or_default())?;
         } else {
             Err(error(NotEnoughSegments)())?
         }
