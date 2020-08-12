@@ -3,12 +3,17 @@
 pub mod plain;
 pub mod synchronized;
 
+pub use double_representation::module::Id;
+pub use double_representation::module::QualifiedName;
+
 use crate::prelude::*;
 
 use crate::constants::LANGUAGE_FILE_EXTENSION;
 use crate::constants::SOURCE_DIRECTORY;
 use crate::controller::FilePath;
+use crate::double_representation::ReferentName;
 use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::module::InvalidQualifiedName;
 
 use data::text::TextChange;
 use data::text::TextLocation;
@@ -20,8 +25,7 @@ use parser::Parser;
 use serde::Serialize;
 use serde::Deserialize;
 
-pub use double_representation::module::QualifiedName;
-use crate::double_representation::module::InvalidQualifiedName;
+
 
 // ============
 // == Errors ==
@@ -38,7 +42,7 @@ pub struct NodeMetadataNotFound(pub ast::Id);
 pub struct InvalidModulePath {
     /// The path that is not a valid module path.
     path  : FilePath,
-    /// The reason why the path is not a valid modile path.
+    /// The reason why the path is not a valid module path.
     issue : ModulePathViolation
 }
 
@@ -46,97 +50,12 @@ pub struct InvalidModulePath {
 #[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,Fail)]
 pub enum ModulePathViolation {
-    #[fail(display="The module filename should be capitalized.")]
-    NonCapitalizedFileName,
-    #[fail(display="The path contains an empty segment which is not allowed.")]
-    ContainsEmptySegment,
-    #[fail(display="The file path does not contain any segments, while it should be non-empty.")]
-    ContainsNoSegments,
+    #[fail(display="The module file path needs to contain at least two segments.")]
+    NotEnoughSegments,
     #[fail(display="The module file path should start with the sources directory.")]
     NotInSourceDirectory,
     #[fail(display="The module file must have a proper language extension.")]
     WrongFileExtension,
-}
-
-/// Happens if an empty segments list is provided as qualified module name.
-#[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="No name segments were provided.")]
-pub struct EmptyName;
-
-/// Happens if an empty segment is encountered in the module qualified name.
-#[derive(Clone,Debug,Fail)]
-#[fail(display="The `{}` is not a valid name segment.",_0)]
-pub struct InvalidNameSegment(String);
-
-#[derive(Clone,Debug,Shrinkwrap)]
-/// The name segment is a string that starts with an upper-cased character.
-pub struct ReferentName(String);
-
-impl AsRef<str> for ReferentName {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl ReferentName {
-    /// Try interpreting given string as a referent name.
-    pub fn new(name:impl Str) -> Result<ReferentName,InvalidNameSegment> {
-        // TODO [mwu]
-        //  We should be able to call parser or sth to verify that other requirements for the
-        //  referent form identifiers are fulfilled.
-        let first_char = name.as_ref().chars().next();
-        match first_char {
-            Some(c) if c.is_uppercase() => Ok(ReferentName(name.into())),
-            _                           => Err(InvalidNameSegment(name.into())),
-        }
-    }
-}
-
-/// The segments of module name. Allow finding module in the project.
-///
-/// Includes segments of module path but *NOT* the project name (see: `QualifiedName`).
-#[derive(Clone,Debug,Shrinkwrap)]
-pub struct Id {
-    /// The vector is non-empty and each segment starts with an upper-cased character.
-    segments:Vec<ReferentName>
-}
-
-impl Id {
-    /// Construct a module's ID value from a name segments sequence.
-    ///
-    /// Fails if the given sequence is empty.
-    pub fn new(segments:impl IntoIterator<Item=ReferentName>) -> Result<Id,EmptyName> {
-        let segments = segments.into_iter().collect_vec();
-        if segments.is_empty() {
-            Err(EmptyName)
-        } else {
-            Ok(Id {segments})
-        }
-    }
-
-    /// Build module's qualified name for a project with a given name.
-    pub fn qualified(&self, project_name:impl Into<String>) -> QualifiedName {
-        // TODO why safe?
-        QualifiedName::from_segments(project_name,&self.segments).unwrap()
-    }
-
-    /// Build module's path in a filesystem under given root ID.
-    pub fn path(&self, root_id:Uuid) -> Path {
-        // TODO why safe?
-        Path::from_name_segments(root_id,&self.segments).unwrap()
-    }
-}
-
-impl From<QualifiedName> for Id {
-    fn from(name:QualifiedName) -> Self {
-        name.id()
-    }
-}
-
-impl From<Path> for Id {
-    fn from(path:Path) -> Self {
-        path.id()
-    }
 }
 
 
@@ -149,33 +68,63 @@ impl From<Path> for Id {
 ///
 /// The `file_path` contains at least two segments:
 /// * the first one is a source directory in the project (see `SOURCE_DIRECTORY`);
-/// * the last one is a source file with the module's contents.
+/// * the last one is a source file with the module's contents;
+/// * all the ones between (if present) are names of the parent modules.
 #[derive(Clone,CloneRef,Debug,Eq,Hash,PartialEq,Shrinkwrap)]
 pub struct Path {
     file_path:Rc<FilePath>,
 }
 
 impl Path {
-    /// Get a path of the module that defines given method.
-    pub fn from_method(root_id:Uuid, method:&MethodPointer) -> Result<Self,InvalidQualifiedName> {
-        QualifiedName::try_from(method).map(|name| name.path(root_id))
+    /// Get the file name of the module with given name.
+    pub fn module_filename(name:&ReferentName) -> String {
+        iformat!("{name}.{LANGUAGE_FILE_EXTENSION}")
     }
 
-    /// Create a path from the file path. Returns Err if given path is not a valid module file.
-    pub fn from_file_path(file_path:FilePath) -> Result<Self,InvalidModulePath> {
+    /// Build module's path in a filesystem under given root ID.
+    pub fn from_id(root_id:Uuid, id:Id) -> Path {
+        // We prepend source directory and replace trailing segment with filename.
+        let src_dir  = std::iter::once(SOURCE_DIRECTORY.to_owned());
+        let dirs     = id.parent_segments().iter().map(ToString::to_string);
+        let filename = std::iter::once(Self::module_filename(id.name()));
+        let segments = src_dir.chain(dirs).chain(filename).collect();
+        let path     = FilePath {root_id,segments};
+        Path {file_path:Rc::new(path)}
+    }
+
+    /// Get path to the module with given qualified name under given root ID.
+    pub fn from_name(root_id:Uuid, name:&QualifiedName) -> Path {
+        Self::from_id(root_id,name.id())
+    }
+
+    /// Get a path of the module that defines given method.
+    pub fn from_method(root_id:Uuid, method:&MethodPointer) -> Result<Self,InvalidQualifiedName> {
+        let name = QualifiedName::try_from(method)?;
+        Ok(Self::from_name(root_id,&name))
+    }
+
+    pub fn validate_path(file_path:&FilePath) -> FallibleResult<()> {
         use ModulePathViolation::*;
-        let error             = |issue| {
+        let error = |issue| {
             let path = file_path.clone();
             move || InvalidModulePath {path,issue}
         };
-        let correct_extension = file_path.extension() == Some(LANGUAGE_FILE_EXTENSION);
-        correct_extension.ok_or_else(error(WrongFileExtension))?;
-        let file_name       = file_path.file_name().ok_or_else(error(ContainsNoSegments))?;
-        let name_first_char = file_name.chars().next().ok_or_else(error(ContainsEmptySegment))?;
-        name_first_char.is_uppercase().ok_or_else(error(NonCapitalizedFileName))?;
-        // TODO need to check non-src intermediate folders to see if they are referent names
-        let is_in_src = file_path.segments.first().contains_if(|name| *name == SOURCE_DIRECTORY);
-        is_in_src.ok_or_else(error(NotInSourceDirectory))?;
+
+        if let &[ref src_dir,ref dirs@..,_] = file_path.segments.as_slice() {
+            (src_dir == SOURCE_DIRECTORY).ok_or_else(error(NotInSourceDirectory))?;
+            let _ : Vec<_> = Result::from_iter(dirs.iter().map(ReferentName::validate))?;
+            let correct_extension = file_path.extension() == Some(LANGUAGE_FILE_EXTENSION);
+            correct_extension.ok_or_else(error(WrongFileExtension))?;
+        } else {
+            Err(error(NotEnoughSegments)())?
+        }
+
+        Ok(())
+    }
+
+    /// Create a path from the file path. Returns Err if given path is not a valid module file.
+    pub fn from_file_path(file_path:FilePath) -> FallibleResult<Self> {
+        Self::validate_path(&file_path)?;
         let file_path = Rc::new(file_path);
         Ok(Path {file_path})
     }
@@ -186,23 +135,25 @@ impl Path {
     /// E.g. `["Main"]` -> `//root_id/src/Main.enso`
     pub fn from_name_segments
     (root_id:Uuid, name_segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<Path> {
-        let mut segments : Vec<String> = vec![SOURCE_DIRECTORY.into()];
-        segments.extend(name_segments.into_iter().map(|segment| segment.as_ref().to_string()));
-        let module_file = segments.last_mut().ok_or(EmptyName)?;
-        module_file.push('.');
-        module_file.push_str(LANGUAGE_FILE_EXTENSION);
-        let file_path = Rc::new(FilePath {root_id,segments});
-        Ok(Path {file_path})
+        let segment_results = name_segments.into_iter().map(|s| ReferentName::new(s.as_ref()));
+        let segments:Vec<_> = Result::from_iter(segment_results)?;
+        let id = Id::new(segments)?;
+        Ok(Self::from_id(root_id,id))
     }
 
     /// Get the module's identifier.
     pub fn id(&self) -> Id {
-        let non_src_directories = &self.file_path.segments[1..self.file_path.segments.len()-1];
-        let non_src_directories = non_src_directories.iter().map(ReferentName::new);
-        let module_name         = std::iter::once(ReferentName::new(self.module_name()));
-        let module_segments     = non_src_directories.chain(module_name);
-        // TODO describe
-        Id {segments:Result::from_iter(module_segments).unwrap()}
+        if let &[ref _src,ref dirs@..,_] = self.file_path.segments.as_slice() {
+            // Path must designate a valid module and must be able to designate any valid module.
+            // Therefore, unwraps in this method are safe.
+            let parent_segments = dirs.iter().map(ReferentName::new).map(Result::unwrap);
+            let final_segment   = std::iter::once(self.module_name());
+            let segments        = parent_segments.chain(final_segment);
+            Id::new(segments).unwrap()
+        } else {
+            // Class invariant guarantees at least two segments in path.
+            panic!("Unreachable")
+        }
     }
 
     /// Get the file path.
@@ -220,9 +171,10 @@ impl Path {
     /// Get the module name from path.
     ///
     /// The module name is a filename without extension.
-    pub fn module_name(&self) -> &str {
+    pub fn module_name(&self) -> ReferentName {
         // The file stem existence should be checked during construction.
-        self.file_path.file_stem().unwrap()
+        // The path must also designate a file that is a valid module name.
+        ReferentName::new(self.file_path.file_stem().unwrap()).unwrap()
     }
 
     /// Create a module path consisting of a single segment, based on a given module name.
@@ -239,7 +191,7 @@ impl Path {
     /// Note that this cannot be used for a method extending other atom than this module.
     pub fn method_pointer(&self, project_name:impl Str, method_name:impl Str) -> MethodPointer {
         MethodPointer {
-            defined_on_type : self.module_name().into(),
+            defined_on_type : self.module_name().to_string(),
             name            : method_name.into(),
             module          : self.qualified_module_name(project_name).into(),
         }
@@ -260,7 +212,8 @@ impl Path {
     pub fn qualified_module_name(&self, project_name:impl Str) -> QualifiedName {
         let non_src_directories = &self.file_path.segments[1..self.file_path.segments.len()-1];
         let non_src_directories = non_src_directories.iter().map(|dirname| dirname.as_str());
-        let module_name         = std::iter::once(self.module_name());
+        let module_name         = self.module_name();
+        let module_name         = std::iter::once(module_name.as_ref());
         let module_segments     = non_src_directories.chain(module_name);
         // The module path during creation should be checked for at least one module segment.
         QualifiedName::from_segments(project_name,module_segments).unwrap()
@@ -274,7 +227,7 @@ impl PartialEq<FilePath> for Path {
 }
 
 impl TryFrom<FilePath> for Path {
-    type Error = InvalidModulePath;
+    type Error = failure::Error;
 
     fn try_from(value:FilePath) -> Result<Self, Self::Error> {
         Path::from_file_path(value)
@@ -284,6 +237,12 @@ impl TryFrom<FilePath> for Path {
 impl Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.file_path, f)
+    }
+}
+
+impl From<Path> for Id {
+    fn from(path:Path) -> Self {
+        path.id()
     }
 }
 

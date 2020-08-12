@@ -2,6 +2,7 @@
 
 use crate::prelude::*;
 
+use crate::double_representation::ReferentName;
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionProvider;
 
@@ -13,7 +14,71 @@ use data::text::ByteIndex;
 use enso_protocol::language_server;
 use serde::Deserialize;
 use serde::Serialize;
-use crate::model::module::ReferentName;
+
+
+/// Happens if an empty segments list is provided as qualified module name.
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="No name segments were provided.")]
+pub struct EmptyName;
+
+
+
+// ==========
+// === Id ===
+// ==========
+
+/// The segments of module name. Allow finding module in the project.
+///
+/// Example: `["Parent","Module_Name"]`
+///
+/// Includes segments of module path but *NOT* the project name (see: `QualifiedName`).
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct Id {
+    /// The vector is non-empty.
+    segments:Vec<ReferentName>
+}
+
+impl Id {
+    /// Construct a module's ID value from a name segments sequence.
+    ///
+    /// Fails if the given sequence is empty.
+    pub fn new(segments:impl IntoIterator<Item=ReferentName>) -> Result<Id,EmptyName> {
+        let segments = segments.into_iter().collect_vec();
+        if segments.is_empty() {
+            Err(EmptyName)
+        } else {
+            Ok(Id {segments})
+        }
+    }
+
+    /// Build module's qualified name for a project with a given name.
+    pub fn qualified(&self, project_name:impl Into<String>) -> QualifiedName {
+        // TODO why safe?
+        QualifiedName::from_segments(project_name,&self.segments).unwrap()
+    }
+
+    /// Get the segments of the module's path. They correspond to the module's file parent
+    /// directories, relative to the project's main source directory.
+    ///
+    /// The names are ordered beginning with the root one. The last one is the direct parent of the
+    /// target module's file. The module name itself is not included.
+    pub fn parent_segments(&self) -> &[ReferentName] {
+        &self.segments[..self.segments.len() - 1]
+    }
+
+    /// Get the name of a module identified by this value.
+    pub fn name(&self) -> &ReferentName {
+        // Safe, as the invariant guarantees segments to be non-empty.
+        self.segments.iter().last().unwrap()
+    }
+}
+
+impl From<QualifiedName> for Id {
+    fn from(name:QualifiedName) -> Self {
+        name.id()
+    }
+}
+
 
 
 // =====================
@@ -92,18 +157,13 @@ impl QualifiedName {
     }
 
     /// Get the module's identifier.
-    pub fn id(&self) -> model::module::Id {
+    pub fn id(&self) -> Id {
         let segments = self.text.split(ast::opr::predefined::ACCESS);
         // First segment contains the project name, not module name.
         let segments = segments.skip(1);
         let segments = Result::<Vec<_>,_>::from_iter(segments.map(ReferentName::new));
         // TODO explain that we no empty
-        model::module::Id::new(segments.unwrap()).unwrap()
-    }
-
-    /// Get the module's path.
-    pub fn path(&self, root_id:Uuid) -> model::module::Path {
-        self.id().path(root_id)
+        Id::new(segments.unwrap()).unwrap()
     }
 }
 
