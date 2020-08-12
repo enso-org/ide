@@ -22,7 +22,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_shapes() {
+pub fn run_example_interface() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();

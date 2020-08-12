@@ -1,4 +1,4 @@
 //! A set of debug scenes
 
-pub mod shapes;
+pub mod interface;
 pub mod visualization;
