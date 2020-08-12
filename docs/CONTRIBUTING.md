@@ -161,6 +161,13 @@ are presented below:
   `node ./run build`. To create platform-specific packages and installers use
   `node ./run dist` instead. The final packages will be located at
   `app/dist/native`.
+  
+- **Selective mode**
+  In order to compile only part of the project, and thus drastically shorten 
+  the incremental compile time, you are advised to use the selective 
+  compilation mode by passing the `--crate` option to the `build` or `watch`
+  command, e.g. `node ./watch --crate ensogl/example` to compile only the 
+  renderer-related example scenes.
 
 ### Testing, Linting, and Validation
 After changing the code it's always a good idea to lint and test the code. We 

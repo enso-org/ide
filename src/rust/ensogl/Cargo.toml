@@ -10,4 +10,4 @@ crate-type = ["rlib", "cdylib"]
 [features]
 
 [dependencies]
-ensogl-core = { path = "src/core" }
+ensogl-core = { path = "lib/core" }

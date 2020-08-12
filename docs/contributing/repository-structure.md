@@ -2,7 +2,7 @@
 
 * `build` - Helper JS scripts used by `run` script in the main directory.  
 * `docs` - Documentation.
-* `src/js` - the JS part of IDE application.
+* `src/js` - The JS part of IDE application.
 * `src/rust` - All Rust crates.
 
 ## Crates
