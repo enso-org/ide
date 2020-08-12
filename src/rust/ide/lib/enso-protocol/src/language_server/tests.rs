@@ -311,7 +311,6 @@ fn test_computed_value_update() {
 
     let context_id   = Uuid::parse_str("b36dea0b-b75a-40cf-aaad-5fcdf29a0573").unwrap();
     let id           = Uuid::parse_str("d4b540c0-3ef5-487c-9453-df9d3efd351c").unwrap();
-    let short_value  = "UnresolvedSymbol<foo>";
     let typename     = "Number";
     let notification = json!({
         "jsonrpc" : "2.0",
@@ -319,10 +318,9 @@ fn test_computed_value_update() {
         "params"  :  {
             "contextId" : context_id,
             "updates"   : [{
-                "id"         : id,
-                "type"       : typename,
-                "shortValue" : short_value,
-                "methodCall" : null
+                "expressionId"  : id,
+                "type"          : typename,
+                "methodPointer" : null
             }]
         }
     });

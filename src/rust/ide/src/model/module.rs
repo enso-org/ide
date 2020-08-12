@@ -103,6 +103,7 @@ impl Path {
         Ok(Self::from_name(root_id,&name))
     }
 
+    /// Check if the given file path is a valid module path.
     pub fn validate_path(file_path:&FilePath) -> FallibleResult<()> {
         use ModulePathViolation::*;
         let error = |issue| {
