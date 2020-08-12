@@ -34,14 +34,21 @@ use std::f32::consts::PI;
 // === Constants ===
 // =================
 
-const ICON_MARGIN          : f32 = HORIZONTAL_MARGIN;
+/// Breadcrumb top margin.
+pub const TOP_MARGIN:f32 = 0.0;
+/// Breadcrumb left margin.
+pub const LEFT_MARGIN:f32 = 0.0;
+/// Breadcrumb right margin.
+pub const RIGHT_MARGIN     : f32 = 0.0;
+const ICON_LEFT_MARGIN     : f32 = 0.0;
+const ICON_RIGHT_MARGIN    : f32 = HORIZONTAL_MARGIN;
 const ICON_RADIUS          : f32 = 8.0;
 const ICON_SIZE            : f32 = ICON_RADIUS * 2.0;
 const ICON_RING_WIDTH      : f32 = (ICON_RADIUS/4.0) as i32 as f32;
 const ICON_ARROW_SIZE      : f32 = (ICON_RADIUS/1.5) as i32 as f32;
 const SEPARATOR_SIZE       : f32 = 8.0;
 const SEPARATOR_LINE_WIDTH : f32 = 3.0;
-const PADDING              : f32 = 1.0;
+const SHAPE_PADDING        : f32 = 1.0;
 const SEPARATOR_MARGIN     : f32 = HORIZONTAL_MARGIN;
 const FULL_COLOR           : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
 const TRANSPARENT_COLOR    : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
@@ -301,7 +308,7 @@ impl BreadcrumbModel {
         self.label.set_font_size(TEXT_SIZE);
         self.label.set_font_color(color);
         self.label.set_text(&self.info.method_pointer.name);
-        self.label.set_position(Vector3(ICON_RADIUS + ICON_MARGIN,-TEXT_SIZE/3.0,0.0));
+        self.label.set_position(Vector3(ICON_RADIUS + ICON_RIGHT_MARGIN, -TEXT_SIZE/3.0, 0.0));
 
         let width  = self.width();
         let height = self.height();
@@ -309,13 +316,13 @@ impl BreadcrumbModel {
 
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.fade_in(0.0);
-        let separator_size = SEPARATOR_SIZE + PADDING;
-        let icon_size      = ICON_SIZE + PADDING;
+        let separator_size = SEPARATOR_SIZE+SHAPE_PADDING;
+        let icon_size      = ICON_SIZE+SHAPE_PADDING;
         self.separator.shape.sprite.size.set(Vector2::new(separator_size,separator_size));
         self.separator.set_position_x((offset-width/2.0).round());
         self.icon.shape.sprite.size.set(Vector2::new(icon_size,icon_size));
         self.icon.shape.opacity.set(self.is_selected() as i32 as f32);
-        self.icon.set_position_x((offset+ICON_SIZE/2.0).round());
+        self.icon.set_position_x((offset+ICON_SIZE/2.0+LEFT_MARGIN+ICON_LEFT_MARGIN).round());
 
         self
     }
@@ -330,8 +337,8 @@ impl BreadcrumbModel {
 
     /// Get the width of the view.
     pub fn width(&self) -> f32 {
-        let width = self.compute_separator_margin()*2.0+SEPARATOR_SIZE+ICON_SIZE+ICON_MARGIN;
-        let width = width+self.label_width();
+        let width = self.compute_separator_margin()*2.0+SEPARATOR_SIZE+ICON_SIZE+ICON_RIGHT_MARGIN;
+        let width = width+self.label_width()+LEFT_MARGIN+RIGHT_MARGIN+ICON_LEFT_MARGIN;
         width.ceil()
     }
 
@@ -341,9 +348,11 @@ impl BreadcrumbModel {
     }
 
     fn fade_in(&self, value:f32) {
-        let width  = self.width();
-        let height = self.height();
-        self.view.set_position(Vector3((width*value/2.0).round(),(-height/2.0).round(),0.0));
+        let width      = self.width();
+        let height     = self.height();
+        let x_position = width*value/2.0;
+        let y_position = -height/2.0-TOP_MARGIN;
+        self.view.set_position(Vector3(x_position.round(),y_position.round(),0.0));
     }
 
     fn set_opacity(&self, value:f32) {

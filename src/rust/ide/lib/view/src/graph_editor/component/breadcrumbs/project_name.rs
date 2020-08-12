@@ -5,6 +5,9 @@ use crate::prelude::*;
 use crate::graph_editor::component::breadcrumbs::TEXT_SIZE;
 use crate::graph_editor::component::breadcrumbs::GLYPH_WIDTH;
 use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
+use crate::graph_editor::component::breadcrumbs::breadcrumb::LEFT_MARGIN;
+use crate::graph_editor::component::breadcrumbs::breadcrumb::RIGHT_MARGIN;
+use crate::graph_editor::component::breadcrumbs::breadcrumb::TOP_MARGIN;
 
 use enso_frp as frp;
 use ensogl::data::color;
@@ -221,14 +224,16 @@ impl ProjectNameModel {
     pub fn width(&self) -> f32 {
         let content = self.text_field.get_content();
         let glyphs  = content.len();
-        glyphs as f32 * GLYPH_WIDTH
+        glyphs as f32 * GLYPH_WIDTH + LEFT_MARGIN + RIGHT_MARGIN
     }
 
     fn update_alignment(&self) {
         let width       = self.width();
         let line_height = self.text_field.line_height();
         let height      = line_height + VERTICAL_MARGIN * 2.0;
-        self.text_field.set_position(Vector3(0.0,-VERTICAL_MARGIN,0.0));
+        let x_position = LEFT_MARGIN;
+        let y_position = -VERTICAL_MARGIN-TOP_MARGIN;
+        self.text_field.set_position(Vector3(x_position,y_position,0.0));
         self.view.shape.sprite.size.set(Vector2(width,height));
         self.view.set_position(Vector3(width,-height,0.0)/2.0);
     }
