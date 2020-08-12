@@ -200,20 +200,6 @@ impl TryFrom<language_server::types::SuggestionEntry> for Entry {
         Self::from_ls_entry(entry, logger)
     }
 }
-//
-//
-// impl TryFrom<Entry> for language_server::MethodPointer {
-//     type Error = failure::Error;
-//     fn try_from(entry:Entry) -> FallibleResult<Self> {
-//         (entry.kind==EntryKind::Method).then(())?;
-//         let defined_on_type = entry.self_type.cloned()?; // TODO method must have self
-//         Ok(language_server::MethodPointer {
-//             defined_on_type,
-//             module : entry.module.into(),
-//             name   : entry.name.into(),
-//         })
-//     }
-// }
 
 impl TryFrom<&Entry> for language_server::MethodPointer {
     type Error = failure::Error;
@@ -228,18 +214,6 @@ impl TryFrom<&Entry> for language_server::MethodPointer {
         })
     }
 }
-
-// fn method_ptr_from_suggestion(entry:&Entry) -> Option<language_server::MethodPointer> {
-//     (entry.kind==EntryKind::Method).then(())?;
-//     let defined_on_type = entry.self_type.cloned()?; // TODO method must have self
-//     Some(language_server::MethodPointer {
-//         defined_on_type,
-//         module : entry.module.into(),
-//         name   : entry.name.into(),
-//     })
-// }
-
-
 
 
 
