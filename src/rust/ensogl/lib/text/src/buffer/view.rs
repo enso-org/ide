@@ -29,7 +29,7 @@ use enso_frp as frp;
 // === Frp Macros ===
 // ==================
 
-// FIXME[WD]: This sohuld be refactored to the right place as part of the cleaning PR:
+// FIXME[WD]: This should be refactored to the right place as part of the cleaning PR:
 // https://github.com/enso-org/ide/issues/670
 
 /// Generate a set of structures allowing for nice management of FRP inputs, outputs, and commands.

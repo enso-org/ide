@@ -36,6 +36,7 @@ pub mod shape_system;
 pub mod sprite_system;
 pub mod text_field;
 pub mod text_typing;
+pub mod error;
 
 /// Common types that should be visible across the whole crate.
 pub mod prelude {
