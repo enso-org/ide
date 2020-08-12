@@ -224,7 +224,6 @@ impl TryFrom<&Entry> for language_server::MethodPointer {
 impl TryFrom<Entry> for language_server::MethodPointer {
     type Error = failure::Error;
     fn try_from(entry:Entry) -> FallibleResult<Self> {
-        // Could be a little more optimized if really needed.
         language_server::MethodPointer::try_from(&entry)
     }
 }

@@ -110,7 +110,7 @@ impl Path {
             move || InvalidModulePath {path,issue}
         };
 
-        if let &[ref src_dir,ref dirs@..,_] = file_path.segments.as_slice() {
+        if let [ref src_dir,ref dirs @ ..,_] = *file_path.segments.as_slice() {
             (src_dir == SOURCE_DIRECTORY).ok_or_else(error(NotInSourceDirectory))?;
             for dir in dirs {
                 ReferentName::validate(dir)?;
@@ -118,11 +118,10 @@ impl Path {
             let correct_extension = file_path.extension() == Some(LANGUAGE_FILE_EXTENSION);
             correct_extension.ok_or_else(error(WrongFileExtension))?;
             ReferentName::validate(file_path.file_stem().unwrap_or_default())?;
+            Ok(())
         } else {
-            Err(error(NotEnoughSegments)())?
+            Err(error(NotEnoughSegments)().into())
         }
-
-        Ok(())
     }
 
     /// Create a path from the file path. Returns Err if given path is not a valid module file.
@@ -146,7 +145,7 @@ impl Path {
 
     /// Get the module's identifier.
     pub fn id(&self) -> Id {
-        if let &[ref _src,ref dirs@..,_] = self.file_path.segments.as_slice() {
+        if let [ref _src,ref dirs@..,_] = *self.file_path.segments.as_slice() {
             // Path must designate a valid module and must be able to designate any valid module.
             // Therefore, unwraps in this method are safe.
             let parent_segments = dirs.iter().map(ReferentName::new).map(Result::unwrap);

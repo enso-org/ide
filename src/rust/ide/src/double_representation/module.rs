@@ -127,7 +127,7 @@ impl QualifiedName {
 
         let text     = text.as_ref();
         let segments = text.split(ACCESS);
-        if let &[ref project_name,ref id_segments @ ..] = segments.collect_vec().as_slice() {
+        if let [ref project_name,ref id_segments @ ..] = *segments.collect_vec().as_slice() {
             let project_name = ReferentName::new(*project_name)?;
             let id           = Id::try_new(id_segments)?;
             Ok(Self::new(project_name,id))
