@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 pub mod msdf;
 
-use ensogl::display::scene;
-use ensogl::display::Scene;
+use ensogl_core::display::scene;
+use ensogl_core::display::Scene;
 use ensogl_core_embedded_fonts::EmbeddedFonts;
 use ensogl_core_msdf_sys as msdf_sys;
 use msdf_sys::Msdf;

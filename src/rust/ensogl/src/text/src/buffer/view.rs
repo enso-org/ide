@@ -20,7 +20,7 @@ use crate::buffer::style::Style;
 use crate::buffer::style;
 use crate::buffer;
 
-use ensogl::data::color;
+use ensogl_core::data::color;
 use enso_frp as frp;
 
 
