@@ -772,9 +772,9 @@ mod test {
     use enso_protocol::language_server::types::test::value_update_with_type;
     use json_rpc::expect_call;
     use utils::test::traits::*;
-    use enso_protocol::language_server::SuggestionEntryId;
+    use enso_protocol::language_server::SuggestionId;
 
-    fn completion_response(results:&[SuggestionEntryId]) -> language_server::response::Completion {
+    fn completion_response(results:&[SuggestionId]) -> language_server::response::Completion {
         language_server::response::Completion {
             results         : results.to_vec(),
             current_version : default(),
@@ -806,7 +806,7 @@ mod test {
         , client:&mut language_server::MockClient
         , self_type:Option<&str>
         , return_type:Option<&str>
-        , result:&[SuggestionEntryId]
+        , result:&[SuggestionId]
         ) {
             let completion_response = completion_response(result);
             expect_call!(client.completion(

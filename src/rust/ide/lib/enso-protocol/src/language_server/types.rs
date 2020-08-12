@@ -158,7 +158,7 @@ pub struct ExpressionValueUpdate {
     pub expression_id  : ExpressionId,
     #[serde(rename = "type")] // To avoid collision with the `type` keyword.
     pub typename       : Option<String>,
-    pub method_pointer : Option<SuggestionEntryId>,
+    pub method_pointer : Option<SuggestionId>,
 }
 
 
@@ -500,7 +500,7 @@ pub enum RegisterOptions {
 // ===========================
 
 /// The identifier of SuggestionEntry in SuggestionDatabase.
-pub type SuggestionEntryId = usize;
+pub type SuggestionId = usize;
 
 /// The version of Suggestion Database.
 pub type SuggestionsDatabaseVersion = usize;
@@ -602,7 +602,7 @@ impl SuggestionEntry {
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionsDatabaseEntry {
-    pub id         : SuggestionEntryId,
+    pub id         : SuggestionId,
     pub suggestion : SuggestionEntry,
 }
 
@@ -618,16 +618,16 @@ pub enum SuggestionsDatabaseUpdateKind {Add,Update,Delete}
 pub enum SuggestionsDatabaseUpdate {
     #[serde(rename_all="camelCase")]
     Add {
-        id         : SuggestionEntryId,
+        id         : SuggestionId,
         suggestion : SuggestionEntry,
     },
     #[serde(rename_all="camelCase")]
     Remove {
-        id : SuggestionEntryId,
+        id : SuggestionId,
     },
     #[serde(rename_all="camelCase")]
     Modify {
-        id          : SuggestionEntryId,
+        id          : SuggestionId,
         return_type : String,
     }
 }

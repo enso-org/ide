@@ -13,7 +13,7 @@ use enso_protocol::language_server;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
-use enso_protocol::language_server::SuggestionEntryId;
+use enso_protocol::language_server::SuggestionId;
 
 
 
@@ -69,7 +69,7 @@ pub trait API:Debug {
     /// Look up given id in the suggestion database and if it is a known method obtain a pointer to
     /// it.
     fn method_ptr_from_db_id
-    (&self, id:SuggestionEntryId) -> FallibleResult<language_server::MethodPointer> {
+    (&self, id:SuggestionId) -> FallibleResult<language_server::MethodPointer> {
         let db    = self.suggestion_db();
         let entry = db.lookup(id)?;
         language_server::MethodPointer::try_from(entry.as_ref()).map_err(Into::into)

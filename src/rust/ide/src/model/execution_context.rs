@@ -11,7 +11,7 @@ use crate::notification::Publisher;
 use enso_protocol::language_server;
 use enso_protocol::language_server::ExpressionValueUpdate;
 use enso_protocol::language_server::MethodPointer;
-use enso_protocol::language_server::SuggestionEntryId;
+use enso_protocol::language_server::SuggestionId;
 use enso_protocol::language_server::VisualisationConfiguration;
 use flo_stream::Subscriber;
 use std::collections::HashMap;
@@ -44,7 +44,7 @@ pub struct ComputedValueInfo {
     /// The string representing the typename of the computed value, e.g. "Number" or "Unit".
     pub typename:Option<ImString>,
     /// If the expression is a method call (i.e. can be entered), this points to the target method.
-    pub method_call:Option<SuggestionEntryId>,
+    pub method_call:Option<SuggestionId>,
 }
 
 impl From<ExpressionValueUpdate> for ComputedValueInfo {

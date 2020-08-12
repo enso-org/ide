@@ -12,9 +12,9 @@ use language_server::types::SuggestionDatabaseUpdatesEvent;
 use parser::DocParser;
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
-pub use language_server::types::SuggestionEntryId as EntryId;
+pub use language_server::types::SuggestionId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
-use enso_protocol::language_server::SuggestionEntryId;
+use enso_protocol::language_server::SuggestionId;
 
 
 
@@ -25,7 +25,7 @@ use enso_protocol::language_server::SuggestionEntryId;
 #[allow(missing_docs)]
 #[derive(Debug,Fail,Clone,Copy)]
 #[fail(display = "The suggestion with id {} has not been found in the database.", _0)]
-pub struct NoSuchEntry(pub SuggestionEntryId);
+pub struct NoSuchEntry(pub SuggestionId);
 
 #[allow(missing_docs)]
 #[derive(Debug,Fail,Clone)]
