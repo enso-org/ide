@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::double_representation::text::apply_code_change_to_id_map;
-use crate::double_representation::module;
+use crate::double_representation::{module, ReferentName};
 use crate::model::module::Path;
 
 use ast;
@@ -112,7 +112,7 @@ impl Handle {
     /// definition IDs include information about definition syntax whereas method pointer identifies
     /// the desugared entity.
     pub fn method_pointer
-    (&self, project_name:impl Str, id:&double_representation::graph::Id)
+    (&self, project_name:ReferentName, id:&double_representation::graph::Id)
     -> FallibleResult<language_server::MethodPointer> {
         let crumb = match id.crumbs.as_slice() {
             [crumb] => crumb,
@@ -126,7 +126,7 @@ impl Handle {
         };
         Ok(language_server::MethodPointer {
             defined_on_type,
-            module : module::QualifiedName::new(project_name,self.model.path()).into(),
+            module : module::QualifiedName::new(project_name,self.model.id()).into(),
             name   : crumb.name.item.clone(),
         })
     }

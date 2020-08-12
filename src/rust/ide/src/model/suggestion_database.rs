@@ -140,11 +140,17 @@ impl Entry {
         Ok(this)
     }
 
+    /// Check if this entry has self type same as the given identifier.
+    pub fn has_self_type(&self, self_type:impl AsRef<str>) -> bool {
+        let self_type = self_type.as_ref();
+        self.self_type.as_ref().contains_if(|my_self_type| *my_self_type == self_type)
+    }
+
     /// Returns the code which should be inserted to Searcher input when suggestion is picked.
     pub fn code_to_insert(&self, this_var:Option<&str>) -> String {
-        let module = self.module.name();
-        if self.self_type.as_ref().contains(&module) {
-            format!("{}.{}",this_var.unwrap_or(module),self.name)
+        let module_name = self.module.name();
+        if self.has_self_type(&module_name) {
+            format!("{}.{}",this_var.unwrap_or(module_name),self.name)
         } else if self.self_type.as_ref().contains(&constants::keywords::HERE) {
             // TODO [mwu] When this happens? The *type* likely should not be "here".
             format!("{}.{}",constants::keywords::HERE,self.name)
@@ -339,7 +345,7 @@ impl SuggestionDatabase {
     (&self, name:impl Str, module:&QualifiedName) -> Option<Rc<Entry>> {
         self.entries.borrow().values().cloned().find(|entry| {
             let is_method             = entry.kind == EntryKind::Method;
-            let is_defined_for_module = entry.self_type.contains(&module.name());
+            let is_defined_for_module = entry.has_self_type(module.name());
             is_method && is_defined_for_module && entry.matches_name(name.as_ref())
         })
     }

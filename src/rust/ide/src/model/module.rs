@@ -13,7 +13,6 @@ use crate::constants::SOURCE_DIRECTORY;
 use crate::controller::FilePath;
 use crate::double_representation::ReferentName;
 use crate::double_representation::definition::DefinitionInfo;
-use crate::double_representation::module::InvalidQualifiedName;
 
 use data::text::TextChange;
 use data::text::TextLocation;
@@ -82,7 +81,7 @@ impl Path {
     }
 
     /// Build module's path in a filesystem under given root ID.
-    pub fn from_id(root_id:Uuid, id:Id) -> Path {
+    pub fn from_id(root_id:Uuid, id:&Id) -> Path {
         // We prepend source directory and replace trailing segment with filename.
         let src_dir  = std::iter::once(SOURCE_DIRECTORY.to_owned());
         let dirs     = id.parent_segments().iter().map(ToString::to_string);
@@ -98,7 +97,7 @@ impl Path {
     }
 
     /// Get a path of the module that defines given method.
-    pub fn from_method(root_id:Uuid, method:&MethodPointer) -> Result<Self,InvalidQualifiedName> {
+    pub fn from_method(root_id:Uuid, method:&MethodPointer) -> FallibleResult<Self> {
         let name = QualifiedName::try_from(method)?;
         Ok(Self::from_name(root_id,&name))
     }
@@ -113,7 +112,9 @@ impl Path {
 
         if let &[ref src_dir,ref dirs@..,_] = file_path.segments.as_slice() {
             (src_dir == SOURCE_DIRECTORY).ok_or_else(error(NotInSourceDirectory))?;
-            let _ : Vec<_> = Result::from_iter(dirs.iter().map(ReferentName::validate))?;
+            for dir in dirs {
+                ReferentName::validate(dir)?;
+            }
             let correct_extension = file_path.extension() == Some(LANGUAGE_FILE_EXTENSION);
             correct_extension.ok_or_else(error(WrongFileExtension))?;
             ReferentName::validate(file_path.file_stem().unwrap_or_default())?;
@@ -139,8 +140,8 @@ impl Path {
     (root_id:Uuid, name_segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<Path> {
         let segment_results = name_segments.into_iter().map(|s| ReferentName::new(s.as_ref()));
         let segments:Vec<_> = Result::from_iter(segment_results)?;
-        let id = Id::new(segments)?;
-        Ok(Self::from_id(root_id,id))
+        let id              = Id::new(segments)?;
+        Ok(Self::from_id(root_id,&id))
     }
 
     /// Get the module's identifier.
@@ -407,6 +408,13 @@ pub trait API:Debug {
     /// should use only the data passed as argument; don't use functions of this controller for
     /// getting and setting metadata for the same node.
     fn with_node_metadata(&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>);
+
+
+    // === Utils ===
+    /// Get the module's identifier.
+    fn id(&self) -> Id {
+        self.path().id()
+    }
 }
 
 /// The general, shared Module Model handle.
@@ -494,6 +502,6 @@ pub mod test {
         let file_path    = FilePath::new(root_id, &["src", "Foo", "Bar.enso"]);
         let module_path  = Path::from_file_path(file_path).unwrap();
         let qualified    = module_path.qualified_module_name(project_name);
-        assert_eq!(*qualified, "P.Foo.Bar");
+        assert_eq!(qualified.to_string(), "P.Foo.Bar");
     }
 }

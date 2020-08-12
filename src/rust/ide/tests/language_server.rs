@@ -22,6 +22,7 @@ use std::time::Duration;
 use wasm_bindgen_test::wasm_bindgen_test;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use ide::double_representation::module::QualifiedName;
+use ide::double_representation::ReferentName;
 
 /// The endpoint at which the Language Server should be accepting WS connections.
 const SERVER_ENDPOINT:&str = "ws://localhost:30616";
@@ -64,7 +65,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 #[allow(dead_code)]
 async fn ls_text_protocol_test() {
     // FIXME broken, as cannot know the project name
-    let project_name = "Untitled";
+    let project_name = ReferentName::new("Untitled").unwrap();
 
     // Setting up.
     let ws        = WebSocket::new_opened(default(),SERVER_ENDPOINT).await;
@@ -103,7 +104,7 @@ async fn ls_text_protocol_test() {
     let module_path     = model::module::Path::try_from(file.clone()).unwrap();
     let defined_on_type = "Main".to_string();
     let name            = "main".to_string();
-    let module          = QualifiedName::new(project_name,&module_path);
+    let module          = QualifiedName::new(project_name,module_path.id());
     let method_pointer  = MethodPointer{module:module.into(),defined_on_type,name};
     let positional_arguments_expressions = default();
     let this_argument_expression         = default();

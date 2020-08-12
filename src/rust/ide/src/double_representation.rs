@@ -34,19 +34,24 @@ pub const INDENT : usize = 4;
 // === ReferentName ===
 // ====================
 
-#[derive(Clone,Debug,Display,Shrinkwrap)]
+
+// === Errors ===
+
+/// Happens if a given string does not fulfill requirements of the referent name;
+#[derive(Clone,Debug,Fail)]
+#[fail(display="The `{}` is not a valid referent name.",_0)]
+pub struct NotReferentName(String);
+
+
+// === Definition ===
+
+#[derive(Clone,Debug,Display,Shrinkwrap,PartialEq,Eq,Hash)]
 /// The name segment is a string that starts with an upper-cased character.
 ///
 /// It is used for naming modules, module path segments and projects.
 ///
 /// This value corresponds to contents of the `Cons` AST shape.
 pub struct ReferentName(String);
-
-impl AsRef<str> for ReferentName {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
 
 impl ReferentName {
     /// Check if the given text would be a valid referent name;
@@ -73,7 +78,11 @@ impl ReferentName {
     }
 }
 
-/// Happens if a given string does not fulfill requirements of the referent name;
-#[derive(Clone,Debug,Fail)]
-#[fail(display="The `{}` is not a valid referent name.",_0)]
-pub struct NotReferentName(String);
+
+// === Implementations ===
+
+impl AsRef<str> for ReferentName {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}

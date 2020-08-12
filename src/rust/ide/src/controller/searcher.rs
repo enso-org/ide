@@ -684,11 +684,11 @@ impl Searcher {
             (this_name,&module_name,position);
         let not_local_name = matching_locals.is_empty();
         not_local_name.and_option_from(|| {
-            if this_name == constants::keywords::HERE || this_name == module_name.name() {
+            if this_name == constants::keywords::HERE || this_name == module_name.name().deref() {
                 Some(module_name)
             } else {
                 self.module().iter_imports().find_map(|import| {
-                    import.qualified_name().ok().filter(|module| module.name() == this_name)
+                    import.qualified_name().ok().filter(|module| module.name().deref() == this_name)
                 })
             }
         })
