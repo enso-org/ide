@@ -603,6 +603,8 @@ impl View {
 
     pub fn add(&self, symbol:&Symbol) {
         let mut symbols = self.symbols.borrow_mut();
+        //FIXME:We check if the symbol was already added to this view to avoid a glitch that makes
+        //the symbol to be rendered more than once.
         if symbols.iter().find(|id| **id == symbol.id as usize).is_none() {
             symbols.push(symbol.id as usize); // TODO strange conversion
         }
