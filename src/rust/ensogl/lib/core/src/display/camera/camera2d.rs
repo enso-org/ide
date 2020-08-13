@@ -180,7 +180,7 @@ impl Camera2dData {
         let z_zoom_1               = 1.0;
         let matrix                 = default();
         let dirty                  = Dirty::new(&Logger::sub(&logger,"dirty"));
-        let display_object         = display_object.clone2();
+        let display_object         = display_object.clone_ref();
         let zoom_update_registry   = default();
         let screen_update_registry = default();
         display_object.set_on_updated(f_!(dirty.transform.set()));

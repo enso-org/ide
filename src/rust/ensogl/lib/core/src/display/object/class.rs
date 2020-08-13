@@ -3,7 +3,7 @@
 //! transformation changes and updates only the needed subset of the display object tree on demand.
 
 use crate::prelude::*;
-use logger::enabled::Logger;
+//use logger::enabled::Logger;
 
 use super::transform;
 
@@ -28,7 +28,6 @@ use transform::CachedTransform;
 /// about the child index there. It is used when a child is reconnected to different parent to
 /// update the old parent with the information that the child was removed.
 #[derive(Derivative)]
-//#[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
 #[allow(missing_docs)]
 pub struct ParentBind<Host> {
@@ -94,16 +93,13 @@ impl<Host> Debug for Callbacks<Host> {
 // === DirtyFlags ===
 // ==================
 
-// === Types ===
-
-pub type ChildrenDirty   = dirty::SharedSet<usize,Option<Box<dyn Fn()>>>;
-pub type RemovedChildren<Host> = dirty::SharedVector<WeakInstance<Host>,Option<Box<dyn Fn()>>>;
-pub type NewParentDirty  = dirty::SharedBool<()>;
-pub type TransformDirty  = dirty::SharedBool<Option<Box<dyn Fn()>>>;
-
-
 // === Definition ===
 
+/// Set of dirty flags indicating whether some display object properties are not up to date.
+///
+/// In order to achieve high performance, display object hierarchy is not updated immediately after
+/// a change. Instead, dirty flags are set and propagated in the hierarchy and the needed subset of
+/// the hierarchy is updated after calling the `update` method.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct DirtyFlags<Host> {
@@ -112,42 +108,68 @@ pub struct DirtyFlags<Host> {
     removed_children : RemovedChildren<Host>,
     transform        : TransformDirty,
     #[derivative(Debug="ignore")]
-    callback         : Rc<RefCell<Box<dyn Fn()>>>,
+    on_dirty         : Rc<RefCell<Box<dyn Fn()>>>,
 }
 
 impl<Host> DirtyFlags<Host> {
     #![allow(trivial_casts)]
-    pub fn new(logger:impl AnyLogger) -> Self {
-        let parent           = NewParentDirty  :: new(logger::disabled::Logger::sub(&logger,"dirty.parent"),());
-        let children         = ChildrenDirty   :: new(logger::disabled::Logger::sub(&logger,"dirty.children"),None);
-        let removed_children = RemovedChildren :: new(logger::disabled::Logger::sub(&logger,"dirty.removed_children"),None);
-        let transform        = TransformDirty  :: new(logger::disabled::Logger::sub(&logger,"dirty.transform"),None);
-        let callback         = Rc::new(RefCell::new(Box::new(||{}) as Box<dyn Fn()>));
-
-        let on_mut = enclose!((callback) move || (callback.borrow())() );
-        transform        . set_callback(Some(Box::new(on_mut.clone())));
-        children         . set_callback(Some(Box::new(on_mut.clone())));
-        removed_children . set_callback(Some(Box::new(on_mut)));
-
-        Self {parent,children,removed_children,transform,callback}
+    fn new(logger:impl AnyLogger) -> Self {
+        let logger           = Logger::sub(&logger,"dirty");
+        let on_dirty         = Rc::new(RefCell::new(Box::new(||{}) as Box<dyn Fn()>));
+        let parent           = NewParentDirty  :: new(logger::disabled::Logger::sub(&logger,"parent"),());
+        let children         = ChildrenDirty   :: new(logger::disabled::Logger::sub(&logger,"children"),on_dirty_callback(&on_dirty));
+        let removed_children = RemovedChildren :: new(logger::disabled::Logger::sub(&logger,"removed_children"),on_dirty_callback(&on_dirty));
+        let transform        = TransformDirty  :: new(logger::disabled::Logger::sub(&logger,"transform"),on_dirty_callback(&on_dirty));
+        Self {parent,children,removed_children,transform,on_dirty}
     }
 
-    fn set_callback<F:'static+Fn()>(&self,f:F) {
-        *self.callback.borrow_mut() = Box::new(f);
+    fn set_on_dirty<F:'static+Fn()>(&self,f:F) {
+        *self.on_dirty.borrow_mut() = Box::new(f);
     }
 
-    fn unset_callback(&self) {
-        *self.callback.borrow_mut() = Box::new(||{});
+    fn unset_on_dirty(&self) {
+        *self.on_dirty.borrow_mut() = Box::new(||{});
     }
 }
 
 
+// === Types ===
 
-// =================
+pub type NewParentDirty        = dirty::SharedBool<()>;
+pub type ChildrenDirty         = dirty::SharedSet<usize,OnDirtyCallback>;
+pub type RemovedChildren<Host> = dirty::SharedVector<WeakInstance<Host>,OnDirtyCallback>;
+pub type TransformDirty        = dirty::SharedBool<OnDirtyCallback>;
+
+type OnDirtyCallback = impl Fn();
+fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
+    let f = f.clone();
+    move || (f.borrow())()
+}
+
+
+
+// =============
 // === Model ===
-// =================
+// =============
 
-/// A hierarchical representation of object containing a position, a scale and a rotation.
+/// A hierarchical representation of object containing information about transformation in 3D space,
+/// list of children, and set of utils for dirty flag propagation.
+///
+/// ## Host
+/// The model is parametrized with a `Host`. In real life use cases, host will be instantiated with
+/// `Scene`. For the needs of tests, its often instantiated with empty tuple for simplicity. Host
+/// has a very important role in decoupling the architecture. You need to provide the `update`
+/// method with a reference to the host, which is then passed to `on_show` and `on_hide` callbacks
+/// when a particular display objects gets shown or hidden respectively. This can be used for a
+/// dynamic management of GPU-side sprites. For example, after adding a display object to a scene,
+/// a new sprites can be created to display it visually. After removing the objects, and adding it
+/// to a different scene (second GPU context), the sprites in the first context can be removed, and
+/// new sprites in the new context can be created. Thus, abstracting over `Host` allows users of
+/// this library to define a view model (like few sliders in a box) without the need to contain
+/// reference to a particular renderer, and attach the renderer on-demand, when the objects will be
+/// placed on the stage.
+///
+/// Please note, that this functionality is fairly new, and the library do not use it like this yet.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Model<Host=Scene> {
@@ -156,7 +178,7 @@ pub struct Model<Host=Scene> {
     callbacks   : Callbacks   <Host>,
     parent_bind : RefCell     <Option<ParentBind<Host>>>,
     children    : RefCell     <OptVec<WeakInstance<Host>>>,
-    transform   : Cell        <CachedTransform>,
+    transform   : RefCell     <CachedTransform>,
     visible     : Cell        <bool>,
     logger      : Logger,
 }
@@ -195,24 +217,33 @@ impl<Host> Model<Host> {
         self.children.borrow().len()
     }
 
-
-
-
-    /// Removes child by a given index. Does nothing if the index was incorrect.
-    fn remove_child_by_index(&self, index:usize) {
-        self.children.borrow_mut().remove(index).for_each(|child| {
-            child.upgrade().for_each(|child| child.raw_unset_parent());
-            self.dirty.children.unset(&index);
-            self.dirty.removed_children.set(child);
-        });
-    }
-
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self, host:&Host) {
         let origin0 = Matrix4::identity();
         self.update_with_origin(host,origin0,false)
     }
 
+    /// Removes child by a given index. Does nothing if the index was incorrect.
+    fn remove_child_by_index(&self, index:usize) {
+        self.children.borrow_mut().remove(index).for_each(|child| {
+            child.upgrade().for_each(|child| child.unsafe_unset_parent_without_update());
+            self.dirty.children.unset(&index);
+            self.dirty.removed_children.set(child);
+        });
+    }
+
+    /// Removes the binding to the parent object. Parent is not updated.
+    fn unsafe_unset_parent_without_update(&self) {
+        self.logger.info("Removing parent bind.");
+        self.dirty.unset_on_dirty();
+        self.dirty.parent.set();
+    }
+}
+
+
+// === Update API ===
+
+impl<Host> Model<Host> {
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
     fn update_with_origin
@@ -223,17 +254,15 @@ impl<Host> Model<Host> {
         let new_parent_origin   = is_origin_dirty.as_some(parent_origin);
         let parent_origin_label = if new_parent_origin.is_some() {"new"} else {"old"};
         group!(self.logger, "Update with {parent_origin_label} parent origin.", {
-            let mut transform  = self.transform.get();
-            let origin_changed = transform.update(new_parent_origin);
-            let new_origin     = transform.matrix;
-            self.transform.set(transform);
+            let origin_changed = self.transform.borrow_mut().update(new_parent_origin);
+            let new_origin     = self.transform.borrow().matrix;
             if origin_changed {
                 self.logger.info("Self origin changed.");
                 self.callbacks.on_updated(self);
                 if !self.children.borrow().is_empty() {
                     group!(self.logger, "Updating all children.", {
                         self.children.borrow().iter().for_each(|child| {
-                            child.upgrade().for_each(|t| t.update_with_origin(host,new_origin,true));
+                            child.upgrade().for_each(|t|t.update_with_origin(host,new_origin,true));
                         });
                     })
                 }
@@ -242,9 +271,8 @@ impl<Host> Model<Host> {
                 if self.dirty.children.check_all() {
                     group!(self.logger, "Updating dirty children.", {
                         self.dirty.children.take().iter().for_each(|ix| {
-                            self.children.borrow()[*ix].upgrade().for_each(|t| {
-                                t.update_with_origin(host,new_origin,false);
-                            })
+                            self.children.borrow().safe_index(*ix).and_then(|t|t.upgrade())
+                                .for_each(|t|t.update_with_origin(host,new_origin,false))
                         });
                     })
                 }
@@ -255,12 +283,11 @@ impl<Host> Model<Host> {
         self.dirty.parent.unset();
     }
 
-    /// Internal
+    /// Hide all removed children and show this display object if it was attached to a new parent.
     fn update_visibility(&self, host:&Host) {
         self.hide_removed_children(host);
         let parent_changed = self.dirty.parent.check();
-        let foo = self.is_orphan();
-        if parent_changed && !foo {
+        if parent_changed && !self.is_orphan() {
             self.show(host)
         }
     }
@@ -268,18 +295,18 @@ impl<Host> Model<Host> {
     pub fn hide_removed_children(&self, host:&Host) {
         if self.dirty.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
-                self.dirty.removed_children.take().into_iter().for_each(|child| {
+                for child in self.dirty.removed_children.take().into_iter() {
                     if let Some(child) = child.upgrade() {
                         if child.is_orphan() {
                             child.hide(host)
                         }
                     }
-                });
+                }
             })
         }
     }
 
-    pub fn hide(&self, host:&Host) {
+    fn hide(&self, host:&Host) {
         self.hide_removed_children(host);
         if self.visible.get() {
             self.logger.info("Hiding.");
@@ -291,7 +318,7 @@ impl<Host> Model<Host> {
         }
     }
 
-    pub fn show(&self, host:&Host) {
+    fn show(&self, host:&Host) {
        if !self.visible.get() {
            self.logger.info("Showing.");
            self.visible.set(true);
@@ -301,40 +328,22 @@ impl<Host> Model<Host> {
            });
        }
     }
-
-    /// Unset all node's callbacks. Because the Instance structure may live longer than one's could
-    /// expect (usually to the next scene refresh), it is wise to unset all callbacks when disposing
-    /// object.
-    // TODO[ao] Instead if this, the Instance should keep weak references to its children (at least in
-    // "removed" list) and do not extend their lifetime.
-    pub fn clear_callbacks(&self) {
-        self.callbacks.on_updated.clear();
-        self.callbacks.on_show.clear();
-        self.callbacks.on_hide.clear();
-    }
 }
 
 
-// === Private API ===
+// === Register / Unregister ===
 
 impl<Host> Model<Host> {
     fn register_child<T:Object<Host>>(&self, child:&T) -> usize {
-        let child = child.display_object().clone();
-        let index = self.children.borrow_mut().insert(child.downgrade());
+        let index = self.children.borrow_mut().insert(child.weak_display_object());
         self.dirty.children.set(index);
         index
     }
 
-    /// Removes and returns the parent bind. Please note that the parent is not updated.
+    /// Removes and returns the parent bind. Please note that the parent is not updated as long as
+    /// the parent bind is not dropped.
     fn take_parent_bind(&self) -> Option<ParentBind<Host>> {
         self.parent_bind.borrow_mut().take()
-    }
-
-    /// Removes the binding to the parent object. This is internal operation. Parent is not updated.
-    fn raw_unset_parent(&self) {
-        self.logger.info("Removing parent bind.");
-        self.dirty.unset_callback();
-        self.dirty.parent.set();
     }
 
     /// Set parent of the object. If the object already has a parent, the parent would be replaced.
@@ -343,7 +352,7 @@ impl<Host> Model<Host> {
         if let Some(parent) = bind.parent() {
             let index = bind.index;
             let dirty = parent.dirty.children.clone_ref();
-            self.dirty.set_callback(move || dirty.set(index));
+            self.dirty.set_on_dirty(move || dirty.set(index));
             self.dirty.parent.set();
             *self.parent_bind.borrow_mut() = Some(bind);
         }
@@ -354,28 +363,24 @@ impl<Host> Model<Host> {
 // === Getters ===
 
 impl<Host> Model<Host> {
-    // pub fn parent_bind(&self) -> Option<ParentBind<Host>> {
-    //     self.parent_bind.get()
-    // }
-
     pub fn global_position(&self) -> Vector3<f32> {
-        self.transform.get().global_position()
+        self.transform.borrow().global_position()
     }
 
     pub fn position(&self) -> Vector3<f32> {
-        self.transform.get().position()
+        self.transform.borrow().position()
     }
 
     pub fn scale(&self) -> Vector3<f32> {
-        self.transform.get().scale()
+        self.transform.borrow().scale()
     }
 
     pub fn rotation(&self) -> Vector3<f32> {
-        self.transform.get().rotation()
+        self.transform.borrow().rotation()
     }
 
     pub fn matrix(&self) -> Matrix4<f32> {
-        self.transform.get().matrix()
+        self.transform.borrow().matrix()
     }
 }
 
@@ -383,43 +388,38 @@ impl<Host> Model<Host> {
 // === Setters ===
 
 impl<Host> Model<Host> {
-    fn with_transform<F,T>(&self, f:F) -> T
+    fn with_mut_borrowed_transform<F,T>(&self, f:F) -> T
     where F : FnOnce(&mut CachedTransform) -> T {
-//        if let Some(bind) = self.parent_bind.get() {
-//            bind.parent.dirty.children.set(bind.index);
-//        }
         self.dirty.transform.set();
-
-        let mut transform = self.transform.get();
-        let out = f(&mut transform);
-        self.transform.set(transform);
-        out
+        f(&mut self.transform.borrow_mut())
     }
 
-    pub fn set_position(&self, v:Vector3<f32>) {
-        self.with_transform(|t| t.set_position(v));
+    fn set_position(&self, v:Vector3<f32>) {
+        self.with_mut_borrowed_transform(|t| t.set_position(v));
     }
 
-    pub fn set_scale(&self, v:Vector3<f32>) {
-        self.with_transform(|t| t.set_scale(v));
+    fn set_scale(&self, v:Vector3<f32>) {
+        self.with_mut_borrowed_transform(|t| t.set_scale(v));
     }
 
-    pub fn set_rotation(&self, v:Vector3<f32>) {
-        self.with_transform(|t| t.set_rotation(v));
+    fn set_rotation(&self, v:Vector3<f32>) {
+        self.with_mut_borrowed_transform(|t| t.set_rotation(v));
     }
 
-    pub fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.with_transform(|t| t.mod_position(f));
+    fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.with_mut_borrowed_transform(|t| t.mod_position(f));
     }
 
-    pub fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.with_transform(|t| t.mod_rotation(f));
+    fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.with_mut_borrowed_transform(|t| t.mod_rotation(f));
     }
 
-    pub fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.with_transform(|t| t.mod_scale(f));
+    fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.with_mut_borrowed_transform(|t| t.mod_scale(f));
     }
 
+    /// Sets a callback which will be called with a reference to the display object when the object
+    /// will be updated.
     pub fn set_on_updated<F:Fn(&Model<Host>)+'static>(&self, f:F) {
         self.callbacks.on_updated.set(Box::new(f))
     }
@@ -452,23 +452,27 @@ pub struct Id(usize);
 // === Instance ===
 // ================
 
-#[derive(Derivative,Shrinkwrap)]
+#[derive(Derivative)]
 #[derive(CloneRef)]
 #[derivative(Clone(bound=""))]
 pub struct Instance<Host=Scene> {
-    pub rc : Rc<Model<Host>>
+    rc : Rc<Model<Host>>
+}
+
+impl<Host> Deref for Instance<Host> {
+    type Target = Rc<Model<Host>>;
+    fn deref(&self) -> &Self::Target {
+        &self.rc
+    }
 }
 
 impl<Host> Instance<Host> {
-    pub fn clone2(&self) -> Self {
-        Self {rc:self.rc.clone()}
-    }
-
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
         Self {rc:Rc::new(Model::new(logger))}
     }
 
+    /// Create a new weak pointer to this display object instance.
     pub fn downgrade(&self) -> WeakInstance<Host> {
         let weak = Rc::downgrade(&self.rc);
         WeakInstance{weak}
@@ -489,7 +493,7 @@ impl<Host> Instance<Host> {
 
     /// Adds a new `Object` as a child to the current one.
     pub fn _add_child<T:Object<Host>>(&self, child:&T) {
-        self.clone2().add_child_take(child);
+        self.clone_ref().add_child_take(child);
     }
 
     /// Adds a new `Object` as a child to the current one. This is the same as `add_child` but takes
@@ -574,15 +578,16 @@ impl<Host> Debug for Instance<Host> {
 
 
 
-// ================
+// ====================
 // === WeakInstance ===
-// ================
+// ====================
 
+/// Weak display object instance. Will be dropped if no all strong instances are dropped.
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
 pub struct WeakInstance<Host> {
-    pub weak : Weak<Model<Host>>
+    weak : Weak<Model<Host>>
 }
 
 impl<Host> WeakInstance<Host> {
@@ -606,7 +611,10 @@ impl<Host> PartialEq for WeakInstance<Host> {
 // ==============
 
 pub trait Object<Host=Scene> {
-    fn display_object(&self) -> &Instance<Host>;
+    fn display_object      (&self) -> &Instance<Host>;
+    fn weak_display_object (&self) -> WeakInstance<Host> {
+        self.display_object().downgrade()
+    }
 }
 
 impl<Host> Object<Host> for Instance<Host> {
@@ -628,21 +636,22 @@ impl<Host,T:Object<Host>> Object<Host> for &T {
 // === ObjectOps ===
 // =================
 
-// FIXME
-// We are using names with underscores in order to fix this bug
-// https://github.com/rust-lang/rust/issues/70727
 impl<Host,T:Object<Host>> ObjectOps<Host> for T {}
+
+// HOTFIX[WD]: We are using names with underscores in order to fix this bug:
+// https://github.com/rust-lang/rust/issues/70727 . To be removed as soon as the bug is fixed.
+#[allow(missing_docs)]
 pub trait ObjectOps<Host=Scene> : Object<Host> {
+    fn id(&self) -> Id {
+        self.display_object()._id()
+    }
+
     fn add_child<T:Object<Host>>(&self, child:&T) {
         self.display_object()._add_child(child.display_object());
     }
 
     fn remove_child<T:Object<Host>>(&self, child:&T) {
         self.display_object()._remove_child(child.display_object());
-    }
-
-    fn id(&self) -> Id {
-        self.display_object()._id()
     }
 
     fn unset_parent(&self) {
@@ -661,16 +670,49 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
         self.display_object().rc.global_position()
     }
 
+    /// Checks whether the object is visible.
+    fn is_visible(&self) -> bool {
+        self.display_object().rc.is_visible()
+    }
+
+    /// Checks whether the object is orphan (do not have parent object attached).
+    fn is_orphan(&self) -> bool {
+        self.display_object().rc.is_orphan()
+    }
+
+
+    // === Position ===
+
     fn position(&self) -> Vector3<f32> {
         self.display_object().rc.position()
     }
 
-    fn scale(&self) -> Vector3<f32> {
-        self.display_object().rc.scale()
+    fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.display_object().rc.mod_position(f)
     }
 
-    fn rotation(&self) -> Vector3<f32> {
-        self.display_object().rc.rotation()
+    fn mod_position_xy<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_position_xy(f(self.position().xy()));
+    }
+
+    fn mod_position_xz<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_position_xz(f(self.position().xz()));
+    }
+
+    fn mod_position_yz<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_position_yz(f(self.position().yz()));
+    }
+
+    fn mod_position_x<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_position_x(f(self.position().x));
+    }
+
+    fn mod_position_y<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_position_y(f(self.position().y));
+    }
+
+    fn mod_position_z<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_position_z(f(self.position().z));
     }
 
     fn set_position(&self, t:Vector3<f32>) {
@@ -681,6 +723,20 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
         self.mod_position(|p| {
             p.x = t.x;
             p.y = t.y;
+        })
+    }
+
+    fn set_position_xz(&self, t:Vector2<f32>) {
+        self.mod_position(|p| {
+            p.x = t.x;
+            p.z = t.y;
+        })
+    }
+
+    fn set_position_yz(&self, t:Vector2<f32>) {
+        self.mod_position(|p| {
+            p.y = t.x;
+            p.z = t.y;
         })
     }
 
@@ -696,32 +752,148 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
         self.mod_position(|p| p.z = t)
     }
 
+
+    // === Scale ===
+
+    fn scale(&self) -> Vector3<f32> {
+        self.display_object().rc.scale()
+    }
+
+    fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
+        self.display_object().rc.mod_scale(f)
+    }
+
+    fn mod_scale_xy<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_scale_xy(f(self.scale().xy()));
+    }
+
+    fn mod_scale_xz<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_scale_xz(f(self.scale().xz()));
+    }
+
+    fn mod_scale_yz<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_scale_yz(f(self.scale().yz()));
+    }
+
+    fn mod_scale_x<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_scale_x(f(self.scale().x));
+    }
+
+    fn mod_scale_y<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_scale_y(f(self.scale().y));
+    }
+
+    fn mod_scale_z<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_scale_z(f(self.scale().z));
+    }
+
     fn set_scale(&self, t:Vector3<f32>) {
         self.display_object().rc.set_scale(t);
     }
 
-    fn set_rotation(&self, t:Vector3<f32>) {
-        self.display_object().rc.set_rotation(t);
+    fn set_scale_xy(&self, t:Vector2<f32>) {
+        self.mod_scale(|p| {
+            p.x = t.x;
+            p.y = t.y;
+        })
     }
 
-    fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.display_object().rc.mod_position(f)
+    fn set_scale_xz(&self, t:Vector2<f32>) {
+        self.mod_scale(|p| {
+            p.x = t.x;
+            p.z = t.y;
+        })
     }
 
-    fn mod_position_xy<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
-        self.set_position_xy(f(self.position().xy()));
+    fn set_scale_yz(&self, t:Vector2<f32>) {
+        self.mod_scale(|p| {
+            p.y = t.x;
+            p.z = t.y;
+        })
     }
 
-    fn mod_position_x<F:FnOnce(f32)->f32>(&self, f:F) {
-        self.set_position_x(f(self.position().x));
+    fn set_scale_x(&self, t:f32) {
+        self.mod_scale(|p| p.x = t)
+    }
+
+    fn set_scale_y(&self, t:f32) {
+        self.mod_scale(|p| p.y = t)
+    }
+
+    fn set_scale_z(&self, t:f32) {
+        self.mod_scale(|p| p.z = t)
+    }
+
+
+    // === Rotation ===
+
+    fn rotation(&self) -> Vector3<f32> {
+        self.display_object().rc.rotation()
     }
 
     fn mod_rotation<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
         self.display_object().rc.mod_rotation(f)
     }
 
-    fn mod_scale<F:FnOnce(&mut Vector3<f32>)>(&self, f:F) {
-        self.display_object().rc.mod_scale(f)
+    fn mod_rotation_xy<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_rotation_xy(f(self.rotation().xy()));
+    }
+
+    fn mod_rotation_xz<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_rotation_xz(f(self.rotation().xz()));
+    }
+
+    fn mod_rotation_yz<F:FnOnce(Vector2<f32>)->Vector2<f32>>(&self, f:F) {
+        self.set_rotation_yz(f(self.rotation().yz()));
+    }
+
+    fn mod_rotation_x<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_rotation_x(f(self.rotation().x));
+    }
+
+    fn mod_rotation_y<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_rotation_y(f(self.rotation().y));
+    }
+
+    fn mod_rotation_z<F:FnOnce(f32)->f32>(&self, f:F) {
+        self.set_rotation_z(f(self.rotation().z));
+    }
+
+    fn set_rotation(&self, t:Vector3<f32>) {
+        self.display_object().rc.set_rotation(t);
+    }
+
+    fn set_rotation_xy(&self, t:Vector2<f32>) {
+        self.mod_rotation(|p| {
+            p.x = t.x;
+            p.y = t.y;
+        })
+    }
+
+    fn set_rotation_xz(&self, t:Vector2<f32>) {
+        self.mod_rotation(|p| {
+            p.x = t.x;
+            p.z = t.y;
+        })
+    }
+
+    fn set_rotation_yz(&self, t:Vector2<f32>) {
+        self.mod_rotation(|p| {
+            p.y = t.x;
+            p.z = t.y;
+        })
+    }
+
+    fn set_rotation_x(&self, t:f32) {
+        self.mod_rotation(|p| p.x = t)
+    }
+
+    fn set_rotation_y(&self, t:f32) {
+        self.mod_rotation(|p| p.y = t)
+    }
+
+    fn set_rotation_z(&self, t:f32) {
+        self.mod_rotation(|p| p.z = t)
     }
 }
 

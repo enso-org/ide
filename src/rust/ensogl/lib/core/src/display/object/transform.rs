@@ -151,7 +151,7 @@ impl Transform {
 /// The same as `Transform` but with caching. It contains cached transformation matrix and dirty
 /// flags which are set after fields are modified. You can use the `update` function to recompute
 /// the matrix.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Debug)]
 pub struct CachedTransform {
     transform        : Transform,
     transform_matrix : Matrix4<f32>,

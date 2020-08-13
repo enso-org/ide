@@ -67,7 +67,7 @@ pub struct Guard {
 impl Guard {
     /// Constructor.
     pub fn new(display_object:&display::object::Instance, dom:&HtmlDivElement) -> Self {
-        let display_object = display_object.clone2();
+        let display_object = display_object.clone_ref();
         let dom            = dom.clone();
         Self {display_object,dom}
     }
