@@ -72,7 +72,7 @@ pub struct GetSuggestionDatabase {
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct GetSuggestionDatabaseVersion {
-    pub version : SuggestionsDatabaseVersion,
+    pub current_version : SuggestionsDatabaseVersion,
 }
 
 /// Response of `completion` method.
