@@ -34,7 +34,6 @@ pub const INDENT : usize = 4;
 // === ReferentName ===
 // ====================
 
-
 // === Errors ===
 
 /// Happens if a given string does not fulfill requirements of the referent name;
