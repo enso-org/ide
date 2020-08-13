@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use crate::data::dirty;
 use crate::display;
+use crate::display::scene::Scene;
 use crate::data::dirty::traits::*;
 use crate::control::callback;
 
@@ -234,8 +235,8 @@ impl Camera2dData {
 
     // https://github.com/rust-lang/rust-clippy/issues/4914
     #[allow(clippy::useless_let_if_seq)]
-    fn update(&mut self) -> bool {
-        self.display_object.update();
+    fn update(&mut self, scene:&Scene) -> bool {
+        self.display_object.update(scene);
         let mut changed = false;
         if self.dirty.transform.check() {
             self.recompute_view_matrix();
@@ -370,8 +371,8 @@ impl Camera2d {
     }
 
     /// Update all dirty camera parameters and compute updated view-projection matrix.
-    pub fn update(&self) -> bool {
-        self.data.borrow_mut().update()
+    pub fn update(&self, scene:&Scene) -> bool {
+        self.data.borrow_mut().update(scene)
     }
 
     /// Adds a callback to notify when `zoom` is updated.

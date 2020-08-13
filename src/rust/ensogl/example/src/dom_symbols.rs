@@ -71,7 +71,10 @@ pub fn run_example_dom_symbols() {
             css3d_objects.push(object);
         }
     }
-    world.display_object().update();
+    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+    // world.display_object().update();
 
     let layers = vec![dom_front_layer.clone_ref(),dom_back_layer.clone_ref()];
 

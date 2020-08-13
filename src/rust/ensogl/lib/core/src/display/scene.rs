@@ -912,11 +912,11 @@ impl SceneData {
         }
     }
 
-    fn update_camera(&self) {
+    fn update_camera(&self, scene:&Scene) {
         // Updating camera for DOM layers. Please note that DOM layers cannot use multi-camera
         // setups now, so we are using here the main camera only.
         let camera  = self.camera();
-        let changed = camera.update();
+        let changed = camera.update(scene);
         if changed {
             self.frp.camera_changed_source.emit(());
             self.symbols.set_camera(camera);
@@ -926,7 +926,7 @@ impl SceneData {
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
         for view in &*self.views.all() {
-            view.upgrade().for_each(|v| v.camera.update());
+            view.upgrade().for_each(|v| v.camera.update(scene));
         }
     }
 
@@ -1006,8 +1006,8 @@ impl Scene {
             self.frp.frame_time_source.emit(t.local);
             // Please note that `update_camera` is called first as it may trigger FRP events which
             // may change display objects layout.
-            self.update_camera();
-            self.display_object.update_with(self);
+            self.update_camera(self);
+            self.display_object.update(self);
             self.update_shape();
             self.update_symbols();
             self.handle_mouse_events();

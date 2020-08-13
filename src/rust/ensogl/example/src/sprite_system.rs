@@ -110,5 +110,8 @@ pub fn on_frame
         }
     }
 
-    sprite_system.display_object().update();
+    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+    // sprite_system.display_object().update();
 }

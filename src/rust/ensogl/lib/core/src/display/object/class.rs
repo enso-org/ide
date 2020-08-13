@@ -26,6 +26,7 @@ use transform::CachedTransform;
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
+#[allow(missing_docs)]
 pub struct ParentBind<Host> {
     pub parent : WeakNode<Host>,
     pub index  : usize
@@ -33,7 +34,7 @@ pub struct ParentBind<Host> {
 
 impl<Host> ParentBind<Host> {
     pub fn dispose(&self) {
-        self.parent.upgrade().for_each(|p| p.remove_child_by_index(self.index));
+        self.parent().for_each(|p|p.remove_child_by_index(self.index));
     }
 
     pub fn parent(&self) -> Option<Instance<Host>> {
@@ -57,10 +58,8 @@ impl<Host> ParentBind<Host> {
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
     pub on_updated   : RefCell<Option<Box<dyn Fn(&NodeModel<Host>)>>>,
-    pub on_show      : RefCell<Option<Box<dyn Fn()>>>,
-    pub on_hide      : RefCell<Option<Box<dyn Fn()>>>,
-    pub on_show_with : RefCell<Option<Box<dyn Fn(&Scene)>>>,
-    pub on_hide_with : RefCell<Option<Box<dyn Fn(&Scene)>>>,
+    pub on_show : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    pub on_hide : RefCell<Option<Box<dyn Fn(&Host)>>>,
 }
 
 impl<Host> Callbacks<Host> {
@@ -68,20 +67,12 @@ impl<Host> Callbacks<Host> {
         if let Some(f) = &*self.on_updated.borrow() { f(data) }
     }
 
-    pub fn on_show(&self) {
-        if let Some(f) = &*self.on_show.borrow() { f() }
+    pub fn on_show(&self, host:&Host) {
+        if let Some(f) = &*self.on_show.borrow() { f(host) }
     }
 
-    pub fn on_hide(&self) {
-        if let Some(f) = &*self.on_hide.borrow() { f() }
-    }
-
-    pub fn on_show_with(&self, scene:&Scene) {
-        if let Some(f) = &*self.on_show_with.borrow() { f(scene) }
-    }
-
-    pub fn on_hide_with(&self, scene:&Scene) {
-        if let Some(f) = &*self.on_hide_with.borrow() { f(scene) }
+    pub fn on_hide(&self, host:&Host) {
+        if let Some(f) = &*self.on_hide.borrow() { f(host) }
     }
 }
 
@@ -154,14 +145,14 @@ impl<Host> DirtyFlags<Host> {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct NodeModel<Host=Scene> {
-    parent_bind : CloneCell<Option<ParentBind<Host>>>,
-    children    : RefCell<OptVec<WeakNode<Host>>>,
-    transform   : Cell<CachedTransform>,
-    dirty       : DirtyFlags<Host>,
-    visible     : Cell<bool>,
-    callbacks   : Callbacks<Host>,
+    host        : PhantomData <Host>,
+    dirty       : DirtyFlags  <Host>,
+    callbacks   : Callbacks   <Host>,
+    parent_bind : CloneCell   <Option<ParentBind<Host>>>,
+    children    : RefCell     <OptVec<WeakNode<Host>>>,
+    transform   : Cell        <CachedTransform>,
+    visible     : Cell        <bool>,
     logger      : Logger,
-    host        : PhantomData<Host>,
 }
 
 impl<Host> NodeModel<Host> {
@@ -211,21 +202,15 @@ impl<Host> NodeModel<Host> {
     }
 
     /// Recompute the transformation matrix of this object and update all of its dirty children.
-    pub fn update(&self) {
+    pub fn update(&self, host:&Host) {
         let origin0 = Matrix4::identity();
-        self.update_origin(None,origin0,false)
-    }
-
-    /// Recompute the transformation matrix of this object and update all of its dirty children.
-    pub fn update_with(&self, scene:&Scene) {
-        let origin0 = Matrix4::identity();
-        self.update_origin(Some(scene),origin0,false)
+        self.update_origin(host,origin0,false)
     }
 
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
-    fn update_origin(&self, scene:Option<&Scene>, parent_origin:Matrix4<f32>, force:bool) {
-        self.update_visibility(scene);
+    fn update_origin(&self, host:&Host, parent_origin:Matrix4<f32>, force:bool) {
+        self.update_visibility(host);
         let parent_changed = self.dirty.parent.check();
         let use_origin     = force || parent_changed;
         let new_origin     = use_origin.as_some(parent_origin);
@@ -244,7 +229,7 @@ impl<Host> NodeModel<Host> {
                 if !self.children.borrow().is_empty() {
                     group!(self.logger, "Updating all children.", {
                         self.children.borrow().iter().for_each(|child| {
-                            child.upgrade().for_each(|t| t.update_origin(scene,origin,true));
+                            child.upgrade().for_each(|t| t.update_origin(host,origin,true));
                         });
                     })
                 }
@@ -253,7 +238,7 @@ impl<Host> NodeModel<Host> {
                 if self.dirty.children.check_all() {
                     group!(self.logger, "Updating dirty children.", {
                         self.dirty.children.take().iter().for_each(|ix| {
-                            self.children.borrow()[*ix].upgrade().for_each(|t| t.update_origin(scene,origin,false))
+                            self.children.borrow()[*ix].upgrade().for_each(|t| t.update_origin(host,origin,false))
                         });
                     })
                 }
@@ -265,16 +250,13 @@ impl<Host> NodeModel<Host> {
     }
 
     /// Internal
-    fn update_visibility(&self, scene:Option<&Scene>) {
+    fn update_visibility(&self, host:&Host) {
         if self.dirty.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
                 self.dirty.removed_children.take().into_iter().for_each(|child| {
                     if let Some(child) = child.upgrade() {
                         if child.is_orphan() {
-                            child.hide();
-                            if let Some(s) = scene {
-                                child.hide_with(s)
-                            }
+                            child.hide(host)
                         }
                     }
                 });
@@ -283,55 +265,30 @@ impl<Host> NodeModel<Host> {
 
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
-            self.show();
-            if let Some(s) = scene {
-                self.show_with(s)
-            }
+            self.show(host)
         }
     }
 
-    /// Hide this node and all of its children. This function is called automatically when updating
-    /// a node with a disconnected parent.
-    pub fn hide(&self) {
+    pub fn hide(&self, host:&Host) {
         if self.visible.get() {
             self.logger.info("Hiding.");
             self.visible.set(false);
-            self.callbacks.on_hide();
+            self.callbacks.on_hide(host);
             self.children.borrow().iter().for_each(|child| {
-                child.upgrade().for_each(|t| t.hide());
+                child.upgrade().for_each(|t| t.hide(host));
             });
         }
     }
 
-    pub fn hide_with(&self, scene:&Scene) {
-            self.logger.info("Hiding.");
-            self.callbacks.on_hide_with(scene);
-            self.children.borrow().iter().for_each(|child| {
-                child.upgrade().for_each(|t| t.hide_with(scene));
-            });
-    }
-
-    /// Show this node and all of its children. This function is called automatically when updating
-    /// a node with a newly attached parent.
-    pub fn show(&self) {
-        if !self.visible.get() {
-            self.logger.info("Showing.");
-            self.visible.set(true);
-            self.callbacks.on_show();
-            self.children.borrow().iter().for_each(|child| {
-                child.upgrade().for_each(|t| t.show());
-            });
-        }
-    }
-
-    pub fn show_with(&self, scene:&Scene) {
-//        if !self.visible {
-            self.logger.info("Showing.");
-            self.callbacks.on_show_with(scene);
-            self.children.borrow().iter().for_each(|child| {
-                child.upgrade().for_each(|t| t.show_with(scene));
-            });
-//        }
+    pub fn show(&self, host:&Host) {
+       if !self.visible.get() {
+           self.logger.info("Showing.");
+           self.visible.set(true);
+           self.callbacks.on_show(host);
+           self.children.borrow().iter().for_each(|child| {
+               child.upgrade().for_each(|t| t.show(host));
+           });
+       }
     }
 
     /// Unset all node's callbacks. Because the Instance structure may live longer than one's could
@@ -343,8 +300,6 @@ impl<Host> NodeModel<Host> {
         self.callbacks.on_updated.clear();
         self.callbacks.on_show.clear();
         self.callbacks.on_hide.clear();
-        self.callbacks.on_show_with.clear();
-        self.callbacks.on_hide_with.clear();
     }
 }
 
@@ -459,24 +414,16 @@ impl<Host> NodeModel<Host> {
         self.callbacks.on_updated.set(Box::new(f))
     }
 
-    pub fn set_on_show<F:Fn()+'static>(&self, f:F) {
-        self.callbacks.on_show.set(Box::new(f))
-    }
-
-    pub fn set_on_hide<F:Fn()+'static>(&self, f:F) {
-        self.callbacks.on_hide.set(Box::new(f))
-    }
-
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// shown (attached to visible display object graph).
-    pub fn set_on_show_with<F:Fn(&Scene)+'static>(&self, f:F) {
-        self.callbacks.on_show_with.set(Box::new(f))
+    pub fn set_on_show<F:Fn(&Host)+'static>(&self, f:F) {
+        self.callbacks.on_show.set(Box::new(f))
     }
 
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// hidden (detached from display object graph).
-    pub fn set_on_hide_with<F:Fn(&Scene)+'static>(&self, f:F) {
-        self.callbacks.on_hide_with.set(Box::new(f))
+    pub fn set_on_hide<F:Fn(&Host)+'static>(&self, f:F) {
+        self.callbacks.on_hide.set(Box::new(f))
     }
 }
 
@@ -819,7 +766,7 @@ mod tests {
         assert_eq!(node2.global_position() , Vector3::new(0.0,0.0,0.0));
         assert_eq!(node3.global_position() , Vector3::new(0.0,0.0,0.0));
 
-        node1.update();
+        node1.update(&());
         assert_eq!(node1.position()        , Vector3::new(7.0,0.0,0.0));
         assert_eq!(node2.position()        , Vector3::new(0.0,0.0,0.0));
         assert_eq!(node3.position()        , Vector3::new(0.0,0.0,0.0));
@@ -828,39 +775,39 @@ mod tests {
         assert_eq!(node3.global_position() , Vector3::new(7.0,0.0,0.0));
 
         node2.mod_position(|t| t.y += 5.0);
-        node1.update();
+        node1.update(&());
         assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
         assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
         assert_eq!(node3.global_position() , Vector3::new(7.0,5.0,0.0));
 
         node3.mod_position(|t| t.x += 1.0);
-        node1.update();
+        node1.update(&());
         assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
         assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
         assert_eq!(node3.global_position() , Vector3::new(8.0,5.0,0.0));
 
         node2.mod_rotation(|t| t.z += PI/2.0);
-        node1.update();
+        node1.update(&());
         assert_eq!(node1.global_position() , Vector3::new(7.0,0.0,0.0));
         assert_eq!(node2.global_position() , Vector3::new(7.0,5.0,0.0));
         assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
 
         node1.add_child(&node3);
-        node1.update();
+        node1.update(&());
         assert_eq!(node3.global_position() , Vector3::new(8.0,0.0,0.0));
 
         node1.remove_child(&node3);
-        node3.update();
+        node3.update(&());
         assert_eq!(node3.global_position() , Vector3::new(1.0,0.0,0.0));
 
         node2.add_child(&node3);
-        node1.update();
+        node1.update(&());
         assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
 
         node1.remove_child(&node3);
-        node1.update();
-        node2.update();
-        node3.update();
+        node1.update(&());
+        node2.update(&());
+        node3.update(&());
         assert_eq!(node3.global_position() , Vector3::new(7.0,6.0,0.0));
     }
 
@@ -883,27 +830,27 @@ mod tests {
         let node2 = Instance::<()>::new(Logger::new("node2"));
         let node3 = Instance::<()>::new(Logger::new("node3"));
         assert_eq!(node3.is_visible(),true);
-        node3.update();
+        node3.update(&());
         assert_eq!(node3.is_visible(),true);
         node1.add_child(&node2);
         node2.add_child(&node3);
-        node1.update();
+        node1.update(&());
         assert_eq!(node3.is_visible(),true);
         node3.unset_parent();
         assert_eq!(node3.is_visible(),true);
-        node1.update();
+        node1.update(&());
         assert_eq!(node3.is_visible(),false);
         node1.add_child(&node3);
-        node1.update();
+        node1.update(&());
         assert_eq!(node3.is_visible(),true);
         node2.add_child(&node3);
-        node1.update();
+        node1.update(&());
         assert_eq!(node3.is_visible(),true);
         node3.unset_parent();
-        node1.update();
+        node1.update(&());
         assert_eq!(node3.is_visible(),false);
         node2.add_child(&node3);
-        node1.update();
+        node1.update(&());
         assert_eq!(node3.is_visible(),true);
     }
 }
