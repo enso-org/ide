@@ -23,18 +23,20 @@ use transform::CachedTransform;
 /// Description of parent-child relation. It contains reference to parent node and information
 /// about the child index there. It is used when a child is reconnected to different parent to
 /// update the old parent with the information that the child was removed.
-#[derive(Clone,Debug)]
-pub struct ParentBind {
-    pub parent : WeakNode,
+#[derive(Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Debug(bound=""))]
+pub struct ParentBind<Host> {
+    pub parent : WeakNode<Host>,
     pub index  : usize
 }
 
-impl ParentBind {
+impl<Host> ParentBind<Host> {
     pub fn dispose(&self) {
         self.parent.upgrade().for_each(|p| p.remove_child_by_index(self.index));
     }
 
-    pub fn parent(&self) -> Option<Instance> {
+    pub fn parent(&self) -> Option<Instance<Host>> {
         self.parent.upgrade()
     }
 }
@@ -50,18 +52,19 @@ impl ParentBind {
 /// is very lightweight and is not confusing (setting a callback unregisters previous one). We may
 /// want to switch to a real callback registry in the future if there will be suitable use cases for
 /// it.
-#[derive(Default)]
+#[derive(Derivative)]
+#[derivative(Default(bound=""))]
 #[allow(clippy::type_complexity)]
-pub struct Callbacks {
-    pub on_updated   : RefCell<Option<Box<dyn Fn(&NodeModel)>>>,
+pub struct Callbacks<Host> {
+    pub on_updated   : RefCell<Option<Box<dyn Fn(&NodeModel<Host>)>>>,
     pub on_show      : RefCell<Option<Box<dyn Fn()>>>,
     pub on_hide      : RefCell<Option<Box<dyn Fn()>>>,
     pub on_show_with : RefCell<Option<Box<dyn Fn(&Scene)>>>,
     pub on_hide_with : RefCell<Option<Box<dyn Fn(&Scene)>>>,
 }
 
-impl Callbacks {
-    pub fn on_updated(&self, data:&NodeModel) {
+impl<Host> Callbacks<Host> {
+    pub fn on_updated(&self, data:&NodeModel<Host>) {
         if let Some(f) = &*self.on_updated.borrow() { f(data) }
     }
 
@@ -82,7 +85,7 @@ impl Callbacks {
     }
 }
 
-impl Debug for Callbacks {
+impl<Host> Debug for Callbacks<Host> {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Callbacks")
     }
@@ -97,7 +100,7 @@ impl Debug for Callbacks {
 // === Types ===
 
 pub type ChildrenDirty   = dirty::SharedSet<usize,Option<Box<dyn Fn()>>>;
-pub type RemovedChildren = dirty::SharedVector<WeakNode,Option<Box<dyn Fn()>>>;
+pub type RemovedChildren<Host> = dirty::SharedVector<WeakNode<Host>,Option<Box<dyn Fn()>>>;
 pub type NewParentDirty  = dirty::SharedBool<()>;
 pub type TransformDirty  = dirty::SharedBool<Option<Box<dyn Fn()>>>;
 
@@ -105,17 +108,17 @@ pub type TransformDirty  = dirty::SharedBool<Option<Box<dyn Fn()>>>;
 // === Definition ===
 
 #[derive(Derivative)]
-#[derivative(Debug)]
-pub struct DirtyFlags {
+#[derivative(Debug(bound=""))]
+pub struct DirtyFlags<Host> {
     parent           : NewParentDirty,
     children         : ChildrenDirty,
-    removed_children : RemovedChildren,
+    removed_children : RemovedChildren<Host>,
     transform        : TransformDirty,
     #[derivative(Debug="ignore")]
     callback         : Rc<RefCell<Box<dyn Fn()>>>,
 }
 
-impl DirtyFlags {
+impl<Host> DirtyFlags<Host> {
     #![allow(trivial_casts)]
     pub fn new(logger:impl AnyLogger) -> Self {
         let parent           = NewParentDirty  :: new(Logger::sub(&logger,"dirty.parent"),());
@@ -148,18 +151,20 @@ impl DirtyFlags {
 // =================
 
 /// A hierarchical representation of object containing a position, a scale and a rotation.
-#[derive(Debug)]
-pub struct NodeModel {
-    parent_bind : CloneCell<Option<ParentBind>>,
-    children    : RefCell<OptVec<WeakNode>>,
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub struct NodeModel<Host=Scene> {
+    parent_bind : CloneCell<Option<ParentBind<Host>>>,
+    children    : RefCell<OptVec<WeakNode<Host>>>,
     transform   : Cell<CachedTransform>,
-    dirty       : DirtyFlags,
+    dirty       : DirtyFlags<Host>,
     visible     : Cell<bool>,
-    callbacks   : Callbacks,
+    callbacks   : Callbacks<Host>,
     logger      : Logger,
+    host        : PhantomData<Host>,
 }
 
-impl NodeModel {
+impl<Host> NodeModel<Host> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
         let logger      = Logger::from_logger(logger);
@@ -169,7 +174,8 @@ impl NodeModel {
         let dirty       = DirtyFlags::new(&logger);
         let visible     = Cell::new(true);
         let callbacks   = default();
-        Self {logger,parent_bind,children,transform,visible,callbacks,dirty}
+        let host        = default();
+        Self {logger,parent_bind,children,transform,visible,callbacks,dirty,host}
     }
 
     /// Checks whether the object is visible.
@@ -183,7 +189,7 @@ impl NodeModel {
     }
 
     /// Parent object getter.
-    pub fn parent(&self) -> Option<Instance> {
+    pub fn parent(&self) -> Option<Instance<Host>> {
         self.parent_bind.get().and_then(|t|t.parent())
     }
 
@@ -345,8 +351,8 @@ impl NodeModel {
 
 // === Private API ===
 
-impl NodeModel {
-    fn register_child<T:Object>(&self, child:&T) -> usize {
+impl<Host> NodeModel<Host> {
+    fn register_child<T:Object<Host>>(&self, child:&T) -> usize {
         let child = child.display_object().clone();
         let index = self.children.borrow_mut().insert(child.downgrade());
         self.dirty.children.set(index);
@@ -354,7 +360,7 @@ impl NodeModel {
     }
 
     /// Removes and returns the parent bind. Please note that the parent is not updated.
-    fn take_parent_bind(&self) -> Option<ParentBind> {
+    fn take_parent_bind(&self) -> Option<ParentBind<Host>> {
         self.parent_bind.take()
     }
 
@@ -366,7 +372,7 @@ impl NodeModel {
     }
 
     /// Set parent of the object. If the object already has a parent, the parent would be replaced.
-    fn set_parent_bind(&self, bind:ParentBind) {
+    fn set_parent_bind(&self, bind:ParentBind<Host>) {
         self.logger.info("Adding new parent bind.");
         if let Some(parent) = bind.parent() {
             let index = bind.index;
@@ -381,9 +387,9 @@ impl NodeModel {
 
 // === Getters ===
 
-impl NodeModel {
+impl<Host> NodeModel<Host> {
     /// Gets a clone of parent bind.
-    pub fn parent_bind(&self) -> Option<ParentBind> {
+    pub fn parent_bind(&self) -> Option<ParentBind<Host>> {
         self.parent_bind.get()
     }
 
@@ -411,7 +417,7 @@ impl NodeModel {
 
 // === Setters ===
 
-impl NodeModel {
+impl<Host> NodeModel<Host> {
     fn with_transform<F,T>(&self, f:F) -> T
     where F : FnOnce(&mut CachedTransform) -> T {
 //        if let Some(bind) = self.parent_bind.get() {
@@ -449,7 +455,7 @@ impl NodeModel {
         self.with_transform(|t| t.mod_scale(f));
     }
 
-    pub fn set_on_updated<F:Fn(&NodeModel)+'static>(&self, f:F) {
+    pub fn set_on_updated<F:Fn(&NodeModel<Host>)+'static>(&self, f:F) {
         self.callbacks.on_updated.set(Box::new(f))
     }
 
@@ -489,12 +495,14 @@ pub struct Id(usize);
 // === Instance ===
 // ================
 
-#[derive(Clone,CloneRef,Shrinkwrap)]
-pub struct Instance {
-    pub rc : Rc<NodeModel>
+#[derive(Derivative,Shrinkwrap)]
+#[derive(CloneRef)]
+#[derivative(Clone(bound=""))]
+pub struct Instance<Host=Scene> {
+    pub rc : Rc<NodeModel<Host>>
 }
 
-impl Instance {
+impl<Host> Instance<Host> {
     pub fn clone2(&self) -> Self {
         Self {rc:self.rc.clone()}
     }
@@ -504,7 +512,7 @@ impl Instance {
         Self {rc:Rc::new(NodeModel::new(logger))}
     }
 
-    pub fn downgrade(&self) -> WeakNode {
+    pub fn downgrade(&self) -> WeakNode<Host> {
         let weak = Rc::downgrade(&self.rc);
         WeakNode{weak}
     }
@@ -513,7 +521,7 @@ impl Instance {
 
 // === Public API ==
 
-impl Instance {
+impl<Host> Instance<Host> {
     pub fn with_logger<F:FnOnce(&Logger)>(&self, f:F) {
         f(&self.rc.logger)
     }
@@ -523,13 +531,13 @@ impl Instance {
     }
 
     /// Adds a new `Object` as a child to the current one.
-    pub fn _add_child<T:Object>(&self, child:&T) {
+    pub fn _add_child<T:Object<Host>>(&self, child:&T) {
         self.clone2().add_child_take(child);
     }
 
     /// Adds a new `Object` as a child to the current one. This is the same as `add_child` but takes
     /// the ownership of `self`.
-    pub fn add_child_take<T:Object>(self, child:&T) {
+    pub fn add_child_take<T:Object<Host>>(self, child:&T) {
         self.rc.logger.info("Adding new child.");
         let child = child.display_object();
         child.unset_parent();
@@ -541,7 +549,7 @@ impl Instance {
 
     /// Removes the provided object reference from child list of this object. Does nothing if the
     /// reference was not a child of this object.
-    pub fn _remove_child<T:Object>(&self, child:&T) {
+    pub fn _remove_child<T:Object<Host>>(&self, child:&T) {
         let child = child.display_object();
         if self.has_child(child) {
             child.unset_parent()
@@ -549,7 +557,7 @@ impl Instance {
     }
 
     /// Replaces the parent binding with a new parent.
-    pub fn set_parent<T:Object>(&self, parent:&T) {
+    pub fn set_parent<T:Object<Host>>(&self, parent:&T) {
         parent.display_object().add_child(self);
     }
 
@@ -559,7 +567,7 @@ impl Instance {
     }
 
     /// Checks if the provided object is child of the current one.
-    pub fn has_child<T:Object>(&self, child:&T) -> bool {
+    pub fn has_child<T:Object<Host>>(&self, child:&T) -> bool {
         self.child_index(child).is_some()
     }
 
@@ -569,7 +577,7 @@ impl Instance {
     }
 
     /// Returns the index of the provided object if it was a child of the current one.
-    pub fn child_index<T:Object>(&self, child:&T) -> Option<usize> {
+    pub fn child_index<T:Object<Host>>(&self, child:&T) -> Option<usize> {
         let child = child.display_object();
         child.parent_bind().and_then(|bind| {
             if bind.parent().as_ref() == Some(self) { Some(bind.index) } else { None }
@@ -580,7 +588,7 @@ impl Instance {
 
 // === Getters ===
 
-impl Instance {
+impl<Host> Instance<Host> {
     pub fn index(&self) -> Option<usize> {
         self.parent_bind().map(|t| t.index)
     }
@@ -589,19 +597,19 @@ impl Instance {
 
 // === Instances ===
 
-impl PartialEq for Instance {
+impl<Host> PartialEq for Instance<Host> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc,&other.rc)
     }
 }
 
-impl Display for Instance {
+impl<Host> Display for Instance<Host> {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Instance")
     }
 }
 
-impl Debug for Instance {
+impl<Host> Debug for Instance<Host> {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Instance")
     }
@@ -613,20 +621,22 @@ impl Debug for Instance {
 // === WeakNode ===
 // ================
 
-#[derive(Clone,Debug)]
-pub struct WeakNode {
-    pub weak : Weak<NodeModel>
+#[derive(Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Debug(bound=""))]
+pub struct WeakNode<Host> {
+    pub weak : Weak<NodeModel<Host>>
 }
 
-impl WeakNode {
-    pub fn upgrade(&self) -> Option<Instance> {
+impl<Host> WeakNode<Host> {
+    pub fn upgrade(&self) -> Option<Instance<Host>> {
         self.weak.upgrade().map(|rc| Instance {rc})
     }
 }
 
 // FIXME: This is not a valid implementation as the pointers may alias when one instance was dropped
 //        and other was created in the same location.
-impl PartialEq for WeakNode {
+impl<Host> PartialEq for WeakNode<Host> {
     fn eq(&self, other:&Self) -> bool {
         self.weak.ptr_eq(&other.weak)
     }
@@ -638,18 +648,18 @@ impl PartialEq for WeakNode {
 // === Object ===
 // ==============
 
-pub trait Object {
-    fn display_object(&self) -> &Instance;
+pub trait Object<Host=Scene> {
+    fn display_object(&self) -> &Instance<Host>;
 }
 
-impl Object for Instance {
-    fn display_object(&self) -> &Instance {
+impl<Host> Object<Host> for Instance<Host> {
+    fn display_object(&self) -> &Instance<Host> {
         self
     }
 }
 
-impl<T:Object> Object for &T {
-    fn display_object(&self) -> &Instance {
+impl<Host,T:Object<Host>> Object<Host> for &T {
+    fn display_object(&self) -> &Instance<Host> {
         let t : &T = *self;
         t.display_object()
     }
@@ -664,13 +674,13 @@ impl<T:Object> Object for &T {
 // FIXME
 // We are using names with underscores in order to fix this bug
 // https://github.com/rust-lang/rust/issues/70727
-impl<T:Object> ObjectOps for T {}
-pub trait ObjectOps : Object {
-    fn add_child<T:Object>(&self, child:&T) {
+impl<Host,T:Object<Host>> ObjectOps<Host> for T {}
+pub trait ObjectOps<Host=Scene> : Object<Host> {
+    fn add_child<T:Object<Host>>(&self, child:&T) {
         self.display_object()._add_child(child.display_object());
     }
 
-    fn remove_child<T:Object>(&self, child:&T) {
+    fn remove_child<T:Object<Host>>(&self, child:&T) {
         self.display_object()._remove_child(child.display_object());
     }
 
@@ -771,9 +781,9 @@ mod tests {
 
     #[test]
     fn hierarchy_test() {
-        let node1 = Instance::new(Logger::new("node1"));
-        let node2 = Instance::new(Logger::new("node2"));
-        let node3 = Instance::new(Logger::new("node3"));
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
         node1.add_child(&node2);
         assert_eq!(node2.index(),Some(0));
 
@@ -789,9 +799,9 @@ mod tests {
 
     #[test]
     fn transformation_test() {
-        let node1 = Instance::new(Logger::new("node1"));
-        let node2 = Instance::new(Logger::new("node2"));
-        let node3 = Instance::new(Logger::new("node3"));
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
         assert_eq!(node1.position()        , Vector3::new(0.0,0.0,0.0));
         assert_eq!(node2.position()        , Vector3::new(0.0,0.0,0.0));
         assert_eq!(node3.position()        , Vector3::new(0.0,0.0,0.0));
@@ -856,9 +866,9 @@ mod tests {
 
     #[test]
     fn parent_test() {
-        let node1 = Instance::new(Logger::new("node1"));
-        let node2 = Instance::new(Logger::new("node2"));
-        let node3 = Instance::new(Logger::new("node3"));
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
         node1.add_child(&node2);
         node1.add_child(&node3);
         node2.unset_parent();
@@ -869,9 +879,9 @@ mod tests {
 
     #[test]
     fn visibility_test() {
-        let node1 = Instance::new(Logger::new("node1"));
-        let node2 = Instance::new(Logger::new("node2"));
-        let node3 = Instance::new(Logger::new("node3"));
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
         assert_eq!(node3.is_visible(),true);
         node3.update();
         assert_eq!(node3.is_visible(),true);
