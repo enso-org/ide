@@ -37,9 +37,5 @@ fn init(world:&World) {
     world.keep_alive_forever();
     world.on_frame(move |_| {
         let &_ = &line;
-        // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
-        // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
-        // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
-        // glyph_system.sprite_system().display_object().update();
     }).forget();
 }
