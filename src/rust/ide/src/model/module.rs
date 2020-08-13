@@ -409,7 +409,8 @@ pub trait API:Debug {
     fn with_node_metadata(&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>);
 
 
-    // === Utils ===
+// === Utils ===
+
     /// Get the module's identifier.
     fn id(&self) -> Id {
         self.path().id()

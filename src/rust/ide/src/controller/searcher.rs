@@ -646,10 +646,12 @@ impl Searcher {
         for response in responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {
-                self.database.lookup(*id).map_err(|e|
-                    error!(self.logger,"Response provided a suggestion ID that cannot be resolved: \
-                    {e}")
-                ).map(Suggestion::Completion).ok()
+                self.database.lookup(*id)
+                    .map(Suggestion::Completion)
+                    .handle_err(|e| {
+                        error!(self.logger,"Response provided a suggestion ID that cannot be \
+                        resolved: {e}")
+                    })
             });
             suggestions.extend(entries);
         }

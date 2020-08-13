@@ -207,6 +207,8 @@ pub mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::execution_context::plain::test::MockData;
+    use crate::model::module::QualifiedName;
     use crate::model::traits::*;
 
     use enso_protocol::language_server::CapabilityRegistration;
@@ -214,10 +216,6 @@ pub mod test {
     use json_rpc::expect_call;
     use utils::test::ExpectTuple;
     use utils::test::stream::StreamTestExt;
-
-    use crate::model::execution_context::plain::test::MockData;
-    use crate::model::module::QualifiedName;
-
 
     #[derive(Debug)]
     pub struct Fixture {

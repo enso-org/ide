@@ -16,13 +16,6 @@ use serde::Serialize;
 
 
 
-/// Happens if an empty segments list is provided as qualified module name.
-#[derive(Clone,Copy,Debug,Fail)]
-#[fail(display="No name segments were provided.")]
-pub struct EmptyName;
-
-
-
 // ==========
 // === Id ===
 // ==========
@@ -326,6 +319,11 @@ pub struct ImportNotFound(pub ImportInfo);
 #[allow(missing_docs)]
 pub struct LineIndexOutOfBounds;
 
+/// Happens if an empty segments list is provided as qualified module name.
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="No name segments were provided.")]
+pub struct EmptyName;
+
 
 
 // ============
@@ -461,7 +459,7 @@ pub fn locate
 /// desugaring implicit extensions methods for modules).
 pub fn lookup_method
 (ast:&known::Module, method:&language_server::MethodPointer) -> FallibleResult<definition::Id> {
-    let module_name = QualifiedName::try_from(method)?;
+    let module_name                    = QualifiedName::try_from(method)?;
     let explicitly_extends_looked_type = method.defined_on_type == module_name.name().as_ref();
 
     for child in ast.def_iter() {
@@ -516,6 +514,14 @@ mod tests {
     #[test]
     fn qualified_name_validation() {
         assert!(QualifiedName::try_from("ProjectName").is_err());
+        assert!(QualifiedName::try_from("project.Name").is_err());
+        assert!(QualifiedName::try_from("Project.name").is_err());
+        assert!(QualifiedName::try_from("Project.").is_err());
+        assert!(QualifiedName::try_from(".Name").is_err());
+        assert!(QualifiedName::try_from(".").is_err());
+        assert!(QualifiedName::try_from("").is_err());
+        assert!(QualifiedName::try_from("Project.Name").is_ok());
+        assert!(QualifiedName::try_from("Project.Name.Sub").is_ok());
     }
 
     #[wasm_bindgen_test]

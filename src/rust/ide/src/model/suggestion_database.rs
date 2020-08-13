@@ -313,7 +313,7 @@ impl SuggestionDatabase {
     pub fn lookup_method_ptr
     (&self, id:SuggestionId) -> FallibleResult<language_server::MethodPointer> {
         let entry = self.lookup(id)?;
-        language_server::MethodPointer::try_from(entry.as_ref()).map_err(Into::into)
+        Ok(language_server::MethodPointer::try_from(entry.as_ref())?)
     }
 
     /// Search the database for an entry of method identified by given id.

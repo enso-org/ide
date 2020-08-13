@@ -102,7 +102,6 @@ impl ComputedValueInfoRegistry {
             for update in values_computed {
                 let id   = update.expression_id;
                 let info = Rc::new(ComputedValueInfo::from(update));
-                println!("Storing for {} {:?}",id,info);
                 map.insert(id,info);
             };
         });
