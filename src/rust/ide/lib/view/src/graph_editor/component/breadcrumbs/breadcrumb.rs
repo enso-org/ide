@@ -48,7 +48,7 @@ const ICON_RING_WIDTH      : f32 = (ICON_RADIUS/4.0) as i32 as f32;
 const ICON_ARROW_SIZE      : f32 = (ICON_RADIUS/1.5) as i32 as f32;
 const SEPARATOR_SIZE       : f32 = 8.0;
 const SEPARATOR_LINE_WIDTH : f32 = 3.0;
-const SHAPE_PADDING        : f32 = 1.0;
+const PADDING              : f32 = 1.0;
 const SEPARATOR_MARGIN     : f32 = HORIZONTAL_MARGIN;
 
 
@@ -346,8 +346,8 @@ impl BreadcrumbModel {
 
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.fade_in(0.0);
-        let separator_size = SEPARATOR_SIZE+SHAPE_PADDING;
-        let icon_size      = ICON_SIZE+SHAPE_PADDING;
+        let separator_size = (SEPARATOR_SIZE+PADDING).max(0.0);
+        let icon_size      = (ICON_SIZE+PADDING).max(0.0);
         self.separator.shape.sprite.size.set(Vector2::new(separator_size,separator_size));
         self.separator.set_position_x((offset-width/2.0).round());
         self.icon.shape.sprite.size.set(Vector2::new(icon_size,icon_size));
