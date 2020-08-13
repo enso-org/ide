@@ -116,12 +116,17 @@ fn init(app:&Application) {
 
     // app.views.register::<GraphEditor>();
     // let graph_editor = app.new_view::<GraphEditor>();
-    let logger = Logger::new("Select");
-    let mut entry_container = select::entry::Container::new(logger,app);
-    entry_container.update_entries_new_provider(MockEntries::new(&app,12),0..7);
-    app.display.add_child(&entry_container);
+    // let mut entry_container = select::entry::EntryList::new(logger, app);
+    // entry_container.update_entries_new_provider(MockEntries::new(&app,12),0..7);
+    // app.display.add_child(&entry_container);
 
-    std::mem::forget(entry_container);
+    // std::mem::forget(entry_container);
+
+    let select = select::component::Select::new(app);
+    select.frp.resize(Vector2(100.0,150.0));
+    select.frp.set_entries(MockEntries::new(app,13));
+    app.display.add_child(&select);
+    std::mem::forget(select);
 }
 
 

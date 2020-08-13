@@ -3,10 +3,7 @@ use crate::prelude::*;
 
 use ensogl::display;
 use ensogl_text as text;
-use ensogl::display::Scene;
 use ensogl::application::Application;
-use std::borrow::Borrow;
-use ensogl::display::object::Instance;
 
 use logger::enabled::Logger;
 use ensogl::data::color;
@@ -27,6 +24,20 @@ pub trait ModelProvider : Debug {
     fn entry_count(&self) -> usize;
 
     fn get(&self, id:Id) -> Model;
+}
+
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+pub struct AnyModelProvider(Rc<dyn ModelProvider>);
+
+impl<T:ModelProvider + 'static> From<T> for AnyModelProvider {
+    fn from(provider: T) -> Self { Self(Rc::new(provider)) }
+}
+
+impl Default for AnyModelProvider {
+    fn default() -> Self {
+        let logger = Logger::new("EmptyModelProvider");
+        EmptyProvider{logger}.into()
+    }
 }
 
 #[derive(Clone,CloneRef,Debug)]
@@ -81,23 +92,23 @@ impl display::Object for Entry {
     fn display_object(&self) -> &display::object::Instance { &self.display_object }
 }
 
-#[derive(Debug)]
-pub struct Container {
+#[derive(Clone,CloneRef,Debug)]
+pub struct EntryList {
     logger                  : Logger,
     app                     : Application,
     display_object          : display::object::Instance,
     entries                 : Rc<RefCell<Vec<Entry>>>,
-    provider                : Rc<dyn ModelProvider>,
+    provider                : Rc<CloneRefCell<AnyModelProvider>>,
 }
 
-impl Container {
+impl EntryList {
     pub fn new(parent:impl AnyLogger, app:&Application) -> Self {
         let app    = app.clone_ref();
         let logger = Logger::sub(parent,"EntryContainer");
         let entries = default();
         let display_object = display::object::Instance::new(&logger);
-        let provider = Rc::new(EmptyProvider {logger:logger.clone_ref()});
-        Container {logger,app,display_object,entries,provider}
+        let provider = default();
+        EntryList {logger,app,display_object,entries,provider}
     }
 
     pub fn update_entries(&self, range:Range<Id>) {
@@ -107,7 +118,8 @@ impl Container {
             self.add_child(&entry);
             entry
         };
-        let models      = range.clone().map(|id| self.provider.get(id)).collect_vec();
+        let provider    = self.provider.get();
+        let models      = range.clone().map(|id| provider.get(id)).collect_vec();
         let mut entries = self.entries.borrow_mut();
         entries.resize_with(range.len(),new_entry);
         for ((id,entry),model) in range.zip(entries.iter_mut()).zip(models.iter()) {
@@ -118,12 +130,12 @@ impl Container {
     }
 
     pub fn update_entries_new_provider
-    (&mut self, provider:impl ModelProvider + 'static, range:Range<Id>) {
-        self.provider = Rc::new(provider);
+    (&self, provider:impl Into<AnyModelProvider> + 'static, range:Range<Id>) {
+        self.provider.set(provider.into());
         self.update_entries(range);
     }
 }
 
-impl display::Object for Container {
+impl display::Object for EntryList {
     fn display_object(&self) -> &display::object::Instance { &self.display_object }
 }

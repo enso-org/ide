@@ -243,7 +243,7 @@ macro_rules! _define_shape_system {
         #[allow(missing_docs)]
         pub struct Shape {
             pub sprite : $crate::display::symbol::geometry::Sprite,
-            $(pub $gpu_param : Attribute<$gpu_param_type>),*
+            $(pub $gpu_param : $crate::system::gpu::data::Attribute<$gpu_param_type>),*
         }
 
         impl Deref for Shape {
@@ -277,7 +277,7 @@ macro_rules! _define_shape_system {
         pub struct ShapeSystem {
             pub shape_system : $crate::display::shape::ShapeSystem,
             style_manager    : $crate::display::shape::StyleWatch,
-            $(pub $gpu_param : Buffer<$gpu_param_type>),*
+            $(pub $gpu_param : $crate::system::gpu::data::Buffer<$gpu_param_type>),*
         }
 
         impl $crate::display::shape::ShapeSystemInstance for ShapeSystem {
@@ -321,7 +321,7 @@ macro_rules! _define_shape_system {
                 $(
                     __style_watch__.reset();
                     let $style = __style_watch__;
-                    let $gpu_param : Var<$gpu_param_type> =
+                    let $gpu_param : $crate::display::shape::primitive::def::Var<$gpu_param_type> =
                         concat!("input_",stringify!($gpu_param)).into();
                     // Silencing warnings about not used shader input variables.
                     let _unused = &$style;
