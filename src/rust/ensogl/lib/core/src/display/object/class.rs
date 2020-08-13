@@ -1,6 +1,9 @@
-#![allow(missing_docs)]
+//! Implementation of display objects, elements that have visual representation and can form
+//! hierarchical layouts. The implementation is very careful about performance, it tracks the
+//! transformation changes and updates only the needed subset of the display object tree on demand.
 
 use crate::prelude::*;
+use logger::enabled::Logger;
 
 use super::transform;
 
@@ -9,6 +12,7 @@ use crate::control::callback::DynEventDispatcher;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::display::scene::Scene;
+
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
 use nalgebra::Vector3;
@@ -24,22 +28,23 @@ use transform::CachedTransform;
 /// about the child index there. It is used when a child is reconnected to different parent to
 /// update the old parent with the information that the child was removed.
 #[derive(Derivative)]
-#[derivative(Clone(bound=""))]
+//#[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
 #[allow(missing_docs)]
 pub struct ParentBind<Host> {
-    pub parent : WeakNode<Host>,
+    pub parent : WeakInstance<Host>,
     pub index  : usize
 }
 
 impl<Host> ParentBind<Host> {
-    // FIXME: why not drop?
-    pub fn dispose(&self) {
-        self.parent().for_each(|p|p.remove_child_by_index(self.index));
-    }
-
     pub fn parent(&self) -> Option<Instance<Host>> {
         self.parent.upgrade()
+    }
+}
+
+impl<Host> Drop for ParentBind<Host> {
+    fn drop(&mut self) {
+        self.parent().for_each(|p|p.remove_child_by_index(self.index));
     }
 }
 
@@ -58,21 +63,21 @@ impl<Host> ParentBind<Host> {
 #[derivative(Default(bound=""))]
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
-    pub on_updated : RefCell<Option<Box<dyn Fn(&InstanceModel<Host>)>>>,
+    pub on_updated : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
     pub on_show    : RefCell<Option<Box<dyn Fn(&Host)>>>,
     pub on_hide    : RefCell<Option<Box<dyn Fn(&Host)>>>,
 }
 
 impl<Host> Callbacks<Host> {
-    pub fn on_updated(&self, data:&InstanceModel<Host>) {
-        if let Some(f) = &*self.on_updated.borrow() { f(data) }
+    fn on_updated(&self, model:&Model<Host>) {
+        if let Some(f) = &*self.on_updated.borrow() { f(model) }
     }
 
-    pub fn on_show(&self, host:&Host) {
+    fn on_show(&self, host:&Host) {
         if let Some(f) = &*self.on_show.borrow() { f(host) }
     }
 
-    pub fn on_hide(&self, host:&Host) {
+    fn on_hide(&self, host:&Host) {
         if let Some(f) = &*self.on_hide.borrow() { f(host) }
     }
 }
@@ -92,7 +97,7 @@ impl<Host> Debug for Callbacks<Host> {
 // === Types ===
 
 pub type ChildrenDirty   = dirty::SharedSet<usize,Option<Box<dyn Fn()>>>;
-pub type RemovedChildren<Host> = dirty::SharedVector<WeakNode<Host>,Option<Box<dyn Fn()>>>;
+pub type RemovedChildren<Host> = dirty::SharedVector<WeakInstance<Host>,Option<Box<dyn Fn()>>>;
 pub type NewParentDirty  = dirty::SharedBool<()>;
 pub type TransformDirty  = dirty::SharedBool<Option<Box<dyn Fn()>>>;
 
@@ -113,10 +118,10 @@ pub struct DirtyFlags<Host> {
 impl<Host> DirtyFlags<Host> {
     #![allow(trivial_casts)]
     pub fn new(logger:impl AnyLogger) -> Self {
-        let parent           = NewParentDirty  :: new(Logger::sub(&logger,"dirty.parent"),());
-        let children         = ChildrenDirty   :: new(Logger::sub(&logger,"dirty.children"),None);
-        let removed_children = RemovedChildren :: new(Logger::sub(&logger,"dirty.removed_children"),None);
-        let transform        = TransformDirty  :: new(Logger::sub(&logger,"dirty.transform"),None);
+        let parent           = NewParentDirty  :: new(logger::disabled::Logger::sub(&logger,"dirty.parent"),());
+        let children         = ChildrenDirty   :: new(logger::disabled::Logger::sub(&logger,"dirty.children"),None);
+        let removed_children = RemovedChildren :: new(logger::disabled::Logger::sub(&logger,"dirty.removed_children"),None);
+        let transform        = TransformDirty  :: new(logger::disabled::Logger::sub(&logger,"dirty.transform"),None);
         let callback         = Rc::new(RefCell::new(Box::new(||{}) as Box<dyn Fn()>));
 
         let on_mut = enclose!((callback) move || (callback.borrow())() );
@@ -139,24 +144,24 @@ impl<Host> DirtyFlags<Host> {
 
 
 // =================
-// === InstanceModel ===
+// === Model ===
 // =================
 
 /// A hierarchical representation of object containing a position, a scale and a rotation.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct InstanceModel<Host=Scene> {
+pub struct Model<Host=Scene> {
     host        : PhantomData <Host>,
     dirty       : DirtyFlags  <Host>,
     callbacks   : Callbacks   <Host>,
-    parent_bind : CloneCell   <Option<ParentBind<Host>>>,
-    children    : RefCell     <OptVec<WeakNode<Host>>>,
+    parent_bind : RefCell     <Option<ParentBind<Host>>>,
+    children    : RefCell     <OptVec<WeakInstance<Host>>>,
     transform   : Cell        <CachedTransform>,
     visible     : Cell        <bool>,
     logger      : Logger,
 }
 
-impl<Host> InstanceModel<Host> {
+impl<Host> Model<Host> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
         let logger      = Logger::from_logger(logger);
@@ -177,12 +182,12 @@ impl<Host> InstanceModel<Host> {
 
     /// Checks whether the object is orphan (do not have parent object attached).
     pub fn is_orphan(&self) -> bool {
-        self.parent_bind.get().is_none()
+        self.parent_bind.borrow().is_none()
     }
 
     /// Parent object getter.
     pub fn parent(&self) -> Option<Instance<Host>> {
-        self.parent_bind.get().and_then(|t|t.parent())
+        self.parent_bind.borrow().as_ref().and_then(|t|t.parent())
     }
 
     /// Count of children objects.
@@ -205,24 +210,22 @@ impl<Host> InstanceModel<Host> {
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self, host:&Host) {
         let origin0 = Matrix4::identity();
-        self.update_origin(host,origin0,false)
+        self.update_with_origin(host,origin0,false)
     }
 
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
-    fn update_origin(&self, host:&Host, parent_origin:Matrix4<f32>, force:bool) {
+    fn update_with_origin
+    (&self, host:&Host, parent_origin:Matrix4<f32>, parent_origin_changed:bool) {
         self.update_visibility(host);
-        let parent_changed = self.dirty.parent.check();
-        let use_origin     = force || parent_changed;
-        let new_origin     = use_origin.as_some(parent_origin);
-        let msg            = match new_origin {
-            Some(_) => "Update with new parent origin.",
-            None    => "Update with old parent origin."
-        };
-        group!(self.logger, "{msg}", {
+        let has_new_parent      = self.dirty.parent.check();
+        let is_origin_dirty     = has_new_parent || parent_origin_changed;
+        let new_parent_origin   = is_origin_dirty.as_some(parent_origin);
+        let parent_origin_label = if new_parent_origin.is_some() {"new"} else {"old"};
+        group!(self.logger, "Update with {parent_origin_label} parent origin.", {
             let mut transform  = self.transform.get();
-            let origin_changed = transform.update(new_origin);
-            let origin         = transform.matrix;
+            let origin_changed = transform.update(new_parent_origin);
+            let new_origin     = transform.matrix;
             self.transform.set(transform);
             if origin_changed {
                 self.logger.info("Self origin changed.");
@@ -230,7 +233,7 @@ impl<Host> InstanceModel<Host> {
                 if !self.children.borrow().is_empty() {
                     group!(self.logger, "Updating all children.", {
                         self.children.borrow().iter().for_each(|child| {
-                            child.upgrade().for_each(|t| t.update_origin(host,origin,true));
+                            child.upgrade().for_each(|t| t.update_with_origin(host,new_origin,true));
                         });
                     })
                 }
@@ -239,7 +242,9 @@ impl<Host> InstanceModel<Host> {
                 if self.dirty.children.check_all() {
                     group!(self.logger, "Updating dirty children.", {
                         self.dirty.children.take().iter().for_each(|ix| {
-                            self.children.borrow()[*ix].upgrade().for_each(|t| t.update_origin(host,origin,false))
+                            self.children.borrow()[*ix].upgrade().for_each(|t| {
+                                t.update_with_origin(host,new_origin,false);
+                            })
                         });
                     })
                 }
@@ -252,6 +257,15 @@ impl<Host> InstanceModel<Host> {
 
     /// Internal
     fn update_visibility(&self, host:&Host) {
+        self.hide_removed_children(host);
+        let parent_changed = self.dirty.parent.check();
+        let foo = self.is_orphan();
+        if parent_changed && !foo {
+            self.show(host)
+        }
+    }
+
+    pub fn hide_removed_children(&self, host:&Host) {
         if self.dirty.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
                 self.dirty.removed_children.take().into_iter().for_each(|child| {
@@ -263,14 +277,10 @@ impl<Host> InstanceModel<Host> {
                 });
             })
         }
-
-        let parent_changed = self.dirty.parent.check();
-        if parent_changed && !self.is_orphan() {
-            self.show(host)
-        }
     }
 
     pub fn hide(&self, host:&Host) {
+        self.hide_removed_children(host);
         if self.visible.get() {
             self.logger.info("Hiding.");
             self.visible.set(false);
@@ -307,7 +317,7 @@ impl<Host> InstanceModel<Host> {
 
 // === Private API ===
 
-impl<Host> InstanceModel<Host> {
+impl<Host> Model<Host> {
     fn register_child<T:Object<Host>>(&self, child:&T) -> usize {
         let child = child.display_object().clone();
         let index = self.children.borrow_mut().insert(child.downgrade());
@@ -317,7 +327,7 @@ impl<Host> InstanceModel<Host> {
 
     /// Removes and returns the parent bind. Please note that the parent is not updated.
     fn take_parent_bind(&self) -> Option<ParentBind<Host>> {
-        self.parent_bind.take()
+        self.parent_bind.borrow_mut().take()
     }
 
     /// Removes the binding to the parent object. This is internal operation. Parent is not updated.
@@ -335,7 +345,7 @@ impl<Host> InstanceModel<Host> {
             let dirty = parent.dirty.children.clone_ref();
             self.dirty.set_callback(move || dirty.set(index));
             self.dirty.parent.set();
-            self.parent_bind.set(Some(bind));
+            *self.parent_bind.borrow_mut() = Some(bind);
         }
     }
 }
@@ -343,11 +353,10 @@ impl<Host> InstanceModel<Host> {
 
 // === Getters ===
 
-impl<Host> InstanceModel<Host> {
-    /// Gets a clone of parent bind.
-    pub fn parent_bind(&self) -> Option<ParentBind<Host>> {
-        self.parent_bind.get()
-    }
+impl<Host> Model<Host> {
+    // pub fn parent_bind(&self) -> Option<ParentBind<Host>> {
+    //     self.parent_bind.get()
+    // }
 
     pub fn global_position(&self) -> Vector3<f32> {
         self.transform.get().global_position()
@@ -373,7 +382,7 @@ impl<Host> InstanceModel<Host> {
 
 // === Setters ===
 
-impl<Host> InstanceModel<Host> {
+impl<Host> Model<Host> {
     fn with_transform<F,T>(&self, f:F) -> T
     where F : FnOnce(&mut CachedTransform) -> T {
 //        if let Some(bind) = self.parent_bind.get() {
@@ -411,7 +420,7 @@ impl<Host> InstanceModel<Host> {
         self.with_transform(|t| t.mod_scale(f));
     }
 
-    pub fn set_on_updated<F:Fn(&InstanceModel<Host>)+'static>(&self, f:F) {
+    pub fn set_on_updated<F:Fn(&Model<Host>)+'static>(&self, f:F) {
         self.callbacks.on_updated.set(Box::new(f))
     }
 
@@ -447,7 +456,7 @@ pub struct Id(usize);
 #[derive(CloneRef)]
 #[derivative(Clone(bound=""))]
 pub struct Instance<Host=Scene> {
-    pub rc : Rc<InstanceModel<Host>>
+    pub rc : Rc<Model<Host>>
 }
 
 impl<Host> Instance<Host> {
@@ -457,12 +466,12 @@ impl<Host> Instance<Host> {
 
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
-        Self {rc:Rc::new(InstanceModel::new(logger))}
+        Self {rc:Rc::new(Model::new(logger))}
     }
 
-    pub fn downgrade(&self) -> WeakNode<Host> {
+    pub fn downgrade(&self) -> WeakInstance<Host> {
         let weak = Rc::downgrade(&self.rc);
-        WeakNode{weak}
+        WeakInstance{weak}
     }
 }
 
@@ -511,7 +520,7 @@ impl<Host> Instance<Host> {
 
     /// Removes the current parent binding.
     pub fn _unset_parent(&self) {
-        self.take_parent_bind().for_each(|t| t.dispose());
+        self.take_parent_bind();
     }
 
     /// Checks if the provided object is child of the current one.
@@ -521,13 +530,13 @@ impl<Host> Instance<Host> {
 
     /// Checks if the object has a parent.
     pub fn _has_parent(&self) -> bool {
-        self.rc.parent_bind().is_some()
+        self.rc.parent_bind.borrow().is_some()
     }
 
     /// Returns the index of the provided object if it was a child of the current one.
     pub fn child_index<T:Object<Host>>(&self, child:&T) -> Option<usize> {
         let child = child.display_object();
-        child.parent_bind().and_then(|bind| {
+        child.parent_bind.borrow().as_ref().and_then(|bind| {
             if bind.parent().as_ref() == Some(self) { Some(bind.index) } else { None }
         })
     }
@@ -538,7 +547,7 @@ impl<Host> Instance<Host> {
 
 impl<Host> Instance<Host> {
     pub fn index(&self) -> Option<usize> {
-        self.parent_bind().map(|t| t.index)
+        self.parent_bind.borrow().as_ref().map(|t| t.index)
     }
 }
 
@@ -566,17 +575,17 @@ impl<Host> Debug for Instance<Host> {
 
 
 // ================
-// === WeakNode ===
+// === WeakInstance ===
 // ================
 
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
-pub struct WeakNode<Host> {
-    pub weak : Weak<InstanceModel<Host>>
+pub struct WeakInstance<Host> {
+    pub weak : Weak<Model<Host>>
 }
 
-impl<Host> WeakNode<Host> {
+impl<Host> WeakInstance<Host> {
     pub fn upgrade(&self) -> Option<Instance<Host>> {
         self.weak.upgrade().map(|rc| Instance {rc})
     }
@@ -584,7 +593,7 @@ impl<Host> WeakNode<Host> {
 
 // FIXME: This is not a valid implementation as the pointers may alias when one instance was dropped
 //        and other was created in the same location.
-impl<Host> PartialEq for WeakNode<Host> {
+impl<Host> PartialEq for WeakInstance<Host> {
     fn eq(&self, other:&Self) -> bool {
         self.weak.ptr_eq(&other.weak)
     }

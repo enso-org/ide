@@ -64,6 +64,7 @@ pub use enso_types as types;
 /// Prelude - commonly used utilities.
 pub mod prelude {
     pub use enso_prelude::*;
+    pub use logger;
     pub use logger::*;
     pub use logger::AnyLogger;
     pub use logger::disabled::Logger;
