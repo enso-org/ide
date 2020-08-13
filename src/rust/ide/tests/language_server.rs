@@ -81,7 +81,7 @@ async fn ls_text_protocol_test() {
     let response           = client.write_file(&visualisation_file,&contents).await;
     response.expect("Couldn't write visualisation file.");
 
-    let package_file = Path{root_id,segments:vec!["package.yaml".into()]};
+    let package_file = Path::new(root_id,&["package.yaml"]);
     let contents     = PACKAGE_YAML.to_string();
     let response     = client.write_file(&package_file,&contents).await;
     response.expect("Couldn't write yaml file.");
