@@ -199,13 +199,15 @@ impl GraphEditorIntegratedWithController {
             GraphEditorIntegratedWithControllerModel::connection_removed_in_ui,&invalidate.trigger);
         let node_moved = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_moved_in_ui,&invalidate.trigger);
+        let node_expression_set = Self::ui_action(&model,
+            GraphEditorIntegratedWithControllerModel::node_expression_set_in_ui,&invalidate.trigger);
         let visualization_enabled = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::visualization_enabled_in_ui,
             &invalidate.trigger);
         let visualization_disabled = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::visualization_disabled_in_ui,
             &invalidate.trigger);
-        frp::extend! {network
+        frp::extend! {TRACE_ALL network
             // Notifications from controller
             let handle_notification = FencedAction::fence(&network,
                 f!((notification:&Option<controller::graph::executed::Notification>)
@@ -223,6 +225,7 @@ impl GraphEditorIntegratedWithController {
             _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
             _action <- editor_outs.connection_removed       .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
+            _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
         }
         Self::connect_frp_to_controller_notifications(&model,handle_notification.trigger);
         Self {model,network}
@@ -559,6 +562,7 @@ impl GraphEditorIntegratedWithControllerModel {
         use controller::graph::executed::Notification;
         use controller::graph::Notification::Invalidate;
 
+        debug!(self.logger, "Received notification {notification:?}");
         let result = match notification {
             Some(Notification::Graph(Invalidate))         => self.on_invalidated(),
             Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
@@ -592,13 +596,19 @@ impl GraphEditorIntegratedWithControllerModel {
         Ok(())
     }
 
-    fn node_moved_in_ui(&self, param:&(graph_editor::NodeId, Vector2)) -> FallibleResult<()> {
-        let (displayed_id,pos) = param;
+    fn node_moved_in_ui
+    (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult<()> {
         let id                 = self.get_controller_node_id(*displayed_id)?;
         self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
             md.position = Some(model::module::Position::new(pos.x,pos.y));
         }));
         Ok(())
+    }
+
+    fn node_expression_set_in_ui
+    (&self, (displayed_id,expression):&(graph_editor::NodeId,String)) -> FallibleResult<()> {
+        let id                 = self.get_controller_node_id(*displayed_id)?;
+        self.controller.graph().set_expression(id,expression)
     }
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {

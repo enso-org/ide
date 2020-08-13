@@ -519,7 +519,7 @@ generate_frp_outputs! {
     node_deselected           : NodeId,
     node_position_set         : (NodeId,Vector2),
     node_position_set_batched : (NodeId,Vector2),
-    node_expression_set       : (NodeId,node::Expression),
+    node_expression_set       : (NodeId,String),
     node_entered              : NodeId,
     node_exited               : (),
 
@@ -938,10 +938,10 @@ impl GraphEditorModelWithNetwork {
 
     fn new_node
     ( &self
-    , cursor_style    : &frp::Source<cursor::Style>
-    , output_press    : &frp::Source<EdgeTarget>
-    , input_press     : &frp::Source<EdgeTarget>
-    , _expression_set : &frp::Source<(NodeId,node::Expression)>
+    , cursor_style   : &frp::Source<cursor::Style>
+    , output_press   : &frp::Source<EdgeTarget>
+    , input_press    : &frp::Source<EdgeTarget>
+    , expression_set : &frp::Source<(NodeId,String)>
     ) -> NodeId {
         let view    = component::Node::new(&self.app);
         let node    = Node::new(view);
@@ -978,8 +978,7 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_output.emit(None)
             );
 
-            // FIXME[WD]: We cannot connect it here as we do not know new span tree.
-            // eval node.frp.expression((t) expression_set.emit((node_id,t.clone_ref())));
+            eval node.frp.expression((t) expression_set.emit((node_id,t.into())));
         }
 
         self.nodes.insert(node_id,node);
@@ -1640,7 +1639,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Selection Target Redirection ===
 
-    frp::extend! { network
+    frp::extend! { TRACE_ALL network
         mouse_down_target <- mouse.down.map(f_!(model.scene().mouse.target.get()));
         mouse_up_target   <- mouse.up.map(f_!(model.scene().mouse.target.get()));
         background_up     <- mouse_up_target.map(|t| if t==&display::scene::Target::Background {Some(())} else {None}).unwrap();
@@ -1972,7 +1971,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Set Node Expression ===
     frp::extend! { network
 
-    outputs.node_expression_set <+ inputs.set_node_expression;
+    set_node_expression_string  <- inputs.set_node_expression.map(|(id,expr)| (*id,expr.code.clone()));
+    outputs.node_expression_set <+ set_node_expression_string;
 
 
 
@@ -2315,7 +2315,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval outputs.node_deselected        ((id) model.deselect_node(id));
     eval outputs.edge_removed           ((id) model.remove_edge(id));
     eval outputs.node_removed           ((id) model.remove_node(id));
-    eval outputs.node_expression_set    (((id,expr)) model.set_node_expression(id,expr));
+    // TODO[ao] I must break the pattern, because output emits only String, but we need full
+    // expression here
+    eval inputs.set_node_expression     (((id,expr)) model.set_node_expression(id,expr));
     eval outputs.visualization_enabled  ((id) model.enable_visualization(id));
     eval outputs.visualization_disabled ((id) model.disable_visualization(id));
     eval outputs.visualization_enable_fullscreen ((id) model.enable_visualization_fullscreen(id));
