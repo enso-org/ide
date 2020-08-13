@@ -60,8 +60,9 @@ impl {
                 panel.end();
             }
             self.monitor.draw();
-            self.stats.reset_per_frame_statistics();
         }
+        // This should be done even when hidden in order for the stats not to overflow limits.
+        self.stats.reset_per_frame_statistics();
     }
 
     /// Checks if the monitor is visible.

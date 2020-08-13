@@ -1,17 +1,17 @@
 #![allow(missing_docs)]
 
-use ensogl::traits::*;
+use ensogl_core::traits::*;
 
-use ensogl::display::camera::Camera2d;
-use ensogl::display::navigation::navigator::Navigator;
-use ensogl::display::symbol::geometry::Sprite;
-use ensogl::display::symbol::geometry::SpriteSystem;
-use ensogl::display::world::*;
-use ensogl::prelude::*;
-use ensogl::system::web::forward_panic_hook_to_console;
-use ensogl::system::web::set_stdout;
-use ensogl::system::web;
-use ensogl::animation;
+use ensogl_core::display::camera::Camera2d;
+use ensogl_core::display::navigation::navigator::Navigator;
+use ensogl_core::display::symbol::geometry::Sprite;
+use ensogl_core::display::symbol::geometry::SpriteSystem;
+use ensogl_core::display::world::*;
+use ensogl_core::prelude::*;
+use ensogl_core::system::web::forward_panic_hook_to_console;
+use ensogl_core::system::web::set_stdout;
+use ensogl_core::system::web;
+use ensogl_core::animation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;

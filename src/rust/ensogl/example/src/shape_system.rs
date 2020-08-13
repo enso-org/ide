@@ -4,16 +4,16 @@
 //! This file is under a heavy development. It contains commented lines of code and some code may
 //! be of poor quality. Expect drastic changes.
 
-use ensogl::prelude::*;
+use ensogl_core::prelude::*;
 
-use ensogl::display::navigation::navigator::Navigator;
-use ensogl::system::web;
+use ensogl_core::display::navigation::navigator::Navigator;
+use ensogl_core::system::web;
 use wasm_bindgen::prelude::*;
-use ensogl::display::object::ObjectOps;
-use ensogl::display::shape::ShapeSystem;
-use ensogl::display::world::*;
-use ensogl::display::shape::*;
-use ensogl::data::color;
+use ensogl_core::display::object::ObjectOps;
+use ensogl_core::display::shape::ShapeSystem;
+use ensogl_core::display::world::*;
+use ensogl_core::display::shape::*;
+use ensogl_core::data::color;
 
 
 

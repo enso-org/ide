@@ -1,16 +1,16 @@
 #![allow(missing_docs)]
 
-use ensogl::traits::*;
+use ensogl_core::traits::*;
+use ensogl_core::prelude::*;
 
-use ensogl::system::web;
-use ensogl::system::web::NodeInserter;
-use ensogl::display::symbol::DomSymbol;
+use ensogl_core::system::web;
+use ensogl_core::system::web::NodeInserter;
+use ensogl_core::display::symbol::DomSymbol;
+use ensogl_core::display::symbol::geometry::Sprite;
+use ensogl_core::display::symbol::geometry::SpriteSystem;
+use ensogl_core::display::world::*;
+use ensogl_core::display::navigation::navigator::Navigator;
 use web::StyleSetter;
-use ensogl::display::symbol::geometry::Sprite;
-use ensogl::display::symbol::geometry::SpriteSystem;
-use ensogl::display::world::*;
-use ensogl::display::navigation::navigator::Navigator;
-use ensogl::prelude::*;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;

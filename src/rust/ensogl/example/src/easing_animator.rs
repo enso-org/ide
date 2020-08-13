@@ -2,14 +2,14 @@
 
 use crate::prelude::*;
 
-use ensogl::animation::easing::*;
-use ensogl::animation;
-use ensogl::system::web::AttributeSetter;
-use ensogl::system::web::create_element;
-use ensogl::system::web::get_element_by_id;
-use ensogl::system::web::NodeInserter;
-use ensogl::system::web::StyleSetter;
-use ensogl::system::web;
+use ensogl_core::animation::easing::*;
+use ensogl_core::animation;
+use ensogl_core::system::web::AttributeSetter;
+use ensogl_core::system::web::create_element;
+use ensogl_core::system::web::get_element_by_id;
+use ensogl_core::system::web::NodeInserter;
+use ensogl_core::system::web::StyleSetter;
+use ensogl_core::system::web;
 use js_sys::Math;
 use nalgebra::Vector2;
 use std::ops::Add;

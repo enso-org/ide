@@ -1,12 +1,12 @@
 //! An example showing usage of GlyphSystem.
 
-use ensogl::prelude::*;
+use ensogl_core::prelude::*;
 
-use ensogl::data::color;
-use ensogl::display::shape::text::glyph::font;
-use ensogl::display::shape::text::glyph::system::GlyphSystem;
-use ensogl::display::world::*;
-use ensogl::system::web;
+use ensogl_core::data::color;
+use ensogl_core::display::shape::text::glyph::font;
+use ensogl_core::display::shape::text::glyph::system::GlyphSystem;
+use ensogl_core::display::world::*;
+use ensogl_core::system::web;
 use ensogl_core_msdf_sys::run_once_initialized;
 use wasm_bindgen::prelude::*;
 

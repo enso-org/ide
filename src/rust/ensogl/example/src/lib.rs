@@ -30,7 +30,6 @@
 
 pub mod dom_symbols;
 pub mod easing_animator;
-pub mod frp;
 pub mod glyph_system;
 pub mod shape_system;
 pub mod sprite_system;
@@ -40,5 +39,5 @@ pub mod error;
 
 /// Common types that should be visible across the whole crate.
 pub mod prelude {
-    pub use ensogl::prelude::*;
+    pub use ensogl_core::prelude::*;
 }

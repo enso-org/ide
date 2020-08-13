@@ -1,17 +1,17 @@
 #![allow(missing_docs)]
 
-use ensogl::traits::*;
+use ensogl_core::traits::*;
 
-use ensogl::display::camera::Camera2d;
-use ensogl::display::navigation::navigator::Navigator;
-use ensogl::display::symbol::geometry::Sprite;
-use ensogl::display::symbol::geometry::SpriteSystem;
-use ensogl::display::world::*;
-use ensogl::prelude::*;
-use ensogl::system::web::forward_panic_hook_to_console;
-use ensogl::system::web::set_stdout;
-use ensogl::system::web;
-use ensogl::animation;
+use ensogl_core::display::camera::Camera2d;
+use ensogl_core::display::navigation::navigator::Navigator;
+use ensogl_core::display::symbol::geometry::Sprite;
+use ensogl_core::display::symbol::geometry::SpriteSystem;
+use ensogl_core::display::world::*;
+use ensogl_core::prelude::*;
+use ensogl_core::system::web::forward_panic_hook_to_console;
+use ensogl_core::system::web::set_stdout;
+use ensogl_core::system::web;
+use ensogl_core::animation;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
@@ -105,13 +105,8 @@ pub fn on_frame
             y += (z * 1.25 + t * 2.00).cos() * 0.5;
             z += (x * 1.25 + t * 3.25).cos() * 0.5;
 
-            let position = Vector3::new(x * 150.0 + half_width, y * 150.0 + half_height, z * 150.0);
+            let position = Vector3::new(x * 150.0 + half_width - 75.0, y * 150.0 + half_height - 75.0, z * 150.0);
             sprite.set_position(position);
         }
     }
-
-    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
-    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
-    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
-    // sprite_system.display_object().update();
 }

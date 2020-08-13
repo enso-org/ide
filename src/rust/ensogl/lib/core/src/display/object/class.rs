@@ -33,6 +33,7 @@ pub struct ParentBind<Host> {
 }
 
 impl<Host> ParentBind<Host> {
+    // FIXME: why not drop?
     pub fn dispose(&self) {
         self.parent().for_each(|p|p.remove_child_by_index(self.index));
     }
@@ -57,13 +58,13 @@ impl<Host> ParentBind<Host> {
 #[derivative(Default(bound=""))]
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
-    pub on_updated   : RefCell<Option<Box<dyn Fn(&NodeModel<Host>)>>>,
-    pub on_show : RefCell<Option<Box<dyn Fn(&Host)>>>,
-    pub on_hide : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    pub on_updated : RefCell<Option<Box<dyn Fn(&InstanceModel<Host>)>>>,
+    pub on_show    : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    pub on_hide    : RefCell<Option<Box<dyn Fn(&Host)>>>,
 }
 
 impl<Host> Callbacks<Host> {
-    pub fn on_updated(&self, data:&NodeModel<Host>) {
+    pub fn on_updated(&self, data:&InstanceModel<Host>) {
         if let Some(f) = &*self.on_updated.borrow() { f(data) }
     }
 
@@ -138,13 +139,13 @@ impl<Host> DirtyFlags<Host> {
 
 
 // =================
-// === NodeModel ===
+// === InstanceModel ===
 // =================
 
 /// A hierarchical representation of object containing a position, a scale and a rotation.
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
-pub struct NodeModel<Host=Scene> {
+pub struct InstanceModel<Host=Scene> {
     host        : PhantomData <Host>,
     dirty       : DirtyFlags  <Host>,
     callbacks   : Callbacks   <Host>,
@@ -155,7 +156,7 @@ pub struct NodeModel<Host=Scene> {
     logger      : Logger,
 }
 
-impl<Host> NodeModel<Host> {
+impl<Host> InstanceModel<Host> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
         let logger      = Logger::from_logger(logger);
@@ -306,7 +307,7 @@ impl<Host> NodeModel<Host> {
 
 // === Private API ===
 
-impl<Host> NodeModel<Host> {
+impl<Host> InstanceModel<Host> {
     fn register_child<T:Object<Host>>(&self, child:&T) -> usize {
         let child = child.display_object().clone();
         let index = self.children.borrow_mut().insert(child.downgrade());
@@ -342,7 +343,7 @@ impl<Host> NodeModel<Host> {
 
 // === Getters ===
 
-impl<Host> NodeModel<Host> {
+impl<Host> InstanceModel<Host> {
     /// Gets a clone of parent bind.
     pub fn parent_bind(&self) -> Option<ParentBind<Host>> {
         self.parent_bind.get()
@@ -372,7 +373,7 @@ impl<Host> NodeModel<Host> {
 
 // === Setters ===
 
-impl<Host> NodeModel<Host> {
+impl<Host> InstanceModel<Host> {
     fn with_transform<F,T>(&self, f:F) -> T
     where F : FnOnce(&mut CachedTransform) -> T {
 //        if let Some(bind) = self.parent_bind.get() {
@@ -410,7 +411,7 @@ impl<Host> NodeModel<Host> {
         self.with_transform(|t| t.mod_scale(f));
     }
 
-    pub fn set_on_updated<F:Fn(&NodeModel<Host>)+'static>(&self, f:F) {
+    pub fn set_on_updated<F:Fn(&InstanceModel<Host>)+'static>(&self, f:F) {
         self.callbacks.on_updated.set(Box::new(f))
     }
 
@@ -446,7 +447,7 @@ pub struct Id(usize);
 #[derive(CloneRef)]
 #[derivative(Clone(bound=""))]
 pub struct Instance<Host=Scene> {
-    pub rc : Rc<NodeModel<Host>>
+    pub rc : Rc<InstanceModel<Host>>
 }
 
 impl<Host> Instance<Host> {
@@ -456,7 +457,7 @@ impl<Host> Instance<Host> {
 
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
-        Self {rc:Rc::new(NodeModel::new(logger))}
+        Self {rc:Rc::new(InstanceModel::new(logger))}
     }
 
     pub fn downgrade(&self) -> WeakNode<Host> {
@@ -572,7 +573,7 @@ impl<Host> Debug for Instance<Host> {
 #[derivative(Clone(bound=""))]
 #[derivative(Debug(bound=""))]
 pub struct WeakNode<Host> {
-    pub weak : Weak<NodeModel<Host>>
+    pub weak : Weak<InstanceModel<Host>>
 }
 
 impl<Host> WeakNode<Host> {
