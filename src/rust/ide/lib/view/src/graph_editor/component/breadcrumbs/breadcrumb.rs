@@ -48,20 +48,21 @@ const ICON_RING_WIDTH      : f32 = (ICON_RADIUS/4.0) as i32 as f32;
 const ICON_ARROW_SIZE      : f32 = (ICON_RADIUS/1.5) as i32 as f32;
 const SEPARATOR_SIZE       : f32 = 8.0;
 const SEPARATOR_LINE_WIDTH : f32 = 3.0;
-const PADDING              : f32 = 1.0;
+/// Breadcrumb padding.
+pub const PADDING          : f32 = 1.0;
 const SEPARATOR_MARGIN     : f32 = HORIZONTAL_MARGIN;
 
 
 // === Colors ===
 
 const FULL_COLOR        : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.7);
-const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
+const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.4);
 /// Breadcrumb color when selected.
-pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,1.0,0.0,1.0);
+pub const SELECTED_COLOR : color::Rgba = FULL_COLOR;
 /// Breadcrumb color when it's deselected on the left of the selected breadcrumb.
-pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,1.0);
+pub const LEFT_DESELECTED_COLOR : color::Rgba = TRANSPARENT_COLOR;
 /// Breadcrumb color when it's deselected on the right of the selected breadcrumb.
-pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,1.0,1.0);
+pub const RIGHT_DESELECTED_COLOR : color::Rgba = TRANSPARENT_COLOR;
 /// Breadcrumb color when hovered.
 pub const HOVER_COLOR : color::Rgba = FULL_COLOR;
 
@@ -346,12 +347,13 @@ impl BreadcrumbModel {
 
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.fade_in(0.0);
-        let separator_size = (SEPARATOR_SIZE+PADDING).max(0.0);
-        let icon_size      = (ICON_SIZE+PADDING).max(0.0);
+        let separator_size = (SEPARATOR_SIZE+PADDING*2.0).max(0.0);
+        let icon_size      = (ICON_SIZE+PADDING*2.0).max(0.0);
         self.separator.shape.sprite.size.set(Vector2::new(separator_size,separator_size));
         self.separator.set_position_x((offset-width/2.0).round());
         self.icon.shape.sprite.size.set(Vector2::new(icon_size,icon_size));
-        self.icon.set_position_x((offset+ICON_SIZE/2.0+LEFT_MARGIN+ICON_LEFT_MARGIN).round());
+        let x_position = offset+PADDING+ICON_SIZE/2.0+LEFT_MARGIN+ICON_LEFT_MARGIN;
+        self.icon.set_position_x(x_position.round());
 
         self
     }
@@ -367,7 +369,7 @@ impl BreadcrumbModel {
     /// Get the width of the view.
     pub fn width(&self) -> f32 {
         let width = self.compute_separator_margin()*2.0+SEPARATOR_SIZE+ICON_SIZE+ICON_RIGHT_MARGIN;
-        let width = width+self.label_width()+LEFT_MARGIN+RIGHT_MARGIN+ICON_LEFT_MARGIN;
+        let width = width+self.label_width()+LEFT_MARGIN+RIGHT_MARGIN+ICON_LEFT_MARGIN+PADDING*2.0;
         width.ceil()
     }
 
@@ -380,7 +382,7 @@ impl BreadcrumbModel {
         let width      = self.width();
         let height     = self.height();
         let x_position = width*value/2.0;
-        let y_position = -height/2.0-TOP_MARGIN;
+        let y_position = -height/2.0-TOP_MARGIN-PADDING;
         self.view.set_position(Vector3(x_position.round(),y_position.round(),0.0));
     }
 

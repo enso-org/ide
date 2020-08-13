@@ -602,7 +602,10 @@ impl View {
     }
 
     pub fn add(&self, symbol:&Symbol) {
-        self.symbols.borrow_mut().push(symbol.id as usize); // TODO strange conversion
+        let mut symbols = self.symbols.borrow_mut();
+        if symbols.iter().find(|id| **id == symbol.id as usize).is_none() {
+            symbols.push(symbol.id as usize); // TODO strange conversion
+        }
     }
 
     pub fn remove(&self, symbol:&Symbol) {
