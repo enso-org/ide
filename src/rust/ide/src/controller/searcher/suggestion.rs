@@ -110,10 +110,7 @@ impl List {
     ///
     /// The list will assume that the filtering pattern is an empty string.
     pub fn from_suggestions(suggestions:impl IntoIterator<Item=Suggestion>) -> Self {
-        let entries = suggestions.into_iter().map(ListEntry::from).collect();
-        Self {
-            entries : RefCell::new(entries)
-        }
+        Self {entries:RefCell::new(suggestions.into_iter().map(ListEntry::from).collect())}
     }
 
     /// Update the list filtering.

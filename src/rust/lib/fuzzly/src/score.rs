@@ -138,12 +138,12 @@ pub fn matches(text:impl Str, pattern:impl Str) -> bool {
     let mut pattern_chars     = pattern.as_ref().chars();
     let mut next_pattern_char = pattern_chars.next();
     for text_char in text.as_ref().chars() {
-        if let Some(pattern_char) = next_pattern_char {
-            if pattern_char.eq_ignore_ascii_case(&text_char) {
+        match next_pattern_char {
+            Some(ch) if ch.eq_ignore_ascii_case(&text_char) => {
                 next_pattern_char = pattern_chars.next()
-            }
-        } else {
-            break;
+            },
+            Some(_) => {},
+            None    => { break; }
         }
     }
     next_pattern_char.is_none()
@@ -165,19 +165,12 @@ impl Subsequence {
     /// sort items by their matching score. Therefore this function assumes that all NaNs are the
     /// lowest values.
     pub fn compare_scores(&self, rhs:&Subsequence) -> std::cmp::Ordering {
-        if self.score.is_nan() && rhs.score.is_nan() {
-            std::cmp::Ordering::Equal
-        } else if self.score.is_nan() {
-            std::cmp::Ordering::Less
-        } else if rhs.score.is_nan() {
-            std::cmp::Ordering::Greater
-        } else if self.score < rhs.score {
-            std::cmp::Ordering::Less
-        } else if self.score > rhs.score {
-            std::cmp::Ordering::Greater
-        } else {
-            std::cmp::Ordering::Equal
-        }
+        if      self.score.is_nan() && rhs.score.is_nan() { std::cmp::Ordering::Equal   }
+        else if self.score.is_nan()                       { std::cmp::Ordering::Less    }
+        else if rhs.score.is_nan()                        { std::cmp::Ordering::Greater }
+        else if self.score < rhs.score                    { std::cmp::Ordering::Less    }
+        else if self.score > rhs.score                    { std::cmp::Ordering::Greater }
+        else                                              { std::cmp::Ordering::Equal   }
     }
 }
 
@@ -194,7 +187,7 @@ impl Subsequence {
 /// `SubsequenceGraph` docs for detailed description of the graph.
 pub fn find_best_subsequence
 (text:impl Str, pattern:impl Str, metric:impl Metric) -> Option<Subsequence> {
-    let text  = text.as_ref();
+    let text    = text.as_ref();
     let pattern = pattern.as_ref();
     if pattern.is_empty() {
         Some(default())

@@ -93,7 +93,7 @@ impl Metric for SubsequentLettersBonus {
     fn measure_vertex(&self, vertex:subsequence_graph::Vertex, text: &str, _pattern: &str) -> f32 {
         let is_first_pattern_char = vertex.layer == 0;
         let is_last_pattern_char  = text.len().checked_sub(1).contains(&vertex.layer);
-        let first_char_bonus    = if is_first_pattern_char {
+        let first_char_bonus      = if is_first_pattern_char {
             self.base_weight / (vertex.position_in_text as f32 + 1.0) * self.beginning_weight
         } else {0.0};
         let last_char_bonus = if is_last_pattern_char {
