@@ -60,6 +60,8 @@ impl ReferentName {
         // TODO [mwu]
         //  We should be able to call parser or sth to verify that other requirements for the
         //  referent form identifiers are fulfilled.
+        //  This is expected to become properly possible when the Rust rewrite of parser is done.
+        //  See: https://github.com/enso-org/enso/issues/435
         let first_char = name.chars().next();
         match first_char {
             Some(c) if c.is_uppercase() => Ok(()),

@@ -55,12 +55,6 @@ impl Id {
         Self::new(segments).map_err(Into::into)
     }
 
-    /// Build module's qualified name for a project with a given name.
-    pub fn qualified(&self, project_name:impl Into<String>) -> QualifiedName {
-        // TODO why safe?
-        QualifiedName::from_segments(project_name,&self.segments).unwrap()
-    }
-
     /// Get the segments of the module's path. They correspond to the module's file parent
     /// directories, relative to the project's main source directory.
     ///
