@@ -1,14 +1,12 @@
 use crate::prelude::*;
 
-use enso_frp as frp;
 use ensogl_core::display::navigation::navigator::Navigator;
 use ensogl_core::system::web;
 use ensogl_core::application::Application;
-use ensogl_core::data::color;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_core::display::shape::*;
 use ensogl_core::display::style::theme;
-use ensogl_core::gui;
+use ensogl_core::data::color;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_select as select;
 use logger::enabled::Logger;
@@ -31,7 +29,6 @@ pub fn run_example_select_control() {
 
 
 
-
 // ====================
 // === Mock Entries ===
 // ====================
@@ -39,11 +36,12 @@ pub fn run_example_select_control() {
 mod icon {
     use super::*;
     ensogl_core::define_shape_system! {
-        (style:Style) {
-            let width  = select::entry::ICON_WIDTH.px();
-            let height = select::entry::ICON_WIDTH.px();
+        (style:Style,id:f32) {
+            let width  = select::entry::ICON_SIZE.px();
+            let height = select::entry::ICON_SIZE.px();
+            let color  : Var<color::Rgba> = "rgba(input_id/16.0,0.0,0.0,1.0)".into();
             let radius = 4.0.px();
-            Rect((&width,&height)).into()
+            Rect((&width,&height)).fill(color).into()
         }
     }
 }
@@ -65,7 +63,8 @@ impl MockEntries {
         let scene   = app.display.scene();
         let entries = (0..entries_count).map(|id| {
             let icon = gui::component::ShapeView::<icon::Shape>::new(&logger,scene);
-            icon.shape.sprite.size.set(Vector2(select::entry::ICON_WIDTH,select::entry::ICON_WIDTH));
+            icon.shape.sprite.size.set(Vector2(select::entry::ICON_SIZE,select::entry::ICON_SIZE));
+            icon.shape.id.set(id as f32);
             MockEntry {id,icon}
         });
         Self {
@@ -122,9 +121,10 @@ fn init(app:&Application) {
 
     // std::mem::forget(entry_container);
 
-    let select = select::component::Select::new(app);
+    let provider:select::entry::AnyModelProvider = MockEntries::new(app,13).into();
+    let select                                   = app.new_view::<select::component::Select>();
     select.frp.resize(Vector2(100.0,150.0));
-    select.frp.set_entries(MockEntries::new(app,13));
+    select.frp.set_entries(provider);
     app.display.add_child(&select);
     std::mem::forget(select);
 }

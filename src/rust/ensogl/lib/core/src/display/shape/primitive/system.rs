@@ -318,13 +318,15 @@ macro_rules! _define_shape_system {
             -> $crate::display::shape::primitive::def::AnyShape {
                 #[allow(unused_imports)]
                 use $crate::display::style::data::DataMatch; // Operations styles.
+
+                __style_watch__.reset();
+                let $style  = __style_watch__;
+                // Silencing warnings about not used style.
+                let _unused = &$style;
                 $(
-                    __style_watch__.reset();
-                    let $style = __style_watch__;
                     let $gpu_param : $crate::display::shape::primitive::def::Var<$gpu_param_type> =
                         concat!("input_",stringify!($gpu_param)).into();
                     // Silencing warnings about not used shader input variables.
-                    let _unused = &$style;
                     let _unused = &$gpu_param;
                 )*
                 $($body)*

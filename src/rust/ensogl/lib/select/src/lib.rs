@@ -1,5 +1,8 @@
 //! Selection List Component
 
+#![feature(option_result_contains)]
+#![recursion_limit="256"]
+
 pub mod component;
 pub mod entry;
 
