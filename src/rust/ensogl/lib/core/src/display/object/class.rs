@@ -53,7 +53,7 @@ impl ParentBind {
 #[derive(Default)]
 #[allow(clippy::type_complexity)]
 pub struct Callbacks {
-    pub on_updated   : RefCell<Option<Box<dyn Fn(&NodeData)>>>,
+    pub on_updated   : RefCell<Option<Box<dyn Fn(&NodeModel)>>>,
     pub on_show      : RefCell<Option<Box<dyn Fn()>>>,
     pub on_hide      : RefCell<Option<Box<dyn Fn()>>>,
     pub on_show_with : RefCell<Option<Box<dyn Fn(&Scene)>>>,
@@ -61,7 +61,7 @@ pub struct Callbacks {
 }
 
 impl Callbacks {
-    pub fn on_updated(&self, data:&NodeData) {
+    pub fn on_updated(&self, data:&NodeModel) {
         if let Some(f) = &*self.on_updated.borrow() { f(data) }
     }
 
@@ -143,66 +143,63 @@ impl DirtyFlags {
 
 
 
-// ================
-// === NodeData ===
-// ================
+// =================
+// === NodeModel ===
+// =================
 
 /// A hierarchical representation of object containing a position, a scale and a rotation.
 #[derive(Debug)]
-pub struct NodeData {
-    parent_bind      : CloneCell<Option<ParentBind>>,
-    children         : RefCell<OptVec<WeakNode>>,
-    transform        : Cell<CachedTransform>,
-    event_dispatcher : RefCell<DynEventDispatcher>,
-    dirty            : DirtyFlags,
-    visible          : Cell<bool>,
-    callbacks        : Callbacks,
-    logger           : Logger,
+pub struct NodeModel {
+    parent_bind : CloneCell<Option<ParentBind>>,
+    children    : RefCell<OptVec<WeakNode>>,
+    transform   : Cell<CachedTransform>,
+    dirty       : DirtyFlags,
+    visible     : Cell<bool>,
+    callbacks   : Callbacks,
+    logger      : Logger,
 }
 
-impl NodeData {
+impl NodeModel {
+    /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
-        let logger           = Logger::from_logger(logger);
-        let parent_bind      = default();
-        let children         = default();
-        let event_dispatcher = default();
-        let transform        = default();
-        let dirty            = DirtyFlags::new(&logger);
-        let visible          = Cell::new(true);
-        let callbacks        = default();
-        Self {logger,parent_bind,children,event_dispatcher,transform,visible,callbacks,dirty}
+        let logger      = Logger::from_logger(logger);
+        let parent_bind = default();
+        let children    = default();
+        let transform   = default();
+        let dirty       = DirtyFlags::new(&logger);
+        let visible     = Cell::new(true);
+        let callbacks   = default();
+        Self {logger,parent_bind,children,transform,visible,callbacks,dirty}
     }
 
+    /// Checks whether the object is visible.
     pub fn is_visible(&self) -> bool {
         self.visible.get()
     }
 
-    pub fn parent(&self) -> Option<Instance> {
-        self.parent_bind.get().and_then(|t| t.parent())
-    }
-
+    /// Checks whether the object is orphan (do not have parent object attached).
     pub fn is_orphan(&self) -> bool {
         self.parent_bind.get().is_none()
     }
 
-    pub fn dispatch_event(&self, event:&DynEvent) {
-        self.event_dispatcher.borrow_mut().dispatch(event);
-        self.parent_bind.get().and_then(|b| b.parent()).map_ref(|p| p.dispatch_event(event));
+    /// Parent object getter.
+    pub fn parent(&self) -> Option<Instance> {
+        self.parent_bind.get().and_then(|t|t.parent())
     }
 
-    pub fn child_count(&self) -> usize {
+    /// Count of children objects.
+    pub fn children_count(&self) -> usize {
         self.children.borrow().len()
     }
 
-    /// Removes child by a given index. Does nothing if the index was incorrect. In general, it is a
-    /// better idea to use `remove_child` instead. Storing and using index explicitly is error
-    /// prone.
-    pub fn remove_child_by_index(&self, index:usize) {
+
+
+
+    /// Removes child by a given index. Does nothing if the index was incorrect.
+    fn remove_child_by_index(&self, index:usize) {
         self.children.borrow_mut().remove(index).for_each(|child| {
+            child.upgrade().for_each(|child| child.raw_unset_parent());
             self.dirty.children.unset(&index);
-            child.upgrade().for_each(|child| {
-                child.raw_unset_parent();
-            });
             self.dirty.removed_children.set(child);
         });
     }
@@ -348,7 +345,7 @@ impl NodeData {
 
 // === Private API ===
 
-impl NodeData {
+impl NodeModel {
     fn register_child<T:Object>(&self, child:&T) -> usize {
         let child = child.display_object().clone();
         let index = self.children.borrow_mut().insert(child.downgrade());
@@ -384,7 +381,7 @@ impl NodeData {
 
 // === Getters ===
 
-impl NodeData {
+impl NodeModel {
     /// Gets a clone of parent bind.
     pub fn parent_bind(&self) -> Option<ParentBind> {
         self.parent_bind.get()
@@ -414,7 +411,7 @@ impl NodeData {
 
 // === Setters ===
 
-impl NodeData {
+impl NodeModel {
     fn with_transform<F,T>(&self, f:F) -> T
     where F : FnOnce(&mut CachedTransform) -> T {
 //        if let Some(bind) = self.parent_bind.get() {
@@ -452,7 +449,7 @@ impl NodeData {
         self.with_transform(|t| t.mod_scale(f));
     }
 
-    pub fn set_on_updated<F:Fn(&NodeData)+'static>(&self, f:F) {
+    pub fn set_on_updated<F:Fn(&NodeModel)+'static>(&self, f:F) {
         self.callbacks.on_updated.set(Box::new(f))
     }
 
@@ -494,7 +491,7 @@ pub struct Id(usize);
 
 #[derive(Clone,CloneRef,Shrinkwrap)]
 pub struct Instance {
-    pub rc : Rc<NodeData>
+    pub rc : Rc<NodeModel>
 }
 
 impl Instance {
@@ -504,7 +501,7 @@ impl Instance {
 
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
-        Self {rc:Rc::new(NodeData::new(logger))}
+        Self {rc:Rc::new(NodeModel::new(logger))}
     }
 
     pub fn downgrade(&self) -> WeakNode {
@@ -618,7 +615,7 @@ impl Debug for Instance {
 
 #[derive(Clone,Debug)]
 pub struct WeakNode {
-    pub weak : Weak<NodeData>
+    pub weak : Weak<NodeModel>
 }
 
 impl WeakNode {
@@ -687,10 +684,6 @@ pub trait ObjectOps : Object {
 
     fn has_parent(&self) -> bool {
         self.display_object()._has_parent()
-    }
-
-    fn dispatch_event(&self, event:&DynEvent) {
-        self.display_object().rc.dispatch_event(event)
     }
 
     fn transform_matrix(&self) -> Matrix4<f32> {
@@ -870,7 +863,7 @@ mod tests {
         node1.add_child(&node3);
         node2.unset_parent();
         node3.unset_parent();
-        assert_eq!(node1.child_count(),0);
+        assert_eq!(node1.children_count(),0);
     }
 
 

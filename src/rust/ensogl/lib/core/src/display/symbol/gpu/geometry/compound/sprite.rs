@@ -197,8 +197,8 @@ impl Sprite {
     /// Init display object bindings. In particular defines the behavior of the show and hide
     /// callbacks.
     fn init(self) -> Self {
-        let size        = &self.size;
-        let transform   = &self.transform;
+        let size      = &self.size;
+        let transform = &self.transform;
         self.display_object.set_on_updated(f!((t) transform.set(t.matrix())));
         self.display_object.set_on_hide(f!(size.hide()));
         self.display_object.set_on_show(f!(size.show()));
