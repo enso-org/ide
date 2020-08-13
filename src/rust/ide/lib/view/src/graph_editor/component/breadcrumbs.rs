@@ -21,6 +21,7 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::text::text_field::FocusManager;
 use logger::AnyLogger;
 use logger::enabled::Logger;
+use std::cmp::Ordering;
 
 
 
@@ -275,27 +276,27 @@ impl BreadcrumbsModel {
     fn select_breadcrumb(&self, index:usize) -> (usize,Vec<Option<LocalCall>>) {
         info!(self.logger,"Selecting breadcrumb #{index}.");
         let current_index = self.current_index.get();
-        if index < current_index {
-            (current_index - index, default())
-        } else if index > current_index {
-            let mut local_calls = Vec::new();
-            for index in current_index..index {
-                let info = self.breadcrumbs.borrow().get(index).map(|breadcrumb| {
-                    let definition = breadcrumb.info.method_pointer.clone();
-                    let call       = breadcrumb.info.expression_id;
-                    LocalCall{call,definition}
-                }).as_ref().cloned();
-                if info.is_some() {
-                    local_calls.push(info);
-                } else {
-                    error!(self.logger, "LocalCall info is not present.");
-                    self.remove_breadcrumbs_history_beginning_from(index);
-                    break;
+        match index.cmp(&current_index) {
+            Ordering::Less    => (current_index - index, default()),
+            Ordering::Equal   => default(),
+            Ordering::Greater => {
+                let mut local_calls = Vec::new();
+                for index in current_index..index {
+                    let info = self.breadcrumbs.borrow().get(index).map(|breadcrumb| {
+                        let definition = breadcrumb.info.method_pointer.clone();
+                        let call       = breadcrumb.info.expression_id;
+                        LocalCall{call,definition}
+                    }).as_ref().cloned();
+                    if info.is_some() {
+                        local_calls.push(info);
+                    } else {
+                        error!(self.logger, "LocalCall info is not present.");
+                        self.remove_breadcrumbs_history_beginning_from(index);
+                        break;
+                    }
                 }
-            }
-            (default(),local_calls)
-        } else {
-            default()
+                (default(),local_calls)
+            },
         }
     }
 
@@ -367,7 +368,6 @@ impl BreadcrumbsModel {
                 // === User Interaction ===
 
                 let new_index  = *new_index;
-                let breadcrumb = breadcrumb.clone();
                 let network    = &breadcrumb.frp.network;
                 let frp_debug  = &self.frp_debug;
                 frp::extend! { network
@@ -459,7 +459,7 @@ impl Breadcrumbs {
 
             indices <- any4(&push_indices,&pop_indices,&debug_push_indices,&debug_pop_indices);
             old_breadcrumb <- indices.map(f!([model] (indices) {
-                (Some(indices.clone()),model.get_breadcrumb(indices.0))
+                (Some(*indices),model.get_breadcrumb(indices.0))
             }));
             new_breadcrumb <- indices.map(f!((indices) model.get_breadcrumb(indices.1)));
             eval old_breadcrumb([model] ((indices,breadcrumb)) {

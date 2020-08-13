@@ -58,11 +58,11 @@ const SEPARATOR_MARGIN     : f32 = HORIZONTAL_MARGIN;
 const FULL_COLOR        : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.7);
 const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.4);
 /// Breadcrumb color when selected.
-pub const SELECTED_COLOR : color::Rgba = FULL_COLOR;
+pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,1.0,0.0,1.0);
 /// Breadcrumb color when it's deselected on the left of the selected breadcrumb.
-pub const LEFT_DESELECTED_COLOR : color::Rgba = TRANSPARENT_COLOR;
+pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,1.0);
 /// Breadcrumb color when it's deselected on the right of the selected breadcrumb.
-pub const RIGHT_DESELECTED_COLOR : color::Rgba = TRANSPARENT_COLOR;
+pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,1.0,1.0);
 /// Breadcrumb color when hovered.
 pub const HOVER_COLOR : color::Rgba = FULL_COLOR;
 
@@ -118,14 +118,15 @@ mod separator {
     use super::*;
 
     ensogl::define_shape_system! {
-        () {
+        (red:f32,green:f32,blue:f32,alpha:f32) {
             let size           = SEPARATOR_SIZE;
             let angle          = PI/2.0;
             let front_triangle = Triangle(size.px(),size.px()).rotate(angle.radians());
             let back_triangle  = Triangle(size.px(),size.px()).rotate(angle.radians());
             let back_triangle  = back_triangle.translate_x(-SEPARATOR_LINE_WIDTH.px());
             let shape          = front_triangle - back_triangle;
-            let color          = TRANSPARENT_COLOR;
+            let color         = format!("vec4({},{},{},{})",red,green,blue,alpha);
+            let color : Var<color::Rgba> = color.into();
             shape.fill(color).into()
         }
     }
@@ -140,16 +141,18 @@ mod separator {
 /// ProjectName's animations handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    color   : Animation<Vector4<f32>>,
-    fade_in : Animation<f32>
+    color           : Animation<Vector4<f32>>,
+    separator_color : Animation<Vector4<f32>>,
+    fade_in         : Animation<f32>
 }
 
 impl Animations {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
-        let color    = Animation::new(&network);
-        let fade_in  = Animation::new(&network);
-        Self{color,fade_in}
+        let color           = Animation::new(&network);
+        let fade_in         = Animation::new(&network);
+        let separator_color = Animation::new(&network);
+        Self{color,fade_in,separator_color}
     }
 }
 
@@ -395,15 +398,28 @@ impl BreadcrumbModel {
         self.icon.shape.alpha.set(color.alpha);
     }
 
+    fn set_separator_color(&self, value:Vector4<f32>) {
+        let color = color::Rgba::from(value);
+        self.separator.shape.red.set(color.red);
+        self.separator.shape.green.set(color.green);
+        self.separator.shape.blue.set(color.blue);
+        self.separator.shape.alpha.set(color.alpha);
+    }
+
     fn select(&self) {
         self.is_selected.set(true);
         self.animations.color.set_target_value(SELECTED_COLOR.into());
+        self.animations.separator_color.set_target_value(LEFT_DESELECTED_COLOR.into());
     }
 
     fn deselect(&self, old:usize, new:usize) {
-        self.relative_position.set((new>old).as_option().map(|_| RelativePosition::LEFT).unwrap_or(RelativePosition::RIGHT));
+        let left  = RelativePosition::LEFT;
+        let right = RelativePosition::RIGHT;
+        self.relative_position.set((new>old).as_option().map(|_| left).unwrap_or(right));
         self.is_selected.set(false);
-        self.animations.color.set_target_value(self.deselected_color().into());
+        let color = self.deselected_color().into();
+        self.animations.color.set_target_value(color);
+        self.animations.separator_color.set_target_value(color);
     }
 
     fn deselected_color(&self) -> color::Rgba {
@@ -471,6 +487,7 @@ impl Breadcrumb {
         frp::extend! {network
             eval model.animations.fade_in.value((value) model.fade_in(*value));
             eval model.animations.color.value((value) model.set_color(*value));
+            eval model.animations.separator_color.value((value) model.set_separator_color(*value));
         }
 
         Self{frp,model}

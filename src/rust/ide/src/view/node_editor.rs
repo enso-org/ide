@@ -529,7 +529,7 @@ impl GraphEditorIntegratedWithControllerModel {
     /// Handle notification received from controller about values having been entered.
     pub fn on_node_entered(&self, local_call:&LocalCall) -> FallibleResult<()> {
         let definition = local_call.definition.clone().into();
-        let call       = local_call.call.clone();
+        let call       = local_call.call;
         let local_call = graph_editor::LocalCall{definition,call};
         self.editor.frp.deselect_all_nodes.emit_event(&());
         self.editor.breadcrumbs.frp.push_breadcrumb.emit(&Some(local_call));
