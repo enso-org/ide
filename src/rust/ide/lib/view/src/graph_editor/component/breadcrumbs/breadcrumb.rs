@@ -42,15 +42,15 @@ pub const LEFT_MARGIN:f32 = 0.0;
 pub const RIGHT_MARGIN     : f32 = 0.0;
 const ICON_LEFT_MARGIN     : f32 = 0.0;
 const ICON_RIGHT_MARGIN    : f32 = HORIZONTAL_MARGIN;
-const ICON_RADIUS          : f32 = 8.0;
+const ICON_RADIUS          : f32 = 6.0;
 const ICON_SIZE            : f32 = ICON_RADIUS * 2.0;
-const ICON_RING_WIDTH      : f32 = (ICON_RADIUS/4.0) as i32 as f32;
-const ICON_ARROW_SIZE      : f32 = (ICON_RADIUS/1.5) as i32 as f32;
-const SEPARATOR_SIZE       : f32 = 8.0;
+const ICON_RING_WIDTH      : f32 = 1.5;
+const ICON_ARROW_SIZE      : f32 = 4.0;
+const SEPARATOR_SIZE       : f32 = 6.0;
 const SEPARATOR_LINE_WIDTH : f32 = 3.0;
 /// Breadcrumb padding.
 pub const PADDING          : f32 = 1.0;
-const SEPARATOR_MARGIN     : f32 = HORIZONTAL_MARGIN;
+const SEPARATOR_MARGIN     : f32 = 4.0;
 
 
 // === Colors ===
@@ -58,13 +58,13 @@ const SEPARATOR_MARGIN     : f32 = HORIZONTAL_MARGIN;
 const FULL_COLOR        : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.7);
 const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.4);
 /// Breadcrumb color when selected.
-pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,1.0,0.0,1.0);
+pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
 /// Breadcrumb color when it's deselected on the left of the selected breadcrumb.
-pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,1.0);
+pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
 /// Breadcrumb color when it's deselected on the right of the selected breadcrumb.
-pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,1.0,1.0);
+pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.2);
 /// Breadcrumb color when hovered.
-pub const HOVER_COLOR : color::Rgba = FULL_COLOR;
+pub const HOVER_COLOR : color::Rgba = SELECTED_COLOR;
 
 
 
@@ -99,7 +99,7 @@ mod icon {
                 let ring          = outer_circle - inner_circle;
                 let size          = ICON_ARROW_SIZE;
                 let arrow         = Triangle(size.px(),size.px()).rotate((PI/2.0).radians());
-                let arrow         = arrow.translate_x(1.0.px());
+                let arrow         = arrow.translate_x(0.5.px());
                 let shape         = ring + arrow;
                 let color         = format!("vec4({},{},{},{})",red,green,blue,alpha);
                 let color : Var<color::Rgba> = color.into();
@@ -124,7 +124,7 @@ mod separator {
             let front_triangle = Triangle(size.px(),size.px()).rotate(angle.radians());
             let back_triangle  = Triangle(size.px(),size.px()).rotate(angle.radians());
             let back_triangle  = back_triangle.translate_x(-SEPARATOR_LINE_WIDTH.px());
-            let shape          = front_triangle - back_triangle;
+            let shape          = front_triangle;// - back_triangle;
             let color         = format!("vec4({},{},{},{})",red,green,blue,alpha);
             let color : Var<color::Rgba> = color.into();
             shape.fill(color).into()
