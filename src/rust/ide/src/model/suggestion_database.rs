@@ -23,7 +23,7 @@ use enso_protocol::language_server::SuggestionId;
 // ==============
 
 #[allow(missing_docs)]
-#[derive(Debug,Fail,Clone,Copy,PartialEq)]
+#[derive(Debug,Clone,Copy,Eq,Fail,PartialEq)]
 #[fail(display = "The suggestion with id {} has not been found in the database.", _0)]
 pub struct NoSuchEntry(pub SuggestionId);
 
