@@ -32,12 +32,14 @@ members = [
     "lib/generics",
     "lib/logger",
     "lib/optics",
+    "lib/shortcuts",
+    "lib/shortcuts/example",
     "lib/system/web",
     "lib/types",
 ]
 
 [profile.dev]
-opt-level = 0
+opt-level = 2
 lto       = false
 debug     = true
 
