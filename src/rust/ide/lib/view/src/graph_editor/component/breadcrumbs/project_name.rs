@@ -92,22 +92,24 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    pub name       : frp::Source<String>,
-    pub width      : frp::Source<f32>,
-    pub mouse_down : frp::Any,
-    pub edit_mode  : frp::Source<bool>
+    pub name        : frp::Source<String>,
+    pub width       : frp::Source<f32>,
+    pub mouse_down  : frp::Any,
+    pub edit_mode   : frp::Source<bool>,
+    pub selected    : frp::Source<bool>
 }
 
 impl FrpOutputs {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            name       <- source();
-            width      <- source();
-            mouse_down <- any_mut();
-            edit_mode  <- source();
+            name        <- source();
+            width       <- source();
+            mouse_down  <- any_mut();
+            edit_mode   <- source();
+            selected    <- source();
         }
-        Self{name,width,mouse_down,edit_mode}
+        Self{name,width,mouse_down,edit_mode,selected}
     }
 }
 
@@ -185,10 +187,7 @@ pub struct ProjectNameModel {
     view           : component::ShapeView<background::Shape>,
     text_field     : TextField,
     project_name   : Rc<RefCell<String>>,
-    name_output    : frp::Source<String>,
-    width_output   : frp::Source<f32>,
-    edit_mode      : frp::Source<bool>,
-    is_selected    : Rc<Cell<bool>>
+    outputs        : FrpOutputs
 }
 
 impl ProjectNameModel {
@@ -206,13 +205,9 @@ impl ProjectNameModel {
         let view_logger           = Logger::sub(&logger,"view_logger");
         let view                  = component::ShapeView::<background::Shape>::new(&view_logger, scene);
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
-        let name_output           = frp.outputs.name.clone();
-        let width_output          = frp.outputs.width.clone();
-        let edit_mode             = frp.outputs.edit_mode.clone();
+        let outputs               = frp.outputs.clone_ref();
         let animations            = Animations::new(&frp.network);
-        let is_selected           = default();
-        Self{logger,view,display_object,text_field,project_name,name_output,animations,
-            width_output,edit_mode,is_selected}.init()
+        Self{logger,view,display_object,text_field,project_name,animations,outputs}.init()
     }
 
     /// Get the width of the ProjectName view.
@@ -250,7 +245,7 @@ impl ProjectNameModel {
     fn update_text_field_content(&self) {
         self.text_field.set_content(&self.project_name.borrow());
         self.update_alignment();
-        self.width_output.emit(self.width());
+        self.outputs.width.emit(self.width());
     }
 
     fn set_color(&self, value:Vector4<f32>) {
@@ -263,7 +258,7 @@ impl ProjectNameModel {
 
     fn rename(&self, name:impl Str) {
         let name = name.into();
-        self.name_output.emit(&name);
+        self.outputs.name.emit(&name);
         *self.project_name.borrow_mut() = name;
         self.update_text_field_content();
     }
@@ -271,23 +266,17 @@ impl ProjectNameModel {
     fn commit(&self) {
         let name = self.text_field.get_content();
         debug!(self.logger, "Committing name: '{name}'.");
-        self.name_output.emit(&name);
+        self.outputs.name.emit(&name);
         *self.project_name.borrow_mut() = name;
-        self.edit_mode.emit(false);
+        self.outputs.edit_mode.emit(false);
     }
 
     fn select(&self) {
-        self.is_selected.set(true);
         self.animations.color.set_target_value(breadcrumb::SELECTED_COLOR.into());
     }
 
     fn deselect(&self) {
-        self.is_selected.set(false);
         self.animations.color.set_target_value(breadcrumb::LEFT_DESELECTED_COLOR.into());
-    }
-
-    fn is_selected(&self) -> bool {
-        self.is_selected.get()
     }
 }
 
@@ -319,19 +308,24 @@ impl ProjectName {
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
-            eval_ model.view.events.mouse_over([model] {
-                if !model.is_selected() {
-                    model.animations.color.set_target_value(breadcrumb::HOVER_COLOR.into());
-                }
+            not_selected               <- frp.outputs.selected.map(|selected| !selected);
+            mouse_over_if_not_selected <- model.view.events.mouse_over.gate(&not_selected);
+            mouse_out_if_not_selected  <- model.view.events.mouse_out.gate(&not_selected);
+            eval_ mouse_over_if_not_selected(
+                model.animations.color.set_target_value(breadcrumb::HOVER_COLOR.into());
+            );
+            eval_ mouse_out_if_not_selected([model] {
+                let color = breadcrumb::LEFT_DESELECTED_COLOR.into();
+                model.animations.color.set_target_value(color);
             });
-            eval_ model.view.events.mouse_out([model] {
-                if !model.is_selected() {
-                    let color = breadcrumb::LEFT_DESELECTED_COLOR.into();
-                    model.animations.color.set_target_value(color);
-                }
+            eval_ frp.select({
+                model.outputs.selected.emit(true);
+                model.select();
             });
-            eval_ frp.select(model.select());
-            eval_ frp.deselect(model.deselect());
+            eval_ frp.deselect({
+                model.outputs.selected.emit(false);
+                model.deselect();
+            });
             eval_ frp.inputs.cancel_editing(model.reset_name());
             eval  frp.inputs.name((name) {model.rename(name)});
             eval_ frp.inputs.commit(model.commit());
@@ -364,7 +358,7 @@ impl ProjectName {
                 let new_name      = field_content.replace("\n", "");
                 // Keep only one line.
                 project_name.text_field.set_content(&new_name);
-                project_name.width_output.emit(project_name.width());
+                project_name.outputs.width.emit(project_name.width());
                 project_name.update_alignment();
                 if change.inserted == "\n" {
                     project_name.commit();

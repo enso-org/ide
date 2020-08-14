@@ -350,7 +350,7 @@ impl BreadcrumbsModel {
                 // === User Interaction ===
 
                 frp::extend! { network
-                    eval_ breadcrumb.frp.outputs.selected(
+                    eval_ breadcrumb.frp.outputs.clicked(
                         frp_inputs.select_breadcrumb.emit(breadcrumb_index);
                     );
                 }
@@ -366,12 +366,10 @@ impl BreadcrumbsModel {
     }
 
     fn debug_select_breadcrumb(&self,index:usize) -> (usize,Vec<Option<LocalCall>>) {
-        debug!(self.logger, "Debug select {index}.");
         self.select_breadcrumb(index)
     }
 
     fn debug_push_breadcrumb(&self, local_call:&Option<LocalCall>) -> Option<(usize,usize)> {
-        debug!(self.logger, "Debug push.");
         let is_new_breadcrumb = local_call.is_none();
         let local_call        = local_call.clone().or_else(|| {
             let defined_on_type = default();
@@ -395,7 +393,7 @@ impl BreadcrumbsModel {
                 let network    = &breadcrumb.frp.network;
                 let frp_debug  = &self.frp_debug;
                 frp::extend! { network
-                    eval_ breadcrumb.frp.outputs.selected(
+                    eval_ breadcrumb.frp.outputs.clicked(
                         frp_debug.select_breadcrumb.emit(new_index);
                     );
                 }
@@ -405,7 +403,6 @@ impl BreadcrumbsModel {
     }
 
     fn debug_pop_breadcrumb(&self) -> Option<(usize,usize)> {
-        debug!(self.logger,"Debug pop.");
         self.pop_breadcrumb()
     }
 

@@ -193,20 +193,26 @@ impl FrpInputs {
 /// Breadcrumb frp network outputs.
 #[derive(Debug,Clone,CloneRef)]
 pub struct FrpOutputs {
-    /// Signalizes that the breadcrumb was selected.
-    pub selected : frp::Source,
+    /// Signalizes that the breadcrumb was clicked.
+    pub clicked : frp::Source,
     /// Signalizes that the breadcrumb's size changed.
-    pub size     : frp::Source<Vector2<f32>>
+    pub size : frp::Source<Vector2<f32>>,
+    /// Signalizes the breadcrumb's selection state.
+    pub selected : frp::Source<bool>,
+    /// Used to check if the breadcrumb is selected.
+    pub is_selected : frp::Sampler<bool>
 }
 
 impl FrpOutputs {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend!{ network
-            selected <- source();
-            size     <- source();
+            clicked     <- source();
+            size        <- source();
+            selected    <- source();
+            is_selected <- selected.sampler();
         }
-        Self{selected,size}
+        Self{clicked,size,selected,is_selected}
     }
 }
 
@@ -264,9 +270,9 @@ pub struct BreadcrumbInfo {
 
 
 
-// ========================
+// =======================
 // === BreadcrumbModel ===
-// ========================
+// =======================
 
 /// Breadcrumbs model.
 #[derive(Debug,Clone,CloneRef)]
@@ -279,10 +285,10 @@ pub struct BreadcrumbModel {
     glyph_system   : GlyphSystem,
     label          : Line,
     animations     : Animations,
-    is_selected    : Rc<Cell<bool>>,
     /// Breadcrumb information such as name and expression id.
     pub info          : Rc<BreadcrumbInfo>,
-    relative_position : Rc<Cell<RelativePosition>>
+    relative_position : Rc<Cell<RelativePosition>>,
+    outputs           : FrpOutputs
 }
 
 impl BreadcrumbModel {
@@ -303,8 +309,8 @@ impl BreadcrumbModel {
         let method_pointer    = method_pointer.clone();
         let info              = Rc::new(BreadcrumbInfo{method_pointer,expression_id});
         let animations        = Animations::new(&frp.network);
-        let is_selected       = default();
         let relative_position = default();
+        let outputs           = frp.outputs.clone_ref();
 
         let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
         scene.views.main.remove(&shape_system.shape_system.symbol);
@@ -325,7 +331,7 @@ impl BreadcrumbModel {
         scene.views.breadcrumbs.add(&symbol);
 
         Self{logger,view,icon,separator,display_object,glyph_system,label,info,animations
-            ,is_selected,relative_position}.init()
+            ,relative_position,outputs}.init()
     }
 
     fn init(self) -> Self {
@@ -404,7 +410,6 @@ impl BreadcrumbModel {
     }
 
     fn select(&self) {
-        self.is_selected.set(true);
         self.animations.color.set_target_value(SELECTED_COLOR.into());
         self.animations.separator_color.set_target_value(LEFT_DESELECTED_COLOR.into());
     }
@@ -413,7 +418,6 @@ impl BreadcrumbModel {
         let left  = RelativePosition::LEFT;
         let right = RelativePosition::RIGHT;
         self.relative_position.set((new>old).as_option().map(|_| left).unwrap_or(right));
-        self.is_selected.set(false);
         let color = self.deselected_color().into();
         self.animations.color.set_target_value(color);
         self.animations.separator_color.set_target_value(color);
@@ -427,7 +431,7 @@ impl BreadcrumbModel {
     }
 
     fn is_selected(&self) -> bool {
-        self.is_selected.get()
+        self.outputs.is_selected.value()
     }
 }
 
@@ -462,20 +466,24 @@ impl Breadcrumb {
 
         frp::extend! { network
             eval_ frp.fade_in(model.animations.fade_in.set_target_value(1.0));
-            eval_ frp.select(model.select());
-            eval frp.deselect(((old,new)) model.deselect(*old,*new));
-            //FIXME[dg]: selected should be a gate
-            eval_ model.view.events.mouse_over([model] {
-                if !model.is_selected() {
-                    model.animations.color.set_target_value(HOVER_COLOR.into())
-                }
+            eval_ frp.select({
+                model.outputs.selected.emit(true);
+                model.select();
             });
-            eval_ model.view.events.mouse_out([model] {
-                if !model.is_selected() {
-                    model.animations.color.set_target_value(model.deselected_color().into())
-                }
+            eval frp.deselect(((old,new)) {
+                model.outputs.selected.emit(false);
+                model.deselect(*old,*new);
             });
-            eval_ model.view.events.mouse_down(frp.outputs.selected.emit(()));
+            not_selected <- frp.outputs.selected.map(|selected| !selected);
+            mouse_over_if_not_selected <- model.view.events.mouse_over.gate(&not_selected);
+            mouse_out_if_not_selected  <- model.view.events.mouse_out.gate(&not_selected);
+            eval_ mouse_over_if_not_selected(
+                model.animations.color.set_target_value(HOVER_COLOR.into())
+            );
+            eval_ mouse_out_if_not_selected(
+                model.animations.color.set_target_value(model.deselected_color().into())
+            );
+            eval_ model.view.events.mouse_down(frp.outputs.clicked.emit(()));
         }
 
 
