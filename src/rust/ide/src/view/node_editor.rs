@@ -207,7 +207,7 @@ impl GraphEditorIntegratedWithController {
         let visualization_disabled = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::visualization_disabled_in_ui,
             &invalidate.trigger);
-        frp::extend! {TRACE_ALL network
+        frp::extend! {network
             // Notifications from controller
             let handle_notification = FencedAction::fence(&network,
                 f!((notification:&Option<controller::graph::executed::Notification>)

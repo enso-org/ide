@@ -1555,8 +1555,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                                , "edit_mode_on")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                                , "edit_mode_off")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "edit_mode_on")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "edit_mode_off")
              ]
     }
 }
@@ -1639,7 +1639,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Selection Target Redirection ===
 
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
         mouse_down_target <- mouse.down.map(f_!(model.scene().mouse.target.get()));
         mouse_up_target   <- mouse.up.map(f_!(model.scene().mouse.target.get()));
         background_up     <- mouse_up_target.map(|t| if t==&display::scene::Target::Background {Some(())} else {None}).unwrap();
@@ -2315,8 +2315,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval outputs.node_deselected        ((id) model.deselect_node(id));
     eval outputs.edge_removed           ((id) model.remove_edge(id));
     eval outputs.node_removed           ((id) model.remove_node(id));
-    // TODO[ao] I must break the pattern, because output emits only String, but we need full
-    // expression here
+    // TODO[ao] This one action is triggered by input frp node event instead of output, because
+    //  the output emits the string and we need the expression with span-trees here.
     eval inputs.set_node_expression     (((id,expr)) model.set_node_expression(id,expr));
     eval outputs.visualization_enabled  ((id) model.enable_visualization(id));
     eval outputs.visualization_disabled ((id) model.disable_visualization(id));
