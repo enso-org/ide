@@ -121,9 +121,8 @@ impl {
         })
     }
 
-    /// Dispose instance for reuse in the future. Please note that the disposed data still
-    /// exists in the buffer and will be used when rendering. It is yours responsibility to hide
-    /// it, for example by degenerating the mesh (putting all vertices in the same place).
+    /// Dispose instance for reuse in the future. All data in all buffers at the provided `id` will
+    /// be set to default.
     pub fn dispose(&mut self, id:AttributeInstanceIndex) {
         group!(self.logger, "Disposing instance {id}.", {
             for buffer in &self.buffers {
