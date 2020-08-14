@@ -411,7 +411,15 @@ impl GraphEditorIntegratedWithControllerModel {
             self.editor.frp.inputs.set_node_position.emit_event(&(id,position.vector));
         }
         let expression = node.info.expression().repr();
-        if Some(&expression) != self.expression_views.borrow().get(&id) {
+        let expression_changed = with(self.expression_views.borrow(), |expression_views| {
+            let expression_view = expression_views.get(&id);
+            // The node expression will newer contain spaces at the both ends, however user could
+            // decide to put some in node's edited expression; thus we should not eagerly remove
+            // those spaces.
+            let trimmed_view    = expression_view.map(|e| e.trim());
+            !trimmed_view.contains(&expression)
+        });
+        if expression_changed {
             let code_and_trees = graph_editor::component::node::port::Expression {
                 code             : expression.clone(),
                 input_span_tree  : trees.inputs,
@@ -608,6 +616,7 @@ impl GraphEditorIntegratedWithControllerModel {
     fn node_expression_set_in_ui
     (&self, (displayed_id,expression):&(graph_editor::NodeId,String)) -> FallibleResult<()> {
         let id                 = self.get_controller_node_id(*displayed_id)?;
+        self.expression_views.borrow_mut().insert(*displayed_id,expression.clone());
         self.controller.graph().set_expression(id,expression)
     }
 
