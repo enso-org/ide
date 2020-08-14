@@ -1,14 +1,18 @@
 //! A single entry in Select
 use crate::prelude::*;
 
-use ensogl::display;
+use ensogl_core::display;
+use enso_frp as frp;
 use ensogl_text as text;
-use ensogl::application::Application;
+use ensogl_core::application::Application;
+use ensogl_core::gui::component;
+use ensogl_core::display::shape::*;
 
 use logger::enabled::Logger;
-use ensogl::data::color;
+use ensogl_core::data::color;
 use enso_prelude::fmt::Formatter;
 use std::borrow::Borrow;
+use ensogl_core::gui::component::ShapeViewEvents;
 
 
 // =================
@@ -85,6 +89,19 @@ impl ModelProvider for EmptyProvider {
 // === Entry ===
 // =============
 
+mod hover_area {
+    use super::*;
+
+    ensogl_core::define_shape_system! {
+        () {
+            let width  : Var<Pixels> = "input_size.x".into();
+            let height : Var<Pixels> = "input_size.y".into();
+            let color  = color::Rgba::new(0.0,0.0,0.0,0.0);
+            Rect((&width,&height)).fill(color).into()
+        }
+    }
+}
+
 #[derive(Clone,CloneRef,Derivative)]
 #[derivative(Debug)]
 pub struct Entry {
@@ -92,6 +109,7 @@ pub struct Entry {
     label          : text::Area,
     #[derivative(Debug="ignore")]
     icon           : Rc<CloneRefCell<display::object::Any>>,
+    hover_area     : component::ShapeView<hover_area::Shape>,
     display_object : display::object::Instance,
 }
 
@@ -100,15 +118,17 @@ impl Entry {
         let id             = default();
         let label          = app.new_view::<text::Area>();
         let icon           = display::object::Instance::new(Logger::new("DummyIcon"));
+        let hover_area     = component::ShapeView::<hover_area::Shape>::new(&logger,app.display.scene());
         let display_object = display::object::Instance::new(logger);
         display_object.add_child(&label);
         display_object.add_child(&icon);
+        display_object.add_child(&hover_area);
         icon.set_position_xy(Vector2(PADDING + ICON_SIZE/2.0, 0.0));
         label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
         label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
         label.set_default_text_size(text::Size(LABEL_SIZE));
         let icon = Rc::new(CloneRefCell::new(icon.into_any()));
-        Entry{id,label,icon,display_object}
+        Entry{id,label,icon,hover_area,display_object}
     }
 
     fn invalidate_model(&self) {
@@ -122,6 +142,16 @@ impl Entry {
         self.id.set(Some(id));
         self.icon.set(model.icon.clone_ref());
         self.label.set_content(&model.label);
+    }
+
+    pub fn set_width(&self, width:f32) {
+        let new_size = Vector2(width,HEIGHT);
+        self.hover_area.shape.sprite.size.set(new_size);
+        self.hover_area.set_position_y(width/2.0);
+    }
+
+    pub fn events(&self) -> &ShapeViewEvents {
+        &self.hover_area.events
     }
 }
 

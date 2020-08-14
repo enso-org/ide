@@ -681,7 +681,7 @@ dependencies = [
  "enso-prelude 0.1.0",
  "enso-shapely 0.1.0",
  "enso-types 0.1.0",
- "ensogl 0.1.0",
+ "ensogl-core 0.1.0",
  "ensogl-text 0.1.0",
  "logger 0.1.0",
  "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",

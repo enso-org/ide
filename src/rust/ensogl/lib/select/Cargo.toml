@@ -9,13 +9,13 @@ crate-type = ["rlib", "cdylib"]
 
 
 [dependencies]
-enso-frp     = { version = "0.1.0"  , path = "../../../lib/frp"                   }
-enso-prelude = { version = "0.1.0"  , path = "../../../lib/enso-prelude"          }
-enso-shapely = { version = "0.1.0"  , path = "../../../lib/enso-shapely/impl"     }
-enso-types   = { version = "0.1.0"  , path = "../../../lib/types"                 }
-ensogl       = { version = "0.1.0"  , path = "../../../ensogl"                    }
-ensogl-text  = { version = "0.1.0"  , path = "../text"                            }
-logger       = { version = "0.1.0"  , path = "../../../lib/logger"                }
+enso-frp     = { version = "0.1.0"  , path = "../../../lib/frp"               }
+enso-prelude = { version = "0.1.0"  , path = "../../../lib/enso-prelude"      }
+enso-shapely = { version = "0.1.0"  , path = "../../../lib/enso-shapely/impl" }
+enso-types   = { version = "0.1.0"  , path = "../../../lib/types"             }
+ensogl-core  = { version = "0.1.0"  , path = "../core"                        }
+ensogl-text  = { version = "0.1.0"  , path = "../text"                        }
+logger       = { version = "0.1.0"  , path = "../../../lib/logger"            }
 
 [dev-dependencies]
 wasm-bindgen-test = { version = "0.3.8" }

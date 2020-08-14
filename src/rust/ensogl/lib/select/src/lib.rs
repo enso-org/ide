@@ -9,5 +9,5 @@ pub mod entry;
 
 /// Commonly used types and functions.
 pub mod prelude {
-    pub use ensogl::prelude::*;
+    pub use ensogl_core::prelude::*;
 }

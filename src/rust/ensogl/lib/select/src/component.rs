@@ -3,14 +3,14 @@ use crate::prelude::*;
 
 use crate::entry;
 
-use ensogl::gui::component;
-use ensogl::{display, application};
-use ensogl::application::{Application, shortcut};
-use ensogl::display::shape::*;
-use ensogl::data::color;
+use ensogl_core::gui::component;
+use ensogl_core::{display, application};
+use ensogl_core::application::{Application, shortcut};
+use ensogl_core::display::shape::*;
+use ensogl_core::data::color;
 use enso_frp as frp;
-use ensogl::gui::component::Animation;
-use ensogl::display::object::Instance;
+use ensogl_core::gui::component::Animation;
+use ensogl_core::display::object::Instance;
 use enso_frp::io::keyboard::Key;
 
 
@@ -28,7 +28,7 @@ mod selection {
 
     pub const CORNER_RADIUS_PX:f32 = entry::PADDING * 2.0;
 
-    ensogl::define_shape_system! {
+    ensogl_core::define_shape_system! {
         (style:Style) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
@@ -43,7 +43,7 @@ mod selection {
 mod background {
     use super::*;
 
-    ensogl::define_shape_system! {
+    ensogl_core::define_shape_system! {
         (style:Style) {
             let color  = style.get("select.background.color").color().unwrap_or_else(|| color::Rgba::new(0.4,0.4,0.4,1.0).into());
             let shape = Plane().fill(color::Rgba::from(color));
@@ -104,7 +104,7 @@ impl Model {
 // === FRP ===
 // ===========
 
-ensogl::def_command_api! { Commands
+ensogl_core::def_command_api! { Commands
     /// Move selection one position up.
     move_selection_up,
     /// Move selection page up (jump over all visible entries).
