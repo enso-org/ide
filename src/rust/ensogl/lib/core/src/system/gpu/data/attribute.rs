@@ -126,10 +126,8 @@ impl {
     /// it, for example by degenerating the mesh (putting all vertices in the same place).
     pub fn dispose(&mut self, id:AttributeInstanceIndex) {
         group!(self.logger, "Disposing instance {id}.", {
-            // println!("DISPOSE");
             for buffer in &self.buffers {
                 buffer.set_to_default(id.into())
-                //println!("buffer: {:?}",buffer);
             }
             self.free_ids.push(id);
         })
