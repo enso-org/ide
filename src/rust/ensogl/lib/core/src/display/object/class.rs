@@ -634,6 +634,11 @@ pub trait Object<Host=Scene> {
     fn weak_display_object (&self) -> WeakInstance<Host> {
         self.display_object().downgrade()
     }
+
+    fn into_any(self) -> Any<Host>
+    where Self:Sized + 'static {
+        Any{wrapped:Rc::new(self)}
+    }
 }
 
 impl<Host> Object<Host> for Instance<Host> {
@@ -927,6 +932,14 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
     }
 }
 
+#[derive(Clone,CloneRef)]
+pub struct Any<Host=Scene> {
+    wrapped:Rc<dyn Object<Host>>
+}
+
+impl<Host> Object<Host> for Any<Host> {
+    fn display_object(&self) -> &Instance<Host> { self.wrapped.display_object() }
+}
 
 
 // =============

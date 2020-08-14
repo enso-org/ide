@@ -1,6 +1,7 @@
 //! Selection List Component
 
 #![feature(option_result_contains)]
+#![feature(trait_alias)]
 #![recursion_limit="256"]
 
 pub mod component;

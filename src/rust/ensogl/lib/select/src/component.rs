@@ -26,7 +26,7 @@ struct WindowInfo {
 mod selection {
     use super::*;
 
-    pub const CORNER_RADIUS_PX:f32 = 4.0;
+    pub const CORNER_RADIUS_PX:f32 = entry::PADDING * 2.0;
 
     ensogl::define_shape_system! {
         (style:Style) {
@@ -68,8 +68,8 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let scrolled_area  = display::object::Instance::new(&logger);
         let entries        = entry::List::new(&logger, app);
-        let selection      = component::ShapeView::<selection::Shape>::new(&logger,scene);
         let background     = component::ShapeView::<background::Shape>::new(&logger,scene);
+        let selection      = component::ShapeView::<selection::Shape>::new(&logger,scene);
         display_object.add_child(&background);
         display_object.add_child(&scrolled_area);
         scrolled_area.add_child(&entries);
@@ -81,7 +81,6 @@ impl Model {
         let visible_entries = self.visible_entries(window);
         self.entries.update_entries(visible_entries);
         self.entries.set_position_x(-window.size.x / 2.0);
-        self.selection.shape.sprite.size.set(Vector2(window.size.x, entry::HEIGHT));
         self.background.shape.sprite.size.set(window.size);
         self.scrolled_area.set_position_y(window.size.y / 2.0 - window.position_y);
     }
@@ -93,8 +92,8 @@ impl Model {
     }
 
     fn visible_entries(&self, WindowInfo{position_y,size}:&WindowInfo) -> Range<entry::Id> {
-        let first = (-position_y.min(0.0)/entry::HEIGHT - 0.5) as entry::Id;
-        let last  = (-(position_y - size.y).min(0.0)/entry::HEIGHT + 0.5) as entry::Id;
+        let first = (-position_y.min(0.0)/entry::HEIGHT - 0.5 + entry::PADDING/entry::HEIGHT) as entry::Id;
+        let last  = (-(position_y - size.y).min(0.0)/entry::HEIGHT + 0.5 - entry::PADDING/entry::HEIGHT) as entry::Id;
         first..(last + 1)
     }
 }
@@ -166,18 +165,18 @@ impl Select {
     fn init(self) -> Self {
         const MAX_SCROLL:f32 = entry::HEIGHT/2.0;
 
-        let frp         = &self.frp;
-        let network     = &frp.network;
-        let model       = &self.model;
-        let window_size = Animation::<Vector2<f32>>::new(&network);
-        let window_y    = Animation::<f32>         ::new(&network);
-        let selection_y = Animation::<f32>         ::new(&network);
+        let frp              = &self.frp;
+        let network          = &frp.network;
+        let model            = &self.model;
+        let window_y         = Animation::<f32>::new(&network);
+        let selection_y      = Animation::<f32>::new(&network);
+        let selection_height = Animation::<f32>::new(&network);
         window_y.set_value(MAX_SCROLL);
         window_y.set_target_value(MAX_SCROLL);
 
         frp::extend!{ network
-            window_info <- all_with(&window_y.value,&window_size.value, |y,size| WindowInfo{position_y:*y,size:*size});
-            min_scroll  <- all_with(&window_size.value,&frp.set_entries,|size,entries| (entries.entry_count() as f32 * -entry::HEIGHT - size.y - MAX_SCROLL).min(MAX_SCROLL));
+            window_info <- all_with(&window_y.value,&frp.resize, |y,size| WindowInfo{position_y:*y,size:*size});
+            min_scroll  <- all_with(&frp.resize,&frp.set_entries,|size,entries| (entries.entry_count() as f32 * -entry::HEIGHT - size.y - MAX_SCROLL).min(MAX_SCROLL));
 
 
             // === Selection ===
@@ -185,9 +184,9 @@ impl Select {
             selection_jump_on_move_up   <- frp.move_selection_up.constant(-1);
             selection_jump_on_page_up   <- frp.move_selection_page_up.map2(&window_info, f!([model]((),window) -(model.visible_entries(&window).len() as isize)));
             selection_jump_on_move_down <- frp.move_selection_down.constant(1);
-            selection_jump_on_page_up   <- frp.move_selection_page_down.map2(&window_info, f!([model]((),window) (model.visible_entries(&window).len() as isize)));
+            selection_jump_on_page_down   <- frp.move_selection_page_down.map2(&window_info, f!([model]((),window) (model.visible_entries(&window).len() as isize)));
             selection_jump_up           <- any(selection_jump_on_move_up,selection_jump_on_page_up);
-            selection_jump_down         <- any(selection_jump_on_move_down,selection_jump_on_page_up);
+            selection_jump_down         <- any(selection_jump_on_move_down,selection_jump_on_page_down);
 
             selected_entry_after_jump_up <- selection_jump_up.map2(&frp.selected_entry, |jump,id| {
                 id.and_then(|id| id.checked_sub(-jump as usize))
@@ -201,15 +200,14 @@ impl Select {
 
             // === Selection Position ===
 
-            target_selection_y <- frp.selected_entry.map(|id| {
-                match id {
-                    Some(id) => -(*id as f32 * entry::HEIGHT),
-                    None     => entry::HEIGHT,
-                }
-            });
+            target_selection_y <- frp.selected_entry.map(|id| id.map_or(0.0, |id| id as f32 * -entry::HEIGHT));
+            target_selection_height <- frp.selected_entry.map(|id| if id.is_some() {entry::HEIGHT} else {0.0});
             //TODO[ao] can animation target be an frp input?
-            eval target_selection_y ((y) selection_y.set_target_value(*y));
-            eval selection_y.value  ((y) model.selection.set_position_y(*y));
+            eval target_selection_y      ((y) selection_y.set_target_value(*y));
+            eval target_selection_height ((h) selection_height.set_target_value(*h));
+            eval selection_y.value       ((y) model.selection.set_position_y(*y));
+            selection_size <- all_with(&frp.resize,&selection_height.value, |window,height| Vector2(window.x,*height));
+            eval selection_size  ((size) model.selection.shape.sprite.size.set(*size));
 
             // === Resize and Scrolling ===
 
@@ -218,14 +216,13 @@ impl Select {
             min_scroll_after_move_up         <- selection_top_after_move_up.map(|top| top.unwrap_or(MAX_SCROLL));
             scroll_after_move_up             <- min_scroll_after_move_up.map2(&target_scroll, |min_scroll,current:&f32| current.max(*min_scroll));
             selection_bottom_after_move_down <- selected_entry_after_jump_down.map(|id| id.map(|id| entry::List::position_y_range_of_entry(id).start));
-            max_scroll_after_move_down       <- selection_bottom_after_move_down.map2(&window_size.value, |id,window_size| id.map_or(MAX_SCROLL, |id| id + window_size.y));
+            max_scroll_after_move_down       <- selection_bottom_after_move_down.map2(&frp.resize, |id,window_size| id.map_or(MAX_SCROLL, |id| id + window_size.y));
             scroll_after_move_down           <- max_scroll_after_move_down.map2(&target_scroll, |max_scroll,current| current.min(*max_scroll));
 
             target_scroll <+ scroll_after_move_up;
             target_scroll <+ scroll_after_move_down;
             target_scroll <+ frp.scroll_jump;
 
-            eval frp.resize    ((size)     window_size.set_target_value(*size));
             eval target_scroll ((scroll_y) window_y.set_target_value(*scroll_y));
             eval window_info ((window) {
                 model.update_after_window_change(window);
@@ -260,7 +257,6 @@ impl application::View for Select {
 
 impl application::shortcut::DefaultShortcutProvider for Select {
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
-        use enso_frp::io::mouse;
         vec!
         [ Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowUp]  , shortcut::Pattern::Any) , "move_selection_up")
         , Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowDown], shortcut::Pattern::Any) , "move_selection_down")

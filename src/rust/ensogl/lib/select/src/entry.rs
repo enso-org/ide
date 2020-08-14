@@ -7,18 +7,19 @@ use ensogl::application::Application;
 
 use logger::enabled::Logger;
 use ensogl::data::color;
-use enso_frp::IntoParam;
+use enso_prelude::fmt::Formatter;
 use std::borrow::Borrow;
-
 
 
 // =================
 // === Constants ===
 // =================
 
-pub const HEIGHT:f32     = 16.0;
-pub const LABEL_SIZE:f32 = 12.0;
-pub const ICON_SIZE:f32  = 16.0;
+pub const PADDING        : f32 = 2.0;
+pub const HEIGHT         : f32 = 20.0;
+pub const LABEL_SIZE     : f32 = 12.0;
+pub const ICON_SIZE      : f32 = 16.0;
+pub const ICON_LABEL_GAP : f32 = 2.0;
 
 
 
@@ -28,10 +29,12 @@ pub const ICON_SIZE:f32  = 16.0;
 
 pub type Id = usize;
 
-#[derive(Clone,Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Model {
     pub label : String,
-    pub icon  : display::object::Instance,
+    #[derivative(Debug="ignore")]
+    pub icon  : display::object::Any,
 }
 
 
@@ -71,7 +74,7 @@ impl ModelProvider for EmptyProvider {
         error!(self.logger, "Getting {id} from empty provider!");
         Model {
             label : "Invalid".to_string(),
-            icon  : display::object::Instance::new(&self.logger)
+            icon  : display::object::Instance::new(&self.logger).into_any(),
         }
     }
 }
@@ -82,11 +85,13 @@ impl ModelProvider for EmptyProvider {
 // === Entry ===
 // =============
 
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Derivative)]
+#[derivative(Debug)]
 pub struct Entry {
     id             : Rc<Cell<Option<Id>>>,
     label          : text::Area,
-    icon           : Rc<CloneRefCell<display::object::Instance>>,
+    #[derivative(Debug="ignore")]
+    icon           : Rc<CloneRefCell<display::object::Any>>,
     display_object : display::object::Instance,
 }
 
@@ -98,11 +103,11 @@ impl Entry {
         let display_object = display::object::Instance::new(logger);
         display_object.add_child(&label);
         display_object.add_child(&icon);
-        icon.set_position_xy(Vector2(ICON_SIZE/2.0, 0.0));
-        label.set_position_xy(Vector2(ICON_SIZE, LABEL_SIZE/2.0));
+        icon.set_position_xy(Vector2(PADDING + ICON_SIZE/2.0, 0.0));
+        label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
         label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
         label.set_default_text_size(text::Size(LABEL_SIZE));
-        let icon = Rc::new(CloneRefCell::new(icon));
+        let icon = Rc::new(CloneRefCell::new(icon.into_any()));
         Entry{id,label,icon,display_object}
     }
 
@@ -113,7 +118,7 @@ impl Entry {
     fn set_model(&self, id:Id, model:&Model) {
         self.remove_child(&self.icon.get());
         self.add_child(&model.icon);
-        model.icon.set_position_xy(Vector2(ICON_SIZE/2.0, 0.0));
+        model.icon.set_position_xy(Vector2(PADDING + ICON_SIZE/2.0, 0.0));
         self.id.set(Some(id));
         self.icon.set(model.icon.clone_ref());
         self.label.set_content(&model.label);

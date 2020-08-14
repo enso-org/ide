@@ -7,15 +7,17 @@ use ensogl_core::display::object::ObjectOps;
 use ensogl_core::display::shape::*;
 use ensogl_core::display::style::theme;
 use ensogl_core::data::color;
+use ensogl_core::gui;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_select as select;
 use logger::enabled::Logger;
 use wasm_bindgen::prelude::*;
+use ensogl_core::display::Scene;
 
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_select_control() {
+pub fn entry_point_select_control() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
@@ -40,47 +42,37 @@ mod icon {
             let width  = select::entry::ICON_SIZE.px();
             let height = select::entry::ICON_SIZE.px();
             let color  : Var<color::Rgba> = "rgba(input_id/16.0,0.0,0.0,1.0)".into();
-            let radius = 4.0.px();
             Rect((&width,&height)).fill(color).into()
         }
     }
 }
 
-#[derive(Clone,Debug)]
-struct MockEntry {
-    id   : usize,
-    icon : gui::component::ShapeView<icon::Shape>,
-}
 
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Debug)]
 struct MockEntries {
-    entries:Vec<MockEntry>,
+    logger        : Logger,
+    scene         : Scene,
+    entries_count : usize,
 }
 
 impl MockEntries {
     fn new(app:&Application, entries_count:usize) -> Self {
         let logger  = Logger::new("MockEntries");
-        let scene   = app.display.scene();
-        let entries = (0..entries_count).map(|id| {
-            let icon = gui::component::ShapeView::<icon::Shape>::new(&logger,scene);
-            icon.shape.sprite.size.set(Vector2(select::entry::ICON_SIZE,select::entry::ICON_SIZE));
-            icon.shape.id.set(id as f32);
-            MockEntry {id,icon}
-        });
-        Self {
-            entries : entries.collect()
-        }
+        let scene   = app.display.scene().clone_ref();
+        Self {logger,scene,entries_count}
     }
 }
 
 impl select::entry::ModelProvider for MockEntries {
-    fn entry_count(&self) -> usize { self.entries.len() }
+    fn entry_count(&self) -> usize { self.entries_count }
 
     fn get(&self, id:usize) -> select::entry::Model {
-        let entry = &self.entries[id];
+        let icon = gui::component::ShapeView::<icon::Shape>::new(&self.logger,&self.scene);
+        icon.shape.sprite.size.set(Vector2(select::entry::ICON_SIZE,select::entry::ICON_SIZE));
+        icon.shape.id.set(id as f32);
         select::entry::Model {
-            label : iformat!("Entry {entry.id}"),
-            icon  : entry.icon.display_object().clone_ref()
+            label : iformat!("Entry {id}"),
+            icon  : icon.into_any(),
         }
     }
 }
@@ -120,10 +112,9 @@ fn init(app:&Application) {
     // app.display.add_child(&entry_container);
 
     // std::mem::forget(entry_container);
-
-    let provider:select::entry::AnyModelProvider = MockEntries::new(app,13).into();
     let select                                   = app.new_view::<select::component::Select>();
-    select.frp.resize(Vector2(100.0,150.0));
+    let provider:select::entry::AnyModelProvider = MockEntries::new(app,13).into();
+    select.frp.resize(Vector2(100.0,160.0));
     select.frp.set_entries(provider);
     app.display.add_child(&select);
     std::mem::forget(select);
