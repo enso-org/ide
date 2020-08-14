@@ -39,18 +39,18 @@ pub const TOP_MARGIN:f32 = 0.0;
 /// Breadcrumb left margin.
 pub const LEFT_MARGIN:f32 = 0.0;
 /// Breadcrumb right margin.
-pub const RIGHT_MARGIN     : f32 = 0.0;
-const ICON_LEFT_MARGIN     : f32 = 0.0;
-const ICON_RIGHT_MARGIN    : f32 = HORIZONTAL_MARGIN;
-const ICON_RADIUS          : f32 = 6.0;
-const ICON_SIZE            : f32 = ICON_RADIUS * 2.0;
-const ICON_RING_WIDTH      : f32 = 1.5;
-const ICON_ARROW_SIZE      : f32 = 4.0;
-const SEPARATOR_SIZE       : f32 = 6.0;
-const SEPARATOR_LINE_WIDTH : f32 = 3.0;
+pub const RIGHT_MARGIN  : f32 = 0.0;
+const ICON_LEFT_MARGIN  : f32 = 0.0;
+const ICON_RIGHT_MARGIN : f32 = HORIZONTAL_MARGIN;
+const ICON_RADIUS       : f32 = 6.0;
+const ICON_SIZE         : f32 = ICON_RADIUS * 2.0;
+const ICON_RING_WIDTH   : f32 = 1.5;
+const ICON_ARROW_SIZE   : f32 = 4.0;
+const SEPARATOR_SIZE    : f32 = 6.0;
 /// Breadcrumb padding.
-pub const PADDING          : f32 = 1.0;
-const SEPARATOR_MARGIN     : f32 = 4.0;
+pub const PADDING      : f32 = 1.0;
+const SEPARATOR_MARGIN : f32 = 10.0;
+const TEXT_BASELINE    : f32 = 2.0;
 
 
 // === Colors ===
@@ -119,15 +119,12 @@ mod separator {
 
     ensogl::define_shape_system! {
         (red:f32,green:f32,blue:f32,alpha:f32) {
-            let size           = SEPARATOR_SIZE;
-            let angle          = PI/2.0;
-            let front_triangle = Triangle(size.px(),size.px()).rotate(angle.radians());
-            let back_triangle  = Triangle(size.px(),size.px()).rotate(angle.radians());
-            let back_triangle  = back_triangle.translate_x(-SEPARATOR_LINE_WIDTH.px());
-            let shape          = front_triangle;// - back_triangle;
-            let color         = format!("vec4({},{},{},{})",red,green,blue,alpha);
+            let size     = SEPARATOR_SIZE;
+            let angle    = PI/2.0;
+            let triangle = Triangle(size.px(),size.px()).rotate(angle.radians());
+            let color    = format!("vec4({},{},{},{})",red,green,blue,alpha);
             let color : Var<color::Rgba> = color.into();
-            shape.fill(color).into()
+            triangle.fill(color).into()
         }
     }
 }
@@ -342,11 +339,12 @@ impl BreadcrumbModel {
         self.label.set_font_size(TEXT_SIZE);
         self.label.set_font_color(color);
         self.label.set_text(&self.info.method_pointer.name);
-        self.label.set_position(Vector3(ICON_RADIUS + ICON_RIGHT_MARGIN, -TEXT_SIZE/3.0, 0.0));
+        let y_position = -TEXT_SIZE/2.0+TEXT_BASELINE;
+        self.label.set_position(Vector3(ICON_RADIUS+ICON_RIGHT_MARGIN,y_position,0.0));
 
         let width  = self.width();
         let height = self.height();
-        let offset = self.compute_separator_margin() + SEPARATOR_SIZE/2.0;
+        let offset = SEPARATOR_MARGIN+SEPARATOR_SIZE/2.0;
 
         self.view.shape.sprite.size.set(Vector2::new(width,height));
         self.fade_in(0.0);
@@ -361,18 +359,17 @@ impl BreadcrumbModel {
         self
     }
 
-    fn compute_separator_margin(&self) -> f32 {
-        self.label.font_size() * SEPARATOR_MARGIN / 6.0
-    }
-
     fn label_width(&self) -> f32 {
         self.info.method_pointer.name.len() as f32 * GLYPH_WIDTH
     }
 
     /// Get the width of the view.
     pub fn width(&self) -> f32 {
-        let width = self.compute_separator_margin()*2.0+SEPARATOR_SIZE+ICON_SIZE+ICON_RIGHT_MARGIN;
-        let width = width+self.label_width()+LEFT_MARGIN+RIGHT_MARGIN+ICON_LEFT_MARGIN+PADDING*2.0;
+        let separator_width    = SEPARATOR_MARGIN*2.0+SEPARATOR_SIZE;
+        let icon_width         = ICON_LEFT_MARGIN+ICON_SIZE+ICON_RIGHT_MARGIN;
+        let label_width        = self.label_width();
+        let margin_and_padding = LEFT_MARGIN+RIGHT_MARGIN+PADDING*2.0;
+        let width              = separator_width+icon_width+label_width+margin_and_padding;
         width.ceil()
     }
 
@@ -468,12 +465,12 @@ impl Breadcrumb {
             eval_ frp.select(model.select());
             eval frp.deselect(((old,new)) model.deselect(*old,*new));
             //FIXME[dg]: selected should be a gate
-            eval model.view.events.mouse_over([model] (_) {
+            eval_ model.view.events.mouse_over([model] {
                 if !model.is_selected() {
                     model.animations.color.set_target_value(HOVER_COLOR.into())
                 }
             });
-            eval model.view.events.mouse_out([model] (_) {
+            eval_ model.view.events.mouse_out([model] {
                 if !model.is_selected() {
                     model.animations.color.set_target_value(model.deselected_color().into())
                 }

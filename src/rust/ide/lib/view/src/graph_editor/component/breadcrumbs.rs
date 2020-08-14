@@ -14,11 +14,15 @@ use crate::graph_editor::LocalCall;
 use enso_frp as frp;
 use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::types::Path;
+use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::camera::Camera2d;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
+use ensogl::display::shape::*;
 use ensogl::display::shape::text::text_field::FocusManager;
+use ensogl::display::Sprite;
+use ensogl::gui::component;
 use logger::AnyLogger;
 use logger::enabled::Logger;
 use std::cmp::Ordering;
@@ -50,6 +54,24 @@ enum RelativePosition {
 impl Default for RelativePosition {
     fn default() -> Self {
         RelativePosition::RIGHT
+    }
+}
+
+
+
+// ==================
+// === Background ===
+// ==================
+
+mod background {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        () {
+            let gray     = 34.0/255.0;
+            let bg_color = color::Rgba::new(gray,gray,gray,1.0);
+            Plane().fill(bg_color).into()
+        }
     }
 }
 
@@ -132,7 +154,7 @@ impl DebugFrpInputs {
 pub struct FrpOutputs {
     /// Signalizes when a new breadcrumb is pushed.
     pub breadcrumb_push   : frp::Source<Option<LocalCall>>,
-    /// Signalizes when a breadcrumb is poppoed.
+    /// Signalizes when a breadcrumb is popped.
     pub breadcrumb_pop    : frp::Source,
     /// Signalizes when project name is changed.
     pub project_name      : frp::Any<String>,
@@ -148,7 +170,7 @@ impl FrpOutputs {
         frp::extend! {network
             breadcrumb_push   <- source();
             breadcrumb_pop    <- source();
-            project_name      <- any_mut();
+            project_name      <- any(...);
             breadcrumb_select <- source();
         }
         Self{breadcrumb_push,breadcrumb_pop,project_name,breadcrumb_select}
@@ -208,6 +230,7 @@ pub struct BreadcrumbsModel {
     logger                : Logger,
     /// The breadcrumbs panel display object.
     display_object        : display::object::Instance,
+    background            : component::ShapeView<background::Shape>,
     project_name          : ProjectName,
     /// A container for all the breadcrumbs after project name. This contained and all its
     /// breadcrumbs are moved when project name component is resized.
@@ -234,9 +257,10 @@ impl BreadcrumbsModel {
         let frp_debug             = frp.debug.clone_ref();
         let current_index         = default();
         let camera                = scene.camera().clone_ref();
+        let background            = component::ShapeView::<background::Shape>::new(&logger,&scene);
 
         Self{logger,display_object,scene,breadcrumbs,project_name,breadcrumbs_container,
-            frp_inputs,current_index,frp_debug,camera}.init()
+            frp_inputs,current_index,frp_debug,camera,background}.init()
     }
 
     fn init(self) -> Self {
@@ -387,15 +411,13 @@ impl BreadcrumbsModel {
 
     fn pop_breadcrumb(&self) -> Option<(usize,usize)> {
         debug!(self.logger, "Popping {self.current_index.get()}");
-        if self.current_index.get() > 0 {
+        (self.current_index.get()>0).as_option().map(|_| {
             info!(self.logger, "Popping breadcrumb view.");
             let old_index = self.current_index.get();
             let new_index = old_index - 1;
             self.current_index.set(new_index);
-            Some((old_index,new_index))
-        } else {
-            None
-        }
+            (old_index,new_index)
+        })
     }
 
     fn remove_breadcrumbs_history_beginning_from(&self, index:usize) {
@@ -506,7 +528,9 @@ impl Breadcrumbs {
 
             // === Select ===
 
-            selected_project_name <- model.project_name.frp.outputs.mouse_down.map(f!([model] (_) model.debug_select_breadcrumb(0)));
+            selected_project_name <- model.project_name.frp.outputs.mouse_down.map(f_!([model]
+                model.debug_select_breadcrumb(0))
+            );
             selected_breadcrumb   <- frp.debug.select_breadcrumb.map(f!((index)
                 model.debug_select_breadcrumb(*index))
             );

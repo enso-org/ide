@@ -604,7 +604,11 @@ impl View {
     pub fn add(&self, symbol:&Symbol) {
         let mut symbols = self.symbols.borrow_mut();
         //FIXME:We check if the symbol was already added to this view to avoid a glitch that makes
-        //the symbol to be rendered more than once.
+        //the symbol to be rendered more than once. The Breadcrumb object, for instance, is added
+        //to the view object every time a new breadcrumb is created. It gets really visible when
+        //the breadcrumb is semi-transparent because, every time it's rendered, the shape is added
+        //on top of the already rendered ones.
+        //TODO:Symbols insertion can run faster if refactored as HashSet.
         if symbols.iter().find(|id| **id == symbol.id as usize).is_none() {
             symbols.push(symbol.id as usize); // TODO strange conversion
         }

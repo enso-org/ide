@@ -692,9 +692,9 @@ impl From<enso_protocol::language_server::MethodPointer> for MethodPointer {
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct LocalCall {
     /// An expression being a call to a method.
-    pub call:enso_protocol::language_server::ExpressionId,
+    pub call : enso_protocol::language_server::ExpressionId,
     /// A pointer to the called method.
-    pub definition:MethodPointer,
+    pub definition : MethodPointer,
 }
 
 

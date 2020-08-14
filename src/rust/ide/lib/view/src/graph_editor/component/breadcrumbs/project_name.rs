@@ -5,13 +5,7 @@ use crate::prelude::*;
 use crate::graph_editor::component::breadcrumbs::TEXT_SIZE;
 use crate::graph_editor::component::breadcrumbs::GLYPH_WIDTH;
 use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
-use crate::graph_editor::component::breadcrumbs::breadcrumb::HOVER_COLOR;
-use crate::graph_editor::component::breadcrumbs::breadcrumb::LEFT_MARGIN;
-use crate::graph_editor::component::breadcrumbs::breadcrumb::LEFT_DESELECTED_COLOR;
-use crate::graph_editor::component::breadcrumbs::breadcrumb::SELECTED_COLOR;
-use crate::graph_editor::component::breadcrumbs::breadcrumb::RIGHT_MARGIN;
-use crate::graph_editor::component::breadcrumbs::breadcrumb::PADDING;
-use crate::graph_editor::component::breadcrumbs::breadcrumb::TOP_MARGIN;
+use crate::graph_editor::component::breadcrumbs::breadcrumb;
 
 use enso_frp as frp;
 use ensogl::data::color;
@@ -205,7 +199,7 @@ impl ProjectNameModel {
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
-        let base_color            = SELECTED_COLOR;
+        let base_color            = breadcrumb::SELECTED_COLOR;
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
         let text_field            = TextField::new(scene,text_field_properties,focus_manager);
@@ -225,15 +219,16 @@ impl ProjectNameModel {
     pub fn width(&self) -> f32 {
         let content = self.text_field.get_content();
         let glyphs  = content.len();
-        glyphs as f32 * GLYPH_WIDTH + LEFT_MARGIN + RIGHT_MARGIN + PADDING * 2.0
+        let width   = glyphs as f32 * GLYPH_WIDTH;
+        width + breadcrumb::LEFT_MARGIN + breadcrumb::RIGHT_MARGIN + breadcrumb::PADDING * 2.0
     }
 
     fn update_alignment(&self) {
         let width       = self.width();
         let line_height = self.text_field.line_height();
         let height      = line_height+VERTICAL_MARGIN*2.0;
-        let x_position = LEFT_MARGIN+PADDING;
-        let y_position = -VERTICAL_MARGIN-TOP_MARGIN-PADDING;
+        let x_position = breadcrumb::LEFT_MARGIN+breadcrumb::PADDING;
+        let y_position = -VERTICAL_MARGIN-breadcrumb::TOP_MARGIN-breadcrumb::PADDING;
         self.text_field.set_position(Vector3(x_position,y_position,0.0));
         self.view.shape.sprite.size.set(Vector2(width,height));
         self.view.set_position(Vector3(width,-height,0.0)/2.0);
@@ -283,12 +278,12 @@ impl ProjectNameModel {
 
     fn select(&self) {
         self.is_selected.set(true);
-        self.animations.color.set_target_value(SELECTED_COLOR.into());
+        self.animations.color.set_target_value(breadcrumb::SELECTED_COLOR.into());
     }
 
     fn deselect(&self) {
         self.is_selected.set(false);
-        self.animations.color.set_target_value(LEFT_DESELECTED_COLOR.into());
+        self.animations.color.set_target_value(breadcrumb::LEFT_DESELECTED_COLOR.into());
     }
 
     fn is_selected(&self) -> bool {
@@ -324,14 +319,15 @@ impl ProjectName {
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
         frp::extend! { network
-            eval model.view.events.mouse_over([model] (_) {
+            eval_ model.view.events.mouse_over([model] {
                 if !model.is_selected() {
-                    model.animations.color.set_target_value(HOVER_COLOR.into());
+                    model.animations.color.set_target_value(breadcrumb::HOVER_COLOR.into());
                 }
             });
-            eval model.view.events.mouse_out([model] (_) {
+            eval_ model.view.events.mouse_out([model] {
                 if !model.is_selected() {
-                    model.animations.color.set_target_value(LEFT_DESELECTED_COLOR.into());
+                    let color = breadcrumb::LEFT_DESELECTED_COLOR.into();
+                    model.animations.color.set_target_value(color);
                 }
             });
             eval_ frp.select(model.select());
@@ -343,9 +339,7 @@ impl ProjectName {
             eval_ model.view.events.mouse_down(frp.outputs.edit_mode.emit(true));
             outside_press     <- any(&frp.outside_press,&frp.deselect);
             commit_if_changed <- outside_press.gate(&frp.outputs.edit_mode);
-            eval_ commit_if_changed({
-                frp.commit.emit(())
-            });
+            eval_ commit_if_changed(frp.commit.emit(()));
         }
 
 
