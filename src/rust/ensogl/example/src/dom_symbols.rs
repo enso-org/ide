@@ -19,7 +19,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[allow(dead_code)]
 #[allow(clippy::many_single_char_names)]
-pub fn run_example_dom_symbols() {
+pub fn entry_point_dom_symbols() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     let world         = World::new(&web::get_html_element_by_id("root").unwrap());

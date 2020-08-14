@@ -261,7 +261,7 @@ macro_rules! examples {
 #[wasm_bindgen]
 #[allow(dead_code)]
 /// Runs EasingAnimator example.
-pub fn run_example_easing_animator() {
+pub fn entry_point_easing_animator() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();

@@ -396,7 +396,7 @@ pub(crate) mod test {
     use crate::data::color;
     use crate::display::shape::text::glyph::font;
 
-    use ensogl_core_msdf_sys as msdf_sys;
+    use ensogl_text_msdf_sys as msdf_sys;
     use nalgebra::Vector2;
     use wasm_bindgen_test::wasm_bindgen_test;
 

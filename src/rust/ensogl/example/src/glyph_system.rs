@@ -7,7 +7,7 @@ use ensogl_core::display::shape::text::glyph::font;
 use ensogl_core::display::shape::text::glyph::system::GlyphSystem;
 use ensogl_core::display::world::*;
 use ensogl_core::system::web;
-use ensogl_core_msdf_sys::run_once_initialized;
+use ensogl_text_msdf_sys::run_once_initialized;
 use wasm_bindgen::prelude::*;
 
 
@@ -15,7 +15,7 @@ use wasm_bindgen::prelude::*;
 /// Main example runner.
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_glyph_system() {
+pub fn entry_point_glyph_system() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     run_once_initialized(|| init(&World::new(&web::get_html_element_by_id("root").unwrap())));

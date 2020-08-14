@@ -15,10 +15,10 @@ use nalgebra::Vector2;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_text_typing() {
+pub fn entry_point_text_typing() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
-    ensogl_core_msdf_sys::run_once_initialized(|| {
+    ensogl_text_msdf_sys::run_once_initialized(|| {
         let world     = &World::new(&web::get_html_element_by_id("root").unwrap());
         let mut fonts = font::Registry::new();
         let font      = fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();

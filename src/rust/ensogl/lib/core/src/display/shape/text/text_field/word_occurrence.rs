@@ -265,7 +265,7 @@ mod test {
     use super::*;
     use crate::display::shape::text::text_field::content::test::mock_properties;
 
-    use ensogl_core_msdf_sys as msdf_sys;
+    use ensogl_text_msdf_sys as msdf_sys;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     #[wasm_bindgen_test(async)]

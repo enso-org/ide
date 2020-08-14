@@ -1,6 +1,6 @@
-//! ensogl is a blazing fast 2D vector rendering engine with a rich set of primitives and a GUI
-//! component library. It is able to display millions of shapes 60 frames per second in a web
-//! browser on a modern laptop hardware. This is the main entry point to the library.
+//! The core vector rendering engine for EnsoGL, a blazing fast 2D drawing library. This crate
+//! contains the core utilities necessary for the rendering engine to run correctly. See thr docs
+//! of the `ensogl` crate to learn more.
 
 #![allow(dead_code)]
 

@@ -11,3 +11,4 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 ensogl-core = { path = "lib/core" }
+ensogl-text = { path = "lib/text" }

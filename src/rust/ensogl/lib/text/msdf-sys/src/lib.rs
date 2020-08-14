@@ -216,7 +216,7 @@ impl Msdf {
 mod tests {
     use super::*;
 
-    use ensogl_core_embedded_fonts::EmbeddedFonts;
+    use ensogl_text_embedded_fonts::EmbeddedFonts;
     use nalgebra::Vector2;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;

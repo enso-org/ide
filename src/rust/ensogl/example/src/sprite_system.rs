@@ -19,7 +19,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_sprite_system() {
+pub fn entry_point_sprite_system() {
     forward_panic_hook_to_console();
     set_stdout();
 

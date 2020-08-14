@@ -152,6 +152,7 @@ impl Transform {
 /// flags which are set after fields are modified. You can use the `update` function to recompute
 /// the matrix.
 #[derive(Clone,Debug)]
+#[allow(missing_copy_implementations)]
 pub struct CachedTransform {
     transform        : Transform,
     transform_matrix : Matrix4<f32>,

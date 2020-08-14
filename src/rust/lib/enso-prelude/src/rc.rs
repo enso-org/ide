@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::rc::Weak;
 use super::option::*;
 
-
+// TODO[WD,AO]: Think about merging it with `OptionOps`.
 /// Mapping methods to the `Weak` type.
 pub trait WeakOps {
     type Target;

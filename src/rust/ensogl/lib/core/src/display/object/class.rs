@@ -3,12 +3,9 @@
 //! transformation changes and updates only the needed subset of the display object tree on demand.
 
 use crate::prelude::*;
-//use logger::enabled::Logger;
 
 use super::transform;
 
-use crate::control::callback::DynEvent;
-use crate::control::callback::DynEventDispatcher;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::display::scene::Scene;
@@ -36,7 +33,7 @@ pub struct ParentBind<Host> {
 }
 
 impl<Host> ParentBind<Host> {
-    pub fn parent(&self) -> Option<Instance<Host>> {
+    fn parent(&self) -> Option<Instance<Host>> {
         self.parent.upgrade()
     }
 }
@@ -62,9 +59,9 @@ impl<Host> Drop for ParentBind<Host> {
 #[derivative(Default(bound=""))]
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
-    pub on_updated : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
-    pub on_show    : RefCell<Option<Box<dyn Fn(&Host)>>>,
-    pub on_hide    : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    on_updated : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
+    on_show    : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    on_hide    : RefCell<Option<Box<dyn Fn(&Host)>>>,
 }
 
 impl<Host> Callbacks<Host> {
@@ -116,10 +113,14 @@ impl<Host> DirtyFlags<Host> {
     fn new(logger:impl AnyLogger) -> Self {
         let logger           = Logger::sub(&logger,"dirty");
         let on_dirty         = Rc::new(RefCell::new(Box::new(||{}) as Box<dyn Fn()>));
-        let parent           = NewParentDirty  :: new(logger::disabled::Logger::sub(&logger,"parent"),());
-        let children         = ChildrenDirty   :: new(logger::disabled::Logger::sub(&logger,"children"),on_dirty_callback(&on_dirty));
-        let removed_children = RemovedChildren :: new(logger::disabled::Logger::sub(&logger,"removed_children"),on_dirty_callback(&on_dirty));
-        let transform        = TransformDirty  :: new(logger::disabled::Logger::sub(&logger,"transform"),on_dirty_callback(&on_dirty));
+        let sub_logger       = logger::disabled::Logger::sub(&logger,"parent");
+        let parent           = NewParentDirty  :: new(sub_logger,());
+        let sub_logger       = logger::disabled::Logger::sub(&logger,"children");
+        let children         = ChildrenDirty   :: new(sub_logger,on_dirty_callback(&on_dirty));
+        let sub_logger       = logger::disabled::Logger::sub(&logger,"removed_children");
+        let removed_children = RemovedChildren :: new(sub_logger,on_dirty_callback(&on_dirty));
+        let sub_logger       = logger::disabled::Logger::sub(&logger,"transform");
+        let transform        = TransformDirty  :: new(sub_logger,on_dirty_callback(&on_dirty));
         Self {parent,children,removed_children,transform,on_dirty}
     }
 
@@ -135,10 +136,10 @@ impl<Host> DirtyFlags<Host> {
 
 // === Types ===
 
-pub type NewParentDirty        = dirty::SharedBool<()>;
-pub type ChildrenDirty         = dirty::SharedSet<usize,OnDirtyCallback>;
-pub type RemovedChildren<Host> = dirty::SharedVector<WeakInstance<Host>,OnDirtyCallback>;
-pub type TransformDirty        = dirty::SharedBool<OnDirtyCallback>;
+type NewParentDirty        = dirty::SharedBool<()>;
+type ChildrenDirty         = dirty::SharedSet<usize,OnDirtyCallback>;
+type RemovedChildren<Host> = dirty::SharedVector<WeakInstance<Host>,OnDirtyCallback>;
+type TransformDirty        = dirty::SharedBool<OnDirtyCallback>;
 
 type OnDirtyCallback = impl Fn();
 fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
@@ -292,7 +293,7 @@ impl<Host> Model<Host> {
         }
     }
 
-    pub fn hide_removed_children(&self, host:&Host) {
+    fn hide_removed_children(&self, host:&Host) {
         if self.dirty.removed_children.check_all() {
             group!(self.logger, "Updating removed children", {
                 for child in self.dirty.removed_children.take().into_iter() {
@@ -363,22 +364,27 @@ impl<Host> Model<Host> {
 // === Getters ===
 
 impl<Host> Model<Host> {
+    /// Position of the object in the global coordinate space.
     pub fn global_position(&self) -> Vector3<f32> {
         self.transform.borrow().global_position()
     }
 
+    /// Position of the object in the parent coordinate space.
     pub fn position(&self) -> Vector3<f32> {
         self.transform.borrow().position()
     }
 
+    /// Scale of the object in the parent coordinate space.
     pub fn scale(&self) -> Vector3<f32> {
         self.transform.borrow().scale()
     }
 
+    /// Rotation of the object in the parent coordinate space.
     pub fn rotation(&self) -> Vector3<f32> {
         self.transform.borrow().rotation()
     }
 
+    /// Transformation matrix of the object in the parent coordinate space.
     pub fn matrix(&self) -> Matrix4<f32> {
         self.transform.borrow().matrix()
     }
@@ -443,6 +449,7 @@ impl<Host> Model<Host> {
 // === Id ===
 // ==========
 
+/// Globally unique identifier of a display object.
 #[derive(Clone,CloneRef,Copy,Debug,Default,Display,Eq,From,Hash,Into,PartialEq)]
 pub struct Id(usize);
 
@@ -452,6 +459,8 @@ pub struct Id(usize);
 // === Instance ===
 // ================
 
+/// Instance of a display object. Instances can be positioned, rotated, scaled, attached to other
+/// instances to form hierarchies, etc.
 #[derive(Derivative)]
 #[derive(CloneRef)]
 #[derivative(Clone(bound=""))]
@@ -483,10 +492,7 @@ impl<Host> Instance<Host> {
 // === Public API ==
 
 impl<Host> Instance<Host> {
-    pub fn with_logger<F:FnOnce(&Logger)>(&self, f:F) {
-        f(&self.rc.logger)
-    }
-
+    /// ID getter of this display object.
     pub fn _id(&self) -> Id {
         Id(Rc::downgrade(&self.rc).as_raw() as *const() as usize)
     }
@@ -547,10 +553,10 @@ impl<Host> Instance<Host> {
 }
 
 
-// === Getters ===
+// === Private API ===
 
 impl<Host> Instance<Host> {
-    pub fn index(&self) -> Option<usize> {
+    fn parent_index(&self) -> Option<usize> {
         self.parent_bind.borrow().as_ref().map(|t| t.index)
     }
 }
@@ -591,16 +597,24 @@ pub struct WeakInstance<Host> {
 }
 
 impl<Host> WeakInstance<Host> {
+    /// Upgrade the weak instance to strong one if it was not yet dropped.
     pub fn upgrade(&self) -> Option<Instance<Host>> {
         self.weak.upgrade().map(|rc| Instance {rc})
     }
+
+    /// Checks whether this weak instance still exists (its strong instance was not dropped yet).
+    pub fn exists(&self) -> bool {
+        self.upgrade().is_some()
+    }
 }
 
-// FIXME: This is not a valid implementation as the pointers may alias when one instance was dropped
-//        and other was created in the same location.
 impl<Host> PartialEq for WeakInstance<Host> {
     fn eq(&self, other:&Self) -> bool {
-        self.weak.ptr_eq(&other.weak)
+        if self.exists() && other.exists() {
+            self.weak.ptr_eq(&other.weak)
+        } else {
+            false
+        }
     }
 }
 
@@ -610,6 +624,11 @@ impl<Host> PartialEq for WeakInstance<Host> {
 // === Object ===
 // ==============
 
+/// The abstraction for any display object. In order to make your struct a display object, store
+/// the `display::object::Instance` as a field and define impl of this trait. Every struct which
+/// implements it, automatically implements the `display::object::ObjectOps`, and thus gets a lot
+/// of methods implemented automatically.
+#[allow(missing_docs)]
 pub trait Object<Host=Scene> {
     fn display_object      (&self) -> &Instance<Host>;
     fn weak_display_object (&self) -> WeakInstance<Host> {
@@ -638,36 +657,36 @@ impl<Host,T:Object<Host>> Object<Host> for &T {
 
 impl<Host,T:Object<Host>> ObjectOps<Host> for T {}
 
+/// Implementation of operations available for every struct which implements `display::Object`.
 // HOTFIX[WD]: We are using names with underscores in order to fix this bug:
 // https://github.com/rust-lang/rust/issues/70727 . To be removed as soon as the bug is fixed.
 #[allow(missing_docs)]
 pub trait ObjectOps<Host=Scene> : Object<Host> {
+    /// Globally unique identifier of this display object.
     fn id(&self) -> Id {
         self.display_object()._id()
     }
 
+    /// Add another display object as a child to this display object. Children will inherit all
+    /// transformations of their parents.
     fn add_child<T:Object<Host>>(&self, child:&T) {
         self.display_object()._add_child(child.display_object());
     }
 
+    /// Remove the display object from the children list of this display object. Does nothing if
+    /// the child was not registered.
     fn remove_child<T:Object<Host>>(&self, child:&T) {
         self.display_object()._remove_child(child.display_object());
     }
 
+    /// Removes this display object from its parent's children list.
     fn unset_parent(&self) {
         self.display_object()._unset_parent();
     }
 
+    /// Check whether this display object is attached to a parent.
     fn has_parent(&self) -> bool {
         self.display_object()._has_parent()
-    }
-
-    fn transform_matrix(&self) -> Matrix4<f32> {
-        self.display_object().rc.matrix()
-    }
-
-    fn global_position(&self) -> Vector3<f32> {
-        self.display_object().rc.global_position()
     }
 
     /// Checks whether the object is visible.
@@ -678,6 +697,17 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
     /// Checks whether the object is orphan (do not have parent object attached).
     fn is_orphan(&self) -> bool {
         self.display_object().rc.is_orphan()
+    }
+
+
+    // === Transform ===
+
+    fn transform_matrix(&self) -> Matrix4<f32> {
+        self.display_object().rc.matrix()
+    }
+
+    fn global_position(&self) -> Vector3<f32> {
+        self.display_object().rc.global_position()
     }
 
 
@@ -914,16 +944,16 @@ mod tests {
         let node2 = Instance::<()>::new(Logger::new("node2"));
         let node3 = Instance::<()>::new(Logger::new("node3"));
         node1.add_child(&node2);
-        assert_eq!(node2.index(),Some(0));
+        assert_eq!(node2.parent_index(),Some(0));
 
         node1.add_child(&node2);
-        assert_eq!(node2.index(),Some(0));
+        assert_eq!(node2.parent_index(),Some(0));
 
         node1.add_child(&node3);
-        assert_eq!(node3.index(),Some(1));
+        assert_eq!(node3.parent_index(),Some(1));
 
         node1.remove_child(&node3);
-        assert_eq!(node3.index(),None);
+        assert_eq!(node3.parent_index(),None);
     }
 
     #[test]
@@ -1034,5 +1064,34 @@ mod tests {
         node2.add_child(&node3);
         node1.update(&());
         assert_eq!(node3.is_visible(),true);
+    }
+
+    #[test]
+    fn deep_hierarchy_test() {
+        let world = Instance::<()>::new(Logger::new("world"));
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
+        let node4 = Instance::<()>::new(Logger::new("node4"));
+
+        world.add_child(&node1);
+        node1.add_child(&node2);
+        node2.add_child(&node3);
+        node3.add_child(&node4);
+
+        assert_eq!(node3.is_visible(),true);
+        assert_eq!(node4.is_visible(),true);
+
+        world.update(&());
+
+        assert_eq!(node3.is_visible(),true);
+        assert_eq!(node4.is_visible(),true);
+
+        node4.unset_parent();
+        node3.unset_parent();
+        world.update(&());
+
+        assert_eq!(node3.is_visible(),false);
+        assert_eq!(node4.is_visible(),false);
     }
 }

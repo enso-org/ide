@@ -191,7 +191,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn getting_chars_x_position() {
-        ensogl_core_msdf_sys::initialized().await;
+        ensogl_text_msdf_sys::initialized().await;
         let mut line     = Line::new("ABA");
         let mut line_ref = LineFullInfo {
             line    : &mut line,
@@ -212,7 +212,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn finding_char_by_x_position() {
-        ensogl_core_msdf_sys::initialized().await;
+        ensogl_text_msdf_sys::initialized().await;
         let mut line     = Line::new("ABBA");
         let mut line_ref = LineFullInfo {
             line    : &mut line,
@@ -247,7 +247,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn finding_char_by_x_position_in_empty_line() {
-        ensogl_core_msdf_sys::initialized().await;
+        ensogl_text_msdf_sys::initialized().await;
         let mut line     = Line::new("");
         let mut line_ref = LineFullInfo {
             line    : &mut line,
@@ -263,7 +263,7 @@ mod test {
 
     #[wasm_bindgen_test(async)]
     async fn modifying_line() {
-        ensogl_core_msdf_sys::initialized().await;
+        ensogl_text_msdf_sys::initialized().await;
         let mut line     = Line::new("AB");
         let mut line_ref = LineFullInfo {
             line    : &mut line,

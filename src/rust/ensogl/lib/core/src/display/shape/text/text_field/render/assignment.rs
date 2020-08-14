@@ -329,7 +329,7 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     async fn initial_assignment() {
-        ensogl_core_msdf_sys::initialized().await;
+        ensogl_text_msdf_sys::initialized().await;
         let properties  = mock_properties();
         let mut content = TextFieldContent::new("AAABBB\nBAABAB\n\nA\nA",&properties);
 
@@ -356,7 +356,7 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     async fn lines_reassignment() {
-        ensogl_core_msdf_sys::initialized().await;
+        ensogl_text_msdf_sys::initialized().await;
         let properties  = mock_properties();
         let mut content = TextFieldContent::new("AAABBB\nBAABAB\n\nA\nA\nAB",&properties);
 
@@ -409,7 +409,7 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     async fn marking_dirty_after_x_scrolling() {
-        ensogl_core_msdf_sys::initialized().await;
+        ensogl_text_msdf_sys::initialized().await;
         let properties  = mock_properties();
         let mut content = TextFieldContent::new("AAABBB\nBAABAB\nBBABAB\nA\nA",&properties);
 
@@ -440,7 +440,7 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     async fn update_after_text_edit() {
-        ensogl_core_msdf_sys::initialized().await;
+        ensogl_text_msdf_sys::initialized().await;
         let properties  = mock_properties();
 
         let mut assignment = GlyphLinesAssignment::new(3, 4, 10.0);

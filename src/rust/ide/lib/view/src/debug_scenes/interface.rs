@@ -22,7 +22,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_interface() {
+pub fn entry_point_interface() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
@@ -172,7 +172,7 @@ use crate::graph_editor::component::node::port::Expression;
 use ast::crumbs::*;
 use ast::crumbs::PatternMatchCrumb::*;
 use enso_protocol::prelude::Uuid;
-use ensogl_core_msdf_sys::run_once_initialized;
+use ensogl_text_msdf_sys::run_once_initialized;
 use span_tree::traits::*;
 
 

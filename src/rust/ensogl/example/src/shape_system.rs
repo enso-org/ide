@@ -26,7 +26,7 @@ pub fn shape() -> AnyShape {
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_shape_system() {
+pub fn entry_point_shape_system() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
 
