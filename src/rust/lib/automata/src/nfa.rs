@@ -6,9 +6,9 @@ use crate::alphabet;
 use crate::dfa::RuleExecutable;
 use crate::dfa::DFA;
 use crate::pattern::Pattern;
-use crate::state::State;
 use crate::state::Transition;
 use crate::state;
+use crate::state::State;
 use crate::symbol::Symbol;
 use crate::data::matrix::Matrix;
 
@@ -26,7 +26,7 @@ use std::ops::RangeInclusive;
 ///
 /// This is used during the NFA -> DFA transformation, where multiple states can merge together due
 /// to the collapsing of epsilon transitions.
-type StateSetId = BTreeSet<state::Identifier>;
+type StateSetId = BTreeSet<State>;
 
 /// The definition of a [NFA](https://en.wikipedia.org/wiki/Nondeterministic_finite_automaton) for a
 /// given set of symbols, states, and transitions (specifically a NFA with ε-moves).
@@ -46,23 +46,23 @@ pub struct NFA {
     /// A set of disjoint intervals over the input alphabet.
     pub alphabet_segmentation: alphabet::Segmentation,
     /// A set of named NFA states, with (epsilon) transitions.
-    pub states: Vec<State>,
+    pub states: Vec<state::Data>,
 }
 
 impl NFA {
     /// Adds a new state to the NFA and returns its identifier.
-    pub fn new_state(&mut self) -> state::Identifier {
+    pub fn new_state(&mut self) -> State {
         let id = self.states.len();
-        self.states.push(State::default());
-        state::Identifier {id}
+        self.states.push(state::Data::default());
+        State::new(id)
     }
 
     /// Creates an epsilon transition between two states.
     ///
     /// Whenever the automaton happens to be in `source` state it can immediately transition to the
     /// `target` state. It is, however, not _required_ to do so.
-    pub fn connect(&mut self,source:state::Identifier,target:state::Identifier) {
-        self.states[source.id].epsilon_links.push(target);
+    pub fn connect(&mut self,source:State,target:State) {
+        self.states[source.id()].epsilon_links.push(target);
     }
 
     /// Creates an ordinary transition for a range of symbols.
@@ -71,17 +71,17 @@ impl NFA {
     /// state, it will immediately transition to the `target` state.
     pub fn connect_via
     ( &mut self
-    , source:state::Identifier
-    , target_state:state::Identifier
+    , source:State
+    , target_state:State
     , symbols:&RangeInclusive<Symbol>) {
         self.alphabet_segmentation.insert(symbols.clone());
-        self.states[source.id].links.push(Transition{symbols:symbols.clone(),target_state});
+        self.states[source.id()].links.push(Transition{symbols:symbols.clone(),target_state});
     }
 
     /// Transforms a pattern to an NFA using the algorithm described
     /// [here](https://www.youtube.com/watch?v=RYNN-tb9WxI).
     /// The asymptotic complexity is linear in number of symbols.
-    pub fn new_pattern(&mut self,source:state::Identifier,pattern:&Pattern) -> state::Identifier {
+    pub fn new_pattern(&mut self,source:State,pattern:&Pattern) -> State {
         let current = self.new_state();
         self.connect(source,current);
         match pattern {
@@ -121,31 +121,31 @@ impl NFA {
         ( nfa      : &NFA
         , states   : &mut Vec<StateSetId>
         , visited  : &mut Vec<bool>
-        , state    : state::Identifier
+        , state    : State
         ) {
             let mut state_set = StateSetId::new();
-            visited[state.id] = true;
+            visited[state.id()] = true;
             state_set.insert(state);
-            for &target in &nfa.states[state.id].epsilon_links {
-                if !visited[target.id] {
+            for &target in &nfa.states[state.id()].epsilon_links {
+                if !visited[target.id()] {
                     fill_eps_matrix(nfa,states,visited,target);
                 }
                 state_set.insert(target);
-                state_set.extend(states[target.id].iter());
+                state_set.extend(states[target.id()].iter());
             }
-            states[state.id] = state_set;
+            states[state.id()] = state_set;
         }
 
         let mut states = vec![StateSetId::new(); self.states.len()];
         for id in 0..self.states.len() {
             let mut visited = vec![false; states.len()];
-            fill_eps_matrix(self,&mut states,&mut visited,state::Identifier{id});
+            fill_eps_matrix(self,&mut states,&mut visited,State::new(id));
         }
         states
     }
 
     /// Computes a transition matrix `(state, symbol) => state` for the NFA, ignoring epsilon links.
-    fn nfa_matrix(&self) -> Matrix<state::Identifier> {
+    fn nfa_matrix(&self) -> Matrix<State> {
         let mut matrix = Matrix::new(self.states.len(),self.alphabet_segmentation.divisions.len());
 
         for (state_ix, source) in self.states.iter().enumerate() {
@@ -167,10 +167,10 @@ impl From<&NFA> for DFA {
         let     eps_mat     = nfa.eps_matrix();
         let mut dfa_mat     = Matrix::new(0,nfa.alphabet_segmentation.divisions.len());
         let mut dfa_eps_ixs = Vec::<StateSetId>::new();
-        let mut dfa_eps_map = HashMap::<StateSetId,state::Identifier>::new();
+        let mut dfa_eps_map = HashMap::<StateSetId,State>::new();
 
         dfa_eps_ixs.push(eps_mat[0].clone());
-        dfa_eps_map.insert(eps_mat[0].clone(),state::Identifier::from(0));
+        dfa_eps_map.insert(eps_mat[0].clone(),State::new(0));
 
         let mut i = 0;
         while i < dfa_eps_ixs.len()  {
@@ -178,16 +178,16 @@ impl From<&NFA> for DFA {
             for voc_ix in 0..nfa.alphabet_segmentation.divisions.len() {
                 let mut eps_set = StateSetId::new();
                 for &eps_ix in &dfa_eps_ixs[i] {
-                    let tgt = nfa_mat[(eps_ix.id,voc_ix)];
-                    if tgt != state::Identifier::INVALID {
-                        eps_set.extend(eps_mat[tgt.id].iter());
+                    let tgt = nfa_mat[(eps_ix.id(),voc_ix)];
+                    if tgt != State::INVALID {
+                        eps_set.extend(eps_mat[tgt.id()].iter());
                     }
                 }
                 if !eps_set.is_empty() {
                     dfa_mat[(i,voc_ix)] = match dfa_eps_map.get(&eps_set) {
                         Some(&id) => id,
                         None => {
-                            let id = state::Identifier{id:dfa_eps_ixs.len()};
+                            let id = State::new(dfa_eps_ixs.len());
                             dfa_eps_ixs.push(eps_set.clone());
                             dfa_eps_map.insert(eps_set,id);
                             id
@@ -201,9 +201,9 @@ impl From<&NFA> for DFA {
         let mut callbacks = vec![None; dfa_eps_ixs.len()];
         let     priority  = dfa_eps_ixs.len();
         for (dfa_ix,epss) in dfa_eps_ixs.into_iter().enumerate() {
-            let has_name = |&key:&state::Identifier| nfa.states[key.id].name.is_some();
+            let has_name = |&key:&State| nfa.states[key.id()].name.is_some();
             if let Some(eps) = epss.into_iter().find(has_name) {
-                let rule = nfa.states[eps.id].name.as_ref().cloned().unwrap();
+                let rule = nfa.states[eps.id()].name.as_ref().cloned().unwrap();
                 callbacks[dfa_ix] = Some(RuleExecutable{code:rule,priority});
             }
         }

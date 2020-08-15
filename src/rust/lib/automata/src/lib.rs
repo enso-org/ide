@@ -10,6 +10,7 @@ pub use dfa::*;
 pub use nfa::*;
 pub use pattern::*;
 pub use symbol::*;
+pub use state::State;
 
 use enso_prelude as prelude;
 
@@ -24,9 +25,9 @@ pub fn main() {
     let end_c   = nfa.new_pattern(end_b,&Pattern::char('c'));
     let end_x   = nfa.new_pattern(start,&Pattern::char('x'));
 
-    nfa.states[end_a.id].name = Some("end_a".into());
-    nfa.states[end_c.id].name = Some("end_c".into());
-    nfa.states[end_x.id].name = Some("end_x".into());
+    nfa.states[end_a.id()].name = Some("end_a".into());
+    nfa.states[end_c.id()].name = Some("end_c".into());
+    nfa.states[end_x.id()].name = Some("end_x".into());
 
     let dfa = DFA::from(&nfa);
 
@@ -40,7 +41,7 @@ pub fn main() {
     let t = &dfa.alphabet_segmentation;
 
     println!("---------");
-    let after_a = dfa.next_state(state::Identifier::from(0),Symbol::new(97));
+    let after_a = dfa.next_state(State::new(0),Symbol::new(97));
     let after_b = dfa.next_state(after_a,Symbol::new(98));
     let after_c = dfa.next_state(after_b,Symbol::new(99));
     println!("{:?}",after_a);

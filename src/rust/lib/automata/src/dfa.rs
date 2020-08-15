@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 use crate::symbol::Symbol;
 use crate::alphabet;
-use crate::state;
 use crate::state::State;
+use crate::state;
 use crate::data::matrix::Matrix;
 
 
@@ -44,15 +44,15 @@ pub struct DFA {
     /// | 0 | 1 | - |
     /// | 1 | - | 0 |
     ///
-    pub links : Matrix<state::Identifier>,
+    pub links : Matrix<State>,
     /// A collection of callbacks for each state (indexable in order)
     pub callbacks : Vec<Option<RuleExecutable>>,
 }
 
 impl DFA {
-    pub fn next_state(&self, state:state::Identifier, symbol:Symbol) -> state::Identifier {
+    pub fn next_state(&self, state:State, symbol:Symbol) -> State {
         self.index_of_symbol(symbol).and_then(|ix| {
-            self.links.safe_index(ix,state.id)
+            self.links.safe_index(ix,state.id())
         }).unwrap_or_default()
     }
 
@@ -66,14 +66,14 @@ impl DFA {
 
 // === Trait Impls ===
 
-impl From<Vec<Vec<usize>>> for Matrix<state::Identifier> {
+impl From<Vec<Vec<usize>>> for Matrix<State> {
     fn from(input:Vec<Vec<usize>>) -> Self {
         let rows       = input.len();
         let columns    = if rows == 0 {0} else {input[0].len()};
         let mut matrix = Self::new(rows,columns);
         for row in 0..rows {
             for column in 0..columns {
-                matrix[(row,column)] = state::Identifier::from(input[row][column]);
+                matrix[(row,column)] = State::new(input[row][column]);
             }
         }
         matrix
@@ -111,7 +111,7 @@ pub mod tests {
 
     use super::*;
 
-    const INVALID:usize = state::Identifier::INVALID.id;
+    const INVALID:usize = State::INVALID.id;
 
     /// DFA automata that accepts newline '\n'.
     pub fn newline() -> DFA {
