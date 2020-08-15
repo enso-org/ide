@@ -7,5 +7,6 @@ edition = "2018"
 [lib]
 
 [dependencies]
-enso-prelude = { version = "0.1.0"  , path = "../enso-prelude" }
-enso-frp     = { version = "0.1.0"  , path = "../frp" }
+enso-automata = { path = "../automata" }
+enso-prelude  = { path = "../enso-prelude" }
+enso-frp      = { path = "../frp" }

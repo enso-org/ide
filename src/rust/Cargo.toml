@@ -19,6 +19,7 @@ members = [
     "ide/lib/utils",
     "ide/lib/view",
 
+    "lib/automata",
     "lib/callback",
     "lib/code-builder",
     "lib/data",

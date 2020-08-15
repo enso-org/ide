@@ -467,6 +467,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "enso-automata"
+version = "0.1.0"
+dependencies = [
+ "enso-prelude 0.1.0",
+]
+
+[[package]]
 name = "enso-callback"
 version = "0.1.0"
 dependencies = [
@@ -592,6 +599,7 @@ dependencies = [
 name = "enso-shortcuts"
 version = "0.1.0"
 dependencies = [
+ "enso-automata 0.1.0",
  "enso-frp 0.1.0",
  "enso-prelude 0.1.0",
 ]

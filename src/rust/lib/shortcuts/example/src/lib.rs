@@ -12,3 +12,23 @@ pub fn entry_point_shortcuts() {
 
     println!("hello2");
 }
+
+
+
+
+
+
+
+
+
+// - shift left left
+//
+// any_key (?mouse)
+//
+// left (?mouse)
+//
+// key? left_down
+//
+// ctr -> b -> release ctrl
+//
+// any letter WITHOUT modifiers (typing but not cmd+a)
