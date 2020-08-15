@@ -20,10 +20,10 @@ use prelude::*;
 pub fn main() {
     let mut nfa : Nfa = default();
     let start = nfa.new_state();
-    let end_a   = nfa.new_pattern(start,&Pattern::char('a'));
-    let end_b   = nfa.new_pattern(end_a,&Pattern::char('b'));
-    let end_c   = nfa.new_pattern(end_b,&Pattern::char('c'));
-    let end_x   = nfa.new_pattern(start,&Pattern::char('x'));
+    let end_a = nfa.new_pattern(start,&Pattern::char('a'));
+    let end_b = nfa.new_pattern(end_a,&Pattern::char('b'));
+    let end_c = nfa.new_pattern(end_b,&Pattern::char('c'));
+    let end_x = nfa.new_pattern(start,&Pattern::char('x'));
 
     nfa.states[end_a.id()].name = Some("end_a".into());
     nfa.states[end_c.id()].name = Some("end_c".into());
@@ -38,7 +38,7 @@ pub fn main() {
     println!("end_x: {:?}",end_x);
     println!("{:#?}",dfa);
 
-    let t = &dfa.alphabet_segmentation;
+    let t = &dfa.alphabet;
 
     println!("---------");
     let after_a = dfa.next_state(Dfa::START_STATE,Symbol::new(97));

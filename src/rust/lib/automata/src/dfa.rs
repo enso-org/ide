@@ -30,7 +30,7 @@ use crate::nfa::Nfa;
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 pub struct Dfa {
     /// A set of disjoint intervals over the allowable input alphabet.
-    pub alphabet_segmentation : BTreeMap<Symbol,usize>,
+    pub alphabet : BTreeMap<Symbol,usize>,
     /// The transition matrix for the Dfa.
     ///
     /// It represents a function of type `(state, symbol) -> state`, returning the identifier for
@@ -56,14 +56,14 @@ impl Dfa {
 }
 
 impl Dfa {
-    pub fn next_state(&self, state:State, symbol:Symbol) -> State {
+    pub fn next_state(&self, current_state:State, symbol:Symbol) -> State {
         self.index_of_symbol(symbol).and_then(|ix| {
-            self.links.safe_index(ix,state.id())
+            self.links.safe_index(ix,current_state.id())
         }).unwrap_or_default()
     }
 
     pub fn index_of_symbol(&self, symbol:Symbol) -> Option<usize> {
-        self.alphabet_segmentation.range(symbol..).next().map(|(k,v)|{
+        self.alphabet.range(symbol..).next().map(|(k,v)|{
             if *k == symbol { *v } else { v - 1 }
         })
     }
@@ -118,7 +118,7 @@ impl From<&Nfa> for Dfa {
     fn from(nfa:&Nfa) -> Self {
         let     nfa_mat     = nfa.nfa_matrix();
         let     eps_mat     = nfa.eps_matrix();
-        let mut dfa_mat     = Matrix::new(0,nfa.alphabet_segmentation.divisions.len());
+        let mut dfa_mat     = Matrix::new(0,nfa.alphabet.divisions.len());
         let mut dfa_eps_ixs = Vec::<nfa::StateSetId>::new();
         let mut dfa_eps_map = HashMap::<nfa::StateSetId,State>::new();
 
@@ -128,7 +128,7 @@ impl From<&Nfa> for Dfa {
         let mut i = 0;
         while i < dfa_eps_ixs.len()  {
             dfa_mat.new_row();
-            for voc_ix in 0..nfa.alphabet_segmentation.divisions.len() {
+            for voc_ix in 0..nfa.alphabet.divisions.len() {
                 let mut eps_set = nfa::StateSetId::new();
                 for &eps_ix in &dfa_eps_ixs[i] {
                     let tgt = nfa_mat[(eps_ix.id(),voc_ix)];
@@ -161,12 +161,12 @@ impl From<&Nfa> for Dfa {
             }
         }
 
-        let alphabet_segmentation = nfa.alphabet_segmentation.divisions.iter().cloned().enumerate().map(|(ix,s)|{
+        let alphabet = nfa.alphabet.divisions.iter().cloned().enumerate().map(|(ix,s)|{
             (s,ix)
         }).collect();
         let links = dfa_mat;
 
-        Dfa {alphabet_segmentation,links,callbacks}
+        Dfa {alphabet,links,callbacks}
     }
 }
 
@@ -187,7 +187,7 @@ pub mod tests {
     /// Dfa automata that accepts newline '\n'.
     pub fn newline() -> Dfa {
         Dfa {
-            alphabet_segmentation: alphabet::Segmentation::from_divisions(&[10,11]),
+            alphabet: alphabet::Segmentation::from_divisions(&[10,11]),
             links: Matrix::from(vec![vec![INVALID,1,INVALID], vec![INVALID,INVALID,INVALID]]),
             callbacks: vec![
                 None,
@@ -199,7 +199,7 @@ pub mod tests {
     /// Dfa automata that accepts any letter a..=z.
     pub fn letter() -> Dfa {
         Dfa {
-            alphabet_segmentation: alphabet::Segmentation::from_divisions(&[97,123]),
+            alphabet: alphabet::Segmentation::from_divisions(&[97,123]),
             links: Matrix::from(vec![vec![INVALID,1,INVALID], vec![INVALID,INVALID,INVALID]]),
             callbacks: vec![
                 None,
@@ -211,7 +211,7 @@ pub mod tests {
     /// Dfa automata that accepts any number of spaces ' '.
     pub fn spaces() -> Dfa {
         Dfa {
-            alphabet_segmentation: alphabet::Segmentation::from_divisions(&[0,32,33]),
+            alphabet: alphabet::Segmentation::from_divisions(&[0,32,33]),
             links: Matrix::from(vec![
                 vec![INVALID,1,INVALID],
                 vec![INVALID,2,INVALID],
@@ -228,7 +228,7 @@ pub mod tests {
     /// Dfa automata that accepts one letter a..=z or any many spaces.
     pub fn letter_and_spaces() -> Dfa {
         Dfa {
-            alphabet_segmentation: alphabet::Segmentation::from_divisions(&[32,33,97,123]),
+            alphabet: alphabet::Segmentation::from_divisions(&[32,33,97,123]),
             links: Matrix::from(vec![
                 vec![INVALID,      1,INVALID,      2,INVALID],
                 vec![INVALID,      3,INVALID,INVALID,INVALID],

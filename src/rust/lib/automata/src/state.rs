@@ -96,7 +96,7 @@ impl Data {
             if links.len() <= index || *links[index].symbols.start() > symbol {
                 targets.push(State::INVALID);
             } else {
-                targets.push(links[index].target_state);
+                targets.push(links[index].target);
             }
         }
         targets
@@ -118,9 +118,9 @@ impl From<Vec<(RangeInclusive<u32>, usize)>> for Data {
     /// Creates a state with ordinary links.
     fn from(vec:Vec<(RangeInclusive<u32>, usize)>) -> Self {
         let link = |(range, id): (RangeInclusive<u32>, usize)| {
-            let start = Symbol{val:*range.start()};
-            let end   = Symbol{val:*range.end()};
-            Transition {symbols: start..=end, target_state: State { id }}
+            let start = Symbol::new(*range.start());
+            let end   = Symbol::new(*range.end());
+            Transition::new(start..=end, State::new(id))
         };
         let links = vec.iter().cloned().map(link).collect();
         Data {links,..Default::default()}
@@ -139,5 +139,12 @@ pub struct Transition {
     /// The range of symbols on which this transition will trigger.
     pub symbols: RangeInclusive<Symbol>,
     /// The state that is entered after the transition has triggered.
-    pub target_state: State,
+    pub target: State,
+}
+
+impl Transition {
+    /// Constructor.
+    pub fn new(symbols:RangeInclusive<Symbol>, target:State) -> Self {
+        Self {symbols,target}
+    }
 }

@@ -12,7 +12,7 @@ use crate::prelude::*;
 #[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
 #[allow(missing_docs)]
 pub struct Symbol {
-    pub val: u32
+    pub index: u32
 }
 
 impl Symbol {
@@ -21,16 +21,18 @@ impl Symbol {
 
     /// A representation of the null symbol.
     pub const NULL : Symbol = Symbol::new(0);
+}
 
+impl Symbol {
     /// Constructor.
-    pub const fn new(val:u32) -> Self {
-        Self {val}
+    pub const fn new(index:u32) -> Self {
+        Self {index}
     }
 
     /// Next symbol, if any.
     pub fn next(self) -> Option<Self> {
-        (self.val < u32::max_value() - 1).as_some_from(|| {
-            Self { val : self.val + 1 }
+        (self.index < u32::max_value() - 1).as_some_from(|| {
+            Self::new(self.index + 1)
         })
     }
 }
@@ -45,14 +47,14 @@ impl Default for Symbol {
 }
 
 impl From<u32> for Symbol {
-    fn from(val:u32) -> Symbol {
-        Symbol{val}
+    fn from(index:u32) -> Symbol {
+        Symbol::new(index)
     }
 }
 
 impl From<char> for Symbol {
-    fn from(val:char) -> Symbol {
-        Symbol{val:val as u32}
+    fn from(ch:char) -> Symbol {
+        Symbol::new(ch as u32)
     }
 }
 
