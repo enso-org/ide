@@ -1,5 +1,7 @@
 //! Defines a Symbol that is operated on by the finite automata.
 
+use crate::prelude::*;
+
 
 
 // ==============
@@ -8,21 +10,33 @@
 
 /// An input symbol to a finite automaton.
 #[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
+#[allow(missing_docs)]
 pub struct Symbol {
-    #[allow(missing_docs)]
     pub val: u32
 }
 
 impl Symbol {
     /// A representation of the end of the file.
-    pub const EOF_CODE:Symbol = Symbol{val:u32::max_value()};
+    pub const EOF : Symbol = Symbol::new(u32::max_value());
 
     /// A representation of the null symbol.
-    pub const NULL:Symbol = Symbol{val:0};
+    pub const NULL : Symbol = Symbol::new(0);
+
+    /// Constructor.
+    pub const fn new(val:u32) -> Self {
+        Self {val}
+    }
+
+    /// Next symbol, if any.
+    pub fn next(self) -> Option<Self> {
+        (self.val < u32::max_value() - 1).as_some_from(|| {
+            Self { val : self.val + 1 }
+        })
+    }
 }
 
 
-// === Trait Impls ===
+// === Impls ===
 
 impl Default for Symbol {
     fn default() -> Self {
@@ -43,7 +57,7 @@ impl From<char> for Symbol {
 }
 
 impl From<&Symbol> for Symbol {
-    fn from(symb: &Symbol) -> Self {
-        Symbol{val:symb.val}
+    fn from(symbol: &Symbol) -> Self {
+        symbol.clone()
     }
 }

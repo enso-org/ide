@@ -77,7 +77,7 @@ impl Pattern {
 
     /// A pattern that triggers at the end of the file.
     pub fn eof() -> Self {
-        Self::symbol(Symbol::EOF_CODE)
+        Self::symbol(Symbol::EOF)
     }
 
     /// A pattern that triggers on any character in the provided `range`.

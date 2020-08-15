@@ -1,5 +1,7 @@
 //! The structure for defining non-deterministic finite automata.
 
+use crate::prelude::*;
+
 use crate::alphabet;
 use crate::dfa::RuleExecutable;
 use crate::dfa::DFA;
@@ -10,12 +12,9 @@ use crate::state;
 use crate::symbol::Symbol;
 use crate::data::matrix::Matrix;
 
-//use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
-
-use crate::prelude::*;
 
 
 
@@ -160,7 +159,6 @@ impl NFA {
 }
 
 impl From<&NFA> for DFA {
-
     /// Transforms an NFA into a DFA, based on the algorithm described
     /// [here](https://www.youtube.com/watch?v=taClnxU-nao).
     /// The asymptotic complexity is quadratic in number of states.
@@ -202,7 +200,7 @@ impl From<&NFA> for DFA {
 
         let mut callbacks = vec![None; dfa_eps_ixs.len()];
         let     priority  = dfa_eps_ixs.len();
-        for (dfa_ix, epss) in dfa_eps_ixs.into_iter().enumerate() {
+        for (dfa_ix,epss) in dfa_eps_ixs.into_iter().enumerate() {
             let has_name = |&key:&state::Identifier| nfa.states[key.id].name.is_some();
             if let Some(eps) = epss.into_iter().find(has_name) {
                 let rule = nfa.states[eps.id].name.as_ref().cloned().unwrap();
@@ -210,12 +208,16 @@ impl From<&NFA> for DFA {
             }
         }
 
-        let alphabet_segmentation = nfa.alphabet_segmentation.clone();
+        let alphabet_segmentation = nfa.alphabet_segmentation.divisions.iter().cloned().enumerate().map(|(ix,s)|{
+                (s,ix)
+            }).collect();
         let links = dfa_mat;
 
-        DFA{alphabet_segmentation,links,callbacks}
+        DFA {alphabet_segmentation,links,callbacks}
     }
 }
+
+
 
 // ===========
 // == Tests ==

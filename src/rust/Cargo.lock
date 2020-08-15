@@ -608,6 +608,7 @@ dependencies = [
 name = "enso-shortcuts-examples"
 version = "0.1.0"
 dependencies = [
+ "enso-automata 0.1.0",
  "enso-frp 0.1.0",
  "enso-prelude 0.1.0",
  "enso-shortcuts 0.1.0",

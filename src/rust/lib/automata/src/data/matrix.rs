@@ -13,16 +13,14 @@ use std::ops::IndexMut;
 
 /// An efficient 2D matrix implemented on top of [`std::vec::Vec`].
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
+#[allow(missing_docs)]
 pub struct Matrix<T> {
-    /// The number of rows in the matrix.
-    rows:usize,
-    /// The number of columns in the matrix.
-    columns:usize,
-    /// The matrix.
-    matrix:Vec<T>,
+    rows    : usize,
+    columns : usize,
+    matrix  : Vec<T>,
 }
 
-impl<T> Matrix<T> {
+impl<T:Copy> Matrix<T> {
     /// Get the number of rows in the matrix.
     pub fn rows(&self) -> usize {
         self.rows
@@ -36,6 +34,12 @@ impl<T> Matrix<T> {
     /// Obtain the indices for the rows in this matrix.
     pub fn row_indices(&self) -> Range<usize> {
         0..self.rows()
+    }
+
+    pub fn safe_index(&self, row:usize, column:usize) -> Option<T> {
+        (row < self.rows && column < self.columns).as_some_from(|| {
+            self.matrix[column*self.columns+row]
+        })
     }
 }
 
@@ -58,7 +62,7 @@ impl<T:Default> Matrix<T> {
     }
 }
 
-
+// FIXME: Wrong indexing order!
 // === Trait Impls ===
 
 impl<T> Index<(usize,usize)> for Matrix<T> {

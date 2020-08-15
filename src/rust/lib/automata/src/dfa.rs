@@ -1,8 +1,14 @@
 //! The structure for defining deterministic finite automata.
 
+use crate::prelude::*;
+
+use crate::symbol::Symbol;
 use crate::alphabet;
 use crate::state;
+use crate::state::State;
 use crate::data::matrix::Matrix;
+
+
 
 // =====================================
 // === Deterministic Finite Automata ===
@@ -22,7 +28,7 @@ use crate::data::matrix::Matrix;
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 pub struct DFA {
     /// A set of disjoint intervals over the allowable input alphabet.
-    pub alphabet_segmentation: alphabet::Segmentation,
+    pub alphabet_segmentation : BTreeMap<Symbol,usize>,
     /// The transition matrix for the DFA.
     ///
     /// It represents a function of type `(state, symbol) -> state`, returning the identifier for
@@ -38,9 +44,23 @@ pub struct DFA {
     /// | 0 | 1 | - |
     /// | 1 | - | 0 |
     ///
-    pub links: Matrix<state::Identifier>,
+    pub links : Matrix<state::Identifier>,
     /// A collection of callbacks for each state (indexable in order)
-    pub callbacks: Vec<Option<RuleExecutable>>,
+    pub callbacks : Vec<Option<RuleExecutable>>,
+}
+
+impl DFA {
+    pub fn next_state(&self, state:state::Identifier, symbol:Symbol) -> state::Identifier {
+        self.index_of_symbol(symbol).and_then(|ix| {
+            self.links.safe_index(ix,state.id)
+        }).unwrap_or_default()
+    }
+
+    pub fn index_of_symbol(&self, symbol:Symbol) -> Option<usize> {
+        self.alphabet_segmentation.range(symbol..).next().map(|(k,v)|{
+            if *k == symbol { *v } else { v - 1 }
+        })
+    }
 }
 
 
@@ -48,9 +68,9 @@ pub struct DFA {
 
 impl From<Vec<Vec<usize>>> for Matrix<state::Identifier> {
     fn from(input:Vec<Vec<usize>>) -> Self {
-        let rows        = input.len();
-        let columns     = if rows == 0 {0} else {input[0].len()};
-        let mut matrix  = Self::new(rows,columns);
+        let rows       = input.len();
+        let columns    = if rows == 0 {0} else {input[0].len()};
+        let mut matrix = Self::new(rows,columns);
         for row in 0..rows {
             for column in 0..columns {
                 matrix[(row,column)] = state::Identifier::from(input[row][column]);

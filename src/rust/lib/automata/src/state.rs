@@ -87,7 +87,7 @@ impl From<Vec<(RangeInclusive<u32>, usize)>> for State {
 #[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
 #[allow(missing_docs)]
 pub struct Identifier {
-    pub id: usize
+    pub id : usize
 }
 
 impl Identifier {
@@ -108,8 +108,8 @@ impl Default for Identifier {
 }
 
 impl From<usize> for Identifier {
-    fn from(id: usize) -> Self {
-        Identifier{id}
+    fn from(id:usize) -> Self {
+        Identifier {id}
     }
 }
 

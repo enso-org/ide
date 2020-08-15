@@ -2,6 +2,7 @@
 use enso_prelude::*;
 use wasm_bindgen::prelude::*;
 use ensogl_system_web as web;
+use enso_automata;
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -11,6 +12,7 @@ pub fn entry_point_shortcuts() {
     web::set_stack_trace_limit();
 
     println!("hello2");
+    enso_automata::main();
 }
 
 
