@@ -1184,7 +1184,7 @@ impl Block<Ast> {
         let empty_lines = Vec::new();
         let first_line  = BlockLine::new(first_line.clone_ref());
         let lines       = tail_lines.iter().cloned().map(BlockLine::new).collect();
-        let is_orphan   = true;
+        let is_orphan   = tail_lines.is_empty();
         Block {ty,indent,empty_lines,first_line,lines,is_orphan}
     }
 }
