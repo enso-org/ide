@@ -57,7 +57,7 @@ impl From<char> for Symbol {
 }
 
 impl From<&Symbol> for Symbol {
-    fn from(symbol: &Symbol) -> Self {
-        symbol.clone()
+    fn from(symbol:&Symbol) -> Self {
+        *symbol
     }
 }

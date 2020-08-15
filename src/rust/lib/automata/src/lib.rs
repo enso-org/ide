@@ -18,7 +18,7 @@ use enso_prelude as prelude;
 use prelude::*;
 
 pub fn main() {
-    let mut nfa : NFA = default();
+    let mut nfa : Nfa = default();
     let start = nfa.new_state();
     let end_a   = nfa.new_pattern(start,&Pattern::char('a'));
     let end_b   = nfa.new_pattern(end_a,&Pattern::char('b'));
@@ -29,7 +29,7 @@ pub fn main() {
     nfa.states[end_c.id()].name = Some("end_c".into());
     nfa.states[end_x.id()].name = Some("end_x".into());
 
-    let dfa = DFA::from(&nfa);
+    let dfa = Dfa::from(&nfa);
 
     println!("start: {:?}",start);
     println!("end_a: {:?}",end_a);
@@ -41,7 +41,7 @@ pub fn main() {
     let t = &dfa.alphabet_segmentation;
 
     println!("---------");
-    let after_a = dfa.next_state(State::new(0),Symbol::new(97));
+    let after_a = dfa.next_state(Dfa::START_STATE,Symbol::new(97));
     let after_b = dfa.next_state(after_a,Symbol::new(98));
     let after_c = dfa.next_state(after_b,Symbol::new(99));
     println!("{:?}",after_a);

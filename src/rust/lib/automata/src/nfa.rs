@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::alphabet;
 use crate::dfa::RuleExecutable;
-use crate::dfa::DFA;
+use crate::dfa::Dfa;
 use crate::pattern::Pattern;
 use crate::state::Transition;
 use crate::state;
@@ -24,9 +24,9 @@ use std::ops::RangeInclusive;
 
 /// A state identifier based on a set of states.
 ///
-/// This is used during the NFA -> DFA transformation, where multiple states can merge together due
+/// This is used during the NFA -> Dfa transformation, where multiple states can merge together due
 /// to the collapsing of epsilon transitions.
-type StateSetId = BTreeSet<State>;
+pub type StateSetId = BTreeSet<State>;
 
 /// The definition of a [NFA](https://en.wikipedia.org/wiki/Nondeterministic_finite_automaton) for a
 /// given set of symbols, states, and transitions (specifically a NFA with ε-moves).
@@ -42,15 +42,15 @@ type StateSetId = BTreeSet<State>;
 ///  └───┘       └───┘ ε  └───┘       └───┘ ε  └───┘       └───┘
 /// ```
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
-pub struct NFA {
+pub struct Nfa {
     /// A set of disjoint intervals over the input alphabet.
     pub alphabet_segmentation: alphabet::Segmentation,
-    /// A set of named NFA states, with (epsilon) transitions.
+    /// A set of named Nfa states, with (epsilon) transitions.
     pub states: Vec<state::Data>,
 }
 
-impl NFA {
-    /// Adds a new state to the NFA and returns its identifier.
+impl Nfa {
+    /// Adds a new state to the Nfa and returns its identifier.
     pub fn new_state(&mut self) -> State {
         let id = self.states.len();
         self.states.push(state::Data::default());
@@ -78,7 +78,7 @@ impl NFA {
         self.states[source.id()].links.push(Transition{symbols:symbols.clone(),target_state});
     }
 
-    /// Transforms a pattern to an NFA using the algorithm described
+    /// Transforms a pattern to an Nfa using the algorithm described
     /// [here](https://www.youtube.com/watch?v=RYNN-tb9WxI).
     /// The asymptotic complexity is linear in number of symbols.
     pub fn new_pattern(&mut self,source:State,pattern:&Pattern) -> State {
@@ -116,9 +116,9 @@ impl NFA {
 
     /// Merges states that are connected by epsilon links, using an algorithm based on the one shown
     /// [here](https://www.youtube.com/watch?v=taClnxU-nao).
-    fn eps_matrix(&self) -> Vec<StateSetId> {
+    pub fn eps_matrix(&self) -> Vec<StateSetId> {
         fn fill_eps_matrix
-        ( nfa      : &NFA
+        ( nfa      : &Nfa
         , states   : &mut Vec<StateSetId>
         , visited  : &mut Vec<bool>
         , state    : State
@@ -144,8 +144,8 @@ impl NFA {
         states
     }
 
-    /// Computes a transition matrix `(state, symbol) => state` for the NFA, ignoring epsilon links.
-    fn nfa_matrix(&self) -> Matrix<State> {
+    /// Computes a transition matrix `(state, symbol) => state` for the Nfa, ignoring epsilon links.
+    pub fn nfa_matrix(&self) -> Matrix<State> {
         let mut matrix = Matrix::new(self.states.len(),self.alphabet_segmentation.divisions.len());
 
         for (state_ix, source) in self.states.iter().enumerate() {
@@ -155,65 +155,6 @@ impl NFA {
             }
         }
         matrix
-    }
-}
-
-impl From<&NFA> for DFA {
-    /// Transforms an NFA into a DFA, based on the algorithm described
-    /// [here](https://www.youtube.com/watch?v=taClnxU-nao).
-    /// The asymptotic complexity is quadratic in number of states.
-    fn from(nfa:&NFA) -> Self {
-        let     nfa_mat     = nfa.nfa_matrix();
-        let     eps_mat     = nfa.eps_matrix();
-        let mut dfa_mat     = Matrix::new(0,nfa.alphabet_segmentation.divisions.len());
-        let mut dfa_eps_ixs = Vec::<StateSetId>::new();
-        let mut dfa_eps_map = HashMap::<StateSetId,State>::new();
-
-        dfa_eps_ixs.push(eps_mat[0].clone());
-        dfa_eps_map.insert(eps_mat[0].clone(),State::new(0));
-
-        let mut i = 0;
-        while i < dfa_eps_ixs.len()  {
-            dfa_mat.new_row();
-            for voc_ix in 0..nfa.alphabet_segmentation.divisions.len() {
-                let mut eps_set = StateSetId::new();
-                for &eps_ix in &dfa_eps_ixs[i] {
-                    let tgt = nfa_mat[(eps_ix.id(),voc_ix)];
-                    if tgt != State::INVALID {
-                        eps_set.extend(eps_mat[tgt.id()].iter());
-                    }
-                }
-                if !eps_set.is_empty() {
-                    dfa_mat[(i,voc_ix)] = match dfa_eps_map.get(&eps_set) {
-                        Some(&id) => id,
-                        None => {
-                            let id = State::new(dfa_eps_ixs.len());
-                            dfa_eps_ixs.push(eps_set.clone());
-                            dfa_eps_map.insert(eps_set,id);
-                            id
-                        },
-                    };
-                }
-            }
-            i += 1;
-        }
-
-        let mut callbacks = vec![None; dfa_eps_ixs.len()];
-        let     priority  = dfa_eps_ixs.len();
-        for (dfa_ix,epss) in dfa_eps_ixs.into_iter().enumerate() {
-            let has_name = |&key:&State| nfa.states[key.id()].name.is_some();
-            if let Some(eps) = epss.into_iter().find(has_name) {
-                let rule = nfa.states[eps.id()].name.as_ref().cloned().unwrap();
-                callbacks[dfa_ix] = Some(RuleExecutable{code:rule,priority});
-            }
-        }
-
-        let alphabet_segmentation = nfa.alphabet_segmentation.divisions.iter().cloned().enumerate().map(|(ix,s)|{
-                (s,ix)
-            }).collect();
-        let links = dfa_mat;
-
-        DFA {alphabet_segmentation,links,callbacks}
     }
 }
 
@@ -232,9 +173,9 @@ pub mod tests {
     use super::*;
     use test::Bencher;
 
-    /// NFA that accepts a newline '\n'.
-    pub fn newline() -> NFA {
-        NFA {
+    /// Nfa that accepts a newline '\n'.
+    pub fn newline() -> Nfa {
+        Nfa {
             states: vec![
                 State::from(vec![1]),
                 State::from(vec![(10..=10,2)]),
@@ -245,9 +186,9 @@ pub mod tests {
         }
     }
 
-    /// NFA that accepts any letter in the range a..=z.
-    pub fn letter() -> NFA {
-        NFA {
+    /// Nfa that accepts any letter in the range a..=z.
+    pub fn letter() -> Nfa {
+        Nfa {
             states: vec![
                 State::from(vec![1]),
                 State::from(vec![(97..=122,2)]),
@@ -258,9 +199,9 @@ pub mod tests {
         }
     }
 
-    /// NFA that accepts any number of spaces ' '.
-    pub fn spaces() -> NFA {
-        NFA {
+    /// Nfa that accepts any number of spaces ' '.
+    pub fn spaces() -> Nfa {
+        Nfa {
             states: vec![
                 State::from(vec![1]),
                 State::from(vec![2]),
@@ -277,9 +218,9 @@ pub mod tests {
         }
     }
 
-    /// NFA that accepts one letter a..=z or many spaces ' '.
-    pub fn letter_and_spaces() -> NFA {
-        NFA {
+    /// Nfa that accepts one letter a..=z or many spaces ' '.
+    pub fn letter_and_spaces() -> Nfa {
+        Nfa {
             states: vec![
                 State::from(vec![1,3]),
                 State::from(vec![(97..=122,2)]),
@@ -300,41 +241,41 @@ pub mod tests {
 
     #[test]
     fn test_to_dfa_newline() {
-        assert_eq!(DFA::from(&newline()),dfa::tests::newline());
+        assert_eq!(Dfa::from(&newline()),dfa::tests::newline());
     }
 
     #[test]
     fn test_to_dfa_letter() {
-        assert_eq!(DFA::from(&letter()),dfa::tests::letter());
+        assert_eq!(Dfa::from(&letter()),dfa::tests::letter());
     }
 
     #[test]
     fn test_to_dfa_spaces() {
-        assert_eq!(DFA::from(&spaces()),dfa::tests::spaces());
+        assert_eq!(Dfa::from(&spaces()),dfa::tests::spaces());
     }
 
     #[test]
     fn test_to_dfa_letter_and_spaces() {
-        assert_eq!(DFA::from(&letter_and_spaces()),dfa::tests::letter_and_spaces());
+        assert_eq!(Dfa::from(&letter_and_spaces()),dfa::tests::letter_and_spaces());
     }
 
     #[bench]
     fn bench_to_dfa_newline(bencher:&mut Bencher) {
-        bencher.iter(|| DFA::from(&newline()))
+        bencher.iter(|| Dfa::from(&newline()))
     }
 
     #[bench]
     fn bench_to_dfa_letter(bencher:&mut Bencher) {
-        bencher.iter(|| DFA::from(&letter()))
+        bencher.iter(|| Dfa::from(&letter()))
     }
 
     #[bench]
     fn bench_to_dfa_spaces(bencher:&mut Bencher) {
-        bencher.iter(|| DFA::from(&spaces()))
+        bencher.iter(|| Dfa::from(&spaces()))
     }
 
     #[bench]
     fn bench_to_dfa_letter_and_spaces(bencher:&mut Bencher) {
-        bencher.iter(|| DFA::from(&letter_and_spaces()))
+        bencher.iter(|| Dfa::from(&letter_and_spaces()))
     }
 }
