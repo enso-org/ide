@@ -200,7 +200,6 @@ mod tests {
         assert_eq!(a_b_c.get_traversing(&arg2.crumbs).unwrap(), &c);
     }
 
-
     #[test]
     fn prefix_chain_construction() {
         let a     = Ast::var("a");

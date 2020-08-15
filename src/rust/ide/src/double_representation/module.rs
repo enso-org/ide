@@ -4,7 +4,8 @@ use crate::prelude::*;
 
 use crate::double_representation::ReferentName;
 use crate::double_representation::definition;
-use crate::double_representation::definition::{DefinitionProvider, DefinitionName};
+use crate::double_representation::definition::DefinitionName;
+use crate::double_representation::definition::DefinitionProvider;
 
 use ast::crumbs::ChildAst;
 use ast::crumbs::ModuleCrumb;

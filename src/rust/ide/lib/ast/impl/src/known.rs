@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
-use failure::_core::fmt::Formatter;
+
 
 
 // =================
@@ -174,7 +174,7 @@ impl<T> HasTokens for KnownAst<T> {
 }
 
 impl<T> Display for KnownAst<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.ast,f)
     }
 }
