@@ -95,9 +95,10 @@ fn print_matrix(matrix:&data::Matrix<dfa::State>) {
 
 #[derive(Debug)]
 pub struct Shortcuts {
-    nfa    : Nfa,
-    dfa    : Dfa,
-    states : HashMap<String,nfa::State>,
+    nfa     : Nfa,
+    dfa     : Dfa,
+    states  : HashMap<String,nfa::State>,
+    current : dfa::State,
 }
 
 impl Shortcuts {
@@ -105,7 +106,34 @@ impl Shortcuts {
         let nfa    = Nfa::default();
         let dfa    = Dfa::from(&nfa);
         let states = default();
-        Self {nfa,dfa,states}
+        let current = Dfa::START_STATE;
+        Self {nfa,dfa,states,current}
+    }
+
+    pub fn add(&mut self, expr:impl AsRef<str>) {
+        let special_keys : HashSet<&str> = (&["ctrl","alt","meta","cmd","shift"]).iter().map(|t|*t).collect();
+        let expr = expr.as_ref();
+
+        let mut special = vec![];
+        let mut normal  = vec![];
+
+        for chunk in expr.split('+').map(|t|t.trim()) {
+            if special_keys.contains(chunk) {
+                special.push(chunk)
+            } else {
+                normal.push(chunk)
+            }
+        }
+        // println!("{:?}",expr.split('+').map(|t|t.trim()).collect_vec());
+        println!("{:?}",special);
+        println!("{:?}",normal);
+
+        let special_state = self.add_key_permutations(&special);
+        let key = normal[0];
+
+        let sym = Symbol::new_named(hash(&key.to_string()),key);
+        let pat = Pattern::symbol(&sym);
+        let out = self.nfa.new_pattern(special_state,pat);
     }
 
     pub fn add_key_permutations(&mut self, keys:&[&str]) -> nfa::State {
@@ -125,7 +153,7 @@ impl Shortcuts {
                         let out = *s;
                         if new {
                             let sym = Symbol::new_named(hash(&key.to_string()), *key);
-                            let name = format!("{}_release",key);
+                            let name = format!("-{}",key);
                             let sym_r = Symbol::new_named(hash(&name),name);
                             self.nfa.connect_via(state,out,&(sym.clone()..=sym));
                             self.nfa.connect_via(out,state,&(sym_r.clone()..=sym_r));
@@ -135,7 +163,7 @@ impl Shortcuts {
                     },
                     None => {
                         let sym = Symbol::new_named(hash(&key.to_string()),*key);
-                        let name = format!("{}_release",key);
+                        let name = format!("-{}",key);
                         let sym_r = Symbol::new_named(hash(&name),name);
                         let pat = Pattern::symbol(&sym);
                         let pat_r = Pattern::symbol(&sym_r);
@@ -201,6 +229,10 @@ impl Shortcuts {
 
 
         self.dfa = (&self.nfa).into();
+    }
+
+    pub fn on_press(&mut self, input:&str) {
+
     }
 }
 
@@ -275,11 +307,14 @@ pub fn main() {
     // s.add_kb_shortcut("ctrl","x");
     // s.add_kb_shortcut("ctrl","v");
 
-    s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
+    // s.add_key_permutations(&["ctrl","shift","meta"]);
+    // s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
     // s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
     // s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
     // s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
 
+
+    s.add("ctrl + shift + meta + a");
 
     // let dfa = Dfa::from(&nfa);
 
@@ -303,6 +338,8 @@ pub fn main() {
 
 
     println!("{}",s.nfa.visualize());
+
+
 }
 
 
@@ -313,4 +350,5 @@ pub fn main() {
 // ctrl + a
 
 // +cmd +a -a +c
+// {meta,shift} + a
 

@@ -63,6 +63,16 @@ impl Key {
             _                 => false
         }
     }
+
+    pub fn simple_name(&self) -> &str {
+        match self {
+            Self::Alt(_) => "alt",
+            Self::Control(_) => "ctrl",
+            Self::Meta(_) => "meta",
+            Self::Shift(_) => "shift",
+            Self::Other(s) => s
+        }
+    }
 }
 
 impl Default for Key {

@@ -78,7 +78,7 @@ impl Nfa {
             }
         }
         let opts = "node [shape=circle style=filled fillcolor=\"#4385f5\" fontcolor=\"#FFFFFF\" color=white penwidth=5.0 margin=0.1 width=0.5 height=0.5 fixedsize=true]";
-        format!("digraph G {{\n{}\n{}\n}}",opts,out)
+        format!("digraph G {{\n{}\n{}\n}}\n",opts,out)
     }
 
     fn init_start_state(mut self) -> Self {
