@@ -8,7 +8,6 @@ use crate::dfa::Dfa;
 use crate::pattern::Pattern;
 use crate::state::Transition;
 use crate::state;
-use crate::state::State;
 use crate::symbol::Symbol;
 use crate::data::matrix::Matrix;
 
@@ -17,7 +16,14 @@ use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
 
-// pub struct State
+
+// =============
+// === Types ===
+// =============
+
+/// Specialized NFA state type.
+pub type State = state::State<Nfa>;
+
 
 
 // =========================================
@@ -43,15 +49,31 @@ pub type StateSetId = BTreeSet<State>;
 ///  │ 0 │ ----> │ 1 │ -> │ 2 │ ----> │ 3 │ -> │ 3 │ ----> │ 3 │
 ///  └───┘       └───┘ ε  └───┘       └───┘ ε  └───┘       └───┘
 /// ```
-#[derive(Clone,Debug,Default,PartialEq,Eq)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Nfa {
-    pub alphabet : alphabet::Segmentation,
-    pub states   : Vec<state::Data>,
+    pub        start    : State,
+    pub(crate) alphabet : alphabet::Segmentation,
+    pub(crate) states   : Vec<state::Data>,
 }
 
 impl Nfa {
+    /// Constructor.
+    pub fn new() -> Self {
+        let start    = default();
+        let alphabet = default();
+        let states   = default();
+        Self {start,alphabet,states}.init_start_state()
+    }
+
+    fn init_start_state(mut self) -> Self {
+        let start = self.new_state();
+        self[start].export = true;
+        self.start = start;
+        self
+    }
+
     /// Adds a new state to the NFA and returns its identifier.
-    pub fn new_state(&mut self) -> State {
+    fn new_state(&mut self) -> State {
         let id = self.states.len();
         self.states.push(default());
         State::new(id)
@@ -61,7 +83,7 @@ impl Nfa {
     ///
     /// Whenever the automaton happens to be in `source` state it can immediately transition to the
     /// `target` state. It is, however, not _required_ to do so.
-    pub fn connect(&mut self,source:State, target:State) {
+    fn connect(&mut self,source:State, target:State) {
         self[source].epsilon_links.push(target);
     }
 
@@ -69,7 +91,7 @@ impl Nfa {
     ///
     /// If any symbol from such range happens to be the input when the automaton is in the `source`
     /// state, it will immediately transition to the `target` state.
-    pub fn connect_via(&mut self, source:State, target:State, symbols:&RangeInclusive<Symbol>) {
+    fn connect_via(&mut self, source:State, target:State, symbols:&RangeInclusive<Symbol>) {
         self.alphabet.insert(symbols.clone());
         self[source].links.push(Transition::new(symbols.clone(),target));
     }
@@ -80,7 +102,7 @@ impl Nfa {
     pub fn new_pattern(&mut self, source:State, pattern:&Pattern) -> State {
         let current = self.new_state();
         self.connect(source,current);
-        match pattern {
+        let state = match pattern {
             Pattern::Range(range) => {
                 let state = self.new_state();
                 self.connect_via(current,state,range);
@@ -107,7 +129,9 @@ impl Nfa {
                 }
                 end
             }
-        }
+        };
+        self[state].export = true;
+        state
     }
 
     /// Merges states that are connected by epsilon links, using an algorithm based on the one shown
@@ -151,6 +175,12 @@ impl Nfa {
             }
         }
         matrix
+    }
+}
+
+impl Default for Nfa {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

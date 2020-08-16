@@ -4,11 +4,19 @@ use crate::prelude::*;
 
 use crate::symbol::Symbol;
 use crate::alphabet;
-use crate::state::State;
 use crate::state;
 use crate::data::matrix::Matrix;
 use crate::nfa;
 use crate::nfa::Nfa;
+
+
+
+// =============
+// === Types ===
+// =============
+
+/// Specialized DFA state type.
+pub type State = state::State<Dfa>;
 
 
 
@@ -47,8 +55,9 @@ pub struct Dfa {
     /// | 1 | - | 0 |
     ///
     pub links : Matrix<State>,
-    /// A collection of callbacks for each state (indexable in order)
-    pub callbacks : Vec<Option<RuleExecutable>>,
+
+    /// For each DFA state contains a list of NFA states it was constructed from.
+    pub sources : Vec<Vec<nfa::State>>,
 }
 
 impl Dfa {
@@ -126,7 +135,7 @@ impl From<&Nfa> for Dfa {
                 let mut eps_set = nfa::StateSetId::new();
                 for &eps_ix in &dfa_eps_ixs[i] {
                     let tgt = nfa_mat[(eps_ix.id(),voc_ix)];
-                    if tgt != State::INVALID {
+                    if tgt != nfa::State::INVALID {
                         eps_set.extend(eps_mat[tgt.id()].iter());
                     }
                 }
@@ -145,19 +154,15 @@ impl From<&Nfa> for Dfa {
             i += 1;
         }
 
-        let mut callbacks = vec![None; dfa_eps_ixs.len()];
-        let     priority  = dfa_eps_ixs.len();
-        for (dfa_ix,epss) in dfa_eps_ixs.into_iter().enumerate() {
-            let has_name = |&key:&State| nfa.states[key.id()].name.is_some();
-            if let Some(eps) = epss.into_iter().find(has_name) {
-                let rule = nfa.states[eps.id()].name.as_ref().cloned().unwrap();
-                callbacks[dfa_ix] = Some(RuleExecutable{code:rule,priority});
-            }
+        let mut sources = vec![];
+        let priority    = dfa_eps_ixs.len();
+        for epss in dfa_eps_ixs.into_iter() {
+            sources.push(epss.into_iter().filter(|state| nfa[*state].export).collect_vec());
         }
 
         let alphabet = (&nfa.alphabet).into();
         let links    = dfa_mat;
-        Dfa {alphabet,links,callbacks}
+        Dfa {alphabet,links,sources}
     }
 }
 
@@ -180,7 +185,7 @@ pub mod tests {
         Dfa {
             alphabet: alphabet::Segmentation::from_divisions(&[10,11]),
             links: Matrix::from(vec![vec![INVALID,1,INVALID], vec![INVALID,INVALID,INVALID]]),
-            callbacks: vec![
+            sources: vec![
                 None,
                 Some(RuleExecutable {priority:2, code:"group0_rule0".into()}),
             ],
@@ -192,7 +197,7 @@ pub mod tests {
         Dfa {
             alphabet: alphabet::Segmentation::from_divisions(&[97,123]),
             links: Matrix::from(vec![vec![INVALID,1,INVALID], vec![INVALID,INVALID,INVALID]]),
-            callbacks: vec![
+            sources: vec![
                 None,
                 Some(RuleExecutable {priority:2, code:"group0_rule0".into()}),
             ],
@@ -208,7 +213,7 @@ pub mod tests {
                 vec![INVALID,2,INVALID],
                 vec![INVALID,2,INVALID],
             ]),
-            callbacks: vec![
+            sources: vec![
                 None,
                 Some(RuleExecutable {priority:3, code:"group0_rule0".into()}),
                 Some(RuleExecutable {priority:3, code:"group0_rule0".into()}),
@@ -226,7 +231,7 @@ pub mod tests {
                 vec![INVALID,INVALID,INVALID,INVALID,INVALID],
                 vec![INVALID,      3,INVALID,INVALID,INVALID],
             ]),
-            callbacks: vec![
+            sources: vec![
                 None,
                 Some(RuleExecutable {priority:4, code:"group0_rule1".into()}),
                 Some(RuleExecutable {priority:4, code:"group0_rule0".into()}),

@@ -5,31 +5,40 @@ use crate::symbol::Symbol;
 
 use crate::prelude::*;
 
-
+use crate::nfa::Nfa; // FIXME
 
 // ===========
 // == State ==
 // ===========
 
 /// A state identifier for an arbitrary finite automaton.
-#[derive(Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash)]
+#[derive(Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Copy(bound=""))]
+#[derivative(Eq(bound=""))]
+#[derivative(Hash(bound=""))]
+#[derivative(Ord(bound=""))]
+#[derivative(PartialEq(bound=""))]
+#[derivative(PartialOrd(bound=""))]
 #[allow(missing_docs)]
-pub struct State {
+pub struct State<T> {
+    tp : PhantomData<T>,
     id : usize
 }
 
-impl State {
+impl<T> State<T> {
     /// An identifier representing the invalid state.
     ///
     /// When in an invalid state, a finite automaton will reject the sequence of input symbols.
-    pub const INVALID : State = Self::new(usize::max_value());
+    pub const INVALID : State<T> = Self::new(usize::max_value());
 }
 
-impl State {
+impl<T> State<T> {
     /// Constructor. Not exposed to public as it should never be possible to construct a state
     /// from a number.
     pub const fn new(id:usize) -> Self {
-        Self {id}
+        let tp = PhantomData;
+        Self {tp,id}
     }
 
     /// Identifier of this state expressed as `usize`.
@@ -40,7 +49,7 @@ impl State {
 
 // === Trait Impls ===
 
-impl Default for State {
+impl<T> Default for State<T> {
     /// Returns state::INVALID. This is because every finite automata has an invalid state
     /// and because all transitions in automata transition matrix lead to invalid state by default.
     fn default() -> Self {
@@ -48,7 +57,7 @@ impl Default for State {
     }
 }
 
-impl Debug for State {
+impl<T> Debug for State<T> {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         let name = if *self == Self::INVALID { "INVALID".into() } else { format!("{:?}",self.id) };
         write!(f,"State({})",name)
@@ -65,26 +74,20 @@ impl Debug for State {
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
 pub struct Data {
     /// A set of transitions that can trigger without consuming a symbol (ε-transitions).
-    pub epsilon_links: Vec<State>,
+    pub epsilon_links: Vec<State<Nfa>>,
     /// The set of transitions that trigger while consuming a specific symbol.
     ///
     /// When triggered, the automaton will transition to the [`Transition::target_state`].
     pub links: Vec<Transition>,
-    /// The name of the state.
-    ///
-    /// This is used to auto-generate a call to the rust method of the same name.
-    pub name: Option<String>,
+    /// Information whether the state should be exported and marked as a "source" state in the DFA
+    /// representation. Non exported states are considered "transitive" states and are used as
+    /// helpers to design the NFA network. All user defined states are marked to be exported.
+    pub export : bool,
 }
 
 impl Data {
-    /// Updater for field `name`. Returns updated state.
-    pub fn named(mut self, name:&str) -> Self {
-        self.name = Some(name.to_owned());
-        self
-    }
-
     /// Returns transition (next state) for each symbol in alphabet.
-    pub fn targets(&self, alphabet:&alphabet::Segmentation) -> Vec<State> {
+    pub fn targets(&self, alphabet:&alphabet::Segmentation) -> Vec<State<Nfa>> {
         let mut targets = vec![];
         let mut index   = 0;
         let mut links   = self.links.clone();
@@ -109,7 +112,7 @@ impl Data {
 impl From<Vec<usize>> for Data {
     /// Creates a state with epsilon links.
     fn from(vec:Vec<usize>) -> Self {
-        let epsilon_links = vec.iter().cloned().map(|id| State {id}).collect();
+        let epsilon_links = vec.iter().cloned().map(|id| State::new(id)).collect();
         Data {epsilon_links,..Default::default()}
     }
 }
@@ -139,12 +142,12 @@ pub struct Transition {
     /// The range of symbols on which this transition will trigger.
     pub symbols: RangeInclusive<Symbol>,
     /// The state that is entered after the transition has triggered.
-    pub target: State,
+    pub target: State<Nfa>,
 }
 
 impl Transition {
     /// Constructor.
-    pub fn new(symbols:RangeInclusive<Symbol>, target:State) -> Self {
+    pub fn new(symbols:RangeInclusive<Symbol>, target:State<Nfa>) -> Self {
         Self {symbols,target}
     }
 }
