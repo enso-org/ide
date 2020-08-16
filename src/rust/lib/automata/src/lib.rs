@@ -108,11 +108,57 @@ impl Shortcuts {
         Self {nfa,dfa,states}
     }
 
-    pub fn add_key_sequence(&mut self, keys:&[&str]) -> nfa::State {
-        match keys {
-            [] => self.nfa.start,
-            _ => todo!()
+    pub fn add_key_permutations(&mut self, keys:&[&str]) -> nfa::State {
+        let len = keys.len();
+        let mut state = self.nfa.start;
+        for perm in keys.iter().permutations(len) {
+            state = self.nfa.start;
+            let mut path  = vec![];
+            let mut repr  = String::new();
+            let mut new   = false;
+            for key in perm {
+                path.push(*key);
+                path.sort();
+                repr = path.join(" ");
+                state = match self.states.get(&repr) {
+                    Some(s) => {
+                        let out = *s;
+                        if new {
+                            let sym = Symbol::new_named(hash(&key.to_string()), *key);
+                            let name = format!("{}_release",key);
+                            let sym_r = Symbol::new_named(hash(&name),name);
+                            self.nfa.connect_via(state,out,&(sym.clone()..=sym));
+                            self.nfa.connect_via(out,state,&(sym_r.clone()..=sym_r));
+                        }
+                        new = false;
+                        out
+                    },
+                    None => {
+                        let sym = Symbol::new_named(hash(&key.to_string()),*key);
+                        let name = format!("{}_release",key);
+                        let sym_r = Symbol::new_named(hash(&name),name);
+                        let pat = Pattern::symbol(&sym);
+                        let pat_r = Pattern::symbol(&sym_r);
+
+                        let out = self.nfa.new_pattern(state,pat);
+                        self.nfa.connect_via(out,state,&(sym_r.clone()..=sym_r));
+
+                        self.states.insert(repr.clone(),out);
+                        new = true;
+                        out
+                    }
+                }
+
+            }
         }
+        self.dfa = (&self.nfa).into();
+        state
+    }
+
+    fn add_key(&mut self, state:nfa::State, repr:&str, key:&str) {
+        let sym = Symbol::from(hash(&key.to_string()));
+        let pat = Pattern::symbol(&sym);
+        let target = self.nfa.new_pattern(state,pat);
     }
 
     pub fn add_kb_shortcut(&mut self, m:&str, key:&str) {
@@ -123,11 +169,11 @@ impl Shortcuts {
         let sym_mouse_3 = Symbol::from(hash(&"mouse_3".to_string()));
         let sym_mouse_4 = Symbol::from(hash(&"mouse_4".to_string()));
 
-        let pat_mouse_0 = Pattern::symbol(sym_mouse_0);
-        let pat_mouse_1 = Pattern::symbol(sym_mouse_1);
-        let pat_mouse_2 = Pattern::symbol(sym_mouse_2);
-        let pat_mouse_3 = Pattern::symbol(sym_mouse_3);
-        let pat_mouse_4 = Pattern::symbol(sym_mouse_4);
+        let pat_mouse_0 = Pattern::symbol(&sym_mouse_0);
+        let pat_mouse_1 = Pattern::symbol(&sym_mouse_1);
+        let pat_mouse_2 = Pattern::symbol(&sym_mouse_2);
+        let pat_mouse_3 = Pattern::symbol(&sym_mouse_3);
+        let pat_mouse_4 = Pattern::symbol(&sym_mouse_4);
 
         let pat_any_mouse = pat_mouse_0 | pat_mouse_1 | pat_mouse_2 | pat_mouse_3 | pat_mouse_4;
 
@@ -137,10 +183,10 @@ impl Shortcuts {
         let k_sym = Symbol::from(hash(&key.to_string()));
         let k_sym_r = Symbol::from(hash(&format!("release {}",key)));
 
-        let pat_m = Pattern::symbol(m_sym);
-        let pat_k = Pattern::symbol(k_sym);
-        let pat_m_r = Pattern::symbol(m_sym_r);
-        let pat_k_r = Pattern::symbol(k_sym_r);
+        let pat_m = Pattern::symbol(&m_sym);
+        let pat_k = Pattern::symbol(&k_sym);
+        let pat_m_r = Pattern::symbol(&m_sym_r);
+        let pat_k_r = Pattern::symbol(&k_sym_r);
 
         let s0 = self.nfa.start;
         let s1 = self.nfa.new_pattern(s0,pat_any_mouse.many());
@@ -175,16 +221,16 @@ pub fn main() {
     let sym_c = Symbol::from(hash(&"c".to_string()));
     let sym_x = Symbol::from(hash(&"o".to_string()));
 
-    let pat_ctrl    = Pattern::symbol(sym_ctrl);
-    let pat_a       = Pattern::symbol(sym_a);
-    let pat_a_r     = Pattern::symbol(sym_a_r);
-    let pat_b       = Pattern::symbol(sym_b);
-    let pat_b_r     = Pattern::symbol(sym_b_r);
-    let pat_mouse_0 = Pattern::symbol(sym_mouse_0);
-    let pat_mouse_1 = Pattern::symbol(sym_mouse_1);
-    let pat_mouse_2 = Pattern::symbol(sym_mouse_2);
-    let pat_mouse_3 = Pattern::symbol(sym_mouse_3);
-    let pat_mouse_4 = Pattern::symbol(sym_mouse_4);
+    let pat_ctrl    = Pattern::symbol(&sym_ctrl);
+    let pat_a       = Pattern::symbol(&sym_a);
+    let pat_a_r     = Pattern::symbol(&sym_a_r);
+    let pat_b       = Pattern::symbol(&sym_b);
+    let pat_b_r     = Pattern::symbol(&sym_b_r);
+    let pat_mouse_0 = Pattern::symbol(&sym_mouse_0);
+    let pat_mouse_1 = Pattern::symbol(&sym_mouse_1);
+    let pat_mouse_2 = Pattern::symbol(&sym_mouse_2);
+    let pat_mouse_3 = Pattern::symbol(&sym_mouse_3);
+    let pat_mouse_4 = Pattern::symbol(&sym_mouse_4);
 
     let pat_any_mouse = pat_mouse_0 | pat_mouse_1 | pat_mouse_2 | pat_mouse_3 | pat_mouse_4;
 
@@ -225,9 +271,14 @@ pub fn main() {
 
 
     let mut s = Shortcuts::new();
-    s.add_kb_shortcut("ctrl","a");
-    s.add_kb_shortcut("ctrl","x");
-    s.add_kb_shortcut("ctrl","v");
+    // s.add_kb_shortcut("ctrl","a");
+    // s.add_kb_shortcut("ctrl","x");
+    // s.add_kb_shortcut("ctrl","v");
+
+    s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
+    // s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
+    // s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
+    // s.add_key_permutations(&["ctrl","shift","meta","alt","enter"]);
 
 
     // let dfa = Dfa::from(&nfa);
@@ -237,18 +288,21 @@ pub fn main() {
 
 
 
-    let after_1 = s.dfa.next_state(Dfa::START_STATE,sym_ctrl);
-    let after_2 = s.dfa.next_state(after_1,sym_mouse_1);
-    let after_3 = s.dfa.next_state(after_2,sym_a);
-    let after_4 = s.dfa.next_state(after_3,sym_a_r);
-    let after_5 = s.dfa.next_state(after_4,sym_a);
-    println!("{:?}",after_1);
-    println!("{:?}",after_2);
-    println!("{:?}",after_3);
-    println!("{:?}",after_4);
-    println!("{:?}",after_5);
+
+    // let after_1 = s.dfa.next_state(Dfa::START_STATE,sym_ctrl);
+    // let after_2 = s.dfa.next_state(after_1,sym_mouse_1);
+    // let after_3 = s.dfa.next_state(after_2,sym_a);
+    // let after_4 = s.dfa.next_state(after_3,sym_a_r);
+    // let after_5 = s.dfa.next_state(after_4,sym_a);
+    // println!("{:?}",after_1);
+    // println!("{:?}",after_2);
+    // println!("{:?}",after_3);
+    // println!("{:?}",after_4);
+    // println!("{:?}",after_5);
 
 
+
+    println!("{}",s.nfa.visualize());
 }
 
 

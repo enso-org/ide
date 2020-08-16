@@ -56,7 +56,7 @@ impl Segmentation {
     /// Inserts a range of symbols into the alphabet.
     pub fn insert(&mut self,range:RangeInclusive<Symbol>) {
         self.divisions.insert(Symbol::from(range.start()));
-        let end = *range.end();
+        let end = range.end().clone();
         end.next().for_each(|t| self.divisions.insert(t));
     }
 
@@ -100,9 +100,9 @@ pub struct SealedSegmentation {
 }
 
 impl SealedSegmentation {
-    pub fn index_of_symbol(&self, symbol:Symbol) -> Option<usize> {
+    pub fn index_of_symbol(&self, symbol:&Symbol) -> Option<usize> {
         self.range(symbol..).next().map(|(k,v)|{
-            if *k == symbol { *v } else { v - 1 }
+            if k == symbol { *v } else { v - 1 }
         })
     }
 }

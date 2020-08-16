@@ -9,24 +9,39 @@ use crate::prelude::*;
 // ==============
 
 /// An input symbol to a finite automaton.
-#[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
+#[derive(Clone,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
 #[allow(missing_docs)]
 pub struct Symbol {
-    pub index: u64
+    pub index : u64,
+    pub name  : String
 }
 
 impl Symbol {
-    /// A representation of the end of the file.
-    pub const EOF : Symbol = Symbol::new(u64::max_value());
-
-    /// A representation of the null symbol.
-    pub const NULL : Symbol = Symbol::new(0);
+    // /// A representation of the end of the file.
+    // pub const EOF : Symbol = Symbol::new(u64::max_value());
+    //
+    // /// A representation of the null symbol.
+    // pub const NULL : Symbol = Symbol::new(0);
 }
 
 impl Symbol {
+    pub fn eof() -> Self {
+        Self::new(u64::max_value())
+    }
+
+    pub fn null() -> Self {
+        Self::new(0)
+    }
+
     /// Constructor.
-    pub const fn new(index:u64) -> Self {
-        Self {index}
+    pub fn new(index:u64) -> Self {
+        let name = "unnamed".into();
+        Self {index,name}
+    }
+
+    pub fn new_named(index:u64, name:impl Into<String>) -> Self {
+        let name = name.into();
+        Self {index,name}
     }
 
     /// Next symbol, if any.
@@ -40,9 +55,15 @@ impl Symbol {
 
 // === Impls ===
 
+impl Display for Symbol {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"{}",self.name)
+    }
+}
+
 impl Default for Symbol {
     fn default() -> Self {
-        Symbol::NULL
+        Symbol::null()
     }
 }
 
@@ -60,6 +81,6 @@ impl From<char> for Symbol {
 
 impl From<&Symbol> for Symbol {
     fn from(symbol:&Symbol) -> Self {
-        *symbol
+        symbol.clone()
     }
 }

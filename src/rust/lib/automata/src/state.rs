@@ -95,12 +95,12 @@ impl Data {
         let mut targets = vec![];
         let mut index   = 0;
         let mut links   = self.links.clone();
-        links.sort_by_key(|link| *link.symbols.start());
-        for &symbol in &alphabet.divisions {
-            while links.len() > index && *links[index].symbols.end() < symbol {
+        links.sort_by_key(|link| link.symbols.start().clone());
+        for symbol in &alphabet.divisions {
+            while links.len() > index && links[index].symbols.end() < symbol {
                 index += 1;
             }
-            if links.len() <= index || *links[index].symbols.start() > symbol {
+            if links.len() <= index || links[index].symbols.start() > symbol {
                 targets.push(State::INVALID);
             } else {
                 targets.push(links[index].target);
@@ -153,5 +153,13 @@ impl Transition {
     /// Constructor.
     pub fn new(symbols:RangeInclusive<Symbol>, target:State<Nfa>) -> Self {
         Self {symbols,target}
+    }
+
+    pub fn display_symbols(&self) -> String {
+        if self.symbols.start() == self.symbols.end() {
+            format!("{}",self.symbols.start())
+        } else {
+            format!("{} .. {}",self.symbols.start(),self.symbols.end())
+        }
     }
 }

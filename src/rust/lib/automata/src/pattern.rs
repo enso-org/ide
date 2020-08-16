@@ -62,12 +62,12 @@ impl Pattern {
 
     /// A pattern that triggers on the given character.
     pub fn char(character:char) -> Self {
-        Self::symbol(Symbol::from(character))
+        Self::symbol(&Symbol::from(character))
     }
 
     /// A pattern that triggers on the given symbol.
-    pub fn symbol(symbol:Symbol) -> Self {
-        Pattern::symbols(symbol..=symbol)
+    pub fn symbol(symbol:&Symbol) -> Self {
+        Pattern::symbols(symbol.clone()..=symbol.clone())
     }
 
     /// A pattern that triggers on any of the provided `symbols`.
@@ -77,7 +77,7 @@ impl Pattern {
 
     /// A pattern that triggers at the end of the file.
     pub fn eof() -> Self {
-        Self::symbol(Symbol::EOF)
+        Self::symbol(&Symbol::eof())
     }
 
     /// A pattern that triggers on any character in the provided `range`.

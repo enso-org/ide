@@ -13,6 +13,8 @@ enso-automata     = { path = "../../automata"          }
 enso-prelude      = { path = "../../enso-prelude"      }
 enso-shortcuts    = { path = "../../shortcuts"         }
 ensogl-system-web = { path = "../../../lib/system/web" }
+logger            = { path = "../../../lib/logger"     }
+
 
 wasm-bindgen = { version = "=0.2.58" , features = ["nightly","serde-serialize"] }
 nalgebra     = { version = "0.21.1"  , features = ["serde-serialize"]           }

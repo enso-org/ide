@@ -65,6 +65,22 @@ impl Nfa {
         Self {start,alphabet,states}.init_start_state()
     }
 
+    pub fn visualize(&self) -> String {
+        let mut out = String::new();
+        for (ix,state) in self.states.iter().enumerate() {
+            let opts = if state.export { "" } else { "[fillcolor=\"#EEEEEE\" fontcolor=\"#888888\"]" };
+            out += &format!("node_{}[label=\"{}\"]{}\n",ix,ix,opts);
+            for link in &state.links {
+                out += &format!("node_{} -> node_{}[label=\"{}\"]\n",ix,link.target.id(),link.display_symbols());
+            }
+            for link in &state.epsilon_links {
+                out += &format!("node_{} -> node_{}[style=dashed]\n",ix,link.id());
+            }
+        }
+        let opts = "node [shape=circle style=filled fillcolor=\"#4385f5\" fontcolor=\"#FFFFFF\" color=white penwidth=5.0 margin=0.1 width=0.5 height=0.5 fixedsize=true]";
+        format!("digraph G {{\n{}\n{}\n}}",opts,out)
+    }
+
     fn init_start_state(mut self) -> Self {
         let start = self.new_state();
         self[start].export = true;
@@ -91,7 +107,7 @@ impl Nfa {
     ///
     /// If any symbol from such range happens to be the input when the automaton is in the `source`
     /// state, it will immediately transition to the `target` state.
-    fn connect_via(&mut self, source:State, target:State, symbols:&RangeInclusive<Symbol>) {
+    pub fn connect_via(&mut self, source:State, target:State, symbols:&RangeInclusive<Symbol>) {
         self.alphabet.insert(symbols.clone());
         self[source].links.push(Transition::new(symbols.clone(),target));
     }

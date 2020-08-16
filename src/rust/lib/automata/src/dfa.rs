@@ -65,8 +65,8 @@ impl Dfa {
 }
 
 impl Dfa {
-    pub fn next_state(&self, current_state:State, symbol:Symbol) -> State {
-        self.alphabet.index_of_symbol(symbol).and_then(|ix| {
+    pub fn next_state(&self, current_state:State, symbol:&Symbol) -> State {
+        self.alphabet.index_of_symbol(&symbol).and_then(|ix| {
             println!("ix: {}",ix);
             self.links.safe_index(current_state.id(),ix)
         }).unwrap_or_default()
