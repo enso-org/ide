@@ -46,17 +46,17 @@ impl Pattern {
     }
 
     /// A pattern that triggers on 0..N repetitions of the pattern described by `self`.
-    pub fn many(self) -> Self {
-        Pattern::Many(Box::new(self))
+    pub fn many(&self) -> Self {
+        Pattern::Many(Box::new(self.clone()))
     }
 
     /// A pattern that triggers on 1..N repetitions of the pattern described by `self`.
-    pub fn many1(self) -> Self {
+    pub fn many1(&self) -> Self {
         self.clone() >> self.many()
     }
 
     /// A pattern that triggers on 0..=1 repetitions of the pattern described by `self`.
-    pub fn opt(self) -> Self {
+    pub fn opt(&self) -> Self {
         self | Self::always()
     }
 
@@ -135,9 +135,30 @@ impl AsRef<Pattern> for Pattern {
     }
 }
 
+impl BitOr<&Pattern> for Pattern {
+    type Output = Pattern;
+    fn bitor(self, rhs:&Pattern) -> Self::Output {
+        self.bitor(rhs.clone())
+    }
+}
+
+impl BitOr<Pattern> for &Pattern {
+    type Output = Pattern;
+    fn bitor(self, rhs:Pattern) -> Self::Output {
+        self.clone().bitor(rhs)
+    }
+}
+
+impl BitOr<&Pattern> for &Pattern {
+    type Output = Pattern;
+    fn bitor(self, rhs:&Pattern) -> Self::Output {
+        self.clone().bitor(rhs.clone())
+    }
+}
+
 impl BitOr<Pattern> for Pattern {
     type Output = Pattern;
-    fn bitor(self, rhs: Pattern) -> Self::Output {
+    fn bitor(self, rhs:Pattern) -> Self::Output {
         use Pattern::*;
         match (self, rhs) {
             (Or(mut lhs), Or(    rhs)) => {lhs.extend(rhs) ; Or(lhs)},
@@ -148,15 +169,36 @@ impl BitOr<Pattern> for Pattern {
     }
 }
 
+impl Shr<&Pattern> for Pattern {
+    type Output = Pattern;
+    fn shr(self, rhs:&Pattern) -> Self::Output {
+        self.shr(rhs.clone())
+    }
+}
+
+impl Shr<Pattern> for &Pattern {
+    type Output = Pattern;
+    fn shr(self, rhs:Pattern) -> Self::Output {
+        self.clone().shr(rhs)
+    }
+}
+
+impl Shr<&Pattern> for &Pattern {
+    type Output = Pattern;
+    fn shr(self, rhs:&Pattern) -> Self::Output {
+        self.clone().shr(rhs.clone())
+    }
+}
+
 impl Shr<Pattern> for Pattern {
     type Output = Pattern;
-    fn shr(self, rhs: Pattern) -> Self::Output {
+    fn shr(self, rhs:Pattern) -> Self::Output {
         use Pattern::*;
         match (self, rhs) {
             (Seq(mut lhs), Seq(rhs))     => {lhs.extend(rhs) ; Seq(lhs)},
             (Seq(mut lhs), rhs         ) => {lhs.push(rhs)   ; Seq(lhs)},
             (lhs         , Seq(mut rhs)) => {rhs.push(lhs)   ; Seq(rhs)},
-            (lhs         , rhs         ) => Seq(vec![lhs, rhs]),
+            (lhs         , rhs         ) => Seq(vec![lhs,rhs]),
         }
     }
 }

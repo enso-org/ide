@@ -34,3 +34,7 @@ pub fn entry_point_shortcuts() {
 // ctr -> b -> release ctrl
 //
 // any letter WITHOUT modifiers (typing but not cmd+a)
+
+
+// +lmb           - start selection
+// -lmb (ANY key) - stop selection

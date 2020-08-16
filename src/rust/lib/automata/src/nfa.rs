@@ -83,7 +83,7 @@ impl Nfa {
     ///
     /// Whenever the automaton happens to be in `source` state it can immediately transition to the
     /// `target` state. It is, however, not _required_ to do so.
-    fn connect(&mut self,source:State, target:State) {
+    pub fn connect(&mut self, source:State, target:State) {
         self[source].epsilon_links.push(target);
     }
 
