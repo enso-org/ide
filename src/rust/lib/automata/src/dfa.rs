@@ -30,7 +30,7 @@ use crate::nfa::Nfa;
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 pub struct Dfa {
     /// A set of disjoint intervals over the allowable input alphabet.
-    pub alphabet : BTreeMap<Symbol,usize>,
+    pub alphabet : alphabet::SealedSegmentation,
     /// The transition matrix for the Dfa.
     ///
     /// It represents a function of type `(state, symbol) -> state`, returning the identifier for
@@ -57,15 +57,9 @@ impl Dfa {
 
 impl Dfa {
     pub fn next_state(&self, current_state:State, symbol:Symbol) -> State {
-        self.index_of_symbol(symbol).and_then(|ix| {
+        self.alphabet.index_of_symbol(symbol).and_then(|ix| {
             self.links.safe_index(ix,current_state.id())
         }).unwrap_or_default()
-    }
-
-    pub fn index_of_symbol(&self, symbol:Symbol) -> Option<usize> {
-        self.alphabet.range(symbol..).next().map(|(k,v)|{
-            if *k == symbol { *v } else { v - 1 }
-        })
     }
 }
 
@@ -161,11 +155,8 @@ impl From<&Nfa> for Dfa {
             }
         }
 
-        let alphabet = nfa.alphabet.divisions.iter().cloned().enumerate().map(|(ix,s)|{
-            (s,ix)
-        }).collect();
-        let links = dfa_mat;
-
+        let alphabet = (&nfa.alphabet).into();
+        let links    = dfa_mat;
         Dfa {alphabet,links,callbacks}
     }
 }

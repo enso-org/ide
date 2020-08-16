@@ -33,7 +33,7 @@ impl State {
     }
 
     /// Identifier of this state expressed as `usize`.
-    pub fn id(&self) -> usize {
+    pub fn id(self) -> usize {
         self.id
     }
 }

@@ -49,7 +49,7 @@ use std::ops::RangeInclusive;
 #[derive(Clone,Debug,PartialEq,Eq)]
 #[allow(missing_docs)]
 pub struct Segmentation {
-    pub divisions: BTreeSet<Symbol>
+    pub divisions : BTreeSet<Symbol>
 }
 
 impl Segmentation {
@@ -68,6 +68,10 @@ impl Segmentation {
         }
         dict
     }
+
+    pub fn seal(&self) -> SealedSegmentation {
+        self.into()
+    }
 }
 
 
@@ -80,5 +84,39 @@ impl Default for Segmentation {
         // the NFA -> DFA conversion.
         divisions.insert(default());
         Segmentation { divisions }
+    }
+}
+
+
+
+// ==========================
+// === SealedSegmentation ===
+// ==========================
+
+
+#[derive(Clone,Debug,Default,Eq,PartialEq)]
+pub struct SealedSegmentation {
+    pub division_map : BTreeMap<Symbol,usize>
+}
+
+impl SealedSegmentation {
+    pub fn index_of_symbol(&self, symbol:Symbol) -> Option<usize> {
+        self.range(symbol..).next().map(|(k,v)|{
+            if *k == symbol { *v } else { v - 1 }
+        })
+    }
+}
+
+impl Deref for SealedSegmentation {
+    type Target = BTreeMap<Symbol,usize>;
+    fn deref(&self) -> &Self::Target {
+        &self.division_map
+    }
+}
+
+impl From<&Segmentation> for SealedSegmentation {
+    fn from(s:&Segmentation) -> Self {
+        let division_map = s.divisions.iter().cloned().enumerate().map(|(ix,s)|(s,ix)).collect();
+        Self {division_map}
     }
 }
