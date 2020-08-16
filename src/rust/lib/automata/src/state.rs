@@ -45,6 +45,10 @@ impl<T> State<T> {
     pub fn id(self) -> usize {
         self.id
     }
+
+    pub fn is_invalid(self) -> bool {
+        self == Self::INVALID
+    }
 }
 
 // === Trait Impls ===
@@ -117,10 +121,10 @@ impl From<Vec<usize>> for Data {
     }
 }
 
-impl From<Vec<(RangeInclusive<u32>, usize)>> for Data {
+impl From<Vec<(RangeInclusive<u64>, usize)>> for Data {
     /// Creates a state with ordinary links.
-    fn from(vec:Vec<(RangeInclusive<u32>, usize)>) -> Self {
-        let link = |(range, id): (RangeInclusive<u32>, usize)| {
+    fn from(vec:Vec<(RangeInclusive<u64>, usize)>) -> Self {
+        let link = |(range, id): (RangeInclusive<u64>, usize)| {
             let start = Symbol::new(*range.start());
             let end   = Symbol::new(*range.end());
             Transition::new(start..=end, State::new(id))

@@ -12,12 +12,12 @@ use crate::prelude::*;
 #[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord,Hash)]
 #[allow(missing_docs)]
 pub struct Symbol {
-    pub index: u32
+    pub index: u64
 }
 
 impl Symbol {
     /// A representation of the end of the file.
-    pub const EOF : Symbol = Symbol::new(u32::max_value());
+    pub const EOF : Symbol = Symbol::new(u64::max_value());
 
     /// A representation of the null symbol.
     pub const NULL : Symbol = Symbol::new(0);
@@ -25,13 +25,13 @@ impl Symbol {
 
 impl Symbol {
     /// Constructor.
-    pub const fn new(index:u32) -> Self {
+    pub const fn new(index:u64) -> Self {
         Self {index}
     }
 
     /// Next symbol, if any.
     pub fn next(self) -> Option<Self> {
-        (self.index < u32::max_value() - 1).as_some_from(|| {
+        (self.index < u64::max_value() - 1).as_some_from(|| {
             Self::new(self.index + 1)
         })
     }
@@ -46,15 +46,15 @@ impl Default for Symbol {
     }
 }
 
-impl From<u32> for Symbol {
-    fn from(index:u32) -> Symbol {
+impl From<u64> for Symbol {
+    fn from(index:u64) -> Symbol {
         Symbol::new(index)
     }
 }
 
 impl From<char> for Symbol {
     fn from(ch:char) -> Symbol {
-        Symbol::new(ch as u32)
+        Symbol::new(ch as u64)
     }
 }
 

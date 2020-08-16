@@ -45,7 +45,7 @@ use std::ops::RangeInclusive;
 /// ```
 ///
 /// This type tracks these divisions explicitly for an input alphabet defined for all automata in
-/// this library as `0u32..=u32::max_value()`.
+/// this library as `0u64..=u64::max_value()`.
 #[derive(Clone,Debug,PartialEq,Eq)]
 #[allow(missing_docs)]
 pub struct Segmentation {
@@ -61,7 +61,7 @@ impl Segmentation {
     }
 
     /// Creates an [`AlphabetSegmentation`] from an input set of divisions.
-    pub fn from_divisions(divisions:&[u32]) -> Self {
+    pub fn from_divisions(divisions:&[u64]) -> Self {
         let mut dict = Self::default();
         for val in divisions {
             dict.divisions.insert(Symbol::from(*val));

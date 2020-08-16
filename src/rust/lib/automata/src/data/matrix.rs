@@ -15,9 +15,9 @@ use std::ops::IndexMut;
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
 #[allow(missing_docs)]
 pub struct Matrix<T> {
-    rows    : usize,
-    columns : usize,
-    matrix  : Vec<T>,
+    pub rows    : usize,
+    pub columns : usize,
+    pub matrix  : Vec<T>,
 }
 
 impl<T:Copy> Matrix<T> {
@@ -38,7 +38,7 @@ impl<T:Copy> Matrix<T> {
 
     pub fn safe_index(&self, row:usize, column:usize) -> Option<T> {
         (row < self.rows && column < self.columns).as_some_from(|| {
-            self.matrix[column*self.columns+row]
+            self.matrix[row*self.columns+column]
         })
     }
 }

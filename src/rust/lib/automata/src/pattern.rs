@@ -37,12 +37,12 @@ impl Pattern {
 
     /// A pattern that always triggers
     pub fn always() -> Self {
-        Pattern::symbols(Symbol::from(u32::min_value())..=Symbol::from(u32::max_value()))
+        Pattern::symbols(Symbol::from(u64::min_value())..=Symbol::from(u64::max_value()))
     }
 
     /// A pattern that triggers on any character.
     pub fn any() -> Self {
-        Pattern::symbols(Symbol::from(0)..=Symbol::from(u32::max_value()))
+        Pattern::symbols(Symbol::from(0)..=Symbol::from(u64::max_value()))
     }
 
     /// A pattern that triggers on 0..N repetitions of the pattern described by `self`.
@@ -97,8 +97,8 @@ impl Pattern {
 
     /// The pattern that doesn't trigger on any character contained in `chars`.
     pub fn none_of(chars:&str) -> Self {
-        let max        = u32::max_value();
-        let char_iter  = chars.chars().map(|char| char as u32);
+        let max        = u64::max_value();
+        let char_iter  = chars.chars().map(|char| char as u64);
         let char_iter2 = iter::once(0).chain(char_iter).chain(iter::once(max));
         let mut codes  = char_iter2.collect_vec();
 
@@ -128,6 +128,12 @@ impl Pattern {
 
 
 // === Trait Impls ====
+
+impl AsRef<Pattern> for Pattern {
+    fn as_ref(&self) -> &Pattern {
+        self
+    }
+}
 
 impl BitOr<Pattern> for Pattern {
     type Output = Pattern;
