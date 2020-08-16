@@ -17,6 +17,8 @@ use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
 
+// pub struct State
+
 
 // =========================================
 // === Non-Deterministic Finite Automata ===
@@ -72,10 +74,10 @@ impl Nfa {
         self[source].links.push(Transition::new(symbols.clone(),target));
     }
 
-    /// Transforms a pattern to an Nfa using the algorithm described
+    /// Transforms a pattern to connected NFA states by using the algorithm described
     /// [here](https://www.youtube.com/watch?v=RYNN-tb9WxI).
     /// The asymptotic complexity is linear in number of symbols.
-    pub fn new_pattern(&mut self,source:State,pattern:&Pattern) -> State {
+    pub fn new_pattern(&mut self, source:State, pattern:&Pattern) -> State {
         let current = self.new_state();
         self.connect(source,current);
         match pattern {

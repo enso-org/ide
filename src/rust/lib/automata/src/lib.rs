@@ -25,9 +25,9 @@ pub fn main() {
     let end_c = nfa.new_pattern(end_b,&Pattern::char('c'));
     let end_x = nfa.new_pattern(start,&Pattern::char('x'));
 
-    nfa.states[end_a.id()].name = Some("end_a".into());
-    nfa.states[end_c.id()].name = Some("end_c".into());
-    nfa.states[end_x.id()].name = Some("end_x".into());
+    nfa[end_a].name = Some("end_a".into());
+    nfa[end_c].name = Some("end_c".into());
+    nfa[end_x].name = Some("end_x".into());
 
     let dfa = Dfa::from(&nfa);
 
