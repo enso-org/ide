@@ -60,6 +60,7 @@ pub mod text {
         }
     }
     impl Shape {
+        /// Width of the text.
         pub fn width (&self) -> f32 {
             self.label.content().chars().count() as f32 * CHAR_WIDTH
         }
@@ -160,20 +161,28 @@ pub mod background {
 // === Frp ===
 // ===========
 
+/// FRP api of the `QuickActionBar`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Frp {
+    /// Set the label indicating the active visualisation name.
     pub set_label  : frp::Source<String>,
+    /// Set the size of the `QuickActionBar`.
     pub set_size   : frp::Source<Vector2>,
+    /// Show the interactive elements of the `QuickActionBar`.
     pub show_icons : frp::Source,
+    /// Show the interactive elements of the `QuickActionBar`.
     pub hide_icons : frp::Source,
 
     on_visualisation_chooser_clicked : frp::Source,
 
+    /// Click event for the visualisation chooser label and arrow icon.
     pub visualisation_chooser_clicked    : frp::Stream,
 
         on_mouse_over                    : frp::Source,
         on_mouse_out                     : frp::Source,
+    /// Mouse over event for the quick action area. Included the invisible hover area.
     pub mouse_over                       : frp::Stream,
+    /// Mouse out event for the quick action area. Included the invisible hover area.
     pub mouse_out                        : frp::Stream,
 
 }
@@ -319,11 +328,13 @@ impl display::Object for QuickActionBarModel {
 pub struct QuickActionBar {
     model   : Rc<QuickActionBarModel>,
     network : frp::Network,
+    /// Public FRP api.
     pub frp : Frp
 }
 
 impl QuickActionBar {
 
+    /// Constructor.
     pub fn new(scene:&Scene) -> Self {
         let model = Rc::new(QuickActionBarModel::new(scene));
         let network = frp::Network::new();
