@@ -15,7 +15,7 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 
-use super::super::node;
+use crate::graph_editor::component::node;
 
 
 

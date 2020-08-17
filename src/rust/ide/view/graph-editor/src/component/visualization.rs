@@ -30,6 +30,7 @@ pub mod foreign;
 pub mod instance;
 pub mod path;
 pub mod registry;
+pub mod quick_action_bar;
 
 pub use container::*;
 pub use data::*;
