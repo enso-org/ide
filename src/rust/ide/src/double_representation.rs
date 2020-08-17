@@ -7,6 +7,7 @@ pub mod definition;
 pub mod graph;
 pub mod module;
 pub mod node;
+pub mod refactorings;
 pub mod text;
 
 #[cfg(test)]
