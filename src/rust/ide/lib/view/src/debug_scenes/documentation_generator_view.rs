@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
 use ensogl::traits::*;
+use ensogl::prelude::*;
 
 use ensogl::system::web;
 use ensogl::system::web::NodeInserter;
@@ -8,7 +9,6 @@ use ensogl::display::symbol::DomSymbol;
 use web::StyleSetter;
 use ensogl::display::world::*;
 use ensogl::display::navigation::navigator::Navigator;
-use ensogl::prelude::*;
 
 use nalgebra::Vector2;
 use nalgebra::Vector3;
@@ -31,7 +31,7 @@ fn generate_mock_doc() -> String {
 
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_documentation_generator_view() {
+pub fn entry_point_documentation_generator_view() {
     let output_unwrapped = generate_mock_doc();
     let css = doc_style();
     let full_file: String = format!("{}{}", css, output_unwrapped);
@@ -67,8 +67,6 @@ pub fn run_example_documentation_generator_view() {
     object.set_size(size);
     object.mod_position(|t| *t = position);
     css3d_objects.push(object);
-
-    world.display_object().update();
 
     let layers = vec![dom_front_layer.clone_ref(),dom_back_layer.clone_ref()];
 
