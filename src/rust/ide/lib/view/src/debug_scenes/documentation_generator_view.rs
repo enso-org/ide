@@ -25,16 +25,15 @@ fn generate_mock_doc() -> String {
     let parser = parser::DocParser::new_or_panic();
     let output = parser.generate_html_docs(program);
     let output = output.unwrap_or_else(|_| String::from("<h1>hello EnsoGL</h1>"));
-    output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "")
+    let output = output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "");
+    format!(r#"<div class="docVis">{}{}</div>"#, doc_style(), output)
 }
 
 
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn entry_point_documentation_generator_view() {
-    let output_unwrapped = generate_mock_doc();
-    let css = doc_style();
-    let full_file: String = format!("{}{}", css, output_unwrapped);
+    let mock_doc = generate_mock_doc();
 
     web::forward_panic_hook_to_console();
     web::set_stdout();
@@ -49,7 +48,7 @@ pub fn entry_point_documentation_generator_view() {
     let div = web::create_div();
     div.set_style_or_panic("width" ,"100% !important");
     div.set_style_or_panic("height","100% !important");
-    div.set_inner_html(&full_file);
+    div.set_inner_html(&mock_doc);
 
     let width  = screen.width;
     let height = screen.height;
