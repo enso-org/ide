@@ -316,7 +316,7 @@ impl DefinitionInfo {
         // There two cases - function name is either a Var or operator.
         // If this is a Var, we have Var, optionally under a Prefix chain with args.
         // If this is an operator, we have SectionRight with (if any prefix in arguments).
-        let lhs  = Located::new(InfixCrumb::LeftOperand,prefix::Chain::new_non_strict(&infix.larg));
+        let lhs  = Located::new(InfixCrumb::LeftOperand,prefix::Chain::from_ast_non_strict(&infix.larg));
         let name = lhs.entered(|chain| {
             let name_ast = chain.located_func();
             name_ast.map(DefinitionName::from_ast)

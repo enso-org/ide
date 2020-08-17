@@ -89,14 +89,14 @@ impl Chain {
 
     /// As new but if the AST is not a prefix, interprets is a function with an
     /// empty arguments list.
-    pub fn new_non_strict(ast:&Ast) -> Chain {
+    pub fn from_ast_non_strict(ast:&Ast) -> Chain {
         if let Ok(ref prefix) = known::Prefix::try_from(ast) {
             // Case like `a b c`
             Self::from_prefix(prefix)
         } else if let Ok(ref section) = known::SectionRight::try_from(ast) {
             // Case like `+ a b`
             let func        = section.opr.clone();
-            let right_chain = Chain::new_non_strict(&section.arg);
+            let right_chain = Chain::from_ast_non_strict(&section.arg);
             let sast        = Shifted{wrapped:right_chain.func, off:section.off};
             let prefix_id   = section.id();
             let mut args    = vec![Argument{sast,prefix_id}];

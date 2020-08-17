@@ -419,9 +419,7 @@ impl Info {
         };
 
         let mut add_line = |ast_opt:Option<Ast>| {
-            dbg!((index,ast_opt.repr()));
             self.add_line(index,ast_opt);
-            dbg!(self.ast.lines.iter().map(|line| line.repr()).enumerate().collect_vec());
             index += 1;
         };
 
