@@ -114,7 +114,12 @@ impl ViewModel {
     }
 
     fn init(self) -> Self {
-        self.add_child(&self.background);
+        // TODO [MM]:
+        //  - Set position of background - currently doesn't work, maybe invalid parent?
+        //  - set self.dom as the child of background
+        //  - make background show/hide on frp call - currently stays all the time on scene
+        //  - make background transparent
+        // self.add_child(&self.background);
         self.reload_style();
         self
     }
