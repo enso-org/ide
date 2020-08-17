@@ -52,6 +52,8 @@ mod background {
     }
 }
 
+
+
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
     entries        : entry::List,
@@ -77,23 +79,27 @@ impl Model {
         Model{entries,selection,background,display_object,scrolled_area}
     }
 
-    fn update_after_window_change(&self, window:&WindowInfo) -> Vec<entry::Entry> {
-        let visible_entries = self.visible_entries(window);
+    fn update_after_window_change(&self, window:&WindowInfo) {
+        let visible_entries = Self::visible_entries(window);
         self.entries.set_position_x(-window.size.x / 2.0);
         self.background.shape.sprite.size.set(window.size);
         self.scrolled_area.set_position_y(window.size.y / 2.0 - window.position_y);
-        self.entries.update_entries(visible_entries, window.size.x)
+        self.entries.update_entries(visible_entries);
     }
 
     fn update_entries
-    (&self, provider:entry::AnyModelProvider, window:&WindowInfo) -> Vec<entry::Entry> {
-        let visible_entries = self.visible_entries(window);
-        self.entries.update_entries_new_provider(provider,visible_entries, window.size.x)
+    (&self, provider:entry::AnyModelProvider, window:&WindowInfo) {
+        let visible_entries = Self::visible_entries(window);
+        self.entries.update_entries_new_provider(provider,visible_entries);
     }
 
-    fn visible_entries(&self, WindowInfo{position_y,size}:&WindowInfo) -> Range<entry::Id> {
-        let first = (-position_y.min(0.0)/entry::HEIGHT - 0.5 + entry::PADDING/entry::HEIGHT) as entry::Id;
-        let last  = (-(position_y - size.y).min(0.0)/entry::HEIGHT + 0.5 - entry::PADDING/entry::HEIGHT) as entry::Id;
+    fn entry_at_y_position(y:f32) -> entry::Id {
+        (-y.min(0.0)/entry::HEIGHT - 0.5) as entry::Id
+    }
+
+    fn visible_entries(WindowInfo{position_y,size}:&WindowInfo) -> Range<entry::Id> {
+        let first = Self::entry_at_y_position(*position_y);
+        let last  = Self::entry_at_y_position(position_y - size.y);
         first..(last + 1)
     }
 }
@@ -161,16 +167,17 @@ impl Select {
         let frp_endpoints  = FrpEndpoints::new(&network,frp_inputs.clone_ref());
         let frp            = Frp::new(network,frp_endpoints);
         let model          = Model::new(app);
-        Select{frp,model}.init()
+        Select{frp,model}.init(app)
     }
 
-    fn init(self) -> Self {
+    fn init(self, app:&Application) -> Self {
         const MAX_SCROLL:f32 = entry::HEIGHT/2.0;
 
         let frp              = &self.frp;
         let network          = &frp.network;
         let input            = &frp.input;
         let model            = &self.model;
+        let mouse            = &app.display.scene().mouse.frp;
         let window_y         = Animation::<f32>::new(&network);
         let selection_y      = Animation::<f32>::new(&network);
         let selection_height = Animation::<f32>::new(&network);
@@ -182,14 +189,15 @@ impl Select {
             min_scroll  <- all_with(&frp.resize,&frp.set_entries,|size,entries| (entries.entry_count() as f32 * -entry::HEIGHT - size.y - MAX_SCROLL).min(MAX_SCROLL));
 
 
+
             // === Selection ===
 
             frp.source.selected_entry   <+ frp.select_entry.map(|id| Some(*id));
 
             selection_jump_on_move_up   <- frp.move_selection_up.constant(-1);
-            selection_jump_on_page_up   <- frp.move_selection_page_up.map2(&window_info, f!([model]((),window) -(model.visible_entries(&window).len() as isize)));
+            selection_jump_on_page_up   <- frp.move_selection_page_up.map2(&window_info, |(),window| -(Model::visible_entries(&window).len() as isize));
             selection_jump_on_move_down <- frp.move_selection_down.constant(1);
-            selection_jump_on_page_down <- frp.move_selection_page_down.map2(&window_info, f!([model]((),window) (model.visible_entries(&window).len() as isize)));
+            selection_jump_on_page_down <- frp.move_selection_page_down.map2(&window_info, |(),window| (Model::visible_entries(&window).len() as isize));
             selection_jump_up           <- any(selection_jump_on_move_up,selection_jump_on_page_up);
             selection_jump_down         <- any(selection_jump_on_move_down,selection_jump_on_page_down);
             selected_entry_after_jump_up <- selection_jump_up.map2(&frp.selected_entry, |jump,id| {
@@ -234,37 +242,15 @@ impl Select {
             eval target_scroll ((scroll_y) window_y.set_target_value(*scroll_y));
 
             new_entries <- any(...);
-            new_entries <+ window_info.map(f!((window) model.update_after_window_change(window)));
-            new_entries <+ frp.set_entries.map2(&window_info, f!((entries,window) {
+            eval window_info ((window) model.update_after_window_change(window));
+            _entries_set <- frp.set_entries.map2(&window_info, f!((entries,window)
                 model.update_entries(entries.clone_ref(),window)
-            }));
-            eval new_entries ([network,input](new_entries) {
-                for entry in new_entries {
-                    Self::connect_entry_frp(&network,&input,&entry);
-                }
-            });
-
+            ));
         }
 
         self
     }
 
-    fn connect_entry_frp(my_network:&frp::Network, my_input:&FrpInputs, entry:&entry::Entry) {
-        let entry_events = entry.events();
-        let entry_id     = entry.id();
-        frp::new_bridge_network! {[my_network,entry_events.network]
-            eval entry_events.mouse_over ([my_input,entry_id] (()) {
-                if let Some(id) = entry_id.get() {
-                    my_input.select_entry(id);
-                }
-            });
-            eval entry_events.mouse_down ([my_input,entry_id](()) {
-                if let Some(id) = entry_id.get() {
-                    my_input.chose_entry(id);
-                }
-            });
-        };
-    }
 }
 
 impl display::Object for Select {

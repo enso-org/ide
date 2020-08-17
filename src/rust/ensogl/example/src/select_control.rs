@@ -13,6 +13,7 @@ use ensogl_select as select;
 use logger::enabled::Logger;
 use wasm_bindgen::prelude::*;
 use ensogl_core::display::Scene;
+use ensogl_text::buffer::data::unit::Bytes;
 
 
 #[wasm_bindgen]
@@ -72,6 +73,7 @@ impl select::entry::ModelProvider for MockEntries {
         icon.shape.id.set(id as f32);
         select::entry::Model {
             label : iformat!("Entry {id}"),
+            highlighted: if id == 10 { vec![(Bytes(1)..Bytes(3)).into()] } else { vec![] },
             icon  : icon.into_any(),
         }
     }
