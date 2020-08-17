@@ -1119,7 +1119,6 @@ impl GraphEditorModel {
         let doc_margin = documentation::DOC_VIEW_MARGIN;
         frp::extend! { network
             eval scene.frp.shape((shape) {
-                doc_view.set_position_x((shape.width - doc_width) / 2.0 - doc_margin);
                 doc_view.frp.set_size.emit(Vector2::new(doc_width,shape.height - (doc_margin * 2.0)));
             });
         }
