@@ -143,22 +143,42 @@ impl ViewModel {
         <div>
         <style>
         .spinner {
-          border: 12px solid #c3c3c3;
-          border-radius: 50%;
-          border-top: 12px solid #404040;
-          border-bottom: 12px solid #404040;
-          width: 120px;
-          height: 120px;
-          animation: spin 1.5s linear infinite;
           margin: 40vh auto;
+          width: 70px;
+          text-align: center;
         }
 
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        .spinner > div {
+          width: 18px;
+          height: 18px;
+          background-color: rgb(50, 48, 47);
+
+          border-radius: 100%;
+          display: inline-block;
+          animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+        }
+
+        .spinner .bounce1 {
+          animation-delay: -0.32s;
+        }
+
+        .spinner .bounce2 {
+          animation-delay: -0.16s;
+        }
+
+        @keyframes sk-bouncedelay {
+          0%, 80%, 100% {
+            transform: scale(0);
+          } 40% {
+            transform: scale(1.0);
+          }
         }
         </style>
-        <div class="spinner"></div>
+        <div class="spinner">
+            <div class="bounce1"></div>
+            <div class="bounce2"></div>
+            <div class="bounce3"></div>
+        </div>
         </div>
         "#;
         self.push_to_dom(String::from(spinner))
