@@ -115,8 +115,6 @@ impl ViewModel {
 
     fn init(self) -> Self {
         self.add_child(&self.background);
-        self.dom.unset_parent();
-        self.background.add_child(&self.dom);
         self.reload_style();
         self
     }

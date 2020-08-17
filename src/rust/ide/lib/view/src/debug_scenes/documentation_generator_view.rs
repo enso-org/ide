@@ -23,7 +23,7 @@ fn generate_mock_doc() -> String {
     let program         = std::env::args().nth(1).unwrap_or(default_input);
 
     let parser = parser::DocParser::new_or_panic();
-    let output = parser.generate_html_doc_pure(program);
+    let output = parser.generate_html_docs(program);
     let output = output.unwrap_or_else(|_| String::from("<h1>hello EnsoGL</h1>"));
     output.replace(r#"<link rel="stylesheet" href="style.css" />"#, "")
 }
