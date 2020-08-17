@@ -6,15 +6,15 @@ use crate::prelude::*;
 use crate::graph_editor::component::visualization;
 
 use enso_frp as frp;
-use ensogl::data::color;
+// use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::camera::Camera2d;
 use ensogl::display::DomSymbol;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
-use ensogl::display::shape::*;
-use ensogl::display::Sprite;
-use ensogl::gui::component;
+// use ensogl::display::shape::*;
+// use ensogl::display::Sprite;
+// use ensogl::gui::component;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ast::prelude::FallibleResult;
@@ -44,20 +44,20 @@ pub fn doc_style() -> String {
 
 
 
-// ==================
-// === Background ===
-// ==================
-
-mod background {
-    use super::*;
-
-    ensogl::define_shape_system! {
-         () {
-             let bg_color = color::Rgba::new(1.0,0.0,0.0,1.0);
-             Plane().fill(bg_color).into()
-         }
-     }
-}
+// // ==================
+// // === Background ===
+// // ==================
+//
+// mod background {
+//     use super::*;
+//
+//     ensogl::define_shape_system! {
+//          () {
+//              let bg_color = color::Rgba::new(1.0,0.0,0.0,1.0);
+//              Plane().fill(bg_color).into()
+//          }
+//      }
+// }
 
 
 
@@ -71,10 +71,10 @@ mod background {
 #[allow(missing_docs)]
 pub struct ViewModel {
     logger         : Logger,
-    display_object : display::object::Instance,
-    background     : component::ShapeView<background::Shape>,
+    // display_object : display::object::Instance,
+    // background     : component::ShapeView<background::Shape>,
     dom            : DomSymbol,
-    scene          : Scene,
+    // scene          : Scene,
     camera         : Camera2d,
     size           : Rc<Cell<Vector2>>,
 }
@@ -83,8 +83,8 @@ impl ViewModel {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
         let logger          = Logger::new("DocumentationView");
-        let display_object  = display::object::Instance::new(&logger);
-        let scene           = scene.clone_ref();
+        // let display_object  = display::object::Instance::new(&logger);
+        // let scene           = scene.clone_ref();
         let camera          = scene.camera().clone_ref();
         let div             = web::create_div();
         let dom             = DomSymbol::new(&div);
@@ -92,11 +92,11 @@ impl ViewModel {
         let doc_view_height = screen.height - (DOC_VIEW_MARGIN * 2.0);
         let size_vec        = Vector2(DOC_VIEW_WIDTH,doc_view_height);
         let size            = Rc::new(Cell::new(size_vec));
-        let background      = component::ShapeView::<background::Shape>::new(&logger,&scene);
-
-        let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.cursor.add(&shape_system.shape_system.symbol);
+        // let background      = component::ShapeView::<background::Shape>::new(&logger,&scene);
+        //
+        // let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
+        // scene.views.main.remove(&shape_system.shape_system.symbol);
+        // scene.views.cursor.add(&shape_system.shape_system.symbol);
 
         dom.dom().set_style_or_warn("white-space"     ,"normal"                        ,&logger);
         dom.dom().set_style_or_warn("overflow-y"      ,"auto"                          ,&logger);
@@ -110,7 +110,8 @@ impl ViewModel {
 
         scene.dom.layers.main.manage(&dom);
 
-        ViewModel {logger,display_object,background,dom,scene,camera,size}.init()
+        // ViewModel {logger,display_object,background,dom,scene,camera,size}.init()
+        ViewModel {logger,dom,camera,size}.init()
     }
 
     fn init(self) -> Self {
@@ -119,7 +120,6 @@ impl ViewModel {
         //  - set self.dom as the child of background
         //  - make background show/hide on frp call - currently stays all the time on scene
         //  - make background transparent
-        // self.add_child(&self.background);
         self.reload_style();
         self
     }
@@ -188,16 +188,16 @@ impl ViewModel {
         self.dom.set_size(self.size.get());
         self.dom.set_position_x(position_x);
 
-        self.background.shape.sprite.size.set(self.size.get());
-        self.background.set_position_x(position_x);
+        // self.background.shape.sprite.size.set(self.size.get());
+        // self.background.set_position_x(position_x);
     }
 }
 
-impl display::Object for ViewModel {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
-    }
-}
+// impl display::Object for ViewModel {
+//     fn display_object(&self) -> &display::object::Instance {
+//         &self.display_object
+//     }
+// }
 
 
 
