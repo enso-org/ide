@@ -937,6 +937,12 @@ pub struct Any<Host=Scene> {
     wrapped:Rc<dyn Object<Host>>
 }
 
+impl<Host> Debug for Any<Host> {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<Any Display Object>")
+    }
+}
+
 impl<Host> Object<Host> for Any<Host> {
     fn display_object(&self) -> &Instance<Host> { self.wrapped.display_object() }
 }

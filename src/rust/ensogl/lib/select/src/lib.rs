@@ -2,7 +2,7 @@
 
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
-#![recursion_limit="256"]
+#![recursion_limit="512"]
 
 pub mod component;
 pub mod entry;

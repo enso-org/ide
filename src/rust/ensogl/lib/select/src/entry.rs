@@ -96,7 +96,7 @@ mod hover_area {
         () {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let color  = color::Rgba::new(0.0,0.0,0.0,0.0);
+            let color  = color::Rgba::new(0.0,0.0,0.0,0.0000001);
             Rect((&width,&height)).fill(color).into()
         }
     }
@@ -147,8 +147,10 @@ impl Entry {
     pub fn set_width(&self, width:f32) {
         let new_size = Vector2(width,HEIGHT);
         self.hover_area.shape.sprite.size.set(new_size);
-        self.hover_area.set_position_y(width/2.0);
+        self.hover_area.set_position_x(width/2.0);
     }
+
+    pub fn id(&self) -> Rc<Cell<Option<Id>>> { self.id.clone_ref() }
 
     pub fn events(&self) -> &ShapeViewEvents {
         &self.hover_area.events
@@ -193,12 +195,14 @@ impl List {
         (position - HEIGHT / 2.0)..(position + HEIGHT / 2.0)
     }
 
-    pub fn update_entries(&self, mut range:Range<Id>) {
+    pub fn update_entries(&self, mut range:Range<Id>, width:f32) -> Vec<Entry> {
         if range != self.entries_range.get() {
             debug!(self.logger, "Update entries for {range:?}");
-            let new_entry   = || {
+            let mut new_entries  = Vec::<Entry>::new();
+            let create_new_entry = || {
                 let entry = Entry::new(&self.logger,&self.app);
                 self.add_child(&entry);
+                new_entries.push(entry.clone_ref());
                 entry
             };
             let provider        = self.provider.get();
@@ -207,21 +211,31 @@ impl List {
             let missing         = range.clone().filter(|id| !current_entries.contains(id));
             let models          = missing.map(|id| (id,provider.get(id)));
             let mut entries     = self.entries.borrow_mut();
-            entries.resize_with(range.len(),new_entry);
+            entries.resize_with(range.len(),create_new_entry);
             let outdated = entries.iter_mut().filter(|e| e.id.get().map_or(true, |i| !range.contains(&i)));
             for (entry,(id,model)) in outdated.zip(models) {
                 debug!(self.logger, "Setting new model {model:?} for entry {id}; old entry: {entry.id.get():?}");
                 entry.set_model(id,&model);
                 entry.set_position_xy(Vector2(0.0, Self::position_y_of_entry(id)));
+                entry.set_width(width);
             }
             self.entries_range.set(range);
+            new_entries
+        } else {
+            vec![]
         }
     }
 
     pub fn update_entries_new_provider
-    (&self, provider:impl Into<AnyModelProvider> + 'static, range:Range<Id>) {
+    (&self, provider:impl Into<AnyModelProvider> + 'static, range:Range<Id>, width:f32) -> Vec<Entry> {
         self.provider.set(provider.into());
-        self.update_entries(range);
+        self.update_entries(range,width)
+    }
+
+    pub fn set_width(&self, width:f32) {
+        for entry in self.entries.deref().borrow().iter() {
+            entry.set_width(width);
+        }
     }
 }
 
