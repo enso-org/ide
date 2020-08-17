@@ -255,6 +255,10 @@ impl QuickActionBarModel {
     fn init(self) -> Self {
         self.add_child(&self.hover_area);
         self.set_label("None");
+
+        // Remove default parent, then hide icons.
+        self.show_quick_action_icons();
+        self.hide_quick_action_icons();
         self
     }
 
