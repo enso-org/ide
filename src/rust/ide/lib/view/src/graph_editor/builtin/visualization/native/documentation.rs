@@ -47,9 +47,9 @@ pub fn doc_style() -> String {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ViewModel {
-    logger         : Logger,
-    dom            : DomSymbol,
-    size           : Rc<Cell<Vector2>>,
+    logger : Logger,
+    dom    : DomSymbol,
+    size   : Rc<Cell<Vector2>>,
 }
 
 impl ViewModel {
