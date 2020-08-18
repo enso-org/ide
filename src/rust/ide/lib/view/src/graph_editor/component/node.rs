@@ -54,29 +54,32 @@ pub mod shape {
             let selection_color = style.get("graph_editor.node.selection.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
             let _selection_size = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
 
-            let border_size_f = 16.0;
+            // let border_size_f = 16.0;
 
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
             let height = height - NODE_SHAPE_PADDING.px() * 2.0;
             let radius = NODE_SHAPE_RADIUS.px();
-            let shape  = Rect((&width,&height)).corners_radius(radius);
+            let shape  = Rect((&width - 2.px(),&height - 2.px())).corners_radius(&radius);
             let shape  = shape.fill(color::Rgba::from(bg_color));
 
 
-            // === Shadow ===
+            // // === Shadow ===
+            //
+            // let shadow_size   = SHADOW_SIZE.px();
+            // let shadow_width  = &width  + &shadow_size * 2.0;
+            // let shadow_height = &height + &shadow_size * 2.0;
+            // let shadow_radius = &shadow_height / 2.0;
+            // let shadow        = Rect((shadow_width,shadow_height)).corners_radius(shadow_radius);
+            // let shadow_color  = color::LinearGradient::new()
+            //     .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
+            //     .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
+            // let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(2.0));
+            // let shadow        = shadow.fill(shadow_color);
 
-            let shadow_size   = SHADOW_SIZE.px();
-            let shadow_width  = &width  + &shadow_size * 2.0;
-            let shadow_height = &height + &shadow_size * 2.0;
-            let shadow_radius = &shadow_height / 2.0;
-            let shadow        = Rect((shadow_width,shadow_height)).corners_radius(shadow_radius);
-            let shadow_color  = color::LinearGradient::new()
-                .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
-                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
-            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(2.0));
-            let shadow        = shadow.fill(shadow_color);
+            let shadow        = Rect((&width,&height)).corners_radius(&radius*(&width/(&width-2.px())));
+            let shadow        = shadow.fill(color::Rgba::new(0.2,0.2,0.2,1.0));
 
 
             // === Selection ===

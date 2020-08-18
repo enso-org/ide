@@ -54,16 +54,16 @@ pub mod background {
             let radius        = 1.px() * &radius;
             let color_bg      = style.get("graph_editor.visualization.background.color").color().unwrap_or_else(|| color::Lcha::new(0.2,0.013,0.18,1.0));
             let corner_radius = &radius * &roundness;
-            let background    = Rect((&width - (SHADOW_SIZE*2.0).px(),&height - (SHADOW_SIZE*2.0).px())).corners_radius(&corner_radius);
+            let background    = Rect((&width - 2.px(),&height - 2.px())).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
 
-            let corner_radius = corner_radius*1.75;
-            let shadow        = Rect((&width,&height)).corners_radius(&corner_radius);
-            let shadow_color  = color::LinearGradient::new()
-                .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
-                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.05).into_linear());
-            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(16.0).slope(color::Slope::Exponent(2.0));
-            let shadow        = shadow.fill(shadow_color);
+            // let corner_radius = corner_radius*1.75;
+            let shadow        = Rect((&width,&height)).corners_radius(&corner_radius*(&width/(&width-2.px())));
+            // let shadow_color  = color::LinearGradient::new()
+            //     .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
+            //     .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.05).into_linear());
+            // let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(16.0).slope(color::Slope::Exponent(2.0));
+            let shadow        = shadow.fill(color::Rgba::new(0.2,0.2,0.2,1.0));
 
             let out = shadow + background;
             out.into()
