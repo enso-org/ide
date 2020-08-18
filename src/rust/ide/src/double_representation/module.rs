@@ -5,6 +5,7 @@ use crate::prelude::*;
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::definition::DefinitionProvider;
+use crate::double_representation::identifier::LocatedName;
 use crate::double_representation::identifier::ReferentName;
 
 use ast::crumbs::ChildAst;
@@ -333,6 +334,15 @@ pub struct Info {
 }
 
 impl Info {
+    /// Identifiers introduced or referred to in the module's scope.
+    ///
+    /// Introducing identifier not included on this list should have no side-effects on the name
+    /// resolution in the code in this graph.
+    pub fn used_names(&self) -> Vec<LocatedName> {
+        let usage = double_representation::alias_analysis::analyze_crumbable(self.ast.shape());
+        usage.all_identifiers()
+    }
+
     /// Iterate over all lines in module that contain an import declaration.
     pub fn enumerate_imports<'a>(&'a self) -> impl Iterator<Item=(ModuleCrumb, ImportInfo)> + 'a {
         let children = self.ast.shape().enumerate();

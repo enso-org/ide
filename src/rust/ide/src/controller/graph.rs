@@ -515,10 +515,10 @@ impl Handle {
         let def   = self.graph_definition_info()?;
         let body  = def.body();
         let usage = match body.shape() {
-            ast::Shape::Block(block) => alias_analysis::analyse_block(&block),
+            ast::Shape::Block(_) => alias_analysis::analyze_crumbable(body.item),
             _ => {
                 if let Some(node) = NodeInfo::from_line_ast(&body) {
-                    alias_analysis::analyse_node(&node)
+                    alias_analysis::analyze_node(&node)
                 } else {
                     // Generally speaking - impossible. But if there is no node in the definition
                     // body, then there is nothing that could use any symbols, so nothing is used.
@@ -746,8 +746,11 @@ impl Handle {
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
         let graph           = self.graph_info()?;
-        let my_name         = self.graph_definition_info()?.name.item;
-        let introduced_name = definition::DefinitionName::new_plain("func1");
+        let my_name         = graph.source.name.item.clone();
+        let used_names      = module::Info {ast:self.module.ast()}.used_names();
+        let used_names      = used_names.into_iter().map(|name| name.item);
+        let introduced_name = Self::generate_name("func",used_names);
+        let introduced_name = definition::DefinitionName::new_plain(introduced_name);
         let collapsed       = collapse(&graph,nodes,introduced_name,&self.parser)?;
         let Collapsed {new_method,updated_definition} = collapsed;
 
@@ -990,6 +993,38 @@ main =
         })
     }
 
+    #[test] // TODO make wasm_bindgen_test
+    fn collapsing_nodes2() {
+
+        let mut test  = Fixture::set_up();
+        let code = r"
+main =
+    a = 10
+    b = 20
+    c = a + b
+    d = c + d
+    a + func1";
+
+        let expected_code = "
+func2 a =
+    b = 20
+    c = a + b
+    d = c + d
+    c
+
+main =
+    a = 10
+    c = func2 a
+    a + func1";
+
+        test.data.code = code.to_owned();
+        test.run(move |graph| async move {
+            let nodes = graph.nodes().unwrap();
+            let selected_nodes = nodes[1..4].iter().map(|node| node.info.id());
+            graph.collapse(selected_nodes).unwrap();
+            model::module::test::expect_code(&*graph.module,expected_code);
+        })
+    }
 
     #[test] // TODO make wasm_bindgen_test
     fn collapsing_nodes() {

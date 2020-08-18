@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::alias_analysis::analyse_block;
+use crate::double_representation::alias_analysis::analyze_crumbable;
 use crate::double_representation::identifier::NormalizedName;
 use crate::double_representation::node::Id;
 use crate::double_representation::node::NodeInfo;
@@ -67,7 +67,7 @@ pub struct Connection {
 
 /// Lists all the connection in the graph for the given code block.
 pub fn list_block(block:&ast::Block<Ast>) -> Vec<Connection> {
-    let identifiers      = analyse_block(block);
+    let identifiers      = analyze_crumbable(block);
     let introduced_iter  = identifiers.introduced.into_iter();
     type NameMap         = HashMap<NormalizedName,Endpoint>;
     let introduced_names = introduced_iter.flat_map(|name| {
