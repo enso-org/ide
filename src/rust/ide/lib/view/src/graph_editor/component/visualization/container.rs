@@ -33,7 +33,7 @@ use ensogl::gui::component;
 
 const DEFAULT_SIZE  : (f32,f32) = (200.0,200.0);
 const CORNER_RADIUS : f32       = super::super::node::CORNER_RADIUS;
-
+const SHADOW_SIZE   : f32       = 10.0;
 
 
 // =============
@@ -54,13 +54,14 @@ pub mod background {
             let radius        = 1.px() * &radius;
             let color_bg      = style.get("graph_editor.visualization.background.color").color().unwrap_or_else(|| color::Lcha::new(0.2,0.013,0.18,1.0));
             let corner_radius = &radius * &roundness;
-            let background    = Rect((&width - 20.px(),&height - 20.px())).corners_radius(&corner_radius);
+            let background    = Rect((&width - (SHADOW_SIZE*2.0).px(),&height - (SHADOW_SIZE*2.0).px())).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
 
-            let shadow        = Rect((&width,&height)).corners_radius(&corner_radius*1.5);
+            let corner_radius = corner_radius*1.75;
+            let shadow        = Rect((&width,&height)).corners_radius(&corner_radius);
             let shadow_color  = color::LinearGradient::new()
                 .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
-                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.10).into_linear());
+                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.05).into_linear());
             let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(16.0).slope(color::Slope::Exponent(2.0));
             let shadow        = shadow.fill(shadow_color);
 
@@ -347,8 +348,8 @@ impl ContainerModel {
         } else {
             self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.background.shape.sprite.size.set(size.add_scalar(20.0));
-            self.view.overlay.shape.sprite.size.set(size.add_scalar(20.0));
+            self.view.background.shape.sprite.size.set(size.add_scalar(SHADOW_SIZE*2.0));
+            self.view.overlay.shape.sprite.size.set(size.add_scalar(SHADOW_SIZE*2.0));
             self.fullscreen_view.background . shape.sprite.size.set(zero());
         }
 
