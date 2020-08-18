@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-
+use crate::double_representation::Identifier;
 use crate::double_representation::definition::{DefinitionInfo, DefinitionName};
 use crate::double_representation::definition;
 use crate::double_representation::node;
@@ -10,36 +10,6 @@ use parser::Parser;
 use crate::double_representation::connection::{Connection, Endpoint};
 use crate::double_representation::node::NodeInfo;
 
-#[derive(Clone,Debug,Shrinkwrap)]
-struct Identifier(Ast);
-
-impl Identifier {
-    fn new(ast:Ast) -> Option<Identifier> {
-        if ast::identifier::is_identifier(&ast) {
-            Some(Identifier(ast))
-        } else {
-            None
-        }
-    }
-
-    fn name(&self) -> &str {
-        ast::identifier::name(&self.0).map(String::as_str).unwrap()
-    }
-}
-
-impl PartialEq for Identifier {
-    fn eq(&self, other:&Self) -> bool {
-        self.name().eq(other.name())
-    }
-}
-
-impl Eq for Identifier {}
-
-impl Hash for Identifier {
-    fn hash<H:std::hash::Hasher>(&self, state:&mut H) {
-        self.name().hash(state)
-    }
-}
 
 
 #[derive(Clone,Debug)]

@@ -31,6 +31,41 @@ pub const INDENT : usize = 4;
 
 
 
+// ==================
+// === Identifier ===
+// ==================
+
+/// Wrapper over an Ast that holds an atomic identifier of any kind.
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct Identifier(Ast);
+
+impl Identifier {
+    /// Wrap the `Ast` into `Identifier` if it actually is an identifier.
+    pub fn new(ast:Ast) -> Option<Identifier> {
+        ast::identifier::is_identifier(&ast).as_some(Identifier(ast))
+    }
+
+    pub fn name(&self) -> &str {
+        ast::identifier::name(&self.0).map(String::as_str).unwrap()
+    }
+}
+
+impl PartialEq for Identifier {
+    fn eq(&self, other:&Self) -> bool {
+        self.name().eq(other.name())
+    }
+}
+
+impl Eq for Identifier {}
+
+impl Hash for Identifier {
+    fn hash<H:std::hash::Hasher>(&self, state:&mut H) {
+        self.name().hash(state)
+    }
+}
+
+
+
 // ====================
 // === ReferentName ===
 // ====================
