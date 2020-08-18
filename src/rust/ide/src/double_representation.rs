@@ -45,8 +45,10 @@ impl Identifier {
         ast::identifier::is_identifier(&ast).as_some(Identifier(ast))
     }
 
+    /// Get the identifier name.
     pub fn name(&self) -> &str {
-        ast::identifier::name(&self.0).map(String::as_str).unwrap()
+        // Unwrap here is safe, as identifiers always allow obtaining an Identifier.
+        ast::identifier::name(&self.0).unwrap()
     }
 }
 

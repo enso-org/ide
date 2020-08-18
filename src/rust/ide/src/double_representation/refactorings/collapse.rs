@@ -137,7 +137,6 @@ mod tests {
     use double_representation::module;
     use double_representation::definition;
     use double_representation::graph;
-    use double_representation::definition::DefinitionProvider;
     use crate::double_representation::node::NodeInfo;
 
 

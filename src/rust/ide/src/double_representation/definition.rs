@@ -145,7 +145,7 @@ impl DefinitionName {
 
                 let mut pieces = Vec::new();
                 for piece in accessor_chain.enumerate_operands() {
-                    let name = ast::identifier::name(&piece.item.arg)?.clone();
+                    let name = ast::identifier::name(&piece.item.arg)?.to_owned();
                     pieces.push(piece.map(|_| name));
                 }
 
@@ -154,14 +154,14 @@ impl DefinitionName {
             }
             None => {
                 let name = match ast.shape() {
-                    ast::Shape::Var         (var)   => Some(&var.name),
-                    ast::Shape::Opr         (opr)   => Some(&opr.name),
+                    ast::Shape::Var         (var)   => Some(var.name.as_str()),
+                    ast::Shape::Opr         (opr)   => Some(opr.name.as_str()),
                     ast::Shape::SectionSides(sides) => ast::identifier::name(&sides.opr),
                     // Shape::Cons is intentionally omitted.
                     // It serves to pattern-match, not as definition name.
                     _ => None
                 }?;
-                let name = Located::new_root(name.clone());
+                let name = Located::new_root(name.to_owned());
                 (Vec::new(), name)
             }
         };
