@@ -1,8 +1,12 @@
+//! Module with logic for node collapsing.
+//!
+//! See the [`collapse`] function for details.
+
 use crate::prelude::*;
 
-use crate::double_representation::Identifier;
 use crate::double_representation::definition::{DefinitionInfo, DefinitionName};
 use crate::double_representation::definition;
+use crate::double_representation::identifier::Identifier;
 use crate::double_representation::node;
 use crate::double_representation::graph::GraphInfo;
 
@@ -49,17 +53,11 @@ impl ClassifiedConnections {
     }
 }
 
-// struct Collapser {
-//     selected_nodes_vec:Vec<node::NodeInfo>,
-//     selected_nodes_set:HashSet<node::Id>,
-// }
-
 pub fn collapse
-(graph:&GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, parser:&Parser)
+(graph:&GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, name:DefinitionName, parser:&Parser)
 -> FallibleResult<Collapsed> {
     let endpoint_to_node = |endpoint:&Endpoint| {
-        let Endpoint {node,crumbs} = &endpoint;
-        graph.find_node(*node).unwrap() // TODO
+        graph.find_node(endpoint.node).unwrap() // TODO
     };
     let endpoint_to_identifier = |endpoint:&Endpoint| {
         let node = endpoint_to_node(endpoint);
@@ -90,7 +88,6 @@ pub fn collapse
 
     let body_head                = selected_nodes_iter.next().unwrap();
     let body_tail                = selected_nodes_iter.chain(return_line).map(Some).collect();
-    let name                     = DefinitionName::new_plain("func1");
     let explicit_parameter_names = inputs.iter().map(|input| input.name().to_owned()).collect();
     let to_add = definition::ToAdd {name,explicit_parameter_names,body_head,body_tail};
 
@@ -149,7 +146,6 @@ mod tests {
     use double_representation::definition;
     use double_representation::graph;
     use crate::double_representation::node::NodeInfo;
-    use crate::double_representation::module::Placement;
 
 
     #[test]
@@ -172,8 +168,9 @@ mod tests {
         let nodes = graph.nodes();
 
         let selected_nodes = nodes[1..4].iter().map(NodeInfo::id);
+        let name = DefinitionName::new_plain("func1");
 
-        let collapsed = super::collapse(&graph,selected_nodes,&parser).unwrap();
+        let collapsed = super::collapse(&graph,selected_nodes,name,&parser).unwrap();
 
         let new_method = collapsed.new_method.ast(0,&parser).unwrap();
         let new_main = &collapsed.updated_definition.ast;

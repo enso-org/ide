@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::double_representation::alias_analysis::analyse_block;
-use crate::double_representation::alias_analysis::NormalizedName;
+use crate::double_representation::identifier::NormalizedName;
 use crate::double_representation::node::Id;
 use crate::double_representation::node::NodeInfo;
 

@@ -5,6 +5,8 @@ use crate::prelude::*;
 
 use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::definition::ScopeKind;
+use crate::double_representation::identifier::LocatedName;
+use crate::double_representation::identifier::NormalizedName;
 use crate::double_representation::node::NodeInfo;
 
 use ast::crumbs::Crumb;
@@ -14,49 +16,6 @@ use std::borrow::Borrow;
 
 #[cfg(test)]
 pub mod test_utils;
-
-/// Case-insensitive identifier with its ast crumb location (relative to the node's ast).
-pub type LocatedName = Located<NormalizedName>;
-
-
-
-// ======================
-// === NormalizedName ===
-// ======================
-
-/// The identifier name normalized to a lower-case (as the comparisons are case-insensitive).
-/// Implements case-insensitive compare with AST.
-#[derive(Clone,Debug,Display,Hash,PartialEq,Eq)]
-#[derive(Shrinkwrap)]
-pub struct NormalizedName(String);
-
-impl NormalizedName {
-    /// Wraps given string into the normalized name.
-    pub fn new(name:impl Str) -> NormalizedName {
-        let name = name.as_ref().to_lowercase();
-        NormalizedName(name)
-    }
-
-    /// If the given AST is an identifier, returns its normalized name.
-    pub fn try_from_ast(ast:&Ast) -> Option<NormalizedName> {
-        ast::identifier::name(ast).map(NormalizedName::new)
-    }
-
-    /// Is the given string a prefix of this name.
-    pub fn starts_with(&self, name:impl Str) -> bool {
-        let prefix = NormalizedName::new(name);
-        self.0.starts_with(prefix.0.as_str())
-    }
-}
-
-/// Tests if Ast is identifier that might reference the same name (case insensitive match).
-impl PartialEq<Ast> for NormalizedName {
-    fn eq(&self, other:&Ast) -> bool {
-        NormalizedName::try_from_ast(other).contains_if(|other_name| {
-            other_name == self
-        })
-    }
-}
 
 
 
@@ -209,7 +168,7 @@ impl AliasAnalyzer {
             OccurrenceKind::Used       => &mut symbols.used,
             OccurrenceKind::Introduced => &mut symbols.introduced,
         };
-        println!("Name {} is {} in scope @{}",identifier.item.0,kind,scope_index);
+        println!("Name {} is {} in scope @{}",identifier.item,kind,scope_index);
         target.push(identifier)
     }
 

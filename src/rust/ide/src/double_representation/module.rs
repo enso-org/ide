@@ -2,10 +2,10 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::ReferentName;
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::definition::DefinitionProvider;
+use crate::double_representation::identifier::ReferentName;
 
 use ast::crumbs::ChildAst;
 use ast::crumbs::ModuleCrumb;
@@ -220,8 +220,8 @@ impl From<QualifiedName> for String {
 
 impl From<&QualifiedName> for String {
     fn from(name:&QualifiedName) -> Self {
-        let project_name = std::iter::once(&name.project_name.0);
-        let segments     = name.id.segments.iter().map(|segment| &segment.0);
+        let project_name = std::iter::once(&name.project_name);
+        let segments     = name.id.segments.iter();
         project_name.chain(segments).join(ast::opr::predefined::ACCESS)
     }
 }
@@ -561,6 +561,7 @@ pub fn locate_child
 -> FallibleResult<ChildDefinition> {
     let child = ast.def_iter().find_by_name(&crumb)?;
     Ok(ChildDefinition::try_from(child)?)
+    // TODO can be used below?
 }
 
 /// Traverses the module's definition tree following the given Id crumbs, looking up the definition.

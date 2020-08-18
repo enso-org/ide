@@ -4,15 +4,16 @@
 //! each graph belongs to some module.
 pub mod executed;
 
+pub use crate::double_representation::graph::Id;
+pub use crate::double_representation::graph::LocationHint;
+
 use crate::prelude::*;
 
-use crate::double_representation::alias_analysis::NormalizedName;
-use crate::double_representation::alias_analysis::LocatedName;
 use crate::double_representation::definition;
-use crate::double_representation::module;
-pub use crate::double_representation::graph::Id;
 use crate::double_representation::graph::GraphInfo;
-pub use crate::double_representation::graph::LocationHint;
+use crate::double_representation::identifier::NormalizedName;
+use crate::double_representation::identifier::LocatedName;
+use crate::double_representation::module;
 use crate::double_representation::node;
 use crate::double_representation::node::NodeInfo;
 use crate::model::module::NodeMetadata;
@@ -528,19 +529,23 @@ impl Handle {
         Ok(usage.all_identifiers())
     }
 
+    fn generate_name(base:&str, unavailable:impl IntoIterator<Item=NormalizedName>) -> String {
+        let is_relevant = |name:&NormalizedName| name.starts_with(base);
+        let unavailable = unavailable.into_iter().filter(is_relevant).collect::<HashSet<_>>();
+        let name = (1..).find_map(|i| {
+            let candidate = NormalizedName::new(iformat!("{base}{i}"));
+            let available = !unavailable.contains(&candidate);
+            available.as_some(candidate.into())
+        }).unwrap(); // It always return a value.
+        name
+    }
+
     /// Suggests a variable name for storing results of the given node. Name will get a number
     /// appended to avoid conflicts with other identifiers used in the graph.
     pub fn variable_name_for(&self, node:&NodeInfo) -> FallibleResult<ast::known::Var> {
-        let base_name   = Self::variable_name_base_for(node);
-        let unavailable = self.used_names()?.into_iter().filter_map(|name| {
-            let is_relevant = name.item.starts_with(base_name.as_str());
-            is_relevant.then(name.item)
-        }).collect::<HashSet<_>>();
-        let name = (1..).find_map(|i| {
-            let candidate              = NormalizedName::new(iformat!("{base_name}{i}"));
-            let available              = !unavailable.contains(&candidate);
-            available.and_option_from(|| Some(candidate.deref().clone()))
-        }).unwrap(); // It always return a value.
+        let base_name  = Self::variable_name_base_for(node);
+        let used_names = self.used_names()?.into_iter().map(|located_name| located_name.item);
+        let name       = Self::generate_name(base_name.as_str(),used_names);
         Ok(ast::known::Var::new(ast::Var {name}, None))
     }
 
@@ -740,15 +745,16 @@ impl Handle {
     pub fn collapse(&self, nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<()> {
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
-        let graph = self.graph_info()?;
-        let name = self.graph_definition_info()?.name.item;
-        let Collapsed{new_method,updated_definition} = collapse(&graph,nodes,&self.parser)?;
+        let graph           = self.graph_info()?;
+        let my_name         = self.graph_definition_info()?.name.item;
+        let introduced_name = definition::DefinitionName::new_plain("func1");
+        let collapsed       = collapse(&graph,nodes,introduced_name,&self.parser)?;
+        let Collapsed {new_method,updated_definition} = collapsed;
+
         let mut module = module::Info {ast:self.module.ast()};
-        module.add_method(new_method,module::Placement::Before(name),&self.parser)?;
+        module.add_method(new_method,module::Placement::Before(my_name),&self.parser)?;
         self.module.update_ast(module.ast);
-        self.update_definition_ast(|definition| {
-            Ok(updated_definition)
-        })?;
+        self.update_definition_ast(|_| Ok(updated_definition))?;
         Ok(())
     }
 

@@ -11,7 +11,7 @@ use crate::prelude::*;
 use crate::constants::LANGUAGE_FILE_EXTENSION;
 use crate::constants::SOURCE_DIRECTORY;
 use crate::controller::FilePath;
-use crate::double_representation::ReferentName;
+use crate::double_representation::identifier::ReferentName;
 use crate::double_representation::definition::DefinitionInfo;
 
 use data::text::TextChange;
