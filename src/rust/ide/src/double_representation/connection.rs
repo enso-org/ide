@@ -46,7 +46,7 @@ impl Endpoint {
 }
 
 /// Connection source, i.e. the port generating the data / identifier introducer.
-pub type Source      = Endpoint;
+pub type Source = Endpoint;
 
 /// Connection destination, i.e. the port receiving data / identifier user.
 pub type Destination = Endpoint;
@@ -61,8 +61,8 @@ pub type Destination = Endpoint;
 #[allow(missing_docs)]
 #[derive(Clone,Debug,PartialEq)]
 pub struct Connection {
-    pub source:Source,
-    pub destination:Destination,
+    pub source      : Source,
+    pub destination : Destination,
 }
 
 /// Lists all the connection in the graph for the given code block.

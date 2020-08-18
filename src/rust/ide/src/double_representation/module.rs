@@ -486,6 +486,56 @@ pub struct EmptyDefinitionId;
 #[fail(display="The definition with crumb {} is not a direct child of the module.",_0)]
 pub struct NotDirectChild(definition::Crumb);
 
+#[allow(missing_docs)]
+#[derive(Fail,Clone,Debug)]
+#[fail(display="The definition is not a direct child of the module.")]
+pub struct NotDirectChild2;
+
+
+
+// =======================
+// === ChildDefinition ===
+// =======================
+
+/// Represents information about a definition being a direct child of this module, including its
+/// location.
+///
+/// Internally it is `definition::ChildDefinition` with only a single `ModuleCrumb` as location.
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct ChildDefinition(definition::ChildDefinition);
+
+impl ChildDefinition {
+    fn try_retrieving_crumb(child:&definition::ChildDefinition) -> Option<ModuleCrumb> {
+        match child.crumbs.as_slice() {
+            [ast::crumbs::Crumb::Module(crumb)] => Some(*crumb),
+            _                                   => None,
+        }
+    }
+
+    /// Try constructing value from `definition::ChildDefinition`. Fails if it is not a direct child
+    /// of a module.
+    pub fn new(child:definition::ChildDefinition) -> Result<Self,NotDirectChild2> {
+        if Self::try_retrieving_crumb(&child).is_some() {
+            Ok(Self(child))
+        } else {
+            Err(NotDirectChild2)
+        }
+    }
+
+    /// The location of this definition child in the module.
+    pub fn crumb(&self) -> ModuleCrumb {
+        // Safe, because our only constructor checks that this works. This is the type's invariant.
+        Self::try_retrieving_crumb(&self.0).unwrap()
+    }
+}
+
+impl TryFrom<definition::ChildDefinition> for ChildDefinition {
+    type Error = NotDirectChild2;
+    fn try_from(value:definition::ChildDefinition) -> Result<Self,Self::Error> {
+        Self::new(value)
+    }
+}
+
 
 
 // ========================
@@ -503,11 +553,14 @@ pub fn get_definition
 /// Fails if there is no matching definition being a direct child of the module.
 pub fn locate_line_with
 (ast:&known::Module, crumb:&definition::Crumb) -> FallibleResult<ModuleCrumb> {
+    locate_child(ast,crumb).map(|child| child.crumb())
+}
+
+pub fn locate_child
+(ast:&known::Module, crumb:&definition::Crumb)
+-> FallibleResult<ChildDefinition> {
     let child = ast.def_iter().find_by_name(&crumb)?;
-    match child.crumbs.as_slice() {
-        [ast::crumbs::Crumb::Module(crumb)] => Ok(*crumb),
-        _                                   => Err(NotDirectChild(crumb.clone()).into()),
-    }
+    Ok(ChildDefinition::try_from(child)?)
 }
 
 /// Traverses the module's definition tree following the given Id crumbs, looking up the definition.
