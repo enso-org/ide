@@ -91,7 +91,7 @@ fn init(app:&Application) {
 
 
     let mut light = theme::Theme::new();
-    light.insert("application.background.color", color::Lcha::new(0.87,0.013,0.18,1.0));
+    light.insert("application.background.color", color::Lcha::new(0.98,0.0,0.0,1.0));
     light.insert("graph_editor.node.background.color", color::Lcha::new(0.78,0.013,0.18,0.9));
     light.insert("graph_editor.node.selection.color", color::Lcha::new(0.7,0.59,0.37,1.0));
     light.insert("graph_editor.node.selection.size", 7.0);
