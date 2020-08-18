@@ -46,8 +46,8 @@ const INFINITE           : f32 = 99999.0;
 const MIN_SOURCE_TARGET_DIFFERENCE_FOR_Y_VALUE_DISCRIMINATION : f32 = 45.0;
 
 const HOVER_COLOR                  : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
-const SPLIT_COLOR_LIGHTNESS_FACTOR : f32 = 0.2;
-
+const SPLIT_COLOR_LIGHTNESS_FACTOR : f32 = 1.2;
+const SPLIT_COLOR_CHROMA_FACTOR    : f32 = 0.8;
 
 // ===================
 // === Vector Math ===
@@ -1288,7 +1288,7 @@ impl EdgeModelData {
     /// Set the color of the edge. Also updates the focus color (which will be a dimmed version
     /// of the main color).
     pub fn set_color(&self, color:color::Lcha) {
-        let focus_color = color::Lcha::new(color.lightness * SPLIT_COLOR_LIGHTNESS_FACTOR,color.chroma,color.hue,color.alpha);
+        let focus_color = color::Lcha::new(color.lightness * SPLIT_COLOR_LIGHTNESS_FACTOR,color.chroma * SPLIT_COLOR_CHROMA_FACTOR,color.hue,color.alpha);
         let color_rgba:color::Rgba = color.into();
         self.shapes().iter().for_each(|shape| {
             shape.set_color_focus(focus_color.into());
