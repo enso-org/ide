@@ -79,16 +79,17 @@ pub fn collapse
         endpoint_to_identifier(&connection.source)
     }).collect::<HashSet<_>>();
 
-    let output_node = connections.outputs.map(|output_connection| {
+    let output_node = connections.outputs.as_ref().map(|output_connection| {
         endpoint_to_node(&output_connection.source)
     });
     let output_node_id = output_node.as_ref().map(NodeInfo::id);
 
 
+    let return_line : Option<Ast> = connections.outputs.map(|c| endpoint_to_identifier(&c.source).deref().clone());
     let mut selected_nodes_iter = selected_nodes.iter().map(|node| graph.find_node(*node).unwrap().ast().clone());
 
     let body_head                = selected_nodes_iter.next().unwrap();
-    let body_tail                = selected_nodes_iter.map(Some).collect();
+    let body_tail                = selected_nodes_iter.chain(return_line).map(Some).collect();
     let name                     = DefinitionName::new_plain("func1");
     let explicit_parameter_names = inputs.iter().map(|input| input.name().to_owned()).collect();
     let to_add = definition::ToAdd {name,explicit_parameter_names,body_head,body_tail};
