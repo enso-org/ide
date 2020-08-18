@@ -52,11 +52,20 @@ pub mod background {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius        = 1.px() * &radius;
-            let color_bg      = style.get("graph_editor.visualization.background.color").color().unwrap_or_else(|| color::Lcha::new(0.2,0.013,0.18,1.0).into());
+            let color_bg      = style.get("graph_editor.visualization.background.color").color().unwrap_or_else(|| color::Lcha::new(0.2,0.013,0.18,1.0));
             let corner_radius = &radius * &roundness;
-            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
+            let background    = Rect((&width - 16.px(),&height - 16.px())).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
-            background.into()
+
+            let shadow        = Rect((&width,&height)).corners_radius(&corner_radius*1.5);
+            let shadow_color  = color::LinearGradient::new()
+                .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
+                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
+            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(16.0).slope(color::Slope::Exponent(2.0));
+            let shadow        = shadow.fill(shadow_color);
+
+            let out = shadow + background;
+            out.into()
         }
     }
 }
@@ -74,7 +83,7 @@ pub mod fullscreen_background {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius        = 1.px() * &radius;
-            let color_bg      = style.get("graph_editor.visualization.background.color").color().unwrap_or_else(|| color::Lcha::new(0.2,0.013,0.18,1.0).into());
+            let color_bg      = style.get("graph_editor.visualization.background.color").color().unwrap_or_else(|| color::Lcha::new(0.2,0.013,0.18,1.0));
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
@@ -338,8 +347,8 @@ impl ContainerModel {
         } else {
             self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.background.shape.sprite.size.set(size);
-            self.view.overlay.shape.sprite.size.set(size);
+            self.view.background.shape.sprite.size.set(size.add_scalar(16.0));
+            self.view.overlay.shape.sprite.size.set(size.add_scalar(16.0));
             self.fullscreen_view.background . shape.sprite.size.set(zero());
         }
 
