@@ -60,17 +60,26 @@ pub struct Shortcuts {
     nfa     : Nfa,
     dfa     : Dfa,
     states  : HashMap<String,nfa::State>,
+    connections : HashSet<(nfa::State,nfa::State)>,
+    always : nfa::State,
+
     current : dfa::State,
+    pressed : HashSet<String>,
 }
 
 impl Shortcuts {
     pub fn new() -> Self {
-        let dirty  = true;
-        let nfa    = Nfa::default();
+        let mut nfa    = Nfa::default();
         let dfa    = Dfa::from(&nfa);
         let states = default();
+        let connections = default();
+        let always = nfa.new_pattern(nfa.start,Pattern::any().many());
+
         let current = Dfa::START_STATE;
-        Self {dirty,nfa,dfa,states,current}
+        let pressed = default();
+        let dirty  = true;
+
+        Self {dirty,nfa,dfa,states,connections,always,current,pressed}
     }
 
     pub fn add(&mut self, expr:impl AsRef<str>) {
@@ -79,59 +88,54 @@ impl Shortcuts {
         let special_keys : HashSet<&str> = (&["ctrl","alt","meta","cmd","shift"]).iter().map(|t|*t).collect();
         let expr = expr.as_ref();
 
-        let mut special = vec![];
-        let mut normal  = vec![];
+        if expr.starts_with('-') {
+            let key = format!("-{}",expr[1..].trim().to_lowercase());
+            let sym = Symbol::new_named(hash(&key),key);
+            let pat = Pattern::symbol(&sym);
+            self.nfa.new_pattern(self.always,pat);
 
-        for chunk in expr.split('+').map(|t|t.trim()) {
-            if special_keys.contains(chunk) {
-                special.push(chunk)
-            } else {
-                normal.push(chunk)
+        } else {
+            let mut special = vec![];
+            let mut normal = vec![];
+
+            for chunk in expr.split('+').map(|t| t.trim()) {
+                if special_keys.contains(chunk) {
+                    special.push(chunk)
+                } else {
+                    normal.push(chunk)
+                }
             }
+            println!("{:?}", special);
+            println!("{:?}", normal);
+
+            let mut all = special.clone();
+            all.extend(&normal);
+            let out = self.add_key_permutations(self.nfa.start, &all);
         }
-        // println!("{:?}",expr.split('+').map(|t|t.trim()).collect_vec());
-        println!("{:?}",special);
-        println!("{:?}",normal);
-
-        let mut x = special.clone();
-        x.extend(&normal);
-        let special_state_x = self.add_key_permutations(&x);
-
-        let special_state = self.add_key_permutations(&special);
-        let key = normal[0];
-
-        let out = self.bidirectional_pattern(special_state,key.to_string());
-
-        self.nfa.connect(out,special_state_x);
     }
 
-    pub fn add_key_permutations(&mut self, keys:&[&str]) -> nfa::State {
+    pub fn add_key_permutations(&mut self, source:nfa::State, keys:&[&str]) -> nfa::State {
         self.dirty = true;
 
         let len = keys.len();
-        let mut state = self.nfa.start;
+        let mut state = source;
+
         for perm in keys.iter().permutations(len) {
-            state = self.nfa.start;
+            state = source;
             let mut path  = vec![];
             let mut repr  = String::new();
-            let mut new   = false;
             for key in perm {
                 path.push(*key);
                 path.sort();
                 repr = path.join(" ");
                 state = match self.states.get(&repr) {
-                    Some(s) => {
-                        let out = *s;
-                        if new {
-                            self.bidirectional_connect(state,out,key.to_string());
-                        }
-                        new = false;
-                        out
+                    Some(&target) => {
+                        self.bidirectional_connect(state,target,key.to_string());
+                        target
                     },
                     None => {
                         let out = self.bidirectional_pattern(state,key.to_string());
                         self.states.insert(repr.clone(),out);
-                        new = true;
                         out
                     }
                 }
@@ -142,11 +146,14 @@ impl Shortcuts {
     }
 
     fn bidirectional_connect(&mut self, source:nfa::State, target:nfa::State, key:String) {
-        let key_r = reverse_key(&key);
-        let sym   = Symbol::new_named(hash(&key),key);
-        let sym_r = Symbol::new_named(hash(&key_r),key_r);
-        self.nfa.connect_via(source,target,&(sym.clone()..=sym));
-        self.nfa.connect_via(target,source,&(sym_r.clone()..=sym_r));
+        if !self.connections.contains(&(source,target)) {
+            self.connections.insert((source,target));
+            let key_r = reverse_key(&key);
+            let sym   = Symbol::new_named(hash(&key),key);
+            let sym_r = Symbol::new_named(hash(&key_r),key_r);
+            self.nfa.connect_via(source,target,&(sym.clone()..=sym));
+            self.nfa.connect_via(target,source,&(sym_r.clone()..=sym_r));
+        }
     }
 
     fn bidirectional_pattern(&mut self, source:nfa::State, key:String) -> nfa::State {
@@ -156,63 +163,54 @@ impl Shortcuts {
         let pat    = Pattern::symbol(&sym);
         let target = self.nfa.new_pattern(source,pat);
         self.nfa.connect_via(target,source,&(sym_r.clone()..=sym_r));
+        self.connections.insert((source,target));
         target
-    }
-
-    pub fn add_kb_shortcut(&mut self, m:&str, key:&str) {
-        self.dirty = true;
-
-        let sym_mouse_0 = Symbol::from(hash(&"mouse_0".to_string()));
-        let sym_mouse_1 = Symbol::from(hash(&"mouse_1".to_string()));
-        let sym_mouse_2 = Symbol::from(hash(&"mouse_2".to_string()));
-        let sym_mouse_3 = Symbol::from(hash(&"mouse_3".to_string()));
-        let sym_mouse_4 = Symbol::from(hash(&"mouse_4".to_string()));
-
-        let pat_mouse_0 = Pattern::symbol(&sym_mouse_0);
-        let pat_mouse_1 = Pattern::symbol(&sym_mouse_1);
-        let pat_mouse_2 = Pattern::symbol(&sym_mouse_2);
-        let pat_mouse_3 = Pattern::symbol(&sym_mouse_3);
-        let pat_mouse_4 = Pattern::symbol(&sym_mouse_4);
-
-        let pat_any_mouse = pat_mouse_0 | pat_mouse_1 | pat_mouse_2 | pat_mouse_3 | pat_mouse_4;
-
-
-        let m_sym = Symbol::from(hash(&m.to_string()));
-        let m_sym_r = Symbol::from(hash(&format!("release {}",m)));
-        let k_sym = Symbol::from(hash(&key.to_string()));
-        let k_sym_r = Symbol::from(hash(&format!("release {}",key)));
-
-        let pat_m = Pattern::symbol(&m_sym);
-        let pat_k = Pattern::symbol(&k_sym);
-        let pat_m_r = Pattern::symbol(&m_sym_r);
-        let pat_k_r = Pattern::symbol(&k_sym_r);
-
-        let s0 = self.nfa.start;
-        let s1 = self.nfa.new_pattern(s0,pat_any_mouse.many());
-        let s2 = self.nfa.new_pattern(s1,&pat_m);
-        let s3 = self.nfa.new_pattern(s2,pat_any_mouse.many());
-        let s4 = self.nfa.new_pattern(s3,pat_k);
-
-        let s3_r = self.nfa.new_pattern(s3,&pat_k_r);
-        let s4_r = self.nfa.new_pattern(s4,&pat_k_r);
-        self.nfa.connect(s3_r,s2);
-        self.nfa.connect(s4_r,s2);
     }
 
     pub fn on_press(&mut self, input:&str) {
         self.recompute();
-        let sym = Symbol::from(hash(&input.to_string()));
+        let input = input.to_lowercase();
+        let sym = Symbol::from(hash(&input));
         let next = self.dfa.next_state(self.current,&sym);
         let next_id = next.id();
         let sfx = if next_id >= self.dfa.sources.len() { "".into() } else { format!("{:?}",self.dfa.sources[next_id]) };
         println!("on {} -> {:?} ({})",input,next,sfx);
         self.current = next;
+        self.pressed.insert(input);
+    }
+
+    pub fn on_release(&mut self, input:&str) {
+        self.recompute();
+        let input = input.to_lowercase();
+        let repr = format!("-{}",input);
+        let sym = Symbol::from(hash(&repr.to_string()));
+        let next = self.dfa.next_state(self.current,&sym);
+        let next_id = next.id();
+        let sfx = if next_id >= self.dfa.sources.len() { "".into() } else { format!("{:?}",self.dfa.sources[next_id]) };
+        println!("on {} -> {:?} ({})",repr,next,sfx);
+        self.current = next;
+        self.pressed.remove(&input);
+        if self.pressed.is_empty() {
+            self.current = Dfa::START_STATE;
+        }
+        self.reset_to_known_state();
+    }
+
+    pub fn reset_to_known_state(&mut self) {
+        if self.current.is_invalid() {
+            let path = self.pressed.iter().sorted().cloned().collect_vec();
+            self.current = Dfa::START_STATE;
+            for p in path {
+                self.current = self.dfa.next_state(self.current, &Symbol::from(hash(&p)));
+            }
+        }
     }
 
     pub fn recompute(&mut self) {
         if self.dirty {
-            self.dirty = false;
-            self.dfa = (&self.nfa).into();
+            self.dirty   = false;
+            self.dfa     = (&self.nfa).into();
+            self.pressed = default();
         }
     }
 }
@@ -250,9 +248,9 @@ pub fn main() {
 
     let mut s = Shortcuts::new();
 
-    s.add("ctrl + meta + shift + a");
+    s.add("meta + ctrl + alt + space + a");
+    s.add("- c");
 
-    // let dfa = Dfa::from(&nfa);
 
     println!("---------");
     s.recompute();
@@ -263,9 +261,25 @@ pub fn main() {
     // print_matrix(&s.dfa.links);
 
 
-
-    // println!("{}",s.nfa.visualize());
+    // let mut nfa = Nfa::new();
+    // let p = (Pattern::any()).many();
+    // nfa.new_pattern(nfa.start,p);
+    // // nfa.new_pattern(nfa.start,Pattern::symbol(&Symbol::from(hash(&"p".to_string()))));
+    // let dfa = Dfa::from(&nfa);
     //
+    // println!("??? {:?}", dfa.next_state(Dfa::START_STATE,&Symbol::from(hash(&"p".to_string()))));
+    //
+    // println!("{}",nfa.visualize());
+    // print_matrix(&dfa.links);
+
+
+
+    println!("{}",s.nfa.visualize());
+
+    println!("---------");
+
+    println!("{}",s.dfa.visualize());
+
     let ss = Rc::new(RefCell::new(s));
 
     let logger = Logger::new("kb");
@@ -273,8 +287,10 @@ pub fn main() {
     let bindings = keyboard::DomBindings::new(&logger,&kb);
 
     let ss2 = ss.clone_ref();
-    frp::new_network! { TRACE_ALL network
+    let ss3 = ss.clone_ref();
+    frp::new_network! { network
         foo <- kb.down.map(move |t| ss2.borrow_mut().on_press(t.simple_name()));
+        foo <- kb.up.map(move |t| ss3.borrow_mut().on_release(t.simple_name()));
     }
     mem::forget(network);
     mem::forget(bindings);

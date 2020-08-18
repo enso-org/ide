@@ -42,7 +42,17 @@ impl Pattern {
 
     /// A pattern that triggers on any character.
     pub fn any() -> Self {
-        Pattern::symbols(Symbol::from(0)..=Symbol::from(u64::max_value()))
+        Pattern::symbols(Symbol::new_named(0,"MIN")..=Symbol::new_named(u64::max_value(),"MAX"))
+    }
+
+    /// A pattern that triggers on the minimum value.
+    pub fn min() -> Self {
+        Pattern::symbol(&Symbol::new_named(0,"MIN"))
+    }
+
+    /// A pattern that triggers on the minimum value.
+    pub fn max() -> Self {
+        Pattern::symbol(&Symbol::new_named(u64::max_value(),"MAX"))
     }
 
     /// A pattern that triggers on 0..N repetitions of the pattern described by `self`.

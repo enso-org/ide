@@ -45,7 +45,7 @@ impl Symbol {
     }
 
     /// Next symbol, if any.
-    pub fn next(self) -> Option<Self> {
+    pub fn next(&self) -> Option<Self> {
         (self.index < u64::max_value() - 1).as_some_from(|| {
             Self::new(self.index + 1)
         })
@@ -75,7 +75,7 @@ impl From<u64> for Symbol {
 
 impl From<char> for Symbol {
     fn from(ch:char) -> Symbol {
-        Symbol::new(ch as u64)
+        Symbol::new_named(ch as u64,format!("{}",ch))
     }
 }
 

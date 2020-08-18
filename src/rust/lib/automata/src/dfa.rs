@@ -66,10 +66,23 @@ impl Dfa {
 
 impl Dfa {
     pub fn next_state(&self, current_state:State, symbol:&Symbol) -> State {
-        self.alphabet.index_of_symbol(&symbol).and_then(|ix| {
-            println!("ix: {}",ix);
-            self.links.safe_index(current_state.id(),ix)
-        }).unwrap_or_default()
+        let ix = self.alphabet.index_of_symbol(&symbol);
+        self.links.safe_index(current_state.id(),ix).unwrap_or_default()
+    }
+
+    pub fn visualize(&self) -> String {
+        let mut out = String::new();
+        for row in 0 .. self.links.rows {
+            out += &format!("node_{}[label=\"{}\"]\n",row,row);
+            for column in 0 .. self.links.columns {
+                let state = self.links[(row,column)];
+                if !state.is_invalid() {
+                    out += &format!("node_{} -> node_{}\n",row,state.id());
+                }
+            }
+        }
+        let opts = "node [shape=circle style=filled fillcolor=\"#4385f5\" fontcolor=\"#FFFFFF\" color=white penwidth=5.0 margin=0.1 width=0.5 height=0.5 fixedsize=true]";
+        format!("digraph G {{\n{}\n{}\n}}\n",opts,out)
     }
 }
 

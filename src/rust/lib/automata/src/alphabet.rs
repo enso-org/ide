@@ -100,10 +100,10 @@ pub struct SealedSegmentation {
 }
 
 impl SealedSegmentation {
-    pub fn index_of_symbol(&self, symbol:&Symbol) -> Option<usize> {
+    pub fn index_of_symbol(&self, symbol:&Symbol) -> usize {
         self.range(symbol..).next().map(|(k,v)|{
             if k == symbol { *v } else { v - 1 }
-        })
+        }).unwrap_or_else(|| self.len() - 1)
     }
 }
 
