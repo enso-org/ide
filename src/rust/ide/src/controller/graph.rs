@@ -740,7 +740,6 @@ impl Handle {
     pub fn collapse(&self, nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<()> {
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
-        use double_representation::module;
         let graph = self.graph_info()?;
         let name = self.graph_definition_info()?.name.item;
         let Collapsed{new_method,updated_definition} = collapse(&graph,nodes,&self.parser)?;
@@ -982,6 +981,26 @@ main =
         new_node
     print foo";
             model::module::test::expect_code(&*graph.module,expected_program);
+        })
+    }
+
+    #[test]
+    fn collapsing_nodes() {
+        // Tests editing nested definition that requires transforming inline expression into
+        // into a new block.
+        let mut test  = Fixture::set_up();
+        let code = r"main =
+    a = 10
+    b = 20
+    c = a + b
+    d = c + d
+    a + c";
+        test.data.code = code.to_owned();
+        test.run(move |graph| async move {
+            let nodes = graph.nodes().unwrap();
+            let selected_nodes = nodes[1..4].iter().map(|node| node.info.id());
+            graph.collapse(selected_nodes).unwrap();
+            model::module::test::expect_code(&*graph.module,code);
         })
     }
 
