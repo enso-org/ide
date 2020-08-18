@@ -49,6 +49,10 @@ impl ClassifiedConnections {
     }
 }
 
+struct Collapser {
+    selected_nodes_vec:Vec<node::NodeInfo>
+}
+
 fn collapse
 (graph:&GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, parser:&Parser)
 -> FallibleResult<Collapsed> {
@@ -104,16 +108,21 @@ fn collapse
         let is_selected = selected_nodes_set.contains(&node_id);
         let is_output   = output_node_id.contains(&node_id);
         if !is_selected {
-            true
+            println!("Leaving {} intact.", node_info.ast());
+            false
         } else if is_output {
+            let old_ast = node_info.ast().clone_ref();
             let base = to_add.name.ast(&parser).unwrap();
             let args = to_add.explicit_parameter_names.iter().map(Ast::var);
             let invocation = ast::prefix::Chain::new(base,args);
             node_info.set_expression(invocation.into_ast());
-            line.elem = Some(node_info.ast().clone_ref()); // TODO TODO TODO
+            let new_ast = node_info.ast().clone_ref();
+            println!("Rewriting {} into a call {}.", old_ast, new_ast);
+            line.elem = Some(new_ast); // TODO TODO TODO
             false
         } else {
-            false
+            println!("Extracting {} out.", node_info.ast());
+            true
         }
     });
     updated_def.set_block_lines(lines)?;
@@ -145,8 +154,8 @@ mod tests {
         let code = r"main =
     a = 1
     b = 2
-    c = a + b
-    d = a + 8
+    c = A + B
+    d = a + b
     c + 7";
 
         let parser = Parser::new_or_panic();
