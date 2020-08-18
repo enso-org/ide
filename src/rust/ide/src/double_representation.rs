@@ -35,14 +35,27 @@ pub const INDENT : usize = 4;
 // === Identifier ===
 // ==================
 
+// === Errors ===
+
+/// Happens if a given string does not fulfill requirements of the referent name;
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Operator `{}` cannot be made into var.",_0)]
+pub struct OperatorCantBeMadeIntoVar(String);
+
+
+// === Definition ===
+
 /// Wrapper over an Ast that holds an atomic identifier of any kind.
+///
+/// Invariants: can get identifier name, the name is non-empty.
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct Identifier(Ast);
 
 impl Identifier {
     /// Wrap the `Ast` into `Identifier` if it actually is an identifier.
     pub fn new(ast:Ast) -> Option<Identifier> {
-        ast::identifier::is_identifier(&ast).as_some(Identifier(ast))
+        let name = ast::identifier::name(&ast)?;
+        (!name.is_empty()).as_some(Identifier(ast))
     }
 
     /// Get the identifier name.
@@ -50,7 +63,23 @@ impl Identifier {
         // Unwrap here is safe, as identifiers always allow obtaining an Identifier.
         ast::identifier::name(&self.0).unwrap()
     }
+
+    /// Convert identifier to the variable form (i.e. non-referent). Fails if this is an operator.
+    pub fn as_var(&self) -> Result<ast::Var,OperatorCantBeMadeIntoVar> {
+        let name = self.name();
+        // Unwrap below is safe, as identifier is always non-empty.
+        let first_char = name.chars().next().unwrap();
+        if first_char.is_alphabetic() {
+            let name = name.to_lowercase();
+            Ok(ast::Var {name})
+        } else {
+            Err(OperatorCantBeMadeIntoVar(name.to_owned()))
+        }
+    }
 }
+
+
+// === Implementations ===
 
 impl PartialEq for Identifier {
     fn eq(&self, other:&Self) -> bool {
