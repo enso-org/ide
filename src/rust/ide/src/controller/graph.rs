@@ -451,10 +451,14 @@ impl Handle {
         self.module.find_definition(&self.id)
     }
 
+    /// Get the double representation description of the graph.
+    pub fn graph_info(&self) -> FallibleResult<GraphInfo> {
+        self.graph_definition_info().map(GraphInfo::from_definition)
+    }
+
     /// Returns double rep information about all nodes in the graph.
     pub fn all_node_infos(&self) -> FallibleResult<Vec<NodeInfo>> {
-        let definition = self.graph_definition_info()?;
-        let graph      = double_representation::graph::GraphInfo::from_definition(definition);
+        let graph = self.graph_info()?;
         Ok(graph.nodes())
     }
 
@@ -488,8 +492,7 @@ impl Handle {
 
     /// Returns information about all the connections between graph's nodes.
     pub fn connections(&self) -> FallibleResult<Connections> {
-        let definition  = self.graph_definition_info()?;
-        let graph       = double_representation::graph::GraphInfo::from_definition(definition);
+        let graph = self.graph_info()?;
         Ok(Connections::new(&graph))
     }
 
@@ -727,6 +730,25 @@ impl Handle {
             let mut graph = GraphInfo::from_definition(definition);
             graph.edit_node(id,expression)?;
             Ok(graph.source)
+        })?;
+        Ok(())
+    }
+
+    /// Collapses the selected nodes.
+    ///
+    /// Lines corresponding to the selection will be extracted to a new method definition.
+    pub fn collapse(&self, nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<()> {
+        use double_representation::refactorings::collapse::collapse;
+        use double_representation::refactorings::collapse::Collapsed;
+        use double_representation::module;
+        let graph = self.graph_info()?;
+        let name = self.graph_definition_info()?.name.item;
+        let Collapsed{new_method,updated_definition} = collapse(&graph,nodes,&self.parser)?;
+        let mut module = module::Info {ast:self.module.ast()};
+        module.add_method(new_method,module::Placement::Before(name),&self.parser)?;
+        self.module.update_ast(module.ast);
+        self.update_definition_ast(|definition| {
+            Ok(updated_definition)
         })?;
         Ok(())
     }

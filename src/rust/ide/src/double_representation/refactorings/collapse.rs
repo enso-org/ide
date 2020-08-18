@@ -13,7 +13,7 @@ use crate::double_representation::node::NodeInfo;
 
 
 #[derive(Clone,Debug)]
-struct Collapsed {
+pub struct Collapsed {
     pub updated_definition:DefinitionInfo,
     pub new_method:definition::ToAdd,
 }
@@ -49,11 +49,12 @@ impl ClassifiedConnections {
     }
 }
 
-struct Collapser {
-    selected_nodes_vec:Vec<node::NodeInfo>
-}
+// struct Collapser {
+//     selected_nodes_vec:Vec<node::NodeInfo>,
+//     selected_nodes_set:HashSet<node::Id>,
+// }
 
-fn collapse
+pub fn collapse
 (graph:&GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, parser:&Parser)
 -> FallibleResult<Collapsed> {
     let endpoint_to_node = |endpoint:&Endpoint| {
@@ -147,6 +148,7 @@ mod tests {
     use double_representation::definition;
     use double_representation::graph;
     use crate::double_representation::node::NodeInfo;
+    use crate::double_representation::module::Placement;
 
 
     #[test]
@@ -160,17 +162,27 @@ mod tests {
 
         let parser = Parser::new_or_panic();
 
-        let module   = parser.parse_module(code,default()).unwrap();
+        let module = parser.parse_module(code,default()).unwrap();
+        let mut module = module::Info {ast:module};
 
-        let main = module::locate_child(&module, &definition::DefinitionName::new_plain("main")).unwrap();
+        let main_name = definition::DefinitionName::new_plain("main");
+        let main = module::locate_child(&module.ast,&main_name).unwrap();
         let graph = graph::GraphInfo::from_definition(main.item.clone());
         let nodes = graph.nodes();
 
         let selected_nodes = nodes[1..4].iter().map(NodeInfo::id);
 
         let collapsed = super::collapse(&graph,selected_nodes,&parser).unwrap();
-        println!("Generated method:\n{}",collapsed.new_method.ast(0,&parser).unwrap());
-        println!("Updated method:\n{}",&collapsed.updated_definition.ast);
+
+        let new_method = collapsed.new_method.ast(0,&parser).unwrap();
+        let new_main = &collapsed.updated_definition.ast;
+        println!("Generated method:\n{}",new_method);
+        println!("Updated method:\n{}",new_main);
+        module.ast = module.ast.set(&main.crumb().into(),new_main.ast().clone()).unwrap();
+        module.add_method(collapsed.new_method,module::Placement::Before(main_name),&parser).unwrap();
+        println!("Module after refactoring:\n{}",&module.ast);
+
+
         //dbg!();
 
         //dbg!(&main);
