@@ -984,23 +984,37 @@ main =
         })
     }
 
-    #[test]
+
+    #[test] // TODO make wasm_bindgen_test
     fn collapsing_nodes() {
-        // Tests editing nested definition that requires transforming inline expression into
-        // into a new block.
+
         let mut test  = Fixture::set_up();
-        let code = r"main =
+        let code = r"
+main =
     a = 10
     b = 20
     c = a + b
     d = c + d
     a + c";
+
+        let expected_code = "
+func1 a =
+    b = 20
+    c = a + b
+    d = c + d
+    c
+
+main =
+    a = 10
+    c = func1 a
+    a + c";
+
         test.data.code = code.to_owned();
         test.run(move |graph| async move {
             let nodes = graph.nodes().unwrap();
             let selected_nodes = nodes[1..4].iter().map(|node| node.info.id());
             graph.collapse(selected_nodes).unwrap();
-            model::module::test::expect_code(&*graph.module,code);
+            model::module::test::expect_code(&*graph.module,expected_code);
         })
     }
 

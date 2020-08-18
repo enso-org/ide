@@ -521,9 +521,16 @@ impl ToAdd {
 
     /// Generate the definition's Ast from the description.
     pub fn ast(&self, scope_indent:usize, parser:&Parser) -> FallibleResult<Ast> {
-        let head = self.head(parser)?;
-        let body = self.body(scope_indent);
-        let ast  = Ast::infix(head,ast::opr::predefined::ASSIGNMENT,body);
+        let body          = self.body(scope_indent);
+        let body_is_block = matches!(body.shape(), ast::Shape::Block {..});
+        let infix_shape   = ast::Infix {
+            larg : self.head(parser)?,
+            loff : 1,
+            opr  : Ast::opr(ast::opr::predefined::ASSIGNMENT),
+            roff : if body_is_block { 0 } else { 1 },
+            rarg : body,
+        };
+        let ast  = Ast::from(infix_shape);
         Ok(ast)
     }
 }
@@ -575,7 +582,8 @@ mod tests {
 
         let ast = to_add.ast(4, &parser).unwrap();
         // Note 8 spaces indents for definition block lines (as the parent scope was at 4).
-        assert_eq!(ast.repr(), "Main.add arg1 arg2 = \n        arg1 + arg2\n        arg1 - arg2");
+        // Also, note that there is no space after the definition's assignment operator.
+        assert_eq!(ast.repr(), "Main.add arg1 arg2 =\n        arg1 + arg2\n        arg1 - arg2");
     }
 
     #[wasm_bindgen_test]
