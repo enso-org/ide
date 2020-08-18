@@ -148,6 +148,8 @@ impl ProjectView {
     fn setup_theme(app:&Application) {
         let mut dark = theme::Theme::new();
         dark.insert("application.background.color", color::Lcha::new(0.13,0.013,0.18,1.0));
+        dark.insert("application.text.color", color::Rgba::new(1.0,1.0,1.0,0.7));
+        dark.insert("project_name.text.transparent.color", color::Rgba::new(1.0,1.0,1.0,0.5));
         dark.insert("graph_editor.node.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
         dark.insert("graph_editor.node.selection.color", color::Lcha::new(0.72,0.5,0.22,1.0));
         dark.insert("graph_editor.node.selection.size", 7.0);
@@ -165,7 +167,7 @@ impl ProjectView {
         light.insert("graph_editor.node.background.color", color::Lcha::new(0.78,0.013,0.18,0.9));
         light.insert("graph_editor.node.selection.color", color::Lcha::new(0.7,0.59,0.37,1.0));
         light.insert("graph_editor.node.selection.size", 7.0);
-        light.insert("graph_editor.visualization.background.color", color::Lcha::new(0.78,0.013,0.18,0.9));
+        light.insert("graph_editor.visualization.background.color", color::Lcha::new(0.98,0.013,0.18,0.9));
         light.insert("animation.duration", 0.5);
         light.insert("graph.node.shadow.color", 5.0);
         light.insert("graph.node.shadow.size", 5.0);
