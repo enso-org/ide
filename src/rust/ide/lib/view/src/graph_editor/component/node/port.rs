@@ -181,7 +181,9 @@ impl Manager {
 
         label.set_cursor(&default());
         label.insert("HELLO\nHELLO2\nHELLO3\nHELLO4".to_string());
-        label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
+        // TODO [MM]: Those values should be taken from Theme manager.
+        // label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
+        label.set_default_color(color::Rgba::new(0.0,0.0,0.0,0.7));
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
 

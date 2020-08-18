@@ -140,6 +140,7 @@ impl TextFieldSprites {
         let width                = "input_size.x";
         let height               = "input_size.y";
         let selection_definition = shape::Rect((width,height));
+        let selection_definition = selection_definition.fill(color::Rgba::new(0.7,0.7,0.7,0.7));
         ShapeSystem::new(scene,&selection_definition)
     }
 

@@ -160,14 +160,14 @@ impl ProjectView {
 
 
         let mut light = theme::Theme::new();
-        light.insert("application.background.color", color::Lcha::new(0.13,0.013,0.18,1.0));
-        light.insert("graph_editor.node.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
-        light.insert("graph_editor.node.selection.color", color::Lcha::new(0.72,0.5,0.22,1.0));
+        light.insert("application.background.color", color::Lcha::new(0.87,0.013,0.18,1.0));
+        light.insert("graph_editor.node.background.color", color::Lcha::new(0.78,0.013,0.18,1.0));
+        light.insert("graph_editor.node.selection.color", color::Lcha::new(0.29,0.5,0.22,1.0));
         light.insert("graph_editor.node.selection.size", 7.0);
         light.insert("animation.duration", 0.5);
         light.insert("graph.node.shadow.color", 5.0);
         light.insert("graph.node.shadow.size", 5.0);
-        light.insert("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
+        light.insert("mouse.pointer.color", color::Rgba::new(0.65,0.65,0.65,1.0));
 
         app.themes.register("light",light);
         app.themes.set_enabled(&["light"]);

@@ -43,7 +43,8 @@ impl NodeSearcher {
         let properties     = TextFieldProperties {
             font       : fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap(),
             text_size  : 16.0,
-            base_color : color::Rgba::new(1.0, 1.0, 1.0, 0.7),
+            // base_color : color::Rgba::new(1.0, 1.0, 1.0, 0.7),
+            base_color : color::Rgba::new(0.0, 0.0, 0.0, 0.7),
             size       : Vector2::new(screen.width,16.0),
         };
         let text_field = TextField::new(scene,properties,focus_manager);

@@ -28,8 +28,11 @@ use ensogl::animation::linear_interpolation;
 // =================
 
 const TEXT_SIZE              : f32         = 12.0;
-const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
-const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
+// TODO [MM] : This should be taken from Theme manager.
+// const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
+// const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
+const TEXT_COLOR             : color::Rgba = color::Rgba::new(0.0, 0.0, 0.0, 0.7);
+const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(0.0, 0.0, 0.0, 0.4);
 
 /// Project name used as a placeholder in ProjectName view when it's initialized.
 pub const UNKNOWN_PROJECT_NAME:&str = "Unknown";
