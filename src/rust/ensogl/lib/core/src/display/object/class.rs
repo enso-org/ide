@@ -635,6 +635,7 @@ pub trait Object<Host=Scene> {
         self.display_object().downgrade()
     }
 
+    /// See `Any` description.
     fn into_any(self) -> Any<Host>
     where Self:Sized + 'static {
         Any{wrapped:Rc::new(self)}
@@ -932,6 +933,15 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
     }
 }
 
+// ==================
+// === Any Object ===
+// ==================
+
+/// A structure wrapping any `Object` and hiding the exact type.
+///
+/// You can convert structure into `Any` using `Object::into_any`. Unfortunately it is not possible
+/// to make general `From` implementation, because `Any` itself would use it as well, and it clashes
+/// with base implementation `From<T> for T`.
 #[derive(Clone,CloneRef)]
 pub struct Any<Host=Scene> {
     wrapped:Rc<dyn Object<Host>>

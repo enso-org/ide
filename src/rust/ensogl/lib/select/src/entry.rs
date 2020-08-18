@@ -135,6 +135,8 @@ impl Entry {
         let display_object = display::object::Instance::new(logger);
         display_object.add_child(&label);
         display_object.add_child(&icon);
+        icon.set_position_xy(Vector2(PADDING + ICON_SIZE/2.0, 0.0));
+        label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
         label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
         label.set_default_text_size(text::Size(LABEL_SIZE));
         let icon = Rc::new(CloneRefCell::new(icon.into_any()));
@@ -167,6 +169,18 @@ impl display::Object for Entry {
 // === EntryList ===
 // =================
 
+#[derive(Copy,Clone,Debug,Eq,Hash,PartialEq)]
+pub enum IdAtYPosition {
+    AboveFirst, UnderLast, Entry(Id)
+}
+
+impl IdAtYPosition {
+    pub fn entry(&self) -> Option<Id> {
+        if let Self::Entry(id) = self { Some(*id) }
+        else                          { None      }
+    }
+}
+
 /// A view containing an entry list, arranged in column.
 ///
 /// Not all entries are displayed at once, only those visible.
@@ -192,13 +206,38 @@ impl List {
         List {logger,app,display_object,entries,entries_range,provider}
     }
 
+    /// The number of all entries in List, including not displayed.
+    pub fn entry_count(&self) -> usize {
+        self.provider.get().entry_count()
+    }
+
+    /// The number of all displayed entries in List.
+    pub fn visible_entry_count(&self) -> usize {
+        self.entries_range.get().len()
+    }
+
     /// Y position of entry with given id, relative to Entry List position.
     pub fn position_y_of_entry(id:Id) -> f32 { id as f32 * -HEIGHT }
 
-    /// Y position range of entry with given id, relative to Entry List position.
-    pub fn position_y_range_of_entry(id:Id) -> Range<f32> {
+    /// Y range of entry with given id, relative to Entry List position.
+    pub fn y_range_of_entry(id:Id) -> Range<f32> {
         let position = Self::position_y_of_entry(id);
         (position - HEIGHT / 2.0)..(position + HEIGHT / 2.0)
+    }
+
+    /// Y range of all entries in this list, including not displayed.
+    pub fn y_range_of_all_entries(&self) -> Range<f32> {
+        let start = Self::position_y_of_entry(self.entry_count() - 1) - HEIGHT / 2.0;
+        let end   = HEIGHT / 2.0;
+        start..end
+    }
+
+    /// Get the entry id which lays on given y coordinate.
+    pub fn entry_at_y_position(&self, y:f32) -> IdAtYPosition {
+        use IdAtYPosition::*;
+        if y > HEIGHT/2.0                               { AboveFirst                     }
+        else if y < self.y_range_of_all_entries().start { UnderLast                      }
+        else                                            { Entry((-y/HEIGHT + 0.5) as Id) }
     }
 
     /// Update displayed entries to show the given range.

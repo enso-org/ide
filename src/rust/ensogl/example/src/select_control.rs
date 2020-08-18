@@ -119,7 +119,17 @@ fn init(app:&Application) {
     select.frp.resize(Vector2(100.0,160.0));
     select.frp.set_entries(provider);
     app.display.add_child(&select);
+
+    let logger  = Logger::new("SelectDebugScene");
+    let network = enso_frp::Network::new();
+    enso_frp::extend! {network
+        eval select.chosen_entry([logger](entry) {
+            info!(logger, "Chosne entry {entry:?}")
+        });
+    }
+
     std::mem::forget(select);
+    std::mem::forget(network);
 }
 
 
