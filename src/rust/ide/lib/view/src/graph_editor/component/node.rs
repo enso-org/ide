@@ -61,7 +61,7 @@ pub mod shape {
             let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
             let height = height - NODE_SHAPE_PADDING.px() * 2.0;
             let radius = NODE_SHAPE_RADIUS.px();
-            let shape  = Rect((&width - 2.px(),&height - 2.px())).corners_radius(&radius);
+            let shape  = Rect((&width,&height)).corners_radius(&radius).shrink(2.px());
             let shape  = shape.fill(color::Rgba::from(bg_color));
 
 

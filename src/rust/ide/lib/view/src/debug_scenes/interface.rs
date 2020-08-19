@@ -97,10 +97,10 @@ fn init(app:&Application) {
     light.insert("application.background.color", color::Lcha::new(0.96,0.013,0.18,1.0));
     light.insert("application.text.color", color::Rgba::new(0.0,0.0,0.0,0.7));
     light.insert("project_name.text.transparent.color", color::Rgba::new(0.0,0.0,0.0,0.5));
-    light.insert("graph_editor.node.background.color", color::Lcha::new(0.98,0.013,0.18,0.9));
+    light.insert("graph_editor.node.background.color", color::Lcha::new(0.98,0.013,0.18,1.0));
     light.insert("graph_editor.node.selection.color", color::Lcha::new(0.55,0.65,0.79,1.0));
     light.insert("graph_editor.node.selection.size", 7.0);
-    light.insert("graph_editor.visualization.background.color", color::Lcha::new(0.98,0.013,0.18,0.9));
+    light.insert("graph_editor.visualization.background.color", color::Lcha::new(0.98,0.013,0.18,1.0));
     light.insert("animation.duration", 0.5);
     light.insert("graph.node.shadow.color", 5.0);
     light.insert("graph.node.shadow.size", 5.0);
