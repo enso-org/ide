@@ -13,6 +13,7 @@
 #![feature(trait_alias)]
 #![feature(matches_macro)]
 #![feature(slice_patterns)]
+#![feature(result_cloned)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]

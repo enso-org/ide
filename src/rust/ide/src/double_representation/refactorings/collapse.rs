@@ -53,90 +53,147 @@ impl ClassifiedConnections {
     }
 }
 
+#[derive(Clone,Debug,Display,Fail)]
+struct Error;
+
+#[derive(Clone,Debug,Display,Fail)]
+pub struct NoNodesSelected;
+
+#[derive(Clone,Debug,Display,Fail)]
+pub struct CannotResolveConnectionEndpoint;
+
+#[derive(Clone,Debug,Display,Fail)]
+pub struct EndpointIdentifierCannotBeResolved;
+
+fn lookup_node(nodes:&[NodeInfo], id:node::Id) -> Result<&NodeInfo,CannotResolveConnectionEndpoint> {
+    nodes.iter().find(|node| node.id() == id).ok_or(CannotResolveConnectionEndpoint)
+}
+
+struct Utils {
+    graph              : GraphInfo,
+    selected_nodes     : Vec<NodeInfo>,
+    selected_nodes_set : HashSet<node::Id>,
+    nodes              : Vec<NodeInfo>,
+    last_selected      : node::Id,
+    connections        : ClassifiedConnections,
+}
+
+impl Utils {
+    /// Does some early pre-processing and gathers common data used in various parts of the
+    /// refactoring algorithm.
+    pub fn new(graph:GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<Self> {
+        let nodes                 = graph.nodes();
+        let lookup_id             = |id| lookup_node(&nodes,id).cloned();
+        let selected_nodes:Vec<_> = Result::from_iter(selected_nodes.into_iter().map(lookup_id))?;
+        let selected_nodes_set    = selected_nodes.iter().map(|node| node.id()).collect();
+        let last_selected         = selected_nodes.iter().last().ok_or(NoNodesSelected)?.id();
+        let connections           = graph.connections();
+        let connections           = ClassifiedConnections::new(&selected_nodes_set,connections);
+        Ok(Utils {
+            graph,
+            selected_nodes,
+            selected_nodes_set,
+            nodes,
+            last_selected,
+            connections,
+        })
+    }
+
+    pub fn endpoint_to_node(&self, endpoint:&Endpoint) -> Result<&NodeInfo,CannotResolveConnectionEndpoint> {
+        let id  = endpoint.node;
+        self.nodes.iter().find(|node| node.id() == id).ok_or(CannotResolveConnectionEndpoint)
+    }
+
+    pub fn endpoint_to_identifier(&self, endpoint:&Endpoint) -> FallibleResult<Identifier> {
+        let node = self.endpoint_to_node(endpoint)?;
+        let err = EndpointIdentifierCannotBeResolved;
+        Identifier::new(node.ast().get_traversing(&endpoint.crumbs)?.clone_ref()).ok_or(err.into())
+    }
+
+    /// Check if the given node belongs to the selection (i.e. is extracted into a new method).
+    pub fn is_selected(&self, id:node::Id) -> bool {
+        self.selected_nodes.iter().find(|node| node.id() == id).is_some()
+    }
+
+    /// Get the extracted function parameter names.
+    ///
+    /// All identifiers are in the variable form.
+    pub fn arguments(&self) -> FallibleResult<BTreeSet<Identifier>> {
+        let input_connections = self.connections.inputs.iter();
+        Result::from_iter(input_connections.map(|connection| {
+            // Here we take always the source of the connection. This is because it must be in a
+            // pattern position, just like the function parameter we want to generate.
+            self.endpoint_to_identifier(&connection.source)
+        }))
+    }
+
+    pub fn collapse(&self,name:DefinitionName, parser:&Parser) -> FallibleResult<Collapsed> {
+        let inputs      = self.arguments()?;
+        let output_node = self.connections.outputs.as_ref().map(|output_connection| {
+            self.endpoint_to_node(&output_connection.source).unwrap()
+        });
+        let output_node_id  = output_node.map(NodeInfo::id);
+        let node_to_replace = output_node_id.unwrap_or(self.last_selected);
+
+        let return_line : Option<Ast> = self.connections.outputs.as_ref().map(|c| self.endpoint_to_identifier(&c.source).unwrap().deref().clone());
+        let mut selected_nodes_iter   = self.selected_nodes.iter().map(|node| node.ast().clone());
+
+        let body_head                = selected_nodes_iter.next().unwrap();
+        let body_tail                = selected_nodes_iter.chain(return_line).map(Some).collect();
+        let explicit_parameter_names = inputs.iter().map(|input| input.name().to_owned()).collect();
+        let to_add = definition::ToAdd {name,explicit_parameter_names,body_head,body_tail};
+
+        let mut updated_def = self.graph.source.clone();
+        let mut lines = updated_def.block_lines()?;
+        lines.drain_filter(|line| {
+            // There are 3 kind of lines:
+            // 1) Lines that are left intact -- not belonging to selected nodes;
+            // 2) Lines that are extracted and removed -- all selected nodes, except:
+            // 3) Line that introduces output of the extracted function (if present at all) -> its
+            //    expression shall be replaced with a call to the extracted function.
+            //    If there is no usage of the extracted function output, its invocation should be placed
+            //    in place of the last extracted line.
+            let mut node_info = match line.elem.as_ref().and_then(NodeInfo::from_line_ast) {
+                Some(node_info) => node_info,
+                _               => return false, // We leave lines without nodes (blank lines) intact.
+            };
+            let node_id     = node_info.id();
+            let is_selected = self.is_selected(node_id);
+            if !is_selected {
+                println!("Leaving {} intact.", node_info.ast());
+                false
+            } else if node_id == node_to_replace {
+                let old_ast = node_info.ast().clone_ref();
+                let base = to_add.name.ast(&parser).unwrap();
+                let args = to_add.explicit_parameter_names.iter().map(Ast::var);
+                let invocation = ast::prefix::Chain::new(base,args);
+                node_info.set_expression(invocation.into_ast());
+                if output_node_id.is_none() {
+                    node_info.clear_pattern()
+                }
+
+                let new_ast = node_info.ast().clone_ref();
+                println!("Rewriting {} into a call {}.", old_ast, new_ast);
+                line.elem = Some(new_ast); // TODO TODO TODO
+                false
+            } else {
+                println!("Extracting {} out.", node_info.ast());
+                true
+            }
+        });
+        updated_def.set_block_lines(lines)?;
+
+        Ok(Collapsed {
+            new_method : to_add,
+            updated_definition : updated_def,
+        })
+    }
+}
+
 pub fn collapse
 (graph:&GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, name:DefinitionName, parser:&Parser)
 -> FallibleResult<Collapsed> {
-    let endpoint_to_node = |endpoint:&Endpoint| {
-        graph.find_node(endpoint.node).unwrap() // TODO
-    };
-    let endpoint_to_identifier = |endpoint:&Endpoint| {
-        let node = endpoint_to_node(endpoint);
-        Identifier::new(node.ast().get_traversing(&endpoint.crumbs).unwrap().clone_ref()).unwrap()
-    };
-
-    // We need to have both vector and set -- one keeps the nodes (lines) in order,
-    // while the other one allows for a fast lookup.
-    let selected_nodes = selected_nodes.into_iter().collect_vec();
-    let last_selected_node = selected_nodes.iter().last().unwrap(); // TODO
-    let selected_nodes_set = selected_nodes.iter().copied().collect::<HashSet<_>>();
-    let connections    = graph.connections();
-    let connections    = ClassifiedConnections::new(&selected_nodes_set,connections);
-
-    let inputs = connections.inputs.iter().map(|connection| {
-        // Here it doesn't really matter what endpoint we take (src or dst), as they both
-        // should be occurrence of the same variable.
-        endpoint_to_identifier(&connection.source)
-    }).collect::<BTreeSet<_>>();
-
-    let output_node = connections.outputs.as_ref().map(|output_connection| {
-        endpoint_to_node(&output_connection.source)
-    });
-    let output_node_id = output_node.as_ref().map(NodeInfo::id);
-    let node_to_replace = output_node_id.unwrap_or(*last_selected_node);
-
-
-    let return_line : Option<Ast> = connections.outputs.map(|c| endpoint_to_identifier(&c.source).deref().clone());
-    let mut selected_nodes_iter = selected_nodes.iter().map(|node| graph.find_node(*node).unwrap().ast().clone());
-
-    let body_head                = selected_nodes_iter.next().unwrap();
-    let body_tail                = selected_nodes_iter.chain(return_line).map(Some).collect();
-    let explicit_parameter_names = inputs.iter().map(|input| input.name().to_owned()).collect();
-    let to_add = definition::ToAdd {name,explicit_parameter_names,body_head,body_tail};
-
-    let mut updated_def = graph.source.clone();
-    let mut lines = updated_def.block_lines()?;
-    lines.drain_filter(|line| {
-        // There are 3 kind of lines:
-        // 1) Lines that are left intact -- not belonging to selected nodes;
-        // 2) Lines that are extracted and removed -- all selected nodes, except:
-        // 3) Line that introduces output of the extracted function (if present at all) -> its
-        //    expression shall be replaced with a call to the extracted function.
-        //    If there is no usage of the extracted function output, its invocation should be placed
-        //    in place of the last extracted line.
-        let mut node_info = match line.elem.as_ref().and_then(NodeInfo::from_line_ast) {
-            Some(node_info) => node_info,
-            _               => return false, // We leave lines without nodes (blank lines) intact.
-        };
-        let node_id     = node_info.id();
-        let is_selected = selected_nodes_set.contains(&node_id);
-        if !is_selected {
-            println!("Leaving {} intact.", node_info.ast());
-            false
-        } else if node_id == node_to_replace {
-            let old_ast = node_info.ast().clone_ref();
-            let base = to_add.name.ast(&parser).unwrap();
-            let args = to_add.explicit_parameter_names.iter().map(Ast::var);
-            let invocation = ast::prefix::Chain::new(base,args);
-            node_info.set_expression(invocation.into_ast());
-            if output_node_id.is_none() {
-                node_info.clear_pattern()
-            }
-
-            let new_ast = node_info.ast().clone_ref();
-            println!("Rewriting {} into a call {}.", old_ast, new_ast);
-            line.elem = Some(new_ast); // TODO TODO TODO
-            false
-        } else {
-            println!("Extracting {} out.", node_info.ast());
-            true
-        }
-    });
-    updated_def.set_block_lines(lines)?;
-
-    Ok(Collapsed {
-        new_method : to_add,
-        updated_definition : updated_def,
-    })
+    Utils::new(graph.clone(),selected_nodes)?.collapse(name,parser)
 }
 
 
@@ -154,8 +211,8 @@ mod tests {
     use crate::double_representation::node::NodeInfo;
 
     struct Case {
-        refactored_name : DefinitionName,
-        introduced_name : DefinitionName,
+        refactored_name     : DefinitionName,
+        introduced_name     : DefinitionName,
         initial_method_code : String,
         extracted_lines     : Range<usize>,
         expected_generated  : String,
@@ -248,5 +305,21 @@ mod tests {
         // 1) Maintains the assignment and the introduced name for the value in the extracted
         //    method;
         // 2) That invocation appears in the extracted node's place but has no assignment.
+
+        case.initial_method_code = r"custom_old =
+    a = 1
+    b = 2
+    c = A + B
+    a + b
+    c + 7".to_owned();
+        case.extracted_lines = 3..4;
+        case.expected_generated = r"custom_new a b = a + b".to_owned();
+        case.expected_refactored = r"custom_old =
+    a = 1
+    b = 2
+    c = A + B
+    custom_new a b
+    c + 7".to_owned();
+        case.run(&parser);
     }
 }
