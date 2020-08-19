@@ -28,6 +28,10 @@ pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition 
                 svgElem.setAttributeNS(null, "height" , "100%");
                 svgElem.setAttributeNS(null, "transform", "matrix(1 0 0 -1 0 0)");
 
+                svgElem.onmousedown = function() {
+                    console.log("Clicked");
+                }
+
                 this.dom.appendChild(svgElem);
 
                 data.forEach(data => {
