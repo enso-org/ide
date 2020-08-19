@@ -243,9 +243,12 @@ impl Select {
             }));
             mouse_moved       <- mouse.distance.map(|dist| *dist > std::f32::EPSILON);
             mouse_selecting   <- mouse.position.gate(&mouse_in).gate(&mouse_moved);
-            mouse_selecting_y <- mouse_selecting.map(f!([model,scene](pos) {
+            mouse_y_in_scroll <- mouse.position.map(f!([model,scene](pos) {
                 scene.screen_to_object_space(&model.scrolled_area,*pos).y
             }));
+            mouse_pointed_entry <- mouse_y_in_scroll.map(f!((y)
+                model.entries.entry_at_y_position(*y).entry())
+            );
 
 
             // === Selected Entry ===
@@ -286,13 +289,11 @@ impl Select {
                 selected_entry_after_moving_last);
             selected_entry_after_move <- any(&selected_entry_after_move_up,
                 &selected_entry_after_move_down);
-            mouse_pointed_entry <- mouse_selecting_y.map(f!((y)
-                model.entries.entry_at_y_position(*y).entry())
-            );
+            mouse_selected_entry <- mouse_pointed_entry.gate(&mouse_in).gate(&mouse_moved);
 
             frp.source.selected_entry <+ selected_entry_after_move;
             frp.source.selected_entry <+ frp.deselect_entries.constant(None);
-            frp.source.selected_entry <+ mouse_pointed_entry;
+            frp.source.selected_entry <+ mouse_selected_entry;
 
 
             // === Chosen Entry ===
