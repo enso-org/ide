@@ -51,12 +51,6 @@ enum RelativePosition {
     RIGHT
 }
 
-impl Default for RelativePosition {
-    fn default() -> Self {
-        RelativePosition::RIGHT
-    }
-}
-
 
 
 // ==================
@@ -266,7 +260,7 @@ impl BreadcrumbsModel {
     fn init(self) -> Self {
         self.add_child(&self.project_name);
         self.add_child(&self.breadcrumbs_container);
-        self.project_name.set_position(Vector3(HORIZONTAL_MARGIN,0.0,0.0));
+        self.project_name.set_position_x(HORIZONTAL_MARGIN);
         self.relayout_for_project_name_width(self.project_name.width());
         self.project_name.frp.select.emit(());
         self
@@ -298,7 +292,7 @@ impl BreadcrumbsModel {
     /// where `popped_count` is the number of breadcrumbs in the right side of `index` that needs to
     /// be popped or a list of `LocalCall`s identifying the breadcrumbs we need to push.
     fn select_breadcrumb(&self, index:usize) -> (usize,Vec<Option<LocalCall>>) {
-        info!(self.logger,"Selecting breadcrumb #{index}.");
+        debug!(self.logger,"Selecting breadcrumb #{index}.");
         let current_index = self.current_index.get();
         match index.cmp(&current_index) {
             Ordering::Less    => (current_index - index, default()),
@@ -324,6 +318,8 @@ impl BreadcrumbsModel {
         }
     }
 
+    /// Pushes a breadcrumb and returns the index of the previously selected breadcrumb and the
+    /// index of the newly selected one in the form of (old,new).
     fn push_breadcrumb(&self, local_call:&Option<LocalCall>) -> Option<(usize,usize)> {
         local_call.as_ref().map(|local_call| {
             let method_pointer = &local_call.definition;
@@ -346,16 +342,13 @@ impl BreadcrumbsModel {
                 let breadcrumb_index = new_index;
                 let frp_inputs       = &self.frp_inputs;
 
-
-                // === User Interaction ===
-
                 frp::extend! { network
                     eval_ breadcrumb.frp.outputs.clicked(
                         frp_inputs.select_breadcrumb.emit(breadcrumb_index);
                     );
                 }
 
-                info!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
+                debug!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
                 breadcrumb.set_position_x(self.width().round());
                 self.breadcrumbs_container.add_child(&breadcrumb);
                 self.breadcrumbs.borrow_mut().push(breadcrumb);
@@ -365,10 +358,17 @@ impl BreadcrumbsModel {
         })
     }
 
+    /// Selects the breadcrumb, without signalizing the controller, identified by its `index` and
+    /// returns `(popped_count,local_calls)`, where `popped_count` is the number of breadcrumbs in
+    /// the right side of `index` that needs to be popped or a list of `LocalCall`s identifying the
+    /// breadcrumbs we need to push.
     fn debug_select_breadcrumb(&self,index:usize) -> (usize,Vec<Option<LocalCall>>) {
         self.select_breadcrumb(index)
     }
 
+    /// Pushes a breadcrumb, without signalizing the controller, and returns the index of the
+    /// previously selected breadcrumb and the index of the newly selected one in the form of
+    /// `(old,new)`.
     fn debug_push_breadcrumb(&self, local_call:&Option<LocalCall>) -> Option<(usize,usize)> {
         let is_new_breadcrumb = local_call.is_none();
         let local_call        = local_call.clone().or_else(|| {
@@ -387,11 +387,9 @@ impl BreadcrumbsModel {
         if is_new_breadcrumb {
             result.as_ref().map(|(_, new_index)| self.get_breadcrumb(*new_index).map(|breadcrumb| {
 
-                // === User Interaction ===
-
-                let new_index  = *new_index;
-                let network    = &breadcrumb.frp.network;
-                let frp_debug  = &self.frp_debug;
+                let new_index = *new_index;
+                let network   = &breadcrumb.frp.network;
+                let frp_debug = &self.frp_debug;
                 frp::extend! { network
                     eval_ breadcrumb.frp.outputs.clicked(
                         frp_debug.select_breadcrumb.emit(new_index);
@@ -402,14 +400,19 @@ impl BreadcrumbsModel {
         result
     }
 
+    /// Pops a breadcrumb, without signalizing the controller, and returns the index of the
+    /// previously selected breadcrumb and the index of the newly selected one in the form of
+    /// `(old,new)`.
     fn debug_pop_breadcrumb(&self) -> Option<(usize,usize)> {
         self.pop_breadcrumb()
     }
 
+    /// Pops a breadcrumb and returns the index of the previously selected breadcrumb and the
+    /// index of the newly selected one in the form of (old,new).
     fn pop_breadcrumb(&self) -> Option<(usize,usize)> {
         debug!(self.logger, "Popping {self.current_index.get()}");
         (self.current_index.get()>0).as_option().map(|_| {
-            info!(self.logger, "Popping breadcrumb view.");
+            debug!(self.logger, "Popping breadcrumb view.");
             let old_index = self.current_index.get();
             let new_index = old_index - 1;
             self.current_index.set(new_index);
@@ -419,7 +422,7 @@ impl BreadcrumbsModel {
 
     fn remove_breadcrumbs_history_beginning_from(&self, index:usize) {
         for breadcrumb in self.breadcrumbs.borrow_mut().split_off(index) {
-            info!(self.logger, "Removing {breadcrumb.info.method_pointer.name}.");
+            debug!(self.logger, "Removing {breadcrumb.info.method_pointer.name}.");
             breadcrumb.unset_parent();
         }
     }
@@ -449,10 +452,10 @@ pub struct Breadcrumbs {
 impl Breadcrumbs {
     /// Constructor.
     pub fn new<'t,S:Into<&'t Scene>>(scene:S, focus_manager:&FocusManager) -> Self {
-        let scene        = scene.into();
-        let frp          = Frp::new();
-        let model        = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
-        let network      = &frp.network;
+        let scene   = scene.into();
+        let frp     = Frp::new();
+        let model   = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
+        let network = &frp.network;
 
         // === Breadcrumb selection ===
 

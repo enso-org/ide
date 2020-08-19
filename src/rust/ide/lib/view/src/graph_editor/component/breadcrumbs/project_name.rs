@@ -92,22 +92,22 @@ impl FrpInputs {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct FrpOutputs {
-    pub name        : frp::Source<String>,
-    pub width       : frp::Source<f32>,
-    pub mouse_down  : frp::Any,
-    pub edit_mode   : frp::Source<bool>,
-    pub selected    : frp::Source<bool>
+    pub name       : frp::Source<String>,
+    pub width      : frp::Source<f32>,
+    pub mouse_down : frp::Any,
+    pub edit_mode  : frp::Source<bool>,
+    pub selected   : frp::Source<bool>
 }
 
 impl FrpOutputs {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! {network
-            name        <- source();
-            width       <- source();
-            mouse_down  <- any_mut();
-            edit_mode   <- source();
-            selected    <- source();
+            name       <- source();
+            width      <- source();
+            mouse_down <- any_mut();
+            edit_mode  <- source();
+            selected   <- source();
         }
         Self{name,width,mouse_down,edit_mode,selected}
     }

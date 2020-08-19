@@ -287,7 +287,7 @@ pub struct BreadcrumbModel {
     animations     : Animations,
     /// Breadcrumb information such as name and expression id.
     pub info          : Rc<BreadcrumbInfo>,
-    relative_position : Rc<Cell<RelativePosition>>,
+    relative_position : Rc<Cell<Option<RelativePosition>>>,
     outputs           : FrpOutputs
 }
 
@@ -417,7 +417,7 @@ impl BreadcrumbModel {
     fn deselect(&self, old:usize, new:usize) {
         let left  = RelativePosition::LEFT;
         let right = RelativePosition::RIGHT;
-        self.relative_position.set((new>old).as_option().map(|_| left).unwrap_or(right));
+        self.relative_position.set((new>old).as_option().map(|_|Some(left)).unwrap_or(Some(right)));
         let color = self.deselected_color().into();
         self.animations.color.set_target_value(color);
         self.animations.separator_color.set_target_value(color);
@@ -425,8 +425,9 @@ impl BreadcrumbModel {
 
     fn deselected_color(&self) -> color::Rgba {
         match self.relative_position.get() {
-            RelativePosition::RIGHT => RIGHT_DESELECTED_COLOR,
-            RelativePosition::LEFT  => LEFT_DESELECTED_COLOR
+            Some(RelativePosition::RIGHT) => RIGHT_DESELECTED_COLOR,
+            Some(RelativePosition::LEFT)  => LEFT_DESELECTED_COLOR,
+            None                          => SELECTED_COLOR
         }
     }
 
