@@ -242,7 +242,6 @@ impl Select {
                 x_range.contains(&pos_obj_space.x) && y_range.contains(&pos_obj_space.y)
             }));
             mouse_moved       <- mouse.distance.map(|dist| *dist > std::f32::EPSILON);
-            mouse_selecting   <- mouse.position.gate(&mouse_in).gate(&mouse_moved);
             mouse_y_in_scroll <- mouse.position.map(f!([model,scene](pos) {
                 scene.screen_to_object_space(&model.scrolled_area,*pos).y
             }));
