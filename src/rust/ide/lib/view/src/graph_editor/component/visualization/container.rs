@@ -33,7 +33,7 @@ use ensogl::gui::component;
 
 const DEFAULT_SIZE  : (f32,f32) = (200.0,200.0);
 const CORNER_RADIUS : f32       = super::super::node::CORNER_RADIUS;
-// const SHADOW_SIZE   : f32       = 10.0;
+const SHADOW_SIZE   : f32       = 10.0;
 
 
 // =============
@@ -51,14 +51,23 @@ pub mod background {
         (style:Style,selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
+            let width         = &width  - SHADOW_SIZE.px() * 2.0;
+            let height        = &height - SHADOW_SIZE.px() * 2.0;
             let radius        = 1.px() * &radius;
             let color_bg      = style.get("graph_editor.visualization.background.color").color().unwrap_or_else(|| color::Lcha::new(0.2,0.013,0.18,1.0));
             let corner_radius = &radius * &roundness;
-            let background    = Rect((&width,&height)).corners_radius(&corner_radius).shrink(3.px());
+            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
 
+            let corner_radius = corner_radius*1.75;
+            let width         = &width  + SHADOW_SIZE.px() * 2.0;
+            let height        = &height + SHADOW_SIZE.px() * 2.0;
             let shadow        = Rect((&width,&height)).corners_radius(&corner_radius).shrink(1.px());
-            let shadow        = shadow.fill(color::Rgba::new(0.2,0.2,0.2,1.0));
+            let shadow_color  = color::LinearGradient::new()
+                .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
+                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.05).into_linear());
+            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(16.0).slope(color::Slope::Exponent(2.0));
+            let shadow        = shadow.fill(shadow_color);
 
             let out = shadow + background;
             out.into()
@@ -343,8 +352,8 @@ impl ContainerModel {
         } else {
             self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.background.shape.sprite.size.set(size.add_scalar(CORNER_RADIUS));
-            self.view.overlay.shape.sprite.size.set(size.add_scalar(CORNER_RADIUS));
+            self.view.background.shape.sprite.size.set(size.add_scalar(SHADOW_SIZE*2.0));
+            self.view.overlay.shape.sprite.size.set(size.add_scalar(SHADOW_SIZE*2.0));
             self.fullscreen_view.background . shape.sprite.size.set(zero());
         }
 
