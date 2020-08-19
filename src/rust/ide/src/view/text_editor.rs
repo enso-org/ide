@@ -11,9 +11,11 @@ use enso_frp::io::keyboard;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::Scene;
+use ensogl::display::shape::primitive::StyleWatch;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::text_field::{TextField, FocusManager};
 use ensogl::display::shape::text::text_field::TextFieldProperties;
+use ensogl::display::style::data::DataMatch;
 use ensogl::system::web::platform::Platform;
 use nalgebra::Vector2;
 use nalgebra::zero;
@@ -80,9 +82,9 @@ impl TextEditor {
         let padding    = default();
         let position   = zero();
         let size       = Vector2::new(screen.width, screen.height / 2.0);
-        // TODO [MM]: Those values should be taken from Theme manager.
-        // let base_color = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
-        let base_color = color::Rgba::new(0.0, 0.0, 0.0, 0.7);
+        let styles     = StyleWatch::new(&scene.style_sheet);
+        let base_color = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        let base_color = color::Rgba::from(base_color);
         let text_size  = 16.0;
         let properties = TextFieldProperties {font,text_size,base_color,size};
         let text_field = TextField::new(scene,properties,focus_manager);

@@ -14,6 +14,7 @@ use ensogl::display::Buffer;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
+use ensogl::display::style::data::DataMatch;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
@@ -181,9 +182,10 @@ impl Manager {
 
         label.set_cursor(&default());
         label.insert("HELLO\nHELLO2\nHELLO3\nHELLO4".to_string());
-        // TODO [MM]: Those values should be taken from Theme manager.
-        // label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
-        label.set_default_color(color::Rgba::new(0.0,0.0,0.0,0.7));
+
+        let styles     = StyleWatch::new(&app.display.scene().style_sheet);
+        let text_color = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        label.set_default_color(color::Rgba::from(text_color));
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
 

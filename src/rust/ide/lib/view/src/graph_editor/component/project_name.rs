@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use enso_frp as frp;
+use frp::IntoParam;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::Attribute;
@@ -14,6 +15,7 @@ use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::shape::*;
 use ensogl::display::Sprite;
+use ensogl::display::style::data::DataMatch;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use logger::enabled::Logger;
@@ -28,11 +30,6 @@ use ensogl::animation::linear_interpolation;
 // =================
 
 const TEXT_SIZE              : f32         = 12.0;
-// TODO [MM] : This should be taken from Theme manager.
-// const TEXT_COLOR             : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.7);
-// const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(1.0, 1.0, 1.0, 0.4);
-const TEXT_COLOR             : color::Rgba = color::Rgba::new(0.0, 0.0, 0.0, 0.7);
-const TRANSPARENT_TEXT_COLOR : color::Rgba = color::Rgba::new(0.0, 0.0, 0.0, 0.4);
 
 /// Project name used as a placeholder in ProjectName view when it's initialized.
 pub const UNKNOWN_PROJECT_NAME:&str = "Unknown";
@@ -174,6 +171,7 @@ pub struct ProjectNameModel {
     animations     : Animations,
     display_object : display::object::Instance,
     view           : component::ShapeView<background::Shape>,
+    scene          : Scene,
     text_field     : TextField,
     project_name   : Rc<RefCell<String>>,
     name_output    : frp::Source<String>,
@@ -187,7 +185,9 @@ impl ProjectNameModel {
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2::new(scene.camera().screen().width,TEXT_SIZE);
-        let base_color            = TRANSPARENT_TEXT_COLOR;
+        let styles                = StyleWatch::new(&scene.style_sheet);
+        let base_color            = styles.get("project_name.text.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.5));
+        let base_color            = color::Rgba::from(base_color);
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
         let text_field            = TextField::new(scene,text_field_properties,focus_manager);
@@ -196,7 +196,8 @@ impl ProjectNameModel {
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let name_output           = frp.outputs.name.clone();
         let animations            = Animations::new(&frp.network);
-        Self{logger,view,display_object,text_field,project_name,name_output,animations}.init()
+        let scene                 = scene.into_param();
+        Self{logger,view,scene,display_object,text_field,project_name,name_output,animations}.init()
     }
 
     fn update_center_alignment(&self) {
@@ -227,7 +228,12 @@ impl ProjectNameModel {
     }
 
     fn set_opacity(&self, value:f32) {
-        let base_color = linear_interpolation(TRANSPARENT_TEXT_COLOR, TEXT_COLOR, value);
+        let styles                = StyleWatch::new(&self.scene.style_sheet);
+        let transparent_color     = styles.get("project_name.text.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.5));
+        let transparent_color     = color::Rgba::from(transparent_color);
+        let text_color            = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        let text_color            = color::Rgba::from(text_color);
+        let base_color = linear_interpolation(transparent_color, text_color, value);
         self.text_field.set_base_color(base_color);
     }
 
