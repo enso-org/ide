@@ -19,8 +19,8 @@ use ast::prelude::FallibleResult;
 // === Constants ===
 // =================
 
-pub const DOC_VIEW_WIDTH  : f32 = 300.0;
-pub const DOC_VIEW_MARGIN : f32 = 15.0;
+pub const VIEW_WIDTH  : f32 = 300.0;
+pub const VIEW_MARGIN : f32 = 15.0;
 
 /// Content in the documentation view when there is no data available.
 const PLACEHOLDER_STR : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
@@ -32,7 +32,7 @@ const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADI
 ///             be included in a codebase, so it will be moved to rust-based generator to achieve
 ///             compatibility with IDE's theme manager.
 ///             Expect them to land with https://github.com/enso-org/ide/issues/709
-pub fn doc_style() -> String {
+pub fn documentation_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
 
@@ -55,26 +55,25 @@ pub struct ViewModel {
 impl ViewModel {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
-        let logger          = Logger::new("DocumentationView");
-        let div             = web::create_div();
-        let dom             = DomSymbol::new(&div);
-        let screen          = scene.camera().screen();
-        let doc_view_height = screen.height - (DOC_VIEW_MARGIN * 2.0);
-        let size_vec        = Vector2(DOC_VIEW_WIDTH,doc_view_height);
-        let size            = Rc::new(Cell::new(size_vec));
+        let logger      = Logger::new("DocumentationView");
+        let div         = web::create_div();
+        let dom         = DomSymbol::new(&div);
+        let screen      = scene.camera().screen();
+        let view_height = screen.height - (VIEW_MARGIN * 2.0);
+        let size_vec    = Vector2(VIEW_WIDTH, view_height);
+        let size        = Rc::new(Cell::new(size_vec));
 
-        dom.dom().set_style_or_warn("white-space"     ,"normal"                        ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                          ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                          ,&logger);
-        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"     ,&logger);
-        dom.dom().set_style_or_warn("padding"         ,"5px"                           ,&logger);
-        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                          ,&logger);
-        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px", CORNER_RADIUS)  ,&logger);
-        dom.dom().set_style_or_warn("width"           ,format!("{}px", DOC_VIEW_WIDTH) ,&logger);
-        dom.dom().set_style_or_warn("height"          ,format!("{}px", doc_view_height),&logger);
+        dom.dom().set_style_or_warn("white-space"     ,"normal"                     ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"  ,&logger);
+        dom.dom().set_style_or_warn("padding"         ,"5px"                        ,&logger);
+        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS),&logger);
+        dom.dom().set_style_or_warn("width"           ,format!("{}px",VIEW_WIDTH)   ,&logger);
+        dom.dom().set_style_or_warn("height"          ,format!("{}px",view_height)  ,&logger);
 
         scene.dom.layers.main.manage(&dom);
-
         ViewModel {logger,dom,size}.init()
     }
 
@@ -101,14 +100,14 @@ impl ViewModel {
     ///              https://github.com/enso-org/enso/issues/1063
     fn prepare_data_string(data_inner:&visualization::Json) -> String {
         let data_str = serde_json::to_string_pretty(&**data_inner);
-        let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
+        let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>",e));
         let data_str = data_str.replace("\\n", "\n");
         data_str.replace("\"", "")
     }
 
     /// Create a container for generated content and embed it with stylesheet.
     fn push_to_dom(&self, content:String) {
-        let data_str = format!(r#"<div class="docVis">{}{}</div>"#, doc_style(), content);
+        let data_str = format!(r#"<div class="docVis">{}{}</div>"#,documentation_style(),content);
         self.dom.dom().set_inner_html(&data_str)
     }
 
@@ -138,7 +137,7 @@ impl ViewModel {
 
     /// Load an HTML file into the documentation view when user is waiting for data to be received.
     /// TODO [MM] : This should be replaced with a EnsoGL spinner in the next PR.
-    fn load_no_doc_screen(&self) {
+    fn load_waiting_screen(&self) {
         let spinner = r#"
         <div>
         <style>
@@ -220,7 +219,7 @@ impl View {
         let network = default();
         let frp     = visualization::instance::Frp::new(&network);
         let model   = ViewModel::new(scene);
-        model.load_no_doc_screen();
+        model.load_waiting_screen();
         Self {model,frp,network} . init()
     }
 

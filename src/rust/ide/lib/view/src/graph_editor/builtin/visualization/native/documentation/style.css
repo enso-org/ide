@@ -1,7 +1,9 @@
 /*
- * TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
- *      This file is undergoing drastic changes.
+ * TODO [MM] : This file is undergoing drastic changes.
  *      Expect them to land with https://github.com/enso-org/ide/issues/709
+ *      This file is currently generated from SASS file, and it is very
+ *      temporary. It will be moved to rust - it will become css generator
+ *      connected with the Theme manager to enable dark mode for documentation.
 */
 
 .docVis {

@@ -156,7 +156,6 @@ impl MockDocGenerator {
     pub fn generate_data(self) -> String {
         let inp_only_doc = r#"
 ##
-   ADDED in 2.0
    Optional values.
 
    Type `Option` represents an optional value: every `Option` is either `Some`

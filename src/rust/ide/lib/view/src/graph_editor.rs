@@ -1115,8 +1115,8 @@ impl GraphEditorModel {
         let screen     = scene.camera().screen();
         let margin     = 10.0;
         project_name.set_position_y(screen.height / 2.0 - margin);
-        let doc_width  = documentation::DOC_VIEW_WIDTH;
-        let doc_margin = documentation::DOC_VIEW_MARGIN;
+        let doc_width  = documentation::VIEW_WIDTH;
+        let doc_margin = documentation::VIEW_MARGIN;
         frp::extend! { network
             eval scene.frp.shape((shape) {
                 doc_view.set_position_x((shape.width - doc_width) / 2.0 - doc_margin);
