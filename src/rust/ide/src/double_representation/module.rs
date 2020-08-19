@@ -566,12 +566,12 @@ pub fn locate_line_with
     locate_child(ast,crumb).map(|child| child.crumb())
 }
 
+/// Locate the definition being the module's direct child.
 pub fn locate_child
 (ast:&known::Module, crumb:&definition::Crumb)
 -> FallibleResult<ChildDefinition> {
     let child = ast.def_iter().find_by_name(&crumb)?;
     Ok(ChildDefinition::try_from(child)?)
-    // TODO can be used below?
 }
 
 /// Traverses the module's definition tree following the given Id crumbs, looking up the definition.

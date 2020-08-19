@@ -99,6 +99,8 @@ pub fn collapse
         // 2) Lines that are extracted and removed -- all selected nodes, except:
         // 3) Line that introduces output of the extracted function (if present at all) -> its
         //    expression shall be replaced with a call to the extracted function.
+        //    If there is no usage of the extracted function output, its invocation should be placed
+        //    in place of the last extracted line.
         let mut node_info = match line.elem.as_ref().and_then(NodeInfo::from_line_ast) {
             Some(node_info) => node_info,
             _               => return false, // We leave lines without nodes (blank lines) intact.
@@ -142,52 +144,89 @@ pub fn collapse
 mod tests {
     use super::*;
 
-    use double_representation::module;
-    use double_representation::definition;
-    use double_representation::graph;
+    use crate::double_representation::graph;
+    use crate::double_representation::module;
     use crate::double_representation::node::NodeInfo;
 
+    struct Fixture {
+        parser:Parser,
+    }
+
+    impl Case {
+        fn run(&self, parser:&Parser) {
+            let ast   = parser.parse_module(&self.initial_method_code, default()).unwrap();
+            let main  = module::locate_child(&ast,&self.refactored_def_name).unwrap();
+            let graph = graph::GraphInfo::from_definition(main.item.clone());
+            let nodes = graph.nodes();
+
+            let selected_nodes = nodes[self.extracted_lines.clone()].iter().map(NodeInfo::id);
+
+            let collapsed = collapse(&graph,selected_nodes,self.introduced_def_name.clone(),parser).unwrap();
+
+            let new_method = collapsed.new_method.ast(0,parser).unwrap();
+            let placement  = module::Placement::Before(self.refactored_def_name.clone());
+            let new_main = &collapsed.updated_definition.ast;
+            println!("Generated method:\n{}",new_method);
+            println!("Updated method:\n{}",new_main);
+            let mut module = module::Info{ast};
+            module.ast = module.ast.set(&main.crumb().into(),new_main.ast().clone()).unwrap();
+            module.add_method(collapsed.new_method,placement,parser).unwrap();
+            println!("Module after refactoring:\n{}",&module.ast);
+
+            assert_eq!(new_method.repr(),self.expected_generated);
+            assert_eq!(new_main.repr(),self.expected_refactored);
+        }
+    }
+
+    struct Case {
+        refactored_name : DefinitionName,
+        introduced_name : DefinitionName,
+        initial_method_code : String,
+        extracted_lines     : Range<usize>,
+        expected_generated  : String,
+        expected_refactored : String
+    }
+
+    impl Case {
+        fn from_lines(initial_method_lines:&[&str], extracted_lines:Range<usize>, expected_generated_lines:&[&str], expected_refactored_lines:&[&str]) -> Case {
+            use crate::test::mock::def_from_lines;;
+            let refactored_name = DefinitionName::new_plain("main");
+            let introduced_name = DefinitionName::new_plain("func1");
+            let initial_method_code = def_from_lines(&refactored_name,initial_method_lines);
+            let expected_generated  = def_from_lines(&introduced_name,expected_generated_lines);
+            let expected_refactored = def_from_lines(&refactored_name,expected_refactored_lines);
+            Case {refactored_name,introduced_name,initial_method_code,extracted_lines,
+                expected_generated,expected_refactored}
+        }
+    }
 
     #[test]
-    fn collapse() {
-        let code = r"main =
+    fn test_collapse() {
+        let introduced_def_name = DefinitionName::new_plain("custom_new");
+        let refactored_def_name = DefinitionName::new_plain("custom_old");
+        let initial_method_code = r"custom_old =
     a = 1
     b = 2
     c = A + B
     d = a + b
-    c + 7";
+    c + 7".to_owned();
+        let extracted_lines = 1..4;
+        let expected_generated = r"custom_new a =
+    b = 2
+    c = A + B
+    d = a + b
+    c".to_owned();
+        let expected_refactored = r"custom_old =
+    a = 1
+    c = custom_new a
+    c + 7".to_owned();
+
 
         let parser = Parser::new_or_panic();
 
-        let module = parser.parse_module(code,default()).unwrap();
-        let mut module = module::Info {ast:module};
+        let case = Case {refactored_def_name,introduced_def_name,initial_method_code,
+            extracted_lines,expected_generated,expected_refactored};
 
-        let main_name = definition::DefinitionName::new_plain("main");
-        let main = module::locate_child(&module.ast,&main_name).unwrap();
-        let graph = graph::GraphInfo::from_definition(main.item.clone());
-        let nodes = graph.nodes();
-
-        let selected_nodes = nodes[1..4].iter().map(NodeInfo::id);
-        let name = DefinitionName::new_plain("func1");
-
-        let collapsed = super::collapse(&graph,selected_nodes,name,&parser).unwrap();
-
-        let new_method = collapsed.new_method.ast(0,&parser).unwrap();
-        let new_main = &collapsed.updated_definition.ast;
-        println!("Generated method:\n{}",new_method);
-        println!("Updated method:\n{}",new_main);
-        module.ast = module.ast.set(&main.crumb().into(),new_main.ast().clone()).unwrap();
-        module.add_method(collapsed.new_method,module::Placement::Before(main_name),&parser).unwrap();
-        println!("Module after refactoring:\n{}",&module.ast);
-
-
-        //dbg!();
-
-        //dbg!(&main);
-
-
-
-
-
+        case.run(&parser);
     }
 }

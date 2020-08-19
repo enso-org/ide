@@ -514,17 +514,14 @@ impl Handle {
         use double_representation::alias_analysis;
         let def   = self.graph_definition_info()?;
         let body  = def.body();
-        let usage = match body.shape() {
-            ast::Shape::Block(_) => alias_analysis::analyze_crumbable(body.item),
-            _ => {
-                if let Some(node) = NodeInfo::from_line_ast(&body) {
-                    alias_analysis::analyze_node(&node)
-                } else {
-                    // Generally speaking - impossible. But if there is no node in the definition
-                    // body, then there is nothing that could use any symbols, so nothing is used.
-                    default()
-                }
-            }
+        let usage = if matches!(body.shape(),ast::Shape::Block(_)) {
+            alias_analysis::analyze_crumbable(body.item)
+        } else if  let Some(node) = NodeInfo::from_line_ast(&body) {
+            alias_analysis::analyze_node(&node)
+        } else {
+            // Generally speaking - impossible. But if there is no node in the definition
+            // body, then there is nothing that could use any symbols, so nothing is used.
+            default()
         };
         Ok(usage.all_identifiers())
     }
@@ -998,6 +995,8 @@ main =
 
         let mut test  = Fixture::set_up();
         let code = r"
+func2 = 454
+
 main =
     a = 10
     b = 20
@@ -1006,7 +1005,9 @@ main =
     a + func1";
 
         let expected_code = "
-func2 a =
+func2 = 454
+
+func3 a =
     b = 20
     c = a + b
     d = c + d
@@ -1014,7 +1015,7 @@ func2 a =
 
 main =
     a = 10
-    c = func2 a
+    c = func3 a
     a + func1";
 
         test.data.code = code.to_owned();
@@ -1028,7 +1029,6 @@ main =
 
     #[test] // TODO make wasm_bindgen_test
     fn collapsing_nodes() {
-
         let mut test  = Fixture::set_up();
         let code = r"
 main =
