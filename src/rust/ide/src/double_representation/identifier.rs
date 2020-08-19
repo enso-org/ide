@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use ast::crumbs::Located;
+use failure::_core::cmp::Ordering;
 
 
 // ==================
@@ -20,6 +21,8 @@ pub struct OperatorCantBeMadeIntoVar(String);
 // === Definition ===
 
 /// Wrapper over an Ast that holds an atomic identifier of any kind.
+///
+/// Comparisons compare the underlying name strings.
 ///
 /// Invariants: can get identifier name, the name is non-empty.
 #[derive(Clone,Debug,Shrinkwrap)]
@@ -51,6 +54,19 @@ impl Identifier {
         }
     }
 }
+
+impl PartialOrd for Identifier {
+    fn partial_cmp(&self, other:&Self) -> Option<Ordering> {
+        self.name().partial_cmp(other.name())
+    }
+}
+
+impl Ord for Identifier {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name().cmp(other.name())
+    }
+}
+
 
 
 // === Implementations ===

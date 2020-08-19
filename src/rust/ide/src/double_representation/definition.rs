@@ -510,7 +510,7 @@ impl ToAdd {
 
     /// The definition's body, i.e. the right-hand side of the primary assignment.
     pub fn body(&self, scope_indent:usize) -> Ast {
-        if self.body_tail.is_empty() {
+        if self.body_tail.is_empty() && !ast::opr::is_assignment(&self.body_head) {
             self.body_head.clone_ref()
         } else {
             let mut block = ast::Block::from_lines(&self.body_head,&self.body_tail);
@@ -573,13 +573,22 @@ mod tests {
         let mut to_add = ToAdd {
             name : DefinitionName::new_method("Main","add"),
             explicit_parameter_names : vec!["arg1".into(), "arg2".into()],
-            body_head : Ast::infix_var("arg1","+","arg2"),
+            body_head : Ast::infix_var("ret","=","arg2"),
             body_tail : default(),
         };
+
+        // First, if we generate definition with single line and it is assignment,
+        // it should be placed in a block of its own.
+        let ast = to_add.ast(4, &parser).unwrap();
+        assert_eq!(ast.repr(), "Main.add arg1 arg2 =\n        ret = arg2");
+
+        // Now the single line body will be non-assignment, so it will be safe to place inline.
+        to_add.body_head = Ast::infix_var("arg1","+","arg2");
         let ast = to_add.ast(4, &parser).unwrap();
         assert_eq!(ast.repr(), "Main.add arg1 arg2 = arg1 + arg2");
-        to_add.body_tail.push(Some(Ast::infix_var("arg1", "-", "arg2")));
 
+        // Having more than a single line always requires a block.
+        to_add.body_tail.push(Some(Ast::infix_var("arg1", "-", "arg2")));
         let ast = to_add.ast(4, &parser).unwrap();
         // Note 8 spaces indents for definition block lines (as the parent scope was at 4).
         // Also, note that there is no space after the definition's assignment operator.

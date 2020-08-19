@@ -1187,7 +1187,12 @@ impl Block<Ast> {
         let empty_lines = Vec::new();
         let first_line  = BlockLine::new(first_line.clone_ref());
         let lines       = tail_lines.iter().cloned().map(BlockLine::new).collect();
-        let is_orphan   = tail_lines.is_empty();
+        // We virtually never want block to be an orphan (i.e. start with a first line attached
+        // to whatever AST was there before). While it may seem tempting to have this for single
+        // line blocks, it does not make sense. If we want expression inline, it shouldn't be a
+        // block at all. Also, having inline expression can play badly when the only line is an
+        // assignment and we want to use block as a definition's body.
+        let is_orphan   = false;
         Block {ty,indent,empty_lines,first_line,lines,is_orphan}
     }
 }

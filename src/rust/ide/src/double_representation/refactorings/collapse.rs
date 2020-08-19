@@ -13,7 +13,7 @@ use crate::double_representation::graph::GraphInfo;
 use parser::Parser;
 use crate::double_representation::connection::{Connection, Endpoint};
 use crate::double_representation::node::NodeInfo;
-
+use wasm_bindgen::__rt::std::collections::BTreeSet;
 
 
 #[derive(Clone,Debug)]
@@ -67,6 +67,7 @@ pub fn collapse
     // We need to have both vector and set -- one keeps the nodes (lines) in order,
     // while the other one allows for a fast lookup.
     let selected_nodes = selected_nodes.into_iter().collect_vec();
+    let last_selected_node = selected_nodes.iter().last().unwrap(); // TODO
     let selected_nodes_set = selected_nodes.iter().copied().collect::<HashSet<_>>();
     let connections    = graph.connections();
     let connections    = ClassifiedConnections::new(&selected_nodes_set,connections);
@@ -75,12 +76,13 @@ pub fn collapse
         // Here it doesn't really matter what endpoint we take (src or dst), as they both
         // should be occurrence of the same variable.
         endpoint_to_identifier(&connection.source)
-    }).collect::<HashSet<_>>();
+    }).collect::<BTreeSet<_>>();
 
     let output_node = connections.outputs.as_ref().map(|output_connection| {
         endpoint_to_node(&output_connection.source)
     });
     let output_node_id = output_node.as_ref().map(NodeInfo::id);
+    let node_to_replace = output_node_id.unwrap_or(*last_selected_node);
 
 
     let return_line : Option<Ast> = connections.outputs.map(|c| endpoint_to_identifier(&c.source).deref().clone());
@@ -107,16 +109,19 @@ pub fn collapse
         };
         let node_id     = node_info.id();
         let is_selected = selected_nodes_set.contains(&node_id);
-        let is_output   = output_node_id.contains(&node_id);
         if !is_selected {
             println!("Leaving {} intact.", node_info.ast());
             false
-        } else if is_output {
+        } else if node_id == node_to_replace {
             let old_ast = node_info.ast().clone_ref();
             let base = to_add.name.ast(&parser).unwrap();
             let args = to_add.explicit_parameter_names.iter().map(Ast::var);
             let invocation = ast::prefix::Chain::new(base,args);
             node_info.set_expression(invocation.into_ast());
+            if output_node_id.is_none() {
+                node_info.clear_pattern()
+            }
+
             let new_ast = node_info.ast().clone_ref();
             println!("Rewriting {} into a call {}.", old_ast, new_ast);
             line.elem = Some(new_ast); // TODO TODO TODO
@@ -148,36 +153,6 @@ mod tests {
     use crate::double_representation::module;
     use crate::double_representation::node::NodeInfo;
 
-    struct Fixture {
-        parser:Parser,
-    }
-
-    impl Case {
-        fn run(&self, parser:&Parser) {
-            let ast   = parser.parse_module(&self.initial_method_code, default()).unwrap();
-            let main  = module::locate_child(&ast,&self.refactored_def_name).unwrap();
-            let graph = graph::GraphInfo::from_definition(main.item.clone());
-            let nodes = graph.nodes();
-
-            let selected_nodes = nodes[self.extracted_lines.clone()].iter().map(NodeInfo::id);
-
-            let collapsed = collapse(&graph,selected_nodes,self.introduced_def_name.clone(),parser).unwrap();
-
-            let new_method = collapsed.new_method.ast(0,parser).unwrap();
-            let placement  = module::Placement::Before(self.refactored_def_name.clone());
-            let new_main = &collapsed.updated_definition.ast;
-            println!("Generated method:\n{}",new_method);
-            println!("Updated method:\n{}",new_main);
-            let mut module = module::Info{ast};
-            module.ast = module.ast.set(&main.crumb().into(),new_main.ast().clone()).unwrap();
-            module.add_method(collapsed.new_method,placement,parser).unwrap();
-            println!("Module after refactoring:\n{}",&module.ast);
-
-            assert_eq!(new_method.repr(),self.expected_generated);
-            assert_eq!(new_main.repr(),self.expected_refactored);
-        }
-    }
-
     struct Case {
         refactored_name : DefinitionName,
         introduced_name : DefinitionName,
@@ -198,19 +173,44 @@ mod tests {
             Case {refactored_name,introduced_name,initial_method_code,extracted_lines,
                 expected_generated,expected_refactored}
         }
+
+        fn run(&self, parser:&Parser) {
+            let ast   = parser.parse_module(&self.initial_method_code, default()).unwrap();
+            let main  = module::locate_child(&ast,&self.refactored_name).unwrap();
+            let graph = graph::GraphInfo::from_definition(main.item.clone());
+            let nodes = graph.nodes();
+
+            let selected_nodes = nodes[self.extracted_lines.clone()].iter().map(NodeInfo::id);
+
+            let collapsed = collapse(&graph,selected_nodes,self.introduced_name.clone(),parser).unwrap();
+
+            let new_method = collapsed.new_method.ast(0,parser).unwrap();
+            let placement  = module::Placement::Before(self.refactored_name.clone());
+            let new_main = &collapsed.updated_definition.ast;
+            println!("Generated method:\n{}",new_method);
+            println!("Updated method:\n{}",new_main);
+            let mut module = module::Info{ast};
+            module.ast = module.ast.set(&main.crumb().into(),new_main.ast().clone()).unwrap();
+            module.add_method(collapsed.new_method,placement,parser).unwrap();
+            println!("Module after refactoring:\n{}",&module.ast);
+
+            assert_eq!(new_method.repr(),self.expected_generated);
+            assert_eq!(new_main.repr(),self.expected_refactored);
+        }
     }
 
     #[test]
     fn test_collapse() {
-        let introduced_def_name = DefinitionName::new_plain("custom_new");
-        let refactored_def_name = DefinitionName::new_plain("custom_old");
+        let parser              = Parser::new_or_panic();
+        let introduced_name = DefinitionName::new_plain("custom_new");
+        let refactored_name = DefinitionName::new_plain("custom_old");
         let initial_method_code = r"custom_old =
     a = 1
     b = 2
     c = A + B
     d = a + b
     c + 7".to_owned();
-        let extracted_lines = 1..4;
+        let extracted_lines    = 1..4;
         let expected_generated = r"custom_new a =
     b = 2
     c = A + B
@@ -221,12 +221,32 @@ mod tests {
     c = custom_new a
     c + 7".to_owned();
 
-
-        let parser = Parser::new_or_panic();
-
-        let case = Case {refactored_def_name,introduced_def_name,initial_method_code,
+        let mut case = Case {refactored_name,introduced_name,initial_method_code,
             extracted_lines,expected_generated,expected_refactored};
-
         case.run(&parser);
+
+
+        // ========================================================================================
+        // Check that refactoring a single assignment line:
+        // 1) Maintains the assignment and the introduced name for the value in the extracted
+        //    method;
+        // 2) That invocation appears in the extracted node's place but has no assignment.
+
+        case.extracted_lines = 3..4;
+        case.expected_generated = r"custom_new a b =
+    d = a + b".to_owned();
+        case.expected_refactored = r"custom_old =
+    a = 1
+    b = 2
+    c = A + B
+    custom_new a b
+    c + 7".to_owned();
+        case.run(&parser);
+
+        // ========================================================================================
+        // Check that refactoring a single non-assignment line:
+        // 1) Maintains the assignment and the introduced name for the value in the extracted
+        //    method;
+        // 2) That invocation appears in the extracted node's place but has no assignment.
     }
 }
