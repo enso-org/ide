@@ -90,7 +90,7 @@ impl ExecutionContext {
     /// Handles the update about expressions being computed.
     pub fn handle_expression_values_computed
     (&self, notification:ExpressionValuesComputed) -> FallibleResult<()> {
-        self.model.computed_value_info_registry.apply_update(notification);
+        self.model.computed_value_info_registry.apply_updates(notification.updates);
         Ok(())
     }
 }
@@ -113,7 +113,7 @@ impl model::execution_context::API for ExecutionContext {
     }
 
     /// Access the registry of computed values information, like types or called method pointers.
-    fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry {
+    fn computed_value_info_registry(&self) -> &Rc<ComputedValueInfoRegistry> {
         &self.model.computed_value_info_registry()
     }
 
@@ -207,6 +207,8 @@ pub mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::execution_context::plain::test::MockData;
+    use crate::model::module::QualifiedName;
     use crate::model::traits::*;
 
     use enso_protocol::language_server::CapabilityRegistration;
@@ -214,9 +216,6 @@ pub mod test {
     use json_rpc::expect_call;
     use utils::test::ExpectTuple;
     use utils::test::stream::StreamTestExt;
-
-    use crate::model::execution_context::plain::test::MockData;
-
 
     #[derive(Debug)]
     pub struct Fixture {
@@ -278,16 +277,17 @@ pub mod test {
         }
 
         /// Generates a mock update for a random expression id.
+        ///
+        /// It will set the typename of the expression to mock typename.
         pub fn mock_expression_value_update() -> language_server::ExpressionValueUpdate {
-            language_server::ExpressionValueUpdate {
-                id          : model::execution_context::ExpressionId::new_v4(),
-                typename    : Some("typename".into()),
-                short_value : None,
-                method_call : None,
-            }
+            use enso_protocol::language_server::types::test::value_update_with_type;
+            let expression_id = model::execution_context::ExpressionId::new_v4();
+            value_update_with_type(expression_id,crate::test::mock::data::TYPE_NAME)
         }
 
         /// Generates a mock update for a single expression.
+        ///
+        /// The updated expression id will be random. The typename will be mock typename.
         pub fn mock_values_computed_update(data:&MockData) -> ExpressionValuesComputed {
             ExpressionValuesComputed {
                 context_id : data.context_id,
@@ -299,8 +299,10 @@ pub mod test {
     #[test]
     fn creating_context() {
         let f = Fixture::new();
-        assert_eq!(f.data.context_id      , f.context.id);
-        assert_eq!(f.data.module_path     , f.context.model.entry_point.file);
+        assert_eq!(f.data.context_id, f.context.id);
+        let name_in_data      = f.data.module_qualified_name();
+        let name_in_ctx_model = QualifiedName::try_from(&f.context.model.entry_point);
+        assert_eq!(name_in_data, name_in_ctx_model.unwrap());
         assert_eq!(Vec::<LocalCall>::new(), f.context.model.stack_items().collect_vec());
     }
 

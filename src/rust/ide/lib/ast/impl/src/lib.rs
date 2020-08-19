@@ -499,12 +499,16 @@ pub enum Shape<T> {
                   , paths    : Tree<Ast, Unit>                         },
 
     // === Spaceless AST ===
-    Comment       (Comment),
-    Import        (Import<T>),
-    Mixfix        (Mixfix<T>),
-    Group         (Group<T>),
-    Def           (Def<T>),
-    Foreign       (Foreign),
+    Comment        (Comment),
+    Import         (Import<T>),
+    JavaImport     (JavaImport<T>),
+    Mixfix         (Mixfix<T>),
+    Group          (Group<T>),
+    SequenceLiteral(SequenceLiteral<T>),
+    TypesetLiteral (TypesetLiteral<T>),
+    Def            (Def<T>),
+    Foreign        (Foreign),
+    Modified       (Modified<T>),
 }
 
 /// Macrot that calls its argument (possibly other macro
@@ -756,6 +760,10 @@ pub enum MacroPatternMatchRaw<T> {
     pub path:T
 }
 
+#[ast] pub struct JavaImport<T> {
+    pub path:Vec<T>,
+}
+
 #[ast] pub struct Mixfix<T> {
     pub name: Vec<T>,
     pub args: Vec<T>,
@@ -763,6 +771,14 @@ pub enum MacroPatternMatchRaw<T> {
 
 #[ast] pub struct Group<T> {
     pub body: Option<T>,
+}
+
+#[ast] pub struct SequenceLiteral<T> {
+    pub items:Vec<T>,
+}
+
+#[ast] pub struct TypesetLiteral<T> {
+    pub expression:Option<T>,
 }
 
 #[ast] pub struct Def<T> {
@@ -775,6 +791,11 @@ pub enum MacroPatternMatchRaw<T> {
     pub indent : usize,
     pub lang   : String,
     pub code   : Vec<String>
+}
+
+#[ast] pub struct Modified<T> {
+    pub modifier:String,
+    pub definition:T,
 }
 
 
@@ -1155,14 +1176,17 @@ impl <T> Block<T> {
 }
 
 impl Block<Ast> {
-    /// Creates block from given line ASTs. There is no leading AST (it is orphan block).
+    /// Create a block from given line ASTs.
+    ///
+    /// If there are no tail lines, the first line will be "inline" and the whole block.
+    /// If there are tail lines, block will be leaded with a newline.
     pub fn from_lines(first_line:&Ast, tail_lines:&[Option<Ast>]) -> Block<Ast> {
         let ty          = BlockType::Discontinuous {};
         let indent      = 0;
         let empty_lines = Vec::new();
         let first_line  = BlockLine::new(first_line.clone_ref());
         let lines       = tail_lines.iter().cloned().map(BlockLine::new).collect();
-        let is_orphan   = true;
+        let is_orphan   = tail_lines.is_empty();
         Block {ty,indent,empty_lines,first_line,lines,is_orphan}
     }
 }

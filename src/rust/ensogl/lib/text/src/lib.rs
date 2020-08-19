@@ -83,15 +83,17 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
+#![recursion_limit="512"]
+
 pub mod buffer;
 pub mod component;
 pub mod typeface;
 
 /// Commonly used types and functions.
 pub mod prelude {
-    pub use ensogl::prelude::*;
+    pub use ensogl_core::prelude::*;
 }
 
 pub use buffer::*;
 pub use component::Area;
-pub use ensogl::data;
+pub use ensogl_core::data;

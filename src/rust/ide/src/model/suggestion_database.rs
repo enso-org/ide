@@ -3,14 +3,40 @@
 use crate::prelude::*;
 
 use crate::double_representation::module::QualifiedName;
+use crate::model::module::MethodId;
 
+use data::text::TextLocation;
 use enso_protocol::language_server;
 use language_server::types::SuggestionsDatabaseVersion;
 use language_server::types::SuggestionDatabaseUpdatesEvent;
+use parser::DocParser;
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
-pub use language_server::types::SuggestionEntryId as EntryId;
+pub use language_server::types::SuggestionId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
+use enso_protocol::language_server::SuggestionId;
+
+
+
+// ==============
+// === Errors ===
+// ==============
+
+#[allow(missing_docs)]
+#[derive(Debug,Clone,Copy,Eq,Fail,PartialEq)]
+#[fail(display = "The suggestion with id {} has not been found in the database.", _0)]
+pub struct NoSuchEntry(pub SuggestionId);
+
+#[allow(missing_docs)]
+#[derive(Debug,Fail,Clone)]
+#[fail(display = "Entry named {} does not represent a method.", _0)]
+pub struct NotAMethod(pub String);
+
+#[allow(missing_docs)]
+#[derive(Debug,Fail,Clone)]
+#[fail(display = "Entry named {} is described as method but does not have a `this` parameter.", _0)]
+pub struct MissingThisOnMethod(pub String);
+
 
 
 // =============
@@ -23,6 +49,24 @@ pub use language_server::types::SuggestionsDatabaseUpdate as Update;
 pub enum EntryKind {
     Atom,Function,Local,Method
 }
+
+/// Describes the visibility range of some entry (i.e. identifier available as suggestion).
+///
+/// Methods are visible "Everywhere", as they are imported on a module level, so they are not
+/// specific to any particular span in the module file.
+/// However local variables and local function have limited visibility.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub enum Scope {
+    /// The entry is visible in the whole module where it was defined. It can be also brought to
+    /// other modules by import declarations.
+    Everywhere,
+    /// Local symbol that is visible only in a particular section of the module where it has been
+    /// defined.
+    #[allow(missing_docs)]
+    InModule {range:RangeInclusive<TextLocation>}
+}
+
+
 
 /// The Suggestion Database Entry.
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -42,66 +86,145 @@ pub struct Entry {
     pub documentation : Option<String>,
     /// A type of the "self" argument. This field is `None` for non-method suggestions.
     pub self_type : Option<String>,
+    /// A scope where this suggestion is visible.
+    pub scope : Scope,
 }
 
 impl Entry {
     /// Create entry from the structure deserialized from the Language Server responses.
-    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
+    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry, logger:impl AnyLogger)
+        -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
+        let convert_doc = |doc: Option<String>| doc.and_then(|doc| match Entry::gen_doc(doc) {
+            Ok(d)    => Some(d),
+            Err(err) => {
+                error!(logger,"Doc parser error: {err}");
+                None
+            },
+        });
         let this = match entry {
             Atom {name,module,arguments,return_type,documentation} => Self {
-                name,arguments,return_type,documentation,
-                module    : module.try_into()?,
-                self_type : None,
-                kind      : EntryKind::Atom,
-            },
+                    name,arguments,return_type,
+                    module        : module.try_into()?,
+                    self_type     : None,
+                    documentation : convert_doc(documentation),
+                    kind          : EntryKind::Atom,
+                    scope         : Scope::Everywhere,
+                },
             Method {name,module,arguments,self_type,return_type,documentation} => Self {
-                name,arguments,return_type,documentation,
-                module    : module.try_into()?,
-                self_type : Some(self_type),
-                kind      : EntryKind::Method,
-            },
-            Function {name,module,arguments,return_type,..} => Self {
-                name,arguments,return_type,
-                module        : module.try_into()?,
-                self_type     : None,
-                documentation : default(),
-                kind          : EntryKind::Function,
-            },
-            Local {name,module,return_type,..} => Self {
-                name,return_type,
-                arguments     : default(),
-                module        : module.try_into()?,
-                self_type     : None,
-                documentation : default(),
-                kind          : EntryKind::Local,
-            },
+                    name,arguments,return_type,
+                    module        : module.try_into()?,
+                    self_type     : Some(self_type),
+                    documentation : convert_doc(documentation),
+                    kind          : EntryKind::Method,
+                    scope         : Scope::Everywhere,
+                },
+            Function {name,module,arguments,return_type,scope} => Self {
+                    name,arguments,return_type,
+                    module        : module.try_into()?,
+                    self_type     : None,
+                    documentation : default(),
+                    kind          : EntryKind::Function,
+                    scope         : Scope::InModule {range:scope.into()},
+                },
+            Local {name,module,return_type,scope} => Self {
+                    name,return_type,
+                    arguments     : default(),
+                    module        : module.try_into()?,
+                    self_type     : None,
+                    documentation : default(),
+                    kind          : EntryKind::Local,
+                    scope         : Scope::InModule {range:scope.into()},
+                },
         };
         Ok(this)
     }
 
+    /// Check if this entry has self type same as the given identifier.
+    pub fn has_self_type(&self, self_type:impl AsRef<str>) -> bool {
+        let self_type = self_type.as_ref();
+        self.self_type.as_ref().contains_if(|my_self_type| *my_self_type == self_type)
+    }
+
     /// Returns the code which should be inserted to Searcher input when suggestion is picked.
-    pub fn code_to_insert(&self) -> String {
-        let module = self.module.name();
-        if self.self_type.as_ref().contains(&module) {
-            format!("{}.{}",module,self.name)
+    pub fn code_to_insert(&self, this_var:Option<&str>) -> String {
+        let module_name = self.module.name();
+        if self.has_self_type(&module_name) {
+            format!("{}.{}",this_var.unwrap_or(module_name),self.name)
         } else if self.self_type.as_ref().contains(&constants::keywords::HERE) {
+            // TODO [mwu] When this happens? The *type* likely should not be "here".
             format!("{}.{}",constants::keywords::HERE,self.name)
+        } else if let Some(this_var) = this_var {
+            format!("{}.{}",this_var,self.name)
         } else {
             self.name.clone()
         }
     }
 
-    /// Returns entry with the changed name.
-    pub fn with_name(self, name:impl Into<String>) -> Self {
-        Self {name:name.into(),..self}
+    /// Return the Method Id of suggested method.
+    ///
+    /// Returns none, if this is not suggestion for a method.
+    pub fn method_id(&self) -> Option<MethodId> {
+        if self.kind != EntryKind::Method {
+            None
+        } else if let Some(self_type) = &self.self_type {
+            Some(MethodId {
+                module          : self.module.clone(),
+                defined_on_type : self_type.clone(),
+                name            : self.name.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Checks if entry is visible at given location in a specific module.
+    pub fn is_visible_at(&self, module:&QualifiedName, location:TextLocation) -> bool {
+        match &self.scope {
+            Scope::Everywhere         => true,
+            Scope::InModule   {range} => self.module == *module && range.contains(&location),
+        }
+    }
+
+    /// Checks if entry name matches the given name. The matching is case-insensitive.
+    pub fn matches_name(&self, name:impl Str) -> bool {
+        self.name.to_lowercase() == name.as_ref().to_lowercase()
+    }
+
+    /// Generates HTML documentation for documented suggestion.
+    fn gen_doc(doc: String) -> FallibleResult<String> {
+        let parser = DocParser::new()?;
+        let output = parser.generate_html_doc_pure(doc);
+        Ok(output?)
     }
 }
 
 impl TryFrom<language_server::types::SuggestionEntry> for Entry {
     type Error = failure::Error;
     fn try_from(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
-        Self::from_ls_entry(entry)
+        let logger = Logger::new("SuggestionEntry");
+        Self::from_ls_entry(entry, logger)
+    }
+}
+
+impl TryFrom<&Entry> for language_server::MethodPointer {
+    type Error = failure::Error;
+    fn try_from(entry:&Entry) -> FallibleResult<Self> {
+        (entry.kind==EntryKind::Method).ok_or_else(|| NotAMethod(entry.name.clone()))?;
+        let missing_this_err = || MissingThisOnMethod(entry.name.clone());
+        let defined_on_type  = entry.self_type.clone().ok_or_else(missing_this_err)?;
+        Ok(language_server::MethodPointer {
+            defined_on_type,
+            module : entry.module.to_string(),
+            name   : entry.name.clone(),
+        })
+    }
+}
+
+impl TryFrom<Entry> for language_server::MethodPointer {
+    type Error = failure::Error;
+    fn try_from(entry:Entry) -> FallibleResult<Self> {
+        language_server::MethodPointer::try_from(&entry)
     }
 }
 
@@ -138,7 +261,8 @@ impl SuggestionDatabase {
         let mut entries = HashMap::new();
         for ls_entry in response.entries {
             let id = ls_entry.id;
-            match Entry::from_ls_entry(ls_entry.suggestion) {
+            let logger_entry = Logger::new("SuggestionEntry");
+            match Entry::from_ls_entry(ls_entry.suggestion, logger_entry) {
                 Ok(entry) => { entries.insert(id, Rc::new(entry)); },
                 Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); },
             }
@@ -151,8 +275,8 @@ impl SuggestionDatabase {
     }
 
     /// Get suggestion entry by id.
-    pub fn get(&self, id:EntryId) -> Option<Rc<Entry>> {
-        self.entries.borrow().get(&id).cloned()
+    pub fn lookup(&self, id:EntryId) -> Result<Rc<Entry>,NoSuchEntry> {
+        self.entries.borrow().get(&id).cloned().ok_or(NoSuchEntry(id))
     }
 
     /// Apply the update event to the database.
@@ -183,6 +307,48 @@ impl SuggestionDatabase {
         self.version.set(event.current_version);
     }
 
+
+    /// Look up given id in the suggestion database and if it is a known method obtain a pointer to
+    /// it.
+    pub fn lookup_method_ptr
+    (&self, id:SuggestionId) -> FallibleResult<language_server::MethodPointer> {
+        let entry = self.lookup(id)?;
+        Ok(language_server::MethodPointer::try_from(entry.as_ref())?)
+    }
+
+    /// Search the database for an entry of method identified by given id.
+    pub fn lookup_method(&self, id:MethodId) -> Option<Rc<Entry>> {
+        self.entries.borrow().values().cloned().find(|entry| entry.method_id().contains(&id))
+    }
+
+    /// Search the database for entries with given name and visible at given location in module.
+    pub fn lookup_by_name_and_location
+    (&self, name:impl Str, module:&QualifiedName, location:TextLocation) -> Vec<Rc<Entry>> {
+        self.entries.borrow().values().filter(|entry| {
+            entry.matches_name(name.as_ref()) && entry.is_visible_at(module,location)
+        }).cloned().collect()
+    }
+
+    /// Search the database for Local or Function entries with given name and visible at given
+    /// location in module.
+    pub fn lookup_locals_by_name_and_location
+    (&self, name:impl Str, module:&QualifiedName, location:TextLocation) -> Vec<Rc<Entry>> {
+        self.entries.borrow().values().cloned().filter(|entry| {
+            let is_local = entry.kind == EntryKind::Function || entry.kind == EntryKind::Local;
+            is_local && entry.matches_name(name.as_ref()) && entry.is_visible_at(module,location)
+        }).collect()
+    }
+
+    /// Search the database for Method entry with given name and defined for given module.
+    pub fn lookup_module_method
+    (&self, name:impl Str, module:&QualifiedName) -> Option<Rc<Entry>> {
+        self.entries.borrow().values().cloned().find(|entry| {
+            let is_method             = entry.kind == EntryKind::Method;
+            let is_defined_for_module = entry.has_self_type(module.name());
+            is_method && is_defined_for_module && entry.matches_name(name.as_ref())
+        })
+    }
+
     /// Put the entry to the database. Using this function likely break the synchronization between
     /// Language Server and IDE, and should be used only in tests.
     #[cfg(test)]
@@ -208,6 +374,12 @@ mod test {
     use super::*;
 
     use enso_protocol::language_server::SuggestionsDatabaseEntry;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+
+
+    wasm_bindgen_test_configure!(run_in_browser);
 
 
 
@@ -221,7 +393,8 @@ mod test {
             arguments     : vec![],
             return_type   : "Number".to_string(),
             documentation : None,
-            self_type     : None
+            self_type     : None,
+            scope         : Scope::Everywhere,
         };
         let method_entry = Entry {
             name      : "method".to_string(),
@@ -235,12 +408,45 @@ mod test {
             ..method_entry.clone()
         };
 
-        assert_eq!(atom_entry.code_to_insert()         , "Atom".to_string());
-        assert_eq!(method_entry.code_to_insert()       , "method".to_string());
-        assert_eq!(module_method_entry.code_to_insert(), "Main.moduleMethod".to_string());
+        let this_var = None;
+        assert_eq!(atom_entry.code_to_insert(this_var)         , "Atom");
+        assert_eq!(method_entry.code_to_insert(this_var)       , "method");
+        assert_eq!(module_method_entry.code_to_insert(this_var), "Main.moduleMethod");
+
+        let this_var = Some("var");
+        assert_eq!(atom_entry.code_to_insert(this_var)         , "var.Atom");
+        assert_eq!(method_entry.code_to_insert(this_var)       , "var.method");
+        assert_eq!(module_method_entry.code_to_insert(this_var), "var.moduleMethod");
     }
 
     #[test]
+    fn method_id_from_entry() {
+        let non_method = Entry {
+            name          : "function".to_string(),
+            kind          : EntryKind::Function,
+            module        : "Test.Test".to_string().try_into().unwrap(),
+            arguments     : vec![],
+            return_type   : "Number".to_string(),
+            documentation : None,
+            self_type     : None,
+            scope         : Scope::Everywhere,
+        };
+        let method = Entry {
+            name      : "method".to_string(),
+            kind      : EntryKind::Method,
+            self_type : Some("Number".to_string()),
+            ..non_method.clone()
+        };
+        let expected = MethodId {
+            module          : "Test.Test".to_string().try_into().unwrap(),
+            defined_on_type : "Number".to_string(),
+            name            : "method".to_string()
+        };
+        assert_eq!(non_method.method_id() , None);
+        assert_eq!(method.method_id()     , Some(expected));
+    }
+
+    #[wasm_bindgen_test]
     fn initialize_database() {
         // Empty db
         let response = language_server::response::GetSuggestionDatabase {
@@ -257,7 +463,7 @@ mod test {
             module        : "TestProject.TestModule".to_string(),
             arguments     : vec![],
             return_type   : "TestAtom".to_string(),
-            documentation : None
+            documentation : Some("Test *Atom*".to_string())
         };
         let db_entry = SuggestionsDatabaseEntry {id:12, suggestion:entry};
         let response = language_server::response::GetSuggestionDatabase {
@@ -265,8 +471,14 @@ mod test {
             current_version : 456
         };
         let db = SuggestionDatabase::from_ls_response(response);
+        let response_doc =
+            "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"UTF-8\" \
+            /><link rel=\"stylesheet\" href=\"style.css\" /><title></title></head><body><div class=\
+            \"Doc\"><div class=\"Synopsis\"><div class=\"Raw\">Test <b>Atom</b></div></div></div>\
+            </body></html>";
         assert_eq!(db.entries.borrow().len(), 1);
-        assert_eq!(*db.get(12).unwrap().name, "TextAtom".to_string());
+        assert_eq!(*db.lookup(12).unwrap().name, "TextAtom".to_string());
+        assert_eq!(db.lookup(12).unwrap().documentation, Some(response_doc.to_string()));
         assert_eq!(db.version.get(), 456);
     }
 
@@ -309,8 +521,8 @@ mod test {
             current_version : 2
         };
         db.apply_update_event(update);
-        assert_eq!(db.get(2),        None);
-        assert_eq!(db.version.get(), 2   );
+        assert_eq!(db.lookup(2), Err(NoSuchEntry(2)));
+        assert_eq!(db.version.get(), 2);
 
         // Add
         let add_update = Update::Add {id:2, suggestion:new_entry2};
@@ -319,7 +531,7 @@ mod test {
             current_version : 3,
         };
         db.apply_update_event(update);
-        assert_eq!(db.get(2).unwrap().name, "NewEntry2");
-        assert_eq!(db.version.get(),        3          );
+        assert_eq!(db.lookup(2).unwrap().name, "NewEntry2");
+        assert_eq!(db.version.get(), 3);
     }
 }

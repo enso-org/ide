@@ -155,11 +155,10 @@ pub struct ExecutionFailed {
 #[allow(missing_docs)]
 #[serde(rename_all="camelCase")]
 pub struct ExpressionValueUpdate {
-    pub id          : ExpressionId,
+    pub expression_id  : ExpressionId,
     #[serde(rename = "type")] // To avoid collision with the `type` keyword.
-    pub typename    : Option<String>,
-    pub short_value : Option<String>,
-    pub method_call : Option<MethodPointer>,
+    pub typename       : Option<String>,
+    pub method_pointer : Option<SuggestionId>,
 }
 
 
@@ -387,7 +386,7 @@ pub struct VisualisationConfiguration {
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct LocalCall {
-    pub expression_id: ExpressionId
+    pub expression_id:ExpressionId
 }
 
 /// Points to a method definition.
@@ -395,9 +394,10 @@ pub struct LocalCall {
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct MethodPointer {
-    pub file: Path,
-    pub defined_on_type: String,
-    pub name: String
+    /// The fully qualified module name.
+    pub module          : String,
+    pub defined_on_type : String,
+    pub name            : String
 }
 
 /// Used for entering a method. The first item on the execution context stack should always be
@@ -500,7 +500,7 @@ pub enum RegisterOptions {
 // ===========================
 
 /// The identifier of SuggestionEntry in SuggestionDatabase.
-pub type SuggestionEntryId = usize;
+pub type SuggestionId = usize;
 
 /// The version of Suggestion Database.
 pub type SuggestionsDatabaseVersion = usize;
@@ -510,13 +510,13 @@ pub type SuggestionsDatabaseVersion = usize;
 #[serde(rename_all="camelCase")]
 pub struct SuggestionEntryArgument {
     /// The argument name.
-    pub name: String,
+    pub name:String,
     /// The argument type. String 'Any' is used to specify generic types.
-    pub repr_type: String,
+    pub repr_type:String,
     /// Indicates whether the argument is lazy.
-    pub is_suspended: bool,
+    pub is_suspended:bool,
     /// Optional default value.
-    pub default_value: Option<String>,
+    pub default_value:Option<String>,
 }
 
 /// The definition scope. The start and end are chars indices.
@@ -527,6 +527,17 @@ pub struct SuggestionEntryScope {
     pub start : Position,
     pub end   : Position,
 }
+
+impls!{ From + &From <RangeInclusive<data::text::TextLocation>> for SuggestionEntryScope { |range|
+    SuggestionEntryScope {
+        start : range.start().into(),
+        end   : range.end().into(),
+    }
+}}
+
+impls!{ Into + &Into <RangeInclusive<data::text::TextLocation>> for SuggestionEntryScope { |this|
+    this.start.into()..=this.end.into()
+}}
 
 /// A type of suggestion entry.
 #[derive(Hash,Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
@@ -591,7 +602,7 @@ impl SuggestionEntry {
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionsDatabaseEntry {
-    pub id         : SuggestionEntryId,
+    pub id         : SuggestionId,
     pub suggestion : SuggestionEntry,
 }
 
@@ -607,16 +618,16 @@ pub enum SuggestionsDatabaseUpdateKind {Add,Update,Delete}
 pub enum SuggestionsDatabaseUpdate {
     #[serde(rename_all="camelCase")]
     Add {
-        id         : SuggestionEntryId,
+        id         : SuggestionId,
         suggestion : SuggestionEntry,
     },
     #[serde(rename_all="camelCase")]
     Remove {
-        id : SuggestionEntryId,
+        id : SuggestionId,
     },
     #[serde(rename_all="camelCase")]
     Modify {
-        id          : SuggestionEntryId,
+        id          : SuggestionId,
         return_type : String,
     }
 }
@@ -628,4 +639,21 @@ pub enum SuggestionsDatabaseUpdate {
 pub struct SuggestionDatabaseUpdatesEvent {
     pub updates         : Vec<SuggestionsDatabaseUpdate>,
     pub current_version : SuggestionsDatabaseVersion,
+}
+
+/// Utilities for testing code using the LS types.
+pub mod test {
+    use super::*;
+
+    use crate::language_server::ExpressionId;
+
+    /// Generate `ExpressionValueUpdate` with update for a single expression bringing only the
+    /// typename.
+    pub fn value_update_with_type(id:ExpressionId, typename:impl Into<String>) -> ExpressionValueUpdate {
+        ExpressionValueUpdate {
+            expression_id  : id,
+            typename       : Some(typename.into()),
+            method_pointer : None,
+        }
+    }
 }

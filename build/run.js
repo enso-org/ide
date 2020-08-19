@@ -75,6 +75,7 @@ function command(docs) {
 // === Commands ===
 // ================
 
+const DEFAULT_CRATE = 'ide'
 let commands = {}
 
 
@@ -104,14 +105,22 @@ commands.check.rust = async function() {
 // === Build ===
 
 commands.build = command(`Build the sources in release mode`)
+commands.build.options = {
+    'crate': {
+        describe : 'Target crate to build',
+        type     : 'string',
+    }
+}
 commands.build.js = async function() {
     console.log(`Building JS target.`)
     await run('npm',['run','build'])
 }
 
 commands.build.rust = async function(argv) {
-    console.log(`Building WASM target.`)
-    let args = ['build','--target','web','--no-typescript','--out-dir',paths.dist.wasm.root,'ide']
+    let crate     = argv.crate || DEFAULT_CRATE
+    let crate_sfx = crate ? ` '${crate}'` : ``
+    console.log(`Building WASM target${crate_sfx}.`)
+    let args = ['build','--target','web','--no-typescript','--out-dir',paths.dist.wasm.root,'--out-name','ide',crate]
     if (argv.dev) { args.push('--dev') }
     await run_cargo('wasm-pack',args)
     await patch_file(paths.dist.wasm.glue, js_workaround_patcher)
@@ -127,7 +136,7 @@ commands.build.rust = async function(argv) {
 
         console.log('Checking the resulting WASM size.')
         let stats = fss.statSync(paths.dist.wasm.mainOptGz)
-        let limit = 3.64
+        let limit = 3.75
         let size = Math.round(100 * stats.size / 1024 / 1024) / 100
         if (size > limit) {
             throw(`Output file size exceeds the limit (${size}MB > ${limit}MB).`)
@@ -195,11 +204,15 @@ commands.lint.rust = async function() {
 
 // === Watch ===
 
-commands.watch = command(`Start a file-watch utility and run interactive mode`)
+commands.watch          = command(`Start a file-watch utility and run interactive mode`)
+commands.watch.options  = Object.assign({},commands.build.options)
 commands.watch.parallel = true
-commands.watch.rust = async function() {
-    let target = '"' + `node ${paths.script.main} build --no-js --dev -- ` + cargoArgs.join(" ") + '"'
-    let args   = ['watch','-s',`${target}`]
+commands.watch.rust = async function(argv) {
+    let build_args = []
+    if (argv.crate != undefined) { build_args.push(`--crate=${argv.crate}`) }
+    build_args  = build_args.join(' ')
+    let target  = '"' + `node ${paths.script.main} build --no-js --dev ${build_args} -- ` + cargoArgs.join(" ") + '"'
+    let args    = ['watch','-s',`${target}`]
     await cmd.with_cwd(paths.rust.root, async () => {
         await cmd.run('cargo',args)
     })
@@ -272,6 +285,12 @@ commandList.sort()
 for (let command of commandList) {
     let config = commands[command]
     optParser.command(command,config.docs,(args) => {
+        for (let option in config.options) {
+            args.options(option,config.options[option])
+        }
+        for (let arg in config.args) {
+            args.positional(arg,config.args[arg])
+        }
         args.options('native', {
             describe : 'Run native tests',
             type     : 'bool',

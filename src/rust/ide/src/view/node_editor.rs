@@ -215,6 +215,8 @@ impl GraphEditorIntegratedWithController {
             GraphEditorIntegratedWithControllerModel::connection_removed_in_ui,&invalidate.trigger);
         let node_moved = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_moved_in_ui,&invalidate.trigger);
+        let node_expression_set = Self::ui_action(&model,
+            GraphEditorIntegratedWithControllerModel::node_expression_set_in_ui,&invalidate.trigger);
         let visualization_enabled = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::visualization_enabled_in_ui,
             &invalidate.trigger);
@@ -239,6 +241,7 @@ impl GraphEditorIntegratedWithController {
             _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
             _action <- editor_outs.connection_removed       .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
+            _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
         }
         Self::connect_frp_to_controller_notifications(&model,handle_notification.trigger);
         Self {model,network}
@@ -380,7 +383,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let displayed_id = self.editor.add_node();
         self.refresh_node_view(displayed_id, info, trees);
         // If position wasn't present in metadata, we must initialize it.
-        if info.metadata.and_then(|md| md.position).is_none() {
+        if info.metadata.as_ref().and_then(|md| md.position).is_none() {
             self.editor.frp.inputs.set_node_position.emit_event(&(displayed_id,default_pos));
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
@@ -419,12 +422,20 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn refresh_node_view
     (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
-        let position = node.metadata.and_then(|md| md.position);
+        let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
             self.editor.frp.inputs.set_node_position.emit_event(&(id,position.vector));
         }
         let expression = node.info.expression().repr();
-        if Some(&expression) != self.expression_views.borrow().get(&id) {
+        let expression_changed = with(self.expression_views.borrow(), |expression_views| {
+            let expression_view = expression_views.get(&id);
+            // The node expression will newer contain spaces at the both ends, however user could
+            // decide to put some in node's edited expression; thus we should not eagerly remove
+            // those spaces.
+            let trimmed_view    = expression_view.map(|e| e.trim());
+            !trimmed_view.contains(&expression)
+        });
+        if expression_changed {
             let code_and_trees = graph_editor::component::node::port::Expression {
                 code             : expression.clone(),
                 input_span_tree  : trees.inputs,
@@ -437,7 +448,7 @@ impl GraphEditorIntegratedWithControllerModel {
             // sub-parts).
             for expression_part in node.info.expression().iter_recursive() {
                 if let Some(id) = expression_part.id {
-                    self.refresh_computed_info(id)
+                    self.refresh_computed_info(id);
                 }
             }
         }
@@ -461,16 +472,23 @@ impl GraphEditorIntegratedWithControllerModel {
         let info     = self.lookup_computed_info(&id);
         let info     = info.as_ref();
         let typename = info.and_then(|info| info.typename.clone().map(graph_editor::Type));
-        self.set_type(id,typename);
-        let method_pointer = info.and_then(|info| {
-            info.method_pointer.clone().map(graph_editor::MethodPointer)
-        });
-        self.set_method_pointer(id,method_pointer);
+        if let Some(node_id) = self.node_views.borrow().get_by_left(&id).cloned() {
+            self.set_type(node_id,id,typename);
+            let method_pointer = info.and_then(|info| {
+                info.method_call.and_then(|entry_id| {
+                    let opt_method = self.project.suggestion_db().lookup_method_ptr(entry_id).ok();
+                    opt_method.map(|method| graph_editor::MethodPointer(Rc::new(method)))
+                })
+            });
+            self.set_method_pointer(id,method_pointer);
+        } else {
+            debug!(self.logger, "Failed to get `NodeId` for ID: {id:?}.");
+        }
     }
 
     /// Set given type (or lack of such) on the given sub-expression.
-    fn set_type(&self, id:ExpressionId, typename:Option<graph_editor::Type>) {
-        let event = (id,typename);
+    fn set_type(&self, node_id:graph_editor::NodeId, id:ExpressionId, typename:Option<graph_editor::Type>) {
+        let event = (node_id,id,typename);
         self.editor.frp.inputs.set_expression_type.emit_event(&event);
     }
 
@@ -573,6 +591,7 @@ impl GraphEditorIntegratedWithControllerModel {
         use controller::graph::executed::Notification;
         use controller::graph::Notification::Invalidate;
 
+        debug!(self.logger, "Received notification {notification:?}");
         let result = match notification {
             Some(Notification::Graph(Invalidate))         => self.on_invalidated(),
             Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
@@ -606,13 +625,20 @@ impl GraphEditorIntegratedWithControllerModel {
         Ok(())
     }
 
-    fn node_moved_in_ui(&self, param:&(graph_editor::NodeId, Vector2)) -> FallibleResult<()> {
-        let (displayed_id,pos) = param;
+    fn node_moved_in_ui
+    (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult<()> {
         let id                 = self.get_controller_node_id(*displayed_id)?;
         self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
             md.position = Some(model::module::Position::new(pos.x,pos.y));
         }));
         Ok(())
+    }
+
+    fn node_expression_set_in_ui
+    (&self, (displayed_id,expression):&(graph_editor::NodeId,String)) -> FallibleResult<()> {
+        let id                 = self.get_controller_node_id(*displayed_id)?;
+        self.expression_views.borrow_mut().insert(*displayed_id,expression.clone());
+        self.controller.graph().set_expression(id,expression)
     }
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
@@ -857,6 +883,17 @@ impl NodeEditor {
         }
         info!(self.logger, "Initialized.");
         Ok(self)
+    }
+
+    /// Get ids of the nodes selected in the editor.
+    ///
+    /// They shall be ordered by the order of the selecting. Node selected as first shall be at
+    /// the beginning.
+    pub fn selected_nodes(&self) -> FallibleResult<Vec<ast::Id>> {
+        let node_view_ids = self.graph.model.editor.selected_nodes().into_iter();
+        let node_ids      = node_view_ids.map(|id| self.graph.model.get_controller_node_id(id));
+        let node_ids : Result<Vec<_>,_> = node_ids.collect();
+        node_ids.map_err(Into::into)
     }
 }
 

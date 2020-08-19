@@ -13,7 +13,6 @@ use crate::graph_editor::LocalCall;
 
 use enso_frp as frp;
 use enso_protocol::language_server::MethodPointer;
-use enso_protocol::language_server::types::Path;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::camera::Camera2d;
@@ -373,11 +372,9 @@ impl BreadcrumbsModel {
         let is_new_breadcrumb = local_call.is_none();
         let local_call        = local_call.clone().or_else(|| {
             let defined_on_type = default();
-            let root_id         = default();
-            let segments        = default();
-            let file            = Path{root_id,segments};
+            let module          = default();
             let name            = "Hardcoded".to_string();
-            let method_pointer  = MethodPointer{defined_on_type,file,name};
+            let method_pointer  = MethodPointer{defined_on_type,module,name};
             let definition      = method_pointer.into();
             let call            = uuid::Uuid::new_v4();
             Some(LocalCall{definition,call})

@@ -7,16 +7,16 @@ use super::font;
 use font::GlyphRenderInfo;
 use font::Font;
 
-use ensogl::system::gpu;
-use ensogl::system::gpu::texture;
-use ensogl::system::gpu::types::*;
-use ensogl::data::color::Rgba;
-use ensogl::display;
-use ensogl::display::world::*;
-use ensogl::display::layout::Alignment;
-use ensogl::display::symbol::material::Material;
-use ensogl::display::symbol::shader::builder::CodeTemplate;
-use ensogl::display::scene::Scene;
+use ensogl_core::system::gpu;
+use ensogl_core::system::gpu::texture;
+use ensogl_core::system::gpu::types::*;
+use ensogl_core::data::color::Rgba;
+use ensogl_core::display;
+use ensogl_core::display::world::*;
+use ensogl_core::display::layout::Alignment;
+use ensogl_core::display::symbol::material::Material;
+use ensogl_core::display::symbol::shader::builder::CodeTemplate;
+use ensogl_core::display::scene::Scene;
 
 
 
@@ -52,7 +52,7 @@ impl Glyph {
 
     /// Change the displayed character.
     pub fn set_char(&self, ch:char) {
-        let glyph_info = self.font.get_glyph_info(ch);
+        let glyph_info = self.font.glyph_info(ch);
         self.atlas_index.set(glyph_info.msdf_texture_glyph_id as f32);
         self.update_msdf_texture();
     }
@@ -108,6 +108,11 @@ impl System {
         let symbol        = sprite_system.symbol();
         let texture       = Texture::new(&context,(0,0));
         let mesh          = symbol.surface();
+
+        // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
+        // It needs to be more flexible once we have proper depth management.
+        scene.views.main.remove(&symbol);
+        scene.views.label.add(&symbol);
 
         sprite_system.set_material(Self::material());
         sprite_system.set_alignment(Alignment::bottom_left());

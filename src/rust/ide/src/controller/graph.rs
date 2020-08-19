@@ -290,7 +290,7 @@ pub fn name_for_ast(ast:&Ast) -> String {
         _ => {
             if let Some(infix) = ast::opr::GeneralizedInfix::try_new(ast) {
                 name_for_ast(infix.opr.ast())
-            } else if let Some(prefix) = ast::prefix::Chain::try_new(ast) {
+            } else if let Some(prefix) = ast::prefix::Chain::from_ast(ast) {
                 name_for_ast(&prefix.func)
             } else {
                 "var".into()
@@ -400,10 +400,10 @@ impl EndpointInfo {
 
 /// Handle providing graph controller interface.
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct Handle {
     /// Identifier of the graph accessed through this controller.
     pub id     : Rc<Id>,
-    /// Model of the module which this graph belongs to.
     pub module : model::Module,
     parser     : Parser,
     logger     : Logger,
@@ -437,7 +437,8 @@ impl Handle {
     (parent:impl AnyLogger, project:&model::Project, method:&language_server::MethodPointer)
     -> FallibleResult<controller::Graph> {
         let method      = method.clone();
-        let module_path = model::module::Path::from_file_path(method.file.clone())?;
+        let root_id     = project.content_root_id();
+        let module_path = model::module::Path::from_method(root_id,&method)?;
         let module      = project.module(module_path).await?;
         let module_ast  = module.ast();
         let definition  = double_representation::module::lookup_method(&module_ast,&method)?;
@@ -546,11 +547,16 @@ impl Handle {
     pub fn introduce_name_on(&self, id:node::Id) -> FallibleResult<ast::known::Var> {
         let node = self.node(id)?;
         let name = self.variable_name_for(&node.info)?;
-        self.update_node(id, |mut node| {
-            node.set_pattern(name.ast().clone());
-            node
-        })?;
+        self.set_pattern_on(id,name.ast().clone())?;
         Ok(name)
+    }
+
+    /// Set a new pattern on the node with given id. Discards any previously set pattern.
+    pub fn set_pattern_on(&self, id:node::Id, pattern:Ast) -> FallibleResult<()> {
+        self.update_node(id, |mut node| {
+            node.set_pattern(pattern);
+            node
+        })
     }
 
     /// Obtains information for connection's destination endpoint.
@@ -640,11 +646,17 @@ impl Handle {
         self.set_expression_ast(connection.destination.node, updated_expression)
     }
 
+    /// Obtain the definition information for this graph from the module's AST.
+    pub fn definition(&self) -> FallibleResult<definition::ChildDefinition> {
+        let module_ast = self.module.ast();
+        module::locate(&module_ast, &self.id)
+    }
+
     /// Updates the AST of the definition of this graph.
     pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult<()>
     where F:FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo> {
         let ast_so_far     = self.module.ast();
-        let definition     = module::locate(&ast_so_far, &self.id)?;
+        let definition     = self.definition()?;
         let new_definition = f(definition.item)?;
         info!(self.logger, "Applying graph changes onto definition");
         let new_ast    = new_definition.ast.into();
@@ -820,7 +832,7 @@ pub mod tests {
         }
 
         pub fn method(&self) -> MethodPointer {
-            self.module_path.method_pointer(self.graph_id.to_string())
+            self.module_path.method_pointer(&self.project_name,self.graph_id.to_string())
         }
     }
 
@@ -989,7 +1001,7 @@ main =
             // === Add node ===
             let id       = ast::Id::new_v4();
             let position = Some(model::module::Position::new(10.0,20.0));
-            let metadata = NodeMetadata {position};
+            let metadata = NodeMetadata {position,..default()};
             let info     = NewNodeInfo {
                 expression    : "a+b".into(),
                 metadata      : Some(metadata),

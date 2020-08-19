@@ -53,7 +53,7 @@ pub struct ExecutionContext {
     /// Set of active visualizations.
     visualizations: RefCell<HashMap<VisualizationId,AttachedVisualization>>,
     /// Storage for information about computed values (like their types).
-    pub computed_value_info_registry: ComputedValueInfoRegistry,
+    pub computed_value_info_registry:Rc<ComputedValueInfoRegistry>,
 }
 
 impl ExecutionContext {
@@ -132,7 +132,7 @@ impl model::execution_context::API for ExecutionContext {
         self.visualizations.borrow().keys().copied().collect_vec()
     }
 
-    fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry {
+    fn computed_value_info_registry(&self) -> &Rc<ComputedValueInfoRegistry> {
         &self.computed_value_info_registry
     }
 
@@ -220,7 +220,7 @@ pub mod test {
 
         pub fn main_method_pointer(&self) -> MethodPointer {
             MethodPointer {
-                file            : self.module_path.file_path().clone(),
+                module          : self.module_qualified_name().to_string(),
                 defined_on_type : self.module_path.module_name().to_string(),
                 name            : self.root_definition.to_string(),
             }

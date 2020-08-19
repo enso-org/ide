@@ -144,6 +144,12 @@ impl Handle {
         futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
     }
 
+    /// Get a type of the given expression as soon as it is available.
+    pub fn expression_type(&self, id:ast::Id) -> StaticBoxFuture<Option<ImString>> {
+        let registry = self.execution_ctx.computed_value_info_registry();
+        registry.clone_ref().get_type(id)
+    }
+
     /// Enter node by given node ID and method pointer.
     ///
     /// This will cause pushing a new stack frame to the execution context and changing the graph
@@ -173,7 +179,8 @@ impl Handle {
     (&self, node:double_representation::node::Id) -> FallibleResult<Rc<MethodPointer>> {
         let registry   = self.execution_ctx.computed_value_info_registry();
         let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
-        node_info.method_pointer.as_ref().cloned().ok_or_else(|| NoResolvedMethod(node).into())
+        let entry_id   = *node_info.method_call.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
+        self.project.suggestion_db().lookup_method_ptr(entry_id).map(Rc::new)
     }
 
     /// Enter node by given ID.
@@ -223,8 +230,9 @@ pub mod tests {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::execution_context::synchronized::test::Fixture as ExecutionContextFixture;
+    use crate::model::execution_context::ExpressionId;
 
+    use enso_protocol::language_server::types::test::value_update_with_type;
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -248,11 +256,12 @@ pub mod tests {
             model::project::test::expect_parser(&mut project,&parser);
             model::project::test::expect_module(&mut project,module);
             model::project::test::expect_execution_ctx(&mut project,ctx);
+            // Root ID is needed to generate module path used to get the module.
+            model::project::test::expect_root_id(&mut project,crate::test::mock::data::ROOT_ID);
 
             let project = Rc::new(project);
             Handle::new(Logger::default(),project.clone_ref(),method).boxed_local().expect_ok()
         }
-
     }
 
     // Test that checks that value computed notification is properly relayed by the executed graph.
@@ -268,24 +277,25 @@ pub mod tests {
         let executed_graph = Handle::new_internal(graph,project,execution.clone_ref());
 
         // Generate notification.
-        let notification = ExecutionContextFixture::mock_values_computed_update(&execution_data);
-        let update       = &notification.updates[0];
+        let updated_id = ExpressionId::new_v4();
+        let typename   = crate::test::mock::data::TYPE_NAME;
+        let update     = value_update_with_type(updated_id,typename);
 
         // Notification not yet send.
         let registry          = executed_graph.computed_value_info_registry();
         let mut notifications = executed_graph.subscribe().boxed_local();
         notifications.expect_pending();
-        assert!(registry.get(&update.id).is_none());
+        assert!(registry.get(&updated_id).is_none());
 
         // Sending notification.
-        execution.computed_value_info_registry.apply_update(notification.clone());
+        execution.computed_value_info_registry.apply_updates(vec![update]);
         fixture.run_until_stalled();
 
         // Observing that notification was relayed.
         let observed_notification = notifications.expect_next();
-        let typename_in_registry  = registry.get(&update.id).unwrap().typename.clone();
-        let expected_typename     = update.typename.clone().map(ImString::new);
-        assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![update.id]));
+        let typename_in_registry  = registry.get(&updated_id).unwrap().typename.clone();
+        let expected_typename     = Some(ImString::new(typename));
+        assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![updated_id]));
         assert_eq!(typename_in_registry,expected_typename);
         notifications.expect_pending();
     }
