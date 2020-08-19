@@ -1115,14 +1115,6 @@ impl GraphEditorModel {
         let screen     = scene.camera().screen();
         let margin     = 10.0;
         project_name.set_position_y(screen.height / 2.0 - margin);
-        let documentation_width  = documentation::VIEW_WIDTH;
-        let documentation_margin = documentation::VIEW_MARGIN;
-        frp::extend! { network
-            eval scene.frp.shape((shape) {
-                documentation_view.set_position_x((shape.width - documentation_width) / 2.0 - documentation_margin);
-                documentation_view.frp.set_size.emit(Vector2::new(documentation_width,shape.height - (documentation_margin * 2.0)));
-            });
-        }
         // FIXME: These 2 lines fix a bug with display objects visible on stage.
         //        The same bug appears in `ContainerModel`
         display_object.add_child(&documentation_view);

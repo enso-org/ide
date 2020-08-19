@@ -220,10 +220,10 @@ impl View {
         let frp     = visualization::instance::Frp::new(&network);
         let model   = ViewModel::new(scene);
         model.load_waiting_screen();
-        Self {model,frp,network} . init()
+        Self {model,frp,network} . init(scene)
     }
 
-    fn init(self) -> Self {
+    fn init(self, scene:&Scene) -> Self {
         let network = &self.network;
         let model   = &self.model;
         let frp     = &self.frp;
@@ -234,6 +234,10 @@ impl View {
                     frp.data_receive_error.emit(Some(e));
                 }
              });
+             eval scene.frp.shape([model,frp](shape) {
+                model.dom.set_position_x((shape.width - VIEW_WIDTH) / 2.0 - VIEW_MARGIN);
+                frp.set_size.emit(Vector2::new(VIEW_WIDTH,shape.height - (VIEW_MARGIN * 2.0)));
+            });
         }
         self
     }
