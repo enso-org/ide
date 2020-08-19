@@ -263,7 +263,7 @@ impl ListView {
         let selection_y      = Animation::<f32>::new(&network);
         let selection_height = Animation::<f32>::new(&network);
 
-        frp::extend!{ TRACE_ALL network
+        frp::extend!{ network
 
             // === Mouse Position ===
 

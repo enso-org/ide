@@ -564,13 +564,15 @@ generate_frp_outputs! {
     all_edge_sources_attached  : (),
     all_edges_attached         : (),
 
-    connection_added    : EdgeId,
-    connection_removed  : EdgeId,
+    connection_added   : EdgeId,
+    connection_removed : EdgeId,
 
     visualization_enabled           : NodeId,
     visualization_disabled          : NodeId,
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
+
+    edited_node : Option<NodeId>,
 }
 
 
@@ -1608,8 +1610,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "edit_mode_on")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "edit_mode_off")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                                , "edit_mode_on")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Escape],&[])                              , "edit_mode_off")
              ]
     }
 }
@@ -1759,19 +1761,19 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
         edit_mode    <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
-        node_to_edit <- touch.nodes.selected.gate(&edit_mode);
-        eval node_to_edit ([model](id) {
-            if let Some(node) = model.nodes.get_cloned_ref(id) {
-                node.ports.frp.start_edit_mode.emit(());
-            }
-        });
-
-        let stop_editing = touch.background.selected.clone_ref(); // FIXME: add other cases like node select.
-        _eval <- stop_editing.map2(&node_to_edit,f!([model](_,id) {
-            if let Some(node) = model.nodes.get_cloned_ref(id) {
+        outputs.edited_node  <+ all_with(&edit_mode, &touch.nodes.selected, f!([](edit_mode,node) {
+            edit_mode.and_option(Some(*node))
+        }));
+        previous_edited_node <- any(...);
+        _eval <- outputs.edited_node.map2(&previous_edited_node, f!([model](id,prev_id:&Option<NodeId>) {
+            if let Some(node) = prev_id.and_then(|id| model.nodes.get_cloned_ref(&id)) {
                 node.ports.frp.stop_edit_mode.emit(());
             }
+            if let Some(node) = id.and_then(|id| model.nodes.get_cloned_ref(&id)) {
+                node.ports.frp.start_edit_mode.emit(());
+            }
         }));
+        previous_edited_node <+ outputs.edited_node;
     }
 
 

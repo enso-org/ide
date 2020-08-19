@@ -3,8 +3,9 @@
 use crate::prelude::*;
 
 use crate::documentation;
-use crate::graph_editor::GraphEditor;
+use crate::graph_editor::{GraphEditor, NodeId};
 use crate::graph_editor::component::visualization;
+use crate::searcher;
 
 use enso_frp as frp;
 use ensogl::application;
@@ -12,6 +13,7 @@ use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
 use ensogl::display::shape::*;
+use ensogl_gui_list_view as list_view;
 
 
 #[derive(Clone,CloneRef,Debug)]
@@ -19,6 +21,7 @@ struct Model {
     logger         : Logger,
     display_object : display::object::Instance,
     graph_editor   : GraphEditor,
+    searcher       : searcher::View,
     documentation  : documentation::View,
     //TODO[ao] This view should contain also Text Editor; it should be moved here during refactoring
     // planned in task https://github.com/enso-org/ide/issues/597
@@ -30,11 +33,15 @@ impl Model {
         let logger         = Logger::new("project::View");
         let display_object = display::object::Instance::new(&logger);
         let graph_editor   = app.new_view::<GraphEditor>();
+        let searcher       = searcher::View::new(app);
         let documentation  = documentation::View::new(&scene);
         display_object.add_child(&graph_editor);
         display_object.add_child(&documentation);
         display_object.remove_child(&documentation);
-        Self{logger,display_object,graph_editor,documentation}
+        display_object.add_child(&searcher);
+        display_object.remove_child(&searcher);
+        searcher.resize(Vector2(150.0, 150.0)); //TODO
+        Self{logger,display_object,graph_editor,searcher,documentation}
     }
 
     fn set_documentation_visibility(&self, is_visible:bool) {
@@ -42,7 +49,29 @@ impl Model {
         else          { self.display_object.add_child(&self.documentation)    }
     }
 
-    fn is_documentation_visible(&self) -> bool {
+    fn show_searcher_under_node(&self, node_id:NodeId) {
+        if let Some(node) = self.graph_editor.model.nodes.get_cloned_ref(&node_id) {
+            if !self.is_searcher_visible() {
+                self.display_object.add_child(&self.searcher);
+            }
+            let x = node.position().x + 100.0;
+            let y = node.position().y - 100.0; //TODO
+            self.searcher.set_position_xy(Vector2(x,y));
+        } else {
+            error!(self.logger, "Trying to show searcher under nonexisting node");
+        }
+    }
+
+    fn hide_searcher(&self) {
+        self.searcher.unset_parent();
+        self.searcher.set_entries(list_view::entry::AnyModelProvider::default());
+    }
+
+    fn is_searcher_visible(&self) -> bool {
+        self.searcher.has_parent()
+    }
+
+    pub fn is_documentation_visible(&self) -> bool {
         self.documentation.has_parent()
     }
 }
@@ -52,10 +81,8 @@ impl Model {
 // ===========
 
 ensogl::def_command_api! { Commands
-    /// Documentation open press event. In case the event will be shortly followed by `release_documentation_view_visibility`, the documentation will be shown permanently. In other case, it will be disabled as soon as the `release_documentation_view_visibility` is emitted.
-    press_documentation_view_visibility,
-    /// Documentation open release event. See `press_documentation_view_visibility` to learn more.
-    release_documentation_view_visibility,
+    /// Add new node and start editing it's expression.
+    add_new_node,
 }
 
 impl application::command::CommandApi for View {
@@ -73,9 +100,11 @@ ensogl_text::define_endpoints! {
     Input {
         // resize           (Vector2<f32>),
         set_documentation_data (visualization::Data),
+        set_suggestions        (list_view::entry::AnyModelProvider),
     }
     Output {
         documentation_visible  (bool),
+        edititing_commited     (Option<NodeId>),
     }
 }
 
@@ -90,8 +119,10 @@ pub struct View {
 impl View {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
-        let model = Model::new(app);
-        let frp   = Frp::new_network();
+        let model    = Model::new(app);
+        let frp      = Frp::new_network();
+        // let searcher = &model.searcher.frp;
+        let graph    = &model.graph_editor.frp;
 
         let network = &frp.network;
 
@@ -99,18 +130,18 @@ impl View {
             // === Documentation Set ===
 
             eval frp.set_documentation_data ((data) model.documentation.frp.send_data.emit(data));
+            eval frp.set_suggestions        ((provider) model.searcher.frp.set_entries(provider));
 
 
-            // === Documentation toggle ===
+            // === Start Editing ===
 
-            let documentation_press_ev = frp.press_documentation_view_visibility.clone_ref();
-            let documentation_release  = frp.release_documentation_view_visibility.clone_ref();
-            documentation_pressed            <- bool(&documentation_release,&documentation_press_ev);
-            documentation_was_pressed        <- documentation_pressed.previous();
-            documentation_press              <- documentation_press_ev.gate_not(&documentation_was_pressed);
-            documentation_press_on_off       <- documentation_press.map(f_!(model.is_documentation_visible()));
-            frp.source.documentation_visible <+ documentation_press_on_off;
-
+            eval graph.outputs.edited_node ([model](edited_node_id) {
+                if let Some(id) = edited_node_id {
+                    model.show_searcher_under_node(*id);
+                } else {
+                    model.hide_searcher();
+                }
+            });
 
             // === OUTPUTS REBIND ===
 
