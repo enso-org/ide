@@ -550,12 +550,12 @@ generate_frp_outputs! {
     connection_added    : EdgeId,
     connection_removed  : EdgeId,
 
-    visualization_enabled  : NodeId,
-    visualization_disabled : NodeId,
+    visualization_enabled           : NodeId,
+    visualization_disabled          : NodeId,
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
 
-    documentation_view_visible : bool,
+    documentation_visible : bool,
 }
 
 
@@ -2396,18 +2396,18 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Documentation toggle ===
 
-    let documentation_press_ev          = inputs.press_documentation_view_visibility.clone_ref();
-    let documentation_release           = inputs.release_documentation_view_visibility.clone_ref();
-    documentation_pressed              <- bool(&documentation_release,&documentation_press_ev);
-    documentation_was_pressed          <- documentation_pressed.previous();
-    documentation_press                <- documentation_press_ev.gate_not(&documentation_was_pressed);
-    documentation_press_on_off         <- documentation_press.map(f_!(model.is_documentation_visible()));
-    outputs.documentation_view_visible <+ documentation_press_on_off;
+    let documentation_press_ev     = inputs.press_documentation_view_visibility.clone_ref();
+    let documentation_release      = inputs.release_documentation_view_visibility.clone_ref();
+    documentation_pressed         <- bool(&documentation_release,&documentation_press_ev);
+    documentation_was_pressed     <- documentation_pressed.previous();
+    documentation_press           <- documentation_press_ev.gate_not(&documentation_was_pressed);
+    documentation_press_on_off    <- documentation_press.map(f_!(model.is_documentation_visible()));
+    outputs.documentation_visible <+ documentation_press_on_off;
 
 
     // === OUTPUTS REBIND ===
 
-    eval outputs.documentation_view_visible ((vis) model.set_documentation_visibility(*vis));
+    eval outputs.documentation_visible ((vis) model.set_documentation_visibility(*vis));
 
     }
 

@@ -32,7 +32,7 @@ const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADI
 ///             be included in a codebase, so it will be moved to rust-based generator to achieve
 ///             compatibility with IDE's theme manager.
 ///             Expect them to land with https://github.com/enso-org/ide/issues/709
-pub fn documentation_style() -> String {
+fn documentation_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
 
