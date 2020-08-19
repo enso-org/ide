@@ -4,16 +4,19 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::definition::{DefinitionInfo, DefinitionName};
+use crate::double_representation::connection::Connection;
+use crate::double_representation::connection::Endpoint;
+use crate::double_representation::definition::{DefinitionInfo, ToAdd};
+use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::definition;
 use crate::double_representation::identifier::Identifier;
 use crate::double_representation::node;
+use crate::double_representation::node::NodeInfo;
 use crate::double_representation::graph::GraphInfo;
 
 use parser::Parser;
-use crate::double_representation::connection::{Connection, Endpoint};
-use crate::double_representation::node::NodeInfo;
-use wasm_bindgen::__rt::std::collections::BTreeSet;
+use std::collections::BTreeSet;
+
 
 
 #[derive(Clone,Debug)]
@@ -81,7 +84,8 @@ struct Utils {
 impl Utils {
     /// Does some early pre-processing and gathers common data used in various parts of the
     /// refactoring algorithm.
-    pub fn new(graph:GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<Self> {
+    pub fn new
+    (graph:GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<Self> {
         let nodes                 = graph.nodes();
         let lookup_id             = |id| lookup_node(&nodes,id).cloned();
         let selected_nodes:Vec<_> = Result::from_iter(selected_nodes.into_iter().map(lookup_id))?;
@@ -99,9 +103,9 @@ impl Utils {
         })
     }
 
-    pub fn endpoint_to_node(&self, endpoint:&Endpoint) -> Result<&NodeInfo,CannotResolveConnectionEndpoint> {
+    pub fn endpoint_to_node(&self, endpoint:&Endpoint) -> FallibleResult<&NodeInfo> {
         let id  = endpoint.node;
-        self.nodes.iter().find(|node| node.id() == id).ok_or(CannotResolveConnectionEndpoint)
+        self.nodes.iter().find(|node| node.id() == id).ok_or(CannotResolveConnectionEndpoint.into())
     }
 
     pub fn endpoint_to_identifier(&self, endpoint:&Endpoint) -> FallibleResult<Identifier> {
@@ -127,24 +131,42 @@ impl Utils {
         }))
     }
 
-    pub fn collapse(&self,name:DefinitionName, parser:&Parser) -> FallibleResult<Collapsed> {
-        let inputs      = self.arguments()?;
-        let output_node = self.connections.outputs.as_ref().map(|output_connection| {
-            self.endpoint_to_node(&output_connection.source).unwrap()
-        });
-        let output_node_id  = output_node.map(NodeInfo::id);
-        let node_to_replace = output_node_id.unwrap_or(self.last_selected);
+    /// Which node from the refactored graph should be replaced with a call to a extracted method.
+    ///
+    /// This only exists because we care about this node line's position, not its state.
+    pub fn node_to_replace(&self) -> node::Id {
+        // When possible, try using the node with output value assignment. That should minimalize
+        // the side-effects from the refactoring.
+        if let Some(output_connection) = &self.connections.outputs {
+            output_connection.source.node
+        } else {
+            self.last_selected
+        }
+    }
 
-        let return_line : Option<Ast> = self.connections.outputs.as_ref().map(|c| self.endpoint_to_identifier(&c.source).unwrap().deref().clone());
-        let mut selected_nodes_iter   = self.selected_nodes.iter().map(|node| node.ast().clone());
+    /// Get Ast of a line that needs to be appended to the extracted nodes' Asts. None if there is
+    /// no such need.
+    pub fn return_line(&self) -> Option<Ast> {
+        let output_connection = self.connections.outputs.as_ref()?;
+        self.endpoint_to_identifier(&output_connection.source).ok().map(Into::into)
+    }
 
+    pub fn extracted_definition(&self,name:DefinitionName) -> FallibleResult<definition::ToAdd> {
+        let inputs        = self.arguments()?;
+        let return_line   = self.return_line();
+        let mut selected_nodes_iter  = self.selected_nodes.iter().map(|node| node.ast().clone());
         let body_head                = selected_nodes_iter.next().unwrap();
         let body_tail                = selected_nodes_iter.chain(return_line).map(Some).collect();
-        let explicit_parameter_names = inputs.iter().map(|input| input.name().to_owned()).collect();
-        let to_add = definition::ToAdd {name,explicit_parameter_names,body_head,body_tail};
+        let explicit_parameter_names = inputs.iter().map(|input| input.name().into()).collect();
+        Ok(definition::ToAdd {name,explicit_parameter_names,body_head,body_tail})
+    }
 
+    pub fn collapse(&self,name:DefinitionName, parser:&Parser) -> FallibleResult<Collapsed> {
+        let replaced_node   = self.node_to_replace();
+        let has_output      = self.connections.outputs.is_some();
+        let to_add          = self.extracted_definition(name)?;
         let mut updated_def = self.graph.source.clone();
-        let mut lines = updated_def.block_lines()?;
+        let mut lines       = updated_def.block_lines()?;
         lines.drain_filter(|line| {
             // There are 3 kind of lines:
             // 1) Lines that are left intact -- not belonging to selected nodes;
@@ -162,13 +184,13 @@ impl Utils {
             if !is_selected {
                 println!("Leaving {} intact.", node_info.ast());
                 false
-            } else if node_id == node_to_replace {
+            } else if node_id == replaced_node {
                 let old_ast = node_info.ast().clone_ref();
                 let base = to_add.name.ast(&parser).unwrap();
                 let args = to_add.explicit_parameter_names.iter().map(Ast::var);
                 let invocation = ast::prefix::Chain::new(base,args);
                 node_info.set_expression(invocation.into_ast());
-                if output_node_id.is_none() {
+                if !has_output {
                     node_info.clear_pattern()
                 }
 

@@ -67,6 +67,12 @@ impl Ord for Identifier {
     }
 }
 
+impl From<Identifier> for Ast {
+    fn from(value:Identifier) -> Self {
+        value.0
+    }
+}
+
 
 
 // === Implementations ===
