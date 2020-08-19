@@ -276,8 +276,9 @@ impl ContainerModel {
         self
     }
 
-    /// Indicates whether the visualization is visible.
-    pub fn is_visible(&self) -> bool {
+    /// Indicates whether the visualization container is visible and active.
+    /// Note: can't be called `is_visible` due to a naming conflict with `display::object::class`.
+    pub fn is_active(&self) -> bool {
         self.view.has_parent()
     }
 }
@@ -305,7 +306,7 @@ impl ContainerModel {
     }
 
     fn toggle_visibility(&self) {
-        self.set_visibility(!self.is_visible())
+        self.set_visibility(!self.is_active())
     }
 
     fn set_visualization(&self, visualization:Option<visualization::Instance>) {
