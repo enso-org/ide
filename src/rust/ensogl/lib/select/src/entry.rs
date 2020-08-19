@@ -7,7 +7,6 @@ use ensogl_core::display;
 use ensogl_text as text;
 use ensogl_text::buffer::data::unit::Bytes;
 use ensogl_text::buffer::data::range::Range as TextRange;
-use logger::enabled::Logger;
 
 
 
@@ -165,7 +164,6 @@ impl Entry {
     ///
     /// This function updates icon and label.
     pub fn set_model(&self, id:Id, model:&Model) {
-        debug!(logger::enabled::Logger::new("DEBUG"),"Setting model for {id}: {model:?}");
         if let Some(old_icon) = self.icon.get() {
             self.remove_child(&old_icon);
         }

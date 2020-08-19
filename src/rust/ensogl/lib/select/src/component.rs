@@ -147,10 +147,14 @@ ensogl_core::def_command_api! { Commands
     move_selection_up,
     /// Move selection page up (jump over all visible entries).
     move_selection_page_up,
+    /// Move selection to the first argument.
+    move_selection_to_first,
     /// Move selection one position down.
     move_selection_down,
     /// Move selection page down (jump over all visible entries).
     move_selection_page_down,
+    /// Move selection to the last argument.
+    move_selection_to_last,
     /// Chose the currently selected entry.
     chose_selected_entry,
     /// Deselect all entries.
@@ -226,8 +230,6 @@ impl Select {
         let window_y         = Animation::<f32>::new(&network);
         let selection_y      = Animation::<f32>::new(&network);
         let selection_height = Animation::<f32>::new(&network);
-        window_y.set_value(MAX_SCROLL);
-        window_y.set_target_value(MAX_SCROLL);
 
         frp::extend!{ network
 
@@ -249,28 +251,41 @@ impl Select {
             // === Selected Entry ===
             frp.source.selected_entry <+ frp.select_entry.map(|id| Some(*id));
 
-            selection_jump_on_move_up <- frp.move_selection_up.constant(-1);
+            selection_jump_on_one_up  <- frp.move_selection_up.constant(-1);
             selection_jump_on_page_up <- frp.move_selection_page_up.map(f!([model](())
                 -(model.entries.visible_entry_count() as isize))
             );
-            selection_jump_on_move_down <- frp.move_selection_down.constant(1);
+            selection_jump_on_one_down <- frp.move_selection_down.constant(1);
             selection_jump_on_page_down <- frp.move_selection_page_down.map(f!([model](())
                 model.entries.visible_entry_count() as isize)
             );
-            selection_jump_up   <- any(selection_jump_on_move_up,selection_jump_on_page_up);
-            selection_jump_down <- any(selection_jump_on_move_down,selection_jump_on_page_down);
-
+            selection_jump_up   <- any(selection_jump_on_one_up,selection_jump_on_page_up);
+            selection_jump_down <- any(selection_jump_on_one_down,selection_jump_on_page_down);
             selected_entry_after_jump_up <- selection_jump_up.map2(&frp.selected_entry,
-                |jump,id| { id.as_ref()?.checked_sub(-jump as usize) }
+                |jump,id| {
+                    let id = id.as_ref()?;
+                    if *id == 0 && *jump != 0 { None                                    }
+                    else                      { Some(id.saturating_sub(-jump as usize)) }
+                }
             );
+            selected_entry_after_moving_first <- frp.move_selection_to_first.map(f!([model](())
+                (model.entries.entry_count() > 0).and_option(Some(0))
+            ));
+            selected_entry_after_moving_last  <- frp.move_selection_to_last.map(f!([model] (())
+                model.entries.entry_count().checked_sub(1)
+            ));
             selected_entry_after_jump_down <- selection_jump_down.map2(&frp.selected_entry,
                 f!([model](jump,id) {
                     let max_entry = model.entries.entry_count().checked_sub(1)?;
                     Some(id.map_or(0, |id| id+(*jump as usize)).min(max_entry))
                 }
             ));
-            selected_entry_after_move <- any(&selected_entry_after_jump_up,
-                &selected_entry_after_jump_down);
+            selected_entry_after_move_up <- any(selected_entry_after_jump_up,
+                selected_entry_after_moving_first);
+            selected_entry_after_move_down <- any(selected_entry_after_jump_down,
+                selected_entry_after_moving_last);
+            selected_entry_after_move <- any(&selected_entry_after_move_up,
+                &selected_entry_after_move_down);
             mouse_pointed_entry <- mouse_selecting_y.map(f!((y)
                 model.entries.entry_at_y_position(*y).entry())
             );
@@ -282,9 +297,13 @@ impl Select {
 
             // === Chosen Entry ===
 
-            frp.source.chosen_entry <+ mouse_pointed_entry.sample(&mouse.down_0);
-            frp.source.chosen_entry <+ frp.chose_entry.map(|id| Some(*id));
-            frp.source.chosen_entry <+ frp.selected_entry.sample(&frp.chose_selected_entry);
+            any_entry_selected        <- frp.selected_entry.map(|e| e.is_some());
+            any_entry_pointed         <- mouse_pointed_entry.map(|e| e.is_some());
+            opt_selected_entry_chosen <- frp.selected_entry.sample(&frp.chose_selected_entry);
+            opt_pointed_entry_chosen  <- mouse_pointed_entry.sample(&mouse.down_0);
+            frp.source.chosen_entry   <+ opt_pointed_entry_chosen.gate(&any_entry_pointed);
+            frp.source.chosen_entry   <+ frp.chose_entry.map(|id| Some(*id));
+            frp.source.chosen_entry   <+ opt_selected_entry_chosen.gate(&any_entry_selected);
 
 
             // === Selection Size and Position ===
@@ -306,7 +325,7 @@ impl Select {
 
             // === Scrolling ===
 
-            selection_top_after_move_up <- selected_entry_after_jump_up.map(|id|
+            selection_top_after_move_up <- selected_entry_after_move_up.map(|id|
                 id.map(|id| entry::List::y_range_of_entry(id).end)
             );
             min_scroll_after_move_up <- selection_top_after_move_up.map(|top|
@@ -315,7 +334,7 @@ impl Select {
             scroll_after_move_up <- min_scroll_after_move_up.map2(&frp.scroll_position,|min,current|
                 current.max(*min)
             );
-            selection_bottom_after_move_down <- selected_entry_after_jump_down.map(|id|
+            selection_bottom_after_move_down <- selected_entry_after_move_down.map(|id|
                 id.map(|id| entry::List::y_range_of_entry(id).start)
             );
             max_scroll_after_move_down <- selection_bottom_after_move_down.map2(&frp.size,
@@ -343,6 +362,10 @@ impl Select {
                 model.set_entries(entries.clone_ref(),window)
             ));
         }
+
+        window_y.set_value(MAX_SCROLL);
+        window_y.set_target_value(MAX_SCROLL);
+        frp.scroll_jump(MAX_SCROLL);
 
         self
     }
@@ -372,6 +395,8 @@ impl application::shortcut::DefaultShortcutProvider for Select {
         , Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowDown], shortcut::Pattern::Any) , "move_selection_down")
         , Self::self_shortcut(shortcut::Action::press   (&[Key::PageUp]   , shortcut::Pattern::Any) , "move_selection_page_up")
         , Self::self_shortcut(shortcut::Action::press   (&[Key::PageDown] , shortcut::Pattern::Any) , "move_selection_page_down")
+        , Self::self_shortcut(shortcut::Action::press   (&[Key::Home]     , shortcut::Pattern::Any) , "move_selection_to_first")
+        , Self::self_shortcut(shortcut::Action::press   (&[Key::End]      , shortcut::Pattern::Any) , "move_selection_to_last")
         , Self::self_shortcut(shortcut::Action::press   (&[Key::Enter]    , shortcut::Pattern::Any) , "chose_selected_entry")
         ]
     }

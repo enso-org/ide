@@ -102,7 +102,7 @@ fn init(app:&Application) {
     app.themes.set_enabled(&["dark"]);
 
     let select                                   = app.new_view::<select::component::Select>();
-    let provider:select::entry::AnyModelProvider = MockEntries::new(app,13).into();
+    let provider:select::entry::AnyModelProvider = MockEntries::new(app,13000).into();
     select.frp.resize(Vector2(100.0,160.0));
     select.frp.set_entries(provider);
     app.display.add_child(&select);
