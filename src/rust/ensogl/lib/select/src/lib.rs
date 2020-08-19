@@ -1,8 +1,19 @@
-//! Selection List Component
+//! Selection List EnsoGL Component.
+//!
+//! Select is a displayed list of entries with possibility of selecting one and "chosing" by
+//! clicking or pressing enter.
 
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
 #![recursion_limit="512"]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
+#![warn(missing_docs)]
+#![warn(trivial_casts)]
+#![warn(trivial_numeric_casts)]
+#![warn(unsafe_code)]
+#![warn(unused_import_braces)]
+#![warn(unused_qualifications)]
 
 pub mod component;
 pub mod entry;
@@ -11,3 +22,5 @@ pub mod entry;
 pub mod prelude {
     pub use ensogl_core::prelude::*;
 }
+
+pub use component::Select;

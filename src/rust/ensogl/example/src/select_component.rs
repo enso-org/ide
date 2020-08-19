@@ -1,6 +1,7 @@
+//! A debug scene which shows the Select Component. The chosen entries are logged in console.
+
 use crate::prelude::*;
 
-use ensogl_core::display::navigation::navigator::Navigator;
 use ensogl_core::system::web;
 use ensogl_core::application::Application;
 use ensogl_core::display::object::ObjectOps;
@@ -16,9 +17,15 @@ use ensogl_core::display::Scene;
 use ensogl_text::buffer::data::unit::Bytes;
 
 
+
+// ===================
+// === Entry Point ===
+// ===================
+
+/// An entry point.
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn entry_point_select_control() {
+pub fn entry_point_select_component() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
@@ -28,7 +35,6 @@ pub fn entry_point_select_control() {
         mem::forget(app);
     });
 }
-
 
 
 
@@ -71,11 +77,9 @@ impl select::entry::ModelProvider for MockEntries {
         let icon = gui::component::ShapeView::<icon::Shape>::new(&self.logger,&self.scene);
         icon.shape.sprite.size.set(Vector2(select::entry::ICON_SIZE,select::entry::ICON_SIZE));
         icon.shape.id.set(id as f32);
-        select::entry::Model {
-            label : iformat!("Entry {id}"),
-            highlighted: if id == 10 { vec![(Bytes(1)..Bytes(3)).into()] } else { vec![] },
-            icon  : icon.into_any(),
-        }
+        let model = select::entry::Model::new(iformat!("Entry {id}")).with_icon(icon);
+        if id == 10 { model.highlight(std::iter::once((Bytes(1)..Bytes(3)).into())) }
+        else        { model }
     }
 }
 
@@ -89,31 +93,14 @@ fn init(app:&Application) {
 
     let mut dark = theme::Theme::new();
     dark.insert("application.background.color", color::Lcha::new(0.13,0.013,0.18,1.0));
-    // dark.insert("graph_editor.node.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
-    // dark.insert("graph_editor.node.selection.color", color::Lcha::new(0.72,0.5,0.22,1.0));
-    // dark.insert("graph_editor.node.selection.size", 7.0);
+    dark.insert("select.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
+    dark.insert("select.selection.color", color::Lcha::new(0.72,0.5,0.22,1.0));
     dark.insert("animation.duration", 0.5);
-    // dark.insert("graph.node.shadow.color", 5.0);
-    // dark.insert("graph.node.shadow.size", 5.0);
     dark.insert("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
 
     app.themes.register("dark",dark);
     app.themes.set_enabled(&["dark"]);
 
-    // let _bg = app.display.scene().style_sheet.var("application.background.color");
-
-    // let world     = &app.display;
-    // let scene     = world.scene();
-    // let camera    = scene.camera();
-    // let navigator = Navigator::new(&scene,&camera);
-
-    // app.views.register::<GraphEditor>();
-    // let graph_editor = app.new_view::<GraphEditor>();
-    // let mut entry_container = select::entry::EntryList::new(logger, app);
-    // entry_container.update_entries_new_provider(MockEntries::new(&app,12),0..7);
-    // app.display.add_child(&entry_container);
-
-    // std::mem::forget(entry_container);
     let select                                   = app.new_view::<select::component::Select>();
     let provider:select::entry::AnyModelProvider = MockEntries::new(app,13).into();
     select.frp.resize(Vector2(100.0,160.0));
@@ -124,12 +111,10 @@ fn init(app:&Application) {
     let network = enso_frp::Network::new();
     enso_frp::extend! {network
         eval select.chosen_entry([logger](entry) {
-            info!(logger, "Chosne entry {entry:?}")
+            info!(logger, "Chosen entry {entry:?}")
         });
     }
 
     std::mem::forget(select);
     std::mem::forget(network);
 }
-
-

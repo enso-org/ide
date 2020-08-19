@@ -1,18 +1,13 @@
 //! A single entry in Select
 use crate::prelude::*;
 
-use enso_frp as frp;
 use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display;
-use ensogl_core::display::shape::*;
-use ensogl_core::gui::component;
-use ensogl_core::gui::component::ShapeViewEvents;
 use ensogl_text as text;
 use ensogl_text::buffer::data::unit::Bytes;
 use ensogl_text::buffer::data::range::Range as TextRange;
 use logger::enabled::Logger;
-use std::borrow::Borrow;
 
 
 
@@ -48,7 +43,33 @@ pub struct Model {
     pub label       : String,
     pub highlighted : Vec<TextRange<Bytes>>,
     #[derivative(Debug="ignore")]
-    pub icon        : display::object::Any,
+    pub icon        : Option<display::object::Any>,
+}
+
+impl Model {
+    /// Create model of simple entry with given label.
+    ///
+    /// The model won't have icon nor higlighting, but those can be set using `highlight` and
+    /// `with_icon`.
+    pub fn new(label:impl Str) -> Self {
+        Self {
+            label       : label.into(),
+            highlighted : default(),
+            icon        : default(),
+        }
+    }
+
+    /// Add highlighting to the entry and return it.
+    pub fn highlight(mut self, bytes:impl IntoIterator<Item=TextRange<Bytes>>) -> Self {
+        self.highlighted.extend(bytes.into_iter());
+        self
+    }
+
+    /// Add icon to the entry and return it.
+    pub fn with_icon(mut self, icon:impl display::Object + 'static) -> Self {
+        self.icon = Some(icon.into_any());
+        self
+    }
 }
 
 
@@ -100,7 +121,7 @@ impl ModelProvider for EmptyProvider {
         Model {
             label       : "Invalid".to_string(),
             highlighted : default(),
-            icon        : display::object::Instance::new(&self.logger).into_any(),
+            icon        : None,
         }
     }
 }
@@ -122,7 +143,7 @@ pub struct Entry {
     id             : Rc<Cell<Option<Id>>>,
     label          : text::Area,
     #[derivative(Debug="ignore")]
-    icon           : Rc<CloneRefCell<display::object::Any>>,
+    icon           : Rc<CloneCell<Option<display::object::Any>>>,
     display_object : display::object::Instance,
 }
 
@@ -131,15 +152,12 @@ impl Entry {
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
         let id             = default();
         let label          = app.new_view::<text::Area>();
-        let icon           = display::object::Instance::new(Logger::new("DummyIcon"));
+        let icon           = Rc::new(CloneCell::new(None));
         let display_object = display::object::Instance::new(logger);
         display_object.add_child(&label);
-        display_object.add_child(&icon);
-        icon.set_position_xy(Vector2(PADDING + ICON_SIZE/2.0, 0.0));
         label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
         label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
         label.set_default_text_size(text::Size(LABEL_SIZE));
-        let icon = Rc::new(CloneRefCell::new(icon.into_any()));
         Entry{id,label,icon,display_object}
     }
 
@@ -147,14 +165,19 @@ impl Entry {
     ///
     /// This function updates icon and label.
     pub fn set_model(&self, id:Id, model:&Model) {
-        self.remove_child(&self.icon.get());
-        self.add_child(&model.icon);
-        model.icon.set_position_xy(Vector2(PADDING + ICON_SIZE/2.0, 0.0));
+        debug!(logger::enabled::Logger::new("DEBUG"),"Setting model for {id}: {model:?}");
+        if let Some(old_icon) = self.icon.get() {
+            self.remove_child(&old_icon);
+        }
+        if let Some(new_icon) = &model.icon {
+            self.add_child(&new_icon);
+            new_icon.set_position_xy(Vector2(PADDING + ICON_SIZE/2.0, 0.0));
+        }
         self.id.set(Some(id));
-        self.icon.set(model.icon.clone_ref());
+        self.icon.set(model.icon.clone());
         self.label.set_content(&model.label);
         for highlighted in &model.highlighted {
-            self.label.set_color_bytes(highlighted,color::Rgba::new(0.0,0.0,1.0,1.0));
+            self.label.set_color_bytes(highlighted,color::Rgba::new(1.0,1.0,1.0,1.0));
         }
     }
 }
@@ -169,12 +192,15 @@ impl display::Object for Entry {
 // === EntryList ===
 // =================
 
+/// The output of `entry_at_y_position`
+#[allow(missing_docs)]
 #[derive(Copy,Clone,Debug,Eq,Hash,PartialEq)]
 pub enum IdAtYPosition {
     AboveFirst, UnderLast, Entry(Id)
 }
 
 impl IdAtYPosition {
+    /// Returns id of entry if present.
     pub fn entry(&self) -> Option<Id> {
         if let Self::Entry(id) = self { Some(*id) }
         else                          { None      }
@@ -242,6 +268,7 @@ impl List {
 
     /// Update displayed entries to show the given range.
     pub fn update_entries(&self, mut range:Range<Id>) {
+        range.end = range.end.min(self.provider.get().entry_count());
         if range != self.entries_range.get() {
             debug!(self.logger, "Update entries for {range:?}");
             let create_new_entry = || {
@@ -249,19 +276,25 @@ impl List {
                 self.add_child(&entry);
                 entry
             };
-            let provider        = self.provider.get();
-            range.end           = range.end.min(provider.entry_count());
-            let current_entries:HashSet<Id> = self.entries.deref().borrow().iter().take(range.len()).filter_map(|entry| entry.id.get()).collect();
-            let missing         = range.clone().filter(|id| !current_entries.contains(id));
-            let models          = missing.map(|id| (id,provider.get(id)));
-            let mut entries     = self.entries.borrow_mut();
-            entries.resize_with(range.len(),create_new_entry);
-            let outdated = entries.iter_mut().filter(|e| e.id.get().map_or(true, |i| !range.contains(&i)));
-            for (entry,(id,model)) in outdated.zip(models) {
-                debug!(self.logger, "Setting new model {model:?} for entry {id}; old entry: {entry.id.get():?}");
-                entry.set_model(id,&model);
-                entry.set_position_xy(Vector2(0.0, Self::position_y_of_entry(id)));
-            }
+            let provider = self.provider.get();
+            let current_entries:HashSet<Id> = with(self.entries.borrow_mut(), |mut entries| {
+                entries.resize_with(range.len(),create_new_entry);
+                entries.iter().filter_map(|entry| entry.id.get()).collect()
+            });
+            let missing     = range.clone().filter(|id| !current_entries.contains(id));
+            // The provider is provided by user, so we should not keep any borrow when calling its
+            // methods.
+            let models      = missing.map(|id| (id,provider.get(id)));
+            with(self.entries.borrow(), |entries| {
+                let is_outdated = |e:&Entry| e.id.get().map_or(true, |i| !range.contains(&i));
+                let outdated    = entries.iter().filter(|e| is_outdated(e));
+                for (entry,(id,model)) in outdated.zip(models) {
+                    debug!(self.logger, "Setting new model {model:?} for entry {id}; \
+                        old entry: {entry.id.get():?}");
+                    entry.set_model(id,&model);
+                    entry.set_position_y(Self::position_y_of_entry(id));
+                }
+            });
             self.entries_range.set(range);
         }
     }
