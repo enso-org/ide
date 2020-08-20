@@ -263,7 +263,7 @@ impl ListView {
         let selection_y      = Animation::<f32>::new(&network);
         let selection_height = Animation::<f32>::new(&network);
 
-        frp::extend!{ network
+        frp::extend!{ TRACE_ALL network
 
             // === Mouse Position ===
 
@@ -334,14 +334,14 @@ impl ListView {
                 id.map_or(0.0,entry::List::position_y_of_entry)
             );
             target_selection_height <- frp.selected_entry.map(|id|
-                if id.is_some() {entry::HEIGHT} else {0.0}
+                if id.is_some() {entry::HEIGHT + 2.0 * PADDING_PX} else {0.0}
             );
             eval target_selection_y      ((y) selection_y.set_target_value(*y));
             eval target_selection_height ((h) selection_height.set_target_value(*h));
             eval selection_y.value       ((y) model.selection.set_position_y(*y));
             selection_size <- all_with(&frp.size,&selection_height.value,|size,height| {
-                let padding = Vector2(2.0 * PADDING_PX, 2.0 * PADDING_PX);
-                Vector2(size.x,*height) + padding
+                let width = size.x + 2.0 * PADDING_PX;
+                Vector2(width,*height)
             });
             eval selection_size  ((size) model.selection.shape.sprite.size.set(*size));
 
