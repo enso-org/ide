@@ -12,6 +12,7 @@
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
 #![feature(matches_macro)]
+#![feature(slice_patterns)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
@@ -69,7 +70,6 @@ pub mod prelude {
     pub use std::ops::Range;
 
     pub use utils::fail::FallibleResult;
-    pub use utils::option::OptionExt;
     pub use utils::vec::VecExt;
 
     pub use uuid::Uuid;
@@ -81,12 +81,12 @@ pub mod prelude {
 /// IDE startup function.
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn run_example_ide() {
+pub fn entry_point_ide() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
 
     // FIXME: This code is temporary. It's used to remove the loader UI.
-    ensogl_core_msdf_sys::run_once_initialized(|| {
+    ensogl_text_msdf_sys::run_once_initialized(|| {
         web::get_element_by_id("loader").map(|t| {
             t.parent_node().map(|p| {
                 p.remove_child(&t).unwrap()
