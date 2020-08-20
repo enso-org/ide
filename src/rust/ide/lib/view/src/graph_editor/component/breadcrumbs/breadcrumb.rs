@@ -53,19 +53,29 @@ const SEPARATOR_MARGIN : f32 = 10.0;
 const TEXT_BASELINE    : f32 = 2.0;
 
 
-// === Colors ===
+// === Colors === TODO : MOVE TO THEME MANAGER
 
-const FULL_COLOR        : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.7);
-const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.4);
+// const FULL_COLOR        : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.7);
+// const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.4);
+// /// Breadcrumb color when selected.
+// pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
+// /// Breadcrumb color when it's deselected on the left of the selected breadcrumb.
+// pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
+// /// Breadcrumb color when it's deselected on the right of the selected breadcrumb.
+// pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.2);
+// /// Breadcrumb color when hovered.
+// pub const HOVER_COLOR : color::Rgba = SELECTED_COLOR;
+
+const FULL_COLOR        : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.7);
+const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.4);
 /// Breadcrumb color when selected.
-pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
+pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.6);
 /// Breadcrumb color when it's deselected on the left of the selected breadcrumb.
-pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
+pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.6);
 /// Breadcrumb color when it's deselected on the right of the selected breadcrumb.
-pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.2);
+pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.2);
 /// Breadcrumb color when hovered.
 pub const HOVER_COLOR : color::Rgba = SELECTED_COLOR;
-
 
 
 // ==================
