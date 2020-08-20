@@ -39,7 +39,7 @@ fn init() {
     let logger  = Logger::new("AnimationTest");
     let network = enso_frp::Network::new();
     let animation = Animation::<f32>::new(&network);
-    animation.set_target_value(-259830.0);
+    animation.set_target_value(-259_830.0);
 
     enso_frp::extend! {network
         eval animation.value([logger](value) {
