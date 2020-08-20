@@ -154,7 +154,7 @@ pub struct MockDocGenerator;
 impl MockDocGenerator {
     /// Generate new data set.
     pub fn generate_data(self) -> String {
-        let inp_only_doc = r#"
+        let input = r#"
 ##
    Optional values.
 
@@ -171,6 +171,6 @@ type Option a
     ## The `None` type indicates a lack of a value.
     type None
 "#;
-        inp_only_doc.to_string()
+        input.to_string()
     }
 }

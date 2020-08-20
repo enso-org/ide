@@ -317,9 +317,9 @@ ensogl::def_command_api! { Commands
     edit_mode_off,
 
 
-    /// Simulates a documentation open press event. In case the event will be shortly followed by `release_documentation_view_visibility`, the documentation will be shown permanently. In other case, it will be disabled as soon as the `release_documentation_view_visibility` is emitted.
+    /// Documentation open press event. In case the event will be shortly followed by `release_documentation_view_visibility`, the documentation will be shown permanently. In other case, it will be disabled as soon as the `release_documentation_view_visibility` is emitted.
     press_documentation_view_visibility,
-    /// Simulates a documentation open release event. See `press_documentation_view_visibility` to learn more.
+    /// Documentation open release event. See `press_documentation_view_visibility` to learn more.
     release_documentation_view_visibility,
 
 
@@ -1132,7 +1132,6 @@ impl GraphEditorModel {
         let logger             = Logger::new("GraphEditor");
         let display_object     = display::object::Instance::new(&logger);
         let nodes              = Nodes::new(&logger);
-//      let visualizations     = Stage::new(scene.clone_ref(), Logger::new("VisualisationCollection"));
         let documentation_view = documentation::View::new(&scene);
         let edges              = default();
         let frp                = FrpInputs::new(network);
@@ -1141,7 +1140,8 @@ impl GraphEditorModel {
         display_object.add_child(&documentation_view);
         display_object.remove_child(&documentation_view);
         let app                = app.clone_ref();
-        Self {logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,documentation_view}.init()//visualizations }
+        Self {logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,
+            documentation_view}.init()
     }
 
     fn init(self) -> Self {
@@ -2445,7 +2445,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     }
 
+
     // === Documentation Set ===
+
     frp::extend! { network
 
     eval inputs.set_documentation_data ((data) model.documentation_view.frp.send_data.emit(data));

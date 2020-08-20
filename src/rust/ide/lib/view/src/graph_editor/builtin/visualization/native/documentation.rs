@@ -5,13 +5,13 @@ use crate::prelude::*;
 
 use crate::graph_editor::component::visualization;
 
+use ast::prelude::FallibleResult;
 use enso_frp as frp;
 use ensogl::display;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
-use ast::prelude::FallibleResult;
 
 
 
