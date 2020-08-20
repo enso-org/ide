@@ -25,7 +25,7 @@ use ensogl_text::buffer::data::unit::Bytes;
 /// An entry point.
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn entry_point_select_component() {
+pub fn entry_point_list_view() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
@@ -73,14 +73,18 @@ impl MockEntries {
 impl list_view::entry::ModelProvider for MockEntries {
     fn entry_count(&self) -> usize { self.entries_count }
 
-    fn get(&self, id:usize) -> list_view::entry::Model {
-        use list_view::entry::ICON_SIZE;
-        let icon = gui::component::ShapeView::<icon::Shape>::new(&self.logger,&self.scene);
-        icon.shape.sprite.size.set(Vector2(ICON_SIZE,ICON_SIZE));
-        icon.shape.id.set(id as f32);
-        let model = list_view::entry::Model::new(iformat!("Entry {id}")).with_icon(icon);
-        if id == 10 { model.highlight(std::iter::once((Bytes(1)..Bytes(3)).into())) }
-        else        { model }
+    fn get(&self, id:usize) -> Option<list_view::entry::Model> {
+        if id >= self.entries_count {
+            None
+        } else {
+            use list_view::entry::ICON_SIZE;
+            let icon = gui::component::ShapeView::<icon::Shape>::new(&self.logger,&self.scene);
+            icon.shape.sprite.size.set(Vector2(ICON_SIZE,ICON_SIZE));
+            icon.shape.id.set(id as f32);
+            let model = list_view::entry::Model::new(iformat!("Entry {id}")).with_icon(icon);
+            if id == 10 { Some(model.highlight(std::iter::once((Bytes(1)..Bytes(3)).into()))) }
+            else        { Some(model)                                                         }
+        }
     }
 }
 
@@ -102,7 +106,7 @@ fn init(app:&Application) {
     app.themes.register("dark",dark);
     app.themes.set_enabled(&["dark"]);
 
-    let select                                      = app.new_view::<list_view::Select>();
+    let select                                      = app.new_view::<list_view::ListView>();
     let provider:list_view::entry::AnyModelProvider = MockEntries::new(app,13000).into();
     select.frp.resize(Vector2(100.0,160.0));
     select.frp.set_entries(provider);

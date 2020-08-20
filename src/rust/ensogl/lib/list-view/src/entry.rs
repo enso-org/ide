@@ -5,8 +5,7 @@ use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display;
 use ensogl_text as text;
-use ensogl_text::buffer::data::unit::Bytes;
-use ensogl_text::buffer::data::range::Range as TextRange;
+use enabled::Logger;
 
 
 
@@ -36,12 +35,10 @@ pub type Id = usize;
 
 /// A model on which the view bases.
 #[allow(missing_docs)]
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Clone,Debug,Default)]
 pub struct Model {
     pub label       : String,
-    pub highlighted : Vec<TextRange<Bytes>>,
-    #[derivative(Debug="ignore")]
+    pub highlighted : Vec<text::Range<text::Bytes>>,
     pub icon        : Option<display::object::Any>,
 }
 
@@ -59,7 +56,7 @@ impl Model {
     }
 
     /// Add highlighting to the entry and return it.
-    pub fn highlight(mut self, bytes:impl IntoIterator<Item=TextRange<Bytes>>) -> Self {
+    pub fn highlight(mut self, bytes:impl IntoIterator<Item=text::Range<text::Bytes>>) -> Self {
         self.highlighted.extend(bytes.into_iter());
         self
     }
@@ -83,8 +80,9 @@ pub trait ModelProvider : Debug {
     /// Number of all entries.
     fn entry_count(&self) -> usize;
 
-    /// Get the model of entry with given id.
-    fn get(&self, id:Id) -> Model;
+    /// Get the model of entry with given id. The implementors should return `None` onlt when
+    /// requested id greater or equal to entries count.
+    fn get(&self, id:Id) -> Option<Model>;
 }
 
 /// A wrapper for shared instance of some ModelProvider.
@@ -96,10 +94,7 @@ impl<T:ModelProvider + 'static> From<T> for AnyModelProvider {
 }
 
 impl Default for AnyModelProvider {
-    fn default() -> Self {
-        let logger = Logger::new("EmptyModelProvider");
-        EmptyProvider{logger}.into()
-    }
+    fn default() -> Self {EmptyProvider.into()}
 }
 
 
@@ -108,21 +103,12 @@ impl Default for AnyModelProvider {
 /// An Entry Model Provider giving no entries.
 ///
 /// This is the default provider for new select components.
-#[derive(Clone,CloneRef,Debug)]
-pub struct EmptyProvider {
-    logger : Logger,
-}
+#[derive(Clone,CloneRef,Copy,Debug)]
+pub struct EmptyProvider;
 
 impl ModelProvider for EmptyProvider {
-    fn entry_count(&self) -> usize { 0 }
-    fn get(&self, id:usize) -> Model {
-        error!(self.logger, "Getting {id} from empty provider!");
-        Model {
-            label       : "Invalid".to_string(),
-            highlighted : default(),
-            icon        : None,
-        }
-    }
+    fn entry_count(&self)          -> usize         { 0    }
+    fn get        (&self, _:usize) -> Option<Model> { None }
 }
 
 
@@ -136,12 +122,10 @@ impl ModelProvider for EmptyProvider {
 /// The Display Object position of this component is docked to the middle of left entry's boundary.
 /// It differs from usual behaviour of EnsoGl components, but makes the entries alignment much
 /// simpler.
-#[derive(Clone,CloneRef,Derivative)]
-#[derivative(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Entry {
     id             : Rc<Cell<Option<Id>>>,
     label          : text::Area,
-    #[derivative(Debug="ignore")]
     icon           : Rc<CloneCell<Option<display::object::Any>>>,
     display_object : display::object::Instance,
 }
@@ -222,7 +206,7 @@ impl List {
     /// Entry List View constructor.
     pub fn new(parent:impl AnyLogger, app:&Application) -> Self {
         let app           = app.clone_ref();
-        let logger        = Logger::sub(parent,"EntryContainer");
+        let logger        = Logger::sub(parent,"entry::List");
         let entries       = default();
         let entries_range = Rc::new(CloneCell::new(default()..default()));
         let display_object = display::object::Instance::new(&logger);
@@ -250,18 +234,19 @@ impl List {
     }
 
     /// Y range of all entries in this list, including not displayed.
-    pub fn y_range_of_all_entries(&self) -> Range<f32> {
-        let start = Self::position_y_of_entry(self.entry_count() - 1) - HEIGHT / 2.0;
+    pub fn y_range_of_all_entries(entry_count:usize) -> Range<f32> {
+        let start = Self::position_y_of_entry(entry_count - 1) - HEIGHT / 2.0;
         let end   = HEIGHT / 2.0;
         start..end
     }
 
     /// Get the entry id which lays on given y coordinate.
-    pub fn entry_at_y_position(&self, y:f32) -> IdAtYPosition {
+    pub fn entry_at_y_position(y:f32, entry_count:usize) -> IdAtYPosition {
         use IdAtYPosition::*;
-        if y > HEIGHT/2.0                               { AboveFirst                     }
-        else if y < self.y_range_of_all_entries().start { UnderLast                      }
-        else                                            { Entry((-y/HEIGHT + 0.5) as Id) }
+        let all_entries_start = Self::y_range_of_all_entries(entry_count).start;
+        if y > HEIGHT/2.0             { AboveFirst                     }
+        else if y < all_entries_start { UnderLast                      }
+        else                          { Entry((-y/HEIGHT + 0.5) as Id) }
     }
 
     /// Update displayed entries to show the given range.
@@ -282,14 +267,20 @@ impl List {
             let missing     = range.clone().filter(|id| !current_entries.contains(id));
             // The provider is provided by user, so we should not keep any borrow when calling its
             // methods.
-            let models      = missing.map(|id| (id,provider.get(id)));
+            let models = missing.map(|id| (id,provider.get(id)));
             with(self.entries.borrow(), |entries| {
                 let is_outdated = |e:&Entry| e.id.get().map_or(true, |i| !range.contains(&i));
                 let outdated    = entries.iter().filter(|e| is_outdated(e));
                 for (entry,(id,model)) in outdated.zip(models) {
                     debug!(self.logger, "Setting new model {model:?} for entry {id}; \
                         old entry: {entry.id.get():?}");
-                    entry.set_model(id,&model);
+                    match model {
+                        Some(model) => entry.set_model(id,&model),
+                        None        => {
+                            error!(self.logger, "Model provider didn't return model for id {id}");
+                            entry.set_model(id,&default())
+                        }
+                    };
                     entry.set_position_y(Self::position_y_of_entry(id));
                 }
             });

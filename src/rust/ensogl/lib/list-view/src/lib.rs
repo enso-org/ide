@@ -1,11 +1,11 @@
-//! Selection List EnsoGL Component.
+//! ListView EnsoGL Component.
 //!
-//! Select is a displayed list of entries with possibility of selecting one and "chosing" by
-//! clicking or pressing enter.
+//! ListView a displayed list of entries with possibility of selecting one and "chosing" by
+//! clicking or pressing enter - similar to the HTML `<select>`.
 
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
-#![recursion_limit="512"]
+
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
@@ -15,6 +15,8 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
+#![recursion_limit="512"]
+
 pub mod component;
 pub mod entry;
 
@@ -23,4 +25,4 @@ pub mod prelude {
     pub use ensogl_core::prelude::*;
 }
 
-pub use component::Select;
+pub use component::ListView;
