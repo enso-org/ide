@@ -944,13 +944,11 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
 /// with base implementation `From<T> for T`.
 #[derive(Clone,CloneRef)]
 pub struct Any<Host=Scene> {
-    wrapped:Rc<dyn Object<Host>>
+    wrapped : Rc<dyn Object<Host>>
 }
 
 impl<Host> Debug for Any<Host> {
-    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Any Display Object>")
-    }
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result { write!(f, "display::object::Any") }
 }
 
 impl<Host> Object<Host> for Any<Host> {
