@@ -729,6 +729,12 @@ impl Handle {
     ///
     /// Lines corresponding to the selection will be extracted to a new method definition.
     pub fn collapse(&self, nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<()> {
+        let nodes : Vec<_> = Result::from_iter(nodes.into_iter().map(|id| self.node(id)))?;
+        let positions      = nodes.iter().filter_map(|node| {
+            node.metadata.as_ref().and_then(|metadata| metadata.position)
+        });
+        let mean_position = model::module::Position::mean(positions);
+
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
         let graph           = self.graph_info()?;
@@ -737,13 +743,20 @@ impl Handle {
         let used_names      = used_names.into_iter().map(|name| name.item);
         let introduced_name = generate_name("func",used_names);
         let introduced_name = definition::DefinitionName::new_plain(introduced_name);
-        let collapsed       = collapse(&graph,nodes,introduced_name,&self.parser)?;
-        let Collapsed {new_method,updated_definition} = collapsed;
+        let node_ids        = nodes.iter().map(|node| node.info.id());
+        let collapsed       = collapse(&graph,node_ids,introduced_name,&self.parser)?;
+        let Collapsed {new_method,updated_definition,collapsed_node} = collapsed;
 
         let mut module = module::Info {ast:self.module.ast()};
         module.add_method(new_method,module::Placement::Before(my_name),&self.parser)?;
         self.module.update_ast(module.ast);
         self.update_definition_ast(|_| Ok(updated_definition))?;
+        self.module.with_node_metadata(collapsed_node,Box::new(|metadata| {
+            *metadata = NodeMetadata {
+                position : Some(mean_position),
+                ..default()
+            };
+        }));
         Ok(())
     }
 

@@ -45,33 +45,42 @@ pub struct Collapsed {
     /// New contents of the refactored definition.
     pub updated_definition : DefinitionInfo,
     /// Contents of the new definition that should be placed next to the refactored one.
-    pub new_method         : definition::ToAdd,
+    pub new_method : definition::ToAdd,
+    /// Identifier of the collapsed node in the updated definition.
+    pub collapsed_node : node::Id
 }
 
 
 // === Errors ===
 
-// TODO
-#[derive(Clone,Debug,Display,Fail)]
-struct Error;
-
-// TODO
-#[derive(Clone,Debug,Display,Fail)]
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="At least one node must be selected for collapsing refactoring.")]
 pub struct NoNodesSelected;
 
-// TODO
-#[derive(Clone,Debug,Display,Fail)]
-pub struct CannotResolveConnectionEndpoint;
+#[allow(missing_docs)]
+#[fail(display="Internal refactoring error: Cannot resolve node {}.",_0)]
+#[derive(Clone,Copy,Debug,Fail)]
+pub struct CannotResolveConnectionEndpoint(node::Id);
 
-// TODO
-#[derive(Clone,Debug,Display,Fail)]
-pub struct EndpointIdentifierCannotBeResolved;
+#[allow(missing_docs)]
+#[fail(display="Internal refactoring error: Cannot resolve identifier for the endpoint {:?}",_0)]
+#[derive(Clone,Debug,Fail)]
+pub struct EndpointIdentifierCannotBeResolved(Endpoint);
 
-// TODO
-#[derive(Clone,Debug,Display,Fail)]
-pub struct MultipleOutputIdentifiers;
+#[allow(missing_docs)]
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Currently collapsing nodes is supported only when there would be at most one output\
+from the collapsed function. Found more than one output: `{}` and `{}`.",_0,_1)]
+pub struct MultipleOutputIdentifiers(String,String);
 
 
+
+// ===================
+// === GraphHelper ===
+// ===================
+
+/// Helper that stores the refactored graph information and provides methods for its processing.
 #[derive(Clone,Debug)]
 pub struct GraphHelper {
     /// The graph of definition where the node collapsing takes place.
@@ -81,6 +90,7 @@ pub struct GraphHelper {
 }
 
 impl GraphHelper {
+    /// Create a helper for the given graph.
     pub fn new(graph:GraphInfo) -> Self {
         GraphHelper {
             nodes : graph.nodes(),
@@ -88,24 +98,50 @@ impl GraphHelper {
         }
     }
 
+    /// Get the information about node described byt the given ID.
     pub fn lookup_node(&self, id:node::Id) -> FallibleResult<&NodeInfo> {
-        self.nodes.iter().find(|node| node.id() == id).ok_or(CannotResolveConnectionEndpoint.into())
+        let err = CannotResolveConnectionEndpoint(id).into();
+        self.nodes.iter().find(|node| node.id() == id).ok_or(err)
     }
 
+    /// Get the identifier constituting a connection's endpoint.
     pub fn endpoint_identifier(&self, endpoint:&Endpoint) -> FallibleResult<Identifier> {
         let node         = self.lookup_node(endpoint.node)?;
-        let err          = EndpointIdentifierCannotBeResolved;
+        let err          = || EndpointIdentifierCannotBeResolved(endpoint.clone()).into();
         let endpoint_ast = node.ast().get_traversing(&endpoint.crumbs)?.clone_ref();
-        Identifier::new(endpoint_ast).ok_or(err.into())
+        Identifier::new(endpoint_ast).ok_or_else(err)
     }
 
+    /// Get the variable form of the identifier for the given connection.
     pub fn connection_variable(&self, connection:&Connection) -> FallibleResult<Identifier> {
         self.endpoint_identifier(&connection.source)
+    }
+
+    /// Rewrite lines of the refactored definition by calling given functor for each line.
+    pub fn rewrite_definition
+    (&self, line_rewriter:impl Fn(&BlockLine<Option<Ast>>) -> FallibleResult<LineDisposition>)
+    -> FallibleResult<DefinitionInfo> {
+        let mut updated_definition = self.info.source.clone();
+        let mut new_lines          = Vec::new();
+        for line in updated_definition.block_lines()? {
+            match line_rewriter(&line)? {
+                LineDisposition::Keep         => new_lines.push(line),
+                LineDisposition::Remove       => {},
+                LineDisposition::Replace(ast) => new_lines.push(BlockLine::new(Some(ast)))
+            }
+        };
+        updated_definition.set_block_lines(new_lines)?;
+        Ok(updated_definition)
     }
 }
 
 
-struct Extracted {
+
+// =================
+// === Extracted ===
+// =================
+
+pub struct Extracted {
     /// Identifiers used in the collapsed nodes from the outside scope.
     inputs : Vec<Identifier>,
     /// The identifier from the extracted nodes that is used outside.
@@ -120,11 +156,12 @@ struct Extracted {
 }
 
 impl Extracted {
-    fn new(graph:&GraphHelper, selected_nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<Self> {
-        let selected_nodes        = selected_nodes.into_iter().map(|id| graph.lookup_node(id).cloned());
-        let selected_nodes:Vec<_> = Result::from_iter(selected_nodes)?;
+    pub fn new
+    (graph:&GraphHelper, selected_nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<Self> {
+        let selected_nodes:Vec<_> = Result::from_iter(selected_nodes.into_iter().map(|id| {
+            graph.lookup_node(id).cloned()
+        }))?;
         let selected_nodes_set:HashSet<_> = selected_nodes.iter().map(|node| node.id()).collect();
-
         let mut output_node = None;
         let mut inputs      = Vec::new();
         let mut output      = None;
@@ -136,8 +173,11 @@ impl Extracted {
                 inputs.push(identifier)
             } else if starts_inside && !ends_inside {
                 match output {
-                    Some(previous_identifier) if identifier != previous_identifier =>
-                        return Err(MultipleOutputIdentifiers.into()),
+                    Some(previous_identifier) if identifier != previous_identifier => {
+                        let ident1 = identifier.to_string();
+                        let ident2 = previous_identifier.to_string();
+                        return Err(MultipleOutputIdentifiers(ident1,ident2).into())
+                    }
                     Some(_) => {} // Ignore duplicate usage of the same identifier.
                     None    => {
                         output = Some(identifier);
@@ -152,9 +192,7 @@ impl Extracted {
 
     /// Check if the given node belongs to the selection (i.e. is extracted into a new method).
     pub fn is_selected(&self, id:node::Id) -> bool {
-        // TODO is it worth to keep a separate field with set just for this?
         self.selected_nodes_set.contains(&id)
-        //self.selected_nodes.iter().find(|node| node.id() == id).is_some()
     }
 
     /// Generate AST of a line that needs to be appended to the extracted nodes' Asts.
@@ -177,13 +215,19 @@ impl Extracted {
 }
 
 
+
 // =================
 // === Collapser ===
 // =================
 
 /// Collapser rewrites the refactoring definition line-by-line. This enum describes action to be
 /// taken for a given line.
-enum LineDisposition {Keep,Remove,Replace(Ast)}
+#[allow(missing_docs)]
+pub enum LineDisposition {
+    Keep,
+    Remove,
+    Replace(Ast)
+}
 
 /// Helper type that stores some common data used for collapsing algorithm and implements its logic.
 struct Collapser {
@@ -219,7 +263,7 @@ impl Collapser {
     /// Does not include any pattern for assigning the resulting value.
     pub fn call_to_extracted(&self, extracted:&definition::ToAdd) -> FallibleResult<Ast> {
         let mut target = extracted.name.clone();
-        target.extended_target.insert(0,Located::new_root("here".to_string()));
+        target.extended_target.insert(0,Located::new_root("here".to_string())); // TODO refactor "here" literal out
         let base = target.ast(&self.parser)?;
         let args  = extracted.explicit_parameter_names.iter().map(Ast::var);
         let chain = ast::prefix::Chain::new(base,args);
@@ -256,18 +300,12 @@ impl Collapser {
     }
 
     pub fn collapse(&self,name:DefinitionName) -> FallibleResult<Collapsed> {
-        let new_method      = self.extracted.generate(name)?;
-        let mut updated_definition = self.graph.info.source.clone();
-        let mut new_lines   = Vec::new();
-        for line in updated_definition.block_lines()? {
-            match self.rewrite_line(&line,&new_method)? {
-                LineDisposition::Keep         => new_lines.push(line),
-                LineDisposition::Remove       => {},
-                LineDisposition::Replace(ast) => new_lines.push(BlockLine::new(Some(ast)))
-            }
-        };
-        updated_definition.set_block_lines(new_lines)?;
-        Ok(Collapsed {new_method,updated_definition})
+        let new_method         = self.extracted.generate(name)?;
+        let updated_definition = self.graph.rewrite_definition(|line| {
+            self.rewrite_line(line,&new_method)
+        })?;
+        let collapsed_node = self.replaced_node;
+        Ok(Collapsed {new_method,updated_definition,collapsed_node})
     }
 }
 
@@ -295,17 +333,6 @@ mod tests {
     }
 
     impl Case {
-        // fn from_lines(initial_method_lines:&[&str], extracted_lines:Range<usize>, expected_generated_lines:&[&str], expected_refactored_lines:&[&str]) -> Case {
-        //     use crate::test::mock::def_from_lines;;
-        //     let refactored_name = DefinitionName::new_plain("main");
-        //     let introduced_name = DefinitionName::new_plain("func1");
-        //     let initial_method_code = def_from_lines(&refactored_name,initial_method_lines);
-        //     let expected_generated  = def_from_lines(&introduced_name,expected_generated_lines);
-        //     let expected_refactored = def_from_lines(&refactored_name,expected_refactored_lines);
-        //     Case {refactored_name,introduced_name,initial_method_code,extracted_lines,
-        //         expected_generated,expected_refactored}
-        // }
-
         fn run(&self, parser:&Parser) {
             let ast   = parser.parse_module(self.initial_method_code,default()).unwrap();
             let main  = module::locate_child(&ast,&self.refactored_name).unwrap();

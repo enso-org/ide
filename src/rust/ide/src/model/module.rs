@@ -23,7 +23,7 @@ use parser::api::ParsedSourceFile;
 use parser::Parser;
 use serde::Serialize;
 use serde::Deserialize;
-
+use failure::_core::ops::AddAssign;
 
 
 // ============
@@ -321,7 +321,7 @@ pub struct NodeMetadata {
 }
 
 /// Used for storing node position.
-#[derive(Copy,Clone,Debug,PartialEq,Serialize,Deserialize)]
+#[derive(Copy,Clone,Debug,Default,PartialEq,Serialize,Deserialize)]
 pub struct Position {
     /// Vector storing coordinates of the visual position.
     pub vector:Vector2<f32>
@@ -332,6 +332,38 @@ impl Position {
     pub fn new(x:f32, y:f32) -> Position {
         let vector = Vector2::new(x,y);
         Position {vector}
+    }
+
+    pub fn mean(iter:impl Iterator<Item=Position>) -> Position {
+        let mut count = 0;
+        let mut accum_pos = Position::default();
+        for position in iter {
+            count     += 1;
+            accum_pos += position;
+        };
+        accum_pos / (count as f32)
+    }
+}
+
+impl Add for Position {
+    type Output = Position;
+    fn add(self, rhs:Self) -> Self::Output {
+        Position {vector:self.vector+rhs.vector}
+    }
+}
+
+impl AddAssign for Position {
+    fn add_assign(&mut self, rhs:Self) {
+        self.vector += rhs.vector
+    }
+}
+
+impl<T> Div<T> for Position
+where f32 : Div<T,Output=f32>,
+      T   : Copy{
+    type Output = Position;
+    fn div(self, rhs:T) -> Self::Output {
+        Position::new(self.vector.x / rhs, self.vector.y / rhs)
     }
 }
 

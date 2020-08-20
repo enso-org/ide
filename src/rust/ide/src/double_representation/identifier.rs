@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use ast::crumbs::Located;
 use failure::_core::cmp::Ordering;
+use failure::_core::fmt::Formatter;
 
 
 // ==================
@@ -55,6 +56,9 @@ impl Identifier {
     }
 }
 
+
+// === Implementations ===
+
 impl PartialOrd for Identifier {
     fn partial_cmp(&self, other:&Self) -> Option<Ordering> {
         self.name().partial_cmp(other.name())
@@ -73,9 +77,11 @@ impl From<Identifier> for Ast {
     }
 }
 
-
-
-// === Implementations ===
+impl Display for Identifier {
+    fn fmt(&self, f:&mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.name(),f)
+    }
+}
 
 impl PartialEq for Identifier {
     fn eq(&self, other:&Self) -> bool {
