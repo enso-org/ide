@@ -213,6 +213,7 @@ impl ProjectNameModel {
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let outputs               = frp.outputs.clone_ref();
         let animations            = Animations::new(&frp.network);
+        let scene                 = scene.into_param();
         Self{logger,view,scene,display_object,text_field,project_name,animations,outputs}.init()
     }
 
