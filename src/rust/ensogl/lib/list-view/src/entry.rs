@@ -291,7 +291,14 @@ impl List {
     /// Update displayed entries, giving new provider.
     pub fn update_entries_new_provider
     (&self, provider:impl Into<AnyModelProvider> + 'static, range:Range<Id>) {
-        self.provider.set(provider.into());
+        const MAX_SAFE_ENTRIES_COUNT:usize = 1000;
+        let provider = provider.into();
+        if provider.entry_count() > MAX_SAFE_ENTRIES_COUNT {
+            error!(self.logger, "ListView entry count exceed {MAX_SAFE_ENTRIES_COUNT} - so big \
+            number of entries can cause visual glitches, e.g. https://github.com/enso-org/ide/\
+            issues/757 or https://github.com/enso-org/ide/issues/758");
+        }
+        self.provider.set(provider);
         self.update_entries(range)
     }
 }

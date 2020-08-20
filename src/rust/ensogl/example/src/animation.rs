@@ -4,17 +4,11 @@ use crate::prelude::*;
 
 use ensogl_core::system::web;
 use ensogl_core::application::Application;
-use ensogl_core::display::object::ObjectOps;
-use ensogl_core::display::shape::*;
-use ensogl_core::display::style::theme;
-use ensogl_core::data::color;
 use ensogl_core::gui::component::Animation;
 use ensogl_text_msdf_sys::run_once_initialized;
 use logger::enabled::Logger;
 use wasm_bindgen::prelude::*;
-use ensogl_core::display::Scene;
-use ensogl_text::buffer::data::unit::Bytes;
-use js_sys::Math::log;
+
 
 
 // ===================
@@ -30,7 +24,7 @@ pub fn entry_point_animation() {
     web::set_stack_trace_limit();
     run_once_initialized(|| {
         let app = Application::new(&web::get_html_element_by_id("root").unwrap());
-        init(&app);
+        init();
         mem::forget(app);
     });
 }
@@ -40,11 +34,11 @@ pub fn entry_point_animation() {
 // === Init Application ===
 // ========================
 
-fn init(app:&Application) {
+fn init() {
 
     let logger  = Logger::new("AnimationTest");
     let network = enso_frp::Network::new();
-    let animation = Animation::<f64>::new(&network);
+    let animation = Animation::<f32>::new(&network);
     animation.set_target_value(-259830.0);
 
     enso_frp::extend! {network
