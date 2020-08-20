@@ -281,6 +281,10 @@ ensogl::def_status_api! { FrpStatus
 }
 
 ensogl::def_command_api! { Commands
+    /// Push a hardcoded breadcrumb without notifying the controller.
+    debug_push_breadcrumb,
+    /// Pop a breadcrumb without notifying the controller.
+    debug_pop_breadcrumb,
     /// Cancel project name editing, restablishing the old name.
     cancel_project_name_editing,
     /// Add a new node and place it in the origin of the workspace.
@@ -311,13 +315,6 @@ ensogl::def_command_api! { Commands
     edit_mode_on,
     /// Disable mode in which the pressed node will be edited.
     edit_mode_off,
-
-
-    /// Simulates a documentation open press event. In case the event will be shortly followed by `release_documentation_view_visibility`, the documentation will be shown permanently. In other case, it will be disabled as soon as the `release_documentation_view_visibility` is emitted.
-    press_documentation_view_visibility,
-    /// Simulates a documentation open release event. See `press_documentation_view_visibility` to learn more.
-    release_documentation_view_visibility,
-
 
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
     enable_node_multi_select,
@@ -392,7 +389,6 @@ pub struct FrpInputs {
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
     pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
-    pub set_documentation_data       : frp::Source<visualization::Data>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     hover_node_output          : frp::Source<Option<EdgeTarget>>,
@@ -689,8 +685,31 @@ impl From<String> for Type {
 //  As currently there is no good place to wrap Rc into a newtype that can be easily depended on
 //  both by `ide-view` and `ide` crates, we put this as-is. Refactoring should be considered in the
 //  future, once code organization and emerging patterns are more clear.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Shrinkwrap,PartialEq,Eq)]
 pub struct MethodPointer(pub Rc<enso_protocol::language_server::MethodPointer>);
+
+impl From<enso_protocol::language_server::MethodPointer> for MethodPointer {
+    fn from(method_pointer:enso_protocol::language_server::MethodPointer) -> Self {
+        Self(Rc::new(method_pointer))
+    }
+}
+
+
+
+// =================
+// === LocalCall ===
+// =================
+
+/// A specific function call occurring within another function's definition body.
+/// It's closely related to the `LocalCall` type defined in `Language Server` types, but uses the
+/// new type `MethodPointer` defined in `GraphEditor`.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct LocalCall {
+    /// An expression being a call to a method.
+    pub call : enso_protocol::language_server::ExpressionId,
+    /// A pointer to the called method.
+    pub definition : MethodPointer,
+}
 
 
 
@@ -1082,7 +1101,7 @@ pub struct GraphEditorModel {
     pub logger             : Logger,
     pub display_object     : display::object::Instance,
     pub app                : Application,
-    pub project_name       : component::ProjectName,
+    pub breadcrumbs        : component::Breadcrumbs,
     pub cursor             : cursor::Cursor,
     pub nodes              : Nodes,
     pub edges              : Edges,
@@ -1110,17 +1129,16 @@ impl GraphEditorModel {
         let edges              = default();
         let frp                = FrpInputs::new(network);
         let touch_state        = TouchState::new(network,&scene.mouse.frp);
-        let project_name       = component::ProjectName::new(scene,focus_manager);
-        display_object.add_child(&project_name);
-        let screen     = scene.camera().screen();
-        let margin     = 10.0;
-        project_name.set_position_y(screen.height / 2.0 - margin);
-        // FIXME: These 2 lines fix a bug with display objects visible on stage.
-        //        The same bug appears in `ContainerModel`
+        let breadcrumbs        = component::Breadcrumbs::new(scene,focus_manager);
         display_object.add_child(&documentation_view);
         display_object.remove_child(&documentation_view);
-        let app = app.clone_ref();
-        Self {logger,display_object,app,cursor,nodes,edges,touch_state,frp,project_name,documentation_view}//visualizations}
+        let app                = app.clone_ref();
+        Self {logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,documentation_view}.init()//visualizations }
+    }
+
+    fn init(self) -> Self {
+        self.add_child(&self.breadcrumbs);
+        self
     }
 
     pub fn all_nodes(&self) -> Vec<NodeId> {
@@ -1562,7 +1580,9 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
+        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Enter],&[])       , "debug_push_breadcrumb")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::ArrowUp],&[])     , "debug_pop_breadcrumb")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
@@ -1666,6 +1686,51 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
 
+
+    // =============================
+    // === Breadcrumbs Debugging ===
+    // =============================
+
+    frp::extend! { network
+        eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.frp.debug.push_breadcrumb.emit(None));
+        eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.frp.debug.pop_breadcrumb.emit(()));
+    }
+
+
+
+    // ============================
+    // === Project Name Editing ===
+    // ============================
+
+    // === Commit project name edit ===
+
+    frp::extend! { network
+        eval_ touch.background.selected(model.breadcrumbs.frp.outside_press.emit(()));
+    }
+
+
+    // === Cancel project name editing ===
+
+    frp::extend! { network
+        eval_ inputs.cancel_project_name_editing(
+            model.breadcrumbs.frp.cancel_project_name_editing.emit(())
+        );
+    }
+
+
+
+    // =========================
+    // === User Interactions ===
+    // =========================
+
+    // === Mouse Cursor Transform ===
+    frp::extend! { network
+        cursor_pos_in_scene <- cursor.frp.position.map(f!((position) {
+            scene.screen_to_scene_coordinates(*position).xy()
+        }));
+    }
+
+
     // === Selection Target Redirection ===
 
     frp::extend! { network
@@ -1709,15 +1774,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Cancel project name editing ===
 
     frp::extend! { network
-        eval_ inputs.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
-    }
-
-
-    // === Mouse Cursor Transform ===
-    frp::extend! { network
-        cursor_pos_in_scene <- cursor.frp.position.map(f!((position) {
-            scene.screen_to_scene_coordinates(*position).xy()
-        }));
+        eval_ inputs.cancel_project_name_editing(model.frp.cancel_project_name_editing.emit(()));
     }
 
 
