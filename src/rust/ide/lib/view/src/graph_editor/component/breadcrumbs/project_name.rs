@@ -8,7 +8,7 @@ use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
 use crate::graph_editor::component::breadcrumbs::breadcrumb;
 
 use enso_frp as frp;
-use frp::IntoParam;
+// use frp::IntoParam;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::object::ObjectOps;
@@ -18,7 +18,7 @@ use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::shape::*;
 use ensogl::display::Sprite;
-use ensogl::display::style::data::DataMatch;
+// use ensogl::display::style::data::DataMatch;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use logger::enabled::Logger;
@@ -187,7 +187,7 @@ pub struct ProjectNameModel {
     animations     : Animations,
     display_object : display::object::Instance,
     view           : component::ShapeView<background::Shape>,
-    scene          : Scene,
+    // scene          : Scene,
     text_field     : TextField,
     project_name   : Rc<RefCell<String>>,
     outputs        : FrpOutputs
@@ -201,10 +201,10 @@ impl ProjectNameModel {
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
-        // let base_color            = breadcrumb::SELECTED_COLOR;
-        let styles                = StyleWatch::new(&scene.style_sheet);
-        let base_color            = styles.get("project_name.text.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.5));
-        let base_color            = color::Rgba::from(base_color);
+        let base_color            = breadcrumb::SELECTED_COLOR;
+        // let styles                = StyleWatch::new(&scene.style_sheet);
+        // let base_color            = styles.get("project_name.text.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.5));
+        // let base_color            = color::Rgba::from(base_color);
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
         let text_field            = TextField::new(scene,text_field_properties,focus_manager);
@@ -213,8 +213,8 @@ impl ProjectNameModel {
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let outputs               = frp.outputs.clone_ref();
         let animations            = Animations::new(&frp.network);
-        let scene                 = scene.into_param();
-        Self{logger,view,scene,display_object,text_field,project_name,animations,outputs}.init()
+        // let scene                 = scene.into_param();
+        Self{logger,view,display_object,text_field,project_name,animations,outputs}.init()
     }
 
     /// Get the width of the ProjectName view.
