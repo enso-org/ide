@@ -661,7 +661,7 @@ dependencies = [
  "enso-prelude 0.1.0",
  "enso-shapely 0.1.0",
  "ensogl-core 0.1.0",
- "ensogl-select 0.1.0",
+ "ensogl-gui-list-view 0.1.0",
  "ensogl-text 0.1.0",
  "ensogl-text-msdf-sys 0.1.0",
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -674,7 +674,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ensogl-select"
+name = "ensogl-gui-list-view"
 version = "0.1.0"
 dependencies = [
  "enso-frp 0.1.0",

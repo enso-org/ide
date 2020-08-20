@@ -10,7 +10,7 @@ use ensogl_core::display::style::theme;
 use ensogl_core::data::color;
 use ensogl_core::gui;
 use ensogl_text_msdf_sys::run_once_initialized;
-use ensogl_select as select;
+use ensogl_gui_list_view as list_view;
 use logger::enabled::Logger;
 use wasm_bindgen::prelude::*;
 use ensogl_core::display::Scene;
@@ -46,8 +46,8 @@ mod icon {
     use super::*;
     ensogl_core::define_shape_system! {
         (style:Style,id:f32) {
-            let width  = select::entry::ICON_SIZE.px();
-            let height = select::entry::ICON_SIZE.px();
+            let width  = list_view::entry::ICON_SIZE.px();
+            let height = list_view::entry::ICON_SIZE.px();
             let color  : Var<color::Rgba> = "rgba(input_id/16.0,0.0,0.0,1.0)".into();
             Rect((&width,&height)).fill(color).into()
         }
@@ -70,14 +70,15 @@ impl MockEntries {
     }
 }
 
-impl select::entry::ModelProvider for MockEntries {
+impl list_view::entry::ModelProvider for MockEntries {
     fn entry_count(&self) -> usize { self.entries_count }
 
-    fn get(&self, id:usize) -> select::entry::Model {
+    fn get(&self, id:usize) -> list_view::entry::Model {
+        use list_view::entry::ICON_SIZE;
         let icon = gui::component::ShapeView::<icon::Shape>::new(&self.logger,&self.scene);
-        icon.shape.sprite.size.set(Vector2(select::entry::ICON_SIZE,select::entry::ICON_SIZE));
+        icon.shape.sprite.size.set(Vector2(ICON_SIZE,ICON_SIZE));
         icon.shape.id.set(id as f32);
-        let model = select::entry::Model::new(iformat!("Entry {id}")).with_icon(icon);
+        let model = list_view::entry::Model::new(iformat!("Entry {id}")).with_icon(icon);
         if id == 10 { model.highlight(std::iter::once((Bytes(1)..Bytes(3)).into())) }
         else        { model }
     }
@@ -101,8 +102,8 @@ fn init(app:&Application) {
     app.themes.register("dark",dark);
     app.themes.set_enabled(&["dark"]);
 
-    let select                                   = app.new_view::<select::component::Select>();
-    let provider:select::entry::AnyModelProvider = MockEntries::new(app,13000).into();
+    let select                                      = app.new_view::<list_view::Select>();
+    let provider:list_view::entry::AnyModelProvider = MockEntries::new(app,13000).into();
     select.frp.resize(Vector2(100.0,160.0));
     select.frp.set_entries(provider);
     app.display.add_child(&select);
