@@ -16,6 +16,20 @@ use crate::double_representation::graph::GraphInfo;
 
 use parser::Parser;
 use std::collections::BTreeSet;
+use ast::crumbs::Located;
+use ast::BlockLine;
+
+
+
+// TODO the nice doc
+pub fn collapse
+(graph:&GraphInfo
+ , selected_nodes:impl IntoIterator<Item=node::Id>
+ , name:DefinitionName, parser:&Parser
+) -> FallibleResult<Collapsed> {
+    Collapser::new(graph.clone(),selected_nodes,parser.clone_ref())?.collapse(name)
+}
+
 
 
 /// Result of running node collapse algorithm. Describes update to the refactored definition.
@@ -78,6 +92,10 @@ fn lookup_node(nodes:&[NodeInfo], id:node::Id) -> Result<&NodeInfo,CannotResolve
     nodes.iter().find(|node| node.id() == id).ok_or(CannotResolveConnectionEndpoint)
 }
 
+/// Collapser rewrites the refactoring definition line-by-line. This enum describes action to be
+/// taken for a given line.
+enum LineDisposition {Keep,Remove,Replace(Ast)}
+
 /// Helper type that stores some common data used for collapsing algorithm and implements its logic.
 struct Collapser {
     graph              : GraphInfo,
@@ -86,13 +104,15 @@ struct Collapser {
     nodes              : Vec<NodeInfo>,
     last_selected      : node::Id,
     connections        : ClassifiedConnections,
+    parser             : Parser,
 }
 
 impl Collapser {
     /// Does some early pre-processing and gathers common data used in various parts of the
     /// refactoring algorithm.
     pub fn new
-    (graph:GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<Self> {
+    (graph:GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, parser:Parser)
+    -> FallibleResult<Self> {
         let nodes                 = graph.nodes();
         let lookup_id             = |id| lookup_node(&nodes,id).cloned();
         let selected_nodes:Vec<_> = Result::from_iter(selected_nodes.into_iter().map(lookup_id))?;
@@ -107,6 +127,7 @@ impl Collapser {
             nodes,
             last_selected,
             connections,
+            parser,
         })
     }
 
@@ -171,61 +192,60 @@ impl Collapser {
         Ok(definition::ToAdd {name,explicit_parameter_names,body_head,body_tail})
     }
 
-    pub fn collapse(&self,name:DefinitionName, parser:&Parser) -> FallibleResult<Collapsed> {
-        let replaced_node   = self.node_to_replace();
-        let has_output      = self.connections.outputs.is_some();
-        let to_add          = self.extracted_definition(name)?;
-        let mut updated_def = self.graph.source.clone();
-        let mut lines       = updated_def.block_lines()?;
-        lines.drain_filter(|line| {
-            // There are 3 kind of lines:
-            // 1) Lines that are left intact -- not belonging to selected nodes;
-            // 2) Lines that are extracted and removed -- all selected nodes, except:
-            // 3) Line that introduces output of the extracted function (if present at all) -> its
-            //    expression shall be replaced with a call to the extracted function.
-            //    If there is no usage of the extracted function output, its invocation should be placed
-            //    in place of the last extracted line.
-            let mut node_info = match line.elem.as_ref().and_then(NodeInfo::from_line_ast) {
-                Some(node_info) => node_info,
-                _               => return false, // We leave lines without nodes (blank lines) intact.
-            };
-            let node_id     = node_info.id();
-            let is_selected = self.is_selected(node_id);
-            if !is_selected {
-                println!("Leaving {} intact.", node_info.ast()); // TODO
-                false
-            } else if node_id == replaced_node {
-                let old_ast = node_info.ast().clone_ref();
-                let base = to_add.name.ast(&parser).unwrap(); // TODO
-                let args = to_add.explicit_parameter_names.iter().map(Ast::var);
-                let invocation = ast::prefix::Chain::new(base,args);
-                node_info.set_expression(invocation.into_ast());
-                if !has_output {
-                    node_info.clear_pattern()
-                }
-                let new_ast = node_info.ast().clone_ref();
-                println!("Rewriting {} into a call {}.", old_ast, new_ast); // TODO
-                line.elem = Some(new_ast); // TODO TODO TODO
-                false
-            } else {
-                println!("Extracting {} out.", node_info.ast()); // TODO
-                true
-            }
-        });
-        updated_def.set_block_lines(lines)?;
-
-        Ok(Collapsed {
-            new_method : to_add,
-            updated_definition : updated_def,
-        })
+    pub fn call_to_extracted(&self, extracted:&definition::ToAdd) -> FallibleResult<Ast> {
+        let mut target = extracted.name.clone();
+        target.extended_target.insert(0,Located::new_root("here".to_string()));
+        let base = target.ast(&self.parser)?;
+        let args  = extracted.explicit_parameter_names.iter().map(Ast::var);
+        let chain = ast::prefix::Chain::new(base,args);
+        Ok(chain.into_ast())
     }
-}
 
-// TODO the nice doc
-pub fn collapse
-(graph:&GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, name:DefinitionName, parser:&Parser)
--> FallibleResult<Collapsed> {
-    Collapser::new(graph.clone(), selected_nodes)?.collapse(name, parser)
+    /// Assign to a line from refactored definition one of 3 dispositions:
+    /// 1) Lines that are kept intact -- not belonging to selected nodes;
+    /// 2) Lines that are extracted and removed -- all selected nodes, except:
+    /// 3) Line that introduces output of the extracted function (if present at all) -> its
+    ///    expression shall be replaced with a call to the extracted function.
+    ///    If there is no usage of the extracted function output, its invocation should be placed
+    ///    in place of the last extracted line.
+    pub fn rewrite_line
+    (&self, line:&BlockLine<Option<Ast>>, extracted_definition:&definition::ToAdd)
+    -> FallibleResult<LineDisposition> {
+        let replaced_node = self.node_to_replace();
+        let has_output    = self.connections.outputs.is_some();
+        let mut node_info = match line.elem.as_ref().and_then(NodeInfo::from_line_ast) {
+            Some(node_info) => node_info,
+            // We leave lines without nodes (blank lines) intact.
+            _               => return Ok(LineDisposition::Keep),
+        };
+        let id = node_info.id();
+        if !self.is_selected(id) {
+            Ok(LineDisposition::Keep)
+        } else if id == replaced_node {
+            if !has_output {
+                node_info.clear_pattern()
+            }
+            node_info.set_expression(self.call_to_extracted(&extracted_definition)?);
+            Ok(LineDisposition::Replace(node_info.ast().clone_ref()))
+        } else {
+            Ok(LineDisposition::Remove)
+        }
+    }
+
+    pub fn collapse(&self,name:DefinitionName) -> FallibleResult<Collapsed> {
+        let new_method      = self.extracted_definition(name)?;
+        let mut updated_definition = self.graph.source.clone();
+        let mut new_lines   = Vec::new();
+        for line in updated_definition.block_lines()? {
+            match self.rewrite_line(&line,&new_method)? {
+                LineDisposition::Keep         => new_lines.push(line),
+                LineDisposition::Remove       => {},
+                LineDisposition::Replace(ast) => new_lines.push(BlockLine::new(Some(ast)))
+            }
+        };
+        updated_definition.set_block_lines(new_lines)?;
+        Ok(Collapsed {new_method,updated_definition})
+    }
 }
 
 
