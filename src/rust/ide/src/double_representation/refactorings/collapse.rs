@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 use crate::double_representation::connection::Connection;
 use crate::double_representation::connection::Endpoint;
-use crate::double_representation::definition::{DefinitionInfo, ToAdd};
+use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::definition;
 use crate::double_representation::identifier::Identifier;
@@ -18,11 +18,13 @@ use parser::Parser;
 use std::collections::BTreeSet;
 
 
-
+/// Result of running node collapse algorithm. Describes update to the refactored definition.
 #[derive(Clone,Debug)]
 pub struct Collapsed {
-    pub updated_definition:DefinitionInfo,
-    pub new_method:definition::ToAdd,
+    /// New contents of the refactored definition.
+    pub updated_definition : DefinitionInfo,
+    /// Contents of the new definition that should be placed next to the refactored one.
+    pub new_method         : definition::ToAdd,
 }
 
 #[derive(Clone,Debug,Default)]
@@ -56,15 +58,19 @@ impl ClassifiedConnections {
     }
 }
 
+// TODO
 #[derive(Clone,Debug,Display,Fail)]
 struct Error;
 
+// TODO
 #[derive(Clone,Debug,Display,Fail)]
 pub struct NoNodesSelected;
 
+// TODO
 #[derive(Clone,Debug,Display,Fail)]
 pub struct CannotResolveConnectionEndpoint;
 
+// TODO
 #[derive(Clone,Debug,Display,Fail)]
 pub struct EndpointIdentifierCannotBeResolved;
 
@@ -72,7 +78,8 @@ fn lookup_node(nodes:&[NodeInfo], id:node::Id) -> Result<&NodeInfo,CannotResolve
     nodes.iter().find(|node| node.id() == id).ok_or(CannotResolveConnectionEndpoint)
 }
 
-struct Utils {
+/// Helper type that stores some common data used for collapsing algorithm and implements its logic.
+struct Collapser {
     graph              : GraphInfo,
     selected_nodes     : Vec<NodeInfo>,
     selected_nodes_set : HashSet<node::Id>,
@@ -81,7 +88,7 @@ struct Utils {
     connections        : ClassifiedConnections,
 }
 
-impl Utils {
+impl Collapser {
     /// Does some early pre-processing and gathers common data used in various parts of the
     /// refactoring algorithm.
     pub fn new
@@ -93,7 +100,7 @@ impl Utils {
         let last_selected         = selected_nodes.iter().last().ok_or(NoNodesSelected)?.id();
         let connections           = graph.connections();
         let connections           = ClassifiedConnections::new(&selected_nodes_set,connections);
-        Ok(Utils {
+        Ok(Collapser {
             graph,
             selected_nodes,
             selected_nodes_set,
@@ -116,7 +123,9 @@ impl Utils {
 
     /// Check if the given node belongs to the selection (i.e. is extracted into a new method).
     pub fn is_selected(&self, id:node::Id) -> bool {
-        self.selected_nodes.iter().find(|node| node.id() == id).is_some()
+        // TODO is it worth to keep a separate field with set just for this?
+        self.selected_nodes_set.contains(&id)
+        //self.selected_nodes.iter().find(|node| node.id() == id).is_some()
     }
 
     /// Get the extracted function parameter names.
@@ -151,6 +160,7 @@ impl Utils {
         self.endpoint_to_identifier(&output_connection.source).ok().map(Into::into)
     }
 
+    /// Generate the description for the new method's definition with the extracted nodes.
     pub fn extracted_definition(&self,name:DefinitionName) -> FallibleResult<definition::ToAdd> {
         let inputs        = self.arguments()?;
         let return_line   = self.return_line();
@@ -182,24 +192,23 @@ impl Utils {
             let node_id     = node_info.id();
             let is_selected = self.is_selected(node_id);
             if !is_selected {
-                println!("Leaving {} intact.", node_info.ast());
+                println!("Leaving {} intact.", node_info.ast()); // TODO
                 false
             } else if node_id == replaced_node {
                 let old_ast = node_info.ast().clone_ref();
-                let base = to_add.name.ast(&parser).unwrap();
+                let base = to_add.name.ast(&parser).unwrap(); // TODO
                 let args = to_add.explicit_parameter_names.iter().map(Ast::var);
                 let invocation = ast::prefix::Chain::new(base,args);
                 node_info.set_expression(invocation.into_ast());
                 if !has_output {
                     node_info.clear_pattern()
                 }
-
                 let new_ast = node_info.ast().clone_ref();
-                println!("Rewriting {} into a call {}.", old_ast, new_ast);
+                println!("Rewriting {} into a call {}.", old_ast, new_ast); // TODO
                 line.elem = Some(new_ast); // TODO TODO TODO
                 false
             } else {
-                println!("Extracting {} out.", node_info.ast());
+                println!("Extracting {} out.", node_info.ast()); // TODO
                 true
             }
         });
@@ -212,10 +221,11 @@ impl Utils {
     }
 }
 
+// TODO the nice doc
 pub fn collapse
 (graph:&GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, name:DefinitionName, parser:&Parser)
 -> FallibleResult<Collapsed> {
-    Utils::new(graph.clone(),selected_nodes)?.collapse(name,parser)
+    Collapser::new(graph.clone(), selected_nodes)?.collapse(name, parser)
 }
 
 
@@ -242,16 +252,16 @@ mod tests {
     }
 
     impl Case {
-        fn from_lines(initial_method_lines:&[&str], extracted_lines:Range<usize>, expected_generated_lines:&[&str], expected_refactored_lines:&[&str]) -> Case {
-            use crate::test::mock::def_from_lines;;
-            let refactored_name = DefinitionName::new_plain("main");
-            let introduced_name = DefinitionName::new_plain("func1");
-            let initial_method_code = def_from_lines(&refactored_name,initial_method_lines);
-            let expected_generated  = def_from_lines(&introduced_name,expected_generated_lines);
-            let expected_refactored = def_from_lines(&refactored_name,expected_refactored_lines);
-            Case {refactored_name,introduced_name,initial_method_code,extracted_lines,
-                expected_generated,expected_refactored}
-        }
+        // fn from_lines(initial_method_lines:&[&str], extracted_lines:Range<usize>, expected_generated_lines:&[&str], expected_refactored_lines:&[&str]) -> Case {
+        //     use crate::test::mock::def_from_lines;;
+        //     let refactored_name = DefinitionName::new_plain("main");
+        //     let introduced_name = DefinitionName::new_plain("func1");
+        //     let initial_method_code = def_from_lines(&refactored_name,initial_method_lines);
+        //     let expected_generated  = def_from_lines(&introduced_name,expected_generated_lines);
+        //     let expected_refactored = def_from_lines(&refactored_name,expected_refactored_lines);
+        //     Case {refactored_name,introduced_name,initial_method_code,extracted_lines,
+        //         expected_generated,expected_refactored}
+        // }
 
         fn run(&self, parser:&Parser) {
             let ast   = parser.parse_module(&self.initial_method_code, default()).unwrap();
@@ -260,16 +270,16 @@ mod tests {
             let nodes = graph.nodes();
 
             let selected_nodes = nodes[self.extracted_lines.clone()].iter().map(NodeInfo::id);
-
-            let collapsed = collapse(&graph,selected_nodes,self.introduced_name.clone(),parser).unwrap();
+            let new_name       = self.introduced_name.clone();
+            let collapsed      = collapse(&graph,selected_nodes,new_name,parser).unwrap();
 
             let new_method = collapsed.new_method.ast(0,parser).unwrap();
             let placement  = module::Placement::Before(self.refactored_name.clone());
-            let new_main = &collapsed.updated_definition.ast;
+            let new_main   = &collapsed.updated_definition.ast;
             println!("Generated method:\n{}",new_method);
             println!("Updated method:\n{}",new_main);
             let mut module = module::Info{ast};
-            module.ast = module.ast.set(&main.crumb().into(),new_main.ast().clone()).unwrap();
+            module.ast     = module.ast.set(&main.crumb().into(),new_main.ast().clone()).unwrap();
             module.add_method(collapsed.new_method,placement,parser).unwrap();
             println!("Module after refactoring:\n{}",&module.ast);
 
@@ -278,9 +288,9 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test] // TODO make wasm_bindgen_test
     fn test_collapse() {
-        let parser              = Parser::new_or_panic();
+        let parser          = Parser::new_or_panic();
         let introduced_name = DefinitionName::new_plain("custom_new");
         let refactored_name = DefinitionName::new_plain("custom_old");
         let initial_method_code = r"custom_old =

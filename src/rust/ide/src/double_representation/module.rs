@@ -493,13 +493,8 @@ pub struct EmptyDefinitionId;
 
 #[allow(missing_docs)]
 #[derive(Fail,Clone,Debug)]
-#[fail(display="The definition with crumb {} is not a direct child of the module.",_0)]
-pub struct NotDirectChild(definition::Crumb);
-
-#[allow(missing_docs)]
-#[derive(Fail,Clone,Debug)]
-#[fail(display="The definition is not a direct child of the module.")]
-pub struct NotDirectChild2;
+#[fail(display="The definition with crumbs {:?} is not a direct child of the module.",_0)]
+pub struct NotDirectChild(ast::Crumbs);
 
 
 
@@ -524,11 +519,11 @@ impl ChildDefinition {
 
     /// Try constructing value from `definition::ChildDefinition`. Fails if it is not a direct child
     /// of a module.
-    pub fn new(child:definition::ChildDefinition) -> Result<Self,NotDirectChild2> {
+    pub fn new(child:definition::ChildDefinition) -> Result<Self,NotDirectChild> {
         if Self::try_retrieving_crumb(&child).is_some() {
             Ok(Self(child))
         } else {
-            Err(NotDirectChild2)
+            Err(NotDirectChild(child.crumbs))
         }
     }
 
@@ -540,7 +535,7 @@ impl ChildDefinition {
 }
 
 impl TryFrom<definition::ChildDefinition> for ChildDefinition {
-    type Error = NotDirectChild2;
+    type Error = NotDirectChild;
     fn try_from(value:definition::ChildDefinition) -> Result<Self,Self::Error> {
         Self::new(value)
     }

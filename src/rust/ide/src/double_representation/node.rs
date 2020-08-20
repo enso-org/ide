@@ -172,7 +172,7 @@ impl NodeInfo {
             NodeInfo::Binding {infix} => {
                 *self = NodeInfo::Expression {ast:infix.rarg.clone_ref()}
             }
-            NodeInfo::Expression {ast} => {}
+            NodeInfo::Expression {..} => {}
         }
 
     }

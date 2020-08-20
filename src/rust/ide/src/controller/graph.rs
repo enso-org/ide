@@ -4,15 +4,15 @@
 //! each graph belongs to some module.
 pub mod executed;
 
-pub use crate::double_representation::graph::Id;
 pub use crate::double_representation::graph::LocationHint;
+pub use crate::double_representation::graph::Id;
 
 use crate::prelude::*;
 
 use crate::double_representation::definition;
 use crate::double_representation::graph::GraphInfo;
-use crate::double_representation::identifier::NormalizedName;
 use crate::double_representation::identifier::LocatedName;
+use crate::double_representation::identifier::generate_name;
 use crate::double_representation::module;
 use crate::double_representation::node;
 use crate::double_representation::node::NodeInfo;
@@ -526,23 +526,12 @@ impl Handle {
         Ok(usage.all_identifiers())
     }
 
-    fn generate_name(base:&str, unavailable:impl IntoIterator<Item=NormalizedName>) -> String {
-        let is_relevant = |name:&NormalizedName| name.starts_with(base);
-        let unavailable = unavailable.into_iter().filter(is_relevant).collect::<HashSet<_>>();
-        let name = (1..).find_map(|i| {
-            let candidate = NormalizedName::new(iformat!("{base}{i}"));
-            let available = !unavailable.contains(&candidate);
-            available.as_some(candidate.into())
-        }).unwrap(); // It always return a value.
-        name
-    }
-
     /// Suggests a variable name for storing results of the given node. Name will get a number
     /// appended to avoid conflicts with other identifiers used in the graph.
     pub fn variable_name_for(&self, node:&NodeInfo) -> FallibleResult<ast::known::Var> {
         let base_name  = Self::variable_name_base_for(node);
         let used_names = self.used_names()?.into_iter().map(|located_name| located_name.item);
-        let name       = Self::generate_name(base_name.as_str(),used_names);
+        let name       = generate_name(base_name.as_str(),used_names);
         Ok(ast::known::Var::new(ast::Var {name}, None))
     }
 
@@ -746,7 +735,7 @@ impl Handle {
         let my_name         = graph.source.name.item.clone();
         let used_names      = module::Info {ast:self.module.ast()}.used_names();
         let used_names      = used_names.into_iter().map(|name| name.item);
-        let introduced_name = Self::generate_name("func",used_names);
+        let introduced_name = generate_name("func",used_names);
         let introduced_name = definition::DefinitionName::new_plain(introduced_name);
         let collapsed       = collapse(&graph,nodes,introduced_name,&self.parser)?;
         let Collapsed {new_method,updated_definition} = collapsed;
@@ -798,6 +787,7 @@ impl Handle {
 pub mod tests {
     use super::*;
 
+    use crate::double_representation::identifier::NormalizedName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use ast::crumbs;
@@ -992,6 +982,8 @@ main =
 
     #[test] // TODO make wasm_bindgen_test
     fn collapsing_nodes2() {
+        // Checks that generated name avoid collision with other methods defined in the module
+        // and with symbols used that could be shadowed by the extracted method's name.
 
         let mut test  = Fixture::set_up();
         let code = r"
@@ -1011,11 +1003,10 @@ func3 a =
     b = 20
     c = a + b
     d = c + d
-    c
 
 main =
     a = 10
-    c = func3 a
+    func3 a
     a + func1";
 
         test.data.code = code.to_owned();
