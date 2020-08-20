@@ -316,6 +316,13 @@ ensogl::def_command_api! { Commands
     /// Disable mode in which the pressed node will be edited.
     edit_mode_off,
 
+
+    /// Simulates a documentation open press event. In case the event will be shortly followed by `release_documentation_view_visibility`, the documentation will be shown permanently. In other case, it will be disabled as soon as the `release_documentation_view_visibility` is emitted.
+    press_documentation_view_visibility,
+    /// Simulates a documentation open release event. See `press_documentation_view_visibility` to learn more.
+    release_documentation_view_visibility,
+
+
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
     enable_node_multi_select,
     /// Disable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
@@ -389,6 +396,7 @@ pub struct FrpInputs {
     pub set_visualization            : frp::Source<(NodeId,Option<visualization::Path>)>,
     pub register_visualization       : frp::Source<Option<visualization::Definition>>,
     pub set_visualization_data       : frp::Source<(NodeId,visualization::Data)>,
+    pub set_documentation_data       : frp::Source<visualization::Data>,
 
     hover_node_input           : frp::Source<Option<EdgeTarget>>,
     hover_node_output          : frp::Source<Option<EdgeTarget>>,
