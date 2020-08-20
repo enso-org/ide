@@ -8,7 +8,7 @@ use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
 use crate::graph_editor::component::breadcrumbs::breadcrumb;
 
 use enso_frp as frp;
-// use frp::IntoParam;
+use frp::IntoParam;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::object::ObjectOps;
@@ -18,7 +18,7 @@ use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::shape::*;
 use ensogl::display::Sprite;
-// use ensogl::display::style::data::DataMatch;
+use ensogl::display::style::data::DataMatch;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use logger::enabled::Logger;
@@ -187,7 +187,7 @@ pub struct ProjectNameModel {
     animations     : Animations,
     display_object : display::object::Instance,
     view           : component::ShapeView<background::Shape>,
-    // scene          : Scene,
+    scene          : Scene,
     text_field     : TextField,
     project_name   : Rc<RefCell<String>>,
     outputs        : FrpOutputs
@@ -201,10 +201,9 @@ impl ProjectNameModel {
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
-        let base_color            = breadcrumb::SELECTED_COLOR;
-        // let styles                = StyleWatch::new(&scene.style_sheet);
-        // let base_color            = styles.get("project_name.text.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.5));
-        // let base_color            = color::Rgba::from(base_color);
+        let styles                = StyleWatch::new(&scene.style_sheet);
+        let base_color            = styles.get("breadcrumbs.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.4));
+        let base_color            = color::Rgba::from(base_color);
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
         let text_field            = TextField::new(scene,text_field_properties,focus_manager);
@@ -213,8 +212,8 @@ impl ProjectNameModel {
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let outputs               = frp.outputs.clone_ref();
         let animations            = Animations::new(&frp.network);
-        // let scene                 = scene.into_param();
-        Self{logger,view,display_object,text_field,project_name,animations,outputs}.init()
+        let scene                 = scene.into_param();
+        Self{logger,view,scene,display_object,text_field,project_name,animations,outputs}.init()
     }
 
     /// Get the width of the ProjectName view.
@@ -255,16 +254,6 @@ impl ProjectNameModel {
         self.outputs.width.emit(self.width());
     }
 
-    // fn set_opacity(&self, value:f32) {
-    //     let styles                = StyleWatch::new(&self.scene.style_sheet);
-    //     let transparent_color     = styles.get("project_name.text.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.5));
-    //     let transparent_color     = color::Rgba::from(transparent_color);
-    //     let text_color            = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
-    //     let text_color            = color::Rgba::from(text_color);
-    //     let base_color = linear_interpolation(transparent_color, text_color, value);
-    //     self.text_field.set_base_color(base_color);
-    // }
-
     fn set_color(&self, value:Vector4<f32>) {
         self.text_field.set_base_color(color::Rgba::from(value));
     }
@@ -289,11 +278,19 @@ impl ProjectNameModel {
     }
 
     fn select(&self) {
-        self.animations.color.set_target_value(breadcrumb::SELECTED_COLOR.into());
+        let styles         = StyleWatch::new(&self.scene.style_sheet);
+        let selected_color = styles.get("breadcrumbs.selected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let selected_color = color::Rgba::from(selected_color);
+
+        self.animations.color.set_target_value(selected_color.into());
     }
 
     fn deselect(&self) {
-        self.animations.color.set_target_value(breadcrumb::LEFT_DESELECTED_COLOR.into());
+        let styles                = StyleWatch::new(&self.scene.style_sheet);
+        let left_deselected_color = styles.get("breadcrumbs.left.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let left_deselected_color = color::Rgba::from(left_deselected_color);
+
+        self.animations.color.set_target_value(left_deselected_color.into());
     }
 }
 
@@ -320,20 +317,26 @@ pub struct ProjectName {
 
 impl ProjectName {
     /// Constructor.
-    pub fn new<'t,S:Into<&'t Scene>>(scene:S,focus_manager:&FocusManager) -> Self {
+    pub fn new<'t,S:Into<&'t Scene> + Copy>(scene:S,focus_manager:&FocusManager) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
+
+        let styles                = StyleWatch::new(&scene.into().style_sheet);
+        let hover_color           = styles.get("breadcrumbs.hover.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let hover_color           = color::Rgba::from(hover_color);
+        let left_deselected_color = styles.get("breadcrumbs.left.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let left_deselected_color = color::Rgba::from(left_deselected_color);
+
         frp::extend! { network
             not_selected               <- frp.outputs.selected.map(|selected| !selected);
             mouse_over_if_not_selected <- model.view.events.mouse_over.gate(&not_selected);
             mouse_out_if_not_selected  <- model.view.events.mouse_out.gate(&not_selected);
             eval_ mouse_over_if_not_selected(
-                model.animations.color.set_target_value(breadcrumb::HOVER_COLOR.into());
+                model.animations.color.set_target_value(hover_color.into());
             );
             eval_ mouse_out_if_not_selected([model] {
-                let color = breadcrumb::LEFT_DESELECTED_COLOR.into();
-                model.animations.color.set_target_value(color);
+                model.animations.color.set_target_value(left_deselected_color.into());
             });
             eval_ frp.select({
                 model.outputs.selected.emit(true);

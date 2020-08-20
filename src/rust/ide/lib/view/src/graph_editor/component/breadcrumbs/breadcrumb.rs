@@ -15,6 +15,7 @@ use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::Attribute;
 use ensogl::display::Buffer;
+use ensogl::display::style::data::DataMatch;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
@@ -23,11 +24,11 @@ use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::display::Sprite;
 use ensogl::gui::component;
 use ensogl::gui::component::Animation;
+use frp::IntoParam;
 use logger::enabled::Logger;
 use logger::AnyLogger;
 use nalgebra::Vector2;
 use std::f32::consts::PI;
-
 
 
 // =================
@@ -52,30 +53,6 @@ pub const PADDING      : f32 = 1.0;
 const SEPARATOR_MARGIN : f32 = 10.0;
 const TEXT_BASELINE    : f32 = 2.0;
 
-
-// === Colors === TODO : MOVE TO THEME MANAGER
-
-// const FULL_COLOR        : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.7);
-// const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.4);
-// /// Breadcrumb color when selected.
-// pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
-// /// Breadcrumb color when it's deselected on the left of the selected breadcrumb.
-// pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.6);
-// /// Breadcrumb color when it's deselected on the right of the selected breadcrumb.
-// pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(1.0,1.0,1.0,0.2);
-// /// Breadcrumb color when hovered.
-// pub const HOVER_COLOR : color::Rgba = SELECTED_COLOR;
-
-const FULL_COLOR        : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.7);
-const TRANSPARENT_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.4);
-/// Breadcrumb color when selected.
-pub const SELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.6);
-/// Breadcrumb color when it's deselected on the left of the selected breadcrumb.
-pub const LEFT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.6);
-/// Breadcrumb color when it's deselected on the right of the selected breadcrumb.
-pub const RIGHT_DESELECTED_COLOR : color::Rgba = color::Rgba::new(0.0,0.0,0.0,0.2);
-/// Breadcrumb color when hovered.
-pub const HOVER_COLOR : color::Rgba = SELECTED_COLOR;
 
 
 // ==================
@@ -295,6 +272,7 @@ pub struct BreadcrumbModel {
     glyph_system   : GlyphSystem,
     label          : Line,
     animations     : Animations,
+    scene          : Scene,
     /// Breadcrumb information such as name and expression id.
     pub info          : Rc<BreadcrumbInfo>,
     relative_position : Rc<Cell<Option<RelativePosition>>>,
@@ -340,7 +318,8 @@ impl BreadcrumbModel {
         scene.views.main.remove(&symbol);
         scene.views.breadcrumbs.add(&symbol);
 
-        Self{logger,view,icon,separator,display_object,glyph_system,label,info,animations
+        let scene = scene.into_param();
+        Self{logger,view,icon,separator,display_object,glyph_system,label,info,animations,scene
             ,relative_position,outputs}.init()
     }
 
@@ -350,7 +329,13 @@ impl BreadcrumbModel {
         self.separator.add_child(&self.icon);
         self.icon.add_child(&self.label);
 
-        let color  = if self.is_selected() { FULL_COLOR } else { TRANSPARENT_COLOR };
+        let styles            = StyleWatch::new(&self.scene.style_sheet);
+        let full_color        = styles.get("breadcrumbs.full.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        let full_color        = color::Rgba::from(full_color);
+        let transparent_color = styles.get("breadcrumbs.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.4));
+        let transparent_color = color::Rgba::from(transparent_color);
+
+        let color  = if self.is_selected() { full_color } else { transparent_color };
 
         self.label.set_font_size(TEXT_SIZE);
         self.label.set_font_color(color);
@@ -420,8 +405,14 @@ impl BreadcrumbModel {
     }
 
     fn select(&self) {
-        self.animations.color.set_target_value(SELECTED_COLOR.into());
-        self.animations.separator_color.set_target_value(LEFT_DESELECTED_COLOR.into());
+        let styles                = StyleWatch::new(&self.scene.style_sheet);
+        let selected_color        = styles.get("breadcrumbs.selected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let selected_color        = color::Rgba::from(selected_color);
+        let left_deselected_color = styles.get("breadcrumbs.left.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let left_deselected_color = color::Rgba::from(left_deselected_color);
+
+        self.animations.color.set_target_value(selected_color.into());
+        self.animations.separator_color.set_target_value(left_deselected_color.into());
     }
 
     fn deselect(&self, old:usize, new:usize) {
@@ -434,10 +425,18 @@ impl BreadcrumbModel {
     }
 
     fn deselected_color(&self) -> color::Rgba {
+        let styles                 = StyleWatch::new(&self.scene.style_sheet);
+        let selected_color         = styles.get("breadcrumbs.selected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let selected_color         = color::Rgba::from(selected_color);
+        let left_deselected_color  = styles.get("breadcrumbs.left.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let left_deselected_color  = color::Rgba::from(left_deselected_color);
+        let right_deselected_color = styles.get("breadcrumbs.right.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let right_deselected_color = color::Rgba::from(right_deselected_color);
+
         match self.relative_position.get() {
-            Some(RelativePosition::RIGHT) => RIGHT_DESELECTED_COLOR,
-            Some(RelativePosition::LEFT)  => LEFT_DESELECTED_COLOR,
-            None                          => SELECTED_COLOR
+            Some(RelativePosition::RIGHT) => right_deselected_color,
+            Some(RelativePosition::LEFT)  => left_deselected_color,
+            None                          => selected_color
         }
     }
 
@@ -469,11 +468,15 @@ pub struct Breadcrumb {
 
 impl Breadcrumb {
     /// Constructor.
-    pub fn new<'t,S:Into<&'t Scene>>
+    pub fn new<'t,S:Into<&'t Scene> + Copy>
     (scene:S, method_pointer:&MethodPointer, expression_id:&ast::Id) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(BreadcrumbModel::new(scene,&frp,method_pointer,expression_id));
         let network = &frp.network;
+
+        let styles      = StyleWatch::new(&scene.into().style_sheet);
+        let hover_color = styles.get("breadcrumbs.hover.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let hover_color = color::Rgba::from(hover_color);
 
         frp::extend! { network
             eval_ frp.fade_in(model.animations.fade_in.set_target_value(1.0));
@@ -489,7 +492,7 @@ impl Breadcrumb {
             mouse_over_if_not_selected <- model.view.events.mouse_over.gate(&not_selected);
             mouse_out_if_not_selected  <- model.view.events.mouse_out.gate(&not_selected);
             eval_ mouse_over_if_not_selected(
-                model.animations.color.set_target_value(HOVER_COLOR.into())
+                model.animations.color.set_target_value(hover_color.into())
             );
             eval_ mouse_out_if_not_selected(
                 model.animations.color.set_target_value(model.deselected_color().into())

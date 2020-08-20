@@ -6,8 +6,11 @@ use crate::graph_editor::component::visualization::*;
 use crate::graph_editor::component::visualization;
 
 use enso_frp as frp;
+use ensogl::data::color;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
+use ensogl::display::shape::primitive::StyleWatch;
+use ensogl::display::style::data::DataMatch;
 use ensogl::display;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
@@ -78,14 +81,22 @@ impl RawTextModel {
         let dom     = DomSymbol::new(&div);
         let size    = Rc::new(Cell::new(Vector2(200.0,200.0)));
 
-        dom.dom().set_style_or_warn("white-space"   ,"pre"                  ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"    ,"auto"                 ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"    ,"auto"                 ,&logger);
-        dom.dom().set_style_or_warn("font-family"   ,"dejavuSansMono"       ,&logger);
-        dom.dom().set_style_or_warn("font-size"     ,"11px"                 ,&logger);
-        dom.dom().set_style_or_warn("margin-left"   ,"12px"                 ,&logger);
-        dom.dom().set_style_or_warn("color"         ,"rgba(255,255,255,0.7)",&logger);
-        dom.dom().set_style_or_warn("pointer-events","auto"                 ,&logger);
+        let styles     = StyleWatch::new(&scene.style_sheet);
+        let text_color = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        let text_color = color::Rgba::from(text_color);
+        let _red       = text_color.red * 255.0;
+        let _green     = text_color.green * 255.0;
+        let _blue      = text_color.blue * 255.0;
+        let text_color = format!("rgba({},{},{},{})",_red,_green,_blue,text_color.alpha);
+
+        dom.dom().set_style_or_warn("white-space"   ,"pre"           ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"    ,"auto"          ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"    ,"auto"          ,&logger);
+        dom.dom().set_style_or_warn("font-family"   ,"dejavuSansMono",&logger);
+        dom.dom().set_style_or_warn("font-size"     ,"11px"          ,&logger);
+        dom.dom().set_style_or_warn("margin-left"   ,"12px"          ,&logger);
+        dom.dom().set_style_or_warn("color"         ,text_color      ,&logger);
+        dom.dom().set_style_or_warn("pointer-events","auto"          ,&logger);
 
         scene.dom.layers.main.manage(&dom);
         RawTextModel{dom,logger,size}.init()
