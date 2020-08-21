@@ -531,8 +531,8 @@ impl Handle {
     pub fn variable_name_for(&self, node:&NodeInfo) -> FallibleResult<ast::known::Var> {
         let base_name  = Self::variable_name_base_for(node);
         let used_names = self.used_names()?.into_iter().map(|located_name| located_name.item);
-        let name       = generate_name(base_name.as_str(),used_names);
-        Ok(ast::known::Var::new(ast::Var {name}, None))
+        let name       = generate_name(base_name.as_str(),used_names)?.as_var()?;
+        Ok(ast::known::Var::new(name,None))
     }
 
     /// Converts node to an assignment, where the whole value is bound to a single identifier.
@@ -729,25 +729,24 @@ impl Handle {
     ///
     /// Lines corresponding to the selection will be extracted to a new method definition.
     pub fn collapse(&self, nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<()> {
+        use double_representation::refactorings::collapse::collapse;
+        use double_representation::refactorings::collapse::Collapsed;
+
         let nodes : Vec<_> = Result::from_iter(nodes.into_iter().map(|id| self.node(id)))?;
         let positions      = nodes.iter().filter_map(|node| {
             node.metadata.as_ref().and_then(|metadata| metadata.position)
         });
-        let mean_position = model::module::Position::mean(positions);
+        let mean_position   = model::module::Position::mean(positions);
 
-        use double_representation::refactorings::collapse::collapse;
-        use double_representation::refactorings::collapse::Collapsed;
-        let graph           = self.graph_info()?;
-        let my_name         = graph.source.name.item.clone();
-        let used_names      = module::Info {ast:self.module.ast()}.used_names();
-        let used_names      = used_names.into_iter().map(|name| name.item);
-        let introduced_name = generate_name("func",used_names);
-        let introduced_name = definition::DefinitionName::new_plain(introduced_name);
+        let mut module      = module::Info {ast:self.module.ast()};
+        let introduced_name = module.generate_name("func")?;
         let node_ids        = nodes.iter().map(|node| node.info.id());
+        let graph           = self.graph_info()?;
         let collapsed       = collapse(&graph,node_ids,introduced_name,&self.parser)?;
         let Collapsed {new_method,updated_definition,collapsed_node} = collapsed;
 
-        let mut module = module::Info {ast:self.module.ast()};
+        let graph   = self.graph_info()?;
+        let my_name = graph.source.name.item.clone();
         module.add_method(new_method,module::Placement::Before(my_name),&self.parser)?;
         self.module.update_ast(module.ast);
         self.update_definition_ast(|_| Ok(updated_definition))?;

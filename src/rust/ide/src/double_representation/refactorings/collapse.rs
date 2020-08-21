@@ -4,10 +4,10 @@
 
 use crate::prelude::*;
 
+use crate::constants::keywords::HERE;
 use crate::double_representation::connection::Connection;
 use crate::double_representation::connection::Endpoint;
 use crate::double_representation::definition::DefinitionInfo;
-use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::definition;
 use crate::double_representation::identifier::Identifier;
 use crate::double_representation::node;
@@ -27,11 +27,19 @@ use ast::BlockLine;
 
 // === Entry point ===
 
-// TODO the nice doc
+/// Run the "collapse node" refactoring. Generates output describing how to apply the refactoring.
+///
+/// "Collapsing nodes" means extracting a number of selected nodes from a graph into a new sibling
+/// method definition. In place of them a new node shall be placed that invokes the method.
+///
+/// Any connections incoming into the extracted nodes shall be translated into the method arguments.
+/// Any connections leaving the extracted nodes shall be treated as function outputs. Currently only
+/// one output is supported, so an extracted function can return at most one unique identifier.
 pub fn collapse
 ( graph          : &GraphInfo
 , selected_nodes : impl IntoIterator<Item=node::Id>
-, name           : DefinitionName, parser:&Parser
+, name           : Identifier
+, parser:&Parser
 ) -> FallibleResult<Collapsed> {
     Collapser::new(graph.clone(),selected_nodes,parser.clone_ref())?.collapse(name)
 }
@@ -70,8 +78,8 @@ pub struct EndpointIdentifierCannotBeResolved(Endpoint);
 
 #[allow(missing_docs)]
 #[derive(Clone,Debug,Fail)]
-#[fail(display="Currently collapsing nodes is supported only when there would be at most one output\
-from the collapsed function. Found more than one output: `{}` and `{}`.",_0,_1)]
+#[fail(display="Currently collapsing nodes is supported only when there would be at most one \
+output from the collapsed function. Found more than one output: `{}` and `{}`.",_0,_1)]
 pub struct MultipleOutputIdentifiers(String,String);
 
 
@@ -206,7 +214,8 @@ impl Extracted {
     }
 
     /// Generate the description for the new method's definition with the extracted nodes.
-    pub fn generate(&self, name:DefinitionName) -> FallibleResult<definition::ToAdd> {
+    pub fn generate(&self, name:Identifier) -> FallibleResult<definition::ToAdd> {
+        let name                     = definition::DefinitionName::new_plain(name);
         let inputs                   = self.inputs.iter().collect::<BTreeSet<_>>();
         let return_line              = self.return_line();
         let mut selected_nodes_iter  = self.selected_nodes.iter().map(|node| node.ast().clone());
@@ -269,8 +278,9 @@ impl Collapser {
     ///
     /// Does not include any pattern for assigning the resulting value.
     pub fn call_to_extracted(&self, extracted:&definition::ToAdd) -> FallibleResult<Ast> {
+        // TODO actually check that generated name is single-identifier
         let mut target = extracted.name.clone();
-        target.extended_target.insert(0,Located::new_root("here".to_string())); // TODO refactor "here" literal out
+        target.extended_target.insert(0,Located::new_root(HERE.to_string()));
         let base  = target.ast(&self.parser)?;
         let args  = extracted.explicit_parameter_names.iter().map(Ast::var);
         let chain = ast::prefix::Chain::new(base,args);
@@ -307,7 +317,7 @@ impl Collapser {
     }
 
     /// Run the collapsing refactoring on this input.
-    pub fn collapse(&self,name:DefinitionName) -> FallibleResult<Collapsed> {
+    pub fn collapse(&self,name:Identifier) -> FallibleResult<Collapsed> {
         let new_method         = self.extracted.generate(name)?;
         let updated_definition = self.graph.rewrite_definition(|line| {
             self.rewrite_line(line,&new_method)
@@ -327,13 +337,14 @@ impl Collapser {
 mod tests {
     use super::*;
 
+    use crate::double_representation::definition::DefinitionName;
     use crate::double_representation::graph;
     use crate::double_representation::module;
     use crate::double_representation::node::NodeInfo;
 
     struct Case {
         refactored_name     : DefinitionName,
-        introduced_name     : DefinitionName,
+        introduced_name     : Identifier,
         initial_method_code : &'static str,
         extracted_lines     : Range<usize>,
         expected_generated  : &'static str,
@@ -369,7 +380,7 @@ mod tests {
     #[test] // TODO make wasm_bindgen_test
     fn test_collapse() {
         let parser          = Parser::new_or_panic();
-        let introduced_name = DefinitionName::new_plain("custom_new");
+        let introduced_name = Identifier::try_from("custom_new").unwrap();
         let refactored_name = DefinitionName::new_plain("custom_old");
         let initial_method_code = r"custom_old =
     a = 1

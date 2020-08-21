@@ -12,7 +12,6 @@ use ast::opr;
 use parser::Parser;
 
 
-
 // =====================
 // === Definition Id ===
 // =====================
@@ -116,7 +115,7 @@ pub struct DefinitionName {
 impl DefinitionName {
     /// Creates a new name consisting of a single unqualified identifier (not an explicit extension
     /// method).
-    pub fn new_plain(name:impl Str) -> DefinitionName {
+    pub fn new_plain(name:impl Into<String>) -> DefinitionName {
         let name = Located::new_root(name.into());
         DefinitionName {name, extended_target:default()}
     }
@@ -504,7 +503,7 @@ impl ToAdd {
     pub fn head(&self, parser:&Parser) -> FallibleResult<Ast> {
         let name = self.name.ast(parser)?;
         let args = self.explicit_parameter_names.iter().map(Ast::var);
-        let head = ast::prefix::Chain::new(name, args).into_ast();
+        let head = ast::prefix::Chain::new(name.into(),args).into_ast();
         Ok(head)
     }
 

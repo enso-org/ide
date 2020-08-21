@@ -23,7 +23,7 @@ use parser::api::ParsedSourceFile;
 use parser::Parser;
 use serde::Serialize;
 use serde::Deserialize;
-use failure::_core::ops::AddAssign;
+
 
 
 // ============
@@ -359,7 +359,7 @@ impl Add for Position {
     }
 }
 
-impl AddAssign for Position {
+impl std::ops::AddAssign for Position {
     fn add_assign(&mut self, rhs:Self) {
         self.vector += rhs.vector
     }
