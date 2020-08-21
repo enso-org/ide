@@ -166,7 +166,7 @@ impl NodeInfo {
 
     /// Clear the pattern (left side of assignment) for node.
     ///
-    /// If it is already an Expression node, no change is be done.
+    /// If it is already an Expression node, no change is done.
     pub fn clear_pattern(&mut self) {
         match self {
             NodeInfo::Binding {infix} => {

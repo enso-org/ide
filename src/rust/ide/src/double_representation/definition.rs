@@ -509,6 +509,7 @@ impl ToAdd {
 
     /// The definition's body, i.e. the right-hand side of the primary assignment.
     pub fn body(&self, scope_indent:usize) -> Ast {
+        // Assignment always must be in a block
         if self.body_tail.is_empty() && !ast::opr::is_assignment(&self.body_head) {
             self.body_head.clone_ref()
         } else {
