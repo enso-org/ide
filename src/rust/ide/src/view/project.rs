@@ -165,6 +165,9 @@ impl ProjectView {
         dark.insert("select.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
         dark.insert("select.selection.color", color::Lcha::new(0.72,0.5,0.22,1.0));
 
+        dark.insert("edge.split_color_lightness_factor", 0.2);
+        dark.insert("edge.split_color_chroma_factor", 1.0);
+
         app.themes.register("dark",dark);
 
 
@@ -186,6 +189,9 @@ impl ProjectView {
 
         light.insert("select.background.color", color::Lcha::new(0.98,0.013,0.18,1.0));
         light.insert("select.selection.color", color::Lcha::new(0.55,0.65,0.79,1.0));
+
+        light.insert("edge.split_color_lightness_factor", 1.2);
+        light.insert("edge.split_color_chroma_factor", 0.8);
 
         app.themes.register("light",light);
         app.themes.set_enabled(&["light"]);

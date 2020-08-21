@@ -57,7 +57,7 @@ pub mod shape {
             let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
             let height = height - NODE_SHAPE_PADDING.px() * 2.0;
             let radius = NODE_SHAPE_RADIUS.px();
-            let shape  = Rect((&width,&height)).corners_radius(&radius);
+            let shape  = Rect((&width,&height)).corners_radius(radius);
             let shape  = shape.fill(color::Rgba::from(bg_color));
 
 
@@ -73,9 +73,6 @@ pub mod shape {
                 .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
             let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(2.0));
             let shadow        = shadow.fill(shadow_color);
-
-            // let frame = Rect((&width,&height)).corners_radius(&radius*(&width/(&width-2.px())));
-            // let frame = frame.fill(color::Rgba::new(0.2,0.2,0.2,1.0));
 
 
             // === Selection ===
