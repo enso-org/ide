@@ -334,6 +334,9 @@ impl Position {
         Position {vector}
     }
 
+    /// Calculate the mean position from the given sequence.
+    ///
+    /// If the input sequence is empty, returns the default value.
     pub fn mean(iter:impl Iterator<Item=Position>) -> Position {
         let mut count = 0;
         let mut accum_pos = Position::default();
@@ -341,7 +344,11 @@ impl Position {
             count     += 1;
             accum_pos += position;
         };
-        accum_pos / (count as f32)
+        if count > 0 {
+            accum_pos / (count as f32)
+        } else {
+            default()
+        }
     }
 }
 

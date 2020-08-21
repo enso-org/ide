@@ -141,6 +141,8 @@ impl GraphHelper {
 // === Extracted ===
 // =================
 
+/// Describes the nodes to be extracted into a new definition by collapsing.
+#[derive(Clone,Debug)]
 pub struct Extracted {
     /// Identifiers used in the collapsed nodes from the outside scope.
     inputs : Vec<Identifier>,
@@ -156,6 +158,7 @@ pub struct Extracted {
 }
 
 impl Extracted {
+    /// Collect the extracted node information.
     pub fn new
     (graph:&GraphHelper, selected_nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<Self> {
         let selected_nodes:Vec<_> = Result::from_iter(selected_nodes.into_iter().map(|id| {
@@ -223,6 +226,7 @@ impl Extracted {
 /// Collapser rewrites the refactoring definition line-by-line. This enum describes action to be
 /// taken for a given line.
 #[allow(missing_docs)]
+#[derive(Clone,Debug)]
 pub enum LineDisposition {
     Keep,
     Remove,
@@ -230,13 +234,16 @@ pub enum LineDisposition {
 }
 
 /// Helper type that stores some common data used for collapsing algorithm and implements its logic.
-struct Collapser {
+#[derive(Clone,Debug)]
+pub struct Collapser {
     /// The graph of definition where the node collapsing takes place.
     graph : GraphHelper,
+    /// Information about nodes that are extracted into a separate definition.
     extracted : Extracted,
     /// Which node from the refactored graph should be replaced with a call to a extracted method.
     /// This only exists because we care about this node line's position (not its state).
     replaced_node : node::Id,
+    #[allow(missing_docs)]
     parser : Parser,
 }
 
@@ -299,6 +306,7 @@ impl Collapser {
         }
     }
 
+    /// Run the collapsing refactoring on this input.
     pub fn collapse(&self,name:DefinitionName) -> FallibleResult<Collapsed> {
         let new_method         = self.extracted.generate(name)?;
         let updated_definition = self.graph.rewrite_definition(|line| {

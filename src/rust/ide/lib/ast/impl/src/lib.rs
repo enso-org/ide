@@ -489,7 +489,7 @@ pub enum Shape<T> {
                     first_line  : BlockLine<T>,
                     /// Rest of lines, each of them optionally having contents.
                     lines       : Vec<BlockLine<Option<T>>>,
-                    /// Does the Block start with a leading newline.
+                    /// If false, the Block will start with a leading newline.
                     is_orphan   : bool                       },
 
     // === Macros ===
