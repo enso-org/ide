@@ -503,7 +503,7 @@ impl ToAdd {
     pub fn head(&self, parser:&Parser) -> FallibleResult<Ast> {
         let name = self.name.ast(parser)?;
         let args = self.explicit_parameter_names.iter().map(Ast::var);
-        let head = ast::prefix::Chain::new(name.into(),args).into_ast();
+        let head = ast::prefix::Chain::new(name,args).into_ast();
         Ok(head)
     }
 

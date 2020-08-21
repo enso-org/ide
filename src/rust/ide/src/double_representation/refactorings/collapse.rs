@@ -388,7 +388,7 @@ mod tests {
         }
     }
 
-    #[test] // TODO make wasm_bindgen_test
+    #[wasm_bindgen_test]
     fn test_collapse() {
         let parser          = Parser::new_or_panic();
         let introduced_name = Identifier::try_from("custom_new").unwrap();
@@ -451,12 +451,13 @@ mod tests {
         // Check that:
         // 1) method with no arguments can be extracted;
         // 2) method with result used multiple times can be extracted.
+        // 3) identifiers not defined in the refactored method (`d`) are not made into parameters.
         case.initial_method_code = r"custom_old =
-    c = 50
+    c = 50 + d
     c + c + 10";
         case.extracted_lines = 0..1;
         case.expected_generated = r"custom_new =
-    c = 50
+    c = 50 + d
     c";
         case.expected_refactored = r"custom_old =
     c = here.custom_new

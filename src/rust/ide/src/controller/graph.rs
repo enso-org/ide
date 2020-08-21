@@ -730,7 +730,7 @@ impl Handle {
     /// Lines corresponding to the selection will be extracted to a new method definition.
     pub fn collapse
     (&self, nodes:impl IntoIterator<Item=node::Id>, new_method_name_base:&str)
-    -> FallibleResult<()> {
+    -> FallibleResult<node::Id> {
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
 
@@ -748,7 +748,7 @@ impl Handle {
         let Collapsed {new_method,updated_definition,collapsed_node} = collapsed;
 
         let graph   = self.graph_info()?;
-        let my_name = graph.source.name.item.clone();
+        let my_name = graph.source.name.item;
         module.add_method(new_method,module::Placement::Before(my_name),&self.parser)?;
         self.module.update_ast(module.ast);
         self.update_definition_ast(|_| Ok(updated_definition))?;
@@ -758,7 +758,7 @@ impl Handle {
                 ..default()
             };
         }));
-        Ok(())
+        Ok(collapsed_node)
     }
 
     /// Updates the given node in the definition.
@@ -812,6 +812,7 @@ pub mod tests {
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
+    use crate::model::module::Position;
 
     /// All the data needed to set up and run the graph controller in mock environment.
     #[derive(Clone,Debug)]
@@ -902,7 +903,7 @@ pub mod tests {
     fn node_operations() {
         Fixture::set_up().run(|graph| async move {
             let uid = graph.all_node_infos().unwrap()[0].id();
-            let pos = model::module::Position {vector:Vector2::new(0.0,0.0)};
+            let pos = Position {vector:Vector2::new(0.0,0.0)};
             graph.module.with_node_metadata(uid, Box::new(|data| data.position = Some(pos)));
             assert_eq!(graph.module.node_metadata(uid).unwrap().position, Some(pos));
         })
@@ -994,11 +995,10 @@ main =
         })
     }
 
-    #[test] // TODO make wasm_bindgen_test
-    fn collapsing_nodes2() {
+    #[wasm_bindgen_test]
+    fn collapsing_nodes_avoids_name_conflicts() {
         // Checks that generated name avoid collision with other methods defined in the module
         // and with symbols used that could be shadowed by the extracted method's name.
-
         let mut test  = Fixture::set_up();
         let code = r"
 func2 = 454
@@ -1020,7 +1020,7 @@ func3 a =
 
 main =
     a = 10
-    func3 a
+    here.func3 a
     a + func1";
 
         test.data.code = code.to_owned();
@@ -1032,35 +1032,47 @@ main =
         })
     }
 
-    #[test] // TODO make wasm_bindgen_test
+    #[wasm_bindgen_test]
     fn collapsing_nodes() {
         let mut test  = Fixture::set_up();
         let code = r"
 main =
     a = 10
     b = 20
-    c = a + b
-    d = c + d
     a + c";
 
         let expected_code = "
-func1 a =
+func1 =
+    a = 10
     b = 20
-    c = a + b
-    d = c + d
-    c
+    a
 
 main =
-    a = 10
-    c = func1 a
+    a = here.func1
     a + c";
 
         test.data.code = code.to_owned();
         test.run(move |graph| async move {
             let nodes = graph.nodes().unwrap();
-            let selected_nodes = nodes[1..4].iter().map(|node| node.info.id());
-            graph.collapse(selected_nodes,"func").unwrap();
+            assert_eq!(nodes.len(),3);
+            graph.module.set_node_metadata(nodes[0].info.id(), NodeMetadata {
+                position : Some(Position::new(100.0,200.0)),
+                ..default()
+            });
+            graph.module.set_node_metadata(nodes[1].info.id(), NodeMetadata {
+                position : Some(Position::new(150.0,300.0)),
+                ..default()
+            });
+
+            let selected_nodes = nodes[0..2].iter().map(|node| node.info.id());
+            let collapsed_node = graph.collapse(selected_nodes,"func").unwrap();
             model::module::test::expect_code(&*graph.module,expected_code);
+
+            let nodes_after = graph.nodes().unwrap();
+            assert_eq!(nodes_after.len(),2);
+            let collapsed_node_info = graph.node(collapsed_node).unwrap();
+            let collapsed_node_pos  = collapsed_node_info.metadata.and_then(|m| m.position);
+            assert_eq!(collapsed_node_pos, Some(Position::new(125.0,250.0)));
         })
     }
 
