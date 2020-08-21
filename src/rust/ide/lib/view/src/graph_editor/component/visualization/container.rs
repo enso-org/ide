@@ -30,7 +30,7 @@ use ensogl::gui::component;
 
 const DEFAULT_SIZE  : (f32,f32) = (200.0,200.0);
 const CORNER_RADIUS : f32       = super::super::node::CORNER_RADIUS;
-const SHADOW_SIZE   : f32       = 10.0;
+const SHADOW_SIZE   : f32       = super::super::node::SHADOW_SIZE;
 
 
 // =============

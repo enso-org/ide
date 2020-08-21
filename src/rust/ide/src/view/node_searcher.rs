@@ -9,10 +9,12 @@ use crate::view::node_editor::NodeEditor;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::Scene;
+use ensogl::display::shape::StyleWatch;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
+use ensogl::display::style::data::DataMatch;
 use ensogl::traits::*;
 
 
@@ -40,11 +42,12 @@ impl NodeSearcher {
         let screen         = camera.screen();
         let logger         = Logger::sub(logger,"NodeSearcher");
         let display_object = display::object::Instance::new(&logger);
+        let styles         = StyleWatch::new(&scene.style_sheet);
+        let base_color     = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
         let properties     = TextFieldProperties {
             font       : fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap(),
             text_size  : 16.0,
-            // base_color : color::Rgba::new(1.0, 1.0, 1.0, 0.7),
-            base_color : color::Rgba::new(0.0, 0.0, 0.0, 0.7),
+            base_color : color::Rgba::from(base_color),
             size       : Vector2::new(screen.width,16.0),
         };
         let text_field = TextField::new(scene,properties,focus_manager);
