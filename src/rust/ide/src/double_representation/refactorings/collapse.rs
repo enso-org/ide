@@ -29,9 +29,9 @@ use ast::BlockLine;
 
 // TODO the nice doc
 pub fn collapse
-(graph:&GraphInfo
- , selected_nodes:impl IntoIterator<Item=node::Id>
- , name:DefinitionName, parser:&Parser
+( graph          : &GraphInfo
+, selected_nodes : impl IntoIterator<Item=node::Id>
+, name           : DefinitionName, parser:&Parser
 ) -> FallibleResult<Collapsed> {
     Collapser::new(graph.clone(),selected_nodes,parser.clone_ref())?.collapse(name)
 }
@@ -183,7 +183,7 @@ impl Extracted {
                     }
                     Some(_) => {} // Ignore duplicate usage of the same identifier.
                     None    => {
-                        output = Some(identifier);
+                        output      = Some(identifier);
                         output_node = Some(connection.source.node)
                     }
                 }
@@ -271,7 +271,7 @@ impl Collapser {
     pub fn call_to_extracted(&self, extracted:&definition::ToAdd) -> FallibleResult<Ast> {
         let mut target = extracted.name.clone();
         target.extended_target.insert(0,Located::new_root("here".to_string())); // TODO refactor "here" literal out
-        let base = target.ast(&self.parser)?;
+        let base  = target.ast(&self.parser)?;
         let args  = extracted.explicit_parameter_names.iter().map(Ast::var);
         let chain = ast::prefix::Chain::new(base,args);
         Ok(chain.into_ast())
