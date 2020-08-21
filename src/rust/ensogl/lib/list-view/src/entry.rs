@@ -142,7 +142,7 @@ impl Entry {
         label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
         let text_color = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
-        label.set_default_color(color::Rgba::from(text_color));;
+        label.set_default_color(color::Rgba::from(text_color));
         label.set_default_text_size(text::Size(LABEL_SIZE));
         Entry{id,label,icon,display_object}
     }
