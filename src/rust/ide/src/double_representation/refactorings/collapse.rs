@@ -14,10 +14,10 @@ use crate::double_representation::node;
 use crate::double_representation::node::NodeInfo;
 use crate::double_representation::graph::GraphInfo;
 
-use parser::Parser;
-use std::collections::BTreeSet;
 use ast::crumbs::Located;
 use ast::BlockLine;
+use parser::Parser;
+use std::collections::BTreeSet;
 
 
 
@@ -67,9 +67,15 @@ pub struct Collapsed {
 pub struct NoNodesSelected;
 
 #[allow(missing_docs)]
-#[fail(display="Internal refactoring error: Cannot resolve node {}.",_0)]
+#[fail(display="Internal refactoring error: Endpoint refers to node {} that cannot be resolved.",
+_0)]
 #[derive(Clone,Copy,Debug,Fail)]
-pub struct CannotResolveConnectionEndpoint(node::Id);
+pub struct CannotResolveEndpointNode(node::Id);
+
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,Fail)]
+#[fail(display="Internal refactoring error: Cannot generate collapsed node description.")]
+pub struct CannotConstructCollapsedNode;
 
 #[allow(missing_docs)]
 #[fail(display="Internal refactoring error: Cannot resolve identifier for the endpoint {:?}",_0)]
@@ -108,7 +114,7 @@ impl GraphHelper {
 
     /// Get the information about node described byt the given ID.
     pub fn lookup_node(&self, id:node::Id) -> FallibleResult<&NodeInfo> {
-        let err = CannotResolveConnectionEndpoint(id).into();
+        let err = CannotResolveEndpointNode(id).into();
         self.nodes.iter().find(|node| node.id() == id).ok_or(err)
     }
 
@@ -214,7 +220,7 @@ impl Extracted {
     }
 
     /// Generate the description for the new method's definition with the extracted nodes.
-    pub fn generate(&self, name:Identifier) -> FallibleResult<definition::ToAdd> {
+    pub fn generate(&self, name:Identifier) -> definition::ToAdd {
         let name                     = definition::DefinitionName::new_plain(name);
         let inputs                   = self.inputs.iter().collect::<BTreeSet<_>>();
         let return_line              = self.return_line();
@@ -222,7 +228,7 @@ impl Extracted {
         let body_head                = selected_nodes_iter.next().unwrap();
         let body_tail                = selected_nodes_iter.chain(return_line).map(Some).collect();
         let explicit_parameter_names = inputs.iter().map(|input| input.name().into()).collect();
-        Ok(definition::ToAdd {name,explicit_parameter_names,body_head,body_tail})
+        definition::ToAdd {name,explicit_parameter_names,body_head,body_tail}
     }
 }
 
@@ -252,8 +258,9 @@ pub struct Collapser {
     /// Which node from the refactored graph should be replaced with a call to a extracted method.
     /// This only exists because we care about this node line's position (not its state).
     replaced_node : node::Id,
-    #[allow(missing_docs)]
     parser : Parser,
+    /// Identifier of the node to be introduced as a result of collapsing.
+    collapsed_node : node::Id,
 }
 
 impl Collapser {
@@ -262,15 +269,17 @@ impl Collapser {
     pub fn new
     (graph:GraphInfo, selected_nodes:impl IntoIterator<Item=node::Id>, parser:Parser)
     -> FallibleResult<Self> {
-        let graph         = GraphHelper::new(graph);
-        let extracted     = Extracted::new(&graph,selected_nodes)?;
-        let last_selected = extracted.selected_nodes.iter().last().ok_or(NoNodesSelected)?.id();
-        let replaced_node = extracted.output_node.unwrap_or(last_selected);
+        let graph          = GraphHelper::new(graph);
+        let extracted      = Extracted::new(&graph,selected_nodes)?;
+        let last_selected  = extracted.selected_nodes.iter().last().ok_or(NoNodesSelected)?.id();
+        let replaced_node  = extracted.output_node.unwrap_or(last_selected);
+        let collapsed_node = node::Id::new_v4();
         Ok(Collapser {
             graph,
             extracted,
             replaced_node,
             parser,
+            collapsed_node,
         })
     }
 
@@ -297,20 +306,22 @@ impl Collapser {
     pub fn rewrite_line
     (&self, line:&BlockLine<Option<Ast>>, extracted_definition:&definition::ToAdd)
     -> FallibleResult<LineDisposition> {
-        let mut node_info = match line.elem.as_ref().and_then(NodeInfo::from_line_ast) {
-            Some(node_info) => node_info,
+        let node_id = match line.elem.as_ref().and_then(NodeInfo::from_line_ast) {
+            Some(node_info) => node_info.id(),
             // We leave lines without nodes (blank lines) intact.
             _               => return Ok(LineDisposition::Keep),
         };
-        let id = node_info.id();
-        if !self.extracted.is_selected(id) {
+        if !self.extracted.is_selected(node_id) {
             Ok(LineDisposition::Keep)
-        } else if id == self.replaced_node {
-            if self.extracted.output.is_none() {
-                node_info.clear_pattern()
+        } else if node_id == self.replaced_node {
+            let expression   = self.call_to_extracted(&extracted_definition)?;
+            let no_node_err  = failure::Error::from(CannotConstructCollapsedNode);
+            let mut new_node = NodeInfo::new_expression(expression.clone_ref()).ok_or(no_node_err)?;
+            new_node.set_id(self.collapsed_node);
+            if let Some(output_var) = self.extracted.output.clone() {
+                new_node.set_pattern(output_var.into())
             }
-            node_info.set_expression(self.call_to_extracted(&extracted_definition)?);
-            Ok(LineDisposition::Replace(node_info.ast().clone_ref()))
+            Ok(LineDisposition::Replace(new_node.ast().clone_ref()))
         } else {
             Ok(LineDisposition::Remove)
         }
@@ -318,11 +329,11 @@ impl Collapser {
 
     /// Run the collapsing refactoring on this input.
     pub fn collapse(&self,name:Identifier) -> FallibleResult<Collapsed> {
-        let new_method         = self.extracted.generate(name)?;
+        let new_method         = self.extracted.generate(name);
         let updated_definition = self.graph.rewrite_definition(|line| {
             self.rewrite_line(line,&new_method)
         })?;
-        let collapsed_node = self.replaced_node;
+        let collapsed_node = self.collapsed_node;
         Ok(Collapsed {new_method,updated_definition,collapsed_node})
     }
 }
