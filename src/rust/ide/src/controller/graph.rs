@@ -4,9 +4,6 @@
 //! each graph belongs to some module.
 pub mod executed;
 
-pub use crate::double_representation::graph::LocationHint;
-pub use crate::double_representation::graph::Id;
-
 use crate::prelude::*;
 
 use crate::double_representation::definition;
@@ -24,6 +21,9 @@ use parser::Parser;
 use span_tree::action::Actions;
 use span_tree::action::Action;
 use span_tree::SpanTree;
+
+pub use crate::double_representation::graph::LocationHint;
+pub use crate::double_representation::graph::Id;
 
 
 
@@ -728,7 +728,9 @@ impl Handle {
     /// Collapses the selected nodes.
     ///
     /// Lines corresponding to the selection will be extracted to a new method definition.
-    pub fn collapse(&self, nodes:impl IntoIterator<Item=node::Id>) -> FallibleResult<()> {
+    pub fn collapse
+    (&self, nodes:impl IntoIterator<Item=node::Id>, new_method_name_base:&str)
+    -> FallibleResult<()> {
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
 
@@ -737,9 +739,9 @@ impl Handle {
             node.metadata.as_ref().and_then(|metadata| metadata.position)
         });
         let mean_position   = model::module::Position::mean(positions);
-
-        let mut module      = module::Info {ast:self.module.ast()};
-        let introduced_name = module.generate_name("func")?;
+        let ast             = self.module.ast();
+        let mut module      = module::Info {ast};
+        let introduced_name = module.generate_name(new_method_name_base)?;
         let node_ids        = nodes.iter().map(|node| node.info.id());
         let graph           = self.graph_info()?;
         let collapsed       = collapse(&graph,node_ids,introduced_name,&self.parser)?;
@@ -1025,7 +1027,7 @@ main =
         test.run(move |graph| async move {
             let nodes = graph.nodes().unwrap();
             let selected_nodes = nodes[1..4].iter().map(|node| node.info.id());
-            graph.collapse(selected_nodes).unwrap();
+            graph.collapse(selected_nodes,"func").unwrap();
             model::module::test::expect_code(&*graph.module,expected_code);
         })
     }
@@ -1057,7 +1059,7 @@ main =
         test.run(move |graph| async move {
             let nodes = graph.nodes().unwrap();
             let selected_nodes = nodes[1..4].iter().map(|node| node.info.id());
-            graph.collapse(selected_nodes).unwrap();
+            graph.collapse(selected_nodes,"func").unwrap();
             model::module::test::expect_code(&*graph.module,expected_code);
         })
     }
