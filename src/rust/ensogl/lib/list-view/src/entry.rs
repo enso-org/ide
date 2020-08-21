@@ -139,7 +139,9 @@ impl Entry {
         let display_object = display::object::Instance::new(logger);
         display_object.add_child(&label);
         label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
-        label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
+        // TODO: USE THEME MANAGER
+        // label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
+        label.set_default_color(color::Rgba::new(0.0,0.0,0.0,0.7));
         label.set_default_text_size(text::Size(LABEL_SIZE));
         Entry{id,label,icon,display_object}
     }
