@@ -5,7 +5,9 @@ use crate::prelude::*;
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::definition::DefinitionProvider;
-use crate::double_representation::identifier::{LocatedName, Identifier, generate_name};
+use crate::double_representation::identifier;
+use crate::double_representation::identifier::Identifier;
+use crate::double_representation::identifier::LocatedName;
 use crate::double_representation::identifier::ReferentName;
 
 use ast::crumbs::ChildAst;
@@ -340,7 +342,7 @@ impl Info {
     pub fn generate_name(&self, base:&str) -> FallibleResult<Identifier> {
         let used_names = self.used_names();
         let used_names = used_names.into_iter().map(|name| name.item);
-        generate_name(base,used_names)
+        identifier::generate_name(base,used_names)
     }
 
     /// Identifiers introduced or referred to in the module's scope.

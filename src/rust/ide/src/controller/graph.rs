@@ -803,6 +803,7 @@ pub mod tests {
 
     use crate::double_representation::identifier::NormalizedName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::module::Position;
 
     use ast::crumbs;
     use ast::test_utils::expect_shape;
@@ -812,7 +813,6 @@ pub mod tests {
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use crate::model::module::Position;
 
     /// All the data needed to set up and run the graph controller in mock environment.
     #[derive(Clone,Debug)]
