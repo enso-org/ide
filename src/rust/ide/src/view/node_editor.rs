@@ -205,6 +205,8 @@ impl GraphEditorIntegratedWithController {
 
         let node_removed = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_removed_in_ui,&invalidate.trigger);
+        let nodes_collapsed = Self::ui_action(&model,
+            GraphEditorIntegratedWithControllerModel::nodes_collapsed_in_ui,&invalidate.trigger);
         let node_entered = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_entered_in_ui,&invalidate.trigger);
         let node_exited = Self::ui_action(&model,
@@ -234,6 +236,7 @@ impl GraphEditorIntegratedWithController {
             let is_handling_notification = handle_notification.is_running;
             is_hold <- is_handling_notification.all_with(&invalidate.is_running, |l,r| *l || *r);
             _action <- editor_outs.node_removed             .map2(&is_hold,node_removed);
+            _action <- editor_outs.nodes_collapsed          .map2(&is_hold,nodes_collapsed);
             _action <- editor_outs.node_entered             .map2(&is_hold,node_entered);
             _action <- editor_outs.node_exited              .map2(&is_hold,node_exited);
             _action <- editor_outs.connection_added         .map2(&is_hold,connection_created);
@@ -631,6 +634,16 @@ impl GraphEditorIntegratedWithControllerModel {
         self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
             md.position = Some(model::module::Position::new(pos.x,pos.y));
         }));
+        Ok(())
+    }
+
+    fn nodes_collapsed_in_ui
+    (&self, (collapsed,new_node):&(Vec<graph_editor::NodeId>,graph_editor::NodeId)) -> FallibleResult<()> {
+        println!("Collapsing {:?} into {}", collapsed,new_node);
+        // let id = self.get_controller_node_id(*displayed_id)?;
+        // self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
+        //     md.position = Some(model::module::Position::new(pos.x,pos.y));
+        // }));
         Ok(())
     }
 
