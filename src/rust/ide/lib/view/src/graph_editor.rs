@@ -20,7 +20,6 @@ pub mod data;
 
 use crate::graph_editor::builtin::visualization::native::documentation;
 use crate::graph_editor::component::node;
-use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::visualization;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization::MockDocGenerator;
@@ -33,7 +32,9 @@ use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::object::Id;
 use ensogl::display::Scene;
+use ensogl::display::shape::primitive::system::StyleWatch;
 use ensogl::display::shape::text::text_field::FocusManager;
+use ensogl::display::style::data::DataMatch;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
@@ -1529,11 +1530,13 @@ impl GraphEditorModel {
     }
 
     /// Return a color for the edge. Either based on the edges source/target type, or a default
-    /// color define in `MISSING_TYPE_COLOR`.
+    /// color defined in Theme Manager as `type.missing.color`
     fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
-       match self.try_get_edge_color(edge_id) {
+        let styles             = StyleWatch::new(&self.scene().style_sheet);
+        let missing_type_color = styles.get("type.missing.color").color().unwrap_or_else(|| color::Lcha::new(0.7,0.0,0.0,1.0));
+        match self.try_get_edge_color(edge_id) {
            Some(color) => color,
-           None        => MISSING_TYPE_COLOR,
+           None        => missing_type_color,
        }
     }
 
@@ -1692,6 +1695,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let logger         = &model.logger;
     let outputs        = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
+
+    let styles             = StyleWatch::new(&scene.style_sheet);
+    let missing_type_color = styles.get("type.missing.color").color().unwrap_or_else(|| color::Lcha::new(0.7,0.0,0.0,1.0));
 
 
 
@@ -2492,7 +2498,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         if let Some(color) = model.get_color_for_detached_edges() {
             cursor::Style::new_color(color).press()
         } else {
-            cursor::Style::new_color_no_animation(MISSING_TYPE_COLOR).press()
+            cursor::Style::new_color_no_animation(missing_type_color).press()
         }
     }));
     cursor_style_on_edge_drag_stop <- outputs.all_edges_attached.constant(default());

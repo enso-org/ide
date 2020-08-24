@@ -7,25 +7,10 @@ use crate::graph_editor::SharedHashMap;
 use crate::graph_editor::Type;
 
 use ensogl::data::color;
+use ensogl::display::shape::primitive::system::StyleWatch;
+use ensogl::display::style::data::DataMatch;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
-
-
-
-// =================
-// === Constants ===
-// =================
-
-/// Color that should be used if no type information is available.
-/// TODO : Find a way to use values provided by theme manager.
-// pub const MISSING_TYPE_COLOR_DARK : color::Lcha = color::Lcha::new(0.5, 0.0, 0.0, 1.0);
-pub const MISSING_TYPE_COLOR      : color::Lcha = color::Lcha::new(0.7, 0.0, 0.0, 1.0);
-
-// const TYPE_COLOR_LUMINANCE_DARK : f32 = 0.5;
-// const TYPE_COLOR_CHROMA_DARK    : f32 = 0.8;
-
-const TYPE_COLOR_LUMINANCE : f32 = 0.7;
-const TYPE_COLOR_CHROMA    : f32 = 0.6;
 
 
 
@@ -34,12 +19,14 @@ const TYPE_COLOR_CHROMA    : f32 = 0.6;
 // ================================
 
 /// Return the color that corresponds to the given type. Can be used to color edges and ports.
-pub fn color_for_type(type_information:Type) -> color::Lch {
+pub fn color_for_type(type_information:Type, styles:StyleWatch) -> color::Lch {
     // 360 is a arbitrary intermediate value to normalise the hash from 0..u64::MAX to 0..1
     // Assuming the hash is random the number does not matter, otherwise 360 might better preserve
     // the relationship between hash values and make the value 360 and 361 look more similar.
-    let hue = (type_to_hash(type_information) % 360) as f32 / 360.0;
-    color::Lch::new(TYPE_COLOR_LUMINANCE,TYPE_COLOR_CHROMA,hue)
+    let hue              = (type_to_hash(type_information) % 360) as f32 / 360.0;
+    let color_luminance  = styles.get("type.color_luminance").number().unwrap_or(0.7);
+    let color_chroma     = styles.get("type.color_chroma").number().unwrap_or(0.6);
+    color::Lch::new(color_luminance,color_chroma,hue)
 }
 
 /// Compute the hash of the type for use in the `color_for_type` function.
@@ -65,9 +52,9 @@ pub struct TypeColorMap {
 
 impl TypeColorMap {
     /// Return the colour for the `ast_id`. If no type information is available, returns `None`.
-    pub fn type_color(&self, ast_id:ast::Id) -> Option<color::Lcha> {
+    pub fn type_color(&self, ast_id:ast::Id, style:StyleWatch) -> Option<color::Lcha> {
         self.data.get_cloned(&ast_id).map(|type_information| {
-            color_for_type(type_information).into()
+            color_for_type(type_information,style).into()
         })
     }
 

@@ -99,6 +99,10 @@ fn init(app:&Application) {
     dark.insert("edge.split_color_lightness_factor", 0.2);
     dark.insert("edge.split_color_chroma_factor", 1.0);
 
+    dark.insert("type.missing.color", color::Lcha::new(0.5, 0.0, 0.0, 1.0));
+    dark.insert("type.color_luminance", 0.5);
+    dark.insert("type.color_chroma", 0.8);
+
     app.themes.register("dark",dark);
 
 
@@ -123,6 +127,10 @@ fn init(app:&Application) {
 
     light.insert("edge.split_color_lightness_factor", 1.2);
     light.insert("edge.split_color_chroma_factor", 0.8);
+
+    light.insert("type.missing.color", color::Lcha::new(0.7, 0.0, 0.0, 1.0));
+    light.insert("type.color_luminance", 0.7);
+    light.insert("type.color_chroma", 0.6);
 
     app.themes.register("light",light);
     app.themes.set_enabled(&["light"]);

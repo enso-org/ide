@@ -12,9 +12,11 @@ use ensogl::display::shape::BottomHalfPlane;
 use ensogl::display::shape::Circle;
 use ensogl::display::shape::PixelDistance;
 use ensogl::display::shape::Pixels;
+use ensogl::display::shape::primitive::system::StyleWatch;
 use ensogl::display::shape::Rect;
 use ensogl::display::shape::Var;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
+use ensogl::display::style::data::DataMatch;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
@@ -24,7 +26,6 @@ use span_tree;
 
 use crate::graph_editor::Type;
 use crate::graph_editor::component::node::port::get_id_for_crumbs;
-use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::type_coloring::TypeColorMap;
 use crate::graph_editor::node;
 
@@ -755,8 +756,11 @@ impl OutputPorts {
     }
 
     fn set_port_colors_based_on_available_types(&self) {
+        let styles             = StyleWatch::new(&self.scene.style_sheet);
+        let missing_type_color = styles.get("type.missing.color").color().unwrap_or_else(|| color::Lcha::new(0.7,0.0,0.0,1.0));
+
         self.id_map.borrow().iter().for_each(|(id, crumb)|{
-            let color = self.get_port_color(crumb).unwrap_or(MISSING_TYPE_COLOR);
+            let color = self.get_port_color(crumb).unwrap_or(missing_type_color);
             self.data.ports.borrow().set_color(*id,color);
         })
     }
@@ -764,7 +768,8 @@ impl OutputPorts {
     /// Return the color of the port indicated by the given `Crumb`.
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         let ast_id = get_id_for_crumbs(&self.pattern_span_tree.borrow(),&crumbs)?;
-        self.type_color_map.type_color(ast_id)
+        let styles = StyleWatch::new(&self.scene.style_sheet);
+        self.type_color_map.type_color(ast_id, styles)
     }
 
     /// Set the type information for the given `ast::Id`.

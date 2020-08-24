@@ -23,7 +23,6 @@ use text::Text;
 use super::super::node;
 
 use crate::graph_editor::Type;
-use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::type_coloring::TypeColorMap;
 
 
@@ -237,7 +236,11 @@ impl Manager {
 
                         let hover   = &port.shape.hover;
                         let crumbs  = node.crumbs.clone();
-                        let ast_id   = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
+                        let ast_id  = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
+
+                        let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
+                        let missing_type_color = styles.get("type.missing.color").color().unwrap_or_else(|| color::Lcha::new(0.7,0.0,0.0,1.0));
+
                         frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
                             def _foo = port.events.mouse_out  . map(f_!(hover.set(0.0);));
@@ -245,11 +248,11 @@ impl Manager {
                             def out  = port.events.mouse_out.constant(cursor::Style::default());
                             def over = port.events.mouse_over.map(f_!([type_map,port]{
                                 if let Some(ast_id) = ast_id {
-                                    if let Some(port_color) = type_map.type_color(ast_id) {
+                                    if let Some(port_color) = type_map.type_color(ast_id,styles.clone_ref()) {
                                         return cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(port_color))
                                     }
                                 }
-                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(MISSING_TYPE_COLOR))
+                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(missing_type_color))
                             }));
                             // FIXME[WD]: the following lines leak memory in the current FRP
                             // implementation because self.frp does not belong to this network and
@@ -292,7 +295,8 @@ impl Manager {
 
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         let ast_id = get_id_for_crumbs(&self.expression.borrow().input_span_tree,&crumbs)?;
-        self.type_color_map.type_color(ast_id)
+        let styles = StyleWatch::new(&self.app.display.scene().style_sheet);
+        self.type_color_map.type_color(ast_id, styles)
     }
 
     pub fn width(&self) -> f32 {
