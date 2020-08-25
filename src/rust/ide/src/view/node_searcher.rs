@@ -43,7 +43,7 @@ impl NodeSearcher {
         let logger         = Logger::sub(logger,"NodeSearcher");
         let display_object = display::object::Instance::new(&logger);
         let styles         = StyleWatch::new(&scene.style_sheet);
-        let base_color     = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        let base_color     = styles.get_color_or("application.text.color",color::Lcha::new(0.0,0.0,0.125,0.7));
         let properties     = TextFieldProperties {
             font       : fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap(),
             text_size  : 16.0,

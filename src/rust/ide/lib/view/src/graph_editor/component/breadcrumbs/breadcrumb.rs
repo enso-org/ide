@@ -327,9 +327,9 @@ impl BreadcrumbModel {
         self.icon.add_child(&self.label);
 
         let styles            = StyleWatch::new(&self.scene.style_sheet);
-        let full_color        = styles.get("breadcrumbs.full.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        let full_color        = styles.get_color_or("breadcrumbs.full.color",color::Lcha::new(0.0,0.0,0.125,0.7));
         let full_color        = color::Rgba::from(full_color);
-        let transparent_color = styles.get("breadcrumbs.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.4));
+        let transparent_color = styles.get_color_or("breadcrumbs.transparent.color",color::Lcha::new(0.0,0.0,0.125,0.4));
         let transparent_color = color::Rgba::from(transparent_color);
 
         let color  = if self.is_selected() { full_color } else { transparent_color };
@@ -403,9 +403,9 @@ impl BreadcrumbModel {
 
     fn select(&self) {
         let styles                = StyleWatch::new(&self.scene.style_sheet);
-        let selected_color        = styles.get("breadcrumbs.selected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let selected_color        = styles.get_color_or("breadcrumbs.selected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let selected_color        = color::Rgba::from(selected_color);
-        let left_deselected_color = styles.get("breadcrumbs.left.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let left_deselected_color = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let left_deselected_color = color::Rgba::from(left_deselected_color);
 
         self.animations.color.set_target_value(selected_color.into());
@@ -423,11 +423,11 @@ impl BreadcrumbModel {
 
     fn deselected_color(&self) -> color::Rgba {
         let styles                 = StyleWatch::new(&self.scene.style_sheet);
-        let selected_color         = styles.get("breadcrumbs.selected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let selected_color         = styles.get_color_or("breadcrumbs.selected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let selected_color         = color::Rgba::from(selected_color);
-        let left_deselected_color  = styles.get("breadcrumbs.left.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let left_deselected_color  = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let left_deselected_color  = color::Rgba::from(left_deselected_color);
-        let right_deselected_color = styles.get("breadcrumbs.right.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let right_deselected_color = styles.get_color_or("breadcrumbs.right.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.2));
         let right_deselected_color = color::Rgba::from(right_deselected_color);
 
         match self.relative_position.get() {
@@ -472,7 +472,7 @@ impl Breadcrumb {
         let network = &frp.network;
 
         let styles      = StyleWatch::new(&scene.into().style_sheet);
-        let hover_color = styles.get("breadcrumbs.hover.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let hover_color = styles.get_color_or("breadcrumbs.hover.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let hover_color = color::Rgba::from(hover_color);
 
         frp::extend! { network

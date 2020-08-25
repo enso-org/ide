@@ -51,7 +51,7 @@ pub mod background {
             let width         = &width  - SHADOW_SIZE.px() * 2.0;
             let height        = &height - SHADOW_SIZE.px() * 2.0;
             let radius        = 1.px() * &radius;
-            let color_bg      = style.get("graph_editor.visualization.background.color").color().unwrap_or_else(|| color::Lcha::new(0.2,0.013,0.18,1.0));
+            let color_bg      = style.get_color_or("graph_editor.visualization.background.color",color::Lcha::new(0.2,0.013,0.18,1.0));
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));

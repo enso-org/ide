@@ -757,7 +757,7 @@ impl OutputPorts {
 
     fn set_port_colors_based_on_available_types(&self) {
         let styles             = StyleWatch::new(&self.scene.style_sheet);
-        let missing_type_color = styles.get("type.missing.color").color().unwrap_or_else(|| color::Lcha::new(0.7,0.0,0.0,1.0));
+        let missing_type_color = styles.get_color_or("type.missing.color",color::Lcha::new(0.7,0.0,0.0,1.0));
 
         self.id_map.borrow().iter().for_each(|(id, crumb)|{
             let color = self.get_port_color(crumb).unwrap_or(missing_type_color);

@@ -180,7 +180,7 @@ impl Manager {
         label.insert("HELLO\nHELLO2\nHELLO3\nHELLO4".to_string());
 
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
-        let text_color = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        let text_color = styles.get_color_or("application.text.color",color::Lcha::new(0.0,0.0,0.125,0.7));
         label.set_default_color(color::Rgba::from(text_color));
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
@@ -239,7 +239,7 @@ impl Manager {
                         let ast_id  = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
 
                         let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
-                        let missing_type_color = styles.get("type.missing.color").color().unwrap_or_else(|| color::Lcha::new(0.7,0.0,0.0,1.0));
+                        let missing_type_color = styles.get_color_or("type.missing.color",color::Lcha::new(0.7,0.0,0.0,1.0));
 
                         frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));

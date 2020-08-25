@@ -46,9 +46,9 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32) {
-            let bg_color = style.get("graph_editor.node.background.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
-            let selection_color = style.get("graph_editor.node.selection.color").color().unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
-            let _selection_size = style.get("graph_editor.node.selection.size").number().unwrap_or(8.0);
+            let bg_color = style.get_color_or("graph_editor.node.background.color",color::Rgba::new(1.0,0.0,0.0,1.0).into());
+            let selection_color = style.get_color_or("graph_editor.node.selection.color",color::Rgba::new(1.0,0.0,0.0,1.0).into());
+            let _selection_size = style.get_number_or("graph_editor.node.selection.size",8.0);
 
             let border_size_f = 16.0;
 

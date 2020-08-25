@@ -1533,7 +1533,7 @@ impl GraphEditorModel {
     /// color defined in Theme Manager as `type.missing.color`
     fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
         let styles             = StyleWatch::new(&self.scene().style_sheet);
-        let missing_type_color = styles.get("type.missing.color").color().unwrap_or_else(|| color::Lcha::new(0.7,0.0,0.0,1.0));
+        let missing_type_color = styles.get_color_or("type.missing.color",color::Lcha::new(0.7,0.0,0.0,1.0));
         match self.try_get_edge_color(edge_id) {
            Some(color) => color,
            None        => missing_type_color,
@@ -1697,7 +1697,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
     let styles             = StyleWatch::new(&scene.style_sheet);
-    let missing_type_color = styles.get("type.missing.color").color().unwrap_or_else(|| color::Lcha::new(0.7,0.0,0.0,1.0));
+    let missing_type_color = styles.get_color_or("type.missing.color",color::Lcha::new(0.7,0.0,0.0,1.0));
 
 
 

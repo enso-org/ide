@@ -201,7 +201,7 @@ impl ProjectNameModel {
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
         let styles                = StyleWatch::new(&scene.style_sheet);
-        let base_color            = styles.get("breadcrumbs.transparent.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.4));
+        let base_color            = styles.get_color_or("breadcrumbs.transparent.color",color::Lcha::new(0.0,0.0,0.125,0.4));
         let base_color            = color::Rgba::from(base_color);
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
@@ -278,7 +278,7 @@ impl ProjectNameModel {
 
     fn select(&self) {
         let styles         = StyleWatch::new(&self.scene.style_sheet);
-        let selected_color = styles.get("breadcrumbs.selected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let selected_color = styles.get_color_or("breadcrumbs.selected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let selected_color = color::Rgba::from(selected_color);
 
         self.animations.color.set_target_value(selected_color.into());
@@ -286,7 +286,7 @@ impl ProjectNameModel {
 
     fn deselect(&self) {
         let styles                = StyleWatch::new(&self.scene.style_sheet);
-        let left_deselected_color = styles.get("breadcrumbs.left.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let left_deselected_color = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let left_deselected_color = color::Rgba::from(left_deselected_color);
 
         self.animations.color.set_target_value(left_deselected_color.into());
@@ -322,9 +322,9 @@ impl ProjectName {
         let network = &frp.network;
 
         let styles                = StyleWatch::new(&scene.into().style_sheet);
-        let hover_color           = styles.get("breadcrumbs.hover.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let hover_color           = styles.get_color_or("breadcrumbs.hover.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let hover_color           = color::Rgba::from(hover_color);
-        let left_deselected_color = styles.get("breadcrumbs.left.deselected.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.6));
+        let left_deselected_color = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let left_deselected_color = color::Rgba::from(left_deselected_color);
 
         frp::extend! { network

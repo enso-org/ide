@@ -82,7 +82,7 @@ impl RawTextModel {
         let size    = Rc::new(Cell::new(Vector2(200.0,200.0)));
 
         let styles     = StyleWatch::new(&scene.style_sheet);
-        let text_color = styles.get("application.text.color").color().unwrap_or_else(|| color::Lcha::new(0.0,0.0,0.125,0.7));
+        let text_color = styles.get_color_or("application.text.color",color::Lcha::new(0.0,0.0,0.125,0.7));
         let text_color = color::Rgba::from(text_color);
         let _red       = text_color.red * 255.0;
         let _green     = text_color.green * 255.0;
