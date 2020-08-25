@@ -15,7 +15,6 @@ use ensogl::display::shape::primitive::StyleWatch;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::text_field::{TextField, FocusManager};
 use ensogl::display::shape::text::text_field::TextFieldProperties;
-use ensogl::display::style::data::DataMatch;
 use ensogl::system::web::platform::Platform;
 use nalgebra::Vector2;
 use nalgebra::zero;

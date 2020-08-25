@@ -8,7 +8,6 @@ use crate::graph_editor::Type;
 
 use ensogl::data::color;
 use ensogl::display::shape::primitive::system::StyleWatch;
-use ensogl::display::style::data::DataMatch;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 

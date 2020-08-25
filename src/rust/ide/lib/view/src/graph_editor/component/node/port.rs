@@ -11,7 +11,6 @@ use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
-use ensogl::display::style::data::DataMatch;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;

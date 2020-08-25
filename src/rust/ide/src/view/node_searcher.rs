@@ -14,7 +14,6 @@ use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
-use ensogl::display::style::data::DataMatch;
 use ensogl::traits::*;
 
 

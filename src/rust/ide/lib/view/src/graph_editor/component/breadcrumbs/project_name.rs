@@ -17,7 +17,6 @@ use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::shape::*;
-use ensogl::display::style::data::DataMatch;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use logger::enabled::Logger;

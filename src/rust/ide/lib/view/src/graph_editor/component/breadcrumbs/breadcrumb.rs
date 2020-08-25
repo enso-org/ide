@@ -13,7 +13,6 @@ use crate::graph_editor::MethodPointer;
 use enso_frp as frp;
 use ensogl::data::color;
 use ensogl::display;
-use ensogl::display::style::data::DataMatch;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;

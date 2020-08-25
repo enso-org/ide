@@ -10,7 +10,6 @@ use ensogl::data::color;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::primitive::StyleWatch;
-use ensogl::display::style::data::DataMatch;
 use ensogl::display;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;

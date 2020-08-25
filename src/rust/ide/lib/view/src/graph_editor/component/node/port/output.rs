@@ -16,7 +16,6 @@ use ensogl::display::shape::primitive::system::StyleWatch;
 use ensogl::display::shape::Rect;
 use ensogl::display::shape::Var;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
-use ensogl::display::style::data::DataMatch;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;

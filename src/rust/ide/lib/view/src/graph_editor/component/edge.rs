@@ -9,7 +9,6 @@ use ensogl::data::color;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
-use ensogl::display::style::data::DataMatch;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewEvents;
