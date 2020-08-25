@@ -643,9 +643,13 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn nodes_collapsed_in_ui
-    (&self, (collapsed,new_node):&(Vec<graph_editor::NodeId>,graph_editor::NodeId)) -> FallibleResult<()> {
-        let ids = self.get_controller_node_ids(collapsed)?;
-        self.controller.graph().collapse(ids,COLLAPSED_FUNCTION_NAME)?;
+    (&self, (collapsed,_new_node_view_id):&(Vec<graph_editor::NodeId>,graph_editor::NodeId))
+    -> FallibleResult<()> {
+        let ids          = self.get_controller_node_ids(collapsed)?;
+        let _new_node_id = self.controller.graph().collapse(ids,COLLAPSED_FUNCTION_NAME)?;
+        // TODO [mwu] https://github.com/enso-org/ide/issues/760
+        //   As part of this issue, storing relation between new node's controller and view ids will
+        //   be necessary.
         Ok(())
     }
 
