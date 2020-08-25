@@ -1598,7 +1598,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "collapse_selected_nodes")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("g".into())],&[])  , "collapse_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())],&[])  , "double_press_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])  , "release_visualization_visibility")
@@ -2068,6 +2068,21 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
 
+    // === Collapse Node ===
+    frp::extend! { network
+
+
+
+
+    let empty_id = NodeId::default();
+    let model2   = model.clone_ref();
+    nodes_to_collapse <- inputs.collapse_selected_nodes . map(move |_| {
+        (model2.selected_nodes(),empty_id)
+    });
+    outputs.nodes_collapsed <+ nodes_to_collapse;
+    }
+
+
     // === Set Node Expression ===
     frp::extend! { network
 
@@ -2449,8 +2464,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Remove implementation ===
     outputs.node_removed <+ inputs.remove_node;
 
-    // === Collapse nodes implementation ===
-    outputs.nodes_collapsed <+ inputs.collapse_nodes;
 
     }
 
