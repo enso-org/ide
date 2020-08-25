@@ -103,13 +103,14 @@ impl View {
 
             // === Documentation toggle ===
 
-            let documentation_press_ev     = frp.press_documentation_view_visibility.clone_ref();
-            let documentation_release      = frp.release_documentation_view_visibility.clone_ref();
-            documentation_pressed         <- bool(&documentation_release,&documentation_press_ev);
-            documentation_was_pressed     <- documentation_pressed.previous();
-            documentation_press           <- documentation_press_ev.gate_not(&documentation_was_pressed);
-            documentation_press_on_off    <- documentation_press.map(f_!(model.is_documentation_visible()));
+            let documentation_press_ev = frp.press_documentation_view_visibility.clone_ref();
+            let documentation_release  = frp.release_documentation_view_visibility.clone_ref();
+            documentation_pressed            <- bool(&documentation_release,&documentation_press_ev);
+            documentation_was_pressed        <- documentation_pressed.previous();
+            documentation_press              <- documentation_press_ev.gate_not(&documentation_was_pressed);
+            documentation_press_on_off       <- documentation_press.map(f_!(model.is_documentation_visible()));
             frp.source.documentation_visible <+ documentation_press_on_off;
+
 
             // === OUTPUTS REBIND ===
 
