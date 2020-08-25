@@ -352,8 +352,8 @@ impl ContainerModel {
         } else {
             self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.background.shape.sprite.size.set(size.add_scalar(SHADOW_SIZE*2.0));
-            self.view.overlay.shape.sprite.size.set(size.add_scalar(SHADOW_SIZE*2.0));
+            self.view.background.shape.sprite.size.set(size.add_scalar(SHADOW_SIZE * 2.0));
+            self.view.overlay.shape.sprite.size.set(size.add_scalar(SHADOW_SIZE * 2.0));
             self.fullscreen_view.background . shape.sprite.size.set(zero());
         }
 

@@ -24,8 +24,8 @@ pub fn color_for_type(type_information:Type, styles:StyleWatch) -> color::Lch {
     // Assuming the hash is random the number does not matter, otherwise 360 might better preserve
     // the relationship between hash values and make the value 360 and 361 look more similar.
     let hue              = (type_to_hash(type_information) % 360) as f32 / 360.0;
-    let color_luminance  = styles.get("type.color_luminance").number().unwrap_or(0.7);
-    let color_chroma     = styles.get("type.color_chroma").number().unwrap_or(0.6);
+    let color_luminance  = styles.get_number_or("type.color_luminance",0.7);
+    let color_chroma     = styles.get_number_or("type.color_chroma",0.6);
     color::Lch::new(color_luminance,color_chroma,hue)
 }
 

@@ -1291,8 +1291,8 @@ impl EdgeModelData {
     /// of the main color).
     pub fn set_color(&self, color:color::Lcha) {
         let styles                        = StyleWatch::new(&self.scene.style_sheet);
-        let split_color_lightness_factor  = styles.get("edge.split_color_lightness_factor").number().unwrap_or(1.2);
-        let split_color_chroma_factor     = styles.get("edge.split_color_chroma_factor").number().unwrap_or(0.8);
+        let split_color_lightness_factor  = styles.get_number_or("edge.split_color_lightness_factor",1.2);
+        let split_color_chroma_factor     = styles.get_number_or("edge.split_color_chroma_factor",0.8);
         let focus_color = color::Lcha::new(color.lightness * split_color_lightness_factor,color.chroma * split_color_chroma_factor,color.hue,color.alpha);
         let color_rgba:color::Rgba = color.into();
         self.shapes().iter().for_each(|shape| {
