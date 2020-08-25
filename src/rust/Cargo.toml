@@ -12,13 +12,13 @@ members = [
     "ide",
     "ide/lib/ast/impl",
     "ide/lib/ast/macros",
-    "ide/lib/controller",
     "ide/lib/enso-protocol",
     "ide/lib/json-rpc",
     "ide/lib/parser",
     "ide/lib/span-tree",
     "ide/lib/utils",
-    "ide/lib/view",
+    "ide/view",
+    "ide/view/graph-editor",
 
     "lib/callback",
     "lib/code-builder",
@@ -38,7 +38,7 @@ members = [
 ]
 
 [profile.dev]
-opt-level = 0
+opt-level = 2
 lto       = false
 debug     = true
 
