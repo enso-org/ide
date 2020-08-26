@@ -753,7 +753,7 @@ impl Handle {
         self.update_definition_ast(|_| Ok(updated_definition))?;
         let position = Some(model::module::Position::mean(collapsed_positions));
         let metadata = NodeMetadata {position,..default()};
-        self.module.set_node_metadata(collapsed_node, metadata);
+        self.module.set_node_metadata(collapsed_node,metadata);
         Ok(collapsed_node)
     }
 
