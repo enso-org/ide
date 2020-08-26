@@ -325,10 +325,17 @@ impl BreadcrumbModel {
         self.separator.add_child(&self.icon);
         self.icon.add_child(&self.label);
 
-        let styles            = &self.style;
-        let full_color        = styles.get_color_or("breadcrumbs.full.color",color::Lcha::new(0.0,0.0,0.125,0.7));
-        let full_color        = color::Rgba::from(full_color);
-        let transparent_color = styles.get_color_or("breadcrumbs.transparent.color",color::Lcha::new(0.0,0.0,0.125,0.4));
+        let styles              = &self.style;
+        let full_color_path     = "breadcrumbs.full.color";
+        let full_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.7);
+
+        let full_color = styles.get_color_or(full_color_path,full_color_fallback);
+        let full_color = color::Rgba::from(full_color);
+
+        let transparent_color_path     = "breadcrumbs.transparent.color";
+        let transparent_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.4);
+
+        let transparent_color = styles.get_color_or(transparent_color_path,transparent_color_fallback);
         let transparent_color = color::Rgba::from(transparent_color);
 
         let color  = if self.is_selected() { full_color } else { transparent_color };
@@ -401,14 +408,21 @@ impl BreadcrumbModel {
     }
 
     fn select(&self) {
-        let styles                = &self.style;
-        let selected_color        = styles.get_color_or("breadcrumbs.selected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
-        let selected_color        = color::Rgba::from(selected_color);
-        let left_deselected_color = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
-        let left_deselected_color = color::Rgba::from(left_deselected_color);
+        let styles                  = &self.style;
+        let selected_color_path     = "breadcrumbs.selected.color";
+        let selected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+
+        let selected_color = styles.get_color_or(selected_color_path,selected_color_fallback);
+        let selected_color = color::Rgba::from(selected_color);
+
+        let left_deselected_path     = "breadcrumbs.left.deselected.color";
+        let left_deselected_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+
+        let left_deselected = styles.get_color_or(left_deselected_path,left_deselected_fallback);
+        let left_deselected = color::Rgba::from(left_deselected);
 
         self.animations.color.set_target_value(selected_color.into());
-        self.animations.separator_color.set_target_value(left_deselected_color.into());
+        self.animations.separator_color.set_target_value(left_deselected.into());
     }
 
     fn deselect(&self, old:usize, new:usize) {
@@ -421,17 +435,28 @@ impl BreadcrumbModel {
     }
 
     fn deselected_color(&self) -> color::Rgba {
-        let styles                 = &self.style;
-        let selected_color         = styles.get_color_or("breadcrumbs.selected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
-        let selected_color         = color::Rgba::from(selected_color);
-        let left_deselected_color  = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
-        let left_deselected_color  = color::Rgba::from(left_deselected_color);
-        let right_deselected_color = styles.get_color_or("breadcrumbs.right.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.2));
-        let right_deselected_color = color::Rgba::from(right_deselected_color);
+        let styles                  = &self.style;
+        let selected_color_path     = "breadcrumbs.selected.color";
+        let selected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+
+        let selected_color = styles.get_color_or(selected_color_path,selected_color_fallback);
+        let selected_color = color::Rgba::from(selected_color);
+
+        let left_deselected_path     = "breadcrumbs.left.deselected.color";
+        let left_deselected_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+
+        let left_deselected = styles.get_color_or(left_deselected_path,left_deselected_fallback);
+        let left_deselected = color::Rgba::from(left_deselected);
+
+        let right_deselected_path     = "breadcrumbs.right.deselected.color";
+        let right_deselected_fallback = color::Lcha::new(0.0,0.0,0.125,0.2);
+
+        let right_deselected = styles.get_color_or(right_deselected_path,right_deselected_fallback);
+        let right_deselected = color::Rgba::from(right_deselected);
 
         match self.relative_position.get() {
-            Some(RelativePosition::RIGHT) => right_deselected_color,
-            Some(RelativePosition::LEFT)  => left_deselected_color,
+            Some(RelativePosition::RIGHT) => right_deselected,
+            Some(RelativePosition::LEFT)  => left_deselected,
             None                          => selected_color
         }
     }
