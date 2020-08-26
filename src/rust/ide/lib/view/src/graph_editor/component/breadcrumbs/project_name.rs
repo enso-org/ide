@@ -200,7 +200,9 @@ impl ProjectNameModel {
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
         let styles                = StyleWatch::new(&scene.style_sheet);
-        let base_color            = styles.get_color_or("breadcrumbs.transparent.color",color::Lcha::new(0.0,0.0,0.125,0.4));
+        let base_color_path       = "breadcrumbs.transparent.color";
+        let base_color_fallback   = color::Lcha::new(0.0,0.0,0.125,0.4);
+        let base_color            = styles.get_color_or(base_color_path,base_color_fallback);
         let base_color            = color::Rgba::from(base_color);
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
@@ -276,19 +278,25 @@ impl ProjectNameModel {
     }
 
     fn select(&self) {
-        let styles         = StyleWatch::new(&self.scene.style_sheet);
-        let selected_color = styles.get_color_or("breadcrumbs.selected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
+        let styles                  = StyleWatch::new(&self.scene.style_sheet);
+        let selected_color_path     = "breadcrumbs.selected.color";
+        let selected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+
+        let selected_color = styles.get_color_or(selected_color_path,selected_color_fallback);
         let selected_color = color::Rgba::from(selected_color);
 
         self.animations.color.set_target_value(selected_color.into());
     }
 
     fn deselect(&self) {
-        let styles                = StyleWatch::new(&self.scene.style_sheet);
-        let left_deselected_color = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
-        let left_deselected_color = color::Rgba::from(left_deselected_color);
+        let styles                    = StyleWatch::new(&self.scene.style_sheet);
+        let deselected_color_path     = "breadcrumbs.left.deselected.color";
+        let deselected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
 
-        self.animations.color.set_target_value(left_deselected_color.into());
+        let deselected_color = styles.get_color_or(deselected_color_path,deselected_color_fallback);
+        let deselected_color = color::Rgba::from(deselected_color);
+
+        self.animations.color.set_target_value(deselected_color.into());
     }
 }
 
@@ -321,10 +329,16 @@ impl ProjectName {
         let network = &frp.network;
 
         let styles                = StyleWatch::new(&scene.into().style_sheet);
-        let hover_color           = styles.get_color_or("breadcrumbs.hover.color",color::Lcha::new(0.0,0.0,0.125,0.6));
+        let hover_color_path      = "breadcrumbs.hover.color";
+        let hover_color_fallback  = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let hover_color           = styles.get_color_or(hover_color_path,hover_color_fallback);
         let hover_color           = color::Rgba::from(hover_color);
-        let left_deselected_color = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
-        let left_deselected_color = color::Rgba::from(left_deselected_color);
+
+        let deselected_color_path     = "breadcrumbs.left.deselected.color";
+        let deselected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+
+        let deselected_color = styles.get_color_or(deselected_color_path,deselected_color_fallback);
+        let deselected_color = color::Rgba::from(deselected_color);
 
         frp::extend! { network
             not_selected               <- frp.outputs.selected.map(|selected| !selected);
@@ -334,7 +348,7 @@ impl ProjectName {
                 model.animations.color.set_target_value(hover_color.into());
             );
             eval_ mouse_out_if_not_selected([model] {
-                model.animations.color.set_target_value(left_deselected_color.into());
+                model.animations.color.set_target_value(deselected_color.into());
             });
             eval_ frp.select({
                 model.outputs.selected.emit(true);
