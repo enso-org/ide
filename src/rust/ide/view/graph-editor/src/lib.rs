@@ -2063,8 +2063,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // TODO [mwu] https://github.com/enso-org/ide/issues/760
     //   This is currently the provisional code to enable collapse nodes refactoring. While the APIs
     //   are as-intended, their behavior isn't. Please refer to the issue for details.
-    let empty_id    = NodeId::default();
-    let model_clone = model.clone_ref();
+    let empty_id       = NodeId::default();
+    let model_clone    = model.clone_ref();
     nodes_to_collapse <- inputs.collapse_selected_nodes . map(move |_|
         (model_clone.selected_nodes(),empty_id)
     );

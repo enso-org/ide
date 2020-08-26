@@ -367,6 +367,7 @@ mod tests {
 
     impl Case {
         fn run(&self, parser:&Parser) {
+            let logger       = Logger::new("Collapsing_Test");
             let ast          = parser.parse_module(self.initial_method_code,default()).unwrap();
             let main         = module::locate_child(&ast,&self.refactored_name).unwrap();
             let graph        = graph::GraphInfo::from_definition(main.item.clone());
@@ -378,20 +379,22 @@ mod tests {
                 let new_method = collapsed.new_method.ast(0, parser).unwrap();
                 let placement  = module::Placement::Before(self.refactored_name.clone());
                 let new_main   = &collapsed.updated_definition.ast;
-                println!("Generated method:\n{}", new_method);
-                println!("Updated method:\n{}", new_main);
+                info!(logger,"Generated method:\n{new_method}");
+                info!(logger,"Updated method:\n{new_method}");
                 let mut module = module::Info { ast:ast.clone_ref() };
                 let main_crumb = Crumb::from(main.crumb());
-                module.ast = module.ast.set(&main_crumb, new_main.ast().clone()).unwrap();
+                module.ast     = module.ast.set(&main_crumb, new_main.ast().clone()).unwrap();
                 module.add_method(collapsed.new_method, placement, parser).unwrap();
-                println!("Module after refactoring:\n{}", &module.ast);
+                info!(logger,"Updated method:\n{&module.ast}");
                 assert_eq!(new_method.repr(), self.expected_generated);
                 assert_eq!(new_main.repr(), self.expected_refactored);
             };
 
             let extracted_lines = self.extracted_lines.clone();
-            // We run case twice, with reversed node selection order. THe order should not affect
-            // the refactoring results.
+            // We run case twice, with reversed node selection order. This way we assure that test
+            // isn't passing just because it got selected nodes in some specific order.
+            // The refactoring is expected to behave the same, no matter what the order of selected
+            // nodes is.
             let mut selected_nodes = nodes[extracted_lines].iter().map(NodeInfo::id).collect_vec();
             run_internal(&selected_nodes);
             selected_nodes.reverse();
@@ -429,7 +432,7 @@ mod tests {
         // 1) Maintains the assignment and the introduced name for the value in the extracted
         //    method;
         // 2) That invocation appears in the extracted node's place but has no assignment.
-        case.extracted_lines = 3..4;
+        case.extracted_lines    = 3..4;
         case.expected_generated = r"custom_new a b =
     d = a + b";
         case.expected_refactored = r"custom_old =
@@ -449,8 +452,8 @@ mod tests {
     c = A + B
     a + b
     c + 7";
-        case.extracted_lines = 3..4;
-        case.expected_generated = r"custom_new a b = a + b";
+        case.extracted_lines     = 3..4;
+        case.expected_generated  = r"custom_new a b = a + b";
         case.expected_refactored = r"custom_old =
     a = 1
     b = 2
@@ -466,7 +469,7 @@ mod tests {
         case.initial_method_code = r"custom_old =
     c = 50 + d
     c + c + 10";
-        case.extracted_lines = 0..1;
+        case.extracted_lines    = 0..1;
         case.expected_generated = r"custom_new =
     c = 50 + d
     c";
