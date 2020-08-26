@@ -237,8 +237,10 @@ impl Manager {
                         let crumbs  = node.crumbs.clone();
                         let ast_id  = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
 
-                        let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
-                        let missing_type_color = styles.get_color_or("type.missing.color",color::Lcha::new(0.7,0.0,0.0,1.0));
+                        let styles                 = StyleWatch::new(&self.app.display.scene().style_sheet);
+                        let missing_color_path     = "type.missing.color";
+                        let missing_color_fallback = color::Lcha::new(0.7,0.0,0.0,1.0);
+                        let missing_type_color     = styles.get_color_or(missing_color_path,missing_color_fallback);
 
                         frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
