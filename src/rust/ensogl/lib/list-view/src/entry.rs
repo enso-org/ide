@@ -4,7 +4,6 @@ use crate::prelude::*;
 use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display;
-use ensogl_core::display::style::data::DataMatch;
 use ensogl_core::display::shape::StyleWatch;
 use ensogl_text as text;
 use enabled::Logger;

@@ -15,9 +15,10 @@ use crate::display::symbol::material;
 use crate::display::symbol::material::Material;
 use crate::display::scene::Scene;
 use crate::display::style;
+use crate::display::style::data::DataMatch;
 use crate::system::gpu::types::*;
 use crate::system::gpu::data::buffer::item::Storable;
-use crate::display::style::data::DataMatch;
+
 
 
 // ===================
@@ -202,12 +203,12 @@ impl StyleWatch {
     }
 
     /// Queries style sheet color, if not found gets fallback.
-    pub fn get_color_or(&self, path:&str, fallback: color::Lcha) -> color::Lcha {
+    pub fn get_color_or(&self, path:&str, fallback:color::Lcha) -> color::Lcha {
         self.get(path).color().unwrap_or_else(|| fallback)
     }
 
     /// Queries style sheet number value, if not found gets fallback.
-    pub fn get_number_or(&self, path:&str, fallback: f32) -> f32 {
+    pub fn get_number_or(&self, path:&str, fallback:f32) -> f32 {
         self.get(path).number().unwrap_or(fallback)
     }
 }

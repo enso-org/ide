@@ -20,11 +20,11 @@ use ensogl::display::shape::text::glyph::system::Line;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::gui::component;
 use ensogl::gui::component::Animation;
-use frp::IntoParam;
 use logger::enabled::Logger;
 use logger::AnyLogger;
 use nalgebra::Vector2;
 use std::f32::consts::PI;
+
 
 
 // =================
@@ -268,7 +268,7 @@ pub struct BreadcrumbModel {
     glyph_system   : GlyphSystem,
     label          : Line,
     animations     : Animations,
-    scene          : Scene,
+    style          : StyleWatch,
     /// Breadcrumb information such as name and expression id.
     pub info          : Rc<BreadcrumbInfo>,
     relative_position : Rc<Cell<Option<RelativePosition>>>,
@@ -314,8 +314,8 @@ impl BreadcrumbModel {
         scene.views.main.remove(&symbol);
         scene.views.breadcrumbs.add(&symbol);
 
-        let scene = scene.into_param();
-        Self{logger,view,icon,separator,display_object,glyph_system,label,info,animations,scene
+        let style = StyleWatch::new(&scene.style_sheet);
+        Self{logger,view,icon,separator,display_object,glyph_system,label,info,animations,style
             ,relative_position,outputs}.init()
     }
 
@@ -325,7 +325,7 @@ impl BreadcrumbModel {
         self.separator.add_child(&self.icon);
         self.icon.add_child(&self.label);
 
-        let styles            = StyleWatch::new(&self.scene.style_sheet);
+        let styles            = &self.style;
         let full_color        = styles.get_color_or("breadcrumbs.full.color",color::Lcha::new(0.0,0.0,0.125,0.7));
         let full_color        = color::Rgba::from(full_color);
         let transparent_color = styles.get_color_or("breadcrumbs.transparent.color",color::Lcha::new(0.0,0.0,0.125,0.4));
@@ -401,7 +401,7 @@ impl BreadcrumbModel {
     }
 
     fn select(&self) {
-        let styles                = StyleWatch::new(&self.scene.style_sheet);
+        let styles                = &self.style;
         let selected_color        = styles.get_color_or("breadcrumbs.selected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let selected_color        = color::Rgba::from(selected_color);
         let left_deselected_color = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
@@ -421,7 +421,7 @@ impl BreadcrumbModel {
     }
 
     fn deselected_color(&self) -> color::Rgba {
-        let styles                 = StyleWatch::new(&self.scene.style_sheet);
+        let styles                 = &self.style;
         let selected_color         = styles.get_color_or("breadcrumbs.selected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
         let selected_color         = color::Rgba::from(selected_color);
         let left_deselected_color  = styles.get_color_or("breadcrumbs.left.deselected.color",color::Lcha::new(0.0,0.0,0.125,0.6));
