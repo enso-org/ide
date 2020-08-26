@@ -22,9 +22,9 @@ pub fn color_for_type(type_information:Type, styles:StyleWatch) -> color::Lch {
     // 360 is a arbitrary intermediate value to normalise the hash from 0..u64::MAX to 0..1
     // Assuming the hash is random the number does not matter, otherwise 360 might better preserve
     // the relationship between hash values and make the value 360 and 361 look more similar.
-    let hue              = (type_to_hash(type_information) % 360) as f32 / 360.0;
-    let color_luminance  = styles.get_number_or("type.color_luminance",0.7);
-    let color_chroma     = styles.get_number_or("type.color_chroma",0.6);
+    let hue             = (type_to_hash(type_information) % 360) as f32 / 360.0;
+    let color_luminance = styles.get_number_or("type.color_luminance",0.7);
+    let color_chroma    = styles.get_number_or("type.color_chroma",0.6);
     color::Lch::new(color_luminance,color_chroma,hue)
 }
 
