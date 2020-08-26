@@ -8,7 +8,6 @@ use crate::graph_editor::component::breadcrumbs::VERTICAL_MARGIN;
 use crate::graph_editor::component::breadcrumbs::breadcrumb;
 
 use enso_frp as frp;
-use frp::IntoParam;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::object::ObjectOps;
@@ -185,7 +184,7 @@ pub struct ProjectNameModel {
     animations     : Animations,
     display_object : display::object::Instance,
     view           : component::ShapeView<background::Shape>,
-    scene          : Scene,
+    style          : StyleWatch,
     text_field     : TextField,
     project_name   : Rc<RefCell<String>>,
     outputs        : FrpOutputs
@@ -212,8 +211,8 @@ impl ProjectNameModel {
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let outputs               = frp.outputs.clone_ref();
         let animations            = Animations::new(&frp.network);
-        let scene                 = scene.into_param();
-        Self{logger,view,scene,display_object,text_field,project_name,animations,outputs}.init()
+        let style                 = StyleWatch::new(&scene.style_sheet);
+        Self{logger,view,style,display_object,text_field,project_name,animations,outputs}.init()
     }
 
     /// Get the width of the ProjectName view.
@@ -278,7 +277,7 @@ impl ProjectNameModel {
     }
 
     fn select(&self) {
-        let styles                  = StyleWatch::new(&self.scene.style_sheet);
+        let styles                  = &self.style;
         let selected_color_path     = "breadcrumbs.selected.color";
         let selected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
 
@@ -289,7 +288,7 @@ impl ProjectNameModel {
     }
 
     fn deselect(&self) {
-        let styles                    = StyleWatch::new(&self.scene.style_sheet);
+        let styles                    = &self.style;
         let deselected_color_path     = "breadcrumbs.left.deselected.color";
         let deselected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
 

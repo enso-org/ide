@@ -470,9 +470,11 @@ impl Breadcrumb {
         let model   = Rc::new(BreadcrumbModel::new(scene,&frp,method_pointer,expression_id));
         let network = &frp.network;
 
-        let styles      = StyleWatch::new(&scene.into().style_sheet);
-        let hover_color = styles.get_color_or("breadcrumbs.hover.color",color::Lcha::new(0.0,0.0,0.125,0.6));
-        let hover_color = color::Rgba::from(hover_color);
+        let styles                = StyleWatch::new(&scene.into().style_sheet);
+        let hover_color_path      = "breadcrumbs.hover.color";
+        let hover_color_fallback  = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let hover_color           = styles.get_color_or(hover_color_path,hover_color_fallback);
+        let hover_color           = color::Rgba::from(hover_color);
 
         frp::extend! { network
             eval_ frp.fade_in(model.animations.fade_in.set_target_value(1.0));
