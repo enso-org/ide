@@ -489,13 +489,12 @@ pub struct Breadcrumb {
 
 impl Breadcrumb {
     /// Constructor.
-    pub fn new<'t,S:Into<&'t Scene> + Copy>
-    (scene:S, method_pointer:&MethodPointer, expression_id:&ast::Id) -> Self {
+    pub fn new(scene:&Scene, method_pointer:&MethodPointer, expression_id:&ast::Id) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(BreadcrumbModel::new(scene,&frp,method_pointer,expression_id));
         let network = &frp.network;
 
-        let styles                = StyleWatch::new(&scene.into().style_sheet);
+        let styles                = StyleWatch::new(&scene.style_sheet);
         let hover_color_path      = "breadcrumbs.hover.color";
         let hover_color_fallback  = color::Lcha::new(0.0,0.0,0.125,0.6);
         let hover_color           = styles.get_color_or(hover_color_path,hover_color_fallback);

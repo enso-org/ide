@@ -322,12 +322,12 @@ pub struct ProjectName {
 
 impl ProjectName {
     /// Constructor.
-    pub fn new<'t,S:Into<&'t Scene> + Copy>(scene:S,focus_manager:&FocusManager) -> Self {
+    pub fn new(scene:&Scene,focus_manager:&FocusManager) -> Self {
         let frp     = Frp::new();
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
 
-        let styles                = StyleWatch::new(&scene.into().style_sheet);
+        let styles                = StyleWatch::new(&scene.style_sheet);
         let hover_color_path      = "breadcrumbs.hover.color";
         let hover_color_fallback  = color::Lcha::new(0.0,0.0,0.125,0.6);
         let hover_color           = styles.get_color_or(hover_color_path,hover_color_fallback);
