@@ -375,7 +375,7 @@ mod tests {
                 let selection  = selection.iter().copied();
                 let new_name   = self.introduced_name.clone();
                 let collapsed  = collapse(&graph,selection,new_name,parser).unwrap();
-                let new_method = collapsed.new_method.ast(0, parser).unwrap();
+                let new_method = collapsed.new_method.ast(0,parser).unwrap();
                 let placement  = module::Placement::Before(self.refactored_name.clone());
                 let new_main   = &collapsed.updated_definition.ast;
                 println!("Generated method:\n{}", new_method);
@@ -385,8 +385,8 @@ mod tests {
                 module.ast = module.ast.set(&main_crumb, new_main.ast().clone()).unwrap();
                 module.add_method(collapsed.new_method, placement, parser).unwrap();
                 println!("Module after refactoring:\n{}", &module.ast);
-                assert_eq!(new_method.repr(), self.expected_generated);
-                assert_eq!(new_main.repr(), self.expected_refactored);
+                assert_eq!(new_method.repr(),self.expected_generated);
+                assert_eq!(new_main.repr(),self.expected_refactored);
             };
 
             let extracted_lines = self.extracted_lines.clone();
