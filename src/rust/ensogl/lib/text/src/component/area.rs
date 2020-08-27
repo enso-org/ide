@@ -124,7 +124,12 @@ pub mod selection {
             let alpha          = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
             let shape          = Rect((1.px() * rect_width,1.px() * rect_height));
             let shape          = shape.corners_radius(SELECTION_CORNER_RADIUS.px());
-            let shape          = shape.fill(format!("srgba(1.0,1.0,1.0,{})",alpha.glsl()));
+            let color_path     = "text.selection.color";
+            let color_fallback = color::Lcha::new(0.7,0.0,0.125,0.7);
+            let color          = style.get_color_or(color_path,color_fallback);
+            let color          = color::Rgba::from(color);
+            let color          = format!("srgba({},{},{},{})",color.red,color.green,color.blue,alpha.glsl());
+            let shape          = shape.fill(color);
             shape.into()
         }
     }

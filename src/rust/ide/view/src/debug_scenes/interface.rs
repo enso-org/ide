@@ -113,7 +113,10 @@ fn init(app:&Application) {
     light.insert("text.selection.color", color::Lcha::new(0.7,0.0,0.125,0.7));
 
     light.insert("graph_editor.node.background.color", color::Lcha::new(0.98,0.013,0.18,1.0));
-    light.insert("graph_editor.node.selection.color", color::Lcha::new(0.64,0.54,0.73,1.0));
+    // light.insert("graph_editor.node.selection.color", color::Lcha::new(0.64,0.54,0.73,1.0));
+    // light.insert("graph_editor.node.selection.color", color::Lcha::new(0.75,0.58,0.436,1.0));
+    // light.insert("graph_editor.node.selection.color", color::Lcha::new(0.78,0.58,0.436,1.0));
+    // light.insert("graph_editor.node.selection.color", color::Lcha::new(0.83,0.58,0.436,1.0));
     light.insert("graph_editor.node.selection.size", 7.0);
     light.insert("graph_editor.visualization.background.color", color::Lcha::new(0.98,0.013,0.18,1.0));
 
