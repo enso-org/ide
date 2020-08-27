@@ -3,7 +3,7 @@ pub mod macros;
 
 use crate::prelude::*;
 
-use crate::node;
+use crate::{node, InvocationResolver};
 use crate::node::InsertType;
 use crate::Node;
 use crate::SpanTree;
@@ -30,7 +30,7 @@ pub trait SpanTreeGenerator {
     fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node>;
 
     /// Generate tree for this AST treated as root for the whole expression.
-    fn generate_tree(&self) -> FallibleResult<SpanTree> {
+    fn generate_tree(&self, context:&impl InvocationResolver) -> FallibleResult<SpanTree> {
         Ok(SpanTree {
             root : self.generate_node(node::Kind::Root)?
         })
@@ -328,7 +328,7 @@ mod test {
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use ast::{IdMap, Id};
-    use crate::{InvocationResolver, InvocationInfo, ParameterInfo};
+    use crate::{InvocationResolver, InvocationInfo, ParameterInfo, EmptyContext};
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -354,7 +354,7 @@ mod test {
         id_map.generate(14..15);
         id_map.generate(4..11);
         let ast      = parser.parse_line_with_id_map("2 + foo bar - 3",id_map.clone()).unwrap();
-        let mut tree = ast.generate_tree().unwrap();
+        let mut tree = ast.generate_tree(&EmptyContext).unwrap();
 
         // Check the expression ids we defined:
         for id_map_entry in id_map.vec {
@@ -395,7 +395,7 @@ mod test {
     fn generate_span_tree_with_chains() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("2 + 3 + foo bar baz 13 + 5").unwrap();
-        let mut tree = ast.generate_tree().unwrap();
+        let mut tree = ast.generate_tree(&EmptyContext).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
@@ -438,7 +438,7 @@ mod test {
     fn generating_span_tree_from_right_assoc_operator() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("1,2,3").unwrap();
-        let mut tree = ast.generate_tree().unwrap();
+        let mut tree = ast.generate_tree(&EmptyContext).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
@@ -465,7 +465,7 @@ mod test {
         // The star makes `SectionSides` ast being one of the parameters of + chain. First + makes
         // SectionRight, and last + makes SectionLeft.
         let ast      = parser.parse_line("+ * + + 2 +").unwrap();
-        let mut tree = ast.generate_tree().unwrap();
+        let mut tree = ast.generate_tree(&EmptyContext).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
@@ -500,7 +500,7 @@ mod test {
     fn generating_span_tree_from_right_assoc_section() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line(",2,").unwrap();
-        let mut tree = ast.generate_tree().unwrap();
+        let mut tree = ast.generate_tree(&EmptyContext).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
@@ -527,7 +527,7 @@ mod test {
         id_map.generate(0..29);
         let expression = "if foo then (a + b) x else ()";
         let ast        = parser.parse_line_with_id_map(expression,id_map.clone()).unwrap();
-        let mut tree   = ast.generate_tree().unwrap();
+        let mut tree   = ast.generate_tree(&EmptyContext).unwrap();
 
         // Check if expression id is set
         let (_,expected_id) = id_map.vec.first().unwrap();
@@ -572,7 +572,7 @@ mod test {
         let mut id_map = IdMap::default();
         id_map.generate(0..2);
         let ast      = parser.parse_line_with_id_map("(4",id_map.clone()).unwrap();
-        let mut tree = ast.generate_tree().unwrap();
+        let mut tree = ast.generate_tree(&EmptyContext).unwrap();
 
         // Check the expression id:
         let (_,expected_id) = id_map.vec.first().unwrap();
@@ -593,7 +593,7 @@ mod test {
     fn generating_span_tree_for_lambda() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("foo a-> b + c").unwrap();
-        let mut tree = ast.generate_tree().unwrap();
+        let mut tree = ast.generate_tree(&EmptyContext).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = false;
@@ -640,7 +640,7 @@ mod test {
         let ctx = MockContext::new_single(ast.id.unwrap(),invocation_info);
         println!("{:?}",ast);
 
-        let tree = SpanTree::new(&ast);
+        let tree = SpanTree::new(&ast,&ctx);
         //let mut tree = ast.generate_tree().unwrap();
         println!("{:#?}",tree);
         // clear_expression_ids(&mut tree.root);

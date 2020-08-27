@@ -45,6 +45,7 @@ pub mod prelude {
 
 use traits::*;
 use prelude::*;
+use ast::Id;
 
 // ==========================
 // === InvocationResolver ===
@@ -76,6 +77,36 @@ pub trait InvocationResolver {
     fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo>;
 }
 
+pub struct Merged<First,Second> {
+    first  : First,
+    second : Second
+}
+
+impl<First,Second> Merged<First,Second> {
+    pub fn new(first:First, second:Second) -> Self {
+        Self {
+            first,second
+        }
+    }
+}
+
+impl<First,Second> InvocationResolver for Merged<First,Second>
+where First  : InvocationResolver,
+      Second : InvocationResolver {
+    fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
+        self.first.invocation_info(id).or_else(|| self.second.invocation_info(id))
+    }
+}
+
+
+
+pub struct EmptyContext;
+impl InvocationResolver for EmptyContext {
+    fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo> {
+        None
+    }
+}
+
 
 
 // ================
@@ -94,8 +125,8 @@ pub struct SpanTree {
 
 impl SpanTree {
     /// Create span tree from something that could generate it (usually AST).
-    pub fn new(generator:&impl SpanTreeGenerator) -> FallibleResult<Self> {
-        generator.generate_tree()
+    pub fn new(generator:&impl SpanTreeGenerator, context:&impl InvocationResolver) -> FallibleResult<Self> {
+        generator.generate_tree(context)
     }
 
     /// Get the `NodeRef` of root node.

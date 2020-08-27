@@ -672,14 +672,14 @@ impl GraphEditorIntegratedWithControllerModel {
             internal_warning!(self.logger,"Created connection {edge_id} overwrite some old \
                 mappings in GraphEditorIntegration.")
         }
-        self.controller.graph().connect(&con)?;
+        self.controller.connect(&con)?;
         Ok(())
     }
 
     fn connection_removed_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
         let connection = self.get_controller_connection(*edge_id)?;
         self.connection_views.borrow_mut().remove_by_left(&connection);
-        self.controller.graph().disconnect(&connection)?;
+        self.controller.disconnect(&connection)?;
         Ok(())
     }
 

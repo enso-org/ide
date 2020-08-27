@@ -3,13 +3,15 @@
 //! The actions are in WIP state - they will be implemented along connection operations.
 use crate::prelude::*;
 
-use crate::node;
+use crate::{node, InvocationResolver, InvocationInfo};
 use crate::node::Kind;
 
-use ast::Ast;
+use ast::{Ast, Id};
 use ast::Shifted;
 use ast::crumbs::*;
 use ast::opr::ArgWithOffset;
+
+
 
 
 /// ==============
@@ -210,6 +212,7 @@ mod test {
     use crate::node::Kind::Operation;
     use crate::node::Kind::Target;
     use crate::node::InsertType::FixedArgument;
+    use crate::EmptyContext;
 
     #[wasm_bindgen_test]
     fn actions_in_span_tree() {
@@ -224,7 +227,7 @@ mod test {
         impl Case {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
-                let tree       = ast.generate_tree().unwrap();
+                let tree       = ast.generate_tree(&EmptyContext).unwrap();
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);
@@ -306,7 +309,7 @@ mod test {
         impl Case {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
-                let tree       = ast.generate_tree().unwrap();
+                let tree       = ast.generate_tree(&EmptyContext).unwrap();
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);

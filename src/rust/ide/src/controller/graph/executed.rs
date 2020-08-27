@@ -13,8 +13,9 @@ use crate::model::execution_context::VisualizationUpdateData;
 
 use enso_protocol::language_server::MethodPointer;
 
+pub use crate::controller::graph::Connection;
 pub use crate::controller::graph::Connections;
-
+use span_tree::EmptyContext;
 
 
 // ==============
@@ -220,13 +221,30 @@ impl Handle {
         self.graph.borrow().clone_ref()
     }
 
+    pub fn span_tree_context(&self) -> impl span_tree::InvocationResolver {
+        // TODO build context that provides information from registry (and perhaps the graph itself)
+        let registry_context = EmptyContext;
+        let graph_context    = self.graph.borrow().span_tree_context();
+        span_tree::Merged::new(registry_context,graph_context)
+    }
+
     /// Returns information about all the connections between graph's nodes.
     ///
     /// In contrast with the `controller::Graph::connections` this uses information received from
     /// the LS to enrich the generated span trees with function signatures (arity and argument
     /// names).
     pub fn connections(&self) -> FallibleResult<Connections> {
-        self.graph.borrow().connections_smarter()
+        self.graph.borrow().connections_smarter(&self.span_tree_context())
+    }
+
+    /// Create connection in graph.
+    pub fn connect(&self, connection:&Connection) -> FallibleResult<()> {
+        self.graph.borrow().connect(connection,&self.span_tree_context())
+    }
+
+    /// Remove the connections from the graph.
+    pub fn disconnect(&self, connection:&Connection) -> FallibleResult<()> {
+        self.graph.borrow().disconnect(connection,&self.span_tree_context())
     }
 }
 
