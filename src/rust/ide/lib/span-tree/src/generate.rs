@@ -118,7 +118,8 @@ impl SpanTreeGenerator for Ast {
                     let size          = Size::new(self.len());
                     let children      = default();
                     let expression_id = self.id;
-                    Ok(Node {kind,size,children,expression_id})
+                    let argument_info = default();
+                    Ok(Node {kind,size,children,expression_id,argument_info})
                 },
             }
         }
@@ -179,6 +180,7 @@ impl SpanTreeGenerator for ast::opr::Chain {
                 size          : gen.current_offset,
                 children      : gen.children,
                 expression_id : elem.infix_id,
+                argument_info : None,
             }, elem.offset))
         })?;
         Ok(node)
@@ -214,6 +216,7 @@ impl SpanTreeGenerator for ast::prefix::Chain {
                 size          : gen.current_offset,
                 children      : gen.children,
                 expression_id : arg.prefix_id,
+                argument_info : None,
             })
         })
     }
@@ -245,6 +248,7 @@ impl SpanTreeGenerator for ast::known::Match {
             size          : gen.current_offset,
             children      : gen.children,
             expression_id : self.id(),
+            argument_info : None,
         })
     }
 }
@@ -280,6 +284,7 @@ impl SpanTreeGenerator for ast::known::Ambiguous {
             size          : gen.current_offset,
             children      : gen.children,
             expression_id : self.id(),
+            argument_info : None,
         })
     }
 }
@@ -322,7 +327,8 @@ mod test {
     use parser::Parser;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use ast::IdMap;
+    use ast::{IdMap, Id};
+    use crate::{InvocationResolver, InvocationInfo, ParameterInfo};
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -599,5 +605,58 @@ mod test {
             .build();
 
         assert_eq!(expected,tree);
+    }
+
+    #[test]
+    fn generating_span_tree_for_unfinished_call() {
+        let parser   = Parser::new_or_panic();
+        let ast      = parser.parse_line("foo here").unwrap();
+
+        #[derive(Clone,Debug,Default)]
+        struct MockContext {
+            map : HashMap<Id,InvocationInfo>,
+        }
+        impl MockContext {
+            fn new_single(id:Id, info:InvocationInfo) -> Self {
+                let mut ret = Self::default();
+                ret.map.insert(id,info);
+                ret
+            }
+        }
+        impl InvocationResolver for MockContext {
+            fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
+                self.map.get(&id).cloned()
+            }
+        }
+
+        let invocation_info = InvocationInfo {
+            parameters : vec![
+                ParameterInfo{name : Some("this".to_owned()), typename : Some("Any".to_owned())},
+                ParameterInfo{name : Some("arg1".to_owned()), typename : Some("Number".to_owned())},
+                ParameterInfo{name : Some("arg1".to_owned()), typename : None},
+            ]
+        };
+
+        let ctx = MockContext::new_single(ast.id.unwrap(),invocation_info);
+        println!("{:?}",ast);
+
+        let tree = SpanTree::new(&ast);
+        //let mut tree = ast.generate_tree().unwrap();
+        println!("{:#?}",tree);
+        // clear_expression_ids(&mut tree.root);
+        //
+        // let is_removable = false;
+        // let expected     = TreeBuilder::new(13)
+        //     .add_leaf(0,3,Operation,PrefixCrumb::Func)
+        //     .add_empty_child(4,BeforeTarget)
+        //     .add_leaf(4,9,Target{is_removable},PrefixCrumb::Arg)
+        //     .add_empty_child(13,Append)
+        //     .build();
+        //
+        // assert_eq!(expected,tree);
+
+        // TODO
+        // czy jezeli mam atom `foo` i potem zrobie z niego prefix app przez ustawienie inputu
+        // to nie zepsuje metadanych
     }
 }

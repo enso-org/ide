@@ -13,6 +13,8 @@ use crate::model::execution_context::VisualizationUpdateData;
 
 use enso_protocol::language_server::MethodPointer;
 
+pub use crate::controller::graph::Connections;
+
 
 
 // ==============
@@ -216,6 +218,15 @@ impl Handle {
     /// Note that the controller returned by this method may change as the nodes are stepped into.
     pub fn graph(&self) -> controller::Graph {
         self.graph.borrow().clone_ref()
+    }
+
+    /// Returns information about all the connections between graph's nodes.
+    ///
+    /// In contrast with the `controller::Graph::connections` this uses information received from
+    /// the LS to enrich the generated span trees with function signatures (arity and argument
+    /// names).
+    pub fn connections(&self) -> FallibleResult<Connections> {
+        self.graph.borrow().connections_smarter()
     }
 }
 

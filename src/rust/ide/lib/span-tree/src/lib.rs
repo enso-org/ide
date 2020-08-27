@@ -46,6 +46,36 @@ pub mod prelude {
 use traits::*;
 use prelude::*;
 
+// ==========================
+// === InvocationResolver ===
+// ==========================
+
+/// Information available about some function parameter.
+#[derive(Clone,Debug,Eq,PartialEq)]
+#[allow(missing_docs)]
+pub struct ParameterInfo {
+    pub name     : Option<String>,
+    pub typename : Option<String>,
+    // TODO? [mwu]
+    //  If needed more information could be added here, like param being suspended, defaulted, etc.
+
+}
+
+/// Information about a method call that span tree is concerned about.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct InvocationInfo {
+    /// Information about arguments taken by a called method.
+    parameters : Vec<ParameterInfo>,
+}
+
+/// Entity that is able to provide information whether a given expression is a known method
+/// invocation. If so, additional information is provided.
+pub trait InvocationResolver {
+    /// Checks if the given expression is known to be a call to a known method. If so, returns the
+    /// available information.
+    fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo>;
+}
+
 
 
 // ================
@@ -91,7 +121,8 @@ impl Default for SpanTree {
         let kind          = node::Kind::Root;
         let size          = default();
         let children      = default();
-        let root          = Node {kind,size,children,expression_id};
+        let argument_info = default();
+        let root          = Node {kind,size,children,expression_id,argument_info};
         Self {root}
     }
 }

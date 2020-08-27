@@ -53,7 +53,13 @@ impl Kind {
 /// module.
 #[allow(missing_docs)]
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
-pub enum InsertType {BeforeTarget,AfterTarget,Append}
+pub enum InsertType {
+    BeforeTarget,
+    AfterTarget,
+    Append,
+    /// Ast should be inserted as an argument at given index (counting the `this` argument).
+    FixedArgument(usize),
+}
 
 
 // === Errors ===
@@ -95,6 +101,7 @@ pub struct Node {
     pub size          : Size,
     pub children      : Vec<Child>,
     pub expression_id : Option<ast::Id>,
+    pub argument_info : Option<crate::ParameterInfo>,
 }
 
 impl Node {
@@ -105,6 +112,7 @@ impl Node {
             size          : Size::new(0),
             children      : Vec::new(),
             expression_id : None,
+            argument_info : None,
         }
     }
 

@@ -497,6 +497,12 @@ impl Handle {
         Ok(Connections::new(&graph))
     }
 
+    /// Returns information about all the connections between graph's nodes.
+    pub fn connections_smarter(&self) -> FallibleResult<Connections> {
+        let graph = self.graph_info()?;
+        Ok(Connections::new(&graph))
+    }
+
     /// Suggests a name for a variable that shall store the node value.
     ///
     /// Analyzes the expression, e.g. result for "a+b" shall be named "sum".
