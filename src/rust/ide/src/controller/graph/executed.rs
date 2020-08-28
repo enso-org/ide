@@ -12,10 +12,11 @@ use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 
 use enso_protocol::language_server::MethodPointer;
+use span_tree::generate::Context;
 
 pub use crate::controller::graph::Connection;
 pub use crate::controller::graph::Connections;
-use span_tree::EmptyContext;
+
 
 
 // ==============
@@ -221,11 +222,11 @@ impl Handle {
         self.graph.borrow().clone_ref()
     }
 
-    pub fn span_tree_context(&self) -> impl span_tree::InvocationResolver {
+    pub fn span_tree_context(&self) -> impl span_tree::generate::Context {
         // TODO build context that provides information from registry (and perhaps the graph itself)
-        let registry_context = EmptyContext;
+        let registry_context = span_tree::generate::context::Empty;
         let graph_context    = self.graph.borrow().span_tree_context();
-        span_tree::Merged::new(registry_context,graph_context)
+        registry_context.merge(graph_context)
     }
 
     /// Returns information about all the connections between graph's nodes.

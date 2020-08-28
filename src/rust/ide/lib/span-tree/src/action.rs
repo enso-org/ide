@@ -3,10 +3,10 @@
 //! The actions are in WIP state - they will be implemented along connection operations.
 use crate::prelude::*;
 
-use crate::{node, InvocationResolver, InvocationInfo};
+use crate::node;
 use crate::node::Kind;
 
-use ast::{Ast, Id};
+use ast::Ast;
 use ast::Shifted;
 use ast::crumbs::*;
 use ast::opr::ArgWithOffset;
@@ -202,17 +202,19 @@ mod test {
 
     use Action::*;
 
+    use crate::builder::TreeBuilder;
+    use crate::generate::context;
+    use crate::node::Kind::Operation;
+    use crate::node::Kind::Target;
+    use crate::node::InsertType::FixedArgument;
+
     use wasm_bindgen_test::wasm_bindgen_test;
     use parser::Parser;
     use ast::HasRepr;
     use data::text::Index;
     use data::text::Span;
     use std::ops::Range;
-    use crate::builder::TreeBuilder;
-    use crate::node::Kind::Operation;
-    use crate::node::Kind::Target;
-    use crate::node::InsertType::FixedArgument;
-    use crate::EmptyContext;
+
 
     #[wasm_bindgen_test]
     fn actions_in_span_tree() {
@@ -227,7 +229,7 @@ mod test {
         impl Case {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
-                let tree       = ast.generate_tree(&EmptyContext).unwrap();
+                let tree       = ast.generate_tree(&context::Empty).unwrap();
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);
@@ -309,7 +311,7 @@ mod test {
         impl Case {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
-                let tree       = ast.generate_tree(&EmptyContext).unwrap();
+                let tree       = ast.generate_tree(&context::Empty).unwrap();
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);

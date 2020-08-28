@@ -20,11 +20,11 @@ use enso_protocol::language_server;
 use parser::Parser;
 use span_tree::action::Actions;
 use span_tree::action::Action;
-use span_tree::{SpanTree, InvocationResolver, EmptyContext};
+use span_tree::SpanTree;
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
-
+use span_tree::generate::Context;
 
 
 // ==============
@@ -176,7 +176,7 @@ pub struct NodeTrees {
 
 impl NodeTrees {
     #[allow(missing_docs)]
-    pub fn new(node:&NodeInfo, context:&impl InvocationResolver) -> Option<NodeTrees> {
+    pub fn new(node:&NodeInfo, context:&impl Context) -> Option<NodeTrees> {
         let inputs  = SpanTree::new(node.expression(),context).ok()?;
         let outputs = if let Some(pat) = node.pattern() {
             Some(SpanTree::new(pat,context).ok()?)
@@ -220,7 +220,7 @@ pub struct Connections {
 
 impl Connections {
     /// Describes a connection for given double representation graph.
-    pub fn new(graph:&GraphInfo, context:&impl InvocationResolver) -> Connections {
+    pub fn new(graph:&GraphInfo, context:&impl Context) -> Connections {
         let trees = graph.nodes().iter().flat_map(|node| {
             Some((node.id(), NodeTrees::new(node,context)?))
         }).collect();
@@ -322,7 +322,7 @@ pub struct EndpointInfo {
 impl EndpointInfo {
     /// Construct information about endpoint. Ast must be the node's expression or pattern.
     pub fn new
-    (endpoint:&Endpoint, ast:&Ast, context:&impl InvocationResolver)
+    (endpoint:&Endpoint, ast:&Ast, context:&impl Context)
     -> FallibleResult<EndpointInfo> {
         Ok(EndpointInfo {
             endpoint  : endpoint.clone(),
@@ -496,12 +496,12 @@ impl Handle {
     /// Returns information about all the connections between graph's nodes.
     pub fn connections(&self) -> FallibleResult<Connections> {
         let graph = self.graph_info()?;
-        let context = &span_tree::EmptyContext; // TODO create a context that provides information from metadata
+        let context = &span_tree::generate::context::Empty; // TODO create a context that provides information from metadata
         Ok(Connections::new(&graph,context))
     }
 
     /// Returns information about all the connections between graph's nodes.
-    pub fn connections_smarter(&self, context:&impl InvocationResolver) -> FallibleResult<Connections> {
+    pub fn connections_smarter(&self, context:&impl Context) -> FallibleResult<Connections> {
         let graph = self.graph_info()?;
         // TODO perhaps this should merge given context with the metadata information
         //      or perhaps this should just do exactly what it is told
@@ -565,14 +565,14 @@ impl Handle {
     }
 
     /// Obtains information for connection's destination endpoint.
-    pub fn destination_info(&self, connection:&Connection, context:&impl InvocationResolver) -> FallibleResult<EndpointInfo> {
+    pub fn destination_info(&self, connection:&Connection, context:&impl Context) -> FallibleResult<EndpointInfo> {
         let destination_node = self.node_info(connection.destination.node)?;
         let target_node_ast  = destination_node.expression();
         EndpointInfo::new(&connection.destination,target_node_ast,context)
     }
 
     /// Obtains information about connection's source endpoint.
-    pub fn source_info(&self, connection:&Connection, context:&impl InvocationResolver) -> FallibleResult<EndpointInfo> {
+    pub fn source_info(&self, connection:&Connection, context:&impl Context) -> FallibleResult<EndpointInfo> {
         let source_node = self.node_info(connection.source.node)?;
         if let Some(pat) = source_node.pattern() {
             EndpointInfo::new(&connection.source,pat,context)
@@ -611,12 +611,12 @@ impl Handle {
         Ok(())
     }
 
-    pub fn span_tree_context(&self) -> impl InvocationResolver {
-        EmptyContext
+    pub fn span_tree_context(&self) -> impl Context {
+        span_tree::generate::context::Empty
     }
 
     /// Create connection in graph.
-    pub fn connect(&self, connection:&Connection, context:&impl InvocationResolver) -> FallibleResult<()> {
+    pub fn connect(&self, connection:&Connection, context:&impl Context) -> FallibleResult<()> {
         if connection.source.port.is_empty() {
             // If we create connection from node's expression root, we are able to introduce missing
             // pattern with a new variable.
@@ -637,7 +637,7 @@ impl Handle {
     }
 
     /// Remove the connections from the graph.
-    pub fn disconnect(&self, connection:&Connection, context:&impl InvocationResolver) -> FallibleResult<()> {
+    pub fn disconnect(&self, connection:&Connection, context:&impl Context) -> FallibleResult<()> {
         let info = self.destination_info(connection,context)?;
 
         let updated_expression = if connection.destination.var_crumbs.is_empty() {
@@ -824,7 +824,6 @@ pub mod tests {
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use span_tree::EmptyContext;
 
     /// All the data needed to set up and run the graph controller in mock environment.
     #[derive(Clone,Debug)]
@@ -1254,7 +1253,7 @@ main =
                     let source        = Endpoint::new(node0.info.id(),src_port.to_vec());
                     let destination   = Endpoint::new(node1.info.id(),dst_port.to_vec());
                     let connection    = Connection{source,destination};
-                    graph.connect(&connection,&EmptyContext).unwrap();
+                    graph.connect(&connection,&span_tree::generate::context::Empty).unwrap();
                     let new_main = graph.graph_definition_info().unwrap().ast.repr();
                     assert_eq!(new_main,expected,"Case {:?}",this);
                 })
@@ -1298,7 +1297,7 @@ main =
                     var_crumbs: vec![]
                 }
             };
-            graph.connect(&connection_to_add,&EmptyContext).unwrap();
+            graph.connect(&connection_to_add,&span_tree::generate::context::Empty).unwrap();
             let new_main = graph.graph_definition_info().unwrap().ast.repr();
             assert_eq!(new_main,EXPECTED);
         })
@@ -1335,7 +1334,7 @@ main =
                     var_crumbs: vec![]
                 }
             };
-            graph.connect(&connection_to_add,&EmptyContext).unwrap();
+            graph.connect(&connection_to_add,&span_tree::generate::context::Empty).unwrap();
             let new_main = graph.graph_definition_info().unwrap().ast.repr();
             assert_eq!(new_main,EXPECTED);
         })
@@ -1384,7 +1383,7 @@ main =
                 test.run(|graph| async move {
                     let connections = graph.connections().unwrap();
                     let connection  = connections.connections.first().unwrap();
-                    graph.disconnect(connection,&EmptyContext).unwrap();
+                    graph.disconnect(connection,&span_tree::generate::context::Empty).unwrap();
                     let new_main = graph.graph_definition_info().unwrap().ast.repr();
                     assert_eq!(new_main,expected,"Case {:?}",this);
                 })

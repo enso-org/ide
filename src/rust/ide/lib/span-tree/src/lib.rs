@@ -45,7 +45,7 @@ pub mod prelude {
 
 use traits::*;
 use prelude::*;
-use ast::Id;
+use crate::generate::Context;
 
 // ==========================
 // === InvocationResolver ===
@@ -69,44 +69,6 @@ pub struct InvocationInfo {
     parameters : Vec<ParameterInfo>,
 }
 
-/// Entity that is able to provide information whether a given expression is a known method
-/// invocation. If so, additional information is provided.
-pub trait InvocationResolver {
-    /// Checks if the given expression is known to be a call to a known method. If so, returns the
-    /// available information.
-    fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo>;
-}
-
-pub struct Merged<First,Second> {
-    first  : First,
-    second : Second
-}
-
-impl<First,Second> Merged<First,Second> {
-    pub fn new(first:First, second:Second) -> Self {
-        Self {
-            first,second
-        }
-    }
-}
-
-impl<First,Second> InvocationResolver for Merged<First,Second>
-where First  : InvocationResolver,
-      Second : InvocationResolver {
-    fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
-        self.first.invocation_info(id).or_else(|| self.second.invocation_info(id))
-    }
-}
-
-
-
-pub struct EmptyContext;
-impl InvocationResolver for EmptyContext {
-    fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo> {
-        None
-    }
-}
-
 
 
 // ================
@@ -125,7 +87,7 @@ pub struct SpanTree {
 
 impl SpanTree {
     /// Create span tree from something that could generate it (usually AST).
-    pub fn new(generator:&impl SpanTreeGenerator, context:&impl InvocationResolver) -> FallibleResult<Self> {
+    pub fn new(generator:&impl SpanTreeGenerator, context:&impl Context) -> FallibleResult<Self> {
         generator.generate_tree(context)
     }
 
