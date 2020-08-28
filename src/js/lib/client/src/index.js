@@ -328,18 +328,26 @@ function createWindow() {
         windowPreferences.devTools = true
     }
 
-    if (args.frame) {
-        windowPreferences.frame         = true
-        windowPreferences.titleBarStyle = 'default'
-    }
+    // FIXME [MM]
+    // Currently enabled to improve usability and dragging of window as well
+    // as fixes #743 as well as #
+    // if (args.frame) {
+    //     windowPreferences.frame         = true
+    //     windowPreferences.titleBarStyle = 'default'
+    // }
+    windowPreferences.frame         = true
+    windowPreferences.titleBarStyle = 'default'
 
     if (args['background-throttling']) {
         windowPreferences.backgroundThrottling = true
     }
 
-    if (args.vibrancy == false) {
-        windowPreferences.vibrancy = false
-    }
+    // FIXME [MM]
+    // Currently disabled as of issue on Windows platform (#247)
+    // if (args.vibrancy == false) {
+    //     windowPreferences.vibrancy = false
+    // }
+    windowPreferences.vibrancy = false
 
     const window = new Electron.BrowserWindow(windowPreferences)
 
