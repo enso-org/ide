@@ -86,7 +86,7 @@
 }
 
 .docVis h2 {
-    font-size: 24px;
+    font-size: 22px;
     line-height: 1.1073;
     font-weight: 500;
     letter-spacing: 0.012em;
@@ -236,8 +236,8 @@
 }
 
 .Def {
-    margin: 40px auto auto;
-    padding: 0 15px;
+    margin: 20px auto auto;
+    padding: 0 5px;
     text-decoration: inherit;
 }
 .Def .Synopsis,
@@ -248,6 +248,7 @@
     text-decoration: inherit;
 }
 .Def .Synopsis {
+    margin-top: 10px;
     padding: 0;
     margin-bottom: 15px;
     font-size: 14px;
@@ -256,7 +257,7 @@
     font-style: normal;
 }
 .Def .constr {
-    padding: 25px 0;
+    padding: 25px 0 0 0;
     margin: 0;
 }
 .Def .DefDoc .Body {
@@ -318,7 +319,7 @@
 }
 
 .Synopsis {
-    margin-top: 35px;
+    margin-top: 15px;
     font-size: 18px;
 }
 
@@ -330,14 +331,14 @@
 }
 .Documentation .ASTData {
     width: 100%;
-    background-color: #fafafa;
+    /*background-color: #fafafa;*/
 }
 .Documentation .ASTHead {
     margin: 20px auto 5px;
     /*background-color: #fafafa;*/
 }
 .Documentation .ASTHead .DefTitle {
-    font-size: 38px;
+    font-size: 34px;
     margin: 0;
 }
 .Documentation .ASTData .ASTHead {
