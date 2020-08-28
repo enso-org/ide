@@ -10,7 +10,7 @@
     -webkit-font-smoothing: antialiased;
     font-style: normal;
     word-wrap: break-word;
-    font-size: 17px;
+    font-size: 14px;
     line-height: 1.52947;
     font-weight: 400;
     letter-spacing: -0.021em;
@@ -79,14 +79,14 @@
 }
 
 .docVis h1 {
-    font-size: 34px;
+    font-size: 30px;
     line-height: 1.08824;
     font-weight: 500;
     letter-spacing: 0.01em;
 }
 
 .docVis h2 {
-    font-size: 28px;
+    font-size: 24px;
     line-height: 1.1073;
     font-weight: 500;
     letter-spacing: 0.012em;
@@ -118,7 +118,7 @@
 }
 
 .Header {
-    font-size: 19px;
+    font-size: 17px;
     font-weight: 500;
 }
 
@@ -128,7 +128,7 @@
     margin-bottom: 0.7em;
     font-weight: 600;
     letter-spacing: -0.021em;
-    line-height: 17px;
+    line-height: 14px;
     font-synthesis: none;
     font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
 }
@@ -194,7 +194,7 @@
 
 .Body .Raw {
     margin-bottom: 0.6rem;
-    font-size: 17px;
+    font-size: 14px;
     line-height: 1.52947;
     font-weight: 400;
     letter-spacing: -0.021em;
@@ -207,7 +207,7 @@
 .Info,
 .CodeBlock,
 .Example {
-    font-size: 17px;
+    font-size: 14px;
     padding: 15px 10px 15px 20px;
     border: 0;
     border-radius: 6px;
@@ -250,7 +250,7 @@
 .Def .Synopsis {
     padding: 0;
     margin-bottom: 15px;
-    font-size: 17px;
+    font-size: 14px;
     font-weight: 400;
     color: #333333;
     font-style: normal;
@@ -274,7 +274,7 @@
 .Def .DefDoc .documentation .ASTHead .DefTitle,
 .Def .DefDoc .documentation .ASTHead .Infix {
     padding: 0;
-    font-size: 17px;
+    font-size: 14px;
     font-weight: 400;
     font-style: normal;
     text-decoration: inherit;
@@ -299,7 +299,7 @@
 
 .DefTitle {
     display: inline-flex;
-    font-size: x-large;
+    font-size: large;
     font-weight: 400;
     margin-bottom: 20px;
 }
@@ -319,7 +319,7 @@
 
 .Synopsis {
     margin-top: 35px;
-    font-size: 20px;
+    font-size: 18px;
 }
 
 .Documentation .ASTData,
@@ -337,14 +337,14 @@
     /*background-color: #fafafa;*/
 }
 .Documentation .ASTHead .DefTitle {
-    font-size: 42px;
+    font-size: 38px;
     margin: 0;
 }
 .Documentation .ASTData .ASTHead {
     /*background-color: #fafafa;*/
 }
 .Documentation .ASTData .ASTHead .DefTitle {
-    font-size: x-large;
+    font-size: large;
 }
 .Documentation .Documented {
     margin: 0;

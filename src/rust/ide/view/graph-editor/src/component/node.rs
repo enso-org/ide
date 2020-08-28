@@ -77,8 +77,8 @@ pub mod shape {
 
             // === Selection ===
 
-            let selection_offset = 4.px();
-            let selection_size   = 7.px();
+            let selection_offset = 5.px();
+            let selection_size   = 9.px();
             let select_width   = &width  - 2.px() + &selection_offset * 2.0 * &selection;
             let select_height  = &height - 2.px() + &selection_offset * 2.0 * &selection;
             let select_radius  = &select_height / 2.0;
