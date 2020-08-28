@@ -11,6 +11,7 @@ use crate::display::Glsl;
 use crate::display::object::traits::*;
 use crate::display::Scene;
 use crate::display::shape;
+use crate::display::shape::StyleWatch;
 use crate::display::shape::text::glyph::font;
 use crate::display::shape::text::glyph::system::GlyphSystem;
 use crate::display::shape::text::text_field::content::TextFieldContent;
@@ -27,7 +28,7 @@ use crate::display::symbol::geometry::compound::sprite::Sprite;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 use nalgebra::zero;
-use crate::display::shape::StyleWatch;
+
 
 
 // =======================
