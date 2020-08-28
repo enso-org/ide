@@ -330,7 +330,7 @@ function createWindow() {
 
     // FIXME [MM]
     // Currently enabled to improve usability and dragging of window as well
-    // as fixes #743 as well as #
+    // as fixes #743 as well as #484.
     // if (args.frame) {
     //     windowPreferences.frame         = true
     //     windowPreferences.titleBarStyle = 'default'
@@ -343,7 +343,7 @@ function createWindow() {
     }
 
     // FIXME [MM]
-    // Currently disabled as of issue on Windows platform (#247)
+    // Currently disabled as of issue on Windows platform (#247).
     // if (args.vibrancy == false) {
     //     windowPreferences.vibrancy = false
     // }
