@@ -30,12 +30,12 @@ pub use context::Context;
 /// all AST-like structures.
 pub trait SpanTreeGenerator {
     /// Generate node with it's whole subtree.
-    fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node>;
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node>;
 
     /// Generate tree for this AST treated as root for the whole expression.
     fn generate_tree(&self, context:&impl Context) -> FallibleResult<SpanTree> {
         Ok(SpanTree {
-            root : self.generate_node(node::Kind::Root)?
+            root : self.generate_node(node::Kind::Root,context)?
         })
     }
 }
@@ -63,8 +63,9 @@ impl ChildGenerator {
     }
 
     fn generate_ast_node
-    (&mut self, child_ast:Located<Ast>, kind:node::Kind) -> FallibleResult<&node::Child> {
-        let node = child_ast.item.generate_node(kind)?;
+    (&mut self, child_ast:Located<Ast>, kind:node::Kind, context:&impl Context)
+    -> FallibleResult<&node::Child> {
+        let node = child_ast.item.generate_node(kind,context)?;
         Ok(self.add_node(child_ast.crumbs,node))
     }
 
@@ -104,19 +105,19 @@ impl ChildGenerator {
 // === AST ===
 
 impl SpanTreeGenerator for Ast {
-    fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
         if let Some(infix) = GeneralizedInfix::try_new(self) {
-            infix.flatten().generate_node(kind)
+            infix.flatten().generate_node(kind,context)
         } else {
             match self.shape() {
                 ast::Shape::Prefix(_) =>
-                    ast::prefix::Chain::from_ast(self).unwrap().generate_node(kind),
+                    ast::prefix::Chain::from_ast(self).unwrap().generate_node(kind,context),
                 // Lambdas should fall in _ case, because we don't want to create subports for
                 // them
                 ast::Shape::Match(_) if ast::macros::as_lambda_match(self).is_none() =>
-                    ast::known::Match::try_new(self.clone_ref()).unwrap().generate_node(kind),
+                    ast::known::Match::try_new(self.clone_ref()).unwrap().generate_node(kind,context),
                 ast::Shape::Ambiguous(_) =>
-                    ast::known::Ambiguous::try_new(self.clone_ref()).unwrap().generate_node(kind),
+                    ast::known::Ambiguous::try_new(self.clone_ref()).unwrap().generate_node(kind,context),
                 _  => {
                     let size          = Size::new(self.len());
                     let children      = default();
@@ -133,13 +134,13 @@ impl SpanTreeGenerator for Ast {
 // === Operators (Sections and Infixes) ===
 
 impl SpanTreeGenerator for ast::opr::Chain {
-    fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
         // Removing operands is possible only when chain has at least 3 of them
         // (target and two arguments).
         let is_removable                                 = self.args.len() >= 2;
         let node_and_offset:FallibleResult<(Node,usize)> = match &self.target {
             Some(target) => {
-                let node = target.arg.generate_node(node::Kind::Target {is_removable})?;
+                let node = target.arg.generate_node(node::Kind::Target {is_removable},context)?;
                 Ok((node,target.offset))
             },
             None => Ok((Node::new_empty(InsertType::BeforeTarget),0)),
@@ -164,13 +165,13 @@ impl SpanTreeGenerator for ast::opr::Chain {
             gen.add_node(left_crumbs,node);
             if has_target { gen.generate_empty_node(InsertType::AfterTarget); }
             gen.spacing(off);
-            gen.generate_ast_node(opr_ast,node::Kind::Operation)?;
+            gen.generate_ast_node(opr_ast,node::Kind::Operation,context)?;
             if let Some(operand) = &elem.operand {
                 let arg_crumbs = elem.crumb_to_operand(has_left);
                 let arg_ast    = Located::new(arg_crumbs,operand.arg.clone_ref());
                 gen.spacing(operand.offset);
 
-                gen.generate_ast_node(arg_ast,node::Kind::Argument {is_removable})?;
+                gen.generate_ast_node(arg_ast,node::Kind::Argument {is_removable},context)?;
             }
             gen.generate_empty_node(InsertType::Append);
 
@@ -194,13 +195,18 @@ impl SpanTreeGenerator for ast::opr::Chain {
 // === Application ===
 
 impl SpanTreeGenerator for ast::prefix::Chain {
-    fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
+        let invocation_info = self.id().and_then(|id| context.invocation_info(id));
+        dbg!(&invocation_info);
+        //assert!(context.invocation_info(id).is_none());
+
         use ast::crumbs::PrefixCrumb::*;
         // Removing arguments is possible if there at least two of them
         let is_removable = self.args.len() >= 2;
-        let node         = self.func.generate_node(node::Kind::Operation);
+        let node         = self.func.generate_node(node::Kind::Operation,context);
         self.args.iter().enumerate().fold(node, |node,(i,arg)| {
             let node     = node?;
+            let argument_info = invocation_info.and_then(|info| info.parameters.get(i).cloned());
             let is_first = i == 0;
             let is_last  = i + 1 == self.args.len();
             let arg_kind = if is_first { node::Kind::Target {is_removable} }
@@ -209,11 +215,16 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             let mut gen = ChildGenerator::default();
             gen.add_node(vec![Func.into()],node);
             gen.spacing(arg.sast.off);
-            if let node::Kind::Target {..} = arg_kind {
-                gen.generate_empty_node(InsertType::BeforeTarget);
+            if invocation_info.is_none() {
+                if let node::Kind::Target { .. } = arg_kind {
+                    gen.generate_empty_node(InsertType::BeforeTarget);
+                }
             }
-            gen.generate_ast_node(Located::new(Arg,arg.sast.wrapped.clone_ref()), arg_kind)?;
-            gen.generate_empty_node(InsertType::Append);
+            let arg_ast      = arg.sast.wrapped.clone_ref();
+            gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
+            if invocation_info.is_none() {
+                gen.generate_empty_node(InsertType::Append);
+            }
             Ok(Node {
                 kind          : if is_last {kind} else {node::Kind::Chained},
                 size          : gen.current_offset,
@@ -229,7 +240,7 @@ impl SpanTreeGenerator for ast::prefix::Chain {
 // === Match ===
 
 impl SpanTreeGenerator for ast::known::Match {
-    fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
         let is_removable  = false;
         let children_kind = node::Kind::Argument {is_removable};
         let mut gen   = ChildGenerator::default();
@@ -237,15 +248,15 @@ impl SpanTreeGenerator for ast::known::Match {
             for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&pat) {
                 let ast_crumb   = ast::crumbs::MatchCrumb::Pfx {val:crumbs};
                 let located_ast = Located::new(ast_crumb,ast.wrapped);
-                gen.generate_ast_node(located_ast,children_kind)?;
+                gen.generate_ast_node(located_ast,children_kind,context)?;
                 gen.spacing(ast.off);
             }
         }
         let first_segment_index = 0;
-        generate_children_from_segment(&mut gen,first_segment_index,&self.segs.head)?;
+        generate_children_from_segment(&mut gen,first_segment_index,&self.segs.head,context)?;
         for (index,segment) in self.segs.tail.iter().enumerate() {
             gen.spacing(segment.off);
-            generate_children_from_segment(&mut gen,index+1,&segment.wrapped)?;
+            generate_children_from_segment(&mut gen,index+1,&segment.wrapped,context)?;
         }
         Ok(Node {kind,
             size          : gen.current_offset,
@@ -257,7 +268,8 @@ impl SpanTreeGenerator for ast::known::Match {
 }
 
 fn generate_children_from_segment
-(gen:&mut ChildGenerator, index:usize, segment:&MacroMatchSegment<Ast>) -> FallibleResult<()> {
+(gen:&mut ChildGenerator, index:usize, segment:&MacroMatchSegment<Ast>, context:&impl Context)
+-> FallibleResult<()> {
     let is_removable  = false;
     let children_kind = node::Kind::Argument {is_removable};
     gen.spacing(segment.head.len());
@@ -266,7 +278,7 @@ fn generate_children_from_segment
         let segment_crumb = ast::crumbs::SegmentMatchCrumb::Body {val:crumbs};
         let ast_crumb     = ast::crumbs::MatchCrumb::Segs{val:segment_crumb, index};
         let located_ast   = Located::new(ast_crumb,ast.wrapped);
-        gen.generate_ast_node(located_ast,children_kind)?;
+        gen.generate_ast_node(located_ast,children_kind,context)?;
     }
     Ok(())
 }
@@ -275,13 +287,13 @@ fn generate_children_from_segment
 // === Ambiguous ==
 
 impl SpanTreeGenerator for ast::known::Ambiguous {
-    fn generate_node(&self, kind:node::Kind) -> FallibleResult<Node> {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
         let mut gen             = ChildGenerator::default();
         let first_segment_index = 0;
-        generate_children_from_abiguous_segment(&mut gen,first_segment_index,&self.segs.head)?;
+        generate_children_from_abiguous_segment(&mut gen,first_segment_index,&self.segs.head,context)?;
         for (index,segment) in self.segs.tail.iter().enumerate() {
             gen.spacing(segment.off);
-            generate_children_from_abiguous_segment(&mut gen, index+1, &segment.wrapped)?;
+            generate_children_from_abiguous_segment(&mut gen, index+1, &segment.wrapped,context)?;
         }
         Ok(Node{kind,
             size          : gen.current_offset,
@@ -293,7 +305,8 @@ impl SpanTreeGenerator for ast::known::Ambiguous {
 }
 
 fn generate_children_from_abiguous_segment
-(gen:&mut ChildGenerator, index:usize, segment:&MacroAmbiguousSegment<Ast>) -> FallibleResult<()> {
+(gen:&mut ChildGenerator, index:usize, segment:&MacroAmbiguousSegment<Ast>, context:&impl Context)
+-> FallibleResult<()> {
     let is_removable  = false;
     let children_kind = node::Kind::Argument {is_removable};
     gen.spacing(segment.head.len());
@@ -301,7 +314,7 @@ fn generate_children_from_abiguous_segment
         gen.spacing(sast.off);
         let field       = ast::crumbs::AmbiguousSegmentCrumb::Body;
         let located_ast = Located::new(ast::crumbs::AmbiguousCrumb{index,field}, sast.clone_ref());
-        gen.generate_ast_node(located_ast,children_kind)?;
+        gen.generate_ast_node(located_ast,children_kind,context)?;
     }
     Ok(())
 }
@@ -627,8 +640,8 @@ mod test {
             }
         }
         impl Context for MockContext {
-            fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
-                self.map.get(&id).cloned()
+            fn invocation_info(&self, id:Id) -> Option<&InvocationInfo> {
+                self.map.get(&id)
             }
         }
 

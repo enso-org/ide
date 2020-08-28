@@ -13,7 +13,7 @@ use crate::InvocationInfo;
 pub trait Context {
     /// Checks if the given expression is known to be a call to a known method. If so, returns the
     /// available information.
-    fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo>;
+    fn invocation_info(&self, id:ast::Id) -> Option<&InvocationInfo>;
 
     fn merge<U>(self, other:U) -> Merged<Self,U>
         where Self:Sized, U:Context {
@@ -46,7 +46,7 @@ impl<First,Second> Merged<First,Second> {
 impl<First,Second> Context for Merged<First,Second>
     where First  : Context,
           Second : Context {
-    fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo> {
+    fn invocation_info(&self, id:ast::Id) -> Option<&InvocationInfo> {
         self.first.invocation_info(id).or_else(|| self.second.invocation_info(id))
     }
 }
@@ -60,7 +60,7 @@ impl<First,Second> Context for Merged<First,Second>
 pub struct Empty;
 
 impl Context for Empty {
-    fn invocation_info(&self, _id:ast::Id) -> Option<InvocationInfo> {
+    fn invocation_info(&self, _id:ast::Id) -> Option<&InvocationInfo> {
         None
     }
 }

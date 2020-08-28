@@ -166,6 +166,14 @@ impl Chain {
         self.func
     }
 
+    /// Get the ID of the Ast represented by this chain.
+    pub fn id(&self) -> Option<Id> {
+        match self.args.last() {
+            Some(last_arg) => last_arg.prefix_id,
+            None           => self.func.id,
+        }
+    }
+
     /// Insert argument at given position in the prefix chain. If index is out of bounds,
     /// additional blank `_` arguments will be placed.
     pub fn insert_arg(&mut self, index:usize, argument:Argument) {
