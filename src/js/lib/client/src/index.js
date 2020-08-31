@@ -331,7 +331,7 @@ function createWindow() {
     if (args.dev) {
         windowPreferences.devTools = true
     }
-    
+
     if (args.frame === false) {
         windowPreferences.frame         = false
         windowPreferences.titleBarStyle = 'hiddenInset'
