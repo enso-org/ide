@@ -105,7 +105,9 @@ let styleOptionsGroup = 'Style Options:'
 
 optParser.options('frame', {
     group       : styleOptionsGroup,
-    describe    : 'Draw window frame [false]'
+    describe    : 'Draw window frame [true]',
+    default     : true,
+    type        : `boolean`
 })
 
 optParser.options('vibrancy', {
@@ -334,7 +336,7 @@ function createWindow() {
     // https://github.com/enso-org/ide/issues/484.
     // If we don't want the default window frame,
     // we can try to create our own solution in the future.
-    if (args.frame) {
+    if (args.frame === false) {
         windowPreferences.frame         = false
         windowPreferences.titleBarStyle = 'hiddenInset'
     }
