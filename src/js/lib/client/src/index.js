@@ -315,41 +315,41 @@ function createWindow() {
         webPreferences       : webPreferences,
         width                : windowCfg.width,
         height               : windowCfg.height,
-        frame                : false,
+        frame                : true,
         devTools             : false,
         sandbox              : true,
         backgroundThrottling : false,
-        vibrancy             : 'fullscreen-ui',
+        transparent          : false,
         backgroundColor      : "#00000000",
-        titleBarStyle        : 'hiddenInset'
+        titleBarStyle        : 'default'
     }
 
     if (args.dev) {
         windowPreferences.devTools = true
     }
 
-    // FIXME [MM]
-    // Currently enabled to improve usability and dragging of window as well
-    // as fixes #743 as well as #484.
-    // if (args.frame) {
-    //     windowPreferences.frame         = true
-    //     windowPreferences.titleBarStyle = 'default'
-    // }
-    windowPreferences.frame         = true
-    windowPreferences.titleBarStyle = 'default'
+    // TODO [MM]
+    // Currently enabled to improve usability and dragging of window, fixes
+    // https://github.com/enso-org/ide/issues/743 as well as
+    // https://github.com/enso-org/ide/issues/484.
+    // If we don't want the default window frame,
+    // we can try to create our own solution in the future.
+    if (args.frame) {
+        windowPreferences.frame         = false
+        windowPreferences.titleBarStyle = 'hiddenInset'
+    }
 
     if (args['background-throttling']) {
         windowPreferences.backgroundThrottling = true
     }
 
-    // FIXME [MM]
-    // Currently disabled as of issue on Windows platform (#247).
-    // if (args.vibrancy == false) {
-    //     windowPreferences.vibrancy = false
-    // }
-    windowPreferences.vibrancy = false
+    if (args.vibrancy === true) {
+        windowPreferences.vibrancy = 'fullscreen-ui'
+    }
 
+    Electron.Menu.setApplicationMenu(null);
     const window = new Electron.BrowserWindow(windowPreferences)
+
 
     if (args.dev) {
         window.webContents.openDevTools()
@@ -396,7 +396,7 @@ function setupPermissions() {
 // ==============
 
 Electron.app.on('activate', () => {
-    if (process.platform == 'darwin') {
+    if (process.platform === 'darwin') {
         mainWindow.show()
     }
 })
