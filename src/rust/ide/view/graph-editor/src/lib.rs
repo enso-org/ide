@@ -1178,8 +1178,7 @@ impl GraphEditorModel {
         let styles     = StyleWatch::new(&self.app.display.scene().style_sheet);
         let fallback   = color::Lcha::new(0.0,0.0,0.0,0.7);
         let text_color = styles.get_color_or("application.text.color", fallback);
-        if  text_color.lightness <= 0.5 { true  }
-        else                            { false }
+        text_color.lightness <= 0.5
     }
 }
 
