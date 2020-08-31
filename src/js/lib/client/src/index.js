@@ -112,7 +112,9 @@ optParser.options('frame', {
 
 optParser.options('vibrancy', {
     group       : styleOptionsGroup,
-    describe    : 'Use the vibrancy effect [true]'
+    describe    : 'Use the vibrancy effect [false]',
+    default     : false,
+    type        : `boolean`
 })
 
 optParser.options('window-size', {
@@ -329,13 +331,7 @@ function createWindow() {
     if (args.dev) {
         windowPreferences.devTools = true
     }
-
-    // TODO [MM]
-    // Currently enabled to improve usability and dragging of window, fixes
-    // https://github.com/enso-org/ide/issues/743 as well as
-    // https://github.com/enso-org/ide/issues/484.
-    // If we don't want the default window frame,
-    // we can try to create our own solution in the future.
+    
     if (args.frame === false) {
         windowPreferences.frame         = false
         windowPreferences.titleBarStyle = 'hiddenInset'
