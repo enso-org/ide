@@ -6,7 +6,9 @@ tags: [product,ui]
 ---
 
 ### Graph Editor
-
+| Shortcut | Action |
+| -------- | ------ |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>s</kbd> | Toggles light/dark application style. |
 
 #### Node Editing
 | Shortcut | Action |

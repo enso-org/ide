@@ -369,6 +369,10 @@ ensogl::def_command_api! { Commands
     /// Switches the selected visualisation to/from fullscreen mode.
     toggle_fullscreen_for_selected_visualization,
 
+    /// Simulates a style toggle press event.
+    press_toggle_style,
+    /// Simulates a style toggle release event. See `press_visualization_visibility` to learn more.
+    release_toggle_style,
 
     /// Cancel the operation being currently performed. Often mapped to the escape key.
     cancel,
@@ -571,6 +575,8 @@ generate_frp_outputs! {
     visualization_disabled          : NodeId,
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
+
+    style_light : bool,
 }
 
 
@@ -1162,6 +1168,19 @@ impl GraphEditorModel {
     fn scene(&self) -> &Scene {
         self.app.display.scene()
     }
+
+    fn set_style(&self, is_light:bool) {
+        if is_light { self.app.themes.set_enabled(&["dark"])  }
+        else        { self.app.themes.set_enabled(&["light"]) }
+    }
+
+    fn is_style_light(&self) -> bool {
+        let styles     = StyleWatch::new(&self.app.display.scene().style_sheet);
+        let fallback   = color::Lcha::new(0.0,0.0,0.0,0.7);
+        let text_color = styles.get_color_or("application.text.color", fallback);
+        if  text_color.lightness <= 0.5 { true  }
+        else                            { false }
+    }
 }
 
 
@@ -1589,31 +1608,33 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Enter],&[])       , "debug_push_breadcrumb")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::ArrowUp],&[])     , "debug_pop_breadcrumb")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("g".into())],&[])  , "collapse_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())],&[])  , "double_press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])  , "release_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                             , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift],&[])                               , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift],&[])                               , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Alt],&[])                                 , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Alt],&[])                                 , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift,Key::Alt],&[])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift,Key::Alt],&[])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("d".into())],&[])  , "set_test_visualization_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "edit_mode_on")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "edit_mode_off")
+        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Enter],&[])                , "debug_push_breadcrumb")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::ArrowUp],&[])              , "debug_pop_breadcrumb")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                                       , "cancel_project_name_editing")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])           , "add_node_at_cursor")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])                       , "remove_selected_nodes")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("g".into())],&[])           , "collapse_selected_nodes")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])           , "press_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())],&[])           , "double_press_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])           , "release_visualization_visibility")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                         , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                         , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                                      , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                                      , "toggle_node_multi_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift],&[])                                        , "toggle_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift],&[])                                        , "toggle_node_merge_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Alt],&[])                                          , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Alt],&[])                                          , "toggle_node_subtract_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift,Key::Alt],&[])                               , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift,Key::Alt],&[])                               , "toggle_node_inverse_select")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("d".into())],&[])           , "set_test_visualization_data_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])           , "cycle_visualization_for_selected_node")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                           , "enter_selected_node")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                         , "exit_node")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                         , "edit_mode_on")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                         , "edit_mode_off")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Character("s".into())],&[])  , "press_toggle_style")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Shift,Key::Character("s".into())],&[])  , "release_toggle_style")
              ]
     }
 }
@@ -2470,6 +2491,33 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edges_to_rm          <- any (inputs.remove_edge, input_edges_to_rm, output_edges_to_rm);
     outputs.edge_removed <+ edges_to_rm;
     }
+
+
+
+    // ====================
+    // === Toggle Style ===
+    // ====================
+
+    frp::extend!{ network
+
+
+        // === Style toggle ===
+
+        let style_press_ev     = inputs.press_toggle_style.clone_ref();
+        let style_release      = inputs.release_toggle_style.clone_ref();
+        style_pressed         <- bool(&style_release,&style_press_ev);
+        style_was_pressed     <- style_pressed.previous();
+        style_press           <- style_press_ev.gate_not(&style_was_pressed);
+        style_press_on_off    <- style_press.map(f_!(model.is_style_light()));
+        outputs.style_light   <+ style_press_on_off;
+
+
+        // === OUTPUTS REBIND ===
+
+        eval outputs.style_light ((is_light) model.set_style(*is_light));
+    }
+
+
 
     // ====================
     // === Cursor Style ===
