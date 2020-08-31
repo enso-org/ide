@@ -105,14 +105,14 @@ let styleOptionsGroup = 'Style Options:'
 
 optParser.options('frame', {
     group       : styleOptionsGroup,
-    describe    : 'Draw window frame [true]',
+    describe    : 'Draw window frame',
     default     : true,
     type        : `boolean`
 })
 
 optParser.options('vibrancy', {
     group       : styleOptionsGroup,
-    describe    : 'Use the vibrancy effect [false]',
+    describe    : 'Use the vibrancy effect',
     default     : false,
     type        : `boolean`
 })
