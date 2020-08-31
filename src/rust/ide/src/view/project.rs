@@ -148,7 +148,7 @@ impl ProjectView {
     fn setup_theme(app:&Application) {
         let mut dark = theme::Theme::new();
         dark.insert("application.background.color", color::Lcha::new(0.13,0.013,0.18,1.0));
-        dark.insert("application.text.color", color::Lcha::new(1.0,1.0,1.0,0.7));
+        dark.insert("application.text.color", color::Lcha::new(1.0,0.0,0.0,0.7));
         dark.insert("text.selection.color", color::Lcha::new(0.7,0.0,0.125,0.7));
 
         dark.insert("graph_editor.node.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
@@ -156,12 +156,12 @@ impl ProjectView {
         dark.insert("graph_editor.node.selection.size", 7.0);
         dark.insert("graph_editor.visualization.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
 
-        dark.insert("breadcrumbs.full.color", color::Lcha::new(1.0,1.0,1.0,0.7));
-        dark.insert("breadcrumbs.transparent.color", color::Lcha::new(1.0,1.0,1.0,0.4));
-        dark.insert("breadcrumbs.selected.color", color::Lcha::new(1.0,1.0,1.0,0.6));
-        dark.insert("breadcrumbs.left.deselected.color", color::Lcha::new(1.0,1.0,1.0,0.6));
-        dark.insert("breadcrumbs.right.deselected.color", color::Lcha::new(1.0,1.0,1.0,0.2));
-        dark.insert("breadcrumbs.hover.color", color::Lcha::new(1.0,1.0,1.0,0.6));
+        dark.insert("breadcrumbs.full.color", color::Lcha::new(1.0,0.0,0.0,0.7));
+        dark.insert("breadcrumbs.transparent.color", color::Lcha::new(1.0,0.0,0.0,0.4));
+        dark.insert("breadcrumbs.selected.color", color::Lcha::new(1.0,0.0,0.0,0.6));
+        dark.insert("breadcrumbs.left.deselected.color", color::Lcha::new(1.0,0.0,0.0,0.6));
+        dark.insert("breadcrumbs.right.deselected.color", color::Lcha::new(1.0,0.0,0.0,0.2));
+        dark.insert("breadcrumbs.hover.color", color::Lcha::new(1.0,0.0,0.0,0.6));
 
         dark.insert("select.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
         dark.insert("select.selection.color", color::Lcha::new(0.72,0.5,0.22,1.0));
@@ -169,7 +169,7 @@ impl ProjectView {
         dark.insert("edge.split_color_lightness_factor", 0.2);
         dark.insert("edge.split_color_chroma_factor", 1.0);
 
-        dark.insert("type.missing.color", color::Lcha::new(0.5, 0.0, 0.0, 1.0));
+        dark.insert("type.missing.color", color::Lcha::new(0.5,0.0,0.0,1.0));
         dark.insert("type.color_luminance", 0.5);
         dark.insert("type.color_chroma", 0.8);
 
@@ -199,7 +199,7 @@ impl ProjectView {
         light.insert("edge.split_color_lightness_factor", 1.2);
         light.insert("edge.split_color_chroma_factor", 0.8);
 
-        light.insert("type.missing.color", color::Lcha::new(0.8, 0.0, 0.0, 1.0));
+        light.insert("type.missing.color", color::Lcha::new(0.8,0.0,0.0,1.0));
         light.insert("type.color_luminance", 0.8);
         light.insert("type.color_chroma", 0.6);
 
