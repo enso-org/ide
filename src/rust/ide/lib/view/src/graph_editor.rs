@@ -22,6 +22,7 @@ use crate::graph_editor::component::node;
 use crate::graph_editor::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::graph_editor::component::visualization::MockDataGenerator3D;
 use crate::graph_editor::component::visualization;
+use crate::graph_editor::component::visualization::Container;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -38,6 +39,7 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use frp::io::keyboard;
+
 
 
 // =================
@@ -1675,6 +1677,18 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     frp::extend! { network
         eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.frp.debug.push_breadcrumb.emit(None));
         eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.frp.debug.pop_breadcrumb.emit(()));
+    }
+
+
+
+    // ============================
+    // === Visualization Events ===
+    // ============================
+
+    frp::extend! { network
+        eval_ touch.background.selected([] {
+            Container::set_all_visualizations_pointer_events("none")
+        });
     }
 
 

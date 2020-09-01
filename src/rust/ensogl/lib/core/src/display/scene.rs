@@ -460,8 +460,11 @@ impl Layers {
         canvas.set_style_or_panic("display" , "block");
         main.dom.set_class_name("front");
         overlay.dom.set_class_name("back");
-        //main.dom.set_style_or_warn("pointer-events", "auto", &logger);
-        overlay.set_z_index(-1);
+        canvas.set_style_or_warn("pointer-events", "none", &logger);
+        overlay.dom.set_style_or_warn("pointer-events", "auto", &logger);
+        canvas.set_style_or_warn("z-index", "1", &logger);
+        main.dom.set_style_or_warn("z-index", "1", &logger);
+        overlay.dom.set_style_or_warn("z-index", "0", &logger);
         dom.append_or_panic(&canvas);
         dom.append_or_panic(&main.dom);
         dom.append_or_panic(&overlay.dom);
