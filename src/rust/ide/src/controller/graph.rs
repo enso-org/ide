@@ -27,6 +27,7 @@ pub use crate::double_representation::graph::Id;
 use span_tree::generate::Context;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -259,6 +260,8 @@ impl Connections {
 ///////////////////////////////////////////////////////////////////////
 
 /// Span Tree generation context for a graph that does not know about execution.
+///
+/// It just applies the information from the metadata.
 pub struct GraphContext {
     pub graph : Handle,
 }
@@ -267,6 +270,7 @@ impl span_tree::generate::Context for GraphContext {
     fn invocation_info(&self, id:node::Id) -> Option<InvocationInfo> {
         let db       = &self.graph.suggestion_db;
         let metadata = self.graph.module.node_metadata(id).ok()?;
+        // TODO who should validate if the function name matches?
         let db_entry = db.lookup_method(metadata.intended_method?)?;
         Some(entry_to_invocation_info(&db_entry))
     }
