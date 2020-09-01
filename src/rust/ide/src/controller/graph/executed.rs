@@ -223,9 +223,11 @@ impl Handle {
     }
 
     pub fn span_tree_context(&self) -> impl span_tree::generate::Context {
-        // TODO build context that provides information from registry (and perhaps the graph itself)
-        let registry_context = span_tree::generate::context::Empty;
-        let graph_context    = self.graph.borrow().span_tree_context();
+        let registry_context = GraphContext {
+            registry : self.execution_ctx.computed_value_info_registry().clone_ref(),
+            db       : self.project.suggestion_db(),
+        };
+        let graph_context = self.graph.borrow().span_tree_context();
         registry_context.merge(graph_context)
     }
 
@@ -249,6 +251,20 @@ impl Handle {
     }
 }
 
+
+/// Span Tree generation context for a graph that does not know about execution.
+struct GraphContext {
+    registry : Rc<ComputedValueInfoRegistry>,
+    db       : Rc<model::SuggestionDatabase>,
+}
+
+impl span_tree::generate::Context for GraphContext {
+    fn invocation_info(&self, id:double_representation::node::Id) -> Option<span_tree::InvocationInfo> {
+        let info = self.registry.get(&id)?;
+        let entry = self.db.lookup(info.method_call?).ok()?;
+        Some(controller::graph::entry_to_invocation_info(&entry))
+    }
+}
 
 
 // ============

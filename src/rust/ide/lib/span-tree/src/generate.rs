@@ -4,7 +4,7 @@ pub mod macros;
 
 use crate::prelude::*;
 
-use crate::{node, InvocationInfo};
+use crate::node;
 use crate::node::InsertType;
 use crate::Node;
 use crate::SpanTree;
@@ -197,6 +197,8 @@ impl SpanTreeGenerator for ast::opr::Chain {
 impl SpanTreeGenerator for ast::prefix::Chain {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
         let invocation_info = self.id().and_then(|id| context.invocation_info(id));
+        let invocation_info = invocation_info.as_ref();
+        let fixed_arity     = invocation_info.is_some();
         dbg!(&invocation_info);
         //assert!(context.invocation_info(id).is_none());
 
@@ -206,7 +208,10 @@ impl SpanTreeGenerator for ast::prefix::Chain {
         let node         = self.func.generate_node(node::Kind::Operation,context);
         self.args.iter().enumerate().fold(node, |node,(i,arg)| {
             let node     = node?;
-            let argument_info = invocation_info.and_then(|info| info.parameters.get(i).cloned());
+            // TODO we can get i-th argument but we need to also take into account that prefix
+            //      target can be in a form of access chain that passes already `this`
+            //      if so everything should be shifted by one
+            let argument_info = invocation_info.and_then(|info| info.parameters.get(i));
             let is_first = i == 0;
             let is_last  = i + 1 == self.args.len();
             let arg_kind = if is_first { node::Kind::Target {is_removable} }
@@ -215,14 +220,21 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             let mut gen = ChildGenerator::default();
             gen.add_node(vec![Func.into()],node);
             gen.spacing(arg.sast.off);
-            if invocation_info.is_none() {
-                if let node::Kind::Target { .. } = arg_kind {
-                    gen.generate_empty_node(InsertType::BeforeTarget);
-                }
+            if fixed_arity && matches!(arg_kind,node::Kind::Target {..}) {
+                gen.generate_empty_node(InsertType::BeforeTarget);
             }
             let arg_ast      = arg.sast.wrapped.clone_ref();
             gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
-            if invocation_info.is_none() {
+            if let Some(info) = is_last.and_option(invocation_info) {
+                // After last arg push the ones that are not yet here.
+                // TODO likely should follow tree-like nested structure, rather than flat
+                //      or endpoint ids won't be consistent
+                let remaining_args = info.parameters.iter().skip(i+1);
+                dbg!(remaining_args.collect_vec());
+                // TODO finish
+            }
+
+            if fixed_arity {
                 gen.generate_empty_node(InsertType::Append);
             }
             Ok(Node {
@@ -640,8 +652,8 @@ mod test {
             }
         }
         impl Context for MockContext {
-            fn invocation_info(&self, id:Id) -> Option<&InvocationInfo> {
-                self.map.get(&id)
+            fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
+                self.map.get(&id).cloned()
             }
         }
 

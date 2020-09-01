@@ -9,6 +9,7 @@
 #![feature(associated_type_bounds)]
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
+#![feature(matches_macro)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]
@@ -66,7 +67,7 @@ pub struct ParameterInfo {
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct InvocationInfo {
     /// Information about arguments taken by a called method.
-    parameters : Vec<ParameterInfo>,
+    pub parameters : Vec<ParameterInfo>,
 }
 
 

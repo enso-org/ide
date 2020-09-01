@@ -20,7 +20,7 @@ use enso_protocol::language_server;
 use parser::Parser;
 use span_tree::action::Actions;
 use span_tree::action::Action;
-use span_tree::SpanTree;
+use span_tree::{SpanTree, InvocationInfo, ParameterInfo};
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
@@ -256,6 +256,39 @@ impl Connections {
 }
 
 
+///////////////////////////////////////////////////////////////////////
+
+/// Span Tree generation context for a graph that does not know about execution.
+pub struct GraphContext {
+    pub graph : Handle,
+}
+
+impl span_tree::generate::Context for GraphContext {
+    fn invocation_info(&self, id:node::Id) -> Option<InvocationInfo> {
+        let db       = &self.graph.suggestion_db;
+        let metadata = self.graph.module.node_metadata(id).ok()?;
+        let db_entry = db.lookup_method(metadata.intended_method?)?;
+        Some(entry_to_invocation_info(&db_entry))
+    }
+}
+
+pub fn entry_param_to_span_tree_param_info(param_info:&model::suggestion_database::Argument) -> ParameterInfo {
+    ParameterInfo {
+        // TODO check if suggestion database actually always know the name and type
+        //      or if it can contain just some empty strings or sth
+        name     : Some(param_info.name.clone()),
+        typename : Some(param_info.repr_type.clone()),
+    }
+}
+
+pub fn entry_to_invocation_info(entry:&model::suggestion_database::Entry) -> InvocationInfo {
+    let parameters = entry.arguments.iter().map(entry_param_to_span_tree_param_info).collect();
+    InvocationInfo {parameters}
+}
+
+///////////////////////////////////////////////////////////////////////
+
+
 
 // =================
 // === Utilities ===
@@ -406,28 +439,38 @@ impl EndpointInfo {
 #[allow(missing_docs)]
 pub struct Handle {
     /// Identifier of the graph accessed through this controller.
-    pub id     : Rc<Id>,
-    pub module : model::Module,
-    parser     : Parser,
-    logger     : Logger,
+    pub id            : Rc<Id>,
+    pub module        : model::Module,
+    pub suggestion_db : Rc<model::SuggestionDatabase>,
+    parser            : Parser,
+    logger            : Logger,
 }
 
 impl Handle {
 
     /// Creates a new controller. Does not check if id is valid.
     pub fn new_unchecked
-    (parent:impl AnyLogger, module:model::Module, parser:Parser, id:Id) -> Handle {
+    ( parent        : impl AnyLogger
+    , module        : model::Module
+    , suggestion_db : Rc<model::SuggestionDatabase>
+    , parser        : Parser
+    , id            : Id
+    ) -> Handle {
         let id     = Rc::new(id);
         let logger = Logger::sub(parent,format!("Graph Controller {}", id));
-        Handle {module,parser,id,logger}
+        Handle {id,module,suggestion_db,parser,logger}
     }
 
     /// Create a new graph controller. Given ID should uniquely identify a definition in the
     /// module. Fails if ID cannot be resolved.
     pub fn new
-    (parent:impl AnyLogger, module:model::Module, parser:Parser, id:Id)
-    -> FallibleResult<Handle> {
-        let ret = Self::new_unchecked(parent,module,parser,id);
+    ( parent        : impl AnyLogger
+    , module        : model::Module
+    , suggestion_db : Rc<model::SuggestionDatabase>
+    , parser        : Parser
+    , id            : Id
+    ) -> FallibleResult<Handle> {
+        let ret = Self::new_unchecked(parent,module,suggestion_db,parser,id);
         // Get and discard definition info, we are just making sure it can be obtained.
         let _ = ret.graph_definition_info()?;
         Ok(ret)
@@ -445,7 +488,7 @@ impl Handle {
         let module      = project.module(module_path).await?;
         let module_ast  = module.ast();
         let definition  = double_representation::module::lookup_method(&module_ast,&method)?;
-        Self::new(parent,module,project.parser(),definition)
+        Self::new(parent,module,project.suggestion_db(),project.parser(),definition)
     }
 
     /// Retrieves double rep information about definition providing this graph.
@@ -493,11 +536,17 @@ impl Handle {
         Ok(nodes)
     }
 
+    pub fn span_tree_context(&self) -> impl Context {
+        GraphContext {
+            graph : self.clone_ref()
+        }
+    }
+
     /// Returns information about all the connections between graph's nodes.
     pub fn connections(&self) -> FallibleResult<Connections> {
-        let graph = self.graph_info()?;
-        let context = &span_tree::generate::context::Empty; // TODO create a context that provides information from metadata
-        Ok(Connections::new(&graph,context))
+        let graph   = self.graph_info()?;
+        let context = self.span_tree_context();
+        Ok(Connections::new(&graph,&context))
     }
 
     /// Returns information about all the connections between graph's nodes.
@@ -609,10 +658,6 @@ impl Handle {
             })?;
         }
         Ok(())
-    }
-
-    pub fn span_tree_context(&self) -> impl Context {
-        span_tree::generate::context::Empty
     }
 
     /// Create connection in graph.
@@ -871,7 +916,7 @@ pub mod tests {
             let parser = Parser::new().unwrap();
             let module = self.module_data().plain(&parser);
             let id     = self.graph_id.clone();
-            Handle::new(logger,module,parser,id).unwrap()
+            Handle::new(logger,module,todo!(),parser,id).unwrap()
         }
 
         pub fn method(&self) -> MethodPointer {
