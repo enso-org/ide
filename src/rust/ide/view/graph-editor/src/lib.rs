@@ -1632,8 +1632,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                         , "exit_node")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                         , "edit_mode_on")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                         , "edit_mode_off")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Character("s".into())],&[])  , "press_toggle_style")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Shift,Key::Character("s".into())],&[])  , "release_toggle_style")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Character("s".into())],&[]), "press_toggle_style")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Shift,Key::Character("s".into())],&[]), "release_toggle_style")
              ]
     }
 }
