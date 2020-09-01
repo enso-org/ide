@@ -1,0 +1,1 @@
+//! Table view implementation. Runs through JSON file creating a table view.
