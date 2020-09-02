@@ -304,6 +304,9 @@ pub mod tests {
             model::project::test::expect_execution_ctx(&mut project,ctx);
             // Root ID is needed to generate module path used to get the module.
             model::project::test::expect_root_id(&mut project,crate::test::mock::data::ROOT_ID);
+            // Both graph controllers need suggestion DB to provide context to their span trees.
+            let suggestion_db = self.graph.suggestion_db();
+            model::project::test::expect_suggestion_db(&mut project,suggestion_db);
 
             let project = Rc::new(project);
             Handle::new(Logger::default(),project.clone_ref(),method).boxed_local().expect_ok()

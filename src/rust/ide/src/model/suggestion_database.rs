@@ -248,6 +248,19 @@ pub struct SuggestionDatabase {
 }
 
 impl SuggestionDatabase {
+    pub fn new_empty(logger:impl AnyLogger) -> Self {
+        Self {
+            logger : Logger::sub(logger,"SuggestionDatabase"),
+            ..default()
+        }
+    }
+
+    pub fn new_from_entries<'a>(logger:impl AnyLogger, entries:impl IntoIterator<Item=(&'a usize,&'a Entry)>) -> Self {
+        let ret = Self::new_empty(logger);
+        ret.entries.borrow_mut().extend(entries.into_iter().map(|(id,entry)| (*id,Rc::new(entry.clone()))));
+        ret
+    }
+
     /// Create a new database which will take its initial content from the Language Server.
     pub async fn create_synchronized
     (language_server:&language_server::Connection) -> FallibleResult<Self> {

@@ -262,6 +262,7 @@ impl Connections {
 /// Span Tree generation context for a graph that does not know about execution.
 ///
 /// It just applies the information from the metadata.
+#[derive(Clone,Debug)]
 pub struct GraphContext {
     pub graph : Handle,
 }
@@ -874,6 +875,8 @@ pub mod tests {
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
 
+    use crate::model::suggestion_database;
+
     /// All the data needed to set up and run the graph controller in mock environment.
     #[derive(Clone,Debug)]
     pub struct MockData {
@@ -881,6 +884,7 @@ pub mod tests {
         pub graph_id     : Id,
         pub project_name : String,
         pub code         : String,
+        pub suggestions  : HashMap<suggestion_database::EntryId,suggestion_database::Entry>,
     }
 
     impl MockData {
@@ -892,6 +896,7 @@ pub mod tests {
                 graph_id     : crate::test::mock::data::graph_id(),
                 project_name : crate::test::mock::data::PROJECT_NAME.to_owned(),
                 code         : crate::test::mock::data::CODE.to_owned(),
+                suggestions  : default(),
             }
         }
 
@@ -916,15 +921,22 @@ pub mod tests {
 
         /// Create a graph controller from the current mock data.
         pub fn graph(&self) -> Handle {
-            let logger = Logger::new("Test");
-            let parser = Parser::new().unwrap();
-            let module = self.module_data().plain(&parser);
-            let id     = self.graph_id.clone();
-            Handle::new(logger,module,todo!(),parser,id).unwrap()
+            let logger      = Logger::new("Test");
+            let parser      = Parser::new().unwrap();
+            let module      = self.module_data().plain(&parser);
+            let id          = self.graph_id.clone();
+            let db          = self.suggestion_db();
+            Handle::new(logger,module,db,parser,id).unwrap()
         }
 
         pub fn method(&self) -> MethodPointer {
             self.module_path.method_pointer(&self.project_name,self.graph_id.to_string())
+        }
+
+        pub fn suggestion_db(&self) -> Rc<model::SuggestionDatabase> {
+            use model::suggestion_database::SuggestionDatabase;
+            let entries = self.suggestions.iter();
+            Rc::new(SuggestionDatabase::new_from_entries(Logger::new("Test"),entries))
         }
     }
 

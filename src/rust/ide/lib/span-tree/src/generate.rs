@@ -64,17 +64,17 @@ impl ChildGenerator {
 
     fn generate_ast_node
     (&mut self, child_ast:Located<Ast>, kind:node::Kind, context:&impl Context)
-    -> FallibleResult<&node::Child> {
+    -> FallibleResult<&mut node::Child> {
         let node = child_ast.item.generate_node(kind,context)?;
         Ok(self.add_node(child_ast.crumbs,node))
     }
 
-    fn add_node(&mut self, ast_crumbs:ast::Crumbs, node:Node) -> &node::Child {
+    fn add_node(&mut self, ast_crumbs:ast::Crumbs, node:Node) -> &mut node::Child {
         let offset = self.current_offset;
         let child = node::Child {node,ast_crumbs,offset};
         self.current_offset += child.node.size;
         self.children.push(child);
-        self.children.last().unwrap()
+        self.children.last_mut().unwrap()
     }
 
     fn generate_empty_node(&mut self, insert_type:InsertType) -> &node::Child {
@@ -198,43 +198,42 @@ impl SpanTreeGenerator for ast::prefix::Chain {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
         let invocation_info = self.id().and_then(|id| context.invocation_info(id));
         let invocation_info = invocation_info.as_ref();
-        let fixed_arity     = invocation_info.is_some();
+        let known_args      = invocation_info.is_some();
         dbg!(&invocation_info);
-        //assert!(context.invocation_info(id).is_none());
+
+        // TODO test for case when there are more arguments supplied than the known arity of function?
+        let supplied_arg_count = self.args.len();
+        let method_arity       = invocation_info.map(|info| info.parameters.len());
+        let arity              = supplied_arg_count.max(method_arity.unwrap_or(0));
 
         use ast::crumbs::PrefixCrumb::*;
         // Removing arguments is possible if there at least two of them
         let is_removable = self.args.len() >= 2;
         let node         = self.func.generate_node(node::Kind::Operation,context);
-        self.args.iter().enumerate().fold(node, |node,(i,arg)| {
+        let ret = self.args.iter().enumerate().fold(node, |node,(i,arg)| {
+            println!("Will generate argument node for {}",arg.sast.wrapped);
             let node     = node?;
             // TODO we can get i-th argument but we need to also take into account that prefix
             //      target can be in a form of access chain that passes already `this`
             //      if so everything should be shifted by one
+            //      But on the other hand -- the first "prefix" argument would not be a target
+            //      anymore then.
             let argument_info = invocation_info.and_then(|info| info.parameters.get(i));
             let is_first = i == 0;
-            let is_last  = i + 1 == self.args.len();
+            let is_last  = i + 1 == arity;
             let arg_kind = if is_first { node::Kind::Target {is_removable} }
                 else { node::Kind::Argument {is_removable} };
 
             let mut gen = ChildGenerator::default();
             gen.add_node(vec![Func.into()],node);
             gen.spacing(arg.sast.off);
-            if fixed_arity && matches!(arg_kind,node::Kind::Target {..}) {
+            if !known_args && matches!(arg_kind,node::Kind::Target {..}) {
                 gen.generate_empty_node(InsertType::BeforeTarget);
             }
             let arg_ast      = arg.sast.wrapped.clone_ref();
-            gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
-            if let Some(info) = is_last.and_option(invocation_info) {
-                // After last arg push the ones that are not yet here.
-                // TODO likely should follow tree-like nested structure, rather than flat
-                //      or endpoint ids won't be consistent
-                let remaining_args = info.parameters.iter().skip(i+1);
-                dbg!(remaining_args.collect_vec());
-                // TODO finish
-            }
-
-            if fixed_arity {
+            let arg_child    = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
+            arg_child.node.argument_info = argument_info.cloned();
+            if !known_args {
                 gen.generate_empty_node(InsertType::Append);
             }
             Ok(Node {
@@ -244,7 +243,28 @@ impl SpanTreeGenerator for ast::prefix::Chain {
                 expression_id : arg.prefix_id,
                 argument_info : None,
             })
-        })
+        })?;
+
+        if let Some(info) = invocation_info {
+            let missing_args = info.parameters.iter().enumerate().skip(self.args.len());
+            Ok(missing_args.fold(ret, |node,(i,param)| {
+                println!("Will generate missing argument node for {:?}",param);
+                let mut gen = ChildGenerator::default();
+                gen.add_node(vec![],node);
+                let is_last  = i + 1 == arity;
+
+                gen.generate_empty_node(InsertType::FixedArgument(i));
+                Node {
+                    kind : if is_last {kind} else {node::Kind::Chained},
+                    size          : gen.current_offset,
+                    children      : gen.children,
+                    expression_id : None,
+                    argument_info : Some(param.clone()),
+                }
+            }))
+        } else {
+            Ok(ret)
+        }
     }
 }
 
@@ -359,6 +379,23 @@ mod test {
     use crate::{Context, InvocationInfo, ParameterInfo};
 
     wasm_bindgen_test_configure!(run_in_browser);
+
+    #[derive(Clone,Debug,Default)]
+    struct MockContext {
+        map : HashMap<Id,InvocationInfo>,
+    }
+    impl MockContext {
+        fn new_single(id:Id, info:InvocationInfo) -> Self {
+            let mut ret = Self::default();
+            ret.map.insert(id,info);
+            ret
+        }
+    }
+    impl Context for MockContext {
+        fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
+            self.map.get(&id).cloned()
+        }
+    }
 
     /// A helper function which removes information about expression id from thw tree rooted at
     /// `node`.
@@ -640,37 +677,22 @@ mod test {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("foo here").unwrap();
 
-        #[derive(Clone,Debug,Default)]
-        struct MockContext {
-            map : HashMap<Id,InvocationInfo>,
-        }
-        impl MockContext {
-            fn new_single(id:Id, info:InvocationInfo) -> Self {
-                let mut ret = Self::default();
-                ret.map.insert(id,info);
-                ret
-            }
-        }
-        impl Context for MockContext {
-            fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
-                self.map.get(&id).cloned()
-            }
-        }
-
         let invocation_info = InvocationInfo {
             parameters : vec![
                 ParameterInfo{name : Some("this".to_owned()), typename : Some("Any".to_owned())},
                 ParameterInfo{name : Some("arg1".to_owned()), typename : Some("Number".to_owned())},
-                ParameterInfo{name : Some("arg1".to_owned()), typename : None},
+                ParameterInfo{name : Some("arg2".to_owned()), typename : None},
             ]
         };
 
         let ctx = MockContext::new_single(ast.id.unwrap(),invocation_info);
         println!("{:?}",ast);
 
-        let tree = SpanTree::new(&ast,&ctx);
+        let tree = SpanTree::new(&ast,&ctx).unwrap();
         //let mut tree = ast.generate_tree().unwrap();
         println!("{:#?}",tree);
+        println!("Leaves: === \n{:#?}\n",tree.root_ref().leaf_iter().collect_vec());
+
         // clear_expression_ids(&mut tree.root);
         //
         // let is_removable = false;

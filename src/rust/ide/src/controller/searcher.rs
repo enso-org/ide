@@ -835,7 +835,7 @@ mod test {
         fn new_custom<F>(client_setup:F) -> Self
         where F : FnOnce(&mut MockData,&mut language_server::MockClient) {
             let test       = TestWithLocalPoolExecutor::set_up();
-            let mut data   = MockData::default();
+            let mut data:MockData   = MockData::default();
             let mut client = language_server::MockClient::default();
             client.require_all_calls();
             client_setup(&mut data,&mut client);
