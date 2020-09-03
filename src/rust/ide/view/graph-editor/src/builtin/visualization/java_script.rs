@@ -2,6 +2,10 @@
 // TODO remove once we have proper visualizations or replace with a nice d3 example.
 // These implementations are neither efficient nor pretty, but get the idea across.
 
+pub mod map_view;
+
+pub use map_view::*;
+
 use crate::data;
 use crate::component::visualization;
 
