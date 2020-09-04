@@ -4,7 +4,16 @@
 
 use crate::prelude::*;
 
-use crate::InvocationInfo;
+use crate::ParameterInfo;
+use ast::Id;
+
+
+/// Additional information available on nodes that are an invocation of a known methods.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct InvocationInfo {
+    /// Information about arguments taken by a called method.
+    pub parameters : Vec<ParameterInfo>,
+}
 
 
 
@@ -17,7 +26,11 @@ use crate::InvocationInfo;
 pub trait Context {
     /// Checks if the given expression is known to be a call to a known method. If so, returns the
     /// available information.
-    fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo>;
+    fn invocation_info(&self, id:Id) -> Option<InvocationInfo>;
+
+    /// Checks if the given expression is known to be a call to a known method. If so, returns the
+    /// available information.
+    fn named_invocation_info(&self, id:Id, name:Option<&str>) -> Option<InvocationInfo>;
 
     /// Build a new context that merges this context and the one given in argument that will be used
     /// as a fallback.
@@ -26,8 +39,6 @@ pub trait Context {
         Merged::new(self,other)
     }
 }
-
-fn a(_:Box<dyn Context>) {} // TODO remove
 
 
 
@@ -44,6 +55,8 @@ pub struct Merged<First,Second> {
 
 impl<First,Second> Merged<First,Second> {
     /// Creates a context merging the contexts from arguments.
+    ///
+    /// The first context is checked first, the second one is used as a fallback.
     pub fn new(first:First, second:Second) -> Self {
         Self {
             first,second
@@ -54,8 +67,13 @@ impl<First,Second> Merged<First,Second> {
 impl<First,Second> Context for Merged<First,Second>
     where First  : Context,
           Second : Context {
-    fn invocation_info(&self, id:ast::Id) -> Option<InvocationInfo> {
+    fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
         self.first.invocation_info(id).or_else(|| self.second.invocation_info(id))
+    }
+
+    fn named_invocation_info(&self, id: Id, name:Option<&str>) -> Option<InvocationInfo> {
+        self.first.named_invocation_info(id,name).or_else(||
+            self.second.named_invocation_info(id,name))
     }
 }
 
@@ -70,7 +88,11 @@ impl<First,Second> Context for Merged<First,Second>
 pub struct Empty;
 
 impl Context for Empty {
-    fn invocation_info(&self, _id:ast::Id) -> Option<InvocationInfo> {
+    fn invocation_info(&self, _id:Id) -> Option<InvocationInfo> {
+        None
+    }
+
+    fn named_invocation_info(&self, _id:Id, _name:Option<&str>) -> Option<InvocationInfo> {
         None
     }
 }

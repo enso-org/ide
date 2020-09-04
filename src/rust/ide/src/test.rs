@@ -46,7 +46,7 @@ pub mod mock {
     }
 
     #[derive(Clone,Debug)]
-    struct Unified {
+    pub struct Unified {
         pub logger        : Logger,
         pub project_name  : String,
         pub module_path   : model::module::Path,
@@ -132,7 +132,6 @@ pub mod mock {
                 &self.suggestions));
             let graph  = self.graph(module.clone_ref(), suggestion_db.clone_ref());
             let execution = self.execution_context();
-            let method_ptr = self.method_pointer();
             let project = self.project(module.clone_ref(),execution.clone_ref());
             let executed_graph = controller::ExecutedGraph::new_internal(graph.clone_ref(),
                 project.clone_ref(),execution.clone_ref());
@@ -149,14 +148,14 @@ pub mod mock {
     }
 
     #[derive(Clone,Debug)]
-    struct Baked {
-        data           : Unified,
-        module         : model::Module,
-        graph          : controller::Graph,
-        execution      : model::ExecutionContext,
-        executed_graph : controller::ExecutedGraph,
-        suggestion_db  : Rc<model::SuggestionDatabase>,
-        project        : model::Project,
+    pub struct Baked {
+        pub data           : Unified,
+        pub module         : model::Module,
+        pub graph          : controller::Graph,
+        pub execution      : model::ExecutionContext,
+        pub executed_graph : controller::ExecutedGraph,
+        pub suggestion_db  : Rc<model::SuggestionDatabase>,
+        pub project        : model::Project,
     }
 
     impl Baked {

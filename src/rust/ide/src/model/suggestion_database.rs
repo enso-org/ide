@@ -248,6 +248,7 @@ pub struct SuggestionDatabase {
 }
 
 impl SuggestionDatabase {
+    /// Create a database with no entries.
     pub fn new_empty(logger:impl AnyLogger) -> Self {
         Self {
             logger : Logger::sub(logger,"SuggestionDatabase"),
@@ -255,9 +256,12 @@ impl SuggestionDatabase {
         }
     }
 
-    pub fn new_from_entries<'a>(logger:impl AnyLogger, entries:impl IntoIterator<Item=(&'a usize,&'a Entry)>) -> Self {
-        let ret = Self::new_empty(logger);
-        ret.entries.borrow_mut().extend(entries.into_iter().map(|(id,entry)| (*id,Rc::new(entry.clone()))));
+    /// Create a database filled with entries provided by the given iterator.
+    pub fn new_from_entries<'a>
+    (logger:impl AnyLogger, entries:impl IntoIterator<Item=(&'a SuggestionId,&'a Entry)>) -> Self {
+        let ret     = Self::new_empty(logger);
+        let entries = entries.into_iter().map(|(id,entry)| (*id,Rc::new(entry.clone())));
+        ret.entries.borrow_mut().extend(entries);
         ret
     }
 

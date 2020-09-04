@@ -4,10 +4,11 @@ pub mod macros;
 
 use crate::prelude::*;
 
+use crate::Node;
+use crate::ParameterInfo;
+use crate::SpanTree;
 use crate::node;
 use crate::node::InsertType;
-use crate::Node;
-use crate::SpanTree;
 
 use ast::Ast;
 use ast::MacroMatchSegment;
@@ -77,14 +78,14 @@ impl ChildGenerator {
         self.children.last_mut().unwrap()
     }
 
-    fn generate_empty_node(&mut self, insert_type:InsertType) -> &node::Child {
+    fn generate_empty_node(&mut self, insert_type:InsertType) -> &mut node::Child {
         let child = node::Child {
-            node                : Node::new_empty(insert_type),
-            offset              : self.current_offset,
-            ast_crumbs          : vec![]
+            node       : Node::new_empty(insert_type),
+            offset     : self.current_offset,
+            ast_crumbs : vec![]
         };
         self.children.push(child);
-        self.children.last().unwrap()
+        self.children.last_mut().unwrap()
     }
 
     fn reverse_children(&mut self) {
@@ -120,10 +121,25 @@ impl SpanTreeGenerator for Ast {
                     ast::known::Ambiguous::try_new(self.clone_ref()).unwrap().generate_node(kind,context),
                 _  => {
                     let size          = Size::new(self.len());
-                    let children      = default();
                     let expression_id = self.id;
-                    let argument_info = default();
-                    Ok(Node {kind,size,children,expression_id,argument_info})
+                    let children       = default();
+                    if let Some(info) = expression_id.and_then(|id| context.invocation_info(id)) {
+                        let node = Node {
+                            size,
+                            children,
+                            expression_id,
+                            kind           : node::Kind::Operation,
+                            parameter_info : None,
+                        };
+                        let arity  = info.parameters.len();
+                        let params = info.parameters.iter().cloned().enumerate();
+                        Ok(params.fold(node,|node,(i,param)| {
+                            generate_known_parameter(node,kind,i,arity,param)
+                        }))
+                    } else {
+                        let parameter_info = default();
+                        Ok(Node {kind,size,children,expression_id,parameter_info})
+                    }
                 },
             }
         }
@@ -180,11 +196,11 @@ impl SpanTreeGenerator for ast::opr::Chain {
             }
 
             Ok((Node {
-                kind          : if is_last {kind} else {node::Kind::Chained},
-                size          : gen.current_offset,
-                children      : gen.children,
-                expression_id : elem.infix_id,
-                argument_info : None,
+                kind           : if is_last {kind} else {node::Kind::Chained},
+                size           : gen.current_offset,
+                children       : gen.children,
+                expression_id  : elem.infix_id,
+                parameter_info : None,
             }, elem.offset))
         })?;
         Ok(node)
@@ -232,35 +248,23 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             }
             let arg_ast      = arg.sast.wrapped.clone_ref();
             let arg_child    = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
-            arg_child.node.argument_info = argument_info.cloned();
+            arg_child.node.parameter_info = argument_info.cloned();
             if !known_args {
                 gen.generate_empty_node(InsertType::Append);
             }
             Ok(Node {
-                kind          : if is_last {kind} else {node::Kind::Chained},
-                size          : gen.current_offset,
-                children      : gen.children,
-                expression_id : arg.prefix_id,
-                argument_info : None,
+                kind           : if is_last {kind} else {node::Kind::Chained},
+                size           : gen.current_offset,
+                children       : gen.children,
+                expression_id  : arg.prefix_id,
+                parameter_info : None,
             })
         })?;
 
         if let Some(info) = invocation_info {
-            let missing_args = info.parameters.iter().enumerate().skip(self.args.len());
+            let missing_args = info.parameters.iter().cloned().enumerate().skip(self.args.len());
             Ok(missing_args.fold(ret, |node,(i,param)| {
-                println!("Will generate missing argument node for {:?}",param);
-                let mut gen = ChildGenerator::default();
-                gen.add_node(vec![],node);
-                let is_last  = i + 1 == arity;
-
-                gen.generate_empty_node(InsertType::FixedArgument(i));
-                Node {
-                    kind : if is_last {kind} else {node::Kind::Chained},
-                    size          : gen.current_offset,
-                    children      : gen.children,
-                    expression_id : None,
-                    argument_info : Some(param.clone()),
-                }
+                generate_known_parameter(node, kind, i, arity, param)
             }))
         } else {
             Ok(ret)
@@ -268,6 +272,22 @@ impl SpanTreeGenerator for ast::prefix::Chain {
     }
 }
 
+fn generate_known_parameter
+(node:Node, kind:node::Kind, index:usize, arity:usize, parameter_info:ParameterInfo) -> Node {
+    println!("Will generate missing argument node for {:?}",parameter_info);
+    let is_last = index + 1 == arity;
+    let mut gen = ChildGenerator::default();
+    gen.add_node(vec![],node);
+    let arg_node = gen.generate_empty_node(InsertType::ExpectedArgument(index));
+    arg_node.node.parameter_info = Some(parameter_info);
+    Node {
+        kind           : if is_last {kind} else {node::Kind::Chained},
+        size           : gen.current_offset,
+        children       : gen.children,
+        expression_id  : None,
+        parameter_info : None,
+    }
+}
 
 // === Match ===
 
@@ -291,10 +311,10 @@ impl SpanTreeGenerator for ast::known::Match {
             generate_children_from_segment(&mut gen,index+1,&segment.wrapped,context)?;
         }
         Ok(Node {kind,
-            size          : gen.current_offset,
-            children      : gen.children,
-            expression_id : self.id(),
-            argument_info : None,
+            size           : gen.current_offset,
+            children       : gen.children,
+            expression_id  : self.id(),
+            parameter_info : None,
         })
     }
 }
@@ -328,10 +348,10 @@ impl SpanTreeGenerator for ast::known::Ambiguous {
             generate_children_from_abiguous_segment(&mut gen, index+1, &segment.wrapped,context)?;
         }
         Ok(Node{kind,
-            size          : gen.current_offset,
-            children      : gen.children,
-            expression_id : self.id(),
-            argument_info : None,
+            size           : gen.current_offset,
+            children       : gen.children,
+            expression_id  : self.id(),
+            parameter_info : None,
         })
     }
 }
@@ -360,7 +380,10 @@ fn generate_children_from_abiguous_segment
 mod test {
     use super::*;
 
+    use crate::Context;
+    use crate::ParameterInfo;
     use crate::builder::TreeBuilder;
+    use crate::generate::context::InvocationInfo;
     use crate::node::Kind::*;
     use crate::node::InsertType::*;
 
@@ -375,8 +398,7 @@ mod test {
     use parser::Parser;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use ast::{IdMap, Id};
-    use crate::{Context, InvocationInfo, ParameterInfo};
+    use ast::{IdMap, Id, Crumbs};
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -395,6 +417,10 @@ mod test {
         fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
             self.map.get(&id).cloned()
         }
+
+        fn named_invocation_info(&self, id:Id, _name:Option<&str>) -> Option<InvocationInfo> {
+            self.invocation_info(id)
+        }
     }
 
     /// A helper function which removes information about expression id from thw tree rooted at
@@ -406,6 +432,17 @@ mod test {
         node.expression_id = None;
         for child in &mut node.children {
             clear_expression_ids(&mut child.node);
+        }
+    }
+
+    /// A helper function which removes parameter information from nodes.
+    ///
+    /// It is used in tests. Because constructing trees with set parameter infos is troublesome,
+    /// it is often more convenient to test them separately and then erase infos and test for shape.
+    fn clear_parameter_infos(node:&mut Node) {
+        node.parameter_info = None;
+        for child in &mut node.children {
+            clear_parameter_infos(&mut child.node);
         }
     }
 
@@ -674,39 +711,91 @@ mod test {
 
     #[test]
     fn generating_span_tree_for_unfinished_call() {
-        let parser   = Parser::new_or_panic();
-        let ast      = parser.parse_line("foo here").unwrap();
-
-        let invocation_info = InvocationInfo {
-            parameters : vec![
-                ParameterInfo{name : Some("this".to_owned()), typename : Some("Any".to_owned())},
-                ParameterInfo{name : Some("arg1".to_owned()), typename : Some("Number".to_owned())},
-                ParameterInfo{name : Some("arg2".to_owned()), typename : None},
-            ]
+        let parser     = Parser::new_or_panic();
+        let this_param = ParameterInfo{
+            name     : Some("this".to_owned()),
+            typename : Some("Any".to_owned()),
+        };
+        let param1 = ParameterInfo{
+            name     : Some("arg1".to_owned()),
+            typename : Some("Number".to_owned()),
+        };
+        let param2 = ParameterInfo{
+            name     : Some("arg2".to_owned()),
+            typename : None,
         };
 
+
+        // === Single function name ===
+
+        let ast = parser.parse_line("foo").unwrap();
+        let invocation_info = InvocationInfo {
+            parameters : vec![this_param.clone()]
+        };
+        let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        match tree.root_ref().leaf_iter().collect_vec().as_slice() {
+            [_func,arg0] => assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param)),
+            sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
+        }
+        let expected = TreeBuilder::new(3)
+            .add_leaf(0,3,Operation,Crumbs::default())
+            .add_empty_child(3,ExpectedArgument(0))
+            .build();
+        clear_expression_ids(&mut tree.root);
+        clear_parameter_infos(&mut tree.root);
+        assert_eq!(tree,expected);
+
+
+        // === Complete application chain ===
+
+        let ast = parser.parse_line("foo here").unwrap();
+        let invocation_info = InvocationInfo {
+            parameters : vec![this_param.clone()]
+        };
+        let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        match tree.root_ref().leaf_iter().collect_vec().as_slice() {
+            [_func,arg0] => assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param)),
+            sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
+        }
+        let expected = TreeBuilder::new(8)
+            .add_leaf(0,3,Operation,PrefixCrumb::Func)
+            .add_leaf(4,4,Target {is_removable:false},PrefixCrumb::Arg)
+            .build();
+        clear_expression_ids(&mut tree.root);
+        clear_parameter_infos(&mut tree.root);
+        assert_eq!(tree,expected);
+
+
+        // === Partial application chain ===
+
+        let ast = parser.parse_line("foo here").unwrap();
+        let invocation_info = InvocationInfo {
+            parameters : vec![this_param.clone(), param1.clone(), param2.clone()]
+        };
         let ctx = MockContext::new_single(ast.id.unwrap(),invocation_info);
-        println!("{:?}",ast);
-
-        let tree = SpanTree::new(&ast,&ctx).unwrap();
-        //let mut tree = ast.generate_tree().unwrap();
-        println!("{:#?}",tree);
-        println!("Leaves: === \n{:#?}\n",tree.root_ref().leaf_iter().collect_vec());
-
-        // clear_expression_ids(&mut tree.root);
-        //
-        // let is_removable = false;
-        // let expected     = TreeBuilder::new(13)
-        //     .add_leaf(0,3,Operation,PrefixCrumb::Func)
-        //     .add_empty_child(4,BeforeTarget)
-        //     .add_leaf(4,9,Target{is_removable},PrefixCrumb::Arg)
-        //     .add_empty_child(13,Append)
-        //     .build();
-        //
-        // assert_eq!(expected,tree);
-
-        // TODO
-        // czy jezeli mam atom `foo` i potem zrobie z niego prefix app przez ustawienie inputu
-        // to nie zepsuje metadanych
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        match tree.root_ref().leaf_iter().collect_vec().as_slice() {
+            [_func,arg0,arg1,arg2] => {
+                assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param));
+                assert_eq!(arg1.parameter_info.as_ref(),Some(&param1));
+                assert_eq!(arg2.parameter_info.as_ref(),Some(&param2));
+            },
+            sth_else => panic!("There should be 4 leaves, found: {}",sth_else.len()),
+        }
+        let expected = TreeBuilder::new(8)
+            .add_child(0,8,Chained  ,Crumbs::default())
+                .add_child(0,8,Chained  ,Crumbs::default())
+                    .add_leaf(0,3,Operation,PrefixCrumb::Func)
+                    .add_leaf(4,4,Target {is_removable:false},PrefixCrumb::Arg)
+                    .done()
+                .add_empty_child(8,ExpectedArgument(1))
+                .done()
+            .add_empty_child(8,ExpectedArgument(2))
+            .build();
+        clear_expression_ids(&mut tree.root);
+        clear_parameter_infos(&mut tree.root);
+        assert_eq!(tree,expected);
     }
 }

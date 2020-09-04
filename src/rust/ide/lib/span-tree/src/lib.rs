@@ -48,26 +48,18 @@ use traits::*;
 use prelude::*;
 use crate::generate::Context;
 
-// ==========================
-// === InvocationResolver ===
-// ==========================
 
-/// Information available about some function parameter.
+
+// =====================
+// === ParameterInfo ===
+// =====================
+
+/// Additional information available for nodes being function arguments or their placeholders.
 #[derive(Clone,Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct ParameterInfo {
     pub name     : Option<String>,
     pub typename : Option<String>,
-    // TODO? [mwu]
-    //  If needed more information could be added here, like param being suspended, defaulted, etc.
-
-}
-
-/// Information about a method call that span tree is concerned about.
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct InvocationInfo {
-    /// Information about arguments taken by a called method.
-    pub parameters : Vec<ParameterInfo>,
 }
 
 
@@ -111,12 +103,12 @@ impl SpanTree {
 
 impl Default for SpanTree {
     fn default() -> Self {
-        let expression_id = None;
-        let kind          = node::Kind::Root;
-        let size          = default();
-        let children      = default();
-        let argument_info = default();
-        let root          = Node {kind,size,children,expression_id,argument_info};
+        let expression_id  = None;
+        let kind           = node::Kind::Root;
+        let size           = default();
+        let children       = default();
+        let parameter_info = default();
+        let root          = Node {kind,size,children,expression_id,parameter_info};
         Self {root}
     }
 }

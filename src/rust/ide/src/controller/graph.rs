@@ -8,7 +8,7 @@ use crate::prelude::*;
 
 use crate::double_representation::definition;
 use crate::double_representation::graph::GraphInfo;
-use crate::double_representation::identifier::LocatedName;
+use crate::double_representation::identifier::{LocatedName, NormalizedName};
 use crate::double_representation::identifier::generate_name;
 use crate::double_representation::module;
 use crate::double_representation::node;
@@ -20,12 +20,12 @@ use enso_protocol::language_server;
 use parser::Parser;
 use span_tree::action::Actions;
 use span_tree::action::Action;
-use span_tree::{SpanTree, InvocationInfo, ParameterInfo};
+use span_tree::{SpanTree, ParameterInfo};
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
-use span_tree::generate::Context;
-
+use span_tree::generate::Context as SpanTreeContext;
+use span_tree::generate::context::InvocationInfo;
 
 
 // ==============
@@ -177,7 +177,7 @@ pub struct NodeTrees {
 
 impl NodeTrees {
     #[allow(missing_docs)]
-    pub fn new(node:&NodeInfo, context:&impl Context) -> Option<NodeTrees> {
+    pub fn new(node:&NodeInfo, context:&impl SpanTreeContext) -> Option<NodeTrees> {
         let inputs  = SpanTree::new(node.expression(),context).ok()?;
         let outputs = if let Some(pat) = node.pattern() {
             Some(SpanTree::new(pat,context).ok()?)
@@ -221,7 +221,7 @@ pub struct Connections {
 
 impl Connections {
     /// Describes a connection for given double representation graph.
-    pub fn new(graph:&GraphInfo, context:&impl Context) -> Connections {
+    pub fn new(graph:&GraphInfo, context:&impl SpanTreeContext) -> Connections {
         let trees = graph.nodes().iter().flat_map(|node| {
             Some((node.id(), NodeTrees::new(node,context)?))
         }).collect();
@@ -257,27 +257,50 @@ impl Connections {
 }
 
 
-///////////////////////////////////////////////////////////////////////
+
+// =========================
+// === Span Tree Context ===
+// =========================
 
 /// Span Tree generation context for a graph that does not know about execution.
 ///
 /// It just applies the information from the metadata.
 #[derive(Clone,Debug)]
+#[allow(missing_docs)]
 pub struct GraphContext {
     pub graph : Handle,
 }
 
 impl span_tree::generate::Context for GraphContext {
     fn invocation_info(&self, id:node::Id) -> Option<InvocationInfo> {
+        self.named_invocation_info(id,None)
+    }
+
+    fn named_invocation_info(&self, id:node::Id, name:Option<&str>) -> Option<InvocationInfo> {
         let db       = &self.graph.suggestion_db;
         let metadata = self.graph.module.node_metadata(id).ok()?;
-        // TODO who should validate if the function name matches?
         let db_entry = db.lookup_method(metadata.intended_method?)?;
-        Some(entry_to_invocation_info(&db_entry))
+        // If the name is different than intended method than apparently it is not intended anymore
+        // and should be ignored.
+        let matching = if let Some(name) = name {
+            NormalizedName::new(name) == NormalizedName::new(&db_entry.name)
+        } else {
+            true
+        };
+        matching.then_with(|| entry_to_invocation_info(&db_entry))
     }
 }
 
-pub fn entry_param_to_span_tree_param_info(param_info:&model::suggestion_database::Argument) -> ParameterInfo {
+
+
+// ===========================================
+// === Suggestion DB <=> Span Tree Interop ===
+// ===========================================
+// TODO Reconsider where this should be placed. Unfortunately in neither of the respective crates.
+
+/// Generate parameter info description from the suggestion database information.
+pub fn entry_param_to_span_tree_param_info
+(param_info:&model::suggestion_database::Argument) -> ParameterInfo {
     ParameterInfo {
         // TODO check if suggestion database actually always know the name and type
         //      or if it can contain just some empty strings or sth
@@ -286,6 +309,7 @@ pub fn entry_param_to_span_tree_param_info(param_info:&model::suggestion_databas
     }
 }
 
+/// Generate invocation info description from the suggestion database information.
 pub fn entry_to_invocation_info(entry:&model::suggestion_database::Entry) -> InvocationInfo {
     let parameters = entry.arguments.iter().map(entry_param_to_span_tree_param_info).collect();
     InvocationInfo {parameters}
@@ -360,7 +384,7 @@ pub struct EndpointInfo {
 impl EndpointInfo {
     /// Construct information about endpoint. Ast must be the node's expression or pattern.
     pub fn new
-    (endpoint:&Endpoint, ast:&Ast, context:&impl Context)
+    (endpoint:&Endpoint, ast:&Ast, context:&impl SpanTreeContext)
     -> FallibleResult<EndpointInfo> {
         Ok(EndpointInfo {
             endpoint  : endpoint.clone(),
@@ -541,21 +565,27 @@ impl Handle {
         Ok(nodes)
     }
 
-    pub fn span_tree_context(&self) -> impl Context {
+    /// Context for building span tree.
+    ///
+    /// Provides information about intented method based on the metadata.
+    pub fn span_tree_context(&self) -> impl SpanTreeContext {
         GraphContext {
             graph : self.clone_ref()
         }
     }
 
     /// Returns information about all the connections between graph's nodes.
-    pub fn connections(&self) -> FallibleResult<Connections> {
+    ///
+    /// Will use `self.span_tree_context()` as the context for span tree generation.
+    pub fn connections_legacy(&self) -> FallibleResult<Connections> {
         let graph   = self.graph_info()?;
         let context = self.span_tree_context();
         Ok(Connections::new(&graph,&context))
     }
 
     /// Returns information about all the connections between graph's nodes.
-    pub fn connections_smarter(&self, context:&impl Context) -> FallibleResult<Connections> {
+    pub fn connections
+    (&self, context:&impl SpanTreeContext) -> FallibleResult<Connections> {
         let graph = self.graph_info()?;
         // TODO perhaps this should merge given context with the metadata information
         //      or perhaps this should just do exactly what it is told
@@ -619,14 +649,16 @@ impl Handle {
     }
 
     /// Obtains information for connection's destination endpoint.
-    pub fn destination_info(&self, connection:&Connection, context:&impl Context) -> FallibleResult<EndpointInfo> {
+    pub fn destination_info
+    (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult<EndpointInfo> {
         let destination_node = self.node_info(connection.destination.node)?;
         let target_node_ast  = destination_node.expression();
         EndpointInfo::new(&connection.destination,target_node_ast,context)
     }
 
     /// Obtains information about connection's source endpoint.
-    pub fn source_info(&self, connection:&Connection, context:&impl Context) -> FallibleResult<EndpointInfo> {
+    pub fn source_info
+    (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult<EndpointInfo> {
         let source_node = self.node_info(connection.source.node)?;
         if let Some(pat) = source_node.pattern() {
             EndpointInfo::new(&connection.source,pat,context)
@@ -666,7 +698,8 @@ impl Handle {
     }
 
     /// Create connection in graph.
-    pub fn connect(&self, connection:&Connection, context:&impl Context) -> FallibleResult<()> {
+    pub fn connect
+    (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult<()> {
         if connection.source.port.is_empty() {
             // If we create connection from node's expression root, we are able to introduce missing
             // pattern with a new variable.
@@ -687,7 +720,8 @@ impl Handle {
     }
 
     /// Remove the connections from the graph.
-    pub fn disconnect(&self, connection:&Connection, context:&impl Context) -> FallibleResult<()> {
+    pub fn disconnect
+    (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult<()> {
         let info = self.destination_info(connection,context)?;
 
         let updated_expression = if connection.destination.var_crumbs.is_empty() {
@@ -864,7 +898,7 @@ pub mod tests {
 
     use crate::double_representation::identifier::NormalizedName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::module::Position;
+    use crate::model::module::{Position, MethodId};
 
     use ast::crumbs;
     use ast::test_utils::expect_shape;
@@ -876,6 +910,7 @@ pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::model::suggestion_database;
+    use crate::double_representation::module::QualifiedName;
 
     /// All the data needed to set up and run the graph controller in mock environment.
     #[derive(Clone,Debug)]
@@ -1033,6 +1068,69 @@ main =
             assert!(graph.parse_node_expression("5+5").is_ok());
             assert!(graph.parse_node_expression("a+5").is_ok());
             assert!(graph.parse_node_expression("a=5").is_err());
+        })
+    }
+
+    #[test]
+    fn span_tree_context_handling_metadata_and_name() {
+        let entry = suggestion_database::Entry {
+            name      : "foo".to_owned(),
+            module    : QualifiedName::from_segments("Std",&["Base"]).unwrap(),
+            self_type : Some("Base".to_owned()),
+            arguments : vec![suggestion_database::Argument {
+                name          : "this".to_owned(),
+                repr_type     : "Base".to_owned(),
+                is_suspended  : false,
+                default_value : None,
+            }],
+            return_type   : "Any".to_owned(),
+            kind          : suggestion_database::EntryKind::Method,
+            scope         : suggestion_database::Scope::Everywhere,
+            documentation : None
+        };
+
+        let mut test  = Fixture::set_up();
+        test.data.suggestions.insert(0,entry.clone());
+        test.data.code = "main = bar".to_owned();
+        test.run(|graph| async move {
+            let nodes = graph.nodes().unwrap();
+            assert_eq!(nodes.len(),1);
+            let id = nodes[0].info.id();
+            graph.module.set_node_metadata(id,NodeMetadata {
+                position        : None,
+                intended_method : Some(MethodId {
+                    module          : entry.module.clone(),
+                    name            : entry.name.clone(),
+                    defined_on_type : entry.self_type.clone().unwrap(),
+                })
+            });
+
+            let context                  = graph.span_tree_context();
+            let get_invocation_info = || {
+                let node = &graph.nodes().unwrap()[0];
+                assert_eq!(node.info.id(),id);
+                let expression = node.info.expression().repr();
+                context.named_invocation_info(id,Some(expression.as_str()))
+            };
+
+            // Now node is `bar` while the intended method is `foo`.
+            // No invocation should be reported, as the name is mismatched.
+            assert!(get_invocation_info().is_none());
+
+            // Now the name should be good and we should the information about node being a call.
+            graph.set_expression(id,"foo").unwrap();
+            match get_invocation_info().unwrap().parameters.as_slice() {
+                [param] => {
+                    let arg = &entry.arguments[0];
+                    assert_eq!(param.name.as_ref(),Some(&arg.name));
+                    assert_eq!(param.typename.as_ref(),Some(&arg.repr_type));
+                }
+                _ => panic!("Expected a single parameter in invocation info!"),
+            }
+
+            // Now we remove metadata, so the information is no more.
+            graph.module.remove_node_metadata(id).unwrap();
+            assert!(get_invocation_info().is_none());
         })
     }
 
@@ -1243,7 +1341,7 @@ main =
         print z";
         test.data.code = PROGRAM.into();
         test.run(|graph| async move {
-            let connections = graph.connections().unwrap();
+            let connections = graph.connections_legacy().unwrap();
 
             let (node0,node1,node2,node3,node4) = graph.nodes().unwrap().expect_tuple();
             assert_eq!(node0.info.expression().repr(), "get_pos");
@@ -1344,7 +1442,7 @@ main =
     sum = _ + b";
         test.data.code = PROGRAM.into();
         test.run(|graph| async move {
-            assert!(graph.connections().unwrap().connections.is_empty());
+            assert!(graph.connections_legacy().unwrap().connections.is_empty());
             let (node0,_node1,node2) = graph.nodes().unwrap().expect_tuple();
             let connection_to_add = Connection {
                 source : Endpoint {
@@ -1381,7 +1479,7 @@ main =
     calculate1 = calculate2
     calculate3 calculate5 = calculate5 calculate4";
         test.run(|graph| async move {
-            assert!(graph.connections().unwrap().connections.is_empty());
+            assert!(graph.connections_legacy().unwrap().connections.is_empty());
             let (node0,node1,_) = graph.nodes().unwrap().expect_tuple();
             let connection_to_add = Connection {
                 source : Endpoint {
@@ -1442,7 +1540,7 @@ main =
                 let expected   = format!("{}{}",MAIN_PREFIX,self.dest_node_expected);
                 let this       = self.clone();
                 test.run(|graph| async move {
-                    let connections = graph.connections().unwrap();
+                    let connections = graph.connections_legacy().unwrap();
                     let connection  = connections.connections.first().unwrap();
                     graph.disconnect(connection,&span_tree::generate::context::Empty).unwrap();
                     let new_main = graph.graph_definition_info().unwrap().ast.repr();

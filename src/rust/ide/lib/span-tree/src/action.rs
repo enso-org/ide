@@ -129,7 +129,7 @@ impl<'a> Implementation for node::Ref<'a> {
                         Append                     if has_arg    => infix.push_operand(item),
                         Append                                   => *last_arg = Some(item),
                         // TODO? below should never happen, as operator arity is always fixed to 2?
-                        FixedArgument(i)                         => infix.insert_operand(*i,item),
+                        ExpectedArgument(i)                         => infix.insert_operand(*i, item),
                     };
                     infix.into_ast()
                 } else {
@@ -142,7 +142,7 @@ impl<'a> Implementation for node::Ref<'a> {
                         BeforeTarget     => prefix.insert_arg(0,item),
                         AfterTarget      => prefix.insert_arg(1,item),
                         Append           => prefix.args.push(item),
-                        FixedArgument(i) => prefix.insert_arg(*i,item),
+                        ExpectedArgument(i) => prefix.insert_arg(*i, item),
                     }
                     prefix.into_ast()
                 };
@@ -206,7 +206,7 @@ mod test {
     use crate::generate::context;
     use crate::node::Kind::Operation;
     use crate::node::Kind::Target;
-    use crate::node::InsertType::FixedArgument;
+    use crate::node::InsertType::ExpectedArgument;
 
     use wasm_bindgen_test::wasm_bindgen_test;
     use parser::Parser;
@@ -366,8 +366,8 @@ mod test {
         let tree         = TreeBuilder::new(7)
             .add_leaf(0,3,Operation           ,PrefixCrumb::Func)
             .add_leaf(4,7,Target{is_removable},PrefixCrumb::Arg)
-            .add_empty_child(7,FixedArgument(1))
-            .add_empty_child(7,FixedArgument(2))
+            .add_empty_child(7, ExpectedArgument(1))
+            .add_empty_child(7, ExpectedArgument(2))
             .build();
 
         let ast    = Ast::prefix(Ast::var("foo"), Ast::var("bar"));

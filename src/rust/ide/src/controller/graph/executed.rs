@@ -12,7 +12,8 @@ use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 
 use enso_protocol::language_server::MethodPointer;
-use span_tree::generate::Context;
+use span_tree::generate::context::Context;
+use span_tree::generate::context::InvocationInfo;
 
 pub use crate::controller::graph::Connection;
 pub use crate::controller::graph::Connections;
@@ -60,6 +61,7 @@ pub enum Notification {
 // ==============
 // === Handle ===
 // ==============
+
 /// Handle providing executed graph controller interface.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
@@ -222,7 +224,10 @@ impl Handle {
         self.graph.borrow().clone_ref()
     }
 
-    pub fn span_tree_context(&self) -> impl span_tree::generate::Context {
+    /// Context for span tree generation.
+    ///
+    /// It includes both information from the computed values registry and the node metadata.
+    pub fn span_tree_context(&self) -> impl Context {
         let registry_context = GraphContext {
             registry : self.execution_ctx.computed_value_info_registry().clone_ref(),
             db       : self.project.suggestion_db(),
@@ -237,7 +242,7 @@ impl Handle {
     /// the LS to enrich the generated span trees with function signatures (arity and argument
     /// names).
     pub fn connections(&self) -> FallibleResult<Connections> {
-        self.graph.borrow().connections_smarter(&self.span_tree_context())
+        self.graph.borrow().connections(&self.span_tree_context())
     }
 
     /// Create connection in graph.
@@ -252,19 +257,33 @@ impl Handle {
 }
 
 
+
+// ====================
+// === GraphContext ===
+// ====================
+
 /// Span Tree generation context for a graph that does not know about execution.
+/// Provides information based on metadata entries.
 struct GraphContext {
     registry : Rc<ComputedValueInfoRegistry>,
     db       : Rc<model::SuggestionDatabase>,
 }
 
-impl span_tree::generate::Context for GraphContext {
-    fn invocation_info(&self, id:double_representation::node::Id) -> Option<span_tree::InvocationInfo> {
+impl Context for GraphContext {
+    fn invocation_info
+    (&self, id:double_representation::node::Id) -> Option<InvocationInfo> {
         let info = self.registry.get(&id)?;
         let entry = self.db.lookup(info.method_call?).ok()?;
         Some(controller::graph::entry_to_invocation_info(&entry))
     }
+
+    fn named_invocation_info(&self, id:ast::Id, _name:Option<&str>) -> Option<InvocationInfo> {
+        // We have the knowledge from Language Server. If it says that this is a call, it is a call.
+        // Regardless of some petty name mismatches.
+        self.invocation_info(id)
+    }
 }
+
 
 
 // ============

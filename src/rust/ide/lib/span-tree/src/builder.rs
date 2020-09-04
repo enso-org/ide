@@ -25,7 +25,7 @@ pub trait Builder : Sized {
             size          : Size::new(len),
             children      : vec![],
             expression_id : None,
-            argument_info : None,
+            parameter_info: None,
         };
         let child = node::Child { node,
             offset              : Size::new(offset),
@@ -83,7 +83,7 @@ impl TreeBuilder {
                 size          : Size::new(len),
                 children      : vec![],
                 expression_id : None,
-                argument_info : None,
+                parameter_info: None,
             }
         }
     }

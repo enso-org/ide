@@ -9,6 +9,7 @@ use data::text::Index;
 use data::text::Size;
 
 
+
 // ====================
 // === Helper Types ===
 // ====================
@@ -58,7 +59,7 @@ pub enum InsertType {
     AfterTarget,
     Append,
     /// Ast should be inserted as an argument at given index (counting the `this` argument).
-    FixedArgument(usize),
+    ExpectedArgument(usize),
 }
 
 
@@ -97,22 +98,22 @@ pub fn parent_crumbs(crumbs:&[Crumb]) -> Option<&[Crumb]> {
 #[derive(Clone,Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct Node {
-    pub kind          : Kind,
-    pub size          : Size,
-    pub children      : Vec<Child>,
-    pub expression_id : Option<ast::Id>,
-    pub argument_info : Option<crate::ParameterInfo>,
+    pub kind           : Kind,
+    pub size           : Size,
+    pub children       : Vec<Child>,
+    pub expression_id  : Option<ast::Id>,
+    pub parameter_info : Option<crate::ParameterInfo>,
 }
 
 impl Node {
     /// Create Empty node.
     pub fn new_empty(insert_type:InsertType) -> Self {
         Node {
-            kind          : Kind::Empty(insert_type),
-            size          : Size::new(0),
-            children      : Vec::new(),
-            expression_id : None,
-            argument_info : None,
+            kind           : Kind::Empty(insert_type),
+            size           : Size::new(0),
+            children       : Vec::new(),
+            expression_id  : None,
+            parameter_info : None,
         }
     }
 

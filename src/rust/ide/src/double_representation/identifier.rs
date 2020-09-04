@@ -88,6 +88,10 @@ impl Identifier {
             Err(OperatorCantBeMadeIntoVar(name.to_owned()))
         }
     }
+
+    pub fn normalized(&self) -> NormalizedName {
+        NormalizedName::new(self.name())
+    }
 }
 
 
