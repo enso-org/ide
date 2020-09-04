@@ -1315,7 +1315,7 @@ mod test {
         }
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn committing_node() {
         let Fixture{test:_test,mut searcher,entry4,..} = Fixture::new();
         let module                                     = searcher.graph.graph().module.clone_ref();
