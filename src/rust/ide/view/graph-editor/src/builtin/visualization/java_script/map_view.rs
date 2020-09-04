@@ -5,6 +5,7 @@ use crate::component::visualization;
 /// Return a `JavaScript` Map visualization.
 pub fn map_view_visualization() -> visualization::java_script::FallibleDefinition {
     let deck       = include_str!("map_view/deck.js");
+    let d3js       = include_str!("map_view/d3.js");
     let mapbox_js  = include_str!("map_view/mapbox.js");
     let mapbox_css = include_str!("map_view/mapbox.css");
     let mapbox_css = format!("<style>{}</style>", mapbox_css);
@@ -35,35 +36,88 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
                 const inner = mapbox_css + `<div id="map"></div>`;
                 mapElem.innerHTML = inner;
 
-                const {MapboxLayer, ScatterplotLayer} = deck;
+                // const {MapboxLayer, ScatterplotLayer} = deck;
 
                 // Get a mapbox API access token
-                mapboxgl.accessToken = 'pk.eyJ1IjoiZ28tZmluZCIsImEiOiJjazBod3EwZnAwNnA3M2JydHcweTZiamY1In0.U5O7_hDFJ-1RpA8L9zUmTQ';
+                // mapboxgl.accessToken = 'pk.eyJ1IjoiZ28tZmluZCIsImEiOiJjazBod3EwZnAwNnA3M2JydHcweTZiamY1In0.U5O7_hDFJ-1RpA8L9zUmTQ';
 
-                // Initialize mapbox map
-                const map = new mapboxgl.Map({
-                  container: 'map',
-                  style: 'mapbox://styles/mapbox/dark-v9',
-                  center: [19.94, 50.04],
-                  zoom: 8
+                const deckgl = new deck.DeckGL({
+                  mapboxApiAccessToken: 'pk.eyJ1IjoiZ28tZmluZCIsImEiOiJjazBod3EwZnAwNnA3M2JydHcweTZiamY1In0.U5O7_hDFJ-1RpA8L9zUmTQ',
+                  mapStyle: 'mapbox://styles/mapbox/dark-v9',
+                  initialViewState: {
+                    longitude: -74,
+                    latitude: 40.76,
+                    zoom: 11,
+                    minZoom: 5,
+                    maxZoom: 16,
+                    pitch: 40.5
+                  },
+                  controller: true
                 });
 
-                // Create a mapbox-compatible deck.gl layer
-                const myDeckLayer = new MapboxLayer({
-                  id: 'my-scatterplot',
-                  type: ScatterplotLayer,
-                  data: [
-                    {position: [19.94, 50.04], color: [255, 0, 0], radius: 10}
-                  ],
-                  getPosition: d => d.position,
-                  getRadius: d => d.radius,
-                  getColor: d => d.color
-                });
+                const dataaaa = d3.csv('https://raw.githubusercontent.com/uber-common/deck.gl-data/master/examples/3d-heatmap/heatmap-data.csv');
 
-                // Insert the layer before mapbox labels
-                map.on('load', () => {
-                  map.addLayer(myDeckLayer, 'waterway-label');
-                });
+                const OPTIONS = ['radius', 'coverage', 'upperPercentile'];
+
+                const COLOR_RANGE = [
+                  [1, 152, 189],
+                  [73, 227, 206],
+                  [216, 254, 181],
+                  [254, 237, 177],
+                  [254, 173, 84],
+                  [209, 55, 78]
+                ];
+
+                renderLayer();
+
+                function renderLayer () {
+                  const options = {
+                    radius : 1000,
+                    coverage : 1,
+                    upperPercentile : 100
+                  };
+
+                  const hexagonLayer = new deck.HexagonLayer({
+                    id: 'heatmap',
+                    colorRange: COLOR_RANGE,
+                    data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/scatterplot/manhattan.json',
+                    elevationRange: [0, 1000],
+                    elevationScale: 250,
+                    extruded: true,
+                    getPosition: d => [Number(d.lng), Number(d.lat)],
+                    opacity: 1,
+                    ...options
+                  });
+
+                  deckgl.setProps({
+                    layers: [hexagonLayer]
+                  });
+                }
+
+                // // Initialize mapbox map
+                // const map = new mapboxgl.Map({
+                //   container: 'map',
+                //   style: 'mapbox://styles/mapbox/dark-v9',
+                //   center: [19.94, 50.04],
+                //   zoom: 8
+                // });
+                //
+                // // Create a mapbox-compatible deck.gl layer
+                // const myDeckLayer = new MapboxLayer({
+                //   id: 'my-scatterplot',
+                //   type: ScatterplotLayer,
+                //   data: [
+                //     {position: [19.94, 50.04], color: [255, 0, 0], radius: 10}
+                //   ],
+                //   getPosition: d => d.position,
+                //   getRadius: d => d.radius,
+                //   getColor: d => d.color
+                // });
+                //
+                // // Insert the layer before mapbox labels
+                // map.on('load', () => {
+                //   map.addLayer(myDeckLayer, 'waterway-label');
+                // });
 
                 // const INITIAL_VIEW_STATE = {
                 //     latitude: 37.8,
@@ -113,7 +167,7 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
         }
     "#;
 
-    let source = format!("{}\n{}\n{}\n{}\n",deck,mapbox_js,mapbox_css,source);
+    let source = format!("{}\n{}\n{}\n{}\n{}\n",deck,d3js,mapbox_js,mapbox_css,source);
     println!("{}",source);
 
     visualization::java_script::Definition::new(data::builtin_library(),source)
