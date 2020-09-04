@@ -26,11 +26,7 @@ pub struct InvocationInfo {
 pub trait Context {
     /// Checks if the given expression is known to be a call to a known method. If so, returns the
     /// available information.
-    fn invocation_info(&self, id:Id) -> Option<InvocationInfo>;
-
-    /// Checks if the given expression is known to be a call to a known method. If so, returns the
-    /// available information.
-    fn named_invocation_info(&self, id:Id, name:Option<&str>) -> Option<InvocationInfo>;
+    fn invocation_info(&self, id:Id, name:Option<&str>) -> Option<InvocationInfo>;
 
     /// Build a new context that merges this context and the one given in argument that will be used
     /// as a fallback.
@@ -67,13 +63,9 @@ impl<First,Second> Merged<First,Second> {
 impl<First,Second> Context for Merged<First,Second>
     where First  : Context,
           Second : Context {
-    fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
-        self.first.invocation_info(id).or_else(|| self.second.invocation_info(id))
-    }
-
-    fn named_invocation_info(&self, id: Id, name:Option<&str>) -> Option<InvocationInfo> {
-        self.first.named_invocation_info(id,name).or_else(||
-            self.second.named_invocation_info(id,name))
+    fn invocation_info(&self, id: Id, name:Option<&str>) -> Option<InvocationInfo> {
+        self.first.invocation_info(id, name).or_else(||
+            self.second.invocation_info(id, name))
     }
 }
 
@@ -88,11 +80,7 @@ impl<First,Second> Context for Merged<First,Second>
 pub struct Empty;
 
 impl Context for Empty {
-    fn invocation_info(&self, _id:Id) -> Option<InvocationInfo> {
-        None
-    }
-
-    fn named_invocation_info(&self, _id:Id, _name:Option<&str>) -> Option<InvocationInfo> {
+    fn invocation_info(&self, _id:Id, _name:Option<&str>) -> Option<InvocationInfo> {
         None
     }
 }

@@ -8,7 +8,8 @@ use crate::prelude::*;
 
 use crate::double_representation::definition;
 use crate::double_representation::graph::GraphInfo;
-use crate::double_representation::identifier::{LocatedName, NormalizedName};
+use crate::double_representation::identifier::LocatedName;
+use crate::double_representation::identifier::NormalizedName;
 use crate::double_representation::identifier::generate_name;
 use crate::double_representation::module;
 use crate::double_representation::node;
@@ -18,14 +19,15 @@ use crate::model::module::NodeMetadata;
 use ast::crumbs::InfixCrumb;
 use enso_protocol::language_server;
 use parser::Parser;
+use span_tree::SpanTree;
+use span_tree::ParameterInfo;
 use span_tree::action::Actions;
 use span_tree::action::Action;
-use span_tree::{SpanTree, ParameterInfo};
+use span_tree::generate::Context as SpanTreeContext;
+use span_tree::generate::context::InvocationInfo;
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
-use span_tree::generate::Context as SpanTreeContext;
-use span_tree::generate::context::InvocationInfo;
 
 
 // ==============
@@ -253,41 +255,6 @@ impl Connections {
             source      : self.convert_endpoint(&connection.source)?,
             destination : self.convert_endpoint(&connection.destination)?,
         })
-    }
-}
-
-
-
-// =========================
-// === Span Tree Context ===
-// =========================
-
-/// Span Tree generation context for a graph that does not know about execution.
-///
-/// It just applies the information from the metadata.
-#[derive(Clone,Debug)]
-#[allow(missing_docs)]
-pub struct GraphContext {
-    pub graph : Handle,
-}
-
-impl span_tree::generate::Context for GraphContext {
-    fn invocation_info(&self, id:node::Id) -> Option<InvocationInfo> {
-        self.named_invocation_info(id,None)
-    }
-
-    fn named_invocation_info(&self, id:node::Id, name:Option<&str>) -> Option<InvocationInfo> {
-        let db       = &self.graph.suggestion_db;
-        let metadata = self.graph.module.node_metadata(id).ok()?;
-        let db_entry = db.lookup_method(metadata.intended_method?)?;
-        // If the name is different than intended method than apparently it is not intended anymore
-        // and should be ignored.
-        let matching = if let Some(name) = name {
-            NormalizedName::new(name) == NormalizedName::new(&db_entry.name)
-        } else {
-            true
-        };
-        matching.then_with(|| entry_to_invocation_info(&db_entry))
     }
 }
 
@@ -565,22 +532,12 @@ impl Handle {
         Ok(nodes)
     }
 
-    /// Context for building span tree.
-    ///
-    /// Provides information about intented method based on the metadata.
-    pub fn span_tree_context(&self) -> impl SpanTreeContext {
-        GraphContext {
-            graph : self.clone_ref()
-        }
-    }
-
     /// Returns information about all the connections between graph's nodes.
     ///
     /// Will use `self.span_tree_context()` as the context for span tree generation.
     pub fn connections_legacy(&self) -> FallibleResult<Connections> {
         let graph   = self.graph_info()?;
-        let context = self.span_tree_context();
-        Ok(Connections::new(&graph,&context))
+        Ok(Connections::new(&graph,self))
     }
 
     /// Returns information about all the connections between graph's nodes.
@@ -887,6 +844,28 @@ impl Handle {
 }
 
 
+// === Span Tree Context ===
+
+/// Span Tree generation context for a graph that does not know about execution.
+///
+/// It just applies the information from the metadata.
+impl span_tree::generate::Context for Handle {
+    fn invocation_info(&self, id:node::Id, name:Option<&str>) -> Option<InvocationInfo> {
+        let db       = &self.suggestion_db;
+        let metadata = self.module.node_metadata(id).ok()?;
+        let db_entry = db.lookup_method(metadata.intended_method?)?;
+        // If the name is different than intended method than apparently it is not intended anymore
+        // and should be ignored.
+        let matching = if let Some(name) = name {
+            NormalizedName::new(name) == NormalizedName::new(&db_entry.name)
+        } else {
+            true
+        };
+        matching.then_with(|| entry_to_invocation_info(&db_entry))
+    }
+}
+
+
 
 // ============
 // === Test ===
@@ -910,7 +889,6 @@ pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::model::suggestion_database;
-    use crate::double_representation::module::QualifiedName;
 
     /// All the data needed to set up and run the graph controller in mock environment.
     #[derive(Clone,Debug)]
@@ -1073,22 +1051,7 @@ main =
 
     #[test]
     fn span_tree_context_handling_metadata_and_name() {
-        let entry = suggestion_database::Entry {
-            name      : "foo".to_owned(),
-            module    : QualifiedName::from_segments("Std",&["Base"]).unwrap(),
-            self_type : Some("Base".to_owned()),
-            arguments : vec![suggestion_database::Argument {
-                name          : "this".to_owned(),
-                repr_type     : "Base".to_owned(),
-                is_suspended  : false,
-                default_value : None,
-            }],
-            return_type   : "Any".to_owned(),
-            kind          : suggestion_database::EntryKind::Method,
-            scope         : suggestion_database::Scope::Everywhere,
-            documentation : None
-        };
-
+        let entry     = crate::test::mock::data::suggestion_entry_foo();
         let mut test  = Fixture::set_up();
         test.data.suggestions.insert(0,entry.clone());
         test.data.code = "main = bar".to_owned();
@@ -1098,19 +1061,14 @@ main =
             let id = nodes[0].info.id();
             graph.module.set_node_metadata(id,NodeMetadata {
                 position        : None,
-                intended_method : Some(MethodId {
-                    module          : entry.module.clone(),
-                    name            : entry.name.clone(),
-                    defined_on_type : entry.self_type.clone().unwrap(),
-                })
+                intended_method : entry.method_id(),
             });
 
-            let context                  = graph.span_tree_context();
             let get_invocation_info = || {
                 let node = &graph.nodes().unwrap()[0];
                 assert_eq!(node.info.id(),id);
                 let expression = node.info.expression().repr();
-                context.named_invocation_info(id,Some(expression.as_str()))
+                graph.invocation_info(id, Some(expression.as_str()))
             };
 
             // Now node is `bar` while the intended method is `foo`.

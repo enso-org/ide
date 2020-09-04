@@ -123,7 +123,8 @@ impl SpanTreeGenerator for Ast {
                     let size          = Size::new(self.len());
                     let expression_id = self.id;
                     let children       = default();
-                    if let Some(info) = expression_id.and_then(|id| context.invocation_info(id)) {
+                    // TODO
+                    if let Some(info) = expression_id.and_then(|id| context.invocation_info(id,None)) {
                         let node = Node {
                             size,
                             children,
@@ -212,7 +213,7 @@ impl SpanTreeGenerator for ast::opr::Chain {
 
 impl SpanTreeGenerator for ast::prefix::Chain {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
-        let invocation_info = self.id().and_then(|id| context.invocation_info(id));
+        let invocation_info = self.id().and_then(|id| context.invocation_info(id,None)); // TODO
         let invocation_info = invocation_info.as_ref();
         let known_args      = invocation_info.is_some();
         dbg!(&invocation_info);
@@ -414,12 +415,8 @@ mod test {
         }
     }
     impl Context for MockContext {
-        fn invocation_info(&self, id:Id) -> Option<InvocationInfo> {
+        fn invocation_info(&self, id:Id, _name:Option<&str>) -> Option<InvocationInfo> {
             self.map.get(&id).cloned()
-        }
-
-        fn named_invocation_info(&self, id:Id, _name:Option<&str>) -> Option<InvocationInfo> {
-            self.invocation_info(id)
         }
     }
 

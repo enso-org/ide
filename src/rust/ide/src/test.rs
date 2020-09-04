@@ -12,6 +12,9 @@ pub mod mock {
     /// consistent data.
     #[allow(missing_docs)]
     pub mod data {
+        use crate::double_representation::module;
+        use crate::model::suggestion_database;
+
         use enso_protocol::language_server::Position;
         use uuid::Uuid;
 
@@ -28,7 +31,7 @@ pub mod mock {
             crate::model::module::Path::from_name_segments(ROOT_ID, &[MODULE_NAME]).unwrap()
         }
 
-        pub fn module_qualified_name() -> crate::double_representation::module::QualifiedName {
+        pub fn module_qualified_name() -> module::QualifiedName {
             module_path().qualified_module_name(PROJECT_NAME)
         }
 
@@ -41,7 +44,46 @@ pub mod mock {
         }
 
         pub fn suggestion_db() -> crate::model::SuggestionDatabase {
-            crate::model::SuggestionDatabase::default()
+            let entry1  = suggestion_entry_foo();
+            let entry2  = suggestion_entry_bar();
+            let entries = vec![(&1,&entry1),(&2,&entry2)];
+            let logger  = logger::enabled::Logger::default();
+            crate::model::SuggestionDatabase::new_from_entries(logger,entries)
+        }
+
+        pub fn base_this_parameter() -> suggestion_database::Argument {
+            suggestion_database::Argument {
+                name          : "this".to_owned(),
+                repr_type     : "Base".to_owned(),
+                is_suspended  : false,
+                default_value : None,
+            }
+        }
+
+        pub fn suggestion_entry_foo() -> suggestion_database::Entry {
+            suggestion_database::Entry {
+                name      : "foo".to_owned(),
+                module    : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
+                self_type : Some("Base".to_owned()),
+                arguments : vec![base_this_parameter()],
+                return_type   : "Any".to_owned(),
+                kind          : suggestion_database::EntryKind::Method,
+                scope         : suggestion_database::Scope::Everywhere,
+                documentation : None
+            }
+        }
+
+        pub fn suggestion_entry_bar() -> suggestion_database::Entry {
+            suggestion_database::Entry {
+                name      : "bar".to_owned(),
+                module    : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
+                self_type : Some("Base".to_owned()),
+                arguments : vec![base_this_parameter()],
+                return_type   : "Any".to_owned(),
+                kind          : suggestion_database::EntryKind::Method,
+                scope         : suggestion_database::Scope::Everywhere,
+                documentation : None
+            }
         }
     }
 
@@ -61,6 +103,14 @@ pub mod mock {
     }
 
     impl Unified {
+        pub fn set_inline_code(&mut self, code:impl AsRef<str>) {
+            let method = self.method_pointer();
+            //self.code = format!("{}.{} = {}",method.defined_on_type,method.name,code.as_ref())
+            // FIXME [mwu] should be as above but definition lookup doesn't handle properly implicit
+            //             module name
+            self.code = format!("{} = {}",method.name,code.as_ref())
+        }
+
         pub fn new() -> Self {
             use crate::test::mock::data::*;
             Unified {
@@ -125,7 +175,7 @@ pub mod mock {
             Rc::new(project)
         }
 
-        pub fn bake(&self) -> Baked {
+        pub fn bake(&self) -> Fixture {
             let logger = Logger::default(); // TODO
             let module = self.module();
             let suggestion_db = Rc::new(model::SuggestionDatabase::new_from_entries(logger,
@@ -135,7 +185,7 @@ pub mod mock {
             let project = self.project(module.clone_ref(),execution.clone_ref());
             let executed_graph = controller::ExecutedGraph::new_internal(graph.clone_ref(),
                 project.clone_ref(),execution.clone_ref());
-            Baked {
+            Fixture {
                 data : self.clone(),
                 module,
                 graph,
@@ -148,7 +198,7 @@ pub mod mock {
     }
 
     #[derive(Clone,Debug)]
-    pub struct Baked {
+    pub struct Fixture {
         pub data           : Unified,
         pub module         : model::Module,
         pub graph          : controller::Graph,
@@ -158,7 +208,7 @@ pub mod mock {
         pub project        : model::Project,
     }
 
-    impl Baked {
+    impl Fixture {
         // pub fn module(&mut self) -> crate::model::Module {
         //     self.module.get_or_insert(self.data.module()).clone_ref()
         // }

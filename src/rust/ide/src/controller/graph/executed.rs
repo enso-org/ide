@@ -224,63 +224,38 @@ impl Handle {
         self.graph.borrow().clone_ref()
     }
 
-    /// Context for span tree generation.
-    ///
-    /// It includes both information from the computed values registry and the node metadata.
-    pub fn span_tree_context(&self) -> impl Context {
-        let registry_context = GraphContext {
-            registry : self.execution_ctx.computed_value_info_registry().clone_ref(),
-            db       : self.project.suggestion_db(),
-        };
-        let graph_context = self.graph.borrow().span_tree_context();
-        registry_context.merge(graph_context)
-    }
-
     /// Returns information about all the connections between graph's nodes.
     ///
     /// In contrast with the `controller::Graph::connections` this uses information received from
     /// the LS to enrich the generated span trees with function signatures (arity and argument
     /// names).
     pub fn connections(&self) -> FallibleResult<Connections> {
-        self.graph.borrow().connections(&self.span_tree_context())
+        self.graph.borrow().connections(self)
     }
 
     /// Create connection in graph.
     pub fn connect(&self, connection:&Connection) -> FallibleResult<()> {
-        self.graph.borrow().connect(connection,&self.span_tree_context())
+        self.graph.borrow().connect(connection,self)
     }
 
     /// Remove the connections from the graph.
     pub fn disconnect(&self, connection:&Connection) -> FallibleResult<()> {
-        self.graph.borrow().disconnect(connection,&self.span_tree_context())
+        self.graph.borrow().disconnect(connection,self)
     }
 }
 
 
-
-// ====================
-// === GraphContext ===
-// ====================
+// === Span Tree Context ===
 
 /// Span Tree generation context for a graph that does not know about execution.
 /// Provides information based on metadata entries.
-struct GraphContext {
-    registry : Rc<ComputedValueInfoRegistry>,
-    db       : Rc<model::SuggestionDatabase>,
-}
-
-impl Context for GraphContext {
-    fn invocation_info
-    (&self, id:double_representation::node::Id) -> Option<InvocationInfo> {
-        let info = self.registry.get(&id)?;
-        let entry = self.db.lookup(info.method_call?).ok()?;
-        Some(controller::graph::entry_to_invocation_info(&entry))
-    }
-
-    fn named_invocation_info(&self, id:ast::Id, _name:Option<&str>) -> Option<InvocationInfo> {
-        // We have the knowledge from Language Server. If it says that this is a call, it is a call.
-        // Regardless of some petty name mismatches.
-        self.invocation_info(id)
+impl Context for Handle {
+    fn invocation_info(&self, id:ast::Id, name:Option<&str>) -> Option<InvocationInfo> {
+        let info = self.computed_value_info_registry().get(&id)?;
+        match self.project.suggestion_db().lookup(info.method_call?) {
+            Ok(entry) => Some(controller::graph::entry_to_invocation_info(&entry)),
+            Err(_)    => self.graph.borrow().invocation_info(id,name)
+        }
     }
 }
 
@@ -301,6 +276,7 @@ pub mod tests {
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use crate::model::module::NodeMetadata;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -366,5 +342,28 @@ pub mod tests {
         assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![updated_id]));
         assert_eq!(typename_in_registry,expected_typename);
         notifications.expect_pending();
+    }
+
+    #[test]
+    fn span_tree_context() {
+        use crate::test::mock;
+        let mut data = mock::Unified::new();
+        data.set_inline_code("foo");
+
+        let mut fixture = data.bake();
+        let mock::Fixture{graph,executed_graph,module,..} = &fixture;
+
+        let entry = mock::data::suggestion_entry_foo();
+        let node  = &graph.nodes().unwrap()[0];
+        let id    = node.info.id();
+
+        let get_invocation_info = || executed_graph.invocation_info(id,Some("foo"));
+
+        assert!(get_invocation_info().is_none());
+        module.set_node_metadata(id,NodeMetadata {
+            position        : None,
+            intended_method : entry.method_id(),
+        });
+        assert!(get_invocation_info().is_some());
     }
 }
