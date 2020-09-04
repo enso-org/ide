@@ -89,6 +89,7 @@ impl Identifier {
         }
     }
 
+    /// Get a normalized version of this identifier.
     pub fn normalized(&self) -> NormalizedName {
         NormalizedName::new(self.name())
     }

@@ -248,14 +248,16 @@ impl Handle {
 // === Span Tree Context ===
 
 /// Span Tree generation context for a graph that does not know about execution.
-/// Provides information based on metadata entries.
+/// Provides information based on computed value registry, using metadata as a fallback.
 impl Context for Handle {
     fn invocation_info(&self, id:ast::Id, name:Option<&str>) -> Option<InvocationInfo> {
-        let info = self.computed_value_info_registry().get(&id)?;
-        match self.project.suggestion_db().lookup(info.method_call?) {
-            Ok(entry) => Some(controller::graph::entry_to_invocation_info(&entry)),
-            Err(_)    => self.graph.borrow().invocation_info(id,name)
-        }
+        let lookup_registry = || {
+            let info  = self.computed_value_info_registry().get(&id)?;
+            let entry = self.project.suggestion_db().lookup(info.method_call?).ok()?;
+            Some(entry.invocation_info())
+        };
+        let fallback = || self.graph.borrow().invocation_info(id,name);
+        lookup_registry().or_else(fallback)
     }
 }
 
@@ -272,7 +274,7 @@ pub mod tests {
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::model::execution_context::ExpressionId;
 
-    use enso_protocol::language_server::types::test::value_update_with_type;
+    use enso_protocol::language_server::types::test::{value_update_with_type, value_update_with_method_ptr};
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -344,26 +346,46 @@ pub mod tests {
         notifications.expect_pending();
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn span_tree_context() {
         use crate::test::mock;
         let mut data = mock::Unified::new();
         data.set_inline_code("foo");
 
-        let mut fixture = data.bake();
-        let mock::Fixture{graph,executed_graph,module,..} = &fixture;
-
-        let entry = mock::data::suggestion_entry_foo();
-        let node  = &graph.nodes().unwrap()[0];
-        let id    = node.info.id();
-
+        let mock::Fixture{graph,executed_graph,module,suggestion_db,..} = &data.fixture();
+        let id                  = graph.nodes().unwrap()[0].info.id();
         let get_invocation_info = || executed_graph.invocation_info(id,Some("foo"));
-
         assert!(get_invocation_info().is_none());
+
+        // Check that if we set metadata, executed graph can see this info.
+        let entry1 = suggestion_db.lookup(1).unwrap();
         module.set_node_metadata(id,NodeMetadata {
             position        : None,
-            intended_method : entry.method_id(),
+            intended_method : entry1.method_id(),
         });
-        assert!(get_invocation_info().is_some());
+        let info = get_invocation_info().unwrap();
+        match info.parameters.as_slice() {
+            [param] => {
+                let expected = &entry1.arguments[0];
+                let expected = model::suggestion_database::to_span_tree_param(expected);
+                assert_eq!(param,&expected);
+            }
+            _ => panic!("Expected only single parameter!"),
+        };
+
+        // Now send update that expression actually was computed to be a call to the second
+        // suggestion entry and check that executed graph provides this info over the metadata one.
+        let entry2 = suggestion_db.lookup(2).unwrap();
+        let update = value_update_with_method_ptr(id,2);
+        executed_graph.computed_value_info_registry().apply_updates(vec![update]);
+        let info = get_invocation_info().unwrap();
+        match info.parameters.as_slice() {
+            [param] => {
+                let expected = &entry2.arguments[0];
+                let expected = model::suggestion_database::to_span_tree_param(expected);
+                assert_eq!(param,&expected);
+            }
+            _ => panic!("Expected only single parameter!"),
+        };
     }
 }

@@ -5,6 +5,10 @@
 pub mod mock {
     use crate::prelude::*;
 
+    use crate::double_representation::module;
+    use crate::model::suggestion_database;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
     /// Data used to create mock IDE components.
     ///
     /// Contains a number of constants and functions building more complex structures from them.
@@ -12,8 +16,7 @@ pub mod mock {
     /// consistent data.
     #[allow(missing_docs)]
     pub mod data {
-        use crate::double_representation::module;
-        use crate::model::suggestion_database;
+        use super::*;
 
         use enso_protocol::language_server::Position;
         use uuid::Uuid;
@@ -51,10 +54,19 @@ pub mod mock {
             crate::model::SuggestionDatabase::new_from_entries(logger,entries)
         }
 
-        pub fn base_this_parameter() -> suggestion_database::Argument {
+        pub fn foo_method_parameter() -> suggestion_database::Argument {
             suggestion_database::Argument {
                 name          : "this".to_owned(),
                 repr_type     : "Base".to_owned(),
+                is_suspended  : false,
+                default_value : None,
+            }
+        }
+
+        pub fn bar_method_parameter() -> suggestion_database::Argument {
+            suggestion_database::Argument {
+                name          : "this".to_owned(),
+                repr_type     : "Other".to_owned(),
                 is_suspended  : false,
                 default_value : None,
             }
@@ -65,7 +77,7 @@ pub mod mock {
                 name      : "foo".to_owned(),
                 module    : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
                 self_type : Some("Base".to_owned()),
-                arguments : vec![base_this_parameter()],
+                arguments : vec![foo_method_parameter()],
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::EntryKind::Method,
                 scope         : suggestion_database::Scope::Everywhere,
@@ -76,9 +88,9 @@ pub mod mock {
         pub fn suggestion_entry_bar() -> suggestion_database::Entry {
             suggestion_database::Entry {
                 name      : "bar".to_owned(),
-                module    : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
-                self_type : Some("Base".to_owned()),
-                arguments : vec![base_this_parameter()],
+                module    : module::QualifiedName::from_segments("Std",&["Other"]).unwrap(),
+                self_type : Some("Other".to_owned()),
+                arguments : vec![bar_method_parameter()],
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::EntryKind::Method,
                 scope         : suggestion_database::Scope::Everywhere,
@@ -93,7 +105,7 @@ pub mod mock {
         pub project_name  : String,
         pub module_path   : model::module::Path,
         pub graph_id      : double_representation::graph::Id,
-        pub suggestions   : HashMap<model::suggestion_database::EntryId,model::suggestion_database::Entry>,
+        pub suggestions   : HashMap<suggestion_database::EntryId,suggestion_database::Entry>,
         pub context_id    : model::execution_context::Id,
         pub parser        : parser::Parser,
         code              : String,
@@ -113,13 +125,16 @@ pub mod mock {
 
         pub fn new() -> Self {
             use crate::test::mock::data::*;
+            let mut suggestions = HashMap::new();
+            suggestions.insert(1,suggestion_entry_foo());
+            suggestions.insert(2,suggestion_entry_bar());
             Unified {
+                suggestions,
                 logger          : Logger::default(),
                 project_name    : PROJECT_NAME.to_owned(),
                 module_path     : module_path(),
                 graph_id        : graph_id(),
                 code            : CODE.to_owned(),
-                suggestions     : default(),
                 id_map          : default(),
                 metadata        : default(),
                 context_id      : CONTEXT_ID,
@@ -134,7 +149,7 @@ pub mod mock {
             Rc::new(module)
         }
 
-        pub fn module_qualified_name(&self) -> double_representation::module::QualifiedName {
+        pub fn module_qualified_name(&self) -> module::QualifiedName {
             self.module_path.qualified_module_name(&self.project_name)
         }
 
@@ -164,29 +179,37 @@ pub mod mock {
             Rc::new(model::execution_context::Plain::new(logger,self.method_pointer()))
         }
 
-        pub fn project(&self, module:model::Module, execution_context:model::ExecutionContext)
-        -> model::Project {
+        pub fn project
+        ( &self, module:model::Module
+        , execution_context:model::ExecutionContext
+        , suggestion_database:Rc<model::SuggestionDatabase>
+        ) -> model::Project {
             let mut project = model::project::MockAPI::new();
             model::project::test::expect_parser(&mut project,&self.parser);
             model::project::test::expect_module(&mut project,module);
             model::project::test::expect_execution_ctx(&mut project,execution_context);
             // Root ID is needed to generate module path used to get the module.
             model::project::test::expect_root_id(&mut project,crate::test::mock::data::ROOT_ID);
+            model::project::test::expect_suggestion_db(&mut project,suggestion_database);
             Rc::new(project)
         }
 
-        pub fn bake(&self) -> Fixture {
-            let logger = Logger::default(); // TODO
-            let module = self.module();
+        pub fn fixture(&self) -> Fixture {
+            let logger        = Logger::default(); // TODO
+            let module        = self.module();
             let suggestion_db = Rc::new(model::SuggestionDatabase::new_from_entries(logger,
                 &self.suggestions));
-            let graph  = self.graph(module.clone_ref(), suggestion_db.clone_ref());
+            let graph     = self.graph(module.clone_ref(), suggestion_db.clone_ref());
             let execution = self.execution_context();
-            let project = self.project(module.clone_ref(),execution.clone_ref());
+            let project   = self.project(module.clone_ref(),execution.clone_ref(),
+                suggestion_db.clone_ref());
             let executed_graph = controller::ExecutedGraph::new_internal(graph.clone_ref(),
                 project.clone_ref(),execution.clone_ref());
+            let executor = TestWithLocalPoolExecutor::set_up();
+            let data     = self.clone();
             Fixture {
-                data : self.clone(),
+                executor,
+                data,
                 module,
                 graph,
                 executed_graph,
@@ -197,8 +220,9 @@ pub mod mock {
         }
     }
 
-    #[derive(Clone,Debug)]
+    #[derive(Debug)]
     pub struct Fixture {
+        pub executor       : TestWithLocalPoolExecutor,
         pub data           : Unified,
         pub module         : model::Module,
         pub graph          : controller::Graph,

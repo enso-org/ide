@@ -197,6 +197,11 @@ impl Entry {
         let output = parser.generate_html_doc_pure(doc);
         Ok(output?)
     }
+
+    /// Generate information about invoking this entity for span tree context.
+    pub fn invocation_info(&self) -> span_tree::generate::context::InvocationInfo {
+        self.into()
+    }
 }
 
 impl TryFrom<language_server::types::SuggestionEntry> for Entry {
@@ -225,6 +230,24 @@ impl TryFrom<Entry> for language_server::MethodPointer {
     type Error = failure::Error;
     fn try_from(entry:Entry) -> FallibleResult<Self> {
         language_server::MethodPointer::try_from(&entry)
+    }
+}
+
+impl From<&Entry> for span_tree::generate::context::InvocationInfo {
+    fn from(entry:&Entry) -> span_tree::generate::context::InvocationInfo {
+        let parameters = entry.arguments.iter().map(to_span_tree_param).collect();
+        span_tree::generate::context::InvocationInfo{parameters}
+    }
+}
+
+/// Converts the information about function parameter from suggestion database into the form used
+/// by the span tree nodes.
+pub fn to_span_tree_param
+(param_info:&Argument) -> span_tree::ParameterInfo {
+    span_tree::ParameterInfo {
+        // TODO [mwu] Check if database actually do must always have both of these filled.
+        name     : Some(param_info.name.clone()),
+        typename : Some(param_info.repr_type.clone()),
     }
 }
 

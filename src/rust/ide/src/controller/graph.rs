@@ -20,7 +20,6 @@ use ast::crumbs::InfixCrumb;
 use enso_protocol::language_server;
 use parser::Parser;
 use span_tree::SpanTree;
-use span_tree::ParameterInfo;
 use span_tree::action::Actions;
 use span_tree::action::Action;
 use span_tree::generate::Context as SpanTreeContext;
@@ -28,6 +27,7 @@ use span_tree::generate::context::InvocationInfo;
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
+
 
 
 // ==============
@@ -257,32 +257,6 @@ impl Connections {
         })
     }
 }
-
-
-
-// ===========================================
-// === Suggestion DB <=> Span Tree Interop ===
-// ===========================================
-// TODO Reconsider where this should be placed. Unfortunately in neither of the respective crates.
-
-/// Generate parameter info description from the suggestion database information.
-pub fn entry_param_to_span_tree_param_info
-(param_info:&model::suggestion_database::Argument) -> ParameterInfo {
-    ParameterInfo {
-        // TODO check if suggestion database actually always know the name and type
-        //      or if it can contain just some empty strings or sth
-        name     : Some(param_info.name.clone()),
-        typename : Some(param_info.repr_type.clone()),
-    }
-}
-
-/// Generate invocation info description from the suggestion database information.
-pub fn entry_to_invocation_info(entry:&model::suggestion_database::Entry) -> InvocationInfo {
-    let parameters = entry.arguments.iter().map(entry_param_to_span_tree_param_info).collect();
-    InvocationInfo {parameters}
-}
-
-///////////////////////////////////////////////////////////////////////
 
 
 
@@ -861,7 +835,7 @@ impl span_tree::generate::Context for Handle {
         } else {
             true
         };
-        matching.then_with(|| entry_to_invocation_info(&db_entry))
+        matching.then_with(|| db_entry.invocation_info())
     }
 }
 
@@ -877,7 +851,7 @@ pub mod tests {
 
     use crate::double_representation::identifier::NormalizedName;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::module::{Position, MethodId};
+    use crate::model::module::Position;
 
     use ast::crumbs;
     use ast::test_utils::expect_shape;
@@ -1049,7 +1023,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn span_tree_context_handling_metadata_and_name() {
         let entry     = crate::test::mock::data::suggestion_entry_foo();
         let mut test  = Fixture::set_up();
