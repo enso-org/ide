@@ -1,14 +1,16 @@
 use super::prelude::*;
 
+use crate::controller::graph::NodeTrees;
 use crate::transport::test_utils::TestWithMockedTransport;
 use crate::ide::IdeInitializer;
 
+use enso_protocol::language_server::response::Completion;
 use enso_protocol::project_manager;
 use json_rpc::expect_call;
 use json_rpc::test_util::transport::mock::MockTransport;
+use serde_json::json;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::wasm_bindgen_test;
-use serde_json::json;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -74,4 +76,51 @@ async fn get_most_recent_project_or_create_new() {
         (&logger,&mock_client,"TestProject");
     let project = project.await;
     assert_eq!(expected_project, project.expect("Couldn't get project."))
+}
+
+#[wasm_bindgen_test]
+fn span_tree_args() {
+    use crate::test::mock::*;
+
+    let data    = Unified::new();
+    let fixture = data.fixture_customize(|_,json_client| {
+        for _ in 0..2 {
+            json_client.expect.completion(|_, _, _, _, _| {
+                Ok(Completion {
+                    results         : vec![1],
+                    current_version : default(),
+                })
+            });
+        }
+    });
+    let Fixture{graph,executed_graph,searcher,suggestion_db,..} = &fixture;
+    let entry = suggestion_db.lookup(1).unwrap();
+    searcher.pick_completion(entry.clone_ref()).unwrap();
+    let id = searcher.commit_node().unwrap();
+
+    let get_node   = || graph.node(id).unwrap();
+    let get_inputs = || NodeTrees::new(&get_node().info,executed_graph).unwrap().inputs;
+    let get_param1 = || get_inputs().root_ref().leaf_iter().nth(1).and_then(|node| {
+        node.parameter_info.clone()
+    });
+
+    let expected_param = model::suggestion_database::to_span_tree_param(&entry.arguments[0]);
+
+    // TODO [mwu] The searcher inserts "Base.foo". This should work as well but needs redesigned
+    //            target detection rules in the span tree.
+    //
+
+
+    assert_eq!(entry.name,"foo");
+    graph.set_expression(id,"foo").unwrap();
+    assert_eq!(get_param1().as_ref(), Some(&expected_param));
+
+    graph.set_expression(id,"foo Base").unwrap();
+    assert_eq!(get_param1().as_ref(), Some(&expected_param));
+
+    graph.set_expression(id,"bar").unwrap();
+    assert_eq!(get_param1(), None);
+
+    graph.set_expression(id,"bar Base").unwrap();
+    assert_eq!(get_param1(), None);
 }

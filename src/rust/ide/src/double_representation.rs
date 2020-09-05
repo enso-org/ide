@@ -32,18 +32,14 @@ use crate::double_representation::identifier::Identifier;
 /// Link: https://github.com/luna/enso/blob/main/doc/syntax/encoding.md
 pub const INDENT : usize = 4;
 
-// struct InvocationTarget {
-//     func_name : Identifier,
-//     this_arg  : Option<Ast>,
-// }
 
-pub fn target_method_name(ast:&Ast) -> Option<Identifier> {
-    if let Some(chain) = ast::prefix::Chain::from_ast(ast) {
-        target_method_name(&chain.func)
-    } else if let Some(chain) = ast::opr::as_access_chain(ast) {
-        let presumed_name = chain.args.last()?;
-        identifier::Identifier::new(presumed_name.operand.as_ref()?.arg.clone_ref())
-    } else {
-        identifier::Identifier::new(ast.clone())
-    }
-}
+// pub fn target_method_name(ast:&Ast) -> Option<Identifier> {
+//     if let Some(chain) = ast::prefix::Chain::from_ast(ast) {
+//         target_method_name(&chain.func)
+//     } else if let Some(chain) = ast::opr::as_access_chain(ast) {
+//         let presumed_name = chain.args.last()?;
+//         identifier::Identifier::new(presumed_name.operand.as_ref()?.arg.clone_ref())
+//     } else {
+//         identifier::Identifier::new(ast.clone())
+//     }
+// }

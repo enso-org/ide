@@ -13,7 +13,6 @@ use ast::opr::ArgWithOffset;
 
 
 
-
 /// ==============
 /// === Errors ===
 /// ==============
@@ -129,7 +128,7 @@ impl<'a> Implementation for node::Ref<'a> {
                         Append                     if has_arg    => infix.push_operand(item),
                         Append                                   => *last_arg = Some(item),
                         // TODO? below should never happen, as operator arity is always fixed to 2?
-                        ExpectedArgument(i)                         => infix.insert_operand(*i, item),
+                        ExpectedArgument(i)                      => infix.insert_operand(*i, item),
                     };
                     infix.into_ast()
                 } else {
@@ -139,9 +138,9 @@ impl<'a> Implementation for node::Ref<'a> {
                         prefix_id : None,
                     };
                     match ins_type {
-                        BeforeTarget     => prefix.insert_arg(0,item),
-                        AfterTarget      => prefix.insert_arg(1,item),
-                        Append           => prefix.args.push(item),
+                        BeforeTarget        => prefix.insert_arg(0,item),
+                        AfterTarget         => prefix.insert_arg(1,item),
+                        Append              => prefix.args.push(item),
                         ExpectedArgument(i) => prefix.insert_arg(*i, item),
                     }
                     prefix.into_ast()
@@ -208,13 +207,12 @@ mod test {
     use crate::node::Kind::Target;
     use crate::node::InsertType::ExpectedArgument;
 
-    use wasm_bindgen_test::wasm_bindgen_test;
-    use parser::Parser;
     use ast::HasRepr;
     use data::text::Index;
     use data::text::Span;
     use std::ops::Range;
-
+    use parser::Parser;
+    use wasm_bindgen_test::wasm_bindgen_test;
 
     #[wasm_bindgen_test]
     fn actions_in_span_tree() {

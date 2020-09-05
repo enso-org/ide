@@ -9,6 +9,8 @@ pub mod mock {
     use crate::model::suggestion_database;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
+    use enso_protocol::language_server;
+
     /// Data used to create mock IDE components.
     ///
     /// Contains a number of constants and functions building more complex structures from them.
@@ -180,33 +182,51 @@ pub mod mock {
         }
 
         pub fn project
-        ( &self, module:model::Module
-        , execution_context:model::ExecutionContext
-        , suggestion_database:Rc<model::SuggestionDatabase>
+        ( &self
+        , module              : model::Module
+        , execution_context   : model::ExecutionContext
+        , suggestion_database : Rc<model::SuggestionDatabase>
+        , json_client         : language_server::MockClient
         ) -> model::Project {
             let mut project = model::project::MockAPI::new();
+            model::project::test::expect_name(&mut project,&self.project_name);
             model::project::test::expect_parser(&mut project,&self.parser);
             model::project::test::expect_module(&mut project,module);
             model::project::test::expect_execution_ctx(&mut project,execution_context);
             // Root ID is needed to generate module path used to get the module.
             model::project::test::expect_root_id(&mut project,crate::test::mock::data::ROOT_ID);
             model::project::test::expect_suggestion_db(&mut project,suggestion_database);
+            let json_rpc = language_server::Connection::new_mock_rc(json_client);
+            model::project::test::expect_json_rpc(&mut project,json_rpc);
             Rc::new(project)
         }
 
         pub fn fixture(&self) -> Fixture {
+            self.fixture_customize(|_,_| {})
+        }
+
+        pub fn fixture_customize
+        (&self, customize_json_rpc:impl FnOnce(&Self,&mut language_server::MockClient))
+        -> Fixture {
+            let mut json_client = language_server::MockClient::default();
+            customize_json_rpc(self,&mut json_client);
+
             let logger        = Logger::default(); // TODO
             let module        = self.module();
-            let suggestion_db = Rc::new(model::SuggestionDatabase::new_from_entries(logger,
+            let suggestion_db = Rc::new(model::SuggestionDatabase::new_from_entries(&logger,
                 &self.suggestions));
             let graph     = self.graph(module.clone_ref(), suggestion_db.clone_ref());
             let execution = self.execution_context();
             let project   = self.project(module.clone_ref(),execution.clone_ref(),
-                suggestion_db.clone_ref());
+                suggestion_db.clone_ref(),json_client);
             let executed_graph = controller::ExecutedGraph::new_internal(graph.clone_ref(),
                 project.clone_ref(),execution.clone_ref());
-            let executor = TestWithLocalPoolExecutor::set_up();
-            let data     = self.clone();
+            let executor       = TestWithLocalPoolExecutor::set_up();
+            let data           = self.clone();
+            let selected_nodes = Vec::new();
+            let searcher_mode  = controller::searcher::Mode::NewNode {position:None};
+            let searcher       = controller::Searcher::new_from_graph_controller(&logger,&project,
+                executed_graph.clone_ref(),searcher_mode,selected_nodes).unwrap();
             Fixture {
                 executor,
                 data,
@@ -216,6 +236,7 @@ pub mod mock {
                 execution,
                 suggestion_db,
                 project,
+                searcher,
             }
         }
     }
@@ -230,6 +251,7 @@ pub mod mock {
         pub executed_graph : controller::ExecutedGraph,
         pub suggestion_db  : Rc<model::SuggestionDatabase>,
         pub project        : model::Project,
+        pub searcher       : controller::Searcher,
     }
 
     impl Fixture {

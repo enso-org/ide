@@ -122,9 +122,10 @@ impl SpanTreeGenerator for Ast {
                 _  => {
                     let size          = Size::new(self.len());
                     let expression_id = self.id;
-                    let children       = default();
-                    // TODO
-                    if let Some(info) = expression_id.and_then(|id| context.invocation_info(id,None)) {
+                    let children      = default();
+                    // TODO [mwu] handle cases where Ast is like "here.foo"
+                    let name          = ast::identifier::name(self);
+                    if let Some(info) = self.id.and_then(|id| context.invocation_info(id,name)) {
                         let node = Node {
                             size,
                             children,
@@ -213,7 +214,9 @@ impl SpanTreeGenerator for ast::opr::Chain {
 
 impl SpanTreeGenerator for ast::prefix::Chain {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
-        let invocation_info = self.id().and_then(|id| context.invocation_info(id,None)); // TODO
+        // TODO [mwu] handle cases where Ast is like "here.foo"
+        let name            = ast::identifier::name(&self.func);
+        let invocation_info = self.id().and_then(|id| context.invocation_info(id,name));
         let invocation_info = invocation_info.as_ref();
         let known_args      = invocation_info.is_some();
         dbg!(&invocation_info);
@@ -273,22 +276,6 @@ impl SpanTreeGenerator for ast::prefix::Chain {
     }
 }
 
-fn generate_known_parameter
-(node:Node, kind:node::Kind, index:usize, arity:usize, parameter_info:ParameterInfo) -> Node {
-    println!("Will generate missing argument node for {:?}",parameter_info);
-    let is_last = index + 1 == arity;
-    let mut gen = ChildGenerator::default();
-    gen.add_node(vec![],node);
-    let arg_node = gen.generate_empty_node(InsertType::ExpectedArgument(index));
-    arg_node.node.parameter_info = Some(parameter_info);
-    Node {
-        kind           : if is_last {kind} else {node::Kind::Chained},
-        size           : gen.current_offset,
-        children       : gen.children,
-        expression_id  : None,
-        parameter_info : None,
-    }
-}
 
 // === Match ===
 
@@ -343,10 +330,10 @@ impl SpanTreeGenerator for ast::known::Ambiguous {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
         let mut gen             = ChildGenerator::default();
         let first_segment_index = 0;
-        generate_children_from_abiguous_segment(&mut gen,first_segment_index,&self.segs.head,context)?;
+        generate_children_from_ambiguous(&mut gen,first_segment_index,&self.segs.head,context)?;
         for (index,segment) in self.segs.tail.iter().enumerate() {
             gen.spacing(segment.off);
-            generate_children_from_abiguous_segment(&mut gen, index+1, &segment.wrapped,context)?;
+            generate_children_from_ambiguous(&mut gen, index+1, &segment.wrapped, context)?;
         }
         Ok(Node{kind,
             size           : gen.current_offset,
@@ -357,7 +344,7 @@ impl SpanTreeGenerator for ast::known::Ambiguous {
     }
 }
 
-fn generate_children_from_abiguous_segment
+fn generate_children_from_ambiguous
 (gen:&mut ChildGenerator, index:usize, segment:&MacroAmbiguousSegment<Ast>, context:&impl Context)
 -> FallibleResult<()> {
     let is_removable  = false;
@@ -371,6 +358,7 @@ fn generate_children_from_abiguous_segment
     }
     Ok(())
 }
+
 
 
 // ============
@@ -388,6 +376,9 @@ mod test {
     use crate::node::Kind::*;
     use crate::node::InsertType::*;
 
+    use ast::Crumbs;
+    use ast::Id;
+    use ast::IdMap;
     use ast::crumbs::AmbiguousCrumb;
     use ast::crumbs::AmbiguousSegmentCrumb;
     use ast::crumbs::InfixCrumb;
@@ -399,7 +390,6 @@ mod test {
     use parser::Parser;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use ast::{IdMap, Id, Crumbs};
 
     wasm_bindgen_test_configure!(run_in_browser);
 
