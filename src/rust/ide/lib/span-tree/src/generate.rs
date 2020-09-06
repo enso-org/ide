@@ -360,6 +360,26 @@ fn generate_children_from_ambiguous
 }
 
 
+// === Common Utility ==
+
+fn generate_known_parameter
+(node:Node, kind:node::Kind, index:usize, arity:usize, parameter_info:ParameterInfo) -> Node {
+    println!("Will generate missing argument node for {:?}",parameter_info);
+    let is_last = index + 1 == arity;
+    let mut gen = ChildGenerator::default();
+    gen.add_node(ast::Crumbs::new(),node);
+    let arg_node = gen.generate_empty_node(InsertType::ExpectedArgument(index));
+    arg_node.node.parameter_info = Some(parameter_info);
+    Node {
+        kind           : if is_last {kind} else {node::Kind::Chained},
+        size           : gen.current_offset,
+        children       : gen.children,
+        expression_id  : None,
+        parameter_info : None,
+    }
+}
+
+
 
 // ============
 // === Test ===
