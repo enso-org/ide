@@ -78,7 +78,7 @@ async fn get_most_recent_project_or_create_new() {
     assert_eq!(expected_project, project.expect("Couldn't get project."))
 }
 
-#[wasm_bindgen_test]
+#[test]
 fn span_tree_args() {
     use crate::test::mock::*;
 
@@ -109,6 +109,12 @@ fn span_tree_args() {
     // TODO [mwu] The searcher inserts "Base.foo". This should work as well but needs redesigned
     //            target detection rules in the span tree.
     //
+    graph.set_expression(id,"Base.foo 50").unwrap();
+    println!("{:#?}",get_inputs().root_ref().leaf_iter().collect_vec());
+
+
+    return;
+    panic!("{}",get_node().info.expression().repr());
 
 
     assert_eq!(entry.name,"foo");

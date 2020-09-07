@@ -170,3 +170,32 @@ impl DocParser {
         self.borrow_mut().generate_html_doc_pure(code)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ast::HasRepr;
+    use super::*;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    fn roundtrip_program(program:&str) {
+        let mut parser = Parser::new_or_panic();
+        let ast        = parser.parse(program.to_string(), Default::default()).unwrap();
+        assert_eq!(ast.repr(), program, "{:#?}", ast);
+    }
+
+    #[test]
+    fn roundtrip() {
+        let programs = vec![
+            "main = 10 + 10",
+            "main =\n    a = 10\n    b = 20\n    a * b",
+            "main =\n    foo a =\n        a * 10\n    foo 10\n    print \"hello\"",
+            "main =\n    foo\n    \n    bar",
+            "main =\n    \n    foo\n    \n    bar"
+        ];
+        for program in programs {
+            roundtrip_program(program);
+        }
+    }
+}

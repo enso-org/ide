@@ -102,6 +102,32 @@ impl ChildGenerator {
 /// === Trait Implementations ===
 /// =============================
 
+struct ApplicationBase<'a> {
+    function_name : Option <&'a str>,
+    has_target : bool,
+}
+
+impl<'a> ApplicationBase<'a> {
+    fn new(ast:&'a Ast) -> Self {
+        if let Some(chain) = ast::opr::as_access_chain(ast) {
+            let get_name = || -> Option<&'a str> {
+                let crumbs = chain.enumerate_operands0().last()??.crumbs;
+                let ast    = ast.get_traversing(&crumbs).ok()?;
+                ast::identifier::name(ast)
+            };
+            ApplicationBase {
+                function_name : get_name(),
+                has_target    : true,
+            }
+        } else {
+            ApplicationBase {
+                function_name : ast::identifier::name(ast),
+                has_target    : false,
+            }
+        }
+    }
+}
+
 
 // === AST ===
 
@@ -136,7 +162,7 @@ impl SpanTreeGenerator for Ast {
                         let arity  = info.parameters.len();
                         let params = info.parameters.iter().cloned().enumerate();
                         Ok(params.fold(node,|node,(i,param)| {
-                            generate_known_parameter(node,kind,i,arity,param)
+                            generate_expected_argument(node, kind, i, arity, param)
                         }))
                     } else {
                         let parameter_info = default();
@@ -214,23 +240,113 @@ impl SpanTreeGenerator for ast::opr::Chain {
 
 impl SpanTreeGenerator for ast::prefix::Chain {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
-        // TODO [mwu] handle cases where Ast is like "here.foo"
-        let name            = ast::identifier::name(&self.func);
-        let invocation_info = self.id().and_then(|id| context.invocation_info(id,name));
+        // TODO test for case when there are more arguments supplied than the known arity of function?
+
+        //panic!();
+        let base            = ApplicationBase::new(&self.func);
+        let invocation_info = self.id().and_then(|id| context.invocation_info(id,base.function_name));
         let invocation_info = invocation_info.as_ref();
         let known_args      = invocation_info.is_some();
-        dbg!(&invocation_info);
+        println!("AST {} has name {:?} and info {:?}",self.clone().into_ast(),base.function_name,invocation_info);
 
-        // TODO test for case when there are more arguments supplied than the known arity of function?
-        let supplied_arg_count = self.args.len();
-        let method_arity       = invocation_info.map(|info| info.parameters.len());
-        let arity              = supplied_arg_count.max(method_arity.unwrap_or(0));
 
+        // Skip the leading parameter info (`this`-like entity) if provided through the prefix base.
+        let known_parameters = match invocation_info {
+            Some(info) if base.has_target && info.parameters.len() > 0 => &info.parameters[1..],
+            Some(info) if !base.has_target                             => &info.parameters,
+            _                                                          => &[],
+        };
+
+        let arity = self.args.len().max(known_parameters.len());
+        // let missing_param_count = known_parameters.len().saturating_sub(self.args.len());
+        //
+        // // Pad both provided arguments and known parameters with `None` and zip into a single stream
+        // // of `arity` length with enumerated index.
+        // let provided_hlp = self.args       .map(Some).chain(std::iter::repeat(None));
+        // let known_hlp = known_parameters.map(Some).chain(std::iter::repeat(None));
+        // let arguments  = provided_hlp.zip(known_hlp).take(arity).enumerate();
+        //
+        // use ast::crumbs::PrefixCrumb::*;
+        // // Removing arguments is possible if there at least two of them
+        // let is_removable = self.args.len() >= 2;
+        // let node         = self.func.generate_node(node::Kind::Operation,context);
+        // let params       = provided_parameters.iter().map(Some).chain(std::iter::repeat(None));
+        // let args         = self.args.iter().zip(params);
+        // let ret = args.fold(node, |node,(arg,parameter_info)| {
+        //     println!("Will generate argument node for {}, param is {:?}",arg.sast.wrapped,parameter_info);
+        //     let node     = node?;
+        //     // TODO we can get i-th argument but we need to also take into account that prefix
+        //     //      target can be in a form of access chain that passes already `this`
+        //     //      if so everything should be shifted by one
+        //     //      But on the other hand -- the first "prefix" argument would not be a target
+        //     //      anymore then.
+        //     let is_first = i == 0;
+        //     let is_last  = i + 1 == arity;
+        //     let arg_kind = if is_first { node::Kind::Target {is_removable} }
+        //         else { node::Kind::Argument {is_removable} };
+        //
+        //     let mut gen = ChildGenerator::default();
+        //     gen.add_node(vec![Func.into()],node);
+        //     gen.spacing(arg.sast.off);
+        //     if !known_args && matches!(arg_kind,node::Kind::Target {..}) {
+        //         gen.generate_empty_node(InsertType::BeforeTarget);
+        //     }
+        //     let arg_ast      = arg.sast.wrapped.clone_ref();
+        //     let arg_child    = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
+        //     arg_child.node.parameter_info = parameter_info.cloned();
+        //     if !known_args {
+        //         gen.generate_empty_node(InsertType::Append);
+        //     }
+        //     Ok(Node {
+        //         kind           : if is_last {kind} else {node::Kind::Chained},
+        //         size           : gen.current_offset,
+        //         children       : gen.children,
+        //         expression_id  : arg.prefix_id,
+        //         parameter_info : None,
+        //     })
+        // })?;
+        //
+        // if let Some(info) = invocation_info {
+        //     let provided_args = self.args.len() + if base.has_target {1} else {0};
+        //     let missing_args  = info.parameters.iter().cloned().enumerate().skip(provided_args);
+        //     Ok(missing_args.fold(ret, |node,(i,param)| {
+        //         generate_expected_argument(node, kind, i, arity, param)
+        //     }))
+        // } else {
+        //     Ok(ret)
+        // }
+
+
+
+
+
+        // // Skip the leading parameter info (`this`-like entity) if provided through the prefix base.
+        // let known_parameters = invocation_info.and_then(|info| {
+        //     if base.has_target {
+        //         (info.parameters.len()>=1).as_some(&info.parameters[1..])
+        //     } else {
+        //         Some(info.parameters.as_slice())
+        //     }
+        // }).unwrap_or(&[]);
+        //
+        // let provided_count = self.args.len();
+        // let (provided_parameters,missing_parameters) = if known_parameters.len() >= provided_count {
+        //     known_parameters.split_at(provided_count)
+        // } else {
+        //     (known_parameters,[].as_ref())
+        // };
+
+        // let mut parameter_iter = invocation_info.map(|info| info.parameters.iter()).iter().flatten();
+        //
+        // let arity = provided_count.max(known_parameters.len());
+        //
+        // let mut index = 0; // This is argument index in the prefix chain.
+        //
         use ast::crumbs::PrefixCrumb::*;
         // Removing arguments is possible if there at least two of them
         let is_removable = self.args.len() >= 2;
         let node         = self.func.generate_node(node::Kind::Operation,context);
-        let ret = self.args.iter().enumerate().fold(node, |node,(i,arg)| {
+        let ret          = self.args.iter().enumerate().fold(node, |node,(i,arg)| {
             println!("Will generate argument node for {}",arg.sast.wrapped);
             let node     = node?;
             // TODO we can get i-th argument but we need to also take into account that prefix
@@ -238,7 +354,6 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             //      if so everything should be shifted by one
             //      But on the other hand -- the first "prefix" argument would not be a target
             //      anymore then.
-            let argument_info = invocation_info.and_then(|info| info.parameters.get(i));
             let is_first = i == 0;
             let is_last  = i + 1 == arity;
             let arg_kind = if is_first { node::Kind::Target {is_removable} }
@@ -252,7 +367,7 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             }
             let arg_ast      = arg.sast.wrapped.clone_ref();
             let arg_child    = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
-            arg_child.node.parameter_info = argument_info.cloned();
+            arg_child.node.parameter_info = known_parameters.get(i).cloned();
             if !known_args {
                 gen.generate_empty_node(InsertType::Append);
             }
@@ -265,14 +380,10 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             })
         })?;
 
-        if let Some(info) = invocation_info {
-            let missing_args = info.parameters.iter().cloned().enumerate().skip(self.args.len());
-            Ok(missing_args.fold(ret, |node,(i,param)| {
-                generate_known_parameter(node, kind, i, arity, param)
-            }))
-        } else {
-            Ok(ret)
-        }
+        let missing_arguments = known_parameters.iter().enumerate().skip(self.args.len());
+        Ok(missing_arguments.fold(ret,|node,(i,parameter)| {
+            generate_expected_argument(node,kind,i,arity,param)
+        }))
     }
 }
 
@@ -362,7 +473,7 @@ fn generate_children_from_ambiguous
 
 // === Common Utility ==
 
-fn generate_known_parameter
+fn generate_expected_argument
 (node:Node, kind:node::Kind, index:usize, arity:usize, parameter_info:ParameterInfo) -> Node {
     println!("Will generate missing argument node for {:?}",parameter_info);
     let is_last = index + 1 == arity;

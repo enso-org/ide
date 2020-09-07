@@ -58,7 +58,10 @@ pub enum InsertType {
     BeforeTarget,
     AfterTarget,
     Append,
-    /// Ast should be inserted as an argument at given index (counting the `this` argument).
+    /// Ast should be inserted as an argument at given index into the chain.
+    /// Note that this is just argument index in the application, it may be not the same as the
+    /// index of the function parameter, as `this` argument might be passed using the `this.func`
+    /// notation.
     ExpectedArgument(usize),
 }
 

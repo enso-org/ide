@@ -65,6 +65,15 @@ pub mod mock {
             }
         }
 
+        pub fn foo_method_parameter2() -> suggestion_database::Argument {
+            suggestion_database::Argument {
+                name          : "param1".to_owned(),
+                repr_type     : "Number".to_owned(),
+                is_suspended  : false,
+                default_value : None,
+            }
+        }
+
         pub fn bar_method_parameter() -> suggestion_database::Argument {
             suggestion_database::Argument {
                 name          : "this".to_owned(),
@@ -79,7 +88,7 @@ pub mod mock {
                 name      : "foo".to_owned(),
                 module    : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
                 self_type : Some("Base".to_owned()),
-                arguments : vec![foo_method_parameter()],
+                arguments : vec![foo_method_parameter(),foo_method_parameter2()],
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::EntryKind::Method,
                 scope         : suggestion_database::Scope::Everywhere,

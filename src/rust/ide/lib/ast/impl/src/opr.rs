@@ -345,14 +345,14 @@ impl Chain {
 
     /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent
     /// arguments.
-    pub fn enumerate_operands<'a>
-    (&'a self) -> impl Iterator<Item=Located<&'a ArgWithOffset<Ast>>> + 'a {
+    pub fn enumerate_operands0<'a>
+    (&'a self) -> impl Iterator<Item=Option<Located<&'a ArgWithOffset<Ast>>>> + 'a {
         let rev_args      = self.args.iter().rev();
         let target_crumbs = rev_args.map(ChainElement::crumb_to_previous).collect_vec();
         let target        = self.target.as_ref();
-        let loc_target    = target.map(|opr| Located::new(target_crumbs,opr)).into_iter();
+        let loc_target    = std::iter::once(target.map(|opr| Located::new(target_crumbs,opr)));
         let args          = self.args.iter().enumerate();
-        let loc_args      = args.filter_map(move |(i,elem)| {
+        let loc_args      = args.map(move |(i,elem)| {
             elem.operand.as_ref().map(|operand| {
                 let latter_args = self.args.iter().skip(i+1);
                 let to_infix    = latter_args.rev().map(ChainElement::crumb_to_previous);
@@ -362,6 +362,14 @@ impl Chain {
             })
         });
         loc_target.chain(loc_args)
+    }
+
+
+    /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent
+    /// arguments.
+    pub fn enumerate_operands<'a>
+    (&'a self) -> impl Iterator<Item=Located<&'a ArgWithOffset<Ast>>> + 'a {
+        self.enumerate_operands0().flatten()
     }
 
     /// Iterates over all operator's AST in this chain, starting from target side.
