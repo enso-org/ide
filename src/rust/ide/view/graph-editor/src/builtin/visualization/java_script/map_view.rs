@@ -4,7 +4,7 @@ use crate::component::visualization;
 
 /// Return a `JavaScript` Map visualization.
 pub fn map_view_visualization() -> visualization::java_script::FallibleDefinition {
-    let source     = r#"
+    let source = r#"
         function loadScript(url) {
             var script = document.createElement("script");
             script.src = url;
@@ -21,9 +21,9 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
         }
 
         loadScript('https://unpkg.com/deck.gl@latest/dist.min.js');
-        loadScript('https://d3js.org/d3.v6.min.js');
-        loadScript('https://api.tiles.mapbox.com/mapbox-gl-js/v0.53.0/mapbox-gl.js');
-        loadStyle('https://api.tiles.mapbox.com/mapbox-gl-js/v0.53.0/mapbox-gl.css');
+        loadScript('https://d3js.org/d3.v5.min.js');
+        loadScript('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js');
+        loadStyle('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css');
 
         return class MapViewVisualization extends Visualization {
             static inputType = "Any"
@@ -39,33 +39,28 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
                 const height = this.dom.getAttributeNS(null, "height");
 
                 const mapElem = document.createElement("div");
-                mapElem.setAttributeNS(null,"id"       , "vis-map");
-                mapElem.setAttributeNS(null,"viewBox"  , 0 + " " + 0 + " " + width + " " + height);
-                mapElem.setAttributeNS(null,"width"    , "100%");
-                mapElem.setAttributeNS(null,"height"   , "100%");
-                mapElem.setAttributeNS(null,"transform", "matrix(1 0 0 -1 0 0)");
-                mapElem.setAttributeNS(null,"style"    ,"width:" + width + "px;height: " + height + "px;overflow: scroll;border-radius:14px");
+                mapElem.setAttributeNS(null,"id"       , "map");
+                mapElem.setAttributeNS(null,"style"    ,"width:" + width + "px;height: " + height + "px;");
                 this.dom.appendChild(mapElem);
 
-                const inner = `<div id="map"></div>`;
-                mapElem.innerHTML = inner;
-
                 const deckgl = new deck.DeckGL({
-                  mapboxApiAccessToken: 'pk.eyJ1IjoiZ28tZmluZCIsImEiOiJjazBod3EwZnAwNnA3M2JydHcweTZiamY1In0.U5O7_hDFJ-1RpA8L9zUmTQ',
-                  mapStyle: 'mapbox://styles/mapbox/dark-v9',
                   container: 'map',
+                  mapboxApiAccessToken: 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2pudzRtaWloMDAzcTN2bzN1aXdxZHB5bSJ9.2bkj3IiRC8wj3jLThvDGdA',
+                  mapStyle: 'mapbox://styles/mapbox/dark-v9',
                   initialViewState: {
-                    longitude: -74,
-                    latitude: 40.76,
-                    zoom: 11,
+                    longitude: -1.4157,
+                    latitude: 52.2324,
+                    zoom: 3,
                     minZoom: 5,
-                    maxZoom: 16,
+                    maxZoom: 15,
                     pitch: 40.5
                   },
-                  controller: true
+                  controller: false
                 });
 
                 const dataaaa = d3.csv('https://raw.githubusercontent.com/uber-common/deck.gl-data/master/examples/3d-heatmap/heatmap-data.csv');
+
+                console.log(data);
 
                 const COLOR_RANGE = [
                   [1, 152, 189],
@@ -79,22 +74,15 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
                 renderLayer();
 
                 function renderLayer () {
-                  const options = {
-                    radius : 1000,
-                    coverage : 1,
-                    upperPercentile : 100
-                  };
-
                   const hexagonLayer = new deck.HexagonLayer({
                     id: 'heatmap',
                     colorRange: COLOR_RANGE,
-                    data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/scatterplot/manhattan.json',
+                    data: dataaaa,
                     elevationRange: [0, 1000],
                     elevationScale: 250,
                     extruded: true,
                     getPosition: d => [Number(d.lng), Number(d.lat)],
-                    opacity: 1,
-                    ...options
+                    opacity: 1
                   });
 
                   deckgl.setProps({
@@ -102,13 +90,9 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
                   });
                 }
 
-
                 // data.forEach(data => {
                 //     ...
                 // });
-
-                var mapInnerDiv = document.getElementById("map");
-                mapInnerDiv.style.position = "inherit";
             }
 
             setSize(size) {
@@ -117,8 +101,5 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
             }
         }
     "#;
-
-    println!("{}",source);
-
     visualization::java_script::Definition::new(data::builtin_library(),source)
 }
