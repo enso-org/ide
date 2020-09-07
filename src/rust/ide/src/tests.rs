@@ -109,6 +109,11 @@ fn span_tree_args() {
     // TODO [mwu] The searcher inserts "Base.foo". This should work as well but needs redesigned
     //            target detection rules in the span tree.
     //
+
+
+    println!("{:#?}",get_inputs().root_ref().leaf_iter().collect_vec());
+    return;
+
     graph.set_expression(id,"Base.foo 50").unwrap();
     println!("{:#?}",get_inputs().root_ref().leaf_iter().collect_vec());
 

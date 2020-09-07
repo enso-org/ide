@@ -20,7 +20,8 @@ use ast::opr::GeneralizedInfix;
 use data::text::Size;
 
 pub use context::Context;
-
+use utils::vec::VecExt;
+use crate::generate::context::InvocationInfo;
 
 
 // =============
@@ -126,6 +127,13 @@ impl<'a> ApplicationBase<'a> {
             }
         }
     }
+
+    fn prefix_params(&self, mut invocation_info:InvocationInfo) -> Vec<ParameterInfo> {
+        if self.has_target {
+            invocation_info.parameters.pop_front()
+        }
+        invocation_info.parameters
+    }
 }
 
 
@@ -134,7 +142,21 @@ impl<'a> ApplicationBase<'a> {
 impl SpanTreeGenerator for Ast {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
         if let Some(infix) = GeneralizedInfix::try_new(self) {
-            infix.flatten().generate_node(kind,context)
+            use ast::opr::is_access_opr;
+            let chain    = infix.flatten();
+            let app_base = is_access_opr(infix.opr.ast()).as_some_from(|| {
+                ApplicationBase::new(self)
+            });
+            let invocation = || -> Option<InvocationInfo> {
+                context.invocation_info(self.id?,app_base?.function_name)
+            }();
+            if invocation.contains_if(|info| info.parameters.len() > 1) {
+                let invocation     = invocation.unwrap(); // we just checked that it contains sth
+                let node           = chain.generate_node(node::Kind::Operation,context);
+                todo!()
+            } else {
+                chain.generate_node(kind,context)
+            }
         } else {
             match self.shape() {
                 ast::Shape::Prefix(_) =>
@@ -245,19 +267,16 @@ impl SpanTreeGenerator for ast::prefix::Chain {
         //panic!();
         let base            = ApplicationBase::new(&self.func);
         let invocation_info = self.id().and_then(|id| context.invocation_info(id,base.function_name));
-        let invocation_info = invocation_info.as_ref();
         let known_args      = invocation_info.is_some();
         println!("AST {} has name {:?} and info {:?}",self.clone().into_ast(),base.function_name,invocation_info);
-
-
+        let mut known_parameters = invocation_info.map(|info| info.parameters).unwrap_or_default();
         // Skip the leading parameter info (`this`-like entity) if provided through the prefix base.
-        let known_parameters = match invocation_info {
-            Some(info) if base.has_target && info.parameters.len() > 0 => &info.parameters[1..],
-            Some(info) if !base.has_target                             => &info.parameters,
-            _                                                          => &[],
-        };
+        if base.has_target {
+            known_parameters.pop_front();
+        }
+
         let arity = self.args.len().max(known_parameters.len());
-        
+
         use ast::crumbs::PrefixCrumb::*;
         // Removing arguments is possible if there at least two of them
         let is_removable = self.args.len() >= 2;
@@ -265,11 +284,6 @@ impl SpanTreeGenerator for ast::prefix::Chain {
         let ret          = self.args.iter().enumerate().fold(node, |node,(i,arg)| {
             println!("Will generate argument node for {}",arg.sast.wrapped);
             let node     = node?;
-            // TODO we can get i-th argument but we need to also take into account that prefix
-            //      target can be in a form of access chain that passes already `this`
-            //      if so everything should be shifted by one
-            //      But on the other hand -- the first "prefix" argument would not be a target
-            //      anymore then.
             let is_first = i == 0;
             let is_last  = i + 1 == arity;
             let arg_kind = if is_first { node::Kind::Target {is_removable} }
@@ -296,9 +310,9 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             })
         })?;
 
-        let missing_arguments = known_parameters.iter().enumerate().skip(self.args.len());
+        let missing_arguments = known_parameters.into_iter().enumerate().skip(self.args.len());
         Ok(missing_arguments.fold(ret,|node,(i,parameter)| {
-            generate_expected_argument(node,kind,i,arity,param)
+            generate_expected_argument(node,kind,i,arity,parameter)
         }))
     }
 }
@@ -405,6 +419,8 @@ fn generate_expected_argument
         parameter_info : None,
     }
 }
+
+//fn fill_with_expected_args(base:Node, kind:node::Kind, explicit_args:usize, arity:usi)
 
 
 
