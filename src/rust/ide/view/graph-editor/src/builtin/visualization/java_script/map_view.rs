@@ -4,13 +4,27 @@ use crate::component::visualization;
 
 /// Return a `JavaScript` Map visualization.
 pub fn map_view_visualization() -> visualization::java_script::FallibleDefinition {
-    let deck       = include_str!("map_view/deck.js");
-    let d3js       = include_str!("map_view/d3.js");
-    let mapbox_js  = include_str!("map_view/mapbox.js");
-    let mapbox_css = include_str!("map_view/mapbox.css");
-    let mapbox_css = format!("<style>{}</style>", mapbox_css);
-    let mapbox_css = format!("const mapbox_css = `{}`", mapbox_css);
     let source     = r#"
+        function loadScript(url) {
+            var script = document.createElement("script");
+            script.src = url;
+
+            document.head.appendChild(script);
+        }
+
+        function loadStyle(url) {
+            var link  = document.createElement("link");
+            link.href = url;
+            link.rel  = 'stylesheet';
+
+            document.head.appendChild(link);
+        }
+
+        loadScript('https://unpkg.com/deck.gl@latest/dist.min.js');
+        loadScript('https://d3js.org/d3.v6.min.js');
+        loadScript('https://api.tiles.mapbox.com/mapbox-gl-js/v0.53.0/mapbox-gl.js');
+        loadStyle('https://api.tiles.mapbox.com/mapbox-gl-js/v0.53.0/mapbox-gl.css');
+
         return class MapViewVisualization extends Visualization {
             static inputType = "Any"
 
@@ -30,20 +44,16 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
                 mapElem.setAttributeNS(null,"width"    , "100%");
                 mapElem.setAttributeNS(null,"height"   , "100%");
                 mapElem.setAttributeNS(null,"transform", "matrix(1 0 0 -1 0 0)");
-                mapElem.setAttributeNS(null,"style"    ,"width:" + width + "px;height: " + height + "px;overflow: scroll;position: relative;border-radius:14px");
+                mapElem.setAttributeNS(null,"style"    ,"width:" + width + "px;height: " + height + "px;overflow: scroll;border-radius:14px");
                 this.dom.appendChild(mapElem);
 
-                const inner = mapbox_css + `<div id="map"></div>`;
+                const inner = `<div id="map"></div>`;
                 mapElem.innerHTML = inner;
-
-                // const {MapboxLayer, ScatterplotLayer} = deck;
-
-                // Get a mapbox API access token
-                // mapboxgl.accessToken = 'pk.eyJ1IjoiZ28tZmluZCIsImEiOiJjazBod3EwZnAwNnA3M2JydHcweTZiamY1In0.U5O7_hDFJ-1RpA8L9zUmTQ';
 
                 const deckgl = new deck.DeckGL({
                   mapboxApiAccessToken: 'pk.eyJ1IjoiZ28tZmluZCIsImEiOiJjazBod3EwZnAwNnA3M2JydHcweTZiamY1In0.U5O7_hDFJ-1RpA8L9zUmTQ',
                   mapStyle: 'mapbox://styles/mapbox/dark-v9',
+                  container: 'map',
                   initialViewState: {
                     longitude: -74,
                     latitude: 40.76,
@@ -56,8 +66,6 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
                 });
 
                 const dataaaa = d3.csv('https://raw.githubusercontent.com/uber-common/deck.gl-data/master/examples/3d-heatmap/heatmap-data.csv');
-
-                const OPTIONS = ['radius', 'coverage', 'upperPercentile'];
 
                 const COLOR_RANGE = [
                   [1, 152, 189],
@@ -94,70 +102,13 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
                   });
                 }
 
-                // // Initialize mapbox map
-                // const map = new mapboxgl.Map({
-                //   container: 'map',
-                //   style: 'mapbox://styles/mapbox/dark-v9',
-                //   center: [19.94, 50.04],
-                //   zoom: 8
-                // });
-                //
-                // // Create a mapbox-compatible deck.gl layer
-                // const myDeckLayer = new MapboxLayer({
-                //   id: 'my-scatterplot',
-                //   type: ScatterplotLayer,
-                //   data: [
-                //     {position: [19.94, 50.04], color: [255, 0, 0], radius: 10}
-                //   ],
-                //   getPosition: d => d.position,
-                //   getRadius: d => d.radius,
-                //   getColor: d => d.color
-                // });
-                //
-                // // Insert the layer before mapbox labels
-                // map.on('load', () => {
-                //   map.addLayer(myDeckLayer, 'waterway-label');
-                // });
 
-                // const INITIAL_VIEW_STATE = {
-                //     latitude: 37.8,
-                //     longitude: -122.45,
-                //     zoom: 15
-                //   };
-                //
-                // const deckgl = new deck.DeckGL({
-                //     canvas: 'deckgl',
-                //     width: width,
-                //     height: height,
-                //     mapboxApiAccessToken: 'pk.eyJ1IjoiZ28tZmluZCIsImEiOiJjazBod3EwZnAwNnA3M2JydHcweTZiamY1In0.U5O7_hDFJ-1RpA8L9zUmTQ',
-                //     mapStyle: 'mapbox://styles/mapbox/light-v9',
-                //     initialViewState: {
-                //       longitude: -122.45,
-                //       latitude: 37.8,
-                //       zoom: 15
-                //     },
-                //     controller: true,
-                //     layers: [
-                //       new deck.ScatterplotLayer({
-                //         data: [
-                //           {position: [-122.45, 37.8], color: [255, 0, 0], radius: 100}
-                //         ],
-                //         getColor: d => d.color,
-                //         getRadius: d => d.radius
-                //       })
-                //     ]
-                //   });
-
-                // mapElem.appendChild(deckgl);
                 // data.forEach(data => {
-                //     const bubble = document.createElementNS(xmlns,"circle");
-                //     bubble.setAttributeNS(null,"stroke", "black");
-                //     bubble.setAttributeNS(null,"fill"  , "yellow");
-                //     bubble.setAttributeNS(null,"r"     , data[2]);
-                //     bubble.setAttributeNS(null,"cx"    , data[0]);
-                //     bubble.setAttributeNS(null,"cy"    , data[1]);
-                //     mapElem.appendChild(bubble);
+                //     ...
                 // });
+
+                var mapInnerDiv = document.getElementById("map");
+                mapInnerDiv.style.position = "inherit";
             }
 
             setSize(size) {
@@ -167,7 +118,6 @@ pub fn map_view_visualization() -> visualization::java_script::FallibleDefinitio
         }
     "#;
 
-    let source = format!("{}\n{}\n{}\n{}\n{}\n",deck,d3js,mapbox_js,mapbox_css,source);
     println!("{}",source);
 
     visualization::java_script::Definition::new(data::builtin_library(),source)
