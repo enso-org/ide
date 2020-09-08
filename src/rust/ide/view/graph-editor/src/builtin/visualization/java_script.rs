@@ -2,12 +2,17 @@
 // TODO remove once we have proper visualizations or replace with a nice d3 example.
 // These implementations are neither efficient nor pretty, but get the idea across.
 
-pub mod map_view;
-
-pub use map_view::*;
-
 use crate::data;
 use crate::component::visualization;
+
+
+
+/// Return a `JavaScript` Map visualization.
+pub fn map_view_visualization() -> visualization::java_script::FallibleDefinition {
+    let source = include_str!("java_script/mapView.js");
+
+    visualization::java_script::Definition::new(data::builtin_library(),source)
+}
 
 /// Return a `JavaScript` Bubble visualization.
 pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition {
