@@ -14,7 +14,6 @@ function loadStyle(url) {
 }
 
 loadScript('https://unpkg.com/deck.gl@latest/dist.min.js');
-loadScript('https://d3js.org/d3.v5.min.js');
 loadScript('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js');
 loadStyle('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css');
 
