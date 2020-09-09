@@ -235,6 +235,7 @@ class TableViewVisualization extends Visualization {
 
         var parsedData    = JSON.parse(data);
         var table         = genTable(parsedData.data || parsedData, 0, parsedData.header);
+        // TODO [MM] : Change default style to Light when light mode lands on main.
         tabElem.innerHTML = style_dark+table;
 
     }
