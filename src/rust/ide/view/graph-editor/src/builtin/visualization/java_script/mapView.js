@@ -29,39 +29,30 @@ class MapViewVisualization extends Visualization {
             this.dom.removeChild(this.dom.lastChild);
         }
 
-        const width = this.dom.getAttributeNS(null, "width");
-        const height = this.dom.getAttributeNS(null, "height");
-
+        const width   = this.dom.getAttributeNS(null, "width");
+        const height  = this.dom.getAttributeNS(null, "height");
         const mapElem = document.createElement("div");
-        mapElem.setAttributeNS(null,"id"       , "map");
-        mapElem.setAttributeNS(null,"style"    ,"width:" + width + "px;height: " + height + "px;");
+        mapElem.setAttributeNS(null,"id"   , "map");
+        mapElem.setAttributeNS(null,"style","width:" + width + "px;height: " + height + "px;");
         this.dom.appendChild(mapElem);
 
-        const parsedData = JSON.parse(data);
+        const parsedData = eval('('+data+')' );
 
         const deckgl = new deck.DeckGL({
             container: 'map',
             mapboxApiAccessToken: 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2pudzRtaWloMDAzcTN2bzN1aXdxZHB5bSJ9.2bkj3IiRC8wj3jLThvDGdA',
             mapStyle: parsedData.mapStyle || 'mapbox://styles/mapbox/dark-v9',
             initialViewState: {
-                longitude: parsedData.longitude || -1.4157,
-                latitude: parsedData.latitude || 52.2324,
+                longitude: parsedData.longitude || 0.0,
+                latitude: parsedData.latitude || 0.0,
                 zoom: parsedData.zoom || 3,
                 pitch: parsedData.pitch || 0
             },
             controller: parsedData.controller || false
         });
 
-        const layer = new deck.ScatterplotLayer({
-            id: 'scatterplot',
-            data: parsedData.data || [],
-            getColor: d => d.color,
-            getRadius: d => d.radius,
-            opacity: 1
-        });
-
         deckgl.setProps({
-            layers: [layer]
+            layers: parsedData.layers || []
         });
     }
 
