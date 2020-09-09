@@ -50,6 +50,12 @@ class MapViewVisualization extends Visualization {
             this.dom.removeChild(this.dom.lastChild);
         }
 
+        const styleHead = document.createElement("style")
+        styleHead.innerText = `.mapboxgl-map {
+            border-radius: 14px;
+        }`
+        document.head.appendChild(styleHead);
+
         const width   = this.dom.getAttributeNS(null, "width");
         const height  = this.dom.getAttributeNS(null, "height");
         const mapElem = document.createElement("div");
@@ -59,6 +65,7 @@ class MapViewVisualization extends Visualization {
 
         const parsedData = eval('('+data+')' );
 
+        // TODO [MM] : Change default map style to Light when light mode lands on main.
         const deckgl = new deck.DeckGL({
             container: 'map',
             mapboxApiAccessToken: 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2pudzRtaWloMDAzcTN2bzN1aXdxZHB5bSJ9.2bkj3IiRC8wj3jLThvDGdA',
