@@ -1050,15 +1050,8 @@ main =
             assert!(get_invocation_info().is_none());
 
             // Now the name should be good and we should the information about node being a call.
-            graph.set_expression(id,"foo").unwrap();
-            match get_invocation_info().unwrap().parameters.as_slice() {
-                [param] => {
-                    let arg = &entry.arguments[0];
-                    assert_eq!(param.name.as_ref(),Some(&arg.name));
-                    assert_eq!(param.typename.as_ref(),Some(&arg.repr_type));
-                }
-                _ => panic!("Expected a single parameter in invocation info!"),
-            }
+            graph.set_expression(id,&entry.name).unwrap();
+            crate::test::assert_call_info(get_invocation_info().unwrap(),&entry);
 
             // Now we remove metadata, so the information is no more.
             graph.module.remove_node_metadata(id).unwrap();

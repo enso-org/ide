@@ -103,10 +103,16 @@ impl ChildGenerator {
 /// === Trait Implementations ===
 /// =============================
 
+/// Helper structure constructed from Ast that consists base of prefix application.
+///
+/// It recognizes whether the base uses a method-style notation (`this.method` instead of
+/// `method this`) and what is the invoked function name.
 #[derive(Clone,Debug)]
 struct ApplicationBase<'a> {
+    /// The name of invoked function.
     function_name : Option <&'a str>,
-    has_target : bool,
+    /// True when Ast uses method notation to pass this as an invocation target.
+    has_target    : bool,
 }
 
 impl<'a> ApplicationBase<'a> {
@@ -173,7 +179,6 @@ impl SpanTreeGenerator for Ast {
                     let size          = Size::new(self.len());
                     let expression_id = self.id;
                     let children      = default();
-                    // TODO [mwu] handle cases where Ast is like "here.foo"
                     let name          = ast::identifier::name(self);
                     if let Some(info) = self.id.and_then(|id| context.call_info(id, name)) {
                         let node = Node {

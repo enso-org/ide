@@ -24,8 +24,14 @@ pub struct CalledMethodInfo {
 /// Entity that is able to provide information whether a given expression is a known method
 /// invocation. If so, additional information is provided.
 pub trait Context {
-    /// Checks if the given expression is known to be a call to a known method. If so, returns the
+    /// Check if the given expression is known to be a call to a known method. If so, return the
     /// available information.
+    ///
+    /// The `name` parameter can be used to pass a known target method identifier (if the caller
+    /// knows what name is supplied at the invocation site).
+    ///
+    /// Trait implementors may used it to filter-out results, however they are not required to do
+    /// so. Caller should not assume that the called method has the same name as given identifier.
     fn call_info(&self, id:Id, name:Option<&str>) -> Option<CalledMethodInfo>;
 
     /// Build a new context that merges this context and the one given in argument that will be used

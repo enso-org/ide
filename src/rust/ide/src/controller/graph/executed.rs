@@ -349,43 +349,31 @@ pub mod tests {
     #[wasm_bindgen_test]
     fn span_tree_context() {
         use crate::test::mock;
-        let mut data = mock::Unified::new();
-        data.set_inline_code("foo");
+        use crate::test::assert_call_info;
 
-        let mock::Fixture{graph,executed_graph,module,suggestion_db,..} = &data.fixture();
+        let mut data = mock::Unified::new();
+        let entry1   = data.suggestions.get(&1).unwrap().clone();
+        let entry2   = data.suggestions.get(&2).unwrap().clone();
+        data.set_inline_code(&entry1.name);
+
+        let mock::Fixture{graph,executed_graph,module,..} = &data.fixture();
         let id                  = graph.nodes().unwrap()[0].info.id();
-        let get_invocation_info = || executed_graph.call_info(id, Some("foo"));
+        let get_invocation_info = || executed_graph.call_info(id,Some(&entry1.name));
         assert!(get_invocation_info().is_none());
 
         // Check that if we set metadata, executed graph can see this info.
-        let entry1 = suggestion_db.lookup(1).unwrap();
         module.set_node_metadata(id,NodeMetadata {
             position        : None,
             intended_method : entry1.method_id(),
         });
         let info = get_invocation_info().unwrap();
-        match info.parameters.as_slice() {
-            [param] => {
-                let expected = &entry1.arguments[0];
-                let expected = model::suggestion_database::to_span_tree_param(expected);
-                assert_eq!(param,&expected);
-            }
-            _ => panic!("Expected only single parameter!"),
-        };
+        assert_call_info(info,&entry1);
 
         // Now send update that expression actually was computed to be a call to the second
         // suggestion entry and check that executed graph provides this info over the metadata one.
-        let entry2 = suggestion_db.lookup(2).unwrap();
         let update = value_update_with_method_ptr(id,2);
         executed_graph.computed_value_info_registry().apply_updates(vec![update]);
         let info = get_invocation_info().unwrap();
-        match info.parameters.as_slice() {
-            [param] => {
-                let expected = &entry2.arguments[0];
-                let expected = model::suggestion_database::to_span_tree_param(expected);
-                assert_eq!(param,&expected);
-            }
-            _ => panic!("Expected only single parameter!"),
-        };
+        assert_call_info(info,&entry2);
     }
 }

@@ -1,15 +1,17 @@
+#![cfg(test)]
 //! Module for support code for writing tests.
 
+use crate::prelude::*;
+
+use crate::double_representation::module;
+use crate::model::suggestion_database;
+use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
+use enso_protocol::language_server;
+
 /// Utilities for mocking IDE components.
-#[cfg(test)]
 pub mod mock {
-    use crate::prelude::*;
-
-    use crate::double_representation::module;
-    use crate::model::suggestion_database;
-    use crate::executor::test_utils::TestWithLocalPoolExecutor;
-
-    use enso_protocol::language_server;
+    use super::*;
 
     /// Data used to create mock IDE components.
     ///
@@ -218,6 +220,12 @@ pub mod mock {
         (&self, customize_json_rpc:impl FnOnce(&Self,&mut language_server::MockClient))
         -> Fixture {
             let mut json_client = language_server::MockClient::default();
+            // Creating a searcher controller always triggers a query for completion.
+            let completion = language_server::response::Completion {
+                results         : default(),
+                current_version : default(),
+            };
+            json_client.expect.completion(|_,_,_,_,_| Ok(completion));
             customize_json_rpc(self,&mut json_client);
 
             let logger        = Logger::default(); // TODO
@@ -263,18 +271,6 @@ pub mod mock {
         pub searcher       : controller::Searcher,
     }
 
-    impl Fixture {
-        // pub fn module(&mut self) -> crate::model::Module {
-        //     self.module.get_or_insert(self.data.module()).clone_ref()
-        // }
-        //
-        // /// Create a graph controller from the current mock data.
-        // pub fn graph(&mut self, module:model::Module) -> crate::controller::Graph {
-        //     let module = self.module();
-        //     self.data.graph(module)
-        // }
-    }
-
     pub fn indent(line:impl AsRef<str>) -> String {
         iformat!("    {line.as_ref()}")
     }
@@ -287,5 +283,16 @@ pub mod mock {
     (name:impl Display, lines:impl IntoIterator<Item:AsRef<str>>) -> String {
         let body = lines.into_iter().map(indent).join("\n");
         iformat!("{name} =\n{body}")
+    }
+}
+
+pub fn assert_call_info
+( info:span_tree::generate::context::CalledMethodInfo
+  , entry:&model::suggestion_database::Entry
+) {
+    assert_eq!(info.parameters.len(),entry.arguments.len());
+    for (encountered,expected) in info.parameters.iter().zip(entry.arguments.iter()) {
+        let expected_info = model::suggestion_database::to_span_tree_param(expected);
+        assert_eq!(encountered,&expected_info);
     }
 }
