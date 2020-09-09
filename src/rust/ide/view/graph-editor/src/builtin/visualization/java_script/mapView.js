@@ -18,7 +18,28 @@ loadScript('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js');
 loadStyle('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css');
 
 
-
+/**
+ * Provides a deck.gl-based map visualization for IDE.
+ *
+ * It can be created from passed JS object.
+ *
+ * > Example creates a map with described properties with a scatter plot overlay.
+ * {
+ *  latitude: 37.8,
+ *  longitude: -122.45,
+ *  zoom: 15,
+ *  controller: true,
+ *  layers: [
+ *    new deck.ScatterplotLayer({
+ *      data: [
+ *        {position: [-122.45, 37.8], color: [255, 0, 0], radius: 100}
+ *      ],
+ *      getColor: d => d.color,
+ *      getRadius: d => d.radius
+ *    })
+ *  ]
+ * }
+ */
 class MapViewVisualization extends Visualization {
     static inputType = "Any"
 
