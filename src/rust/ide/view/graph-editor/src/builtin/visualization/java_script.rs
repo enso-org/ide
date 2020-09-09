@@ -67,6 +67,15 @@ pub fn empty_visualization() -> visualization::java_script::FallibleDefinition {
 /// Return a `JavaScript` Bubble visualization.
 pub fn scatter_plot() -> visualization::java_script::FallibleDefinition {
     let source = r#"
+        function loadScript(url) {
+             var script = document.createElement("script");
+             script.src = url;
+
+            document.head.appendChild(script);
+        }
+
+        loadScript('https://d3js.org/d3.v4.min.js');
+
         class ScatterPlot extends Visualization {
             static inputType = "Any"
 

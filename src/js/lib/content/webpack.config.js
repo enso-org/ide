@@ -24,7 +24,6 @@ module.exports = {
         new CompressionPlugin(),
         new CopyWebpackPlugin([
             path.resolve(thisPath,'src','index.html'),
-            path.resolve(thisPath,'src','d3.v4.min.js'),
             path.resolve(wasmPath,'ide.wasm'),
         ]),
     ],
