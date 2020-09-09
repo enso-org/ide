@@ -12,6 +12,7 @@
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
 #![feature(matches_macro)]
+#![feature(result_cloned)]
 #![feature(slice_patterns)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]
@@ -38,6 +39,9 @@ pub mod view;
 pub use crate::ide::IdeInitializer;
 
 use ensogl::system::web;
+// This import is required to have all EnsoGL examples entry points visible in IDE.
+#[allow(unused_imports)]
+use ensogl_examples::*;
 use wasm_bindgen::prelude::*;
 
 #[cfg(test)]

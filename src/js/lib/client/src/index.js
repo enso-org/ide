@@ -41,11 +41,7 @@ let optParser = yargs
     .help()
     .version(false)
     .parserConfiguration({'populate--':true})
-//  FIXME [MM]
-//  This modifier crashes Enso Studio on macOS 11, To test if it works 
-//  again in next macOS betas - temporarily solves #650
-//  https://github.com/yargs/yargs/issues/1688
-//  .strict()
+    .strict()
 
 
 // === Config Options ===
@@ -105,12 +101,16 @@ let styleOptionsGroup = 'Style Options:'
 
 optParser.options('frame', {
     group       : styleOptionsGroup,
-    describe    : 'Draw window frame [false]'
+    describe    : 'Draw window frame',
+    default     : true,
+    type        : `boolean`
 })
 
 optParser.options('vibrancy', {
     group       : styleOptionsGroup,
-    describe    : 'Use the vibrancy effect [true]'
+    describe    : 'Use the vibrancy effect',
+    default     : false,
+    type        : `boolean`
 })
 
 optParser.options('window-size', {
@@ -315,33 +315,35 @@ function createWindow() {
         webPreferences       : webPreferences,
         width                : windowCfg.width,
         height               : windowCfg.height,
-        frame                : false,
+        frame                : true,
         devTools             : false,
         sandbox              : true,
         backgroundThrottling : false,
-        vibrancy             : 'fullscreen-ui',
+        transparent          : false,
         backgroundColor      : "#00000000",
-        titleBarStyle        : 'hiddenInset'
+        titleBarStyle        : 'default'
     }
 
     if (args.dev) {
         windowPreferences.devTools = true
     }
 
-    if (args.frame) {
-        windowPreferences.frame         = true
-        windowPreferences.titleBarStyle = 'default'
+    if (args.frame === false) {
+        windowPreferences.frame         = false
+        windowPreferences.titleBarStyle = 'hiddenInset'
     }
 
     if (args['background-throttling']) {
         windowPreferences.backgroundThrottling = true
     }
 
-    if (args.vibrancy == false) {
-        windowPreferences.vibrancy = false
+    if (args.vibrancy === true) {
+        windowPreferences.vibrancy = 'fullscreen-ui'
     }
 
     const window = new Electron.BrowserWindow(windowPreferences)
+
+    window.setMenuBarVisibility(false)
 
     if (args.dev) {
         window.webContents.openDevTools()
@@ -388,7 +390,7 @@ function setupPermissions() {
 // ==============
 
 Electron.app.on('activate', () => {
-    if (process.platform == 'darwin') {
+    if (process.platform === 'darwin') {
         mainWindow.show()
     }
 })

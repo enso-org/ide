@@ -13,6 +13,7 @@ tags: [product,ui]
 | -------- | ------ |
 | <kbd>Ctrl</kbd>+<kbd>n</kbd> | Creates an empty node. |
 | <kbd>Ctrl</kbd>+<kbd>Backspace</kbd> | Removes the selected nodes. |
+| <kbd>Ctrl</kbd>+<kbd>g</kbd> | Collapses the selected nodes. |
 
 #### Navigation
 
@@ -54,12 +55,13 @@ tags: [product,ui]
 
 | Shortcut | Action |
 | -------- | ------ |
-| <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>space<kbd> | Toggle visualization visibility of the selected node. |
-| <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>f<kbd>     | Cycle visualizations of the selected node. |
+| <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>space</kbd> | Toggle visualization visibility of the selected node. |
+| <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>f</kbd>     | Cycle visualizations of the selected node. |
+| <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>\</kbd>     | Toggle documentation view visibility |
 
 ### Debug
 | Shortcut | Action |
 | -------- | ------ |
-| <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>d<kbd>     | Send test data to the selected node. |
+| <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>d</kbd>     | Send test data to the selected node. |
 | <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd> | Push a hardcoded breadcrumb without navigating. |
 | <kbd>cmd</kbd> / <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>arrow up</kbd> | Pop a breadcrumb without navigating. |
