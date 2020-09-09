@@ -23,7 +23,7 @@ use span_tree::SpanTree;
 use span_tree::action::Actions;
 use span_tree::action::Action;
 use span_tree::generate::Context as SpanTreeContext;
-use span_tree::generate::context::InvocationInfo;
+use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
@@ -824,7 +824,7 @@ impl Handle {
 ///
 /// It just applies the information from the metadata.
 impl span_tree::generate::Context for Handle {
-    fn invocation_info(&self, id:node::Id, name:Option<&str>) -> Option<InvocationInfo> {
+    fn call_info(&self, id:node::Id, name:Option<&str>) -> Option<CalledMethodInfo> {
         let db       = &self.suggestion_db;
         let metadata = self.module.node_metadata(id).ok()?;
         let db_entry = db.lookup_method(metadata.intended_method?)?;
@@ -1042,7 +1042,7 @@ main =
                 let node = &graph.nodes().unwrap()[0];
                 assert_eq!(node.info.id(),id);
                 let expression = node.info.expression().repr();
-                graph.invocation_info(id, Some(expression.as_str()))
+                graph.call_info(id, Some(expression.as_str()))
             };
 
             // Now node is `bar` while the intended method is `foo`.

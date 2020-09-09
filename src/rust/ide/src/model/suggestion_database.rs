@@ -199,7 +199,7 @@ impl Entry {
     }
 
     /// Generate information about invoking this entity for span tree context.
-    pub fn invocation_info(&self) -> span_tree::generate::context::InvocationInfo {
+    pub fn invocation_info(&self) -> span_tree::generate::context::CalledMethodInfo {
         self.into()
     }
 }
@@ -233,10 +233,10 @@ impl TryFrom<Entry> for language_server::MethodPointer {
     }
 }
 
-impl From<&Entry> for span_tree::generate::context::InvocationInfo {
-    fn from(entry:&Entry) -> span_tree::generate::context::InvocationInfo {
+impl From<&Entry> for span_tree::generate::context::CalledMethodInfo {
+    fn from(entry:&Entry) -> span_tree::generate::context::CalledMethodInfo {
         let parameters = entry.arguments.iter().map(to_span_tree_param).collect();
-        span_tree::generate::context::InvocationInfo{parameters}
+        span_tree::generate::context::CalledMethodInfo {parameters}
     }
 }
 

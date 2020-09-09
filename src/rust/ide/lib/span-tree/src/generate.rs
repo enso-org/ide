@@ -7,6 +7,7 @@ use crate::prelude::*;
 use crate::Node;
 use crate::ParameterInfo;
 use crate::SpanTree;
+use crate::generate::context::CalledMethodInfo;
 use crate::node;
 use crate::node::InsertType;
 
@@ -20,8 +21,7 @@ use ast::opr::GeneralizedInfix;
 use data::text::Size;
 
 pub use context::Context;
-use utils::vec::VecExt;
-use crate::generate::context::InvocationInfo;
+
 
 
 // =============
@@ -103,6 +103,7 @@ impl ChildGenerator {
 /// === Trait Implementations ===
 /// =============================
 
+#[derive(Clone,Debug)]
 struct ApplicationBase<'a> {
     function_name : Option <&'a str>,
     has_target : bool,
@@ -128,11 +129,13 @@ impl<'a> ApplicationBase<'a> {
         }
     }
 
-    fn prefix_params(&self, mut invocation_info:InvocationInfo) -> Vec<ParameterInfo> {
+    fn prefix_params
+    (&self, invocation_info:Option<CalledMethodInfo>) -> impl ExactSizeIterator<Item=ParameterInfo> {
+        let mut ret = invocation_info.map(|info| info.parameters).unwrap_or_default().into_iter();
         if self.has_target {
-            invocation_info.parameters.pop_front()
+            ret.next();
         }
-        invocation_info.parameters
+        ret
     }
 }
 
@@ -141,22 +144,21 @@ impl<'a> ApplicationBase<'a> {
 
 impl SpanTreeGenerator for Ast {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
+        // Code like `this.func` or `a+b+c`.
         if let Some(infix) = GeneralizedInfix::try_new(self) {
-            use ast::opr::is_access_opr;
-            let chain    = infix.flatten();
-            let app_base = is_access_opr(infix.opr.ast()).as_some_from(|| {
-                ApplicationBase::new(self)
-            });
-            let invocation = || -> Option<InvocationInfo> {
-                context.invocation_info(self.id?,app_base?.function_name)
+            let chain      = infix.flatten();
+            let app_base   = ApplicationBase::new(self);
+            let invocation = || -> Option<CalledMethodInfo> {
+                context.call_info(self.id?, app_base.function_name)
             }();
-            if invocation.contains_if(|info| info.parameters.len() > 1) {
-                let invocation     = invocation.unwrap(); // we just checked that it contains sth
-                let node           = chain.generate_node(node::Kind::Operation,context);
-                todo!()
-            } else {
-                chain.generate_node(kind,context)
-            }
+
+            // All prefix params are missing arguments, since there is no prefix application.
+            let missing_args              = app_base.prefix_params(invocation);
+            let arity                     = missing_args.len();
+            let base_node_kind            = if arity==0 {kind} else {node::Kind::Operation};
+            let node                      = chain.generate_node(base_node_kind,context)?;
+            let provided_prefix_arg_count = 0;
+            Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,missing_args))
         } else {
             match self.shape() {
                 ast::Shape::Prefix(_) =>
@@ -173,7 +175,7 @@ impl SpanTreeGenerator for Ast {
                     let children      = default();
                     // TODO [mwu] handle cases where Ast is like "here.foo"
                     let name          = ast::identifier::name(self);
-                    if let Some(info) = self.id.and_then(|id| context.invocation_info(id,name)) {
+                    if let Some(info) = self.id.and_then(|id| context.call_info(id, name)) {
                         let node = Node {
                             size,
                             children,
@@ -181,11 +183,12 @@ impl SpanTreeGenerator for Ast {
                             kind           : node::Kind::Operation,
                             parameter_info : None,
                         };
-                        let arity  = info.parameters.len();
-                        let params = info.parameters.iter().cloned().enumerate();
-                        Ok(params.fold(node,|node,(i,param)| {
-                            generate_expected_argument(node, kind, i, arity, param)
-                        }))
+                        // Note that in this place it is impossible that Ast is in form of
+                        // `this.method` -- it is covered by the former if arm. As such, we don't
+                        // need to use `ApplicationBase` here as we do elsewhere.
+                        let provided_prefix_arg_count = 0;
+                        let params                    = info.parameters.into_iter();
+                        Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,params))
                     } else {
                         let parameter_info = default();
                         Ok(Node {kind,size,children,expression_id,parameter_info})
@@ -266,16 +269,13 @@ impl SpanTreeGenerator for ast::prefix::Chain {
 
         //panic!();
         let base            = ApplicationBase::new(&self.func);
-        let invocation_info = self.id().and_then(|id| context.invocation_info(id,base.function_name));
+        let invocation_info = self.id().and_then(|id| context.call_info(id, base.function_name));
         let known_args      = invocation_info.is_some();
         println!("AST {} has name {:?} and info {:?}",self.clone().into_ast(),base.function_name,invocation_info);
-        let mut known_parameters = invocation_info.map(|info| info.parameters).unwrap_or_default();
-        // Skip the leading parameter info (`this`-like entity) if provided through the prefix base.
-        if base.has_target {
-            known_parameters.pop_front();
-        }
-
-        let arity = self.args.len().max(known_parameters.len());
+        let mut known_params = base.prefix_params(invocation_info);
+        dbg!(&base);
+        let arity            = self.args.len().max(known_params.len());
+        dbg!(arity);
 
         use ast::crumbs::PrefixCrumb::*;
         // Removing arguments is possible if there at least two of them
@@ -286,7 +286,7 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             let node     = node?;
             let is_first = i == 0;
             let is_last  = i + 1 == arity;
-            let arg_kind = if is_first { node::Kind::Target {is_removable} }
+            let arg_kind = if is_first && !base.has_target { node::Kind::Target {is_removable} }
                 else { node::Kind::Argument {is_removable} };
 
             let mut gen = ChildGenerator::default();
@@ -297,7 +297,7 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             }
             let arg_ast      = arg.sast.wrapped.clone_ref();
             let arg_child    = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
-            arg_child.node.parameter_info = known_parameters.get(i).cloned();
+            arg_child.node.parameter_info = known_params.next();
             if !known_args {
                 gen.generate_empty_node(InsertType::Append);
             }
@@ -310,10 +310,7 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             })
         })?;
 
-        let missing_arguments = known_parameters.into_iter().enumerate().skip(self.args.len());
-        Ok(missing_arguments.fold(ret,|node,(i,parameter)| {
-            generate_expected_argument(node,kind,i,arity,parameter)
-        }))
+        Ok(generate_expected_arguments(ret,kind,self.args.len(),known_params))
     }
 }
 
@@ -403,13 +400,17 @@ fn generate_children_from_ambiguous
 
 // === Common Utility ==
 
+/// Build a prefix application-like span tree structure where the prefix argument has not been
+/// provided but instead its information is known from method's ParameterInfo.
+///
+/// `index` is the argument's position in the prefix chain which may be different from parameter
+/// index in the method's parameter list.
 fn generate_expected_argument
-(node:Node, kind:node::Kind, index:usize, arity:usize, parameter_info:ParameterInfo) -> Node {
+(node:Node, kind:node::Kind, index:usize, is_last:bool, parameter_info:ParameterInfo) -> Node {
     println!("Will generate missing argument node for {:?}",parameter_info);
-    let is_last = index + 1 == arity;
     let mut gen = ChildGenerator::default();
     gen.add_node(ast::Crumbs::new(),node);
-    let arg_node = gen.generate_empty_node(InsertType::ExpectedArgument(index));
+    let arg_node                 = gen.generate_empty_node(InsertType::ExpectedArgument(index));
     arg_node.node.parameter_info = Some(parameter_info);
     Node {
         kind           : if is_last {kind} else {node::Kind::Chained},
@@ -418,6 +419,19 @@ fn generate_expected_argument
         expression_id  : None,
         parameter_info : None,
     }
+}
+
+fn generate_expected_arguments
+(node:Node
+, kind                      : node::Kind
+, supplied_prefix_arg_count : usize
+, expected_args             : impl ExactSizeIterator<Item=ParameterInfo>
+) -> Node {
+    let arity = supplied_prefix_arg_count + expected_args.len();
+    (supplied_prefix_arg_count..).zip(expected_args).fold(node, |node, (index,parameter)| {
+        let is_last = index + 1 == arity;
+        generate_expected_argument(node,kind,index,is_last,parameter)
+    })
 }
 
 //fn fill_with_expected_args(base:Node, kind:node::Kind, explicit_args:usize, arity:usi)
@@ -435,7 +449,7 @@ mod test {
     use crate::Context;
     use crate::ParameterInfo;
     use crate::builder::TreeBuilder;
-    use crate::generate::context::InvocationInfo;
+    use crate::generate::context::CalledMethodInfo;
     use crate::node::Kind::*;
     use crate::node::InsertType::*;
 
@@ -458,17 +472,17 @@ mod test {
 
     #[derive(Clone,Debug,Default)]
     struct MockContext {
-        map : HashMap<Id,InvocationInfo>,
+        map : HashMap<Id, CalledMethodInfo>,
     }
     impl MockContext {
-        fn new_single(id:Id, info:InvocationInfo) -> Self {
+        fn new_single(id:Id, info: CalledMethodInfo) -> Self {
             let mut ret = Self::default();
             ret.map.insert(id,info);
             ret
         }
     }
     impl Context for MockContext {
-        fn invocation_info(&self, id:Id, _name:Option<&str>) -> Option<InvocationInfo> {
+        fn call_info(&self, id:Id, _name:Option<&str>) -> Option<CalledMethodInfo> {
             self.map.get(&id).cloned()
         }
     }
@@ -759,7 +773,7 @@ mod test {
         assert_eq!(expected,tree);
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn generating_span_tree_for_unfinished_call() {
         let parser     = Parser::new_or_panic();
         let this_param = ParameterInfo{
@@ -779,7 +793,7 @@ mod test {
         // === Single function name ===
 
         let ast = parser.parse_line("foo").unwrap();
-        let invocation_info = InvocationInfo {
+        let invocation_info = CalledMethodInfo {
             parameters : vec![this_param.clone()]
         };
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
@@ -800,7 +814,7 @@ mod test {
         // === Complete application chain ===
 
         let ast = parser.parse_line("foo here").unwrap();
-        let invocation_info = InvocationInfo {
+        let invocation_info = CalledMethodInfo {
             parameters : vec![this_param.clone()]
         };
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
@@ -821,7 +835,7 @@ mod test {
         // === Partial application chain ===
 
         let ast = parser.parse_line("foo here").unwrap();
-        let invocation_info = InvocationInfo {
+        let invocation_info = CalledMethodInfo {
             parameters : vec![this_param.clone(), param1.clone(), param2.clone()]
         };
         let ctx = MockContext::new_single(ast.id.unwrap(),invocation_info);

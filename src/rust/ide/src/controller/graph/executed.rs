@@ -13,7 +13,7 @@ use crate::model::execution_context::VisualizationUpdateData;
 
 use enso_protocol::language_server::MethodPointer;
 use span_tree::generate::context::Context;
-use span_tree::generate::context::InvocationInfo;
+use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::controller::graph::Connection;
 pub use crate::controller::graph::Connections;
@@ -250,13 +250,13 @@ impl Handle {
 /// Span Tree generation context for a graph that does not know about execution.
 /// Provides information based on computed value registry, using metadata as a fallback.
 impl Context for Handle {
-    fn invocation_info(&self, id:ast::Id, name:Option<&str>) -> Option<InvocationInfo> {
+    fn call_info(&self, id:ast::Id, name:Option<&str>) -> Option<CalledMethodInfo> {
         let lookup_registry = || {
             let info  = self.computed_value_info_registry().get(&id)?;
             let entry = self.project.suggestion_db().lookup(info.method_call?).ok()?;
             Some(entry.invocation_info())
         };
-        let fallback = || self.graph.borrow().invocation_info(id,name);
+        let fallback = || self.graph.borrow().call_info(id, name);
         lookup_registry().or_else(fallback)
     }
 }
@@ -354,7 +354,7 @@ pub mod tests {
 
         let mock::Fixture{graph,executed_graph,module,suggestion_db,..} = &data.fixture();
         let id                  = graph.nodes().unwrap()[0].info.id();
-        let get_invocation_info = || executed_graph.invocation_info(id,Some("foo"));
+        let get_invocation_info = || executed_graph.call_info(id, Some("foo"));
         assert!(get_invocation_info().is_none());
 
         // Check that if we set metadata, executed graph can see this info.
