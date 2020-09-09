@@ -37,7 +37,7 @@ use crate::component::node;
 use crate::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::component::visualization;
 use crate::component::visualization::MockDataGenerator3D;
-use crate::graph_editor::component::visualization::Container;
+use crate::component::visualization::Container;
 
 use enso_frp as frp;
 use ensogl::application::Application;
