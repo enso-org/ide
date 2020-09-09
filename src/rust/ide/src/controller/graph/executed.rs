@@ -147,7 +147,20 @@ impl Handle {
         let value_stream = registry.subscribe().map(Notification::ComputedValueInfo).boxed_local();
         let graph_stream = self.graph().subscribe().map(Notification::Graph).boxed_local();
         let self_stream  = self.notifier.subscribe().boxed_local();
-        futures::stream::select_all(vec![value_stream,graph_stream,self_stream])
+
+        // Note: [Argument Names-related invalidations]
+        let db_stream = self.project.suggestion_db().subscribe().map(|notification| {
+            match notification {
+                model::suggestion_database::Notification::Updated =>
+                    Notification::Graph(controller::graph::Notification::Invalidate),
+            }
+        }).boxed_local();
+        let update_stream = registry.subscribe().map(|_| {
+            Notification::Graph(controller::graph::Notification::Invalidate)
+        }).boxed_local();
+
+        let streams = vec![value_stream,graph_stream,self_stream,db_stream,update_stream];
+        futures::stream::select_all(streams)
     }
 
     /// Get a type of the given expression as soon as it is available.
@@ -311,16 +324,13 @@ pub mod tests {
     }
 
     // Test that checks that value computed notification is properly relayed by the executed graph.
-    #[wasm_bindgen_test]
+    #[test]
     fn dispatching_value_computed_notification() {
+        use crate::test::mock::Fixture;
+        use crate::test::mock::Unified;
         // Setup the controller.
-        let mut fixture    = TestWithLocalPoolExecutor::set_up();
-        let graph_data     = controller::graph::tests::MockData::new();
-        let graph          = graph_data.graph();
-        let execution_data = model::execution_context::plain::test::MockData::new();
-        let execution      = Rc::new(execution_data.create());
-        let project        = Rc::new(model::project::MockAPI::new());
-        let executed_graph = Handle::new_internal(graph,project,execution.clone_ref());
+        let mut fixture    = crate::test::mock::Unified::new().fixture();
+        let Fixture{executed_graph,execution,executor,..} = &mut fixture;
 
         // Generate notification.
         let updated_id = ExpressionId::new_v4();
@@ -334,8 +344,8 @@ pub mod tests {
         assert!(registry.get(&updated_id).is_none());
 
         // Sending notification.
-        execution.computed_value_info_registry.apply_updates(vec![update]);
-        fixture.run_until_stalled();
+        execution.computed_value_info_registry().apply_updates(vec![update]);
+        executor.run_until_stalled();
 
         // Observing that notification was relayed.
         let observed_notification = notifications.expect_next();
@@ -343,6 +353,11 @@ pub mod tests {
         let expected_typename     = Some(ImString::new(typename));
         assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![updated_id]));
         assert_eq!(typename_in_registry,expected_typename);
+
+        // Having a computed value also requires graph invalidation (span tree context change).
+        let observed_notification = notifications.expect_next();
+        let expected = Notification::Graph(controller::graph::Notification::Invalidate);
+        assert_eq!(observed_notification,expected);
         notifications.expect_pending();
     }
 

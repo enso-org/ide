@@ -4,9 +4,12 @@ use crate::prelude::*;
 
 use crate::double_representation::module::QualifiedName;
 use crate::model::module::MethodId;
+use crate::notification;
 
 use data::text::TextLocation;
 use enso_protocol::language_server;
+use enso_protocol::language_server::SuggestionId;
+use flo_stream::Subscriber;
 use language_server::types::SuggestionsDatabaseVersion;
 use language_server::types::SuggestionDatabaseUpdatesEvent;
 use parser::DocParser;
@@ -14,7 +17,6 @@ use parser::DocParser;
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
-use enso_protocol::language_server::SuggestionId;
 
 
 
@@ -251,6 +253,11 @@ pub fn to_span_tree_param
     }
 }
 
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub enum Notification {
+    Updated
+}
+
 
 
 // ================
@@ -265,9 +272,10 @@ pub fn to_span_tree_param
 /// argument names and types.
 #[derive(Clone,Debug,Default)]
 pub struct SuggestionDatabase {
-    logger  : Logger,
-    entries : RefCell<HashMap<EntryId,Rc<Entry>>>,
-    version : Cell<SuggestionsDatabaseVersion>,
+    logger        : Logger,
+    entries       : RefCell<HashMap<EntryId,Rc<Entry>>>,
+    version       : Cell<SuggestionsDatabaseVersion>,
+    notifications : notification::Publisher<Notification>,
 }
 
 impl SuggestionDatabase {
@@ -309,9 +317,15 @@ impl SuggestionDatabase {
         }
         Self {
             logger,
-            entries : RefCell::new(entries),
-            version : Cell::new(response.current_version),
+            entries       : RefCell::new(entries),
+            version       : Cell::new(response.current_version),
+            notifications : default()
         }
+    }
+
+    /// Subscribe for notifications about changes in the database.
+    pub fn subscribe(&self) -> Subscriber<Notification> {
+        self.notifications.subscribe()
     }
 
     /// Get suggestion entry by id.
@@ -345,6 +359,7 @@ impl SuggestionDatabase {
             };
         }
         self.version.set(event.current_version);
+        self.notifications.notify(Notification::Updated);
     }
 
 
@@ -414,8 +429,10 @@ mod test {
     use super::*;
 
     use enso_protocol::language_server::SuggestionsDatabaseEntry;
+    use utils::test::stream::StreamTestExt;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::wasm_bindgen_test;
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
 
 
@@ -524,6 +541,7 @@ mod test {
 
     #[test]
     fn applying_update() {
+        let mut fixture = TestWithLocalPoolExecutor::set_up();
         let entry1 = language_server::types::SuggestionEntry::Atom {
             name          : "Entry1".to_string(),
             module        : "TestProject.TestModule".to_string(),
@@ -552,7 +570,9 @@ mod test {
             entries         : vec![db_entry1,db_entry2],
             current_version : 1,
         };
-        let db = SuggestionDatabase::from_ls_response(initial_response);
+        let db            = SuggestionDatabase::from_ls_response(initial_response);
+        let mut notifications = db.subscribe().boxed_local();
+        notifications.expect_pending();
 
         // Remove
         let remove_update = Update::Remove {id:2};
@@ -561,6 +581,8 @@ mod test {
             current_version : 2
         };
         db.apply_update_event(update);
+        fixture.run_until_stalled();
+        assert_eq!(notifications.expect_next(),Notification::Updated);
         assert_eq!(db.lookup(2), Err(NoSuchEntry(2)));
         assert_eq!(db.version.get(), 2);
 
@@ -571,6 +593,9 @@ mod test {
             current_version : 3,
         };
         db.apply_update_event(update);
+        fixture.run_until_stalled();
+        assert_eq!(notifications.expect_next(),Notification::Updated);
+        notifications.expect_pending();
         assert_eq!(db.lookup(2).unwrap().name, "NewEntry2");
         assert_eq!(db.version.get(), 3);
     }

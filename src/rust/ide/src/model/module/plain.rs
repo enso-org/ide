@@ -35,8 +35,7 @@ impl Module {
     }
 
     fn notify(&self, notification:Notification) {
-        let notify  = self.notifications.publish(notification);
-        executor::global::spawn(notify);
+        self.notifications.notify(notification)
     }
 }
 

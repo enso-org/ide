@@ -806,14 +806,19 @@ impl Handle {
 
     /// Subscribe to updates about changes in this graph.
     pub fn subscribe(&self) -> impl Stream<Item=Notification> {
-        let module_sub = self.module.subscribe();
-        module_sub.map(|notification| {
+        let module_sub = self.module.subscribe().map(|notification| {
             match notification {
                 model::module::Notification::Invalidate      |
                 model::module::Notification::CodeChanged{..} |
                 model::module::Notification::MetadataChanged => Notification::Invalidate,
             }
-        })
+        });
+        let db_sub = self.suggestion_db.subscribe().map(|notification| {
+            match notification {
+                model::suggestion_database::Notification::Updated => Notification::Invalidate
+            }
+        });
+        futures::stream::select(module_sub,db_sub)
     }
 }
 
@@ -974,6 +979,19 @@ pub mod tests {
             let mut sub = graph.subscribe();
             let change  = TextChange::insert(Index::new(12), "2".into());
             graph.module.apply_code_change(change, &graph.parser,default()).unwrap();
+            assert_eq!(Some(Notification::Invalidate), sub.next().await);
+        });
+    }
+
+    #[wasm_bindgen_test]
+    fn suggestion_db_updates_invalidate_graph() {
+        Fixture::set_up().run(|graph| async move {
+            let mut sub = graph.subscribe();
+            let update = language_server::types::SuggestionDatabaseUpdatesEvent {
+                updates : vec![],
+                current_version : default(),
+            };
+            graph.suggestion_db.apply_update_event(update);
             assert_eq!(Some(Notification::Invalidate), sub.next().await);
         });
     }

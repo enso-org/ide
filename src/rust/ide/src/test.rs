@@ -271,6 +271,13 @@ pub mod mock {
         pub searcher       : controller::Searcher,
     }
 
+    impl Fixture {
+        /// Runs all tasks in the pool and returns if no more progress can be made on any task.
+        pub fn run_until_stalled(&mut self) {
+            self.executor.run_until_stalled();
+        }
+    }
+
     pub fn indent(line:impl AsRef<str>) -> String {
         iformat!("    {line.as_ref()}")
     }
@@ -288,7 +295,7 @@ pub mod mock {
 
 pub fn assert_call_info
 ( info:span_tree::generate::context::CalledMethodInfo
-  , entry:&model::suggestion_database::Entry
+, entry:&model::suggestion_database::Entry
 ) {
     assert_eq!(info.parameters.len(),entry.arguments.len());
     for (encountered,expected) in info.parameters.iter().zip(entry.arguments.iter()) {
