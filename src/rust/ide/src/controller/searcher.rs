@@ -417,7 +417,7 @@ impl Searcher {
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
         if old_expr != new_expr {
-            self.reload_list()
+            self.reload_list();
         } else if let Suggestions::Loaded {list} = self.data.borrow().suggestions.clone_ref() {
             list.update_filtering(&self.data.borrow().input.pattern);
             executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
@@ -566,6 +566,7 @@ impl Searcher {
         };
         self.get_suggestion_list_from_engine(this_type,return_types,None);
         self.data.borrow_mut().suggestions = Suggestions::Loading;
+        executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
     }
 
     /// Get the typename of "this" value for current completion context. Returns `Future`, as the

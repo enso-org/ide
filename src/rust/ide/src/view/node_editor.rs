@@ -16,13 +16,16 @@ use enso_frp::stream::EventEmitter;
 use ensogl::display;
 use ensogl::display::traits::*;
 use ensogl::application::Application;
+use ensogl_gui_list_view as list_view;
 use ide_view::graph_editor;
 use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::EdgeTarget;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
-
+use ensogl_gui_list_view::entry::{Model, AnyModelProvider, EmptyProvider};
+use crate::controller::searcher::suggestion::MatchInfo;
+use crate::controller::searcher::Suggestions;
 
 
 // ==============
@@ -149,17 +152,18 @@ impl GraphEditorIntegratedWithController {
 
 #[derive(Debug)]
 struct GraphEditorIntegratedWithControllerModel {
-    logger             : Logger,
+    logger              : Logger,
     //TODO[ao] we display the new "Project view" because it contains documentation panel, but no
     // text editor. This should be refactored as a part of task
     // https://github.com/enso-org/ide/issues/597
-    view               : ide_view::project::View,
-    controller         : controller::ExecutedGraph,
-    project            : model::Project,
-    node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
-    expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
-    connection_views   : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
-    visualizations     : SharedHashMap<graph_editor::NodeId,VisualizationId>,
+    view                : ide_view::project::View,
+    controller          : controller::ExecutedGraph,
+    project             : model::Project,
+    searcher_controller : RefCell<Option<controller::Searcher>>,
+    node_views          : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
+    expression_views    : RefCell<HashMap<graph_editor::NodeId,String>>,
+    connection_views    : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
+    visualizations      : SharedHashMap<graph_editor::NodeId,VisualizationId>,
 }
 
 
@@ -199,6 +203,7 @@ impl GraphEditorIntegratedWithController {
             });
         }
 
+
         // === Project Renaming ===
 
         let breadcrumbs = &model.view.graph().breadcrumbs;
@@ -225,6 +230,8 @@ impl GraphEditorIntegratedWithController {
             GraphEditorIntegratedWithControllerModel::connection_removed_in_ui,&invalidate.trigger);
         let node_moved = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_moved_in_ui,&invalidate.trigger);
+        let node_editing = Self::ui_action(&model,
+            GraphEditorIntegratedWithControllerModel::node_editing_in_ui(Rc::downgrade(&model)),&invalidate.trigger);
         let node_expression_set = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_expression_set_in_ui,&invalidate.trigger);
         let visualization_enabled = Self::ui_action(&model,
@@ -252,6 +259,7 @@ impl GraphEditorIntegratedWithController {
             _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
             _action <- editor_outs.connection_removed       .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
+            _action <- editor_outs.edited_node              .map2(&is_hold,node_editing);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
         }
         Self::connect_frp_to_controller_notifications(&model,handle_notification.trigger);
@@ -303,14 +311,15 @@ impl GraphEditorIntegratedWithControllerModel {
     , app        : &Application
     , controller : controller::ExecutedGraph
     , project    : model::Project) -> Self {
-        let view             = app.new_view::<ide_view::project::View>();
-        let node_views       = default();
-        let connection_views = default();
-        let expression_views = default();
-        let visualizations   = default();
+        let view                = app.new_view::<ide_view::project::View>();
+        let node_views          = default();
+        let connection_views    = default();
+        let expression_views    = default();
+        let visualizations      = default();
+        let searcher_controller = default();
         let this = GraphEditorIntegratedWithControllerModel {
             view,controller,node_views,
-            expression_views,connection_views,logger,visualizations,project
+            expression_views,connection_views,logger,visualizations,project,searcher_controller
         };
 
         if let Err(err) = this.refresh_graph_view() {
@@ -614,6 +623,25 @@ impl GraphEditorIntegratedWithControllerModel {
                 controller: {err}");
         }
     }
+
+    pub fn handle_searcher_notification(&self, notification:&controller::searcher::Notification) {
+        use controller::searcher::Notification;
+        match notification {
+            Notification::NewSuggestionList => with(self.searcher_controller.borrow(), |searcher| {
+                if let Some(searcher) = &*searcher {
+                    let new_entries:AnyModelProvider = match searcher.suggestions() {
+                        Suggestions::Loading => EmptyProvider.into(),
+                        Suggestions::Loaded {list} => SuggestionProvider{list}.into(),
+                        Suggestions::Error(err) => {
+                            error!(self.logger, "Error while obtaining list from searcher: {err}");
+                            EmptyProvider.into()
+                        },
+                    };
+                    self.view.searcher().set_entries(new_entries);
+                }
+            })
+        }
+    }
 }
 
 
@@ -653,9 +681,46 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn node_expression_set_in_ui
     (&self, (displayed_id,expression):&(graph_editor::NodeId,String)) -> FallibleResult<()> {
-        let id                 = self.get_controller_node_id(*displayed_id)?;
+        let searcher = self.searcher_controller.borrow();
         self.expression_views.borrow_mut().insert(*displayed_id,expression.clone());
-        self.controller.graph().set_expression(id,expression)
+        if let Some(searcher) = searcher.as_ref() {
+            searcher.set_input(expression.clone())?;
+        }
+        Ok(())
+        // let id = self.get_controller_node_id(*displayed_id)?;
+        // self.expression_views.borrow_mut().insert(*displayed_id,expression.clone());
+        // self.controller.graph().set_expression(id,expression)
+    }
+
+    fn node_editing_in_ui(weak_self:Weak<Self>) -> impl Fn(&Self,&Option<graph_editor::NodeId>) -> FallibleResult<()> {
+        move |this,displayed_id| {
+            if let Some(displayed_id) = displayed_id {
+                let id   = this.get_controller_node_id(*displayed_id);
+                let mode = match id {
+                    Ok(node_id) => controller::searcher::Mode::EditNode {node_id},
+                    Err(MissingMappingFor::DisplayedNode(id)) => {
+                        let position = this.view.graph().model.nodes.get_cloned_ref(&id).map(|node| model::module::Position{vector:node.position().xy()});
+                        controller::searcher::Mode::NewNode {position}
+                    },
+                    Err(other) => return Err(other.into()),
+                };
+                let selected_nodes = this.view.graph().selected_nodes().iter().filter_map(|id| {
+                    this.get_controller_node_id(*id).ok()
+                }).collect_vec();
+                let controller = this.controller.clone_ref();
+                let searcher = controller::Searcher::new_from_graph_controller(&this.logger,&this.project,controller,mode,selected_nodes)?;
+                executor::global::spawn(searcher.subscribe().for_each(f!([weak_self](notification) {
+                    if let Some(this) = weak_self.upgrade() {
+                        this.handle_searcher_notification(&notification);
+                    }
+                    futures::future::ready(())
+                })));
+                *this.searcher_controller.borrow_mut() = Some(searcher);
+            } else {
+                *this.searcher_controller.borrow_mut() = None;
+            }
+            Ok(())
+        }
     }
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
@@ -927,5 +992,41 @@ impl NodeEditor {
 impl display::Object for NodeEditor {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
+    }
+}
+
+#[derive(Clone,CloneRef,Debug)]
+struct SuggestionProvider {
+    list : Rc<controller::searcher::suggestion::List>,
+}
+
+impl list_view::entry::ModelProvider for SuggestionProvider {
+    fn entry_count(&self) -> usize {
+        self.list.matching_count()
+    }
+
+    fn get(&self, id: usize) -> Option<list_view::entry::Model> {
+        let suggestion = self.list.get_cloned(id)?;
+        if let MatchInfo::Matches {subsequence} = suggestion.match_info {
+            let caption          = suggestion.suggestion.caption();
+            let model            = list_view::entry::Model::new(caption.clone());
+            let mut char_iter    = caption.char_indices().enumerate();
+            let highlighted_iter = subsequence.indices.iter().filter_map(|idx| loop {
+                if let Some(char) = char_iter.next() {
+                    let (char_idx,(byte_id,char)) = char;
+                    if char_idx == *idx {
+                        let start = ensogl_text::Bytes(byte_id as i32);
+                        let end   = ensogl_text::Bytes((byte_id + char.len_utf8()) as i32);
+                        break Some(ensogl_text::Range::new(start,end))
+                    }
+                } else {
+                    break None;
+                }
+            });
+            let model = model.highlight(highlighted_iter);
+            Some(model)
+        } else {
+            None
+        }
     }
 }

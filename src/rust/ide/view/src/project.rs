@@ -161,6 +161,11 @@ impl View {
     pub fn graph(&self) -> &GraphEditor {
         &self.model.graph_editor
     }
+
+    /// Searcher View.
+    pub fn searcher(&self) -> &searcher::View {
+        &self.model.searcher
+    }
 }
 
 impl display::Object for View {

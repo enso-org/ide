@@ -1,6 +1,7 @@
 //! All structures related to the suggestion list provided by SearcherController.
 
 use crate::prelude::*;
+use crate::controller::searcher::suggestion::MatchInfo::DoesNotMatch;
 
 
 // ===================
@@ -95,9 +96,19 @@ impl From<Suggestion> for ListEntry {
 /// Suggestion list.
 ///
 /// This structure should be notified about filtering changes. using `update_filtering` function.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Debug)]
 pub struct List {
-    entries : RefCell<Vec<ListEntry>>
+    entries  : RefCell<Vec<ListEntry>>,
+    matching : CloneCell<Range<usize>>,
+}
+
+impl Default for List {
+    fn default() -> Self {
+        List {
+            entries  : default(),
+            matching : CloneCell::new(0..0),
+        }
+    }
 }
 
 impl List {
@@ -110,7 +121,12 @@ impl List {
     ///
     /// The list will assume that the filtering pattern is an empty string.
     pub fn from_suggestions(suggestions:impl IntoIterator<Item=Suggestion>) -> Self {
-        Self {entries:RefCell::new(suggestions.into_iter().map(ListEntry::from).collect())}
+        let entries = suggestions.into_iter().map(ListEntry::from).collect_vec();
+        let len     = entries.len();
+        Self {
+            entries  : RefCell::new(entries),
+            matching : CloneCell::new(0..len),
+        }
     }
 
     /// Update the list filtering.
@@ -123,10 +139,21 @@ impl List {
             entry.update_matching_info(pattern.as_ref());
         }
         entries_mut.sort_by(|l,r| l.compare_match_scores(r).reverse());
+        let first_not_matching = entries_mut.iter().find_position(|e| e.match_info == DoesNotMatch);
+        let matches_end        = first_not_matching.map_or(entries_mut.len(), |(id,_)| id);
+        self.matching.set(0..matches_end);
     }
 
     /// Length of the suggestion list.
     pub fn len(&self) -> usize { self.entries.borrow().len() }
+
+    /// Number of currently matching entries.
+    pub fn matching_count(&self) -> usize { self.matching.get().end }
+
+    /// Get the suggestion list entry
+    pub fn get_cloned(&self, index:usize) -> Option<ListEntry> {
+        self.entries.borrow().get(index).cloned()
+    }
 
     /// Check if list is empty.
     pub fn is_empty(&self) -> bool { self.entries.borrow().is_empty() }
@@ -142,7 +169,8 @@ impl List {
     /// The new suggestions will be put at end, regardless the current filtering. This function
     /// is meant to be a part of list's initialization.
     pub fn extend<T:IntoIterator<Item=Suggestion>>(&self, iter: T) {
-        self.entries.borrow_mut().extend(iter.into_iter().map(ListEntry::from))
+        self.entries.borrow_mut().extend(iter.into_iter().map(ListEntry::from));
+        self.matching.set(0..self.len())
     }
 
     /// Convert to the suggestion vector.
