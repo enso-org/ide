@@ -343,9 +343,9 @@ impl Chain {
         (infix.name() == operator).as_some_from(|| infix.flatten())
     }
 
-    /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent
+    /// Iterates over operands beginning with target (this argument) and then subsequent
     /// arguments.
-    pub fn enumerate_operands0<'a>
+    pub fn enumerate_operands<'a>
     (&'a self) -> impl Iterator<Item=Option<Located<&'a ArgWithOffset<Ast>>>> + 'a {
         let rev_args      = self.args.iter().rev();
         let target_crumbs = rev_args.map(ChainElement::crumb_to_previous).collect_vec();
@@ -365,11 +365,11 @@ impl Chain {
     }
 
 
-    /// Iterates over &Located<Ast>, beginning with target (this argument) and then subsequent
+    /// Iterates over non-empty operands beginning with target (this argument) and then subsequent
     /// arguments.
-    pub fn enumerate_operands<'a>
+    pub fn enumerate_non_empty_operands<'a>
     (&'a self) -> impl Iterator<Item=Located<&'a ArgWithOffset<Ast>>> + 'a {
-        self.enumerate_operands0().flatten()
+        self.enumerate_operands().flatten()
     }
 
     /// Iterates over all operator's AST in this chain, starting from target side.
@@ -530,8 +530,8 @@ mod tests {
     }
 
     fn test_enumerating(chain:&Chain, root_ast:&Ast, expected_asts:&[&Ast]) {
-        assert_eq!(chain.enumerate_operands().count(), expected_asts.len());
-        for (elem,expected) in chain.enumerate_operands().zip(expected_asts) {
+        assert_eq!(chain.enumerate_non_empty_operands().count(), expected_asts.len());
+        for (elem,expected) in chain.enumerate_non_empty_operands().zip(expected_asts) {
             assert_eq!(elem.item.arg,**expected);
             let ast = root_ast.get_traversing(&elem.crumbs).unwrap();
             assert_eq!(ast,*expected);

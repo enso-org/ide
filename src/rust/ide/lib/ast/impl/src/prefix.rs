@@ -31,7 +31,8 @@ pub struct Argument {
 }
 
 impl Argument {
-    fn new_blank(offset:usize, prefix_id:Option<Id>) -> Self {
+    /// Make an argument consisting of a single blank placeholder: `_`.
+    pub fn new_blank(offset:usize, prefix_id:Option<Id>) -> Self {
         let sast = Shifted::new(offset,Ast::blank());
         Self {sast,prefix_id}
     }

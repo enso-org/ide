@@ -113,7 +113,7 @@ impl<'a> ApplicationBase<'a> {
     fn new(ast:&'a Ast) -> Self {
         if let Some(chain) = ast::opr::as_access_chain(ast) {
             let get_name = || -> Option<&'a str> {
-                let crumbs = chain.enumerate_operands0().last()??.crumbs;
+                let crumbs = chain.enumerate_operands().last()??.crumbs;
                 let ast    = ast.get_traversing(&crumbs).ok()?;
                 ast::identifier::name(ast)
             };

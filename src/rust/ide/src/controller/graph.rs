@@ -508,8 +508,8 @@ impl Handle {
 
     /// Returns information about all the connections between graph's nodes.
     ///
-    /// Will use `self.span_tree_context()` as the context for span tree generation.
-    pub fn connections_legacy(&self) -> FallibleResult<Connections> {
+    /// Will use `self` as the context for span tree generation.
+    pub fn connections_unevaluated_ctx(&self) -> FallibleResult<Connections> {
         let graph   = self.graph_info()?;
         Ok(Connections::new(&graph,self))
     }
@@ -1273,7 +1273,7 @@ main =
         print z";
         test.data.code = PROGRAM.into();
         test.run(|graph| async move {
-            let connections = graph.connections_legacy().unwrap();
+            let connections = graph.connections_unevaluated_ctx().unwrap();
 
             let (node0,node1,node2,node3,node4) = graph.nodes().unwrap().expect_tuple();
             assert_eq!(node0.info.expression().repr(), "get_pos");
@@ -1374,7 +1374,7 @@ main =
     sum = _ + b";
         test.data.code = PROGRAM.into();
         test.run(|graph| async move {
-            assert!(graph.connections_legacy().unwrap().connections.is_empty());
+            assert!(graph.connections_unevaluated_ctx().unwrap().connections.is_empty());
             let (node0,_node1,node2) = graph.nodes().unwrap().expect_tuple();
             let connection_to_add = Connection {
                 source : Endpoint {
@@ -1411,7 +1411,7 @@ main =
     calculate1 = calculate2
     calculate3 calculate5 = calculate5 calculate4";
         test.run(|graph| async move {
-            assert!(graph.connections_legacy().unwrap().connections.is_empty());
+            assert!(graph.connections_unevaluated_ctx().unwrap().connections.is_empty());
             let (node0,node1,_) = graph.nodes().unwrap().expect_tuple();
             let connection_to_add = Connection {
                 source : Endpoint {
@@ -1472,7 +1472,7 @@ main =
                 let expected   = format!("{}{}",MAIN_PREFIX,self.dest_node_expected);
                 let this       = self.clone();
                 test.run(|graph| async move {
-                    let connections = graph.connections_legacy().unwrap();
+                    let connections = graph.connections_unevaluated_ctx().unwrap();
                     let connection  = connections.connections.first().unwrap();
                     graph.disconnect(connection,&span_tree::generate::context::Empty).unwrap();
                     let new_main = graph.graph_definition_info().unwrap().ast.repr();

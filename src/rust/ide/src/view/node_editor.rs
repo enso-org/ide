@@ -348,7 +348,7 @@ impl GraphEditorIntegratedWithControllerModel {
     pub fn refresh_graph_view(&self) -> FallibleResult<()> {
         info!(self.logger, "Refreshing the graph view.");
         use controller::graph::Connections;
-        let Connections{trees,connections} = self.controller.graph().connections_legacy()?;
+        let Connections{trees,connections} = self.controller.graph().connections_unevaluated_ctx()?;
         self.refresh_node_views(trees)?;
         self.refresh_connection_views(connections)?;
         Ok(())
