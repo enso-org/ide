@@ -33,10 +33,6 @@ impl Module {
             notifications : default(),
         }
     }
-
-    fn notify(&self, notification:Notification) {
-        self.notifications.notify(notification)
-    }
 }
 
 impl model::module::API for Module {
@@ -69,12 +65,12 @@ impl model::module::API for Module {
 
     fn update_whole(&self, content:Content) {
         *self.content.borrow_mut() = content;
-        self.notify(Notification::Invalidate);
+        self.notifications.notify(Notification::Invalidate);
     }
 
     fn update_ast(&self, ast:ast::known::Module) {
         self.content.borrow_mut().ast  = ast;
-        self.notify(Notification::Invalidate);
+        self.notifications.notify(Notification::Invalidate);
     }
 
     fn apply_code_change
@@ -84,19 +80,19 @@ impl model::module::API for Module {
         change.apply(&mut code);
         let new_ast = parser.parse(code,new_id_map)?.try_into()?;
         self.content.borrow_mut().ast = new_ast;
-        self.notify(Notification::CodeChanged {change,replaced_location});
+        self.notifications.notify(Notification::CodeChanged {change,replaced_location});
         Ok(())
     }
 
     fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) {
         self.content.borrow_mut().metadata.ide.node.insert(id, data);
-        self.notify(Notification::MetadataChanged);
+        self.notifications.notify(Notification::MetadataChanged);
     }
 
     fn remove_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
         let lookup = self.content.borrow_mut().metadata.ide.node.remove(&id);
         let data   = lookup.ok_or_else(|| NodeMetadataNotFound(id))?;
-        self.notify(Notification::MetadataChanged);
+        self.notifications.notify(Notification::MetadataChanged);
         Ok(data)
     }
 
@@ -105,7 +101,7 @@ impl model::module::API for Module {
         let mut data = lookup.unwrap_or_default();
         fun(&mut data);
         self.content.borrow_mut().metadata.ide.node.insert(id, data);
-        self.notify(Notification::MetadataChanged);
+        self.notifications.notify(Notification::MetadataChanged);
     }
 }
 

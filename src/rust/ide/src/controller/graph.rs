@@ -224,12 +224,12 @@ pub struct Connections {
 impl Connections {
     /// Describes a connection for given double representation graph.
     pub fn new(graph:&GraphInfo, context:&impl SpanTreeContext) -> Connections {
-        let trees = graph.nodes().iter().flat_map(|node| {
+        let trees = graph.nodes().iter().filter_map(|node| {
             Some((node.id(), NodeTrees::new(node,context)?))
         }).collect();
 
-        let mut ret = Connections {trees, connections:default()};
-        let connections = graph.connections().into_iter().flat_map(|c|
+        let mut ret     = Connections {trees, connections:default()};
+        let connections = graph.connections().into_iter().filter_map(|c|
             ret.convert_connection(&c)
         ).collect();
         ret.connections = connections;
@@ -239,7 +239,7 @@ impl Connections {
     /// Converts Endpoint from double representation to the span tree crumbs.
     pub fn convert_endpoint
     (&self, endpoint:&double_representation::connection::Endpoint) -> Option<Endpoint> {
-        let tree = self.trees.get(&endpoint.node)?;
+        let tree           = self.trees.get(&endpoint.node)?;
         let span_tree_node = tree.get_span_tree_node(&endpoint.crumbs)?;
         Some(Endpoint{
             node       : endpoint.node,
