@@ -4,7 +4,6 @@ use crate::controller::graph::NodeTrees;
 use crate::transport::test_utils::TestWithMockedTransport;
 use crate::ide::IdeInitializer;
 
-use enso_protocol::language_server::response::Completion;
 use enso_protocol::project_manager;
 use json_rpc::expect_call;
 use json_rpc::test_util::transport::mock::MockTransport;

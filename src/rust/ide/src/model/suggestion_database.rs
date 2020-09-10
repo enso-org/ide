@@ -253,8 +253,16 @@ pub fn to_span_tree_param
     }
 }
 
+
+
+// ====================
+// === Notification ===
+// ====================
+
+/// Notification about change in a suggestion database,
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum Notification {
+    /// The database has been updated.
     Updated
 }
 

@@ -179,9 +179,9 @@ pub mod mock {
         }
 
         /// Create a graph controller from the current mock data.
-        pub fn graph(&self, module:model::Module, db:Rc<model::SuggestionDatabase>)
+        pub fn graph
+        (&self, logger:impl AnyLogger, module:model::Module, db:Rc<model::SuggestionDatabase>)
         -> crate::controller::Graph {
-            let logger = Logger::new("Test");
             let id     = self.graph_id.clone();
             let parser = self.parser.clone_ref();
             crate::controller::Graph::new(logger,module,db,parser,id).unwrap()
@@ -224,11 +224,11 @@ pub mod mock {
             controller::searcher::test::expect_completion(&mut json_client, &[]);
             customize_json_rpc(self,&mut json_client);
 
-            let logger        = Logger::default(); // TODO
+            let logger        = Logger::new("UnifiedMock");
             let module        = self.module();
             let suggestion_db = Rc::new(model::SuggestionDatabase::new_from_entries(&logger,
                 &self.suggestions));
-            let graph     = self.graph(module.clone_ref(), suggestion_db.clone_ref());
+            let graph     = self.graph(&logger,module.clone_ref(),suggestion_db.clone_ref());
             let execution = self.execution_context();
             let project   = self.project(module.clone_ref(),execution.clone_ref(),
                 suggestion_db.clone_ref(),json_client);
@@ -289,6 +289,7 @@ pub mod mock {
     }
 }
 
+/// Check that given `CalledMethodInfo` is consistent with suggestion database `Entry`.
 pub fn assert_call_info
 ( info:span_tree::generate::context::CalledMethodInfo
 , entry:&model::suggestion_database::Entry

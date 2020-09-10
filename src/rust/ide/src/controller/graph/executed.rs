@@ -327,9 +327,8 @@ pub mod tests {
     #[wasm_bindgen_test]
     fn dispatching_value_computed_notification() {
         use crate::test::mock::Fixture;
-        use crate::test::mock::Unified;
         // Setup the controller.
-        let mut fixture    = crate::test::mock::Unified::new().fixture();
+        let mut fixture = crate::test::mock::Unified::new().fixture();
         let Fixture{executed_graph,execution,executor,..} = &mut fixture;
 
         // Generate notification.
