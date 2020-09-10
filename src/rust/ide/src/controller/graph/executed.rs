@@ -324,7 +324,7 @@ pub mod tests {
     }
 
     // Test that checks that value computed notification is properly relayed by the executed graph.
-    #[test]
+    #[wasm_bindgen_test]
     fn dispatching_value_computed_notification() {
         use crate::test::mock::Fixture;
         use crate::test::mock::Unified;
