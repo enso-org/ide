@@ -508,18 +508,14 @@ impl Handle {
 
     /// Returns information about all the connections between graph's nodes.
     ///
-    /// Will use `self` as the context for span tree generation.
-    pub fn connections_unevaluated_ctx(&self) -> FallibleResult<Connections> {
-        let graph   = self.graph_info()?;
-        Ok(Connections::new(&graph,self))
-    }
-
-    /// Returns information about all the connections between graph's nodes.
+    /// The context is used to create all span trees and possible affects the tree structure (so
+    /// port ids depend on context).
+    ///
+    /// To obtain connection using only the locally available data, one may invoke this method
+    /// passing `self` (i.e. the call target) as the context.
     pub fn connections
     (&self, context:&impl SpanTreeContext) -> FallibleResult<Connections> {
         let graph = self.graph_info()?;
-        // TODO perhaps this should merge given context with the metadata information
-        //      or perhaps this should just do exactly what it is told
         Ok(Connections::new(&graph,context))
     }
 
@@ -868,6 +864,13 @@ pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::model::suggestion_database;
+
+    /// Returns information about all the connections between graph's nodes.
+    ///
+    /// Will use `self` as the context for span tree generation.
+    pub fn connections(graph:Handle) -> FallibleResult<Connections> {
+        graph.connections(&graph)
+    }
 
     /// All the data needed to set up and run the graph controller in mock environment.
     #[derive(Clone,Debug)]
@@ -1284,7 +1287,7 @@ main =
         print z";
         test.data.code = PROGRAM.into();
         test.run(|graph| async move {
-            let connections = graph.connections_unevaluated_ctx().unwrap();
+            let connections = connections(graph).unwrap();
 
             let (node0,node1,node2,node3,node4) = graph.nodes().unwrap().expect_tuple();
             assert_eq!(node0.info.expression().repr(), "get_pos");
@@ -1385,7 +1388,7 @@ main =
     sum = _ + b";
         test.data.code = PROGRAM.into();
         test.run(|graph| async move {
-            assert!(graph.connections_unevaluated_ctx().unwrap().connections.is_empty());
+            assert!(connections(graph).unwrap().connections.is_empty());
             let (node0,_node1,node2) = graph.nodes().unwrap().expect_tuple();
             let connection_to_add = Connection {
                 source : Endpoint {
@@ -1422,7 +1425,7 @@ main =
     calculate1 = calculate2
     calculate3 calculate5 = calculate5 calculate4";
         test.run(|graph| async move {
-            assert!(graph.connections_unevaluated_ctx().unwrap().connections.is_empty());
+            assert!(connections(graph).unwrap().connections.is_empty());
             let (node0,node1,_) = graph.nodes().unwrap().expect_tuple();
             let connection_to_add = Connection {
                 source : Endpoint {
@@ -1483,7 +1486,7 @@ main =
                 let expected   = format!("{}{}",MAIN_PREFIX,self.dest_node_expected);
                 let this       = self.clone();
                 test.run(|graph| async move {
-                    let connections = graph.connections_unevaluated_ctx().unwrap();
+                    let connections = connections(graph).unwrap();
                     let connection  = connections.connections.first().unwrap();
                     graph.disconnect(connection,&span_tree::generate::context::Empty).unwrap();
                     let new_main = graph.graph_definition_info().unwrap().ast.repr();
