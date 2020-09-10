@@ -270,27 +270,20 @@ impl SpanTreeGenerator for ast::opr::Chain {
 
 impl SpanTreeGenerator for ast::prefix::Chain {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
-        // TODO test for case when there are more arguments supplied than the known arity of function?
-
-        //panic!();
-        let base            = ApplicationBase::new(&self.func);
-        let invocation_info = self.id().and_then(|id| context.call_info(id, base.function_name));
-        let known_args      = invocation_info.is_some();
-        println!("AST {} has name {:?} and info {:?}",self.clone().into_ast(),base.function_name,invocation_info);
+        let base             = ApplicationBase::new(&self.func);
+        let invocation_info  = self.id().and_then(|id| context.call_info(id, base.function_name));
+        let known_args       = invocation_info.is_some();
         let mut known_params = base.prefix_params(invocation_info);
-        dbg!(&base);
-        let arity            = self.args.len().max(known_params.len());
-        dbg!(arity);
+        let prefix_arity     = self.args.len().max(known_params.len());
 
         use ast::crumbs::PrefixCrumb::*;
         // Removing arguments is possible if there at least two of them
         let is_removable = self.args.len() >= 2;
         let node         = self.func.generate_node(node::Kind::Operation,context);
         let ret          = self.args.iter().enumerate().fold(node, |node,(i,arg)| {
-            println!("Will generate argument node for {}",arg.sast.wrapped);
             let node     = node?;
             let is_first = i == 0;
-            let is_last  = i + 1 == arity;
+            let is_last  = i + 1 == prefix_arity;
             let arg_kind = if is_first && !base.has_target { node::Kind::Target {is_removable} }
                 else { node::Kind::Argument {is_removable} };
 
@@ -438,8 +431,6 @@ fn generate_expected_arguments
         generate_expected_argument(node,kind,index,is_last,parameter)
     })
 }
-
-//fn fill_with_expected_args(base:Node, kind:node::Kind, explicit_args:usize, arity:usi)
 
 
 

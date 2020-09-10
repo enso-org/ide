@@ -9,9 +9,10 @@ use enso_protocol::project_manager;
 use json_rpc::expect_call;
 use json_rpc::test_util::transport::mock::MockTransport;
 use serde_json::json;
+use span_tree::node::InsertType;
+use span_tree::node::Kind;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::wasm_bindgen_test;
-use span_tree::node::{InsertType, Kind};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -79,21 +80,15 @@ async fn get_most_recent_project_or_create_new() {
     assert_eq!(expected_project, project.expect("Couldn't get project."))
 }
 
-#[wasm_bindgen_test]
+#[test]
 fn span_tree_args() {
     use crate::test::mock::*;
     use span_tree::Node;
 
     let data    = Unified::new();
     let fixture = data.fixture_customize(|_,json_client| {
-        for _ in 0..2 {
-            json_client.expect.completion(|_, _, _, _, _| {
-                Ok(Completion {
-                    results         : vec![1],
-                    current_version : default(),
-                })
-            });
-        }
+        // Additional completion request happens after picking completion.
+        controller::searcher::test::expect_completion(json_client,&[1]);
     });
     let Fixture{graph,executed_graph,searcher,suggestion_db,..} = &fixture;
     let entry = suggestion_db.lookup(1).unwrap();
@@ -169,4 +164,10 @@ fn span_tree_args() {
     assert_eq!(get_param(1),None);
     assert_eq!(get_param(2),None);
     assert_eq!(get_param(3),None);
+
+    // === Oversaturated call ===
+    graph.set_expression(id,"foo Base 10 20 30").unwrap();
+    assert_eq!(get_param(1).as_ref(),Some(&expected_this_param));
+    assert_eq!(get_param(2).as_ref(),Some(&expected_arg1_param));
+    assert_eq!(get_param(3).as_ref(),None);
 }

@@ -221,11 +221,7 @@ pub mod mock {
         -> Fixture {
             let mut json_client = language_server::MockClient::default();
             // Creating a searcher controller always triggers a query for completion.
-            let completion = language_server::response::Completion {
-                results         : default(),
-                current_version : default(),
-            };
-            json_client.expect.completion(|_,_,_,_,_| Ok(completion));
+            controller::searcher::test::expect_completion(&mut json_client, &[]);
             customize_json_rpc(self,&mut json_client);
 
             let logger        = Logger::default(); // TODO
