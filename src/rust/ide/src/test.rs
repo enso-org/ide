@@ -117,7 +117,6 @@ pub mod mock {
         pub logger        : Logger,
         pub project_name  : String,
         pub module_path   : model::module::Path,
-        pub graph_id      : double_representation::graph::Id,
         pub suggestions   : HashMap<suggestion_database::EntryId,suggestion_database::Entry>,
         pub context_id    : model::execution_context::Id,
         pub parser        : parser::Parser,
@@ -130,9 +129,6 @@ pub mod mock {
     impl Unified {
         pub fn set_inline_code(&mut self, code:impl AsRef<str>) {
             let method = self.method_pointer();
-            //self.code = format!("{}.{} = {}",method.defined_on_type,method.name,code.as_ref())
-            // FIXME [mwu] should be as above but definition lookup doesn't handle properly implicit
-            //             module name
             self.code = format!("{} = {}",method.name,code.as_ref())
         }
 
@@ -146,7 +142,6 @@ pub mod mock {
                 logger          : Logger::default(),
                 project_name    : PROJECT_NAME.to_owned(),
                 module_path     : module_path(),
-                graph_id        : graph_id(),
                 code            : CODE.to_owned(),
                 id_map          : default(),
                 metadata        : default(),
@@ -181,10 +176,12 @@ pub mod mock {
         /// Create a graph controller from the current mock data.
         pub fn graph
         (&self, logger:impl AnyLogger, module:model::Module, db:Rc<model::SuggestionDatabase>)
-        -> crate::controller::Graph {
-            let id     = self.graph_id.clone();
-            let parser = self.parser.clone_ref();
-            crate::controller::Graph::new(logger,module,db,parser,id).unwrap()
+         -> crate::controller::Graph {
+            let parser      = self.parser.clone_ref();
+            let method      = self.method_pointer();
+            let module_ast  = module.ast();
+            let definition  = module::lookup_method(&module_ast,&method).unwrap();
+            crate::controller::Graph::new(logger,module,db,parser,definition).unwrap()
         }
 
         pub fn execution_context(&self) -> model::ExecutionContext {
