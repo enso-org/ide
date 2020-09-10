@@ -79,7 +79,7 @@ async fn get_most_recent_project_or_create_new() {
     assert_eq!(expected_project, project.expect("Couldn't get project."))
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn span_tree_args() {
     use crate::test::mock::*;
     use span_tree::Node;

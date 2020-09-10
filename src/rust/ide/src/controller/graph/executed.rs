@@ -163,6 +163,17 @@ impl Handle {
         futures::stream::select_all(streams)
     }
 
+    // Note [Argument Names-related invalidations]
+    // ===========================================
+    // Currently the shape of span tree depends on how method calls are recognized and resolved.
+    // This involves lookups in the metadata, computed values registry and suggestion database.
+    // As such, any of these will lead to emission of invalidation signal, as span tree shape
+    // affects the connection identifiers.
+    //
+    // This is inefficient and should be addressed in the future.
+    // See: https://github.com/enso-org/ide/issues/787
+
+
     /// Get a type of the given expression as soon as it is available.
     pub fn expression_type(&self, id:ast::Id) -> StaticBoxFuture<Option<ImString>> {
         let registry = self.execution_ctx.computed_value_info_registry();
