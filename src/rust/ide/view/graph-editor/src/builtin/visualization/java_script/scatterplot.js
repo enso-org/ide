@@ -7,6 +7,19 @@ function loadScript(url) {
 
 loadScript('https://d3js.org/d3.v4.min.js');
 
+/**
+  * A d3.js ScatterPlot visualization.
+  *
+  * source (CSV file): | x-axis | y-axis | domain |
+  * Data format (json):
+  * {
+  *  source : String,
+  *  colors : [{
+  *      domain : String,
+  *      color  : String
+  *  }]
+  * }
+  */
 class ScatterPlot extends Visualization {
     static inputType = "Any"
 
@@ -26,11 +39,6 @@ class ScatterPlot extends Visualization {
         svgElem.setAttributeNS(null, "height", "100%");
         svgElem.setAttributeNS(null, "transform", "matrix(1 0 0 -1 0 0)");
 
-        // TODO: Remove this.
-        svgElem.onmousedown = function () {
-            console.log("Clicked");
-        }
-
         this.dom.appendChild(svgElem);
 
         let margin = {top: 20, right: 20, bottom: 20, left: 20};
@@ -44,7 +52,21 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        d3.csv("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/iris.csv", function (_data) {
+        let parsedData = JSON.parse(data);
+        let dataSource = parsedData.source || "";
+        let colorDomain = []
+        let colorRange = []
+        if (parsedData.colors !== undefined) {
+            parsedData.colors.forEach(d => {
+                colorDomain.push(d.domain);
+                colorRange.push("#" + d.color);
+            });
+        }
+
+
+        d3.csv(dataSource, function (_data) {
+            var headerNames = d3.keys(_data[0]);
+
             var x = d3.scaleLinear()
                 .domain([4, 8])
                 .range([0, width]);
@@ -67,8 +89,8 @@ class ScatterPlot extends Visualization {
                 .attr("y", 0);
 
             var color = d3.scaleOrdinal()
-                .domain(["setosa", "versicolor", "virginica"])
-                .range(["#440154ff", "#21908dff", "#fde725ff"])
+                .domain(colorDomain)
+                .range(colorRange)
 
             var brush = d3.brushX()
                 .extent([[0, 0], [width, height]])
@@ -83,14 +105,14 @@ class ScatterPlot extends Visualization {
                 .enter()
                 .append("circle")
                 .attr("cx", function (d) {
-                    return x(d.Sepal_Length);
+                    return x(d[headerNames[0]]);
                 })
                 .attr("cy", function (d) {
-                    return y(d.Petal_Length);
+                    return y(d[headerNames[1]]);
                 })
                 .attr("r", 8)
                 .style("fill", function (d) {
-                    return color(d.Species)
+                    return color(d[headerNames[2]])
                 })
                 .style("opacity", 0.5)
 
@@ -121,10 +143,10 @@ class ScatterPlot extends Visualization {
                     .selectAll("circle")
                     .transition().duration(1000)
                     .attr("cx", function (d) {
-                        return x(d.Sepal_Length);
+                        return x(d[headerNames[0]]);
                     })
                     .attr("cy", function (d) {
-                        return y(d.Petal_Length);
+                        return y(d[headerNames[1]]);
                     })
 
             }
