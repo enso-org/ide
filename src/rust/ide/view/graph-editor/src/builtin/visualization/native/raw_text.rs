@@ -11,6 +11,7 @@ use ensogl::display::scene::Scene;
 use ensogl::display;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
+use ensogl::system::web::AttributeSetter;
 
 
 
@@ -77,6 +78,8 @@ impl RawTextModel {
         let div     = web::create_div();
         let dom     = DomSymbol::new(&div);
         let size    = Rc::new(Cell::new(Vector2(200.0,200.0)));
+
+        dom.dom().set_attribute_or_warn("class","scrollable",&logger);
 
         dom.dom().set_style_or_warn("white-space"   ,"pre"                  ,&logger);
         dom.dom().set_style_or_warn("overflow-y"    ,"auto"                 ,&logger);
