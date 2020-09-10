@@ -110,7 +110,7 @@ pub mod test {
         project.expect_content_root_id().return_const(root_id);
     }
 
-    /// Sets up module expectation on the mock project, returning a give module.
+    /// Sets up module expectation on the mock project, returning a given module.
     pub fn expect_suggestion_db(project:&mut MockAPI, suggestion_db:Rc<model::SuggestionDatabase>) {
         project.expect_suggestion_db().returning_st(move || suggestion_db.clone_ref());
     }
