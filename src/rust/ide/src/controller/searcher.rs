@@ -573,10 +573,12 @@ impl Searcher {
         let fragments     = data_borrowed.fragments_added_by_picking.iter();
         let imports       = fragments.map(|frag| &frag.picked_suggestion.module);
         let mut module    = self.module();
+        let here          = self.module_qualified_name();
         for import in imports {
-            let import        = ImportInfo::from_qualified_name(&import);
-            let already_there = module.iter_imports().any(|imp| imp == import);
-            if !already_there {
+            let is_here          = *import == here;
+            let import           = ImportInfo::from_qualified_name(&import);
+            let already_imported = module.iter_imports().any(|imp| imp == import);
+            if !is_here && !already_imported {
                 module.add_import(&self.parser,import);
             }
         }

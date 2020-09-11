@@ -21,10 +21,10 @@ ensogl_text::define_endpoints! {
         set_entries      (entry::AnyModelProvider),
     }
     Output {
-        selected_entry  (Option<entry::Id>),
-        picked_entry    (Option<entry::Id>),
-        commited_entry  (Option<entry::Id>),
-        size            (Vector2<f32>),
+        selected_entry    (Option<entry::Id>),
+        picked_entry      (Option<entry::Id>),
+        editing_committed (),
+        size              (Vector2<f32>),
     }
 }
 
@@ -73,12 +73,18 @@ impl View {
             eval frp.resize      ((size)    model.list.resize(size));
             eval frp.set_entries ((entries) model.list.set_entries(entries));
             source.selected_entry <+ model.list.selected_entry;
-            source.commited_entry <+ model.list.chosen_entry;
             source.size           <+ model.list.size;
 
             is_selected         <- model.list.selected_entry.map(|e| e.is_some());
             opt_picked_entry    <- model.list.selected_entry.sample(&frp.pick_suggestion);
             source.picked_entry <+ opt_picked_entry.gate(&is_selected);
+            // Order of the two below is important: we want pick the entry first, and then commit
+            // editing.
+            source.picked_entry <+ model.list.chosen_entry.gate(&is_selected);
+            source.editing_committed <+ model.list.chosen_entry.gate(&is_selected).constant(());
+            trace model.list.chosen_entry;
+            trace source.picked_entry;
+            trace source.editing_committed;
         }
 
         self

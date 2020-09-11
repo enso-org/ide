@@ -416,7 +416,7 @@ impl application::shortcut::DefaultShortcutProvider for ListView {
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         vec!
         [ Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowUp]  , shortcut::Pattern::Any) , "move_selection_up")
-        , Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowDown], shortcut::Pattern::Any) , "move_selection_down")
+        , Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowDown], &[]) , "move_selection_down")
         , Self::self_shortcut(shortcut::Action::press   (&[Key::PageUp]   , shortcut::Pattern::Any) , "move_selection_page_up")
         , Self::self_shortcut(shortcut::Action::press   (&[Key::PageDown] , shortcut::Pattern::Any) , "move_selection_page_down")
         , Self::self_shortcut(shortcut::Action::press   (&[Key::Home]     , shortcut::Pattern::Any) , "move_selection_to_first")

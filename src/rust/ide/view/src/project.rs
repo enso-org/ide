@@ -94,6 +94,8 @@ impl Model {
 ensogl::def_command_api! { Commands
     /// Add new node and start editing it's expression.
     add_new_node,
+    /// Abort currently node edit. If it was added node, it will be removed, if the existing node was edited, its old expression will be restored.
+    abort_node_editing,
 }
 
 impl application::command::CommandApi for View {
@@ -115,7 +117,9 @@ ensogl_text::define_endpoints! {
     }
     Output {
         documentation_visible  (bool),
-        edititing_commited     (Option<NodeId>),
+        edited_node            (Option<NodeId>),
+        editing_aborted        (NodeId),
+        editing_committed      (NodeId),
     }
 }
 
@@ -137,7 +141,7 @@ impl View {
 
         let network = &frp.network;
 
-        frp::extend!{ network
+        frp::extend!{ TRACE_ALL network
             // === Documentation Set ===
 
             eval frp.set_documentation_data ((data) model.documentation.frp.send_data.emit(data));
@@ -146,6 +150,17 @@ impl View {
 
             // === Editing ===
 
+            // The order of instructions below is important to properly distinguish between
+            // committing and aborting node editing.
+
+            // This node is false when received "abort_node_editing" signal, and should get true
+            // once processing of "edited_node" event from graph is performed.
+            editing_not_aborted <- any(...);
+            editing_not_aborted <+ frp.abort_node_editing.constant(false);
+            should_finish_editing <- any(frp.abort_node_editing,searcher.editing_committed);
+            eval should_finish_editing ([graph](()) {
+                graph.inputs.edit_mode_off.emit(());
+            });
             eval graph.outputs.edited_node ([model](edited_node_id) {
                 if let Some(id) = edited_node_id {
                     model.show_searcher_under_node(*id);
@@ -153,10 +168,15 @@ impl View {
                     model.hide_searcher();
                 }
             });
-            frp.source.edititing_commited <+ graph.outputs.edited_node.sample(&searcher.commited_entry);
+            frp.source.editing_committed <+ graph.outputs.node_edit_mode_turned_off.gate(&editing_not_aborted);
+            editing_not_aborted <+ graph.outputs.edited_node.constant(true);
 
             // === Adding New Node ===
             eval frp.add_new_node ((()) model.add_node_and_edit());
+
+            // === Edit committing ===
+
+            // Here we send signal first
 
             // === OUTPUTS REBIND ===
 
@@ -192,7 +212,7 @@ impl application::command::FrpNetworkProvider for View {
 }
 
 impl application::command::Provider for View {
-    fn label() -> &'static str { "ListView" }
+    fn label() -> &'static str { "ProjectView" }
 }
 
 impl application::View for View {

@@ -183,6 +183,7 @@ impl GraphEditorIntegratedWithController {
         let model        = Rc::new(model);
         let editor_outs  = &model.view.graph().frp.outputs;
         let searcher_frp = &model.view.searcher().frp;
+        let project_frp  = &model.view.frp;
         frp::new_network! {network
             let invalidate = FencedAction::fence(&network,f!([model](()) {
                 let result = model.refresh_graph_view();
@@ -238,8 +239,10 @@ impl GraphEditorIntegratedWithController {
             GraphEditorIntegratedWithControllerModel::node_editing_in_ui(Rc::downgrade(&model)),&invalidate.trigger);
         let node_expression_set = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_expression_set_in_ui,&invalidate.trigger);
-        let suggestion_picked_in_ui = Self::ui_action(&model,
+        let suggestion_picked = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::suggestion_picked_in_ui, &invalidate.trigger);
+        let node_editing_committed = Self::ui_action(&model,
+            GraphEditorIntegratedWithControllerModel::node_editing_committed_in_ui, &invalidate.trigger);
         let visualization_enabled = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::visualization_enabled_in_ui,
             &invalidate.trigger);
@@ -267,7 +270,8 @@ impl GraphEditorIntegratedWithController {
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.edited_node              .map2(&is_hold,node_editing);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
-            _action <- searcher_frp.picked_entry            .map2(&is_hold,suggestion_picked_in_ui);
+            _action <- searcher_frp.picked_entry            .map2(&is_hold,suggestion_picked);
+            _action <- project_frp.editing_committed       .map2(&is_hold,node_editing_committed);
         }
         Self::connect_frp_to_controller_notifications(&model,handle_notification.trigger);
         Self {model,network}
@@ -726,6 +730,7 @@ impl GraphEditorIntegratedWithControllerModel {
                 *this.searcher_controller.borrow_mut() = Some(searcher);
             } else {
                 *this.searcher_controller.borrow_mut() = None;
+
             }
             Ok(())
         }
@@ -749,23 +754,15 @@ impl GraphEditorIntegratedWithControllerModel {
         Ok(())
     }
 
-    fn suggestion_commited_in_ui
-    (&self, entry:&Option<ide_view::searcher::entry::Id>) -> FallibleResult<()> {
-        if let Some(entry) = entry {
-            let error = || MissingSearcherController;
-            let searcher = self.searcher_controller.borrow().clone().ok_or_else(error)?;
-            let error = || GraphEditorInconsistency;
-            let edited_node = self.view.graph().frp.outputs.edited_node.value().ok_or_else(error)?;
-            let new_code    = searcher.pick_completion_by_index(*entry)?;
-            let node_id     = searcher.commit_node()?;
-            let code_and_trees = graph_editor::component::node::port::Expression {
-                code             : new_code,
-                input_span_tree  : default(),
-                output_span_tree : default(),
-            };
-            self.view.graph().frp.inputs.set_node_expression.emit_event(&(edited_node,code_and_trees));
-            self.node_views.borrow_mut().insert(node_id,edited_node);
-        }
+    fn node_editing_committed_in_ui
+    (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult<()> {
+        debug!(self.logger, "Node editing commited in ui");
+        let error = || MissingSearcherController;
+        let searcher = self.searcher_controller.borrow().clone().ok_or_else(error)?;
+        debug!(self.logger, "Have searcher");
+        let node_id     = searcher.commit_node()?;
+        self.node_views.borrow_mut().insert(node_id,*displayed_id);
+        *self.searcher_controller.borrow_mut() = None;
         Ok(())
     }
 

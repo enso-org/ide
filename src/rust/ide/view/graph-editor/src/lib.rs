@@ -552,6 +552,8 @@ generate_frp_outputs! {
     node_expression_set       : (NodeId,String),
     node_entered              : NodeId,
     node_exited               : (),
+    node_edit_mode_turned_on  : NodeId,
+    node_edit_mode_turned_off : NodeId,
 
     edge_added        : EdgeId,
     edge_removed      : EdgeId,
@@ -1611,8 +1613,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                                , "edit_mode_on")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Escape],&[])                              , "edit_mode_off")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("e".into())],&[])  , "edit_mode_on")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Enter],&[])                               , "edit_mode_off")
              ]
     }
 }
@@ -1760,22 +1762,23 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Node Edit Mode ===
 
-    frp::extend! { network
-        edit_mode    <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
-        outputs.edited_node <+ all_with(&edit_mode, &touch.nodes.selected, |edit_mode,node|
-            edit_mode.and_option(Some(*node))
-        );
-        outputs.edited_node <+ inputs.edit_node.map(|node| Some(*node));
-        previous_edited_node <- any(...);
-        _eval <- outputs.edited_node.map2(&previous_edited_node, f!([model](id,prev_id:&Option<NodeId>) {
-            if let Some(node) = prev_id.and_then(|id| model.nodes.get_cloned_ref(&id)) {
-                node.ports.frp.stop_edit_mode.emit(());
-            }
-            if let Some(node) = id.and_then(|id| model.nodes.get_cloned_ref(&id)) {
+    frp::extend! { TRACE_ALL network
+        outputs.node_edit_mode_turned_on  <+ touch.nodes.selected.sample(&inputs.edit_mode_on);
+        outputs.node_edit_mode_turned_off <+ outputs.edited_node.map(|n| n.unwrap_or(default())).sample(&inputs.edit_mode_off);
+        outputs.node_edit_mode_turned_on  <+ inputs.edit_node;
+        outputs.edited_node               <+ outputs.node_edit_mode_turned_on.map(|n| Some(*n));;
+        outputs.edited_node               <+ outputs.node_edit_mode_turned_off.constant(None);
+
+        eval outputs.node_edit_mode_turned_on ([model] (id) {
+            if let Some(node) = model.nodes.get_cloned_ref(&id) {
                 node.ports.frp.start_edit_mode.emit(());
             }
-        }));
-        previous_edited_node <+ outputs.edited_node;
+        });
+        eval outputs.node_edit_mode_turned_off ([model](id) {
+            if let Some(node) = model.nodes.get_cloned_ref(&id) {
+                node.ports.frp.stop_edit_mode.emit(());
+            }
+        });
     }
 
 
