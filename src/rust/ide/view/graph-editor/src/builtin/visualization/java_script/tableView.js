@@ -3,26 +3,26 @@ class TableViewVisualization extends Visualization {
 
     onDataReceived(data) {
 
-        let tableOf = function (content, level) {
+        function tableOf(content, level) {
             let open = '<table class="level' + level + '">';
             return open + content + "</table>";
         }
 
-        let hasExactlyKeys = function (keys, obj) {
+        function hasExactlyKeys(keys, obj) {
             return Object.keys(obj).length === keys.length && keys.every(k => obj.hasOwnProperty(k));
-        };
+        }
 
-        let getAtNestedKey = function (data, key) {
+        function getAtNestedKey(data, key) {
             let res = data;
             key.forEach(k => res = res[k]);
             return res;
         }
 
-        let repNestedKey = function (key) {
+        function repNestedKey(key) {
             return key.join(".");
         }
 
-        let generateNestings = function (data, key) {
+        function generateNestings(data, key) {
             let first = getAtNestedKey(data[0], key);
             if (!(first instanceof Object)) return [key];
             let firstKeys  = Object.keys(first);
@@ -36,14 +36,14 @@ class TableViewVisualization extends Visualization {
             }
         }
 
-        let isObjectMatrix = function (data) {
+        function isObjectMatrix(data) {
             let isList = Array.isArray(data) && data[0];
             if (!isList || !(typeof data[0] === "object")) return false;
             let firstKeys = Object.keys(data[0]);
             return data.every(obj => hasExactlyKeys(firstKeys, obj));
         }
 
-        let genObjectMatrix = function (data, level) {
+        function genObjectMatrix(data, level) {
             let result = "<tr><th></th>";
             let keys   = Object.keys(data[0]);
             let nests  = [].concat.apply([], keys.map(k => generateNestings(data,[k])));
@@ -61,7 +61,7 @@ class TableViewVisualization extends Visualization {
             return tableOf(result, level);
         }
 
-        let isMatrix = function (data) {
+        function isMatrix(data) {
             let isList = Array.isArray(data) && data[0];
             if (!isList) return false;
             let firstIsArray = Array.isArray(data[0]);
@@ -70,7 +70,7 @@ class TableViewVisualization extends Visualization {
             return data.every(d => d.length === firstLen);
         }
 
-        let genMatrix = function (data, level, header) {
+        function genMatrix(data, level, header) {
             let result = "<tr><th></th>";
             if (header) {
                 header.forEach((elt, ix) => {
@@ -101,7 +101,7 @@ class TableViewVisualization extends Visualization {
             return tableOf(result, level);
         }
 
-        let genGenericTable = function (data, level) {
+        function genGenericTable(data, level) {
             let result = "";
             data.forEach((point, ix) => {
                 result += ("<tr><th>" + ix + "</th>" + toTableCell(point, level) + "</tr>");
@@ -109,7 +109,7 @@ class TableViewVisualization extends Visualization {
             return tableOf(result, level);
         }
 
-        let genRowObjectTable = function (data, level) {
+        function genRowObjectTable(data, level) {
             let keys   = Object.keys(data);
             let result = "<tr>";
             keys.forEach(key => {
@@ -123,7 +123,7 @@ class TableViewVisualization extends Visualization {
             return tableOf(result, level);
         }
 
-        let toTableCell = function (data, level) {
+        function toTableCell(data, level) {
             if (Array.isArray(data)) {
                 return "<td>" + genTable(data, level + 1) + "</td>";
             } else if (data instanceof Object) {
@@ -135,7 +135,7 @@ class TableViewVisualization extends Visualization {
             }
         }
 
-        let genTable = function (data, level, header) {
+        function genTable(data, level, header) {
             if (isMatrix(data)) {
                 return genMatrix(data, level, header);
             } else if (isObjectMatrix(data)) {
