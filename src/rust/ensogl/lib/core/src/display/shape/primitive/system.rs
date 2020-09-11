@@ -202,8 +202,9 @@ impl StyleWatch {
         *self.callback.borrow_mut() = Box::new(callback);
     }
 
-    /// Queries style sheet color, if not found gets fallback.
-    pub fn get_color_or(&self, path:&str, fallback:color::Lcha) -> color::Lcha {
+    /// Queries style sheet color, if not found fallbacks to red.
+    pub fn get_color(&self, path:&str) -> color::Lcha {
+        let fallback = color::Rgba::new(1.0,0.0,0.0,1.0).into();
         self.get(path).color().unwrap_or_else(|| fallback)
     }
 

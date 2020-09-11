@@ -40,7 +40,7 @@ mod selection {
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width  - 2.0.px() * PADDING_PX;
             let height        = sprite_height - 2.0.px() * PADDING_PX;
-            let color         = style.get("select.selection.color").color();
+            let color         = style.get("list_view.highlight.color").color();
             let color         = color.unwrap_or_else(|| color::Rgba::new(1.0,0.0,0.0,1.0).into());
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
@@ -63,7 +63,7 @@ mod background {
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width  - PADDING_PX.px() * 2.0;
             let height        = sprite_height - PADDING_PX.px() * 2.0;
-            let color         = style.get("select.background.color").color();
+            let color         = style.get("list_view.background.color").color();
             let color         = color.unwrap_or_else(|| color::Rgba::new(0.4,0.4,0.4,1.0).into());
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));

@@ -100,8 +100,8 @@ fn init(app:&Application) {
     dark.insert("application.background.color", color::Lcha::new(0.13,0.013,0.18,1.0));
     dark.insert("application.text.color", color::Rgba::new(1.0,1.0,1.0,0.7));
 
-    dark.insert("select.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
-    dark.insert("select.selection.color", color::Lcha::new(0.72,0.5,0.22,1.0));
+    dark.insert("list_view.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
+    dark.insert("list_view.highlight.color", color::Lcha::new(0.72,0.5,0.22,1.0));
 
     app.themes.register("dark",dark);
 
@@ -109,8 +109,8 @@ fn init(app:&Application) {
     light.insert("application.background.color", color::Lcha::new(0.96,0.013,0.18,1.0));
     light.insert("application.text.color", color::Rgba::new(0.0,0.0,0.0,0.7));
 
-    light.insert("select.background.color", color::Lcha::new(0.98,0.013,0.18,1.0));
-    light.insert("select.selection.color", color::Lcha::new(0.55,0.65,0.79,1.0));
+    light.insert("list_view.background.color", color::Lcha::new(0.98,0.013,0.18,1.0));
+    light.insert("list_view.highlight.color", color::Lcha::new(0.55,0.65,0.79,1.0));
 
     app.themes.register("light",light);
     app.themes.set_enabled(&["light"]);

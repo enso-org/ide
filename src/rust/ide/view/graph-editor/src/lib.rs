@@ -370,9 +370,7 @@ ensogl::def_command_api! { Commands
     toggle_fullscreen_for_selected_visualization,
 
     /// Simulates a style toggle press event.
-    press_toggle_style,
-    /// Simulates a style toggle release event. See `press_visualization_visibility` to learn more.
-    release_toggle_style,
+    toggle_style,
 
     /// Cancel the operation being currently performed. Often mapped to the escape key.
     cancel,
@@ -1173,13 +1171,6 @@ impl GraphEditorModel {
         if is_light { self.app.themes.set_enabled(&["dark"])  }
         else        { self.app.themes.set_enabled(&["light"]) }
     }
-
-    fn is_style_light(&self) -> bool {
-        let styles     = StyleWatch::new(&self.app.display.scene().style_sheet);
-        let fallback   = color::Lcha::new(0.0,0.0,0.0,0.7);
-        let text_color = styles.get_color_or("application.text.color", fallback);
-        text_color.lightness <= 0.5
-    }
 }
 
 
@@ -1546,10 +1537,10 @@ impl GraphEditorModel {
     /// Return a color for the edge. Either based on the edges source/target type, or a default
     /// color defined in Theme Manager as `type.missing.color`
     fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
-        let styles                 = StyleWatch::new(&self.scene().style_sheet);
-        let missing_color_path     = "type.missing.color";
-        let missing_color_fallback = color::Lcha::new(0.7,0.0,0.0,1.0);
-        let missing_type_color     = styles.get_color_or(missing_color_path,missing_color_fallback);
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        let styles             = StyleWatch::new(&self.scene().style_sheet);
+        let missing_color_path = "type.missing.color";
+        let missing_type_color = styles.get_color(missing_color_path);
         match self.try_get_edge_color(edge_id) {
            Some(color) => color,
            None        => missing_type_color,
@@ -1632,8 +1623,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                         , "exit_node")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                         , "edit_mode_on")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                         , "edit_mode_off")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Character("s".into())],&[]), "press_toggle_style")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Shift,Key::Character("s".into())],&[]), "release_toggle_style")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Character("s".into())],&[]), "toggle_style")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Shift,Key::Character("s".into())],&[]), "toggle_style")
              ]
     }
 }
@@ -1713,10 +1704,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let outputs        = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
-    let styles                 = StyleWatch::new(&scene.style_sheet);
-    let missing_color_path     = "type.missing.color";
-    let missing_color_fallback = color::Lcha::new(0.7,0.0,0.0,1.0);
-    let missing_type_color     = styles.get_color_or(missing_color_path,missing_color_fallback);
+    // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+    let styles             = StyleWatch::new(&scene.style_sheet);
+    let missing_color_path = "type.missing.color";
+    let missing_type_color = styles.get_color(missing_color_path);
 
 
 
@@ -2499,16 +2490,14 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend!{ network
 
-
         // === Style toggle ===
 
-        let style_press_ev     = inputs.press_toggle_style.clone_ref();
-        let style_release      = inputs.release_toggle_style.clone_ref();
-        style_pressed         <- bool(&style_release,&style_press_ev);
-        style_was_pressed     <- style_pressed.previous();
-        style_press           <- style_press_ev.gate_not(&style_was_pressed);
-        style_press_on_off    <- style_press.map(f_!(model.is_style_light()));
-        outputs.style_light   <+ style_press_on_off;
+        let style_toggle_ev  = inputs.toggle_style.clone_ref();
+        style_pressed       <- style_toggle_ev.toggle() ;
+        style_was_pressed   <- style_pressed.previous();
+        style_press         <- style_toggle_ev.gate_not(&style_was_pressed);
+        style_press_on_off  <- style_press.map2(&outputs.style_light, |_,is_light| !is_light);
+        outputs.style_light <+ style_press_on_off;
 
 
         // === OUTPUTS REBIND ===

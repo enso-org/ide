@@ -48,15 +48,14 @@ pub mod background {
         (style:Style,selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let width             = &width  - SHADOW_SIZE.px() * 2.0;
-            let height            = &height - SHADOW_SIZE.px() * 2.0;
-            let radius            = 1.px() * &radius;
-            let color_bg_path     = "graph_editor.visualization.background.color";
-            let color_bg_fallback = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let color_bg          = style.get_color_or(color_bg_path,color_bg_fallback);
-            let corner_radius     = &radius * &roundness;
-            let background        = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background        = background.fill(color::Rgba::from(color_bg));
+            let width         = &width  - SHADOW_SIZE.px() * 2.0;
+            let height        = &height - SHADOW_SIZE.px() * 2.0;
+            let radius        = 1.px() * &radius;
+            let color_bg_path = "graph_editor.visualization.background.color";
+            let color_bg      = style.get_color(color_bg_path);
+            let corner_radius = &radius * &roundness;
+            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
+            let background    = background.fill(color::Rgba::from(color_bg));
 
             // === Shadow ===
 
@@ -89,13 +88,12 @@ pub mod fullscreen_background {
         (style:Style,selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let radius            = 1.px() * &radius;
-            let color_bg_path     = "graph_editor.visualization.background.color";
-            let color_bg_fallback = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let color_bg          = style.get_color_or(color_bg_path,color_bg_fallback);
-            let corner_radius     = &radius * &roundness;
-            let background        = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background        = background.fill(color::Rgba::from(color_bg));
+            let radius        = 1.px() * &radius;
+            let color_bg_path = "graph_editor.visualization.background.color";
+            let color_bg      = style.get_color(color_bg_path);
+            let corner_radius = &radius * &roundness;
+            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
+            let background    = background.fill(color::Rgba::from(color_bg));
             background.into()
         }
     }

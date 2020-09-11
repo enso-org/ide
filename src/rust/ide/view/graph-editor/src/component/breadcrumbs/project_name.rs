@@ -198,10 +198,10 @@ impl ProjectNameModel {
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles                = StyleWatch::new(&scene.style_sheet);
         let base_color_path       = "breadcrumbs.transparent.color";
-        let base_color_fallback   = color::Lcha::new(0.0,0.0,0.125,0.4);
-        let base_color            = styles.get_color_or(base_color_path,base_color_fallback);
+        let base_color            = styles.get_color(base_color_path);
         let base_color            = color::Rgba::from(base_color);
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
@@ -211,6 +211,7 @@ impl ProjectNameModel {
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let outputs               = frp.outputs.clone_ref();
         let animations            = Animations::new(&frp.network);
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let style                 = StyleWatch::new(&scene.style_sheet);
         Self{logger,view,style,display_object,text_field,project_name,animations,outputs}.init()
     }
@@ -277,22 +278,20 @@ impl ProjectNameModel {
     }
 
     fn select(&self) {
-        let styles                  = &self.style;
-        let selected_color_path     = "breadcrumbs.selected.color";
-        let selected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let styles              = &self.style;
+        let selected_color_path = "breadcrumbs.selected.color";
 
-        let selected_color = styles.get_color_or(selected_color_path,selected_color_fallback);
+        let selected_color = styles.get_color(selected_color_path);
         let selected_color = color::Rgba::from(selected_color);
 
         self.animations.color.set_target_value(selected_color.into());
     }
 
     fn deselect(&self) {
-        let styles                    = &self.style;
-        let deselected_color_path     = "breadcrumbs.left.deselected.color";
-        let deselected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let styles                = &self.style;
+        let deselected_color_path = "breadcrumbs.left.deselected.color";
 
-        let deselected_color = styles.get_color_or(deselected_color_path,deselected_color_fallback);
+        let deselected_color = styles.get_color(deselected_color_path);
         let deselected_color = color::Rgba::from(deselected_color);
 
         self.animations.color.set_target_value(deselected_color.into());
@@ -327,16 +326,15 @@ impl ProjectName {
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
 
-        let styles                = StyleWatch::new(&scene.style_sheet);
-        let hover_color_path      = "breadcrumbs.hover.color";
-        let hover_color_fallback  = color::Lcha::new(0.0,0.0,0.125,0.6);
-        let hover_color           = styles.get_color_or(hover_color_path,hover_color_fallback);
-        let hover_color           = color::Rgba::from(hover_color);
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        let styles            = StyleWatch::new(&scene.style_sheet);
+        let hover_color_path  = "breadcrumbs.hover.color";
+        let hover_color       = styles.get_color(hover_color_path);
+        let hover_color       = color::Rgba::from(hover_color);
 
-        let deselected_color_path     = "breadcrumbs.left.deselected.color";
-        let deselected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let deselected_color_path = "breadcrumbs.left.deselected.color";
 
-        let deselected_color = styles.get_color_or(deselected_color_path,deselected_color_fallback);
+        let deselected_color = styles.get_color(deselected_color_path);
         let deselected_color = color::Rgba::from(deselected_color);
 
         frp::extend! { network

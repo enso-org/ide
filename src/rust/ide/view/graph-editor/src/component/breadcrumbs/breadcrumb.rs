@@ -314,6 +314,7 @@ impl BreadcrumbModel {
         scene.views.main.remove(&symbol);
         scene.views.breadcrumbs.add(&symbol);
 
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let style = StyleWatch::new(&scene.style_sheet);
         Self{logger,view,icon,separator,display_object,glyph_system,label,info,animations,style
             ,relative_position,outputs}.init()
@@ -325,17 +326,15 @@ impl BreadcrumbModel {
         self.separator.add_child(&self.icon);
         self.icon.add_child(&self.label);
 
-        let styles              = &self.style;
-        let full_color_path     = "breadcrumbs.full.color";
-        let full_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.7);
+        let styles          = &self.style;
+        let full_color_path = "breadcrumbs.full.color";
 
-        let full_color = styles.get_color_or(full_color_path,full_color_fallback);
+        let full_color = styles.get_color(full_color_path);
         let full_color = color::Rgba::from(full_color);
 
-        let transparent_color_path     = "breadcrumbs.transparent.color";
-        let transparent_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.4);
+        let transparent_color_path = "breadcrumbs.transparent.color";
 
-        let transparent_color = styles.get_color_or(transparent_color_path,transparent_color_fallback);
+        let transparent_color = styles.get_color(transparent_color_path);
         let transparent_color = color::Rgba::from(transparent_color);
 
         let color  = if self.is_selected() { full_color } else { transparent_color };
@@ -408,17 +407,15 @@ impl BreadcrumbModel {
     }
 
     fn select(&self) {
-        let styles                  = &self.style;
-        let selected_color_path     = "breadcrumbs.selected.color";
-        let selected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let styles              = &self.style;
+        let selected_color_path = "breadcrumbs.selected.color";
 
-        let selected_color = styles.get_color_or(selected_color_path,selected_color_fallback);
+        let selected_color = styles.get_color(selected_color_path,);
         let selected_color = color::Rgba::from(selected_color);
 
-        let left_deselected_path     = "breadcrumbs.left.deselected.color";
-        let left_deselected_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let left_deselected_path = "breadcrumbs.left.deselected.color";
 
-        let left_deselected = styles.get_color_or(left_deselected_path,left_deselected_fallback);
+        let left_deselected = styles.get_color(left_deselected_path);
         let left_deselected = color::Rgba::from(left_deselected);
 
         self.animations.color.set_target_value(selected_color.into());
@@ -435,23 +432,20 @@ impl BreadcrumbModel {
     }
 
     fn deselected_color(&self) -> color::Rgba {
-        let styles                  = &self.style;
-        let selected_color_path     = "breadcrumbs.selected.color";
-        let selected_color_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let styles               = &self.style;
+        let selected_color_path  = "breadcrumbs.selected.color";
 
-        let selected_color = styles.get_color_or(selected_color_path,selected_color_fallback);
+        let selected_color = styles.get_color(selected_color_path);
         let selected_color = color::Rgba::from(selected_color);
 
-        let left_deselected_path     = "breadcrumbs.left.deselected.color";
-        let left_deselected_fallback = color::Lcha::new(0.0,0.0,0.125,0.6);
+        let left_deselected_path = "breadcrumbs.left.deselected.color";
 
-        let left_deselected = styles.get_color_or(left_deselected_path,left_deselected_fallback);
+        let left_deselected = styles.get_color(left_deselected_path);
         let left_deselected = color::Rgba::from(left_deselected);
 
-        let right_deselected_path     = "breadcrumbs.right.deselected.color";
-        let right_deselected_fallback = color::Lcha::new(0.0,0.0,0.125,0.2);
+        let right_deselected_path = "breadcrumbs.right.deselected.color";
 
-        let right_deselected = styles.get_color_or(right_deselected_path,right_deselected_fallback);
+        let right_deselected = styles.get_color(right_deselected_path);
         let right_deselected = color::Rgba::from(right_deselected);
 
         match self.relative_position.get() {
@@ -494,11 +488,11 @@ impl Breadcrumb {
         let model   = Rc::new(BreadcrumbModel::new(scene,&frp,method_pointer,expression_id));
         let network = &frp.network;
 
-        let styles                = StyleWatch::new(&scene.style_sheet);
-        let hover_color_path      = "breadcrumbs.hover.color";
-        let hover_color_fallback  = color::Lcha::new(0.0,0.0,0.125,0.6);
-        let hover_color           = styles.get_color_or(hover_color_path,hover_color_fallback);
-        let hover_color           = color::Rgba::from(hover_color);
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        let styles           = StyleWatch::new(&scene.style_sheet);
+        let hover_color_path = "breadcrumbs.hover.color";
+        let hover_color      = styles.get_color(hover_color_path);
+        let hover_color      = color::Rgba::from(hover_color);
 
         frp::extend! { network
             eval_ frp.fade_in(model.animations.fade_in.set_target_value(1.0));

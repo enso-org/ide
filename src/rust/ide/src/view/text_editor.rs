@@ -81,8 +81,9 @@ impl TextEditor {
         let padding    = default();
         let position   = zero();
         let size       = Vector2::new(screen.width, screen.height / 2.0);
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles     = StyleWatch::new(&scene.style_sheet);
-        let base_color = styles.get_color_or("application.text.color",color::Lcha::new(0.0,0.0,0.125,0.7));
+        let base_color = styles.get_color("application.text.color");
         let base_color = color::Rgba::from(base_color);
         let text_size  = 16.0;
         let properties = TextFieldProperties {font,text_size,base_color,size};

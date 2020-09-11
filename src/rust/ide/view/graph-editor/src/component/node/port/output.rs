@@ -755,10 +755,10 @@ impl OutputPorts {
     }
 
     fn set_port_colors_based_on_available_types(&self) {
-        let styles                 = StyleWatch::new(&self.scene.style_sheet);
-        let missing_color_path     = "type.missing.color";
-        let missing_color_fallback = color::Lcha::new(0.7,0.0,0.0,1.0);
-        let missing_type_color     = styles.get_color_or(missing_color_path,missing_color_fallback);
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        let styles             = StyleWatch::new(&self.scene.style_sheet);
+        let missing_color_path = "type.missing.color";
+        let missing_type_color = styles.get_color(missing_color_path);
 
         self.id_map.borrow().iter().for_each(|(id, crumb)|{
             let color = self.get_port_color(crumb).unwrap_or(missing_type_color);
@@ -769,6 +769,7 @@ impl OutputPorts {
     /// Return the color of the port indicated by the given `Crumb`.
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         let ast_id = get_id_for_crumbs(&self.pattern_span_tree.borrow(),&crumbs)?;
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles = StyleWatch::new(&self.scene.style_sheet);
         self.type_color_map.type_color(ast_id, styles)
     }

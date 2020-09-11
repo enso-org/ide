@@ -80,8 +80,9 @@ impl RawTextModel {
         let dom     = DomSymbol::new(&div);
         let size    = Rc::new(Cell::new(Vector2(200.0,200.0)));
 
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles     = StyleWatch::new(&scene.style_sheet);
-        let text_color = styles.get_color_or("application.text.color",color::Lcha::new(0.0,0.0,0.125,0.7));
+        let text_color = styles.get_color("application.text.color");
         let text_color = color::Rgba::from(text_color);
         let _red       = text_color.red * 255.0;
         let _green     = text_color.green * 255.0;

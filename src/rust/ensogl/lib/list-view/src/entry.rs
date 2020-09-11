@@ -139,8 +139,9 @@ impl Entry {
         let display_object = display::object::Instance::new(logger);
         display_object.add_child(&label);
         label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
+        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
-        let text_color = styles.get_color_or("application.text.color",color::Lcha::new(0.0,0.0,0.125,0.7));
+        let text_color = styles.get_color("application.text.color");
         label.set_default_color(color::Rgba::from(text_color));
         label.set_default_text_size(text::Size(LABEL_SIZE));
         Entry{id,label,icon,display_object}
