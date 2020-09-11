@@ -10,7 +10,7 @@ class TableViewVisualization extends Visualization {
 
         function hasExactlyKeys(keys, obj) {
             return Object.keys(obj).length === keys.length && keys.every(k => obj.hasOwnProperty(k));
-        }
+        };
 
         function getAtNestedKey(data, key) {
             let res = data;
@@ -192,7 +192,7 @@ class TableViewVisualization extends Visualization {
         }
 
         td {
-            color: rgba(0, 0, 0, 0.9);
+            color: rgba(0, 0, 0, 0.7);
             padding: 0;
         }
 
@@ -208,13 +208,13 @@ class TableViewVisualization extends Visualization {
         }
 
         th {
-            color: rgba(0, 0, 0, 0.7);
+            color: rgba(0, 0, 0, 0.9);
             font-weight: 400;
         }
 
         td,
-            th {
-            background-color: rgba(0, 0, 0, 0.03);
+        th {
+            background-color: rgba(0, 0, 0, 0.025);
         }
         </style>`
 
