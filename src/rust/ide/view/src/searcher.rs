@@ -1,12 +1,13 @@
 use crate::prelude::*;
 
-
 use enso_frp as frp;
 use ensogl::application;
-use ensogl::application::Application;
+use ensogl::application::{Application, shortcut};
 use ensogl::display;
-use ensogl_gui_list_view::entry;
 use ensogl_gui_list_view::ListView;
+
+pub use ensogl_gui_list_view::entry;
+use enso_frp::io::keyboard::Key;
 
 ensogl::def_command_api!( Commands
     /// Pick the selected suggestion and add it to the current input.
@@ -38,7 +39,7 @@ impl Model {
     pub fn new(app:&Application) -> Self {
         let logger         = Logger::new("SearcherView");
         let display_object = display::object::Instance::new(&logger);
-        let list           = ListView::new(app);
+        let list           = app.new_view::<ListView>();
         display_object.add_child(&list);
         Self{logger,display_object,list}
     }
@@ -68,7 +69,7 @@ impl View {
         let frp     = &self.frp;
         let source  = &self.frp.source;
 
-        frp::extend! {network
+        frp::extend! { network
             eval frp.resize      ((size)    model.list.resize(size));
             eval frp.set_entries ((entries) model.list.set_entries(entries));
             source.selected_entry <+ model.list.selected_entry;
@@ -85,4 +86,41 @@ impl View {
 }
 impl display::Object for View {
     fn display_object(&self) -> &display::object::Instance { &self.model.display_object }
+}
+
+impl application::command::FrpNetworkProvider for View {
+    fn network(&self) -> &frp::Network {
+        &self.frp.network
+    }
+}
+
+impl application::command::CommandApi for View {
+    fn command_api_docs() -> Vec<application::command::EndpointDocs> {
+        Commands::command_api_docs()
+    }
+
+    fn command_api(&self) -> Vec<application::command::CommandEndpoint> {
+        self.frp.input.command.command_api()
+    }
+}
+
+impl application::command::Provider for View {
+    fn label() -> &'static str {
+        "Searcher"
+    }
+}
+
+impl application::View for View {
+    fn new(app: &Application) -> Self {
+        Self::new(app)
+    }
+}
+
+impl application::shortcut::DefaultShortcutProvider for View {
+    fn default_shortcuts() -> Vec<shortcut::Shortcut> {
+        use enso_frp::io::mouse;
+        vec!
+        [ Self::self_shortcut(shortcut::Action::press   (&[Key::Tab], &[]) , "pick_suggestion"),
+        ]
+    }
 }

@@ -1,7 +1,6 @@
 //! All structures related to the suggestion list provided by SearcherController.
 
 use crate::prelude::*;
-use crate::controller::searcher::suggestion::MatchInfo::DoesNotMatch;
 
 
 // ===================
@@ -21,9 +20,9 @@ pub enum Suggestion {
 
 impl Suggestion {
     /// The suggestion caption (suggested function name, or action name, etc.).
-    pub fn caption(&self) -> &String {
+    pub fn caption(&self) -> String {
         match self {
-            Self::Completion(completion) => &completion.name
+            Self::Completion(completion) => completion.code_to_insert(None)
         }
     }
 }
@@ -139,7 +138,7 @@ impl List {
             entry.update_matching_info(pattern.as_ref());
         }
         entries_mut.sort_by(|l,r| l.compare_match_scores(r).reverse());
-        let first_not_matching = entries_mut.iter().find_position(|e| e.match_info == DoesNotMatch);
+        let first_not_matching = entries_mut.iter().find_position(|e| e.match_info == MatchInfo::DoesNotMatch);
         let matches_end        = first_not_matching.map_or(entries_mut.len(), |(id,_)| id);
         self.matching.set(0..matches_end);
     }

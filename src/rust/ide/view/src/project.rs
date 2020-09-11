@@ -14,6 +14,8 @@ use ensogl::application::shortcut;
 use ensogl::display;
 use ensogl::display::shape::*;
 use ensogl_gui_list_view as list_view;
+use enso_frp::stream::EventEmitter;
+use ide_view_graph_editor::component::node::Expression;
 
 
 #[derive(Clone,CloneRef,Debug)]
@@ -33,7 +35,7 @@ impl Model {
         let logger         = Logger::new("project::View");
         let display_object = display::object::Instance::new(&logger);
         let graph_editor   = app.new_view::<GraphEditor>();
-        let searcher       = searcher::View::new(app);
+        let searcher       = app.new_view::<searcher::View>();
         let documentation  = documentation::View::new(&scene);
         display_object.add_child(&graph_editor);
         display_object.add_child(&documentation);
@@ -73,6 +75,15 @@ impl Model {
 
     pub fn is_documentation_visible(&self) -> bool {
         self.documentation.has_parent()
+    }
+
+    fn add_node_and_edit(&self) {
+        self.graph_editor.frp.inputs.add_node_at_cursor.emit(());
+        let created_node_id = self.graph_editor.frp.outputs.node_added.value();
+        debug!(self.logger, "New node view id: {created_node_id}");
+        self.graph_editor.frp.inputs.set_node_expression.emit(&(created_node_id,Expression::default()));
+        self.graph_editor.frp.inputs.edit_node.emit(&created_node_id);
+
     }
 }
 
@@ -121,7 +132,7 @@ impl View {
     pub fn new(app:&Application) -> Self {
         let model    = Model::new(app);
         let frp      = Frp::new_network();
-        // let searcher = &model.searcher.frp;
+        let searcher = &model.searcher.frp;
         let graph    = &model.graph_editor.frp;
 
         let network = &frp.network;
@@ -133,7 +144,7 @@ impl View {
             eval frp.set_suggestions        ((provider) model.searcher.frp.set_entries(provider));
 
 
-            // === Start Editing ===
+            // === Editing ===
 
             eval graph.outputs.edited_node ([model](edited_node_id) {
                 if let Some(id) = edited_node_id {
@@ -142,6 +153,10 @@ impl View {
                     model.hide_searcher();
                 }
             });
+            frp.source.edititing_commited <+ graph.outputs.edited_node.sample(&searcher.commited_entry);
+
+            // === Adding New Node ===
+            eval frp.add_new_node ((()) model.add_node_and_edit());
 
             // === OUTPUTS REBIND ===
 
@@ -188,8 +203,7 @@ impl application::shortcut::DefaultShortcutProvider for View {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use frp::io::keyboard::Key;
         vec!
-        [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("\\".into())],&[]) , "press_documentation_view_visibility")
-        , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character("\\".into())],&[]) , "release_documentation_view_visibility")
+        [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Tab],&[]) , "add_new_node")
         ]
     }
 }

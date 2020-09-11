@@ -400,6 +400,7 @@ pub struct FrpInputs {
     pub remove_edge                  : frp::Source<EdgeId>,
     pub select_node                  : frp::Source<NodeId>,
     pub remove_node                  : frp::Source<NodeId>,
+    pub edit_node                    : frp::Source<NodeId>,
     pub collapse_nodes               : frp::Source<(Vec<NodeId>,NodeId)>,
     pub set_node_expression          : frp::Source<(NodeId,node::Expression)>,
     pub set_node_position            : frp::Source<(NodeId,Vector2)>,
@@ -439,6 +440,7 @@ impl FrpInputs {
             remove_edge                  <- source();
             select_node                  <- source();
             remove_node                  <- source();
+            edit_node                    <- source();
             collapse_nodes               <- source();
             set_node_expression          <- source();
             set_node_position            <- source();
@@ -463,7 +465,7 @@ impl FrpInputs {
              ,set_detached_edge_targets,set_edge_source,set_edge_target
              ,unset_edge_source,unset_edge_target
              ,set_node_position,set_expression_type,set_method_pointer,select_node,remove_node
-             ,collapse_nodes,set_node_expression,connect_nodes,deselect_all_nodes
+             ,edit_node,collapse_nodes,set_node_expression,connect_nodes,deselect_all_nodes
              ,cycle_visualization,set_visualization,register_visualization
              ,some_edge_targets_detached,some_edge_sources_detached,all_edge_targets_attached
              ,hover_node_input,all_edge_sources_attached,hover_node_output,press_node_output
@@ -1590,7 +1592,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Enter],&[])       , "debug_push_breadcrumb")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::ArrowUp],&[])     , "debug_pop_breadcrumb")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("g".into())],&[])  , "collapse_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
@@ -1761,9 +1762,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
         edit_mode    <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
-        outputs.edited_node  <+ all_with(&edit_mode, &touch.nodes.selected, f!([](edit_mode,node) {
+        outputs.edited_node <+ all_with(&edit_mode, &touch.nodes.selected, |edit_mode,node|
             edit_mode.and_option(Some(*node))
-        }));
+        );
+        outputs.edited_node <+ inputs.edit_node.map(|node| Some(*node));
         previous_edited_node <- any(...);
         _eval <- outputs.edited_node.map2(&previous_edited_node, f!([model](id,prev_id:&Option<NodeId>) {
             if let Some(node) = prev_id.and_then(|id| model.nodes.get_cloned_ref(&id)) {

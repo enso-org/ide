@@ -20,6 +20,19 @@ pub use suggestion::Suggestion;
 
 
 
+// ==============
+// === Errors ===
+// ==============
+
+
+#[allow(missing_docs)]
+#[fail(display = "No such suggestion with index {}", index)]
+#[derive(Copy,Clone,Debug,Fail)]
+pub struct NoSuchSuggestion{
+    index : usize,
+}
+
+
 // =====================
 // === Notifications ===
 // =====================
@@ -378,7 +391,7 @@ impl Searcher {
         let def_id     = graph.graph().id;
         let def_span   = double_representation::module::definition_span(&module_ast,&def_id)?;
         let position   = TextLocation::convert_span(module_ast.repr(),&def_span).end;
-        let this_arg   = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
+        let this_arg   = Rc::new(matches!(mode, Mode::NewNode{..}).and_option_from(|| ThisNode::new(selected_nodes,&graph.graph())));
         let ret        = Self {
             logger,graph,this_arg,
             data             : Rc::new(RefCell::new(data)),
@@ -416,9 +429,12 @@ impl Searcher {
 
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
+        debug!(self.logger, "Expressions: {old_expr} <> {new_expr}|");
         if old_expr != new_expr {
+            debug!(self.logger, "Reloading list");
             self.reload_list();
         } else if let Suggestions::Loaded {list} = self.data.borrow().suggestions.clone_ref() {
+            debug!(self.logger, "Update filtering");
             list.update_filtering(&self.data.borrow().input.pattern);
             executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
         }
@@ -449,6 +465,7 @@ impl Searcher {
     /// function.
     pub fn pick_completion
     (&self, picked_suggestion:suggestion::Completion) -> FallibleResult<String> {
+        info!(self.logger, "Picking suggestion: {picked_suggestion:?}");
         let id                = self.data.borrow().input.next_completion_id();
         let code_to_insert    = self.code_to_insert(&picked_suggestion,id);
         let added_ast         = self.parser.parse_line(&code_to_insert)?;
@@ -478,6 +495,19 @@ impl Searcher {
         self.data.borrow_mut().fragments_added_by_picking.push(picked_completion);
         self.reload_list();
         Ok(new_input)
+    }
+
+    /// Pick a completion suggestion by index.
+    pub fn pick_completion_by_index(&self, index:usize) -> FallibleResult<String> {
+        let error      = || NoSuchSuggestion{index};
+        let suggestion = {
+            let data = self.data.borrow();
+            let list = data.suggestions.list().ok_or_else(error)?;
+            list.get_cloned(index).ok_or_else(error)?.suggestion
+        };
+        match suggestion {
+            Suggestion::Completion(completion) => self.pick_completion(completion)
+        }
     }
 
     /// Check if the first fragment in the input (i.e. the one representing the called function)
@@ -617,6 +647,7 @@ impl Searcher {
             return_types.push(None)
         }
         executor::global::spawn(async move {
+            info!(this.logger,"Request soon: {this.this_arg:?}");
             let this_type = this_type.await;
             info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
             let requests  = return_types.into_iter().map(|return_type| {
