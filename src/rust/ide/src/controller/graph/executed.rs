@@ -303,6 +303,7 @@ pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use crate::model::module::NodeMetadata;
+    use logger::enabled::Logger;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -358,16 +359,26 @@ pub mod tests {
         executor.run_until_stalled();
 
         // Observing that notification was relayed.
-        let observed_notification = notifications.expect_next();
-        let typename_in_registry  = registry.get(&updated_id).unwrap().typename.clone();
-        let expected_typename     = Some(ImString::new(typename));
-        assert_eq!(observed_notification,Notification::ComputedValueInfo(vec![updated_id]));
-        assert_eq!(typename_in_registry,expected_typename);
+        // Both computed values update and graph invalidation are expected, in any order.
+        notifications.expect_both(
+            |notification| match notification {
+                Notification::ComputedValueInfo(updated_ids) => {
+                    assert_eq!(updated_ids,&vec![updated_id]);
+                    let typename_in_registry = registry.get(&updated_id).unwrap().typename.clone();
+                    let expected_typename    = Some(ImString::new(typename));
+                    assert_eq!(typename_in_registry,expected_typename);
+                    true
+                }
+                _ => false,
+            },
+            |notification| match notification {
+                Notification::Graph(graph_notification) => {
+                    assert_eq!(graph_notification,&controller::graph::Notification::Invalidate);
+                    true
+                }
+                _ => false,
+            });
 
-        // Having a computed value also requires graph invalidation (span tree context change).
-        let observed_notification = notifications.expect_next();
-        let expected = Notification::Graph(controller::graph::Notification::Invalidate);
-        assert_eq!(observed_notification,expected);
         notifications.expect_pending();
     }
 
