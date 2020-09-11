@@ -24,9 +24,9 @@ class BubbleVisualization extends Visualization {
             const bubble = document.createElementNS(xmlns,"circle");
             bubble.setAttributeNS(null,"stroke", "black");
             bubble.setAttributeNS(null,"fill"  , "red");
-            bubble.setAttributeNS(null,"r"     , data[2]);
-            bubble.setAttributeNS(null,"cx"    , data[0]);
-            bubble.setAttributeNS(null,"cy"    , data[1]);
+            bubble.setAttributeNS(null,"r"     , data[2] || 0);
+            bubble.setAttributeNS(null,"cx"    , data[0] || 0);
+            bubble.setAttributeNS(null,"cy"    , data[1] || 0);
             svgElem.appendChild(bubble);
         });
     }
