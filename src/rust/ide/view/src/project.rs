@@ -3,7 +3,9 @@
 use crate::prelude::*;
 
 use crate::documentation;
-use crate::graph_editor::{GraphEditor, NodeId};
+use crate::graph_editor::GraphEditor;
+use crate::graph_editor::NodeId;
+use crate::graph_editor::component::node::Expression;
 use crate::graph_editor::component::visualization;
 use crate::searcher;
 
@@ -15,7 +17,6 @@ use ensogl::display;
 use ensogl::display::shape::*;
 use ensogl_gui_list_view as list_view;
 use enso_frp::stream::EventEmitter;
-use ide_view_graph_editor::component::node::Expression;
 
 
 #[derive(Clone,CloneRef,Debug)]
@@ -116,10 +117,12 @@ ensogl_text::define_endpoints! {
         set_suggestions        (list_view::entry::AnyModelProvider),
     }
     Output {
-        documentation_visible  (bool),
-        edited_node            (Option<NodeId>),
-        editing_aborted        (NodeId),
-        editing_committed      (NodeId),
+        documentation_visible         (bool),
+        adding_new_node               (bool),
+        edited_node                   (Option<NodeId>),
+        old_expression_of_edited_node (Expression),
+        editing_aborted               (NodeId),
+        editing_committed             (NodeId),
     }
 }
 
@@ -155,8 +158,8 @@ impl View {
 
             // This node is false when received "abort_node_editing" signal, and should get true
             // once processing of "edited_node" event from graph is performed.
-            editing_not_aborted <- any(...);
-            editing_not_aborted <+ frp.abort_node_editing.constant(false);
+            editing_aborted <- any(...);
+            editing_aborted <+ frp.abort_node_editing.constant(true);
             should_finish_editing <- any(frp.abort_node_editing,searcher.editing_committed);
             eval should_finish_editing ([graph](()) {
                 graph.inputs.edit_mode_off.emit(());
@@ -168,15 +171,23 @@ impl View {
                     model.hide_searcher();
                 }
             });
+            editing_not_aborted <- editing_aborted.map(|b| !b);
+            trace graph.outputs.node_edit_mode_turned_off;
             frp.source.editing_committed <+ graph.outputs.node_edit_mode_turned_off.gate(&editing_not_aborted);
-            editing_not_aborted <+ graph.outputs.edited_node.constant(true);
+            frp.source.editing_aborted   <+ graph.outputs.node_edit_mode_turned_off.gate(&editing_aborted);
+            editing_aborted              <+ graph.outputs.edited_node.constant(false);
+
 
             // === Adding New Node ===
+
+            frp.source.adding_new_node <+ frp.add_new_node.constant(true);
             eval frp.add_new_node ((()) model.add_node_and_edit());
 
-            // === Edit committing ===
+            adding_committed           <- frp.editing_committed.gate(&frp.adding_new_node);
+            adding_aborted             <- frp.editing_aborted.gate(&frp.adding_new_node);
+            frp.source.adding_new_node <+ any(&adding_committed,&adding_aborted).constant(false);
+            eval adding_aborted ((node) graph.remove_node.emit(node));
 
-            // Here we send signal first
 
             // === OUTPUTS REBIND ===
 
