@@ -46,7 +46,7 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32) {
-            let bg_color = style.get_color("graph_editor.node.background.color");
+            let bg_color        = style.get_color("graph_editor.node.background.color");
             let selection_color = style.get_color("graph_editor.node.selection.color");
             let _selection_size = style.get_number_or("graph_editor.node.selection.size",8.0);
 
@@ -79,18 +79,18 @@ pub mod shape {
 
             let selection_offset = 5.px();
             let selection_size   = 9.px();
-            let select_width   = &width  - 2.px() + &selection_offset * 2.0 * &selection;
-            let select_height  = &height - 2.px() + &selection_offset * 2.0 * &selection;
-            let select_radius  = &select_height / 2.0;
-            let select         = Rect((&select_width,&select_height)).corners_radius(&select_radius);
+            let select_width     = &width  - 2.px() + &selection_offset * 2.0 * &selection;
+            let select_height    = &height - 2.px() + &selection_offset * 2.0 * &selection;
+            let select_radius    = &select_height / 2.0;
+            let select           = Rect((&select_width,&select_height)).corners_radius(&select_radius);
 
-            let select2_width   = &width  - 2.px() + &selection_size * 2.0 * &selection;
-            let select2_height  = &height - 2.px() + &selection_size * 2.0 * &selection;
-            let select2_radius  = &select2_height / 2.0;
-            let select2         = Rect((&select2_width,&select2_height)).corners_radius(&select2_radius);
+            let select2_width  = &width  - 2.px() + &selection_size * 2.0 * &selection;
+            let select2_height = &height - 2.px() + &selection_size * 2.0 * &selection;
+            let select2_radius = &select2_height / 2.0;
+            let select2        = Rect((&select2_width,&select2_height)).corners_radius(&select2_radius);
 
-            let select         = select2 - select;
-            let select         = select.fill(color::Rgba::from(selection_color));
+            let select = select2 - select;
+            let select = select.fill(color::Rgba::from(selection_color));
 
             let out = select + shadow + shape;
             out.into()
