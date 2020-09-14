@@ -144,7 +144,7 @@ impl View {
 
         let network = &frp.network;
 
-        frp::extend!{ TRACE_ALL network
+        frp::extend!{ network
             // === Documentation Set ===
 
             eval frp.set_documentation_data ((data) model.documentation.frp.send_data.emit(data));
@@ -158,6 +158,9 @@ impl View {
 
             // This node is false when received "abort_node_editing" signal, and should get true
             // once processing of "edited_node" event from graph is performed.
+
+            // graph.outputs.node_edit_mode_turned_on.map()
+
             editing_aborted <- any(...);
             editing_aborted <+ frp.abort_node_editing.constant(true);
             should_finish_editing <- any(frp.abort_node_editing,searcher.editing_committed);
@@ -171,8 +174,7 @@ impl View {
                     model.hide_searcher();
                 }
             });
-            editing_not_aborted <- editing_aborted.map(|b| !b);
-            trace graph.outputs.node_edit_mode_turned_off;
+            editing_not_aborted          <- editing_aborted.map(|b| !b);
             frp.source.editing_committed <+ graph.outputs.node_edit_mode_turned_off.gate(&editing_not_aborted);
             frp.source.editing_aborted   <+ graph.outputs.node_edit_mode_turned_off.gate(&editing_aborted);
             editing_aborted              <+ graph.outputs.edited_node.constant(false);

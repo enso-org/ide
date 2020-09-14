@@ -1763,9 +1763,24 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Node Edit Mode ===
 
     frp::extend! { TRACE_ALL network
+        trace inputs.edit_node;
+        trace inputs.edit_mode_on;
+        trace inputs.edit_mode_off;
+        trace outputs.edited_node;
+        trace outputs.node_edit_mode_turned_off;
+        trace outputs.node_edit_mode_turned_on;
+
+        is_edited            <- outputs.edited_node.map(|n| n.is_some());
+        node_edited_directly <- inputs.edit_node.constant(());
+        switched             <- any(&inputs.edit_mode_on,&node_edited_directly).gate(&is_edited);
+        edited_node          <- outputs.edited_node.map(|n| n.unwrap_or(default()));
+
+        // The off events should be emitted before on, to properly cover the "switch" case.
+        outputs.node_edit_mode_turned_off <+ edited_node.sample(&inputs.edit_mode_off);
+        outputs.node_edit_mode_turned_off <+ edited_node.sample(&switched);
         outputs.node_edit_mode_turned_on  <+ touch.nodes.selected.sample(&inputs.edit_mode_on);
-        outputs.node_edit_mode_turned_off <+ outputs.edited_node.map(|n| n.unwrap_or(default())).sample(&inputs.edit_mode_off);
         outputs.node_edit_mode_turned_on  <+ inputs.edit_node;
+
         outputs.edited_node               <+ outputs.node_edit_mode_turned_on.map(|n| Some(*n));;
         outputs.edited_node               <+ outputs.node_edit_mode_turned_off.constant(None);
 
