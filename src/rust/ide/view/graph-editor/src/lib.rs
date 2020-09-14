@@ -1613,7 +1613,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("e".into())],&[])  , "edit_mode_on")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Alt],&[])  , "edit_mode_on")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Enter],&[])                               , "edit_mode_off")
              ]
     }

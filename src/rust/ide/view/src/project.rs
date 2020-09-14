@@ -223,7 +223,8 @@ impl application::shortcut::DefaultShortcutProvider for View {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use frp::io::keyboard::Key;
         vec!
-        [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Tab],&[]) , "add_new_node")
+        [ Self::self_shortcut(shortcut::Action::press(&[Key::Control,Key::Tab],&[]) , "add_new_node")
+        , Self::self_shortcut(shortcut::Action::press(&[Key::Escape],&[])           , "abort_node_editing")
         ]
     }
 }

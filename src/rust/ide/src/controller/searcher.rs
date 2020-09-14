@@ -478,7 +478,7 @@ impl Searcher {
             },
             Some(mut expression) => {
                 let new_argument = ast::prefix::Argument {
-                    sast      : ast::Shifted::new(pattern_offset,added_ast),
+                    sast      : ast::Shifted::new(pattern_offset.max(1),added_ast),
                     prefix_id : default(),
                 };
                 expression.args.push(new_argument);
