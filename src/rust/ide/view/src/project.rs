@@ -163,7 +163,7 @@ impl View {
 
             editing_aborted <- any(...);
             editing_aborted <+ frp.abort_node_editing.constant(true);
-            should_finish_editing <- any(frp.abort_node_editing,searcher.editing_committed);
+            should_finish_editing <- any(frp.abort_node_editing,searcher.editing_committed,frp.add_new_node);
             eval should_finish_editing ([graph](()) {
                 graph.inputs.edit_mode_off.emit(());
             });

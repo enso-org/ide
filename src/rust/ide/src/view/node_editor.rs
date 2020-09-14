@@ -277,6 +277,7 @@ impl GraphEditorIntegratedWithController {
 
             eval project_frp.editing_committed ((_) invalidate.trigger.emit(()));
             eval project_frp.editing_aborted   ((_) invalidate.trigger.emit(()));
+            trace project_frp.editing_committed;
             trace project_frp.editing_aborted;
             trace invalidate.trigger;
         }
@@ -383,9 +384,7 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn refresh_node_views
     (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>) -> FallibleResult<()> {
-        debug!(self.logger, "Updating nodes for {self.controller.graph():?}.");
         let nodes = self.controller.graph().nodes()?;
-        debug!(self.logger, "Updated nodes {nodes:?}.");
         let ids   = nodes.iter().map(|node| node.info.id() ).collect();
         self.retain_node_views(&ids);
         for (i,node_info) in nodes.iter().enumerate() {
@@ -679,10 +678,11 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn node_moved_in_ui
     (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult<()> {
-        let id                 = self.get_controller_node_id(*displayed_id)?;
-        self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
-            md.position = Some(model::module::Position::new(pos.x,pos.y));
-        }));
+        if let Ok(id) = self.get_controller_node_id(*displayed_id) {
+            self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
+                md.position = Some(model::module::Position::new(pos.x,pos.y));
+            }));
+        }
         Ok(())
     }
 
@@ -713,7 +713,9 @@ impl GraphEditorIntegratedWithControllerModel {
     fn node_editing_in_ui(weak_self:Weak<Self>)
     -> impl Fn(&Self,&Option<graph_editor::NodeId>) -> FallibleResult<()> {
         move |this,displayed_id| {
+            println!("NODE EDITING IN UI");
             if let Some(displayed_id) = displayed_id {
+                println!("NODE EXISTS");
                 let id   = this.get_controller_node_id(*displayed_id);
                 let mode = match id {
                     Ok(node_id) => controller::searcher::Mode::EditNode {node_id},
@@ -736,6 +738,7 @@ impl GraphEditorIntegratedWithControllerModel {
                 })));
                 *this.searcher_controller.borrow_mut() = Some(searcher);
             } else {
+                println!("NODE DOES NOT EXIST");
                 *this.searcher_controller.borrow_mut() = None;
             }
             Ok(())
@@ -762,14 +765,20 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn node_editing_committed_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult<()> {
-        debug!(self.logger, "Node editing commited in ui");
+        println!("NODE COMMITTED");
         let error = || MissingSearcherController;
         let searcher = self.searcher_controller.borrow().clone().ok_or_else(error)?;
-        debug!(self.logger, "Have searcher");
-        let node_id = searcher.commit_node()?;
-        self.node_views.borrow_mut().insert(node_id,*displayed_id);
         *self.searcher_controller.borrow_mut() = None;
-        Ok(())
+        match searcher.commit_node() {
+            Ok(node_id) => {
+                self.node_views.borrow_mut().insert(node_id,*displayed_id);
+                Ok(())
+            }
+            Err(err) => {
+                self.view.graph().frp.remove_node.emit(displayed_id);
+                Err(err)
+            }
+        }
     }
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {

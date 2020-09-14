@@ -168,7 +168,6 @@ impl AliasAnalyzer {
             OccurrenceKind::Used       => &mut symbols.used,
             OccurrenceKind::Introduced => &mut symbols.introduced,
         };
-        println!("Name {} is {} in scope @{}",identifier.item,kind,scope_index);
         target.push(identifier)
     }
 
