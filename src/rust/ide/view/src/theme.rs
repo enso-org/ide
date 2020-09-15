@@ -5,48 +5,68 @@ use ensogl::display::style::theme;
 
 
 /// `define_theme` helper.
-macro_rules! _define_theme {
-    ($name:ident = $e:expr) => {
-        println!("const {:?} : &str = __path__",stringify!($name));
-        println!("__theme_name__.insert(\"__path__\", {});",stringify!($e))
+macro_rules! _define_theme_literals {
+    ([$theme_name:ident $($path:ident)*] $name:ident = $e:expr) => {
+        println!("{}.insert(\"{}\", {});",stringify!($theme_name),stringify!([$($path)* $name]),stringify!($e))
         //$theme_name.insert("$path.$name", $e);
     };
 
+    ([$($path:ident)*] $name:ident = $e:expr; $($rest:tt)*) => {
+        _define_theme_literals!([$($path)*] $name = $e);
+        _define_theme_literals!([$($path)*] $($rest)*);
+    };
+
+    ([$($path:ident)*] $name:ident {$($t:tt)*}) => {
+        _define_theme_literals!([$($path)* $name] $($t)*);
+    };
+
+    ([$($path:ident)*] $name:ident {$($t:tt)*} $($rest:tt)*) => {
+        _define_theme_literals!([$($path)*] $name {$($t)*});
+        _define_theme_literals!([$($path)*] $($rest)*);
+    };
+}
+
+macro_rules! _define_theme_modules {
+    ($name:ident = $e:expr) => {
+        println!("const {:?} : &str = __path__",stringify!($name));
+    };
+
     ($name:ident = $e:expr; $($rest:tt)*) => {
-        _define_theme!($name = $e);
-        _define_theme!($($rest)*);
+        _define_theme_modules!($name = $e);
+        _define_theme_modules!($($rest)*);
     };
 
     ($name:ident {$($t:tt)*}) => {
         println!("pub mod {:?} {{",stringify!($name));
-        _define_theme!($($t)*);
+        _define_theme_modules!($($t)*);
         println!("}}")
     };
 
     ($name:ident {$($t:tt)*} $($rest:tt)*) => {
-        _define_theme!($name {$($t)*});
-        _define_theme!($($rest)*);
+        _define_theme_modules!($name {$($t)*});
+        _define_theme_modules!($($rest)*);
     };
 }
 
 /// Used to define theme.
 #[macro_export]
 macro_rules! define_theme {
-    ($name:ident $($t:tt)*) => {
-        println!("pub mod Vars {{ //{:?} theme.",stringify!($name));
-        // let mut $name = theme::Theme::new();
-        _define_theme!($($t)*);
-        // app.themes.register(stringify!($name),$name);
-        // app.themes.set_enabled(&[stringify!($name)]);
-        println!("}}")
+    ($app:ident $name:ident $($t:tt)*) => {
+        _define_theme_literals!([$name] $($t)*);
+        let mut $name = theme::Theme::new();
+        $app.themes.register(stringify!($name),$name);
+        $app.themes.set_enabled(&[stringify!($name)]);
+
+        // println!("pub mod Vars {{ //{:?} theme.",stringify!($name));
+        // _define_theme_modules!($($t)*);
+        // println!("}}")
     };
 }
 
 /// Used to set up themes for the application.
 pub fn setup(app:&Application) {
 
-    /// Dark theme.
-    define_theme! { dark
+    define_theme! { app dark
         application {
             background {
                 color = color::Lcha::new(0.13,0.013,0.18,1.0)
@@ -121,8 +141,7 @@ pub fn setup(app:&Application) {
         }
     }
 
-    /// Light (default) theme.
-    define_theme! { light
+    define_theme! { app light
         application {
             background {
                 color = color::Lcha::new(0.96,0.013,0.18,1.0)
