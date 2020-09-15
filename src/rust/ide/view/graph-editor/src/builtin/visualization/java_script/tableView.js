@@ -2,7 +2,6 @@ class TableViewVisualization extends Visualization {
     static inputType = "Any"
 
     onDataReceived(data) {
-
         function tableOf(content, level) {
             let open = '<table class="level' + level + '">';
             return open + content + "</table>";
@@ -10,7 +9,7 @@ class TableViewVisualization extends Visualization {
 
         function hasExactlyKeys(keys, obj) {
             return Object.keys(obj).length === keys.length && keys.every(k => obj.hasOwnProperty(k));
-        };
+        }
 
         function getAtNestedKey(data, key) {
             let res = data;
