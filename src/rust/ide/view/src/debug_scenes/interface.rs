@@ -76,7 +76,8 @@ impl DummyTypeGenerator {
 
 fn init(app:&Application) {
 
-    theme::setup(&app);
+    theme::dark::setup(&app);
+    theme::light::setup(&app);
 
     let _bg = app.display.scene().style_sheet.var("application.background.color");
 

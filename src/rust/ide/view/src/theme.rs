@@ -1,7 +1,4 @@
 //! Application theme setup.
-use ensogl::application::Application;
-use ensogl::data::color;
-use ensogl::display::style::theme;
 
 /// `define_theme` helper.
 macro_rules! _define_theme_literals {
@@ -26,7 +23,7 @@ macro_rules! _define_theme_literals {
 
 macro_rules! _define_theme_modules {
     ([$theme_name:ident $($path:ident)*] $name:ident = $e:expr) => {
-        const $name : &str = format!("{}{}",stringify!($($path.)*).replace(" ", ""),stringify!($name)).as_str();
+        pub const $name : &str = format!("{}{}",stringify!($($path.)*).replace(" ", ""),stringify!($name)).as_str();
     };
 
     ([$($path:ident)*] $name:ident = $e:expr; $($rest:tt)*) => {
@@ -50,13 +47,10 @@ macro_rules! _define_theme_modules {
 #[macro_export]
 macro_rules! define_default_theme {
     ($name:ident $($t:tt)*) => {
-        define_theme!($name, $($t)*)
+        define_theme!($name $($t)*);
 
-        if cfg!(not(_Theme_Vars_)) {
-            #[cfg(_Theme_Vars_)]
-            pub mod Vars {
-                _define_theme_modules!([$name] $($t)*);
-            }
+        pub mod Vars {
+            _define_theme_modules!([$name] $($t)*);
         }
     };
 }
@@ -67,6 +61,10 @@ macro_rules! define_theme {
     ($name:ident $($t:tt)*) => {
         #[allow(missing_docs)]
         pub mod $name {
+            use ensogl::application::Application;
+            use ensogl::data::color;
+            use ensogl::display::style::theme;
+
             /// Setup the $name theme in application.
             pub fn setup(app:&Application) {
                 let mut $name = theme::Theme::new();
@@ -77,7 +75,7 @@ macro_rules! define_theme {
     };
 }
 
-define_default_theme! { dark
+define_theme! { dark
     application {
         background {
             color = color::Lcha::new(0.13,0.013,0.18,1.0)
@@ -152,7 +150,7 @@ define_default_theme! { dark
     }
 }
 
-define_theme! { light
+define_default_theme! { light
     application {
         background {
             color = color::Lcha::new(0.96,0.013,0.18,1.0)
