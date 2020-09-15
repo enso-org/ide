@@ -216,7 +216,7 @@ impl Instance {
         let network = default();
         let frp     = visualization::instance::Frp::new(&network);
         let model   = InstanceModel::from_class(class)?;
-        model.set_dom_layer(&scene.dom.layers.overlay);
+        model.set_dom_layer(&scene.dom.layers.back);
         Ok(Instance{model,frp,network}.init_frp().inti_preprocessor_change_callback())
     }
 

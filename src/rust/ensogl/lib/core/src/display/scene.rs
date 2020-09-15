@@ -440,10 +440,10 @@ impl Dom {
 /// elements.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Layers {
-    /// Overlay DOM scene layer.
-    pub overlay: DomScene,
+    /// Back DOM scene layer.
+    pub back: DomScene,
     /// Front DOM scene layer.
-    pub main: DomScene,
+    pub front: DomScene,
     /// The WebGL scene layer.
     pub canvas : web_sys::HtmlCanvasElement,
 
@@ -453,22 +453,24 @@ impl Layers {
     /// Constructor.
     pub fn new(logger:&Logger, dom:&web_sys::HtmlDivElement) -> Self {
         let canvas  = web::create_canvas();
-        let main    = DomScene::new(logger);
-        let overlay = DomScene::new(logger);
-        canvas.set_style_or_panic("height"  , "100vh");
-        canvas.set_style_or_panic("width"   , "100vw");
-        canvas.set_style_or_panic("display" , "block");
-        main.dom.set_class_name("front");
-        overlay.dom.set_class_name("back");
-        canvas.set_style_or_warn("pointer-events", "none", &logger);
-        overlay.dom.set_style_or_warn("pointer-events", "auto", &logger);
-        canvas.set_style_or_warn("z-index", "1", &logger);
-        main.dom.set_style_or_warn("z-index", "1", &logger);
-        overlay.dom.set_style_or_warn("z-index", "0", &logger);
+        let front = DomScene::new(logger);
+        let back = DomScene::new(logger);
+        canvas.set_style_or_warn("height"        , "100vh"   , &logger);
+        canvas.set_style_or_warn("width"         , "100vw"   , &logger);
+        canvas.set_style_or_warn("display"       , "block"   , &logger);
+        // Position must not be "static" to have z-index working.
+        canvas.set_style_or_warn("position"      , "absolute", &logger);
+        canvas.set_style_or_warn("z-index"       , "1"       , &logger);
+        canvas.set_style_or_warn("pointer-events", "none"    , &logger);
+        front.dom.set_class_name("front");
+        front.dom.set_style_or_warn("z-index", "1", &logger);
+        back.dom.set_class_name("back");
+        back.dom.set_style_or_warn("pointer-events", "auto", &logger);
+        back.dom.set_style_or_warn("z-index"       , "0"   , &logger);
         dom.append_or_panic(&canvas);
-        dom.append_or_panic(&main.dom);
-        dom.append_or_panic(&overlay.dom);
-        Self { main,canvas, overlay }
+        dom.append_or_panic(&front.dom);
+        dom.append_or_panic(&back.dom);
+        Self { front,canvas, back }
     }
 }
 
@@ -936,8 +938,8 @@ impl SceneData {
         if changed {
             self.frp.camera_changed_source.emit(());
             self.symbols.set_camera(camera);
-            self.dom.layers.main.update_view_projection(camera);
-            self.dom.layers.overlay.update_view_projection(camera);
+            self.dom.layers.front.update_view_projection(camera);
+            self.dom.layers.back.update_view_projection(camera);
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).

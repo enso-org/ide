@@ -28,8 +28,8 @@ pub fn entry_point_dom_symbols() {
     let screen        = camera.screen();
     let navigator     = Navigator::new(scene,camera);
     let sprite_system = SpriteSystem::new(&world);
-    let dom_front_layer = &scene.dom.layers.main;
-    let dom_back_layer  = &scene.dom.layers.overlay;
+    let dom_front_layer = &scene.dom.layers.front;
+    let dom_back_layer  = &scene.dom.layers.back;
     world.add_child(&sprite_system);
 
     let mut sprites: Vec<Sprite> = default();

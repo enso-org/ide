@@ -90,7 +90,7 @@ impl RawTextModel {
         dom.dom().set_style_or_warn("color"         ,"rgba(255,255,255,0.7)",&logger);
         dom.dom().set_style_or_warn("pointer-events","auto"                 ,&logger);
 
-        scene.dom.layers.overlay.manage(&dom);
+        scene.dom.layers.back.manage(&dom);
         RawTextModel{dom,logger,size}.init()
     }
 

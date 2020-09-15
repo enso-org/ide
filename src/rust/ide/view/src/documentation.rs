@@ -75,7 +75,7 @@ impl ViewModel {
         dom.dom().set_style_or_warn("width"           ,format!("{}px",VIEW_WIDTH)   ,&logger);
         dom.dom().set_style_or_warn("height"          ,format!("{}px",view_height)  ,&logger);
 
-        scene.dom.layers.main.manage(&dom);
+        scene.dom.layers.front.manage(&dom);
         ViewModel {logger,dom,size}.init()
     }
 
