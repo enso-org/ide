@@ -7,7 +7,6 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use enso_frp;
-use enso_frp::stream::ValueProvider;
 use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::scene::Scene;

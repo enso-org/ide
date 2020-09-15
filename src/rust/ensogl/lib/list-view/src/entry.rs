@@ -14,9 +14,9 @@ use enabled::Logger;
 // =================
 
 /// Padding inside entry in pixels.
-pub const PADDING:f32 = 2.0;
+pub const PADDING:f32 = 7.0;
 /// The overall entry's height (including padding).
-pub const HEIGHT:f32 = 20.0;
+pub const HEIGHT:f32 = 30.0;
 /// The text size of entry's labe.
 pub const LABEL_SIZE:f32 = 12.0;
 /// The size in pixels of icons inside entries.
@@ -159,7 +159,6 @@ impl Entry {
         self.icon.set(model.icon.clone());
         self.label.set_content(&model.label);
         for highlighted in &model.highlighted {
-            debug!(enabled::Logger::new("Debug"), "Setting color bytes: {highlighted:?}");
             self.label.set_color_bytes(highlighted,color::Rgba::new(1.0,1.0,1.0,1.0));
         }
     }

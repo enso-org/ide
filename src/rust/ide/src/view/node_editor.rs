@@ -23,7 +23,6 @@ use ide_view::graph_editor::EdgeTarget;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
-use ensogl_gui_list_view::entry::{Model, AnyModelProvider, EmptyProvider};
 use crate::controller::searcher::suggestion::MatchInfo;
 use crate::controller::searcher::Suggestions;
 
@@ -643,15 +642,16 @@ impl GraphEditorIntegratedWithControllerModel {
 
     pub fn handle_searcher_notification(&self, notification:&controller::searcher::Notification) {
         use controller::searcher::Notification;
+        use list_view::entry::AnyModelProvider;
         match notification {
             Notification::NewSuggestionList => with(self.searcher_controller.borrow(), |searcher| {
                 if let Some(searcher) = &*searcher {
                     let new_entries:AnyModelProvider = match searcher.suggestions() {
-                        Suggestions::Loading => EmptyProvider.into(),
+                        Suggestions::Loading => list_view::entry::EmptyProvider.into(),
                         Suggestions::Loaded {list} => SuggestionProvider{list}.into(),
                         Suggestions::Error(err) => {
                             error!(self.logger, "Error while obtaining list from searcher: {err}");
-                            EmptyProvider.into()
+                            list_view::entry::EmptyProvider.into()
                         },
                     };
                     self.view.searcher().set_entries(new_entries);
@@ -713,9 +713,7 @@ impl GraphEditorIntegratedWithControllerModel {
     fn node_editing_in_ui(weak_self:Weak<Self>)
     -> impl Fn(&Self,&Option<graph_editor::NodeId>) -> FallibleResult<()> {
         move |this,displayed_id| {
-            println!("NODE EDITING IN UI");
             if let Some(displayed_id) = displayed_id {
-                println!("NODE EXISTS");
                 let id   = this.get_controller_node_id(*displayed_id);
                 let mode = match id {
                     Ok(node_id) => controller::searcher::Mode::EditNode {node_id},
@@ -738,7 +736,6 @@ impl GraphEditorIntegratedWithControllerModel {
                 })));
                 *this.searcher_controller.borrow_mut() = Some(searcher);
             } else {
-                println!("NODE DOES NOT EXIST");
                 *this.searcher_controller.borrow_mut() = None;
             }
             Ok(())
@@ -765,7 +762,6 @@ impl GraphEditorIntegratedWithControllerModel {
 
     fn node_editing_committed_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult<()> {
-        println!("NODE COMMITTED");
         let error = || MissingSearcherController;
         let searcher = self.searcher_controller.borrow().clone().ok_or_else(error)?;
         *self.searcher_controller.borrow_mut() = None;

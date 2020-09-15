@@ -333,6 +333,8 @@ ensogl::def_command_api! { Commands
     edit_mode_on,
     /// Disable mode in which the pressed node will be edited.
     edit_mode_off,
+    /// Stop node editing, whatever node is currently edited.
+    stop_editing,
 
 
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
@@ -552,8 +554,8 @@ generate_frp_outputs! {
     node_expression_set       : (NodeId,String),
     node_entered              : NodeId,
     node_exited               : (),
-    node_edit_mode_turned_on  : NodeId,
-    node_edit_mode_turned_off : NodeId,
+    node_editing_started      : NodeId,
+    node_editing_finished     : NodeId,
 
     edge_added        : EdgeId,
     edge_removed      : EdgeId,
@@ -1601,8 +1603,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])  , "release_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                             , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift],&[])                               , "toggle_node_merge_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift],&[])                               , "toggle_node_merge_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Alt],&[])                                 , "toggle_node_subtract_select")
@@ -1613,8 +1613,9 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Alt],&[])  , "edit_mode_on")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Enter],&[])                               , "edit_mode_off")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "edit_mode_on")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                             , "edit_mode_off")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Enter],&[])                               , "stop_editing")
              ]
     }
 }
@@ -1760,36 +1761,42 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
 
-    // === Node Edit Mode ===
+    // === Node Editing ===
+
+
 
     frp::extend! { TRACE_ALL network
-        trace inputs.edit_node;
-        trace inputs.edit_mode_on;
         trace inputs.edit_mode_off;
+        trace inputs.edit_mode_on;
+        trace outputs.node_editing_finished;
+        trace outputs.node_editing_started;
         trace outputs.edited_node;
-        trace outputs.node_edit_mode_turned_off;
-        trace outputs.node_edit_mode_turned_on;
 
-        is_edited            <- outputs.edited_node.map(|n| n.is_some());
-        node_edited_directly <- inputs.edit_node.constant(());
-        switched             <- any(&inputs.edit_mode_on,&node_edited_directly).gate(&is_edited);
-        edited_node          <- outputs.edited_node.map(|n| n.unwrap_or(default()));
+        is_edited                <- outputs.edited_node.map(|n| n.is_some());
+        edit_mode                <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
+        node_edited_in_edit_mode <- touch.nodes.selected.gate(&edit_mode);
+        start_editing            <- any(&node_edited_in_edit_mode,&inputs.edit_node);
+         // FIXME: add other cases like node select.
+        stop_editing_by_bg_click <- touch.background.selected.gate(&is_edited);
+        stop_editing                 <- any(&stop_editing_by_bg_click,&inputs.stop_editing);
+
+        switched    <- start_editing.gate(&is_edited);
+        edited_node <- outputs.edited_node.map(|n| n.unwrap_or(default()));
 
         // The off events should be emitted before on, to properly cover the "switch" case.
-        outputs.node_edit_mode_turned_off <+ edited_node.sample(&inputs.edit_mode_off);
-        outputs.node_edit_mode_turned_off <+ edited_node.sample(&switched);
-        outputs.node_edit_mode_turned_on  <+ touch.nodes.selected.sample(&inputs.edit_mode_on);
-        outputs.node_edit_mode_turned_on  <+ inputs.edit_node;
+        outputs.node_editing_finished <+ edited_node.sample(&stop_editing);
+        outputs.node_editing_finished <+ edited_node.sample(&switched);
+        outputs.node_editing_started  <+ start_editing;
 
-        outputs.edited_node               <+ outputs.node_edit_mode_turned_on.map(|n| Some(*n));;
-        outputs.edited_node               <+ outputs.node_edit_mode_turned_off.constant(None);
+        outputs.edited_node <+ outputs.node_editing_started.map(|n| Some(*n));;
+        outputs.edited_node <+ outputs.node_editing_finished.constant(None);
 
-        eval outputs.node_edit_mode_turned_on ([model] (id) {
+        eval outputs.node_editing_started ([model] (id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
                 node.ports.frp.start_edit_mode.emit(());
             }
         });
-        eval outputs.node_edit_mode_turned_off ([model](id) {
+        eval outputs.node_editing_finished ([model](id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
                 node.ports.frp.stop_edit_mode.emit(());
             }

@@ -634,7 +634,10 @@ impl Area {
 
             eval input.set_default_color     ((t) m.buffer.frp.set_default_color(*t));
             eval input.set_default_text_size ((t) m.buffer.frp.set_default_text_size(*t));
-            eval input.set_color_bytes       ((t) m.buffer.frp.set_color_bytes.emit(*t));
+            eval input.set_color_bytes       ((t) {
+                m.buffer.frp.set_color_bytes.emit(*t);
+                m.redraw(); // FIXME: Should not be needed.
+            });
 
             // === Changes ===
 

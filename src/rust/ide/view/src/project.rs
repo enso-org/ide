@@ -3,10 +3,11 @@
 use crate::prelude::*;
 
 use crate::documentation;
-use crate::graph_editor::GraphEditor;
-use crate::graph_editor::NodeId;
+use crate::graph_editor::component::node;
 use crate::graph_editor::component::node::Expression;
 use crate::graph_editor::component::visualization;
+use crate::graph_editor::GraphEditor;
+use crate::graph_editor::NodeId;
 use crate::searcher;
 
 use enso_frp as frp;
@@ -14,10 +15,13 @@ use ensogl::application;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
-use ensogl::display::shape::*;
 use ensogl_gui_list_view as list_view;
-use enso_frp::stream::EventEmitter;
+use ensogl::gui::component::Animation;
 
+
+// =============
+// === Model ===
+// =============
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
@@ -39,11 +43,9 @@ impl Model {
         let searcher       = app.new_view::<searcher::View>();
         let documentation  = documentation::View::new(&scene);
         display_object.add_child(&graph_editor);
+        display_object.add_child(&searcher);
         display_object.add_child(&documentation);
         display_object.remove_child(&documentation);
-        display_object.add_child(&searcher);
-        display_object.remove_child(&searcher);
-        searcher.resize(Vector2(150.0, 150.0)); //TODO
         Self{logger,display_object,graph_editor,searcher,documentation}
     }
 
@@ -52,39 +54,23 @@ impl Model {
         else          { self.display_object.add_child(&self.documentation)    }
     }
 
-    fn show_searcher_under_node(&self, node_id:NodeId) {
+    fn searcher_left_top_under_node(&self, node_id:NodeId) -> Vector2<f32> {
         if let Some(node) = self.graph_editor.model.nodes.get_cloned_ref(&node_id) {
-            if !self.is_searcher_visible() {
-                self.display_object.add_child(&self.searcher);
-            }
-            let x = node.position().x + 100.0;
-            let y = node.position().y - 100.0; //TODO
-            self.searcher.set_position_xy(Vector2(x,y));
+            let x = node.position().x;
+            let y = node.position().y - node::NODE_HEIGHT/2.0;
+            Vector2(x,y)
         } else {
             error!(self.logger, "Trying to show searcher under nonexisting node");
+            default()
         }
     }
 
-    fn hide_searcher(&self) {
-        self.searcher.unset_parent();
-        self.searcher.set_entries(list_view::entry::AnyModelProvider::default());
-    }
-
-    fn is_searcher_visible(&self) -> bool {
-        self.searcher.has_parent()
-    }
-
-    pub fn is_documentation_visible(&self) -> bool {
-        self.documentation.has_parent()
-    }
-
     fn add_node_and_edit(&self) {
-        self.graph_editor.frp.inputs.add_node_at_cursor.emit(());
+        let graph_editor_inputs = &self.graph_editor.frp.inputs;
+        graph_editor_inputs.add_node_at_cursor.emit(());
         let created_node_id = self.graph_editor.frp.outputs.node_added.value();
-        debug!(self.logger, "New node view id: {created_node_id}");
-        self.graph_editor.frp.inputs.set_node_expression.emit(&(created_node_id,Expression::default()));
-        self.graph_editor.frp.inputs.edit_node.emit(&created_node_id);
-
+        graph_editor_inputs.set_node_expression.emit(&(created_node_id,Expression::default()));
+        graph_editor_inputs.edit_node.emit(&created_node_id);
     }
 }
 
@@ -112,7 +98,6 @@ impl application::command::CommandApi for View {
 ensogl_text::define_endpoints! {
     Commands { Commands }
     Input {
-        // resize           (Vector2<f32>),
         set_documentation_data (visualization::Data),
         set_suggestions        (list_view::entry::AnyModelProvider),
     }
@@ -126,6 +111,12 @@ ensogl_text::define_endpoints! {
     }
 }
 
+
+
+// ============
+// === View ===
+// ============
+
 /// The main view of single project opened in IDE.
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
@@ -137,18 +128,29 @@ pub struct View {
 impl View {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
-        let model    = Model::new(app);
-        let frp      = Frp::new_network();
-        let searcher = &model.searcher.frp;
-        let graph    = &model.graph_editor.frp;
 
-        let network = &frp.network;
+        let model             = Model::new(app);
+        let frp               = Frp::new_network();
+        let searcher          = &model.searcher.frp;
+        let graph             = &model.graph_editor.frp;
+        let network           = &frp.network;
+        let searcher_left_top = Animation::<Vector2<f32>>::new(network);
 
         frp::extend!{ network
+
             // === Documentation Set ===
 
             eval frp.set_documentation_data ((data) model.documentation.frp.send_data.emit(data));
             eval frp.set_suggestions        ((provider) model.searcher.frp.set_entries(provider));
+
+
+            // === Searcher Position ===
+
+            _eval <- all_with(&searcher_left_top.value,&searcher.size,f!([model](lt,size) {
+                let x = lt.x + size.x / 2.0;
+                let y = lt.y - size.y / 2.0;
+                model.searcher.set_position_xy(Vector2(x,y));
+            }));
 
 
             // === Editing ===
@@ -159,24 +161,30 @@ impl View {
             // This node is false when received "abort_node_editing" signal, and should get true
             // once processing of "edited_node" event from graph is performed.
 
-            // graph.outputs.node_edit_mode_turned_on.map()
-
             editing_aborted <- any(...);
             editing_aborted <+ frp.abort_node_editing.constant(true);
-            should_finish_editing <- any(frp.abort_node_editing,searcher.editing_committed,frp.add_new_node);
-            eval should_finish_editing ([graph](()) {
-                graph.inputs.edit_mode_off.emit(());
-            });
-            eval graph.outputs.edited_node ([model](edited_node_id) {
-                if let Some(id) = edited_node_id {
-                    model.show_searcher_under_node(*id);
-                } else {
-                    model.hide_searcher();
+            should_finish_editing <- any(frp.abort_node_editing,searcher.editing_committed
+                ,frp.add_new_node);
+            eval should_finish_editing ((()) graph.inputs.stop_editing.emit(()));
+            _eval <- graph.outputs.edited_node.map2(&searcher.is_visible,
+                f!([model,searcher_left_top](edited_node_id,is_visible) {
+                    if let Some(id) = edited_node_id {
+                        model.searcher.show();
+                        let new_left_top = model.searcher_left_top_under_node(*id);
+                        searcher_left_top.set_target_value(new_left_top);
+                        if !is_visible {
+                            searcher_left_top.skip();
+                        }
+                    } else {
+                        model.searcher.hide();
+                        model.searcher.set_entries(list_view::entry::AnyModelProvider::default());
+                    }
                 }
-            });
+            ));
             editing_not_aborted          <- editing_aborted.map(|b| !b);
-            frp.source.editing_committed <+ graph.outputs.node_edit_mode_turned_off.gate(&editing_not_aborted);
-            frp.source.editing_aborted   <+ graph.outputs.node_edit_mode_turned_off.gate(&editing_aborted);
+            let editing_finished         =  graph.outputs.node_editing_finished.clone_ref();
+            frp.source.editing_committed <+ editing_finished.gate(&editing_not_aborted);
+            frp.source.editing_aborted   <+ editing_finished.gate(&editing_aborted);
             editing_aborted              <+ graph.outputs.edited_node.constant(false);
 
 
@@ -236,7 +244,7 @@ impl application::shortcut::DefaultShortcutProvider for View {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use frp::io::keyboard::Key;
         vec!
-        [ Self::self_shortcut(shortcut::Action::press(&[Key::Control,Key::Tab],&[]) , "add_new_node")
+        [ Self::self_shortcut(shortcut::Action::press(&[Key::Shift,Key::Tab],&[]) , "add_new_node")
         , Self::self_shortcut(shortcut::Action::press(&[Key::Escape],&[])           , "abort_node_editing")
         ]
     }

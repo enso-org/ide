@@ -8,7 +8,6 @@ use crate::view::temporary_panel::TemporaryPanel;
 use crate::view::text_editor::TextEditor;
 use crate::view::node_editor::NodeEditor;
 
-use enso_callback as callback;
 use enso_frp as frp;
 use frp::io::keyboard;
 use ensogl::application::Application;

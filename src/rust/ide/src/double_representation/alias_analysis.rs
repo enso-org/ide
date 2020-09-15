@@ -162,7 +162,6 @@ impl AliasAnalyzer {
     /// Records identifier occurrence in the current scope.
     fn record_identifier(&mut self, kind: OccurrenceKind, identifier:NormalizedName) {
         let identifier  = LocatedName::new(self.location.clone(), identifier);
-        let scope_index = self.shadowing_scopes.len();
         let symbols     = &mut self.current_scope_mut().symbols;
         let target      = match kind {
             OccurrenceKind::Used       => &mut symbols.used,
