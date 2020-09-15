@@ -3,12 +3,11 @@ use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::style::theme;
 
-
 /// `define_theme` helper.
 macro_rules! _define_theme_literals {
     ([$theme_name:ident $($path:ident)*] $name:ident = $e:expr) => {
-        println!("{}.insert(\"{}\", {});",stringify!($theme_name),stringify!([$($path)* $name]),stringify!($e))
-        //$theme_name.insert("$path.$name", $e);
+        println!("{}.insert(\"{}{}\", {});",stringify!($theme_name),stringify!($($path.)*).replace(" ", ""),stringify!($name),stringify!($e))
+        // $theme_name.insert(format!("{}{}",stringify!($($path.)*).replace(" ", ""),stringify!($name)), $e);
     };
 
     ([$($path:ident)*] $name:ident = $e:expr; $($rest:tt)*) => {
