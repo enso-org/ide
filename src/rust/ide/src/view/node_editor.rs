@@ -1,4 +1,8 @@
 //! View of the node editor.
+// TODO[ao] this module should be completely reworked when doing the
+//  https://github.com/enso-org/ide/issues/597
+//  There should be a wrapper for each view which "fences" the input : emitting events in this
+//  wrapper should not notify the outputs.
 
 use crate::prelude::*;
 
