@@ -240,7 +240,7 @@ impl Manager {
 
                         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
                         let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
-                        let missing_color_path = "type.missing.color";
+                        let missing_color_path = "_type.missing.color";
                         let missing_type_color = styles.get_color(missing_color_path);
 
                         frp::new_network! { port_network

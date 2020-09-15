@@ -25,24 +25,24 @@ macro_rules! _define_theme_literals {
 }
 
 macro_rules! _define_theme_modules {
-    ($name:ident = $e:expr) => {
-        println!("const {:?} : &str = __path__",stringify!($name));
+    ([$theme_name:ident $($path:ident)*] $name:ident = $e:expr) => {
+        const $name : &str = format!("{}{}",stringify!($($path.)*).replace(" ", ""),stringify!($name)).as_str();
     };
 
-    ($name:ident = $e:expr; $($rest:tt)*) => {
-        _define_theme_modules!($name = $e);
-        _define_theme_modules!($($rest)*);
+    ([$($path:ident)*] $name:ident = $e:expr; $($rest:tt)*) => {
+        _define_theme_modules!([$($path)*] $name = $e);
+        _define_theme_modules!([$($path)*] $($rest)*);
     };
 
-    ($name:ident {$($t:tt)*}) => {
-        println!("pub mod {:?} {{",stringify!($name));
-        _define_theme_modules!($($t)*);
-        println!("}}")
+    ([$($path:ident)*] $name:ident {$($t:tt)*}) => {
+        pub mod $name {
+            _define_theme_modules!([$($path)* $name] $($t)*);
+        }
     };
 
-    ($name:ident {$($t:tt)*} $($rest:tt)*) => {
-        _define_theme_modules!($name {$($t)*});
-        _define_theme_modules!($($rest)*);
+    ([$($path:ident)*] $name:ident {$($t:tt)*} $($rest:tt)*) => {
+        _define_theme_modules!([$($path)*] $name {$($t)*});
+        _define_theme_modules!([$($path)*] $($rest)*);
     };
 }
 
@@ -54,9 +54,12 @@ macro_rules! define_theme {
         _define_theme_literals!([$name] $($t)*);
         $app.themes.register(stringify!($name),$name);
 
-        // println!("pub mod Vars {{ //{:?} theme.",stringify!($name));
-        // _define_theme_modules!($($t)*);
-        // println!("}}")
+        if cfg!(not(_Theme_Vars_)) {
+            #[cfg(_Theme_Vars_)]
+            pub mod Vars {
+                _define_theme_modules!([$name] $($t)*);
+            }
+        }
     };
 }
 
@@ -127,7 +130,7 @@ pub fn setup(app:&Application) {
                 chroma_factor = 1.0
             }
         }
-        type {
+        _type {
             missing {
                 color = color::Lcha::new(0.5,0.0,0.0,1.0)
             }
@@ -202,7 +205,7 @@ pub fn setup(app:&Application) {
                 chroma_factor = 0.8
             }
         }
-        type {
+        _type {
             missing {
                 color = color::Lcha::new(0.8,0.0,0.0,1.0)
             }
