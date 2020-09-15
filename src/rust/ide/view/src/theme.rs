@@ -54,9 +54,9 @@ macro_rules! define_theme {
         _define_theme_literals!([$name] $($t)*);
         $app.themes.register(stringify!($name),$name);
 
-        if cfg!(not(_Theme_Vars_)) {
-            #[cfg(_Theme_Vars_)]
-            pub mod Vars {
+        if cfg!(not(_THEME_VARS_)) {
+            #[cfg(_THEME_VARS_)]
+            pub mod vars {
                 _define_theme_modules!([$name] $($t)*);
             }
         }
@@ -85,7 +85,7 @@ pub fn setup(app:&Application) {
                 }
                 selection {
                     color = color::Lcha::new(0.72,0.5,0.22,1.0);
-                    size = 7.0
+                    size  = 7.0
                 }
             }
             visualization {
@@ -127,7 +127,7 @@ pub fn setup(app:&Application) {
         edge {
             split_color {
                 lightness_factor = 0.2;
-                chroma_factor = 1.0
+                chroma_factor    = 1.0
             }
         }
         _type {
@@ -136,7 +136,7 @@ pub fn setup(app:&Application) {
             }
             color {
                 luminance = 0.5;
-                chroma = 0.8
+                chroma    = 0.8
             }
         }
     }
@@ -160,7 +160,7 @@ pub fn setup(app:&Application) {
                 }
                 selection {
                     color = color::Lcha::new(0.83,0.58,0.436,1.0);
-                    size = 7.0
+                    size  = 7.0
                 }
             }
             visualization {
@@ -202,7 +202,7 @@ pub fn setup(app:&Application) {
         edge {
             split_color {
                 lightness_factor = 1.2;
-                chroma_factor = 0.8
+                chroma_factor    = 0.8
             }
         }
         _type {
@@ -211,7 +211,7 @@ pub fn setup(app:&Application) {
             }
             color {
                 luminance = 0.8;
-                chroma = 0.6
+                chroma    = 0.6
             }
         }
     }
