@@ -640,7 +640,7 @@ impl GraphEditorIntegratedWithControllerModel {
         }
     }
 
-    pub fn handle_searcher_notification(&self, notification:&controller::searcher::Notification) {
+    pub fn handle_searcher_notification(&self, notification:controller::searcher::Notification) {
         use controller::searcher::Notification;
         use list_view::entry::AnyModelProvider;
         match notification {
@@ -730,7 +730,7 @@ impl GraphEditorIntegratedWithControllerModel {
                 let searcher = controller::Searcher::new_from_graph_controller(&this.logger,&this.project,controller,mode,selected_nodes)?;
                 executor::global::spawn(searcher.subscribe().for_each(f!([weak_self](notification) {
                     if let Some(this) = weak_self.upgrade() {
-                        this.handle_searcher_notification(&notification);
+                        this.handle_searcher_notification(notification);
                     }
                     futures::future::ready(())
                 })));

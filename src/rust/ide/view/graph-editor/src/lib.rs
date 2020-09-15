@@ -1763,27 +1763,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Node Editing ===
 
-
-
     frp::extend! { TRACE_ALL network
-        trace inputs.edit_mode_off;
-        trace inputs.edit_mode_on;
-        trace outputs.node_editing_finished;
-        trace outputs.node_editing_started;
-        trace outputs.edited_node;
-
         is_edited                <- outputs.edited_node.map(|n| n.is_some());
         edit_mode                <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
         node_edited_in_edit_mode <- touch.nodes.selected.gate(&edit_mode);
         start_editing            <- any(&node_edited_in_edit_mode,&inputs.edit_node);
          // FIXME: add other cases like node select.
         stop_editing_by_bg_click <- touch.background.selected.gate(&is_edited);
-        stop_editing                 <- any(&stop_editing_by_bg_click,&inputs.stop_editing);
+        stop_editing             <- any(&stop_editing_by_bg_click,&inputs.stop_editing);
 
         switched    <- start_editing.gate(&is_edited);
-        edited_node <- outputs.edited_node.map(|n| n.unwrap_or(default()));
+        edited_node <- outputs.edited_node.map(|n| n.unwrap_or_default());
 
-        // The off events should be emitted before on, to properly cover the "switch" case.
+        // The "finish" events should be emitted before "start", to properly cover the "switch"
+        // case.
         outputs.node_editing_finished <+ edited_node.sample(&stop_editing);
         outputs.node_editing_finished <+ edited_node.sample(&switched);
         outputs.node_editing_started  <+ start_editing;
