@@ -413,7 +413,7 @@ impl BreadcrumbModel {
         let selected_color = styles.get_color(selected_color_path,);
         let selected_color = color::Rgba::from(selected_color);
 
-        let left_deselected_path = "breadcrumbs.left.deselected.color";
+        let left_deselected_path = "breadcrumbs.deselected.left.color";
 
         let left_deselected = styles.get_color(left_deselected_path);
         let left_deselected = color::Rgba::from(left_deselected);
@@ -438,12 +438,12 @@ impl BreadcrumbModel {
         let selected_color = styles.get_color(selected_color_path);
         let selected_color = color::Rgba::from(selected_color);
 
-        let left_deselected_path = "breadcrumbs.left.deselected.color";
+        let left_deselected_path = "breadcrumbs.deselected.left.color";
 
         let left_deselected = styles.get_color(left_deselected_path);
         let left_deselected = color::Rgba::from(left_deselected);
 
-        let right_deselected_path = "breadcrumbs.right.deselected.color";
+        let right_deselected_path = "breadcrumbs.deselected.right.color";
 
         let right_deselected = styles.get_color(right_deselected_path);
         let right_deselected = color::Rgba::from(right_deselected);

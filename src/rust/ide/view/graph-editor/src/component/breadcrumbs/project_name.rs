@@ -289,7 +289,7 @@ impl ProjectNameModel {
 
     fn deselect(&self) {
         let styles                = &self.style;
-        let deselected_color_path = "breadcrumbs.left.deselected.color";
+        let deselected_color_path = "breadcrumbs.deselected.left.color";
 
         let deselected_color = styles.get_color(deselected_color_path);
         let deselected_color = color::Rgba::from(deselected_color);
@@ -332,7 +332,7 @@ impl ProjectName {
         let hover_color       = styles.get_color(hover_color_path);
         let hover_color       = color::Rgba::from(hover_color);
 
-        let deselected_color_path = "breadcrumbs.left.deselected.color";
+        let deselected_color_path = "breadcrumbs.deselected.left.color";
 
         let deselected_color = styles.get_color(deselected_color_path);
         let deselected_color = color::Rgba::from(deselected_color);

@@ -144,7 +144,7 @@ impl TextFieldSprites {
         let scene                 = scene.into();
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles                = StyleWatch::new(&scene.style_sheet);
-        let selection_color_path  = "text.selection.color";
+        let selection_color_path  = "application.text.selection.color";
         let selection_color       = styles.get_color(selection_color_path);
         let selection_color       = color::Rgba::from(selection_color);
         let selection_definition  = selection_definition.fill(selection_color);
