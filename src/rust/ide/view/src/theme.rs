@@ -36,6 +36,8 @@ macro_rules! define_theme {
         println!("pub mod Vars {{ //{:?} theme.",stringify!($name));
         // let mut $name = theme::Theme::new();
         _define_theme!($($t)*);
+        // app.themes.register(stringify!($name),$name);
+        // app.themes.set_enabled(&[stringify!($name)]);
         println!("}}")
     };
 }
