@@ -55,7 +55,7 @@ macro_rules! define_default_theme {
     };
 }
 
-/// Used to define default theme.
+/// Used to define any theme.
 #[macro_export]
 macro_rules! define_theme {
     ($name:ident $($t:tt)*) => {
