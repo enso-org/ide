@@ -3,114 +3,119 @@ use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::style::theme;
 
-// /// Used to define theme
-// #[macro_export]
-// macro_rules! define_theme {
-//     ($e:expr) => {{
-//         {
-//             println!("BAZ {}", stringify!{$e});
-//         }
-//     }};
-//
-//     ($e:expr, $($es:expr),+) => {{
-//         define_theme! { $e }
-//         define_theme! { $($es),+ }
-//     }};
-//
-//     // ($name:ident = $($ts:tt)*) => {
-//     //     //theme_name.insert("foo.bar.$name", $($ts)*);
-//     //     println!("BAR let {:?} = {:?}", $name, $($ts)*)
-//     // };
-//
-//     ($name:ident $($ts:tt)*) => {
-//         let mut $name = theme::Theme::new();
-//         println!("FOO : pub mod {:?} {:?}", $name, $($ts)*);
-//         define_theme! { $($ts)* }
-//     };
-// }
+
+/// `define_theme` helper.
+macro_rules! _define_theme {
+    ($name:ident = $e:expr) => {
+        println!("const {:?} : &str = __path__",stringify!($name));
+        println!("__theme_name__.insert(\"__path__\", {});",stringify!($e))
+        //$theme_name.insert("$path.$name", $e);
+    };
+
+    ($name:ident = $e:expr; $($rest:tt)*) => {
+        _define_theme!($name = $e);
+        _define_theme!($($rest)*);
+    };
+
+    ($name:ident {$($t:tt)*}) => {
+        println!("pub mod {:?} {{",stringify!($name));
+        _define_theme!($($t)*);
+        println!("}}")
+    };
+
+    ($name:ident {$($t:tt)*} $($rest:tt)*) => {
+        _define_theme!($name {$($t)*});
+        _define_theme!($($rest)*);
+    };
+}
+
+/// Used to define theme.
+#[macro_export]
+macro_rules! define_theme {
+    ($name:ident $($t:tt)*) => {
+        println!("pub mod Vars {{ //{:?} theme.",stringify!($name));
+        // let mut $name = theme::Theme::new();
+        _define_theme!($($t)*);
+        println!("}}")
+    };
+}
 
 /// Used to set up themes for the application.
 pub fn setup(app:&Application) {
-    // define_theme! { dark
-    //     application {
-    //         background {
-    //             color = color::Lcha::new(0.13,0.013,0.18,1.0)
-    //         }
-    //         text {
-    //             color = color::Lcha::new(1.0,0.0,0.0,0.7)
-    //             selection {
-    //                 color = color::Lcha::new(0.7,0.0,0.125,0.7)
-    //             }
-    //         }
-    //     }
-    //     graph_editor {
-    //         node {
-    //             background {
-    //                 color = color::Lcha::new(0.2,0.013,0.18,1.0)
-    //             }
-    //             selection {
-    //                 color = color::Lcha::new(0.72,0.5,0.22,1.0)
-    //                 size = 7.0
-    //             }
-    //         }
-    //         visualization {
-    //             background {
-    //                 color = color::Lcha::new(0.2,0.013,0.18,1.0)
-    //             }
-    //         }
-    //     }
-    //     breadcrumbs {
-    //         full {
-    //             color = color::Lcha::new(1.0,0.0,0.0,0.7)
-    //         }
-    //         transparent {
-    //             color = color::Lcha::new(1.0,0.0,0.0,0.4)
-    //         }
-    //         selected {
-    //             color = color::Lcha::new(1.0,0.0,0.0,0.6)
-    //         }
-    //         deselected{
-    //             left {
-    //                 color = color::Lcha::new(1.0,0.0,0.0,0.6)
-    //             }
-    //             right {
-    //                 color = color::Lcha::new(1.0,0.0,0.0,0.2)
-    //             }
-    //         }
-    //         hover {
-    //             color = color::Lcha::new(1.0,0.0,0.0,0.6)
-    //         }
-    //     }
-    //     list_view {
-    //         background {
-    //             color = color::Lcha::new(0.2,0.013,0.18,1.0)
-    //         }
-    //         highlight {
-    //             color = color::Lcha::new(0.72,0.5,0.22,1.0)
-    //         }
-    //     }
-    //     edge {
-    //         split_color {
-    //             lightness_factor = 0.2
-    //             chroma_factor = 1.0
-    //         }
-    //     }
-    //     type {
-    //         missing {
-    //             color = color::Lcha::new(0.5,0.0,0.0,1.0)
-    //         }
-    //         color {
-    //             luminance = 0.5
-    //             chroma = 0.8
-    //         }
-    //     }
-    // }
-    //
-    // define_theme! { dark
-    //     color = color::Lcha::new(0.13,0.013,0.18,1.0),
-    //     color2 = color::Lcha::new(0.13,0.013,0.18,1.0),
-    //     factor = 2.0
-    // }
+    define_theme! { dark
+        application {
+            background {
+                color = color::Lcha::new(0.13,0.013,0.18,1.0)
+            }
+            text {
+                color = color::Lcha::new(1.0,0.0,0.0,0.7);
+                selection {
+                    color = color::Lcha::new(0.7,0.0,0.125,0.7)
+                }
+            }
+        }
+        graph_editor {
+            node {
+                background {
+                    color = color::Lcha::new(0.2,0.013,0.18,1.0)
+                }
+                selection {
+                    color = color::Lcha::new(0.72,0.5,0.22,1.0);
+                    size = 7.0
+                }
+            }
+            visualization {
+                background {
+                    color = color::Lcha::new(0.2,0.013,0.18,1.0)
+                }
+            }
+        }
+        breadcrumbs {
+            full {
+                color = color::Lcha::new(1.0,0.0,0.0,0.7)
+            }
+            transparent {
+                color = color::Lcha::new(1.0,0.0,0.0,0.4)
+            }
+            selected {
+                color = color::Lcha::new(1.0,0.0,0.0,0.6)
+            }
+            deselected{
+                left {
+                    color = color::Lcha::new(1.0,0.0,0.0,0.6)
+                }
+                right {
+                    color = color::Lcha::new(1.0,0.0,0.0,0.2)
+                }
+            }
+            hover {
+                color = color::Lcha::new(1.0,0.0,0.0,0.6)
+            }
+        }
+        list_view {
+            background {
+                color = color::Lcha::new(0.2,0.013,0.18,1.0)
+            }
+            highlight {
+                color = color::Lcha::new(0.72,0.5,0.22,1.0)
+            }
+        }
+        edge {
+            split_color {
+                lightness_factor = 0.2;
+                chroma_factor = 1.0
+            }
+        }
+        type {
+            missing {
+                color = color::Lcha::new(0.5,0.0,0.0,1.0)
+            }
+            color {
+                luminance = 0.5;
+                chroma = 0.8
+            }
+        }
+    }
 
     let mut dark = theme::Theme::new();
     dark.insert("application.background.color", color::Lcha::new(0.13,0.013,0.18,1.0));
