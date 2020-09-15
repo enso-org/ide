@@ -110,7 +110,8 @@ impl ProjectView {
         let camera            = scene.camera();
         let navigator         = Navigator::new(&scene,&camera);
         Self::setup_components(&application);
-        theme::setup(&application);
+        theme::dark::setup(&application);
+        theme::light::setup(&application);
         let _world = &application.display;
         // graph::register_shapes(&world);
         let keyboard                 = Keyboard::default();

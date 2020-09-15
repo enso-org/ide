@@ -3,7 +3,7 @@
 /// `define_theme` helper.
 macro_rules! _define_theme_literals {
     ([$theme_name:ident $($path:ident)*] $name:ident = $e:expr) => {
-        $theme_name.insert(format!("{}{}",stringify!($($path.)*).replace(" ", ""),stringify!($name)).as_str(), $e);
+        $theme_name.insert(stringify!($($path.)*.$name), $e);
     };
 
     ([$($path:ident)*] $name:ident = $e:expr; $($rest:tt)*) => {
@@ -23,7 +23,7 @@ macro_rules! _define_theme_literals {
 
 macro_rules! _define_theme_modules {
     ([$theme_name:ident $($path:ident)*] $name:ident = $e:expr) => {
-        pub const $name : &str = format!("{}{}",stringify!($($path.)*).replace(" ", ""),stringify!($name)).as_str();
+        pub const $name : &str = stringify!($($path.)*.$name);
     };
 
     ([$($path:ident)*] $name:ident = $e:expr; $($rest:tt)*) => {
@@ -49,7 +49,9 @@ macro_rules! define_default_theme {
     ($name:ident $($t:tt)*) => {
         define_theme!($name $($t)*);
 
-        pub mod Vars {
+        #[allow(non_upper_case_globals)]
+        #[allow(missing_docs)]
+        pub mod vars {
             _define_theme_modules!([$name] $($t)*);
         }
     };
