@@ -20,9 +20,9 @@ pub const HEIGHT:f32 = 30.0;
 /// The text size of entry's labe.
 pub const LABEL_SIZE:f32 = 12.0;
 /// The size in pixels of icons inside entries.
-pub const ICON_SIZE:f32 = 16.0;
+pub const ICON_SIZE:f32 = 0.0; // TODO[ao] restore when created some icons for searcher.
 /// The gap between icon and label.
-pub const ICON_LABEL_GAP:f32 = 2.0;
+pub const ICON_LABEL_GAP:f32 = 7.0;
 
 
 
