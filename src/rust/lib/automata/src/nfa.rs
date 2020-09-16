@@ -112,7 +112,7 @@ impl Nfa {
         self[source].links.push(Transition::new(symbols.clone(),target));
     }
 
-    // FIXME[WD]: It seems that it sohuld be possible to simplify this function. This would
+    // FIXME[WD]: It seems that it should be possible to simplify this function. This would
     // drastically save memory (50-70%):
     // 1. We are always adding epsilon connection on the beginning. This should not be needed, but
     //    if we did it this way, it means there is a corner case probably. To be checked.
@@ -152,7 +152,9 @@ impl Nfa {
                     self.connect(state,end);
                 }
                 end
-            }
+            },
+            Pattern::Always => current,
+            Pattern::Never  => self.new_state(),
         };
         self[state].export = true;
         state
@@ -162,10 +164,10 @@ impl Nfa {
     /// [here](https://www.youtube.com/watch?v=taClnxU-nao).
     pub fn eps_matrix(&self) -> Vec<StateSetId> {
         fn fill_eps_matrix
-        ( nfa      : &Nfa
-        , states   : &mut Vec<StateSetId>
-        , visited  : &mut Vec<bool>
-        , state    : State
+        ( nfa     : &Nfa
+        , states  : &mut Vec<StateSetId>
+        , visited : &mut Vec<bool>
+        , state   : State
         ) {
             let mut state_set = StateSetId::new();
             visited[state.id()] = true;
