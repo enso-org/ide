@@ -41,46 +41,46 @@ const CORNER_RADIUS : f32       = super::super::node::CORNER_RADIUS;
 ///
 /// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
 /// container.
-pub mod background {
-    use super::*;
-
-    // TODO use style
-    ensogl::define_shape_system! {
-        (selected:f32,radius:f32,roundness:f32) {
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
-            let radius        = 1.px() * &radius;
-            let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let corner_radius = &radius * &roundness;
-            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background    = background.fill(color::Rgba::from(color_bg));
-            background.into()
-        }
-    }
-}
+// pub mod background {
+//     use super::*;
+//
+//     // TODO use style
+//     ensogl::define_shape_system! {
+//         (selected:f32,radius:f32,roundness:f32) {
+//             let width  : Var<Pixels> = "input_size.x".into();
+//             let height : Var<Pixels> = "input_size.y".into();
+//             let radius        = 1.px() * &radius;
+//             let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
+//             let corner_radius = &radius * &roundness;
+//             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
+//             let background    = background.fill(color::Rgba::from(color_bg));
+//             background.into()
+//         }
+//     }
+// }
 
 
 /// Container background shape definition.
 ///
 /// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
 /// container.
-pub mod fullscreen_background {
-    use super::*;
-
-    // TODO use style
-    ensogl::define_shape_system! {
-        (selected:f32,radius:f32,roundness:f32) {
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
-            let radius        = 1.px() * &radius;
-            let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
-            let corner_radius = &radius * &roundness;
-            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background    = background.fill(color::Rgba::from(color_bg));
-            background.into()
-        }
-    }
-}
+// pub mod fullscreen_background {
+//     use super::*;
+//
+//     // TODO use style
+//     ensogl::define_shape_system! {
+//         (selected:f32,radius:f32,roundness:f32) {
+//             let width  : Var<Pixels> = "input_size.x".into();
+//             let height : Var<Pixels> = "input_size.y".into();
+//             let radius        = 1.px() * &radius;
+//             let color_bg      = color::Lcha::new(0.2,0.013,0.18,1.0);
+//             let corner_radius = &radius * &roundness;
+//             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
+//             let background    = background.fill(color::Rgba::from(color_bg));
+//             background.into()
+//         }
+//     }
+// }
 
 /// Container overlay shape definition. Used to capture events over the visualisation within the
 /// container.
@@ -168,7 +168,7 @@ impl Frp {
 pub struct View {
     logger         : Logger,
     display_object : display::object::Instance,
-    background     : component::ShapeView<background::Shape>,
+    // background     : component::ShapeView<background::Shape>,
     overlay        : component::ShapeView<overlay::Shape>,
 }
 
@@ -177,16 +177,16 @@ impl View {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"view");
         let display_object = display::object::Instance::new(&logger);
-        let background     = component::ShapeView::<background::Shape>::new(&logger,scene);
+        // let background     = component::ShapeView::<background::Shape>::new(&logger,scene);
         let overlay        = component::ShapeView::<overlay::Shape>::new(&logger,scene);
         display_object.add_child(&overlay);
-        display_object.add_child(&background);
+        // display_object.add_child(&background);
+        //
+        // let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
+        // scene.views.main.remove(&shape_system.shape_system.symbol);
+        // scene.views.viz.add(&shape_system.shape_system.symbol);
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.viz.add(&shape_system.shape_system.symbol);
-
-        Self {logger,display_object,background,overlay}
+        Self {logger,display_object,overlay}//background,overlay}
     }
 }
 
@@ -209,7 +209,7 @@ impl display::Object for View {
 pub struct FullscreenView {
     logger           : Logger,
     display_object   : display::object::Instance,
-    background : component::ShapeView<fullscreen_background::Shape>,
+    // background : component::ShapeView<fullscreen_background::Shape>,
 }
 
 impl FullscreenView {
@@ -217,14 +217,14 @@ impl FullscreenView {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
-        let background     = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
-        display_object.add_child(&background);
+        // let background     = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
+        // display_object.add_child(&background);
+        //
+        // let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
+        // scene.views.main.remove(&shape_system.shape_system.symbol);
+        // scene.views.viz_fullscreen.add(&shape_system.shape_system.symbol);
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.viz_fullscreen.add(&shape_system.shape_system.symbol);
-
-        Self {logger,display_object,background}
+        Self {logger,display_object}//,background}
     }
 }
 
@@ -332,16 +332,16 @@ impl ContainerModel {
     fn set_size(&self, size:impl Into<Vector2>) {
         let size = size.into();
         if self.is_fullscreen.get() {
-            self.fullscreen_view.background . shape.radius.set(CORNER_RADIUS);
-            self.fullscreen_view.background . shape.sprite.size.set(size);
-            self.view.background   . shape.sprite.size.set(zero());
+            // self.fullscreen_view.background . shape.radius.set(CORNER_RADIUS);
+            // self.fullscreen_view.background . shape.sprite.size.set(size);
+            // self.view.background   . shape.sprite.size.set(zero());
             self.view.overlay . shape.sprite.size.set(zero());
         } else {
-            self.view.background.shape.radius.set(CORNER_RADIUS);
+            // self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.background.shape.sprite.size.set(size);
+            // self.view.background.shape.sprite.size.set(size);
             self.view.overlay.shape.sprite.size.set(size);
-            self.fullscreen_view.background . shape.sprite.size.set(zero());
+            // self.fullscreen_view.background . shape.sprite.size.set(zero());
         }
 
         if let Some(viz) = &*self.visualization.borrow() {
@@ -355,8 +355,8 @@ impl ContainerModel {
 
     fn set_corner_roundness(&self, value:f32) {
         self.view.overlay.shape.roundness.set(value);
-        self.view.background.shape.roundness.set(value);
-        self.fullscreen_view.background.shape.roundness.set(value);
+        // self.view.background.shape.roundness.set(value);
+        // self.fullscreen_view.background.shape.roundness.set(value);
     }
 }
 
