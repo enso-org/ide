@@ -97,27 +97,18 @@ impl Entry {
     pub fn from_ls_entry(entry:language_server::types::SuggestionEntry, logger:impl AnyLogger)
         -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
-        let convert_doc = |doc: Option<String>| doc.and_then(|doc| match Entry::gen_doc(doc) {
-            Ok(d)    => Some(d),
-            Err(err) => {
-                error!(logger,"Doc parser error: {err}");
-                None
-            },
-        });
         let this = match entry {
             Atom {name,module,arguments,return_type,documentation} => Self {
-                    name,arguments,return_type,
+                    name,arguments,return_type,documentation,
                     module        : module.try_into()?,
                     self_type     : None,
-                    documentation : convert_doc(documentation),
                     kind          : EntryKind::Atom,
                     scope         : Scope::Everywhere,
                 },
             Method {name,module,arguments,self_type,return_type,documentation} => Self {
-                    name,arguments,return_type,
+                    name,arguments,return_type,documentation,
                     module        : module.try_into()?,
                     self_type     : Some(self_type),
-                    documentation : convert_doc(documentation),
                     kind          : EntryKind::Method,
                     scope         : Scope::Everywhere,
                 },
@@ -191,13 +182,6 @@ impl Entry {
     /// Checks if entry name matches the given name. The matching is case-insensitive.
     pub fn matches_name(&self, name:impl Str) -> bool {
         self.name.to_lowercase() == name.as_ref().to_lowercase()
-    }
-
-    /// Generates HTML documentation for documented suggestion.
-    fn gen_doc(doc: String) -> FallibleResult<String> {
-        let parser = DocParser::new()?;
-        let output = parser.generate_html_doc_pure(doc);
-        Ok(output?)
     }
 
     /// Generate information about invoking this entity for span tree context.

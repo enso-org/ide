@@ -9,6 +9,7 @@ use enso_frp as frp;
 use ensogl::application;
 use ensogl::application::{Application, shortcut};
 use ensogl::display;
+use ensogl_gui_list_view as list_view;
 use ensogl_gui_list_view::ListView;
 
 pub use ensogl_gui_list_view::entry;
@@ -63,7 +64,7 @@ ensogl::def_command_api!( Commands
 ensogl_text::define_endpoints! {
     Commands { Commands }
     Input {
-        set_entries      (entry::AnyModelProvider),
+        set_entries      (list_view::entry::AnyModelProvider),
         show             (),
         hide             (),
     }

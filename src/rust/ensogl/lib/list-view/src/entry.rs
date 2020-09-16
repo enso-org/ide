@@ -92,7 +92,11 @@ pub trait ModelProvider : Debug {
 pub struct AnyModelProvider(Rc<dyn ModelProvider>);
 
 impl<T:ModelProvider + 'static> From<T> for AnyModelProvider {
-    fn from(provider: T) -> Self { Self(Rc::new(provider)) }
+    fn from(provider:T) -> Self { Self(Rc::new(provider)) }
+}
+
+impl<T:ModelProvider + 'static> From<Rc<T>> for AnyModelProvider {
+    fn from(provider:Rc<T>) -> Self { Self(provider) }
 }
 
 impl Default for AnyModelProvider {

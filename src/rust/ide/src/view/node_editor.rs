@@ -648,15 +648,14 @@ impl GraphEditorIntegratedWithControllerModel {
         match notification {
             Notification::NewSuggestionList => with(self.searcher_controller.borrow(), |searcher| {
                 if let Some(searcher) = &*searcher {
-                    let new_entries:AnyModelProvider = match searcher.suggestions() {
-                        Suggestions::Loading       => list_view::entry::EmptyProvider.into(),
-                        Suggestions::Loaded {list} => SuggestionProvider{list}.into(),
+                    match searcher.suggestions() {
+                        Suggestions::Loading       => self.view.unset_suggestions(),
+                        Suggestions::Loaded {list} => self.view.set_suggestions(list),
                         Suggestions::Error(err)    => {
                             error!(self.logger, "Error while obtaining list from searcher: {err}");
-                            list_view::entry::EmptyProvider.into()
+                            self.view.unset_suggestions();
                         },
                     };
-                    self.view.searcher().set_entries(new_entries);
                 }
             })
         }
@@ -1052,18 +1051,13 @@ impl display::Object for NodeEditor {
     }
 }
 
-#[derive(Clone,CloneRef,Debug)]
-struct SuggestionProvider {
-    list : Rc<controller::searcher::suggestion::List>,
-}
-
-impl list_view::entry::ModelProvider for SuggestionProvider {
+impl list_view::entry::ModelProvider for controller::searcher::suggestion::List {
     fn entry_count(&self) -> usize {
-        self.list.matching_count()
+        self.matching_count()
     }
 
     fn get(&self, id: usize) -> Option<list_view::entry::Model> {
-        let suggestion = self.list.get_cloned(id)?;
+        let suggestion = self.get_cloned(id)?;
         if let MatchInfo::Matches {subsequence} = suggestion.match_info {
             let caption          = suggestion.suggestion.caption();
             let model            = list_view::entry::Model::new(caption.clone());
@@ -1084,6 +1078,16 @@ impl list_view::entry::ModelProvider for SuggestionProvider {
             Some(model)
         } else {
             None
+        }
+    }
+}
+
+impl ide_view::project::DocumentationProvider for controller::searcher::suggestion::List {
+    fn get_for_entry(&self, id:usize) -> Option<String> {
+        use controller::searcher::suggestion::Suggestion;
+        iprintln!("Getting documentation for {id}");
+        match self.get_cloned(id)?.suggestion {
+            Suggestion::Completion(completion) => completion.documentation.clone()
         }
     }
 }

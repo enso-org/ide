@@ -19,6 +19,39 @@ use ensogl_gui_list_view as list_view;
 use ensogl::gui::component::Animation;
 
 
+
+// ==============================
+// === Documentation Provider ===
+// ==============================
+
+pub trait DocumentationProvider : Debug {
+    fn get_for_entry(&self, id:list_view::entry::Id) -> Option<String>;
+}
+
+impl DocumentationProvider for list_view::entry::EmptyProvider {
+    fn get_for_entry(&self, _:list_view::entry::Id) -> Option<String> { None }
+}
+
+
+// === AnySuggestionProvider ===
+
+#[derive(Clone,CloneRef,Debug,Deref)]
+pub struct AnyDocumentationProvider {rc:Rc<dyn DocumentationProvider>}
+
+impl Default for AnyDocumentationProvider {
+    fn default() -> Self { list_view::entry::EmptyProvider.into() }
+}
+
+impl<T:DocumentationProvider + 'static> From<T> for AnyDocumentationProvider {
+    fn from(provider:T) -> Self { Self {rc:Rc::new(provider)} }
+}
+
+impl<T:DocumentationProvider + 'static> From<Rc<T>> for AnyDocumentationProvider {
+    fn from(provider:Rc<T>) -> Self { Self {rc:provider} }
+}
+
+
+
 // =============
 // === Model ===
 // =============
@@ -31,6 +64,7 @@ struct Model {
     graph_editor   : GraphEditor,
     searcher       : searcher::View,
     documentation  : documentation::View,
+    doc_provider   : Rc<CloneRefCell<AnyDocumentationProvider>>,
     //TODO[ao] This view should contain also Text Editor; it should be moved here during refactoring
     // planned in task https://github.com/enso-org/ide/issues/597
 }
@@ -43,13 +77,13 @@ impl Model {
         let graph_editor   = app.new_view::<GraphEditor>();
         let searcher       = app.new_view::<searcher::View>();
         let documentation  = documentation::View::new(&scene);
+        let doc_provider   = default();
         display_object.add_child(&graph_editor);
         display_object.add_child(&searcher);
         display_object.remove_child(&searcher);
         display_object.add_child(&documentation);
-        display_object.remove_child(&documentation);
         let app = app.clone_ref();
-        Self{app,logger,display_object,graph_editor,searcher,documentation}
+        Self{app,logger,display_object,graph_editor,searcher,documentation,doc_provider}
     }
 
     fn set_documentation_visibility(&self, is_visible:bool) {
@@ -80,6 +114,16 @@ impl Model {
         graph_editor_inputs.set_node_expression.emit(&(created_node_id,Expression::default()));
         graph_editor_inputs.edit_node.emit(&created_node_id);
     }
+
+    fn doc_data_when_entry_selected(&self, id:Option<list_view::entry::Id>) -> visualization::Data {
+        let placeholder = "No Documentation Available".to_string();
+        iprintln!("Doc Provider {self.doc_provider.get():?}");
+        let opt_string  = id.and_then(|id| self.doc_provider.get().get_for_entry(id));
+        let string      = opt_string.unwrap_or(placeholder);
+        let content     = serde_json::Value::String(string).into();
+        iprintln!("Documentation content {content:?}");
+        visualization::Data::Json {content}
+    }
 }
 
 // ===========
@@ -109,7 +153,7 @@ ensogl_text::define_endpoints! {
     Commands { Commands }
     Input {
         set_documentation_data (visualization::Data),
-        set_suggestions        (list_view::entry::AnyModelProvider),
+        set_suggestions        (list_view::entry::AnyModelProvider,AnyDocumentationProvider),
     }
     Output {
         documentation_visible         (bool),
@@ -148,12 +192,19 @@ impl View {
         let searcher_left_top = Animation::<Vector2<f32>>::new(network);
 
         frp::extend!{ network
+            // === Setting Suggestions ===
+            trace frp.set_suggestions;
+            eval frp.set_suggestions ([model]((entries,docs)) {
+                model.doc_provider.set(docs.clone_ref());
+                model.searcher.frp.set_entries(entries);
+                iprintln!("Doc provider set: {model.doc_provider.get():?}");
+            });
 
-            // === Documentation Set ===
 
-            eval frp.set_documentation_data ((data) model.documentation.frp.send_data.emit(data));
-            eval frp.set_suggestions        ((provider) model.searcher.frp.set_entries(provider));
-
+            // === Displaying Documentation ===
+            displayed_doc <- searcher.selected_entry.map(f!((id) model.doc_data_when_entry_selected(*id)));
+            trace displayed_doc;
+            eval displayed_doc ((data) model.documentation.frp.send_data.emit(data));
 
             // === Searcher Position and Size ===
 
@@ -249,6 +300,19 @@ impl View {
     /// Searcher View.
     pub fn searcher(&self) -> &searcher::View {
         &self.model.searcher
+    }
+
+    pub fn set_suggestions
+    (&self, provider:Rc<impl list_view::entry::ModelProvider + DocumentationProvider + 'static>) {
+        iprintln!("Setting suggestions to {provider:?}");
+        let entries       : list_view::entry::AnyModelProvider = provider.clone_ref().into();
+        let documentation : AnyDocumentationProvider           = provider.into();
+        self.frp.set_suggestions(entries,documentation);
+    }
+
+    pub fn unset_suggestions(&self) {
+        let provider = Rc::new(list_view::entry::EmptyProvider);
+        self.set_suggestions(provider);
     }
 }
 
