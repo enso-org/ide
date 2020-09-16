@@ -207,14 +207,14 @@ impl display::Object for View {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct FullscreenView {
-    logger           : Logger,
-    display_object   : display::object::Instance,
-    // background : component::ShapeView<fullscreen_background::Shape>,
+    logger         : Logger,
+    display_object : display::object::Instance,
+    // background     : component::ShapeView<fullscreen_background::Shape>,
 }
 
 impl FullscreenView {
     /// Constructor.
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
+    pub fn new(logger:&Logger, _scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
         // let background     = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
