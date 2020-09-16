@@ -44,6 +44,7 @@ impl Model {
         let documentation  = documentation::View::new(&scene);
         display_object.add_child(&graph_editor);
         display_object.add_child(&searcher);
+        display_object.remove_child(&searcher);
         display_object.add_child(&documentation);
         display_object.remove_child(&documentation);
         Self{logger,display_object,graph_editor,searcher,documentation}
@@ -144,13 +145,22 @@ impl View {
             eval frp.set_suggestions        ((provider) model.searcher.frp.set_entries(provider));
 
 
-            // === Searcher Position ===
+            // === Searcher Position and Size ===
 
             _eval <- all_with(&searcher_left_top.value,&searcher.size,f!([model](lt,size) {
                 let x = lt.x + size.x / 2.0;
                 let y = lt.y - size.y / 2.0;
                 model.searcher.set_position_xy(Vector2(x,y));
             }));
+
+            eval searcher.is_visible ([model](is_visible) {
+                let is_attached = model.searcher.has_parent();
+                if !is_attached && *is_visible {
+                    model.display_object.add_child(&model.searcher);
+                } else if is_attached && !is_visible {
+                    model.display_object.remove_child(&model.searcher);
+                }
+            });
 
 
             // === Editing ===
