@@ -20,6 +20,7 @@ use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::component;
+use ensogl_theme as theme;
 use span_tree::SpanTree;
 use span_tree;
 
@@ -757,8 +758,7 @@ impl OutputPorts {
     fn set_port_colors_based_on_available_types(&self) {
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles             = StyleWatch::new(&self.scene.style_sheet);
-        let missing_color_path = "_type.missing.color";
-        let missing_type_color = styles.get_color(missing_color_path);
+        let missing_type_color = styles.get_color(theme::vars::_type::missing::color);
 
         self.id_map.borrow().iter().for_each(|(id, crumb)|{
             let color = self.get_port_color(crumb).unwrap_or(missing_type_color);

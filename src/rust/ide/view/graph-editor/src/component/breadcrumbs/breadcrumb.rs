@@ -20,6 +20,7 @@ use ensogl::display::shape::text::glyph::system::Line;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::gui::component;
 use ensogl::gui::component::Animation;
+use ensogl_theme as theme;
 use logger::enabled::Logger;
 use logger::AnyLogger;
 use nalgebra::Vector2;
@@ -327,14 +328,11 @@ impl BreadcrumbModel {
         self.icon.add_child(&self.label);
 
         let styles          = &self.style;
-        let full_color_path = "breadcrumbs.full.color";
 
-        let full_color = styles.get_color(full_color_path);
+        let full_color = styles.get_color(theme::vars::breadcrumbs::full::color);
         let full_color = color::Rgba::from(full_color);
 
-        let transparent_color_path = "breadcrumbs.transparent.color";
-
-        let transparent_color = styles.get_color(transparent_color_path);
+        let transparent_color = styles.get_color(theme::vars::breadcrumbs::transparent::color);
         let transparent_color = color::Rgba::from(transparent_color);
 
         let color  = if self.is_selected() { full_color } else { transparent_color };
@@ -408,14 +406,11 @@ impl BreadcrumbModel {
 
     fn select(&self) {
         let styles              = &self.style;
-        let selected_color_path = "breadcrumbs.selected.color";
 
-        let selected_color = styles.get_color(selected_color_path,);
+        let selected_color = styles.get_color(theme::vars::breadcrumbs::selected::color);
         let selected_color = color::Rgba::from(selected_color);
 
-        let left_deselected_path = "breadcrumbs.deselected.left.color";
-
-        let left_deselected = styles.get_color(left_deselected_path);
+        let left_deselected = styles.get_color(theme::vars::breadcrumbs::deselected::left::color);
         let left_deselected = color::Rgba::from(left_deselected);
 
         self.animations.color.set_target_value(selected_color.into());
@@ -433,19 +428,14 @@ impl BreadcrumbModel {
 
     fn deselected_color(&self) -> color::Rgba {
         let styles               = &self.style;
-        let selected_color_path  = "breadcrumbs.selected.color";
 
-        let selected_color = styles.get_color(selected_color_path);
+        let selected_color = styles.get_color(theme::vars::breadcrumbs::selected::color);
         let selected_color = color::Rgba::from(selected_color);
 
-        let left_deselected_path = "breadcrumbs.deselected.left.color";
-
-        let left_deselected = styles.get_color(left_deselected_path);
+        let left_deselected = styles.get_color(theme::vars::breadcrumbs::deselected::left::color);
         let left_deselected = color::Rgba::from(left_deselected);
 
-        let right_deselected_path = "breadcrumbs.deselected.right.color";
-
-        let right_deselected = styles.get_color(right_deselected_path);
+        let right_deselected = styles.get_color(theme::vars::breadcrumbs::deselected::right::color);
         let right_deselected = color::Rgba::from(right_deselected);
 
         match self.relative_position.get() {
@@ -490,8 +480,7 @@ impl Breadcrumb {
 
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles           = StyleWatch::new(&scene.style_sheet);
-        let hover_color_path = "breadcrumbs.hover.color";
-        let hover_color      = styles.get_color(hover_color_path);
+        let hover_color      = styles.get_color(theme::vars::breadcrumbs::hover::color);
         let hover_color      = color::Rgba::from(hover_color);
 
         frp::extend! { network

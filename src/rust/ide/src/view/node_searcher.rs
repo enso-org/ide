@@ -15,6 +15,7 @@ use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::display::shape::text::text_field::TextField;
 use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::traits::*;
+use ensogl_theme;
 
 
 #[derive(Clone,Debug,CloneRef)]
@@ -43,7 +44,7 @@ impl NodeSearcher {
         let display_object = display::object::Instance::new(&logger);
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles         = StyleWatch::new(&scene.style_sheet);
-        let base_color     = styles.get_color("application.text.color");
+        let base_color     = styles.get_color(ensogl_theme::vars::application::text::color);
         let properties     = TextFieldProperties {
             font       : fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap(),
             text_size  : 16.0,

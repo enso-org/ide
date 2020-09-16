@@ -52,6 +52,7 @@ use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
+use ensogl_theme;
 use frp::io::keyboard;
 
 pub use ensogl::prelude;
@@ -1535,12 +1536,11 @@ impl GraphEditorModel {
     }
 
     /// Return a color for the edge. Either based on the edges source/target type, or a default
-    /// color defined in Theme Manager as `type.missing.color`
+    /// color defined in Theme Manager as `type . missing . color`
     fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles             = StyleWatch::new(&self.scene().style_sheet);
-        let missing_color_path = "_type.missing.color";
-        let missing_type_color = styles.get_color(missing_color_path);
+        let missing_type_color = styles.get_color(ensogl_theme::vars::_type::missing::color);
         match self.try_get_edge_color(edge_id) {
            Some(color) => color,
            None        => missing_type_color,
@@ -1706,8 +1706,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
     let styles             = StyleWatch::new(&scene.style_sheet);
-    let missing_color_path = "_type.missing.color";
-    let missing_type_color = styles.get_color(missing_color_path);
+    let missing_type_color = styles.get_color(ensogl_theme::vars::_type::missing::color);
 
 
 

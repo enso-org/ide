@@ -13,6 +13,7 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewEvents;
 use ensogl::gui::component;
+use ensogl_theme as theme;
 
 use super::node;
 use crate::component::node::NODE_HEIGHT;
@@ -1291,8 +1292,8 @@ impl EdgeModelData {
     pub fn set_color(&self, color:color::Lcha) {
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles                        = StyleWatch::new(&self.scene.style_sheet);
-        let split_color_lightness_factor  = styles.get_number_or("edge.split_color.lightness_factor",1.2);
-        let split_color_chroma_factor     = styles.get_number_or("edge.split_color.chroma_factor",0.8);
+        let split_color_lightness_factor  = styles.get_number_or(theme::vars::edge::split_color::lightness_factor,1.2);
+        let split_color_chroma_factor     = styles.get_number_or(theme::vars::edge::split_color::chroma_factor,0.8);
         let lightness                     = color.lightness * split_color_lightness_factor;
         let chroma                        = color.chroma * split_color_chroma_factor;
         let focus_color = color::Lcha::new(lightness,chroma,color.hue,color.alpha);

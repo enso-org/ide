@@ -18,6 +18,7 @@ use ensogl::display::shape::text::text_field::TextFieldProperties;
 use ensogl::display::shape::*;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
+use ensogl_theme as theme;
 use logger::enabled::Logger;
 use logger::AnyLogger;
 
@@ -200,8 +201,7 @@ impl ProjectNameModel {
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles                = StyleWatch::new(&scene.style_sheet);
-        let base_color_path       = "breadcrumbs.transparent.color";
-        let base_color            = styles.get_color(base_color_path);
+        let base_color            = styles.get_color(theme::vars::breadcrumbs::transparent::color);
         let base_color            = color::Rgba::from(base_color);
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
@@ -279,9 +279,8 @@ impl ProjectNameModel {
 
     fn select(&self) {
         let styles              = &self.style;
-        let selected_color_path = "breadcrumbs.selected.color";
 
-        let selected_color = styles.get_color(selected_color_path);
+        let selected_color = styles.get_color(theme::vars::breadcrumbs::selected::color);
         let selected_color = color::Rgba::from(selected_color);
 
         self.animations.color.set_target_value(selected_color.into());
@@ -289,9 +288,8 @@ impl ProjectNameModel {
 
     fn deselect(&self) {
         let styles                = &self.style;
-        let deselected_color_path = "breadcrumbs.deselected.left.color";
 
-        let deselected_color = styles.get_color(deselected_color_path);
+        let deselected_color = styles.get_color(theme::vars::breadcrumbs::deselected::left::color);
         let deselected_color = color::Rgba::from(deselected_color);
 
         self.animations.color.set_target_value(deselected_color.into());
@@ -328,14 +326,10 @@ impl ProjectName {
 
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles            = StyleWatch::new(&scene.style_sheet);
-        let hover_color_path  = "breadcrumbs.hover.color";
-        let hover_color       = styles.get_color(hover_color_path);
+        let hover_color       = styles.get_color(theme::vars::breadcrumbs::hover::color);
         let hover_color       = color::Rgba::from(hover_color);
-
-        let deselected_color_path = "breadcrumbs.deselected.left.color";
-
-        let deselected_color = styles.get_color(deselected_color_path);
-        let deselected_color = color::Rgba::from(deselected_color);
+        let deselected_color  = styles.get_color(theme::vars::breadcrumbs::deselected::left::color);
+        let deselected_color  = color::Rgba::from(deselected_color);
 
         frp::extend! { network
             not_selected               <- frp.outputs.selected.map(|selected| !selected);

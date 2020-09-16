@@ -13,6 +13,7 @@ use ensogl::display::shape::primitive::StyleWatch;
 use ensogl::display;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
+use ensogl_theme;
 
 
 
@@ -82,7 +83,7 @@ impl RawTextModel {
 
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles     = StyleWatch::new(&scene.style_sheet);
-        let text_color = styles.get_color("application.text.color");
+        let text_color = styles.get_color(ensogl_theme::vars::application::text::color);
         let text_color = color::Rgba::from(text_color);
         let _red       = text_color.red * 255.0;
         let _green     = text_color.green * 255.0;
