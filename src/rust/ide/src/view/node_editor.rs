@@ -240,7 +240,8 @@ impl GraphEditorIntegratedWithController {
         let node_moved = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_moved_in_ui,&invalidate.trigger);
         let node_editing = Self::ui_action(&model,
-            GraphEditorIntegratedWithControllerModel::node_editing_in_ui(Rc::downgrade(&model)),&invalidate.trigger);
+            GraphEditorIntegratedWithControllerModel::node_editing_in_ui(Rc::downgrade(&model)),
+            &invalidate.trigger);
         let node_expression_set = Self::ui_action(&model,
             GraphEditorIntegratedWithControllerModel::node_expression_set_in_ui,&invalidate.trigger);
         let suggestion_picked = Self::ui_action(&model,
@@ -280,9 +281,6 @@ impl GraphEditorIntegratedWithController {
 
             eval project_frp.editing_committed ((_) invalidate.trigger.emit(()));
             eval project_frp.editing_aborted   ((_) invalidate.trigger.emit(()));
-            trace project_frp.editing_committed;
-            trace project_frp.editing_aborted;
-            trace invalidate.trigger;
         }
         Self::connect_frp_to_controller_notifications(&model,handle_notification.trigger);
         Self {model,network}
@@ -651,9 +649,9 @@ impl GraphEditorIntegratedWithControllerModel {
             Notification::NewSuggestionList => with(self.searcher_controller.borrow(), |searcher| {
                 if let Some(searcher) = &*searcher {
                     let new_entries:AnyModelProvider = match searcher.suggestions() {
-                        Suggestions::Loading => list_view::entry::EmptyProvider.into(),
+                        Suggestions::Loading       => list_view::entry::EmptyProvider.into(),
                         Suggestions::Loaded {list} => SuggestionProvider{list}.into(),
-                        Suggestions::Error(err) => {
+                        Suggestions::Error(err)    => {
                             error!(self.logger, "Error while obtaining list from searcher: {err}");
                             list_view::entry::EmptyProvider.into()
                         },
@@ -709,9 +707,6 @@ impl GraphEditorIntegratedWithControllerModel {
             searcher.set_input(expression.clone())?;
         }
         Ok(())
-        // let id = self.get_controller_node_id(*displayed_id)?;
-        // self.expression_views.borrow_mut().insert(*displayed_id,expression.clone());
-        // self.controller.graph().set_expression(id,expression)
     }
 
     fn node_editing_in_ui(weak_self:Weak<Self>)
@@ -722,7 +717,9 @@ impl GraphEditorIntegratedWithControllerModel {
                 let mode = match id {
                     Ok(node_id) => controller::searcher::Mode::EditNode {node_id},
                     Err(MissingMappingFor::DisplayedNode(id)) => {
-                        let position = this.view.graph().model.nodes.get_cloned_ref(&id).map(|node| model::module::Position{vector:node.position().xy()});
+                        let node_view = this.view.graph().model.nodes.get_cloned_ref(&id);
+                        let position  = node_view.map(|node| node.position().xy());
+                        let position  = position.map(|vector| model::module::Position{vector});
                         controller::searcher::Mode::NewNode {position}
                     },
                     Err(other) => return Err(other.into()),
@@ -731,7 +728,8 @@ impl GraphEditorIntegratedWithControllerModel {
                     this.get_controller_node_id(*id).ok()
                 }).collect_vec();
                 let controller = this.controller.clone_ref();
-                let searcher = controller::Searcher::new_from_graph_controller(&this.logger,&this.project,controller,mode,selected_nodes)?;
+                let searcher = controller::Searcher::new_from_graph_controller
+                    (&this.logger,&this.project,controller,mode,selected_nodes)?;
                 executor::global::spawn(searcher.subscribe().for_each(f!([weak_self](notification) {
                     if let Some(this) = weak_self.upgrade() {
                         this.handle_searcher_notification(notification);
@@ -749,17 +747,18 @@ impl GraphEditorIntegratedWithControllerModel {
     fn suggestion_picked_in_ui
     (&self, entry:&Option<ide_view::searcher::entry::Id>) -> FallibleResult<()> {
         if let Some(entry) = entry {
-            let error = || MissingSearcherController;
-            let searcher = self.searcher_controller.borrow().clone().ok_or_else(error)?;
-            let error = || GraphEditorInconsistency;
-            let edited_node = self.view.graph().frp.outputs.edited_node.value().ok_or_else(error)?;
-            let new_code = searcher.pick_completion_by_index(*entry)?;
+            let graph_frp      = &self.view.graph().frp;
+            let error          = || MissingSearcherController;
+            let searcher       = self.searcher_controller.borrow().clone().ok_or_else(error)?;
+            let error          = || GraphEditorInconsistency;
+            let edited_node    = graph_frp.outputs.edited_node.value().ok_or_else(error)?;
+            let new_code       = searcher.pick_completion_by_index(*entry)?;
             let code_and_trees = graph_editor::component::node::port::Expression {
                 code             : new_code,
                 input_span_tree  : default(),
                 output_span_tree : default(),
             };
-            self.view.graph().frp.inputs.set_node_expression.emit_event(&(edited_node,code_and_trees));
+            graph_frp.inputs.set_node_expression.emit_event(&(edited_node,code_and_trees));
         }
         Ok(())
     }

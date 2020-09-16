@@ -64,7 +64,7 @@ pub struct Events {
     pub stop_edit_mode  : frp::Source,
     pub width           : frp::Stream<f32>,
     pub expression      : frp::Stream<Text>,
-    active              : frp::nodes::Sampler<bool>,
+    edited              : frp::nodes::Sampler<bool>,
     press_source        : frp::Source<span_tree::Crumbs>,
     hover_source        : frp::Source<Option<span_tree::Crumbs>>,
     cursor_style_source : frp::Any<cursor::Style>,
@@ -150,7 +150,7 @@ impl Manager {
             hover_source        <- source::<Option<span_tree::Crumbs>>();
             start_edit_mode     <- source();
             stop_edit_mode      <- source();
-            active              <- label.active.sampler();
+            edited              <- label.active.sampler();
 
             eval_ start_edit_mode ([label] {
                 label.set_active_on();
@@ -172,7 +172,7 @@ impl Manager {
         let hover          = (&hover_source).into();
         let frp            = Events
             {network,cursor_style,press,hover,cursor_style_source,press_source,hover_source
-            ,start_edit_mode,stop_edit_mode,width,expression,active};
+            ,start_edit_mode,stop_edit_mode,width,expression,edited};
 
         label.mod_position(|t| t.y += 6.0);
 
@@ -201,7 +201,7 @@ impl Manager {
         self.label.select_all();
         self.label.insert(&expression.code);
         self.label.remove_all_cursors();
-        if self.frp.active.value() {
+        if self.frp.edited.value() {
             self.label.set_cursor_at_end();
         }
 

@@ -1763,7 +1763,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Node Editing ===
 
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
         is_edited                <- outputs.edited_node.map(|n| n.is_some());
         edit_mode                <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
         node_edited_in_edit_mode <- touch.nodes.selected.gate(&edit_mode);

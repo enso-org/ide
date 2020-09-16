@@ -163,8 +163,8 @@ impl View {
 
             editing_aborted <- any(...);
             editing_aborted <+ frp.abort_node_editing.constant(true);
-            should_finish_editing <- any(frp.abort_node_editing,searcher.editing_committed
-                ,frp.add_new_node);
+            should_finish_editing <-
+                any(frp.abort_node_editing,searcher.editing_committed,frp.add_new_node);
             eval should_finish_editing ((()) graph.inputs.stop_editing.emit(()));
             _eval <- graph.outputs.edited_node.map2(&searcher.is_visible,
                 f!([model,searcher_left_top](edited_node_id,is_visible) {

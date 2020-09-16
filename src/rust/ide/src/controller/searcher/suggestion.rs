@@ -138,7 +138,8 @@ impl List {
             entry.update_matching_info(pattern.as_ref());
         }
         entries_mut.sort_by(|l,r| l.compare_match_scores(r).reverse());
-        let first_not_matching = entries_mut.iter().find_position(|e| e.match_info == MatchInfo::DoesNotMatch);
+        let not_matching       = |e:&&ListEntry| e.match_info == MatchInfo::DoesNotMatch;
+        let first_not_matching = entries_mut.iter().find_position(not_matching);
         let matches_end        = first_not_matching.map_or(entries_mut.len(), |(id,_)| id);
         self.matching.set(0..matches_end);
     }

@@ -427,7 +427,7 @@ impl Text {
         if lines_count == 0 {
             default()
         } else {
-            let line   = Line((lines_count - 1) as i32);
+            let line   = ((lines_count - 1) as i32).line();
             let column = self.line_end_column(line).unwrap();
             Location(line,column)
         }

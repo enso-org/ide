@@ -26,7 +26,7 @@ pub use suggestion::Suggestion;
 
 
 #[allow(missing_docs)]
-#[fail(display = "No such suggestion with index {}", index)]
+#[fail(display = "No such suggestion with index {}.", index)]
 #[derive(Copy,Clone,Debug,Fail)]
 pub struct NoSuchSuggestion{
     index : usize,
@@ -422,19 +422,18 @@ impl Searcher {
     /// This function should be called each time user modifies Searcher input in view. It may result
     /// in a new suggestion list (the aprriopriate notification will be emitted).
     pub fn set_input(&self, new_input:String) -> FallibleResult<()> {
-        debug!(self.logger, "Manually setting input to {new_input}");
+        debug!(self.logger, "Manually setting input to {new_input}.");
         let parsed_input = ParsedInput::new(new_input,&self.parser)?;
         let old_expr     = self.data.borrow().input.expression.repr();
         let new_expr     = parsed_input.expression.repr();
 
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
-        debug!(self.logger, "Expressions: {old_expr} <> {new_expr}|");
         if old_expr != new_expr {
-            debug!(self.logger, "Reloading list");
+            debug!(self.logger, "Reloading list.");
             self.reload_list();
         } else if let Suggestions::Loaded {list} = self.data.borrow().suggestions.clone_ref() {
-            debug!(self.logger, "Update filtering");
+            debug!(self.logger, "Update filtering.");
             list.update_filtering(&self.data.borrow().input.pattern);
             executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
         }
@@ -649,11 +648,10 @@ impl Searcher {
             return_types.push(None)
         }
         executor::global::spawn(async move {
-            info!(this.logger,"Request soon: {this.this_arg:?}");
             let this_type = this_type.await;
             info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
             let requests  = return_types.into_iter().map(|return_type| {
-                info!(this.logger, "Requesting suggestions for returnType {return_type:?}");
+                info!(this.logger, "Requesting suggestions for returnType {return_type:?}.");
                 let file = graph.module.path().file_path();
                 ls.completion(file,&position,&this_type,&return_type,&tags)
             });
@@ -680,7 +678,7 @@ impl Searcher {
                     .map(Suggestion::Completion)
                     .handle_err(|e| {
                         error!(self.logger,"Response provided a suggestion ID that cannot be \
-                        resolved: {e}")
+                        resolved: {e}.")
                     })
             });
             suggestions.extend(entries);
@@ -1121,7 +1119,7 @@ pub mod test {
                 for _ in 0..EXPECTED_REQUESTS {
                     let requested_types = requested_types2.clone();
                     client.expect.completion(move |_path,_position,_self_type,return_type,_tags| {
-                        iprintln!("Requested {return_type:?}");
+                        iprintln!("Requested {return_type:?}.");
                         requested_types.borrow_mut().insert(return_type.clone());
                         Ok(completion_response(&[]))
                     });
