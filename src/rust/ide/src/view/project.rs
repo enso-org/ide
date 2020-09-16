@@ -16,8 +16,8 @@ use ensogl::system::web;
 use enso_frp::io::keyboard::Keyboard;
 use enso_frp::io::keyboard;
 use enso_shapely::shared;
+use ensogl_theme;
 use ide_view::graph_editor;
-use ide_view::theme;
 use nalgebra::Vector2;
 
 
@@ -110,8 +110,8 @@ impl ProjectView {
         let camera            = scene.camera();
         let navigator         = Navigator::new(&scene,&camera);
         Self::setup_components(&application);
-        theme::dark::setup(&application);
-        theme::light::setup(&application);
+        ensogl_theme::dark::setup(&application);
+        ensogl_theme::light::setup(&application);
         let _world = &application.display;
         // graph::register_shapes(&world);
         let keyboard                 = Keyboard::default();

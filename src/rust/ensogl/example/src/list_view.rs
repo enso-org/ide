@@ -6,7 +6,6 @@ use ensogl_core::system::web;
 use ensogl_core::application::Application;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_core::display::shape::*;
-use ensogl_core::display::style::theme;
 use ensogl_core::data::color;
 use ensogl_core::gui;
 use ensogl_text_msdf_sys::run_once_initialized;
@@ -15,6 +14,7 @@ use logger::enabled::Logger;
 use wasm_bindgen::prelude::*;
 use ensogl_core::display::Scene;
 use ensogl_text::buffer::data::unit::Bytes;
+use ensogl_theme;
 
 
 
@@ -95,25 +95,8 @@ impl list_view::entry::ModelProvider for MockEntries {
 // ========================
 
 fn init(app:&Application) {
-
-    let mut dark = theme::Theme::new();
-    dark.insert("application.background.color", color::Lcha::new(0.13,0.013,0.18,1.0));
-    dark.insert("application.text.color", color::Rgba::new(1.0,1.0,1.0,0.7));
-
-    dark.insert("list_view.background.color", color::Lcha::new(0.2,0.013,0.18,1.0));
-    dark.insert("list_view.highlight.color", color::Lcha::new(0.72,0.5,0.22,1.0));
-
-    app.themes.register("dark",dark);
-
-    let mut light = theme::Theme::new();
-    light.insert("application.background.color", color::Lcha::new(0.96,0.013,0.18,1.0));
-    light.insert("application.text.color", color::Rgba::new(0.0,0.0,0.0,0.7));
-
-    light.insert("list_view.background.color", color::Lcha::new(0.98,0.013,0.18,1.0));
-    light.insert("list_view.highlight.color", color::Lcha::new(0.55,0.65,0.79,1.0));
-
-    app.themes.register("light",light);
-    app.themes.set_enabled(&["light"]);
+    ensogl_theme::dark::setup(&app);
+    ensogl_theme::light::setup(&app);
 
     let select                                      = app.new_view::<list_view::ListView>();
     let provider:list_view::entry::AnyModelProvider = MockEntries::new(app,1000).into();

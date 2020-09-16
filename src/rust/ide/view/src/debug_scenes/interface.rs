@@ -8,13 +8,13 @@ use crate::prelude::*;
 
 use crate::graph_editor::GraphEditor;
 use crate::graph_editor::Type;
-use crate::theme;
 
 use enso_frp as frp;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::system::web;
 use ensogl::application::Application;
 use ensogl::display::object::ObjectOps;
+use ensogl_theme;
 use wasm_bindgen::prelude::*;
 
 
@@ -76,10 +76,10 @@ impl DummyTypeGenerator {
 
 fn init(app:&Application) {
 
-    theme::dark::setup(&app);
-    theme::light::setup(&app);
+    ensogl_theme::dark::setup(&app);
+    ensogl_theme::light::setup(&app);
 
-    let _bg = app.display.scene().style_sheet.var("application.background.color");
+    let _bg = app.display.scene().style_sheet.var(ensogl_theme::vars::application::background::color);
 
 
     let world     = &app.display;

@@ -6,6 +6,7 @@ use ensogl_core::data::color;
 use ensogl_core::display;
 use ensogl_core::display::shape::StyleWatch;
 use ensogl_text as text;
+use ensogl_theme;
 use enabled::Logger;
 
 
@@ -141,7 +142,7 @@ impl Entry {
         label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
         // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
-        let text_color = styles.get_color("application.text.color");
+        let text_color = styles.get_color(ensogl_theme::vars::application::text::color);
         label.set_default_color(color::Rgba::from(text_color));
         label.set_default_text_size(text::Size(LABEL_SIZE));
         Entry{id,label,icon,display_object}
