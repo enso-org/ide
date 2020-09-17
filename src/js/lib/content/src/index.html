@@ -9,7 +9,8 @@
             default-src 'self';
             script-src  'self' 'unsafe-eval' data: https://*;
             style-src   'self' 'unsafe-inline' data: https://*;
-            connect-src 'self' data: ws://localhost:* ws://127.0.0.1:*;
+            connect-src 'self' data: ws://localhost:* ws://127.0.0.1:* https://*;
+            worker-src  'self' blob:;
             font-src    'self' data:"
         />
         <meta name="viewport" content="
