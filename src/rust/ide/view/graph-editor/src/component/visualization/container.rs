@@ -27,6 +27,7 @@ use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 
 
+
 // =================
 // === Constants ===
 // =================
@@ -188,16 +189,22 @@ impl View {
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.viz.add(&shape_system.shape_system.symbol);
 
+        let shape_system = scene.shapes.shape_system(PhantomData::<overlay::Shape>);
+        scene.views.main.remove(&shape_system.shape_system.symbol);
+        scene.views.viz.add(&shape_system.shape_system.symbol);
+
         let div  = web::create_div();
         let dom  = DomSymbol::new(&div);
 
-        dom.dom().set_style_or_warn("width"         ,"200px"    ,&logger);
-        dom.dom().set_style_or_warn("height"        ,"200px"    ,&logger);
+        dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
+        dom.dom().set_style_or_warn("height"        ,"0"        ,&logger);
+        dom.dom().set_style_or_warn("z-index"       ,"1"        ,&logger);
         dom.dom().set_style_or_warn("overflow-y"    ,"auto"     ,&logger);
         dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
         dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
         dom.dom().set_style_or_warn("border-radius" ,"14px"     ,&logger);
         dom.dom().set_style_or_warn("pointer-events","auto"     ,&logger);
+        display_object.add_child(&dom);
 
         scene.dom.layers.back.manage(&dom);
 
@@ -243,13 +250,15 @@ impl FullscreenView {
         let div  = web::create_div();
         let dom  = DomSymbol::new(&div);
 
-        dom.dom().set_style_or_warn("width"         ,"200px"    ,&logger);
-        dom.dom().set_style_or_warn("height"        ,"200px"    ,&logger);
+        dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
+        dom.dom().set_style_or_warn("height"        ,"0"        ,&logger);
+        dom.dom().set_style_or_warn("z-index"       ,"1"        ,&logger);
         dom.dom().set_style_or_warn("overflow-y"    ,"auto"     ,&logger);
         dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
         dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
-        dom.dom().set_style_or_warn("border-radius" ,"14px"     ,&logger);
+        dom.dom().set_style_or_warn("border-radius" ,"0"        ,&logger);
         dom.dom().set_style_or_warn("pointer-events","auto"     ,&logger);
+        display_object.add_child(&dom);
 
         scene.dom.layers.back.manage(&dom);
 
@@ -361,16 +370,24 @@ impl ContainerModel {
     fn set_size(&self, size:impl Into<Vector2>) {
         let size = size.into();
         if self.is_fullscreen.get() {
-            self.fullscreen_view.background . shape.radius.set(CORNER_RADIUS);
-            self.fullscreen_view.background . shape.sprite.size.set(size);
-            self.view.background   . shape.sprite.size.set(zero());
-            self.view.overlay . shape.sprite.size.set(zero());
+            self.fullscreen_view.background.shape.radius.set(CORNER_RADIUS);
+            self.fullscreen_view.background.shape.sprite.size.set(size);
+            self.view.background.shape.sprite.size.set(zero());
+            self.view.overlay.shape.sprite.size.set(zero());
+            self.view.dom.dom().set_style_or_warn("width" ,"0",&self.logger);
+            self.view.dom.dom().set_style_or_warn("height","0",&self.logger);
+            self.fullscreen_view.dom.dom().set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
+            self.fullscreen_view.dom.dom().set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
         } else {
             self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
             self.view.background.shape.sprite.size.set(size);
             self.view.overlay.shape.sprite.size.set(size);
-            self.fullscreen_view.background . shape.sprite.size.set(zero());
+            self.view.dom.dom().set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
+            self.view.dom.dom().set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
+            self.fullscreen_view.dom.dom().set_style_or_warn("width" ,"0",&self.logger);
+            self.fullscreen_view.dom.dom().set_style_or_warn("height","0",&self.logger);
+            self.fullscreen_view.background.shape.sprite.size.set(zero());
         }
 
         if let Some(viz) = &*self.visualization.borrow() {
