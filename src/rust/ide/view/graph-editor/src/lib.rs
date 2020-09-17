@@ -1775,8 +1775,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         switched    <- start_editing.gate(&is_edited);
         edited_node <- outputs.edited_node.map(|n| n.unwrap_or_default());
 
-        // The "finish" events should be emitted before "start", to properly cover the "switch"
-        // case.
+        // The "finish" events must be emitted before "start", to properly cover the "switch" case.
         outputs.node_editing_finished <+ edited_node.sample(&stop_editing);
         outputs.node_editing_finished <+ edited_node.sample(&switched);
         outputs.node_editing_started  <+ start_editing;

@@ -170,7 +170,6 @@ impl View {
 
             // This node is false when received "abort_node_editing" signal, and should get true
             // once processing of "edited_node" event from graph is performed.
-
             editing_aborted <- any(...);
             editing_aborted <+ frp.abort_node_editing.constant(true);
             should_finish_editing <-
