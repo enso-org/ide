@@ -1290,7 +1290,7 @@ impl EdgeModelData {
     /// Set the color of the edge. Also updates the focus color (which will be a dimmed version
     /// of the main color).
     pub fn set_color(&self, color:color::Lcha) {
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles                        = StyleWatch::new(&self.scene.style_sheet);
         let split_color_lightness_factor  = styles.get_number_or(theme::vars::edge::split_color::lightness_factor,1.2);
         let split_color_chroma_factor     = styles.get_number_or(theme::vars::edge::split_color::chroma_factor,0.8);

@@ -53,7 +53,8 @@ pub mod background {
             let width         = &width  - SHADOW_SIZE.px() * 2.0;
             let height        = &height - SHADOW_SIZE.px() * 2.0;
             let radius        = 1.px() * &radius;
-            let color_bg      = style.get_color(theme::vars::graph_editor::visualization::background::color);
+            let color_path    = theme::vars::graph_editor::visualization::background::color;
+            let color_bg      = style.get_color(color_path);
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
@@ -68,7 +69,9 @@ pub mod background {
             let shadow_color  = color::LinearGradient::new()
                 .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
                 .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
-            let shadow_color  = color::SdfSampler::new(shadow_color).max_distance(border_size_f).slope(color::Slope::Exponent(2.0));
+            let shadow_color  = color::SdfSampler::new(shadow_color)
+                .max_distance(border_size_f)
+                .slope(color::Slope::Exponent(2.0));
             let shadow        = shadow.fill(shadow_color);
 
             let out = shadow + background;
@@ -90,7 +93,8 @@ pub mod fullscreen_background {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius        = 1.px() * &radius;
-            let color_bg      = style.get_color(theme::vars::graph_editor::visualization::background::color);
+            let color_path    = theme::vars::graph_editor::visualization::background::color;
+            let color_bg      = style.get_color(color_path);
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));

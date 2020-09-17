@@ -199,9 +199,9 @@ impl ProjectNameModel {
         let display_object        = display::object::Instance::new(&logger);
         let font                  = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
         let size                  = Vector2(scene.camera().screen().width,TEXT_SIZE);
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
-        let styles                = StyleWatch::new(&scene.style_sheet);
-        let base_color            = styles.get_color(theme::vars::breadcrumbs::transparent::color);
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        let style                 = StyleWatch::new(&scene.style_sheet);
+        let base_color            = style.get_color(theme::vars::breadcrumbs::transparent::color);
         let base_color            = color::Rgba::from(base_color);
         let text_size             = TEXT_SIZE;
         let text_field_properties = TextFieldProperties{base_color,font,size,text_size};
@@ -211,8 +211,6 @@ impl ProjectNameModel {
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
         let outputs               = frp.outputs.clone_ref();
         let animations            = Animations::new(&frp.network);
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
-        let style                 = StyleWatch::new(&scene.style_sheet);
         Self{logger,view,style,display_object,text_field,project_name,animations,outputs}.init()
     }
 
@@ -228,8 +226,8 @@ impl ProjectNameModel {
         let width       = self.width();
         let line_height = self.text_field.line_height();
         let height      = line_height+VERTICAL_MARGIN*2.0;
-        let x_position = breadcrumb::LEFT_MARGIN+breadcrumb::PADDING;
-        let y_position = -VERTICAL_MARGIN-breadcrumb::TOP_MARGIN-breadcrumb::PADDING;
+        let x_position  = breadcrumb::LEFT_MARGIN+breadcrumb::PADDING;
+        let y_position  = -VERTICAL_MARGIN-breadcrumb::TOP_MARGIN-breadcrumb::PADDING;
         self.text_field.set_position(Vector3(x_position,y_position,0.0));
         self.view.shape.sprite.size.set(Vector2(width,height));
         self.view.set_position(Vector3(width,-height,0.0)/2.0);
@@ -278,8 +276,7 @@ impl ProjectNameModel {
     }
 
     fn select(&self) {
-        let styles              = &self.style;
-
+        let styles         = &self.style;
         let selected_color = styles.get_color(theme::vars::breadcrumbs::selected::color);
         let selected_color = color::Rgba::from(selected_color);
 
@@ -287,8 +284,7 @@ impl ProjectNameModel {
     }
 
     fn deselect(&self) {
-        let styles                = &self.style;
-
+        let styles           = &self.style;
         let deselected_color = styles.get_color(theme::vars::breadcrumbs::deselected::left::color);
         let deselected_color = color::Rgba::from(deselected_color);
 
@@ -324,7 +320,7 @@ impl ProjectName {
         let model   = Rc::new(ProjectNameModel::new(scene,&frp,focus_manager));
         let network = &frp.network;
 
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles            = StyleWatch::new(&scene.style_sheet);
         let hover_color       = styles.get_color(theme::vars::breadcrumbs::hover::color);
         let hover_color       = color::Rgba::from(hover_color);

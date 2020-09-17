@@ -8,7 +8,7 @@ tags: [product,ui]
 ### Graph Editor
 | Shortcut | Action |
 | -------- | ------ |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>s</kbd> | Toggles light/dark application style. |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>s</kbd> | Toggles light/dark application style. Currently doesn't work properly, as the Theme Switcher is not created yet. (https://github.com/enso-org/ide/issues/795)|
 
 #### Node Editing
 | Shortcut | Action |

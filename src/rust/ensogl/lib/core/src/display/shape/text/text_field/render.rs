@@ -142,7 +142,7 @@ impl TextFieldSprites {
         let height                = "input_size.y";
         let selection_definition  = shape::Rect((width,height));
         let scene                 = scene.into();
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles                = StyleWatch::new(&scene.style_sheet);
         let selection_color_path  = "application . text . selection . color";
         let selection_color       = styles.get_color(selection_color_path);

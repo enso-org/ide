@@ -1,49 +1,59 @@
 //! Application theme setup.
+//!
+#![warn(missing_docs)]
+#![warn(trivial_casts)]
+#![warn(trivial_numeric_casts)]
+#![warn(unused_import_braces)]
+#![warn(unused_qualifications)]
+#![warn(unsafe_code)]
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 
 /// `define_theme` helper.
 macro_rules! _define_theme_literals {
-    ([$theme_name:ident $($path:ident)*] $name:ident = $e:expr) => {
-        $theme_name.insert(stringify!($($path.)*$name), $e);
+    ([$theme_name:ident $($path:ident)*] $var_name:ident = $e:expr) => {
+        $theme_name.insert(stringify!($($path.)*$var_name), $e);
     };
 
-    ([$($path:ident)*] $name:ident = $e:expr; $($rest:tt)*) => {
-        _define_theme_literals!([$($path)*] $name = $e);
+    ([$($path:ident)*] $var_name:ident = $e:expr; $($rest:tt)*) => {
+        _define_theme_literals!([$($path)*] $var_name = $e);
         _define_theme_literals!([$($path)*] $($rest)*);
     };
 
-    ([$($path:ident)*] $name:ident {$($t:tt)*}) => {
-        _define_theme_literals!([$($path)* $name] $($t)*);
+    ([$($path:ident)*] $path_segment:ident {$($t:tt)*}) => {
+        _define_theme_literals!([$($path)* $path_segment] $($t)*);
     };
 
-    ([$($path:ident)*] $name:ident {$($t:tt)*} $($rest:tt)*) => {
-        _define_theme_literals!([$($path)*] $name {$($t)*});
+    ([$($path:ident)*] $path_segment:ident {$($t:tt)*} $($rest:tt)*) => {
+        _define_theme_literals!([$($path)*] $path_segment {$($t)*});
         _define_theme_literals!([$($path)*] $($rest)*);
     };
 }
 
 macro_rules! _define_theme_modules {
-    ([$theme_name:ident $($path:ident)*] $name:ident = $e:expr) => {
-        pub const $name : &str = stringify!($($path.)*$name);
+    ([$theme_name:ident $($path:ident)*] $var_name:ident = $e:expr) => {
+        pub const $var_name : &str = stringify!($($path.)*$var_name);
     };
 
-    ([$($path:ident)*] $name:ident = $e:expr; $($rest:tt)*) => {
-        _define_theme_modules!([$($path)*] $name = $e);
+    ([$($path:ident)*] $var_name:ident = $e:expr; $($rest:tt)*) => {
+        _define_theme_modules!([$($path)*] $var_name = $e);
         _define_theme_modules!([$($path)*] $($rest)*);
     };
 
-    ([$($path:ident)*] $name:ident {$($t:tt)*}) => {
-        pub mod $name {
-            _define_theme_modules!([$($path)* $name] $($t)*);
+    ([$($path:ident)*] $path_segment:ident {$($t:tt)*}) => {
+        pub mod $path_segment {
+            _define_theme_modules!([$($path)* $path_segment] $($t)*);
         }
     };
 
-    ([$($path:ident)*] $name:ident {$($t:tt)*} $($rest:tt)*) => {
-        _define_theme_modules!([$($path)*] $name {$($t)*});
+    ([$($path:ident)*] $path_segment:ident {$($t:tt)*} $($rest:tt)*) => {
+        _define_theme_modules!([$($path)*] $path_segment {$($t)*});
         _define_theme_modules!([$($path)*] $($rest)*);
     };
 }
 
-/// Used to define default theme.
+/// Used to define default theme. This one aside from generating code for `StyleManager` also creates
+/// nested public modules that makes accessing values much better than with bare string literals.
 #[macro_export]
 macro_rules! define_default_theme {
     ($name:ident $($t:tt)*) => {
@@ -58,6 +68,7 @@ macro_rules! define_default_theme {
 }
 
 /// Used to define any theme.
+/// Generates code for `StyleManager` from given cascade style definition.
 #[macro_export]
 macro_rules! define_theme {
     ($name:ident $($t:tt)*) => {
@@ -67,7 +78,7 @@ macro_rules! define_theme {
             use ensogl_core::data::color;
             use ensogl_core::display::style::theme;
 
-            /// Setup the $name theme in application.
+            /// Setup the `$name` theme in application.
             pub fn setup(app:&Application) {
                 let mut $name = theme::Theme::new();
                 _define_theme_literals!([$name] $($t)*);

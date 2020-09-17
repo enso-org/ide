@@ -756,7 +756,7 @@ impl OutputPorts {
     }
 
     fn set_port_colors_based_on_available_types(&self) {
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles             = StyleWatch::new(&self.scene.style_sheet);
         let missing_type_color = styles.get_color(theme::vars::_type::missing::color);
 
@@ -769,7 +769,7 @@ impl OutputPorts {
     /// Return the color of the port indicated by the given `Crumb`.
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         let ast_id = get_id_for_crumbs(&self.pattern_span_tree.borrow(),&crumbs)?;
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles = StyleWatch::new(&self.scene.style_sheet);
         self.type_color_map.type_color(ast_id, styles)
     }

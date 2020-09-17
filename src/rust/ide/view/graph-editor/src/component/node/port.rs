@@ -181,7 +181,7 @@ impl Manager {
         label.set_cursor(&default());
         label.insert("HELLO\nHELLO2\nHELLO3\nHELLO4".to_string());
 
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
         let text_color = styles.get_color(theme::vars::application::text::color);
         label.set_default_color(color::Rgba::from(text_color));
@@ -245,7 +245,7 @@ impl Manager {
                         let crumbs  = node.crumbs.clone();
                         let ast_id  = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
 
-                        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+                        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                         let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
                         let missing_type_color = styles.get_color(theme::vars::_type::missing::color);
 
@@ -303,7 +303,7 @@ impl Manager {
 
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         let ast_id = get_id_for_crumbs(&self.expression.borrow().input_span_tree,&crumbs)?;
-        // FIXME : StyleWatch is unsuitable here (it was designed as an internal tool for shape system)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles = StyleWatch::new(&self.app.display.scene().style_sheet);
         self.type_color_map.type_color(ast_id, styles)
     }
