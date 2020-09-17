@@ -1,5 +1,5 @@
 //! Definition of the icon displayed to show the menu to choose the
-//!visualisation for a node.
+//! visualisation for a node.
 
 
 use crate::prelude::*;

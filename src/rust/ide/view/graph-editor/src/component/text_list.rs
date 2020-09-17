@@ -250,7 +250,6 @@ impl<T:TextListItem> TextListModel<T> {
         let item_network             = default();
         let width                    = default();
 
-
         TextListModel{scene,display_object,logger,content_items,background_shape,content_views,
                       item_network,content_background_views,highlight_shape,width}.init()
     }
