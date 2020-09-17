@@ -483,11 +483,15 @@ impl ContainerModel {
     }
 
     fn show_visualisation(&self) {
-        self.visualization.borrow().as_ref().map(|vis| vis.display_object().set_parent(&self.view));
+        if let Some(vis) = self.visualization.borrow().as_ref() {
+            vis.display_object().set_parent(&self.view)
+        }
     }
 
     fn hide_visualisation(&self) {
-        self.visualization.borrow().as_ref().map(|vis| vis.unset_parent());
+        if let Some(vis) = self.visualization.borrow().as_ref() {
+            vis.unset_parent()
+        }
     }
 }
 
