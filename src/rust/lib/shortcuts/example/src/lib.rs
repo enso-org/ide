@@ -58,6 +58,7 @@ fn reverse_key(key:&str) -> String {
 const SPECIAL_KEYS : &'static [&'static str] = &["ctrl","alt","meta","cmd","shift"];
 
 
+const DOUBLE_EVENT_TIME_MS : f32 = 500.0;
 
 // ==================
 // === ActionType ===
@@ -66,7 +67,7 @@ const SPECIAL_KEYS : &'static [&'static str] = &["ctrl","alt","meta","cmd","shif
 /// The type of the action. Could be applied to keyboard, mouse, or any mix of input events.
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
 pub enum ActionType {
-    Press, Release, DoubleClick
+    Press, Release, DoublePress, DoubleClick
 }
 pub use ActionType::*;
 
@@ -78,15 +79,17 @@ pub use ActionType::*;
 
 #[derive(Debug)]
 pub struct Shortcuts {
-    dirty        : bool,
-    nfa          : Nfa,
-    dfa          : Dfa,
-    states       : HashMap<String,nfa::State>,
-    connections  : HashSet<(nfa::State,nfa::State)>,
-    always_state : nfa::State,
-    current      : dfa::State,
-    pressed      : HashSet<String>,
-    action_map   : HashMap<ActionType,HashMap<nfa::State,String>>
+    dirty         : bool,
+    nfa           : Nfa,
+    dfa           : Dfa,
+    states        : HashMap<String,nfa::State>,
+    connections   : HashSet<(nfa::State,nfa::State)>,
+    always_state  : nfa::State,
+    current       : dfa::State,
+    pressed       : HashSet<String>,
+    action_map    : HashMap<ActionType,HashMap<nfa::State,String>>,
+    press_times   : HashMap<dfa::State,f32>,
+    release_times : HashMap<dfa::State,f32>,
 }
 
 
@@ -103,7 +106,10 @@ impl Shortcuts {
         let pressed      = default();
         let dirty        = true;
         let action_map   = default();
-        Self {dirty,nfa,dfa,states,connections,always_state,current,pressed,action_map}
+        let press_times  = default();
+        let release_times = default();
+        Self {dirty,nfa,dfa,states,connections,always_state,current,pressed,action_map,press_times
+             ,release_times}
     }
 
 
@@ -186,37 +192,52 @@ impl Shortcuts {
         target
     }
 
+    /// Process the press input event. See `on_event` docs to learn more.
     pub fn on_press(&mut self, input:&str) -> Vec<String> {
-        self.recompute_on_dirty();
-        let input = input.to_lowercase();
-        let sym = Symbol::from(hash(&input));
-        let next = self.dfa.next_state(self.current,&sym);
-        let next_id = next.id();
-        let nfa_states = &self.dfa.sources[next_id];
-        let sfx = if next_id >= self.dfa.sources.len() { "".into() } else { format!("{:?}",nfa_states) };
-        println!("on {} -> {:?} ({})",input,next,sfx);
-        self.current = next;
-        self.pressed.insert(input);
-        nfa_states.into_iter().filter_map(|t|self.action_map.get(&Press).and_then(|m|m.get(t))).cloned().collect()
+        self.on_event(input,true)
     }
 
+    /// Process the release input event. See `on_event` docs to learn more.
     pub fn on_release(&mut self, input:&str) -> Vec<String> {
+        self.on_event(input,false)
+    }
+
+    /// Process the `input` event. Events are strings uniquely identifying the source of the event,
+    /// like "key_a", or "mouse_button_1". The `press` parameter is set to true if it was a press
+    /// event, and is set to false in case of a release event.
+    fn on_event(&mut self, input:&str, press:bool) -> Vec<String> {
         self.recompute_on_dirty();
-        let input = input.to_lowercase();
-        let repr = format!("-{}",input);
-        let sym = Symbol::from(hash(&repr.to_string()));
-        let nfa_states = &self.dfa.sources[self.current.id()];
-        let actions    = nfa_states.into_iter().filter_map(|t|self.action_map.get(&Release).and_then(|m|m.get(t))).cloned().collect();
-        let next = self.dfa.next_state(self.current,&sym);
-        let next_id = next.id();
-        let sfx = if next_id >= self.dfa.sources.len() { "".into() } else { format!("{:?}",self.dfa.sources[next_id]) };
-        println!("on {} -> {:?} ({})",repr,next,sfx);
-        self.current = next;
-        self.pressed.remove(&input);
-        if self.pressed.is_empty() {
-            self.current = Dfa::START_STATE;
+        let action        = if press { Press }       else { Release };
+        let double_action = if press { DoublePress } else { DoubleClick };
+        let input         = input.to_lowercase();
+        let symbol_input  = if press { input.clone() } else { format!("-{}",input) };
+        let symbol        = Symbol::from(hash(&symbol_input));
+        let current_state = self.current;
+        let next_state    = self.dfa.next_state(current_state,&symbol);
+        let focus_state   = if press { next_state } else { current_state };
+        let nfa_states    = &self.dfa.sources[focus_state.id()];
+        let time : f32    = web::performance().now() as f32;
+        let last_time_map = if press { &self.press_times } else { &self.release_times };
+        let last_time     = last_time_map.get(&focus_state);
+        let time_diff     = last_time.map(|t| time-t);
+        let is_double     = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
+        let new_time      = if is_double { 0.0 } else { time };
+        self.current      = next_state;
+        let mut actions   = nfa_states.iter().filter_map(|t|self.get_action(action,*t)).collect_vec();
+        if is_double {
+            actions.extend(nfa_states.iter().filter_map(|t|self.get_action(double_action,*t)));
         }
-        self.reset_to_known_state();
+        if press {
+            self.pressed.insert(input);
+            self.press_times.insert(focus_state,new_time);
+        } else {
+            self.pressed.remove(&input);
+            self.release_times.insert(focus_state,new_time);
+            if self.pressed.is_empty() {
+                self.current = Dfa::START_STATE;
+            }
+            self.reset_to_known_state();
+        }
         actions
     }
 
@@ -228,6 +249,10 @@ impl Shortcuts {
                 self.current = self.dfa.next_state(self.current, &Symbol::from(hash(&p)));
             }
         }
+    }
+
+    fn get_action(&self, action_type:ActionType, state:nfa::State) -> Option<String> {
+        self.action_map.get(&action_type).and_then(|m|m.get(&state).cloned())
     }
 
     fn recompute_on_dirty(&mut self) {
@@ -272,7 +297,7 @@ pub fn main() {
 
     let mut s = Shortcuts::new();
 
-    s.add(Press, "meta + a", "hello");
+    s.add(DoublePress, "meta + a", "hello");
     // s.add("meta + b");
 
     // s.add("meta + ctrl + alt + space + a1");
