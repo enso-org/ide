@@ -2,7 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::graph_editor::component::node::icon;
+use crate::component::node::icon;
+use crate::component::node;
 
 use enso_frp as frp;
 use enso_frp;
@@ -14,8 +15,6 @@ use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
-
-use crate::graph_editor::component::node;
 
 
 

@@ -4,10 +4,7 @@
 
 use crate::prelude::*;
 
-use ensogl::display::Sprite;
-use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
-use ensogl::display;
 use ensogl::data::color;
 
 

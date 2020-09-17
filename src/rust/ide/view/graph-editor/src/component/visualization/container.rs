@@ -10,9 +10,9 @@
 
 use crate::prelude::*;
 
-use crate::graph_editor::component::text_list::TextList;
+use crate::component::visualization::quick_action_bar::QuickActionBar;
+use crate::component::text_list::TextList;
 use crate::graph_editor::component::node::quick_action_bar::QuickActionBar;
-
 use crate::data::EnsoCode;
 use crate::visualization;
 
