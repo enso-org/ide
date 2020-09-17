@@ -2,8 +2,6 @@ class BubbleVisualization extends Visualization {
     static inputType = "Any"
 
     onDataReceived(data) {
-        this.setPreprocessor("None");
-
         const xmlns = "http://www.w3.org/2000/svg";
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
@@ -12,10 +10,10 @@ class BubbleVisualization extends Visualization {
         const height = this.dom.getAttributeNS(null, "height");
 
         const svgElem = document.createElementNS(xmlns, "svg");
-        svgElem.setAttributeNS(null, "class"  , "vis-svg");
-        svgElem.setAttributeNS(null, "viewBox", 0 + " " + 0 + " " + width + " " + height);
-        svgElem.setAttributeNS(null, "width"  , "100%");
-        svgElem.setAttributeNS(null, "height" , "100%");
+        svgElem.setAttributeNS(null, "class"    , "vis-svg");
+        svgElem.setAttributeNS(null, "viewBox"  , 0 + " " + 0 + " " + width + " " + height);
+        svgElem.setAttributeNS(null, "width"    , "100%");
+        svgElem.setAttributeNS(null, "height"   , "100%");
         svgElem.setAttributeNS(null, "transform", "matrix(1 0 0 -1 0 0)");
 
         this.dom.appendChild(svgElem);
@@ -24,9 +22,9 @@ class BubbleVisualization extends Visualization {
             const bubble = document.createElementNS(xmlns,"circle");
             bubble.setAttributeNS(null,"stroke", "black");
             bubble.setAttributeNS(null,"fill"  , "red");
-            bubble.setAttributeNS(null,"r"     , data[2]);
-            bubble.setAttributeNS(null,"cx"    , data[0]);
-            bubble.setAttributeNS(null,"cy"    , data[1]);
+            bubble.setAttributeNS(null,"r"     , data[2] || 0);
+            bubble.setAttributeNS(null,"cx"    , data[0] || 0);
+            bubble.setAttributeNS(null,"cy"    , data[1] || 0);
             svgElem.appendChild(bubble);
         });
     }
