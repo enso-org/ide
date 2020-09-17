@@ -649,11 +649,11 @@ impl GraphEditorIntegratedWithControllerModel {
             Notification::NewSuggestionList => with(self.searcher_controller.borrow(), |searcher| {
                 if let Some(searcher) = &*searcher {
                     match searcher.suggestions() {
-                        Suggestions::Loading       => self.view.unset_suggestions(),
-                        Suggestions::Loaded {list} => self.view.set_suggestions(list),
+                        Suggestions::Loading       => self.view.searcher().unset_suggestions(),
+                        Suggestions::Loaded {list} => self.view.searcher().set_suggestions(list),
                         Suggestions::Error(err)    => {
                             error!(self.logger, "Error while obtaining list from searcher: {err}");
-                            self.view.unset_suggestions();
+                            self.view.searcher().unset_suggestions();
                         },
                     };
                 }
@@ -1082,7 +1082,7 @@ impl list_view::entry::ModelProvider for controller::searcher::suggestion::List 
     }
 }
 
-impl ide_view::project::DocumentationProvider for controller::searcher::suggestion::List {
+impl ide_view::searcher::DocumentationProvider for controller::searcher::suggestion::List {
     fn get_for_entry(&self, id:usize) -> Option<String> {
         use controller::searcher::suggestion::Suggestion;
         iprintln!("Getting documentation for {id}");

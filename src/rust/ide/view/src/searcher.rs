@@ -5,6 +5,8 @@
 
 use crate::prelude::*;
 
+use crate::documentation;
+
 use enso_frp as frp;
 use ensogl::application;
 use ensogl::application::{Application, shortcut};
@@ -21,11 +23,50 @@ use ensogl::gui::component::Animation;
 // === Constants ===
 // =================
 
-const SEARCHER_WIDTH:f32 = 240.0;
-// Because we don't implement clipping yet, the best UX is when searcher height is almost multiple
-// of entry height.
-const SEARCHER_HEIGHT:f32 = 179.5;
+/// Width of searcher panel in pixels.
+pub const SEARCHER_WIDTH:f32 = 540.0;
+/// Height of searcher panel in pixels.
+///
+/// Because we don't implement clipping yet, the best UX is when searcher height is almost multiple
+/// of entry height.
+pub const SEARCHER_HEIGHT:f32 = 179.5;
 
+const SUGGESTION_LIST_WIDTH : f32 = 240.0;
+const DOCUMENTATION_WIDTH   : f32 = SEARCHER_WIDTH - SUGGESTION_LIST_WIDTH;
+const SUGGESTION_LIST_X     : f32 = (SUGGESTION_LIST_WIDTH - SEARCHER_WIDTH) / 2.0;
+const DOCUMENTATION_X       : f32 = (SEARCHER_WIDTH - DOCUMENTATION_WIDTH) / 2.0;
+
+
+
+// ==============================
+// === Documentation Provider ===
+// ==============================
+
+pub trait DocumentationProvider : Debug {
+    fn get_for_entry(&self, id:list_view::entry::Id) -> Option<String>;
+}
+
+impl DocumentationProvider for list_view::entry::EmptyProvider {
+    fn get_for_entry(&self, _:list_view::entry::Id) -> Option<String> { None }
+}
+
+
+// === AnyDocumentationProvider ===
+
+#[derive(Clone,CloneRef,Debug,Deref)]
+pub struct AnyDocumentationProvider {rc:Rc<dyn DocumentationProvider>}
+
+impl Default for AnyDocumentationProvider {
+    fn default() -> Self { list_view::entry::EmptyProvider.into() }
+}
+
+impl<T:DocumentationProvider + 'static> From<T> for AnyDocumentationProvider {
+    fn from(provider:T) -> Self { Self {rc:Rc::new(provider)} }
+}
+
+impl<T:DocumentationProvider + 'static> From<Rc<T>> for AnyDocumentationProvider {
+    fn from(provider:Rc<T>) -> Self { Self {rc:provider} }
+}
 
 
 // =============
@@ -37,16 +78,33 @@ struct Model {
     logger         : Logger,
     display_object : display::object::Instance,
     list           : ListView,
+    documentation  : documentation::View,
+    doc_provider   : Rc<CloneRefCell<AnyDocumentationProvider>>,
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
         let logger         = Logger::new("SearcherView");
+        let scene          = app.display.scene();
         let display_object = display::object::Instance::new(&logger);
         let list           = app.new_view::<ListView>();
-        list.resize(Vector2(SEARCHER_WIDTH, 0.0));
+        let documentation  = documentation::View::new(&scene);
+        let doc_provider   = default();
+        display_object.add_child(&documentation);
         display_object.add_child(&list);
-        Self{logger,display_object,list}
+        list.set_position_x(SUGGESTION_LIST_X);
+        documentation.set_position_x(DOCUMENTATION_X);
+        Self{logger,display_object,list,documentation,doc_provider}
+    }
+
+    fn documentation_for_entry(&self, id:Option<list_view::entry::Id>) -> String {
+        let doc     = id.and_then(|id| self.doc_provider.get().get_for_entry(id));
+        doc.unwrap_or_default()
+    }
+
+    fn set_height(&self, h:f32) {
+        self.list.resize(Vector2(SUGGESTION_LIST_WIDTH,h));
+        self.documentation.visualization_frp.inputs.set_size.emit(Vector2(DOCUMENTATION_WIDTH,h));
     }
 }
 
@@ -64,9 +122,9 @@ ensogl::def_command_api!( Commands
 ensogl_text::define_endpoints! {
     Commands { Commands }
     Input {
-        set_entries      (list_view::entry::AnyModelProvider),
-        show             (),
-        hide             (),
+        set_suggestions (list_view::entry::AnyModelProvider,AnyDocumentationProvider),
+        show            (),
+        hide            (),
     }
     Output {
         selected_entry    (Option<entry::Id>),
@@ -110,6 +168,7 @@ impl View {
 
     /// Initialize the FRP network.
     fn init(self) -> Self {
+        self.model.set_height(0.0);
         let network = &self.frp.network;
         let model   = &self.model;
         let frp     = &self.frp;
@@ -118,25 +177,43 @@ impl View {
         let height = Animation::<f32>::new(&network);
 
         frp::extend! { network
-            eval frp.set_entries ((entries) model.list.set_entries(entries));
+            eval frp.set_suggestions (((entries,docs)) {
+                model.doc_provider.set(docs.clone_ref());
+                model.list.set_entries(entries);
+            });
             source.selected_entry <+ model.list.selected_entry;
             source.size           <+ model.list.size;
             source.is_visible     <+ model.list.size.map(|size| size.x * size.y > std::f32::EPSILON);
 
-            eval height.value ((h)  model.list.resize(Vector2(SEARCHER_WIDTH,*h)));
+            eval height.value ((h)  model.set_height(*h));
             eval frp.show     ((()) height.set_target_value(SEARCHER_HEIGHT));
             eval frp.hide     ((()) height.set_target_value(0.0));
 
             is_selected         <- model.list.selected_entry.map(|e| e.is_some());
+            displayed_doc       <- model.list.selected_entry.map(f!((id) model.documentation_for_entry(*id)));
             opt_picked_entry    <- model.list.selected_entry.sample(&frp.pick_suggestion);
             source.picked_entry <+ opt_picked_entry.gate(&is_selected);
             // Order of the two below is important: we want pick the entry first, and then commit
             // editing.
             source.picked_entry      <+ model.list.chosen_entry.gate(&is_selected);
             source.editing_committed <+ model.list.chosen_entry.gate(&is_selected).constant(());
+
+            eval displayed_doc ((data) model.documentation.frp.display_documentation_pure(data));
         };
 
         self
+    }
+
+    pub fn set_suggestions
+    (&self, provider:Rc<impl list_view::entry::ModelProvider + DocumentationProvider + 'static>) {
+        let entries       : list_view::entry::AnyModelProvider = provider.clone_ref().into();
+        let documentation : AnyDocumentationProvider           = provider.into();
+        self.frp.set_suggestions(entries,documentation);
+    }
+
+    pub fn unset_suggestions(&self) {
+        let provider = Rc::new(list_view::entry::EmptyProvider);
+        self.set_suggestions(provider);
     }
 }
 impl display::Object for View {
