@@ -122,9 +122,13 @@ impl ViewModel {
         };
 
         let data_str   = ViewModel::prepare_data_string(data_inner);
+        iprintln!("data_str: {data_str}");
         let output     = ViewModel::gen_html_from(data_str);
+        iprintln!("output: {output:?}");
         let mut output = output.unwrap_or_else(|_| String::from(PLACEHOLDER_STR));
+        iprintln!("output: {output:?}");
         if output     == "" { output = String::from(PLACEHOLDER_STR) }
+        iprintln!("output: {output:?}");
         // FIXME [MM] : Because of how Doc Parser was implemented in Engine repo, there is need to
         //              remove stylesheet link from generated code, that would otherwise point to
         //              non-existing file, as now stylesheet is connected by include_str! macro, and
