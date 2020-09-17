@@ -372,9 +372,6 @@ ensogl::def_command_api! { Commands
     /// Switches the selected visualisation to/from fullscreen mode.
     toggle_fullscreen_for_selected_visualization,
 
-    /// Simulates a style toggle press event.
-    toggle_style,
-
     /// Cancel the operation being currently performed. Often mapped to the escape key.
     cancel,
 }
@@ -581,7 +578,6 @@ generate_frp_outputs! {
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
 
-    style_light : bool,
     edited_node : Option<NodeId>,
 }
 
@@ -1175,10 +1171,6 @@ impl GraphEditorModel {
         self.app.display.scene()
     }
 
-    fn set_style(&self, is_light:bool) {
-        if is_light { self.app.themes.set_enabled(&["dark"])  }
-        else        { self.app.themes.set_enabled(&["light"]) }
-    }
 }
 
 
@@ -1628,8 +1620,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "edit_mode_on")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                             , "edit_mode_off")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Enter],&[])                               , "stop_editing")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Character("s".into())],&[]), "toggle_style")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Shift,Key::Character("s".into())],&[]), "toggle_style")
              ]
     }
 }
@@ -2499,29 +2489,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     output_edges_to_rm   <= rm_output_edges . map(f!((node_id) model.node_out_edges(node_id)));
     edges_to_rm          <- any (inputs.remove_edge, input_edges_to_rm, output_edges_to_rm);
     outputs.edge_removed <+ edges_to_rm;
-    }
-
-
-
-    // ====================
-    // === Toggle Style ===
-    // ====================
-
-    frp::extend!{ network
-
-        // === Style toggle ===
-
-        let style_toggle_ev  = inputs.toggle_style.clone_ref();
-        style_pressed       <- style_toggle_ev.toggle() ;
-        style_was_pressed   <- style_pressed.previous();
-        style_press         <- style_toggle_ev.gate_not(&style_was_pressed);
-        style_press_on_off  <- style_press.map2(&outputs.style_light, |_,is_light| !is_light);
-        outputs.style_light <+ style_press_on_off;
-
-
-        // === OUTPUTS REBIND ===
-
-        eval outputs.style_light ((is_light) model.set_style(*is_light));
     }
 
 
