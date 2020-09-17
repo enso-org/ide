@@ -183,7 +183,7 @@ impl Manager {
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
-        let text_color = styles.get_color(theme::vars::application::text::color);
+        let text_color = styles.get_color(theme::vars::graph_editor::node::text::color);
         label.set_default_color(color::Rgba::from(text_color));
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
@@ -247,7 +247,7 @@ impl Manager {
 
                         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                         let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
-                        let missing_type_color = styles.get_color(theme::vars::_type::missing::color);
+                        let missing_type_color = styles.get_color(theme::vars::graph_editor::edge::_type::missing::color);
 
                         frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));

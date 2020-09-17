@@ -41,7 +41,7 @@ mod selection {
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width  - 2.0.px() * PADDING_PX;
             let height        = sprite_height - 2.0.px() * PADDING_PX;
-            let color         = style.get_color(ensogl_theme::vars::list_view::highlight::color);
+            let color         = style.get_color(ensogl_theme::vars::widget::list_view::highlight::color);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
             shape.into()
@@ -63,7 +63,7 @@ mod background {
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width  - PADDING_PX.px() * 2.0;
             let height        = sprite_height - PADDING_PX.px() * 2.0;
-            let color         = style.get_color(ensogl_theme::vars::list_view::background::color);
+            let color         = style.get_color(ensogl_theme::vars::widget::list_view::background::color);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
             shape.into()

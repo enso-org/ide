@@ -143,7 +143,7 @@ impl Entry {
         label.set_position_xy(Vector2(PADDING + ICON_SIZE + ICON_LABEL_GAP, LABEL_SIZE/2.0));
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
-        let text_color = styles.get_color(ensogl_theme::vars::application::text::color);
+        let text_color = styles.get_color(ensogl_theme::vars::widget::list_view::text::color);
         label.set_default_color(color::Rgba::from(text_color));
         label.set_default_text_size(text::Size(LABEL_SIZE));
         Entry{id,label,icon,display_object}

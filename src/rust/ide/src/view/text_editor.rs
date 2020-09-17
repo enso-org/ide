@@ -84,7 +84,7 @@ impl TextEditor {
         let size       = Vector2::new(screen.width, screen.height / 2.0);
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles     = StyleWatch::new(&scene.style_sheet);
-        let base_color = styles.get_color(ensogl_theme::vars::application::text::color);
+        let base_color = styles.get_color(ensogl_theme::vars::text_editor::text::color);
         let base_color = color::Rgba::from(base_color);
         let text_size  = 16.0;
         let properties = TextFieldProperties {font,text_size,base_color,size};
