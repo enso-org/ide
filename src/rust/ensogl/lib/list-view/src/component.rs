@@ -262,7 +262,7 @@ impl ListView {
         let selection_y      = Animation::<f32>::new(&network);
         let selection_height = Animation::<f32>::new(&network);
 
-        frp::extend!{ TRACE_ALL network
+        frp::extend!{ network
 
             // === Mouse Position ===
 
@@ -312,8 +312,9 @@ impl ListView {
             mouse_selected_entry <- mouse_pointed_entry.gate(&mouse_in).gate(&mouse_moved);
 
             frp.source.selected_entry <+ selected_entry_after_move;
-            frp.source.selected_entry <+ frp.deselect_entries.constant(None);
             frp.source.selected_entry <+ mouse_selected_entry;
+            frp.source.selected_entry <+ frp.deselect_entries.constant(None);
+            frp.source.selected_entry <+ frp.set_entries.constant(None);
 
 
             // === Chosen Entry ===
@@ -337,6 +338,10 @@ impl ListView {
             );
             eval target_selection_y      ((y) selection_y.set_target_value(*y));
             eval target_selection_height ((h) selection_height.set_target_value(*h));
+            eval frp.set_entries         ([selection_y,selection_height](_) {
+                selection_y.skip();
+                selection_height.skip();
+            });
             eval selection_y.value       ((y) model.selection.set_position_y(*y));
             selection_size <- all_with(&frp.size,&selection_height.value,|size,height| {
                 let width = size.x + 2.0 * PADDING_PX;
@@ -360,7 +365,7 @@ impl ListView {
                 id.map(|id| entry::List::y_range_of_entry(id).start)
             );
             max_scroll_after_move_down <- selection_bottom_after_move_down.map2(&frp.size,
-                |id,size| id.map_or(MAX_SCROLL, |id| id + size.y)
+                |y,size| y.map_or(MAX_SCROLL, |y| y + size.y)
             );
             scroll_after_move_down <- max_scroll_after_move_down.map2(&frp.scroll_position,
                 |max_scroll,current| current.min(*max_scroll)
@@ -368,7 +373,12 @@ impl ListView {
             frp.source.scroll_position <+ scroll_after_move_up;
             frp.source.scroll_position <+ scroll_after_move_down;
             frp.source.scroll_position <+ frp.scroll_jump;
+            frp.source.scroll_position <+ frp.set_entries.constant(MAX_SCROLL);
             eval frp.scroll_position ((scroll_y) view_y.set_target_value(*scroll_y));
+            eval frp.set_entries     ((_) {
+                view_y.set_target_value(MAX_SCROLL);
+                view_y.skip();
+            });
 
 
             // === Resize ===
