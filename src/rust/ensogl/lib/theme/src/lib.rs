@@ -94,6 +94,8 @@ define_theme! { dark
         background {
             color = color::Lcha::new(0.13,0.013,0.18,1.0)
         }
+    }
+    text_editor {
         text {
             color = color::Lcha::new(1.0,0.0,0.0,0.7);
             selection {
@@ -110,56 +112,76 @@ define_theme! { dark
                 color = color::Lcha::new(0.72,0.5,0.22,1.0);
                 size = 7.0
             }
+            text {
+                color = color::Lcha::new(1.0,0.0,0.0,0.7);
+                selection {
+                    color = color::Lcha::new(0.7,0.0,0.125,0.7)
+                }
+            }
         }
         visualization {
             background {
                 color = color::Lcha::new(0.2,0.013,0.18,1.0)
             }
+            text {
+                color = color::Lcha::new(1.0,0.0,0.0,0.7);
+                selection {
+                    color = color::Lcha::new(0.7,0.0,0.125,0.7)
+                }
+            }
         }
-    }
-    breadcrumbs {
-        full {
-            color = color::Lcha::new(1.0,0.0,0.0,0.7)
-        }
-        transparent {
-            color = color::Lcha::new(1.0,0.0,0.0,0.4)
-        }
-        selected {
-            color = color::Lcha::new(1.0,0.0,0.0,0.6)
-        }
-        deselected{
-            left {
+        breadcrumbs {
+            full {
+                color = color::Lcha::new(1.0,0.0,0.0,0.7)
+            }
+            transparent {
+                color = color::Lcha::new(1.0,0.0,0.0,0.4)
+            }
+            selected {
                 color = color::Lcha::new(1.0,0.0,0.0,0.6)
             }
-            right {
-                color = color::Lcha::new(1.0,0.0,0.0,0.2)
+            deselected{
+                left {
+                    color = color::Lcha::new(1.0,0.0,0.0,0.6)
+                }
+                right {
+                    color = color::Lcha::new(1.0,0.0,0.0,0.2)
+                }
+            }
+            hover {
+                color = color::Lcha::new(1.0,0.0,0.0,0.6)
             }
         }
-        hover {
-            color = color::Lcha::new(1.0,0.0,0.0,0.6)
+        edge {
+            split_color {
+                lightness_factor = 0.2;
+                chroma_factor = 1.0
+            }
+            _type {
+                missing {
+                     color = color::Lcha::new(0.5,0.0,0.0,1.0)
+                }
+                color {
+                    luminance = 0.5;
+                    chroma = 0.8
+                }
+            }
         }
     }
-    list_view {
-        background {
-            color = color::Lcha::new(0.2,0.013,0.18,1.0)
-        }
-        highlight {
-            color = color::Lcha::new(0.72,0.5,0.22,1.0)
-        }
-    }
-    edge {
-        split_color {
-            lightness_factor = 0.2;
-            chroma_factor = 1.0
-        }
-    }
-    _type {
-        missing {
-            color = color::Lcha::new(0.5,0.0,0.0,1.0)
-        }
-        color {
-            luminance = 0.5;
-            chroma = 0.8
+    widget {
+        list_view {
+            background {
+                color = color::Lcha::new(0.2,0.013,0.18,1.0)
+            }
+            highlight {
+                color = color::Lcha::new(0.72,0.5,0.22,1.0)
+            }
+            text {
+                color = color::Lcha::new(1.0,0.0,0.0,0.7);
+                selection {
+                    color = color::Lcha::new(0.7,0.0,0.125,0.7)
+                }
+            }
         }
     }
 }
@@ -169,6 +191,8 @@ define_default_theme! { light
         background {
             color = color::Lcha::new(0.96,0.013,0.18,1.0)
         }
+    }
+    text_editor {
         text {
             color = color::Lcha::new(0.0,0.0,0.0,0.7);
             selection {
@@ -185,56 +209,76 @@ define_default_theme! { light
                 color = color::Lcha::new(0.83,0.58,0.436,1.0);
                 size = 7.0
             }
+            text {
+                color = color::Lcha::new(0.0,0.0,0.0,0.7);
+                selection {
+                    color = color::Lcha::new(0.7,0.0,0.125,0.7)
+                }
+            }
         }
         visualization {
             background {
                 color = color::Lcha::new(0.98,0.013,0.18,1.0)
             }
+            text {
+                color = color::Lcha::new(0.0,0.0,0.0,0.7);
+                selection {
+                    color = color::Lcha::new(0.7,0.0,0.125,0.7)
+                }
+            }
         }
-    }
-    breadcrumbs {
-        full {
-            color = color::Lcha::new(0.0,0.0,0.0,0.7)
-        }
-        transparent {
-            color = color::Lcha::new(0.0,0.0,0.0,0.4)
-        }
-        selected {
-            color = color::Lcha::new(0.0,0.0,0.0,0.6)
-        }
-        deselected{
-            left {
+        breadcrumbs {
+            full {
+                color = color::Lcha::new(0.0,0.0,0.0,0.7)
+            }
+            transparent {
+                color = color::Lcha::new(0.0,0.0,0.0,0.4)
+            }
+            selected {
                 color = color::Lcha::new(0.0,0.0,0.0,0.6)
             }
-            right {
-                color = color::Lcha::new(0.0,0.0,0.0,0.2)
+            deselected{
+                left {
+                    color = color::Lcha::new(0.0,0.0,0.0,0.6)
+                }
+                right {
+                    color = color::Lcha::new(0.0,0.0,0.0,0.2)
+                }
+            }
+            hover {
+                color = color::Lcha::new(0.0,0.0,0.0,0.6)
             }
         }
-        hover {
-            color = color::Lcha::new(0.0,0.0,0.0,0.6)
+        edge {
+            split_color {
+                lightness_factor = 1.2;
+                chroma_factor = 0.8
+            }
+            _type {
+                missing {
+                    color = color::Lcha::new(0.8,0.0,0.0,1.0)
+                }
+                color {
+                    luminance = 0.8;
+                    chroma = 0.6
+                }
+            }
         }
     }
-    list_view {
-        background {
-            color = color::Lcha::new(0.98,0.013,0.18,1.0)
-        }
-        highlight {
-            color = color::Lcha::new(0.55,0.65,0.79,1.0)
-        }
-    }
-    edge {
-        split_color {
-            lightness_factor = 1.2;
-            chroma_factor = 0.8
-        }
-    }
-    _type {
-        missing {
-            color = color::Lcha::new(0.8,0.0,0.0,1.0)
-        }
-        color {
-            luminance = 0.8;
-            chroma = 0.6
+    widget {
+        list_view {
+            background {
+                color = color::Lcha::new(0.98,0.013,0.18,1.0)
+            }
+            highlight {
+                color = color::Lcha::new(0.55,0.65,0.79,1.0)
+            }
+            text {
+                color = color::Lcha::new(1.0,0.0,0.0,0.7);
+                selection {
+                    color = color::Lcha::new(0.7,0.0,0.125,0.7)
+                }
+            }
         }
     }
 }
