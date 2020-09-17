@@ -22,17 +22,17 @@ use wasm_bindgen::prelude::*;
 pub fn entry_point_dom_symbols() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
-    let world         = World::new(&web::get_html_element_by_id("root").unwrap());
-    let scene         = world.scene();
-    let camera        = scene.camera();
-    let screen        = camera.screen();
-    let navigator     = Navigator::new(scene,camera);
-    let sprite_system = SpriteSystem::new(&world);
+    let world           = World::new(&web::get_html_element_by_id("root").unwrap());
+    let scene           = world.scene();
+    let camera          = scene.camera();
+    let screen          = camera.screen();
+    let navigator       = Navigator::new(scene,camera);
+    let sprite_system   = SpriteSystem::new(&world);
     let dom_front_layer = &scene.dom.layers.front;
     let dom_back_layer  = &scene.dom.layers.back;
     world.add_child(&sprite_system);
 
-    let mut sprites: Vec<Sprite> = default();
+    let mut sprites: Vec<Sprite>          = default();
     let mut css3d_objects: Vec<DomSymbol> = default();
     let count = 10;
     for i in 0 .. count {

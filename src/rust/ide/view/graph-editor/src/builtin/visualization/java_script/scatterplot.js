@@ -24,28 +24,19 @@ class ScatterPlot extends Visualization {
     static inputType = "Any"
 
     onDataReceived(data) {
-        this.setPreprocessor("None");
-
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
-        let width = this.dom.getAttributeNS(null, "width");
-        let height = this.dom.getAttributeNS(null, "height");
 
-        const svgElem = document.createElementNS(null, "div");
-        svgElem.setAttributeNS(null, "class", "vis-scatterplot");
-        svgElem.setAttributeNS(null, "viewBox", 0 + " " + 0 + " " + width + " " + height);
-        svgElem.setAttributeNS(null, "width", "100%");
-        svgElem.setAttributeNS(null, "height", "100%");
-        svgElem.setAttributeNS(null, "transform", "matrix(1 0 0 -1 0 0)");
-
-        this.dom.appendChild(svgElem);
+        let width     = this.dom.getAttributeNS(null, "width");
+        let height    = this.dom.getAttributeNS(null, "height");
+        const divElem = this.createDivElem(width, height);
 
         let margin = {top: 20, right: 20, bottom: 20, left: 20};
         width = width - margin.left - margin.right;
         height = height - margin.top - margin.bottom;
 
-        let svg = d3.select(svgElem)
+        let svg = d3.select(divElem)
             .append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom)
@@ -63,8 +54,11 @@ class ScatterPlot extends Visualization {
             });
         }
 
+        d3.csv(dataSource, this.presentDataOnScatterplot(width, svg, height, colorDomain, colorRange));
+    }
 
-        d3.csv(dataSource, function (_data) {
+    presentDataOnScatterplot(width, svg, height, colorDomain, colorRange) {
+        return function (_data) {
             var headerNames = d3.keys(_data[0]);
 
             var x = d3.scaleLinear()
@@ -150,7 +144,19 @@ class ScatterPlot extends Visualization {
                     })
 
             }
-        });
+        };
+    }
+
+    createDivElem(width, height) {
+        const divElem = document.createElementNS(null, "div");
+        divElem.setAttributeNS(null, "class", "vis-scatterplot");
+        divElem.setAttributeNS(null, "viewBox", 0 + " " + 0 + " " + width + " " + height);
+        divElem.setAttributeNS(null, "width", "100%");
+        divElem.setAttributeNS(null, "height", "100%");
+        divElem.setAttributeNS(null, "transform", "matrix(1 0 0 -1 0 0)");
+
+        this.dom.appendChild(divElem);
+        return divElem;
     }
 
     setSize(size) {

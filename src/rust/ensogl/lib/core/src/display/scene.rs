@@ -452,9 +452,9 @@ pub struct Layers {
 impl Layers {
     /// Constructor.
     pub fn new(logger:&Logger, dom:&web_sys::HtmlDivElement) -> Self {
-        let canvas  = web::create_canvas();
-        let front = DomScene::new(logger);
-        let back = DomScene::new(logger);
+        let canvas = web::create_canvas();
+        let front  = DomScene::new(logger);
+        let back   = DomScene::new(logger);
         canvas.set_style_or_warn("height"        , "100vh"   , &logger);
         canvas.set_style_or_warn("width"         , "100vw"   , &logger);
         canvas.set_style_or_warn("display"       , "block"   , &logger);
@@ -470,7 +470,7 @@ impl Layers {
         dom.append_or_panic(&canvas);
         dom.append_or_panic(&front.dom);
         dom.append_or_panic(&back.dom);
-        Self { front,canvas, back }
+        Self {front,canvas,back}
     }
 }
 

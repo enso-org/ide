@@ -53,6 +53,9 @@ pub mod background {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius               = 1.px() * &radius;
+            // TODO : We made backgrounds transparent because otherwise they would overlap JS
+            //        visualizations. Instead we added a HTML background to the `View`.
+            //        This should be further investigated while fixing rust visualization displaying. (#796)
             let color_transp         = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
             let corner_radius        = &radius * &roundness;
             let background           = Rect((&width,&height)).corners_radius(&corner_radius);
@@ -75,6 +78,9 @@ pub mod fullscreen_background {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius               = 1.px() * &radius;
+            // TODO : We made backgrounds transparent because otherwise they would overlap JS
+            //        visualizations. Instead we added a HTML background to the `View`.
+            //        This should be further investigated while fixing rust visualization displaying. (#796)
             let color_transp         = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
             let corner_radius        = &radius * &roundness;
             let background           = Rect((&width,&height)).corners_radius(&corner_radius);
@@ -123,10 +129,7 @@ pub struct Frp {
     pub set_size           : frp::Source<Vector2>,
     pub enable_fullscreen  : frp::Source,
     pub disable_fullscreen : frp::Source,
-    pub clicked            : frp::Any,
-    pub clicked_outside    : frp::Source,
     pub preprocessor       : frp::Stream<EnsoCode>,
-    on_click               : frp::Source,
     scene_shape            : frp::Sampler<scene::Shape>,
     size                   : frp::Sampler<Vector2>,
     preprocessor_select    : frp::Source<EnsoCode>,
@@ -141,20 +144,17 @@ impl Frp {
             set_data            <- source();
             select              <- source();
             deselect            <- source();
-            on_click            <- source();
             set_size            <- source();
             enable_fullscreen   <- source();
             disable_fullscreen  <- source();
             preprocessor_select <- source();
             size                <- set_size.sampler();
-            clicked             <- any(...);
-            clicked_outside     <- source();
             let preprocessor     = preprocessor_select.clone_ref().into();
         };
         let scene_shape = scene.shape().clone_ref();
         Self {set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
-              clicked,set_size,on_click,enable_fullscreen,disable_fullscreen,scene_shape,size,
-              preprocessor,preprocessor_select,clicked_outside}
+              set_size,enable_fullscreen,disable_fullscreen,scene_shape,size,preprocessor,
+              preprocessor_select}
     }
 }
 
@@ -172,7 +172,7 @@ pub struct View {
     display_object : display::object::Instance,
     background     : component::ShapeView<background::Shape>,
     overlay        : component::ShapeView<overlay::Shape>,
-    dom            : DomSymbol
+    background_dom : DomSymbol
 }
 
 impl View {
@@ -193,22 +193,24 @@ impl View {
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.viz.add(&shape_system.shape_system.symbol);
 
-        let div  = web::create_div();
-        let dom  = DomSymbol::new(&div);
+        let div            = web::create_div();
+        let background_dom = DomSymbol::new(&div);
+        // TODO : We added a HTML background to the `View`, because native background was overlapping
+        //        the JS visualization. This should be further investigated while fixing rust
+        //        visualization displaying. (#796)
+        background_dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
+        background_dom.dom().set_style_or_warn("height"        ,"0"        ,&logger);
+        background_dom.dom().set_style_or_warn("z-index"       ,"1"        ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-y"    ,"auto"     ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
+        background_dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
+        background_dom.dom().set_style_or_warn("border-radius" ,"14px"     ,&logger);
+        background_dom.dom().set_style_or_warn("pointer-events","auto"     ,&logger);
+        display_object.add_child(&background_dom);
 
-        dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
-        dom.dom().set_style_or_warn("height"        ,"0"        ,&logger);
-        dom.dom().set_style_or_warn("z-index"       ,"1"        ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"    ,"auto"     ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
-        dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
-        dom.dom().set_style_or_warn("border-radius" ,"14px"     ,&logger);
-        dom.dom().set_style_or_warn("pointer-events","auto"     ,&logger);
-        display_object.add_child(&dom);
+        scene.dom.layers.back.manage(&background_dom);
 
-        scene.dom.layers.back.manage(&dom);
-
-        Self {logger,display_object,background,overlay,dom}
+        Self {logger,display_object,background,overlay,background_dom}
     }
 }
 
@@ -232,7 +234,7 @@ pub struct FullscreenView {
     logger         : Logger,
     display_object : display::object::Instance,
     background     : component::ShapeView<fullscreen_background::Shape>,
-    dom            : DomSymbol
+    background_dom : DomSymbol
 }
 
 impl FullscreenView {
@@ -247,22 +249,24 @@ impl FullscreenView {
         scene.views.main.remove(&shape_system.shape_system.symbol);
         scene.views.viz_fullscreen.add(&shape_system.shape_system.symbol);
 
-        let div  = web::create_div();
-        let dom  = DomSymbol::new(&div);
+        let div            = web::create_div();
+        let background_dom = DomSymbol::new(&div);
+        // TODO : We added a HTML background to the `View`, because native background was overlapping
+        //        the JS visualization. This should be further investigated while fixing rust
+        //        visualization displaying. (#796)
+        background_dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
+        background_dom.dom().set_style_or_warn("height"        ,"0"        ,&logger);
+        background_dom.dom().set_style_or_warn("z-index"       ,"1"        ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-y"    ,"auto"     ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
+        background_dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
+        background_dom.dom().set_style_or_warn("border-radius" ,"0"        ,&logger);
+        background_dom.dom().set_style_or_warn("pointer-events","auto"     ,&logger);
+        display_object.add_child(&background_dom);
 
-        dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
-        dom.dom().set_style_or_warn("height"        ,"0"        ,&logger);
-        dom.dom().set_style_or_warn("z-index"       ,"1"        ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"    ,"auto"     ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
-        dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
-        dom.dom().set_style_or_warn("border-radius" ,"0"        ,&logger);
-        dom.dom().set_style_or_warn("pointer-events","auto"     ,&logger);
-        display_object.add_child(&dom);
+        scene.dom.layers.back.manage(&background_dom);
 
-        scene.dom.layers.back.manage(&dom);
-
-        Self {logger,display_object,background,dom}
+        Self {logger,display_object,background,background_dom}
     }
 }
 
@@ -374,19 +378,19 @@ impl ContainerModel {
             self.fullscreen_view.background.shape.sprite.size.set(size);
             self.view.background.shape.sprite.size.set(zero());
             self.view.overlay.shape.sprite.size.set(zero());
-            self.view.dom.dom().set_style_or_warn("width" ,"0",&self.logger);
-            self.view.dom.dom().set_style_or_warn("height","0",&self.logger);
-            self.fullscreen_view.dom.dom().set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
-            self.fullscreen_view.dom.dom().set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
+            self.view.background_dom.dom().set_style_or_warn("width" ,"0",&self.logger);
+            self.view.background_dom.dom().set_style_or_warn("height","0",&self.logger);
+            self.fullscreen_view.background_dom.dom().set_style_or_warn("width", format!("{}px", size[0]), &self.logger);
+            self.fullscreen_view.background_dom.dom().set_style_or_warn("height", format!("{}px", size[1]), &self.logger);
         } else {
             self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
             self.view.background.shape.sprite.size.set(size);
             self.view.overlay.shape.sprite.size.set(size);
-            self.view.dom.dom().set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
-            self.view.dom.dom().set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
-            self.fullscreen_view.dom.dom().set_style_or_warn("width" ,"0",&self.logger);
-            self.fullscreen_view.dom.dom().set_style_or_warn("height","0",&self.logger);
+            self.view.background_dom.dom().set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
+            self.view.background_dom.dom().set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
+            self.fullscreen_view.background_dom.dom().set_style_or_warn("width", "0", &self.logger);
+            self.fullscreen_view.background_dom.dom().set_style_or_warn("height", "0", &self.logger);
             self.fullscreen_view.background.shape.sprite.size.set(zero());
         }
 
@@ -473,8 +477,7 @@ impl Container {
             eval_ inputs.enable_fullscreen (model.enable_fullscreen());
             eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
             eval  inputs.set_size          ((s) size.set_target_value(*s));
-            inputs.clicked <+ model.view.overlay.events.mouse_down;
-            eval_ inputs.clicked([] {
+            eval_ model.view.overlay.events.mouse_down([] {
                 Container::set_all_visualizations_pointer_events("auto");
             });
 
