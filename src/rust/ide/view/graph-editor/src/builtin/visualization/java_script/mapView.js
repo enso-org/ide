@@ -65,11 +65,10 @@ class MapViewVisualization extends Visualization {
 
         const parsedData = eval('('+data+')' );
 
-        // TODO [MM] : Change default map style to Light when light mode lands on main.
         const deckgl = new deck.DeckGL({
             container: 'map',
             mapboxApiAccessToken: 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2pudzRtaWloMDAzcTN2bzN1aXdxZHB5bSJ9.2bkj3IiRC8wj3jLThvDGdA',
-            mapStyle: parsedData.mapStyle || 'mapbox://styles/mapbox/dark-v9',
+            mapStyle: parsedData.mapStyle || 'mapbox://styles/mapbox/light-v9',
             initialViewState: {
                 longitude: parsedData.longitude || 0.0,
                 latitude: parsedData.latitude || 0.0,
