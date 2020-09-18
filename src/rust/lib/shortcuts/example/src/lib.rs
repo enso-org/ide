@@ -92,21 +92,19 @@ pub struct Shortcuts {
     release_times : HashMap<dfa::State,f32>,
 }
 
-
-
 impl Shortcuts {
     /// Constructor.
     pub fn new() -> Self {
-        let mut nfa      = Nfa::default();
-        let dfa          = Dfa::from(&nfa);
-        let states       = default();
-        let connections  = default();
-        let always_state = nfa.new_pattern(nfa.start,Pattern::any().many());
-        let current      = Dfa::START_STATE;
-        let pressed      = default();
-        let dirty        = true;
-        let action_map   = default();
-        let press_times  = default();
+        let mut nfa       = Nfa::default();
+        let dfa           = Dfa::from(&nfa);
+        let states        = default();
+        let connections   = default();
+        let always_state  = nfa.new_pattern(nfa.start,Pattern::any().many());
+        let current       = Dfa::START_STATE;
+        let pressed       = default();
+        let dirty         = true;
+        let action_map    = default();
+        let press_times   = default();
         let release_times = default();
         Self {dirty,nfa,dfa,states,connections,always_state,current,pressed,action_map,press_times
              ,release_times}
