@@ -233,10 +233,9 @@ class TableViewVisualization extends Visualization {
         tabElem.setAttributeNS(null,"style"  ,tblViewStyle);
         this.dom.appendChild(tabElem);
 
-        let parsedData = JSON.parse(data);
-        let table      = genTable(parsedData.data || parsedData, 0, parsedData.header);
-        // TODO [MM] : Change default style to Light when light mode lands on main.
-        tabElem.innerHTML = style_dark+table;
+        let parsedData    = JSON.parse(data);
+        let table         = genTable(parsedData.data || parsedData, 0, parsedData.header);
+        tabElem.innerHTML = style_light + table;
 
     }
 
