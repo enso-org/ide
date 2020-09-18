@@ -150,6 +150,14 @@ impl RegistryModel {
     pub fn on_release(&mut self, input:&str) -> Vec<String> {
         self.on_event(input,false)
     }
+
+    /// Get the approximate memory consumption of this shortcut registry DFA network.
+    pub fn approx_dfa_memory_consumption_mb(&mut self) -> f32 {
+        self.recompute_on_dirty();
+        let elems = self.dfa.links.matrix.len() as f32;
+        let bytes = elems * 8.0;
+        bytes / 1000000.0
+    }
 }
 
 
@@ -207,8 +215,6 @@ impl RegistryModel {
         self.connections.insert((source,target));
         target
     }
-
-
 
     /// Process the `input` event. Events are strings uniquely identifying the source of the event,
     /// like "key_a", or "mouse_button_1". The `press` parameter is set to true if it was a press
@@ -316,6 +322,10 @@ impl Registry {
         self.rc.borrow().dfa.as_graphviz_code()
     }
 
+    /// Get the approximate memory consumption of this shortcut registry DFA network.
+    pub fn approx_dfa_memory_consumption_mb(&mut self) -> f32 {
+        self.rc.borrow_mut().approx_dfa_memory_consumption_mb()
+    }
 }
 
 
