@@ -34,7 +34,6 @@ pub mod builtin;
 pub mod data;
 
 use crate::component::node;
-use crate::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::component::visualization;
 use crate::component::visualization::MockDataGenerator3D;
 
@@ -46,12 +45,14 @@ use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::object::Id;
 use ensogl::display::Scene;
+use ensogl::display::shape::primitive::system::StyleWatch;
 use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
+use ensogl_theme;
 use frp::io::keyboard;
 
 pub use ensogl::prelude;
@@ -333,6 +334,8 @@ ensogl::def_command_api! { Commands
     edit_mode_on,
     /// Disable mode in which the pressed node will be edited.
     edit_mode_off,
+    /// Stop node editing, whatever node is currently edited.
+    stop_editing,
 
 
     /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
@@ -369,7 +372,6 @@ ensogl::def_command_api! { Commands
     /// Switches the selected visualisation to/from fullscreen mode.
     toggle_fullscreen_for_selected_visualization,
 
-
     /// Cancel the operation being currently performed. Often mapped to the escape key.
     cancel,
 }
@@ -400,6 +402,7 @@ pub struct FrpInputs {
     pub remove_edge                  : frp::Source<EdgeId>,
     pub select_node                  : frp::Source<NodeId>,
     pub remove_node                  : frp::Source<NodeId>,
+    pub edit_node                    : frp::Source<NodeId>,
     pub collapse_nodes               : frp::Source<(Vec<NodeId>,NodeId)>,
     pub set_node_expression          : frp::Source<(NodeId,node::Expression)>,
     pub set_node_position            : frp::Source<(NodeId,Vector2)>,
@@ -439,6 +442,7 @@ impl FrpInputs {
             remove_edge                  <- source();
             select_node                  <- source();
             remove_node                  <- source();
+            edit_node                    <- source();
             collapse_nodes               <- source();
             set_node_expression          <- source();
             set_node_position            <- source();
@@ -463,7 +467,7 @@ impl FrpInputs {
              ,set_detached_edge_targets,set_edge_source,set_edge_target
              ,unset_edge_source,unset_edge_target
              ,set_node_position,set_expression_type,set_method_pointer,select_node,remove_node
-             ,collapse_nodes,set_node_expression,connect_nodes,deselect_all_nodes
+             ,edit_node,collapse_nodes,set_node_expression,connect_nodes,deselect_all_nodes
              ,cycle_visualization,set_visualization,register_visualization
              ,some_edge_targets_detached,some_edge_sources_detached,all_edge_targets_attached
              ,hover_node_input,all_edge_sources_attached,hover_node_output,press_node_output
@@ -550,6 +554,8 @@ generate_frp_outputs! {
     node_expression_set       : (NodeId,String),
     node_entered              : NodeId,
     node_exited               : (),
+    node_editing_started      : NodeId,
+    node_editing_finished     : NodeId,
 
     edge_added        : EdgeId,
     edge_removed      : EdgeId,
@@ -564,13 +570,15 @@ generate_frp_outputs! {
     all_edge_sources_attached  : (),
     all_edges_attached         : (),
 
-    connection_added    : EdgeId,
-    connection_removed  : EdgeId,
+    connection_added   : EdgeId,
+    connection_removed : EdgeId,
 
     visualization_enabled           : NodeId,
     visualization_disabled          : NodeId,
     visualization_enable_fullscreen : NodeId,
     visualization_set_preprocessor  : (NodeId,data::EnsoCode),
+
+    edited_node : Option<NodeId>,
 }
 
 
@@ -1162,6 +1170,7 @@ impl GraphEditorModel {
     fn scene(&self) -> &Scene {
         self.app.display.scene()
     }
+
 }
 
 
@@ -1526,11 +1535,14 @@ impl GraphEditorModel {
     }
 
     /// Return a color for the edge. Either based on the edges source/target type, or a default
-    /// color define in `MISSING_TYPE_COLOR`.
+    /// color defined in Theme Manager as `type . missing . color`
     fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
-       match self.try_get_edge_color(edge_id) {
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        let styles             = StyleWatch::new(&self.scene().style_sheet);
+        let missing_type_color = styles.get_color(ensogl_theme::vars::graph_editor::edge::_type::missing::color);
+        match self.try_get_edge_color(edge_id) {
            Some(color) => color,
-           None        => MISSING_TYPE_COLOR,
+           None        => missing_type_color,
        }
     }
 
@@ -1588,7 +1600,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Enter],&[])       , "debug_push_breadcrumb")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::ArrowUp],&[])     , "debug_pop_breadcrumb")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("g".into())],&[])  , "collapse_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
@@ -1596,8 +1607,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])  , "release_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                             , "toggle_node_multi_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift],&[])                               , "toggle_node_merge_select")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift],&[])                               , "toggle_node_merge_select")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Alt],&[])                                 , "toggle_node_subtract_select")
@@ -1608,8 +1617,9 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
              , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "edit_mode_on")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "edit_mode_off")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "edit_mode_on")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                             , "edit_mode_off")
+             , Self::self_shortcut(shortcut::Action::release      (&[Key::Enter],&[])                               , "stop_editing")
              ]
     }
 }
@@ -1689,6 +1699,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let outputs        = UnsealedFrpOutputs::new();
     let sealed_outputs = outputs.seal(); // Done here to keep right eval order.
 
+    // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+    let styles             = StyleWatch::new(&scene.style_sheet);
+    let missing_type_color = styles.get_color(ensogl_theme::vars::graph_editor::edge::_type::missing::color);
+
 
 
     // =============================
@@ -1755,23 +1769,38 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
 
-    // === Node Edit Mode ===
+    // === Node Editing ===
 
     frp::extend! { network
-        edit_mode    <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
-        node_to_edit <- touch.nodes.selected.gate(&edit_mode);
-        eval node_to_edit ([model](id) {
-            if let Some(node) = model.nodes.get_cloned_ref(id) {
+        is_edited                <- outputs.edited_node.map(|n| n.is_some());
+        edit_mode                <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
+        node_edited_in_edit_mode <- touch.nodes.selected.gate(&edit_mode);
+        start_editing            <- any(&node_edited_in_edit_mode,&inputs.edit_node);
+         // FIXME: add other cases like node select.
+        stop_editing_by_bg_click <- touch.background.selected.gate(&is_edited);
+        stop_editing             <- any(&stop_editing_by_bg_click,&inputs.stop_editing);
+
+        switched    <- start_editing.gate(&is_edited);
+        edited_node <- outputs.edited_node.map(|n| n.unwrap_or_default());
+
+        // The "finish" events must be emitted before "start", to properly cover the "switch" case.
+        outputs.node_editing_finished <+ edited_node.sample(&stop_editing);
+        outputs.node_editing_finished <+ edited_node.sample(&switched);
+        outputs.node_editing_started  <+ start_editing;
+
+        outputs.edited_node <+ outputs.node_editing_started.map(|n| Some(*n));;
+        outputs.edited_node <+ outputs.node_editing_finished.constant(None);
+
+        eval outputs.node_editing_started ([model] (id) {
+            if let Some(node) = model.nodes.get_cloned_ref(&id) {
                 node.ports.frp.start_edit_mode.emit(());
             }
         });
-
-        let stop_editing = touch.background.selected.clone_ref(); // FIXME: add other cases like node select.
-        _eval <- stop_editing.map2(&node_to_edit,f!([model](_,id) {
-            if let Some(node) = model.nodes.get_cloned_ref(id) {
+        eval outputs.node_editing_finished ([model](id) {
+            if let Some(node) = model.nodes.get_cloned_ref(&id) {
                 node.ports.frp.stop_edit_mode.emit(());
             }
-        }));
+        });
     }
 
 
@@ -2462,6 +2491,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     outputs.edge_removed <+ edges_to_rm;
     }
 
+
+
     // ====================
     // === Cursor Style ===
     // ====================
@@ -2472,7 +2503,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         if let Some(color) = model.get_color_for_detached_edges() {
             cursor::Style::new_color(color).press()
         } else {
-            cursor::Style::new_color_no_animation(MISSING_TYPE_COLOR).press()
+            cursor::Style::new_color_no_animation(missing_type_color).press()
         }
     }));
     cursor_style_on_edge_drag_stop <- outputs.all_edges_attached.constant(default());
