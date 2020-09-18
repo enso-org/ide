@@ -54,6 +54,9 @@ macro_rules! _define_theme_modules {
 
 /// Used to define default theme. This one aside from generating code for `StyleManager` also creates
 /// nested public modules that makes accessing values much better than with bare string literals.
+/// It adds the `var` module with string constants, so now, instead of having to get data by string
+/// literal - like `style.get("foo.bar.baz",fallback)`, you can do
+/// `style.get(theme::vars::foo::bar::baz,fallback)`.
 #[macro_export]
 macro_rules! define_default_theme {
     ($name:ident $($t:tt)*) => {
@@ -69,6 +72,8 @@ macro_rules! define_default_theme {
 
 /// Used to define any theme.
 /// Generates code for `StyleManager` from given cascade style definition.
+/// It generates module equal to the theme name and there will be function `setup` which creates a
+/// theme definition in `app`.
 #[macro_export]
 macro_rules! define_theme {
     ($name:ident $($t:tt)*) => {

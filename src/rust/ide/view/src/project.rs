@@ -25,7 +25,7 @@ use ensogl::gui::component::Animation;
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
-    pub app        : Application,
+    app            : Application,
     logger         : Logger,
     display_object : display::object::Instance,
     graph_editor   : GraphEditor,
@@ -217,20 +217,6 @@ impl View {
             frp.source.adding_new_node <+ any(&adding_committed,&adding_aborted).constant(false);
             eval adding_aborted ((node) graph.remove_node.emit(node));
 
-
-            // === OUTPUTS REBIND ===
-
-            eval frp.documentation_visible ((vis) model.set_documentation_visibility(*vis));
-        }
-
-
-
-        // ====================
-        // === Toggle Style ===
-        // ====================
-
-        frp::extend!{ network
-
             // === Style toggle ===
 
             let style_toggle_ev     = frp.toggle_style.clone_ref();
@@ -240,9 +226,9 @@ impl View {
             style_press_on_off     <- style_press.map2(&frp.style_light, |_,is_light| !is_light);
             frp.source.style_light <+ style_press_on_off;
 
-
             // === OUTPUTS REBIND ===
 
+            eval frp.documentation_visible ((vis) model.set_documentation_visibility(*vis));
             eval frp.style_light ((is_light) model.set_style(*is_light));
         }
 

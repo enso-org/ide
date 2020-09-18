@@ -226,8 +226,8 @@ impl ProjectNameModel {
         let width       = self.width();
         let line_height = self.text_field.line_height();
         let height      = line_height+VERTICAL_MARGIN*2.0;
-        let x_position  = breadcrumb::LEFT_MARGIN+breadcrumb::PADDING;
-        let y_position  = -VERTICAL_MARGIN-breadcrumb::TOP_MARGIN-breadcrumb::PADDING;
+        let x_position  = breadcrumb::LEFT_MARGIN + breadcrumb::PADDING;
+        let y_position  = -VERTICAL_MARGIN - breadcrumb::TOP_MARGIN - breadcrumb::PADDING;
         self.text_field.set_position(Vector3(x_position,y_position,0.0));
         self.view.shape.sprite.size.set(Vector2(width,height));
         self.view.set_position(Vector3(width,-height,0.0)/2.0);
