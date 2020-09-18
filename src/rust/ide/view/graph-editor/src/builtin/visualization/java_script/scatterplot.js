@@ -1,5 +1,5 @@
 function loadScript(url) {
-    var script = document.createElement("script");
+    let script = document.createElement("script");
     script.src = url;
 
     document.head.appendChild(script);
@@ -43,10 +43,18 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        let parsedData = JSON.parse(data);
-        let dataSource = parsedData.source || "";
+        let style = document.createElement("style");
+        style.innerText = ```
+            .brush,
+            .overlay {
+                pointer-events: auto !important;
+            }```
+        document.head.appendChild(style);
+
+        let parsedData  = JSON.parse(data);
+        let dataSource  = parsedData.source || "";
         let colorDomain = []
-        let colorRange = []
+        let colorRange  = []
         if (parsedData.colors !== undefined) {
             parsedData.colors.forEach(d => {
                 colorDomain.push(d.domain);
@@ -59,22 +67,22 @@ class ScatterPlot extends Visualization {
 
     presentDataOnScatterplot(width, svg, height, colorDomain, colorRange) {
         return function (_data) {
-            var headerNames = d3.keys(_data[0]);
+            let headerNames = d3.keys(_data[0]);
 
-            var x = d3.scaleLinear()
+            let x = d3.scaleLinear()
                 .domain([4, 8])
                 .range([0, width]);
-            var xAxis = svg.append("g")
+            let xAxis = svg.append("g")
                 .attr("transform", "translate(0," + height + ")")
                 .call(d3.axisBottom(x));
 
-            var y = d3.scaleLinear()
+            let y = d3.scaleLinear()
                 .domain([0, 9])
                 .range([height, 0]);
             svg.append("g")
                 .call(d3.axisLeft(y));
 
-            var clip = svg.append("defs").append("svg:clipPath")
+            let clip = svg.append("defs").append("svg:clipPath")
                 .attr("id", "clip")
                 .append("svg:rect")
                 .attr("width", width)
@@ -82,15 +90,15 @@ class ScatterPlot extends Visualization {
                 .attr("x", 0)
                 .attr("y", 0);
 
-            var color = d3.scaleOrdinal()
+            let color = d3.scaleOrdinal()
                 .domain(colorDomain)
                 .range(colorRange)
 
-            var brush = d3.brushX()
+            let brush = d3.brushX()
                 .extent([[0, 0], [width, height]])
                 .on("end", updateChart)
 
-            var scatter = svg.append('g')
+            let scatter = svg.append('g')
                 .attr("clip-path", "url(#clip)")
 
             scatter
@@ -115,7 +123,7 @@ class ScatterPlot extends Visualization {
                 .attr("class", "brush")
                 .call(brush);
 
-            var idleTimeout
+            let idleTimeout
 
             function idled() {
                 idleTimeout = null;
