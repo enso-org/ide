@@ -15,6 +15,7 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl::gui::cursor;
+use ensogl_theme as theme;
 use span_tree::SpanTree;
 use ensogl_text as text;
 use text::Text;
@@ -22,7 +23,6 @@ use text::Text;
 use super::super::node;
 
 use crate::Type;
-use crate::component::type_coloring::MISSING_TYPE_COLOR;
 use crate::component::type_coloring::TypeColorMap;
 
 
@@ -64,6 +64,7 @@ pub struct Events {
     pub stop_edit_mode  : frp::Source,
     pub width           : frp::Stream<f32>,
     pub expression      : frp::Stream<Text>,
+    editing             : frp::nodes::Sampler<bool>,
     press_source        : frp::Source<span_tree::Crumbs>,
     hover_source        : frp::Source<Option<span_tree::Crumbs>>,
     cursor_style_source : frp::Any<cursor::Style>,
@@ -149,6 +150,7 @@ impl Manager {
             hover_source        <- source::<Option<span_tree::Crumbs>>();
             start_edit_mode     <- source();
             stop_edit_mode      <- source();
+            editing             <- label.active.sampler();
 
             eval_ start_edit_mode ([label] {
                 label.set_active_on();
@@ -170,7 +172,7 @@ impl Manager {
         let hover          = (&hover_source).into();
         let frp            = Events
             {network,cursor_style,press,hover,cursor_style_source,press_source,hover_source
-            ,start_edit_mode,stop_edit_mode,width,expression};
+            ,start_edit_mode,stop_edit_mode,width,expression,editing};
 
         label.mod_position(|t| t.y += 6.0);
 
@@ -178,7 +180,11 @@ impl Manager {
 
         label.set_cursor(&default());
         label.insert("HELLO\nHELLO2\nHELLO3\nHELLO4".to_string());
-        label.set_default_color(color::Rgba::new(1.0,1.0,1.0,0.7));
+
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        let styles     = StyleWatch::new(&app.display.scene().style_sheet);
+        let text_color = styles.get_color(theme::vars::graph_editor::node::text::color);
+        label.set_default_color(color::Rgba::from(text_color));
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
 
@@ -199,6 +205,10 @@ impl Manager {
         self.label.select_all();
         self.label.insert(&expression.code);
         self.label.remove_all_cursors();
+        if self.frp.editing.value() {
+            self.label.set_cursor_at_end();
+        }
+
 
         let glyph_width = 7.224_609_4; // FIXME hardcoded literal
         let width       = expression.code.len() as f32 * glyph_width;
@@ -217,9 +227,9 @@ impl Manager {
                     let contains_root = span.index.value == 0;
                     let skip          = node.kind.is_empty() || contains_root;
                     if !skip {
-                        let logger      = Logger::sub(&self.logger,"port");
-                        let port        = component::ShapeView::<shape::Shape>::new(&logger,self.scene());
-                        let type_map    = &self.type_color_map;
+                        let logger   = Logger::sub(&self.logger,"port");
+                        let port     = component::ShapeView::<shape::Shape>::new(&logger,self.scene());
+                        let type_map = &self.type_color_map;
 
                         let unit        = 7.224_609_4;
                         let width       = unit * span.size.value as f32;
@@ -233,7 +243,12 @@ impl Manager {
 
                         let hover   = &port.shape.hover;
                         let crumbs  = node.crumbs.clone();
-                        let ast_id   = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
+                        let ast_id  = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
+
+                        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+                        let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
+                        let missing_type_color = styles.get_color(theme::vars::graph_editor::edge::_type::missing::color);
+
                         frp::new_network! { port_network
                             def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
                             def _foo = port.events.mouse_out  . map(f_!(hover.set(0.0);));
@@ -241,11 +256,11 @@ impl Manager {
                             def out  = port.events.mouse_out.constant(cursor::Style::default());
                             def over = port.events.mouse_over.map(f_!([type_map,port]{
                                 if let Some(ast_id) = ast_id {
-                                    if let Some(port_color) = type_map.type_color(ast_id) {
+                                    if let Some(port_color) = type_map.type_color(ast_id,styles.clone_ref()) {
                                         return cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(port_color))
                                     }
                                 }
-                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(MISSING_TYPE_COLOR))
+                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(missing_type_color))
                             }));
                             // FIXME[WD]: the following lines leak memory in the current FRP
                             // implementation because self.frp does not belong to this network and
@@ -288,7 +303,9 @@ impl Manager {
 
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         let ast_id = get_id_for_crumbs(&self.expression.borrow().input_span_tree,&crumbs)?;
-        self.type_color_map.type_color(ast_id)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        let styles = StyleWatch::new(&self.app.display.scene().style_sheet);
+        self.type_color_map.type_color(ast_id, styles)
     }
 
     pub fn width(&self) -> f32 {
