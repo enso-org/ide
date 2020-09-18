@@ -68,15 +68,16 @@ impl ViewModel {
 
         dom.dom().set_attribute_or_warn("class","scrollable",&logger);
 
-        dom.dom().set_style_or_warn("white-space"     ,"normal"                     ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                       ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                       ,&logger);
-        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"  ,&logger);
-        dom.dom().set_style_or_warn("padding"         ,"5px"                        ,&logger);
-        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                       ,&logger);
-        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS),&logger);
-        dom.dom().set_style_or_warn("width"           ,format!("{}px",VIEW_WIDTH)   ,&logger);
-        dom.dom().set_style_or_warn("height"          ,format!("{}px",view_height)  ,&logger);
+        dom.dom().set_style_or_warn("white-space"     ,"normal"                      ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                        ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                        ,&logger);
+        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"   ,&logger);
+        dom.dom().set_style_or_warn("padding"         ,"5px"                         ,&logger);
+        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                        ,&logger);
+        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS) ,&logger);
+        dom.dom().set_style_or_warn("width"           ,format!("{}px",VIEW_WIDTH)    ,&logger);
+        dom.dom().set_style_or_warn("height"          ,format!("{}px",view_height)   ,&logger);
+        dom.dom().set_style_or_warn("box-shadow"      ,"0 0 16px rgba(0, 0, 0, 0.06)",&logger);
 
         scene.dom.layers.front.manage(&dom);
         ViewModel {logger,dom,size}.init()

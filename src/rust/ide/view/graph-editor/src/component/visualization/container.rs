@@ -25,6 +25,7 @@ use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
+use ensogl_theme as theme;
 
 
 
@@ -34,7 +35,7 @@ use ensogl::system::web::StyleSetter;
 
 const DEFAULT_SIZE  : (f32,f32) = (200.0,200.0);
 const CORNER_RADIUS : f32       = super::super::node::CORNER_RADIUS;
-
+const SHADOW_SIZE   : f32       = super::super::node::SHADOW_SIZE;
 
 
 // =============
@@ -45,22 +46,42 @@ const CORNER_RADIUS : f32       = super::super::node::CORNER_RADIUS;
 ///
 /// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
 /// container.
+/// TODO : We do not use backgrounds because otherwise they would overlap JS
+///        visualizations. Instead we added a HTML background to the `View`.
+///        This should be further investigated while fixing rust visualization displaying. (#526)
 pub mod background {
     use super::*;
 
     ensogl::define_shape_system! {
-        (selected:f32,radius:f32,roundness:f32) {
+        (style:Style,selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let radius               = 1.px() * &radius;
-            // TODO : We made backgrounds transparent because otherwise they would overlap JS
-            //        visualizations. Instead we added a HTML background to the `View`.
-            //        This should be further investigated while fixing rust visualization displaying. (#526)
-            let color_transp         = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
-            let corner_radius        = &radius * &roundness;
-            let background           = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background           = background.fill(color_transp);
-            background.into()
+            let width         = &width  - SHADOW_SIZE.px() * 2.0;
+            let height        = &height - SHADOW_SIZE.px() * 2.0;
+            let radius        = 1.px() * &radius;
+            let color_path    = theme::vars::graph_editor::visualization::background::color;
+            let color_bg      = style.get_color(color_path);
+            let corner_radius = &radius * &roundness;
+            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
+            let background    = background.fill(color::Rgba::from(color_bg));
+
+            // === Shadow ===
+
+            let border_size_f = 16.0;
+            let corner_radius = corner_radius*1.75;
+            let width         = &width  + SHADOW_SIZE.px() * 2.0;
+            let height        = &height + SHADOW_SIZE.px() * 2.0;
+            let shadow        = Rect((&width,&height)).corners_radius(&corner_radius).shrink(1.px());
+            let shadow_color  = color::LinearGradient::new()
+                .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
+                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
+            let shadow_color  = color::SdfSampler::new(shadow_color)
+                .max_distance(border_size_f)
+                .slope(color::Slope::Exponent(2.0));
+            let shadow        = shadow.fill(shadow_color);
+
+            let out = shadow + background;
+            out.into()
         }
     }
 }
@@ -70,21 +91,22 @@ pub mod background {
 ///
 /// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
 /// container.
+/// TODO : We do not use backgrounds because otherwise they would overlap JS
+///        visualizations. Instead we added a HTML background to the `View`.
+///        This should be further investigated while fixing rust visualization displaying. (#526)
 pub mod fullscreen_background {
     use super::*;
 
     ensogl::define_shape_system! {
-        (selected:f32,radius:f32,roundness:f32) {
+        (style:Style,selected:f32,radius:f32,roundness:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let radius               = 1.px() * &radius;
-            // TODO : We made backgrounds transparent because otherwise they would overlap JS
-            //        visualizations. Instead we added a HTML background to the `View`.
-            //        This should be further investigated while fixing rust visualization displaying. (#526)
-            let color_transp         = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
-            let corner_radius        = &radius * &roundness;
-            let background           = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background           = background.fill(color_transp);
+            let radius        = 1.px() * &radius;
+            let color_path    = theme::vars::graph_editor::visualization::background::color;
+            let color_bg      = style.get_color(color_path);
+            let corner_radius = &radius * &roundness;
+            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
+            let background    = background.fill(color::Rgba::from(color_bg));
             background.into()
         }
     }
@@ -170,7 +192,7 @@ impl Frp {
 pub struct View {
     logger         : Logger,
     display_object : display::object::Instance,
-    background     : component::ShapeView<background::Shape>,
+    // background     : component::ShapeView<background::Shape>,
     overlay        : component::ShapeView<overlay::Shape>,
     background_dom : DomSymbol
 }
@@ -180,14 +202,14 @@ impl View {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"view");
         let display_object = display::object::Instance::new(&logger);
-        let background     = component::ShapeView::<background::Shape>::new(&logger,scene);
+        // let background     = component::ShapeView::<background::Shape>::new(&logger,scene);
         let overlay        = component::ShapeView::<overlay::Shape>::new(&logger,scene);
         display_object.add_child(&overlay);
-        display_object.add_child(&background);
+        // display_object.add_child(&background);
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.viz.add(&shape_system.shape_system.symbol);
+        // let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
+        // scene.views.main.remove(&shape_system.shape_system.symbol);
+        // scene.views.viz.add(&shape_system.shape_system.symbol);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<overlay::Shape>);
         scene.views.main.remove(&shape_system.shape_system.symbol);
@@ -198,18 +220,19 @@ impl View {
         // TODO : We added a HTML background to the `View`, because "shape" background was overlapping
         //        the JS visualization. This should be further investigated while fixing rust
         //        visualization displaying. (#796)
-        background_dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
-        background_dom.dom().set_style_or_warn("height"        ,"0"        ,&logger);
-        background_dom.dom().set_style_or_warn("z-index"       ,"1"        ,&logger);
-        background_dom.dom().set_style_or_warn("overflow-y"    ,"auto"     ,&logger);
-        background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
-        background_dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
-        background_dom.dom().set_style_or_warn("border-radius" ,"14px"     ,&logger);
+        background_dom.dom().set_style_or_warn("width"         ,"0"                        ,&logger);
+        background_dom.dom().set_style_or_warn("height"        ,"0"                        ,&logger);
+        background_dom.dom().set_style_or_warn("z-index"       ,"1"                        ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-y"    ,"auto"                     ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"                     ,&logger);
+        background_dom.dom().set_style_or_warn("background"    ,"#FDF9F6FA"                ,&logger);
+        background_dom.dom().set_style_or_warn("border-radius" ,"14px"                     ,&logger);
+        background_dom.dom().set_style_or_warn("box-shadow"    ,"0 0 16px rgba(0,0,0,0.06)",&logger);
         display_object.add_child(&background_dom);
 
         scene.dom.layers.back.manage(&background_dom);
 
-        Self {logger,display_object,background,overlay,background_dom}
+        Self {logger,display_object,overlay,background_dom}
     }
 }
 
@@ -232,7 +255,7 @@ impl display::Object for View {
 pub struct FullscreenView {
     logger         : Logger,
     display_object : display::object::Instance,
-    background     : component::ShapeView<fullscreen_background::Shape>,
+    // background     : component::ShapeView<fullscreen_background::Shape>,
     background_dom : DomSymbol
 }
 
@@ -241,8 +264,8 @@ impl FullscreenView {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
-        let background     = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
-        display_object.add_child(&background);
+        // let background     = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
+        // display_object.add_child(&background);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
         scene.views.main.remove(&shape_system.shape_system.symbol);
@@ -253,18 +276,18 @@ impl FullscreenView {
         // TODO : We added a HTML background to the `View`, because "shape" background was overlapping
         //        the JS visualization. This should be further investigated while fixing rust
         //        visualization displaying. (#796)
-        background_dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
-        background_dom.dom().set_style_or_warn("height"        ,"0"        ,&logger);
-        background_dom.dom().set_style_or_warn("z-index"       ,"1"        ,&logger);
-        background_dom.dom().set_style_or_warn("overflow-y"    ,"auto"     ,&logger);
-        background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
-        background_dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
-        background_dom.dom().set_style_or_warn("border-radius" ,"0"        ,&logger);
+        background_dom.dom().set_style_or_warn("width"         ,"0"                           ,&logger);
+        background_dom.dom().set_style_or_warn("height"        ,"0"                           ,&logger);
+        background_dom.dom().set_style_or_warn("z-index"       ,"1"                           ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-y"    ,"auto"                        ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"                        ,&logger);
+        background_dom.dom().set_style_or_warn("background"    ,"#FDF9F6FA"                   ,&logger);
+        background_dom.dom().set_style_or_warn("border-radius" ,"0"                           ,&logger);
         display_object.add_child(&background_dom);
 
         scene.dom.layers.back.manage(&background_dom);
 
-        Self {logger,display_object,background,background_dom}
+        Self {logger,display_object,background_dom}
     }
 }
 
@@ -372,24 +395,24 @@ impl ContainerModel {
     fn set_size(&self, size:impl Into<Vector2>) {
         let size = size.into();
         if self.is_fullscreen.get() {
-            self.fullscreen_view.background.shape.radius.set(CORNER_RADIUS);
-            self.fullscreen_view.background.shape.sprite.size.set(size);
-            self.view.background.shape.sprite.size.set(zero());
+            // self.fullscreen_view.background.shape.radius.set(CORNER_RADIUS);
+            // self.fullscreen_view.background.shape.sprite.size.set(size);
+            // self.view.background.shape.sprite.size.set(zero());
             self.view.overlay.shape.sprite.size.set(zero());
             self.view.background_dom.dom().set_style_or_warn("width" ,"0",&self.logger);
             self.view.background_dom.dom().set_style_or_warn("height","0",&self.logger);
             self.fullscreen_view.background_dom.dom().set_style_or_warn("width", format!("{}px", size[0]), &self.logger);
             self.fullscreen_view.background_dom.dom().set_style_or_warn("height", format!("{}px", size[1]), &self.logger);
         } else {
-            self.view.background.shape.radius.set(CORNER_RADIUS);
+            // self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
-            self.view.background.shape.sprite.size.set(size);
+            // self.view.background.shape.sprite.size.set(size);
             self.view.overlay.shape.sprite.size.set(size);
             self.view.background_dom.dom().set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
             self.view.background_dom.dom().set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
             self.fullscreen_view.background_dom.dom().set_style_or_warn("width", "0", &self.logger);
             self.fullscreen_view.background_dom.dom().set_style_or_warn("height", "0", &self.logger);
-            self.fullscreen_view.background.shape.sprite.size.set(zero());
+            // self.fullscreen_view.background.shape.sprite.size.set(zero());
         }
 
         if let Some(viz) = &*self.visualization.borrow() {
@@ -403,8 +426,8 @@ impl ContainerModel {
 
     fn set_corner_roundness(&self, value:f32) {
         self.view.overlay.shape.roundness.set(value);
-        self.view.background.shape.roundness.set(value);
-        self.fullscreen_view.background.shape.roundness.set(value);
+        // self.view.background.shape.roundness.set(value);
+        // self.fullscreen_view.background.shape.roundness.set(value);
     }
 }
 
