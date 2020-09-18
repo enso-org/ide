@@ -22,13 +22,11 @@ pub fn entry_point_shortcuts() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     web::set_stack_trace_limit();
-
     main();
 }
 
 pub fn main() {
-
-    let mut shortcut_registry = shortcuts::Registry::new();
+    let mut shortcut_registry = shortcuts::Registry::<String>::new();
     shortcut_registry.add(shortcuts::DoublePress, "meta + a", "hello");
 
     println!("{}",shortcut_registry.nfa_as_graphviz_code());

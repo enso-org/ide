@@ -70,7 +70,7 @@ pub use ActionType::*;
 // ================
 
 #[derive(Debug)]
-pub struct RegistryModel {
+pub struct RegistryModel<T> {
     dirty         : bool,
     nfa           : Nfa,
     dfa           : Dfa,
@@ -79,7 +79,7 @@ pub struct RegistryModel {
     always_state  : nfa::State,
     current       : dfa::State,
     pressed       : HashSet<String>,
-    action_map    : HashMap<ActionType,HashMap<nfa::State,String>>,
+    action_map    : HashMap<ActionType,HashMap<nfa::State,T>>,
     press_times   : HashMap<dfa::State,f32>,
     release_times : HashMap<dfa::State,f32>,
 }
@@ -88,7 +88,7 @@ pub struct RegistryModel {
 // === Getters ===
 
 #[allow(missing_docs)]
-impl RegistryModel {
+impl<T> RegistryModel<T> {
     pub fn nfa(&self) -> &Nfa { &self.nfa }
     pub fn dfa(&self) -> &Dfa { &self.dfa }
 }
@@ -96,7 +96,7 @@ impl RegistryModel {
 
 // === API ===
 
-impl RegistryModel {
+impl<T> RegistryModel<T> {
     /// Constructor.
     pub fn new() -> Self {
         let mut nfa       = Nfa::default();
@@ -113,8 +113,10 @@ impl RegistryModel {
         Self {dirty,nfa,dfa,states,connections,always_state,current,pressed,action_map,press_times
             ,release_times}
     }
+}
 
-    pub fn add(&mut self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<String>) {
+impl<T:Clone> RegistryModel<T> {
+    pub fn add(&mut self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
         self.dirty = true;
 
         let special_keys : HashSet<&str> = SPECIAL_KEYS.iter().map(|t|*t).collect();
@@ -142,12 +144,12 @@ impl RegistryModel {
     }
 
     /// Process the press input event. See `on_event` docs to learn more.
-    pub fn on_press(&mut self, input:&str) -> Vec<String> {
+    pub fn on_press(&mut self, input:&str) -> Vec<T> {
         self.on_event(input,true)
     }
 
     /// Process the release input event. See `on_event` docs to learn more.
-    pub fn on_release(&mut self, input:&str) -> Vec<String> {
+    pub fn on_release(&mut self, input:&str) -> Vec<T> {
         self.on_event(input,false)
     }
 
@@ -163,7 +165,7 @@ impl RegistryModel {
 
 // === Private API ===
 
-impl RegistryModel {
+impl<T:Clone> RegistryModel<T> {
     fn add_key_permutations(&mut self, source:nfa::State, keys:&[&str]) -> nfa::State {
         self.dirty = true;
 
@@ -219,7 +221,7 @@ impl RegistryModel {
     /// Process the `input` event. Events are strings uniquely identifying the source of the event,
     /// like "key_a", or "mouse_button_1". The `press` parameter is set to true if it was a press
     /// event, and is set to false in case of a release event.
-    fn on_event(&mut self, input:&str, press:bool) -> Vec<String> {
+    fn on_event(&mut self, input:&str, press:bool) -> Vec<T> {
         self.recompute_on_dirty();
         let action        = if press { Press }       else { Release };
         let double_action = if press { DoublePress } else { DoubleClick };
@@ -265,7 +267,7 @@ impl RegistryModel {
         }
     }
 
-    fn get_action(&self, action_type:ActionType, state:nfa::State) -> Option<String> {
+    fn get_action(&self, action_type:ActionType, state:nfa::State) -> Option<T> {
         self.action_map.get(&action_type).and_then(|m|m.get(&state).cloned())
     }
 
@@ -278,7 +280,7 @@ impl RegistryModel {
     }
 }
 
-impl Default for RegistryModel {
+impl<T> Default for RegistryModel<T> {
     fn default() -> Self {
         Self::new()
     }
@@ -289,28 +291,32 @@ impl Default for RegistryModel {
 // === Registry ===
 // ================
 
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct Registry {
-    rc : Rc<RefCell<RegistryModel>>
+#[derive(CloneRef,Debug,Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Default(bound=""))]
+pub struct Registry<T> {
+    rc : Rc<RefCell<RegistryModel<T>>>
 }
 
-impl Registry {
+impl<T> Registry<T> {
     /// Constructor.
     pub fn new() -> Self {
         default()
     }
+}
 
-    pub fn add(&self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<String>) {
+impl<T:Clone> Registry<T> {
+    pub fn add(&self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
         self.rc.borrow_mut().add(action_type,expr,action)
     }
 
     /// Process the press input event. See `on_event` docs to learn more.
-    pub fn on_press(&self, input:&str) -> Vec<String> {
+    pub fn on_press(&self, input:&str) -> Vec<T> {
         self.rc.borrow_mut().on_press(input)
     }
 
     /// Process the release input event. See `on_event` docs to learn more.
-    pub fn on_release(&self, input:&str) -> Vec<String> {
+    pub fn on_release(&self, input:&str) -> Vec<T> {
         self.rc.borrow_mut().on_release(input)
     }
 
