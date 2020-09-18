@@ -12,7 +12,6 @@ use enso_protocol::language_server::SuggestionId;
 use flo_stream::Subscriber;
 use language_server::types::SuggestionsDatabaseVersion;
 use language_server::types::SuggestionDatabaseUpdatesEvent;
-use parser::DocParser;
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionId as EntryId;
@@ -94,7 +93,7 @@ pub struct Entry {
 
 impl Entry {
     /// Create entry from the structure deserialized from the Language Server responses.
-    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry, logger:impl AnyLogger)
+    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry)
         -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
         let this = match entry {
@@ -193,8 +192,7 @@ impl Entry {
 impl TryFrom<language_server::types::SuggestionEntry> for Entry {
     type Error = failure::Error;
     fn try_from(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
-        let logger = Logger::new("SuggestionEntry");
-        Self::from_ls_entry(entry, logger)
+        Self::from_ls_entry(entry)
     }
 }
 
@@ -301,8 +299,7 @@ impl SuggestionDatabase {
         let mut entries = HashMap::new();
         for ls_entry in response.entries {
             let id = ls_entry.id;
-            let logger_entry = Logger::new("SuggestionEntry");
-            match Entry::from_ls_entry(ls_entry.suggestion, logger_entry) {
+            match Entry::from_ls_entry(ls_entry.suggestion) {
                 Ok(entry) => { entries.insert(id, Rc::new(entry)); },
                 Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); },
             }

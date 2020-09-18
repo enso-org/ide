@@ -24,15 +24,16 @@ use ensogl::gui::component::Animation;
 // =================
 
 /// Width of searcher panel in pixels.
-pub const SEARCHER_WIDTH:f32 = 540.0;
+pub const SEARCHER_WIDTH:f32 = 480.0;
 /// Height of searcher panel in pixels.
 ///
 /// Because we don't implement clipping yet, the best UX is when searcher height is almost multiple
 /// of entry height.
 pub const SEARCHER_HEIGHT:f32 = 179.5;
 
-const SUGGESTION_LIST_WIDTH : f32 = 240.0;
-const DOCUMENTATION_WIDTH   : f32 = SEARCHER_WIDTH - SUGGESTION_LIST_WIDTH;
+const SUGGESTION_LIST_WIDTH : f32 = 180.0;
+const LIST_DOC_GAP          : f32 = 15.0;
+const DOCUMENTATION_WIDTH   : f32 = SEARCHER_WIDTH - SUGGESTION_LIST_WIDTH - LIST_DOC_GAP;
 const SUGGESTION_LIST_X     : f32 = (SUGGESTION_LIST_WIDTH - SEARCHER_WIDTH) / 2.0;
 const DOCUMENTATION_X       : f32 = (SEARCHER_WIDTH - DOCUMENTATION_WIDTH) / 2.0;
 
@@ -42,7 +43,12 @@ const DOCUMENTATION_X       : f32 = (SEARCHER_WIDTH - DOCUMENTATION_WIDTH) / 2.0
 // === Documentation Provider ===
 // ==============================
 
+/// The Entry Model Provider.
+///
+/// This provider is used by searcher to print documentation of currently selected suggestion.
 pub trait DocumentationProvider : Debug {
+    /// Get documentation string for given entry, or `None` if entry or documentation does not
+    /// exist.
     fn get_for_entry(&self, id:list_view::entry::Id) -> Option<String>;
 }
 
@@ -53,6 +59,7 @@ impl DocumentationProvider for list_view::entry::EmptyProvider {
 
 // === AnyDocumentationProvider ===
 
+/// A wrapper for shared instance of some DocumentationProvider.
 #[derive(Clone,CloneRef,Debug,Deref)]
 pub struct AnyDocumentationProvider {rc:Rc<dyn DocumentationProvider>}
 
@@ -182,7 +189,7 @@ impl View {
                 model.list.set_entries(entries);
             });
             source.selected_entry <+ model.list.selected_entry;
-            source.size           <+ model.list.size;
+            source.size           <+ height.value.map(|h| Vector2(SEARCHER_WIDTH,*h));
             source.is_visible     <+ model.list.size.map(|size| size.x * size.y > std::f32::EPSILON);
 
             eval height.value ((h)  model.set_height(*h));
@@ -204,6 +211,10 @@ impl View {
         self
     }
 
+    /// Set the suggestions displayed in searcher.
+    ///
+    /// The suggestion list is represented list-entry-model and documentation provider.
+    /// It's a helper for FRP `set_suggestion` input (FRP nodes cannot be generic).
     pub fn set_suggestions
     (&self, provider:Rc<impl list_view::entry::ModelProvider + DocumentationProvider + 'static>) {
         let entries       : list_view::entry::AnyModelProvider = provider.clone_ref().into();
@@ -211,7 +222,10 @@ impl View {
         self.frp.set_suggestions(entries,documentation);
     }
 
-    pub fn unset_suggestions(&self) {
+    /// Clear the suggestion list.
+    ///
+    /// It just set empty provider using FRP `set_suggestion` input.
+    pub fn clear_suggestions(&self) {
         let provider = Rc::new(list_view::entry::EmptyProvider);
         self.set_suggestions(provider);
     }

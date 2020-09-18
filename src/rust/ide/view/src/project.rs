@@ -2,10 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::documentation;
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::node::Expression;
-use crate::graph_editor::component::visualization;
 use crate::graph_editor::GraphEditor;
 use crate::graph_editor::NodeId;
 use crate::searcher;
@@ -15,7 +13,6 @@ use ensogl::application;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
-use ensogl_gui_list_view as list_view;
 use ensogl::gui::component::Animation;
 
 
@@ -39,8 +36,8 @@ impl Model {
     fn new(app:&Application) -> Self {
         let logger         = Logger::new("project::View");
         let display_object = display::object::Instance::new(&logger);
-        let graph_editor   = app.new_view::<GraphEditor>();
         let searcher       = app.new_view::<searcher::View>();
+        let graph_editor   = app.new_view::<GraphEditor>();
         display_object.add_child(&graph_editor);
         display_object.add_child(&searcher);
         display_object.remove_child(&searcher);
@@ -177,7 +174,7 @@ impl View {
                         }
                     } else {
                         model.searcher.hide();
-                        model.searcher.unset_suggestions();
+                        model.searcher.clear_suggestions();
                     }
                 }
             ));

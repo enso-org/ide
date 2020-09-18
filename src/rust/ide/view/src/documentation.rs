@@ -74,8 +74,6 @@ impl ViewModel {
         dom.dom().set_style_or_warn("padding"         ,"5px"                         ,&logger);
         dom.dom().set_style_or_warn("pointer-events"  ,"auto"                        ,&logger);
         dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS) ,&logger);
-        dom.dom().set_style_or_warn("width"           ,format!("{}px",VIEW_WIDTH)    ,&logger);
-        dom.dom().set_style_or_warn("height"          ,format!("{}px",VIEW_HEIGHT)   ,&logger);
         dom.dom().set_style_or_warn("box-shadow"      ,"0 0 16px rgba(0, 0, 0, 0.06)",&logger);
 
         scene.dom.layers.main.manage(&dom);
@@ -208,7 +206,15 @@ impl ViewModel {
     }
 
     fn reload_style(&self) {
-        self.dom.set_size(self.size.get());
+        let size        = self.size.get();
+        // Div element does not count border radius to its width and height.
+        let real_width    = size.x - CORNER_RADIUS / 2.0.sqrt();
+        let real_height   = size.y - CORNER_RADIUS / 2.0.sqrt();
+        let lesser        = real_width.min(real_height);
+        let corner_radius = CORNER_RADIUS + (lesser * 2.0.sqrt()).min(0.0);
+        println!("setting size and corner radius: {} {} {}",real_width,real_height,corner_radius);
+        self.dom.set_size(Vector2(real_width.max(0.0),real_height.max(0.0)));
+        self.dom.dom().set_style_or_warn("border-radius",format!("{}px",corner_radius),&self.logger);
     }
 }
 
@@ -257,10 +263,10 @@ impl View {
         let visualization_frp = visualization::instance::Frp::new(&frp.network);
         let model             = ViewModel::new(scene);
         model.load_waiting_screen();
-        Self {model,visualization_frp,frp} . init(scene)
+        Self {model,visualization_frp,frp} . init()
     }
 
-    fn init(self, scene:&Scene) -> Self {
+    fn init(self) -> Self {
         let network       = &self.frp.network;
         let model         = &self.model;
         let visualization = &self.visualization_frp;

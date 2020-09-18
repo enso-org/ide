@@ -183,6 +183,9 @@ define_theme! { dark
             }
             text {
                 color = color::Lcha::new(1.0,0.0,0.0,0.7);
+                highlight {
+                    color = color::Lcha::new(0.7,0.0,0.0,1.0)
+                }
                 selection {
                     color = color::Lcha::new(0.7,0.0,0.125,0.7)
                 }
@@ -280,6 +283,9 @@ define_default_theme! { light
             }
             text {
                 color = color::Lcha::new(0.0,0.0,0.0,0.7);
+                highlight {
+                    color = color::Lcha::new(0.8,0.0,0.0,1.0)
+                }
                 selection {
                     color = color::Lcha::new(0.7,0.0,0.125,0.7)
                 }

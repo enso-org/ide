@@ -644,16 +644,15 @@ impl GraphEditorIntegratedWithControllerModel {
 
     pub fn handle_searcher_notification(&self, notification:controller::searcher::Notification) {
         use controller::searcher::Notification;
-        use list_view::entry::AnyModelProvider;
         match notification {
             Notification::NewSuggestionList => with(self.searcher_controller.borrow(), |searcher| {
                 if let Some(searcher) = &*searcher {
                     match searcher.suggestions() {
-                        Suggestions::Loading       => self.view.searcher().unset_suggestions(),
+                        Suggestions::Loading       => self.view.searcher().clear_suggestions(),
                         Suggestions::Loaded {list} => self.view.searcher().set_suggestions(list),
                         Suggestions::Error(err)    => {
                             error!(self.logger, "Error while obtaining list from searcher: {err}");
-                            self.view.searcher().unset_suggestions();
+                            self.view.searcher().clear_suggestions();
                         },
                     };
                 }
