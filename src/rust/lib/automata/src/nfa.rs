@@ -65,7 +65,7 @@ impl Nfa {
         Self {start,alphabet,states}.init_start_state()
     }
 
-    pub fn visualize(&self) -> String {
+    pub fn as_graphviz_code(&self) -> String {
         let mut out = String::new();
         for (ix,state) in self.states.iter().enumerate() {
             let opts = if state.export { "" } else { "[fillcolor=\"#EEEEEE\" fontcolor=\"#888888\"]" };

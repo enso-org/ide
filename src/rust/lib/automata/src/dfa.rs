@@ -70,7 +70,7 @@ impl Dfa {
         self.links.safe_index(current_state.id(),ix).unwrap_or_default()
     }
 
-    pub fn visualize(&self) -> String {
+    pub fn as_graphviz_code(&self) -> String {
         let mut out = String::new();
         for row in 0 .. self.links.rows {
             out += &format!("node_{}[label=\"{}\"]\n",row,row);
