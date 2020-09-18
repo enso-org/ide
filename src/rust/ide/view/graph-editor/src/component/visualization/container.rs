@@ -55,7 +55,7 @@ pub mod background {
             let radius               = 1.px() * &radius;
             // TODO : We made backgrounds transparent because otherwise they would overlap JS
             //        visualizations. Instead we added a HTML background to the `View`.
-            //        This should be further investigated while fixing rust visualization displaying. (#796)
+            //        This should be further investigated while fixing rust visualization displaying. (#526)
             let color_transp         = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
             let corner_radius        = &radius * &roundness;
             let background           = Rect((&width,&height)).corners_radius(&corner_radius);
@@ -80,7 +80,7 @@ pub mod fullscreen_background {
             let radius               = 1.px() * &radius;
             // TODO : We made backgrounds transparent because otherwise they would overlap JS
             //        visualizations. Instead we added a HTML background to the `View`.
-            //        This should be further investigated while fixing rust visualization displaying. (#796)
+            //        This should be further investigated while fixing rust visualization displaying. (#526)
             let color_transp         = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
             let corner_radius        = &radius * &roundness;
             let background           = Rect((&width,&height)).corners_radius(&corner_radius);
@@ -195,7 +195,7 @@ impl View {
 
         let div            = web::create_div();
         let background_dom = DomSymbol::new(&div);
-        // TODO : We added a HTML background to the `View`, because native background was overlapping
+        // TODO : We added a HTML background to the `View`, because "shape" background was overlapping
         //        the JS visualization. This should be further investigated while fixing rust
         //        visualization displaying. (#796)
         background_dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
@@ -205,7 +205,6 @@ impl View {
         background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
         background_dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
         background_dom.dom().set_style_or_warn("border-radius" ,"14px"     ,&logger);
-        background_dom.dom().set_style_or_warn("pointer-events","auto"     ,&logger);
         display_object.add_child(&background_dom);
 
         scene.dom.layers.back.manage(&background_dom);
@@ -251,7 +250,7 @@ impl FullscreenView {
 
         let div            = web::create_div();
         let background_dom = DomSymbol::new(&div);
-        // TODO : We added a HTML background to the `View`, because native background was overlapping
+        // TODO : We added a HTML background to the `View`, because "shape" background was overlapping
         //        the JS visualization. This should be further investigated while fixing rust
         //        visualization displaying. (#796)
         background_dom.dom().set_style_or_warn("width"         ,"0"        ,&logger);
@@ -261,7 +260,6 @@ impl FullscreenView {
         background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"     ,&logger);
         background_dom.dom().set_style_or_warn("background"    ,"#312F30FA",&logger);
         background_dom.dom().set_style_or_warn("border-radius" ,"0"        ,&logger);
-        background_dom.dom().set_style_or_warn("pointer-events","auto"     ,&logger);
         display_object.add_child(&background_dom);
 
         scene.dom.layers.back.manage(&background_dom);
