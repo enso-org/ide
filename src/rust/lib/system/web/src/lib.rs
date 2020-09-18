@@ -107,7 +107,7 @@ pub fn ignore_context_menu(target:&EventTarget) -> Option<IgnoreContextMenuHandl
     };
     let closure = Closure::wrap(Box::new(closure) as Box<dyn FnMut(MouseEvent)>);
     let callback : &Function = closure.as_ref().unchecked_ref();
-    match target.add_event_listener_with_callback("contextmenu", callback) {
+    match target.add_event_listener_with_callback_and_bool("contextmenu",callback,true) {
         Ok(_)  => {
             let target = target.clone();
             let handle = IgnoreContextMenuHandle { target, closure };

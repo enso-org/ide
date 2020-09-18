@@ -306,8 +306,8 @@ impl Mouse {
         let position        = variables.add_or_panic("mouse_position",Vector2::new(0,0));
         let hover_ids       = variables.add_or_panic("mouse_hover_ids",target.to_internal(&logger));
         let target          = Rc::new(Cell::new(target));
-        let document        = web::dom::WithKnownShape::new(&web::document().body().unwrap());
-        let mouse_manager   = MouseManager::new(&document.into());
+        let body            = web::dom::WithKnownShape::new(&web::document().body().unwrap());
+        let mouse_manager   = MouseManager::new_separated(&body.into(),&web::window());
         let frp             = frp::io::Mouse::new();
         let on_move         = mouse_manager.on_move.add(f!([frp,scene_frp,position,last_position]
             (event:&mouse::OnMove) {
