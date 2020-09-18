@@ -8,18 +8,18 @@ function loadScript(url) {
 loadScript('https://d3js.org/d3.v4.min.js');
 
 /**
-  * A d3.js ScatterPlot visualization.
-  *
-  * source (CSV file): | x-axis | y-axis | domain |
-  * Data format (json):
-  * {
-  *  source : String,
-  *  colors : [{
-  *      domain : String,
-  *      color  : String
-  *  }]
-  * }
-  */
+ * A d3.js ScatterPlot visualization.
+ *
+ * source (CSV file): | x-axis | y-axis | domain |
+ * Data format (json):
+ * {
+ *  source : String,
+ *  colors : [{
+ *      domain : String,
+ *      color  : String
+ *  }]
+ * }
+ */
 class ScatterPlot extends Visualization {
     static inputType = "Any"
 
@@ -53,97 +53,98 @@ class ScatterPlot extends Visualization {
                 colorRange.push("#" + d.color);
             });
         }
-        
-        this.createScatterplotFrom(dataSource, width, svg, height, colorDomain, colorRange);
+
+        d3.csv(dataSource, this.presentDataOnScatterplot(width, svg, height, colorDomain, colorRange));
     }
 
-    createScatterplotFrom(dataSource, width, svg, height, colorDomain, colorRange) {
-        let _data = d3.csvParse(dataSource);
-        let headerNames = d3.keys(_data[0]);
+    presentDataOnScatterplot(width, svg, height, colorDomain, colorRange) {
+        return function (_data) {
+            var headerNames = d3.keys(_data[0]);
 
-        let x = d3.scaleLinear()
-            .domain([4, 8])
-            .range([0, width]);
-        let xAxis = svg.append("g")
-            .attr("transform", "translate(0," + height + ")")
-            .call(d3.axisBottom(x));
+            var x = d3.scaleLinear()
+                .domain([4, 8])
+                .range([0, width]);
+            var xAxis = svg.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x));
 
-        let y = d3.scaleLinear()
-            .domain([0, 9])
-            .range([height, 0]);
-        svg.append("g")
-            .call(d3.axisLeft(y));
+            var y = d3.scaleLinear()
+                .domain([0, 9])
+                .range([height, 0]);
+            svg.append("g")
+                .call(d3.axisLeft(y));
 
-        let clip = svg.append("defs").append("svg:clipPath")
-            .attr("id", "clip")
-            .append("svg:rect")
-            .attr("width", width)
-            .attr("height", height)
-            .attr("x", 0)
-            .attr("y", 0);
+            var clip = svg.append("defs").append("svg:clipPath")
+                .attr("id", "clip")
+                .append("svg:rect")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("x", 0)
+                .attr("y", 0);
 
-        let color = d3.scaleOrdinal()
-            .domain(colorDomain)
-            .range(colorRange)
+            var color = d3.scaleOrdinal()
+                .domain(colorDomain)
+                .range(colorRange)
 
-        let brush = d3.brushX()
-            .extent([[0, 0], [width, height]])
-            .on("end", updateChart)
+            var brush = d3.brushX()
+                .extent([[0, 0], [width, height]])
+                .on("end", updateChart)
 
-        let scatter = svg.append('g')
-            .attr("clip-path", "url(#clip)")
+            var scatter = svg.append('g')
+                .attr("clip-path", "url(#clip)")
 
-        scatter
-            .selectAll("circle")
-            .data(_data)
-            .enter()
-            .append("circle")
-            .attr("cx", function (d) {
-                return x(d[headerNames[0]]);
-            })
-            .attr("cy", function (d) {
-                return y(d[headerNames[1]]);
-            })
-            .attr("r", 8)
-            .style("fill", function (d) {
-                return color(d[headerNames[2]])
-            })
-            .style("opacity", 0.5)
-
-        scatter
-            .append("g")
-            .attr("class", "brush")
-            .call(brush);
-
-        let idleTimeout
-
-        function idled() {
-            idleTimeout = null;
-        }
-
-        function updateChart() {
-            let extent = d3.event.selection;
-
-            if (!extent) {
-                if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
-                x.domain([4, 8])
-            } else {
-                x.domain([x.invert(extent[0]), x.invert(extent[1])])
-                scatter.select(".brush").call(brush.move, null)
-            }
-
-            xAxis.transition().duration(1000).call(d3.axisBottom(x))
             scatter
                 .selectAll("circle")
-                .transition().duration(1000)
+                .data(_data)
+                .enter()
+                .append("circle")
                 .attr("cx", function (d) {
                     return x(d[headerNames[0]]);
                 })
                 .attr("cy", function (d) {
                     return y(d[headerNames[1]]);
                 })
+                .attr("r", 8)
+                .style("fill", function (d) {
+                    return color(d[headerNames[2]])
+                })
+                .style("opacity", 0.5)
 
-        }
+            scatter
+                .append("g")
+                .attr("class", "brush")
+                .call(brush);
+
+            var idleTimeout
+
+            function idled() {
+                idleTimeout = null;
+            }
+
+            function updateChart() {
+                let extent = d3.event.selection;
+
+                if (!extent) {
+                    if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
+                    x.domain([4, 8])
+                } else {
+                    x.domain([x.invert(extent[0]), x.invert(extent[1])])
+                    scatter.select(".brush").call(brush.move, null)
+                }
+
+                xAxis.transition().duration(1000).call(d3.axisBottom(x))
+                scatter
+                    .selectAll("circle")
+                    .transition().duration(1000)
+                    .attr("cx", function (d) {
+                        return x(d[headerNames[0]]);
+                    })
+                    .attr("cy", function (d) {
+                        return y(d[headerNames[1]]);
+                    })
+
+            }
+        };
     }
 
     createDivElem(width, height) {
