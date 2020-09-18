@@ -104,7 +104,7 @@ macro_rules! define_bindings {
             /// Sometimes we want to listen for mouse event for element without ResizeObserver. Thus
             /// some html element may be passed as a size provider, and another one where we attach
             /// listeners (for example `body` and `window` respectively).
-            pub fn new_internal
+            pub fn new_separated
             (dom:&web::dom::WithKnownShape<web::EventTarget>,target:&web::EventTarget) -> Self {
                 let dispatchers = MouseManagerDispatchers::default();
                 let dom         = dom.clone();
