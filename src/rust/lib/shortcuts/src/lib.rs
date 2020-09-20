@@ -133,23 +133,23 @@ impl<T:Clone> RegistryModel<T> {
 
             for chunk in expr.split('+').map(|t| t.trim()) {
                 let map = if special_keys.contains(chunk) { &mut special } else { &mut normal };
-                map.push(chunk);
+                map.push(vec![chunk.into()]);
             }
 
-            let mut all = special.clone();
-            all.extend(&normal);
+            let mut all : Vec<Vec<String>> = special.clone();
+            all.extend(normal);
             self.add_key_permutations(self.nfa.start, &all)
         };
         self.action_map.entry(action_type).or_default().insert(end_state,action.into());
     }
 
     /// Process the press input event. See `on_event` docs to learn more.
-    pub fn on_press(&mut self, input:&str) -> Vec<T> {
+    pub fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> {
         self.on_event(input,true)
     }
 
     /// Process the release input event. See `on_event` docs to learn more.
-    pub fn on_release(&mut self, input:&str) -> Vec<T> {
+    pub fn on_release(&mut self, input:impl AsRef<str>) -> Vec<T> {
         self.on_event(input,false)
     }
 
@@ -163,34 +163,43 @@ impl<T:Clone> RegistryModel<T> {
 }
 
 
+// #[derive(Clone,Debug,Eq,Ord,PartialEq,PartialOrd)]
+// struct KeyCombination(Vec<String>)
+
 // === Private API ===
 
 impl<T:Clone> RegistryModel<T> {
-    fn add_key_permutations(&mut self, source:nfa::State, keys:&[&str]) -> nfa::State {
-        self.dirty = true;
+    fn add_key_permutations(&mut self, source:nfa::State, keys:&[Vec<String>]) -> nfa::State {
+        println!("-----");
+        println!("{:?}",keys);
 
         let len = keys.len();
         let mut state = source;
 
         for perm in keys.iter().permutations(len) {
             state = source;
-            let mut path  = vec![];
+            let mut path : Vec<&str> = vec![];
             let mut repr  = String::new();
-            for key in perm {
-                path.push(*key);
-                path.sort();
-                repr  = path.join(" ");
-                state = match self.states.get(&repr) {
-                    Some(&target) => {
-                        self.bidirectional_connect(state,target,key.to_string());
-                        target
-                    },
-                    None => {
-                        let out = self.bidirectional_pattern(state,key.to_string());
-                        self.states.insert(repr.clone(),out);
-                        out
+            for alt_keys in perm {
+                // FIXME: this is wrong - here we should do alt between patterns
+                for key in alt_keys {
+                    path.push(key);
+                    path.sort();
+                    repr  = path.join(" ");
+                    state = match self.states.get(&repr) {
+                        Some(&target) => {
+                            println!("bidirectional connect {}", key.to_string());
+                            self.bidirectional_connect(state,target,key.to_string());
+                            target
+                        },
+                        None => {
+                            println!("bidirectional pattern {}", key.to_string());
+                            let out = self.bidirectional_pattern(state,key.to_string());
+                            self.states.insert(repr.clone(),out);
+                            out
+                        }
                     }
-                }
+               }
             }
         }
         state
@@ -221,11 +230,11 @@ impl<T:Clone> RegistryModel<T> {
     /// Process the `input` event. Events are strings uniquely identifying the source of the event,
     /// like "key_a", or "mouse_button_1". The `press` parameter is set to true if it was a press
     /// event, and is set to false in case of a release event.
-    fn on_event(&mut self, input:&str, press:bool) -> Vec<T> {
+    fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
         self.recompute_on_dirty();
         let action        = if press { Press }       else { Release };
         let double_action = if press { DoublePress } else { DoubleClick };
-        let input         = input.to_lowercase();
+        let input         = input.as_ref().to_lowercase();
         let symbol_input  = if press { input.clone() } else { format!("-{}",input) };
         let symbol        = Symbol::from(hash(&symbol_input));
         let current_state = self.current;
@@ -311,12 +320,12 @@ impl<T:Clone> Registry<T> {
     }
 
     /// Process the press input event. See `on_event` docs to learn more.
-    pub fn on_press(&self, input:&str) -> Vec<T> {
+    pub fn on_press(&self, input:impl AsRef<str>) -> Vec<T> {
         self.rc.borrow_mut().on_press(input)
     }
 
     /// Process the release input event. See `on_event` docs to learn more.
-    pub fn on_release(&self, input:&str) -> Vec<T> {
+    pub fn on_release(&self, input:impl AsRef<str>) -> Vec<T> {
         self.rc.borrow_mut().on_release(input)
     }
 

@@ -14,6 +14,28 @@ use wasm_bindgen::JsCast;
 
 
 
+// ============
+// === Side ===
+// ============
+
+/// The key placement enum.
+#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
+pub enum Side {
+    Left,Right
+}
+
+impl Side {
+    pub fn simple_name(&self) -> &'static str {
+        match self {
+            Self::Left  => "left",
+            Self::Right => "right"
+        }
+    }
+}
+
+
+
 // ===========
 // === Key ===
 // ===========
@@ -30,12 +52,7 @@ pub enum Key {
     Other   (String)
 }
 
-/// The key placement enum.
-#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
-#[allow(missing_docs)]
-pub enum Side {
-    Left,Right
-}
+
 
 impl Key {
     pub fn new(label:String, code:String) -> Self {
@@ -64,13 +81,14 @@ impl Key {
         }
     }
 
-    pub fn simple_name(&self) -> &str {
+    pub fn simple_name(&self) -> String {
+        let fmt = |side:&Side,repr| format!("{}-{}",repr,side.simple_name());
         match self {
-            Self::Alt(_) => "alt",
-            Self::Control(_) => "ctrl",
-            Self::Meta(_) => "meta",
-            Self::Shift(_) => "shift",
-            Self::Other(s) => s
+            Self::Alt     (side) => fmt(side,"alt"),
+            Self::Control (side) => fmt(side,"ctrl"),
+            Self::Meta    (side) => fmt(side,"meta"),
+            Self::Shift   (side) => fmt(side,"shift"),
+            Self::Other   (repr) => repr.into()
         }
     }
 }

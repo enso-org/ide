@@ -6,6 +6,7 @@ use super::command;
 
 use crate::frp::io::keyboard::Keyboard;
 use crate::frp::io::keyboard;
+use crate::frp::io::keyboard2;
 use crate::frp::io::mouse::Mouse;
 use crate::frp::io::mouse;
 use crate::frp;
