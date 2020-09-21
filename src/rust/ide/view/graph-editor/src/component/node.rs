@@ -180,10 +180,9 @@ pub struct NodeModel {
     pub main_area      : component::ShapeView<shape::Shape>,
     pub drag_area      : component::ShapeView<drag_area::Shape>,
     pub ports          : port::Manager,
-    pub output_ports   : OutputPorts,
-
     pub visualization  : visualization::Container,
-    }
+    pub output_ports   : OutputPorts,
+}
 
 
 impl NodeModel {
