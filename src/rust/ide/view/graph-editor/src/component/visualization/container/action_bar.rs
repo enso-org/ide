@@ -255,6 +255,8 @@ impl QuickActionBarModel {
         self.add_child(&self.hover_area);
         self.set_label("None");
 
+        self.visualisation_chooser_label.frp.set_default_color.emit(color::Rgba::new(1.0,1.0,1.0,1.0));
+
         // Remove default parent, then hide icons.
         self.show_quick_action_icons();
         self.hide_quick_action_icons();
@@ -274,18 +276,13 @@ impl QuickActionBarModel {
         self.visualization_chooser_overlay.shape.sprite.size.set(Vector2::new(width/2.0,height));
         self.visualization_chooser_overlay.set_position_x(width/4.0);
 
-        self.update_label_position();
+        self.visualisation_chooser_label.set_position_y(0.25 * height);
+
     }
 
     fn set_label(&self, label:&str) {
         self.visualisation_chooser_label.shape.label.set_text(label);
         self.update_label_position()
-    }
-
-    fn update_label_position(&self) {
-        let offset = self.size.get().y + self.visualisation_chooser_label.shape.width();
-        let width  = self.size.get().x;
-        self.visualisation_chooser_label.set_position_x(width/2.0-offset);
     }
 
     fn show_quick_action_icons(&self) {
@@ -369,6 +366,10 @@ impl QuickActionBar {
             eval_ any_component_out  (frp.on_mouse_out.emit(()));
 
             eval_ visualization_chooser_overlay.mouse_down (frp.on_visualisation_chooser_clicked.emit(()));
+
+            eval model.visualisation_chooser_label.width ((width) {
+                model.visualisation_chooser_label.set_position_x(-width/2.0);
+            });
         }
 
         self

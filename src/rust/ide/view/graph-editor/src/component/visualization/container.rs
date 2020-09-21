@@ -34,6 +34,7 @@ use ensogl_theme as theme;
 
 
 
+
 // =================
 // === Constants ===
 // =================
@@ -455,9 +456,12 @@ impl ContainerModel {
         }
 
         self.quick_action_bar.set_position_y((size.y - QUICK_ACTION_BAR_HEIGHT) / 2.0);
-        self.visualization_chooser.set_position_y((size.y / 2.0) - QUICK_ACTION_BAR_HEIGHT * 1.25);
-        self.visualization_chooser.frp.set_width.emit(size.x / 2.0);
 
+        let chooser_size = self.visualization_chooser.frp.size.value().borrow().clone();
+        self.visualization_chooser.frp.resize.emit(Vector2::new(size.y / 1.5, size.x / 2.0));
+
+        self.visualization_chooser.set_position_y((size.y / 2.0) - (chooser_size.y / 2.0) - QUICK_ACTION_BAR_HEIGHT * 1.25);
+        self.visualization_chooser.set_position_x((chooser_size.x / 2.0));
 
         if let Some(viz) = &*self.visualization.borrow() {
             viz.set_size.emit(size);
@@ -598,8 +602,8 @@ impl Container {
             eval model.frp.preprocessor    ((code) inputs.preprocessor_select.emit(code));
         }
         // Visualisation chooser frp bindings
-        frp::extend! { network
-            visualisation_chooser_active       <- source::<bool>();
+        frp::extend! { TRACE_ALL network
+            visualisation_chooser_active         <- source::<bool>();
             visualisation_chooser_active_sampler <- visualisation_chooser_active.sampler();
 
             hide_visualisation_chooser <- quick_action_bar.mouse_out.gate_not(&visualisation_chooser_active);
@@ -620,14 +624,13 @@ impl Container {
                     model.show_visualisation();
                     visualisation_chooser_active.emit(false);
                 }
-
             });
-            eval_ visualization_chooser.mouse_out ([model,quick_action_bar,visualisation_chooser_active]{
-                model.hide_visualisation_chooser();
-                model.show_visualisation();
-                quick_action_bar.hide_icons.emit(());
-                visualisation_chooser_active.emit(false);
-            });
+            // eval_ visualization_chooser.mouse_out ([model,quick_action_bar,visualisation_chooser_active]{
+            //     model.hide_visualisation_chooser();
+            //     model.show_visualisation();
+            //     quick_action_bar.hide_icons.emit(());
+            //     visualisation_chooser_active.emit(false);
+            // });
 
             eval visualization_chooser.selection([model,registry,scene,visualisation_chooser_active,quick_action_bar](visualization_path) {
                 if let Some(visualization_path) = visualization_path {
