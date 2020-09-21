@@ -98,7 +98,6 @@ impl RawTextModel {
         dom.dom().set_style_or_warn("overflow-x"    ,"auto"          ,&logger);
         dom.dom().set_style_or_warn("font-family"   ,"dejavuSansMono",&logger);
         dom.dom().set_style_or_warn("font-size"     ,"11px"          ,&logger);
-        dom.dom().set_style_or_warn("margin-left"   ,"12px"          ,&logger);
         dom.dom().set_style_or_warn("color"         ,text_color      ,&logger);
         dom.dom().set_style_or_warn("pointer-events","auto"          ,&logger);
 
