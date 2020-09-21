@@ -43,16 +43,8 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        // FIXME : This should be working, and enable moving node from top of
-        //         Scatterplot, but it doesn't work at all, breaking the scatterplot.
-        //         Maybe it needs pointer-events:all? Should be debugged with (#797).
-        // let ptrStyle = document.createElement("style");
-        // ptrStyle.innerText = ```
-        //     .brush,
-        //     .overlay {
-        //         pointer-events: auto !important;
-        //     }```
-        // document.head.appendChild(ptrStyle);
+        // FIXME : SVG eagerly gets all pointer events from top of it, even if
+        //         node overlaps it. Should be debugged with (#797).
 
         let parsedData  = JSON.parse(data);
         let dataSource  = parsedData.source || "";
