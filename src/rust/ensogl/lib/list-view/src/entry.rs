@@ -241,7 +241,7 @@ impl List {
     /// Y range of all entries in this list, including not displayed.
     pub fn y_range_of_all_entries(entry_count:usize) -> Range<f32> {
         let start = if entry_count > 0 {
-            Self::position_y_of_entry(entry_count.saturating_sub(1)) - HEIGHT / 2.0
+            Self::position_y_of_entry(entry_count - 1) - HEIGHT / 2.0
         } else {
             HEIGHT / 2.0
         };
