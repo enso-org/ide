@@ -67,7 +67,7 @@ class MapViewVisualization extends Visualization {
 
         const deckgl = new deck.DeckGL({
             container: 'map',
-            mapboxApiAccessToken: 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2pudzRtaWloMDAzcTN2bzN1aXdxZHB5bSJ9.2bkj3IiRC8wj3jLThvDGdA',
+            mapboxApiAccessToken: 'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q',
             mapStyle: parsedData.mapStyle || 'mapbox://styles/mapbox/light-v9',
             initialViewState: {
                 longitude: parsedData.longitude || 0.0,
