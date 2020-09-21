@@ -360,7 +360,7 @@ impl ContainerModel {
     fn init(self) -> Self {
         self.update_shape_sizes();
         self.init_corner_roundness();
-        // FIXME: These 4 lines fix a bug with display objects visible on stage.
+        // FIXME: These 2 lines fix a bug with display objects visible on stage.
         self.set_visibility(true);
         self.set_visibility(false);
         self
@@ -384,10 +384,6 @@ impl ContainerModel {
             self.scene.add_child(&self.fullscreen_view);
         }
         else {
-            // FIXME: If we hide the children also, they stay visible and no longer move
-            // with the parent
-            self.show_visualisation();
-
             self.remove_child(&self.view);
             self.scene.remove_child(&self.fullscreen_view);
         }
@@ -532,18 +528,14 @@ impl Container {
         let size                = Animation::<Vector2>::new(network);
         let fullscreen_position = Animation::<Vector3>::new(network);
 
-        // let visualization_chooser  = &model.visualization_chooser.frp;
-        let action_bar       = &model.action_bar.frp;
-        let registry = &model.registry;
+        let action_bar          = &model.action_bar.frp;
+        let registry            = &model.registry;
 
         frp::extend! { network
-            eval  inputs.set_visibility                 ((v) model.set_visibility(*v));
-            eval_ inputs.toggle_visibility              (model.toggle_visibility());
-            eval  inputs.set_visualization              ((v) {
-                model.set_visualization(v.clone());
-                model.action_bar.frp.set_label.emit("VisName".to_string());
-            });
-            eval  inputs.set_data                       ((t) model.set_visualization_data(t));
+            eval  inputs.set_visibility    ((v) model.set_visibility(*v));
+            eval_ inputs.toggle_visibility (model.toggle_visibility());
+            eval  inputs.set_visualization ((v) model.set_visualization(v.clone()));
+            eval  inputs.set_data          ((t) model.set_visualization_data(t));
             eval  inputs.set_visualization_alternatives ((alternatives) {
                 action_bar.input.set_visualization_alternatives.emit(alternatives)
             });
@@ -577,7 +569,9 @@ impl Container {
             eval fullscreen_position.value ((p) model.fullscreen_view.set_position(*p));
             eval model.frp.preprocessor    ((code) inputs.preprocessor_select.emit(code));
         }
-        // Visualisation chooser frp bindings
+
+
+        // ===  Visualisation chooser frp bindings ===
         frp::extend! { network
             eval action_bar.visualisation_selection([model,registry,scene,action_bar](visualization_path) {
                 if let Some(path) = visualization_path {

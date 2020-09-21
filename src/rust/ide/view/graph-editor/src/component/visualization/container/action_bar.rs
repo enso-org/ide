@@ -124,7 +124,7 @@ struct Model {
 impl Model {
     fn new(app:&Application) -> Self {
         let scene                         = app.display.scene();
-        let logger                        = Logger::new("QuickActionBarModel");
+        let logger                        = Logger::new("ActionBarModel");
         let background                    = component::ShapeView::new(&logger,scene);
         let hover_area                    = component::ShapeView::new(&logger,scene);
         let visualization_chooser         = visualization_chooser::VisualisationChooser::new(&app);
@@ -204,27 +204,24 @@ impl display::Object for Model {
 
 
 
-// ========================
-// === Quick Action Bar ===
-// ========================
+// ==================
+// === Action Bar ===
+// ==================
 
-/// UI for executing actions on a node. Consists of a number of interactive elements that are shown
-/// when the area of the quick action bar is hovered and provides frp events when they are clicked.
-///
+/// UI for executing actions on a node. Consists of label indicating the active visualization
+/// and a drop-down menu for selecting a new visualisation.
 /// Layout
 /// ------
 /// ```text
 ///     / ---------------------------- \
-///    |                    <label> V   |
+///    |            <label>         V   |
 ///    |--------------------------------|
 ///
-/// TODO: will be extended with more quick action icons in #538
 /// ```
 #[derive(Clone,CloneRef,Debug)]
 pub struct QuickActionBar {
-    model   : Rc<Model>,
-    /// Public FRP api.
-    pub frp : Frp
+         model : Rc<Model>,
+    pub frp    : Frp
 }
 
 impl QuickActionBar {
@@ -246,40 +243,41 @@ impl QuickActionBar {
 
         frp::extend! { network
 
+
+            // === Input Processing ===
             eval frp.set_size ((size)   model.set_size(*size));
             eval frp.set_label ((label) model.set_label(label));
+            eval_ frp.hide_icons ( model.hide() );
+            eval_ frp.show_icons ( model.show() );
 
             eval frp.input.set_visualization_alternatives ((alternatives){
                 visualization_chooser.input.set_alternatives.emit(alternatives);
             });
 
-            eval_ frp.hide_icons ( model.hide() );
-            eval_ frp.show_icons ( model.show() );
 
-
-
-            any_component_over <- any(&hover_area.mouse_over,&visualization_chooser.icon_mouse_over);
-            any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser.icon_mouse_out);
-
-            any_hovered <- source::<bool>();
-            eval_ any_component_over ( any_hovered.emit(true) );
-            eval_ any_component_out ( any_hovered.emit(false) );
-
-            eval_ any_component_over (model.show());
-            hide_icons  <- any_component_out.gate_not(&visualization_chooser.menu_open);
-            hide_icons2 <- visualization_chooser.menu_closed.gate_not(&any_hovered);
-            eval_ hide_icons (model.hide());
-            eval_ hide_icons2 (model.hide());
-
-
+            // === Additional Layouting ===
             eval model.visualisation_chooser_label.width ((width) {
                 model.visualisation_chooser_label.set_position_x(-width/2.0);
             });
 
+
+            // === Mouse Interactions ===
+            any_component_over <- any(&hover_area.mouse_over,&visualization_chooser.icon_mouse_over);
+            any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser.icon_mouse_out);
+
+            any_hovered <- source::<bool>();
+            eval_ any_component_over ( any_hovered.emit(true)  );
+            eval_ any_component_out  ( any_hovered.emit(false) );
+
+            eval_ any_component_over (model.show());
+
+            mouse_out_no_menu <- any_component_out.gate_not(&visualization_chooser.menu_visible);
+            remote_click      <- visualization_chooser.menu_closed.gate_not(&any_hovered);
+            hide              <- any(mouse_out_no_menu,remote_click);
+            eval_ hide (model.hide());
+
             frp.source.visualisation_selection <+ visualization_chooser.selected_visualization;
-
         }
-
         self
     }
 }

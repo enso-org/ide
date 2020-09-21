@@ -5,7 +5,6 @@ use crate::prelude::*;
 
 use crate::component::visualization;
 
-
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
@@ -30,6 +29,7 @@ const HOVER_COLOR    : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 // === Shapes ===
 // ==============
 
+/// Icon that indicates the drop down menu.
 pub mod icon {
     use super::*;
 
@@ -48,8 +48,7 @@ pub mod icon {
     }
 }
 
-/// Invisible rectangular area that can be hovered.
-/// Note: needs to be an extra shape for sorting purposes.
+/// Invisible rectangular area around the icon
 pub mod chooser_hover_area {
     use super::*;
 
@@ -67,13 +66,14 @@ pub mod chooser_hover_area {
 
 
 // =============================
-// === VisualisationPathList ===
+// === Visualisation Path List ===
 // =============================
 
-
+/// The `VisualisationPathList` allows us to show a `Vec<visualization::Path>` in the
+/// `list_view::ListView` by implementing `list_view::entry::ModelProvider`.
 #[derive(Clone,Debug,Default)]
 struct VisualisationPathList {
-    pub content: Vec<visualization::Path>
+    content: Vec<visualization::Path>
 }
 
 impl From<Vec<visualization::Path>> for VisualisationPathList {
@@ -95,6 +95,8 @@ impl list_view::entry::ModelProvider for VisualisationPathList {
     }
 }
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -107,7 +109,7 @@ ensogl_text::define_endpoints! {
         hide_selection_menu (),
     }
     Output {
-        menu_open               (bool),
+        menu_visible            (bool),
         menu_closed             (),
         selected_visualization  (Option<visualization::Path>),
         icon_mouse_over         (),
@@ -127,12 +129,12 @@ struct Model {
     app            : Application,
     display_object : display::object::Instance,
 
-    icon         : component::ShapeView<icon::Shape>,
-    icon_overlay : component::ShapeView<chooser_hover_area::Shape>,
+    icon           : component::ShapeView<icon::Shape>,
+    icon_overlay   : component::ShapeView<chooser_hover_area::Shape>,
 
     selection_menu             : list_view::ListView,
     visualization_alternatives : RefCell<Option<VisualisationPathList>>,
-    }
+}
 
 impl Model {
     pub fn new(app:&Application) -> Self {
@@ -176,6 +178,7 @@ impl display::Object for Model {
 }
 
 
+
 // ============================
 // === VisualisationChooser ===
 // ============================
@@ -188,8 +191,8 @@ pub struct VisualisationChooser {
 
 impl VisualisationChooser {
     pub fn new(app:&Application) -> Self {
-        let frp           = Frp::new_network();
-        let model         = Rc::new(Model::new(app));
+        let frp   = Frp::new_network();
+        let model = Rc::new(Model::new(app));
         Self {frp,model}.init(app)
     }
 
@@ -198,27 +201,13 @@ impl VisualisationChooser {
         let frp      = &self.frp;
         let model    = &self.model;
 
-        let scene            = app.display.scene();
-        let mouse            = &scene.mouse.frp;
+        let scene    = app.display.scene();
+        let mouse    = &scene.mouse.frp;
 
         frp::extend! { network
 
-            icon_hovered <- source::<bool>();
-            eval_ model.icon_overlay.events.mouse_over ( icon_hovered.emit(true) );
-            eval_ model.icon_overlay.events.mouse_out ( icon_hovered.emit(false) );
 
-            selection_menu_visible         <- source::<bool>();
-            selection_menu_visible_sampler <- selection_menu_visible.sampler();
-
-            icon_size <- all(frp.input.set_icon_size,frp.input.set_icon_padding);
-            eval icon_size (((size,padding)) {
-                model.icon.shape.sprite.size.set(size-2.0*padding);
-                model.icon_overlay.shape.sprite.size.set(*size);
-            });
-
-            frp.source.icon_mouse_over <+ model.icon_overlay.events.mouse_over;
-            frp.source.icon_mouse_out  <+ model.icon_overlay.events.mouse_out;
-
+            // === Simple Input Processing ===
 
             eval  frp.input.set_alternatives ([model](alternatives) {
                 let item_count = alternatives.len();
@@ -230,6 +219,15 @@ impl VisualisationChooser {
                 model.selection_menu.frp.set_entries.emit(alternatives);
             });
 
+
+            // === Layouting ===
+
+            icon_size <- all(frp.input.set_icon_size,frp.input.set_icon_padding);
+            eval icon_size (((size,padding)) {
+                model.icon.shape.sprite.size.set(size-2.0*padding);
+                model.icon_overlay.shape.sprite.size.set(*size);
+            });
+
             resiz_menu <- all(model.selection_menu.size,frp.input.set_icon_size);
             eval resiz_menu (((menu_size,icon_size)) {
                 // Align the top of the menu to the bottom of the icon.
@@ -238,46 +236,66 @@ impl VisualisationChooser {
                 model.selection_menu.set_position_x(-menu_size.x/2.0+icon_size.x/2.0);
             });
 
-           eval model.selection_menu.chosen_entry([frp,model,selection_menu_visible](entry_id) {
+
+             // === Menu State ===
+
+            selection_menu_visible         <- source::<bool>();
+            selection_menu_visible_sampler <- selection_menu_visible.sampler();
+
+            hide_menu <- source::<()>();
+            show_menu <- source::<()>();
+
+            eval_ hide_menu ([frp,model,selection_menu_visible]{
+                model.hide_selection_menu();
+                selection_menu_visible.emit(false);
+                frp.source.menu_visible.emit(false);
+                frp.source.menu_closed.emit(());
+            });
+
+             eval_ show_menu ([frp,model,selection_menu_visible]{
+                model.show_selection_menu();
+                selection_menu_visible.emit(true);
+                frp.source.menu_visible.emit(true);
+            });
+
+            // === Selection ===
+
+            eval model.selection_menu.chosen_entry([frp,model,hide_menu](entry_id) {
                 if let Some(entry_id) = entry_id {
                     let paths = model.visualization_alternatives.borrow_mut().clone().unwrap();
                     let visualization_path = paths.content.get(*entry_id).cloned();
                     frp.source.selected_visualization.emit(visualization_path);
                 }
-                model.hide_selection_menu();
-                selection_menu_visible.emit(false);
-                frp.source.menu_open.emit(false);
-                frp.source.menu_closed.emit(());
-
+                hide_menu.emit(());
             });
 
-           eval_ model.icon_overlay.events.mouse_down ([model,selection_menu_visible,frp]{
-              if !selection_menu_visible_sampler.value() {
-                    model.show_selection_menu();
-                    selection_menu_visible.emit(true);
-                    frp.source.menu_open.emit(true);
+
+            // === Menu Toggle Through Mouse Interaction ===
+
+            icon_hovered <- source::<bool>();
+            eval_ model.icon_overlay.events.mouse_over ( icon_hovered.emit(true) );
+            eval_ model.icon_overlay.events.mouse_out ( icon_hovered.emit(false) );
+
+            frp.source.icon_mouse_over <+ model.icon_overlay.events.mouse_over;
+            frp.source.icon_mouse_out  <+ model.icon_overlay.events.mouse_out;
+
+            eval_ model.icon_overlay.events.mouse_down ([show_menu,hide_menu]{
+                if !selection_menu_visible_sampler.value() {
+                    show_menu.emit(());
                 } else {
-                    model.hide_selection_menu();
-                    selection_menu_visible.emit(false);
-                    frp.source.menu_open.emit(false);
-                    frp.source.menu_closed.emit(());
+                    hide_menu.emit(());
                 }
            });
 
-           mouse_down <- mouse.down.constant(());
+
+           // === Close Menu ===
+
+           mouse_down        <- mouse.down.constant(());
            mouse_down_remote <- mouse_down.gate_not(&icon_hovered);
-           hide_menu <- any(&frp.hide_selection_menu,&mouse_down_remote);
-           eval_ hide_menu ([model,selection_menu_visible,frp] {
-                model.hide_selection_menu();
-                selection_menu_visible.emit(false);
-                frp.source.menu_open.emit(false);
-                 frp.source.menu_closed.emit(());
+           dismiss_menu      <- any(&frp.hide_selection_menu,&mouse_down_remote);
+           eval_ dismiss_menu ([hide_menu] {
+               hide_menu.emit(());
            });
-
-
-
-
-
         }
 
         self
