@@ -14,7 +14,6 @@ use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 
 
-
 // =================
 // === Constants ===
 // =================
@@ -27,6 +26,7 @@ pub const VIEW_HEIGHT : f32 = 300.0;
 /// Content in the documentation view when there is no data available.
 const PLACEHOLDER_STR : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
 const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
+const PADDING         : f32  = 5.0;
 
 /// Get documentation view stylesheet from a CSS file.
 ///
@@ -71,7 +71,7 @@ impl ViewModel {
         dom.dom().set_style_or_warn("overflow-y"      ,"auto"                        ,&logger);
         dom.dom().set_style_or_warn("overflow-x"      ,"auto"                        ,&logger);
         dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"   ,&logger);
-        dom.dom().set_style_or_warn("padding"         ,"5px"                         ,&logger);
+        dom.dom().set_style_or_warn("padding"         ,format!("{}px",PADDING)       ,&logger);
         dom.dom().set_style_or_warn("pointer-events"  ,"auto"                        ,&logger);
         dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS) ,&logger);
         dom.dom().set_style_or_warn("box-shadow"      ,"0 0 16px rgba(0, 0, 0, 0.06)",&logger);
@@ -207,14 +207,11 @@ impl ViewModel {
 
     fn reload_style(&self) {
         let size        = self.size.get();
-        // Div element does not count border radius to its width and height.
-        let real_width    = size.x - CORNER_RADIUS / 2.0.sqrt();
-        let real_height   = size.y - CORNER_RADIUS / 2.0.sqrt();
-        let lesser        = real_width.min(real_height);
-        let corner_radius = CORNER_RADIUS + (lesser * 2.0.sqrt()).min(0.0);
-        println!("setting size and corner radius: {} {} {}",real_width,real_height,corner_radius);
-        self.dom.set_size(Vector2(real_width.max(0.0),real_height.max(0.0)));
-        self.dom.dom().set_style_or_warn("border-radius",format!("{}px",corner_radius),&self.logger);
+        let real_width  = (size.x - 2.0 * PADDING).max(0.0);
+        let real_height = (size.y - 2.0 * PADDING).max(0.0);
+        let padding     = (size.x.min(size.y) / 2.0).min(PADDING);
+        self.dom.set_size(Vector2(real_width,real_height));
+        self.dom.dom().set_style_or_warn("padding",format!("{}px",padding),&self.logger);
     }
 }
 
