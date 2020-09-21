@@ -2,19 +2,20 @@
 
 use crate::prelude::*;
 
-use crate::component::node::icon;
 use crate::component::node;
+use crate::component::visualization::container::visualization_chooser;
+use crate::component::visualization;
+
 
 use enso_frp as frp;
 use enso_frp;
 use ensogl::data::color;
-use ensogl::display::Sprite;
-use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
+use ensogl_text as text;
 
 
 
@@ -99,6 +100,8 @@ pub mod text {
 
 
 
+
+
 // ===============
 // === Shapes  ===
 // ===============
@@ -160,53 +163,18 @@ pub mod background {
 // === Frp ===
 // ===========
 
-/// FRP api of the `QuickActionBar`.
-#[derive(Clone,CloneRef,Debug)]
-pub struct Frp {
-    /// Set the label indicating the active visualisation name.
-    pub set_label  : frp::Source<String>,
-    /// Set the size of the `QuickActionBar`.
-    pub set_size   : frp::Source<Vector2>,
-    /// Show the interactive elements of the `QuickActionBar`.
-    pub show_icons : frp::Source,
-    /// Show the interactive elements of the `QuickActionBar`.
-    pub hide_icons : frp::Source,
-
-    on_visualisation_chooser_clicked : frp::Source,
-
-    /// Click event for the visualisation chooser label and arrow icon.
-    pub visualisation_chooser_clicked    : frp::Stream,
-
-        on_mouse_over                    : frp::Source,
-        on_mouse_out                     : frp::Source,
-    /// Mouse over event for the quick action area. Included the invisible hover area.
-    pub mouse_over                       : frp::Stream,
-    /// Mouse out event for the quick action area. Included the invisible hover area.
-    pub mouse_out                        : frp::Stream,
-
-}
-
-impl Frp {
-    fn new(network: &frp::Network) -> Self {
-        frp::extend! { network
-            set_label                        <- source();
-            set_size                         <- source();
-            show_icons                       <- source();
-            hide_icons                       <- source();
-            on_visualisation_chooser_clicked <- source();
-
-            let visualisation_chooser_clicked = on_visualisation_chooser_clicked.clone_ref().into();
-
-            on_mouse_over                      <- source();
-            on_mouse_out                       <- source();
-            let mouse_over = on_mouse_over.clone_ref().into();
-            let mouse_out  = on_mouse_out.clone_ref().into();
-
-
-        }
-
-        Self{set_label,set_size,on_visualisation_chooser_clicked,visualisation_chooser_clicked,
-            on_mouse_over,on_mouse_out,mouse_over,mouse_out,show_icons,hide_icons}
+ensogl_text::define_endpoints! {
+    Input {
+        set_label (String),
+        set_size (Vector2),
+        show_icons (),
+        hide_icons (),
+        set_visualization_alternatives (Vec<visualization::Path>),
+    }
+    Output {
+        visualisation_selection  (Option<visualization::Path>),
+        mouse_over   (),
+        mouse_out    (),
     }
 }
 
@@ -217,16 +185,15 @@ impl Frp {
 // ==============================
 
 #[derive(Clone,CloneRef,Debug)]
-struct QuickActionBarModel {
-    hover_area                    : component::ShapeView<hover_area::Shape>,
-    visualization_chooser_icon    : component::ShapeView<icon::visualization_chooser::Shape>,
-    visualisation_chooser_label   : component::ShapeView<text::Shape>,
-    visualization_chooser_overlay : component::ShapeView<chooser_hover_area::Shape>,
-    background                    : component::ShapeView<background::Shape>,
+struct Model {
+    hover_area                   : component::ShapeView<hover_area::Shape>,
+    visualization_chooser        : visualization_chooser::VisualisationChooser,
+    background                   : component::ShapeView<background::Shape>,
+    visualisation_chooser_label  : text::Area,
 
-    display_object                : display::object::Instance,
+    display_object        : display::object::Instance,
 
-    size                          : Rc<Cell<Vector2>>,
+    size                  : Rc<Cell<Vector2>>,
 }
 
 impl QuickActionBarModel {
@@ -240,11 +207,10 @@ impl QuickActionBarModel {
         let display_object                = display::object::Instance::new(&logger);
         let size                          = default();
 
-        QuickActionBarModel{
+        Model {
             hover_area,
-            visualization_chooser_icon,
+            visualization_chooser,
             visualisation_chooser_label,
-            visualization_chooser_overlay,
             display_object,
             size,
             background,
@@ -253,6 +219,7 @@ impl QuickActionBarModel {
 
     fn init(self) -> Self {
         self.add_child(&self.hover_area);
+
         self.set_label("None");
 
         self.visualisation_chooser_label.frp.set_default_color.emit(color::Rgba::new(1.0,1.0,1.0,1.0));
@@ -271,10 +238,11 @@ impl QuickActionBarModel {
         let height        = size.y;
         let width         = size.x;
         let right_padding = height / 2.0;
-        self.visualization_chooser_icon.shape.sprite.size.set(Vector2::new(height/4.0,height/4.0));
-        self.visualization_chooser_icon.set_position_x((width/2.0) - right_padding);
-        self.visualization_chooser_overlay.shape.sprite.size.set(Vector2::new(width/2.0,height));
-        self.visualization_chooser_overlay.set_position_x(width/4.0);
+        self.visualization_chooser.frp.set_icon_size(Vector2::new(height,height));
+        self.visualization_chooser.frp.set_icon_padding(Vector2::new(height/3.0,height/3.0));
+        self.visualization_chooser.set_position_x((width/2.0) - right_padding);
+        // self.visualization_chooser_overlay.shape.sprite.size.set(Vector2::new(width/2.0,height));
+        // self.visualization_chooser_overlay.set_position_x(width/4.0);
 
         self.visualisation_chooser_label.set_position_y(0.25 * height);
 
@@ -290,6 +258,8 @@ impl QuickActionBarModel {
         self.add_child(&self.visualization_chooser_icon);
         self.add_child(&self.visualization_chooser_overlay);
         self.add_child(&self.background);
+        self.add_child(&self.visualisation_chooser_label);
+
     }
 
     fn hide_quick_action_icons(&self) {
@@ -297,10 +267,12 @@ impl QuickActionBarModel {
         self.visualisation_chooser_label.unset_parent();
         self.visualization_chooser_overlay.unset_parent();
         self.background.unset_parent();
+        self.visualisation_chooser_label.unset_parent();
+        self.visualization_chooser.frp.hide_selection_menu.emit(());
     }
 }
 
-impl display::Object for QuickActionBarModel {
+impl display::Object for Model {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
@@ -326,8 +298,7 @@ impl display::Object for QuickActionBarModel {
 /// ```
 #[derive(Clone,CloneRef,Debug)]
 pub struct QuickActionBar {
-    model   : Rc<QuickActionBarModel>,
-    network : frp::Network,
+    model   : Rc<Model>,
     /// Public FRP api.
     pub frp : Frp
 }
@@ -343,33 +314,47 @@ impl QuickActionBar {
     }
 
     fn init_frp(self) -> Self {
-        let network = &self.network;
+        let network = &self.frp.network;
         let frp     = &self.frp;
         let model   = &self.model;
 
-        let hover_area                    = &model.hover_area.events;
-        let visualization_chooser_overlay = &model.visualization_chooser_overlay.events;
+        let hover_area             = &model.hover_area.events;
+        let visualization_chooser  = &model.visualization_chooser.frp;
 
         frp::extend! { network
 
             eval frp.set_size ((size)   model.set_size(*size));
             eval frp.set_label ((label) model.set_label(label));
 
-             eval_ frp.hide_icons ( model.hide_quick_action_icons() );
-             eval_ frp.show_icons ( model.show_quick_action_icons() );
+            eval frp.input.set_visualization_alternatives ((alternatives){
+                visualization_chooser.input.set_alternatives.emit(alternatives);
+            });
 
-            any_component_over <- any(&hover_area.mouse_over,&visualization_chooser_overlay.mouse_over);
-            any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser_overlay.mouse_out);
+            eval_ frp.hide_icons ( model.hide() );
+            eval_ frp.show_icons ( model.show() );
 
-            eval_ any_component_over (model.show_quick_action_icons());
-            // TODO: consider avoiding mouse outs when changing internal shape only.
-            eval_ any_component_out  (frp.on_mouse_out.emit(()));
 
-            eval_ visualization_chooser_overlay.mouse_down (frp.on_visualisation_chooser_clicked.emit(()));
+
+            any_component_over <- any(&hover_area.mouse_over,&visualization_chooser.icon_mouse_over);
+            any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser.icon_mouse_out);
+
+            any_hovered <- source::<bool>();
+            eval_ any_component_over ( any_hovered.emit(true) );
+            eval_ any_component_out ( any_hovered.emit(false) );
+
+            eval_ any_component_over (model.show());
+            hide_icons  <- any_component_out.gate_not(&visualization_chooser.menu_open);
+            hide_icons2 <- visualization_chooser.menu_closed.gate_not(&any_hovered);
+            eval_ hide_icons (model.hide());
+            eval_ hide_icons2 (model.hide());
+
 
             eval model.visualisation_chooser_label.width ((width) {
                 model.visualisation_chooser_label.set_position_x(-width/2.0);
             });
+
+            frp.source.visualisation_selection <+ visualization_chooser.selected_visualization;
+
         }
 
         self

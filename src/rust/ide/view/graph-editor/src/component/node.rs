@@ -4,7 +4,6 @@
 // WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
 
 pub mod port;
-pub mod icon;
 
 pub use port::Expression;
 
