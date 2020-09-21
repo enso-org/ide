@@ -51,15 +51,14 @@ const QUICK_ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
 // === Shape ===
 // =============
 
-    /// Container background shape definition.
-    ///
-    /// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
-    /// container.
-    /// TODO : We do not use backgrounds because otherwise they would overlap JS
+/// Container background shape definition.
+///
+/// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
+/// container.
+/// TODO : We do not use backgrounds because otherwise they would overlap JS
 ///        visualizations. Instead we added a HTML background to the `View`.
-///        This should be further investigated while fixing rust visualization displaying. (#526)
-pub mod background {
-    use super::*;
+///        This should be further investigated while fixing rust visualization displaying. (#526)pub mod background {
+use super::*;
 
     ensogl::define_shape_system! {
         (style:Style,selected:f32,radius:f32,roundness:f32) {
