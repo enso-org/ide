@@ -277,10 +277,6 @@ impl ListView {
                 entry::List::entry_at_y_position(*y,model.entries.entry_count()).entry()
             ));
 
-            // === Mouse Events ===
-
-            frp.source.mouse_out  <+ mouse_in.gate_not(&mouse_in).constant(());
-            frp.source.mouse_over <+ mouse_in.gate(&mouse_in).constant(());
 
             // === Selected Entry ===
             frp.source.selected_entry <+ frp.select_entry.map(|id| Some(*id));
