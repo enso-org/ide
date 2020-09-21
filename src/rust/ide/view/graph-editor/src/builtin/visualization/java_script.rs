@@ -18,6 +18,13 @@ pub fn table_view_visualization() -> visualization::java_script::FallibleDefinit
     visualization::java_script::Definition::new(data::builtin_library(),source)
 }
 
+/// Return a `JavaScript` Scatterplot visualization.
+pub fn scatter_plot() -> visualization::java_script::FallibleDefinition {
+    let source = include_str!("java_script/scatterplot.js");
+
+    visualization::java_script::Definition::new(data::builtin_library(),source)
+}
+
 /// Return a `JavaScript` Bubble visualization.
 pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition {
     let source = include_str!("java_script/bubbleVisualization.js");
