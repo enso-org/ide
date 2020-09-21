@@ -329,7 +329,7 @@ pub struct ContainerModel {
     is_fullscreen   : Rc<Cell<bool>>,
     registry        : visualization::Registry,
 
-    action_bar           : QuickActionBar,
+    action_bar      : QuickActionBar,
 }
 
 
