@@ -105,8 +105,12 @@ impl Model {
     }
 
     fn documentation_for_entry(&self, id:Option<list_view::entry::Id>) -> String {
-        let doc     = id.and_then(|id| self.doc_provider.get().get_for_entry(id));
-        doc.unwrap_or_default()
+        if let Some(id) = id {
+            let doc = self.doc_provider.get().get_for_entry(id);
+            doc.unwrap_or_default()
+        } else {
+            " ".to_owned()
+        }
     }
 
     fn set_height(&self, h:f32) {

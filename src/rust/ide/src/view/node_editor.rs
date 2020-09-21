@@ -29,6 +29,7 @@ use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
 use crate::controller::searcher::suggestion::MatchInfo;
 use crate::controller::searcher::Suggestions;
+use crate::model::suggestion_database::EntryKind;
 
 
 // ==============
@@ -1086,7 +1087,20 @@ impl ide_view::searcher::DocumentationProvider for controller::searcher::suggest
         use controller::searcher::suggestion::Suggestion;
         iprintln!("Getting documentation for {id}");
         match self.get_cloned(id)?.suggestion {
-            Suggestion::Completion(completion) => completion.documentation.clone()
+            Suggestion::Completion(completion) => {
+                let doc = completion.documentation.clone();
+                Some(doc.unwrap_or_else(|| doc_placeholder_for(&completion)))
+            }
         }
     }
+}
+
+fn doc_placeholder_for(suggestion:&controller::searcher::suggestion::Completion) -> String {
+    let title = match suggestion.kind {
+        EntryKind::Atom     => "Atom",
+        EntryKind::Function => "Function",
+        EntryKind::Local    => "Local variable",
+        EntryKind::Method   => "Method",
+    };
+    format!("{} `{}`\n\nNo documentation available", title,suggestion.code_to_insert(None))
 }

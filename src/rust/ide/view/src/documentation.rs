@@ -92,7 +92,7 @@ impl ViewModel {
     }
 
     /// Generate HTML documentation from documented Enso code.
-    fn gen_html_from(string:&String, input_type:InputType) -> FallibleResult<String> {
+    fn gen_html_from(string:&str, input_type:InputType) -> FallibleResult<String> {
         if string.is_empty() {
             Ok(PLACEHOLDER_STR.into())
         } else {
@@ -136,8 +136,8 @@ impl ViewModel {
         Ok(())
     }
 
-    fn display_doc(&self, content:&String, content_type:InputType) {
-        let html = match ViewModel::gen_html_from(&content,content_type) {
+    fn display_doc(&self, content:&str, content_type:InputType) {
+        let html = match ViewModel::gen_html_from(content,content_type) {
             Ok(html)               => html,
             Err(err)               => {
                 error!(self.logger, "Documentation parsing error: {err:?}");
