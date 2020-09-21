@@ -492,7 +492,7 @@ mod test {
         assert_eq!(method.method_id()     , Some(expected));
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn initialize_database() {
         // Empty db
         let response = language_server::response::GetSuggestionDatabase {
@@ -509,7 +509,7 @@ mod test {
             module        : "TestProject.TestModule".to_string(),
             arguments     : vec![],
             return_type   : "TestAtom".to_string(),
-            documentation : Some("Test *Atom*".to_string())
+            documentation : None,
         };
         let db_entry = SuggestionsDatabaseEntry {id:12, suggestion:entry};
         let response = language_server::response::GetSuggestionDatabase {
@@ -517,14 +517,8 @@ mod test {
             current_version : 456
         };
         let db = SuggestionDatabase::from_ls_response(response);
-        let response_doc =
-            "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"UTF-8\" \
-            /><link rel=\"stylesheet\" href=\"style.css\" /><title></title></head><body><div class=\
-            \"Doc\"><div class=\"Synopsis\"><div class=\"Raw\">Test <b>Atom</b></div></div></div>\
-            </body></html>";
         assert_eq!(db.entries.borrow().len(), 1);
         assert_eq!(*db.lookup(12).unwrap().name, "TextAtom".to_string());
-        assert_eq!(db.lookup(12).unwrap().documentation, Some(response_doc.to_string()));
         assert_eq!(db.version.get(), 456);
     }
 

@@ -26,6 +26,9 @@ use enso_frp::io::keyboard::Key;
 
 /// The distance between sprite and displayed component edge, needed to proper antialiasing.
 pub const PADDING_PX:f32 = 1.0;
+/// The size of shadow under element. It will be counted in the component width and height.
+pub const SHADOW_PX:f32 = 10.0;
+
 
 
 // === Selection ===
@@ -61,12 +64,26 @@ mod background {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let width         = sprite_width  - PADDING_PX.px() * 2.0;
-            let height        = sprite_height - PADDING_PX.px() * 2.0;
+            let width         = sprite_width.clone()  - SHADOW_PX.px() * 2.0 - PADDING_PX.px() * 2.0;
+            let height        = sprite_height.clone() - SHADOW_PX.px() * 2.0 - PADDING_PX.px() * 2.0;
             let color         = style.get_color(ensogl_theme::vars::widget::list_view::background::color);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
-            shape.into()
+
+            let border_size_f = 16.0;
+            let corner_radius = CORNER_RADIUS_PX.px() * 1.75;
+            let width         = sprite_width  - PADDING_PX.px() * 2.0;
+            let height        = sprite_height - PADDING_PX.px() * 2.0;
+            let shadow        = Rect((&width,&height)).corners_radius(corner_radius);
+            let shadow_color  = color::LinearGradient::new()
+                .add(0.0,color::Rgba::new(0.0,0.0,0.0,0.0).into_linear())
+                .add(1.0,color::Rgba::new(0.0,0.0,0.0,0.20).into_linear());
+            let shadow_color  = color::SdfSampler::new(shadow_color)
+                .max_distance(border_size_f)
+                .slope(color::Slope::Exponent(2.0));
+            let shadow        = shadow.fill(shadow_color);
+
+            (shadow + shape).into()
         }
     }
 }
@@ -117,8 +134,9 @@ impl Model {
     fn update_after_view_change(&self, view:&View) {
         let visible_entries = Self::visible_entries(view,self.entries.entry_count());
         let padding         = Vector2(2.0 * PADDING_PX, 2.0 * PADDING_PX);
+        let shadow          = Vector2(2.0 * SHADOW_PX,  2.0 * SHADOW_PX);
         self.entries.set_position_x(-view.size.x / 2.0);
-        self.background.shape.sprite.size.set(view.size + padding);
+        self.background.shape.sprite.size.set(view.size + padding + shadow);
         self.scrolled_area.set_position_y(view.size.y / 2.0 - view.position_y);
         self.entries.update_entries(visible_entries);
     }
