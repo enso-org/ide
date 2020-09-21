@@ -19,7 +19,6 @@ ensogl-theme         = { version = "0.1.0", path = "../../../ensogl/lib/theme"  
 enso-shapely         = { version = "0.1.0", path = "../../../lib/enso-shapely/impl"    }
 span-tree            = { version = "0.1.0", path = "../../lib/span-tree"               }
 logger               = { version = "0.1.0", path = "../../../lib/logger"               }
-ensogl-gui-list-view = { version = "0.1.0", path = "../../../ensogl/lib/list-view" }
 enso-protocol        = { version = "0.1.0", path = "../../lib/enso-protocol"           }
 
 js-sys       = { version = "0.3.28"                                             }

@@ -13,8 +13,6 @@ mod visualization_chooser;
 
 use crate::prelude::*;
 
-use crate::component::text_list::TextList;
-use crate::graph_editor::component::node::quick_action_bar::QuickActionBar;
 use crate::data::EnsoCode;
 use crate::visualization;
 
@@ -57,8 +55,9 @@ const QUICK_ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
 /// container.
 /// TODO : We do not use backgrounds because otherwise they would overlap JS
 ///        visualizations. Instead we added a HTML background to the `View`.
-///        This should be further investigated while fixing rust visualization displaying. (#526)pub mod background {
-use super::*;
+///        This should be further investigated while fixing rust visualization displaying. (#526)
+pub mod background {
+    use super::*;
 
     ensogl::define_shape_system! {
         (style:Style,selected:f32,radius:f32,roundness:f32) {
