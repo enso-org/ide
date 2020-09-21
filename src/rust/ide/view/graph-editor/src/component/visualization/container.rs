@@ -329,8 +329,6 @@ pub struct ContainerModel {
     registry        : visualization::Registry,
 
     action_bar           : QuickActionBar,
-    // visualization_chooser      : list_view::ListView,
-    // visualization_alternatives : RefCell<Option<VisualisationPathList>>,
 }
 
 
@@ -352,10 +350,6 @@ impl ContainerModel {
 
         let action_bar = QuickActionBar::new(&app);
         view.add_child(&action_bar);
-
-        // let visualization_chooser      = list_view::ListView::new(&app);
-        // view.add_child(&visualization_chooser);
-        // let visualization_alternatives = default();
 
         Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen,
               action_bar,registry}
@@ -387,14 +381,11 @@ impl ContainerModel {
             self.add_child(&self.view);
             self.show_visualisation();
             self.scene.add_child(&self.fullscreen_view);
-            // By default the chooser is hidden at first.
-            // self.hide_visualisation_chooser();
         }
         else {
             // FIXME: If we hide the children also, they stay visible and no longer move
             // with the parent
             self.show_visualisation();
-            // self.show_visualisation_chooser();
 
             self.remove_child(&self.view);
             self.scene.remove_child(&self.fullscreen_view);
@@ -459,12 +450,6 @@ impl ContainerModel {
 
         self.action_bar.set_position_y((size.y - QUICK_ACTION_BAR_HEIGHT) / 2.0);
 
-        // let chooser_size = self.visualization_chooser.frp.size.value().borrow().clone();
-        // self.visualization_chooser.frp.resize.emit(Vector2::new(size.y / 1.5, size.x / 2.0));
-
-        // self.visualization_chooser.set_position_y((size.y / 2.0) - (chooser_size.y / 2.0) - QUICK_ACTION_BAR_HEIGHT * 1.25);
-        // self.visualization_chooser.set_position_x((chooser_size.x / 2.0));
-
         if let Some(viz) = &*self.visualization.borrow() {
             viz.set_size.emit(size);
         }
@@ -480,23 +465,9 @@ impl ContainerModel {
         // self.fullscreen_view.background.shape.roundness.set(value);
     }
 
-    // fn show_visualisation_chooser(&self) {
-    //     self.view.add_child(& self.visualization_chooser);
-    // }
-    //
-    // fn hide_visualisation_chooser(&self) {
-    //     self.visualization_chooser.unset_parent()
-    // }
-
     fn show_visualisation(&self) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
             vis.display_object().set_parent(&self.view)
-        }
-    }
-
-    fn hide_visualisation(&self) {
-        if let Some(vis) = self.visualization.borrow().as_ref() {
-            vis.unset_parent()
         }
     }
 }
@@ -606,35 +577,7 @@ impl Container {
             eval model.frp.preprocessor    ((code) inputs.preprocessor_select.emit(code));
         }
         // Visualisation chooser frp bindings
-        frp::extend! { TRACE_ALL network
-        //     visualisation_chooser_active         <- source::<bool>();
-        //     visualisation_chooser_active_sampler <- visualisation_chooser_active.sampler();
-        //
-        //     hide_visualisation_chooser <- action_bar.mouse_out.gate_not(&visualisation_chooser_active);
-        //     eval_ hide_visualisation_chooser ({
-        //         action_bar.hide_icons.emit(());
-        //     });
-        //
-        //     eval_ action_bar.visualisation_chooser_clicked ([model,visualisation_chooser_active,visualisation_chooser_active_sampler]{
-        //         if !visualisation_chooser_active_sampler.value() {
-        //             model.show_visualisation_chooser();
-        //             // FIXME we need to hide the visualisation because it will be occluded by HTML
-        //             // visualisation. This needs better occlusion/layer management to be fixed.
-        //             model.hide_visualisation();
-        //             visualisation_chooser_active.emit(true);
-        //         } else {
-        //             model.hide_visualisation_chooser();
-        //             model.show_visualisation();
-        //             visualisation_chooser_active.emit(false);
-        //         }
-        //
-        //     // eval_ visualization_chooser.mouse_out ([model,action_bar,visualisation_chooser_active]{
-        //     //     model.hide_visualisation_chooser();
-        //     //     model.show_visualisation();
-        //     //     action_bar.hide_icons.emit(());
-        //     //     visualisation_chooser_active.emit(false);
-        //     // });
-        //
+        frp::extend! { network
             eval action_bar.visualisation_selection([model,registry,scene,action_bar](visualization_path) {
                 if let Some(path) = visualization_path {
                     if let Some(definition) = registry.definition_from_path(path) {
@@ -649,9 +592,6 @@ impl Container {
                 }
             });
         }
-
-        // Init value
-        // visualisation_chooser_active.emit(false);
 
         inputs.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
         size.skip();

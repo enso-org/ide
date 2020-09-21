@@ -17,18 +17,12 @@ use ensogl::gui::component;
 use ensogl_gui_list_view as list_view;
 
 
+
 // =================
 // === Constants ===
 // =================
 
 const HOVER_COLOR    : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
-// TODO: Char size based on values in `port.rs`. Should be calculated in based on actual font.
-const CHAR_WIDTH     : f32 = 7.224_609_4 * (8.0 / 12.0);
-
-/// Width of the text.
-pub fn text_width (label:&str) -> f32 {
-    label.chars().count() as f32 * CHAR_WIDTH
-}
 
 
 
@@ -40,18 +34,18 @@ pub mod icon {
     use super::*;
 
     ensogl::define_shape_system! {
-    () {
-        let width            = Var::<Pixels>::from("input_size.x");
-        let height           = Var::<Pixels>::from("input_size.y");
-        let triangle         = Triangle(width.clone(),height.clone());
-        let triangle_down    = triangle.rotate(Var::<f32>::from(std::f32::consts::PI));
+        () {
+            let width            = Var::<Pixels>::from("input_size.x");
+            let height           = Var::<Pixels>::from("input_size.y");
+            let triangle         = Triangle(width,height);
+            let triangle_down    = triangle.rotate(Var::<f32>::from(std::f32::consts::PI));
 
-        let fill_color       = color::Rgba::from(color::Lcha::new(0.8,0.013,0.18,1.0));
-        let triangle_colored = triangle_down.fill(fill_color);
+            let fill_color       = color::Rgba::from(color::Lcha::new(0.8,0.013,0.18,1.0));
+            let triangle_colored = triangle_down.fill(fill_color);
 
-        triangle_colored.into()
+            triangle_colored.into()
+        }
     }
-}
 }
 
 /// Invisible rectangular area that can be hovered.
@@ -69,6 +63,8 @@ pub mod chooser_hover_area {
         }
     }
 }
+
+
 
 // =============================
 // === VisualisationPathList ===
@@ -156,6 +152,11 @@ impl Model {
     fn init(self) -> Self {
         self.add_child(&self.icon);
         self.add_child(&self.icon_overlay);
+
+        // Clear default parent and hide again.
+        self.show_selection_menu();
+        self.hide_selection_menu();
+
         self
     }
 
@@ -222,9 +223,9 @@ impl VisualisationChooser {
             eval  frp.input.set_alternatives ([model](alternatives) {
                 let item_count = alternatives.len();
                 let alternatives:VisualisationPathList = alternatives.clone().into();
-                model.visualization_alternatives.set(alternatives.clone().into());
+                model.visualization_alternatives.set(alternatives.clone());
 
-                let alternatives:list_view::entry::AnyModelProvider = alternatives.clone().into();
+                let alternatives:list_view::entry::AnyModelProvider = alternatives.into();
                 model.selection_menu.frp.resize.emit(Vector2::new(150.0,20.0 * item_count as f32));
                 model.selection_menu.frp.set_entries.emit(alternatives);
             });
