@@ -8,15 +8,17 @@
 // FIXME separate camera (view?) per visualization? This is also connected to a question how to
 // FIXME create efficient dashboard view.
 
+mod action_bar;
+mod visualization_chooser;
+
 use crate::prelude::*;
 
-use crate::component::visualization::quick_action_bar::QuickActionBar;
 use crate::component::text_list::TextList;
 use crate::graph_editor::component::node::quick_action_bar::QuickActionBar;
 use crate::data::EnsoCode;
 use crate::visualization;
 
-
+use action_bar::QuickActionBar;
 use enso_frp as frp;
 use ensogl::data::color;
 use ensogl::display::DomSymbol;
@@ -26,11 +28,11 @@ use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
+use ensogl::application::Application;
 use ensogl::gui::component;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_theme as theme;
-
 
 
 
@@ -49,11 +51,11 @@ const QUICK_ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
 // === Shape ===
 // =============
 
-/// Container background shape definition.
-///
-/// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
-/// container.
-/// TODO : We do not use backgrounds because otherwise they would overlap JS
+    /// Container background shape definition.
+    ///
+    /// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
+    /// container.
+    /// TODO : We do not use backgrounds because otherwise they would overlap JS
 ///        visualizations. Instead we added a HTML background to the `View`.
 ///        This should be further investigated while fixing rust visualization displaying. (#526)
 pub mod background {

@@ -214,7 +214,7 @@ impl NodeModel {
         let input = FrpInputs::new(&network);
         let frp   = FrpEndpoints::new(&network,input);
 
-        let visualization = visualization::Container::new(&logger,&scene,registry);
+        let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {
             t.x = 60.0;
             t.y = -120.0;

@@ -9,9 +9,9 @@ use crate::component::visualization;
 
 use enso_frp as frp;
 use enso_frp;
+use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::shape::*;
-use ensogl::display::shape::text::glyph::system::GlyphSystem;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
@@ -24,81 +24,6 @@ use ensogl_text as text;
 // =================
 
 const HOVER_COLOR    : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
-
-
-
-// ==================
-// === Text Label ===
-// ==================
-
-/// Text shape definition.
-/// TODO consider generalising with `node::label`, but we want a different font size here, which
-/// seems non-trivial to parametrise.
-pub mod text {
-    use super::*;
-
-    const TEXT_FONT_SIZE : f32 = 9.0;
-    // TODO: Char size based on values in `port.rs`. Should be calculated in based on actual font.
-    const CHAR_WIDTH     : f32 = 7.224_609_4 * (TEXT_FONT_SIZE / 12.0);
-
-    #[derive(Clone,CloneRef,Debug)]
-    #[allow(missing_docs)]
-    pub struct Shape {
-        pub label : ensogl::display::shape::text::glyph::system::Line,
-        pub obj   : display::object::Instance,
-
-    }
-    impl ensogl::display::shape::system::Shape for Shape {
-        type System = ShapeSystem;
-        fn sprites(&self) -> Vec<&Sprite> {
-            vec![]
-        }
-    }
-    impl display::Object for Shape {
-        fn display_object(&self) -> &display::object::Instance {
-            &self.obj
-        }
-    }
-    impl Shape {
-        /// Width of the text.
-        pub fn width (&self) -> f32 {
-            self.label.content().chars().count() as f32 * CHAR_WIDTH
-        }
-    }
-    #[derive(Clone,CloneRef,Debug)]
-    #[allow(missing_docs)]
-    pub struct ShapeSystem {
-        pub glyph_system: GlyphSystem,
-        style_manager: StyleWatch,
-    }
-    impl ShapeSystemInstance for ShapeSystem {
-        type Shape = Shape;
-
-        fn new(scene:&Scene) -> Self {
-            let style_manager = StyleWatch::new(&scene.style_sheet);
-            let font          = scene.fonts.get_or_load_embedded_font("DejaVuSansMono").unwrap();
-            let glyph_system  = GlyphSystem::new(scene,font);
-            let symbol        = &glyph_system.sprite_system().symbol;
-            scene.views.main.remove(symbol);
-            scene.views.label.add(symbol);
-            Self {glyph_system,style_manager} // .init_refresh_on_style_change()
-        }
-
-        fn new_instance(&self) -> Self::Shape {
-            let color = color::Rgba::new(1.0,1.0,1.0,0.7);
-            let obj   = display::object::Instance::new(Logger::new("test"));
-            let label = self.glyph_system.new_line();
-            label.set_font_size(TEXT_FONT_SIZE);
-            label.set_font_color(color);
-            label.set_text("");
-            label.set_position_y(-0.25 * TEXT_FONT_SIZE);
-            obj.add_child(&label);
-            Shape {label,obj}
-        }
-    }
-}
-
-
 
 
 
@@ -196,14 +121,15 @@ struct Model {
     size                  : Rc<Cell<Vector2>>,
 }
 
-impl QuickActionBarModel {
-    fn new(scene:&Scene) -> Self {
+impl Model {
+    fn new(app:&Application) -> Self {
+        let scene                         = app.display.scene();
         let logger                        = Logger::new("QuickActionBarModel");
         let background                    = component::ShapeView::new(&logger,scene);
         let hover_area                    = component::ShapeView::new(&logger,scene);
-        let visualization_chooser_icon    = component::ShapeView::new(&logger,scene);
-        let visualisation_chooser_label   = component::ShapeView::new(&logger,scene);
-        let visualization_chooser_overlay = component::ShapeView::new(&logger,scene);
+        let visualization_chooser         = visualization_chooser::VisualisationChooser::new(&app);
+        let visualisation_chooser_label   = app.new_view::<text::Area>();
+
         let display_object                = display::object::Instance::new(&logger);
         let size                          = default();
 
@@ -225,8 +151,8 @@ impl QuickActionBarModel {
         self.visualisation_chooser_label.frp.set_default_color.emit(color::Rgba::new(1.0,1.0,1.0,1.0));
 
         // Remove default parent, then hide icons.
-        self.show_quick_action_icons();
-        self.hide_quick_action_icons();
+        self.show();
+        self.hide();
         self
     }
 
@@ -249,23 +175,21 @@ impl QuickActionBarModel {
     }
 
     fn set_label(&self, label:&str) {
-        self.visualisation_chooser_label.shape.label.set_text(label);
-        self.update_label_position()
+        self.visualisation_chooser_label.set_cursor(&default());
+        self.visualisation_chooser_label.select_all();
+        self.visualisation_chooser_label.insert(label);
+        self.visualisation_chooser_label.remove_all_cursors();
     }
 
-    fn show_quick_action_icons(&self) {
-        self.add_child(&self.visualisation_chooser_label);
-        self.add_child(&self.visualization_chooser_icon);
-        self.add_child(&self.visualization_chooser_overlay);
+    fn show(&self) {
+        self.add_child(&self.visualization_chooser);
         self.add_child(&self.background);
         self.add_child(&self.visualisation_chooser_label);
 
     }
 
-    fn hide_quick_action_icons(&self) {
-        self.visualization_chooser_icon.unset_parent();
-        self.visualisation_chooser_label.unset_parent();
-        self.visualization_chooser_overlay.unset_parent();
+    fn hide(&self) {
+        self.visualization_chooser.unset_parent();
         self.background.unset_parent();
         self.visualisation_chooser_label.unset_parent();
         self.visualization_chooser.frp.hide_selection_menu.emit(());
@@ -306,11 +230,10 @@ pub struct QuickActionBar {
 impl QuickActionBar {
 
     /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
-        let model = Rc::new(QuickActionBarModel::new(scene));
-        let network = frp::Network::new();
-        let frp = Frp::new(&network);
-        QuickActionBar{model,network,frp}.init_frp()
+    pub fn new(app:&Application) -> Self {
+        let model   = Rc::new(Model::new(app));
+        let frp     = Frp::new_network();
+        QuickActionBar{model,frp}.init_frp()
     }
 
     fn init_frp(self) -> Self {
