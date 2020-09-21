@@ -166,10 +166,6 @@ impl Line {
     pub fn font(&self) -> font::Handle {
         self.glyph_system.font.clone_ref()
     }
-
-    pub fn content(&self) -> String {
-        self.content.as_ref().borrow().clone()
-    }
 }
 
 
