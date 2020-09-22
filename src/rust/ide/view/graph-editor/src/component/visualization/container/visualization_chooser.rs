@@ -21,8 +21,11 @@ use ensogl_gui_list_view as list_view;
 // === Constants ===
 // =================
 
+/// Invisible dummy color to catch hover events.
 const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
+/// The width of the visualisation selection menu.
 const MENU_WIDTH  : f32         = 180.0;
+
 
 
 // ==============
@@ -65,9 +68,9 @@ pub mod chooser_hover_area {
 
 
 
-// =============================
+// ===============================
 // === Visualisation Path List ===
-// =============================
+// ===============================
 
 /// The `VisualisationPathList` allows us to show a `Vec<visualization::Path>` in the
 /// `list_view::ListView` by implementing `list_view::entry::ModelProvider`.
@@ -183,6 +186,7 @@ impl display::Object for Model {
 // === VisualisationChooser ===
 // ============================
 
+/// UI entity that shows a button that opens a list of visualisations that can be sel:ected from.
 #[derive(Clone,CloneRef,Debug)]
 pub struct VisualisationChooser {
         model : Rc<Model>,
@@ -259,6 +263,7 @@ impl VisualisationChooser {
                 selection_menu_visible.emit(true);
                 frp.source.menu_visible.emit(true);
             });
+
 
             // === Selection ===
 
