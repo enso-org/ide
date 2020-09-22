@@ -17,6 +17,11 @@ loadScript('https://unpkg.com/deck.gl@latest/dist.min.js');
 loadScript('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js');
 loadStyle('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css');
 
+const styleHead = document.createElement("style")
+styleHead.innerText = `.mapboxgl-map {
+            border-radius: 14px;
+        }`
+document.head.appendChild(styleHead);
 
 /**
  * Provides a deck.gl-based map visualization for IDE.
@@ -49,12 +54,6 @@ class MapViewVisualization extends Visualization {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
-
-        const styleHead = document.createElement("style")
-        styleHead.innerText = `.mapboxgl-map {
-            border-radius: 14px;
-        }`
-        document.head.appendChild(styleHead);
 
         const width   = this.dom.getAttributeNS(null, "width");
         const height  = this.dom.getAttributeNS(null, "height");
