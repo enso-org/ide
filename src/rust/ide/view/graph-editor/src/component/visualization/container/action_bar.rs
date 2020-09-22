@@ -167,8 +167,6 @@ impl Model {
         self.visualization_chooser.frp.set_icon_size(Vector2::new(height,height));
         self.visualization_chooser.frp.set_icon_padding(Vector2::new(height/3.0,height/3.0));
         self.visualization_chooser.set_position_x((width/2.0) - right_padding);
-        // self.visualization_chooser_overlay.shape.sprite.size.set(Vector2::new(width/2.0,height));
-        // self.visualization_chooser_overlay.set_position_x(width/4.0);
 
         self.visualisation_chooser_label.set_position_y(0.25 * height);
 
@@ -185,7 +183,6 @@ impl Model {
         self.add_child(&self.visualization_chooser);
         self.add_child(&self.background);
         self.add_child(&self.visualisation_chooser_label);
-
     }
 
     fn hide(&self) {
