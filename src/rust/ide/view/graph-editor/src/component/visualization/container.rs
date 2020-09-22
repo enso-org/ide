@@ -16,7 +16,7 @@ use crate::prelude::*;
 use crate::data::EnsoCode;
 use crate::visualization;
 
-use action_bar::QuickActionBar;
+use action_bar::ActionBar;
 use enso_frp as frp;
 use ensogl::data::color;
 use ensogl::display::DomSymbol;
@@ -328,7 +328,7 @@ pub struct ContainerModel {
     is_fullscreen   : Rc<Cell<bool>>,
     registry        : visualization::Registry,
 
-    action_bar      : QuickActionBar,
+    action_bar      : ActionBar,
 }
 
 
@@ -348,7 +348,7 @@ impl ContainerModel {
         let scene           = scene.clone_ref();
         let is_fullscreen   = default();
 
-        let action_bar = QuickActionBar::new(&app);
+        let action_bar       = ActionBar::new(&app);
         view.add_child(&action_bar);
 
         Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen,

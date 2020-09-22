@@ -219,18 +219,18 @@ impl display::Object for Model {
 ///
 /// ```
 #[derive(Clone,CloneRef,Debug)]
-pub struct QuickActionBar {
+pub struct ActionBar {
          model : Rc<Model>,
     pub frp    : Frp
 }
 
-impl QuickActionBar {
+impl ActionBar {
 
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let model   = Rc::new(Model::new(app));
         let frp     = Frp::new_network();
-        QuickActionBar{model,frp}.init_frp()
+        ActionBar {model,frp}.init_frp()
     }
 
     fn init_frp(self) -> Self {
@@ -282,7 +282,7 @@ impl QuickActionBar {
     }
 }
 
-impl display::Object for QuickActionBar {
+impl display::Object for ActionBar {
     fn display_object(&self) -> &display::object::Instance {
         &self.model.display_object()
     }
