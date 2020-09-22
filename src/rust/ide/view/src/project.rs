@@ -50,11 +50,15 @@ impl Model {
         else        { self.app.themes.set_enabled(&["light"]) }
     }
 
+    fn searcher_left_top_under_node_at(position:Vector2<f32>) -> Vector2<f32> {
+        let x = position.x;
+        let y = position.y - node::NODE_HEIGHT/2.0;
+        Vector2(x,y)
+    }
+
     fn searcher_left_top_under_node(&self, node_id:NodeId) -> Vector2<f32> {
         if let Some(node) = self.graph_editor.model.nodes.get_cloned_ref(&node_id) {
-            let x = node.position().x;
-            let y = node.position().y - node::NODE_HEIGHT/2.0;
-            Vector2(x,y)
+            Self::searcher_left_top_under_node_at(node.position().xy())
         } else {
             error!(self.logger, "Trying to show searcher under nonexisting node");
             default()
@@ -176,8 +180,16 @@ impl View {
                         model.searcher.hide();
                         model.searcher.clear_suggestions();
                     }
-                }
-            ));
+                })
+            );
+            _eval <- graph.outputs.node_position_set.map2(&graph.outputs.edited_node,
+                f!([searcher_left_top]((node_id,position),edited_node_id) {
+                    if edited_node_id.contains(node_id) {
+                        let new_left_top = Model::searcher_left_top_under_node_at(*position);
+                        searcher_left_top.set_target_value(new_left_top);
+                    }
+                })
+            );
             editing_not_aborted          <- editing_aborted.map(|b| !b);
             let editing_finished         =  graph.outputs.node_editing_finished.clone_ref();
             frp.source.editing_committed <+ editing_finished.gate(&editing_not_aborted);

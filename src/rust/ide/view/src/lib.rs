@@ -9,6 +9,7 @@
 #![feature(entry_insert)]
 #![feature(fn_traits)]
 #![feature(matches_macro)]
+#![feature(option_result_contains)]
 #![feature(overlapping_marker_traits)]
 #![feature(specialization)]
 #![feature(trait_alias)]
