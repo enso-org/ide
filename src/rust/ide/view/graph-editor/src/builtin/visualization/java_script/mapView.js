@@ -75,7 +75,7 @@ class MapViewVisualization extends Visualization {
                 zoom: parsedData.zoom || 3,
                 pitch: parsedData.pitch || 0
             },
-            controller: parsedData.controller || false
+            controller: parsedData.controller || true
         });
 
         deckgl.setProps({

@@ -44,6 +44,31 @@
                 -webkit-app-region  : drag;
                 -webkit-user-select : none;
             }
+            .scrollable::-webkit-scrollbar {
+                -webkit-appearance: none;
+            }
+
+            .scrollable::-webkit-scrollbar:vertical {
+                width: 11px;
+            }
+
+            .scrollable::-webkit-scrollbar:horizontal {
+                height: 11px;
+            }
+
+            .scrollable::-webkit-scrollbar-thumb {
+                border-radius: 8px;
+                border: 1px solid rgba(220, 220, 220, .5);
+                background-color: rgba(190, 190, 190, .5);
+            }
+
+            .scrollable::-webkit-scrollbar-corner {
+                background: rgba(0,0,0,0);
+            }
+
+            .visualization {
+                z-index: 2;
+            }
         </style>
         <script type="module" src="/assets/index.js" defer></script>
     </head>
