@@ -16,7 +16,7 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl_text as text;
-
+use ensogl_theme as theme;
 
 
 // =================
@@ -39,8 +39,8 @@ pub mod hover_area {
         () {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let background    = Rect((&width,&height));
-            let background    = background.fill(HOVER_COLOR);
+            let background           = Rect((&width,&height));
+            let background           = background.fill(HOVER_COLOR);
             background.into()
         }
     }
@@ -52,15 +52,15 @@ pub mod background {
     use super::*;
 
     ensogl::define_shape_system! {
-        () {
+        (style:Style) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let radius             = node::NODE_SHAPE_RADIUS.px() ;
-            let background_rounded = Rect((&width,&height)).corners_radius(&radius);
-            let background_sharp   = Rect((&width,&height/2.0)).translate_y(-&height/4.0);
-            let background         = background_rounded + background_sharp;
-            let fill_color         = color::Rgba::from(color::Lcha::new(0.1,0.013,0.18,0.6));
-            let background         = background.fill(fill_color);
+            let radius               = node::NODE_SHAPE_RADIUS.px() ;
+            let background_rounded   = Rect((&width,&height)).corners_radius(&radius);
+            let background_sharp     = Rect((&width,&height/2.0)).translate_y(-&height/4.0);
+            let background           = background_rounded + background_sharp;
+            let fill_color           = style.get_color(ensogl_theme::vars::graph_editor::visualization::action_bar::background::color);
+            let background           = background.fill(color::Rgba::from(fill_color));
             background.into()
         }
     }
@@ -98,41 +98,36 @@ struct Model {
     hover_area                   : component::ShapeView<hover_area::Shape>,
     visualization_chooser        : visualization_chooser::VisualisationChooser,
     background                   : component::ShapeView<background::Shape>,
-    visualisation_chooser_label  : text::Area,
-
-    display_object        : display::object::Instance,
-
-    size                  : Rc<Cell<Vector2>>,
+    label: text::Area,
+    display_object               : display::object::Instance,
+    size                         : Rc<Cell<Vector2>>,
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
-        let scene                         = app.display.scene();
-        let logger                        = Logger::new("ActionBarModel");
-        let background                    = component::ShapeView::new(&logger,scene);
-        let hover_area                    = component::ShapeView::new(&logger,scene);
-        let visualization_chooser         = visualization_chooser::VisualisationChooser::new(&app);
-        let visualisation_chooser_label   = app.new_view::<text::Area>();
+        let scene                 = app.display.scene();
+        let logger                = Logger::new("ActionBarModel");
+        let background            = component::ShapeView::new(&logger,scene);
+        let hover_area            = component::ShapeView::new(&logger,scene);
+        let visualization_chooser = visualization_chooser::VisualisationChooser::new(&app);
+        let label                 = app.new_view::<text::Area>();
 
-        let display_object                = display::object::Instance::new(&logger);
-        let size                          = default();
+        let display_object        = display::object::Instance::new(&logger);
+        let size                  = default();
 
-        Model {
-            hover_area,
-            visualization_chooser,
-            visualisation_chooser_label,
-            display_object,
-            size,
-            background,
-        }.init()
+        Model{hover_area,visualization_chooser,label,display_object,size,background}.init(app)
     }
 
-    fn init(self) -> Self {
+    fn init(self, app:&Application) -> Self {
         self.add_child(&self.hover_area);
-
         self.set_label("None");
 
-        self.visualisation_chooser_label.frp.set_default_color.emit(color::Rgba::new(1.0,1.0,1.0,1.0));
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for
+        // shape system (#795)
+        let styles     = StyleWatch::new(&app.display.scene().style_sheet);
+        let color_path = theme::vars::graph_editor::visualization::action_bar::text::color;
+        let text_color = styles.get_color(color_path);
+        self.label.frp.set_default_color.emit(color::Rgba::from(text_color));
 
         // Remove default parent, then hide icons.
         self.show();
@@ -152,27 +147,27 @@ impl Model {
         self.visualization_chooser.frp.set_icon_padding(Vector2::new(height/3.0,height/3.0));
         self.visualization_chooser.set_position_x((width/2.0) - right_padding);
 
-        self.visualisation_chooser_label.set_position_y(0.25 * height);
+        self.label.set_position_y(0.25 * height);
 
     }
 
     fn set_label(&self, label:&str) {
-        self.visualisation_chooser_label.set_cursor(&default());
-        self.visualisation_chooser_label.select_all();
-        self.visualisation_chooser_label.insert(label);
-        self.visualisation_chooser_label.remove_all_cursors();
+        self.label.set_cursor(&default());
+        self.label.select_all();
+        self.label.insert(label);
+        self.label.remove_all_cursors();
     }
 
     fn show(&self) {
         self.add_child(&self.visualization_chooser);
         self.add_child(&self.background);
-        self.add_child(&self.visualisation_chooser_label);
+        self.add_child(&self.label);
     }
 
     fn hide(&self) {
         self.visualization_chooser.unset_parent();
         self.background.unset_parent();
-        self.visualisation_chooser_label.unset_parent();
+        self.label.unset_parent();
         self.visualization_chooser.frp.hide_selection_menu.emit(());
     }
 }
@@ -237,8 +232,8 @@ impl ActionBar {
 
 
             // === Additional Layouting ===
-            eval model.visualisation_chooser_label.width ((width) {
-                model.visualisation_chooser_label.set_position_x(-width/2.0);
+            eval model.label.width ((width) {
+                model.label.set_position_x(-width/2.0);
             });
 
 

@@ -134,6 +134,17 @@ define_theme! { dark
                     color = color::Lcha::new(0.7,0.0,0.125,0.7)
                 }
             }
+            action_bar {
+                background {
+                    color = color::Lcha::new(0.3,0.013,0.18,1.0)
+                }
+                icon {
+                    color = color::Lcha::new(1.0,0.0,0.0,0.7)
+                }
+                text {
+                    color = color::Lcha::new(1.0,0.0,0.0,0.7)
+                }
+            }
         }
         breadcrumbs {
             full {
@@ -229,6 +240,17 @@ define_default_theme! { light
                 color = color::Lcha::new(0.0,0.0,0.0,0.7);
                 selection {
                     color = color::Lcha::new(0.7,0.0,0.125,0.7)
+                }
+            }
+            action_bar {
+                background {
+                    color = color::Lcha::new(0.9,0.013,0.18,1.0)
+                }
+                icon {
+                    color = color::Lcha::new(0.0,0.0,0.0,0.7)
+                }
+                text {
+                    color = color::Lcha::new(0.0,0.0,0.0,0.7)
                 }
             }
         }

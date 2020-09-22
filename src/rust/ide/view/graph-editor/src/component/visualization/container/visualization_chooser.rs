@@ -21,8 +21,8 @@ use ensogl_gui_list_view as list_view;
 // === Constants ===
 // =================
 
-const HOVER_COLOR    : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
-
+const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
+const MENU_WIDTH  : f32         = 180.0;
 
 
 // ==============
@@ -34,14 +34,14 @@ pub mod icon {
     use super::*;
 
     ensogl::define_shape_system! {
-        () {
+        (style:Style) {
             let width            = Var::<Pixels>::from("input_size.x");
             let height           = Var::<Pixels>::from("input_size.y");
             let triangle         = Triangle(width,height);
             let triangle_down    = triangle.rotate(Var::<f32>::from(std::f32::consts::PI));
-
-            let fill_color       = color::Rgba::from(color::Lcha::new(0.8,0.013,0.18,1.0));
-            let triangle_colored = triangle_down.fill(fill_color);
+            let color_path       = ensogl_theme::vars::graph_editor::visualization::action_bar::icon::color;
+            let icon_color       = style.get_color(color_path);
+            let triangle_colored = triangle_down.fill(color::Rgba::from(icon_color));
 
             triangle_colored.into()
         }
@@ -215,7 +215,9 @@ impl VisualisationChooser {
                 model.visualization_alternatives.set(alternatives.clone());
 
                 let alternatives:list_view::entry::AnyModelProvider = alternatives.into();
-                model.selection_menu.frp.resize.emit(Vector2::new(150.0,20.0 * item_count as f32));
+                let line_height = list_view::entry::HEIGHT;
+                let menu_size   = Vector2::new(MENU_WIDTH,line_height * item_count as f32);
+                model.selection_menu.frp.resize.emit(menu_size);
                 model.selection_menu.frp.set_entries.emit(alternatives);
             });
 
