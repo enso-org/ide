@@ -73,7 +73,7 @@ impl ViewModel {
         dom.dom().set_style_or_warn("white-space"     ,"normal"                      ,&logger);
         dom.dom().set_style_or_warn("overflow-y"      ,"auto"                        ,&logger);
         dom.dom().set_style_or_warn("overflow-x"      ,"auto"                        ,&logger);
-        dom.dom().set_style_or_warn("background-color","rgba(255, 255, 255, 0.85)"   ,&logger);
+        dom.dom().set_style_or_warn("background-color","#FAF8F4"                     ,&logger);
         dom.dom().set_style_or_warn("padding"         ,format!("{}px",PADDING)       ,&logger);
         dom.dom().set_style_or_warn("pointer-events"  ,"auto"                        ,&logger);
         dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS) ,&logger);
