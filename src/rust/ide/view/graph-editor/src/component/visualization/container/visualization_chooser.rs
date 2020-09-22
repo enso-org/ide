@@ -59,8 +59,8 @@ pub mod chooser_hover_area {
         () {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let background    = Rect((&width,&height));
-            let background    = background.fill(HOVER_COLOR);
+            let background           = Rect((&width,&height));
+            let background           = background.fill(HOVER_COLOR);
             background.into()
         }
     }
@@ -93,7 +93,6 @@ impl list_view::entry::ModelProvider for VisualisationPathList {
     fn get(&self, id:usize) -> Option<list_view::entry::Model> {
         let path  = self.content.get(id)?;
         let label = format!("{}", path);
-        println!("{}", label);
         Some(list_view::entry::Model::new(label))
     }
 }
@@ -128,12 +127,12 @@ ensogl_text::define_endpoints! {
 
 #[derive(Clone,Debug)]
 struct Model {
-    logger         : Logger,
-    app            : Application,
-    display_object : display::object::Instance,
+    logger                     : Logger,
+    app                        : Application,
+    display_object             : display::object::Instance,
 
-    icon           : component::ShapeView<icon::Shape>,
-    icon_overlay   : component::ShapeView<chooser_hover_area::Shape>,
+    icon                       : component::ShapeView<icon::Shape>,
+    icon_overlay               : component::ShapeView<chooser_hover_area::Shape>,
 
     selection_menu             : list_view::ListView,
     visualization_alternatives : RefCell<Option<VisualisationPathList>>,
@@ -201,12 +200,12 @@ impl VisualisationChooser {
     }
 
     fn init(self, app:&Application) -> Self {
-        let network  = &self.frp.network;
-        let frp      = &self.frp;
-        let model    = &self.model;
+        let network = &self.frp.network;
+        let frp     = &self.frp;
+        let model   = &self.model;
 
-        let scene    = app.display.scene();
-        let mouse    = &scene.mouse.frp;
+        let scene   = app.display.scene();
+        let mouse   = &scene.mouse.frp;
 
         frp::extend! { network
 

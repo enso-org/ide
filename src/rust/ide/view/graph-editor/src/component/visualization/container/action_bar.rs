@@ -23,7 +23,7 @@ use ensogl_theme as theme;
 // === Constants ===
 // =================
 
-const HOVER_COLOR    : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
+const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 
 
 
@@ -74,16 +74,16 @@ pub mod background {
 
 ensogl_text::define_endpoints! {
     Input {
-        set_label (String),
-        set_size (Vector2),
-        show_icons (),
-        hide_icons (),
+        set_label                      (String),
+        set_size                       (Vector2),
+        show_icons                     (),
+        hide_icons                     (),
         set_visualization_alternatives (Vec<visualization::Path>),
     }
     Output {
         visualisation_selection  (Option<visualization::Path>),
-        mouse_over   (),
-        mouse_out    (),
+        mouse_over               (),
+        mouse_out                (),
     }
 }
 
@@ -95,12 +95,12 @@ ensogl_text::define_endpoints! {
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
-    hover_area                   : component::ShapeView<hover_area::Shape>,
-    visualization_chooser        : visualization_chooser::VisualisationChooser,
-    background                   : component::ShapeView<background::Shape>,
+    hover_area            : component::ShapeView<hover_area::Shape>,
+    visualization_chooser : visualization_chooser::VisualisationChooser,
+    background            : component::ShapeView<background::Shape>,
     label: text::Area,
-    display_object               : display::object::Instance,
-    size                         : Rc<Cell<Vector2>>,
+    display_object        : display::object::Instance,
+    size                  : Rc<Cell<Vector2>>,
 }
 
 impl Model {
@@ -148,7 +148,6 @@ impl Model {
         self.visualization_chooser.set_position_x((width/2.0) - right_padding);
 
         self.label.set_position_y(0.25 * height);
-
     }
 
     fn set_label(&self, label:&str) {

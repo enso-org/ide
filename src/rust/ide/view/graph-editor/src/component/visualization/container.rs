@@ -158,7 +158,7 @@ pub struct Frp {
     pub set_size                       : frp::Source<Vector2>,
     pub enable_fullscreen              : frp::Source,
     pub disable_fullscreen             : frp::Source,
-    pub  preprocessor                   : frp::Stream<EnsoCode>,
+    pub  preprocessor                  : frp::Stream<EnsoCode>,
 
     scene_shape                        : frp::Sampler<scene::Shape>,
     size                               : frp::Sampler<Vector2>,
@@ -348,12 +348,11 @@ impl ContainerModel {
         let scene           = scene.clone_ref();
         let is_fullscreen   = default();
 
-        let action_bar       = ActionBar::new(&app);
+        let action_bar      = ActionBar::new(&app);
         view.add_child(&action_bar);
 
         Self {logger,frp,visualization,display_object,view,fullscreen_view,scene,is_fullscreen,
-              action_bar,registry}
-            . init()
+              action_bar,registry}.init()
     }
 
     fn init(self) -> Self {
