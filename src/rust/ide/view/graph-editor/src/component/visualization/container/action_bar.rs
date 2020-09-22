@@ -48,22 +48,6 @@ pub mod hover_area {
 
 /// Invisible rectangular area that can be hovered.
 /// Note: needs to be an extra shape for sorting purposes.
-pub mod chooser_hover_area {
-    use super::*;
-
-    ensogl::define_shape_system! {
-        () {
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
-            let background    = Rect((&width,&height));
-            let background    = background.fill(HOVER_COLOR);
-            background.into()
-        }
-    }
-}
-
-/// Invisible rectangular area that can be hovered.
-/// Note: needs to be an extra shape for sorting purposes.
 pub mod background {
     use super::*;
 
