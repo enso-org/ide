@@ -70,6 +70,12 @@ impl Model {
     }
 }
 
+impl<T:Display> From<T> for Model {
+    fn from(item: T) -> Self {
+        Model::new(format!("{}", item))
+    }
+}
+
 
 // === Entry Model Provider ===
 
@@ -114,6 +120,86 @@ impl ModelProvider for EmptyProvider {
 }
 
 
+// === Model Provider for Vectors ===
+
+/// An Entry Model Provider that wraps a Vec<T:Into<Model>>.
+#[derive(Clone,Debug)]
+pub struct VectorProvider<T> {
+    content : Vec<T>,
+}
+
+impl<T:Into<Model> + Debug + CloneRef> ModelProvider for VectorProvider<T> {
+    fn entry_count(&self) -> usize {
+        self.content.len()
+    }
+
+    fn get(&self, ix:usize) -> Option<Model> {
+        Some(self.content.get(ix)?.clone_ref().into())
+    }
+}
+
+impl<T> From<Vec<T>> for VectorProvider<T> {
+    fn from(content: Vec<T>) -> Self {
+        VectorProvider{content}
+    }
+}
+
+
+// === Masked Model Provider for  ===
+
+/// An Entry Model Provider that wraps a Vec<T:Into<Model>> and allows the masking of a single item.
+#[derive(Clone,Debug)]
+pub struct SingleMaskedProvider {
+    content : AnyModelProvider,
+    mask    : Cell<Option<Id>>,
+}
+
+impl ModelProvider for SingleMaskedProvider {
+    fn entry_count(&self) -> usize {
+        match self.mask.get() {
+            None    => self.content.entry_count(),
+            Some(_) => self.content.entry_count().saturating_sub(1),
+        }
+    }
+
+    fn get(&self, ix:usize) -> Option<Model> {
+        let internal_ix = self.unmasked_index(ix);
+        self.content.get(internal_ix)
+    }
+}
+
+impl SingleMaskedProvider {
+
+    /// Return the index to the unmasked underlying data. Will only be valid to use after
+    /// calling `clear_mask`.
+    pub fn unmasked_index(&self, ix:Id) -> Id {
+        match self.mask.get() {
+            None                 => ix,
+            Some(id) if ix < id  => ix,
+            Some(_)              => ix+1,
+        }
+    }
+
+    /// Mask out the given index. All methods will now skip this item and the `SingleMaskedProvider`
+    /// will behave as if it was not there.
+    pub fn set_mask(&self, ix:Id) {
+        let internal_ix = self.unmasked_index(ix);
+        self.mask.set(Some(internal_ix));
+    }
+
+    /// Clear the masked item.
+    pub fn clear_mask(&self) {
+        self.mask.set(None)
+    }
+
+}
+
+impl From<AnyModelProvider> for SingleMaskedProvider {
+    fn from(content:AnyModelProvider) -> Self {
+        let mask = default();
+        SingleMaskedProvider{content,mask}
+    }
+}
 
 // =============
 // === Entry ===

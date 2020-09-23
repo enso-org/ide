@@ -10,6 +10,7 @@
 
 mod action_bar;
 mod visualization_chooser;
+mod drop_down_menu;
 
 use crate::prelude::*;
 
@@ -578,7 +579,6 @@ impl Container {
                             model.set_visualization(Some(visualization));
                             let alternatives = model.registry.valid_alternatives(&definition);
                             model.frp.set_visualization_alternatives.emit(alternatives);
-                            model.action_bar.frp.set_label.emit(format!("{}", &definition.signature.path));
                         }
                     }
                     action_bar.hide_icons.emit(());

@@ -1,4 +1,4 @@
-//! Definition of the QuickActionBar component.
+//! Definition of the `ActionBar` component for the `visualization::Container`.
 
 use crate::prelude::*;
 
@@ -15,8 +15,7 @@ use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
-use ensogl_text as text;
-use ensogl_theme as theme;
+
 
 
 // =================
@@ -74,7 +73,6 @@ pub mod background {
 
 ensogl_text::define_endpoints! {
     Input {
-        set_label                      (String),
         set_size                       (Vector2),
         show_icons                     (),
         hide_icons                     (),
@@ -96,9 +94,8 @@ ensogl_text::define_endpoints! {
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
     hover_area            : component::ShapeView<hover_area::Shape>,
-    visualization_chooser : visualization_chooser::VisualisationChooser,
+    visualization_chooser : visualization_chooser::VisualizationChooser,
     background            : component::ShapeView<background::Shape>,
-    label: text::Area,
     display_object        : display::object::Instance,
     size                  : Rc<Cell<Vector2>>,
 }
@@ -109,25 +106,17 @@ impl Model {
         let logger                = Logger::new("ActionBarModel");
         let background            = component::ShapeView::new(&logger,scene);
         let hover_area            = component::ShapeView::new(&logger,scene);
-        let visualization_chooser = visualization_chooser::VisualisationChooser::new(&app);
-        let label                 = app.new_view::<text::Area>();
+        let visualization_chooser = visualization_chooser::VisualizationChooser::new(&app);
 
         let display_object        = display::object::Instance::new(&logger);
         let size                  = default();
 
-        Model{hover_area,visualization_chooser,label,display_object,size,background}.init(app)
+        Model{hover_area,visualization_chooser,display_object,size,background}.init()
     }
 
-    fn init(self, app:&Application) -> Self {
+    fn init(self) -> Self {
         self.add_child(&self.hover_area);
-        self.set_label("None");
-
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for
-        // shape system (#795)
-        let styles     = StyleWatch::new(&app.display.scene().style_sheet);
-        let color_path = theme::vars::graph_editor::visualization::action_bar::text::color;
-        let text_color = styles.get_color(color_path);
-        self.label.frp.set_default_color.emit(color::Rgba::from(text_color));
+        self.add_child(&self.visualization_chooser);
 
         // Remove default parent, then hide icons.
         self.show();
@@ -146,27 +135,16 @@ impl Model {
         self.visualization_chooser.frp.set_icon_size(Vector2::new(height,height));
         self.visualization_chooser.frp.set_icon_padding(Vector2::new(height/3.0,height/3.0));
         self.visualization_chooser.set_position_x((width/2.0) - right_padding);
-
-        self.label.set_position_y(0.25 * height);
-    }
-
-    fn set_label(&self, label:&str) {
-        self.label.set_cursor(&default());
-        self.label.select_all();
-        self.label.insert(label);
-        self.label.remove_all_cursors();
     }
 
     fn show(&self) {
         self.add_child(&self.visualization_chooser);
         self.add_child(&self.background);
-        self.add_child(&self.label);
     }
 
     fn hide(&self) {
         self.visualization_chooser.unset_parent();
         self.background.unset_parent();
-        self.label.unset_parent();
         self.visualization_chooser.frp.hide_selection_menu.emit(());
     }
 }
@@ -189,7 +167,7 @@ impl display::Object for Model {
 /// ------
 /// ```text
 ///     / ---------------------------- \
-///    |            <label>         V   |
+///    |              <vis chooser> V   |
 ///    |--------------------------------|
 ///
 /// ```
@@ -203,8 +181,8 @@ impl ActionBar {
 
     /// Constructor.
     pub fn new(app:&Application) -> Self {
-        let model   = Rc::new(Model::new(app));
-        let frp     = Frp::new_network();
+        let model = Rc::new(Model::new(app));
+        let frp   = Frp::new_network();
         ActionBar {model,frp}.init_frp()
     }
 
@@ -213,32 +191,26 @@ impl ActionBar {
         let frp     = &self.frp;
         let model   = &self.model;
 
-        let hover_area             = &model.hover_area.events;
-        let visualization_chooser  = &model.visualization_chooser.frp;
+        let hover_area            = &model.hover_area.events;
+        let visualization_chooser = &model.visualization_chooser.frp;
 
         frp::extend! { network
 
 
             // === Input Processing ===
-            eval frp.set_size ((size)   model.set_size(*size));
-            eval frp.set_label ((label) model.set_label(label));
+
+            eval  frp.set_size ((size)   model.set_size(*size));
             eval_ frp.hide_icons ( model.hide() );
             eval_ frp.show_icons ( model.show() );
 
-            eval frp.input.set_visualization_alternatives ((alternatives){
-                visualization_chooser.input.set_alternatives.emit(alternatives);
-            });
-
-
-            // === Additional Layouting ===
-            eval model.label.width ((width) {
-                model.label.set_position_x(-width/2.0);
+            eval frp.input.set_visualization_alternatives ([visualization_chooser](entries){
+                visualization_chooser.input.set_entries.emit(entries);
             });
 
 
             // === Mouse Interactions ===
-            any_component_over <- any(&hover_area.mouse_over,&visualization_chooser.icon_mouse_over);
-            any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser.icon_mouse_out);
+            any_component_over <- any(&hover_area.mouse_over,&visualization_chooser.mouse_over);
+            any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser.mouse_out);
 
             any_hovered <- source::<bool>();
             eval_ any_component_over ( any_hovered.emit(true)  );
@@ -251,7 +223,7 @@ impl ActionBar {
             hide              <- any(mouse_out_no_menu,remote_click);
             eval_ hide (model.hide());
 
-            frp.source.visualisation_selection <+ visualization_chooser.selected_visualization;
+            frp.source.visualisation_selection <+ visualization_chooser.chosen_entry;
         }
         self
     }
