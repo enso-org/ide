@@ -52,11 +52,7 @@ impl Model {
         let visualization_alternatives = default();
         let selection_menu             = drop_down_menu::DropDownMenu::new(&app);
 
-        Self{visualization_alternatives,selection_menu}.init()
-    }
-
-    fn init(self) -> Self {
-        self
+        Self{visualization_alternatives,selection_menu}
     }
 }
 
