@@ -670,6 +670,7 @@ dependencies = [
  "enso-generics 0.1.0",
  "enso-prelude 0.1.0",
  "enso-shapely 0.1.0",
+ "enso-shortcuts 0.1.0",
  "enso-types 0.1.0",
  "ensogl-system-web 0.1.0",
  "ensogl-text-embedded-fonts 0.1.0",

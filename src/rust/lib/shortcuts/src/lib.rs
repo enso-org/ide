@@ -62,7 +62,7 @@ pub enum ActionType {
     Press, Release, DoublePress, DoubleClick
 }
 pub use ActionType::*;
-
+use js_sys::Atomics::sub;
 
 
 // ================
@@ -132,8 +132,13 @@ impl<T:Clone> RegistryModel<T> {
             let mut normal  = vec![];
 
             for chunk in expr.split('+').map(|t| t.trim()) {
-                let map = if special_keys.contains(chunk) { &mut special } else { &mut normal };
-                map.push(vec![chunk.into()]);
+                // let map = if special_keys.contains(chunk) { &mut special } else { &mut normal };
+                // map.push(vec![chunk.into()]);
+                if special_keys.contains(chunk) {
+                    special.push(vec![format!("{}-left",chunk),format!("{}-right",chunk)])
+                } else {
+                    normal.push(vec![chunk.into()])
+                }
             }
 
             let mut all : Vec<Vec<String>> = special.clone();
@@ -170,36 +175,46 @@ impl<T:Clone> RegistryModel<T> {
 
 impl<T:Clone> RegistryModel<T> {
     fn add_key_permutations(&mut self, source:nfa::State, keys:&[Vec<String>]) -> nfa::State {
-        println!("-----");
+        println!("===========");
         println!("{:?}",keys);
 
         let len = keys.len();
         let mut state = source;
 
         for perm in keys.iter().permutations(len) {
+            println!("---");
+            println!("perm: {:?}",perm);
             state = source;
             let mut path : Vec<&str> = vec![];
             let mut repr  = String::new();
+
+
             for alt_keys in perm {
-                // FIXME: this is wrong - here we should do alt between patterns
+                let out = self.nfa.new_state_exported();
+                println!("out: {:?}",out);
                 for key in alt_keys {
                     path.push(key);
                     path.sort();
-                    repr  = path.join(" ");
-                    state = match self.states.get(&repr) {
+                    repr = path.join(" ");
+                    println!("? {}",repr);
+                    match self.states.get(&repr) {
                         Some(&target) => {
-                            println!("bidirectional connect {}", key.to_string());
+                            println!("bidirectional connect {} [{:?} <-> {:?}]", key.to_string(), state, target);
                             self.bidirectional_connect(state,target,key.to_string());
-                            target
+                            self.nfa.connect(target,out);
+                            self.nfa.connect(out,target);
                         },
                         None => {
-                            println!("bidirectional pattern {}", key.to_string());
-                            let out = self.bidirectional_pattern(state,key.to_string());
+                            self.bidirectional_pattern(state,out,key.to_string());
+                            println!("bidirectional pattern {} [{:?} -- {:?}]", key.to_string(),state, out);
                             self.states.insert(repr.clone(),out);
-                            out
+                            println!("! {}",repr);
+                            // self.nfa.connect(target,out);
+                            // self.nfa.connect(out,target);
                         }
-                    }
-               }
+                    };
+                }
+                state = out;
             }
         }
         state
@@ -216,15 +231,15 @@ impl<T:Clone> RegistryModel<T> {
         }
     }
 
-    fn bidirectional_pattern(&mut self, source:nfa::State, key:String) -> nfa::State {
+    fn bidirectional_pattern(&mut self, source:nfa::State, target:nfa::State, key:String) {
         let key_r  = reverse_key(&key);
         let sym    = Symbol::new_named(hash(&key),key);
         let sym_r  = Symbol::new_named(hash(&key_r),key_r);
         let pat    = Pattern::symbol(&sym);
-        let target = self.nfa.new_pattern(source,pat);
+        self.nfa.new_pattern_to(source,target,pat);
         self.nfa.connect_via(target,source,&(sym_r.clone()..=sym_r));
         self.connections.insert((source,target));
-        target
+        // target
     }
 
     /// Process the `input` event. Events are strings uniquely identifying the source of the event,

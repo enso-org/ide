@@ -89,10 +89,16 @@ impl Nfa {
     }
 
     /// Adds a new state to the NFA and returns its identifier.
-    fn new_state(&mut self) -> State {
+    pub fn new_state(&mut self) -> State {
         let id = self.states.len();
         self.states.push(default());
         State::new(id)
+    }
+
+    pub fn new_state_exported(&mut self) -> State {
+        let state = self.new_state();
+        self[state].export = true;
+        state
     }
 
     /// Creates an epsilon transition between two states.
@@ -158,6 +164,39 @@ impl Nfa {
         };
         self[state].export = true;
         state
+    }
+
+    pub fn new_pattern_to(&mut self, source:State, target:State, pattern:impl AsRef<Pattern>) {
+        let pattern = pattern.as_ref();
+        match pattern {
+            Pattern::Range(range) => {
+                self.connect_via(source,target,range);
+            },
+            Pattern::Many(body) => {
+                let s1 = self.new_state();
+                let s2 = self.new_pattern(s1,body);
+                let target = self.new_state();
+                self.connect(source,s1);
+                self.connect(source,target);
+                self.connect(s2,target);
+                self.connect(target,s1);
+            },
+            Pattern::Seq(patterns) => {
+                let out = patterns.iter().fold(source,|s,pat| self.new_pattern(s,pat));
+                self.connect(out,target)
+            },
+            Pattern::Or(patterns) => {
+                let states = patterns.iter().map(|pat| self.new_pattern(source,pat)).collect_vec();
+                for state in states {
+                    self.connect(state,target);
+                }
+            },
+            Pattern::Always => {
+                self.connect(source,target)
+            },
+            Pattern::Never => {},
+        };
+        self[target].export = true;
     }
 
     /// Merges states that are connected by epsilon links, using an algorithm based on the one shown

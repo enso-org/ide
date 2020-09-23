@@ -1535,8 +1535,10 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
+        vec! [ Self::self_shortcut2(shortcut::ActionType::Press, "escape", "cancel_project_name_editing")
+             , Self::self_shortcut2(shortcut::ActionType::Press, "ctrl-left + n", "add_node_at_cursor")
+             , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
+             // , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
              , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
              , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())],&[])  , "double_press_visualization_visibility")

@@ -11,6 +11,7 @@ use crate::frp::io::mouse::Mouse;
 use crate::frp::io::mouse;
 use crate::frp;
 use crate::system::web;
+use enso_shortcuts as shortcuts;
 
 
 
@@ -57,34 +58,47 @@ pub type KeyboardPattern = Pattern<keyboard::KeyMask>;
 /// the keyboard bit-masks.
 #[derive(Clone,Debug,Eq,Hash,PartialEq)]
 #[allow(missing_docs)]
-pub struct ActionPattern {
-    pub keyboard : KeyboardPattern,
-    pub mouse    : MousePattern,
+pub enum ActionPattern {
+    ActionPattern {
+        keyboard: KeyboardPattern,
+        mouse: MousePattern,
+    },
+    ActionPattern2 { action:String }
 }
 
 impl ActionPattern {
     fn new(keyboard:impl Into<KeyboardPattern>, mouse:impl Into<MousePattern>) -> Self {
         let keyboard = keyboard.into();
         let mouse    = mouse.into();
-        Self {keyboard,mouse}
+        Self::ActionPattern {keyboard,mouse}
     }
 
     fn any() -> Self {
         let keyboard = Pattern::Any;
         let mouse    = Pattern::Any;
-        Self {keyboard,mouse}
+        Self::ActionPattern {keyboard,mouse}
     }
 
     fn as_any_mouse_pattern(&self) -> Self {
-        let keyboard = self.keyboard.clone();
-        let mouse    = Pattern::Any;
-        Self {keyboard,mouse}
+        match self {
+            Self::ActionPattern {keyboard,mouse} => {
+                let keyboard = keyboard.clone();
+                let mouse    = Pattern::Any;
+                Self::ActionPattern {keyboard,mouse}
+            },
+            _ => todo!()
+        }
     }
 
     fn as_any_keyboard_pattern(&self) -> Self {
-        let keyboard = Pattern::Any;
-        let mouse    = self.mouse.clone();
-        Self {keyboard,mouse}
+        match self {
+            Self::ActionPattern { keyboard, mouse } => {
+                let keyboard = Pattern::Any;
+                let mouse = mouse.clone();
+                Self::ActionPattern { keyboard, mouse }
+            },
+            _ => todo!()
+        }
     }
 }
 
@@ -108,7 +122,7 @@ impl From<&ActionMask> for ActionPattern {
     fn from(t:&ActionMask) -> Self {
         let keyboard = (&t.keyboard).into();
         let mouse    = (&t.mouse).into();
-        Self {keyboard,mouse}
+        Self::ActionPattern {keyboard,mouse}
     }
 }
 
@@ -247,7 +261,7 @@ pub struct Shortcut {
 impl Shortcut {
     /// Constructor. Version without condition checker.
     pub fn new<A,T,C>(action:A, target:T, command:C) -> Self
-        where A:Into<Action>, T:Into<String>, C:Into<Command> {
+    where A:Into<Action>, T:Into<String>, C:Into<Command> {
         let rule   = Rule::new(target,command);
         let action = action.into();
         Self {rule,action}
@@ -286,14 +300,20 @@ pub struct Registry {
 type RuleMap   = HashMap<ActionPattern,Vec<WeakHandle>>;
 type ActionMap = HashMap<ActionType,RuleMap>;
 
+type RuleMap2   = HashMap<String,Vec<WeakHandle>>;
+type ActionMap2 = HashMap<ActionType,RuleMap2>;
+
 /// Internal representation of `Registry`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct RegistryModel {
     logger            : Logger,
     keyboard          : Keyboard,
+    keyboard2         : keyboard2::Keyboard,
     mouse             : Mouse,
     command_registry  : command::Registry,
     action_map        : Rc<RefCell<ActionMap>>,
+    action_map2       : Rc<RefCell<ActionMap2>>,
+    shortcuts_registry : shortcuts::Registry<String>,
 }
 
 impl Deref for Registry {
@@ -305,12 +325,22 @@ impl Deref for Registry {
 
 impl Registry {
     /// Constructor.
-    pub fn new(logger:&Logger, mouse:&Mouse, keyboard:&Keyboard, command_registry:&command::Registry) -> Self {
-        let model    = RegistryModel::new(logger,mouse,keyboard,command_registry);
+    pub fn new(logger:&Logger, mouse:&Mouse, keyboard:&Keyboard, keyboard2:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
+        let model    = RegistryModel::new(logger,mouse,keyboard,keyboard2,command_registry);
         let keyboard = &model.keyboard;
         let mouse    = &model.mouse;
 
+        // shortcut_registry.add(shortcuts::DoublePress, "meta + a", "hello");
+
         frp::new_network! { network
+            on_press   <= keyboard2.down.map (f!((t) model.shortcuts_registry.on_press(t.simple_name())));
+            on_release <= keyboard2.up.map   (f!((t) model.shortcuts_registry.on_release(t.simple_name())));
+            trace on_press;
+            trace on_release;
+
+            eval on_press ((m) model.process_action2(ActionType::Press,m.to_string()));
+
+
             mask <- all_with(&keyboard.key_mask,&mouse.button_mask,|k,m|ActionMask::new(k,m));
             nothing_pressed      <- mask.map(|m| *m == default());
             nothing_pressed_prev <- nothing_pressed.previous();
@@ -343,13 +373,16 @@ impl Registry {
 impl RegistryModel {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, mouse:&Mouse, keyboard:&Keyboard, command_registry:&command::Registry) -> Self {
+    (logger:impl AnyLogger, mouse:&Mouse, keyboard:&Keyboard, keyboard2:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
         let logger            = Logger::sub(logger,"ShortcutRegistry");
         let keyboard          = keyboard.clone_ref();
+        let keyboard2         = keyboard2.clone_ref();
         let mouse             = mouse.clone_ref();
         let command_registry  = command_registry.clone_ref();
         let action_map        = default();
-        Self {logger,keyboard,mouse,command_registry,action_map}
+        let action_map2       = default();
+        let shortcuts_registry = shortcuts::Registry::<String>::new();
+        Self {logger,keyboard,keyboard2,mouse,command_registry,action_map,action_map2,shortcuts_registry}
     }
 
     fn process_action(&self, action_type:ActionType, mask:&ActionMask) {
@@ -366,6 +399,15 @@ impl RegistryModel {
                 self.process_rules(rules)
             }
             if let Some(rules) = rule_map.get_mut(&ActionPattern::any()) {
+                self.process_rules(rules)
+            }
+        }
+    }
+
+    fn process_action2(&self, action_type:ActionType, action:String) {
+        let action_map_mut = &mut self.action_map2.borrow_mut();
+        if let Some(rule_map) = action_map_mut.get_mut(&action_type) {
+            if let Some(rules) = rule_map.get_mut(&action) {
                 self.process_rules(rules)
             }
         }
@@ -412,10 +454,24 @@ impl Add<Shortcut> for &Registry {
     fn add(self, shortcut:Shortcut) -> Handle {
         let handle     = Handle::new(shortcut.rule);
         let instance   = handle.downgrade();
-        let action_map = &mut self.action_map.borrow_mut();
-        let rule_map   = action_map.entry(shortcut.action.tp).or_default();
-        let rules      = rule_map.entry(shortcut.action.mask).or_default();
-        rules.push(instance);
+
+        match &shortcut.action.mask {
+            ActionPattern::ActionPattern2 {action} => {
+                println!("!!!! {}",action);
+                self.model.shortcuts_registry.add(shortcuts::Press, action, action); // "hello"
+
+                let action_map = &mut self.action_map2.borrow_mut();
+                let rule_map   = action_map.entry(shortcut.action.tp).or_default();
+                let rules      = rule_map.entry(action.to_string()).or_default();
+                rules.push(instance);
+            },
+            _ => {
+                let action_map = &mut self.action_map.borrow_mut();
+                let rule_map   = action_map.entry(shortcut.action.tp).or_default();
+                let rules      = rule_map.entry(shortcut.action.mask).or_default();
+                rules.push(instance);
+            }
+        }
         handle
     }
 }
@@ -481,5 +537,10 @@ pub trait DefaultShortcutProvider : command::Provider {
     /// condition checker.
     fn self_shortcut(action:impl Into<Action>, command:impl Into<Command>) -> Shortcut {
         Shortcut::new(action,Self::label(),command)
+    }
+
+    fn self_shortcut2(action_type:ActionType, shortcut:&str, command:impl Into<Command>) -> Shortcut {
+        let action = shortcut.into();
+        Shortcut::new(Action::new(action_type,ActionPattern::ActionPattern2{action}),Self::label(),command)
     }
 }

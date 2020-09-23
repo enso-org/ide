@@ -27,7 +27,7 @@ pub fn entry_point_shortcuts() {
 
 pub fn main() {
     let mut shortcut_registry = shortcuts::Registry::<String>::new();
-    shortcut_registry.add(shortcuts::DoublePress, "meta + a", "hello");
+    shortcut_registry.add(shortcuts::Press, "meta + a", "hello");
 
     println!("{}",shortcut_registry.nfa_as_graphviz_code());
 
