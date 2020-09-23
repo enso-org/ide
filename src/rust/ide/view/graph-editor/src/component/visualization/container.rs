@@ -466,21 +466,6 @@ impl Container {
         Self {model,frp,network} . init(scene)
     }
 
-    /// Sets pointer-events `value` of all `HtmlElement`s of the `visualization` class.
-    pub fn set_all_visualizations_pointer_events(value:impl Str) {
-        use wasm_bindgen::JsCast;
-        let value    = value.into();
-        let elements = ensogl::system::web::get_elements_by_class_name("visualization");
-        let logger   = Logger::new("Visualizations");
-        if let Ok(elements) = elements {
-            for element in elements {
-                if let Ok(html_element) = element.dyn_into::<web_sys::HtmlElement>() {
-                    html_element.set_style_or_warn("pointer-events",&value,&logger)
-                }
-            }
-        }
-    }
-
     fn init(self,scene:&Scene) -> Self {
         let inputs     = &self.frp;
         let network    = &self.network;
@@ -498,9 +483,7 @@ impl Container {
             eval_ inputs.enable_fullscreen (model.enable_fullscreen());
             eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
             eval  inputs.set_size          ((s) size.set_target_value(*s));
-            eval_ model.view.overlay.events.mouse_down([] {
-                Container::set_all_visualizations_pointer_events("auto");
-            });
+            eval_ model.view.overlay.events.mouse_down(scene.frp.pass_processed_event_to_js.emit(()));
 
             _eval <- fullscreen.value.all_with3(&size.value,&inputs.scene_shape,
                 f!([model] (weight,viz_size,scene_size) {

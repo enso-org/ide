@@ -292,7 +292,7 @@ pub struct Mouse {
     pub position      : Uniform<Vector2<i32>>,
     pub hover_ids     : Uniform<Vector4<u32>>,
     pub target        : Rc<Cell<Target>>,
-    pub handles       : Rc<Vec<callback::Handle>>,
+    pub handles       : Rc<[callback::Handle;3]>,
     pub frp           : enso_frp::io::Mouse,
     pub scene_frp     : Frp,
     pub logger        : Logger
@@ -311,6 +311,8 @@ impl Mouse {
         let frp             = frp::io::Mouse::new();
         let on_move         = mouse_manager.on_move.add(f!([frp,scene_frp,position,last_position]
             (event:&mouse::OnMove) {
+                let as_event:&web_sys::Event = event.as_ref();
+                scene_frp.processed_event_source.emit(Some(as_event.clone()));
                 let shape       = scene_frp.shape.value();
                 let pixel_ratio = shape.pixel_ratio as i32;
                 let screen_x    = event.client_x();
@@ -325,11 +327,22 @@ impl Mouse {
                     let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
                     frp.position.emit(position);
                 }
+                scene_frp.processed_event_source.emit(None);
             }
         ));
-        let on_down = mouse_manager.on_down . add(f!((event) frp.down . emit(event.button())));
-        let on_up   = mouse_manager.on_up   . add(f!((event) frp.up   . emit(event.button())));
-        let handles = Rc::new(vec![on_move,on_down,on_up]);
+        let on_down = mouse_manager.on_down.add(f!([frp,scene_frp](event) {
+            let as_event:&web_sys::Event = event.as_ref();
+            scene_frp.processed_event_source.emit(Some(as_event.clone()));
+            frp.down.emit(event.button());
+            scene_frp.processed_event_source.emit(None);
+        }));
+        let on_up   = mouse_manager.on_up.add(f!([frp,scene_frp](event)  {
+            let as_event:&web_sys::Event = event.as_ref();
+            scene_frp.processed_event_source.emit(Some(as_event.clone()));
+            frp.up.emit(event.button());
+            scene_frp.processed_event_source.emit(None);
+        }));
+        let handles = Rc::new([on_move,on_down,on_up]);
         Self {mouse_manager,last_position,position,hover_ids,target,handles,frp,scene_frp,logger}
     }
 
@@ -749,26 +762,48 @@ impl Views {
 /// FRP Scene interface.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Frp {
-    pub network        : frp::Network,
-    pub shape          : frp::Sampler<Shape>,
-    pub camera_changed : frp::Stream,
-    pub frame_time     : frp::Stream<f32>,
-
-    camera_changed_source : frp::Source,
-    frame_time_source     : frp::Source<f32>,
+    pub network                    : frp::Network,
+    pub shape                      : frp::Sampler<Shape>,
+    pub camera_changed             : frp::Stream,
+    pub frame_time                 : frp::Stream<f32>,
+    pub processed_event            : frp::Stream<Option<web_sys::Event>>,
+    pub pass_processed_event_to_js : frp::Source<()>,
+    processed_event_source         : frp::Source<Option<web_sys::Event>>,
+    camera_changed_source          : frp::Source,
+    frame_time_source              : frp::Source<f32>,
 }
 
 impl Frp {
     /// Constructor
     pub fn new(shape:&frp::Sampler<Shape>) -> Self {
         frp::new_network! { network
-            camera_changed_source <- source();
-            frame_time_source     <- source();
+            camera_changed_source      <- source();
+            frame_time_source          <- source();
+            processed_event_source     <- source();
+            pass_processed_event_to_js <- source();
+            event_is_passed_to_js      <- any(...);
+            event_is_passed_to_js      <+ pass_processed_event_to_js.constant(true);
+            processed_event            <- any(...);
+
+            event_is_being_chainged <- processed_event_source.map3(&processed_event,&event_is_passed_to_js,
+                |new:&Option<web_sys::Event>, current:&Option<web_sys::Event>, is_passed| {
+                    if let Some(e) = current {
+                        if !is_passed {
+                            e.stop_propagation();
+                        }
+                    }
+                    new.clone()
+                }
+            );
+            event_is_passed_to_js <+ event_is_being_chainged.constant(false);
+            processed_event       <+ event_is_being_chainged;
         }
-        let shape          = shape.clone_ref();
-        let camera_changed = camera_changed_source.clone_ref().into();
-        let frame_time     = frame_time_source.clone_ref().into();
-        Self {network,shape,camera_changed,frame_time,camera_changed_source,frame_time_source}
+        let shape           = shape.clone_ref();
+        let camera_changed  = camera_changed_source.clone_ref().into();
+        let frame_time      = frame_time_source.clone_ref().into();
+        let processed_event = processed_event.into();
+        Self {network,shape,camera_changed,frame_time,processed_event,pass_processed_event_to_js,
+            processed_event_source,camera_changed_source,frame_time_source}
     }
 }
 
