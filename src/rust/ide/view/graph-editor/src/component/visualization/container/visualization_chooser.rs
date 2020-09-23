@@ -5,13 +5,13 @@
 use crate::prelude::*;
 
 use crate::component::visualization;
-use crate::component::visualization::container::drop_down_menu;
 
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
 use ensogl::display;
 use ensogl_gui_list_view as list_view;
+use ensogl_gui_drop_down_menu as drop_down_menu;
 
 
 

@@ -10,7 +10,6 @@
 
 mod action_bar;
 mod visualization_chooser;
-mod drop_down_menu;
 
 use crate::prelude::*;
 

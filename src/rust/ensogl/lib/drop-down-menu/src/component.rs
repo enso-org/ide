@@ -1,29 +1,16 @@
-//! Definition of the icon + menu displayed to choose the visualisation for a
-//! node.
-
-use crate::prelude::*;
-
-use crate::component::visualization;
+//! Drop Down Menu Component.
+use ensogl_core::prelude::*;
 
 use enso_frp as frp;
 use enso_frp;
-use ensogl::application::Application;
-use ensogl::data::color;
-use ensogl::display::shape::*;
-use ensogl::display::traits::*;
-use ensogl::display;
-use ensogl::gui::component;
+use ensogl_core::application::Application;
+use ensogl_core::data::color;
+use ensogl_core::display::shape::*;
+use ensogl_core::display;
+use ensogl_core::gui::component;
 use ensogl_gui_list_view as list_view;
 use ensogl_gui_list_view::entry::ModelProvider;
 use ensogl_text as text;
-
-
-// ==============
-// === Traits ===
-// ==============
-
-/// Traits that need to be implemented for a struct that can be used in a `TextList`.
-pub trait TextListItem = Debug + Clone + Display + PartialEq + 'static;
 
 
 
@@ -46,7 +33,7 @@ const MENU_WIDTH  : f32         = 180.0;
 pub mod icon {
     use super::*;
 
-    ensogl::define_shape_system! {
+    ensogl_core::define_shape_system! {
         (style:Style) {
             let width            = Var::<Pixels>::from("input_size.x");
             let height           = Var::<Pixels>::from("input_size.y");
@@ -65,7 +52,7 @@ pub mod icon {
 pub mod chooser_hover_area {
     use super::*;
 
-    ensogl::define_shape_system! {
+    ensogl_core::define_shape_system! {
         () {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
@@ -73,37 +60,6 @@ pub mod chooser_hover_area {
             let background           = background.fill(HOVER_COLOR);
             background.into()
         }
-    }
-}
-
-
-
-// ===============================
-// === Visualisation Path List ===
-// ===============================
-
-/// The `VisualisationPathList` allows us to show a `Vec<visualization::Path>` in the
-/// `list_view::ListView` by implementing `list_view::entry::ModelProvider`.
-#[derive(Clone,Debug,Default)]
-struct VisualisationPathList {
-    content: Vec<visualization::Path>
-}
-
-impl From<Vec<visualization::Path>> for VisualisationPathList {
-    fn from(content:Vec<visualization::Path>) -> Self {
-        Self{content}
-    }
-}
-
-impl ModelProvider for VisualisationPathList {
-    fn entry_count(&self) -> usize {
-        self.content.len()
-    }
-
-    fn get(&self, id:usize) -> Option<list_view::entry::Model> {
-        let path  = self.content.get(id)?;
-        let label = format!("{}", path);
-        Some(list_view::entry::Model::new(label))
     }
 }
 
@@ -151,7 +107,7 @@ struct Model {
 }
 
 impl Model {
-    pub fn new(app:&Application) -> Self {
+    fn new(app:&Application) -> Self {
         let logger         = Logger::new("visualization_chooser::Model");
         let scene          = app.display.scene().clone_ref();
         let app            = app.clone_ref();
@@ -213,7 +169,8 @@ impl display::Object for Model {
 // === VisualisationChooser ===
 // ============================
 
-/// UI entity that shows a button that opens a list of visualisations that can be sel:ected from.
+/// UI entity that shows a button that opens a list of visualisations that can be selected from.
+#[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct DropDownMenu {
         model : Rc<Model>,
@@ -221,6 +178,7 @@ pub struct DropDownMenu {
 }
 
 impl DropDownMenu {
+    /// Constructor.
     pub fn new(app:&Application) -> Self {
         let frp   = Frp::new_network();
         let model = Rc::new(Model::new(app));
@@ -366,3 +324,4 @@ impl display::Object for DropDownMenu {
         &self.model.display_object
     }
 }
+
