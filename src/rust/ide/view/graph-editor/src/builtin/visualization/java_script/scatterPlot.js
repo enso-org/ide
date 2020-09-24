@@ -10,7 +10,6 @@ loadScript('https://d3js.org/d3.v4.min.js');
 /**
  * A d3.js ScatterPlot visualization.
  *
- * source (CSV file): | x-axis | y-axis | domain |
  * Data format (json):
  * {
  *  "axis" : {
@@ -47,9 +46,8 @@ class ScatterPlot extends Visualization {
         console.log(parsedData);
 
         let axis = parsedData.axis || {x: {scale: "linear" }, y: {scale: "linear" }};
-        console.log(axis);
 
-        let focus = parsedData.focus;// || {x: medium_x, y : medium_Y, zoom : ??? };
+        let focus = parsedData.focus;
         console.log(focus);
 
         let points = parsedData.points || {labels: "invisible"};
@@ -58,24 +56,11 @@ class ScatterPlot extends Visualization {
         let dataPoints = parsedData.data || {};
         console.log(dataPoints);
 
-        ////////////////////////////////////////////////////////////////////////
-
-        /// Old impl
-        let dataSource  = parsedData.source || "";
-        let colorDomain = []
-        let colorRange  = []
-        if (parsedData.colors !== undefined) {
-            parsedData.colors.forEach(d => {
-                colorDomain.push(d.domain);
-                colorRange.push("#" + d.color);
-            });
-        }
-
         ///////////
         /// Box ///
         ///////////
 
-        let margin = {top: 10, right: 10, bottom: 30, left: 30};
+        let margin = {top: 10, right: 10, bottom: 40, left: 40};
         if (axis.x.label === undefined && axis.y.label === undefined) {
             margin = {top: 20, right: 20, bottom: 20, left: 20};
         }
@@ -89,139 +74,96 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+        ////////////////////////////////////////////////////////////////////////
 
-        d3.csv(dataSource, function (_data) {
-            var headerNames = d3.keys(_data[0]);
+        ////////////
+        /// Axes ///
+        ////////////
 
-            ////////////
-            /// Axes ///
-            ////////////
+        var x = d3.scaleLinear();
+        if(axis.x.scale !== "linear") {
+            x = d3.scaleLog();
+        }
 
-            var x = d3.scaleLinear();
-            if(axis.x.scale !== "linear") {
-                x = d3.scaleLog();
-            }
+        x.domain([0, 1]) // read domain as minX-maxX
+            .range([0, width]);
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
 
-            x.domain([4, 8])
-                .range([0, width]);
-            var xAxis = svg.append("g")
-                .attr("transform", "translate(0," + height + ")")
-                .call(d3.axisBottom(x));
+        /////////////
 
-            /////////////
+        var y = d3.scaleLinear()
+        if(axis.y.scale !== "linear") {
+            y = d3.scaleLog();
+        }
 
-            var y = d3.scaleLinear()
-            if(axis.y.scale !== "linear") {
-                y = d3.scaleLog();
-            }
-
-            y.domain([0, 9])
-                .range([height, 0]);
-            svg.append("g")
-                .call(d3.axisLeft(y));
+        y.domain([0, 1]) // read domain as minY-maxY
+            .range([height, 0]);
+        svg.append("g")
+            .call(d3.axisLeft(y));
 
 
-            //////////////
-            /// Labels ///
-            //////////////
+        //////////////
+        /// Labels ///
+        //////////////
 
-            if(axis.x.label !== undefined) {
-                svg.append("text")
-                    .attr("text-anchor", "end")
-                    .attr("style","font-family: dejavuSansMono; font-size: 11px;")
-                    .attr("x", width / 2 + margin.left)
-                    .attr("y", height + margin.top + 15)
-                    .text(axis.x.label);
-            }
+        if(axis.x.label !== undefined) {
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("style","font-family: dejavuSansMono; font-size: 11px;")
+                .attr("x", width / 2 + margin.left)
+                .attr("y", height + margin.top + 25)
+                .text(axis.x.label);
+        }
 
-            /////////////
+        /////////////
 
-            if(axis.y.label !== undefined) {
-                svg.append("text")
-                    .attr("text-anchor", "end")
-                    .attr("style","font-family: dejavuSansMono; font-size: 11px;")
-                    .attr("transform", "rotate(-90)")
-                    .attr("y", -margin.left + 10)
-                    .attr("x", -margin.top - height / 2 + 20)
-                    .text(axis.y.label);
-            }
+        if(axis.y.label !== undefined) {
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("style","font-family: dejavuSansMono; font-size: 11px;")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left + 10)
+                .attr("x", -margin.top - height / 2 + 30)
+                .text(axis.y.label);
+        }
 
 
-            //////////////
-            /// Shapes ///
-            //////////////
+        //////////////
+        /// Shapes ///
+        //////////////
 
-            var clip = svg.append("defs").append("svg:clipPath")
-                .attr("id", "clip")
-                .append("svg:rect")
-                .attr("width", width)
-                .attr("height", height)
-                .attr("x", 0)
-                .attr("y", 0);
+        var clip = svg.append("defs").append("svg:clipPath")
+            .attr("id", "clip")
+            .append("svg:rect")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("x", 0)
+            .attr("y", 0);
 
-            var color = d3.scaleOrdinal()
-                .domain(colorDomain)
-                .range(colorRange)
+        var scatter = svg.append('g')
+            .attr("clip-path", "url(#clip)")
 
-            var brush = d3.brushX()
-                .extent([[0, 0], [width, height]])
-                .on("end", updateChart)
-
-            var scatter = svg.append('g')
-                .attr("clip-path", "url(#clip)")
-
-            scatter
-                .selectAll("circle")
-                .data(_data)
-                .enter()
-                .append("circle")
-                .attr("cx", function (d) {
-                    return x(d[headerNames[0]]);
-                })
-                .attr("cy", function (d) {
-                    return y(d[headerNames[1]]);
-                })
-                .attr("r", 8)
-                .style("fill", function (d) {
-                    return color(d[headerNames[2]])
-                })
-                .style("opacity", 0.5)
-
-            scatter
-                .append("g")
-                .attr("class", "brush")
-                .call(brush);
-
-            var idleTimeout
-
-            function idled() {
-                idleTimeout = null;
-            }
-
-            function updateChart() {
-                let extent = d3.event.selection;
-
-                if (!extent) {
-                    if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
-                    x.domain([4, 8])
-                } else {
-                    x.domain([x.invert(extent[0]), x.invert(extent[1])])
-                    scatter.select(".brush").call(brush.move, null)
-                }
-
-                xAxis.transition().duration(1000).call(d3.axisBottom(x))
-                scatter
-                    .selectAll("circle")
-                    .transition().duration(1000)
-                    .attr("cx", function (d) {
-                        return x(d[headerNames[0]]);
-                    })
-                    .attr("cy", function (d) {
-                        return y(d[headerNames[1]]);
-                    })
-
-            }
-        });
+        // FIXME
+        scatter
+            .selectAll("circle")
+            .data(parsedData.dataPoints)
+            .enter()
+            .append("circle")
+            .attr("cx", function (d) {
+                return x(d.x);
+            })
+            .attr("cy", function (d) {
+                return y(d.y);
+            })
+            .attr("r", function (d) {
+                return 10 * d.size;
+            })
+            .style("fill", function (d) {
+                return color(d.color)
+            })
+            .style("opacity", 0.5)
     }
 
     createDivElem(width, height) {
