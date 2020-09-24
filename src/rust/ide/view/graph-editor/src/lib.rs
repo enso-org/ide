@@ -2305,30 +2305,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 //        visualizations.set_selected(id);
 //    }));
 
-
-    // === Vis Cycling ===
-
-//    let cycle_count = Rc::new(Cell::new(0));
-//    def _cycle_visualization = inputs.cycle_visualization_for_selected_node.map(f!([scene,visualizations,visualizations,logger](_) {
-//        let vis_classes = visualizations.valid_sources(&"[[Float,Float,Float]]".into());
-//        cycle_count.set(cycle_count.get() % vis_classes.len());
-//        let vis       = &vis_classes[cycle_count.get()];
-//        let vis       = vis.new_instance(&scene);
-//        match vis {
-//            Ok(vis)  => visualizations.set_vis_for_selected(vis),
-//            Err(e)=>  logger.warning(|| format!("Failed to cycle visualization: {}",e)),
-//        };
-//
-//        cycle_count.set(cycle_count.get() + 1);
-//    }));
-//
-//    // === Vis Fullscreen ===
-//
-//    def _toggle_fullscreen = inputs.toggle_fullscreen_for_selected_visualization.map(f!([visualizations](_) {
-//        visualizations.toggle_fullscreen_for_selected_visualization();
-//    }));
-
-
    // === Vis Set ===
    frp::extend! { network
 
@@ -2363,6 +2339,25 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
              node.visualization.frp.set_data.emit(data);
          }
      }));
+
+     nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
+     node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
+
+     let cycle_count = Rc::new(Cell::new(0));
+     def _cycle_visualization = node_to_cycle.map(f!([nodes,visualizations,logger](node_id) {
+        let visualizations = visualizations.valid_sources(&"Any".into());
+        cycle_count.set(cycle_count.get() % visualizations.len());
+        let vis  = visualizations.get(cycle_count.get());
+        let node = nodes.get_cloned_ref(node_id);
+        match (vis, node) {
+            (Some(vis), Some(node))  => {
+                node.visualization.frp.set_visualization.emit(vis.clone());
+            },
+            (None, _) => logger.warning(|| format!("Failed to get visualization while cycling.")),
+            _           => {}
+        };
+        cycle_count.set(cycle_count.get() + 1);
+    }));
 
 
     // === Visualization toggle ===
