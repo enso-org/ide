@@ -3,6 +3,7 @@ use ensogl_core::prelude::*;
 
 use enso_frp as frp;
 use enso_frp;
+use ensogl_core::display::shape::primitive::StyleWatch;
 use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display::shape::*;
@@ -11,6 +12,7 @@ use ensogl_core::gui::component;
 use ensogl_gui_list_view as list_view;
 use ensogl_gui_list_view::entry::ModelProvider;
 use ensogl_text as text;
+use ensogl_theme as theme;
 
 
 
@@ -332,6 +334,12 @@ impl DropDownMenu {
                hide_menu.emit(());
            });
         }
+
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for
+        // shape system (#795)
+        let styles     = StyleWatch::new(&app.display.scene().style_sheet);
+        let text_color = styles.get_color(theme::vars::widget::list_view::text::color);
+        model.label.set_default_color(color::Rgba::from(text_color));
 
         self
     }
