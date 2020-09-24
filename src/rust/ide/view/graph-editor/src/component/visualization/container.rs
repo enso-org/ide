@@ -429,6 +429,15 @@ impl ContainerModel {
         // self.view.background.shape.roundness.set(value);
         // self.fullscreen_view.background.shape.roundness.set(value);
     }
+
+    /// Check if given mouse-event-target means this visualization.
+    fn is_this_target(&self, target:scene::Target) -> bool {
+        use ensogl::display::shape::primitive::system::Shape;
+        self.view.overlay.shape.sprites().iter().map(|s| scene::Target::Symbol {
+            symbol_id   : s.symbol.id as u32,
+            instance_id : *s.instance_id as u32,
+        }).any(|t| t == target)
+    }
 }
 
 impl display::Object for ContainerModel {
@@ -483,7 +492,20 @@ impl Container {
             eval_ inputs.enable_fullscreen (model.enable_fullscreen());
             eval_ inputs.enable_fullscreen (fullscreen.set_target_value(1.0));
             eval  inputs.set_size          ((s) size.set_target_value(*s));
-            eval_ model.view.overlay.events.mouse_down(scene.frp.pass_processed_event_to_js.emit(()));
+
+            mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
+            eval mouse_down_target ([model] (target){
+                let vis        = &model.visualization;
+                let activate   = || vis.borrow().as_ref().map(|v| v.activate.clone_ref());
+                let deactivate = || vis.borrow().as_ref().map(|v| v.deactivate.clone_ref());
+                if model.is_this_target(*target) {
+                    if let Some(activate) = activate() {
+                        activate.emit(());
+                    }
+                } else if let Some(deactivate) = deactivate() {
+                    deactivate.emit(());
+                }
+            });
 
             _eval <- fullscreen.value.all_with3(&size.value,&inputs.scene_shape,
                 f!([model] (weight,viz_size,scene_size) {

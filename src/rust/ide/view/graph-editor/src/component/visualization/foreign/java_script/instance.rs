@@ -215,10 +215,10 @@ impl Instance {
         let frp     = visualization::instance::Frp::new(&network);
         let model   = InstanceModel::from_class(class)?;
         model.set_dom_layer(&scene.dom.layers.back);
-        Ok(Instance{model,frp,network}.init_frp().inti_preprocessor_change_callback())
+        Ok(Instance{model,frp,network}.init_frp(&scene).inti_preprocessor_change_callback())
     }
 
-    fn init_frp(self) -> Self {
+    fn init_frp(self, scene:&Scene) -> Self {
         let network = &self.network;
         let model   = self.model.clone_ref();
         let frp     = self.frp.clone_ref();
@@ -229,6 +229,15 @@ impl Instance {
                     frp.data_receive_error.emit(Some(e));
                 }
              });
+
+            mouse_up       <- scene.mouse.frp.up.constant(());
+            mouse_down     <- scene.mouse.frp.down.constant(());
+            mouse_wheel    <- scene.mouse.frp.wheel.constant(());
+            mouse_position <- scene.mouse.frp.position.constant(());
+            caught_mouse   <- any(mouse_up,mouse_down,mouse_wheel,mouse_position);
+            should_process <- caught_mouse.gate(&frp.is_active);
+            trace should_process;
+            eval_ should_process ([scene] scene.frp.pass_processed_event_to_js.emit(()));
         }
         self
     }
