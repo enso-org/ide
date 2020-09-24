@@ -46,6 +46,8 @@ class ScatterPlot extends Visualization {
         // FIXME : SVG eagerly gets all pointer events from top of it, even if
         //         node overlaps it. Should be debugged with (#797).
 
+        console.log(data);
+
         let parsedData  = JSON.parse(data);
         let dataSource  = parsedData.source || "";
         let colorDomain = []
@@ -57,25 +59,56 @@ class ScatterPlot extends Visualization {
             });
         }
 
-        d3.csv(dataSource, this.presentDataOnScatterplot(width, svg, height, colorDomain, colorRange));
-    }
+        console.log(d3.csv(dataSource));
 
-    presentDataOnScatterplot(width, svg, height, colorDomain, colorRange) {
-        return function (_data) {
+        d3.csv(dataSource, function (_data) {
             var headerNames = d3.keys(_data[0]);
 
-            var x = d3.scaleLinear()
-                .domain([4, 8])
+            ////////////
+            /// Axes ///
+            ////////////
+
+            var x = d3.scaleLinear();
+            // var x = d3.scaleLog();
+
+            x.domain([4, 8])
                 .range([0, width]);
             var xAxis = svg.append("g")
                 .attr("transform", "translate(0," + height + ")")
                 .call(d3.axisBottom(x));
 
             var y = d3.scaleLinear()
-                .domain([0, 9])
+            // var y = d3.scaleLog();
+
+            y.domain([0, 9])
                 .range([height, 0]);
             svg.append("g")
                 .call(d3.axisLeft(y));
+
+
+            //////////////
+            /// Labels ///
+            //////////////
+
+            // Add X axis label:
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("x", width/2 + margin.left)
+                .attr("y", height + margin.top + 20)
+                .text("Sepal Length");
+
+            // Y axis label:
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left + 20)
+                .attr("x", -margin.top - height/2 + 20)
+                .text("Petal Length")
+
+
+            //////////////
+            /// Shapes ///
+            //////////////
 
             var clip = svg.append("defs").append("svg:clipPath")
                 .attr("id", "clip")
@@ -147,7 +180,7 @@ class ScatterPlot extends Visualization {
                     })
 
             }
-        };
+        });
     }
 
     createDivElem(width, height) {
