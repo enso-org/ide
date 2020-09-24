@@ -2353,7 +2353,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             (Some(vis), Some(node))  => {
                 node.visualization.frp.set_visualization.emit(vis.clone());
             },
-            (None, _) => logger.warning(|| format!("Failed to get visualization while cycling.")),
+            (None, _) => logger.warning(|| "Failed to get visualization while cycling.".to_string()),
             _           => {}
         };
         cycle_count.set(cycle_count.get() + 1);
