@@ -534,7 +534,7 @@ impl Container {
                  if let Some(definition) = vis_definition {
                     match definition.new_instance(&scene) {
                         Ok(vis)  => {
-                            model.set_visualization(Some(vis.clone()));
+                            model.set_visualization(Some(vis));
                             let alternatives      = registry.valid_sources(&definition.signature.input_type);
                             let alternative_paths = alternatives.into_iter().map(|definition| definition.signature.path).collect_vec();
                             model.action_bar.frp.set_visualization_alternatives.emit(alternative_paths);
@@ -587,7 +587,7 @@ impl Container {
                     if let Some(definition) = registry.definition_from_path(path) {
                         if let Ok(visualization) = definition.new_instance(&scene) {
                             model.set_visualization(Some(visualization));
-                            model.action_bar.frp.set_selected_visualization.emit(Some(definition.signature.path.clone()));
+                            model.action_bar.frp.set_selected_visualization.emit(Some(definition.signature.path));
                         }
                     }
                     action_bar.hide_icons.emit(());
