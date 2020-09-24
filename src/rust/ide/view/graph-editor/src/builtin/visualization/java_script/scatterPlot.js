@@ -40,22 +40,6 @@ class ScatterPlot extends Visualization {
         let height    = this.dom.getAttributeNS(null, "height");
         const divElem = this.createDivElem(width, height);
 
-        // FIXME : SVG eagerly gets all pointer events from top of it, even if
-        //         node overlaps it. Should be debugged with (#797).
-
-        let margin = {top: 20, right: 20, bottom: 20, left: 20};
-        width      = width - margin.left - margin.right;
-        height     = height - margin.top - margin.bottom;
-
-        let svg = d3.select(divElem)
-            .append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-        console.log(data);
-
         ////////////////////////////////////////////////////////////////////////
         console.log("-----===== READING =====-----")
 
@@ -73,6 +57,7 @@ class ScatterPlot extends Visualization {
 
         let dataPoints = parsedData.data || {};
         console.log(dataPoints);
+
         ////////////////////////////////////////////////////////////////////////
 
         /// Old impl
@@ -86,6 +71,25 @@ class ScatterPlot extends Visualization {
             });
         }
 
+        ///////////
+        /// Box ///
+        ///////////
+
+        let margin = {top: 10, right: 10, bottom: 30, left: 30};
+        if (axis.x.label === undefined && axis.y.label === undefined) {
+            margin = {top: 20, right: 20, bottom: 20, left: 20};
+        }
+        width      = width - margin.left - margin.right;
+        height     = height - margin.top - margin.bottom;
+
+        let svg = d3.select(divElem)
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
         d3.csv(dataSource, function (_data) {
             var headerNames = d3.keys(_data[0]);
 
@@ -94,7 +98,9 @@ class ScatterPlot extends Visualization {
             ////////////
 
             var x = d3.scaleLinear();
-            // var x = d3.scaleLog();
+            if(axis.x.scale !== "linear") {
+                x = d3.scaleLog();
+            }
 
             x.domain([4, 8])
                 .range([0, width]);
@@ -102,8 +108,12 @@ class ScatterPlot extends Visualization {
                 .attr("transform", "translate(0," + height + ")")
                 .call(d3.axisBottom(x));
 
+            /////////////
+
             var y = d3.scaleLinear()
-            // var y = d3.scaleLog();
+            if(axis.y.scale !== "linear") {
+                y = d3.scaleLog();
+            }
 
             y.domain([0, 9])
                 .range([height, 0]);
@@ -115,20 +125,26 @@ class ScatterPlot extends Visualization {
             /// Labels ///
             //////////////
 
-            // Add X axis label:
-            svg.append("text")
-                .attr("text-anchor", "end")
-                .attr("x", width/2 + margin.left)
-                .attr("y", height + margin.top + 20)
-                .text("Sepal Length");
+            if(axis.x.label !== undefined) {
+                svg.append("text")
+                    .attr("text-anchor", "end")
+                    .attr("style","font-family: dejavuSansMono; font-size: 11px;")
+                    .attr("x", width / 2 + margin.left)
+                    .attr("y", height + margin.top + 15)
+                    .text(axis.x.label);
+            }
 
-            // Y axis label:
-            svg.append("text")
-                .attr("text-anchor", "end")
-                .attr("transform", "rotate(-90)")
-                .attr("y", -margin.left + 20)
-                .attr("x", -margin.top - height/2 + 20)
-                .text("Petal Length")
+            /////////////
+
+            if(axis.y.label !== undefined) {
+                svg.append("text")
+                    .attr("text-anchor", "end")
+                    .attr("style","font-family: dejavuSansMono; font-size: 11px;")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -margin.left + 10)
+                    .attr("x", -margin.top - height / 2 + 20)
+                    .text(axis.y.label);
+            }
 
 
             //////////////
