@@ -1,6 +1,10 @@
 //! UI entity that allows for the selection of a visualisation. Uses the
 //! `drop_down_menu::DropDownMenu` but provides convenience functionality to extract map the
 //! indices of the `DropDownMenu` to `Path` values.
+//!
+//! TODO: If similar things are needed elsewhere, refactor this to a
+//! Chooser<T:Eq+Display> (or similar) which would represent a `DropDownMenu` for specific owned
+//! values.
 
 use crate::prelude::*;
 
