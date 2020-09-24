@@ -104,6 +104,7 @@ struct Model {
     label           : text::Area,
     selection_menu  : list_view::ListView,
 
+    // `SingleMaskedProvider` allows us to hide the selected element.
     content         : RefCell<Option<list_view::entry::SingleMaskedProvider>>,
 }
 
@@ -156,6 +157,18 @@ impl Model {
     fn get_content_item(&self, id:Option<list_view::entry::Id>) -> Option<list_view::entry::Model> {
         self.content.borrow().as_ref()?.get(id?)
     }
+
+    /// Transform index of an element visible in the menu, to the index of the all the objects,
+    /// accounting for the removal of the selected item.
+    ///
+    /// Example:
+    /// Widget state: Selected [B], menu content [A, C]
+    /// Item list                [A, B,  C]
+    /// Unmasked index Index     [0, 1,  2]
+    /// Masked indices           [0, na, 1],
+    fn get_unmasked_index(&self, ix:Option<usize>) -> Option<usize> {
+        Some(self.content.borrow().as_ref()?.unmasked_index(ix?))
+    }
 }
 
 impl display::Object for Model {
@@ -197,12 +210,13 @@ impl DropDownMenu {
         frp::extend! { network
 
 
-            // === Simple Input Processing ===
+            // === Input Processing ===
 
             eval  frp.input.set_entries ([model](entries) {
                 let entries:list_view::entry::SingleMaskedProvider=entries.clone().into();
                 model.content.set(entries.clone());
-                let item_count = entries.entry_count();
+                // One item will be shown in the label instead of the menu.
+                let item_count = entries.entry_count().saturating_sub(1);
 
                 let line_height = list_view::entry::HEIGHT;
                 let menu_size   = Vector2::new(MENU_WIDTH,line_height * item_count as f32);
@@ -220,8 +234,8 @@ impl DropDownMenu {
                 model.icon.shape.sprite.size.set(size-2.0*padding);
             });
 
-            resiz_menu <- all(model.selection_menu.size,frp.input.set_icon_size);
-            eval resiz_menu (((menu_size,icon_size)) {
+            resize_menu <- all(model.selection_menu.size,frp.input.set_icon_size);
+            eval resize_menu (((menu_size,icon_size)) {
                 // Align the top of the menu to the bottom of the icon.
                 model.selection_menu.set_position_y(-menu_size.y/2.0-icon_size.y/2.0);
                 // Align the right of the menu to the right of the icon.
@@ -245,22 +259,19 @@ impl DropDownMenu {
 
              // === Menu State ===
 
-            selection_menu_visible         <- source::<bool>();
-            selection_menu_visible_sampler <- selection_menu_visible.sampler();
+            selection_menu_visible_sampler <- frp.source.menu_visible.sampler();
 
             hide_menu <- source::<()>();
             show_menu <- source::<()>();
 
-            eval_ hide_menu ([frp,model,selection_menu_visible]{
+            eval_ hide_menu ([frp,model]{
                 model.hide_selection_menu();
-                selection_menu_visible.emit(false);
                 frp.source.menu_visible.emit(false);
                 frp.source.menu_closed.emit(());
             });
 
-             eval_ show_menu ([frp,model,selection_menu_visible]{
+             eval_ show_menu ([frp,model]{
                 model.show_selection_menu();
-                selection_menu_visible.emit(true);
                 frp.source.menu_visible.emit(true);
             });
 
@@ -269,25 +280,25 @@ impl DropDownMenu {
 
             eval model.selection_menu.chosen_entry([frp,hide_menu,model](entry_id) {
                 hide_menu.emit(());
-                if let Some(entry_id) = entry_id {
-                    let unmasked_id = model.content.borrow().as_ref().map(|content| {
-                        content.unmasked_index(*entry_id)
-                    });
-                    if let Some(unmasked_id) = unmasked_id {
-                        frp.source.chosen_entry.emit(unmasked_id);
-                          frp.input.set_selected(unmasked_id);
-                    };
-                }
+                let unmasked_id = model.get_unmasked_index(*entry_id);
+                if let Some(unmasked_id) = unmasked_id {
+                    frp.source.chosen_entry.emit(unmasked_id);
+                    frp.input.set_selected(unmasked_id);
+                };
             });
 
             eval frp.input.set_selected([model](entry_id) {
                 if let Some(entry_id) = entry_id {
                     if let Some(content) = model.content.borrow().as_ref() {
+                        // We get an external item index, so we operate on all items, thus we
+                        // clear the mask.
                         content.clear_mask();
                         if let Some(item) = model.get_content_item(Some(*entry_id)) {
                             model.set_label(&item.label)
                         };
+                        // Remove selected item from menu list
                         content.set_mask(*entry_id);
+                        // Update menu content.
                         let entries:list_view::entry::AnyModelProvider=content.clone().into();
                         model.selection_menu.frp.set_entries.emit(entries);
                     };
@@ -331,4 +342,3 @@ impl display::Object for DropDownMenu {
         &self.model.display_object
     }
 }
-

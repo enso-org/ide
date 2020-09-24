@@ -31,7 +31,7 @@ const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 // ===============
 
 /// Invisible rectangular area that can be hovered.
-pub mod hover_area {
+mod hover_area {
     use super::*;
 
     ensogl::define_shape_system! {
@@ -45,9 +45,9 @@ pub mod hover_area {
     }
 }
 
-/// Invisible rectangular area that can be hovered.
+/// Background of the action bar.
 /// Note: needs to be an extra shape for sorting purposes.
-pub mod background {
+mod background {
     use super::*;
 
     ensogl::define_shape_system! {
@@ -164,6 +164,7 @@ impl display::Object for Model {
 
 /// UI for executing actions on a node. Consists of label indicating the active visualization
 /// and a drop-down menu for selecting a new visualisation.
+///
 /// Layout
 /// ------
 /// ```text
