@@ -128,13 +128,15 @@ pub struct VectorProvider<T> {
     content : Vec<T>,
 }
 
-impl<T:Into<Model> + Debug + CloneRef> ModelProvider for VectorProvider<T> {
+impl<T:Into<Model> + Debug + Clone> ModelProvider for VectorProvider<T> {
     fn entry_count(&self) -> usize {
         self.content.len()
     }
 
     fn get(&self, ix:usize) -> Option<Model> {
-        Some(self.content.get(ix)?.clone_ref().into())
+        let item        = self.content.get(ix)?.clone();
+        let model:Model = item.into();
+        Some(model)
     }
 }
 
@@ -412,4 +414,49 @@ impl List {
 
 impl display::Object for List {
     fn display_object(&self) -> &display::object::Instance { &self.display_object }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_masked_provider() {
+        let test_data = vec!["A", "B", "C", "D"];
+        let test_models = test_data.into_iter().map(|label| Model::new(label)).collect_vec();
+        let provider:VectorProvider<_>    = test_models.into();
+        let provider:AnyModelProvider     = provider.into();
+        let provider:SingleMaskedProvider = provider.into();
+
+        assert_eq!(provider.entry_count(), 4);
+        assert_eq!(provider.get(0).unwrap().label, "A");
+        assert_eq!(provider.get(1).unwrap().label, "B");
+        assert_eq!(provider.get(2).unwrap().label, "C");
+        assert_eq!(provider.get(3).unwrap().label, "D");
+
+        provider.set_mask(0);
+        assert_eq!(provider.entry_count(), 3);
+        assert_eq!(provider.get(0).unwrap().label, "B");
+        assert_eq!(provider.get(1).unwrap().label, "C");
+        assert_eq!(provider.get(2).unwrap().label, "D");
+
+        provider.set_mask(1);
+        assert_eq!(provider.entry_count(), 3);
+        assert_eq!(provider.get(0).unwrap().label, "A");
+        assert_eq!(provider.get(1).unwrap().label, "C");
+        assert_eq!(provider.get(2).unwrap().label, "D");
+
+        provider.set_mask(2);
+        assert_eq!(provider.entry_count(), 3);
+        assert_eq!(provider.get(0).unwrap().label, "A");
+        assert_eq!(provider.get(1).unwrap().label, "B");
+        assert_eq!(provider.get(2).unwrap().label, "D");
+
+        provider.set_mask(3);
+        assert_eq!(provider.entry_count(), 3);
+        assert_eq!(provider.get(0).unwrap().label, "A");
+        assert_eq!(provider.get(1).unwrap().label, "B");
+        assert_eq!(provider.get(2).unwrap().label, "C");
+    }
 }

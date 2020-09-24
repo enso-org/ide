@@ -150,9 +150,8 @@ pub mod overlay {
 pub struct Frp {
     pub set_visibility                 : frp::Source<bool>,
     pub toggle_visibility              : frp::Source,
-    pub set_visualization              : frp::Source<Option<visualization::Instance>>,
+    pub set_visualization              : frp::Source<Option<visualization::Definition>>,
     pub set_data                       : frp::Source<visualization::Data>,
-    pub set_visualization_alternatives : frp::Source<Vec<visualization::Path>>,
     pub select                         : frp::Source,
     pub deselect                       : frp::Source,
     pub set_size                       : frp::Source<Vector2>,
@@ -172,7 +171,6 @@ impl Frp {
             toggle_visibility              <- source();
             set_visualization              <- source();
             set_data                       <- source();
-            set_visualization_alternatives <- source();
             select                         <- source();
             deselect                       <- source();
 
@@ -187,7 +185,7 @@ impl Frp {
         let scene_shape = scene.shape().clone_ref();
         Self {set_visibility,set_visualization,toggle_visibility,set_data,select,deselect,
               set_size,enable_fullscreen,disable_fullscreen,scene_shape,size,preprocessor,
-              preprocessor_select,set_visualization_alternatives}
+              preprocessor_select}
     }
 }
 
@@ -496,11 +494,10 @@ pub struct Container {
 impl Container {
     /// Constructor.
     pub fn new(logger:&Logger,app:&Application,registry:visualization::Registry) -> Self {
-        let scene   = app.display.scene();
         let network = frp::Network::new();
         let model   = Rc::new(ContainerModel::new(logger,app,&network,registry));
         let frp     = model.frp.clone_ref();
-        Self {model,frp,network} . init(scene)
+        Self {model,frp,network} . init()
     }
 
     /// Sets pointer-events `value` of all `HtmlElement`s of the `visualization` class.
@@ -518,25 +515,39 @@ impl Container {
         }
     }
 
-    fn init(self,scene:&Scene) -> Self {
+    fn init(self) -> Self {
         let inputs              = &self.frp;
         let network             = &self.network;
         let model               = &self.model;
         let fullscreen          = Animation::new(network);
         let size                = Animation::<Vector2>::new(network);
         let fullscreen_position = Animation::<Vector3>::new(network);
+        let scene               = &self.model.scene;
+        let logger              = &self.model.logger;
 
         let action_bar          = &model.action_bar.frp;
         let registry            = &model.registry;
-
-        frp::extend! { network
+        frp::extend! { TRACE_ALL network
             eval  inputs.set_visibility    ((v) model.set_visibility(*v));
             eval_ inputs.toggle_visibility (model.toggle_visibility());
-            eval  inputs.set_visualization ((v) model.set_visualization(v.clone()));
-            eval  inputs.set_data          ((t) model.set_visualization_data(t));
-            eval  inputs.set_visualization_alternatives ((alternatives) {
-                action_bar.input.set_visualization_alternatives.emit(alternatives)
+            eval  inputs.set_visualization ([model,registry,scene,logger](vis_definition) {
+                 if let Some(definition) = vis_definition {
+                    match definition.new_instance(&scene) {
+                        Ok(vis)  => {
+                            model.set_visualization(Some(vis.clone()));
+                            let alternatives      = registry.valid_sources(&definition.signature.input_type);
+                            let alternative_paths = alternatives.into_iter().map(|definition| definition.signature.path).collect_vec();
+                            model.action_bar.frp.set_visualization_alternatives.emit(alternative_paths);
+                            model.action_bar.frp.set_selected_visualization.emit(Some(definition.signature.path.clone()));
+                        },
+                        Err(err) => {
+                            logger.warning(
+                                || format!("Failed to instantiate visualisation: {:?}",err));
+                        },
+                    };
+                }
             });
+            eval  inputs.set_data          ((t) model.set_visualization_data(t));
 
             eval_ inputs.enable_fullscreen (model.set_visibility(true));
             eval_ inputs.enable_fullscreen (model.enable_fullscreen());
@@ -576,8 +587,7 @@ impl Container {
                     if let Some(definition) = registry.definition_from_path(path) {
                         if let Ok(visualization) = definition.new_instance(&scene) {
                             model.set_visualization(Some(visualization));
-                            let alternatives = model.registry.valid_alternatives(&definition);
-                            model.frp.set_visualization_alternatives.emit(alternatives);
+                            model.action_bar.frp.set_selected_visualization.emit(Some(definition.signature.path.clone()));
                         }
                     }
                     action_bar.hide_icons.emit(());
@@ -587,7 +597,7 @@ impl Container {
 
         inputs.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
         size.skip();
-        model.set_visualization(Some(visualization::Registry::default_visualisation(scene)));
+        inputs.set_visualization.emit(Some(visualization::Registry::default_visualisation()));
         self
     }
 }

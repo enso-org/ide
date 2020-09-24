@@ -1285,11 +1285,6 @@ impl GraphEditorModel {
         let expr    = expr.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.frp.set_expression.emit(expr);
-
-            // FIXME use enso type of expression
-            let visualizations       = self.visualizations.valid_sources(&"Any".into());
-            let visualizations_paths = visualizations.iter().map(|definition| definition.signature.path.clone());
-            node.visualization.frp.set_visualization_alternatives.emit(visualizations_paths.collect_vec());
         }
         for edge_id in self.node_out_edges(node_id) {
             self.refresh_edge_source_size(edge_id);
@@ -2337,31 +2332,16 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
    // === Vis Set ===
    frp::extend! { network
 
-   def _update_vis_data = inputs.set_visualization.map(f!([logger,nodes,scene,visualizations]((node_id,vis_path)) {
+   def _update_vis_data = inputs.set_visualization.map(f!([logger,nodes,visualizations]((node_id,vis_path)) {
        match (&nodes.get_cloned_ref(node_id), vis_path) {
             (Some(node), Some(vis_path)) => {
                 let vis_definition = visualizations.definition_from_path(vis_path);
-                if let Some(definition) = vis_definition {
-                    match definition.new_instance(&scene) {
-                        Ok(vis)  => {
-                            let alternatives = visualizations.valid_alternatives(&definition);
-                            node.visualization.frp.set_visualization.emit(Some(vis));
-                            node.visualization.frp.set_visualization_alternatives.emit(alternatives);
-                        },
-                        Err(err) => {
-                            logger.warning(
-                                || format!("Failed to instantiate visualisation: {:?}",err));
-                        },
-                    };
-                } else {
-                    logger.warning(|| format!("Failed to get visualisation: {:?}",vis_path));
-                }
+                node.visualization.frp.set_visualization.emit(vis_definition);
             },
             (Some(node), None) => node.visualization.frp.set_visualization.emit(None),
              _                 => logger.warning(|| format!("Failed to get node: {:?}",node_id)),
 
        }
-
    }));
 
 
@@ -2383,26 +2363,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
              node.visualization.frp.set_data.emit(data);
          }
      }));
-
-     nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
-     node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
-
-     let cycle_count = Rc::new(Cell::new(0));
-     def _cycle_visualization = node_to_cycle.map(f!([scene,nodes,visualizations,logger](node_id) {
-        let visualizations = visualizations.valid_sources(&"Any".into());
-        cycle_count.set(cycle_count.get() % visualizations.len());
-        let vis  = &visualizations[cycle_count.get()];
-        let vis  = vis.new_instance(&scene);
-        let node = nodes.get_cloned_ref(node_id);
-        match (vis, node) {
-            (Ok(vis), Some(node))  => {
-                node.visualization.frp.set_visualization.emit(Some(vis));
-            },
-            (Err(e), _) => logger.warning(|| format!("Failed to cycle visualization: {:?}", e)),
-            _           => {}
-        };
-        cycle_count.set(cycle_count.get() + 1);
-    }));
 
 
     // === Visualization toggle ===

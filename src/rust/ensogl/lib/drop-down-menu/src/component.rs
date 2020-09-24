@@ -75,6 +75,7 @@ ensogl_text::define_endpoints! {
         set_icon_size       (Vector2),
         set_icon_padding    (Vector2),
         hide_selection_menu (),
+        set_selected        (Option<list_view::entry::Id>),
     }
     Output {
         menu_visible    (bool),
@@ -208,7 +209,7 @@ impl DropDownMenu {
                 model.selection_menu.frp.resize.emit(menu_size);
 
                  let entries:list_view::entry::AnyModelProvider=entries.into();
-                model.selection_menu.frp.set_entries.emit(entries);
+                 model.selection_menu.frp.set_entries.emit(entries);
             });
 
 
@@ -239,7 +240,6 @@ impl DropDownMenu {
                 let size = Vector2::new(text_width + icon_size.x,icon_size.y);
                 model.icon_overlay.shape.sprite.size.set(size);
                 model.icon_overlay.set_position_x(-text_width/2.0);
-
             });
 
 
@@ -267,22 +267,29 @@ impl DropDownMenu {
 
             // === Selection ===
 
-            eval model.selection_menu.chosen_entry([frp,model,hide_menu](entry_id) {
+            eval model.selection_menu.chosen_entry([frp,hide_menu,model](entry_id) {
                 hide_menu.emit(());
-
-                if let Some(item) = model.get_content_item(*entry_id) {
-                    model.set_label(&item.label)
-                };
-
                 if let Some(entry_id) = entry_id {
-                    let external_id = model.content.borrow().as_ref().map(|content| {
+                    let unmasked_id = model.content.borrow().as_ref().map(|content| {
                         content.unmasked_index(*entry_id)
                     });
-                    if let Some(content) = model.content.borrow().as_ref() {
-                        content.set_mask(*entry_id);
+                    if let Some(unmasked_id) = unmasked_id {
+                        frp.source.chosen_entry.emit(unmasked_id);
+                          frp.input.set_selected(unmasked_id);
                     };
-                    if let Some(external_id) = external_id {
-                        frp.source.chosen_entry.emit(external_id);
+                }
+            });
+
+            eval frp.input.set_selected([model](entry_id) {
+                if let Some(entry_id) = entry_id {
+                    if let Some(content) = model.content.borrow().as_ref() {
+                        content.clear_mask();
+                        if let Some(item) = model.get_content_item(Some(*entry_id)) {
+                            model.set_label(&item.label)
+                        };
+                        content.set_mask(*entry_id);
+                        let entries:list_view::entry::AnyModelProvider=content.clone().into();
+                        model.selection_menu.frp.set_entries.emit(entries);
                     };
                 };
             });

@@ -25,6 +25,7 @@ ensogl_text::define_endpoints! {
         set_icon_size       (Vector2),
         set_icon_padding    (Vector2),
         hide_selection_menu (),
+        set_selected        (Option<visualization::Path>),
     }
     Output {
         menu_visible  (bool),
@@ -104,6 +105,12 @@ impl VisualizationChooser {
             eval frp.set_icon_padding ((size) menu.set_icon_padding.emit(size) );
             eval frp.hide_selection_menu ((size) menu.hide_selection_menu.emit(size) );
 
+            eval frp.input.set_selected ([model,menu](selected) {
+                if let Some(selected) = selected {
+                   let ix = model.visualization_alternatives.borrow().iter().position(|item| item == selected);
+                   menu.set_selected.emit(ix);
+                }
+            });
 
             // === Output Processing ===
 
@@ -112,9 +119,11 @@ impl VisualizationChooser {
             frp.source.menu_closed  <+ menu.menu_closed;
             frp.source.menu_visible <+ menu.menu_visible;
 
-            selected_path <- model.selection_menu.frp.chosen_entry.map(f!([model](entry_id)(
+            selected_path <- model.selection_menu.frp.chosen_entry.map(f!([model](entry_id)({
+                println!("selected_path {:?}", entry_id);
                 entry_id.map(|entry_id| model.visualization_alternatives.borrow().get(entry_id).cloned()).flatten()
-            )));
+
+            })));
 
             frp.source.chosen_entry <+ selected_path;
         }

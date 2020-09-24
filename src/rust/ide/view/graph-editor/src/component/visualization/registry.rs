@@ -8,7 +8,6 @@ use crate::builtin;
 use crate::component::visualization;
 use crate::data::EnsoType;
 
-use ensogl::display::scene::Scene;
 use enso_prelude::CloneRef;
 
 
@@ -80,18 +79,9 @@ impl Registry {
         self.path_map.borrow().get(path).cloned()
     }
 
-    /// Return a default visualisation class.
-    pub fn default_visualisation(scene:&Scene) -> visualization::Instance {
-        let instance = builtin::visualization::native::RawText::new(scene);
-        instance.into()
-    }
-
-    /// Return `Path`s of visualisations that have the same input type as the given `Definition`.
-    pub fn valid_alternatives(&self, reference:&visualization::Definition) -> Vec<visualization::Path> {
-        let alternative_definition = self.valid_sources(&reference.signature.input_type);
-        let paths                  = alternative_definition.iter().map(|definition| definition.signature.path.clone());
-        let paths_without_original = paths.filter(|path| reference.signature.path != *path);
-        paths_without_original.collect()
+    /// Return a default visualisation definition.
+    pub fn default_visualisation() -> visualization::Definition {
+        builtin::visualization::native::RawText::definition()
     }
 }
 

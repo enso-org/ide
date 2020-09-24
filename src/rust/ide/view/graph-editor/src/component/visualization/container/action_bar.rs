@@ -77,6 +77,7 @@ ensogl_text::define_endpoints! {
         show_icons                     (),
         hide_icons                     (),
         set_visualization_alternatives (Vec<visualization::Path>),
+        set_selected_visualization     (Option<visualization::Path>),
     }
     Output {
         visualisation_selection  (Option<visualization::Path>),
@@ -207,6 +208,9 @@ impl ActionBar {
                 visualization_chooser.input.set_entries.emit(entries);
             });
 
+            eval frp.input.set_selected_visualization ([visualization_chooser](vis){
+                visualization_chooser.input.set_selected.emit(vis);
+            });
 
             // === Mouse Interactions ===
             any_component_over <- any(&hover_area.mouse_over,&visualization_chooser.mouse_over);

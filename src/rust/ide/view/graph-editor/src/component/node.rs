@@ -133,7 +133,7 @@ ensogl_text::define_endpoints! {
         deselect            (),
         set_expression      (Expression),
         set_expression_type ((ast::Id,Option<Type>)),
-        set_visualization   (Option<visualization::Instance>),
+        set_visualization   (Option<visualization::Definition>),
     }
     Output {
         expression (Text)
