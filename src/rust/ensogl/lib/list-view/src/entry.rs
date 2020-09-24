@@ -147,7 +147,7 @@ impl<T> From<Vec<T>> for VectorProvider<T> {
 }
 
 
-// === Masked Model Provider for  ===
+// === Masked Model Provider ===
 
 /// An Entry Model Provider that wraps a Vec<T:Into<Model>> and allows the masking of a single item.
 #[derive(Clone,Debug)]
@@ -184,16 +184,25 @@ impl SingleMaskedProvider {
 
     /// Mask out the given index. All methods will now skip this item and the `SingleMaskedProvider`
     /// will behave as if it was not there.
+    ///
+    /// *Important:* The index is interpreted according to the _masked_ position of elements.
     pub fn set_mask(&self, ix:Id) {
         let internal_ix = self.unmasked_index(ix);
         self.mask.set(Some(internal_ix));
+    }
+
+    /// Mask out the given index. All methods will now skip this item and the `SingleMaskedProvider`
+    /// will behave as if it was not there.
+    ///
+    /// *Important:* The index is interpreted according to the _unmasked_ position of elements.
+    pub fn set_mask_raw(&self, ix:Id) {
+        self.mask.set(Some(ix));
     }
 
     /// Clear the masked item.
     pub fn clear_mask(&self) {
         self.mask.set(None)
     }
-
 }
 
 impl From<AnyModelProvider> for SingleMaskedProvider {
@@ -202,6 +211,8 @@ impl From<AnyModelProvider> for SingleMaskedProvider {
         SingleMaskedProvider{content,mask}
     }
 }
+
+
 
 // =============
 // === Entry ===
@@ -423,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_masked_provider() {
-        let test_data = vec!["A", "B", "C", "D"];
+        let test_data   = vec!["A", "B", "C", "D"];
         let test_models = test_data.into_iter().map(|label| Model::new(label)).collect_vec();
         let provider:VectorProvider<_>    = test_models.into();
         let provider:AnyModelProvider     = provider.into();
@@ -435,25 +446,25 @@ mod tests {
         assert_eq!(provider.get(2).unwrap().label, "C");
         assert_eq!(provider.get(3).unwrap().label, "D");
 
-        provider.set_mask(0);
+        provider.set_mask_raw(0);
         assert_eq!(provider.entry_count(), 3);
         assert_eq!(provider.get(0).unwrap().label, "B");
         assert_eq!(provider.get(1).unwrap().label, "C");
         assert_eq!(provider.get(2).unwrap().label, "D");
 
-        provider.set_mask(1);
+        provider.set_mask_raw(1);
         assert_eq!(provider.entry_count(), 3);
         assert_eq!(provider.get(0).unwrap().label, "A");
         assert_eq!(provider.get(1).unwrap().label, "C");
         assert_eq!(provider.get(2).unwrap().label, "D");
 
-        provider.set_mask(2);
+        provider.set_mask_raw(2);
         assert_eq!(provider.entry_count(), 3);
         assert_eq!(provider.get(0).unwrap().label, "A");
         assert_eq!(provider.get(1).unwrap().label, "B");
         assert_eq!(provider.get(2).unwrap().label, "D");
 
-        provider.set_mask(3);
+        provider.set_mask_raw(3);
         assert_eq!(provider.entry_count(), 3);
         assert_eq!(provider.get(0).unwrap().label, "A");
         assert_eq!(provider.get(1).unwrap().label, "B");
