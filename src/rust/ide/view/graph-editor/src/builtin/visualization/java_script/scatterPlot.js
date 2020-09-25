@@ -60,7 +60,7 @@ class ScatterPlot extends Visualization {
         /// Box ///
         ///////////
 
-        let margin = {top: 10, right: 10, bottom: 40, left: 40};
+        let margin = {top: 10, right: 10, bottom: 35, left: 40};
         if (axis.x.label === undefined && axis.y.label === undefined) {
             margin = {top: 20, right: 20, bottom: 20, left: 20};
         }
@@ -113,7 +113,7 @@ class ScatterPlot extends Visualization {
                 .attr("text-anchor", "end")
                 .attr("style","font-family: dejavuSansMono; font-size: 11px;")
                 .attr("x", width / 2 + margin.left)
-                .attr("y", height + margin.top + 25)
+                .attr("y", height + margin.top + 20)
                 .text(axis.x.label);
         }
 
