@@ -78,6 +78,7 @@ ensogl_text::define_endpoints! {
         set_icon_padding    (Vector2),
         hide_selection_menu (),
         set_selected        (Option<list_view::entry::Id>),
+        set_menu_offset_y   (f32),
     }
     Output {
         menu_visible    (bool),
@@ -236,10 +237,10 @@ impl DropDownMenu {
                 model.icon.shape.sprite.size.set(size-2.0*padding);
             });
 
-            resize_menu <- all(model.selection_menu.size,frp.input.set_icon_size);
-            eval resize_menu (((menu_size,icon_size)) {
+            resize_menu <- all(model.selection_menu.size,frp.input.set_icon_size,frp.input.set_menu_offset_y);
+            eval resize_menu (((menu_size,icon_size,menu_offset_y)) {
                 // Align the top of the menu to the bottom of the icon.
-                model.selection_menu.set_position_y(-menu_size.y/2.0-icon_size.y/2.0);
+                model.selection_menu.set_position_y(-menu_size.y/2.0-icon_size.y/2.0-menu_offset_y);
                 // Align the right of the menu to the right of the icon.
                 model.selection_menu.set_position_x(-menu_size.x/2.0+icon_size.x/2.0);
             });

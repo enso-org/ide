@@ -30,6 +30,7 @@ ensogl_text::define_endpoints! {
         set_icon_padding    (Vector2),
         hide_selection_menu (),
         set_selected        (Option<visualization::Path>),
+        set_menu_offset_y   (f32),
     }
     Output {
         menu_visible  (bool),
@@ -108,6 +109,7 @@ impl VisualizationChooser {
             eval frp.set_icon_size ((size) menu.set_icon_size.emit(size) );
             eval frp.set_icon_padding ((size) menu.set_icon_padding.emit(size) );
             eval frp.hide_selection_menu ((size) menu.hide_selection_menu.emit(size) );
+            eval frp.set_menu_offset_y ((offset) menu.set_menu_offset_y.emit(offset) );
 
             eval frp.input.set_selected ([model,menu](selected) {
                 if let Some(selected) = selected {

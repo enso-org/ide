@@ -23,7 +23,8 @@ use ensogl::gui::component;
 // =================
 
 const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
-
+/// Gap between action bar and selection menu
+const MENU_GAP    : f32 = 3.0;
 
 
 // ===============
@@ -136,6 +137,7 @@ impl Model {
         self.visualization_chooser.frp.set_icon_size(Vector2::new(height,height));
         self.visualization_chooser.frp.set_icon_padding(Vector2::new(height/3.0,height/3.0));
         self.visualization_chooser.set_position_x((width/2.0) - right_padding);
+        self.visualization_chooser.frp.set_menu_offset_y(MENU_GAP);
     }
 
     fn show(&self) {
