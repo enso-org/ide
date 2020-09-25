@@ -39,10 +39,10 @@ use ensogl_theme as theme;
 // === Constants ===
 // =================
 
-const DEFAULT_SIZE            : (f32,f32) = (200.0,200.0);
-const CORNER_RADIUS           : f32       = super::super::node::CORNER_RADIUS;
-const SHADOW_SIZE             : f32       = super::super::node::SHADOW_SIZE;
-const QUICK_ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
+const DEFAULT_SIZE      : (f32,f32) = (200.0,200.0);
+const CORNER_RADIUS     : f32       = super::super::node::CORNER_RADIUS;
+const SHADOW_SIZE       : f32       = super::super::node::SHADOW_SIZE;
+const ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
 
 
 // =============
@@ -434,11 +434,11 @@ impl ContainerModel {
             self.fullscreen_view.background_dom.dom().set_style_or_warn("height", "0", &self.logger);
             // self.fullscreen_view.background.shape.sprite.size.set(zero());
 
-            let quick_action_size = Vector2::new(size.x, QUICK_ACTION_BAR_HEIGHT);
-            self.action_bar.frp.set_size.emit(quick_action_size);
+            let action_bar_size = Vector2::new(size.x, ACTION_BAR_HEIGHT);
+            self.action_bar.frp.set_size.emit(action_bar_size);
         }
 
-        self.action_bar.set_position_y((size.y - QUICK_ACTION_BAR_HEIGHT) / 2.0);
+        self.action_bar.set_position_y((size.y - ACTION_BAR_HEIGHT) / 2.0);
 
         if let Some(viz) = &*self.visualization.borrow() {
             viz.set_size.emit(size);

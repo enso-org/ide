@@ -88,9 +88,9 @@ ensogl_text::define_endpoints! {
 
 
 
-// ==============================
-// === Quick Action Bar Model ===
-// ==============================
+// ========================
+// === Action Bar Model ===
+// ========================
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
