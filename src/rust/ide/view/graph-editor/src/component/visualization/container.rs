@@ -457,7 +457,7 @@ impl ContainerModel {
 
     fn show_visualisation(&self) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
-            vis.display_object().set_parent(&self.view)
+            self.view.add_child(vis);
         }
     }
 }
