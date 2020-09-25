@@ -166,8 +166,8 @@ impl Model {
     /// Example:
     /// Widget state: Selected [B], menu content [A, C]
     /// Item list                [A, B,  C]
-    /// Unmasked index Index     [0, 1,  2]
-    /// Masked indices           [0, na, 1],
+    /// Unmasked index           [0, 1,  2]
+    /// Masked indices           [0, na, 1]
     fn get_unmasked_index(&self, ix:Option<usize>) -> Option<usize> {
         Some(self.content.borrow().as_ref()?.unmasked_index(ix?))
     }
