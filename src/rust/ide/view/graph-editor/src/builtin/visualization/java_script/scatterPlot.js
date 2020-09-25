@@ -70,6 +70,24 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+
+        var xMin = dataPoints[0].x;
+        var xMax = dataPoints[0].x;
+        var yMin = dataPoints[0].y;
+        var yMax = dataPoints[0].y;
+
+        dataPoints.forEach(d => {
+            if (d.x < xMin) { xMin = d.x }
+            if (d.x > xMax) { xMax = d.x }
+            if (d.y < yMin) { yMin = d.y }
+            if (d.y > yMax) { yMax = d.y }
+        });
+
+        var dx = xMax - xMin;
+        var dy = yMax - yMin;
+        dx = 0.1 * dx;
+        dy = 0.1 * dy;
+
         ////////////
         /// Axes ///
         ////////////
@@ -79,7 +97,7 @@ class ScatterPlot extends Visualization {
             x = d3.scaleLog();
         }
 
-        x.domain([0, 1]) // read domain as minX-maxX
+        x.domain([xMin - dx, xMax + dx])
             .range([0, width]);
         var xAxis = svg.append("g")
             .attr("transform", "translate(0," + height + ")")
@@ -92,7 +110,7 @@ class ScatterPlot extends Visualization {
             y = d3.scaleLog();
         }
 
-        y.domain([0, 1]) // read domain as minY-maxY
+        y.domain([yMin - dy, yMax + dy])
             .range([height, 0]);
         svg.append("g")
             .call(d3.axisLeft(y));
@@ -199,13 +217,13 @@ class ScatterPlot extends Visualization {
 
             if (!extent) {
                 if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
-                x.domain([0, 1]) // read domain as minX-maxX
+                x.domain([xMin - dx, xMax + dx]);
             } else {
-                x.domain([x.invert(extent[0]), x.invert(extent[1])])
-                scatter.select(".brush").call(brush.move, null)
+                x.domain([x.invert(extent[0]), x.invert(extent[1])]);
+                scatter.select(".brush").call(brush.move, null);
             }
 
-            xAxis.transition().duration(1000).call(d3.axisBottom(x))
+            xAxis.transition().duration(1000).call(d3.axisBottom(x));
             scatter
                 .selectAll("path")
                 .transition().duration(1000)
