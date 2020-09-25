@@ -363,7 +363,10 @@ impl ListView {
                 selection_y.skip();
                 selection_height.skip();
             });
-            eval selection_y.value       ((y) model.selection.set_position_y(*y));
+            selectin_sprite_y <- all_with(&selection_y.value,&selection_height.value,
+                |y,h| y + (entry::HEIGHT - h) / 2.0
+            );
+            eval selectin_sprite_y ((y) model.selection.set_position_y(*y));
             selection_size <- all_with(&frp.size,&selection_height.value,|size,height| {
                 let width = size.x + 2.0 * PADDING_PX;
                 Vector2(width,*height)
