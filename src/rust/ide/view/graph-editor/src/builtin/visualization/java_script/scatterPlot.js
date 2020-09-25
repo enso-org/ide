@@ -55,7 +55,7 @@ class ScatterPlot extends Visualization {
 
         let dataPoints = parsedData.data || {};
         console.log(dataPoints);
-
+        ////////////////////////////////////////////////////////////////////////
         ///////////
         /// Box ///
         ///////////
@@ -63,6 +63,10 @@ class ScatterPlot extends Visualization {
         let margin = {top: 10, right: 10, bottom: 35, left: 40};
         if (axis.x.label === undefined && axis.y.label === undefined) {
             margin = {top: 20, right: 20, bottom: 20, left: 20};
+        } else if (axis.x.label === undefined) {
+            margin = {top: 10, right: 20, bottom: 35, left: 20};
+        } else if (axis.y.label === undefined) {
+            margin = {top: 20, right: 10, bottom: 20, left: 40};
         }
         width  = width - margin.left - margin.right;
         height = height - margin.top - margin.bottom;
@@ -73,8 +77,6 @@ class ScatterPlot extends Visualization {
             .attr("height", height + margin.top + margin.bottom)
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-        ////////////////////////////////////////////////////////////////////////
 
         ////////////
         /// Axes ///
@@ -87,7 +89,7 @@ class ScatterPlot extends Visualization {
 
         x.domain([0, 1]) // read domain as minX-maxX
             .range([0, width]);
-        svg.append("g")
+        var xAxis = svg.append("g")
             .attr("transform", "translate(0," + height + ")")
             .call(d3.axisBottom(x));
 
@@ -142,19 +144,63 @@ class ScatterPlot extends Visualization {
             .attr("x", 0)
             .attr("y", 0);
 
+        var brush = d3.brushX()
+            .extent([[0, 0], [width, height]])
+            .on("end", updateChart)
+
+        var symbol = d3.symbol();
+
         var scatter = svg.append('g')
             .attr("clip-path", "url(#clip)")
 
         scatter
-            .selectAll("circle")
+            .selectAll("dataPoint")
             .data(dataPoints)
             .enter()
-            .append("circle")
-            .attr("cx", d => x(d.x))
-            .attr("cy", d => y(d.y))
-            .attr("r" , d => 10 * d.size)
-            .style("fill"   , d => "#" + d.color)
+            .append("path")
+            .attr("d", symbol.type( d => {
+                if(d.shape == undefined ){ return d3.symbolCircle }
+                if(d.shape == "cross"){ return d3.symbolCross
+                } else if (d.shape == "diamond"){ return d3.symbolDiamond
+                } else if (d.shape == "square"){ return d3.symbolSquare
+                } else if (d.shape == "star"){ return d3.symbolStar
+                } else if (d.shape == "triangle"){ return d3.symbolTriangle
+                } else { return d3.symbolCircle }
+            }))
+            .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
+            .style("fill"   , d => "#" + (d.color || "000000"))
             .style("opacity", 0.5)
+            .size(d => 10 * d.size)
+
+        scatter
+            .append("g")
+            .attr("class", "brush")
+            .call(brush);
+
+        var idleTimeout
+
+        function idled() {
+            idleTimeout = null;
+        }
+
+        function updateChart() {
+            let extent = d3.event.selection;
+
+            if (!extent) {
+                if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
+                x.domain([0, 1]) // read domain as minX-maxX
+            } else {
+                x.domain([x.invert(extent[0]), x.invert(extent[1])])
+                scatter.select(".brush").call(brush.move, null)
+            }
+
+            xAxis.transition().duration(1000).call(d3.axisBottom(x))
+            scatter
+                .selectAll("path")
+                .transition().duration(1000)
+                .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
+
+        }
     }
 
     createDivElem(width, height) {
