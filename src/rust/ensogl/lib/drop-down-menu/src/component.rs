@@ -3,17 +3,17 @@ use ensogl_core::prelude::*;
 
 use enso_frp as frp;
 use enso_frp;
-use ensogl_core::display::shape::primitive::StyleWatch;
+use ensogl_core::gui::component::Animation;
 use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display::shape::*;
+use ensogl_core::display::shape::primitive::StyleWatch;
 use ensogl_core::display;
 use ensogl_core::gui::component;
 use ensogl_gui_list_view as list_view;
 use ensogl_gui_list_view::entry::ModelProvider;
 use ensogl_text as text;
 use ensogl_theme as theme;
-
 
 
 // =================
@@ -137,7 +137,7 @@ impl Model {
 
         // Clear default parent and hide again.
         self.show_selection_menu();
-        self.hide_selection_menu();
+        // self.hide_selection_menu();
 
         self
     }
@@ -159,6 +159,13 @@ impl Model {
 
     fn get_content_item(&self, id:Option<list_view::entry::Id>) -> Option<list_view::entry::Model> {
         self.content.borrow().as_ref()?.get(id?)
+    }
+
+    fn get_content_item_count(&self) -> usize {
+        match self.content.borrow().as_ref() {
+            Some(content) => content.entry_count(),
+            None          => 0,
+        }
     }
 
     /// Transform index of an element visible in the menu, to the index of the all the objects,
@@ -218,19 +225,21 @@ impl DropDownMenu {
             eval frp.input.set_entries ([model](entries) {
                 let entries:list_view::entry::SingleMaskedProvider=entries.clone().into();
                 model.content.set(entries.clone());
-                // One item will be shown in the label instead of the menu.
-                let item_count = entries.entry_count().saturating_sub(1);
-
-                let line_height = list_view::entry::HEIGHT;
-                let menu_size   = Vector2::new(MENU_WIDTH,line_height * item_count as f32);
-                model.selection_menu.frp.resize.emit(menu_size);
-
-                 let entries:list_view::entry::AnyModelProvider=entries.into();
-                 model.selection_menu.frp.set_entries.emit(entries);
+                let entries:list_view::entry::AnyModelProvider=entries.into();
+                model.selection_menu.frp.set_entries.emit(entries);
             });
 
 
             // === Layouting ===
+
+            let menu_height = Animation::<f32>::new(&network);
+
+            eval menu_height.value ([model](height) {
+                model.selection_menu.frp.resize.emit(Vector2::new(MENU_WIDTH,*height));
+                if *height <= 0.0 {
+                    model.hide_selection_menu();
+                }
+            });
 
             icon_size <- all(frp.input.set_icon_size,frp.input.set_icon_padding);
             eval icon_size (((size,padding)) {
@@ -267,14 +276,22 @@ impl DropDownMenu {
             hide_menu <- source::<()>();
             show_menu <- source::<()>();
 
-            eval_ hide_menu ([frp,model]{
-                model.hide_selection_menu();
+            eval_ hide_menu ([model,frp,menu_height]{
+                model.selection_menu.deselect_entries.emit(());
                 frp.source.menu_visible.emit(false);
                 frp.source.menu_closed.emit(());
+                /// FIXME: If we end at 0.0 the ListView will still display the first
+                /// content item. This avoids the slowdown close to 0.0, so we can
+                /// manually remove the LisTView from the scene at 0.0.
+                menu_height.set_target_value(-20.0);
             });
 
-             eval_ show_menu ([frp,model]{
+             eval_ show_menu ([frp,model,menu_height]{
+                let item_count    = model.get_content_item_count();
+                let line_height   = list_view::entry::HEIGHT;
+                let target_height = line_height * item_count as f32;
                 model.show_selection_menu();
+                menu_height.set_target_value(target_height);
                 frp.source.menu_visible.emit(true);
             });
 
