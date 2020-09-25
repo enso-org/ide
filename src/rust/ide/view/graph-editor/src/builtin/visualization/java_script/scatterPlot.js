@@ -64,8 +64,8 @@ class ScatterPlot extends Visualization {
         if (axis.x.label === undefined && axis.y.label === undefined) {
             margin = {top: 20, right: 20, bottom: 20, left: 20};
         }
-        width      = width - margin.left - margin.right;
-        height     = height - margin.top - margin.bottom;
+        width  = width - margin.left - margin.right;
+        height = height - margin.top - margin.bottom;
 
         let svg = d3.select(divElem)
             .append("svg")
@@ -145,24 +145,15 @@ class ScatterPlot extends Visualization {
         var scatter = svg.append('g')
             .attr("clip-path", "url(#clip)")
 
-        // FIXME
         scatter
             .selectAll("circle")
-            .data(parsedData.dataPoints)
+            .data(dataPoints)
             .enter()
             .append("circle")
-            .attr("cx", function (d) {
-                return x(d.x);
-            })
-            .attr("cy", function (d) {
-                return y(d.y);
-            })
-            .attr("r", function (d) {
-                return 10 * d.size;
-            })
-            .style("fill", function (d) {
-                return color(d.color)
-            })
+            .attr("cx", d => x(d.x))
+            .attr("cy", d => y(d.y))
+            .attr("r" , d => 10 * d.size)
+            .style("fill"   , d => "#" + d.color)
             .style("opacity", 0.5)
     }
 
