@@ -13,7 +13,7 @@ use ensogl::display::scene::Scene;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web::AttributeSetter;
-
+use ensogl::gui::component;
 
 
 // =================
@@ -52,6 +52,8 @@ enum InputFormat {
     AST,Docstring
 }
 
+pub use visualization::container::overlay;
+
 /// Model of Native visualization that generates documentation for given Enso code and embeds
 /// it in a HTML container.
 #[derive(Clone,CloneRef,Debug)]
@@ -60,18 +62,23 @@ pub struct ViewModel {
     logger : Logger,
     dom    : DomSymbol,
     size   : Rc<Cell<Vector2>>,
+    /// The purpose of this overlay is stop propagating events under the documentation panel.
+    //FIXME[ao] This mechanism should be shared between all html elements displayed over the canvas.
+    overlay        : component::ShapeView<overlay::Shape>,
+    display_object : display::object::Instance,
 }
 
 impl ViewModel {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
-        let logger      = Logger::new("DocumentationView");
-        let div         = web::create_div();
-        let dom         = DomSymbol::new(&div);
-        let size        = Rc::new(Cell::new(Vector2(VIEW_WIDTH,VIEW_HEIGHT)));
+        let logger         = Logger::new("DocumentationView");
+        let display_object = display::object::Instance::new(&logger);
+        let div            = web::create_div();
+        let dom            = DomSymbol::new(&div);
+        let size           = Rc::new(Cell::new(Vector2(VIEW_WIDTH,VIEW_HEIGHT)));
+        let overlay        = component::ShapeView::<overlay::Shape>::new(&logger,scene);
 
         dom.dom().set_attribute_or_warn("class","scrollable",&logger);
-
         dom.dom().set_style_or_warn("white-space"     ,"normal"                      ,&logger);
         dom.dom().set_style_or_warn("overflow-y"      ,"auto"                        ,&logger);
         dom.dom().set_style_or_warn("overflow-x"      ,"auto"                        ,&logger);
@@ -81,8 +88,12 @@ impl ViewModel {
         dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS) ,&logger);
         dom.dom().set_style_or_warn("box-shadow"      ,"0 0 16px rgba(0, 0, 0, 0.06)",&logger);
 
+        overlay.shape.roundness.set(1.0);
+        overlay.shape.radius.set(CORNER_RADIUS);
+        display_object.add_child(&dom);
+        display_object.add_child(&overlay);
         scene.dom.layers.front.manage(&dom);
-        ViewModel {logger,dom,size}.init()
+        ViewModel {logger,dom,size,overlay,display_object}.init()
     }
 
     fn init(self) -> Self {
@@ -93,6 +104,7 @@ impl ViewModel {
     /// Set size of the documentation view.
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
+        self.overlay.shape.sprite.size.set(size);
         self.reload_style();
     }
 
@@ -303,13 +315,9 @@ impl View {
 }
 
 impl From<View> for visualization::Instance {
-    fn from(t: View) -> Self {
-        Self::new(&t,&t.visualization_frp,&t.frp.network)
-    }
+    fn from(t: View) -> Self { Self::new(&t,&t.visualization_frp,&t.frp.network) }
 }
 
 impl display::Object for View {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.dom.display_object()
-    }
+    fn display_object(&self) -> &display::object::Instance { &self.model.display_object }
 }
