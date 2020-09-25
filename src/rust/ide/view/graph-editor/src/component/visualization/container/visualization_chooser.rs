@@ -101,8 +101,7 @@ impl VisualizationChooser {
 
             eval frp.input.set_entries ([model,menu](alternatives) {
                 model.visualization_alternatives.replace(alternatives.clone());
-                let alternatives:list_view::entry::VectorProvider<_> = alternatives.clone().into();
-                let alternatives:list_view::entry::AnyModelProvider  = alternatives.into();
+                let alternatives:list_view::entry::AnyModelProvider  = alternatives.clone().into();
                 menu.set_entries.emit(alternatives);
             });
 

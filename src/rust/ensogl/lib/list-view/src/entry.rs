@@ -72,7 +72,7 @@ impl Model {
 
 impl<T:Display> From<T> for Model {
     fn from(item: T) -> Self {
-        Model::new(format!("{}", item))
+        Model::new(item.to_string())
     }
 }
 
@@ -122,27 +122,13 @@ impl ModelProvider for EmptyProvider {
 
 // === Model Provider for Vectors ===
 
-/// An Entry Model Provider that wraps a Vec<T:Into<Model>>.
-#[derive(Clone,Debug)]
-pub struct VectorProvider<T> {
-    content : Vec<T>,
-}
-
-impl<T:Into<Model> + Debug + Clone> ModelProvider for VectorProvider<T> {
+impl<T:Into<Model> + Debug + Clone> ModelProvider for Vec<T> {
     fn entry_count(&self) -> usize {
-        self.content.len()
+        self.len()
     }
 
-    fn get(&self, ix:usize) -> Option<Model> {
-        let item        = self.content.get(ix)?.clone();
-        let model:Model = item.into();
-        Some(model)
-    }
-}
-
-impl<T> From<Vec<T>> for VectorProvider<T> {
-    fn from(content: Vec<T>) -> Self {
-        VectorProvider{content}
+    fn get(&self, id:usize) -> Option<Model> {
+       Some(<[T]>::get(self, id)?.clone().into())
     }
 }
 
