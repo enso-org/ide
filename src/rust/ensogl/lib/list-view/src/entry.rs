@@ -438,8 +438,7 @@ mod tests {
     fn test_masked_provider() {
         let test_data   = vec!["A", "B", "C", "D"];
         let test_models = test_data.into_iter().map(|label| Model::new(label)).collect_vec();
-        let provider:VectorProvider<_>    = test_models.into();
-        let provider:AnyModelProvider     = provider.into();
+        let provider:AnyModelProvider     = test_models.into();
         let provider:SingleMaskedProvider = provider.into();
 
         assert_eq!(provider.entry_count(), 4);
