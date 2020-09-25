@@ -105,12 +105,9 @@ impl Model {
     }
 
     fn documentation_for_entry(&self, id:Option<list_view::entry::Id>) -> String {
-        if let Some(id) = id {
-            let doc = self.doc_provider.get().get_for_entry(id);
-            doc.unwrap_or_default()
-        } else {
-            " ".to_owned()
-        }
+        id.map_or(" ".to_owned(), |id| {
+            self.doc_provider.get().get_for_entry(id).unwrap_or_default()
+        })
     }
 
     fn set_height(&self, h:f32) {
@@ -209,7 +206,7 @@ impl View {
             source.picked_entry      <+ model.list.chosen_entry.gate(&is_selected);
             source.editing_committed <+ model.list.chosen_entry.gate(&is_selected).constant(());
 
-            eval displayed_doc ((data) model.documentation.frp.display_documentation_pure(data));
+            eval displayed_doc ((data) model.documentation.frp.display_docstring(data));
         };
 
         self

@@ -140,7 +140,7 @@ pub struct Entry {
 impl Entry {
     /// Create new entry view.
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        let app            = app.clone();
+        let app            = app.clone_ref();
         let id             = default();
         let label          = app.new_view::<text::Area>();
         let icon           = Rc::new(CloneCell::new(None));

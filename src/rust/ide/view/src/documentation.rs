@@ -15,6 +15,7 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web::AttributeSetter;
 
 
+
 // =================
 // === Constants ===
 // =================
@@ -45,9 +46,10 @@ fn documentation_style() -> String {
 // === ViewModel ===
 // =================
 
+/// The input type for documentation parser. See documentation of `View` for details.
 #[derive(Clone,Copy,Debug)]
-enum InputType {
-    AST,Pure
+enum InputFormat {
+    AST,Docstring
 }
 
 /// Model of Native visualization that generates documentation for given Enso code and embeds
@@ -95,7 +97,7 @@ impl ViewModel {
     }
 
     /// Generate HTML documentation from documented Enso code.
-    fn gen_html_from(string:&str, input_type:InputType) -> FallibleResult<String> {
+    fn gen_html_from(string:&str, input_type: InputFormat) -> FallibleResult<String> {
         if string.is_empty() {
             Ok(PLACEHOLDER_STR.into())
         } else {
@@ -104,8 +106,8 @@ impl ViewModel {
             //              https://github.com/enso-org/enso/issues/1063
             let processed = string.replace("\\n", "\n").replace("\"", "");
             let output = match input_type {
-                InputType::AST  => parser.generate_html_docs(processed),
-                InputType::Pure => parser.generate_html_doc_pure(processed),
+                InputFormat::AST  => parser.generate_html_docs(processed),
+                InputFormat::Docstring => parser.generate_html_doc_pure(processed),
             };
             let output = output?;
             if output.is_empty() {
@@ -135,11 +137,11 @@ impl ViewModel {
             }
             _ => return Err(visualization::DataError::InvalidDataType),
         };
-        self.display_doc(&string,InputType::Pure);
+        self.display_doc(&string, InputFormat::Docstring);
         Ok(())
     }
 
-    fn display_doc(&self, content:&str, content_type:InputType) {
+    fn display_doc(&self, content:&str, content_type: InputFormat) {
         let html = match ViewModel::gen_html_from(content,content_type) {
             Ok(html)               => html,
             Err(err)               => {
@@ -226,8 +228,10 @@ impl ViewModel {
 
 ensogl_text::define_endpoints! {
     Input {
-        display_documentation      (String),
-        display_documentation_pure (String),
+        /// Display documentation of the entity represented by given code.
+        display_documentation (String),
+        /// Display documentation represented by docstring.
+        display_docstring (String),
     }
     Output {}
 }
@@ -238,6 +242,12 @@ ensogl_text::define_endpoints! {
 // ============
 
 /// View of the visualization that renders the given documentation as a HTML page.
+///
+/// The documentation can be provided in two formats: it can be code of the entity (type, method,
+/// function etc) with doc comments, or the docstring only - in the latter case
+/// however we're unable to summarize methods and atoms of types.
+///
+/// The default format is the docstring.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[allow(missing_docs)]
 pub struct View {
@@ -271,13 +281,12 @@ impl View {
         let model         = &self.model;
         let visualization = &self.visualization_frp;
         let frp           = &self.frp;
-        frp::extend! { TRACE_ALL network
-
+        frp::extend! { network
 
             // === Displaying documentation ===
 
-            eval frp.display_documentation      ((content) model.display_doc(content,InputType::AST ));
-            eval frp.display_documentation_pure ((content) model.display_doc(content,InputType::Pure));
+            eval frp.display_documentation ((cont) model.display_doc(cont,InputFormat::AST ));
+            eval frp.display_docstring     ((cont) model.display_doc(cont,InputFormat::Docstring));
             eval visualization.send_data([visualization,model](data) {
                 if let Err(error) = model.receive_data(data) {
                     visualization.data_receive_error.emit(error)

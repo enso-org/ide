@@ -1085,7 +1085,6 @@ impl list_view::entry::ModelProvider for controller::searcher::suggestion::List 
 impl ide_view::searcher::DocumentationProvider for controller::searcher::suggestion::List {
     fn get_for_entry(&self, id:usize) -> Option<String> {
         use controller::searcher::suggestion::Suggestion;
-        iprintln!("Getting documentation for {id}");
         match self.get_cloned(id)?.suggestion {
             Suggestion::Completion(completion) => {
                 let doc = completion.documentation.clone();

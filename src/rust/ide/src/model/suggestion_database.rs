@@ -417,11 +417,11 @@ impl From<language_server::response::GetSuggestionDatabase> for SuggestionDataba
 mod test {
     use super::*;
 
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
     use enso_protocol::language_server::SuggestionsDatabaseEntry;
     use utils::test::stream::StreamTestExt;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use wasm_bindgen_test::wasm_bindgen_test;
-    use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
 
 
