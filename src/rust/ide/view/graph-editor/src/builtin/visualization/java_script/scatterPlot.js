@@ -10,6 +10,9 @@ loadScript('https://d3js.org/d3.v4.min.js');
 /**
  * A d3.js ScatterPlot visualization.
  *
+ * To zoom in just select wanted fragment of the plot.
+ * To zoom out double click on the plot.
+ *
  * Data format (json):
  * {
  *  "axis" : {
@@ -39,23 +42,12 @@ class ScatterPlot extends Visualization {
         let height    = this.dom.getAttributeNS(null, "height");
         const divElem = this.createDivElem(width, height);
 
-        ////////////////////////////////////////////////////////////////////////
-        console.log("-----===== READING =====-----")
-
-        let parsedData  = JSON.parse(data);
-        console.log(parsedData);
-
-        let axis = parsedData.axis || {x: {scale: "linear" }, y: {scale: "linear" }};
-
-        let focus = parsedData.focus;
-        console.log(focus);
-
-        let points = parsedData.points || {labels: "invisible"};
-        console.log(points);
-
+        let parsedData = JSON.parse(data);
+        let axis       = parsedData.axis || {x: {scale: "linear" }, y: {scale: "linear" }};
+        let focus      = parsedData.focus; // TODO : This should be dropped as isn't easily doable with d3.js.
+        let points     = parsedData.points || {labels: "invisible"};
         let dataPoints = parsedData.data || {};
-        console.log(dataPoints);
-        ////////////////////////////////////////////////////////////////////////
+
         ///////////
         /// Box ///
         ///////////
@@ -144,14 +136,12 @@ class ScatterPlot extends Visualization {
             .attr("x", 0)
             .attr("y", 0);
 
-        var brush = d3.brushX()
-            .extent([[0, 0], [width, height]])
-            .on("end", updateChart)
-
         var symbol = d3.symbol();
 
         var scatter = svg.append('g')
             .attr("clip-path", "url(#clip)")
+
+        /////////////
 
         scatter
             .selectAll("dataPoint")
@@ -171,6 +161,27 @@ class ScatterPlot extends Visualization {
             .style("fill"   , d => "#" + (d.color || "000000"))
             .style("opacity", 0.5)
             .size(d => 10 * d.size)
+
+        /////////////
+
+        if (points.labels === "visible") {
+            scatter.selectAll("dataPoint")
+                .data(dataPoints)
+                .enter()
+                .append("text")
+                .text( d => d.label)
+                .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
+                .attr("font-size", "12px")
+                .attr("fill", "black");
+        }
+
+        ////////////////
+        /// Brushing ///
+        ////////////////
+
+        var brush = d3.brushX()
+            .extent([[0, 0], [width, height]])
+            .on("end", updateChart)
 
         scatter
             .append("g")
@@ -200,6 +211,12 @@ class ScatterPlot extends Visualization {
                 .transition().duration(1000)
                 .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
 
+            if (points.labels === "visible") {
+                scatter
+                    .selectAll("text")
+                    .transition().duration(1000)
+                    .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
+            }
         }
     }
 
