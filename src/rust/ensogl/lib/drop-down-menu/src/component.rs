@@ -214,7 +214,7 @@ impl DropDownMenu {
 
             // === Input Processing ===
 
-            eval  frp.input.set_entries ([model](entries) {
+            eval frp.input.set_entries ([model](entries) {
                 let entries:list_view::entry::SingleMaskedProvider=entries.clone().into();
                 model.content.set(entries.clone());
                 // One item will be shown in the label instead of the menu.

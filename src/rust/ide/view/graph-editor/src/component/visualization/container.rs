@@ -148,38 +148,35 @@ pub mod overlay {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub set_visibility                 : frp::Source<bool>,
-    pub toggle_visibility              : frp::Source,
-    pub set_visualization              : frp::Source<Option<visualization::Definition>>,
-    pub set_data                       : frp::Source<visualization::Data>,
-    pub select                         : frp::Source,
-    pub deselect                       : frp::Source,
-    pub set_size                       : frp::Source<Vector2>,
-    pub enable_fullscreen              : frp::Source,
-    pub disable_fullscreen             : frp::Source,
-    pub  preprocessor                  : frp::Stream<EnsoCode>,
-
-    scene_shape                        : frp::Sampler<scene::Shape>,
-    size                               : frp::Sampler<Vector2>,
-    preprocessor_select                : frp::Source<EnsoCode>,
+    pub set_visibility     : frp::Source<bool>,
+    pub toggle_visibility  : frp::Source,
+    pub set_visualization  : frp::Source<Option<visualization::Definition>>,
+    pub set_data           : frp::Source<visualization::Data>,
+    pub select             : frp::Source,
+    pub deselect           : frp::Source,
+    pub set_size           : frp::Source<Vector2>,
+    pub enable_fullscreen  : frp::Source,
+    pub disable_fullscreen : frp::Source,
+    pub preprocessor       : frp::Stream<EnsoCode>,
+    scene_shape            : frp::Sampler<scene::Shape>,
+    size                   : frp::Sampler<Vector2>,
+    preprocessor_select    : frp::Source<EnsoCode>,
 }
 
 impl Frp {
     fn new(network:&frp::Network, scene:&Scene) -> Self {
         frp::extend! { network
-            set_visibility                 <- source();
-            toggle_visibility              <- source();
-            set_visualization              <- source();
-            set_data                       <- source();
-            select                         <- source();
-            deselect                       <- source();
-
-            set_size                       <- source();
-            enable_fullscreen              <- source();
-            disable_fullscreen             <- source();
-            preprocessor_select            <- source();
-            size                           <- set_size.sampler();
-
+            set_visibility      <- source();
+            toggle_visibility   <- source();
+            set_visualization   <- source();
+            set_data            <- source();
+            select              <- source();
+            deselect            <- source();
+            set_size            <- source();
+            enable_fullscreen   <- source();
+            disable_fullscreen  <- source();
+            preprocessor_select <- source();
+            size                <- set_size.sampler();
             let preprocessor     = preprocessor_select.clone_ref().into();
         };
         let scene_shape = scene.shape().clone_ref();
