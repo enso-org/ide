@@ -1,5 +1,5 @@
 function loadScript(url) {
-    var script = document.createElement("script");
+    let script = document.createElement("script");
     script.src = url;
 
     document.head.appendChild(script);
@@ -45,7 +45,7 @@ class ScatterPlot extends Visualization {
         let parsedData = JSON.parse(data);
         let axis       = parsedData.axis || {x: {scale: "linear" }, y: {scale: "linear" }};
         let focus      = parsedData.focus; // TODO : This should be dropped as isn't easily doable with d3.js.
-        let points     = parsedData.points || {labels: "invisible"};
+        let points     = parsedData.points || {labels: "invisible", connected: "no"};
         let dataPoints = parsedData.data || {};
 
         ///////////
@@ -70,11 +70,12 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+        /////////////
 
-        var xMin = dataPoints[0].x;
-        var xMax = dataPoints[0].x;
-        var yMin = dataPoints[0].y;
-        var yMax = dataPoints[0].y;
+        let xMin = dataPoints[0].x;
+        let xMax = dataPoints[0].x;
+        let yMin = dataPoints[0].y;
+        let yMax = dataPoints[0].y;
 
         dataPoints.forEach(d => {
             if (d.x < xMin) { xMin = d.x }
@@ -83,8 +84,8 @@ class ScatterPlot extends Visualization {
             if (d.y > yMax) { yMax = d.y }
         });
 
-        var dx = xMax - xMin;
-        var dy = yMax - yMin;
+        let dx = xMax - xMin;
+        let dy = yMax - yMin;
         dx = 0.1 * dx;
         dy = 0.1 * dy;
 
@@ -92,20 +93,20 @@ class ScatterPlot extends Visualization {
         /// Axes ///
         ////////////
 
-        var x = d3.scaleLinear();
+        let x = d3.scaleLinear();
         if(axis.x.scale !== "linear") {
             x = d3.scaleLog();
         }
 
         x.domain([xMin - dx, xMax + dx])
             .range([0, width]);
-        var xAxis = svg.append("g")
+        let xAxis = svg.append("g")
             .attr("transform", "translate(0," + height + ")")
             .call(d3.axisBottom(x));
 
         /////////////
 
-        var y = d3.scaleLinear()
+        let y = d3.scaleLinear()
         if(axis.y.scale !== "linear") {
             y = d3.scaleLog();
         }
@@ -146,7 +147,7 @@ class ScatterPlot extends Visualization {
         /// Shapes ///
         //////////////
 
-        var clip = svg.append("defs").append("svg:clipPath")
+        let clip = svg.append("defs").append("svg:clipPath")
             .attr("id", "clip")
             .append("svg:rect")
             .attr("width", width)
@@ -154,10 +155,24 @@ class ScatterPlot extends Visualization {
             .attr("x", 0)
             .attr("y", 0);
 
-        var symbol = d3.symbol();
+        let symbol = d3.symbol();
 
-        var scatter = svg.append('g')
+        let scatter = svg.append('g')
             .attr("clip-path", "url(#clip)")
+
+        /////////////
+
+        if (points.connected === "yes") {
+            scatter.append("path")
+                .datum(dataPoints)
+                .attr("fill", "none")
+                .attr("stroke", d => "#" + (d.color || "000000") )
+                .attr("stroke-width", 1.5)
+                .attr("d", d3.line()
+                    .x( d => x(d.x) )
+                    .y( d => y(d.y) )
+                )
+        }
 
         /////////////
 
@@ -167,12 +182,12 @@ class ScatterPlot extends Visualization {
             .enter()
             .append("path")
             .attr("d", symbol.type( d => {
-                if(d.shape == undefined ){ return d3.symbolCircle }
-                if(d.shape == "cross"){ return d3.symbolCross
-                } else if (d.shape == "diamond"){ return d3.symbolDiamond
-                } else if (d.shape == "square"){ return d3.symbolSquare
-                } else if (d.shape == "star"){ return d3.symbolStar
-                } else if (d.shape == "triangle"){ return d3.symbolTriangle
+                if(d.shape === undefined ){ return d3.symbolCircle }
+                if(d.shape === "cross"){ return d3.symbolCross
+                } else if (d.shape === "diamond"){ return d3.symbolDiamond
+                } else if (d.shape === "square"){ return d3.symbolSquare
+                } else if (d.shape === "star"){ return d3.symbolStar
+                } else if (d.shape === "triangle"){ return d3.symbolTriangle
                 } else { return d3.symbolCircle }
             }))
             .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
@@ -197,16 +212,19 @@ class ScatterPlot extends Visualization {
         /// Brushing ///
         ////////////////
 
-        var brush = d3.brushX()
+        let brush = d3.brushX()
             .extent([[0, 0], [width, height]])
             .on("end", updateChart)
 
-        scatter
-            .append("g")
-            .attr("class", "brush")
-            .call(brush);
 
-        var idleTimeout
+        if (points.connected !== "yes") {
+            scatter
+                .append("g")
+                .attr("class", "brush")
+                .call(brush);
+        }
+
+        let idleTimeout
 
         function idled() {
             idleTimeout = null;
