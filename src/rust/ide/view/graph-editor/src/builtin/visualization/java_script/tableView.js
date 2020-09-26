@@ -238,7 +238,7 @@ class TableViewVisualization extends Visualization {
             parsedData = JSON.parse(data);
         }
 
-        let style = style_light
+        let style = style_light;
         if (document.getElementById("root").classList.contains("dark-theme")){
             style = style_dark;
         }
