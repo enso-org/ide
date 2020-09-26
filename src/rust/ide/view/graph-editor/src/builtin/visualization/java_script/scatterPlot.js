@@ -21,12 +21,13 @@ loadScript('https://d3js.org/d3.v4.min.js');
  *  },
  *  "focus" { "x" : 1.7, "y" : 2.1, "zoom" : 3.0 },
  *  "points" : {
- *     "labels" : "visible"
+ *     "labels" : "visible" | "invisible",
+ *     "connected" : "yes" | "no"
  *  }
  *  "data" : [
- *     { "x" : 0.1, "y" : 0.7, "label" : "foo", "color" : "rgb(1.0,0.0,0.0)", "shape" : "circle", "size" : 0.2 },
+ *     { "x" : 0.1, "y" : 0.7, "label" : "foo", "color" : "FF0000", "shape" : "circle", "size" : 0.2 },
  *     ...
- *     { "x" : 0.4, "y" : 0.2, "label" : "baz", "color" : "rgb(0.0,0.0,1.0)", "shape" : "square", "size" : 0.3 }
+ *     { "x" : 0.4, "y" : 0.2, "label" : "baz", "color" : "0000FF", "shape" : "square", "size" : 0.3 }
  *  ]
  * }
  */
