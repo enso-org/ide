@@ -1,3 +1,5 @@
+#![feature(test)]
+extern crate test;
 
 use enso_prelude::*;
 use wasm_bindgen::prelude::*;
@@ -52,6 +54,9 @@ const SPECIAL_KEYS : &'static [&'static str] = &["ctrl","alt","meta","cmd","shif
 
 const DOUBLE_EVENT_TIME_MS : f32 = 500.0;
 
+
+
+
 // ==================
 // === ActionType ===
 // ==================
@@ -65,12 +70,23 @@ pub use ActionType::*;
 use js_sys::Atomics::sub;
 
 
-// =====================
-// === RegistryModel ===
-// =====================
+
+
+pub trait Registry<T> : Default {
+    fn add        (&self, action_type: ActionType, expr: impl AsRef<str>, action: impl Into<T>);
+    fn on_press   (&self, input:impl AsRef<str>) -> Vec<T>;
+    fn on_release (&self, input:impl AsRef<str>) -> Vec<T>;
+    fn optimize   (&self) {}
+}
+
+
+
+// =============================
+// === AutomataRegistryModel ===
+// =============================
 
 #[derive(Debug)]
-pub struct RegistryModel<T> {
+pub struct AutomataRegistryModel<T> {
     dirty         : bool,
     nfa           : Nfa,
     dfa           : Dfa,
@@ -88,7 +104,7 @@ pub struct RegistryModel<T> {
 // === Getters ===
 
 #[allow(missing_docs)]
-impl<T> RegistryModel<T> {
+impl<T> AutomataRegistryModel<T> {
     pub fn nfa(&self) -> &Nfa { &self.nfa }
     pub fn dfa(&self) -> &Dfa { &self.dfa }
 }
@@ -96,7 +112,7 @@ impl<T> RegistryModel<T> {
 
 // === API ===
 
-impl<T> RegistryModel<T> {
+impl<T> AutomataRegistryModel<T> {
     /// Constructor.
     pub fn new() -> Self {
         let mut nfa       = Nfa::default();
@@ -115,7 +131,7 @@ impl<T> RegistryModel<T> {
     }
 }
 
-impl<T:Clone> RegistryModel<T> {
+impl<T:Clone> AutomataRegistryModel<T> {
     pub fn add(&mut self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
         self.dirty = true;
 
@@ -160,7 +176,7 @@ impl<T:Clone> RegistryModel<T> {
 
     /// Get the approximate memory consumption of this shortcut registry DFA network.
     pub fn approx_dfa_memory_consumption_mb(&mut self) -> f32 {
-        self.recompute_on_dirty();
+        self.optimize();
         let elems = self.dfa.links.matrix.len() as f32;
         let bytes = elems * 8.0;
         bytes / 1000000.0
@@ -173,7 +189,7 @@ impl<T:Clone> RegistryModel<T> {
 
 // === Private API ===
 
-impl<T:Clone> RegistryModel<T> {
+impl<T:Clone> AutomataRegistryModel<T> {
     fn add_key_permutations(&mut self, source:nfa::State, keys:&[(String,bool)]) -> nfa::State {
         // println!("===========");
         // println!("{:?}",keys);
@@ -298,7 +314,7 @@ impl<T:Clone> RegistryModel<T> {
     /// event, and is set to false in case of a release event.
     fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
         //println!("on_event ({}) {}",press,input.as_ref());
-        self.recompute_on_dirty();
+        self.optimize();
         let action        = if press { Press }       else { Release };
         // let double_action = if press { DoublePress } else { DoubleClick };
         let input         = input.as_ref().to_lowercase();
@@ -347,7 +363,7 @@ impl<T:Clone> RegistryModel<T> {
         self.action_map.get(&action_type).and_then(|m|m.get(&state).cloned())
     }
 
-    fn recompute_on_dirty(&mut self) {
+    fn optimize(&mut self) {
         if self.dirty {
             self.dirty   = false;
             self.dfa     = (&self.nfa).into();
@@ -356,7 +372,7 @@ impl<T:Clone> RegistryModel<T> {
     }
 }
 
-impl<T> Default for RegistryModel<T> {
+impl<T> Default for AutomataRegistryModel<T> {
     fn default() -> Self {
         Self::new()
     }
@@ -364,15 +380,15 @@ impl<T> Default for RegistryModel<T> {
 
 
 
-// ================
+// ========================
 // === AutomataRegistry ===
-// ================
+// ========================
 
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Default(bound=""))]
 pub struct AutomataRegistry<T> {
-    rc : Rc<RefCell<RegistryModel<T>>>
+    rc : Rc<RefCell<AutomataRegistryModel<T>>>
 }
 
 impl<T> AutomataRegistry<T> {
@@ -383,20 +399,6 @@ impl<T> AutomataRegistry<T> {
 }
 
 impl<T:Clone> AutomataRegistry<T> {
-    pub fn add(&self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
-        self.rc.borrow_mut().add(action_type,expr,action)
-    }
-
-    /// Process the press input event. See `on_event` docs to learn more.
-    pub fn on_press(&self, input:impl AsRef<str>) -> Vec<T> {
-        self.rc.borrow_mut().on_press(input)
-    }
-
-    /// Process the release input event. See `on_event` docs to learn more.
-    pub fn on_release(&self, input:impl AsRef<str>) -> Vec<T> {
-        self.rc.borrow_mut().on_release(input)
-    }
-
     pub fn nfa_as_graphviz_code(&self) -> String {
         self.rc.borrow().nfa.as_graphviz_code()
     }
@@ -411,21 +413,39 @@ impl<T:Clone> AutomataRegistry<T> {
     }
 }
 
+impl<T:Clone> Registry<T> for AutomataRegistry<T> {
+    fn add(&self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
+        self.rc.borrow_mut().add(action_type,expr,action)
+    }
+
+    /// Process the press input event. See `on_event` docs to learn more.
+    fn on_press(&self, input:impl AsRef<str>) -> Vec<T> {
+        self.rc.borrow_mut().on_press(input)
+    }
+
+    /// Process the release input event. See `on_event` docs to learn more.
+    fn on_release(&self, input:impl AsRef<str>) -> Vec<T> {
+        self.rc.borrow_mut().on_release(input)
+    }
+
+    fn optimize(&self) {
+        self.rc.borrow_mut().optimize();
+    }
+}
 
 
 
-
-// =====================
-// === RegistryModel ===
-// =====================
+// ============================
+// === HashSetRegistryModel ===
+// ============================
 
 #[derive(Debug)]
-pub struct RegistryModel2<T> {
+pub struct HashSetRegistryModel<T> {
     actions:HashMap<ActionType,HashMap<String,T>>,
     pressed:HashSet<String>,
 }
 
-impl<T> RegistryModel2<T> {
+impl<T> HashSetRegistryModel<T> {
     pub fn new() -> Self {
         let actions = default();
         let pressed = default();
@@ -433,7 +453,7 @@ impl<T> RegistryModel2<T> {
     }
 }
 
-impl<T:Clone> RegistryModel2<T> {
+impl<T:Clone> HashSetRegistryModel<T> {
     pub fn add(&mut self, action_type:ActionType, input:impl AsRef<str>, action:impl Into<T>) {
         let input  = input.as_ref();
         let action = action.into();
@@ -492,17 +512,23 @@ fn possible_exprs(expr:impl AsRef<str>) -> Vec<String> {
     out
 }
 
-impl<T> Default for RegistryModel2<T> {
+impl<T> Default for HashSetRegistryModel<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
+
+
+// =======================
+// === HashSetRegistry ===
+// =======================
+
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Default(bound=""))]
 pub struct HashSetRegistry<T> {
-    rc : Rc<RefCell<RegistryModel2<T>>>
+    rc : Rc<RefCell<HashSetRegistryModel<T>>>
 }
 
 impl<T> HashSetRegistry<T> {
@@ -511,19 +537,20 @@ impl<T> HashSetRegistry<T> {
     }
 }
 
-impl<T:Clone> HashSetRegistry<T> {
-    pub fn add(&self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
+impl<T:Clone> Registry<T> for HashSetRegistry<T> {
+    fn add(&self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
         self.rc.borrow_mut().add(action_type,expr,action)
     }
 
-    pub fn on_press(&self, input:impl AsRef<str>) -> Vec<T> {
+    fn on_press(&self, input:impl AsRef<str>) -> Vec<T> {
         self.rc.borrow_mut().on_press(input)
     }
 
-    pub fn on_release(&self, input:impl AsRef<str>) -> Vec<T> {
+    fn on_release(&self, input:impl AsRef<str>) -> Vec<T> {
         self.rc.borrow_mut().on_release(input)
     }
 }
+
 
 
 // =============
@@ -535,9 +562,52 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_valid_states() {
+    fn automata_registry_validate_sates() {
+        validate_states::<AutomataRegistry<i32>>(true);
+    }
+
+    #[test]
+    fn hash_set_registry_validate_sates() {
+        validate_states::<HashSetRegistry<i32>>(false);
+    }
+
+    #[test]
+    fn automata_registry_side_keys_handling() {
+        side_keys_handling::<AutomataRegistry<i32>>();
+    }
+
+    #[test]
+    fn hash_set_registry_side_keys_handling() {
+        side_keys_handling::<HashSetRegistry<i32>>();
+    }
+
+    fn side_keys_handling<T:Registry<i32>>() -> T {
         let nothing = Vec::<i32>::new();
-        let mut registry = AutomataRegistry::<i32>::new();
+        let mut registry : T = default();
+        registry.add(Press, "ctrl + meta + a", 0);
+        for ctrl in &["ctrl","ctrl-left","ctrl-right"] {
+            for meta in &["meta","meta-left","meta-right"] {
+                assert_eq!(registry.on_press(ctrl),nothing);
+                assert_eq!(registry.on_press(meta),nothing);
+                assert_eq!(registry.on_press("a"),vec![0]);
+                assert_eq!(registry.on_release("a"),nothing);
+                assert_eq!(registry.on_release(meta),nothing);
+                assert_eq!(registry.on_release(ctrl),nothing);
+
+                assert_eq!(registry.on_press(meta),nothing);
+                assert_eq!(registry.on_press(ctrl),nothing);
+                assert_eq!(registry.on_press("a"),vec![0]);
+                assert_eq!(registry.on_release("a"),nothing);
+                assert_eq!(registry.on_release(ctrl),nothing);
+                assert_eq!(registry.on_release(meta),nothing);
+            }
+        }
+        registry
+    }
+
+    fn validate_states<T:Registry<i32>>(allow_broken_shortcut:bool) -> T {
+        let nothing = Vec::<i32>::new();
+        let mut registry : T = default();
         registry.add(Press, "ctrl + meta + a", 0);
         registry.add(Press, "ctrl + meta + b", 1);
         // First shortcut.
@@ -553,9 +623,14 @@ mod tests {
         // Incorrect sequence.
         assert_eq!(registry.on_press("meta-right"),nothing);
         assert_eq!(registry.on_release("meta-right"),nothing);
-        // Broken shortcut after incorrect sequence.
-        assert_eq!(registry.on_press("b"),nothing);
-        assert_eq!(registry.on_release("b"),nothing);
+        if allow_broken_shortcut {
+            // Broken shortcut after incorrect sequence.
+            assert_eq!(registry.on_press("b"), nothing);
+            assert_eq!(registry.on_release("b"), nothing);
+        } else {
+            assert_eq!(registry.on_press("b"), vec![1]);
+            assert_eq!(registry.on_release("b"), nothing);
+        }
         // Restoring shortcuts on release all keys.
         assert_eq!(registry.on_release("meta-left"),nothing);
         assert_eq!(registry.on_release("ctrl-left"),nothing);
@@ -563,55 +638,77 @@ mod tests {
         assert_eq!(registry.on_press("meta-left"),nothing);
         assert_eq!(registry.on_press("ctrl-left"),nothing);
         assert_eq!(registry.on_press("a"),vec![0]);
+        registry
+    }
+}
+
+
+
+// ==================
+// === Benchmarks ===
+// ==================
+
+#[cfg(test)]
+mod benchmarks {
+    use super::*;
+    use test::Bencher;
+
+    fn construction<T:Registry<i32>>(optimize:bool, bencher:&mut Bencher) -> T {
+        bencher.iter(|| {
+            let mut registry : T = default();
+            let max_count        = test::black_box(100);
+            for i in 0..max_count {
+                registry.add(Press, format!("ctrl + a{}",i), i);
+            }
+            if optimize {
+                registry.optimize();
+            }
+        });
+        default()
     }
 
-    #[test]
-    fn test_big_configs() {
-        let nothing = Vec::<i32>::new();
-        let mut registry = AutomataRegistry::<i32>::new();
-        let mut registry2 = HashSetRegistry::<i32>::new();
-        let max_count = 1000;
-        let mut map = HashMap::new();
+    fn lookup<T:Registry<i32>>(bencher:&mut Bencher) -> T {
+        let mut registry : T = default();
+        let nothing          = Vec::<i32>::new();
+        let max_count        = test::black_box(500);
         for i in 0..max_count {
             registry.add(Press, format!("ctrl + a{}",i), i);
-            registry2.add(Press, format!("ctrl + a{}",i), i);
         }
-        for i in 0..5000 {
-            map.insert(format!("ctrl + a{}",i),i);
-        }
+        registry.optimize();
         assert_eq!(registry.on_press("ctrl-left"),nothing);
-        // assert_eq!(registry.on_press("shift-left"),nothing);
-        // assert_eq!(registry.on_press("meta-left"),nothing);
-        let start = web::time_from_start();
-        for i in 0..max_count {
-            let key = format!("a{}",i);
-            assert_eq!(registry.on_press(&key),vec![i]);
-            assert_eq!(registry.on_release(&key),nothing);
-        }
-        let end = web::time_from_start();
-        println!("registry freq: {}", max_count as f64 / (end-start));
+        bencher.iter(|| {
+            for i in 0..max_count {
+                let key = format!("a{}",i);
+                assert_eq!(registry.on_press(&key),vec![i]);
+                assert_eq!(registry.on_release(&key),nothing);
+            }
+        });
+        registry
+    }
 
-        assert_eq!(registry2.on_press("ctrl"),nothing);
-        // assert_eq!(registry2.on_press("shift"),nothing);
-        // assert_eq!(registry2.on_press("meta"),nothing);
-        let start = web::time_from_start();
-        for i in 0..max_count {
-            let key = format!("a{}",i);
-            assert_eq!(registry2.on_press(&key),vec![i]);
-            assert_eq!(registry2.on_release(&key),nothing);
-        }
-        let end = web::time_from_start();
-        println!("regitry2 freq: {}", max_count as f64 / (end-start));
+    #[bench]
+    fn automata_registry_construction_without_optimization(bencher:&mut Bencher) {
+        construction::<AutomataRegistry<i32>>(false,bencher);
+    }
 
-        let start = web::time_from_start();
-        for i in 0..5000 {
-            let key = format!("a{}",i);
-            map.get(&key);
-        }
-        let end = web::time_from_start();
-        println!("map freq: {}", max_count as f64 / (end-start));
-        // println!("!!! {}", max_count as f64 /(end-start));
+    #[bench]
+    fn automata_registry_construction_with_optimization(bencher:&mut Bencher) {
+        construction::<AutomataRegistry<i32>>(true,bencher);
+    }
 
+    #[bench]
+    fn hashset_registry_construction(bencher:&mut Bencher) {
+        construction::<HashSetRegistry<i32>>(true,bencher);
+    }
+
+    #[bench]
+    fn automata_registry_lookup(bencher:&mut Bencher) {
+        lookup::<AutomataRegistry<i32>>(bencher);
+    }
+
+    #[bench]
+    fn hashset_registry_lookup(bencher:&mut Bencher) {
+        lookup::<HashSetRegistry<i32>>(bencher);
     }
 }
 

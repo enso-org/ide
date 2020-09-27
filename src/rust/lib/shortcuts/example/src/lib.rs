@@ -4,6 +4,7 @@ use wasm_bindgen::prelude::*;
 use ensogl_system_web as web;
 
 use enso_shortcuts as shortcuts;
+use enso_shortcuts::Registry;
 
 use enso_frp as frp;
 
