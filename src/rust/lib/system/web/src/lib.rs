@@ -122,6 +122,38 @@ pub fn ignore_context_menu(target:&EventTarget) -> Option<IgnoreContextMenuHandl
 // === DOM Helpers ===
 // ===================
 
+//#[cfg(target_arch = "wasm32")]
+
+static mut START_TIME : Option<std::time::Instant> = None;
+static mut TIME_OFFSET : f64 = 0.0;
+
+pub fn start_time() -> std::time::Instant {
+    unsafe {
+        match START_TIME {
+            Some(time) => time,
+            None => {
+                let now = std::time::Instant::now();
+                START_TIME = Some(now);
+                now
+            }
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn time_from_start() -> f64 {
+    unsafe { performance().now() + TIME_OFFSET }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn time_from_start() -> f64 {
+    unsafe { start_time().elapsed().as_millis() as f64 + TIME_OFFSET }
+}
+
+pub fn simulate_sleep(duration:f64) {
+    unsafe { TIME_OFFSET += duration }
+}
+
 /// Access the `window` object if exists.
 pub fn try_window() -> Result<Window> {
     web_sys::window().ok_or_else(|| Error("Cannot access 'window'."))

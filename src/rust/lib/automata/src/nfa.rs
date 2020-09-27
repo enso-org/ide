@@ -128,10 +128,10 @@ impl Nfa {
     /// Transforms a pattern to connected NFA states by using the algorithm described
     /// [here](https://www.youtube.com/watch?v=RYNN-tb9WxI).
     /// The asymptotic complexity is linear in number of symbols.
-    pub fn new_pattern(&mut self, source:State, pattern:impl AsRef<Pattern>) -> State {
+    pub fn new_pattern(&mut self, current:State, pattern:impl AsRef<Pattern>) -> State {
         let pattern = pattern.as_ref();
-        let current = self.new_state();
-        self.connect(source,current);
+        //let current = self.new_state();
+        //self.connect(source,current);
         let state = match pattern {
             Pattern::Range(range) => {
                 let state = self.new_state();

@@ -116,7 +116,7 @@ impl KeyboardModel {
     }
 
     pub fn is_meta_down(&self) -> bool {
-        self.is_down(&Key::Meta(Side::Left)) || self.is_down(&Key::Meta(Side::Left))
+        self.is_down(&Key::Meta(Side::Left)) || self.is_down(&Key::Meta(Side::Right))
     }
 
     pub fn is_down(&self, key:&Key) -> bool {
