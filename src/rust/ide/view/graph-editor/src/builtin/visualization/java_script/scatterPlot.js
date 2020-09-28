@@ -7,6 +7,8 @@ function loadScript(url) {
 
 loadScript('https://d3js.org/d3.v4.min.js');
 
+const label_style = "font-family: dejavuSansMono; font-size: 11px;";
+
 /**
  * A d3.js ScatterPlot visualization.
  *
@@ -45,176 +47,40 @@ class ScatterPlot extends Visualization {
 
         let parsedData = JSON.parse(data);
         let axis       = parsedData.axis || {x: {scale: "linear" }, y: {scale: "linear" }};
-        let focus      = parsedData.focus; // TODO : This should be dropped as isn't easily doable with d3.js.
+        let focus      = parsedData.focus;
         let points     = parsedData.points || {labels: "invisible", connected: "no"};
         let dataPoints = parsedData.data || {};
 
-        ///////////
-        /// Box ///
-        ///////////
+        let margin     = this.getMargins(axis);
+        let box_width  = width - margin.left - margin.right;
+        let box_height = height - margin.top - margin.bottom;
 
-        let margin = {top: 10, right: 10, bottom: 35, left: 40};
-        if (axis.x.label === undefined && axis.y.label === undefined) {
-            margin = {top: 20, right: 20, bottom: 20, left: 20};
-        } else if (axis.x.label === undefined) {
-            margin = {top: 10, right: 20, bottom: 35, left: 20};
-        } else if (axis.y.label === undefined) {
-            margin = {top: 20, right: 10, bottom: 20, left: 40};
-        }
-        width  = width - margin.left - margin.right;
-        height = height - margin.top - margin.bottom;
-
+        // FIXME : SVG eagerly gets all pointer events from top of it, even if
+        //         node overlaps it. Should be debugged with (#801).
         let svg = d3.select(divElem)
             .append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
+            .attr("width", width)
+            .attr("height", height)
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        /////////////
+        let {xMin, xMax, yMin, yMax, dx, dy} = this.getExtremesAndDeltas(dataPoints);
 
-        let xMin = dataPoints[0].x;
-        let xMax = dataPoints[0].x;
-        let yMin = dataPoints[0].y;
-        let yMax = dataPoints[0].y;
+        let padding_x = 0.1 * dx;
+        let padding_y = 0.1 * dy;
 
-        dataPoints.forEach(d => {
-            if (d.x < xMin) { xMin = d.x }
-            if (d.x > xMax) { xMax = d.x }
-            if (d.y < yMin) { yMin = d.y }
-            if (d.y > yMax) { yMax = d.y }
-        });
+        let {x, xAxis, y} = this.createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax);
 
-        let dx = xMax - xMin;
-        let dy = yMax - yMin;
-        dx = 0.1 * dx;
-        dy = 0.1 * dy;
+        this.createLabels(axis, svg, box_width, margin, box_height);
 
-        ////////////
-        /// Axes ///
-        ////////////
+        let scatter = this.createSymbols(svg, box_width, box_height, points, dataPoints, x, y);
 
-        let x = d3.scaleLinear();
-        if(axis.x.scale !== "linear") {
-            x = d3.scaleLog();
-        }
+        this.addZooming(box_width, box_height, points, scatter, x, xMin, padding_x, xMax, xAxis, y);
+    }
 
-        x.domain([xMin - dx, xMax + dx])
-            .range([0, width]);
-        let xAxis = svg.append("g")
-            .attr("transform", "translate(0," + height + ")")
-            .call(d3.axisBottom(x));
-
-        /////////////
-
-        let y = d3.scaleLinear()
-        if(axis.y.scale !== "linear") {
-            y = d3.scaleLog();
-        }
-
-        y.domain([yMin - dy, yMax + dy])
-            .range([height, 0]);
-        svg.append("g")
-            .call(d3.axisLeft(y));
-
-
-        //////////////
-        /// Labels ///
-        //////////////
-
-        if(axis.x.label !== undefined) {
-            svg.append("text")
-                .attr("text-anchor", "end")
-                .attr("style","font-family: dejavuSansMono; font-size: 11px;")
-                .attr("x", width / 2 + margin.left)
-                .attr("y", height + margin.top + 20)
-                .text(axis.x.label);
-        }
-
-        /////////////
-
-        if(axis.y.label !== undefined) {
-            svg.append("text")
-                .attr("text-anchor", "end")
-                .attr("style","font-family: dejavuSansMono; font-size: 11px;")
-                .attr("transform", "rotate(-90)")
-                .attr("y", -margin.left + 10)
-                .attr("x", -margin.top - height / 2 + 30)
-                .text(axis.y.label);
-        }
-
-
-        //////////////
-        /// Shapes ///
-        //////////////
-
-        let clip = svg.append("defs").append("svg:clipPath")
-            .attr("id", "clip")
-            .append("svg:rect")
-            .attr("width", width)
-            .attr("height", height)
-            .attr("x", 0)
-            .attr("y", 0);
-
-        let symbol = d3.symbol();
-
-        let scatter = svg.append('g')
-            .attr("clip-path", "url(#clip)")
-
-        /////////////
-
-        if (points.connected === "yes") {
-            scatter.append("path")
-                .datum(dataPoints)
-                .attr("fill", "none")
-                .attr("stroke", d => "#" + (d.color || "000000") )
-                .attr("stroke-width", 1.5)
-                .attr("d", d3.line()
-                    .x( d => x(d.x) )
-                    .y( d => y(d.y) )
-                )
-        }
-
-        /////////////
-
-        scatter
-            .selectAll("dataPoint")
-            .data(dataPoints)
-            .enter()
-            .append("path")
-            .attr("d", symbol.type( d => {
-                if(d.shape === undefined ){ return d3.symbolCircle }
-                if(d.shape === "cross"){ return d3.symbolCross
-                } else if (d.shape === "diamond"){ return d3.symbolDiamond
-                } else if (d.shape === "square"){ return d3.symbolSquare
-                } else if (d.shape === "star"){ return d3.symbolStar
-                } else if (d.shape === "triangle"){ return d3.symbolTriangle
-                } else { return d3.symbolCircle }
-            }))
-            .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
-            .style("fill"   , d => "#" + (d.color || "000000"))
-            .style("opacity", 0.5)
-            .size(d => 10 * d.size)
-
-        /////////////
-
-        if (points.labels === "visible") {
-            scatter.selectAll("dataPoint")
-                .data(dataPoints)
-                .enter()
-                .append("text")
-                .text( d => d.label)
-                .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
-                .attr("font-size", "12px")
-                .attr("fill", "black");
-        }
-
-        ////////////////
-        /// Brushing ///
-        ////////////////
-
+    addZooming(box_width, box_height, points, scatter, x, xMin, padding_x, xMax, xAxis, y) {
         let brush = d3.brushX()
-            .extent([[0, 0], [width, height]])
+            .extent([[0, 0], [box_width, box_height]])
             .on("end", updateChart)
 
 
@@ -236,7 +102,7 @@ class ScatterPlot extends Visualization {
 
             if (!extent) {
                 if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
-                x.domain([xMin - dx, xMax + dx]);
+                x.domain([xMin - padding_x, xMax + padding_x]);
             } else {
                 x.domain([x.invert(extent[0]), x.invert(extent[1])]);
                 scatter.select(".brush").call(brush.move, null);
@@ -246,15 +112,151 @@ class ScatterPlot extends Visualization {
             scatter
                 .selectAll("path")
                 .transition().duration(1000)
-                .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
+                .attr('transform', d => "translate(" + x(d.x) + "," + y(d.y) + ")")
 
             if (points.labels === "visible") {
                 scatter
                     .selectAll("text")
                     .transition().duration(1000)
-                    .attr('transform',d => "translate("+x(d.x)+","+y(d.y)+")")
+                    .attr('transform', d => "translate(" + x(d.x) + "," + y(d.y) + ")")
             }
         }
+    }
+
+    createSymbols(svg, box_width, box_height, points, dataPoints, x, y) {
+        let clip = svg.append("defs").append("svg:clipPath")
+            .attr("id", "clip")
+            .append("svg:rect")
+            .attr("width", box_width)
+            .attr("height", box_height)
+            .attr("x", 0)
+            .attr("y", 0);
+
+        let symbol = d3.symbol();
+
+        let scatter = svg.append('g')
+            .attr("clip-path", "url(#clip)")
+
+        if (points.connected === "yes") {
+            scatter.append("path")
+                .datum(dataPoints)
+                .attr("fill", "none")
+                .attr("stroke", d => "#" + (d.color || "000000"))
+                .attr("stroke-width", 1.5)
+                .attr("d", d3.line()
+                    .x(d => x(d.x))
+                    .y(d => y(d.y))
+                )
+        }
+
+        scatter
+            .selectAll("dataPoint")
+            .data(dataPoints)
+            .enter()
+            .append("path")
+            .attr("d", symbol.type(d => {
+                if (d.shape === undefined)       { return d3.symbolCircle   }
+                if (d.shape === "cross")         { return d3.symbolCross    }
+                else if (d.shape === "diamond")  { return d3.symbolDiamond  }
+                else if (d.shape === "square")   { return d3.symbolSquare   }
+                else if (d.shape === "star")     { return d3.symbolStar     }
+                else if (d.shape === "triangle") { return d3.symbolTriangle }
+                else                             { return d3.symbolCircle   }
+            }))
+            .attr('transform', d => "translate(" + x(d.x) + "," + y(d.y) + ")")
+            .style("fill", d => "#" + (d.color || "000000"))
+            .style("opacity", 0.5)
+            .size(d => 10 * d.size)
+
+        if (points.labels === "visible") {
+            scatter.selectAll("dataPoint")
+                .data(dataPoints)
+                .enter()
+                .append("text")
+                .text(d => d.label)
+                .attr('transform', d => "translate(" + x(d.x) + "," + y(d.y) + ")")
+                .attr("style", label_style)
+                .attr("fill", "black");
+        }
+        return scatter;
+    }
+
+    createLabels(axis, svg, box_width, margin, box_height) {
+        if (axis.x.label !== undefined) {
+            let padding_y = 20;
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("style", label_style)
+                .attr("x", box_width / 2 + margin.left)
+                .attr("y", box_height + margin.top + padding_y)
+                .text(axis.x.label);
+        }
+
+        if (axis.y.label !== undefined) {
+            let padding_x = 30;
+            let padding_y = 20;
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("style", label_style)
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left + padding_y)
+                .attr("x", -margin.top - box_height / 2 + padding_x)
+                .text(axis.y.label);
+        }
+    }
+
+    createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax) {
+        let x = d3.scaleLinear();
+        if (axis.x.scale !== "linear") {
+            x = d3.scaleLog();
+        }
+
+        x.domain([xMin - padding_x, xMax + padding_x])
+            .range([0, box_width]);
+        let xAxis = svg.append("g")
+            .attr("transform", "translate(0," + box_height + ")")
+            .call(d3.axisBottom(x));
+
+        let y = d3.scaleLinear()
+        if (axis.y.scale !== "linear") {
+            y = d3.scaleLog();
+        }
+
+        y.domain([yMin - padding_y, yMax + padding_y])
+            .range([box_height, 0]);
+        svg.append("g")
+            .call(d3.axisLeft(y));
+        return {x, xAxis, y};
+    }
+
+    getExtremesAndDeltas(dataPoints) {
+        let xMin = dataPoints[0].x;
+        let xMax = dataPoints[0].x;
+        let yMin = dataPoints[0].y;
+        let yMax = dataPoints[0].y;
+
+        dataPoints.forEach(d => {
+            if (d.x < xMin) { xMin = d.x }
+            if (d.x > xMax) { xMax = d.x }
+            if (d.y < yMin) { yMin = d.y }
+            if (d.y > yMax) { yMax = d.y }
+        });
+
+        let dx = xMax - xMin;
+        let dy = yMax - yMin;
+
+        return {xMin, xMax, yMin, yMax, dx, dy};
+    }
+
+    getMargins(axis) {
+        if (axis.x.label === undefined && axis.y.label === undefined) {
+            return {top: 20, right: 20, bottom: 20, left: 20};
+        } else if (axis.x.label === undefined) {
+            return {top: 10, right: 20, bottom: 35, left: 20};
+        } else if (axis.y.label === undefined) {
+            return {top: 20, right: 10, bottom: 20, left: 40};
+        }
+        return {top: 10, right: 10, bottom: 35, left: 40};
     }
 
     createDivElem(width, height) {
