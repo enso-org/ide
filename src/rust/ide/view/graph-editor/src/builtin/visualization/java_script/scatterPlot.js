@@ -64,9 +64,9 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        let {xMin, xMax, yMin, yMax, padding_x, padding_y, dx, dy} = this.getExtremesAndDeltas(dataPoints);
+        let extremesAndDeltas = this.getExtremesAndDeltas(dataPoints);
 
-        let {x, y, xAxis, yAxis} = this.createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax, focus, dx, dy);
+        let {x, y, xAxis, yAxis} = this.createAxes(axis, extremesAndDeltas, box_width, box_height, svg, focus);
 
         this.createLabels(axis, svg, box_width, margin, box_height);
 
@@ -170,8 +170,8 @@ class ScatterPlot extends Visualization {
         }
     }
 
-    createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax, focus, dx, dy) {
-        let {domain_x, domain_y} = this.getDomains(xMin, padding_x, xMax, yMin, padding_y, yMax, focus, dx, dy);
+    createAxes(axis, extremesAndDeltas, box_width, box_height, svg, focus) {
+        let {domain_x, domain_y} = this.getDomains(extremesAndDeltas, focus);
 
         let x = d3.scaleLinear();
         if (axis.x.scale !== "linear") { x = d3.scaleLog(); }
@@ -194,15 +194,18 @@ class ScatterPlot extends Visualization {
         return {x, y, xAxis, yAxis};
     }
 
-    getDomains(xMin, padding_x, xMax, yMin, padding_y, yMax, focus, dx, dy) {
-        let domain_x = [xMin - padding_x, xMax + padding_x];
-        let domain_y = [yMin - padding_y, yMax + padding_y];
+    getDomains(extremesAndDeltas, focus) {
+        let domain_x = [extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
+            extremesAndDeltas.xMax + extremesAndDeltas.paddingX];
+        let domain_y = [extremesAndDeltas.yMin - extremesAndDeltas.paddingY,
+            extremesAndDeltas.yMax + extremesAndDeltas.paddingY];
+
         if (focus !== undefined) {
             if (focus.x !== undefined && focus.y !== undefined && focus.zoom !== undefined) {
-                let delta_x = dx * (1 / (2 * (focus.zoom)));
-                let delta_y = dy * (1 / (2 * (focus.zoom)));
-                domain_x = [focus.x - delta_x, focus.x + delta_x];
-                domain_y = [focus.y - delta_y, focus.y + delta_y];
+                let padding_x = extremesAndDeltas.dx * (1 / (2 * (focus.zoom)));
+                let padding_y = extremesAndDeltas.dy * (1 / (2 * (focus.zoom)));
+                domain_x = [focus.x - padding_x, focus.x + padding_x];
+                domain_y = [focus.y - padding_y, focus.y + padding_y];
             }
         }
         return {domain_x, domain_y};
@@ -227,7 +230,7 @@ class ScatterPlot extends Visualization {
         let padding_x = 0.1 * dx;
         let padding_y = 0.1 * dy;
 
-        return {xMin, xMax, yMin, yMax, padding_x, padding_y, dx, dy};
+        return {xMin: xMin, xMax: xMax, yMin: yMin, yMax: yMax, paddingX: padding_x, paddingY: padding_y, dx: dx, dy: dy};
     }
 
     getMargins(axis) {
