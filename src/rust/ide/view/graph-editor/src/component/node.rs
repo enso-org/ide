@@ -4,6 +4,8 @@
 // WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
 
 pub mod port;
+pub mod icon;
+pub mod action_bar;
 
 pub use port::Expression;
 
@@ -38,6 +40,7 @@ pub const CORNER_RADIUS      : f32 = 14.0;
 pub const NODE_HEIGHT        : f32 = 28.0;
 pub const TEXT_OFF           : f32 = 10.0;
 pub const SHADOW_SIZE        : f32 = 10.0;
+pub const ACTION_BAR_HEIGHT  : f32 = 15.0;
 
 
 // ============
@@ -188,6 +191,7 @@ pub struct NodeModel {
     pub drag_area      : component::ShapeView<drag_area::Shape>,
     pub ports          : port::Manager,
     pub visualization  : visualization::Container,
+    pub action_bar     : action_bar::ActionBar,
     pub output_ports   : OutputPorts,
 }
 
@@ -235,6 +239,9 @@ impl NodeModel {
         });
         display_object.add_child(&ports);
 
+        let action_bar = action_bar::ActionBar::new(&app);
+        display_object.add_child(&action_bar);
+        action_bar.frp.show_icons();
 
         // TODO: Determine number of output ports based on node semantics.
         let output_ports = OutputPorts::new(&scene);
@@ -242,7 +249,7 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,frp,main_area,drag_area,output_ports,ports
-             ,visualization} . init()
+             ,visualization,action_bar} . init()
     }
 
     fn init(self) -> Self {
@@ -279,6 +286,9 @@ impl NodeModel {
         self.output_ports.mod_position(|t| t.x = width/2.0);
         self.output_ports.mod_position(|t| t.y = height/2.0);
 
+        self.action_bar.mod_position(|t| t.x = width/2.0 + CORNER_RADIUS);
+        self.action_bar.mod_position(|t| t.y = 1.0 * height + ACTION_BAR_HEIGHT);
+        self.action_bar.frp.set_size(Vector2::new(width, ACTION_BAR_HEIGHT));
     }
 
     pub fn visualization(&self) -> &visualization::Container {
@@ -292,6 +302,8 @@ impl Node {
         let model            = Rc::new(NodeModel::new(app,&frp_network,registry));
         let inputs           = &model.frp.input;
         let selection        = Animation::<f32>::new(&frp_network);
+
+        let actions          = &model.action_bar.frp;
 
         frp::extend! { frp_network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
@@ -311,6 +323,16 @@ impl Node {
             eval model.ports.frp.width ((w) model.set_width(*w));
 
             model.frp.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
+
+            eval_ actions.action_visbility_clicked ({
+                model.visualization.frp.toggle_visibility.emit(());
+            });
+            eval_ actions.action_freeze_clicked ([]{
+                println!("FREEZE")
+            });
+            eval_ actions.action_skip_clicked ([]{
+                println!("SKIP")
+            });
         }
 
         Self {frp_network,model}

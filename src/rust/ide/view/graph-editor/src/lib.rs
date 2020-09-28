@@ -32,6 +32,7 @@ pub mod component;
 
 pub mod builtin;
 pub mod data;
+pub mod shape_helper;
 
 use crate::component::node;
 use crate::component::visualization;
