@@ -64,60 +64,42 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        let {xMin, xMax, yMin, yMax, padding_x, padding_y} = this.getExtremesAndDeltas(dataPoints);
+        let {xMin, xMax, yMin, yMax, padding_x, padding_y, dx, dy} = this.getExtremesAndDeltas(dataPoints);
 
-        let {x, xAxis, y} = this.createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax);
+        let {x, y, xAxis, yAxis} = this.createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax, focus, dx, dy);
 
         this.createLabels(axis, svg, box_width, margin, box_height);
 
-        let scatter = this.createSymbols(svg, box_width, box_height, points, dataPoints, x, y);
+        let scatter = this.createScatter(svg, box_width, box_height, points, dataPoints, x, y);
 
-        this.addZooming(box_width, box_height, points, scatter, x, xMin, padding_x, xMax, xAxis, y);
+        this.addBrushing(box_width, box_height, scatter, x, y);
     }
 
-    addZooming(box_width, box_height, points, scatter, x, xMin, padding_x, xMax, xAxis, y) {
-        let brush = d3.brushX()
+    addBrushing(box_width, box_height, scatter, x, y) {
+        let brush = d3.brush()
             .extent([[0, 0], [box_width, box_height]])
-            .on("end", updateChart)
+            .on("start brush", updateChart)
 
         scatter
             .append("g")
             .attr("class", "brush")
             .call(brush);
 
-        let idleTimeout
-
-        function idled() {
-            idleTimeout = null;
+        function updateChart() {
+            extent = d3.event.selection
+            scatter.classed("selected", d => isBrushed(extent, x(d.x), y(d.y) ))
         }
 
-        function updateChart() {
-            let extent = d3.event.selection;
-
-            if (!extent) {
-                if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
-                x.domain([xMin - padding_x, xMax + padding_x]);
-            } else {
-                x.domain([x.invert(extent[0]), x.invert(extent[1])]);
-                scatter.select(".brush").call(brush.move, null);
-            }
-
-            xAxis.transition().duration(1000).call(d3.axisBottom(x));
-            scatter
-                .selectAll("path")
-                .transition().duration(1000)
-                .attr('transform', d => "translate(" + x(d.x) + "," + y(d.y) + ")")
-
-            if (points.labels === "visible") {
-                scatter
-                    .selectAll("text")
-                    .transition().duration(1000)
-                    .attr('transform', d => "translate(" + x(d.x) + "," + y(d.y) + ")")
-            }
+        function isBrushed(brush_coords, cx, cy) {
+            var x0 = brush_coords[0][0],
+                x1 = brush_coords[1][0],
+                y0 = brush_coords[0][1],
+                y1 = brush_coords[1][1];
+            return x0 <= cx && cx <= x1 && y0 <= cy && cy <= y1;
         }
     }
 
-    createSymbols(svg, box_width, box_height, points, dataPoints, x, y) {
+    createScatter(svg, box_width, box_height, points, dataPoints, x, y) {
         let clip = svg.append("defs").append("svg:clipPath")
             .attr("id", "clip")
             .append("svg:rect")
@@ -160,7 +142,7 @@ class ScatterPlot extends Visualization {
                 .attr("style", label_style)
                 .attr("fill", "black");
         }
-        
+
         return scatter;
     }
 
@@ -177,7 +159,7 @@ class ScatterPlot extends Visualization {
 
         if (axis.y.label !== undefined) {
             let padding_x = 30;
-            let padding_y = 20;
+            let padding_y = 10;
             svg.append("text")
                 .attr("text-anchor", "end")
                 .attr("style", label_style)
@@ -188,24 +170,42 @@ class ScatterPlot extends Visualization {
         }
     }
 
-    createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax) {
+    createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax, focus, dx, dy) {
+        let {domain_x, domain_y} = this.getDomains(xMin, padding_x, xMax, yMin, padding_y, yMax, focus, dx, dy);
+
         let x = d3.scaleLinear();
         if (axis.x.scale !== "linear") { x = d3.scaleLog(); }
 
-        x.domain([xMin - padding_x, xMax + padding_x])
+        x.domain(domain_x)
             .range([0, box_width]);
         let xAxis = svg.append("g")
             .attr("transform", "translate(0," + box_height + ")")
-            .call(d3.axisBottom(x));
+            .call(d3.axisBottom(x))
+            .selectAll("text")
+            .attr("transform", "translate(-10,5)rotate(-45)")
 
         let y = d3.scaleLinear()
         if (axis.y.scale !== "linear") { y = d3.scaleLog(); }
 
-        y.domain([yMin - padding_y, yMax + padding_y])
+        y.domain(domain_y)
             .range([box_height, 0]);
-        svg.append("g")
+        let yAxis = svg.append("g")
             .call(d3.axisLeft(y));
-        return {x, xAxis, y};
+        return {x, y, xAxis, yAxis};
+    }
+
+    getDomains(xMin, padding_x, xMax, yMin, padding_y, yMax, focus, dx, dy) {
+        let domain_x = [xMin - padding_x, xMax + padding_x];
+        let domain_y = [yMin - padding_y, yMax + padding_y];
+        if (focus !== undefined) {
+            if (focus.x !== undefined && focus.y !== undefined && focus.zoom !== undefined) {
+                let delta_x = dx * (1 / (2 * (focus.zoom)));
+                let delta_y = dy * (1 / (2 * (focus.zoom)));
+                domain_x = [focus.x - delta_x, focus.x + delta_x];
+                domain_y = [focus.y - delta_y, focus.y + delta_y];
+            }
+        }
+        return {domain_x, domain_y};
     }
 
     getExtremesAndDeltas(dataPoints) {
@@ -227,7 +227,7 @@ class ScatterPlot extends Visualization {
         let padding_x = 0.1 * dx;
         let padding_y = 0.1 * dy;
 
-        return {xMin, xMax, yMin, yMax, padding_x, padding_y};
+        return {xMin, xMax, yMin, yMax, padding_x, padding_y, dx, dy};
     }
 
     getMargins(axis) {
