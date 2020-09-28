@@ -539,11 +539,11 @@ pub trait DefaultShortcutProvider : command::Provider {
         Shortcut::new_when(action,Self::label(),command,condition)
     }
 
-    /// Helper for defining shortcut targeting this object. Version which does not accept
-    /// condition checker.
-    fn self_shortcut(action:impl Into<Action>, command:impl Into<Command>) -> Shortcut {
-        Shortcut::new(action,Self::label(),command)
-    }
+    // /// Helper for defining shortcut targeting this object. Version which does not accept
+    // /// condition checker.
+    // fn self_shortcut(action:impl Into<Action>, command:impl Into<Command>) -> Shortcut {
+    //     Shortcut::new(action,Self::label(),command)
+    // }
 
     fn self_shortcut2(action_type:ActionType, shortcut:&str, command:impl Into<Command>) -> Shortcut {
         let action = shortcut.into();
