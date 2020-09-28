@@ -21,6 +21,7 @@ nalgebra     = { version = "0.21.1"  , features = ["serde-serialize"]           
 serde_json   = { version = "1.0"                                                }
 serde        = { version = "1.0"     , features = ["derive"]                    }
 js-sys       = { version = "0.3.28"                                             }
+Inflector    = { version = "0.11.4"                                             }
 
 
 [dependencies.web-sys]

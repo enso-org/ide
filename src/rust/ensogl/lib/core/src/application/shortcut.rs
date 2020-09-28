@@ -12,6 +12,7 @@ use crate::frp::io::mouse;
 use crate::frp;
 use crate::system::web;
 use enso_shortcuts as shortcuts;
+use enso_shortcuts::Registry as TRAIT_Registry; // fixme
 
 
 
@@ -313,7 +314,7 @@ pub struct RegistryModel {
     command_registry  : command::Registry,
     action_map        : Rc<RefCell<ActionMap>>,
     action_map2       : Rc<RefCell<ActionMap2>>,
-    shortcuts_registry : shortcuts::Registry<String>,
+    shortcuts_registry : shortcuts::HashSetRegistry<String>,
 }
 
 impl Deref for Registry {
@@ -381,7 +382,7 @@ impl RegistryModel {
         let command_registry  = command_registry.clone_ref();
         let action_map        = default();
         let action_map2       = default();
-        let shortcuts_registry = shortcuts::Registry::<String>::new();
+        let shortcuts_registry = default();
         Self {logger,keyboard,keyboard2,mouse,command_registry,action_map,action_map2,shortcuts_registry}
     }
 
@@ -458,7 +459,12 @@ impl Add<Shortcut> for &Registry {
         match &shortcut.action.mask {
             ActionPattern::ActionPattern2 {action} => {
                 println!("!!!! {}",action);
-                self.model.shortcuts_registry.add(shortcuts::Press, action, action); // "hello"
+                let tp = match shortcut.action.tp {
+                    ActionType::Press => shortcuts::Press,
+                    ActionType::Release => shortcuts::Release,
+                    ActionType::DoublePress => shortcuts::DoublePress,
+                };
+                self.model.shortcuts_registry.add(tp, action, action); // "hello"
 
                 let action_map = &mut self.action_map2.borrow_mut();
                 let rule_map   = action_map.entry(shortcut.action.tp).or_default();

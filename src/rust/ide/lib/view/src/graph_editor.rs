@@ -278,7 +278,7 @@ ensogl::def_status_api! { FrpStatus
     is_empty,
 }
 
-ensogl::def_command_api! { Commands
+ensogl::def_command_api! { [TRACE_ALL] Commands
     /// Cancel project name editing, restablishing the old name.
     cancel_project_name_editing,
     /// Add a new node and place it in the origin of the workspace.
@@ -1535,30 +1535,29 @@ impl application::command::Provider for GraphEditor {
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use keyboard::Key;
-        vec! [ Self::self_shortcut2(shortcut::ActionType::Press, "escape", "cancel_project_name_editing")
-             , Self::self_shortcut2(shortcut::ActionType::Press, "ctrl-left + n", "add_node_at_cursor")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
-             // , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("n".into())],&[])  , "add_node_at_cursor")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())],&[])  , "double_press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])  , "release_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                             , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift],&[])                               , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift],&[])                               , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Alt],&[])                                 , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Alt],&[])                                 , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift,Key::Alt],&[])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift,Key::Alt],&[])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("d".into())],&[])  , "set_test_visualization_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "edit_mode_on")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "edit_mode_off")
+        vec! [ Self::self_shortcut2(shortcut::ActionType::Press       , "escape", "cancel_project_name_editing")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "ctrl + n", "add_node_at_cursor")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "escape"                              , "cancel_project_name_editing")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "ctrl + backspace"              , "remove_selected_nodes")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "ctrl + space"  , "press_visualization_visibility")
+             , Self::self_shortcut2(shortcut::ActionType::DoublePress , "ctrl + space"  , "double_press_visualization_visibility")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "ctrl + space"  , "release_visualization_visibility")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "meta"                                , "toggle_node_multi_select")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "meta"                                , "toggle_node_multi_select")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "ctrl"                            , "toggle_node_multi_select")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "ctrl"                            , "toggle_node_multi_select")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "shift"                               , "toggle_node_merge_select")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "shift"                               , "toggle_node_merge_select")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "alt"                                 , "toggle_node_subtract_select")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "alt"                                 , "toggle_node_subtract_select")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "shift + alt"                      , "toggle_node_inverse_select")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "shift + alt"                      , "toggle_node_inverse_select")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "ctrl + d"  , "set_test_visualization_data_for_selected_node")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "ctrl + f"  , "cycle_visualization_for_selected_node")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "ctrl + enter"                  , "enter_selected_node")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "ctrl + up"                , "exit_node")
+             , Self::self_shortcut2(shortcut::ActionType::Press       , "meta"                                , "edit_mode_on")
+             , Self::self_shortcut2(shortcut::ActionType::Release     , "meta"                                , "edit_mode_off")
              ]
     }
 }

@@ -12,6 +12,8 @@ use frp::io::keyboard2::Keyboard;
 use frp::io::keyboard2 as keyboard;
 use frp::io::mouse;
 
+use inflector::Inflector;
+
 pub use logger;
 pub use logger::*;
 pub use logger::AnyLogger;
@@ -445,21 +447,23 @@ impl<T:Clone> Registry<T> for AutomataRegistry<T> {
 
 #[derive(Debug)]
 pub struct HashSetRegistryModel<T> {
-    actions       : HashMap<ActionType,HashMap<String,T>>,
-    pressed       : HashSet<String>,
-    press_times   : HashMap<String,f32>,
-    release_times : HashMap<String,f32>,
-    side_keys     : HashMap<String,Vec<String>>
+    actions               : HashMap<ActionType,HashMap<String,T>>,
+    pressed               : HashSet<String>,
+    press_times           : HashMap<String,f32>,
+    release_times         : HashMap<String,f32>,
+    side_keys             : HashMap<String,Vec<String>>,
+    key_normalization_map : HashMap<String,String>,
 }
 
 impl<T> HashSetRegistryModel<T> {
     pub fn new() -> Self {
-        let actions       = default();
-        let pressed       = default();
-        let press_times   = default();
-        let release_times = default();
-        let side_keys     = default();
-        Self {actions,pressed,press_times,release_times,side_keys} . init()
+        let actions               = default();
+        let pressed               = default();
+        let press_times           = default();
+        let release_times         = default();
+        let side_keys             = default();
+        let key_normalization_map = key_name_normalization();
+        Self {actions,pressed,press_times,release_times,side_keys,key_normalization_map} . init()
     }
 
     fn init(mut self) -> Self {
@@ -467,6 +471,7 @@ impl<T> HashSetRegistryModel<T> {
             let alts = vec![format!("{}-left",key),format!("{}-right",key),key.to_string()];
             self.side_keys.insert(key.to_string(),alts);
         }
+        known_key_mapping();
         self
     }
 
@@ -488,14 +493,17 @@ impl<T:Clone> HashSetRegistryModel<T> {
     }
 
     fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
+        let input = input.as_ref().to_lowercase();//.to_kebab_case();
+        let input = self.key_normalization_map.get(&input).cloned().unwrap_or(input);
         let expr = if press {
-            self.pressed.insert(input.as_ref().to_string());
+            self.pressed.insert(input);
             self.current_expr()
         } else {
             let out = self.current_expr();
-            self.pressed.remove(input.as_ref());
+            self.pressed.remove(&input);
             out
         };
+        if press { println!("\n---- {} ----",expr) }
         let action        = if press { Press }       else { Release };
         let double_action = if press { DoublePress } else { DoubleClick };
         let last_time_map = if press { &mut self.press_times } else { &mut self.release_times };
@@ -558,6 +566,43 @@ impl<T> Default for HashSetRegistryModel<T> {
     }
 }
 
+fn key_name_normalization() -> HashMap<String,String> {
+    let mut map    = HashMap::<String,String>::new();
+    let mut insert = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
+        map.insert(k.into(),v.into());
+    };
+    insert(&mut map, "arrowleft"  , "arrow-left");
+    insert(&mut map, "arrowright" , "arrow-right");
+    insert(&mut map, "arrowup"    , "arrow-up");
+    insert(&mut map, "arrowdown"  , "arrow-down");
+    map
+}
+
+fn known_key_mapping() -> HashMap<String,String> {
+    let mut map = HashMap::<String,String>::new();
+    let cmd_target = match web::platform::Platform::query() {
+        web::platform::Platform::MacOS => "meta",
+        _                              => "ctrl",
+    };
+    let mut insert_side_key = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
+        map.insert(format!("{}"       , k) , format!("{}"       , v));
+        map.insert(format!("{}-left"  , k) , format!("{}-left"  , v));
+        map.insert(format!("{}-right" , k) , format!("{}-right" , v));
+    };
+    let mut insert = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
+        map.insert(k.into(),v.into());
+    };
+    insert_side_key (&mut map, "control" , "ctrl");
+    insert_side_key (&mut map, "option"  , "alt");
+    insert_side_key (&mut map, "cmd"     , cmd_target);
+    insert_side_key (&mut map, "command" , cmd_target);
+    insert          (&mut map, "left"    , "arrow-left");
+    insert          (&mut map, "right"   , "arrow-right");
+    insert          (&mut map, "up"      , "arrow-up");
+    insert          (&mut map, "down"    , "arrow-down");
+    println!("{:#?}",map);
+    map
+}
 
 
 
