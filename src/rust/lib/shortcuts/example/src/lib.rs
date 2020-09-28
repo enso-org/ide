@@ -29,9 +29,10 @@ pub fn entry_point_shortcuts() {
 pub fn main() {
     let mut shortcut_registry = shortcuts::AutomataRegistry::<String>::new();
     shortcut_registry.add(shortcuts::Press, "ctrl + a", "hello");
-    shortcut_registry.add(shortcuts::Press, "ctrl + shift + meta + b", "hello");
-    shortcut_registry.add(shortcuts::Press, "ctrl + shift + meta + c", "hello");
-    shortcut_registry.add(shortcuts::Press, "ctrl + shift + meta + d", "hello");
+    shortcut_registry.add(shortcuts::Press, "ctrl + b", "hello");
+    // shortcut_registry.add(shortcuts::Press, "ctrl + shift + meta + b", "hello");
+    // shortcut_registry.add(shortcuts::Press, "ctrl + shift + meta + c", "hello");
+    // shortcut_registry.add(shortcuts::Press, "ctrl + shift + meta + d", "hello");
     // shortcut_registry.add(shortcuts::Press, "ctrl + b", "hello2");
     // shortcut_registry.add(shortcuts::Press, "ctrl + meta + shift + b", "hello2");
 
@@ -55,10 +56,21 @@ pub fn main() {
 
 
     let mut shortcut_registry = shortcuts::HashSetRegistry::<String>::new();
-    shortcut_registry.add(shortcuts::Press, "ctrl + shift + meta + alt + a", "hello");
-    println!(">>O {:?}", shortcut_registry.on_press("ctrl"));
-    println!(">>O {:?}", shortcut_registry.on_press("a"));
-    println!(">>O {:?}", shortcut_registry.on_release("a"));
-    println!(">>O {:?}", shortcut_registry.on_press("a"));
+    shortcut_registry.add(shortcuts::DoublePress, "ctrl + a", "hello");
+    println!("---");
+    println!("-> {:?}", shortcut_registry.on_press("ctrl"));
+    println!("---");
+    println!("-> {:?}", shortcut_registry.on_press("a"));
+    println!("---");
+    web::simulate_sleep(100.0);
+    println!("-> {:?}", shortcut_registry.on_release("a"));
+    println!("---");
+    println!("-> {:?}", shortcut_registry.on_press("a"));
+    println!("---");
+    println!("-> {:?}", shortcut_registry.on_release("a"));
+    println!("---");
+    println!("-> {:?}", shortcut_registry.on_press("a"));
+    println!("---");
+
 
 }

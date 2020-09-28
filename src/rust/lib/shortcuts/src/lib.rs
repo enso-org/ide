@@ -49,7 +49,7 @@ fn reverse_key(key:&str) -> String {
 
 /// List of special keys. Special keys can be grouped together to distinguish action sequences like
 /// `ctrl + a` and `a + ctrl`. Please note, that this is currently not happening.
-const SPECIAL_KEYS : &'static [&'static str] = &["ctrl","alt","meta","cmd","shift"];
+const SIDE_KEYS : &'static [&'static str] = &["ctrl","alt","meta","cmd","shift"];
 
 
 const DOUBLE_EVENT_TIME_MS : f32 = 500.0;
@@ -135,7 +135,7 @@ impl<T:Clone> AutomataRegistryModel<T> {
     pub fn add(&mut self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
         self.dirty = true;
 
-        let special_keys : HashSet<&str> = SPECIAL_KEYS.iter().map(|t|*t).collect();
+        let special_keys : HashSet<&str> = SIDE_KEYS.iter().map(|t|*t).collect();
         let expr = expr.as_ref();
 
         let end_state = if expr.starts_with('-') {
@@ -213,7 +213,7 @@ impl<T:Clone> AutomataRegistryModel<T> {
                     let alt_repr = alt_path.join(" ");
                     let out = self.states.get(&alt_repr).cloned().unwrap_or_else(||self.nfa.new_state_exported());
 
-                    let alts = if *alt { vec![format!("{}-left",name),format!("{}-right",name)] } else { vec![name.into()] };
+                    let alts = vec![format!("{}-left",name),format!("{}-right",name)];
                     // println!("out: {:?}",out);
                     for key in alts {
                         let mut local_path = path.clone();
@@ -226,6 +226,8 @@ impl<T:Clone> AutomataRegistryModel<T> {
                                 // println!("bidirectional connect {} [{:?} --- {:?}]", key.to_string(), state, target);
                                 self.bidirectional_connect_via(state,target,key.to_string());
                                 self.bidirectional_connect(target,out);
+                                self.bidirectional_connect_via(state,out,name.to_string());
+
                             },
                             None => {
                                 let target = self.bidirectional_pattern(state,key.to_string());
@@ -233,6 +235,8 @@ impl<T:Clone> AutomataRegistryModel<T> {
                                 // println!("+ '{}' -> {:?}",repr,target);
                                 self.states.insert(repr.clone(),target);
                                 self.bidirectional_connect(target,out);
+                                self.bidirectional_connect_via(state,out,name.to_string());
+
                             }
                         };
                     }
@@ -316,7 +320,7 @@ impl<T:Clone> AutomataRegistryModel<T> {
         //println!("on_event ({}) {}",press,input.as_ref());
         self.optimize();
         let action        = if press { Press }       else { Release };
-        // let double_action = if press { DoublePress } else { DoubleClick };
+        let double_action = if press { DoublePress } else { DoubleClick };
         let input         = input.as_ref().to_lowercase();
         let symbol_input  = if press { input.clone() } else { format!("-{}",input) };
         let symbol        = Symbol::from(hash(&symbol_input));
@@ -324,23 +328,23 @@ impl<T:Clone> AutomataRegistryModel<T> {
         let next_state    = self.dfa.next_state(current_state,&symbol);
         let focus_state   = if press { next_state } else { current_state };
         let nfa_states    = &self.dfa.sources[focus_state.id()];
-        // let time : f32    = web::time_from_start() as f32;
-        // let last_time_map = if press { &self.press_times } else { &self.release_times };
-        // let last_time     = last_time_map.get(&focus_state);
-        // let time_diff     = last_time.map(|t| time-t);
-        // let is_double     = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
-        // let new_time      = if is_double { 0.0 } else { time };
+        let time : f32    = web::time_from_start() as f32;
+        let last_time_map = if press { &self.press_times } else { &self.release_times };
+        let last_time     = last_time_map.get(&focus_state);
+        let time_diff     = last_time.map(|t| time-t);
+        let is_double     = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
+        let new_time      = if is_double { 0.0 } else { time };
         self.current      = next_state;
         let mut actions   = nfa_states.iter().filter_map(|t|self.get_action(action,*t)).collect_vec();
-        // if is_double {
-        //     actions.extend(nfa_states.iter().filter_map(|t|self.get_action(double_action,*t)));
-        // }
+        if is_double {
+            actions.extend(nfa_states.iter().filter_map(|t|self.get_action(double_action,*t)));
+        }
         if press {
             self.pressed.insert(input);
-            // self.press_times.insert(focus_state,new_time);
+            self.press_times.insert(focus_state,new_time);
         } else {
             self.pressed.remove(&input);
-            // self.release_times.insert(focus_state,new_time);
+            self.release_times.insert(focus_state,new_time);
             if self.pressed.is_empty() {
                 self.current = Dfa::START_STATE;
             }
@@ -441,15 +445,33 @@ impl<T:Clone> Registry<T> for AutomataRegistry<T> {
 
 #[derive(Debug)]
 pub struct HashSetRegistryModel<T> {
-    actions:HashMap<ActionType,HashMap<String,T>>,
-    pressed:HashSet<String>,
+    actions       : HashMap<ActionType,HashMap<String,T>>,
+    pressed       : HashSet<String>,
+    press_times   : HashMap<String,f32>,
+    release_times : HashMap<String,f32>,
+    side_keys     : HashMap<String,Vec<String>>
 }
 
 impl<T> HashSetRegistryModel<T> {
     pub fn new() -> Self {
-        let actions = default();
-        let pressed = default();
-        Self {actions,pressed}
+        let actions       = default();
+        let pressed       = default();
+        let press_times   = default();
+        let release_times = default();
+        let side_keys     = default();
+        Self {actions,pressed,press_times,release_times,side_keys} . init()
+    }
+
+    fn init(mut self) -> Self {
+        for key in SIDE_KEYS {
+            let alts = vec![format!("{}-left",key),format!("{}-right",key),key.to_string()];
+            self.side_keys.insert(key.to_string(),alts);
+        }
+        self
+    }
+
+    fn current_expr(&self) -> String {
+        self.pressed.iter().sorted().join(" + ")
     }
 }
 
@@ -457,59 +479,77 @@ impl<T:Clone> HashSetRegistryModel<T> {
     pub fn add(&mut self, action_type:ActionType, input:impl AsRef<str>, action:impl Into<T>) {
         let input  = input.as_ref();
         let action = action.into();
+        let exprs  = self.possible_exprs(input);
         let map    = self.actions.entry(action_type).or_default();
-        for expr in possible_exprs(input) {
+        for expr in exprs {
             map.insert(expr, action.clone());
         }
         // self.actions.insert(expr,action.into());
     }
 
-    pub fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> {
-        self.pressed.insert(input.as_ref().to_string());
-        let expr = self.pressed.iter().sorted().join(" + ");
-        match self.actions.get(&ActionType::Press).and_then(|t|t.get(&expr)) {
-            None => vec![],
-            Some(t) => vec![t.clone()]
+    fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
+        let expr = if press {
+            self.pressed.insert(input.as_ref().to_string());
+            self.current_expr()
+        } else {
+            let out = self.current_expr();
+            self.pressed.remove(input.as_ref());
+            out
+        };
+        let action        = if press { Press }       else { Release };
+        let double_action = if press { DoublePress } else { DoubleClick };
+        let last_time_map = if press { &mut self.press_times } else { &mut self.release_times };
+        let mut out       = Vec::<T>::new();
+        let time : f32    = web::time_from_start() as f32;
+        let last_time     = last_time_map.get(&expr);
+        let time_diff     = last_time.map(|t| time-t);
+        let is_double     = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
+        out.extend(self.actions.get(&action).and_then(|t|t.get(&expr)).cloned());
+        if is_double {
+            out.extend(self.actions.get(&double_action).and_then(|t|t.get(&expr)).cloned());
+            last_time_map.remove(&expr);
+        } else {
+            *last_time_map.entry(expr).or_default() = time;
         }
+        out
+    }
+
+    pub fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> {
+        self.on_event(input,true)
     }
 
     pub fn on_release(&mut self, input:impl AsRef<str>) -> Vec<T> {
-        self.pressed.remove(input.as_ref());
-        vec![]
+        self.on_event(input,false)
     }
-}
 
-fn normalize_expr(expr:impl AsRef<str>) -> String {
-    let expr = expr.as_ref();
-    let keys = expr.split('+').map(|t| t.trim()).sorted().collect_vec();
-    keys.join(" + ")
-}
-
-fn possible_exprs(expr:impl AsRef<str>) -> Vec<String> {
-    let expr = expr.as_ref();
-    let mut out : Vec<String> = vec![];
-    for key in expr.split('+').map(|t| t.trim()).sorted() {
-       if SPECIAL_KEYS.contains(&key) {
-           let alts = &[format!("{}-left",key),format!("{}-right",key),key.into()];
-           if out.is_empty() {
-               out.extend(alts.iter().cloned());
-           } else {
-               let local_out = mem::take(&mut out);
-               for k in alts {
-                   out.extend(local_out.iter().map(|t| format!("{} + {}", t, k)));
-               }
-           }
-       } else {
-           if out.is_empty() {
-               out.push(key.into());
-           } else {
-               for el in out.iter_mut() {
-                   *el = format!("{} + {}", el, key);
-               }
-           }
-       }
+    fn possible_exprs(&self, expr:impl AsRef<str>) -> Vec<String> {
+        let expr = expr.as_ref();
+        let mut out : Vec<String> = vec![];
+        for key in expr.split('+').map(|t| t.trim()).sorted() {
+            match self.side_keys.get(key) {
+                Some(alts) => {
+                    if out.is_empty() {
+                        out.extend(alts.iter().cloned());
+                    } else {
+                        let local_out = mem::take(&mut out);
+                        for k in alts {
+                            out.extend(local_out.iter().map(|t| format!("{} + {}", t, k)));
+                        }
+                    }
+                },
+                None => {
+                    if out.is_empty() {
+                        out.push(key.into());
+                    } else {
+                        for el in out.iter_mut() {
+                            *el = format!("{} + {}", el, key);
+                        }
+                    }
+                }
+            }
+        }
+        out
     }
-    out
 }
 
 impl<T> Default for HashSetRegistryModel<T> {
@@ -517,6 +557,8 @@ impl<T> Default for HashSetRegistryModel<T> {
         Self::new()
     }
 }
+
+
 
 
 
@@ -561,15 +603,63 @@ impl<T:Clone> Registry<T> for HashSetRegistry<T> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn automata_registry_validate_sates() {
-        validate_states::<AutomataRegistry<i32>>(true);
+    // === Press ===
+
+    #[test] fn automata_registry_press() { press::<AutomataRegistry<i32>>(); }
+    #[test] fn hash_set_registry_press() { press::<HashSetRegistry<i32>>(); }
+    fn press<T:Registry<i32>>() -> T {
+        let nothing = Vec::<i32>::new();
+        let mut registry : T = default();
+        registry.add(Press, "ctrl + a", 0);
+        assert_eq!(registry.on_press("ctrl-left"), nothing);
+        for _ in 0..10 {
+            assert_eq!(registry.on_press("a"), vec![0]);
+            assert_eq!(registry.on_release("a"), nothing);
+        }
+        registry
     }
 
-    #[test]
-    fn hash_set_registry_validate_sates() {
-        validate_states::<HashSetRegistry<i32>>(false);
+
+    // === Release ===
+
+    #[test] fn automata_registry_release() { release::<AutomataRegistry<i32>>(); }
+    #[test] fn hash_set_registry_release() { release::<HashSetRegistry<i32>>(); }
+    fn release<T:Registry<i32>>() -> T {
+        let nothing = Vec::<i32>::new();
+        let mut registry : T = default();
+        registry.add(Release, "ctrl + a", 0);
+        assert_eq!(registry.on_press("ctrl-left"),nothing);
+        for _ in 0..10 {
+            assert_eq!(registry.on_press("a"), nothing);
+            assert_eq!(registry.on_release("a"), vec![0]);
+        }
+        registry
     }
+
+
+    // === DoublePress ===
+
+    // #[test] fn automata_registry_double_press() { double_press::<AutomataRegistry<i32>>(); }
+    #[test] fn hash_set_registry_double_press() { double_press::<HashSetRegistry<i32>>(); }
+    fn double_press<T:Registry<i32>>() -> T {
+        let nothing = Vec::<i32>::new();
+        let mut registry : T = default();
+        registry.add(DoublePress, "ctrl + a", 0);
+        assert_eq!(registry.on_press("ctrl-left"),nothing);
+        for _ in 0..10 {
+            assert_eq!(registry.on_press("a"), nothing);
+            assert_eq!(registry.on_release("a"), nothing);
+            web::simulate_sleep(100.0);
+            assert_eq!(registry.on_press("a"), vec![0]);
+            assert_eq!(registry.on_release("a"), nothing);
+            web::simulate_sleep(100.0);
+            assert_eq!(registry.on_press("a"), nothing);
+            assert_eq!(registry.on_release("a"), nothing);
+            web::simulate_sleep(1000.0);
+        }
+        registry
+    }
+
 
     #[test]
     fn automata_registry_side_keys_handling() {
@@ -603,6 +693,16 @@ mod tests {
             }
         }
         registry
+    }
+
+    #[test]
+    fn automata_registry_validate_sates() {
+        validate_states::<AutomataRegistry<i32>>(true);
+    }
+
+    #[test]
+    fn hash_set_registry_validate_sates() {
+        validate_states::<HashSetRegistry<i32>>(false);
     }
 
     fn validate_states<T:Registry<i32>>(allow_broken_shortcut:bool) -> T {
@@ -653,12 +753,47 @@ mod benchmarks {
     use super::*;
     use test::Bencher;
 
-    fn construction<T:Registry<i32>>(optimize:bool, bencher:&mut Bencher) -> T {
+    const CONS_SIMPLE  : &'static str = "ctrl";
+    const CONS_COMPLEX : &'static str = "ctrl + cmd + alt + shift";
+
+    // === Construction ===
+
+    #[bench]
+    fn automata_registry_construction_simple_without_optimization(bencher:&mut Bencher) {
+        construction::<AutomataRegistry<i32>>(CONS_SIMPLE,false,bencher);
+    }
+
+    #[bench]
+    fn automata_registry_construction_complex_without_optimization(bencher:&mut Bencher) {
+        construction::<AutomataRegistry<i32>>(CONS_COMPLEX,false,bencher);
+    }
+
+    #[bench]
+    fn automata_registry_construction_simple_with_optimization(bencher:&mut Bencher) {
+        construction::<AutomataRegistry<i32>>(CONS_SIMPLE,true,bencher);
+    }
+
+    #[bench]
+    fn automata_registry_construction_complex_with_optimization(bencher:&mut Bencher) {
+        construction::<AutomataRegistry<i32>>(CONS_COMPLEX,true,bencher);
+    }
+
+    #[bench]
+    fn hashset_registry_construction_simple(bencher:&mut Bencher) {
+        construction::<HashSetRegistry<i32>>(CONS_SIMPLE,true,bencher);
+    }
+
+    #[bench]
+    fn hashset_registry_construction_complex(bencher:&mut Bencher) {
+        construction::<HashSetRegistry<i32>>(CONS_COMPLEX,true,bencher);
+    }
+
+    fn construction<T:Registry<i32>>(input:&str, optimize:bool, bencher:&mut Bencher) -> T {
         bencher.iter(|| {
             let mut registry : T = default();
-            let max_count        = test::black_box(100);
+            let max_count        = test::black_box(10);
             for i in 0..max_count {
-                registry.add(Press, format!("ctrl + a{}",i), i);
+                registry.add(Press,format!("{} + a{}",i,input),i);
             }
             if optimize {
                 registry.optimize();
@@ -667,39 +802,8 @@ mod benchmarks {
         default()
     }
 
-    fn lookup<T:Registry<i32>>(bencher:&mut Bencher) -> T {
-        let mut registry : T = default();
-        let nothing          = Vec::<i32>::new();
-        let max_count        = test::black_box(500);
-        for i in 0..max_count {
-            registry.add(Press, format!("ctrl + a{}",i), i);
-        }
-        registry.optimize();
-        assert_eq!(registry.on_press("ctrl-left"),nothing);
-        bencher.iter(|| {
-            for i in 0..max_count {
-                let key = format!("a{}",i);
-                assert_eq!(registry.on_press(&key),vec![i]);
-                assert_eq!(registry.on_release(&key),nothing);
-            }
-        });
-        registry
-    }
 
-    #[bench]
-    fn automata_registry_construction_without_optimization(bencher:&mut Bencher) {
-        construction::<AutomataRegistry<i32>>(false,bencher);
-    }
-
-    #[bench]
-    fn automata_registry_construction_with_optimization(bencher:&mut Bencher) {
-        construction::<AutomataRegistry<i32>>(true,bencher);
-    }
-
-    #[bench]
-    fn hashset_registry_construction(bencher:&mut Bencher) {
-        construction::<HashSetRegistry<i32>>(true,bencher);
-    }
+    // === Lookup ===
 
     #[bench]
     fn automata_registry_lookup(bencher:&mut Bencher) {
@@ -710,22 +814,26 @@ mod benchmarks {
     fn hashset_registry_lookup(bencher:&mut Bencher) {
         lookup::<HashSetRegistry<i32>>(bencher);
     }
+
+    fn lookup<T:Registry<i32>>(bencher:&mut Bencher) -> T {
+        let mut registry : T = default();
+        let nothing          = Vec::<i32>::new();
+        let max_count        = test::black_box(100);
+        for i in 0..max_count {
+            registry.add(Press, format!("ctrl + shift + a{}",i), i);
+        }
+        registry.optimize();
+        bencher.iter(|| {
+            for i in 0..max_count {
+                let key = format!("a{}",i);
+                assert_eq!(registry.on_press("ctrl-left"),nothing);
+                assert_eq!(registry.on_press("shift-left"),nothing);
+                assert_eq!(registry.on_press(&key),vec![i]);
+                assert_eq!(registry.on_release(&key),nothing);
+                assert_eq!(registry.on_release("shift-left"),nothing);
+                assert_eq!(registry.on_release("ctrl-left"),nothing);
+            }
+        });
+        registry
+    }
 }
-
-
-
-// - shift left left
-//
-// any_key (?mouse)
-//
-// left (?mouse)
-//
-// key? left_down
-//
-// ctr -> b -> release ctrl
-//
-// any letter WITHOUT modifiers (typing but not cmd+a)
-
-
-// +lmb           - start selection
-// -lmb (ANY key) - stop selection
