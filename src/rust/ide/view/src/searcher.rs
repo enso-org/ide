@@ -8,15 +8,16 @@ use crate::prelude::*;
 use crate::documentation;
 
 use enso_frp as frp;
+use enso_frp::io::keyboard::Key;
 use ensogl::application;
 use ensogl::application::{Application, shortcut};
 use ensogl::display;
+use ensogl::gui::component::Animation;
 use ensogl_gui_list_view as list_view;
 use ensogl_gui_list_view::ListView;
 
 pub use ensogl_gui_list_view::entry;
-use enso_frp::io::keyboard::Key;
-use ensogl::gui::component::Animation;
+
 
 
 // =================
@@ -47,13 +48,16 @@ const DOCUMENTATION_X       : f32 = (SEARCHER_WIDTH - DOCUMENTATION_WIDTH) / 2.0
 ///
 /// This provider is used by searcher to print documentation of currently selected suggestion.
 pub trait DocumentationProvider : Debug {
+    /// Get documentation string to be displayed when no suggestion is selected.
+    fn get(&self) -> Option<String> { None }
+
     /// Get documentation string for given entry, or `None` if entry or documentation does not
     /// exist.
-    fn get_for_entry(&self, id:list_view::entry::Id) -> Option<String>;
+    fn get_for_entry(&self, id:entry::Id) -> Option<String>;
 }
 
-impl DocumentationProvider for list_view::entry::EmptyProvider {
-    fn get_for_entry(&self, _:list_view::entry::Id) -> Option<String> { None }
+impl DocumentationProvider for entry::EmptyProvider {
+    fn get_for_entry(&self, _:entry::Id) -> Option<String> { None }
 }
 
 
@@ -64,7 +68,7 @@ impl DocumentationProvider for list_view::entry::EmptyProvider {
 pub struct AnyDocumentationProvider {rc:Rc<dyn DocumentationProvider>}
 
 impl Default for AnyDocumentationProvider {
-    fn default() -> Self { list_view::entry::EmptyProvider.into() }
+    fn default() -> Self { entry::EmptyProvider.into() }
 }
 
 impl<T:DocumentationProvider + 'static> From<T> for AnyDocumentationProvider {
@@ -104,9 +108,11 @@ impl Model {
         Self{logger,display_object,list,documentation,doc_provider}
     }
 
-    fn documentation_for_entry(&self, id:Option<list_view::entry::Id>) -> String {
-        id.map_or(" ".to_owned(), |id| {
-            self.doc_provider.get().get_for_entry(id).unwrap_or_default()
+    fn documentation_for_entry(&self, id:Option<entry::Id>) -> String {
+        let doc_provider       = self.doc_provider.get();
+        let when_none_selected = || doc_provider.get().unwrap_or(" ".to_owned());
+        id.map_or_else(when_none_selected, |id| {
+            doc_provider.get_for_entry(id).unwrap_or_default()
         })
     }
 
@@ -130,9 +136,10 @@ ensogl::def_command_api!( Commands
 ensogl_text::define_endpoints! {
     Commands { Commands }
     Input {
-        set_suggestions (list_view::entry::AnyModelProvider,AnyDocumentationProvider),
-        show            (),
-        hide            (),
+        set_suggestions   (entry::AnyModelProvider,AnyDocumentationProvider),
+        select_suggestion (entry::Id),
+        show              (),
+        hide              (),
     }
     Output {
         selected_entry    (Option<entry::Id>),
@@ -185,10 +192,11 @@ impl View {
         let height = Animation::<f32>::new(&network);
 
         frp::extend! { network
-            eval frp.set_suggestions (((entries,docs)) {
+            eval frp.set_suggestions ([model] ((entries,docs)) {
                 model.doc_provider.set(docs.clone_ref());
                 model.list.set_entries(entries);
             });
+            eval frp.select_suggestion((id) model.list.select_entry(id));
             source.selected_entry <+ model.list.selected_entry;
             source.size           <+ height.value.map(|h| Vector2(SEARCHER_WIDTH,*h));
             source.is_visible     <+ model.list.size.map(|size| size.x * size.y > std::f32::EPSILON);

@@ -645,12 +645,27 @@ impl GraphEditorIntegratedWithControllerModel {
 
     pub fn handle_searcher_notification(&self, notification:controller::searcher::Notification) {
         use controller::searcher::Notification;
+        use controller::searcher::UserAction;
         match notification {
             Notification::NewSuggestionList => with(self.searcher_controller.borrow(), |searcher| {
                 if let Some(searcher) = &*searcher {
                     match searcher.suggestions() {
                         Suggestions::Loading       => self.view.searcher().clear_suggestions(),
-                        Suggestions::Loaded {list} => self.view.searcher().set_suggestions(list),
+                        Suggestions::Loaded {list:suggestions} => {
+                            let list_is_empty     = suggestions.is_empty();
+                            let user_action       = searcher.current_user_action();
+                            let intended_function = searcher.intended_function_suggestion();
+                            let provider          = DataProviderForView
+                                {suggestions,user_action,intended_function};
+                            self.view.searcher().set_suggestions(Rc::new(provider));
+
+                            // Usually we want to select first suggestion and display docs for it
+                            // But not when user finished typing function or argument.
+                            let starting_typing = user_action == UserAction::StartingTypingArgument;
+                            if  !starting_typing && !list_is_empty {
+                                self.view.searcher().select_suggestion(0);
+                            }
+                        },
                         Suggestions::Error(err)    => {
                             error!(self.logger, "Error while obtaining list from searcher: {err}");
                             self.view.searcher().clear_suggestions();
@@ -1051,13 +1066,38 @@ impl display::Object for NodeEditor {
     }
 }
 
-impl list_view::entry::ModelProvider for controller::searcher::suggestion::List {
+
+
+// ===========================
+// === DataProviderForView ===
+// ===========================
+
+#[derive(Clone,Debug)]
+struct DataProviderForView {
+    suggestions       : Rc<controller::searcher::suggestion::List>,
+    user_action       : controller::searcher::UserAction,
+    intended_function : Option<controller::searcher::suggestion::Completion>,
+}
+
+impl DataProviderForView {
+    fn doc_placeholder_for(suggestion:&controller::searcher::suggestion::Completion) -> String {
+        let title = match suggestion.kind {
+            EntryKind::Atom     => "Atom",
+            EntryKind::Function => "Function",
+            EntryKind::Local    => "Local variable",
+            EntryKind::Method   => "Method",
+        };
+        format!("{} `{}`\n\nNo documentation available", title,suggestion.code_to_insert(None))
+    }
+}
+
+impl list_view::entry::ModelProvider for DataProviderForView {
     fn entry_count(&self) -> usize {
-        self.matching_count()
+        self.suggestions.matching_count()
     }
 
     fn get(&self, id: usize) -> Option<list_view::entry::Model> {
-        let suggestion = self.get_cloned(id)?;
+        let suggestion = self.suggestions.get_cloned(id)?;
         if let MatchInfo::Matches {subsequence} = suggestion.match_info {
             let caption          = suggestion.suggestion.caption();
             let model            = list_view::entry::Model::new(caption.clone());
@@ -1082,24 +1122,24 @@ impl list_view::entry::ModelProvider for controller::searcher::suggestion::List 
     }
 }
 
-impl ide_view::searcher::DocumentationProvider for controller::searcher::suggestion::List {
+impl ide_view::searcher::DocumentationProvider for DataProviderForView {
+    fn get(&self) -> Option<String> {
+        use controller::searcher::UserAction::*;
+        self.intended_function.as_ref().and_then(|function| match self.user_action {
+            StartingTypingArgument => function.documentation.clone(),
+            _                      => None
+        })
+    }
+
     fn get_for_entry(&self, id:usize) -> Option<String> {
         use controller::searcher::suggestion::Suggestion;
-        match self.get_cloned(id)?.suggestion {
+        match self.suggestions.get_cloned(id)?.suggestion {
             Suggestion::Completion(completion) => {
                 let doc = completion.documentation.clone();
-                Some(doc.unwrap_or_else(|| doc_placeholder_for(&completion)))
+                Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&completion)))
             }
         }
     }
 }
 
-fn doc_placeholder_for(suggestion:&controller::searcher::suggestion::Completion) -> String {
-    let title = match suggestion.kind {
-        EntryKind::Atom     => "Atom",
-        EntryKind::Function => "Function",
-        EntryKind::Local    => "Local variable",
-        EntryKind::Method   => "Method",
-    };
-    format!("{} `{}`\n\nNo documentation available", title,suggestion.code_to_insert(None))
-}
+
