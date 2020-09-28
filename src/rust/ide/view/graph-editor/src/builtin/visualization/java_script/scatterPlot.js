@@ -34,6 +34,7 @@ const label_style = "font-family: dejavuSansMono; font-size: 11px;";
  */
 class ScatterPlot extends Visualization {
     static inputType = "Any"
+    static label     = "Scatter Plot (JS)"
 
     onDataReceived(data) {
         while (this.dom.firstChild) {
@@ -63,10 +64,7 @@ class ScatterPlot extends Visualization {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        let {xMin, xMax, yMin, yMax, dx, dy} = this.getExtremesAndDeltas(dataPoints);
-
-        let padding_x = 0.1 * dx;
-        let padding_y = 0.1 * dy;
+        let {xMin, xMax, yMin, yMax, padding_x, padding_y} = this.getExtremesAndDeltas(dataPoints);
 
         let {x, xAxis, y} = this.createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax);
 
@@ -226,7 +224,10 @@ class ScatterPlot extends Visualization {
         let dx = xMax - xMin;
         let dy = yMax - yMin;
 
-        return {xMin, xMax, yMin, yMax, dx, dy};
+        let padding_x = 0.1 * dx;
+        let padding_y = 0.1 * dy;
+
+        return {xMin, xMax, yMin, yMax, padding_x, padding_y};
     }
 
     getMargins(axis) {
