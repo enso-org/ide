@@ -23,8 +23,7 @@ const label_style = "font-family: dejavuSansMono; font-size: 11px;";
  *  },
  *  "focus" { "x" : 1.7, "y" : 2.1, "zoom" : 3.0 },
  *  "points" : {
- *     "labels" : "visible" | "invisible",
- *     "connected" : "yes" | "no"
+ *     "labels" : "visible" | "invisible"
  *  }
  *  "data" : [
  *     { "x" : 0.1, "y" : 0.7, "label" : "foo", "color" : "FF0000", "shape" : "circle", "size" : 0.2 },
@@ -48,7 +47,7 @@ class ScatterPlot extends Visualization {
         let parsedData = JSON.parse(data);
         let axis       = parsedData.axis || {x: {scale: "linear" }, y: {scale: "linear" }};
         let focus      = parsedData.focus;
-        let points     = parsedData.points || {labels: "invisible", connected: "no"};
+        let points     = parsedData.points || {labels: "invisible"};
         let dataPoints = parsedData.data || {};
 
         let margin     = this.getMargins(axis);
@@ -83,13 +82,10 @@ class ScatterPlot extends Visualization {
             .extent([[0, 0], [box_width, box_height]])
             .on("end", updateChart)
 
-
-        if (points.connected !== "yes") {
-            scatter
-                .append("g")
-                .attr("class", "brush")
-                .call(brush);
-        }
+        scatter
+            .append("g")
+            .attr("class", "brush")
+            .call(brush);
 
         let idleTimeout
 
@@ -137,18 +133,6 @@ class ScatterPlot extends Visualization {
         let scatter = svg.append('g')
             .attr("clip-path", "url(#clip)")
 
-        if (points.connected === "yes") {
-            scatter.append("path")
-                .datum(dataPoints)
-                .attr("fill", "none")
-                .attr("stroke", d => "#" + (d.color || "000000"))
-                .attr("stroke-width", 1.5)
-                .attr("d", d3.line()
-                    .x(d => x(d.x))
-                    .y(d => y(d.y))
-                )
-        }
-
         scatter
             .selectAll("dataPoint")
             .data(dataPoints)
@@ -178,6 +162,7 @@ class ScatterPlot extends Visualization {
                 .attr("style", label_style)
                 .attr("fill", "black");
         }
+        
         return scatter;
     }
 
@@ -207,9 +192,7 @@ class ScatterPlot extends Visualization {
 
     createAxes(axis, xMin, padding_x, xMax, box_width, svg, box_height, yMin, padding_y, yMax) {
         let x = d3.scaleLinear();
-        if (axis.x.scale !== "linear") {
-            x = d3.scaleLog();
-        }
+        if (axis.x.scale !== "linear") { x = d3.scaleLog(); }
 
         x.domain([xMin - padding_x, xMax + padding_x])
             .range([0, box_width]);
@@ -218,9 +201,7 @@ class ScatterPlot extends Visualization {
             .call(d3.axisBottom(x));
 
         let y = d3.scaleLinear()
-        if (axis.y.scale !== "linear") {
-            y = d3.scaleLog();
-        }
+        if (axis.y.scale !== "linear") { y = d3.scaleLog(); }
 
         y.domain([yMin - padding_y, yMax + padding_y])
             .range([box_height, 0]);
