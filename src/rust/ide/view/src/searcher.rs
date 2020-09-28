@@ -110,7 +110,7 @@ impl Model {
 
     fn documentation_for_entry(&self, id:Option<entry::Id>) -> String {
         let doc_provider       = self.doc_provider.get();
-        let when_none_selected = || doc_provider.get().unwrap_or(" ".to_owned());
+        let when_none_selected = || doc_provider.get().unwrap_or_else(|| " ".to_owned());
         id.map_or_else(when_none_selected, |id| {
             doc_provider.get_for_entry(id).unwrap_or_default()
         })
