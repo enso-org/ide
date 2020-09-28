@@ -50,18 +50,31 @@ impl Model {
         else        { self.app.themes.set_enabled(&["light"]) }
     }
 
-    fn searcher_left_top_under_node_at(position:Vector2<f32>) -> Vector2<f32> {
+    fn searcher_left_top_position_when_under_node_at(position:Vector2<f32>) -> Vector2<f32> {
         let x = position.x;
         let y = position.y - node::NODE_HEIGHT/2.0;
         Vector2(x,y)
     }
 
-    fn searcher_left_top_under_node(&self, node_id:NodeId) -> Vector2<f32> {
+    fn searcher_left_top_position_when_under_node(&self, node_id:NodeId) -> Vector2<f32> {
         if let Some(node) = self.graph_editor.model.nodes.get_cloned_ref(&node_id) {
-            Self::searcher_left_top_under_node_at(node.position().xy())
+            Self::searcher_left_top_position_when_under_node_at(node.position().xy())
         } else {
             error!(self.logger, "Trying to show searcher under nonexisting node");
             default()
+        }
+    }
+
+    /// Update Searcher View - its visibility and position - when edited node changed.
+    fn update_searcher_view
+    (&self, edited_node:Option<NodeId>, searcher_left_top_position:&Animation<Vector2<f32>>) {
+        if let Some(id) = edited_node {
+            self.searcher.show();
+            let new_position = self.searcher_left_top_position_when_under_node(id);
+            searcher_left_top_position.set_target_value(new_position);
+        } else {
+            self.searcher.hide();
+            self.searcher.clear_suggestions();
         }
     }
 
@@ -129,17 +142,17 @@ impl View {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
 
-        let model             = Model::new(app);
-        let frp               = Frp::new_network();
-        let searcher          = &model.searcher.frp;
-        let graph             = &model.graph_editor.frp;
-        let network           = &frp.network;
-        let searcher_left_top = Animation::<Vector2<f32>>::new(network);
+        let model                      = Model::new(app);
+        let frp                        = Frp::new_network();
+        let searcher                   = &model.searcher.frp;
+        let graph                      = &model.graph_editor.frp;
+        let network                    = &frp.network;
+        let searcher_left_top_position = Animation::<Vector2<f32>>::new(network);
 
         frp::extend!{ network
             // === Searcher Position and Size ===
 
-            _eval <- all_with(&searcher_left_top.value,&searcher.size,f!([model](lt,size) {
+            _eval <- all_with(&searcher_left_top_position.value,&searcher.size,f!([model](lt,size) {
                 let x = lt.x + size.x / 2.0;
                 let y = lt.y - size.y / 2.0;
                 model.searcher.set_position_xy(Vector2(x,y));
@@ -168,25 +181,19 @@ impl View {
                 any(frp.abort_node_editing,searcher.editing_committed,frp.add_new_node);
             eval should_finish_editing ((()) graph.inputs.stop_editing.emit(()));
             _eval <- graph.outputs.edited_node.map2(&searcher.is_visible,
-                f!([model,searcher_left_top](edited_node_id,is_visible) {
-                    if let Some(id) = edited_node_id {
-                        model.searcher.show();
-                        let new_left_top = model.searcher_left_top_under_node(*id);
-                        searcher_left_top.set_target_value(new_left_top);
-                        if !is_visible {
-                            searcher_left_top.skip();
-                        }
-                    } else {
-                        model.searcher.hide();
-                        model.searcher.clear_suggestions();
+                f!([model,searcher_left_top_position](edited_node_id,is_visible) {
+                    model.update_searcher_view(*edited_node_id,&searcher_left_top_position);
+                    if !is_visible {
+                        // Do not animate
+                        searcher_left_top_position.skip();
                     }
                 })
             );
             _eval <- graph.outputs.node_position_set.map2(&graph.outputs.edited_node,
-                f!([searcher_left_top]((node_id,position),edited_node_id) {
+                f!([searcher_left_top_position]((node_id,position),edited_node_id) {
                     if edited_node_id.contains(node_id) {
-                        let new_left_top = Model::searcher_left_top_under_node_at(*position);
-                        searcher_left_top.set_target_value(new_left_top);
+                        let new = Model::searcher_left_top_position_when_under_node_at(*position);
+                        searcher_left_top_position.set_target_value(new);
                     }
                 })
             );

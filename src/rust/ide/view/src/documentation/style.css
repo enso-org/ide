@@ -319,7 +319,6 @@
 }
 
 .Synopsis {
-    margin-top: 0px;
     font-size: 18px;
 }
 
@@ -340,6 +339,7 @@
 .Documentation .ASTHead .DefTitle {
     font-size: 34px;
     margin: 0;
+    margin-bottom: 15px;
 }
 .Documentation .ASTData .ASTHead {
     /*background-color: #fafafa;*/

@@ -192,6 +192,11 @@ define_theme! { dark
             }
         }
     }
+    shadow {
+        color        = color::Lcha::new(0.0,0.0,0.0,0.20);
+        fading_color = color::Lcha::new(0.0,0.0,0.0,0.0);
+        exponent     = 2.0
+    }
 }
 
 define_default_theme! { light
