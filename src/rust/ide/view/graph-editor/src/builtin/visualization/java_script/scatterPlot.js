@@ -76,7 +76,43 @@ class ScatterPlot extends Visualization {
 
         this.createButtonUnzoom(x, y, xAxis, yAxis, scatter, points, extremesAndDeltas);
 
+        this.addPanAndZoom(box_width, box_height, svg, margin, x, y, xAxis, yAxis, scatter, points);
+
         this.dom.appendChild(divElem);
+    }
+
+    addPanAndZoom(box_width, box_height, svg, margin, x, y, xAxis, yAxis, scatter, points) {
+        let zoom = d3.zoom()
+            .scaleExtent([.5, 20])
+            .extent([[0, 0], [box_width, box_height]])
+            .on("zoom", zoomed);
+
+        svg.append("rect")
+            .attr("width", box_width)
+            .attr("height", box_height)
+            .style("fill", "none")
+            .style("pointer-events", "all")
+            .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
+            .call(zoom);
+
+        function zoomed() {
+            let new_xScale = d3.event.transform.rescaleX(x);
+            let new_yScale = d3.event.transform.rescaleY(y);
+
+            xAxis.call(d3.axisBottom(new_xScale).ticks(7));
+            yAxis.call(d3.axisLeft(new_yScale).ticks(7));
+            scatter
+                .selectAll("path")
+                .transition().duration(1000)
+                .attr('transform', d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
+
+            if (points.labels === "visible") {
+                scatter
+                    .selectAll("text")
+                    .transition().duration(1000)
+                    .attr('transform', d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
+            }
+        }
     }
 
     addBrushing(box_width, box_height, scatter, x, y) {
