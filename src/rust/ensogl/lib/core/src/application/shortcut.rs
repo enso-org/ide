@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 use super::command;
 
-use crate::frp::io::keyboard::Keyboard;
-use crate::frp::io::keyboard;
+// use crate::frp::io::keyboard::Keyboard;
+// use crate::frp::io::keyboard;
 use crate::frp::io::keyboard2;
 use crate::frp::io::mouse::Mouse;
 use crate::frp::io::mouse;
@@ -14,130 +14,14 @@ use crate::system::web;
 use enso_shortcuts as shortcuts;
 use enso_shortcuts::Registry as TRAIT_Registry; // fixme
 
+pub use shortcuts::ActionType;
+pub use ActionType::*;
 
-
-// =================
-// === Constants ===
-// =================
-
-const DOUBLE_PRESS_THRESHOLD_MS : f32 = 300.0;
-
-
-/// A pattern abstraction for IO actions. It is used for example to express a key binding which
-/// works for any key pressed.
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
-#[allow(missing_docs)]
-pub enum Pattern<T> {
-    Equal(T), Any
-}
-
-impl<T:Into<mouse::ButtonMask>> From<T> for Pattern<mouse::ButtonMask> {
-    fn from(t:T) -> Self {
-        Self::Equal(t.into())
-    }
-}
-
-impl<T:Into<keyboard::KeyMask>> From<T> for Pattern<keyboard::KeyMask> {
-    fn from(t:T) -> Self {
-        Self::Equal(t.into())
-    }
-}
-
-
-
-// =====================
-// === ActionPattern ===
-// =====================
-
-/// A pattern for mouse actions.
-pub type MousePattern = Pattern<mouse::ButtonMask>;
-
-/// A pattern for keyboard actions.
-pub type KeyboardPattern = Pattern<keyboard::KeyMask>;
-
-/// A mask for keyboard and mouse events. Consists of separate `Pattern` for the mouse and
-/// the keyboard bit-masks.
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
-#[allow(missing_docs)]
-pub enum ActionPattern {
-    // ActionPattern {
-    //     keyboard: KeyboardPattern,
-    //     mouse: MousePattern,
-    // },
-    ActionPattern2 { action:String }
-}
-
-impl ActionPattern {
-    // fn new(keyboard:impl Into<KeyboardPattern>, mouse:impl Into<MousePattern>) -> Self {
-    //     let keyboard = keyboard.into();
-    //     let mouse    = mouse.into();
-    //     Self::ActionPattern {keyboard,mouse}
-    // }
-    //
-    // fn any() -> Self {
-    //     let keyboard = Pattern::Any;
-    //     let mouse    = Pattern::Any;
-    //     Self::ActionPattern {keyboard,mouse}
-    // }
-    //
-    // fn as_any_mouse_pattern(&self) -> Self {
-    //     match self {
-    //         Self::ActionPattern {keyboard,mouse} => {
-    //             let keyboard = keyboard.clone();
-    //             let mouse    = Pattern::Any;
-    //             Self::ActionPattern {keyboard,mouse}
-    //         },
-    //         _ => todo!()
-    //     }
-    // }
-    //
-    // fn as_any_keyboard_pattern(&self) -> Self {
-    //     match self {
-    //         Self::ActionPattern { keyboard, mouse } => {
-    //             let keyboard = Pattern::Any;
-    //             let mouse = mouse.clone();
-    //             Self::ActionPattern { keyboard, mouse }
-    //         },
-    //         _ => todo!()
-    //     }
-    // }
-}
-
-// #[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
-// #[allow(missing_docs)]
-// pub struct ActionMask {
-//     pub keyboard : keyboard::KeyMask,
-//     pub mouse    : mouse::ButtonMask,
-// }
-//
-//
-// impl ActionMask {
-//     fn new(keyboard:impl Into<keyboard::KeyMask>, mouse:impl Into<mouse::ButtonMask>) -> Self {
-//         let keyboard = keyboard.into();
-//         let mouse    = mouse.into();
-//         Self {keyboard,mouse}
-//     }
-// }
-
-// impl From<&ActionMask> for ActionPattern {
-//     fn from(t:&ActionMask) -> Self {
-//         let keyboard = (&t.keyboard).into();
-//         let mouse    = (&t.mouse).into();
-//         Self::ActionPattern {keyboard,mouse}
-//     }
-// }
 
 
 // ==============
-// === Action ===
+// === Rule ===
 // ==============
-
-/// A type of a keyboard action.
-#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
-#[allow(missing_docs)]
-pub enum ActionType {
-    Press, Release, DoublePress
-}
 
 /// Keyboard action defined as `ActionType` and `ActionPattern`, like "press both key 'n' and primary
 /// mouse button". Please note that the release action happens as soon as the key mask is no longer
@@ -145,36 +29,18 @@ pub enum ActionType {
 /// the release event for the key "n".
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub struct Action {
-    pub tp   : ActionType,
-    pub mask : ActionPattern,
+pub struct Rule {
+    pub tp      : shortcuts::ActionType,
+    pub pattern : String,
 }
 
-impl Action {
+impl Rule {
     /// Constructor.
-    pub fn new(tp:impl Into<ActionType>, mask:impl Into<ActionPattern>) -> Self {
-        let tp   = tp.into();
-        let mask = mask.into();
-        Self {tp,mask}
+    pub fn new(tp:impl Into<shortcuts::ActionType>, pattern:impl Into<String>) -> Self {
+        let tp      = tp.into();
+        let pattern = pattern.into();
+        Self {tp,pattern}
     }
-
-    // /// Smart constructor for the `Press` action.
-    // pub fn press
-    // (keyboard_mask:impl Into<KeyboardPattern>, mouse_mask:impl Into<MousePattern>) -> Self {
-    //     Self::new(ActionType::Press,ActionPattern::new(keyboard_mask,mouse_mask))
-    // }
-    //
-    // /// Smart constructor for the `Release` action.
-    // pub fn release
-    // (keyboard_mask:impl Into<KeyboardPattern>, mouse_mask:impl Into<MousePattern>) -> Self {
-    //     Self::new(ActionType::Release,ActionPattern::new(keyboard_mask,mouse_mask))
-    // }
-    //
-    // /// Smart constructor for the `DoublePress` action.
-    // pub fn double_press
-    // (keyboard_mask:impl Into<KeyboardPattern>, mouse_mask:impl Into<MousePattern>) -> Self {
-    //     Self::new(ActionType::DoublePress,ActionPattern::new(keyboard_mask,mouse_mask))
-    // }
 }
 
 
@@ -216,20 +82,20 @@ pub enum Condition {
 
 
 // ============
-// === Rule ===
+// === Action ===
 // ============
 
 /// A shortcut rule. Consist of target identifier (like "TextEditor"), a `Command` that will be
 /// evaluated on the target, and a `Condition` which needs to be true in order for the command
 /// to be executed.
 #[derive(Clone,Debug)]
-pub struct Rule {
+pub struct Action {
     target  : String,
     command : Command,
     when    : Condition,
 }
 
-impl Rule {
+impl Action {
     /// Constructor. Version without condition checker.
     pub fn new<T,C>(target:T, command:C) -> Self
         where T:Into<String>, C:Into<Command> {
@@ -251,27 +117,27 @@ impl Rule {
 // === Shortcut ===
 // ================
 
-/// A keyboard shortcut, an `Action` associated with a `Rule`.
+/// A keyboard shortcut, an `Rule` associated with a `Action`.
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct Shortcut {
     #[shrinkwrap(main_field)]
-    rule   : Rule,
-    action : Action,
+    rule   : Action,
+    action : Rule,
 }
 
 impl Shortcut {
     /// Constructor. Version without condition checker.
     pub fn new<A,T,C>(action:A, target:T, command:C) -> Self
-    where A:Into<Action>, T:Into<String>, C:Into<Command> {
-        let rule   = Rule::new(target,command);
+    where A:Into<Rule>, T:Into<String>, C:Into<Command> {
+        let rule   = Action::new(target,command);
         let action = action.into();
         Self {rule,action}
     }
 
     /// Constructor.
     pub fn new_when<A,T,C>(action:A, target:T, command:C, condition:Condition) -> Self
-        where A:Into<Action>, T:Into<String>, C:Into<Command> {
-        let rule     = Rule::new_when(target,command,condition);
+        where A:Into<Rule>, T:Into<String>, C:Into<Command> {
+        let rule     = Action::new_when(target,command,condition);
         let action = action.into();
         Self {rule,action}
     }
@@ -298,23 +164,14 @@ pub struct Registry {
     network : frp::Network,
 }
 
-type RuleMap   = HashMap<ActionPattern,Vec<WeakHandle>>;
-type ActionMap = HashMap<ActionType,RuleMap>;
-
-type RuleMap2   = HashMap<String,Vec<WeakHandle>>;
-type ActionMap2 = HashMap<ActionType,RuleMap2>;
-
 /// Internal representation of `Registry`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct RegistryModel {
-    logger            : Logger,
-    keyboard          : Keyboard,
-    keyboard2         : keyboard2::Keyboard,
-    mouse             : Mouse,
-    command_registry  : command::Registry,
-    action_map        : Rc<RefCell<ActionMap>>,
-    action_map2       : Rc<RefCell<ActionMap2>>,
-    shortcuts_registry : shortcuts::HashSetRegistry<String>,
+    logger             : Logger,
+    keyboard2          : keyboard2::Keyboard,
+    mouse              : Mouse,
+    command_registry   : command::Registry,
+    shortcuts_registry : shortcuts::HashSetRegistry<Shortcut>,
 }
 
 impl Deref for Registry {
@@ -326,18 +183,22 @@ impl Deref for Registry {
 
 impl Registry {
     /// Constructor.
-    pub fn new(logger:&Logger, mouse:&Mouse, keyboard:&Keyboard, keyboard2:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
-        let model    = RegistryModel::new(logger,mouse,keyboard,keyboard2,command_registry);
-        let keyboard = &model.keyboard;
-        let mouse    = &model.mouse;
+    pub fn new(logger:&Logger, mouse:&Mouse, keyboard2:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
+        let model = RegistryModel::new(logger,mouse,keyboard2,command_registry);
+        let mouse = &model.mouse;
 
         frp::new_network! { network
-            on_press   <= keyboard2.down.map (f!((t) model.shortcuts_registry.on_press(t.simple_name())));
-            on_release <= keyboard2.up.map   (f!((t) model.shortcuts_registry.on_release(t.simple_name())));
+            on_press   <- keyboard2.down.map (f!((t) model.shortcuts_registry.on_press(t.simple_name())));
+            on_release <- keyboard2.up.map   (f!((t) model.shortcuts_registry.on_release(t.simple_name())));
             trace on_press;
             trace on_release;
 
-            eval on_press ((m) model.process_action2(ActionType::Press,m.to_string()));
+            eval on_press ([model](m) {
+                model.process_rules(&mut m.clone());
+            });
+            eval on_release ([model](m) {
+                model.process_rules(&mut m.clone());
+            });
         }
         Self {model,network}
     }
@@ -346,48 +207,34 @@ impl Registry {
 impl RegistryModel {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, mouse:&Mouse, keyboard:&Keyboard, keyboard2:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
+    (logger:impl AnyLogger, mouse:&Mouse, keyboard2:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
         let logger             = Logger::sub(logger,"ShortcutRegistry");
-        let keyboard           = keyboard.clone_ref();
         let keyboard2          = keyboard2.clone_ref();
         let mouse              = mouse.clone_ref();
         let command_registry   = command_registry.clone_ref();
-        let action_map         = default();
-        let action_map2        = default();
         let shortcuts_registry = default();
-        Self {logger,keyboard,keyboard2,mouse,command_registry,action_map,action_map2,shortcuts_registry}
+        Self {logger,keyboard2,mouse,command_registry,shortcuts_registry}
     }
 
-    fn process_action2(&self, action_type:ActionType, action:String) {
-        let action_map_mut = &mut self.action_map2.borrow_mut();
-        if let Some(rule_map) = action_map_mut.get_mut(&action_type) {
-            if let Some(rules) = rule_map.get_mut(&action) {
-                self.process_rules(rules)
-            }
-        }
-    }
-
-    fn process_rules(&self, rules:&mut Vec<WeakHandle>) {
+    fn process_rules(&self, rules:&mut Vec<Shortcut>) {
         let mut targets = Vec::new();
         {
             let borrowed_command_map = self.command_registry.instances.borrow();
-            rules.retain(|weak_rule| {
-                weak_rule.upgrade().map(|rule| {
-                    let target = &rule.target;
-                    borrowed_command_map.get(target).for_each(|commands| {
-                        for command in commands {
-                            if Self::condition_checker(&rule.when,&command.status_map) {
-                                let command_name = &rule.command.name;
-                                match command.command_map.get(command_name){
-                                    Some(t) => targets.push(t.frp.clone_ref()),
-                                    None    => warning!(&self.logger,
+            for rule in rules {
+                let target = &rule.rule.target;
+                borrowed_command_map.get(target).for_each(|commands| {
+                    for command in commands {
+                        if Self::condition_checker(&rule.when,&command.status_map) {
+                            let command_name = &rule.command.name;
+                            match command.command_map.get(command_name){
+                                Some(t) => targets.push(t.frp.clone_ref()),
+                                None    => warning!(&self.logger,
                                         "Command {command_name} was not found on {target}."),
-                                }
                             }
                         }
-                    })
-                }).is_some()
-            })
+                    }
+                })
+            }
         }
         for target in targets {
             target.emit(())
@@ -404,72 +251,9 @@ impl RegistryModel {
 }
 
 impl Add<Shortcut> for &Registry {
-    type Output = Handle;
-    fn add(self, shortcut:Shortcut) -> Handle {
-        let handle     = Handle::new(shortcut.rule);
-        let instance   = handle.downgrade();
-
-        match &shortcut.action.mask {
-            ActionPattern::ActionPattern2 {action} => {
-                println!("!!!! {}",action);
-                let tp = match shortcut.action.tp {
-                    ActionType::Press => shortcuts::Press,
-                    ActionType::Release => shortcuts::Release,
-                    ActionType::DoublePress => shortcuts::DoublePress,
-                };
-                self.model.shortcuts_registry.add(tp, action, action); // "hello"
-
-                let action_map = &mut self.action_map2.borrow_mut();
-                let rule_map   = action_map.entry(shortcut.action.tp).or_default();
-                let rules      = rule_map.entry(action.to_string()).or_default();
-                rules.push(instance);
-            },
-            _ => {
-                let action_map = &mut self.action_map.borrow_mut();
-                let rule_map   = action_map.entry(shortcut.action.tp).or_default();
-                let rules      = rule_map.entry(shortcut.action.mask).or_default();
-                rules.push(instance);
-            }
-        }
-        handle
-    }
-}
-
-
-
-// ==============
-// === Handle ===
-// ==============
-
-/// A handle to registered shortcut. When dropped, the shortcut will be lazily removed from the
-/// `Registry`.
-#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
-pub struct Handle {
-    rule : Rc<Rule>
-}
-
-impl Handle {
-    /// Constructor.
-    pub fn new(rule:Rule) -> Self {
-        let rule = Rc::new(rule);
-        Self {rule}
-    }
-
-    fn downgrade(&self) -> WeakHandle {
-        let rule = Rc::downgrade(&self.rule);
-        WeakHandle {rule}
-    }
-}
-
-/// Weak version of the `Handle`.
-#[derive(Clone,CloneRef,Debug)]
-pub struct WeakHandle {
-    rule : Weak<Rule>
-}
-
-impl WeakHandle {
-    fn upgrade(&self) -> Option<Handle> {
-        self.rule.upgrade().map(|rule| Handle {rule})
+    type Output = ();
+    fn add(self, shortcut:Shortcut) {
+        self.model.shortcuts_registry.add(shortcut.action.tp,&shortcut.action.pattern,shortcut.clone()); // fixme clone
     }
 }
 
@@ -488,18 +272,12 @@ pub trait DefaultShortcutProvider : command::Provider {
 
     /// Helper for defining shortcut targeting this object.
     fn self_shortcut_when
-    (action:impl Into<Action>, command:impl Into<Command>, condition:Condition) -> Shortcut {
+    (action:impl Into<Rule>, command:impl Into<Command>, condition:Condition) -> Shortcut {
         Shortcut::new_when(action,Self::label(),command,condition)
     }
 
-    // /// Helper for defining shortcut targeting this object. Version which does not accept
-    // /// condition checker.
-    // fn self_shortcut(action:impl Into<Action>, command:impl Into<Command>) -> Shortcut {
-    //     Shortcut::new(action,Self::label(),command)
-    // }
-
-    fn self_shortcut2(action_type:ActionType, shortcut:&str, command:impl Into<Command>) -> Shortcut {
-        let action = shortcut.into();
-        Shortcut::new(Action::new(action_type,ActionPattern::ActionPattern2{action}),Self::label(),command)
+    fn self_shortcut
+    (action_type:shortcuts::ActionType, pattern:impl Into<String>, command:impl Into<Command>) -> Shortcut {
+        Shortcut::new(Rule::new(action_type,pattern),Self::label(),command)
     }
 }
