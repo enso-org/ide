@@ -146,7 +146,9 @@ ensogl_text::define_endpoints! {
         set_visualization   (Option<visualization::Definition>),
     }
     Output {
-        expression (Text)
+        expression (Text),
+        skip       (),
+        freeze     (),
     }
 }
 
@@ -304,7 +306,6 @@ impl Node {
         let selection        = Animation::<f32>::new(&frp_network);
 
         let actions          = &model.action_bar.frp;
-
         frp::extend! { frp_network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
             eval_ inputs.select   (selection.set_target_value(1.0));
@@ -327,12 +328,8 @@ impl Node {
             eval_ actions.action_visbility_clicked ({
                 model.visualization.frp.toggle_visibility.emit(());
             });
-            eval_ actions.action_freeze_clicked ([]{
-                println!("FREEZE")
-            });
-            eval_ actions.action_skip_clicked ([]{
-                println!("SKIP")
-            });
+            model.frp.source.skip   <+ actions.action_skip_clicked;
+            model.frp.source.freeze <+ actions.action_freeze_clicked;
         }
 
         Self {frp_network,model}

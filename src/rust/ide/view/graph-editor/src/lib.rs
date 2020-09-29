@@ -556,6 +556,8 @@ generate_frp_outputs! {
     node_exited               : (),
     node_editing_started      : NodeId,
     node_editing_finished     : NodeId,
+    node_action_freeze        : NodeId,
+    node_action_skip          : NodeId,
 
     edge_added        : EdgeId,
     edge_removed      : EdgeId,
@@ -1000,6 +1002,8 @@ impl GraphEditorModelWithNetwork {
     , output_press   : &frp::Source<EdgeTarget>
     , input_press    : &frp::Source<EdgeTarget>
     , expression_set : &frp::Source<(NodeId,String)>
+    , action_freeze  : &frp::Source<NodeId>
+    , action_skip    : &frp::Source<NodeId>
     ) -> NodeId {
         let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
         let node    = Node::new(view);
@@ -1037,6 +1041,10 @@ impl GraphEditorModelWithNetwork {
             );
 
             eval node.frp.expression((t) expression_set.emit((node_id,t.into())));
+
+            eval_ node.view.frp.freeze( action_freeze.emit(node_id));
+            eval_ node.view.frp.skip( action_skip.emit(node_id));
+
         }
 
         self.nodes.insert(node_id,node);
@@ -1991,7 +1999,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
     // === Edge creation  ===
-    frp::extend! { network
+    frp::extend! { TRACE_ALL network
 
     on_node_output_touch <- node_output_touch.down.constant(());
     on_node_input_touch  <- node_input_touch.down.constant(());
@@ -2031,9 +2039,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     new_edge_target <- new_input_edge.map2(&node_input_touch.down, move |id,target| (*id,target.clone()));
     outputs.edge_target_set <+ new_edge_target;
 
+
+    // === Node creation  ===
+
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
     add_node           <- any (inputs.add_node,add_node_at_cursor);
-    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down,&node_expression_set)));
+
+    node_action_freeze <- source::<NodeId>();
+    node_action_skip   <- source::<NodeId>();
+    outputs.node_action_freeze <+ node_action_freeze;
+    outputs.node_action_skip   <+ node_action_skip;
+    new_node           <- add_node.map(f_!([model,node_cursor_style,node_action_freeze,node_action_skip] {
+        model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down,
+                       &node_expression_set,&node_action_freeze,&node_action_skip)
+    }));
     outputs.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
