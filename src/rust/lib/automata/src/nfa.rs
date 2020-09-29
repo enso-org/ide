@@ -3,8 +3,6 @@
 use crate::prelude::*;
 
 use crate::alphabet;
-use crate::dfa::RuleExecutable;
-use crate::dfa::Dfa;
 use crate::pattern::Pattern;
 use crate::state::Transition;
 use crate::state;
@@ -12,7 +10,6 @@ use crate::symbol::Symbol;
 use crate::data::matrix::Matrix;
 
 use std::collections::BTreeSet;
-use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
 

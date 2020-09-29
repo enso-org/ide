@@ -1,7 +1,4 @@
-#![allow(missing_docs)]
-// FIXME[WD]: THIS FILE IS IN WORK IN PROGRESS STATE. WILL BE FINISHED IN THE NEXT PR.
-
-//! FRP keyboard bindings.
+//! Keyboard implementation and FRP bindings.
 
 use crate::prelude::*;
 
@@ -21,12 +18,11 @@ use wasm_bindgen::JsCast;
 /// The key placement enum.
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
 #[allow(missing_docs)]
-pub enum Side {
-    Left,Right
-}
+pub enum Side { Left, Right }
 
 impl Side {
-    pub fn simple_name(&self) -> &'static str {
+    /// Convert the side to a lowercase string representation.
+    pub fn simple_name(self) -> &'static str {
         match self {
             Self::Left  => "left",
             Self::Right => "right"
@@ -40,6 +36,9 @@ impl Side {
 // === Key ===
 // ===========
 
+/// A key representation. The implementation is very minimal, exposing only properties required by
+/// the current implementation.
+///
 /// For reference, see the following links:
 /// - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code/code_values
 #[derive(Clone,Debug,Eq,Hash,PartialEq)]
@@ -52,9 +51,8 @@ pub enum Key {
     Other   (String)
 }
 
-
-
 impl Key {
+    /// Constructor.
     pub fn new(label:String, code:String) -> Self {
         let label_ref : &str = &label;
         let code_ref  : &str = &code;
@@ -71,16 +69,21 @@ impl Key {
         }
     }
 
-    pub fn is_meta_independent(&self) -> bool {
+    /// When the meta key is down on MacOS, the key up event is not fired for almost every key. This
+    /// function checks whether the event will be emitted for a particular key. Please note that
+    /// although this is MacOS specific issue, we are simulating this behavior on all platforms to
+    /// keep it consistent.
+    pub fn can_be_missing_when_meta_is_down(&self) -> bool {
         match self {
-            Self::Alt     (_) => true,
-            Self::Control (_) => true,
-            Self::Meta    (_) => true,
-            Self::Shift   (_) => true,
-            _                 => false
+            Self::Alt     (_) => false,
+            Self::Control (_) => false,
+            Self::Meta    (_) => false,
+            Self::Shift   (_) => false,
+            _                 => true
         }
     }
 
+    /// Simple, lowercase name of a key.
     pub fn simple_name(&self) -> String {
         let fmt = |side:&Side,repr| format!("{}-{}",repr,side.simple_name());
         match self {
@@ -105,37 +108,45 @@ impl Default for Key {
 // === KeyboardModel ===
 // =====================
 
+/// Model keepingtrack of currently pressed keys.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct KeyboardModel {
     set : Rc<RefCell<HashSet<Key>>>,
 }
 
 impl KeyboardModel {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }
 
+    /// Check whether the meta key is currently pressed.
     pub fn is_meta_down(&self) -> bool {
         self.is_down(&Key::Meta(Side::Left)) || self.is_down(&Key::Meta(Side::Right))
     }
 
+    /// Checks whether the provided key is currently pressed.
     pub fn is_down(&self, key:&Key) -> bool {
         self.set.borrow().contains(key)
     }
 
-    pub fn set(&self, key:&Key) {
+    /// Simulate press of the provided key.
+    pub fn press(&self, key:&Key) {
         self.set.borrow_mut().insert(key.clone());
     }
 
-    pub fn unset(&self, key:&Key) {
+    /// Simulate release of the provided key.
+    pub fn release(&self, key:&Key) {
         self.set.borrow_mut().remove(key);
     }
 
+    /// Release all keys which can become "sticky" when meta key is down. To learn more, refer to
+    /// the docs of `can_be_missing_when_meta_is_down`.
     #[allow(clippy::unnecessary_filter_map)] // Allows not cloning the element.
     pub fn release_meta_dependent(&self) -> Vec<Key> {
         let mut to_release = Vec::new();
         let new_set        = self.set.borrow_mut().drain().filter_map(|key| {
-            if !key.is_meta_independent() {
+            if key.can_be_missing_when_meta_is_down() {
                 to_release.push(key);
                 None
             } else {
@@ -153,13 +164,16 @@ impl KeyboardModel {
 // === KeyboardSource ===
 // ======================
 
+/// The source of FRP keyboard inputs (press / release).
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct KeyboardSource {
     pub up   : frp::Source<Key>,
     pub down : frp::Source<Key>,
 }
 
 impl KeyboardSource {
+    /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             down <- source();
@@ -179,21 +193,22 @@ impl KeyboardSource {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Keyboard {
-    pub network : frp::Network,
     model       : KeyboardModel,
+    pub network : frp::Network,
     pub source  : KeyboardSource,
     pub down    : frp::Stream<Key>,
     pub up      : frp::Stream<Key>,
 }
 
 impl Keyboard {
+    /// Constructor.
     pub fn new() -> Self {
         let network = frp::Network::new();
         let model   = KeyboardModel::default();
         let source  = KeyboardSource::new(&network);
         frp::extend! { network
-            eval source.down ((key) model.set(key));
-            eval source.up   ((key) model.unset(key));
+            eval source.down ((key) model.press(key));
+            eval source.up   ((key) model.release(key));
             down         <- source.down.map(|t|t.clone());
             meta_down    <- source.down.map(f_!(model.is_meta_down()));
             meta_release <= source.down.gate(&meta_down).map(f_!(model.release_meta_dependent()));
@@ -208,7 +223,6 @@ impl Default for Keyboard {
         Self::new()
     }
 }
-
 
 
 
@@ -231,7 +245,8 @@ pub struct Listener {
 }
 
 impl Listener {
-    fn new<F:ListenerCallback>(logger:impl AnyLogger,event_type:impl Str, f:F) -> Self {
+    /// Constructor.
+    pub fn new<F:ListenerCallback>(logger:impl AnyLogger,event_type:impl Str, f:F) -> Self {
         let closure     = Box::new(f);
         let callback    = ListenerClosure::wrap(closure);
         let element     = web::body();

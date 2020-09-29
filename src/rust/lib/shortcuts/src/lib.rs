@@ -1,18 +1,20 @@
+//! Keyboard shortcut manager implementation.
+
+#![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
+#![warn(missing_docs)]
+#![warn(trivial_casts)]
+#![warn(trivial_numeric_casts)]
+#![warn(unsafe_code)]
+#![warn(unused_import_braces)]
+#![warn(unused_qualifications)]
+
 #![feature(test)]
 extern crate test;
 
 use enso_prelude::*;
-use wasm_bindgen::prelude::*;
 use ensogl_system_web as web;
 use enso_automata::*;
-
-use enso_frp as frp;
-
-use frp::io::keyboard2::Keyboard;
-use frp::io::keyboard2 as keyboard;
-use frp::io::mouse;
-
-use inflector::Inflector;
 
 pub use logger;
 pub use logger::*;
@@ -20,14 +22,20 @@ pub use logger::AnyLogger;
 pub use logger::disabled::Logger;
 
 
-pub fn hash<T:Hash>(t:&T) -> u64 {
+
+
+// ===============
+// === Helpers ===
+// ===============
+
+fn hash<T:Hash>(t:&T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
     s.finish()
 }
 
-
-fn print_matrix(matrix:&data::Matrix<dfa::State>) {
+/// Pretty prints the provided matrix.
+pub fn print_matrix(matrix:&data::Matrix<dfa::State>) {
     println!("rows x cols = {} x {} ({})",matrix.rows, matrix.columns,matrix.matrix.len());
     for row in 0..matrix.rows {
         for column in 0..matrix.columns {
@@ -35,7 +43,7 @@ fn print_matrix(matrix:&data::Matrix<dfa::State>) {
             let repr = if elem.is_invalid() { "-".into() } else { format!("{}",elem.id()) };
             print!("{} ",repr);
         }
-        println!("");
+        println!();
     }
 }
 
@@ -51,7 +59,7 @@ fn reverse_key(key:&str) -> String {
 
 /// List of special keys. Special keys can be grouped together to distinguish action sequences like
 /// `ctrl + a` and `a + ctrl`. Please note, that this is currently not happening.
-const SIDE_KEYS : &'static [&'static str] = &["ctrl","alt","meta","cmd","shift"];
+const SIDE_KEYS : &[&str] = &["ctrl","alt","meta","cmd","shift"];
 
 
 const DOUBLE_EVENT_TIME_MS : f32 = 500.0;
@@ -65,15 +73,19 @@ const DOUBLE_EVENT_TIME_MS : f32 = 500.0;
 
 /// The type of the action. Could be applied to keyboard, mouse, or any mix of input events.
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub enum ActionType {
     Press, Release, DoublePress, DoubleClick
 }
 pub use ActionType::*;
-use js_sys::Atomics::sub;
 
 
+// ================
+// === Registry ===
+// ================
 
-
+/// Abstraction for shortcut registry implementation.
+#[allow(missing_docs)]
 pub trait Registry<T> : Default {
     fn add        (&self, action_type: ActionType, expr: impl AsRef<str>, action: impl Into<T>);
     fn on_press   (&self, input:impl AsRef<str>) -> Vec<T>;
@@ -82,11 +94,11 @@ pub trait Registry<T> : Default {
 }
 
 
-
 // =============================
 // === AutomataRegistryModel ===
 // =============================
 
+/// Internal model of `AutomataRegistry`.
 #[derive(Debug)]
 pub struct AutomataRegistryModel<T> {
     dirty         : bool,
@@ -134,10 +146,10 @@ impl<T> AutomataRegistryModel<T> {
 }
 
 impl<T:Clone> AutomataRegistryModel<T> {
-    pub fn add(&mut self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
+    fn add(&mut self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
         self.dirty = true;
 
-        let special_keys : HashSet<&str> = SIDE_KEYS.iter().map(|t|*t).collect();
+        let special_keys : HashSet<&str> = SIDE_KEYS.iter().copied().collect();
         let expr = expr.as_ref();
 
         let end_state = if expr.starts_with('-') {
@@ -150,8 +162,6 @@ impl<T:Clone> AutomataRegistryModel<T> {
             let mut normal  = vec![];
 
             for chunk in expr.split('+').map(|t| t.trim()) {
-                // let map = if special_keys.contains(chunk) { &mut special } else { &mut normal };
-                // map.push(vec![chunk.into()]);
                 if special_keys.contains(chunk) {
                     special.push((chunk.into(),true))
                 } else {
@@ -159,7 +169,7 @@ impl<T:Clone> AutomataRegistryModel<T> {
                 }
             }
 
-            let mut all : Vec<(String,bool)> = special.clone();
+            let mut all : Vec<(String,bool)> = special;
             all.extend(normal);
             self.add_key_permutations(self.nfa.start, &all)
         };
@@ -167,101 +177,75 @@ impl<T:Clone> AutomataRegistryModel<T> {
     }
 
     /// Process the press input event. See `on_event` docs to learn more.
-    pub fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> {
+    fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> {
         self.on_event(input,true)
     }
 
     /// Process the release input event. See `on_event` docs to learn more.
-    pub fn on_release(&mut self, input:impl AsRef<str>) -> Vec<T> {
+    fn on_release(&mut self, input:impl AsRef<str>) -> Vec<T> {
         self.on_event(input,false)
     }
 
     /// Get the approximate memory consumption of this shortcut registry DFA network.
-    pub fn approx_dfa_memory_consumption_mb(&mut self) -> f32 {
+    fn approx_dfa_memory_consumption_mb(&mut self) -> f32 {
         self.optimize();
         let elems = self.dfa.links.matrix.len() as f32;
         let bytes = elems * 8.0;
-        bytes / 1000000.0
+        bytes / 1_000_000.0
     }
 }
 
-
-// #[derive(Clone,Debug,Eq,Ord,PartialEq,PartialOrd)]
-// struct KeyCombination(Vec<String>)
-
-// === Private API ===
-
 impl<T:Clone> AutomataRegistryModel<T> {
     fn add_key_permutations(&mut self, source:nfa::State, keys:&[(String,bool)]) -> nfa::State {
-        // println!("===========");
-        // println!("{:?}",keys);
-
         let len = keys.len();
         let mut state = source;
 
         for perm in keys.iter().permutations(len) {
-            // println!("\n\n=================");
-            // println!("perm: {:?}",perm);
             state = source;
             let mut path : Vec<&str> = vec![];
 
-
             for alt_keys in perm {
-                // println!("\n>> {:?}",alt_keys);
                 let (name,alt) = alt_keys;
-
                 if *alt {
                     let alt_path = path.iter().chain(&[&**name]).cloned().sorted().collect_vec();
                     let alt_repr = alt_path.join(" ");
                     let out = self.states.get(&alt_repr).cloned().unwrap_or_else(||self.nfa.new_state_exported());
 
                     let alts = vec![format!("{}-left",name),format!("{}-right",name)];
-                    // println!("out: {:?}",out);
                     for key in alts {
                         let mut local_path = path.clone();
                         local_path.push(&key);
                         local_path.sort();
                         let repr = local_path.join(" ");
-                        // println!("? '{}'",repr);
                         match self.states.get(&repr) {
                             Some(&target) => {
-                                // println!("bidirectional connect {} [{:?} --- {:?}]", key.to_string(), state, target);
                                 self.bidirectional_connect_via(state,target,key.to_string());
                                 self.bidirectional_connect(target,out);
                                 self.bidirectional_connect_via(state,out,name.to_string());
-
                             },
                             None => {
                                 let target = self.bidirectional_pattern(state,key.to_string());
-                                // println!("bidirectional pattern {} [{:?} <-> {:?}]", key.to_string(),state, target);
-                                // println!("+ '{}' -> {:?}",repr,target);
                                 self.states.insert(repr.clone(),target);
                                 self.bidirectional_connect(target,out);
                                 self.bidirectional_connect_via(state,out,name.to_string());
-
                             }
                         };
                     }
                     state = out;
-                    path = alt_path;
-                    // println!("+ '{}' -> {:?}",alt_repr,out);
+                    path  = alt_path;
                     self.states.insert(alt_repr.clone(),out);
                 } else {
                     let key = name;
                     path.push(&key);
                     path.sort();
                     let repr = path.join(" ");
-                    // println!("? '{}'",repr);
                     state = match self.states.get(&repr) {
                         Some(&target) => {
-                            // println!("bidirectional connect {} [{:?} --- {:?}]", key.to_string(), state, target);
                             self.bidirectional_connect_via(state,target,key.to_string());
                             target
                         },
                         None => {
                             let target = self.bidirectional_pattern(state,key.to_string());
-                            // println!("bidirectional pattern {} [{:?} <-> {:?}]", key.to_string(),state, target);
-                            // println!("+ '{}' -> {:?}",repr,target);
                             self.states.insert(repr.clone(),target);
                             target
                         }
@@ -293,17 +277,6 @@ impl<T:Clone> AutomataRegistryModel<T> {
         }
     }
 
-    // fn bidirectional_pattern(&mut self, source:nfa::State, target:nfa::State, key:String) {
-    //     let key_r  = reverse_key(&key);
-    //     let sym    = Symbol::new_named(hash(&key),key);
-    //     let sym_r  = Symbol::new_named(hash(&key_r),key_r);
-    //     let pat    = Pattern::symbol(&sym);
-    //     self.nfa.new_pattern_to(source,target,pat);
-    //     self.nfa.connect_via(target,source,&(sym_r.clone()..=sym_r));
-    //     self.connections.insert((source,target));
-    //     // target
-    // }
-
     fn bidirectional_pattern(&mut self, source:nfa::State, key:String) -> nfa::State {
         let key_r  = reverse_key(&key);
         let sym    = Symbol::new_named(hash(&key),key);
@@ -319,7 +292,6 @@ impl<T:Clone> AutomataRegistryModel<T> {
     /// like "key_a", or "mouse_button_1". The `press` parameter is set to true if it was a press
     /// event, and is set to false in case of a release event.
     fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
-        //println!("on_event ({}) {}",press,input.as_ref());
         self.optimize();
         let action        = if press { Press }       else { Release };
         let double_action = if press { DoublePress } else { DoubleClick };
@@ -390,6 +362,16 @@ impl<T> Default for AutomataRegistryModel<T> {
 // === AutomataRegistry ===
 // ========================
 
+// FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME
+// Replace T with Vec<T> to prevent shortcut override.
+
+/// Shortcut registry implementation based on a finite state automata. When defining shortcuts,
+/// a nondeterministic finite automata (NFA) is created. On the first usage, is it being optimized
+/// to a deterministic finite automata (DFA), which provides a constant time to get results on every
+/// key stroke. This allows us to define very complex shortcuts (regexp-like) and keep high
+/// performance of their resolution. However, the first stage of this approach is costly, namely
+/// building the NFA and optimizing it to DFA. Please refer to the benchmarks in this library to
+/// compare between available implementations.
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Default(bound=""))]
@@ -405,10 +387,12 @@ impl<T> AutomataRegistry<T> {
 }
 
 impl<T:Clone> AutomataRegistry<T> {
+    /// Repesent the NFA graph as a GraphViz DOT code.
     pub fn nfa_as_graphviz_code(&self) -> String {
         self.rc.borrow().nfa.as_graphviz_code()
     }
 
+    /// Repesent the DFA graph as a GraphViz DOT code.
     pub fn dfa_as_graphviz_code(&self) -> String {
         self.rc.borrow().dfa.as_graphviz_code()
     }
@@ -445,6 +429,7 @@ impl<T:Clone> Registry<T> for AutomataRegistry<T> {
 // === HashSetRegistryModel ===
 // ============================
 
+/// Internal model for `HashSetRegistry`.
 #[derive(Debug)]
 pub struct HashSetRegistryModel<T> {
     actions               : HashMap<ActionType,HashMap<String,T>>,
@@ -456,6 +441,7 @@ pub struct HashSetRegistryModel<T> {
 }
 
 impl<T> HashSetRegistryModel<T> {
+    /// Constructor.
     pub fn new() -> Self {
         let actions               = default();
         let pressed               = default();
@@ -468,8 +454,8 @@ impl<T> HashSetRegistryModel<T> {
 
     fn init(mut self) -> Self {
         for key in SIDE_KEYS {
-            let alts = vec![format!("{}-left",key),format!("{}-right",key),key.to_string()];
-            self.side_keys.insert(key.to_string(),alts);
+            let alts = vec![format!("{}-left",key),format!("{}-right",key),(*key).to_string()];
+            self.side_keys.insert((*key).to_string(),alts);
         }
         known_key_mapping();
         self
@@ -481,6 +467,7 @@ impl<T> HashSetRegistryModel<T> {
 }
 
 impl<T:Clone> HashSetRegistryModel<T> {
+    /// Add a new shortcut definition.
     pub fn add(&mut self, action_type:ActionType, input:impl AsRef<str>, action:impl Into<T>) {
         let input  = input.as_ref();
         let action = action.into();
@@ -489,7 +476,6 @@ impl<T:Clone> HashSetRegistryModel<T> {
         for expr in exprs {
             map.insert(expr, action.clone());
         }
-        // self.actions.insert(expr,action.into());
     }
 
     fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
@@ -522,10 +508,12 @@ impl<T:Clone> HashSetRegistryModel<T> {
         out
     }
 
+    /// Handle the key press.
     pub fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> {
         self.on_event(input,true)
     }
 
+    /// Handle the key release.
     pub fn on_release(&mut self, input:impl AsRef<str>) -> Vec<T> {
         self.on_event(input,false)
     }
@@ -567,8 +555,8 @@ impl<T> Default for HashSetRegistryModel<T> {
 }
 
 fn key_name_normalization() -> HashMap<String,String> {
-    let mut map    = HashMap::<String,String>::new();
-    let mut insert = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
+    let mut map = HashMap::<String,String>::new();
+    let insert  = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
         map.insert(k.into(),v.into());
     };
     insert(&mut map, "arrowleft"  , "arrow-left");
@@ -584,12 +572,13 @@ fn known_key_mapping() -> HashMap<String,String> {
         web::platform::Platform::MacOS => "meta",
         _                              => "ctrl",
     };
-    let mut insert_side_key = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
+    #[allow(clippy::useless_format)]
+    let insert_side_key = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
         map.insert(format!("{}"       , k) , format!("{}"       , v));
         map.insert(format!("{}-left"  , k) , format!("{}-left"  , v));
         map.insert(format!("{}-right" , k) , format!("{}-right" , v));
     };
-    let mut insert = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
+    let insert = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
         map.insert(k.into(),v.into());
     };
     insert_side_key (&mut map, "control" , "ctrl");
@@ -611,6 +600,9 @@ fn known_key_mapping() -> HashMap<String,String> {
 // === HashSetRegistry ===
 // =======================
 
+/// Shortcut registry implementation based on hash sets. The implementation is way less flexible
+/// than `AutomataRegistry`, but it is suitable for all of common use cases. In contrast to the
+/// `AutomataRegistry` implementation, this registry do not implement any optimization stage.
 #[derive(CloneRef,Debug,Derivative)]
 #[derivative(Clone(bound=""))]
 #[derivative(Default(bound=""))]
@@ -619,6 +611,7 @@ pub struct HashSetRegistry<T> {
 }
 
 impl<T> HashSetRegistry<T> {
+    /// Constructor.
     pub fn new() -> Self {
         default()
     }

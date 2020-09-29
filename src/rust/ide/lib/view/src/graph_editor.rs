@@ -1534,7 +1534,6 @@ impl application::command::Provider for GraphEditor {
 
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
-        use keyboard::Key;
         use shortcut::ActionType::*;
         vec! [ Self::self_shortcut(Press       , "escape"           , "cancel_project_name_editing")
              , Self::self_shortcut(Press       , "ctrl + n"         , "add_node_at_cursor")

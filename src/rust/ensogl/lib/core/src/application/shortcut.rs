@@ -8,20 +8,17 @@ use super::command;
 // use crate::frp::io::keyboard;
 use crate::frp::io::keyboard2;
 use crate::frp::io::mouse::Mouse;
-use crate::frp::io::mouse;
 use crate::frp;
-use crate::system::web;
 use enso_shortcuts as shortcuts;
 use enso_shortcuts::Registry as TRAIT_Registry; // fixme
 
 pub use shortcuts::ActionType;
-pub use ActionType::*;
 
 
 
-// ==============
+// ============
 // === Rule ===
-// ==============
+// ============
 
 /// Keyboard action defined as `ActionType` and `ActionPattern`, like "press both key 'n' and primary
 /// mouse button". Please note that the release action happens as soon as the key mask is no longer
@@ -30,13 +27,13 @@ pub use ActionType::*;
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub struct Rule {
-    pub tp      : shortcuts::ActionType,
+    pub tp      : ActionType,
     pub pattern : String,
 }
 
 impl Rule {
     /// Constructor.
-    pub fn new(tp:impl Into<shortcuts::ActionType>, pattern:impl Into<String>) -> Self {
+    pub fn new(tp:impl Into<ActionType>, pattern:impl Into<String>) -> Self {
         let tp      = tp.into();
         let pattern = pattern.into();
         Self {tp,pattern}
@@ -276,8 +273,9 @@ pub trait DefaultShortcutProvider : command::Provider {
         Shortcut::new_when(action,Self::label(),command,condition)
     }
 
+    /// Add a new shortcut targetting the self object.
     fn self_shortcut
-    (action_type:shortcuts::ActionType, pattern:impl Into<String>, command:impl Into<Command>) -> Shortcut {
+    (action_type:ActionType, pattern:impl Into<String>, command:impl Into<Command>) -> Shortcut {
         Shortcut::new(Rule::new(action_type,pattern),Self::label(),command)
     }
 }

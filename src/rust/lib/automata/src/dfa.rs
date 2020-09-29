@@ -169,7 +169,6 @@ impl From<&Nfa> for Dfa {
         }
 
         let mut sources = vec![];
-        let priority    = dfa_eps_ixs.len();
         for epss in dfa_eps_ixs.into_iter() {
             sources.push(epss.into_iter().filter(|state| nfa[*state].export).collect_vec());
         }
@@ -177,80 +176,5 @@ impl From<&Nfa> for Dfa {
         let alphabet = (&nfa.alphabet).into();
         let links    = dfa_mat;
         Dfa {alphabet,links,sources}
-    }
-}
-
-
-
-// =============
-// === Tests ===
-// =============
-
-#[cfg(test)]
-pub mod tests {
-    use crate::automata::state;
-
-    use super::*;
-
-    const INVALID:usize = State::INVALID.id;
-
-    /// Dfa automata that accepts newline '\n'.
-    pub fn newline() -> Dfa {
-        Dfa {
-            alphabet: alphabet::Segmentation::from_divisions(&[10,11]),
-            links: Matrix::from(vec![vec![INVALID,1,INVALID], vec![INVALID,INVALID,INVALID]]),
-            sources: vec![
-                None,
-                Some(RuleExecutable {priority:2, code:"group0_rule0".into()}),
-            ],
-        }
-    }
-
-    /// Dfa automata that accepts any letter a..=z.
-    pub fn letter() -> Dfa {
-        Dfa {
-            alphabet: alphabet::Segmentation::from_divisions(&[97,123]),
-            links: Matrix::from(vec![vec![INVALID,1,INVALID], vec![INVALID,INVALID,INVALID]]),
-            sources: vec![
-                None,
-                Some(RuleExecutable {priority:2, code:"group0_rule0".into()}),
-            ],
-        }
-    }
-
-    /// Dfa automata that accepts any number of spaces ' '.
-    pub fn spaces() -> Dfa {
-        Dfa {
-            alphabet: alphabet::Segmentation::from_divisions(&[0,32,33]),
-            links: Matrix::from(vec![
-                vec![INVALID,1,INVALID],
-                vec![INVALID,2,INVALID],
-                vec![INVALID,2,INVALID],
-            ]),
-            sources: vec![
-                None,
-                Some(RuleExecutable {priority:3, code:"group0_rule0".into()}),
-                Some(RuleExecutable {priority:3, code:"group0_rule0".into()}),
-            ],
-        }
-    }
-
-    /// Dfa automata that accepts one letter a..=z or any many spaces.
-    pub fn letter_and_spaces() -> Dfa {
-        Dfa {
-            alphabet: alphabet::Segmentation::from_divisions(&[32,33,97,123]),
-            links: Matrix::from(vec![
-                vec![INVALID,      1,INVALID,      2,INVALID],
-                vec![INVALID,      3,INVALID,INVALID,INVALID],
-                vec![INVALID,INVALID,INVALID,INVALID,INVALID],
-                vec![INVALID,      3,INVALID,INVALID,INVALID],
-            ]),
-            sources: vec![
-                None,
-                Some(RuleExecutable {priority:4, code:"group0_rule1".into()}),
-                Some(RuleExecutable {priority:4, code:"group0_rule0".into()}),
-                Some(RuleExecutable {priority:4, code:"group0_rule1".into()}),
-            ],
-        }
     }
 }

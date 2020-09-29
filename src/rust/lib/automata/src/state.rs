@@ -116,7 +116,7 @@ impl Data {
 impl From<Vec<usize>> for Data {
     /// Creates a state with epsilon links.
     fn from(vec:Vec<usize>) -> Self {
-        let epsilon_links = vec.iter().cloned().map(|id| State::new(id)).collect();
+        let epsilon_links = vec.iter().cloned().map(State::new).collect();
         Data {epsilon_links,..Default::default()}
     }
 }
