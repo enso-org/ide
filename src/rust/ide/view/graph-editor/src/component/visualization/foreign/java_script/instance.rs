@@ -228,15 +228,15 @@ impl Instance {
                 if let Err(e) = model.receive_data(data) {
                     frp.data_receive_error.emit(Some(e));
                 }
-             });
+            });
 
-            mouse_up       <- scene.mouse.frp.up.constant(());
-            mouse_down     <- scene.mouse.frp.down.constant(());
-            mouse_wheel    <- scene.mouse.frp.wheel.constant(());
-            mouse_position <- scene.mouse.frp.position.constant(());
-            caught_mouse   <- any(mouse_up,mouse_down,mouse_wheel,mouse_position);
-            should_process <- caught_mouse.gate(&frp.is_active);
-            eval_ should_process (scene.frp.pass_processed_event_to_js.emit(()));
+            let mouse_up       =  scene.mouse.frp.up.clone_ref();
+            let mouse_down     =  scene.mouse.frp.down.clone_ref();
+            let mouse_wheel    =  scene.mouse.frp.wheel.clone_ref();
+            let mouse_position =  scene.mouse.frp.position.clone_ref();
+            caught_mouse       <- any_(mouse_up,mouse_down,mouse_wheel,mouse_position);
+            should_process     <- caught_mouse.gate(&frp.is_active);
+            eval_ should_process (scene.frp.pass_current_js_event_to_dom.emit(()));
         }
         self
     }
