@@ -179,8 +179,7 @@ pub mod mock {
          -> crate::controller::Graph {
             let parser      = self.parser.clone_ref();
             let method      = self.method_pointer();
-            let module_ast  = module.ast();
-            let definition  = module::lookup_method(&module_ast,&method).unwrap();
+            let definition  = module.lookup_method(&method).unwrap();
             crate::controller::Graph::new(logger,module,db,parser,definition).unwrap()
         }
 
