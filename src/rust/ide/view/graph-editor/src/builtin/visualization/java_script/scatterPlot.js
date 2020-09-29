@@ -103,13 +103,11 @@ class ScatterPlot extends Visualization {
             yAxis.call(d3.axisLeft(new_yScale).ticks(7));
             scatter
                 .selectAll("path")
-                .transition().duration(1000)
                 .attr('transform', d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
 
             if (points.labels === "visible") {
                 scatter
                     .selectAll("text")
-                    .transition().duration(1000)
                     .attr('transform', d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
             }
         }
@@ -123,7 +121,6 @@ class ScatterPlot extends Visualization {
         scatter
             .append("g")
             .attr("class", "brush")
-            .call(brush);
 
         function updateChart() {
             let extent = d3.event.selection
