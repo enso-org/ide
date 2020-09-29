@@ -236,8 +236,7 @@ impl Instance {
             mouse_position <- scene.mouse.frp.position.constant(());
             caught_mouse   <- any(mouse_up,mouse_down,mouse_wheel,mouse_position);
             should_process <- caught_mouse.gate(&frp.is_active);
-            trace should_process;
-            eval_ should_process ([scene] scene.frp.pass_processed_event_to_js.emit(()));
+            eval_ should_process (scene.frp.pass_processed_event_to_js.emit(()));
         }
         self
     }

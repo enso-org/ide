@@ -40,8 +40,8 @@ pub struct Frp {
     pub data_receive_error    : frp::Source<Option<DataError>>,
     pub change                : frp::Source<EnsoCode>,
     pub preprocess_change     : frp::Source<EnsoCode>,
-    pub activate              : frp::Source<()>,
-    pub deactivate            : frp::Source<()>,
+    pub activate              : frp::Source,
+    pub deactivate            : frp::Source,
 }
 
 impl FrpInputs {

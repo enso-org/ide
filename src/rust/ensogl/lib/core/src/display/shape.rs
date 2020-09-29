@@ -5,3 +5,5 @@ pub mod primitive;
 pub mod text;
 
 pub use primitive::*;
+//TODO[ao] we have two Shape traits and two ShapeOps traits. Which should take precedence?
+pub use primitive::def::class::ShapeOps;

@@ -785,7 +785,7 @@ impl Frp {
             event_is_passed_to_js      <+ pass_processed_event_to_js.constant(true);
             processed_event            <- any(...);
 
-            event_is_being_chainged <- processed_event_source.map3(&processed_event,&event_is_passed_to_js,
+            event_is_being_changed <- processed_event_source.map3(&processed_event,&event_is_passed_to_js,
                 |new:&Option<web_sys::Event>, current:&Option<web_sys::Event>, is_passed| {
                     if let Some(e) = current {
                         if !is_passed {
@@ -795,8 +795,8 @@ impl Frp {
                     new.clone()
                 }
             );
-            event_is_passed_to_js <+ event_is_being_chainged.constant(false);
-            processed_event       <+ event_is_being_chainged;
+            event_is_passed_to_js <+ event_is_being_changed.constant(false);
+            processed_event       <+ event_is_being_changed;
         }
         let shape           = shape.clone_ref();
         let camera_changed  = camera_changed_source.clone_ref().into();
