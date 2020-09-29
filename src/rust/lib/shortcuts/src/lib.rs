@@ -432,24 +432,27 @@ impl<T:Clone> Registry<T> for AutomataRegistry<T> {
 /// Internal model for `HashSetRegistry`.
 #[derive(Debug)]
 pub struct HashSetRegistryModel<T> {
-    actions               : HashMap<ActionType,HashMap<String,T>>,
-    pressed               : HashSet<String>,
-    press_times           : HashMap<String,f32>,
-    release_times         : HashMap<String,f32>,
-    side_keys             : HashMap<String,Vec<String>>,
-    key_normalization_map : HashMap<String,String>,
+    actions           : HashMap<ActionType,HashMap<String,T>>,
+    pressed           : HashSet<String>,
+    press_times       : HashMap<String,f32>,
+    release_times     : HashMap<String,f32>,
+    side_keys         : HashMap<String,Vec<String>>,
+    key_normalization : HashMap<String,String>,
+    key_aliases       : HashMap<String,String>,
 }
 
 impl<T> HashSetRegistryModel<T> {
     /// Constructor.
     pub fn new() -> Self {
-        let actions               = default();
-        let pressed               = default();
-        let press_times           = default();
-        let release_times         = default();
-        let side_keys             = default();
-        let key_normalization_map = key_name_normalization();
-        Self {actions,pressed,press_times,release_times,side_keys,key_normalization_map} . init()
+        let actions           = default();
+        let pressed           = default();
+        let press_times       = default();
+        let release_times     = default();
+        let side_keys         = default();
+        let key_normalization = key_name_normalization();
+        let key_aliases       = key_aliases();
+        Self {actions,pressed,press_times,release_times,side_keys,key_normalization,key_aliases}
+            . init()
     }
 
     fn init(mut self) -> Self {
@@ -457,7 +460,6 @@ impl<T> HashSetRegistryModel<T> {
             let alts = vec![format!("{}-left",key),format!("{}-right",key),(*key).to_string()];
             self.side_keys.insert((*key).to_string(),alts);
         }
-        known_key_mapping();
         self
     }
 
@@ -466,11 +468,12 @@ impl<T> HashSetRegistryModel<T> {
     }
 }
 
-impl<T:Clone> HashSetRegistryModel<T> {
+impl<T:Clone+Debug> HashSetRegistryModel<T> {
     /// Add a new shortcut definition.
     pub fn add(&mut self, action_type:ActionType, input:impl AsRef<str>, action:impl Into<T>) {
         let input  = input.as_ref();
         let action = action.into();
+        println!("ADD {:?} {} -> {:?}",action_type,input,action);
         let exprs  = self.possible_exprs(input);
         let map    = self.actions.entry(action_type).or_default();
         for expr in exprs {
@@ -480,7 +483,7 @@ impl<T:Clone> HashSetRegistryModel<T> {
 
     fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
         let input = input.as_ref().to_lowercase();//.to_kebab_case();
-        let input = self.key_normalization_map.get(&input).cloned().unwrap_or(input);
+        let input = self.key_normalization.get(&input).cloned().unwrap_or(input);
         let expr = if press {
             self.pressed.insert(input);
             self.current_expr()
@@ -489,7 +492,6 @@ impl<T:Clone> HashSetRegistryModel<T> {
             self.pressed.remove(&input);
             out
         };
-        if press { println!("\n---- {} ----",expr) }
         let action        = if press { Press }       else { Release };
         let double_action = if press { DoublePress } else { DoubleClick };
         let last_time_map = if press { &mut self.press_times } else { &mut self.release_times };
@@ -498,6 +500,8 @@ impl<T:Clone> HashSetRegistryModel<T> {
         let last_time     = last_time_map.get(&expr);
         let time_diff     = last_time.map(|t| time-t);
         let is_double     = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
+        if press { println!("\n---- {} ({}) ----",expr,is_double) }
+
         out.extend(self.actions.get(&action).and_then(|t|t.get(&expr)).cloned());
         if is_double {
             out.extend(self.actions.get(&double_action).and_then(|t|t.get(&expr)).cloned());
@@ -505,23 +509,29 @@ impl<T:Clone> HashSetRegistryModel<T> {
         } else {
             *last_time_map.entry(expr).or_default() = time;
         }
+
         out
     }
 
     /// Handle the key press.
-    pub fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> {
-        self.on_event(input,true)
+    pub fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> where T:Debug {
+        let out = self.on_event(input,true);
+        println!("ON PRESS: {:?}",out);
+        out
     }
 
     /// Handle the key release.
-    pub fn on_release(&mut self, input:impl AsRef<str>) -> Vec<T> {
-        self.on_event(input,false)
+    pub fn on_release(&mut self, input:impl AsRef<str>) -> Vec<T> where T:Debug {
+        let out = self.on_event(input,false);
+        println!("ON RELEASE: {:?}",out);
+        out
     }
 
     fn possible_exprs(&self, expr:impl AsRef<str>) -> Vec<String> {
         let expr = expr.as_ref();
         let mut out : Vec<String> = vec![];
         for key in expr.split('+').map(|t| t.trim()).sorted() {
+            let key = self.key_aliases.get(key).map(|t|t.as_ref()).unwrap_or(key);
             match self.side_keys.get(key) {
                 Some(alts) => {
                     if out.is_empty() {
@@ -566,7 +576,7 @@ fn key_name_normalization() -> HashMap<String,String> {
     map
 }
 
-fn known_key_mapping() -> HashMap<String,String> {
+fn key_aliases() -> HashMap<String,String> {
     let mut map = HashMap::<String,String>::new();
     let cmd_target = match web::platform::Platform::query() {
         web::platform::Platform::MacOS => "meta",
@@ -581,15 +591,17 @@ fn known_key_mapping() -> HashMap<String,String> {
     let insert = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
         map.insert(k.into(),v.into());
     };
-    insert_side_key (&mut map, "control" , "ctrl");
-    insert_side_key (&mut map, "option"  , "alt");
-    insert_side_key (&mut map, "cmd"     , cmd_target);
-    insert_side_key (&mut map, "command" , cmd_target);
-    insert          (&mut map, "left"    , "arrow-left");
-    insert          (&mut map, "right"   , "arrow-right");
-    insert          (&mut map, "up"      , "arrow-up");
-    insert          (&mut map, "down"    , "arrow-down");
-    println!("{:#?}",map);
+    insert_side_key (&mut map, "control"             , "ctrl");
+    insert_side_key (&mut map, "option"              , "alt");
+    insert_side_key (&mut map, "cmd"                 , cmd_target);
+    insert_side_key (&mut map, "command"             , cmd_target);
+    insert          (&mut map, "left"                , "arrow-left");
+    insert          (&mut map, "right"               , "arrow-right");
+    insert          (&mut map, "up"                  , "arrow-up");
+    insert          (&mut map, "down"                , "arrow-down");
+    insert          (&mut map, "left-mouse-button"   , "mouse-button-0");
+    insert          (&mut map, "middle-mouse-button" , "mouse-button-1");
+    insert          (&mut map, "right-mouse-button"  , "mouse-button-2");
     map
 }
 
@@ -617,7 +629,7 @@ impl<T> HashSetRegistry<T> {
     }
 }
 
-impl<T:Clone> Registry<T> for HashSetRegistry<T> {
+impl<T:Clone+Debug> Registry<T> for HashSetRegistry<T> {
     fn add(&self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
         self.rc.borrow_mut().add(action_type,expr,action)
     }

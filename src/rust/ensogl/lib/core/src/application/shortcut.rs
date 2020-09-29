@@ -4,8 +4,6 @@ use crate::prelude::*;
 
 use super::command;
 
-// use crate::frp::io::keyboard::Keyboard;
-// use crate::frp::io::keyboard;
 use crate::frp::io::keyboard2;
 use crate::frp::io::mouse::Mouse;
 use crate::frp;
@@ -165,7 +163,7 @@ pub struct Registry {
 #[derive(Clone,CloneRef,Debug)]
 pub struct RegistryModel {
     logger             : Logger,
-    keyboard2          : keyboard2::Keyboard,
+    keyboard           : keyboard2::Keyboard,
     mouse              : Mouse,
     command_registry   : command::Registry,
     shortcuts_registry : shortcuts::HashSetRegistry<Shortcut>,
@@ -180,22 +178,22 @@ impl Deref for Registry {
 
 impl Registry {
     /// Constructor.
-    pub fn new(logger:&Logger, mouse:&Mouse, keyboard2:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
-        let model = RegistryModel::new(logger,mouse,keyboard2,command_registry);
+    pub fn new(logger:&Logger, mouse:&Mouse, keyboard:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
+        let model = RegistryModel::new(logger,mouse,keyboard,command_registry);
         let mouse = &model.mouse;
 
         frp::new_network! { network
-            on_press   <- keyboard2.down.map (f!((t) model.shortcuts_registry.on_press(t.simple_name())));
-            on_release <- keyboard2.up.map   (f!((t) model.shortcuts_registry.on_release(t.simple_name())));
-            trace on_press;
-            trace on_release;
+            kb_down    <- keyboard.down.map (f!((t) model.shortcuts_registry.on_press(t.simple_name())));
+            kb_up      <- keyboard.up.map   (f!((t) model.shortcuts_registry.on_release(t.simple_name())));
+            mouse_down <- mouse.down.map    (f!((t) model.shortcuts_registry.on_press(t.simple_name())));
+            mouse_up   <- mouse.up.map      (f!((t) model.shortcuts_registry.on_release(t.simple_name())));
+            // trace kb_down;
+            // trace kb_up;
 
-            eval on_press ([model](m) {
-                model.process_rules(&mut m.clone());
-            });
-            eval on_release ([model](m) {
-                model.process_rules(&mut m.clone());
-            });
+            event <- any(kb_down,kb_up,mouse_down,mouse_up);
+            trace event;
+
+            eval event ((m) model.process_rules(&m));
         }
         Self {model,network}
     }
@@ -204,16 +202,16 @@ impl Registry {
 impl RegistryModel {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, mouse:&Mouse, keyboard2:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
+    (logger:impl AnyLogger, mouse:&Mouse, keyboard:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
         let logger             = Logger::sub(logger,"ShortcutRegistry");
-        let keyboard2          = keyboard2.clone_ref();
+        let keyboard           = keyboard.clone_ref();
         let mouse              = mouse.clone_ref();
         let command_registry   = command_registry.clone_ref();
         let shortcuts_registry = default();
-        Self {logger,keyboard2,mouse,command_registry,shortcuts_registry}
+        Self {logger,keyboard,mouse,command_registry,shortcuts_registry}
     }
 
-    fn process_rules(&self, rules:&mut Vec<Shortcut>) {
+    fn process_rules(&self, rules:&[Shortcut]) {
         let mut targets = Vec::new();
         {
             let borrowed_command_map = self.command_registry.instances.borrow();

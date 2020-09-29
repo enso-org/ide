@@ -368,18 +368,16 @@ impl Mouse {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Keyboard {
-    // pub frp  : enso_frp::io::Keyboard,
-    pub frp2 : enso_frp::io::keyboard2::Keyboard,
-    bindings2 : Rc<enso_frp::io::keyboard2::DomBindings>,
+    pub frp : enso_frp::io::keyboard2::Keyboard,
+    bindings : Rc<enso_frp::io::keyboard2::DomBindings>,
 }
 
 impl Keyboard {
     pub fn new() -> Self {
-        let logger    = Logger::new("keyboard");
-        // let frp       = enso_frp::io::Keyboard::default();
-        let frp2      = enso_frp::io::keyboard2::Keyboard::default();
-        let bindings2 = Rc::new(enso_frp::io::keyboard2::DomBindings::new(&logger, &frp2));
-        Self {frp2,bindings2}
+        let logger   = Logger::new("keyboard");
+        let frp      = enso_frp::io::keyboard2::Keyboard::default();
+        let bindings = Rc::new(enso_frp::io::keyboard2::DomBindings::new(&logger,&frp));
+        Self {frp,bindings}
     }
 }
 

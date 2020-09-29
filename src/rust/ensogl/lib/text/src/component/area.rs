@@ -338,7 +338,7 @@ impl Lines {
 // === FRP ===
 // ===========
 
-ensogl_core::def_command_api! { Commands
+ensogl_core::def_command_api! { [TRACE_ALL] Commands
     /// Insert character of the last pressed key at every cursor.
     insert_char_of_last_pressed_key,
     /// Increase the indentation of all lines containing cursors.
@@ -617,7 +617,7 @@ impl Area {
 
             // === Insert ===
 
-            key_to_insert <- keyboard.frp2.down.sample(&cmd.insert_char_of_last_pressed_key);
+            key_to_insert <- keyboard.frp.down.sample(&cmd.insert_char_of_last_pressed_key);
             key_to_insert <= key_to_insert.map(f!((key) m.key_to_string(key)));
             str_to_insert <- any(&input.insert,&key_to_insert);
             eval str_to_insert ((s) m.buffer.frp.insert(s));
