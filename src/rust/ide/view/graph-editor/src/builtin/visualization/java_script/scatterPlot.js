@@ -42,7 +42,7 @@ class ScatterPlot extends Visualization {
         }
 
         let width     = this.dom.getAttributeNS(null, "width");
-        let height    = this.dom.getAttributeNS(null, "height");
+        let height    = this.dom.getAttributeNS(null, "height") - 25;
         const divElem = this.createDivElem(width, height);
 
         let parsedData = JSON.parse(data);
@@ -73,6 +73,10 @@ class ScatterPlot extends Visualization {
         let scatter = this.createScatter(svg, box_width, box_height, points, dataPoints, x, y);
 
         this.addBrushing(box_width, box_height, scatter, x, y);
+
+        this.createButtonUnzoom(x, y, xAxis, yAxis, scatter, points, extremesAndDeltas);
+
+        this.dom.appendChild(divElem);
     }
 
     addBrushing(box_width, box_height, scatter, x, y) {
@@ -86,7 +90,7 @@ class ScatterPlot extends Visualization {
             .call(brush);
 
         function updateChart() {
-            extent = d3.event.selection
+            let extent = d3.event.selection
             scatter.classed("selected", d => isBrushed(extent, x(d.x), y(d.y) ))
         }
 
@@ -180,9 +184,7 @@ class ScatterPlot extends Visualization {
             .range([0, box_width]);
         let xAxis = svg.append("g")
             .attr("transform", "translate(0," + box_height + ")")
-            .call(d3.axisBottom(x))
-            .selectAll("text")
-            .attr("transform", "translate(-10,5)rotate(-45)")
+            .call(d3.axisBottom(x).ticks(7))
 
         let y = d3.scaleLinear()
         if (axis.y.scale !== "linear") { y = d3.scaleLog(); }
@@ -252,8 +254,45 @@ class ScatterPlot extends Visualization {
         divElem.setAttributeNS(null, "height", "100%");
         divElem.setAttributeNS(null, "transform", "matrix(1 0 0 -1 0 0)");
 
-        this.dom.appendChild(divElem);
         return divElem;
+    }
+
+    createButtonUnzoom(x, y, xAxis, yAxis, scatter, points, extremesAndDeltas) {
+        const btn = document.createElement("button");
+        btn.setAttribute("width", "80px");
+        btn.setAttribute("height", "20px");
+        btn.setAttribute("style", "margin-left: 5px; margin-top: 5px;");
+
+        var text = document.createTextNode("Fit all");
+        btn.appendChild(text);
+
+        function unzoom() {
+            let domain_x = [extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
+                extremesAndDeltas.xMax + extremesAndDeltas.paddingX];
+            let domain_y = [extremesAndDeltas.yMin - extremesAndDeltas.paddingY,
+                extremesAndDeltas.yMax + extremesAndDeltas.paddingY];
+
+            x.domain(domain_x);
+            y.domain(domain_y);
+
+            xAxis.transition().duration(1000).call(d3.axisBottom(x).ticks(7));
+            yAxis.transition().duration(1000).call(d3.axisLeft(y));
+
+            scatter
+                .selectAll("path")
+                .transition().duration(1000)
+                .attr('transform', d => "translate(" + x(d.x) + "," + y(d.y) + ")")
+
+            if (points.labels === "visible") {
+                scatter
+                    .selectAll("text")
+                    .transition().duration(1000)
+                    .attr('transform', d => "translate(" + x(d.x) + "," + y(d.y) + ")")
+            }
+        }
+
+        btn.addEventListener("click",unzoom)
+        this.dom.appendChild(btn);
     }
 
     setSize(size) {
