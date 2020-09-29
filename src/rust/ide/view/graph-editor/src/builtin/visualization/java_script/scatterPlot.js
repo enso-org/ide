@@ -82,8 +82,13 @@ class ScatterPlot extends Visualization {
     }
 
     addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points) {
-        let zoom = d3.zoom()
-            .scaleExtent([.5, 20])
+        let zoom = d3.zoom().filter(function () {
+            switch (d3.event.type) {
+                case "mousedown": return d3.event.button === 1
+                case "wheel": return d3.event.button === 0
+                default: return false
+            }
+        }).scaleExtent([.5, 20])
             .extent([[0, 0], [box_width, box_height]])
             .on("zoom", zoomed);
 
@@ -118,6 +123,7 @@ class ScatterPlot extends Visualization {
 
         scatter.append("g")
             .attr("class", "brush")
+            .call(brush)
 
         function updateChart() {
             let extent = d3.event.selection
