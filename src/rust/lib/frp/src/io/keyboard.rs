@@ -1,3 +1,7 @@
+//! FIXME DEPRECATED DEPRECATED DEPRECATED DEPRECATED DEPRECATED DEPRECATED DEPRECATED DEPRECATED
+//! The following implementation uses `key.legacy_keycode` which reports key codes for a very
+//! small amount of keys. Please convert your code to the new implementation.
+
 //! FRP keyboard bindings.
 
 use crate::prelude::*;
@@ -21,9 +25,6 @@ pub use keyboard_types::Key;
 // ===============
 // === KeyMask ===
 // ===============
-
-// FIXME: The following implementation uses `key.legacy_keycode` which reports key codes for a very
-//        small amount of keys. We need a better mechanism here.
 
 /// The key bitmask (each bit represents one key). Used for matching key combinations.
 #[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]

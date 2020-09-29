@@ -33,7 +33,6 @@ use crate::system::web::StyleSetter;
 use crate::system::web;
 use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::ShapeSystemOf;
-use crate::control::io::keyboard::listener::KeyboardFrpBindings;
 
 use display::style::data::DataMatch;
 use enso_frp as frp;
@@ -369,20 +368,18 @@ impl Mouse {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Keyboard {
-    pub frp  : enso_frp::io::Keyboard,
+    // pub frp  : enso_frp::io::Keyboard,
     pub frp2 : enso_frp::io::keyboard2::Keyboard,
-    bindings : Rc<KeyboardFrpBindings>,
     bindings2 : Rc<enso_frp::io::keyboard2::DomBindings>,
 }
 
 impl Keyboard {
     pub fn new() -> Self {
         let logger    = Logger::new("keyboard");
-        let frp       = enso_frp::io::Keyboard::default();
+        // let frp       = enso_frp::io::Keyboard::default();
         let frp2      = enso_frp::io::keyboard2::Keyboard::default();
-        let bindings  = Rc::new(KeyboardFrpBindings::new(&logger,&frp));
         let bindings2 = Rc::new(enso_frp::io::keyboard2::DomBindings::new(&logger, &frp2));
-        Self {frp,frp2,bindings,bindings2}
+        Self {frp2,bindings2}
     }
 }
 

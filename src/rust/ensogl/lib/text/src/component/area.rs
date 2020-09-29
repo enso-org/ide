@@ -14,7 +14,7 @@ use crate::typeface::pen;
 use crate::typeface;
 
 use enso_frp as frp;
-use enso_frp::io::keyboard::Key;
+use enso_frp::io::keyboard2::Key;
 use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
 use ensogl_core::application;
@@ -617,7 +617,7 @@ impl Area {
 
             // === Insert ===
 
-            key_to_insert <- keyboard.frp.on_pressed.sample(&cmd.insert_char_of_last_pressed_key);
+            key_to_insert <- keyboard.frp2.down.sample(&cmd.insert_char_of_last_pressed_key);
             key_to_insert <= key_to_insert.map(f!((key) m.key_to_string(key)));
             str_to_insert <- any(&input.insert,&key_to_insert);
             eval str_to_insert ((s) m.buffer.frp.insert(s));
@@ -892,11 +892,12 @@ impl AreaData {
     }
 
     fn key_to_string(&self, key:&Key) -> Option<String> {
-        match key {
-            Key::Character(s) => Some(s.clone()),
-            Key::Enter        => Some("\n".into()),
-            _                 => None
-        }
+        todo!()
+        // match key {
+        //     Key::Character(s) => Some(s.clone()),
+        //     Key::Enter        => Some("\n".into()),
+        //     _                 => None
+        // }
     }
 }
 
