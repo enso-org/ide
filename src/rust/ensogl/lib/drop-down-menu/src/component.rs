@@ -267,8 +267,6 @@ impl DropDownMenu {
 
              // === Menu State ===
 
-            selection_menu_visible_sampler <- frp.source.menu_visible.sampler();
-
             hide_menu <- source::<()>();
             show_menu <- source::<()>();
 
@@ -333,13 +331,17 @@ impl DropDownMenu {
             frp.source.icon_mouse_over <+ model.icon_overlay.events.mouse_over;
             frp.source.icon_mouse_out  <+ model.icon_overlay.events.mouse_out;
 
-            eval_ model.icon_overlay.events.mouse_down ([show_menu,hide_menu]{
-                if !selection_menu_visible_sampler.value() {
+
+            let icon_mouse_down = model.icon_overlay.events.mouse_down.clone_ref();
+            visibility_on_mouse_down <- frp.source.menu_visible.sample(&icon_mouse_down) ;
+
+            eval visibility_on_mouse_down ([show_menu,hide_menu](is_visible){
+                if !is_visible {
                     show_menu.emit(());
                 } else {
                     hide_menu.emit(());
                 }
-           });
+            });
 
 
            // === Close Menu ===
