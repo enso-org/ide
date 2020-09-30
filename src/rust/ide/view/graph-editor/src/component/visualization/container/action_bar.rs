@@ -23,7 +23,7 @@ use ensogl::gui::component;
 
 const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 /// Gap between action bar and selection menu
-const MENU_GAP    : f32 = 3.0;
+const MENU_GAP    : f32 = 5.0;
 
 
 
