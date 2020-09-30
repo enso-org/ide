@@ -34,7 +34,6 @@ pub mod prelude {
 
     pub use crate::Ast;
     pub use crate::traits::*;
-    pub use utils::option::*;
     pub use utils::fail::FallibleResult;
 }
 
@@ -489,7 +488,7 @@ pub enum Shape<T> {
                     first_line  : BlockLine<T>,
                     /// Rest of lines, each of them optionally having contents.
                     lines       : Vec<BlockLine<Option<T>>>,
-                    /// Does the Block start with a leading newline.
+                    /// If false, the Block will start with a leading newline.
                     is_orphan   : bool                       },
 
     // === Macros ===
@@ -1177,14 +1176,22 @@ impl <T> Block<T> {
 }
 
 impl Block<Ast> {
-    /// Creates block from given line ASTs. There is no leading AST (it is orphan block).
+    /// Create a block from given line ASTs.
+    ///
+    /// If there are no tail lines, the first line will be "inline" and the whole block.
+    /// If there are tail lines, block will be leaded with a newline.
     pub fn from_lines(first_line:&Ast, tail_lines:&[Option<Ast>]) -> Block<Ast> {
         let ty          = BlockType::Discontinuous {};
         let indent      = 0;
         let empty_lines = Vec::new();
         let first_line  = BlockLine::new(first_line.clone_ref());
         let lines       = tail_lines.iter().cloned().map(BlockLine::new).collect();
-        let is_orphan   = true;
+        // We virtually never want block to be an orphan (i.e. start with a first line attached
+        // to whatever AST was there before). While it may seem tempting to have this for single
+        // line blocks, it does not make sense. If we want expression inline, it shouldn't be a
+        // block at all. Also, having inline expression can play badly when the only line is an
+        // assignment and we want to use block as a definition's body.
+        let is_orphan   = false;
         Block {ty,indent,empty_lines,first_line,lines,is_orphan}
     }
 }

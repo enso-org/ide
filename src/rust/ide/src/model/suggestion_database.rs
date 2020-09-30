@@ -4,17 +4,18 @@ use crate::prelude::*;
 
 use crate::double_representation::module::QualifiedName;
 use crate::model::module::MethodId;
+use crate::notification;
 
 use data::text::TextLocation;
 use enso_protocol::language_server;
+use enso_protocol::language_server::SuggestionId;
+use flo_stream::Subscriber;
 use language_server::types::SuggestionsDatabaseVersion;
 use language_server::types::SuggestionDatabaseUpdatesEvent;
-use parser::DocParser;
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionId as EntryId;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
-use enso_protocol::language_server::SuggestionId;
 
 
 
@@ -92,30 +93,21 @@ pub struct Entry {
 
 impl Entry {
     /// Create entry from the structure deserialized from the Language Server responses.
-    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry, logger:impl AnyLogger)
+    pub fn from_ls_entry(entry:language_server::types::SuggestionEntry)
         -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
-        let convert_doc = |doc: Option<String>| doc.and_then(|doc| match Entry::gen_doc(doc) {
-            Ok(d)    => Some(d),
-            Err(err) => {
-                error!(logger,"Doc parser error: {err}");
-                None
-            },
-        });
         let this = match entry {
             Atom {name,module,arguments,return_type,documentation} => Self {
-                    name,arguments,return_type,
+                    name,arguments,return_type,documentation,
                     module        : module.try_into()?,
                     self_type     : None,
-                    documentation : convert_doc(documentation),
                     kind          : EntryKind::Atom,
                     scope         : Scope::Everywhere,
                 },
             Method {name,module,arguments,self_type,return_type,documentation} => Self {
-                    name,arguments,return_type,
+                    name,arguments,return_type,documentation,
                     module        : module.try_into()?,
                     self_type     : Some(self_type),
-                    documentation : convert_doc(documentation),
                     kind          : EntryKind::Method,
                     scope         : Scope::Everywhere,
                 },
@@ -191,19 +183,16 @@ impl Entry {
         self.name.to_lowercase() == name.as_ref().to_lowercase()
     }
 
-    /// Generates HTML documentation for documented suggestion.
-    fn gen_doc(doc: String) -> FallibleResult<String> {
-        let parser = DocParser::new()?;
-        let output = parser.generate_html_doc_pure(doc);
-        Ok(output?)
+    /// Generate information about invoking this entity for span tree context.
+    pub fn invocation_info(&self) -> span_tree::generate::context::CalledMethodInfo {
+        self.into()
     }
 }
 
 impl TryFrom<language_server::types::SuggestionEntry> for Entry {
     type Error = failure::Error;
     fn try_from(entry:language_server::types::SuggestionEntry) -> FallibleResult<Self> {
-        let logger = Logger::new("SuggestionEntry");
-        Self::from_ls_entry(entry, logger)
+        Self::from_ls_entry(entry)
     }
 }
 
@@ -228,6 +217,37 @@ impl TryFrom<Entry> for language_server::MethodPointer {
     }
 }
 
+impl From<&Entry> for span_tree::generate::context::CalledMethodInfo {
+    fn from(entry:&Entry) -> span_tree::generate::context::CalledMethodInfo {
+        let parameters = entry.arguments.iter().map(to_span_tree_param).collect();
+        span_tree::generate::context::CalledMethodInfo {parameters}
+    }
+}
+
+/// Converts the information about function parameter from suggestion database into the form used
+/// by the span tree nodes.
+pub fn to_span_tree_param
+(param_info:&Argument) -> span_tree::ParameterInfo {
+    span_tree::ParameterInfo {
+        // TODO [mwu] Check if database actually do must always have both of these filled.
+        name     : Some(param_info.name.clone()),
+        typename : Some(param_info.repr_type.clone()),
+    }
+}
+
+
+
+// ====================
+// === Notification ===
+// ====================
+
+/// Notification about change in a suggestion database,
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub enum Notification {
+    /// The database has been updated.
+    Updated
+}
+
 
 
 // ================
@@ -242,12 +262,30 @@ impl TryFrom<Entry> for language_server::MethodPointer {
 /// argument names and types.
 #[derive(Clone,Debug,Default)]
 pub struct SuggestionDatabase {
-    logger  : Logger,
-    entries : RefCell<HashMap<EntryId,Rc<Entry>>>,
-    version : Cell<SuggestionsDatabaseVersion>,
+    logger        : Logger,
+    entries       : RefCell<HashMap<EntryId,Rc<Entry>>>,
+    version       : Cell<SuggestionsDatabaseVersion>,
+    notifications : notification::Publisher<Notification>,
 }
 
 impl SuggestionDatabase {
+    /// Create a database with no entries.
+    pub fn new_empty(logger:impl AnyLogger) -> Self {
+        Self {
+            logger : Logger::sub(logger,"SuggestionDatabase"),
+            ..default()
+        }
+    }
+
+    /// Create a database filled with entries provided by the given iterator.
+    pub fn new_from_entries<'a>
+    (logger:impl AnyLogger, entries:impl IntoIterator<Item=(&'a SuggestionId,&'a Entry)>) -> Self {
+        let ret     = Self::new_empty(logger);
+        let entries = entries.into_iter().map(|(id,entry)| (*id,Rc::new(entry.clone())));
+        ret.entries.borrow_mut().extend(entries);
+        ret
+    }
+
     /// Create a new database which will take its initial content from the Language Server.
     pub async fn create_synchronized
     (language_server:&language_server::Connection) -> FallibleResult<Self> {
@@ -261,17 +299,22 @@ impl SuggestionDatabase {
         let mut entries = HashMap::new();
         for ls_entry in response.entries {
             let id = ls_entry.id;
-            let logger_entry = Logger::new("SuggestionEntry");
-            match Entry::from_ls_entry(ls_entry.suggestion, logger_entry) {
+            match Entry::from_ls_entry(ls_entry.suggestion) {
                 Ok(entry) => { entries.insert(id, Rc::new(entry)); },
                 Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); },
             }
         }
         Self {
             logger,
-            entries : RefCell::new(entries),
-            version : Cell::new(response.current_version),
+            entries       : RefCell::new(entries),
+            version       : Cell::new(response.current_version),
+            notifications : default()
         }
+    }
+
+    /// Subscribe for notifications about changes in the database.
+    pub fn subscribe(&self) -> Subscriber<Notification> {
+        self.notifications.subscribe()
     }
 
     /// Get suggestion entry by id.
@@ -305,6 +348,7 @@ impl SuggestionDatabase {
             };
         }
         self.version.set(event.current_version);
+        self.notifications.notify(Notification::Updated);
     }
 
 
@@ -373,9 +417,11 @@ impl From<language_server::response::GetSuggestionDatabase> for SuggestionDataba
 mod test {
     use super::*;
 
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
     use enso_protocol::language_server::SuggestionsDatabaseEntry;
+    use utils::test::stream::StreamTestExt;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use wasm_bindgen_test::wasm_bindgen_test;
 
 
 
@@ -446,7 +492,7 @@ mod test {
         assert_eq!(method.method_id()     , Some(expected));
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn initialize_database() {
         // Empty db
         let response = language_server::response::GetSuggestionDatabase {
@@ -463,7 +509,7 @@ mod test {
             module        : "TestProject.TestModule".to_string(),
             arguments     : vec![],
             return_type   : "TestAtom".to_string(),
-            documentation : Some("Test *Atom*".to_string())
+            documentation : None,
         };
         let db_entry = SuggestionsDatabaseEntry {id:12, suggestion:entry};
         let response = language_server::response::GetSuggestionDatabase {
@@ -471,19 +517,14 @@ mod test {
             current_version : 456
         };
         let db = SuggestionDatabase::from_ls_response(response);
-        let response_doc =
-            "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html\" charset=\"UTF-8\" \
-            /><link rel=\"stylesheet\" href=\"style.css\" /><title></title></head><body><div class=\
-            \"Doc\"><div class=\"Synopsis\"><div class=\"Raw\">Test <b>Atom</b></div></div></div>\
-            </body></html>";
         assert_eq!(db.entries.borrow().len(), 1);
         assert_eq!(*db.lookup(12).unwrap().name, "TextAtom".to_string());
-        assert_eq!(db.lookup(12).unwrap().documentation, Some(response_doc.to_string()));
         assert_eq!(db.version.get(), 456);
     }
 
     #[test]
     fn applying_update() {
+        let mut fixture = TestWithLocalPoolExecutor::set_up();
         let entry1 = language_server::types::SuggestionEntry::Atom {
             name          : "Entry1".to_string(),
             module        : "TestProject.TestModule".to_string(),
@@ -512,7 +553,9 @@ mod test {
             entries         : vec![db_entry1,db_entry2],
             current_version : 1,
         };
-        let db = SuggestionDatabase::from_ls_response(initial_response);
+        let db            = SuggestionDatabase::from_ls_response(initial_response);
+        let mut notifications = db.subscribe().boxed_local();
+        notifications.expect_pending();
 
         // Remove
         let remove_update = Update::Remove {id:2};
@@ -521,6 +564,8 @@ mod test {
             current_version : 2
         };
         db.apply_update_event(update);
+        fixture.run_until_stalled();
+        assert_eq!(notifications.expect_next(),Notification::Updated);
         assert_eq!(db.lookup(2), Err(NoSuchEntry(2)));
         assert_eq!(db.version.get(), 2);
 
@@ -531,6 +576,9 @@ mod test {
             current_version : 3,
         };
         db.apply_update_event(update);
+        fixture.run_until_stalled();
+        assert_eq!(notifications.expect_next(),Notification::Updated);
+        notifications.expect_pending();
         assert_eq!(db.lookup(2).unwrap().name, "NewEntry2");
         assert_eq!(db.version.get(), 3);
     }

@@ -184,8 +184,8 @@ use enso_frp as frp;
 macro_rules! define_endpoints {
     (
         $(Commands {$commands_name : ident})?
-        Input  { $($in_field  : ident ($($in_field_type  : tt)*)),* $(,)? }
-        Output { $($out_field : ident ($($out_field_type : tt)*)),* $(,)? }
+        Input  { $($(#[doc=$($in_doc :tt)*])? $in_field  : ident ($($in_field_type  : tt)*)),* $(,)? }
+        Output { $($(#[doc=$($out_doc:tt)*])? $out_field : ident ($($out_field_type : tt)*)),* $(,)? }
     ) => {
         use enso_frp::IntoParam;
 
@@ -202,6 +202,14 @@ macro_rules! define_endpoints {
             pub fn new(network:frp::Network, output:FrpEndpoints) -> Self {
                 Self {network,output}
             }
+
+            /// Create Frp with network, inputs and outputs.
+            pub fn new_network() -> Self {
+                let network       = frp::Network::new();
+                let frp_inputs    = FrpInputs::new(&network);
+                let frp_endpoints = FrpEndpoints::new(&network,frp_inputs.clone_ref());
+                Self::new(network,frp_endpoints)
+            }
         }
 
         impl Deref for Frp {
@@ -217,7 +225,7 @@ macro_rules! define_endpoints {
         #[allow(unused_parens)]
         pub struct FrpInputs {
             $(pub command : $commands_name,)?
-            $(pub $in_field : frp::Source<($($in_field_type)*)>),*
+            $( $(#[doc=$($in_doc)*])? pub $in_field : frp::Source<($($in_field_type)*)>),*
         }
 
         $(impl Deref for FrpInputs {
@@ -250,7 +258,7 @@ macro_rules! define_endpoints {
         pub struct FrpEndpoints {
             pub input         : FrpInputs,
             pub(crate) source : FrpOutputsSource,
-            $(pub $out_field  : frp::Stream<$($out_field_type)*>),*
+            $($(#[doc=$($out_doc)*])? pub $out_field  : frp::Stream<$($out_field_type)*>),*
         }
 
         impl Deref for FrpEndpoints {

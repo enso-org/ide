@@ -20,6 +20,19 @@ pub use suggestion::Suggestion;
 
 
 
+// ==============
+// === Errors ===
+// ==============
+
+
+#[allow(missing_docs)]
+#[fail(display = "No such suggestion with index {}.", index)]
+#[derive(Copy,Clone,Debug,Fail)]
+pub struct NoSuchSuggestion{
+    index : usize,
+}
+
+
 // =====================
 // === Notifications ===
 // =====================
@@ -96,6 +109,19 @@ pub enum CompletedFragmentId {
     Argument{index:usize}
 }
 
+/// The enum summarizing what user is currently doing basing on the searcher input.
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+pub enum UserAction {
+    /// User is about to type/chose function (the input is likely empty).
+    StartingTypingFunction,
+    /// User is about to type next argument.
+    StartingTypingArgument,
+    /// User is in the middle of typing function.
+    TypingFunction,
+    /// User is in the middle of typing argument.
+    TypingArgument,
+}
+
 /// A Searcher Input which is parsed to the _expression_ and _pattern_ parts.
 ///
 /// We parse the input for better understanding what user wants to add.
@@ -125,7 +151,7 @@ impl ParsedInput {
         // See also `parsed_input` test to see all cases we want to cover.
         input.push('a');
         let ast        = parser.parse_line(input.trim_start())?;
-        let mut prefix = ast::prefix::Chain::new_non_strict(&ast);
+        let mut prefix = ast::prefix::Chain::from_ast_non_strict(&ast);
         if let Some(last_arg) = prefix.args.pop() {
             let mut last_arg_repr = last_arg.sast.wrapped.repr();
             last_arg_repr.pop();
@@ -146,7 +172,7 @@ impl ParsedInput {
     }
 
     fn new_from_ast(ast:&Ast) -> Self {
-        let prefix = ast::prefix::Chain::new_non_strict(&ast);
+        let prefix = ast::prefix::Chain::from_ast_non_strict(&ast);
         ParsedInput {
             expression     : Some(ast::Shifted::new(default(),prefix)),
             pattern_offset : 0,
@@ -169,6 +195,18 @@ impl ParsedInput {
             (_              ,None)       => None,
             (Function       ,Some(expr)) => Some(expr.func.repr()),
             (Argument{index},Some(expr)) => Some(expr.args.get(index)?.sast.wrapped.repr()),
+        }
+    }
+
+    /// Get the user action basing of this input (see `UserAction` docs).
+    pub fn user_action(&self) -> UserAction {
+        use UserAction::*;
+        let empty_pattern = self.pattern.is_empty();
+        match self.next_completion_id() {
+            CompletedFragmentId::Function      if empty_pattern => StartingTypingFunction,
+            CompletedFragmentId::Function                       => TypingFunction,
+            CompletedFragmentId::Argument {..} if empty_pattern => StartingTypingArgument,
+            CompletedFragmentId::Argument {..}                  => TypingArgument,
         }
     }
 }
@@ -226,7 +264,7 @@ impl ThisNode {
             //   form. If we wanted to support pattern subparts, the engine would need to send us
             //   value updates for matched pattern pieces. See the issue:
             //   https://github.com/enso-org/enso/issues/1038
-            (ast::identifier::as_var(&ast)?.clone(),false)
+            (ast::identifier::as_var(&ast)?.to_owned(),false)
         } else {
             (graph.variable_name_for(&node.info).ok()?.repr(),true)
         };
@@ -378,7 +416,7 @@ impl Searcher {
         let def_id     = graph.graph().id;
         let def_span   = double_representation::module::definition_span(&module_ast,&def_id)?;
         let position   = TextLocation::convert_span(module_ast.repr(),&def_span).end;
-        let this_arg   = Rc::new(ThisNode::new(selected_nodes,&graph.graph()));
+        let this_arg   = Rc::new(matches!(mode, Mode::NewNode{..}).and_option_from(|| ThisNode::new(selected_nodes,&graph.graph())));
         let ret        = Self {
             logger,graph,this_arg,
             data             : Rc::new(RefCell::new(data)),
@@ -409,7 +447,7 @@ impl Searcher {
     /// This function should be called each time user modifies Searcher input in view. It may result
     /// in a new suggestion list (the aprriopriate notification will be emitted).
     pub fn set_input(&self, new_input:String) -> FallibleResult<()> {
-        debug!(self.logger, "Manually setting input to {new_input}");
+        debug!(self.logger, "Manually setting input to {new_input}.");
         let parsed_input = ParsedInput::new(new_input,&self.parser)?;
         let old_expr     = self.data.borrow().input.expression.repr();
         let new_expr     = parsed_input.expression.repr();
@@ -417,8 +455,10 @@ impl Searcher {
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
         if old_expr != new_expr {
-            self.reload_list()
+            debug!(self.logger, "Reloading list.");
+            self.reload_list();
         } else if let Suggestions::Loaded {list} = self.data.borrow().suggestions.clone_ref() {
+            debug!(self.logger, "Update filtering.");
             list.update_filtering(&self.data.borrow().input.pattern);
             executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
         }
@@ -449,6 +489,7 @@ impl Searcher {
     /// function.
     pub fn pick_completion
     (&self, picked_suggestion:suggestion::Completion) -> FallibleResult<String> {
+        info!(self.logger, "Picking suggestion: {picked_suggestion:?}");
         let id                = self.data.borrow().input.next_completion_id();
         let code_to_insert    = self.code_to_insert(&picked_suggestion,id);
         let added_ast         = self.parser.parse_line(&code_to_insert)?;
@@ -456,12 +497,12 @@ impl Searcher {
         let pattern_offset    = self.data.borrow().input.pattern_offset;
         let new_expression    = match self.data.borrow_mut().input.expression.take() {
             None => {
-                let ast = ast::prefix::Chain::new_non_strict(&added_ast);
+                let ast = ast::prefix::Chain::from_ast_non_strict(&added_ast);
                 ast::Shifted::new(pattern_offset,ast)
             },
             Some(mut expression) => {
                 let new_argument = ast::prefix::Argument {
-                    sast      : ast::Shifted::new(pattern_offset,added_ast),
+                    sast      : ast::Shifted::new(pattern_offset.max(1),added_ast),
                     prefix_id : default(),
                 };
                 expression.args.push(new_argument);
@@ -478,6 +519,19 @@ impl Searcher {
         self.data.borrow_mut().fragments_added_by_picking.push(picked_completion);
         self.reload_list();
         Ok(new_input)
+    }
+
+    /// Pick a completion suggestion by index.
+    pub fn pick_completion_by_index(&self, index:usize) -> FallibleResult<String> {
+        let error      = || NoSuchSuggestion{index};
+        let suggestion = {
+            let data = self.data.borrow();
+            let list = data.suggestions.list().ok_or_else(error)?;
+            list.get_cloned(index).ok_or_else(error)?.suggestion
+        };
+        match suggestion {
+            Suggestion::Completion(completion) => self.pick_completion(completion)
+        }
     }
 
     /// Check if the first fragment in the input (i.e. the one representing the called function)
@@ -543,10 +597,12 @@ impl Searcher {
         let fragments     = data_borrowed.fragments_added_by_picking.iter();
         let imports       = fragments.map(|frag| &frag.picked_suggestion.module);
         let mut module    = self.module();
+        let here          = self.module_qualified_name();
         for import in imports {
-            let import        = ImportInfo::from_qualified_name(&import);
-            let already_there = module.iter_imports().any(|imp| imp == import);
-            if !already_there {
+            let is_here          = *import == here;
+            let import           = ImportInfo::from_qualified_name(&import);
+            let already_imported = module.iter_imports().any(|imp| imp == import);
+            if !is_here && !already_imported {
                 module.add_import(&self.parser,import);
             }
         }
@@ -566,6 +622,7 @@ impl Searcher {
         };
         self.get_suggestion_list_from_engine(this_type,return_types,None);
         self.data.borrow_mut().suggestions = Suggestions::Loading;
+        executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
     }
 
     /// Get the typename of "this" value for current completion context. Returns `Future`, as the
@@ -619,7 +676,7 @@ impl Searcher {
             let this_type = this_type.await;
             info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
             let requests  = return_types.into_iter().map(|return_type| {
-                info!(this.logger, "Requesting suggestions for returnType {return_type:?}");
+                info!(this.logger, "Requesting suggestions for returnType {return_type:?}.");
                 let file = graph.module.path().file_path();
                 ls.completion(file,&position,&this_type,&return_type,&tags)
             });
@@ -646,7 +703,7 @@ impl Searcher {
                     .map(Suggestion::Completion)
                     .handle_err(|e| {
                         error!(self.logger,"Response provided a suggestion ID that cannot be \
-                        resolved: {e}")
+                        resolved: {e}.")
                     })
             });
             suggestions.extend(entries);
@@ -696,7 +753,7 @@ impl Searcher {
     /// Get the suggestion that was selected by the user into the function.
     ///
     /// This suggestion shall be used to request better suggestions from the engine.
-    fn intended_function_suggestion(&self) -> Option<suggestion::Completion> {
+    pub fn intended_function_suggestion(&self) -> Option<suggestion::Completion> {
         let id       = CompletedFragmentId::Function;
         let fragment = self.data.borrow().find_picked_fragment(id).cloned();
         fragment.map(|f| f.picked_suggestion.clone_ref())
@@ -727,6 +784,11 @@ impl Searcher {
     fn module_qualified_name(&self) -> QualifiedName {
         self.graph.graph().module.path().qualified_module_name(&*self.project_name)
     }
+
+    /// Get the user action basing of current input (see `UserAction` docs).
+    pub fn current_user_action(&self) -> UserAction {
+        self.data.borrow().input.user_action()
+    }
 }
 
 /// A simple function call is an AST where function is a single identifier with optional
@@ -741,14 +803,14 @@ impl SimpleFunctionCall {
         if let Some(name) = ast::identifier::name(call) {
             Some(Self {
                 this_argument : None,
-                function_name : name.clone(),
+                function_name : name.to_owned(),
             })
         } else {
             let infix = ast::opr::to_access(call)?;
             let name  = ast::identifier::name(&infix.rarg)?;
             Some(Self {
                 this_argument : Some(infix.larg.clone_ref()),
-                function_name : name.clone(),
+                function_name : name.to_owned(),
             })
         }
     }
@@ -761,7 +823,7 @@ impl SimpleFunctionCall {
 // =============
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
@@ -774,11 +836,16 @@ mod test {
     use utils::test::traits::*;
     use enso_protocol::language_server::SuggestionId;
 
-    fn completion_response(results:&[SuggestionId]) -> language_server::response::Completion {
+    pub fn completion_response(results:&[SuggestionId]) -> language_server::response::Completion {
         language_server::response::Completion {
             results         : results.to_vec(),
             current_version : default(),
         }
+    }
+
+    pub fn expect_completion(client:&mut language_server::MockClient, results:&[SuggestionId]) {
+        let response = completion_response(results);
+        client.expect.completion(|_,_,_,_,_| Ok(response))
     }
 
     #[derive(Debug,Derivative)]
@@ -1082,7 +1149,7 @@ mod test {
                 for _ in 0..EXPECTED_REQUESTS {
                     let requested_types = requested_types2.clone();
                     client.expect.completion(move |_path,_position,_self_type,return_type,_tags| {
-                        iprintln!("Requested {return_type:?}");
+                        iprintln!("Requested {return_type:?}.");
                         requested_types.borrow_mut().insert(return_type.clone());
                         Ok(completion_response(&[]))
                     });

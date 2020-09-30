@@ -12,7 +12,9 @@
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
 #![feature(matches_macro)]
+#![feature(result_cloned)]
 #![feature(slice_patterns)]
+#![feature(result_map_or_else)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
@@ -38,6 +40,9 @@ pub mod view;
 pub use crate::ide::IdeInitializer;
 
 use ensogl::system::web;
+// This import is required to have all EnsoGL examples entry points visible in IDE.
+#[allow(unused_imports)]
+use ensogl_examples::*;
 use wasm_bindgen::prelude::*;
 
 #[cfg(test)]
@@ -70,7 +75,6 @@ pub mod prelude {
     pub use std::ops::Range;
 
     pub use utils::fail::FallibleResult;
-    pub use utils::option::OptionExt;
     pub use utils::vec::VecExt;
 
     pub use uuid::Uuid;

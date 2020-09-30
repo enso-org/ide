@@ -390,7 +390,7 @@ pub struct LocalCall {
 }
 
 /// Points to a method definition.
-#[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct MethodPointer {
@@ -654,6 +654,16 @@ pub mod test {
             expression_id  : id,
             typename       : Some(typename.into()),
             method_pointer : None,
+        }
+    }
+
+    /// Generate `ExpressionValueUpdate` with update for a single expression bringing only the
+    /// method pointer.
+    pub fn value_update_with_method_ptr(id:ExpressionId, method_pointer:SuggestionId) -> ExpressionValueUpdate {
+        ExpressionValueUpdate {
+            expression_id  : id,
+            typename       : None,
+            method_pointer : Some(method_pointer),
         }
     }
 }

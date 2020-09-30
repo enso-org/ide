@@ -19,17 +19,15 @@ use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
 use ensogl_core::application;
 use ensogl_core::data::color;
-use ensogl_core::display::Attribute;
-use ensogl_core::display::Buffer;
 use ensogl_core::display::scene::Scene;
 use ensogl_core::display::shape::*;
-use ensogl_core::display::Sprite;
 use ensogl_core::display;
 use ensogl_core::gui::component::Animation;
 use ensogl_core::gui::component;
 use ensogl_core::gui;
 use ensogl_core::system::web::clipboard;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;
+use ensogl_theme;
 
 
 
@@ -127,7 +125,11 @@ pub mod selection {
             let alpha          = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
             let shape          = Rect((1.px() * rect_width,1.px() * rect_height));
             let shape          = shape.corners_radius(SELECTION_CORNER_RADIUS.px());
-            let shape          = shape.fill(format!("srgba(1.0,1.0,1.0,{})",alpha.glsl()));
+            let color_path     = ensogl_theme::vars::text_editor::text::selection::color;
+            let color          = style.get_color(color_path);
+            let color          = color::Rgba::from(color);
+            let color          = format!("srgba({},{},{},{})",color.red,color.green,color.blue,alpha.glsl());
+            let shape          = shape.fill(color);
             shape.into()
         }
     }
@@ -351,6 +353,8 @@ ensogl_core::def_command_api! { Commands
     delete_word_left,
     /// Set the text cursor at the mouse cursor position.
     set_cursor_at_mouse_position,
+    /// Set the text cursor at the end of text.
+    set_cursor_at_end,
     /// Add a new cursor at the mouse cursor position.
     add_cursor_at_mouse_position,
     /// Remove all cursors.
@@ -441,6 +445,7 @@ crate::define_endpoints! {
         set_color_bytes       (buffer::Range<Bytes>,color::Rgba),
         set_default_color     (color::Rgba),
         set_default_text_size (style::Size),
+        set_content           (String),
     }
     Output {
         mouse_cursor_style (gui::cursor::Style),
@@ -513,20 +518,22 @@ impl Area {
             active <- bool(&cmd.set_active_off,&cmd.set_active_on);
             self.frp.source.active <+ active;
 
-
             // === Set / Add cursor ===
 
             // FIXME[WD]: These frp nodes are simulating active state management. To be removed
             // as part of https://github.com/enso-org/ide/issues/670
             set_cursor_at_mouse_position <- cmd.set_cursor_at_mouse_position.gate(&active);
+            set_cursor_at_end            <- cmd.set_cursor_at_end           .gate(&active);
             add_cursor_at_mouse_position <- cmd.add_cursor_at_mouse_position.gate(&active);
 
-            mouse_on_set_cursor     <- mouse.position.sample(&set_cursor_at_mouse_position);
-            mouse_on_add_cursor     <- mouse.position.sample(&add_cursor_at_mouse_position);
-            loc_on_set_cursor_mouse <- mouse_on_set_cursor.map(f!((p) m.get_in_text_location(*p)));
-            loc_on_add_cursor_mouse <- mouse_on_add_cursor.map(f!((p) m.get_in_text_location(*p)));
-            loc_on_set_cursor       <- any(&input.set_cursor,&loc_on_set_cursor_mouse);
-            loc_on_add_cursor       <- any(&input.add_cursor,&loc_on_add_cursor_mouse);
+            mouse_on_set_cursor      <- mouse.position.sample(&set_cursor_at_mouse_position);
+            mouse_on_add_cursor      <- mouse.position.sample(&add_cursor_at_mouse_position);
+            loc_on_set_cursor_mouse  <- mouse_on_set_cursor.map(f!((p) m.get_in_text_location(*p)));
+            loc_on_add_cursor_mouse  <- mouse_on_add_cursor.map(f!((p) m.get_in_text_location(*p)));
+            loc_on_set_cursor_at_end <- set_cursor_at_end.map(f_!(model.buffer.text().location_of_text_end()));
+            loc_on_set_cursor        <- any(input.set_cursor,loc_on_set_cursor_mouse,loc_on_set_cursor_at_end);
+            loc_on_add_cursor        <- any(&input.add_cursor,&loc_on_add_cursor_mouse);
+
 
             eval loc_on_set_cursor ((loc) m.buffer.frp.set_cursor(loc));
             eval loc_on_add_cursor ((loc) m.buffer.frp.add_cursor(loc));
@@ -621,14 +628,21 @@ impl Area {
             key_to_insert <= keyboard.frp.down.map(f!((key) m.key_to_string(key)));
             str_to_insert <- any(&input.insert,&key_to_insert);
             eval str_to_insert ((s) m.buffer.frp.insert(s));
-
+            eval input.set_content ([input,cmd](s) {
+                input.set_cursor(&default());
+                cmd.select_all();
+                input.insert(s);
+                cmd.remove_all_cursors();
+            });
 
             // === Colors ===
 
             eval input.set_default_color     ((t) m.buffer.frp.set_default_color(*t));
             eval input.set_default_text_size ((t) m.buffer.frp.set_default_text_size(*t));
-            eval input.set_color_bytes       ((t) m.buffer.frp.set_color_bytes.emit(*t));
-
+            eval input.set_color_bytes       ((t) {
+                m.buffer.frp.set_color_bytes.emit(*t);
+                m.redraw(); // FIXME: Should not be needed.
+            });
 
             // === Changes ===
 
@@ -662,8 +676,7 @@ pub struct AreaData {
 
 impl AreaData {
     /// Constructor.
-    pub fn new
-    (app:&Application, network:&frp::Network) -> Self {
+    pub fn new(app:&Application, network:&frp::Network) -> Self {
         let scene          = app.display.scene().clone_ref();
         let logger         = Logger::new("text_area");
         let _bg_logger     = Logger::sub(&logger,"background");
@@ -962,7 +975,6 @@ impl application::shortcut::DefaultShortcutProvider for Area {
           , (Press       , "meta a"                  , "select_all")
           , (Press       , "meta c"                  , "copy")
           , (Press       , "meta v"                  , "paste")
-          , (Press       , "escape"                  , "paste")
 //        , Self::self_shortcut(Press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_cursor_only"),
 //        , Self::self_shortcut(Press   (shortcut::Pattern::Any,&[])                                       , "insert_char_of_last_pressed_key"),
 //        , Self::self_shortcut(Release (&[Key::Meta,Key::Character("z".into())],&[])                      , "undo"),
