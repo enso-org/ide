@@ -415,8 +415,6 @@ impl ListView {
                 View{position_y:*y,size:*size}
             );
             // This should go before handling mouse events to have proper checking of
-            // TODO: in debug mode this is slow and can lead to fps < 30. We might want to
-            // investigate if we note frame drops during resize animations in production.
             eval view_info ((view) model.update_after_view_change(view));
             _new_entries <- frp.set_entries.map2(&view_info, f!((entries,view)
                 model.set_entries(entries.clone_ref(),view)
