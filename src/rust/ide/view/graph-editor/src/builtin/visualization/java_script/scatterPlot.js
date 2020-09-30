@@ -84,7 +84,7 @@ class ScatterPlot extends Visualization {
     addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points) {
         let zoom = d3.zoom().filter(function () {
             switch (d3.event.type) {
-                case "mousedown": return d3.event.button === 2
+                case "mousedown": return d3.event.button === 2 || d3.event.button === 1
                 case "wheel": return d3.event.button === 0
                 default: return false
             }
