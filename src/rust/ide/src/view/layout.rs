@@ -11,7 +11,7 @@ use crate::view::node_searcher::NodeSearcher;
 
 use enso_callback as callback;
 use enso_frp as frp;
-use frp::io::keyboard;
+use frp::io::keyboard_old;
 use ensogl::application::Application;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::traits::*;
@@ -88,7 +88,7 @@ impl ViewLayout {
     #[allow(clippy::too_many_arguments)]
     pub async fn new
     ( logger                   : impl AnyLogger
-    , kb_actions               : &mut keyboard::Actions
+    , kb_actions               : &mut keyboard_old::Actions
     , application              : &Application
     , text_controller          : controller::Text
     , graph_controller         : controller::ExecutedGraph
@@ -131,10 +131,10 @@ impl ViewLayout {
     // Once it it resolved, the method signature should be simplified. For now we use impl Into<...>
     // syntax as a workaround to avoid triggering the bug.
 
-    fn init_keyboard(self, keyboard_actions:&mut keyboard::Actions) -> Self {
+    fn init_keyboard(self, keyboard_actions:&mut keyboard_old::Actions) -> Self {
         // TODO[ao] add here some useful stuff (quitting project for example)
         let layout                    = self.rc.clone_ref();
-        let keys                      = &[keyboard::Key::Tab];
+        let keys                      = &[keyboard_old::Key::Tab];
         let node_searcher_show_action = keyboard_actions.add_action(keys, move || {
             let mut layout             = layout.borrow_mut();
             let position               = *layout.mouse_position_sampler.value();
@@ -148,7 +148,7 @@ impl ViewLayout {
         self
     }
 
-    fn init(self, world:&World, keyboard_actions:&mut keyboard::Actions) -> Self {
+    fn init(self, world:&World, keyboard_actions:&mut keyboard_old::Actions) -> Self {
         let screen = world.scene().camera().screen();
         let size   = Vector2::new(screen.width,screen.height);
         self.set_size(size);

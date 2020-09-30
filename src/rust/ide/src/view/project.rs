@@ -15,8 +15,8 @@ use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::style::theme;
 use ensogl::system::web;
-use enso_frp::io::keyboard::Keyboard;
-use enso_frp::io::keyboard;
+use enso_frp::io::keyboard_old::Keyboard;
+use enso_frp::io::keyboard_old;
 use enso_shapely::shared;
 use ide_view::graph_editor;
 use nalgebra::Vector2;
@@ -66,7 +66,7 @@ shared! { ProjectView
         model             : model::Project,
         keyboard          : Keyboard,
         keyboard_bindings : KeyboardFrpBindings,
-        keyboard_actions  : keyboard::Actions
+        keyboard_actions  : keyboard_old::Actions
     }
 
     impl {
@@ -116,7 +116,7 @@ impl ProjectView {
         // graph::register_shapes(&world);
         let keyboard                 = Keyboard::default();
         let keyboard_bindings        = KeyboardFrpBindings::new(&logger,&keyboard);
-        let mut keyboard_actions     = keyboard::Actions::new(&keyboard);
+        let mut keyboard_actions     = keyboard_old::Actions::new(&keyboard);
         let resize_callback          = None;
         let mut fonts                = font::Registry::new();
         let visualization_controller = model.visualization().clone();

@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use super::command;
 
-use crate::frp::io::keyboard2;
+use crate::frp::io::keyboard;
 use crate::frp::io::mouse::Mouse;
 use crate::frp;
 use enso_shortcuts as shortcuts;
@@ -163,7 +163,7 @@ pub struct Registry {
 #[derive(Clone,CloneRef,Debug)]
 pub struct RegistryModel {
     logger             : Logger,
-    keyboard           : keyboard2::Keyboard,
+    keyboard           : keyboard::Keyboard,
     mouse              : Mouse,
     command_registry   : command::Registry,
     shortcuts_registry : shortcuts::HashSetRegistry<Shortcut>,
@@ -178,7 +178,7 @@ impl Deref for Registry {
 
 impl Registry {
     /// Constructor.
-    pub fn new(logger:&Logger, mouse:&Mouse, keyboard:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
+    pub fn new(logger:&Logger, mouse:&Mouse, keyboard:&keyboard::Keyboard, command_registry:&command::Registry) -> Self {
         let model = RegistryModel::new(logger,mouse,keyboard,command_registry);
         let mouse = &model.mouse;
 
@@ -202,7 +202,7 @@ impl Registry {
 impl RegistryModel {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, mouse:&Mouse, keyboard:&keyboard2::Keyboard, command_registry:&command::Registry) -> Self {
+    (logger:impl AnyLogger, mouse:&Mouse, keyboard:&keyboard::Keyboard, command_registry:&command::Registry) -> Self {
         let logger             = Logger::sub(logger,"ShortcutRegistry");
         let keyboard           = keyboard.clone_ref();
         let mouse              = mouse.clone_ref();

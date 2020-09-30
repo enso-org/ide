@@ -65,7 +65,7 @@ impl Button {
     }
 
     /// Simple, user-friendly name of a key. Used in shortcut manager.
-    pub fn simple_name(&self) -> String {
+    pub fn simple_name(self) -> String {
         format!("mouse-button-{}",self.code())
     }
 }

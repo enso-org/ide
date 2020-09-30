@@ -14,7 +14,7 @@ use crate::typeface::pen;
 use crate::typeface;
 
 use enso_frp as frp;
-use enso_frp::io::keyboard2::Key;
+use enso_frp::io::keyboard::Key;
 use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
 use ensogl_core::application;

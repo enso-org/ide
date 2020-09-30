@@ -8,8 +8,8 @@ use enso_shortcuts::Registry;
 
 use enso_frp as frp;
 
-use frp::io::keyboard2::Keyboard;
-use frp::io::keyboard2 as keyboard;
+use frp::io::keyboard::Keyboard;
+use frp::io::keyboard as keyboard;
 use frp::io::mouse;
 
 use logger;

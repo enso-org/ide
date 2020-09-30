@@ -6,8 +6,8 @@ use crate::view::temporary_panel::TemporaryPadding;
 use crate::view::temporary_panel::TemporaryPanel;
 
 use data::text::TextChange;
-use enso_frp::io::keyboard::KeyMask;
-use enso_frp::io::keyboard;
+use enso_frp::io::keyboard_old::KeyMask;
+use enso_frp::io::keyboard_old;
 use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::Scene;
@@ -68,7 +68,7 @@ impl TextEditor {
     ( logger           : impl AnyLogger
     , scene            : S
     , controller       : controller::Text
-    , keyboard_actions : &mut keyboard::Actions
+    , keyboard_actions : &mut keyboard_old::Actions
     , fonts            : &mut font::Registry
     , focus_manager    : &FocusManager
     ) -> Self {
@@ -98,7 +98,7 @@ impl TextEditor {
         }
     }
 
-    fn initialize(self, keyboard_actions:&mut keyboard::Actions) -> Self {
+    fn initialize(self, keyboard_actions:&mut keyboard_old::Actions) -> Self {
         let save_keys   = Self::get_save_keys_mask();
         let text_editor = Rc::downgrade(&self.rc);
         keyboard_actions.add_action_for_key_mask(save_keys,enclose!((text_editor) move || {
