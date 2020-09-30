@@ -894,10 +894,8 @@ impl AreaData {
     fn key_to_string(&self, key:&Key) -> Option<String> {
         match key {
             Key::Character(s) => Some(s.clone()),
+            Key::Enter        => Some("\n".into()),
             _                 => None
-        //     Key::Character(s) => Some(s.clone()),
-        //     Key::Enter        => Some("\n".into()),
-        //     _                 => None
         }
     }
 }
