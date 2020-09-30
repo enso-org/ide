@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use crate::data;
 
-use fmt::Formatter;
 
 
 // ============
@@ -48,7 +47,7 @@ impl Path {
 }
 
 impl Display for Path {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.name)
     }
 }
