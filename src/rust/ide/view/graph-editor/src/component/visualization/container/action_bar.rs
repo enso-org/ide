@@ -6,7 +6,6 @@ use crate::component::node;
 use crate::component::visualization::container::visualization_chooser;
 use crate::component::visualization;
 
-
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
@@ -25,6 +24,7 @@ use ensogl::gui::component;
 const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 /// Gap between action bar and selection menu
 const MENU_GAP    : f32 = 3.0;
+
 
 
 // ===============
@@ -59,7 +59,9 @@ mod background {
             let background_rounded   = Rect((&width,&height)).corners_radius(&radius);
             let background_sharp     = Rect((&width,&height/2.0)).translate_y(-&height/4.0);
             let background           = background_rounded + background_sharp;
-            let fill_color           = style.get_color(ensogl_theme::vars::graph_editor::visualization::action_bar::background::color);
+            let color_path           = ensogl_theme::vars::graph_editor::
+                                           visualization::action_bar::background::color;
+            let fill_color           = style.get_color(color_path);
             let background           = background.fill(color::Rgba::from(fill_color));
             background.into()
         }
@@ -203,15 +205,15 @@ impl ActionBar {
 
             // === Input Processing ===
 
-            eval  frp.set_size ((size)   model.set_size(*size));
+            eval  frp.set_size ((size) model.set_size(*size));
             eval_ frp.hide_icons ( model.hide() );
             eval_ frp.show_icons ( model.show() );
 
-            eval frp.input.set_visualization_alternatives ([visualization_chooser](entries){
+            eval frp.input.set_visualization_alternatives ((entries){
                 visualization_chooser.input.set_entries.emit(entries);
             });
 
-            eval frp.input.set_selected_visualization ([visualization_chooser](vis){
+            eval frp.input.set_selected_visualization ((vis){
                 visualization_chooser.input.set_selected.emit(vis);
             });
 

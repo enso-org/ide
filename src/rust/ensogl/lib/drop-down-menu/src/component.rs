@@ -31,8 +31,8 @@ const MENU_WIDTH  : f32         = 180.0;
 // === Shapes ===
 // ==============
 
-/// Icon that indicates the drop down menu.
-pub mod icon {
+/// Arrow icon that indicates the drop down menu.
+pub mod arrow {
     use super::*;
 
     ensogl_core::define_shape_system! {
@@ -101,7 +101,7 @@ struct Model {
     app             : Application,
     display_object  : display::object::Instance,
 
-    icon            : component::ShapeView<icon::Shape>,
+    icon            : component::ShapeView<arrow::Shape>,
     icon_overlay    : component::ShapeView<chooser_hover_area::Shape>,
 
     label           : text::Area,
@@ -114,11 +114,11 @@ struct Model {
 impl Model {
     fn new(app:&Application) -> Self {
         let logger         = Logger::new("visualization_chooser::Model");
-        let scene          = app.display.scene().clone_ref();
+        let scene          = app.display.scene();
         let app            = app.clone_ref();
         let display_object = display::object::Instance::new(&logger);
-        let icon           = component::ShapeView::new(&logger,&scene);
-        let icon_overlay   = component::ShapeView::new(&logger,&scene);
+        let icon           = component::ShapeView::new(&logger,scene);
+        let icon_overlay   = component::ShapeView::new(&logger,scene);
         let selection_menu = list_view::ListView::new(&app);
         let label          = app.new_view::<text::Area>();
         let content        = default();
@@ -132,12 +132,8 @@ impl Model {
         self.add_child(&self.icon_overlay);
         self.add_child(&self.label);
 
-        // FIXME: Use a string from some settings/i10n source.
-        self.set_label("None");
-
         // Clear default parent and hide again.
         self.show_selection_menu();
-        // self.hide_selection_menu();
 
         self
     }
@@ -223,9 +219,9 @@ impl DropDownMenu {
             // === Input Processing ===
 
             eval frp.input.set_entries ([model](entries) {
-                let entries:list_view::entry::SingleMaskedProvider=entries.clone().into();
+                let entries:list_view::entry::SingleMaskedProvider = entries.clone_ref().into();
                 model.content.set(entries.clone());
-                let entries:list_view::entry::AnyModelProvider=entries.into();
+                let entries:list_view::entry::AnyModelProvider = entries.into();
                 model.selection_menu.frp.set_entries.emit(entries);
             });
 
@@ -319,11 +315,12 @@ impl DropDownMenu {
                         // Remove selected item from menu list
                         content.set_mask(*entry_id);
                         // Update menu content.
-                        let entries:list_view::entry::AnyModelProvider=content.clone().into();
+                        let entries:list_view::entry::AnyModelProvider = content.clone().into();
                         model.selection_menu.frp.set_entries.emit(entries);
                     };
                 };
             });
+
 
             // === Menu Toggle Through Mouse Interaction ===
 
@@ -348,9 +345,7 @@ impl DropDownMenu {
            mouse_down        <- mouse.down.constant(());
            mouse_down_remote <- mouse_down.gate_not(&icon_hovered);
            dismiss_menu      <- any(&frp.hide_selection_menu,&mouse_down_remote);
-           eval_ dismiss_menu ([hide_menu] {
-               hide_menu.emit(());
-           });
+           eval_ dismiss_menu ( hide_menu.emit(()) );
         }
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for

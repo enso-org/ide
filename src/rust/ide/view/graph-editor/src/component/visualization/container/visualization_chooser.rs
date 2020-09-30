@@ -125,8 +125,9 @@ impl VisualizationChooser {
             frp.source.menu_visible <+ menu.menu_visible;
 
             selected_path <- model.selection_menu.frp.chosen_entry.map(f!([model](entry_id)({
-                entry_id.map(|entry_id| model.visualization_alternatives.borrow().get(entry_id).cloned()).flatten()
-
+                entry_id.map(|entry_id| {
+                    model.visualization_alternatives.borrow().get(entry_id).cloned()
+                }).flatten()
             })));
 
             frp.source.chosen_entry <+ selected_path;

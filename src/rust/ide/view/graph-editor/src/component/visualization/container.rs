@@ -527,15 +527,21 @@ impl Container {
         frp::extend! { network
             eval  inputs.set_visibility    ((v) model.set_visibility(*v));
             eval_ inputs.toggle_visibility (model.toggle_visibility());
-            eval  inputs.set_visualization ([model,registry,scene,logger](vis_definition) {
-                 if let Some(definition) = vis_definition {
+            eval  inputs.set_visualization (
+                [model,action_bar,registry,scene,logger](vis_definition) {
+
+                if let Some(definition) = vis_definition {
                     match definition.new_instance(&scene) {
                         Ok(vis)  => {
                             model.set_visualization(Some(vis));
-                            let alternatives      = registry.valid_sources(&definition.signature.input_type);
-                            let alternative_paths = alternatives.into_iter().map(|definition| definition.signature.path).collect_vec();
-                            model.action_bar.frp.set_visualization_alternatives.emit(alternative_paths);
-                            model.action_bar.frp.set_selected_visualization.emit(Some(definition.signature.path.clone()));
+                            let input_type            = &definition.signature.input_type;
+                            let alternatives          = registry.valid_sources(input_type);
+                            let alternatives          = alternatives.into_iter();
+                            let alternative_paths     = alternatives.map(|def| def.signature.path);
+                            let alternative_paths_vec = alternative_paths.collect_vec();
+                            action_bar.set_visualization_alternatives.emit(alternative_paths_vec);
+                            let path                  = Some(definition.signature.path.clone());
+                            action_bar.set_selected_visualization.emit(path);
                         },
                         Err(err) => {
                             logger.warning(
