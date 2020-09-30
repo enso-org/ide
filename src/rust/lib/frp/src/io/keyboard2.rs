@@ -9,6 +9,8 @@ use wasm_bindgen::prelude::*;
 use web_sys::HtmlElement;
 use wasm_bindgen::JsCast;
 use unicode_segmentation::UnicodeSegmentation;
+use inflector::Inflector;
+
 
 
 // ============
@@ -31,18 +33,13 @@ impl Side {
 }
 
 
-define_keys! {
-    Side    {Alt,Control,Meta,Shift}
-    Regular {Enter}
-}
+
+// ===========
+// === Key ===
+// ===========
 
 macro_rules! define_keys {
     (Side { $($side:ident),* $(,)? } Regular { $($regular:ident),* $(,)? }) => {
-
-        // ===========
-        // === Key ===
-        // ===========
-
         /// A key representation.
         ///
         /// For reference, see the following links:
@@ -57,10 +54,7 @@ macro_rules! define_keys {
         }
 
 
-
-        // ====================
         // === KEY_NAME_MAP ===
-        // ====================
 
         lazy_static! {
             static ref KEY_NAME_MAP: HashMap<&'static str,Key> = {
@@ -75,28 +69,18 @@ macro_rules! define_keys {
     };
 }
 
-
-
-
-// ===========
-// === Key ===
-// ===========
-
-// lazy_static! {
-//     static ref KEY_NAME_MAP: HashMap<&'static str,Key> = {
-//         use Key::*;
-//         use Side::*;
-//         let mut m = HashMap::new();
-//         m.insert("Alt", Alt(Left));
-//         m.insert("Control", Control(Left));
-//         m.insert("Meta", Meta(Left));
-//         m.insert("Shift", Shift(Left));
-//         m.insert("Enter", Enter);
-//         m
-//     };
-// }
-
-
+define_keys! {
+    Side    {Alt,Control,Meta,Shift}
+    Regular {
+        ArrowDown,
+        ArrowLeft,
+        ArrowRight,
+        ArrowUp,
+        Backspace,
+        Enter,
+        Space,
+    }
+}
 
 impl Key {
     /// Constructor.
@@ -138,10 +122,16 @@ impl Key {
             Self::Meta      (side) => fmt(side,"meta"),
             Self::Shift     (side) => fmt(side,"shift"),
 
+            Self::ArrowDown        => "arrow-down".into(),
+            Self::ArrowLeft        => "arrow-left".into(),
+            Self::ArrowRight       => "arrow-right".into(),
+            Self::ArrowUp          => "arrow-up".into(),
+            Self::Backspace        => "backspace".into(),
             Self::Enter            => "enter".into(),
+            Self::Space            => "space".into(),
 
             Self::Character (repr) => repr.into(),
-            Self::Other     (repr) => repr.into()
+            Self::Other     (repr) => repr.to_kebab_case()
         }
     }
 }
@@ -158,7 +148,7 @@ impl Default for Key {
 // === KeyboardModel ===
 // =====================
 
-/// Model keepingtrack of currently pressed keys.
+/// Model keeping track of currently pressed keys.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct KeyboardModel {
     set : Rc<RefCell<HashSet<Key>>>,
