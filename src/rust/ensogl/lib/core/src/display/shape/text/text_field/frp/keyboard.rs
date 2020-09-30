@@ -7,7 +7,7 @@ use crate::display::shape::text::text_field::TextField;
 use crate::display::shape::text::text_field::WeakTextField;
 use crate::system::web::text_input::KeyboardBinding;
 use crate::system::web::text_input::bind_frp_to_js_keyboard_actions;
-use crate::system::web::platform::Platform;
+use crate::system::web::platform;
 
 use enso_frp as frp;
 use enso_frp::io::Keyboard;
@@ -137,10 +137,10 @@ impl TextFieldKeyboardFrp {
         let modifiers = &[keyboard::Key::Control,keyboard::Key::Alt,keyboard::Key::Meta];
         let is_modifier  = modifiers.iter().any(|key| mask.contains(key));
         let is_alt_graph = mask.contains(&keyboard::Key::AltGraph);
-        match Platform::query() {
+        match platform::current() {
             // On Windows AltGraph is emitted as both AltGraph and Ctrl. Therefore we don't
             // care about modifiers when AltGraph is pressed.
-            Platform::Windows => !is_modifier || is_alt_graph,
+            platform::Windows => !is_modifier || is_alt_graph,
             _                 => !is_modifier
         }
     }
@@ -185,7 +185,7 @@ impl TextFieldKeyboardFrp {
 // === Keys combinations ===
 
 fn line_begin_keys() -> Vec<keyboard::Key> {
-    if let Platform::MacOS = Platform::query() {
+    if let platform::MacOS = platform::current() {
         vec![keyboard::Key::Meta,keyboard::Key::ArrowLeft]
     } else {
         vec![keyboard::Key::Home]
@@ -193,7 +193,7 @@ fn line_begin_keys() -> Vec<keyboard::Key> {
 }
 
 fn line_end_keys() -> Vec<keyboard::Key> {
-    if let Platform::MacOS = Platform::query() {
+    if let platform::MacOS = platform::current() {
         vec![keyboard::Key::Meta,keyboard::Key::ArrowRight]
     } else {
         vec![keyboard::Key::End]
@@ -201,7 +201,7 @@ fn line_end_keys() -> Vec<keyboard::Key> {
 }
 
 fn doc_begin_keys() -> Vec<keyboard::Key> {
-    if let Platform::MacOS = Platform::query() {
+    if let platform::MacOS = platform::current() {
         vec![keyboard::Key::Meta,keyboard::Key::ArrowUp]
     } else {
         vec![keyboard::Key::Control,keyboard::Key::Home]
@@ -209,7 +209,7 @@ fn doc_begin_keys() -> Vec<keyboard::Key> {
 }
 
 fn doc_end_keys() -> Vec<keyboard::Key> {
-    if let Platform::MacOS = Platform::query() {
+    if let platform::MacOS = platform::current() {
         vec![keyboard::Key::Meta,keyboard::Key::ArrowDown]
     } else {
         vec![keyboard::Key::Control,keyboard::Key::End]
@@ -217,7 +217,7 @@ fn doc_end_keys() -> Vec<keyboard::Key> {
 }
 
 fn left_word_keys() -> Vec<keyboard::Key> {
-    if let Platform::MacOS = Platform::query() {
+    if let platform::MacOS = platform::current() {
         vec![keyboard::Key::Alt,keyboard::Key::ArrowLeft]
     } else {
         vec![keyboard::Key::Control,keyboard::Key::ArrowLeft]
@@ -225,7 +225,7 @@ fn left_word_keys() -> Vec<keyboard::Key> {
 }
 
 fn right_word_keys() -> Vec<keyboard::Key> {
-    if let Platform::MacOS = Platform::query() {
+    if let platform::MacOS = platform::current() {
         vec![keyboard::Key::Alt,keyboard::Key::ArrowRight]
     } else {
         vec![keyboard::Key::Control,keyboard::Key::ArrowRight]

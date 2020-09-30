@@ -22,7 +22,7 @@ pub use shortcuts::ActionType;
 /// mouse button". Please note that the release action happens as soon as the key mask is no longer
 /// valid. For example, pressing key "n", and then pressing key "a" (while holding "n") will trigger
 /// the release event for the key "n".
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 #[allow(missing_docs)]
 pub struct Rule {
     pub tp      : ActionType,
@@ -65,7 +65,7 @@ impl From<&str> for Command {
 // TODO[WD]: Uncomment and handle more complex cases. Left commented to show the direction of future
 //           development.
 /// Condition expression.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 #[allow(missing_docs)]
 pub enum Condition {
     Ok,
@@ -83,7 +83,7 @@ pub enum Condition {
 /// A shortcut rule. Consist of target identifier (like "TextEditor"), a `Command` that will be
 /// evaluated on the target, and a `Condition` which needs to be true in order for the command
 /// to be executed.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Action {
     target  : String,
     command : Command,
@@ -113,7 +113,7 @@ impl Action {
 // ================
 
 /// A keyboard shortcut, an `Rule` associated with a `Action`.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Shrinkwrap)]
 pub struct Shortcut {
     #[shrinkwrap(main_field)]
     rule   : Action,

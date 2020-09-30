@@ -9,7 +9,9 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
+#![feature(trait_alias)]
 #![feature(test)]
+
 extern crate test;
 
 use enso_prelude::*;
@@ -161,7 +163,7 @@ impl<T:Clone> AutomataRegistryModel<T> {
             let mut special = vec![];
             let mut normal  = vec![];
 
-            for chunk in expr.split('+').map(|t| t.trim()) {
+            for chunk in expr.split(' ').map(|t| t.trim()) {
                 if special_keys.contains(chunk) {
                     special.push((chunk.into(),true))
                 } else {
@@ -429,10 +431,12 @@ impl<T:Clone> Registry<T> for AutomataRegistry<T> {
 // === HashSetRegistryModel ===
 // ============================
 
+pub trait HashSetRegistryItem = Clone+Debug+Eq+Hash;
+
 /// Internal model for `HashSetRegistry`.
 #[derive(Debug)]
 pub struct HashSetRegistryModel<T> {
-    actions           : HashMap<ActionType,HashMap<String,T>>,
+    actions           : HashMap<ActionType,HashMap<String,Vec<T>>>,
     pressed           : HashSet<String>,
     press_times       : HashMap<String,f32>,
     release_times     : HashMap<String,f32>,
@@ -464,25 +468,26 @@ impl<T> HashSetRegistryModel<T> {
     }
 
     fn current_expr(&self) -> String {
-        self.pressed.iter().sorted().join(" + ")
+        self.pressed.iter().sorted().join(" ")
     }
 }
 
-impl<T:Clone+Debug> HashSetRegistryModel<T> {
+impl<T:HashSetRegistryItem> HashSetRegistryModel<T> {
     /// Add a new shortcut definition.
     pub fn add(&mut self, action_type:ActionType, input:impl AsRef<str>, action:impl Into<T>) {
         let input  = input.as_ref();
         let action = action.into();
-        println!("ADD {:?} {} -> {:?}",action_type,input,action);
+        println!("\nADD {:?} {} -> {:?}",action_type,input,action);
         let exprs  = self.possible_exprs(input);
+        println!("{:#?}",exprs);
         let map    = self.actions.entry(action_type).or_default();
         for expr in exprs {
-            map.insert(expr, action.clone());
+            map.entry(expr).or_default().push(action.clone());
         }
     }
 
     fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
-        let input = input.as_ref().to_lowercase();//.to_kebab_case();
+        let input = input.as_ref().to_lowercase();
         let input = self.key_normalization.get(&input).cloned().unwrap_or(input);
         let expr = if press {
             self.pressed.insert(input);
@@ -502,9 +507,9 @@ impl<T:Clone+Debug> HashSetRegistryModel<T> {
         let is_double     = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
         if press { println!("\n---- {} ({}) ----",expr,is_double) }
 
-        out.extend(self.actions.get(&action).and_then(|t|t.get(&expr)).cloned());
+        out.extend(self.actions.get(&action).and_then(|t|t.get(&expr)).into_iter().flatten().cloned());
         if is_double {
-            out.extend(self.actions.get(&double_action).and_then(|t|t.get(&expr)).cloned());
+            out.extend(self.actions.get(&double_action).and_then(|t|t.get(&expr)).into_iter().flatten().cloned());
             last_time_map.remove(&expr);
         } else {
             *last_time_map.entry(expr).or_default() = time;
@@ -528,18 +533,19 @@ impl<T:Clone+Debug> HashSetRegistryModel<T> {
     }
 
     fn possible_exprs(&self, expr:impl AsRef<str>) -> Vec<String> {
-        let expr = expr.as_ref();
-        let mut out : Vec<String> = vec![];
-        for key in expr.split('+').map(|t| t.trim()).sorted() {
-            let key = self.key_aliases.get(key).map(|t|t.as_ref()).unwrap_or(key);
+        let mut out = Vec::<String>::new();
+        let expr    = expr.as_ref();
+        let chunks  = expr.split(' ').map(|t| t.trim()).filter(|t|!t.is_empty());
+        let keys    = chunks.map(|t| self.key_aliases.get(t).map(|t|t.as_ref()).unwrap_or(t));
+        for key in keys.sorted() {
             match self.side_keys.get(key) {
                 Some(alts) => {
                     if out.is_empty() {
                         out.extend(alts.iter().cloned());
                     } else {
                         let local_out = mem::take(&mut out);
-                        for k in alts {
-                            out.extend(local_out.iter().map(|t| format!("{} + {}", t, k)));
+                        for alt in alts {
+                            out.extend(local_out.iter().map(|expr| format!("{} {}",expr,alt)));
                         }
                     }
                 },
@@ -548,7 +554,7 @@ impl<T:Clone+Debug> HashSetRegistryModel<T> {
                         out.push(key.into());
                     } else {
                         for el in out.iter_mut() {
-                            *el = format!("{} + {}", el, key);
+                            *el = format!("{} {}", el, key);
                         }
                     }
                 }
@@ -578,9 +584,9 @@ fn key_name_normalization() -> HashMap<String,String> {
 
 fn key_aliases() -> HashMap<String,String> {
     let mut map = HashMap::<String,String>::new();
-    let cmd_target = match web::platform::Platform::query() {
-        web::platform::Platform::MacOS => "meta",
-        _                              => "ctrl",
+    let cmd_target = match web::platform::current() {
+        web::platform::MacOS => "meta",
+        _                    => "ctrl",
     };
     #[allow(clippy::useless_format)]
     let insert_side_key = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
@@ -629,7 +635,7 @@ impl<T> HashSetRegistry<T> {
     }
 }
 
-impl<T:Clone+Debug> Registry<T> for HashSetRegistry<T> {
+impl<T:HashSetRegistryItem> Registry<T> for HashSetRegistry<T> {
     fn add(&self, action_type:ActionType, expr:impl AsRef<str>, action:impl Into<T>) {
         self.rc.borrow_mut().add(action_type,expr,action)
     }
@@ -658,9 +664,9 @@ mod tests {
     #[test] fn automata_registry_press() { press::<AutomataRegistry<i32>>(); }
     #[test] fn hash_set_registry_press() { press::<HashSetRegistry<i32>>(); }
     fn press<T:Registry<i32>>() -> T {
-        let nothing = Vec::<i32>::new();
-        let mut registry : T = default();
-        registry.add(Press, "ctrl + a", 0);
+        let nothing  = Vec::<i32>::new();
+        let registry = <T>::default();
+        registry.add(Press, "ctrl a", 0);
         assert_eq!(registry.on_press("ctrl-left"), nothing);
         for _ in 0..10 {
             assert_eq!(registry.on_press("a"), vec![0]);
@@ -676,8 +682,8 @@ mod tests {
     #[test] fn hash_set_registry_release() { release::<HashSetRegistry<i32>>(); }
     fn release<T:Registry<i32>>() -> T {
         let nothing = Vec::<i32>::new();
-        let mut registry : T = default();
-        registry.add(Release, "ctrl + a", 0);
+        let registry = <T>::default();
+        registry.add(Release, "ctrl a", 0);
         assert_eq!(registry.on_press("ctrl-left"),nothing);
         for _ in 0..10 {
             assert_eq!(registry.on_press("a"), nothing);
@@ -693,8 +699,8 @@ mod tests {
     #[test] fn hash_set_registry_double_press() { double_press::<HashSetRegistry<i32>>(); }
     fn double_press<T:Registry<i32>>() -> T {
         let nothing = Vec::<i32>::new();
-        let mut registry : T = default();
-        registry.add(DoublePress, "ctrl + a", 0);
+        let registry = <T>::default();
+        registry.add(DoublePress, "ctrl a", 0);
         assert_eq!(registry.on_press("ctrl-left"),nothing);
         for _ in 0..10 {
             assert_eq!(registry.on_press("a"), nothing);
@@ -711,20 +717,32 @@ mod tests {
     }
 
 
-    #[test]
-    fn automata_registry_side_keys_handling() {
-        side_keys_handling::<AutomataRegistry<i32>>();
+    // === Overlapping Shortcuts ===
+
+    // #[test] fn automata_registry_overlapping() { overlapping::<AutomataRegistry<i32>>(); }
+    #[test] fn hash_set_registry_overlapping() { overlapping::<HashSetRegistry<i32>>(); }
+    fn overlapping<T:Registry<i32>>() -> T {
+        let nothing  = Vec::<i32>::new();
+        let registry = <T>::default();
+        let items    = (0..100).map(|i| {
+            registry.add(Press, "ctrl a", i);
+            i
+        }).collect_vec();
+        assert_eq!(registry.on_press("ctrl-left"),nothing);
+        assert_eq!(registry.on_press("a"),items);
+        assert_eq!(registry.on_release("a"),nothing);
+        registry
     }
 
-    #[test]
-    fn hash_set_registry_side_keys_handling() {
-        side_keys_handling::<HashSetRegistry<i32>>();
-    }
 
-    fn side_keys_handling<T:Registry<i32>>() -> T {
+    // === Side Keys ===
+
+    #[test] fn automata_registry_side_keys() { side_keys::<AutomataRegistry<i32>>(); }
+    #[test] fn hash_set_registry_side_keys() { side_keys::<HashSetRegistry<i32>>(); }
+    fn side_keys<T:Registry<i32>>() -> T {
         let nothing = Vec::<i32>::new();
         let mut registry : T = default();
-        registry.add(Press, "ctrl + meta + a", 0);
+        registry.add(Press, "ctrl meta a", 0);
         for ctrl in &["ctrl","ctrl-left","ctrl-right"] {
             for meta in &["meta","meta-left","meta-right"] {
                 assert_eq!(registry.on_press(ctrl),nothing);
@@ -745,21 +763,16 @@ mod tests {
         registry
     }
 
-    #[test]
-    fn automata_registry_validate_sates() {
-        validate_states::<AutomataRegistry<i32>>(true);
-    }
 
-    #[test]
-    fn hash_set_registry_validate_sates() {
-        validate_states::<HashSetRegistry<i32>>(false);
-    }
+    // === Valid States ===
 
-    fn validate_states<T:Registry<i32>>(allow_broken_shortcut:bool) -> T {
+    #[test] fn automata_registry_valid_states() { valid_states::<AutomataRegistry<i32>>(true); }
+    #[test] fn hash_set_registry_valid_states() { valid_states::<HashSetRegistry<i32>>(false); }
+    fn valid_states<T:Registry<i32>>(allow_broken_shortcut:bool) -> T {
         let nothing = Vec::<i32>::new();
         let mut registry : T = default();
-        registry.add(Press, "ctrl + meta + a", 0);
-        registry.add(Press, "ctrl + meta + b", 1);
+        registry.add(Press, "ctrl meta a", 0);
+        registry.add(Press, "ctrl meta b", 1);
         // First shortcut.
         assert_eq!(registry.on_press("meta-left"),nothing);
         assert_eq!(registry.on_press("ctrl-left"),nothing);
@@ -804,7 +817,7 @@ mod benchmarks {
     use test::Bencher;
 
     const CONS_SIMPLE  : &'static str = "ctrl";
-    const CONS_COMPLEX : &'static str = "ctrl + cmd + alt + shift";
+    const CONS_COMPLEX : &'static str = "ctrl cmd alt shift";
 
     // === Construction ===
 
@@ -843,7 +856,7 @@ mod benchmarks {
             let mut registry : T = default();
             let max_count        = test::black_box(10);
             for i in 0..max_count {
-                registry.add(Press,format!("{} + a{}",i,input),i);
+                registry.add(Press,format!("{} a{}",i,input),i);
             }
             if optimize {
                 registry.optimize();
@@ -870,7 +883,7 @@ mod benchmarks {
         let nothing          = Vec::<i32>::new();
         let max_count        = test::black_box(100);
         for i in 0..max_count {
-            registry.add(Press, format!("ctrl + shift + a{}",i), i);
+            registry.add(Press, format!("ctrl shift a{}",i), i);
         }
         registry.optimize();
         bencher.iter(|| {

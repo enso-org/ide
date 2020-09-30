@@ -8,7 +8,7 @@ use web_sys::KeyboardEvent;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlElement;
 use wasm_bindgen::JsCast;
-
+use unicode_segmentation::UnicodeSegmentation;
 
 
 // ============
@@ -31,41 +31,87 @@ impl Side {
 }
 
 
+define_keys! {
+    Side    {Alt,Control,Meta,Shift}
+    Regular {Enter}
+}
+
+macro_rules! define_keys {
+    (Side { $($side:ident),* $(,)? } Regular { $($regular:ident),* $(,)? }) => {
+
+        // ===========
+        // === Key ===
+        // ===========
+
+        /// A key representation.
+        ///
+        /// For reference, see the following links:
+        /// - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code/code_values
+        #[derive(Clone,Debug,Eq,Hash,PartialEq)]
+        #[allow(missing_docs)]
+        pub enum Key {
+            $($side(Side),)*
+            $($regular,)*
+            Character (String),
+            Other     (String),
+        }
+
+
+
+        // ====================
+        // === KEY_NAME_MAP ===
+        // ====================
+
+        lazy_static! {
+            static ref KEY_NAME_MAP: HashMap<&'static str,Key> = {
+                use Key::*;
+                use Side::*;
+                let mut m = HashMap::new();
+                $(m.insert(stringify!($side), $side(Left));)*
+                $(m.insert(stringify!($regular), $regular);)*
+                m
+            };
+        }
+    };
+}
+
+
+
 
 // ===========
 // === Key ===
 // ===========
 
-/// A key representation. The implementation is very minimal, exposing only properties required by
-/// the current implementation.
-///
-/// For reference, see the following links:
-/// - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code/code_values
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
-#[allow(missing_docs)]
-pub enum Key {
-    Alt     (Side),
-    Control (Side),
-    Meta    (Side),
-    Shift   (Side),
-    Other   (String)
-}
+// lazy_static! {
+//     static ref KEY_NAME_MAP: HashMap<&'static str,Key> = {
+//         use Key::*;
+//         use Side::*;
+//         let mut m = HashMap::new();
+//         m.insert("Alt", Alt(Left));
+//         m.insert("Control", Control(Left));
+//         m.insert("Meta", Meta(Left));
+//         m.insert("Shift", Shift(Left));
+//         m.insert("Enter", Enter);
+//         m
+//     };
+// }
+
+
 
 impl Key {
     /// Constructor.
     pub fn new(label:String, code:String) -> Self {
         let label_ref : &str = &label;
         let code_ref  : &str = &code;
-        match (label_ref,code_ref) {
-            ( "Alt"     , "AltLeft"      ) => Self::Alt     (Side::Left),
-            ( "Alt"     , "AltRight"     ) => Self::Alt     (Side::Right),
-            ( "Control" , "ControlLeft"  ) => Self::Control (Side::Left),
-            ( "Control" , "ControlRight" ) => Self::Control (Side::Right),
-            ( "Meta"    , "MetaLeft"     ) => Self::Meta    (Side::Left),
-            ( "Meta"    , "MetaRight"    ) => Self::Meta    (Side::Right),
-            ( "Shift"   , "ShiftLeft"    ) => Self::Shift   (Side::Left),
-            ( "Shift"   , "ShiftRight"   ) => Self::Shift   (Side::Right),
-            _                              => Self::Other   (label)
+        if label.graphemes(true).count() == 1 { Self::Character(label) } else {
+            let key = KEY_NAME_MAP.get(label_ref).cloned().unwrap_or(Self::Other(label));
+            match (key,code_ref) {
+                (Self::Alt     (_), "AltRight")     => Self::Alt     (Side::Right),
+                (Self::Control (_), "ControlRight") => Self::Control (Side::Right),
+                (Self::Meta    (_), "MetaRight")    => Self::Meta    (Side::Right),
+                (Self::Shift   (_), "ShiftRight")   => Self::Shift   (Side::Right),
+                (other,_)                           => other,
+            }
         }
     }
 
@@ -87,11 +133,15 @@ impl Key {
     pub fn simple_name(&self) -> String {
         let fmt = |side:&Side,repr| format!("{}-{}",repr,side.simple_name());
         match self {
-            Self::Alt     (side) => fmt(side,"alt"),
-            Self::Control (side) => fmt(side,"ctrl"),
-            Self::Meta    (side) => fmt(side,"meta"),
-            Self::Shift   (side) => fmt(side,"shift"),
-            Self::Other   (repr) => repr.into()
+            Self::Alt       (side) => fmt(side,"alt"),
+            Self::Control   (side) => fmt(side,"ctrl"),
+            Self::Meta      (side) => fmt(side,"meta"),
+            Self::Shift     (side) => fmt(side,"shift"),
+
+            Self::Enter            => "enter".into(),
+
+            Self::Character (repr) => repr.into(),
+            Self::Other     (repr) => repr.into()
         }
     }
 }
