@@ -163,10 +163,10 @@ impl ProjectView {
         let resize_callback          = None;
         let mut fonts                = font::Registry::new();
         let visualization_controller = project.visualization().clone();
-        let layout = ViewLayout::new(&logger, &mut keyboard_actions, &application, text_controller,
-            graph_controller, visualization_controller, project.clone_ref(), &mut fonts).await?;
-        let data = ProjectViewData {application,layout,resize_callback,
-            model: project,keyboard,
+        let layout = ViewLayout::new(&logger,&mut keyboard_actions,&application,text_controller,
+            graph_controller,visualization_controller,project.clone_ref(),&mut fonts).await?;
+        let model = project;
+        let data = ProjectViewData {model,application,layout,resize_callback,keyboard,
             keyboard_bindings,keyboard_actions,navigator};
         Ok(Self::new_from_data(data).init())
     }
@@ -233,5 +233,4 @@ mod tests {
         expect_intact("here.main = 5");
         expect_intact(&format!("{}.main = 5",module_name));
     }
-
 }
