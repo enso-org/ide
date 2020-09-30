@@ -221,9 +221,9 @@ impl ActionBar {
             any_component_over <- any(&hover_area.mouse_over,&visualization_chooser.mouse_over);
             any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser.mouse_out);
 
-            any_hovered <- source::<bool>();
-            eval_ any_component_over ( any_hovered.emit(true)  );
-            eval_ any_component_out  ( any_hovered.emit(false) );
+            is_over_true  <- any_component_over.constant(true);
+            is_over_false <- any_component_out.constant(false);
+            any_hovered   <- any(is_over_true,is_over_false);
 
             eval_ any_component_over (model.show());
 
