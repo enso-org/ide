@@ -187,12 +187,7 @@ impl Registry {
             kb_up      <- keyboard.up.map   (f!((t) model.shortcuts_registry.on_release(t.simple_name())));
             mouse_down <- mouse.down.map    (f!((t) model.shortcuts_registry.on_press(t.simple_name())));
             mouse_up   <- mouse.up.map      (f!((t) model.shortcuts_registry.on_release(t.simple_name())));
-            // trace kb_down;
-            // trace kb_up;
-
-            event <- any(kb_down,kb_up,mouse_down,mouse_up);
-            trace event;
-
+            event      <- any(kb_down,kb_up,mouse_down,mouse_up);
             eval event ((m) model.process_rules(&m));
         }
         Self {model,network}

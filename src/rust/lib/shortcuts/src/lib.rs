@@ -9,20 +9,19 @@
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
 
-#![feature(trait_alias)]
 #![feature(test)]
+#![feature(trait_alias)]
 
 extern crate test;
 
+use enso_automata::*;
 use enso_prelude::*;
 use ensogl_system_web as web;
-use enso_automata::*;
 
-pub use logger;
 pub use logger::*;
 pub use logger::AnyLogger;
 pub use logger::disabled::Logger;
-
+pub use logger;
 
 
 
@@ -49,12 +48,6 @@ pub fn print_matrix(matrix:&data::Matrix<dfa::State>) {
     }
 }
 
-
-
-
-
-
-
 fn reverse_key(key:&str) -> String {
     format!("-{}",key)
 }
@@ -63,9 +56,7 @@ fn reverse_key(key:&str) -> String {
 /// `ctrl + a` and `a + ctrl`. Please note, that this is currently not happening.
 const SIDE_KEYS : &[&str] = &["ctrl","alt","meta","cmd","shift"];
 
-
 const DOUBLE_EVENT_TIME_MS : f32 = 500.0;
-
 
 
 
@@ -477,9 +468,7 @@ impl<T:HashSetRegistryItem> HashSetRegistryModel<T> {
     pub fn add(&mut self, action_type:ActionType, input:impl AsRef<str>, action:impl Into<T>) {
         let input  = input.as_ref();
         let action = action.into();
-        println!("\nADD {:?} {} -> {:?}",action_type,input,action);
         let exprs  = self.possible_exprs(input);
-        println!("{:#?}",exprs);
         let map    = self.actions.entry(action_type).or_default();
         for expr in exprs {
             map.entry(expr).or_default().push(action.clone());
@@ -505,8 +494,6 @@ impl<T:HashSetRegistryItem> HashSetRegistryModel<T> {
         let last_time     = last_time_map.get(&expr);
         let time_diff     = last_time.map(|t| time-t);
         let is_double     = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
-        if press { println!("\n---- {} ({}) ----",expr,is_double) }
-
         out.extend(self.actions.get(&action).and_then(|t|t.get(&expr)).into_iter().flatten().cloned());
         if is_double {
             out.extend(self.actions.get(&double_action).and_then(|t|t.get(&expr)).into_iter().flatten().cloned());
@@ -520,16 +507,12 @@ impl<T:HashSetRegistryItem> HashSetRegistryModel<T> {
 
     /// Handle the key press.
     pub fn on_press(&mut self, input:impl AsRef<str>) -> Vec<T> where T:Debug {
-        let out = self.on_event(input,true);
-        println!("ON PRESS: {:?}",out);
-        out
+        self.on_event(input,true)
     }
 
     /// Handle the key release.
     pub fn on_release(&mut self, input:impl AsRef<str>) -> Vec<T> where T:Debug {
-        let out = self.on_event(input,false);
-        println!("ON RELEASE: {:?}",out);
-        out
+        self.on_event(input,false)
     }
 
     fn possible_exprs(&self, expr:impl AsRef<str>) -> Vec<String> {
