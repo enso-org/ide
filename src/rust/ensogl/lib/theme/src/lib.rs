@@ -321,7 +321,7 @@ define_default_theme! { light
                 exponent     = 2.0
             }
             highlight {
-                color = color::Lcha::new(0.55,0.65,0.79,1.0)
+                color = color::Lcha::new(0.83,0.58,0.436,1.0)
             }
             text {
                 color = color::Lcha::new(0.0,0.0,0.0,0.7);
