@@ -52,7 +52,7 @@ pub fn default_main_method_code() -> String {
 
 /// The default content of the newly created initial main module file.
 pub fn default_main_module_code() -> String {
-    format!("{}",default_main_method_code())
+    default_main_method_code()
 }
 
 /// Method pointer that described the main method, i.e. the method that project view wants to open
