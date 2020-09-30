@@ -416,13 +416,13 @@ impl Info {
         index_to_place_at
     }
 
-    /// Add a new method definition to the module.
-    pub fn add_method
-    (&mut self, method:definition::ToAdd, location:Placement, parser:&parser::Parser)
-    -> FallibleResult<()> {
-        let no_indent      = 0;
-        let definition_ast = method.ast(no_indent,parser)?;
-
+    /// Place the line with given AST in the module's body.
+    ///
+    /// Unlike `add_line` (which is more low-level) will introduce empty lines around introduced
+    /// line and describes the added line location in relation to other definitions.
+    ///
+    /// Typically used to place lines with definitions in the module.
+    pub fn add_ast(&mut self, ast:Ast, location:Placement) -> FallibleResult<()> {
         #[derive(Clone,Copy,Debug,Eq,PartialEq)]
         enum BlankLinePlacement {Before,After,None};
         let blank_line = match location {
@@ -448,12 +448,21 @@ impl Info {
         if blank_line == BlankLinePlacement::Before {
             add_line(None);
         }
-        add_line(Some(definition_ast));
+        add_line(Some(ast));
         if blank_line == BlankLinePlacement::After {
             add_line(None);
         }
 
         Ok(())
+    }
+
+    /// Add a new method definition to the module.
+    pub fn add_method
+    (&mut self, method:definition::ToAdd, location:Placement, parser:&parser::Parser)
+    -> FallibleResult<()> {
+        let no_indent      = 0;
+        let definition_ast = method.ast(no_indent,parser)?;
+        self.add_ast(definition_ast,location)
     }
 
     #[cfg(test)]

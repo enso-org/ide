@@ -465,6 +465,11 @@ pub trait API:Debug {
         let ast  = self.ast();
         double_representation::module::lookup_method(&name,&ast,method)
     }
+
+    /// Get the double representation information about module.
+    fn info(&self) -> double_representation::module::Info {
+        double_representation::module::Info::from(self.ast())
+    }
 }
 
 /// The general, shared Module Model handle.

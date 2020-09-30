@@ -132,6 +132,12 @@ pub mod mock {
             self.code = format!("{} = {}",method.name,code.as_ref())
         }
 
+        pub fn set_code(&mut self, code:impl Into<String>) {
+            self.code     = code.into();
+            self.id_map   = default();
+            self.metadata = default();
+        }
+
         pub fn new() -> Self {
             use crate::test::mock::data::*;
             let mut suggestions = HashMap::new();
