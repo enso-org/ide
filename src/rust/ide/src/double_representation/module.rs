@@ -734,7 +734,7 @@ mod tests {
         info.expect_code("import Bar.Gar");
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn implicit_method_resolution() {
         let parser         = parser::Parser::new_or_panic();
         let module_name    = ReferentName::new("Main").unwrap();
