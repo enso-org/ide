@@ -44,6 +44,7 @@ class ScatterPlot extends Visualization {
         let width     = this.dom.getAttributeNS(null, "width");
         let height    = this.dom.getAttributeNS(null, "height") - 25;
         const divElem = this.createDivElem(width, height);
+        this.dom.appendChild(divElem);
 
         let parsedData = JSON.parse(data);
         let axis       = parsedData.axis || {x: {scale: "linear" }, y: {scale: "linear" }};
@@ -74,17 +75,16 @@ class ScatterPlot extends Visualization {
 
         this.addBrushing(box_width, box_height, scatter, scaleAndAxis);
 
+        // TODO: Visualization selector obfuscates button, so it is now on the bottom, should be on top.
         this.createButtonUnzoom(scaleAndAxis, scatter, points, extremesAndDeltas);
 
         this.addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points);
-
-        this.dom.appendChild(divElem);
     }
 
     addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points) {
         let zoom = d3.zoom().filter(function () {
             switch (d3.event.type) {
-                case "mousedown": return d3.event.button === 1
+                case "mousedown": return d3.event.button === 2
                 case "wheel": return d3.event.button === 0
                 default: return false
             }
