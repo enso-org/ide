@@ -609,13 +609,13 @@ pub fn locate
 /// The module is assumed to be in the file identified by the `method.file` (for the purpose of
 /// desugaring implicit extensions methods for modules).
 ///
-/// The `name` parameter is the name of the module that contains `ast`. It affects how the `here`
-/// keyword is resolved.
+/// The `module_name` parameter is the name of the module that contains `ast`. It affects how the
+/// `here` keyword is resolved.
 pub fn lookup_method
-(name:&ReferentName, ast:&known::Module, method:&language_server::MethodPointer)
+(module_name:&ReferentName, ast:&known::Module, method:&language_server::MethodPointer)
 -> FallibleResult<definition::Id> {
     let normalized_typename        = NormalizedName::new(&method.defined_on_type);
-    let accept_here_methods        = name.normalized() == normalized_typename;
+    let accept_here_methods        = module_name.normalized() == normalized_typename;
     let module_name                = QualifiedName::try_from(method)?;
     let implicit_extension_allowed = method.defined_on_type == module_name.name().as_ref();
     for child in ast.def_iter() {

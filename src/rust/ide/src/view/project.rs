@@ -45,18 +45,14 @@ pub const INITIAL_MODULE_NAME:&str = "Main";
 /// This is the definition whose graph will be opened on IDE start.
 pub const MAIN_DEFINITION_NAME:&str = "main";
 
-/// Code of the import declaration required by the default implementation of the main method
-/// (see [default_main_module_code] function).
-pub const DEFAULT_MAIN_IMPORT:&str = "from Base import all";
-
 /// The code with definition of the default `main` method.
 pub fn default_main_method_code() -> String {
-    format!(r#"{} = IO.println "Hello, World!""#, MAIN_DEFINITION_NAME)
+    format!(r#"{} = "Hello, World!""#, MAIN_DEFINITION_NAME)
 }
 
 /// The default content of the newly created initial main module file.
 pub fn default_main_module_code() -> String {
-    format!("{}\n\n{}",DEFAULT_MAIN_IMPORT,default_main_method_code())
+    format!("{}",default_main_method_code())
 }
 
 /// Method pointer that described the main method, i.e. the method that project view wants to open
@@ -129,8 +125,7 @@ pub fn add_main_if_missing
 
 impl ProjectView {
     /// Create a new ProjectView.
-    pub async fn new(logger:impl AnyLogger, project:model::Project)
-                     -> FallibleResult<Self> {
+    pub async fn new(logger:impl AnyLogger, project:model::Project) -> FallibleResult<Self> {
         let logger      = Logger::sub(logger,"ProjectView");
         let module_path = initial_module_path(&project)?;
         let file_path   = module_path.file_path().clone();
