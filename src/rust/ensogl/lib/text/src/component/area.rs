@@ -338,7 +338,7 @@ impl Lines {
 // === FRP ===
 // ===========
 
-ensogl_core::def_command_api! { [TRACE_ALL] Commands
+ensogl_core::def_command_api! { Commands
     /// Insert character of the last pressed key at every cursor.
     insert_char_of_last_pressed_key,
     /// Increase the indentation of all lines containing cursors.

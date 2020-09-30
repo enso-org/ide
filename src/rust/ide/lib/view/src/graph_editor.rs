@@ -278,7 +278,7 @@ ensogl::def_status_api! { FrpStatus
     is_empty,
 }
 
-ensogl::def_command_api! { [TRACE_ALL] Commands
+ensogl::def_command_api! { Commands
     /// Cancel project name editing, restablishing the old name.
     cancel_project_name_editing,
     /// Add a new node and place it in the origin of the workspace.
