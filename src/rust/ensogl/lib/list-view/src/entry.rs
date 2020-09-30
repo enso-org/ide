@@ -135,7 +135,7 @@ impl<T:Into<Model> + Debug + Clone> ModelProvider for Vec<T> {
 
 // === Masked Model Provider ===
 
-/// An Entry Model Provider that wraps a Vec<T:Into<Model>> and allows the masking of a single item.
+/// An Entry Model Provider that wraps a `AnyModelProvider` and allows the masking of a single item.
 #[derive(Clone,Debug)]
 pub struct SingleMaskedProvider {
     content : AnyModelProvider,
