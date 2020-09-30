@@ -276,9 +276,11 @@ impl DropDownMenu {
                 model.selection_menu.deselect_entries.emit(());
                 frp.source.menu_visible.emit(false);
                 frp.source.menu_closed.emit(());
-                /// FIXME: If we end at 0.0 the ListView will still display the first
+                /// The following line is a workaround for #815.
+                /// If we end at 0.0 the `ListView` will still display the first
                 /// content item. This avoids the slowdown close to 0.0, so we can
-                /// manually remove the LisTView from the scene at 0.0.
+                /// manually remove the `ListView` from the scene at 0.0.
+                /// See #815
                 menu_height.set_target_value(-20.0);
             });
 
