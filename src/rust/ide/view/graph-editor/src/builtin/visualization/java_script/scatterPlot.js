@@ -12,8 +12,10 @@ const label_style = "font-family: dejavuSansMono; font-size: 11px;";
 /**
  * A d3.js ScatterPlot visualization.
  *
- * To zoom in just select wanted fragment of the plot.
- * To zoom out double click on the plot.
+ * To zoom use scrollwheel
+ * To select click and swipe with LMB
+ * To deselect click outside of selection with LMB
+ * To pan click and swipe with RMB
  *
  * Data format (json):
  * {
@@ -41,9 +43,11 @@ class ScatterPlot extends Visualization {
             this.dom.removeChild(this.dom.lastChild);
         }
 
-        let width     = this.dom.getAttributeNS(null, "width");
-        let height    = this.dom.getAttributeNS(null, "height") - 25;
-        const divElem = this.createDivElem(width, height);
+        let width        = this.dom.getAttributeNS(null, "width");
+        let height       = this.dom.getAttributeNS(null, "height");
+        const btnPadding = 25;
+        height           = height - btnPadding;
+        const divElem    = this.createDivElem(width, height);
         this.dom.appendChild(divElem);
 
         let parsedData = JSON.parse(data);
@@ -76,7 +80,7 @@ class ScatterPlot extends Visualization {
         this.addBrushing(box_width, box_height, scatter, scaleAndAxis);
 
         // TODO: Visualization selector obfuscates button, so it is now on the bottom, should be on top.
-        this.createButtonUnzoom(scaleAndAxis, scatter, points, extremesAndDeltas);
+        this.createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas);
 
         this.addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points);
     }
@@ -271,7 +275,7 @@ class ScatterPlot extends Visualization {
 
     getMargins(axis) {
         if (axis.x.label === undefined && axis.y.label === undefined) {
-            return {top: 20, right: 20, bottom: 20, left: 20};
+            return {top: 20, right: 20, bottom: 20, left: 30};
         } else if (axis.x.label === undefined) {
             return {top: 10, right: 20, bottom: 35, left: 20};
         } else if (axis.y.label === undefined) {
@@ -291,11 +295,35 @@ class ScatterPlot extends Visualization {
         return divElem;
     }
 
-    createButtonUnzoom(scaleAndAxis, scatter, points, extremesAndDeltas) {
+    createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas) {
         const btn = document.createElement("button");
+        const style = `
+            margin-left: 5px; 
+            margin-bottom: 5px;
+            display: inline-block;
+            padding: 2px 10px;
+            outline: none;
+            background-color: transparent;
+            border: 1px solid #333;
+            color: #333;
+            border-radius: 14px;
+            font-size: 10px;
+            vertical-align: top;
+            transition: all 0.3s ease;
+        `;
         btn.setAttribute("width", "80px");
         btn.setAttribute("height", "20px");
-        btn.setAttribute("style", "margin-left: 5px; margin-top: 5px;");
+        btn.setAttribute("style", style);
+
+        btn.onmouseover = function() {
+            btn.style.backgroundColor = "#333";
+            btn.style.color = "#e5e5e5";
+        }
+
+        btn.onmouseout = function() {
+            btn.style.backgroundColor = "transparent";
+            btn.style.color = "#333";
+        }
 
         var text = document.createTextNode("Fit all");
         btn.appendChild(text);
