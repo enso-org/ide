@@ -46,6 +46,7 @@ impl<T> State<T> {
         self.id
     }
 
+    /// Checks whether this state is valid.
     pub fn is_invalid(self) -> bool {
         self == Self::INVALID
     }
@@ -131,6 +132,7 @@ impl Transition {
         Self {symbols,target}
     }
 
+    /// Display the symbols range of this tansition.
     pub fn display_symbols(&self) -> String {
         if self.symbols.start() == self.symbols.end() {
             format!("{}",self.symbols.start())

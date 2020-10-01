@@ -36,6 +36,7 @@ impl<T:Copy> Matrix<T> {
         0..self.rows()
     }
 
+    /// Indexing with bounds checking.
     pub fn safe_index(&self, row:usize, column:usize) -> Option<T> {
         (row < self.rows && column < self.columns).as_some_from(|| {
             self.matrix[row*self.columns+column]

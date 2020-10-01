@@ -84,6 +84,6 @@ mod test {
 
     #[wasm_bindgen_test]
     fn platform() {
-        assert_eq!(Platform::current(), target_os())
+        assert_eq!(current(),target_os())
     }
 }

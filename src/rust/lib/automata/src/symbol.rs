@@ -17,14 +17,17 @@ pub struct Symbol {
 }
 
 impl Symbol {
+    /// End of line symbol.
     pub fn eof() -> Self {
         Self::new(u64::max_value())
     }
 
+    /// Invalid symbol.
     pub fn invalid() -> Self {
         Self::new(u64::min_value() + 1)
     }
 
+    /// Null symbol.
     pub fn null() -> Self {
         Self::new(0)
     }
@@ -35,6 +38,7 @@ impl Symbol {
         Self {index,name}
     }
 
+    /// Named constructor.
     pub fn new_named(index:u64, name:impl Into<String>) -> Self {
         let name = name.into();
         Self {index,name}

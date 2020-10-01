@@ -15,7 +15,7 @@ use ensogl::display::shape::primitive::StyleWatch;
 use ensogl::display::shape::text::glyph::font;
 use ensogl::display::shape::text::text_field::{TextField, FocusManager};
 use ensogl::display::shape::text::text_field::TextFieldProperties;
-use ensogl::system::web::platform::Platform;
+use ensogl::system::web::platform;
 use ensogl_theme;
 use nalgebra::Vector2;
 use nalgebra::zero;
@@ -96,7 +96,7 @@ impl TextEditor {
     }
 
     fn get_save_keys_mask() -> KeyMask {
-        if let Platform::MacOS = Platform::query() {
+        if let platform::MacOS = platform::current() {
             KeyMask::meta_plus('s')
         } else {
             KeyMask::control_plus('s')

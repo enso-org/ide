@@ -61,15 +61,18 @@ pub struct Dfa {
 }
 
 impl Dfa {
+    /// The start state of the automata.
     pub const START_STATE : State = State::new(0);
 }
 
 impl Dfa {
+    /// Simulate the DFA transition with the provided input symbol.
     pub fn next_state(&self, current_state:State, symbol:&Symbol) -> State {
         let ix = self.alphabet.index_of_symbol(&symbol);
         self.links.safe_index(current_state.id(),ix).unwrap_or_default()
     }
 
+    /// Convert the automata to a GraphViz Dot code for the deubgging purposes.
     pub fn as_graphviz_code(&self) -> String {
         let mut out = String::new();
         for row in 0 .. self.links.rows {
@@ -179,3 +182,129 @@ impl From<&Nfa> for Dfa {
         Dfa {alphabet,links,sources}
     }
 }
+
+
+
+// // ===========
+// // == Tests ==
+// // ===========
+//
+// #[cfg(test)]
+// pub mod tests {
+//     extern crate test;
+//
+//     use crate::dfa;
+//
+//     use super::*;
+//     use test::Bencher;
+//
+//     /// Nfa that accepts a newline '\n'.
+//     pub fn newline() -> Nfa {
+//         Nfa {
+//             start: nfa::State::new(0),
+//             states: vec![
+//                 state::Data::from(vec![1]),
+//                 state::Data::from(vec![(10..=10,2)]),
+//                 state::Data::from(vec![3]),
+//                 state::Data::default(),
+//             ],
+//             alphabet: alphabet::Segmentation::from_divisions(vec![10, 11].as_slice()),
+//         }
+//     }
+//
+//     /// Nfa that accepts any letter in the range a..=z.
+//     pub fn letter() -> Nfa {
+//         Nfa {
+//             start: nfa::State::new(0),
+//             states: vec![
+//                 state::Data::from(vec![1]),
+//                 state::Data::from(vec![(97..=122,2)]),
+//                 state::Data::from(vec![3]),
+//                 state::Data::default(),
+//             ],
+//             alphabet: alphabet::Segmentation::from_divisions(vec![97, 123].as_slice()),
+//         }
+//     }
+//
+//     /// Nfa that accepts any number of spaces ' '.
+//     pub fn spaces() -> Nfa {
+//         Nfa {
+//             start: nfa::State::new(0),
+//             states: vec![
+//                 state::Data::from(vec![1]),
+//                 state::Data::from(vec![2]),
+//                 state::Data::from(vec![(32..=32,3)]),
+//                 state::Data::from(vec![4]),
+//                 state::Data::from(vec![5,8]),
+//                 state::Data::from(vec![6]),
+//                 state::Data::from(vec![(32..=32,7)]),
+//                 state::Data::from(vec![8]),
+//                 state::Data::from(vec![5,9]),
+//                 state::Data::default(),
+//             ],
+//             alphabet: alphabet::Segmentation::from_divisions(vec![0, 32, 33].as_slice()),
+//         }
+//     }
+//
+//     /// Nfa that accepts one letter a..=z or many spaces ' '.
+//     pub fn letter_and_spaces() -> Nfa {
+//         Nfa {
+//             start: nfa::State::new(0),
+//             states: vec![
+//                 state::Data::from(vec![1,3]),
+//                 state::Data::from(vec![(97..=122,2)]),
+//                 state::Data::from(vec![11]),
+//                 state::Data::from(vec![4]),
+//                 state::Data::from(vec![(32..=32,5)]),
+//                 state::Data::from(vec![6]),
+//                 state::Data::from(vec![7,10]),
+//                 state::Data::from(vec![8]),
+//                 state::Data::from(vec![(32..=32,9)]),
+//                 state::Data::from(vec![10]),
+//                 state::Data::from(vec![7,11]),
+//                 state::Data::default(),
+//             ],
+//             alphabet: alphabet::Segmentation::from_divisions(vec![32, 33, 97, 123].as_slice()),
+//         }
+//     }
+//
+//     #[test]
+//     fn test_to_dfa_newline() {
+//         assert_eq!(Dfa::from(&newline()),dfa::tests::newline());
+//     }
+//
+//     #[test]
+//     fn test_to_dfa_letter() {
+//         assert_eq!(Dfa::from(&letter()),dfa::tests::letter());
+//     }
+//
+//     #[test]
+//     fn test_to_dfa_spaces() {
+//         assert_eq!(Dfa::from(&spaces()),dfa::tests::spaces());
+//     }
+//
+//     #[test]
+//     fn test_to_dfa_letter_and_spaces() {
+//         assert_eq!(Dfa::from(&letter_and_spaces()),dfa::tests::letter_and_spaces());
+//     }
+//
+//     #[bench]
+//     fn bench_to_dfa_newline(bencher:&mut Bencher) {
+//         bencher.iter(|| Dfa::from(&newline()))
+//     }
+//
+//     #[bench]
+//     fn bench_to_dfa_letter(bencher:&mut Bencher) {
+//         bencher.iter(|| Dfa::from(&letter()))
+//     }
+//
+//     #[bench]
+//     fn bench_to_dfa_spaces(bencher:&mut Bencher) {
+//         bencher.iter(|| Dfa::from(&spaces()))
+//     }
+//
+//     #[bench]
+//     fn bench_to_dfa_letter_and_spaces(bencher:&mut Bencher) {
+//         bencher.iter(|| Dfa::from(&letter_and_spaces()))
+//     }
+// }

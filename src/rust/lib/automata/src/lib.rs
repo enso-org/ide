@@ -1,3 +1,6 @@
+//! Implementation of Finite State Automata in both Nondeterministic and Deterministic forms,
+//! together with a set of conversions, processing, analysis, and visualization utilities.
+
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(trivial_casts)]
@@ -5,7 +8,9 @@
 #![warn(unsafe_code)]
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
-#[warn(missing_docs)]
+#![warn(missing_docs)]
+
+#![feature(test)]
 
 pub mod alphabet;
 pub mod data;

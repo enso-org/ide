@@ -662,7 +662,7 @@ mod tests {
     #[test] fn automata_registry_release() { release::<AutomataRegistry<i32>>(); }
     #[test] fn hash_set_registry_release() { release::<HashSetRegistry<i32>>(); }
     fn release<T:Registry<i32>>() -> T {
-        let nothing = Vec::<i32>::new();
+        let nothing  = Vec::<i32>::new();
         let registry = <T>::default();
         registry.add(Release, "ctrl a", 0);
         assert_eq!(registry.on_press("ctrl-left"),nothing);
@@ -679,7 +679,7 @@ mod tests {
     // #[test] fn automata_registry_double_press() { double_press::<AutomataRegistry<i32>>(); }
     #[test] fn hash_set_registry_double_press() { double_press::<HashSetRegistry<i32>>(); }
     fn double_press<T:Registry<i32>>() -> T {
-        let nothing = Vec::<i32>::new();
+        let nothing  = Vec::<i32>::new();
         let registry = <T>::default();
         registry.add(DoublePress, "ctrl a", 0);
         assert_eq!(registry.on_press("ctrl-left"),nothing);
@@ -722,7 +722,7 @@ mod tests {
     #[test] fn hash_set_registry_side_keys() { side_keys::<HashSetRegistry<i32>>(); }
     fn side_keys<T:Registry<i32>>() -> T {
         let nothing = Vec::<i32>::new();
-        let mut registry : T = default();
+        let registry : T = default();
         registry.add(Press, "ctrl meta a", 0);
         for ctrl in &["ctrl","ctrl-left","ctrl-right"] {
             for meta in &["meta","meta-left","meta-right"] {
@@ -751,7 +751,7 @@ mod tests {
     #[test] fn hash_set_registry_valid_states() { valid_states::<HashSetRegistry<i32>>(false); }
     fn valid_states<T:Registry<i32>>(allow_broken_shortcut:bool) -> T {
         let nothing = Vec::<i32>::new();
-        let mut registry : T = default();
+        let registry : T = default();
         registry.add(Press, "ctrl meta a", 0);
         registry.add(Press, "ctrl meta b", 1);
         // First shortcut.
@@ -834,8 +834,8 @@ mod benchmarks {
 
     fn construction<T:Registry<i32>>(input:&str, optimize:bool, bencher:&mut Bencher) -> T {
         bencher.iter(|| {
-            let mut registry : T = default();
-            let max_count        = test::black_box(10);
+            let registry : T = default();
+            let max_count    = test::black_box(10);
             for i in 0..max_count {
                 registry.add(Press,format!("{} a{}",i,input),i);
             }
@@ -860,9 +860,9 @@ mod benchmarks {
     }
 
     fn lookup<T:Registry<i32>>(bencher:&mut Bencher) -> T {
-        let mut registry : T = default();
-        let nothing          = Vec::<i32>::new();
-        let max_count        = test::black_box(100);
+        let registry : T = default();
+        let nothing      = Vec::<i32>::new();
+        let max_count    = test::black_box(100);
         for i in 0..max_count {
             registry.add(Press, format!("ctrl shift a{}",i), i);
         }
