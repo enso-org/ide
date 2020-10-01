@@ -1603,7 +1603,6 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
         (&[ (Press       , "ctrl shift enter" , "debug_push_breadcrumb")
           , (Press       , "ctrl shift up"    , "debug_pop_breadcrumb")
           , (Press       , "escape"           , "cancel_project_name_editing")
-          , (Press       , "ctrl n"           , "add_node_at_cursor") // x
           , (Press       , "ctrl backspace"   , "remove_selected_nodes")
           , (Press       , "ctrl g"           , "collapse_selected_nodes")
           , (Press       , "ctrl space"       , "press_visualization_visibility")
@@ -1624,6 +1623,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
           , (Press       , "meta"             , "edit_mode_on")
           , (Release     , "meta"             , "edit_mode_off")
           , (Release     , "enter"            , "stop_editing")
+          , // (Press       , "ctrl n"           , "add_node_at_cursor")
           ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
 
     }

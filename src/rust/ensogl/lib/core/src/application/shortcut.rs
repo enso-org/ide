@@ -7,8 +7,9 @@ use super::command;
 use crate::frp::io::keyboard;
 use crate::frp::io::mouse::Mouse;
 use crate::frp;
+
 use enso_shortcuts as shortcuts;
-use enso_shortcuts::Registry as TRAIT_Registry; // fixme
+use enso_shortcuts::traits::*;
 
 pub use shortcuts::ActionType;
 

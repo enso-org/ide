@@ -81,7 +81,8 @@ impl Dfa {
                 }
             }
         }
-        let opts = "node [shape=circle style=filled fillcolor=\"#4385f5\" fontcolor=\"#FFFFFF\" color=white penwidth=5.0 margin=0.1 width=0.5 height=0.5 fixedsize=true]";
+        let opts = "node [shape=circle style=filled fillcolor=\"#4385f5\" fontcolor=\"#FFFFFF\" \
+                    color=white penwidth=5.0 margin=0.1 width=0.5 height=0.5 fixedsize=true]";
         format!("digraph G {{\n{}\n{}\n}}\n",opts,out)
     }
 }

@@ -17,17 +17,6 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    // /// A representation of the null symbol.
-    // pub const NULL:Symbol = Symbol{value:0};
-    // /// A representation of the end of the file.
-    // pub const EOF_CODE:Symbol = Symbol{value:u32::max_value()};
-    // /// A representation of an arbitrary invalid unicode symbol.
-    // pub const INVALID_SYMBOL:Symbol = Symbol{value:0xFFFF};
-    // /// A representation of the group reaching its end without matching.
-    // pub const INCOMPLETE_GROUP:Symbol = Symbol{value:u32::max_value() - 1};
-}
-
-impl Symbol {
     pub fn eof() -> Self {
         Self::new(u64::max_value())
     }
@@ -53,9 +42,7 @@ impl Symbol {
 
     /// Next symbol, if any.
     pub fn next(&self) -> Option<Self> {
-        (self.index < u64::max_value() - 1).as_some_from(|| {
-            Self::new(self.index + 1)
-        })
+        self.index.checked_add(1).map(Self::new)
     }
 }
 

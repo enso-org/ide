@@ -43,7 +43,7 @@ macro_rules! define_keys {
         /// A key representation.
         ///
         /// For reference, see the following links:
-        /// - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code/code_values
+        /// https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
         #[derive(Clone,Debug,Eq,Hash,PartialEq)]
         #[allow(missing_docs)]
         pub enum Key {
@@ -57,6 +57,9 @@ macro_rules! define_keys {
         // === KEY_NAME_MAP ===
 
         lazy_static! {
+            /// A mapping from a name to key instance. Please note that all side-aware keys are
+            /// instantiated to the left binding. The correct assignment (left/right) is done in a
+            /// separate step.
             static ref KEY_NAME_MAP: HashMap<&'static str,Key> = {
                 use Key::*;
                 use Side::*;
@@ -70,7 +73,7 @@ macro_rules! define_keys {
 }
 
 define_keys! {
-    Side    {Alt,Control,Meta,Shift}
+    Side    {Alt,AltGr,AltGraph,Control,Meta,Shift}
     Regular {
         ArrowDown,
         ArrowLeft,
@@ -83,18 +86,25 @@ define_keys! {
 }
 
 impl Key {
-    /// Constructor.
-    pub fn new(label:String, code:String) -> Self {
-        let label_ref : &str = &label;
+    /// Constructor. The `key` is used to distinguish between keys, while the `code` is used to
+    /// check whether it was left or right key in case of side-aware keys. It's important to use the
+    /// `key` to distinguish between keys, as it it hardware independent. For example, `alt a` could
+    /// result in key `ą` in some keyboard layouts and the code `KeyA`. When layout changes, the
+    /// symbol `ą` could be mapped to a different hardware key. Check the following side for more
+    /// info: https://keycode.info.
+    pub fn new(key:String, code:String) -> Self {
+        let label_ref : &str = &key;
         let code_ref  : &str = &code;
-        if label.graphemes(true).count() == 1 { Self::Character(label) } else {
-            let key = KEY_NAME_MAP.get(label_ref).cloned().unwrap_or(Self::Other(label));
+        if key.graphemes(true).count() == 1 { Self::Character(key) } else {
+            let key = KEY_NAME_MAP.get(label_ref).cloned().unwrap_or(Self::Other(key));
             match (key,code_ref) {
-                (Self::Alt     (_), "AltRight")     => Self::Alt     (Side::Right),
-                (Self::Control (_), "ControlRight") => Self::Control (Side::Right),
-                (Self::Meta    (_), "MetaRight")    => Self::Meta    (Side::Right),
-                (Self::Shift   (_), "ShiftRight")   => Self::Shift   (Side::Right),
-                (other,_)                           => other,
+                (Self::Alt      (_), "AltRight")     => Self::Alt      (Side::Right),
+                (Self::AltGr    (_), "AltRight")     => Self::AltGr    (Side::Right),
+                (Self::AltGraph (_), "AltRight")     => Self::AltGraph (Side::Right),
+                (Self::Control  (_), "ControlRight") => Self::Control  (Side::Right),
+                (Self::Meta     (_), "MetaRight")    => Self::Meta     (Side::Right),
+                (Self::Shift    (_), "ShiftRight")   => Self::Shift    (Side::Right),
+                (other,_)                            => other,
             }
         }
     }
@@ -105,19 +115,23 @@ impl Key {
     /// keep it consistent.
     pub fn can_be_missing_when_meta_is_down(&self) -> bool {
         match self {
-            Self::Alt     (_) => false,
-            Self::Control (_) => false,
-            Self::Meta    (_) => false,
-            Self::Shift   (_) => false,
-            _                 => true
+            Self::Alt      (_) => false,
+            Self::AltGr    (_) => false,
+            Self::AltGraph (_) => false,
+            Self::Control  (_) => false,
+            Self::Meta     (_) => false,
+            Self::Shift    (_) => false,
+            _                  => true
         }
     }
 
-    /// Simple, lowercase name of a key.
+    /// Simple, kebab-case name of a key.
     pub fn simple_name(&self) -> String {
         let fmt = |side:&Side,repr| format!("{}-{}",repr,side.simple_name());
         match self {
             Self::Alt       (side) => fmt(side,"alt"),
+            Self::AltGr     (side) => fmt(side,"alt-graph"),
+            Self::AltGraph  (side) => fmt(side,"alt-graph"),
             Self::Control   (side) => fmt(side,"ctrl"),
             Self::Meta      (side) => fmt(side,"meta"),
             Self::Shift     (side) => fmt(side,"shift"),

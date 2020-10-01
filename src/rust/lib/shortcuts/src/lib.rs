@@ -25,6 +25,17 @@ pub use logger;
 
 
 
+// ==============
+// === Traits ===
+// ==============
+
+/// Common traits.
+pub mod traits {
+    pub use super::Registry as TRAIT_Registry;
+}
+
+
+
 // ===============
 // === Helpers ===
 // ===============
@@ -54,7 +65,7 @@ fn reverse_key(key:&str) -> String {
 
 /// List of special keys. Special keys can be grouped together to distinguish action sequences like
 /// `ctrl + a` and `a + ctrl`. Please note, that this is currently not happening.
-const SIDE_KEYS : &[&str] = &["ctrl","alt","meta","cmd","shift"];
+const SIDE_KEYS : &[&str] = &["ctrl","alt","alt-graph","meta","cmd","shift"];
 
 const DOUBLE_EVENT_TIME_MS : f32 = 500.0;
 
@@ -65,6 +76,9 @@ const DOUBLE_EVENT_TIME_MS : f32 = 500.0;
 // ==================
 
 /// The type of the action. Could be applied to keyboard, mouse, or any mix of input events.
+/// As a clarification, the event `DoublePress` is emitted on second press of a button/key happening
+/// in short time interval from the first one. `DoubleClick`, on the other hand, happens on release,
+/// not on press.
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
 #[allow(missing_docs)]
 pub enum ActionType {
@@ -355,7 +369,7 @@ impl<T> Default for AutomataRegistryModel<T> {
 // === AutomataRegistry ===
 // ========================
 
-// FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME
+// FIXME
 // Replace T with Vec<T> to prevent shortcut override.
 
 /// Shortcut registry implementation based on a finite state automata. When defining shortcuts,
@@ -427,27 +441,24 @@ pub trait HashSetRegistryItem = Clone+Debug+Eq+Hash;
 /// Internal model for `HashSetRegistry`.
 #[derive(Debug)]
 pub struct HashSetRegistryModel<T> {
-    actions           : HashMap<ActionType,HashMap<String,Vec<T>>>,
-    pressed           : HashSet<String>,
-    press_times       : HashMap<String,f32>,
-    release_times     : HashMap<String,f32>,
-    side_keys         : HashMap<String,Vec<String>>,
-    key_normalization : HashMap<String,String>,
-    key_aliases       : HashMap<String,String>,
+    actions       : HashMap<ActionType,HashMap<String,Vec<T>>>,
+    pressed       : HashSet<String>,
+    press_times   : HashMap<String,f32>,
+    release_times : HashMap<String,f32>,
+    side_keys     : HashMap<String,Vec<String>>,
+    key_aliases   : HashMap<String,String>,
 }
 
 impl<T> HashSetRegistryModel<T> {
     /// Constructor.
     pub fn new() -> Self {
-        let actions           = default();
-        let pressed           = default();
-        let press_times       = default();
-        let release_times     = default();
-        let side_keys         = default();
-        let key_normalization = key_name_normalization();
-        let key_aliases       = key_aliases();
-        Self {actions,pressed,press_times,release_times,side_keys,key_normalization,key_aliases}
-            . init()
+        let actions       = default();
+        let pressed       = default();
+        let press_times   = default();
+        let release_times = default();
+        let side_keys     = default();
+        let key_aliases   = key_aliases();
+        Self {actions,pressed,press_times,release_times,side_keys,key_aliases} . init()
     }
 
     fn init(mut self) -> Self {
@@ -477,7 +488,6 @@ impl<T:HashSetRegistryItem> HashSetRegistryModel<T> {
 
     fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
         let input = input.as_ref().to_lowercase();
-        let input = self.key_normalization.get(&input).cloned().unwrap_or(input);
         let expr = if press {
             self.pressed.insert(input);
             self.current_expr()
@@ -551,18 +561,6 @@ impl<T> Default for HashSetRegistryModel<T> {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn key_name_normalization() -> HashMap<String,String> {
-    let mut map = HashMap::<String,String>::new();
-    let insert  = |map:&mut HashMap::<String,String>, k:&str, v:&str| {
-        map.insert(k.into(),v.into());
-    };
-    insert(&mut map, "arrowleft"  , "arrow-left");
-    insert(&mut map, "arrowright" , "arrow-right");
-    insert(&mut map, "arrowup"    , "arrow-up");
-    insert(&mut map, "arrowdown"  , "arrow-down");
-    map
 }
 
 fn key_aliases() -> HashMap<String,String> {

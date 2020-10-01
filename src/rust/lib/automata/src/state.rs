@@ -36,7 +36,7 @@ impl<T> State<T> {
 impl<T> State<T> {
     /// Constructor. Not exposed to public as it should never be possible to construct a state
     /// from a number.
-    pub const fn new(id:usize) -> Self {
+    pub(crate) const fn new(id:usize) -> Self {
         let tp = PhantomData;
         Self {tp,id}
     }
@@ -111,30 +111,6 @@ impl Data {
 }
 
 
-// === Trait Impls ====
-
-impl From<Vec<usize>> for Data {
-    /// Creates a state with epsilon links.
-    fn from(vec:Vec<usize>) -> Self {
-        let epsilon_links = vec.iter().cloned().map(State::new).collect();
-        Data {epsilon_links,..Default::default()}
-    }
-}
-
-impl From<Vec<(RangeInclusive<u64>, usize)>> for Data {
-    /// Creates a state with ordinary links.
-    fn from(vec:Vec<(RangeInclusive<u64>, usize)>) -> Self {
-        let link = |(range, id): (RangeInclusive<u64>, usize)| {
-            let start = Symbol::new(*range.start());
-            let end   = Symbol::new(*range.end());
-            Transition::new(start..=end, State::new(id))
-        };
-        let links = vec.iter().cloned().map(link).collect();
-        Data {links,..Default::default()}
-    }
-}
-
-
 
 // ==================
 // === Transition ===
@@ -160,6 +136,40 @@ impl Transition {
             format!("{}",self.symbols.start())
         } else {
             format!("{} .. {}",self.symbols.start(),self.symbols.end())
+        }
+    }
+}
+
+
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // === Trait Impls ====
+
+    impl From<Vec<usize>> for Data {
+        /// Creates a state with epsilon links.
+        fn from(vec:Vec<usize>) -> Self {
+            let epsilon_links = vec.iter().cloned().map(State::new).collect();
+            Data {epsilon_links,..Default::default()}
+        }
+    }
+
+    impl From<Vec<(RangeInclusive<u64>, usize)>> for Data {
+        /// Creates a state with ordinary links.
+        fn from(vec:Vec<(RangeInclusive<u64>, usize)>) -> Self {
+            let link = |(range, id): (RangeInclusive<u64>, usize)| {
+                let start = Symbol::new(*range.start());
+                let end   = Symbol::new(*range.end());
+                Transition::new(start..=end, State::new(id))
+            };
+            let links = vec.iter().cloned().map(link).collect();
+            Data {links,..Default::default()}
         }
     }
 }

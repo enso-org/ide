@@ -69,6 +69,7 @@ impl Segmentation {
         dict
     }
 
+    /// Seal the segmentation.
     pub fn seal(&self) -> SealedSegmentation {
         self.into()
     }
@@ -93,13 +94,17 @@ impl Default for Segmentation {
 // === SealedSegmentation ===
 // ==========================
 
-
+/// An immutable version of `Segmentation` which consists cached information allowing for fast
+/// segmentation analysis.
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
+#[allow(missing_docs)]
 pub struct SealedSegmentation {
     pub division_map : BTreeMap<Symbol,usize>
 }
 
 impl SealedSegmentation {
+    /// The index of the provided symbol. Please note that the index always exists, as the alphabet
+    /// spans across all possible symbols.
     pub fn index_of_symbol(&self, symbol:&Symbol) -> usize {
         self.range(symbol..).next().map(|(k,v)|{
             if k == symbol { *v } else { v - 1 }

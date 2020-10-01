@@ -371,6 +371,10 @@ ensogl_core::def_command_api! { Commands
     cursor_move_left_word,
     /// Move the cursor to the right by one word.
     cursor_move_right_word,
+    /// Move the cursor to the beginning of the line.
+    cursor_move_left_of_line,
+    /// Move the cursor to the end of the line.
+    cursor_move_right_of_line,
     /// Move the cursor down one line.
     cursor_move_down,
     /// Move the cursor up one line.
@@ -604,6 +608,9 @@ impl Area {
             eval_ cmd.cursor_move_left_word  (m.buffer.frp.cursors_move(Transform::LeftWord));
             eval_ cmd.cursor_move_right_word (m.buffer.frp.cursors_move(Transform::RightWord));
 
+            eval_ cmd.cursor_move_left_of_line  (m.buffer.frp.cursors_move(Transform::LeftOfLine));
+            eval_ cmd.cursor_move_right_of_line (m.buffer.frp.cursors_move(Transform::RightOfLine));
+
             eval_ cmd.cursor_select_left  (m.buffer.frp.cursors_select(Transform::Left));
             eval_ cmd.cursor_select_right (m.buffer.frp.cursors_select(Transform::Right));
             eval_ cmd.cursor_select_up    (m.buffer.frp.cursors_select(Transform::Up));
@@ -624,7 +631,6 @@ impl Area {
 
             // === Insert ===
 
-            // key_to_insert <- keyboard.frp.down.sample(&cmd.insert_char_of_last_pressed_key);
             key_to_insert <= keyboard.frp.down.map(f!((key) m.key_to_string(key)));
             str_to_insert <- any(&input.insert,&key_to_insert);
             eval str_to_insert ((s) m.buffer.frp.insert(s));
@@ -956,6 +962,8 @@ impl application::shortcut::DefaultShortcutProvider for Area {
           , (Press       , "down"                    , "cursor_move_down")
           , (Press       , "meta left"               , "cursor_move_left_word")
           , (Press       , "meta right"              , "cursor_move_right_word")
+          , (Press       , "meta alt left"           , "cursor_move_left_of_line")
+          , (Press       , "meta alt right"          , "cursor_move_right_of_line")
           , (Press       , "shift left"              , "cursor_select_left")
           , (Press       , "shift right"             , "cursor_select_right")
           , (Press       , "meta shift left"         , "cursor_select_left_word")
