@@ -349,6 +349,8 @@ ensogl_core::def_command_api! { Commands
     decrease_indentation,
     /// Removes the character on the left of every cursor.
     delete_left,
+    /// Removes the character on the right of every cursor.
+    delete_right,
     /// Removes the word on the left of every cursor.
     delete_word_left,
     /// Set the text cursor at the mouse cursor position.
@@ -623,6 +625,7 @@ impl Area {
             eval_ cmd.select_word_at_cursor (m.buffer.frp.cursors_select(Transform::Word));
 
             eval_ cmd.delete_left      (m.buffer.frp.delete_left());
+            eval_ cmd.delete_right     (m.buffer.frp.delete_right());
             eval_ cmd.delete_word_left (m.buffer.frp.delete_word_left());
 
             eval_ cmd.undo (m.buffer.frp.undo());
@@ -964,6 +967,8 @@ impl application::shortcut::DefaultShortcutProvider for Area {
           , (Press       , "meta right"              , "cursor_move_right_word")
           , (Press       , "meta alt left"           , "cursor_move_left_of_line")
           , (Press       , "meta alt right"          , "cursor_move_right_of_line")
+          , (Press       , "home"                    , "cursor_move_left_of_line")
+          , (Press       , "end"                     , "cursor_move_right_of_line")
           , (Press       , "shift left"              , "cursor_select_left")
           , (Press       , "shift right"             , "cursor_select_right")
           , (Press       , "meta shift left"         , "cursor_select_left_word")
@@ -971,6 +976,7 @@ impl application::shortcut::DefaultShortcutProvider for Area {
           , (Press       , "shift up"                , "cursor_select_up")
           , (Press       , "shift down"              , "cursor_select_down")
           , (Press       , "backspace"               , "delete_left")
+          , (Press       , "delete"                  , "delete_right")
           , (Press       , "meta backspace"          , "delete_word_left")
           , (Press       , "shift left-mouse-button" , "set_newest_selection_end_to_mouse_position")
           , (DoublePress , "left-mouse-button"       , "select_word_at_cursor")

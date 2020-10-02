@@ -143,8 +143,8 @@ pub fn init() -> std::time::Instant {
     }
 }
 
-/// Results in a start time of the program. Please note that the program should call the `init`
-/// function as its first operation.
+/// Start time of the program. Please note that the program should call the `init` function as its
+/// first operation.
 ///
 /// # Safety
 /// The following modifies a global variable, however, even in case of a race condition, nothing

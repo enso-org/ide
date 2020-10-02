@@ -55,7 +55,7 @@ pub struct Segmentation {
 impl Segmentation {
     /// Inserts a range of symbols into the alphabet.
     pub fn insert(&mut self,range:RangeInclusive<Symbol>) {
-        self.divisions.insert(Symbol::from(range.start()));
+        self.divisions.insert(range.start().clone());
         let end = range.end().clone();
         end.next().for_each(|t| self.divisions.insert(t));
     }

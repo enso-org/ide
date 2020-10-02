@@ -1623,6 +1623,7 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
           , (Press       , "meta"             , "edit_mode_on")
           , (Release     , "meta"             , "edit_mode_off")
           , (Release     , "enter"            , "stop_editing")
+          // FIXME[WD] We need to add something like that to debug shapes.
           , // (Press       , "ctrl n"           , "add_node_at_cursor")
           ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
 

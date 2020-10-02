@@ -141,12 +141,16 @@ impl<Input> Debug for EventInput<Input> {
 /// networks drastically.
 #[derive(Debug)]
 pub struct NodeData<Out=()> {
-    label         : Label,
+    /// Please be very careful when working with this field. When an event is emitted, this field
+    /// is borrowed mutable. You should always borrow it only if `during_call` is false. Otherwise,
+    /// if you want to register new outputs during a call, use `new_targets` field instead. It will
+    /// be merged into `targets` directly after the call.
     targets       : RefCell<Vec<EventInput<Out>>>,
     new_targets   : RefCell<Vec<EventInput<Out>>>,
     value_cache   : RefCell<Out>,
     during_call   : Cell<bool>,
     watch_counter : watch::Counter,
+    label         : Label,
 }
 
 impl<Out:Default> NodeData<Out> {

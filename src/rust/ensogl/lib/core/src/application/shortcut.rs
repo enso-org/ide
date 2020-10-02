@@ -19,10 +19,8 @@ pub use shortcuts::ActionType;
 // === Rule ===
 // ============
 
-/// Keyboard action defined as `ActionType` and `ActionPattern`, like "press both key 'n' and primary
-/// mouse button". Please note that the release action happens as soon as the key mask is no longer
-/// valid. For example, pressing key "n", and then pressing key "a" (while holding "n") will trigger
-/// the release event for the key "n".
+/// Shortcut action rule, a combination of `ActionType`, like `Press` and a pattern, like
+/// "ctrl shift s".
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 #[allow(missing_docs)]
 pub struct Rule {
@@ -77,11 +75,11 @@ pub enum Condition {
 
 
 
-// ============
+// ==============
 // === Action ===
-// ============
+// ==============
 
-/// A shortcut rule. Consist of target identifier (like "TextEditor"), a `Command` that will be
+/// A shortcut action. Consist of target identifier (like "TextEditor"), a `Command` that will be
 /// evaluated on the target, and a `Condition` which needs to be true in order for the command
 /// to be executed.
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -117,25 +115,25 @@ impl Action {
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Shrinkwrap)]
 pub struct Shortcut {
     #[shrinkwrap(main_field)]
-    rule   : Action,
-    action : Rule,
+    action : Action,
+    rule   : Rule,
 }
 
 impl Shortcut {
     /// Constructor. Version without condition checker.
-    pub fn new<A,T,C>(action:A, target:T, command:C) -> Self
+    pub fn new<A,T,C>(rule:A, target:T, command:C) -> Self
     where A:Into<Rule>, T:Into<String>, C:Into<Command> {
-        let rule   = Action::new(target,command);
-        let action = action.into();
-        Self {rule,action}
+        let action = Action::new(target,command);
+        let rule   = rule.into();
+        Self {action,rule}
     }
 
     /// Constructor.
-    pub fn new_when<A,T,C>(action:A, target:T, command:C, condition:Condition) -> Self
+    pub fn new_when<A,T,C>(rule:A, target:T, command:C, condition:Condition) -> Self
         where A:Into<Rule>, T:Into<String>, C:Into<Command> {
-        let rule     = Action::new_when(target,command,condition);
-        let action = action.into();
-        Self {rule,action}
+        let action = Action::new_when(target,command,condition);
+        let rule   = rule.into();
+        Self {action,rule}
     }
 }
 
@@ -179,8 +177,10 @@ impl Deref for Registry {
 
 impl Registry {
     /// Constructor.
-    pub fn new(logger:&Logger, mouse:&Mouse, keyboard:&keyboard::Keyboard, command_registry:&command::Registry) -> Self {
-        let model = RegistryModel::new(logger,mouse,keyboard,command_registry);
+    pub fn new
+    (logger:&Logger, mouse:&Mouse, keyboard:&keyboard::Keyboard, cmd_registry:&command::Registry)
+    -> Self {
+        let model = RegistryModel::new(logger,mouse,keyboard,cmd_registry);
         let mouse = &model.mouse;
 
         frp::new_network! { network
@@ -198,7 +198,11 @@ impl Registry {
 impl RegistryModel {
     /// Constructor.
     pub fn new
-    (logger:impl AnyLogger, mouse:&Mouse, keyboard:&keyboard::Keyboard, command_registry:&command::Registry) -> Self {
+    ( logger           : impl AnyLogger
+    , mouse            : &Mouse
+    , keyboard         : &keyboard::Keyboard
+    , command_registry : &command::Registry
+    ) -> Self {
         let logger             = Logger::sub(logger,"ShortcutRegistry");
         let keyboard           = keyboard.clone_ref();
         let mouse              = mouse.clone_ref();
@@ -212,7 +216,7 @@ impl RegistryModel {
         {
             let borrowed_command_map = self.command_registry.instances.borrow();
             for rule in rules {
-                let target = &rule.rule.target;
+                let target = &rule.action.target;
                 borrowed_command_map.get(target).for_each(|commands| {
                     for command in commands {
                         if Self::condition_checker(&rule.when,&command.status_map) {
@@ -244,7 +248,7 @@ impl RegistryModel {
 impl Add<Shortcut> for &Registry {
     type Output = ();
     fn add(self, shortcut:Shortcut) {
-        self.model.shortcuts_registry.add(shortcut.action.tp,&shortcut.action.pattern,shortcut.clone()); // fixme clone
+        self.model.shortcuts_registry.add(shortcut.rule.tp,&shortcut.rule.pattern,shortcut.clone());
     }
 }
 

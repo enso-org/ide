@@ -10,7 +10,7 @@ use crate::system::web::text_input::bind_frp_to_js_keyboard_actions;
 use crate::system::web::platform;
 
 use enso_frp as frp;
-use enso_frp::io::Keyboard;
+use enso_frp::io::keyboard_old::Keyboard;
 use enso_frp::io::keyboard_old;
 
 

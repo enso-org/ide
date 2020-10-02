@@ -80,7 +80,13 @@ define_keys! {
         ArrowRight,
         ArrowUp,
         Backspace,
+        Delete,
+        End,
         Enter,
+        Home,
+        Insert,
+        PageDown,
+        PageUp,
         Space,
     }
 }
@@ -90,7 +96,7 @@ impl Key {
     /// check whether it was left or right key in case of side-aware keys. It's important to use the
     /// `key` to distinguish between keys, as it it hardware independent. For example, `alt a` could
     /// result in key `ą` in some keyboard layouts and the code `KeyA`. When layout changes, the
-    /// symbol `ą` could be mapped to a different hardware key. Check the following side for more
+    /// symbol `ą` could be mapped to a different hardware key. Check the following site for more
     /// info: https://keycode.info.
     pub fn new(key:String, code:String) -> Self {
         let label_ref : &str = &key;
@@ -141,7 +147,13 @@ impl Key {
             Self::ArrowRight       => "arrow-right".into(),
             Self::ArrowUp          => "arrow-up".into(),
             Self::Backspace        => "backspace".into(),
+            Self::Delete           => "delete".into(),
+            Self::End              => "end".into(),
             Self::Enter            => "enter".into(),
+            Self::Home             => "home".into(),
+            Self::Insert           => "insert".into(),
+            Self::PageDown         => "page-down".into(),
+            Self::PageUp           => "page-up".into(),
             Self::Space            => "space".into(),
 
             Self::Character (repr) => repr.into(),
