@@ -416,6 +416,88 @@ pub mod test {
         }
     }
 
+    // Ensures that subsequent operations form a consistent series of versions.
+    struct EditHandler {
+        current_ls_code    : Rc<CloneCell<String>>,
+        current_ls_version : Rc<CloneCell<Sha3_224>>,
+    }
+
+    impl EditHandler {
+        fn new(initial_code:impl Into<String>) -> Self {
+            let current_ls_code    = initial_code.into();
+            let current_ls_version = Sha3_224::new(current_ls_code.as_bytes());
+            Self {
+                current_ls_code    : Rc::new(CloneCell::new(current_ls_code)),
+                current_ls_version : Rc::new(CloneCell::new(current_ls_version)),
+            }
+        }
+    }
+
+    fn apply_edit(code:&str, edit:&language_server::TextEdit) -> String {
+        let start = TextLocation::from(edit.range.start.into()).to_index(code);
+        let end = TextLocation::from(edit.range.end.into()).to_index(code);
+        data::text::TextChange::replace(start..end,edit.text.clone()).applied(code)
+    }
+
+    #[test]
+    fn handling_good() {
+        use utils::test::traits::*;
+
+        let initial_code = "main =\n    println \"Hello World!\"";
+
+        let mut data = crate::test::mock::Unified::new();
+        data.set_code(initial_code);
+
+        let mut edit_handler = Rc::new(EditHandler::new(initial_code));
+
+        let mut fixture = data.fixture_customize(|data,client| {
+            data.expect_opening_the_module(client);
+            data.expect_closing_the_module(client);
+
+            let path = data.module_path.file_path().clone();
+            client.expect.apply_text_file_edit(move |edits| {
+
+                let code_so_far = edit_handler.current_ls_code.get();
+                let end_of_file = TextLocation::at_document_end(&code_so_far);
+                let (edit,)     = edits.edits.iter().expect_tuple();
+                let expected_range = language_server::types::TextRange {
+                    start : language_server::types::Position { line:0,character:0  },
+                    end   : end_of_file.into(),
+                };
+                assert_eq!(edit.range, expected_range);
+                let new_contents = apply_edit(&code_so_far,edit);
+                let new_version = Sha3_224::new(new_contents.as_bytes());
+
+                assert_eq!(edits.path,path);
+                assert_eq!(edits.old_version,edit_handler.current_ls_version.get());
+                assert_eq!(edits.new_version,new_version);
+
+                println!("Version {} => {}", edit_handler.current_ls_version.get(),new_version);
+                println!("New contents:\n===\n{}\n===",new_contents);
+
+                edit_handler.current_ls_code.set(new_contents);
+                edit_handler.current_ls_version.set(new_version);
+                // let new_contents =
+                // edit_handler.current_ls_version.set(new_hash);
+                Ok(())
+            });
+        });
+        let module = fixture.module.clone();
+        let parser = data.parser.clone();
+
+        let new_content = "main =\n    println \"Test\"".to_string();
+        let new_ast     = parser.parse_module(new_content.clone(),default()).unwrap();
+
+
+        let path = data.module_path.clone();
+        let ls   = fixture.project.json_rpc().clone();
+
+        let module = Module::open(path,ls,parser.clone()).boxed_local().expect_ready().unwrap();
+
+
+
+    }
+
     #[wasm_bindgen_test]
     fn handling_notifications() {
         let path            = model::module::Path::from_mock_module_name("TestModule");

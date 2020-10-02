@@ -12,6 +12,9 @@ use enso_protocol::language_server;
 /// Utilities for mocking IDE components.
 pub mod mock {
     use super::*;
+    use enso_protocol::types::Sha3_224;
+    use enso_protocol::language_server::CapabilityRegistration;
+    use json_rpc::expect_call;
 
     /// Data used to create mock IDE components.
     ///
@@ -112,6 +115,9 @@ pub mod mock {
         }
     }
 
+    /// This mock data represents a rudimentary enviromment consisting of a project with a single
+    /// module. The module contents is provided by default by [data::CODE], can be overwritten by
+    /// calling [set_code] or [set_inline_code].
     #[derive(Clone,Debug)]
     pub struct Unified {
         pub logger        : Logger,
@@ -253,6 +259,28 @@ pub mod mock {
                 project,
                 searcher,
             }
+        }
+
+        pub fn expect_opening_the_module
+        (&self, client:&mut enso_protocol::language_server::MockClient) {
+            let content          = self.code.clone();
+            let current_version  = Sha3_224::new(content.as_bytes());
+            let path             = self.module_path.file_path().clone();
+            let write_capability = Some(CapabilityRegistration::create_can_edit_text_file(path));
+            let open_resp        = language_server::response::OpenTextFile {
+                write_capability,
+                content,
+                current_version,
+            };
+
+            let path = self.module_path.file_path().clone();
+            expect_call!(client.open_text_file(path=path) => Ok(open_resp));
+        }
+
+        pub fn expect_closing_the_module
+        (&self, client:&mut enso_protocol::language_server::MockClient) {
+            let path             = self.module_path.file_path().clone();
+            expect_call!(client.close_text_file(path=path) => Ok(()));
         }
     }
 

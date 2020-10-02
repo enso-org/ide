@@ -394,6 +394,18 @@ impl TextLocation {
         Self::after_chars(before)
     }
 
+    pub fn to_index(&self, content:impl AsRef<str>) -> Index {
+        let line_index = match self.line {
+            0 => 0,
+            _ => {
+                let newlines = content.as_ref().chars().enumerate().filter(|(_,c)| *c == '\n');
+                let mut newlines_indices = newlines.map(|(i,_)| i);
+                newlines_indices.nth(self.line.saturating_sub(1)).map_or(0, |i| i + 1)
+            }
+        };
+        Index::new(line_index + self.column)
+    }
+
     /// Converts a range of indices into a range of TextLocation. It iterates over all characters
     /// before range's end.
     pub fn convert_range(content:impl Str, range:&Range<Index>) -> Range<Self> {
@@ -555,23 +567,29 @@ mod test {
 
     use super::Index;
 
+    fn assert_round_trip(str:&str, index:Index, location:TextLocation) {
+        assert_eq!(TextLocation::from_index(str,index),location);
+        assert_eq!(location.to_index(str),index);
+    }
+
     #[test]
     fn converting_index_to_location() {
         let str = "first\nsecond\nthird";
-        assert_eq!(TextLocation::from_index(str,Index::new(0)),  TextLocation {line:0, column:0});
-        assert_eq!(TextLocation::from_index(str,Index::new(5)),  TextLocation {line:0, column:5});
-        assert_eq!(TextLocation::from_index(str,Index::new(6)),  TextLocation {line:1, column:0});
-        assert_eq!(TextLocation::from_index(str,Index::new(9)),  TextLocation {line:1, column:3});
-        assert_eq!(TextLocation::from_index(str,Index::new(12)), TextLocation {line:1, column:6});
-        assert_eq!(TextLocation::from_index(str,Index::new(13)), TextLocation {line:2, column:0});
-        assert_eq!(TextLocation::from_index(str,Index::new(18)), TextLocation {line:2, column:5});
+        assert_round_trip(str, Index::new(0), TextLocation {line:0, column:0});
+        assert_round_trip(str,Index::new(5),  TextLocation {line:0, column:5});
+        assert_round_trip(str,Index::new(6),  TextLocation {line:1, column:0});
+        assert_round_trip(str,Index::new(9),  TextLocation {line:1, column:3});
+        assert_round_trip(str,Index::new(12), TextLocation {line:1, column:6});
+        assert_round_trip(str,Index::new(13), TextLocation {line:2, column:0});
+        assert_round_trip(str,Index::new(18), TextLocation {line:2, column:5});
 
         let str = "";
-        assert_eq!(TextLocation {line:0, column:0}, TextLocation::from_index(str,Index::new(0)));
+        assert_round_trip(str,Index::new(0), TextLocation {line:0, column:0});
+        //assert_eq!(TextLocation {line:0, column:0}, TextLocation::from_index(str,Index::new(0)));
 
         let str= "\n";
-        assert_eq!(TextLocation {line:0, column:0}, TextLocation::from_index(str,Index::new(0)));
-        assert_eq!(TextLocation {line:1, column:0}, TextLocation::from_index(str,Index::new(1)));
+        assert_round_trip(str,Index::new(0), TextLocation {line:0, column:0});
+        assert_round_trip(str,Index::new(1), TextLocation {line:1, column:0});
     }
 
     #[test]

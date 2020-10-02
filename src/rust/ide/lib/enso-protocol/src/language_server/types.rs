@@ -321,8 +321,8 @@ impls!{ From + &From <Range<data::text::TextLocation>> for TextRange { |range|
     }
 }}
 
-impls!{ Into + &Into <Range<data::text::TextLocation>> for TextRange { |this|
-    this.start.into()..this.end.into()
+impls!{ From + &From <TextRange> for Range<data::text::TextLocation> { |range|
+    range.start.into()..range.end.into()
 }}
 
 
