@@ -313,7 +313,7 @@ define_default_theme! { light
     widget {
         list_view {
             background {
-                color = color::Lcha::new(0.94,0.013,0.18,1.0)
+                color = color::Lcha::new(0.98,0.013,0.18,1.0)
             }
             shadow {
                 color        = color::Lcha::new(0.0,0.0,0.0,0.20);
