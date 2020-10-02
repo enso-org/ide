@@ -1458,7 +1458,7 @@ impl<T> From<EscapeUnicode32> for SegmentFmt<T> {
 mod tests {
     use super::*;
 
-    use data::text::Size;
+    use enso_data::text::Size;
     use serde::de::DeserializeOwned;
 
     use utils::test::ExpectTuple;
