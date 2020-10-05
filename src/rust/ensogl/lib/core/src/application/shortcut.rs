@@ -43,7 +43,7 @@ impl Rule {
 // === Command ===
 // ===============
 
-/// A command name.
+/// A command, textual label of action that should be evaluated in the target component.
 #[derive(Clone,Debug,Eq,From,Hash,Into,PartialEq,Shrinkwrap)]
 pub struct Command {
     name : String,
@@ -67,7 +67,7 @@ impl From<&str> for Command {
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 #[allow(missing_docs)]
 pub enum Condition {
-    Ok,
+    Always,
     Simple (String),
     // Or  (Box<Condition>, Box<Condition>),
     // And (Box<Condition>, Box<Condition>),
@@ -91,9 +91,8 @@ pub struct Action {
 
 impl Action {
     /// Constructor. Version without condition checker.
-    pub fn new<T,C>(target:T, command:C) -> Self
-        where T:Into<String>, C:Into<Command> {
-        Self::new_when(target,command,Condition::Ok)
+    pub fn new(target:impl Into<String>, command:impl Into<Command>) -> Self {
+        Self::new_when(target,command,Condition::Simple("is_active".into()))
     }
 
     /// Constructor.
@@ -239,7 +238,7 @@ impl RegistryModel {
     fn condition_checker
     (condition:&Condition, status_map:&HashMap<String,command::Status>) -> bool {
         match condition {
-            Condition::Ok           => true,
+            Condition::Always       => true,
             Condition::Simple(name) => status_map.get(name).map(|t| t.frp.value()).unwrap_or(false)
         }
     }
