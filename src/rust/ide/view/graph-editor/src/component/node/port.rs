@@ -24,7 +24,8 @@ use super::super::node;
 
 use crate::Type;
 use crate::component::type_coloring::TypeColorMap;
-
+use crate::dynamic_color::DynamicColor;
+use crate::dynamic_color;
 
 
 // ============
@@ -36,7 +37,7 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, hover:f32) {
+        (style:Style, hover:f32, dimmed:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius = 6.px();
@@ -56,18 +57,19 @@ pub fn sort_hack(scene:&Scene) {
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct Events {
-    pub network         : frp::Network,
-    pub cursor_style    : frp::Stream<cursor::Style>,
-    pub press           : frp::Stream<span_tree::Crumbs>,
-    pub hover           : frp::Stream<Option<span_tree::Crumbs>>,
-    pub start_edit_mode : frp::Source,
-    pub stop_edit_mode  : frp::Source,
-    pub width           : frp::Stream<f32>,
-    pub expression      : frp::Stream<Text>,
-    editing             : frp::nodes::Sampler<bool>,
-    press_source        : frp::Source<span_tree::Crumbs>,
-    hover_source        : frp::Source<Option<span_tree::Crumbs>>,
-    cursor_style_source : frp::Any<cursor::Style>,
+    pub network          : frp::Network,
+    pub cursor_style     : frp::Stream<cursor::Style>,
+    pub press            : frp::Stream<span_tree::Crumbs>,
+    pub hover            : frp::Stream<Option<span_tree::Crumbs>>,
+    pub start_edit_mode  : frp::Source,
+    pub stop_edit_mode   : frp::Source,
+    pub width            : frp::Stream<f32>,
+    pub expression       : frp::Stream<Text>,
+    pub set_dimmed       : frp::Source<bool>,
+    editing              : frp::nodes::Sampler<bool>,
+    press_source         : frp::Source<span_tree::Crumbs>,
+    hover_source         : frp::Source<Option<span_tree::Crumbs>>,
+    cursor_style_source  : frp::Any<cursor::Style>,
 }
 
 
@@ -143,6 +145,7 @@ impl Manager {
         let type_color_map = default();
         let label          = app.new_view::<text::Area>();
         let ports          = default();
+        let text_color     = DynamicColor::new(&app);
 
         // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
         // It needs to be more flexible once we have proper depth management.
@@ -157,6 +160,7 @@ impl Manager {
             start_edit_mode     <- source();
             stop_edit_mode      <- source();
             editing             <- label.active.sampler();
+            set_dimmed          <- source();
 
             eval_ start_edit_mode ([label] {
                 label.set_active_on();
@@ -171,6 +175,22 @@ impl Manager {
             width <- label.width.map(|w|*w);
 
             expression <- label.content.map(|t| t.clone_ref());
+
+
+            // === Color Handling ===
+
+            eval text_color.frp.color ((color) {
+                // FIXME: This does not seem to update existing text.
+                label.set_default_color(*color);
+            });
+
+            eval set_dimmed ([text_color](should_dim) {
+                if *should_dim {
+                   text_color.frp.set_state(dynamic_color::State::Dim);
+                 } else {
+                   text_color.frp.set_state(dynamic_color::State::Base);
+                 }
+            });
         }
 
         let cursor_style   = (&cursor_style_source).into();
@@ -178,7 +198,7 @@ impl Manager {
         let hover          = (&hover_source).into();
         let frp            = Events
             {network,cursor_style,press,hover,cursor_style_source,press_source,hover_source
-            ,start_edit_mode,stop_edit_mode,width,expression,editing};
+            ,start_edit_mode,stop_edit_mode,width,expression,editing,set_dimmed};
 
         label.mod_position(|t| t.y += 6.0);
 
@@ -187,10 +207,10 @@ impl Manager {
         label.set_cursor(&default());
         label.insert("HELLO\nHELLO2\nHELLO3\nHELLO4".to_string());
 
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles     = StyleWatch::new(&app.display.scene().style_sheet);
-        let text_color = styles.get_color(theme::vars::graph_editor::node::text::color);
-        label.set_default_color(color::Rgba::from(text_color));
+        let text_color_path    = theme::vars::graph_editor::node::text::color.into();
+        let text_dynamic_color = dynamic_color::Source::Theme{path:text_color_path};
+        text_color.frp.set_source(text_dynamic_color);
+
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
 

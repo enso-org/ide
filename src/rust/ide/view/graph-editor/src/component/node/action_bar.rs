@@ -19,7 +19,7 @@ mod compound_shape {
     use enso_frp as frp;
 
 
-    use ensogl::gui::component::{ShapeViewEvents, ShapeView};
+    use ensogl::gui::component::ShapeView;
 
     ensogl_text::define_endpoints! {
         Input {
@@ -45,14 +45,13 @@ mod compound_shape {
 
         /// Connect the given `ShapeViewEvents` to the mouse events of all sub-shapes.
         pub fn add_sub_shape<T>(&self, view:&ShapeView<T>) {
-            let network       = &self.frp.network;
+            let _network       = &self.frp.network;
             let compound_frp  = &self.frp;
             let sub_frp       = &view.events;
 
-            /// FIXME avoid in/out events when switching shape
-            /// TODO check for memory leaks
+            // FIXME avoid in/out events when switching shape
+            // TODO check for memory leaks
             frp::extend! { network
-
                 compound_frp.source.mouse_over <+ sub_frp.mouse_over;
                 compound_frp.source.mouse_out  <+ sub_frp.mouse_out;
             }
@@ -239,10 +238,10 @@ impl ActionBar {
         let frp     = &self.frp;
         let model   = &self.model;
 
-        let hover_area     = &model.hover_area.events;
+        let _hover_area     = &model.hover_area.events;
         let compound_shape = &model.all_shapes.frp;
 
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
 
 
             // === Input Processing ===

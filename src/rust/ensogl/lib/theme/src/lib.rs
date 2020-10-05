@@ -111,7 +111,10 @@ define_theme! { dark
     graph_editor {
         node {
             background {
-                color = color::Lcha::new(0.2,0.013,0.18,1.0)
+                color = color::Lcha::new(0.2,0.013,0.18,1.0);
+                variant {
+                    dimmed = color::Lcha::new(0.15,0.013,0.18,1.0)
+                }
             }
             shadow {
                 color        = color::Lcha::new(0.0,0.0,0.0,0.20);
@@ -197,6 +200,14 @@ define_theme! { dark
                 }
             }
         }
+        colors {
+            default {
+                dimming {
+                    lightness_factor = 0.8;
+                    chroma_factor    = 0.2
+                }
+            }
+        }
     }
     widget {
         list_view {
@@ -241,7 +252,10 @@ define_default_theme! { light
     graph_editor {
         node {
             background {
-                color = color::Lcha::new(0.98,0.013,0.18,1.0)
+                color = color::Lcha::new(0.98,0.013,0.18,1.0);
+                variant {
+                    dimmed = color::Lcha::new(0.68,0.013,0.18,1.0)
+                }
             }
             shadow {
                 color        = color::Lcha::new(0.0,0.0,0.0,0.20);
@@ -324,6 +338,14 @@ define_default_theme! { light
                 color {
                     luminance = 0.8;
                     chroma = 0.6
+                }
+            }
+        }
+        colors {
+            default {
+                dimming {
+                    lightness_factor = 1.1;
+                    chroma_factor    = 0.2
                 }
             }
         }

@@ -18,7 +18,7 @@ use crate::display::style;
 use crate::display::style::data::DataMatch;
 use crate::system::gpu::types::*;
 use crate::system::gpu::data::buffer::item::Storable;
-
+use crate::display::style::Path;
 
 
 // ===================
@@ -200,7 +200,7 @@ impl StyleWatch {
     }
 
     /// Queries style sheet value for a value.
-    pub fn get(&self, path:&str) -> Option<style::Data> {
+    pub fn get<T:Into<Path>>(&self, path:T) -> Option<style::Data> {
         let var      = self.sheet.var(path);
         let value    = var.value();
         let callback = self.callback.clone_ref();
@@ -215,7 +215,7 @@ impl StyleWatch {
     }
 
     /// Queries style sheet color, if not found fallbacks to red.
-    pub fn get_color(&self, path:&str) -> color::Lcha {
+    pub fn get_color<T:Into<Path>>(&self, path:T) -> color::Lcha {
         let fallback = color::Rgba::new(1.0,0.0,0.0,1.0).into();
         self.get(path).color().unwrap_or_else(|| fallback)
     }

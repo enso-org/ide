@@ -1,12 +1,8 @@
 
-use ensogl::data::color;
-
 
 // =================
 // === Constants ===
 // =================
-
-const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 
 #[macro_export]
 macro_rules! hover_rect {

@@ -23,10 +23,12 @@ use ensogl::application::Application;
 use ensogl_text::Text;
 use ensogl_theme;
 
-use super::edge;
-use crate::component::visualization;
-use crate::component::node::port::output::OutputPorts;
 use crate::Type;
+use crate::dynamic_color;
+use crate::dynamic_color::DynamicColor;
+use crate::component::node::port::output::OutputPorts;
+use crate::component::visualization;
+use super::edge;
 
 
 
@@ -52,12 +54,10 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, selection:f32) {
-            use ensogl_theme::vars::graph_editor::node as node_theme;
-
-            let bg_color        = style.get_color(node_theme::background::color);
-            let selection_color = style.get_color(node_theme::selection::color);
-            let _selection_size = style.get_number_or(node_theme::selection::size,8.0);
+        (style:Style, selection:f32, bg_color:Vector4 ) {
+            let bg_color        = Var::<color::Rgba>::from(bg_color);
+            let selection_color = style.get_color(ensogl_theme::vars::graph_editor::node::selection::color);
+            let _selection_size = style.get_number_or(ensogl_theme::vars::graph_editor::node::selection::size,8.0);
 
             let border_size_f = 16.0;
 
@@ -67,7 +67,7 @@ pub mod shape {
             let height = height - NODE_SHAPE_PADDING.px() * 2.0;
             let radius = NODE_SHAPE_RADIUS.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
-            let shape  = shape.fill(color::Rgba::from(bg_color));
+            let shape  = shape.fill(bg_color);
 
 
             // === Shadow ===
@@ -139,11 +139,14 @@ pub mod drag_area {
 
 ensogl_text::define_endpoints! {
     Input {
-        select              (),
-        deselect            (),
-        set_expression      (Expression),
-        set_expression_type ((ast::Id,Option<Type>)),
-        set_visualization   (Option<visualization::Definition>),
+        select                 (),
+        deselect               (),
+        set_expression         (Expression),
+        set_expression_type    ((ast::Id,Option<Type>)),
+        set_visualization      (Option<visualization::Definition>),
+        toggle_dimming         (),
+        set_dimmed             (bool),
+        set_input_edges_dimmed (bool),
     }
     Output {
         expression (Text),
@@ -195,6 +198,8 @@ pub struct NodeModel {
     pub visualization  : visualization::Container,
     pub action_bar     : action_bar::ActionBar,
     pub output_ports   : OutputPorts,
+
+    main_color         : DynamicColor,
 }
 
 
@@ -209,6 +214,7 @@ impl NodeModel {
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
+        let main_color  = DynamicColor::new(app);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::sort_hack_2(scene);
 
@@ -251,7 +257,7 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,frp,main_area,drag_area,output_ports,ports
-             ,visualization,action_bar} . init()
+             ,visualization,action_bar,main_color} . init()
     }
 
     fn init(self) -> Self {
@@ -305,6 +311,8 @@ impl Node {
         let inputs           = &model.frp.input;
         let selection        = Animation::<f32>::new(&frp_network);
 
+        let background_color = DynamicColor::new(&app);
+
         let actions          = &model.action_bar.frp;
         frp::extend! { frp_network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
@@ -330,7 +338,26 @@ impl Node {
             });
             model.frp.source.skip   <+ actions.action_skip_clicked;
             model.frp.source.freeze <+ actions.action_freeze_clicked;
+
+
+
+            // === Color Handling ===
+
+            eval background_color.frp.color ((color) model.main_area.shape.bg_color.set(color.into()) );
+
+            eval inputs.set_dimmed ([model,background_color](should_dim) {
+                model.ports.frp.set_dimmed.emit(*should_dim);
+                if *should_dim {
+                   background_color.frp.set_state(dynamic_color::State::Dim);
+                 } else {
+                   background_color.frp.set_state(dynamic_color::State::Base);
+                 }
+            });
         }
+
+        let background_color_path    = ensogl_theme::vars::graph_editor::node::background::color.into();
+        let background_dynamic_color = dynamic_color::Source::Theme{path:background_color_path};
+        background_color.frp.set_source(background_dynamic_color);
 
         Self {frp_network,model}
     }

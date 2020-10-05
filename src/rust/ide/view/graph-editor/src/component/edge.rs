@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use enso_frp;
+use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
@@ -17,7 +18,8 @@ use ensogl_theme as theme;
 
 use super::node;
 use crate::component::node::NODE_HEIGHT;
-
+use crate::dynamic_color::DynamicColor;
+use crate::dynamic_color;
 
 
 // =================
@@ -1071,6 +1073,8 @@ pub struct Frp {
     pub target_attached : frp::Source<bool>,
     pub source_attached : frp::Source<bool>,
     pub redraw          : frp::Source,
+    pub set_dimmed      : frp::Source<bool>,
+    pub set_color       : frp::Source<color::Rgba>,
 
     pub hover_position  : frp::Source<Option<Vector2<f32>>>,
     pub shape_events    : ShapeViewEventsProxy
@@ -1087,10 +1091,12 @@ impl Frp {
             def source_attached = source();
             def redraw          = source();
             def hover_position  = source();
+            def set_dimmed      = source();
+            def set_color       = source();
         }
         let shape_events = ShapeViewEventsProxy::new(&network);
         Self {source_width,source_height,target_position,target_attached,source_attached,redraw,
-              hover_position,shape_events}
+              hover_position,shape_events,set_dimmed,set_color}
     }
 }
 
@@ -1157,14 +1163,14 @@ impl display::Object for EdgeModelData {
 
 impl Edge {
     /// Constructor.
-    pub fn new(scene:&Scene) -> Self {
+    pub fn new(app:&Application) -> Self {
         let network = frp::Network::new();
-        let data    = Rc::new(EdgeModelData::new(scene,&network));
+        let data    = Rc::new(EdgeModelData::new(app.display.scene(),&network));
         let model   = Rc::new(EdgeModel {data});
-        Self {model,network} . init()
+        Self {model,network}.init(app)
     }
 
-    fn init(self) -> Self {
+    fn init(self, app:&Application) -> Self {
         let network         = &self.network;
         let input           = &self.frp;
         let target_position = &self.target_position;
@@ -1178,6 +1184,7 @@ impl Edge {
 
         let model           = &self.model;
         let shape_events    = &self.frp.shape_events;
+        let edge_color      = DynamicColor::new(app);
 
 
         model.data.front.register_proxy_frp(network, &input.shape_events);
@@ -1196,6 +1203,24 @@ impl Edge {
             eval_ shape_events.on_mouse_out  (     hover_target.set(None));
 
             eval_ input.redraw (model.redraw());
+
+            // === Colors ===
+
+            edge_color_source <- input.set_color.map(|&color| {
+                dynamic_color::Source::Static{color}
+            });
+            eval edge_color_source ((source) edge_color.frp.set_source(source.clone()));
+
+            eval input.set_dimmed ([edge_color](should_dim) {
+                if *should_dim {
+                   edge_color.frp.set_state(dynamic_color::State::Dim);
+                 } else {
+                   edge_color.frp.set_state(dynamic_color::State::Base);
+                 }
+            });
+
+            eval edge_color.frp.color ((color) model.set_color(color.into()));
+
         }
 
         self
@@ -1289,7 +1314,10 @@ impl EdgeModelData {
 
     /// Set the color of the edge. Also updates the focus color (which will be a dimmed version
     /// of the main color).
-    pub fn set_color(&self, color:color::Lcha) {
+    fn set_color(&self, color:color::Lcha) {
+        // We must never use alpha in edges, as it will show artifacts with overlapping sub-parts.
+        let color:color::Lcha = color.opaque.into();
+
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles                        = StyleWatch::new(&self.scene.style_sheet);
         let split_color_lightness_factor  = styles.get_number_or(theme::vars::graph_editor::edge::split_color::lightness_factor,1.2);
