@@ -740,11 +740,11 @@ impl View {
             has_cursor                 <- sel_on_change.map(|sel| !sel.is_empty());
             output.source.text_changed <+ sel_on_change.gate(&has_cursor).constant(());
 
-            sel_on_move           <- input.cursors_move.map(f!((t) m.moved_selection2(*t,false)));
-            sel_on_mod            <- input.cursors_select.map(f!((t) m.moved_selection2(*t,true)));
-            sel_on_clear          <- input.clear_selection.constant(default());
-            sel_on_keep_last      <- input.keep_last_selection_only.map(f_!(m.last_selection()));
-            sel_on_keep_first     <- input.keep_first_selection_only.map(f_!(m.first_selection()));
+            sel_on_move            <- input.cursors_move.map(f!((t) m.moved_selection2(*t,false)));
+            sel_on_mod             <- input.cursors_select.map(f!((t) m.moved_selection2(*t,true)));
+            sel_on_clear           <- input.clear_selection.constant(default());
+            sel_on_keep_last       <- input.keep_last_selection_only.map(f_!(m.last_selection()));
+            sel_on_keep_first      <- input.keep_first_selection_only.map(f_!(m.first_selection()));
             sel_on_keep_lst_cursor <- input.keep_last_cursor_only.map(f_!(m.last_cursor()));
             sel_on_keep_fst_cursor <- input.keep_first_cursor_only.map(f_!(m.first_cursor()));
 

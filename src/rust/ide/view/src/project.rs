@@ -14,6 +14,7 @@ use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
 use ensogl::gui::component::Animation;
+use ensogl_text as text;
 
 
 
@@ -28,8 +29,7 @@ struct Model {
     display_object : display::object::Instance,
     graph_editor   : GraphEditor,
     searcher       : searcher::View,
-    //TODO[ao] This view should contain also Text Editor; it should be moved here during refactoring
-    // planned in task https://github.com/enso-org/ide/issues/597
+    code_editor    : text::Area,
 }
 
 impl Model {
@@ -38,11 +38,13 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let searcher       = app.new_view::<searcher::View>();
         let graph_editor   = app.new_view::<GraphEditor>();
+        let code_editor    = app.new_view::<text::Area>();
         display_object.add_child(&graph_editor);
+        display_object.add_child(&code_editor);
         display_object.add_child(&searcher);
         display_object.remove_child(&searcher);
         let app = app.clone_ref();
-        Self{app,logger,display_object,graph_editor,searcher}
+        Self{app,logger,display_object,graph_editor,searcher,code_editor}
     }
 
     fn set_style(&self, is_light:bool) {
@@ -96,6 +98,8 @@ ensogl::def_command_api! { Commands
     add_new_node,
     /// Abort currently node edit. If it was added node, it will be removed, if the existing node was edited, its old expression will be restored.
     abort_node_editing,
+    /// Toggles the code editor visibility.
+    toggle_code_editor,
     /// Simulates a style toggle press event.
     toggle_style,
 }
@@ -120,6 +124,7 @@ ensogl_text::define_endpoints! {
         old_expression_of_edited_node (Expression),
         editing_aborted               (NodeId),
         editing_committed             (NodeId),
+        code_editor_shown             (bool),
         style_light                   (bool),
     }
 }
@@ -148,6 +153,7 @@ impl View {
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = Animation::<Vector2<f32>>::new(network);
+        let code_editor_y_position       = Animation::<Vector2<>>
 
         frp::extend!{ network
             // === Searcher Position and Size ===
@@ -229,14 +235,13 @@ impl View {
     }
 
     /// Graph Editor View.
-    pub fn graph(&self) -> &GraphEditor {
-        &self.model.graph_editor
-    }
+    pub fn graph(&self) -> &GraphEditor { &self.model.graph_editor }
 
     /// Searcher View.
-    pub fn searcher(&self) -> &searcher::View {
-        &self.model.searcher
-    }
+    pub fn searcher(&self) -> &searcher::View { &self.model.searcher }
+
+    /// Code Editor View.
+    pub fn code_editor(&self) -> &text::Area { &self.model.code_editor }
 }
 
 impl display::Object for View {
