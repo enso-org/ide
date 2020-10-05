@@ -79,10 +79,10 @@ class ScatterPlot extends Visualization {
 
         this.addBrushing(box_width, box_height, scatter, scaleAndAxis);
 
-        // TODO: Visualization selector obfuscates button, so it is now on the bottom, should be on top.
-        this.createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas);
+        let zoom = this.addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points);
 
-        this.addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points);
+        // TODO: Visualization selector obfuscates button, so it is now on the bottom, should be on top.
+        this.createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom);
     }
 
     addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points) {
@@ -96,7 +96,7 @@ class ScatterPlot extends Visualization {
             .extent([[0, 0], [box_width, box_height]])
             .on("zoom", zoomed);
 
-        svg.append("rect")
+        let zoomElem = svg.append("rect")
             .attr("width", box_width)
             .attr("height", box_height)
             .style("fill", "none")
@@ -118,6 +118,8 @@ class ScatterPlot extends Visualization {
                     .attr('transform', d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
             }
         }
+
+        return {zoomElem: zoomElem, zoom: zoom};
     }
 
     addBrushing(box_width, box_height, scatter, scaleAndAxis) {
@@ -295,7 +297,7 @@ class ScatterPlot extends Visualization {
         return divElem;
     }
 
-    createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas) {
+    createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom) {
         const btn = document.createElement("button");
         const style = `
             margin-left: 5px; 
@@ -329,6 +331,8 @@ class ScatterPlot extends Visualization {
         btn.appendChild(text);
 
         function unzoom() {
+            zoom.zoomElem.transition().duration(0).call(zoom.zoom.transform, d3.zoomIdentity);
+
             let domain_x = [extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
                 extremesAndDeltas.xMax + extremesAndDeltas.paddingX];
             let domain_y = [extremesAndDeltas.yMin - extremesAndDeltas.paddingY,
