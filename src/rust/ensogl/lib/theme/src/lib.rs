@@ -113,6 +113,11 @@ define_theme! { dark
             background {
                 color = color::Lcha::new(0.2,0.013,0.18,1.0)
             }
+            shadow {
+                color        = color::Lcha::new(0.0,0.0,0.0,0.20);
+                fading_color = color::Lcha::new(0.0,0.0,0.0,0.0);
+                exponent     = 2.0
+            }
             selection {
                 color = color::Lcha::new(0.72,0.5,0.22,1.0);
                 size = 7.0
@@ -127,6 +132,11 @@ define_theme! { dark
         visualization {
             background {
                 color = color::Lcha::new(0.2,0.013,0.18,1.0)
+            }
+            shadow {
+                color        = color::Lcha::new(0.0,0.0,0.0,0.20);
+                fading_color = color::Lcha::new(0.0,0.0,0.0,0.0);
+                exponent     = 2.0
             }
             text {
                 color = color::Lcha::new(1.0,0.0,0.0,0.7);
@@ -189,6 +199,11 @@ define_theme! { dark
             background {
                 color = color::Lcha::new(0.2,0.013,0.18,1.0)
             }
+            shadow {
+                color        = color::Lcha::new(0.0,0.0,0.0,0.20);
+                fading_color = color::Lcha::new(0.0,0.0,0.0,0.0);
+                exponent     = 2.0
+            }
             highlight {
                 color = color::Lcha::new(0.72,0.5,0.22,1.0)
             }
@@ -202,11 +217,6 @@ define_theme! { dark
                 }
             }
         }
-    }
-    shadow {
-        color        = color::Lcha::new(0.0,0.0,0.0,0.20);
-        fading_color = color::Lcha::new(0.0,0.0,0.0,0.0);
-        exponent     = 2.0
     }
 }
 
