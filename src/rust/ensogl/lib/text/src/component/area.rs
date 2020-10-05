@@ -921,6 +921,7 @@ impl AreaData {
         match key {
             Key::Character(s) => Some(s.clone()),
             Key::Enter        => Some("\n".into()),
+            Key::Space        => Some(" ".into()),
             _                 => None
         }
     }

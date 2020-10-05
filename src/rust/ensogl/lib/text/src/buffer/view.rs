@@ -15,7 +15,6 @@ use crate::buffer::Setter;
 use crate::buffer::data::Text;
 use crate::buffer::data::text::BoundsError;
 use crate::buffer::data::unit::*;
-use crate::buffer::data;
 use crate::buffer::style::Style;
 use crate::buffer::style;
 use crate::buffer;
@@ -611,8 +610,7 @@ impl ViewBuffer {
     ///
     /// It returns selection after modification and byte offset of the next selection ranges.
     fn modify_selection
-    (&self, selection:Selection, text:&Text, transform:Option<Transform>)
-    -> (selection::Selection,Bytes) {
+    (&self, selection:Selection, text:&Text, transform:Option<Transform>) -> (Selection,Bytes) {
         let text_byte_size = text.byte_size();
         let transformed    = match transform {
             Some(t) if selection.is_cursor() => self.moved_selection_region(t,selection,true),
