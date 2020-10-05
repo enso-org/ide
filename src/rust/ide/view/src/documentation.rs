@@ -86,7 +86,7 @@ impl ViewModel {
         dom.dom().set_style_or_warn("padding"         ,format!("{}px",PADDING)       ,&logger);
         dom.dom().set_style_or_warn("pointer-events"  ,"auto"                        ,&logger);
         dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS) ,&logger);
-        dom.dom().set_style_or_warn("box-shadow"      ,"0 0 16px rgba(0, 0, 0, 0.06)",&logger);
+        dom.dom().set_style_or_warn("box-shadow"      ,"0 0 16px rgba(0, 0, 0, 0.16)",&logger);
 
         overlay.shape.roundness.set(1.0);
         overlay.shape.radius.set(CORNER_RADIUS);

@@ -238,7 +238,7 @@ impl View {
         background_dom.dom().set_style_or_warn("overflow-x"    ,"auto"                     ,&logger);
         background_dom.dom().set_style_or_warn("background"    ,"#FDF9F6FA"                ,&logger);
         background_dom.dom().set_style_or_warn("border-radius" ,"14px"                     ,&logger);
-        background_dom.dom().set_style_or_warn("box-shadow"    ,"0 0 16px rgba(0,0,0,0.14)",&logger);
+        background_dom.dom().set_style_or_warn("box-shadow"    ,"0 0 16px rgba(0,0,0,0.16)",&logger);
         display_object.add_child(&background_dom);
 
         scene.dom.layers.back.manage(&background_dom);
