@@ -150,8 +150,8 @@ ensogl_text::define_endpoints! {
     }
     Output {
         expression (Text),
-        skip       (),
-        freeze     (),
+        skip       (bool),
+        freeze     (bool),
     }
 }
 
@@ -302,6 +302,7 @@ impl NodeModel {
     pub fn visualization(&self) -> &visualization::Container {
         &self.visualization
     }
+
 }
 
 impl Node {
@@ -333,11 +334,12 @@ impl Node {
 
             model.frp.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
 
-            eval_ actions.action_visbility_clicked ({
-                model.visualization.frp.toggle_visibility.emit(());
+            eval actions.action_visbility ((visible){
+                model.visualization.frp.set_visibility.emit(visible);
             });
-            model.frp.source.skip   <+ actions.action_skip_clicked;
-            model.frp.source.freeze <+ actions.action_freeze_clicked;
+
+            model.frp.source.skip   <+ actions.action_skip;
+            model.frp.source.freeze <+ actions.action_freeze;
 
 
 

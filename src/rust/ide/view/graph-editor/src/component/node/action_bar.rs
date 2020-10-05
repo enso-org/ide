@@ -3,15 +3,19 @@
 use crate::prelude::*;
 
 use crate::component::node;
+use crate::dynamic_color::DynamicColor;
+use crate::dynamic_color;
 
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::shape::*;
+use ensogl::display::style;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
+use ensogl_theme as theme;
 
 
 mod compound_shape {
@@ -100,11 +104,11 @@ ensogl_text::define_endpoints! {
         hide_icons (),
     }
     Output {
-        mouse_over                (),
-        mouse_out                 (),
-        action_visbility_clicked  (),
-        action_freeze_clicked     (),
-        action_skip_clicked       (),
+        mouse_over       (),
+        mouse_out        (),
+        action_visbility (bool),
+        action_freeze    (bool),
+        action_skip      (bool),
     }
 }
 
@@ -230,16 +234,19 @@ impl ActionBar {
     pub fn new(app:&Application) -> Self {
         let model = Rc::new(Model::new(app));
         let frp   = Frp::new_network();
-        ActionBar {model,frp}.init_frp()
+        ActionBar {model,frp}.init_frp(app)
     }
 
-    fn init_frp(self) -> Self {
+    fn init_frp(self, app:&Application) -> Self {
         let network = &self.frp.network;
         let frp     = &self.frp;
         let model   = &self.model;
 
-        let _hover_area     = &model.hover_area.events;
         let compound_shape = &model.all_shapes.frp;
+
+        let icon_freeze_color     = DynamicColor::new(&app);
+        let icon_skip_color       = DynamicColor::new(&app);
+        let icon_visibility_color = DynamicColor::new(&app);
 
         frp::extend! { network
 
@@ -257,12 +264,51 @@ impl ActionBar {
             eval_ compound_shape.mouse_out (model.hide());
 
 
-            // === Icon Actions ===
-            frp.source.action_skip_clicked      <+ model.icon_skip.events.mouse_down;
-            frp.source.action_freeze_clicked    <+ model.icon_freeze.events.mouse_down;
-            frp.source.action_visbility_clicked <+ model.icon_visibility.events.mouse_down;
+            eval_ model.icon_skip.events.mouse_over ({
+                icon_skip_color.frp.set_state(dynamic_color::State::Base)
+            });
 
+            eval_ model.icon_freeze.events.mouse_over ({
+                icon_freeze_color.frp.set_state(dynamic_color::State::Base)
+            });
+
+            eval_ model.icon_visibility.events.mouse_over ({
+                icon_visibility_color.frp.set_state(dynamic_color::State::Base)
+            });
+
+
+            // === Icon Actions ===
+
+            frp.source.action_skip      <+ model.icon_skip.events.mouse_down.toggle();
+            frp.source.action_freeze    <+ model.icon_freeze.events.mouse_down.toggle();
+            frp.source.action_visbility <+ model.icon_visibility.events.mouse_down.toggle();
+
+
+            // === Colors ===
+
+            dim_skip_icon <- model.icon_skip.events.mouse_out.gate_not(&frp.output.action_skip);
+            dim_freeze_icon <- model.icon_freeze.events.mouse_out.gate_not(&frp.output.action_freeze );
+            dim_visibility_icon <- model.icon_visibility.events.mouse_out.gate_not(&frp.output.action_visbility);
+
+            eval_ dim_skip_icon ( icon_skip_color.frp.set_state(dynamic_color::State::Dim) );
+            eval_ dim_freeze_icon ( icon_freeze_color.frp.set_state(dynamic_color::State::Dim) );
+            eval_ dim_visibility_icon ( icon_visibility_color.frp.set_state(dynamic_color::State::Dim) );
+
+            eval icon_freeze_color.frp.color ((color) model.icon_freeze.shape.color_rgba.set(color.into()));
+            eval icon_skip_color.frp.color ((color) model.icon_skip.shape.color_rgba.set(color.into()));
+            eval icon_visibility_color.frp.color ((color) model.icon_visibility.shape.color_rgba.set(color.into()));
         }
+
+        let icon_path:style::Path = theme::vars::graph_editor::node::actions::icon::color.into();
+        let icon_color_source     = dynamic_color::Source::from(icon_path);
+        icon_freeze_color.frp.set_source(icon_color_source.clone());
+        icon_skip_color.frp.set_source(icon_color_source.clone());
+        icon_visibility_color.frp.set_source(icon_color_source);
+
+        icon_freeze_color.frp.set_state(dynamic_color::State::Dim);
+        icon_skip_color.frp.set_state(dynamic_color::State::Dim);
+        icon_visibility_color.frp.set_state(dynamic_color::State::Dim);
+
         self
     }
 }

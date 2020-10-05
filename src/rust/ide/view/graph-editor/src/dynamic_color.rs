@@ -13,12 +13,15 @@ use ensogl::gui::component::Animation;
 use ensogl_theme as theme;
 use ensogl::display::style::data::DataMatch;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 const DEFAULT_COLOR    : color::Rgba = color::Rgba::new(1.0, 0.0, 0.0, 0.5);
 const THEME_KEY_DIMMED : &str = " dimmed";
+
 
 
 // ====================
@@ -57,6 +60,19 @@ impl Default for Source {
         Source::Static{color:DEFAULT_COLOR}
     }
 }
+
+impl From<color::Rgba> for Source {
+    fn from(color:color::Rgba) -> Self {
+        Source::Static {color}
+    }
+}
+
+impl From<Path> for Source {
+    fn from(path:Path) -> Self {
+        Source::Theme {path}
+    }
+}
+
 
 
 

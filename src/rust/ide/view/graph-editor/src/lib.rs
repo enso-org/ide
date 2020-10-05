@@ -1046,15 +1046,11 @@ impl GraphEditorModelWithNetwork {
 
             // === Actions ===
 
-            frozen <- node.view.frp.freeze.toggle();
-
-            eval frozen ((is_frozen) {
+            eval node.view.frp.freeze ((is_frozen) {
                 action_freeze.emit((node_id,*is_frozen));
             });
 
-            skipped <- node.view.frp.skip.toggle();
-
-            eval skipped ([node,action_skip](is_skipped) {
+            eval node.view.frp.skip ([node,action_skip](is_skipped) {
                 action_skip.emit((node_id,*is_skipped));
                 node.frp.set_dimmed.emit(is_skipped);
             });
@@ -2086,7 +2082,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Node Actions ===
 
 
-    frp::extend! { TRACE_ALL network
+    frp::extend! { network
 
         freeze_edges <= outputs.node_action_freeze.map (f!([model]((node_id,is_frozen)) {
             let edges = model.node_in_edges(node_id);
