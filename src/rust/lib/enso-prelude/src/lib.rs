@@ -21,6 +21,7 @@ mod result;
 mod std_reexports;
 mod string;
 mod tp;
+mod vec;
 mod wrapper;
 
 pub use clone::*;
@@ -35,6 +36,7 @@ pub use result::*;
 pub use std_reexports::*;
 pub use string::*;
 pub use tp::*;
+pub use vec::*;
 pub use wrapper::*;
 
 pub use boolinator::Boolinator;
@@ -53,6 +55,10 @@ pub use weak_table::traits::WeakKey;
 pub use weak_table::WeakKeyHashMap;
 pub use weak_table::WeakValueHashMap;
 pub use weak_table;
+
+pub use std::collections::hash_map::DefaultHasher;
+pub use std::hash::Hash;
+pub use std::hash::Hasher;
 
 use std::cell::UnsafeCell;
 
