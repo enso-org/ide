@@ -394,6 +394,7 @@ impl TextLocation {
         Self::after_chars(before)
     }
 
+    /// Convert self to the text index. This involves iterating over content characters.
     pub fn to_index(&self, content:impl AsRef<str>) -> Index {
         let line_index = match self.line {
             0 => 0,

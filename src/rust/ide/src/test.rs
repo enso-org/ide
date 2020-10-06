@@ -8,6 +8,7 @@ use crate::model::suggestion_database;
 use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
 use enso_protocol::language_server;
+use utils::test::traits::*;
 
 /// Utilities for mocking IDE components.
 pub mod mock {
@@ -53,13 +54,13 @@ pub mod mock {
             crate::double_representation::graph::Id::new_plain_name(DEFINITION_NAME)
         }
 
-        pub fn suggestion_db() -> crate::model::SuggestionDatabase {
-            let entry1  = suggestion_entry_foo();
-            let entry2  = suggestion_entry_bar();
-            let entries = vec![(&1,&entry1),(&2,&entry2)];
-            let logger  = logger::enabled::Logger::default();
-            crate::model::SuggestionDatabase::new_from_entries(logger,entries)
-        }
+        // pub fn suggestion_db() -> crate::model::SuggestionDatabase {
+        //     let entry1  = suggestion_entry_foo();
+        //     let entry2  = suggestion_entry_bar();
+        //     let entries = vec![(&1,&entry1),(&2,&entry2)];
+        //     let logger  = logger::enabled::Logger::default();
+        //     crate::model::SuggestionDatabase::new_from_entries(logger,entries)
+        // }
 
         pub fn foo_method_parameter() -> suggestion_database::Argument {
             suggestion_database::Argument {
@@ -136,6 +137,10 @@ pub mod mock {
         pub fn set_inline_code(&mut self, code:impl AsRef<str>) {
             let method = self.method_pointer();
             self.code = format!("{} = {}",method.name,code.as_ref())
+        }
+
+        pub fn get_code(&self) -> &str {
+            &self.code
         }
 
         pub fn set_code(&mut self, code:impl Into<String>) {
@@ -301,6 +306,40 @@ pub mod mock {
         /// Runs all tasks in the pool and returns if no more progress can be made on any task.
         pub fn run_until_stalled(&mut self) {
             self.executor.run_until_stalled();
+        }
+
+        /// Create a synchronized module model.
+        ///
+        /// For this to work, some earlier customizations are needed, at least
+        /// [Unified::expect_opening_the_module], as the synchronized model makes calls to the
+        /// language server API. Most likely also closing and initial edit (that adds metadata)
+        /// should be expected. See usage for examples.
+        pub fn synchronized_module(&self) -> Rc<model::module::Synchronized> {
+            let parser = self.data.parser.clone();
+            let path   = self.data.module_path.clone();
+            let ls     = self.project.json_rpc().clone();
+            let module_fut = model::module::Synchronized::open(path,ls,parser);
+            // We can `expect_ready`, because in fact this is synchronous.
+            // (there's no real asynchronous connection beneath, just the `MockClient`)
+            module_fut.boxed_local().expect_ready().unwrap()
+        }
+
+        pub fn synchronized_module_w_controller(&self) -> (Rc<model::module::Synchronized>,controller::Module) {
+            let parser = self.data.parser.clone();
+            let path   = self.data.module_path.clone();
+            let ls     = self.project.json_rpc().clone();
+            let module_fut = model::module::Synchronized::open(path,ls,parser);
+            // We can `expect_ready`, because in fact this is synchronous.
+            // (there's no real asynchronous connection beneath, just the `MockClient`)
+            let model = module_fut.boxed_local().expect_ready().unwrap();
+
+            let controller = controller::module::Handle {
+                language_server : self.project.json_rpc(),
+                model           : model.clone(),
+                parser          : self.data.parser.clone(),
+                logger          : Logger::sub(&self.data.logger,"MockModuleController"),
+            };
+            (model,controller)
         }
     }
 
