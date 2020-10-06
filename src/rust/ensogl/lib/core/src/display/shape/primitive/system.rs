@@ -6,19 +6,19 @@ use crate::prelude::*;
 use super::def;
 
 use crate::control::callback;
-use crate::display;
 use crate::data::color;
-use crate::display::shape::primitive::shader;
-use crate::display::symbol::geometry::SpriteSystem;
-use crate::display::symbol::geometry::Sprite;
-use crate::display::symbol::material;
-use crate::display::symbol::material::Material;
 use crate::display::scene::Scene;
-use crate::display::style;
-use crate::display::style::data::DataMatch;
-use crate::system::gpu::types::*;
-use crate::system::gpu::data::buffer::item::Storable;
+use crate::display::shape::primitive::shader;
 use crate::display::style::Path;
+use crate::display::style::data::DataMatch;
+use crate::display::style;
+use crate::display::symbol::geometry::Sprite;
+use crate::display::symbol::geometry::SpriteSystem;
+use crate::display::symbol::material::Material;
+use crate::display::symbol::material;
+use crate::display;
+use crate::system::gpu::data::buffer::item::Storable;
+use crate::system::gpu::types::*;
 
 
 // ===================

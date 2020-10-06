@@ -37,7 +37,7 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, hover:f32, dimmed:f32) {
+        (style:Style, hover:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius = 6.px();
@@ -57,19 +57,19 @@ pub fn sort_hack(scene:&Scene) {
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct Events {
-    pub network          : frp::Network,
-    pub cursor_style     : frp::Stream<cursor::Style>,
-    pub press            : frp::Stream<span_tree::Crumbs>,
-    pub hover            : frp::Stream<Option<span_tree::Crumbs>>,
-    pub start_edit_mode  : frp::Source,
-    pub stop_edit_mode   : frp::Source,
-    pub width            : frp::Stream<f32>,
-    pub expression       : frp::Stream<Text>,
-    pub set_dimmed       : frp::Source<bool>,
-    editing              : frp::nodes::Sampler<bool>,
-    press_source         : frp::Source<span_tree::Crumbs>,
-    hover_source         : frp::Source<Option<span_tree::Crumbs>>,
-    cursor_style_source  : frp::Any<cursor::Style>,
+    pub network         : frp::Network,
+    pub cursor_style    : frp::Stream<cursor::Style>,
+    pub press           : frp::Stream<span_tree::Crumbs>,
+    pub hover           : frp::Stream<Option<span_tree::Crumbs>>,
+    pub start_edit_mode : frp::Source,
+    pub stop_edit_mode  : frp::Source,
+    pub width           : frp::Stream<f32>,
+    pub expression      : frp::Stream<Text>,
+    pub set_dimmed      : frp::Source<bool>,
+    editing             : frp::nodes::Sampler<bool>,
+    press_source        : frp::Source<span_tree::Crumbs>,
+    hover_source        : frp::Source<Option<span_tree::Crumbs>>,
+    cursor_style_source : frp::Any<cursor::Style>,
 }
 
 

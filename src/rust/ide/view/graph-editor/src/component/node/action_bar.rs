@@ -5,11 +5,12 @@ use crate::prelude::*;
 use crate::component::node;
 use crate::dynamic_color::DynamicColor;
 use crate::dynamic_color;
+use crate::shape_helper::HOVER_COLOR;
+use crate::shape_helper::compound_shape;
 
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
-use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::style;
 use ensogl::display::traits::*;
@@ -17,58 +18,6 @@ use ensogl::display;
 use ensogl::gui::component;
 use ensogl_theme as theme;
 
-
-mod compound_shape {
-    use crate::prelude::*;
-    use enso_frp as frp;
-
-
-    use ensogl::gui::component::ShapeView;
-
-    ensogl_text::define_endpoints! {
-        Input {
-            dummy ()
-        }
-        Output {
-            mouse_over (),
-            mouse_out  (),
-        }
-    }
-
-    #[derive(Clone,CloneRef,Debug)]
-    pub struct CompoundShapeEvents {
-        pub frp : Frp,
-    }
-
-    impl CompoundShapeEvents {
-
-        pub fn new() -> Self {
-            let frp = Frp::new_network();
-            Self{frp}
-        }
-
-        /// Connect the given `ShapeViewEvents` to the mouse events of all sub-shapes.
-        pub fn add_sub_shape<T>(&self, view:&ShapeView<T>) {
-            let _network       = &self.frp.network;
-            let compound_frp  = &self.frp;
-            let sub_frp       = &view.events;
-
-            // FIXME avoid in/out events when switching shape
-            // TODO check for memory leaks
-            frp::extend! { network
-                compound_frp.source.mouse_over <+ sub_frp.mouse_over;
-                compound_frp.source.mouse_out  <+ sub_frp.mouse_out;
-            }
-        }
-    }
-}
-
-
-// =================
-// === Constants ===
-// =================
-
-const HOVER_COLOR : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 
 
 
@@ -92,6 +41,8 @@ mod hover_rect {
         }
     }
 }
+
+
 
 // ===========
 // === Frp ===
@@ -130,7 +81,7 @@ struct Model {
     display_object        : display::object::Instance,
     size                  : Rc<Cell<Vector2>>,
 
-    all_shapes            : compound_shape::CompoundShapeEvents,
+    all_shapes            : compound_shape::Events,
 
 }
 
@@ -142,19 +93,17 @@ impl Model {
         let icon_freeze           = component::ShapeView::new(&logger,scene);
         let icon_visibility       = component::ShapeView::new(&logger,scene);
         let icon_skip             = component::ShapeView::new(&logger,scene);
-
-        let display_object        = display::object::Instance::new(&logger);
-        let icons                 = display::object::Instance::new(&logger);
-
-        let size                  = default();
-
-        let all_shapes            = compound_shape::CompoundShapeEvents::new();
+        let all_shapes            = compound_shape::Events::default();
 
         all_shapes.add_sub_shape(&hover_area);
         all_shapes.add_sub_shape(&icon_freeze);
         all_shapes.add_sub_shape(&icon_visibility);
         all_shapes.add_sub_shape(&icon_skip);
 
+        let display_object        = display::object::Instance::new(&logger);
+        let icons                 = display::object::Instance::new(&logger);
+
+        let size                  = default();
 
         Self{hover_area,icons,display_object,size,icon_freeze,icon_visibility,
              icon_skip,all_shapes}.init()
@@ -218,13 +167,13 @@ impl display::Object for Model {
 /// ------
 /// ```text
 ///    / ----------------------------- \
-///    | <ico1> <ico2> <ico3>          |
+///    | <icon1> <icon2> <icon3>          |
 ///    \ ----------------------------- /
 ///
 /// ```
 #[derive(Clone,CloneRef,Debug)]
 pub struct ActionBar {
-    model : Rc<Model>,
+         model : Rc<Model>,
     pub frp    : Frp
 }
 
@@ -308,6 +257,8 @@ impl ActionBar {
         icon_freeze_color.frp.set_state(dynamic_color::State::Dim);
         icon_skip_color.frp.set_state(dynamic_color::State::Dim);
         icon_visibility_color.frp.set_state(dynamic_color::State::Dim);
+
+        frp.hide_icons.emit(());
 
         self
     }

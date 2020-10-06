@@ -3,9 +3,9 @@
 #![allow(missing_docs)]
 // WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
 
-pub mod port;
-pub mod icon;
 pub mod action_bar;
+pub mod icon;
+pub mod port;
 
 pub use port::Expression;
 
@@ -13,21 +13,21 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use enso_frp;
+use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
-use ensogl::application::Application;
 use ensogl_text::Text;
 use ensogl_theme;
 
 use crate::Type;
-use crate::dynamic_color;
-use crate::dynamic_color::DynamicColor;
 use crate::component::node::port::output::OutputPorts;
 use crate::component::visualization;
+use crate::dynamic_color::DynamicColor;
+use crate::dynamic_color;
 use super::edge;
 
 
@@ -36,13 +36,13 @@ use super::edge;
 // === Constants ===
 // =================
 
-pub const NODE_SHAPE_PADDING : f32 = 40.0;
-pub const NODE_SHAPE_RADIUS  : f32 = 14.0;
+pub const ACTION_BAR_HEIGHT  : f32 = 15.0;
 pub const CORNER_RADIUS      : f32 = 14.0;
 pub const NODE_HEIGHT        : f32 = 28.0;
-pub const TEXT_OFF           : f32 = 10.0;
+pub const NODE_SHAPE_PADDING : f32 = 40.0;
+pub const NODE_SHAPE_RADIUS  : f32 = 14.0;
 pub const SHADOW_SIZE        : f32 = 10.0;
-pub const ACTION_BAR_HEIGHT  : f32 = 15.0;
+pub const TEXT_OFF           : f32 = 10.0;
 
 
 // ============
@@ -139,14 +139,12 @@ pub mod drag_area {
 
 ensogl_text::define_endpoints! {
     Input {
-        select                 (),
-        deselect               (),
-        set_expression         (Expression),
-        set_expression_type    ((ast::Id,Option<Type>)),
-        set_visualization      (Option<visualization::Definition>),
-        toggle_dimming         (),
-        set_dimmed             (bool),
-        set_input_edges_dimmed (bool),
+        select              (),
+        deselect            (),
+        set_expression      (Expression),
+        set_expression_type ((ast::Id,Option<Type>)),
+        set_visualization   (Option<visualization::Definition>),
+        set_dimmed          (bool),
     }
     Output {
         expression (Text),
@@ -302,7 +300,6 @@ impl NodeModel {
     pub fn visualization(&self) -> &visualization::Container {
         &self.visualization
     }
-
 }
 
 impl Node {
@@ -345,7 +342,9 @@ impl Node {
 
             // === Color Handling ===
 
-            eval background_color.frp.color ((color) model.main_area.shape.bg_color.set(color.into()) );
+            eval background_color.frp.color ((color) {
+                model.main_area.shape.bg_color.set(color.into())
+            });
 
             eval inputs.set_dimmed ([model,background_color](should_dim) {
                 model.ports.frp.set_dimmed.emit(*should_dim);
@@ -357,8 +356,9 @@ impl Node {
             });
         }
 
-        let background_color_path    = ensogl_theme::vars::graph_editor::node::background::color.into();
-        let background_dynamic_color = dynamic_color::Source::Theme{path:background_color_path};
+        let background_color_path    = ensogl_theme::vars::graph_editor::node::background::color;
+        let background_color_path    = display::style::Path::from(background_color_path);
+        let background_dynamic_color = dynamic_color::Source::from(background_color_path);
         background_color.frp.set_source(background_dynamic_color);
 
         Self {frp_network,model}

@@ -3,6 +3,8 @@ use crate::prelude::*;
 use ensogl::data::color;
 use ensogl::display::shape::*;
 
+use crate::shape_helper::HOVER_COLOR;
+
 
 pub mod visibility {
     use super::*;
@@ -24,9 +26,10 @@ pub mod visibility {
 
             let outer_circle = Circle(&outer_radius);
 
-            let right_edge   = Triangle(&unit * 7.9, &unit * 4.6)
-                .rotate(right_angle)
-                .translate_x(&unit * 5.3);
+            let right_edge   = Triangle(&unit * 7.9, &unit * 4.6);
+            let right_edge   = right_edge.rotate(right_angle);
+            let right_edge   = right_edge.rotate(right_angle);
+
             let left_edge    = right_edge.rotate(2.0 * right_angle);
 
             let eye_outer    = outer_circle + right_edge + left_edge;
@@ -34,7 +37,7 @@ pub mod visibility {
             let eye          = (eye_outer - inner_circle) + pupil;
             let eye_colored  = eye.fill(fill_color);
 
-            let hover_area   = Rect((width,height)).fill(color::Rgba::new(1.0,0.0,0.0,0.000_001));
+            let hover_area   = Rect((width,height)).fill(HOVER_COLOR);
 
             (eye_colored+hover_area).into()
         }
@@ -60,12 +63,12 @@ pub mod visibility2 {
             let inner_circle = Circle(&unit * 4.0);
             let ring         = outer_circle - inner_circle;
 
-            let vertival_bar = Rect((&unit * 3.0, &unit * 16.0))
-                                    .translate_y(-&width/2.0);
+            let gap = Rect((&unit * 3.0, &unit * 16.0));
+            let gap = gap.translate_y(-&width/2.0);
 
-            let icon = ring - &vertival_bar - &vertival_bar.rotate(right_angle) - &vertival_bar.rotate(right_angle * 2.5);
+            let icon = ring - &gap - &gap.rotate(right_angle) - &gap.rotate(right_angle * 2.5);
 
-            let hover_area   = Rect((width,height)).fill(color::Rgba::new(1.0,0.0,0.0,0.000_001));
+            let hover_area   = Rect((width,height)).fill(HOVER_COLOR);
             let icon         = icon.fill(fill_color);
 
             (icon+hover_area).into()
@@ -110,7 +113,7 @@ pub mod freeze {
             let icon = lock_body + lock_top + left_bar + right_bar;
             let icon = icon.translate_y(unit);
 
-            let hover_area   = Rect((width,height)).fill(color::Rgba::new(1.0,0.0,0.0,0.000_001));
+            let hover_area   = Rect((width,height)).fill(HOVER_COLOR);
             let icon         = icon.fill(fill_color);
 
             (icon+hover_area).pixel_snap().into()
@@ -138,18 +141,19 @@ pub mod skip {
             let line_height  = &unit * 8.0;
             let offset       = &unit * -0.22;
             let line_rounded = Rect((&line_width,&line_height)).corners_radius(&line_width);
-            let line_top     = &line_rounded
-                                .rotate(right_angle / 2.0)
-                                .translate_y(-&line_height / 4.0 - &offset);
-            let line_bottom  = &line_rounded
-                                .rotate(-right_angle / 2.0)
-                                .translate_y(&line_height / 4.0 + &offset);
+            let line_top     = &line_rounded.rotate(right_angle / 2.0);
+            let line_top     = line_top.translate_y(-&line_height / 4.0 - &offset);
+
+
+            let line_bottom  = &line_rounded.rotate(-right_angle / 2.0);
+            let line_bottom  = &line_bottom.translate_y(&line_height / 4.0 + &offset);
+
             let skip         = line_top + line_bottom;
             let skip         = skip.translate_x(&unit * 0.5);
 
             let icon         = circle - skip;
 
-            let hover_area   = Rect((width,height)).fill(color::Rgba::new(1.0,0.0,0.0,0.000_001));
+            let hover_area   = Rect((width,height)).fill(HOVER_COLOR);
             let icon         = icon.fill(fill_color);
 
             (icon+hover_area).into()
