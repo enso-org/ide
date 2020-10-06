@@ -459,7 +459,8 @@ crate::define_endpoints! {
         mouse_cursor_style (gui::cursor::Style),
         active             (bool),
         width              (f32),
-        changed            (Text),
+        changed            (Vec<buffer::view::Change>),
+        content            (Text),
     }
 }
 
@@ -589,7 +590,7 @@ impl Area {
             eval input.paste_string ((s) m.buffer.frp.paste(m.decode_paste(s)));
 
 
-            eval_ m.buffer.frp.text_changed (m.redraw());
+            eval_ m.buffer.frp.text_change (m.redraw());
 
             eval_ cmd.remove_all_cursors (m.buffer.frp.remove_all_cursors());
 
@@ -657,7 +658,8 @@ impl Area {
 
             // === Changes ===
 
-            self.frp.source.changed <+ m.buffer.frp.text_changed.map(f_!(m.buffer.text()));
+            self.frp.source.changed <+ m.buffer.frp.text_change;
+            self.frp.source.content <+ m.buffer.frp.text_change.map(f_!(m.buffer.text()));
         }
         self
     }

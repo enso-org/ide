@@ -164,7 +164,7 @@ impl Manager {
 
             width <- label.width.map(|w|*w);
 
-            expression <- label.changed.map(|t|t.clone_ref());
+            expression <- label.content.map(|t| t.clone_ref());
         }
 
         let cursor_style   = (&cursor_style_source).into();
