@@ -574,10 +574,10 @@ impl ViewBuffer {
         let mut new_selection_group = selection::Group::new();
         let mut byte_offset         = 0.bytes();
         for rel_byte_selection in self.byte_selections() {
-            let byte_selection = rel_byte_selection.map(|t|t+byte_offset);
-            let selection      = self.to_location_selection(byte_selection);
+            let byte_selection         = rel_byte_selection.map(|t|t+byte_offset);
+            let selection              = self.to_location_selection(byte_selection);
             let (new_selection,offset) = self.modify_selection(selection,&text,transform);
-            byte_offset               += offset;
+            byte_offset                += offset;
             new_selection_group.merge(new_selection);
         }
         new_selection_group

@@ -353,7 +353,7 @@ ensogl_core::def_command_api! { Commands
     delete_right,
     /// Removes the word on the left of every cursor.
     delete_word_left,
-    /// Removes the word on the left of every cursor.
+    /// Removes the word on the right of every cursor.
     delete_word_right,
     /// Set the text cursor at the mouse cursor position.
     set_cursor_at_mouse_position,
