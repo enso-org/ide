@@ -55,6 +55,8 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32, bg_color:Vector4 ) {
+            use ensogl_theme::vars::graph_editor::node as node_theme;
+
             let bg_color        = Var::<color::Rgba>::from(bg_color);
             let selection_color = style.get_color(ensogl_theme::vars::graph_editor::node::selection::color);
             let _selection_size = style.get_number_or(ensogl_theme::vars::graph_editor::node::selection::size,8.0);
