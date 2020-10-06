@@ -18,7 +18,6 @@ pub mod visibility {
             let right_angle = 90.0_f32.to_radians().radians();
             let unit        = &width/16.0;
 
-
             let outer_radius = &unit*5.0;
 
             let pupil        = Circle(&unit * 1.0);
@@ -28,7 +27,7 @@ pub mod visibility {
 
             let right_edge   = Triangle(&unit * 7.9, &unit * 4.6);
             let right_edge   = right_edge.rotate(right_angle);
-            let right_edge   = right_edge.rotate(right_angle);
+            let right_edge   = right_edge.translate_x(&unit * 5.3);
 
             let left_edge    = right_edge.rotate(2.0 * right_angle);
 
