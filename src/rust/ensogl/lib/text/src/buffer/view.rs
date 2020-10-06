@@ -411,14 +411,14 @@ pub struct HistoryData {
 // ===============
 
 #[derive(Clone,Debug,Default)]
-pub struct Change<T=Location> {
-    range : buffer::Range<T>,
-    text  : Text,
+pub struct Change<T=Bytes> {
+    pub range : buffer::Range<T>,
+    pub text  : Text,
 }
 
 
 #[derive(Clone,Debug,Default)]
-struct Modification<T=Location> {
+struct Modification<T=Bytes> {
     changes       : Vec<Change<T>>,
     new_selection : selection::Group,
     byte_offset   : Bytes,
@@ -640,17 +640,16 @@ impl ViewBuffer {
             Some(t) if selection.is_cursor() => self.moved_selection_region(t,selection,true),
             _                                => selection
         };
-        let range          = transformed.range();
         let byte_selection = self.to_bytes_selection(transformed);
-        let byte_range     = byte_selection.range();
-        self.buffer.replace(byte_range,&text);
-        let new_byte_cursor_pos = byte_range.start + text_byte_size;
+        let range          = byte_selection.range();
+        self.buffer.replace(range,&text);
+        let new_byte_cursor_pos = range.start + text_byte_size;
         let new_byte_selection  = Selection::new_cursor(new_byte_cursor_pos,selection.id);
         let change              = Change{range,text};
         Modification {
             changes       : vec![change],
             new_selection : selection::Group::from(self.to_location_selection(new_byte_selection)),
-            byte_offset   : text_byte_size - byte_range.size(),
+            byte_offset   : text_byte_size - range.size(),
         }
     }
 

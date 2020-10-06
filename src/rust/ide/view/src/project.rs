@@ -2,6 +2,7 @@
 
 use crate::prelude::*;
 
+use crate::code_editor;
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::node::Expression;
 use crate::graph_editor::GraphEditor;
@@ -29,7 +30,7 @@ struct Model {
     display_object : display::object::Instance,
     graph_editor   : GraphEditor,
     searcher       : searcher::View,
-    code_editor    : text::Area,
+    code_editor    : code_editor::View,
 }
 
 impl Model {
@@ -38,7 +39,7 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let searcher       = app.new_view::<searcher::View>();
         let graph_editor   = app.new_view::<GraphEditor>();
-        let code_editor    = app.new_view::<text::Area>();
+        let code_editor    = app.new_view::<code_editor::View>();
         display_object.add_child(&graph_editor);
         display_object.add_child(&code_editor);
         display_object.add_child(&searcher);
@@ -98,8 +99,6 @@ ensogl::def_command_api! { Commands
     add_new_node,
     /// Abort currently node edit. If it was added node, it will be removed, if the existing node was edited, its old expression will be restored.
     abort_node_editing,
-    /// Toggles the code editor visibility.
-    toggle_code_editor,
     /// Simulates a style toggle press event.
     toggle_style,
 }
@@ -153,7 +152,6 @@ impl View {
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = Animation::<Vector2<f32>>::new(network);
-        let code_editor_y_position       = Animation::<Vector2<>>
 
         frp::extend!{ network
             // === Searcher Position and Size ===
@@ -241,7 +239,7 @@ impl View {
     pub fn searcher(&self) -> &searcher::View { &self.model.searcher }
 
     /// Code Editor View.
-    pub fn code_editor(&self) -> &text::Area { &self.model.code_editor }
+    pub fn code_editor(&self) -> &code_editor::View { &self.model.code_editor }
 }
 
 impl display::Object for View {

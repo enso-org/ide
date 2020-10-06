@@ -2,10 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::documentation;
-
 use enso_frp as frp;
-use enso_frp::io::keyboard::Key;
 use ensogl::application;
 use ensogl::application::{Application, shortcut};
 use ensogl::display;
@@ -20,8 +17,8 @@ pub use ensogl_gui_list_view::entry;
 // === Constants ===
 // =================
 
-
-pub const HEIGHT : f32 = 200.0;
+/// The height of code editor in project view.
+pub const HEIGHT_FRACTION : f32 = 0.3;
 /// The padding between text area and scene left boundary.
 pub const PADDING_LEFT : f32 = 7.0;
 
@@ -45,7 +42,6 @@ ensogl_text::define_endpoints! {
     Input {
     }
     Output {
-        scroll_position (f32),
         is_shown        (bool),
     }
 }
@@ -55,41 +51,52 @@ ensogl_text::define_endpoints! {
 // === View ===
 // ============
 
-struct View {
+#[derive(Clone,CloneRef,Debug)]
+pub struct View {
     model : text::Area,
     frp   : Frp,
 }
 
 impl View {
     pub fn new(app:&Application) -> Self {
-        let frp     = Frp::new_network();
-        let network = &frp.network;
-        let model   = app.new_view::<text::Area>();
-        let height  = Animation::<f32>::new(network);
+        let frp             = Frp::new_network();
+        let network         = &frp.network;
+        let model           = app.new_view::<text::Area>();
+        let height_fraction = Animation::<f32>::new(network);
 
         model.set_position_x(PADDING_LEFT);
+        model.set_content("Próba");
+        model.set_active_on();
 
-        frp::extend!{ network
+        frp::extend!{ TRACE_ALL network
+            trace frp.input.toggle;
             let is_shown      =  frp.output.is_shown.clone_ref();
-            is_hidden         <- is_shown.map(|b| !b);
-            show_after_toggle <- frp.toggle.gate(&is_hidden);
-            hide_after_toggle <- frp.toggle.gate(&is_shown);
+            show_after_toggle <- frp.toggle.gate_not(&is_shown);
+            hide_after_toggle <- frp.toggle.gate    (&is_shown);
             show              <- any(frp.input.show,show_after_toggle);
             hide              <- any(frp.input.hide,hide_after_toggle);
 
-            eval_ show (() height.set_target_value(HEIGHT));
-            eval_ hide (() height.set_target_value(0.0));
-            eval_ show (() model.set_active_on());
-            eval_ hide (() model.set_active_off());
-            frp.source.is_shown <+ bool(hide,show);
+            eval_ show (height_fraction.set_target_value(HEIGHT_FRACTION));
+            eval_ hide (height_fraction.set_target_value(0.0));
+            eval_ hide (model.remove_all_cursors());
 
-            position <- all_with(height_fraction.value,f!(h)
-                model.set_position_y(h)
-            )
+            frp.source.is_shown <+ bool(&frp.input.hide,&frp.input.show);
+            frp.source.is_shown <+ frp.toggle.map2(&is_shown, |(),b| !b);
+
+            let shape  = app.display.scene().shape();
+            position <- all_with(&height_fraction.value,shape, |height_f,scene_size| {
+                let height = height_f * scene_size.height;
+                let x      = -scene_size.width  / 2.0 + PADDING_LEFT;
+                let y      = -scene_size.height / 2.0 + height;
+                Vector2(x,y)
+            });
+            eval position ((pos) model.set_position_xy(*pos));
         }
 
         Self{model,frp}
     }
+
+    pub fn text_area(&self) -> &text::Area { &self.model }
 }
 
 impl display::Object for View {
@@ -120,8 +127,9 @@ impl application::View for View {
 
 impl application::shortcut::DefaultShortcutProvider for View {
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
-        vec!
-        [ Self::self_shortcut(shortcut::Action::press   (&[Key::Control,Key::Character("`".into())], &[]) , "toggle"),
-        ]
+        use shortcut::ActionType::*;
+        (&[ (DoublePress, "shift" , "toggle")
+          , (Press      , "escape", "hide"  )
+        ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
     }
 }
