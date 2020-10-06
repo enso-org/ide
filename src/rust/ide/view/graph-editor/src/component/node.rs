@@ -363,6 +363,8 @@ impl Node {
         let background_dynamic_color = dynamic_color::Source::from(background_color_path);
         background_color.frp.set_source(background_dynamic_color);
 
+        model.action_bar.frp.hide_icons.emit(());
+
         Self {frp_network,model}
     }
 }
