@@ -1,6 +1,10 @@
 //! Drop Down Menu Component.
 use ensogl_core::prelude::*;
 
+use crate::list_view;
+use crate::list_view::entry::ModelProvider;
+
+
 use enso_frp as frp;
 use enso_frp;
 use ensogl_core::gui::component::Animation;
@@ -10,8 +14,6 @@ use ensogl_core::display::shape::*;
 use ensogl_core::display::shape::primitive::StyleWatch;
 use ensogl_core::display;
 use ensogl_core::gui::component;
-use ensogl_gui_list_view as list_view;
-use ensogl_gui_list_view::entry::ModelProvider;
 use ensogl_text as text;
 use ensogl_theme as theme;
 

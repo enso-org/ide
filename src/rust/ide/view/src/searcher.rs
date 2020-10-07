@@ -12,10 +12,10 @@ use ensogl::application;
 use ensogl::application::{Application, shortcut};
 use ensogl::display;
 use ensogl::gui::component::Animation;
-use ensogl_gui_list_view as list_view;
-use ensogl_gui_list_view::ListView;
+use ensogl_gui_components::list_view;
+use ensogl_gui_components::list_view::ListView;
 
-pub use ensogl_gui_list_view::entry;
+pub use ensogl_gui_components::list_view::entry;
 
 
 
