@@ -258,10 +258,7 @@ impl application::command::CommandApi for View {
     }
 }
 
-impl application::command::Provider for View {
-}
-
-impl application::command::CommandApi2 for View {}
+impl application::command::CommandApi2 for Frp {}
 
 impl application::View for View {
     fn label() -> &'static str { "Searcher" }

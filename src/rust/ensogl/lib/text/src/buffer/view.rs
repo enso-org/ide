@@ -414,6 +414,16 @@ macro_rules! define_endpoints2 {
                 Self {$($out_field),*}
             }
         }
+
+        impl application::command::CommandApi2 for Frp {
+            fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> {
+                self.command_map.clone()
+            }
+
+            fn status_api(&self) -> Rc<RefCell<HashMap<String,frp::Sampler<bool>>>> {
+                self.status_map.clone()
+            }
+        }
     };
 }
 

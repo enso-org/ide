@@ -138,6 +138,13 @@ pub struct View {
     pub frp : Frp,
 }
 
+impl Deref for View {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
+
 impl View {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
@@ -247,10 +254,7 @@ impl application::command::FrpNetworkProvider for View {
     fn network(&self) -> &frp::Network { &self.frp.network }
 }
 
-impl application::command::Provider for View {
-}
-
-impl application::command::CommandApi2 for View {}
+impl application::command::CommandApi2 for Frp {}
 
 impl application::View for View {
     fn label() -> &'static str { "ProjectView" }

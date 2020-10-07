@@ -14,8 +14,10 @@ use super::Application;
 // === Provider ===
 // ================
 
+pub trait XXX = Deref where <Self as Deref>::Target : CommandApi2;
+
 /// A visual component of an application.
-pub trait View : FrpNetworkProvider + CommandApi2 {
+pub trait View : FrpNetworkProvider + XXX {
     /// Identifier of the command provider class.
     fn label() -> &'static str;
     /// Constructor.
@@ -96,6 +98,24 @@ pub trait CommandApi2 : Sized {
     fn status_api(&self) -> Rc<RefCell<HashMap<String,frp::Sampler<bool>>>> { default() }
 }
 
+// impl<T> CommandApi2 for T
+// where T:Deref, T::Target : CommandApi2 {
+//     default fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> {
+//         self.deref().command_api()
+//     }
+//     default fn status_api(&self) -> Rc<RefCell<HashMap<String,frp::Sampler<bool>>>> {
+//         CommandApi2::status_api(self.deref())
+//     }
+// }
+
+// impl<T:Deref<Target=Tgt>,Tgt:CommandApi2> CommandApi2 for T {
+//     default fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> {
+//         self.deref().command_api()
+//     }
+//     default fn status_api(&self) -> Rc<RefCell<HashMap<String,frp::Sampler<bool>>>> {
+//         CommandApi2::status_api(self.deref())
+//     }
+// }
 // default impl<T> CommandApi2 for T {
 //     fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> { default() }
 // }
@@ -263,8 +283,8 @@ impl Registry {
         // }).collect();
 
         // let instance = ProviderInstance {network,command_map,status_map};
-        let command_map = target.command_api();
-        let status_map = target.status_api();
+        let command_map = target.deref().command_api();
+        let status_map = target.deref().status_api();
         let instance = ProviderInstance {network,command_map,status_map};
         let was_registered = self.instances.borrow().get(label).is_some();
         if !was_registered {

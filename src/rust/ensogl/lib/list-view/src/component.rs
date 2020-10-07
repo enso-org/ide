@@ -436,11 +436,7 @@ impl application::command::FrpNetworkProvider for ListView {
     fn network(&self) -> &frp::Network { &self.frp.network }
 }
 
-impl application::command::Provider for ListView {
-    // fn label() -> &'static str { "ListView" }
-}
-
-impl application::command::CommandApi2 for ListView {
+impl application::command::CommandApi2 for Frp {
 }
 
 impl application::View for ListView {

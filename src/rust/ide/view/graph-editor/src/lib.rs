@@ -1577,9 +1577,9 @@ pub struct GraphEditor {
 }
 
 impl Deref for GraphEditor {
-    type Target = GraphEditorModelWithNetwork;
+    type Target = Frp;
     fn deref(&self) -> &Self::Target {
-        &self.model
+        &self.frp
     }
 }
 
@@ -1591,11 +1591,7 @@ impl GraphEditor {
     }
 }
 
-impl application::command::Provider for GraphEditor {
-
-}
-
-impl application::command::CommandApi2 for GraphEditor {}
+impl application::command::CommandApi2 for Frp {}
 
 
 
@@ -2518,7 +2514,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 impl display::Object for GraphEditor {
     fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
+        &self.model.display_object
     }
 }
 

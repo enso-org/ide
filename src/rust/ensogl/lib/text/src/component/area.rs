@@ -340,15 +340,15 @@ impl Lines {
 // === FRP ===
 // ===========
 
-impl application::command::CommandApi2 for Area {
-    fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> {
-        self.frp.command_map.clone()
-    }
-
-    fn status_api(&self) -> Rc<RefCell<HashMap<String,frp::Sampler<bool>>>> {
-        self.frp.status_map.clone()
-    }
-}
+// impl application::command::CommandApi2 for Area {
+//     fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> {
+//         self.frp.command_map.clone()
+//     }
+//
+//     fn status_api(&self) -> Rc<RefCell<HashMap<String,frp::Sampler<bool>>>> {
+//         self.frp.status_map.clone()
+//     }
+// }
 
 crate::define_endpoints2! {
     Input {

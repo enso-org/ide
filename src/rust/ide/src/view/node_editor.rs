@@ -201,7 +201,7 @@ impl GraphEditorIntegratedWithController {
 
         // === Breadcrumb Selection ===
 
-        let breadcrumbs = &model.view.graph().breadcrumbs;
+        let breadcrumbs = &model.view.graph().model.breadcrumbs;
         frp::extend! {network
             eval_ breadcrumbs.frp.outputs.breadcrumb_pop(model.node_exited_in_ui(&()).ok());
             eval  breadcrumbs.frp.outputs.breadcrumb_push((local_call) {
@@ -216,7 +216,7 @@ impl GraphEditorIntegratedWithController {
 
         // === Project Renaming ===
 
-        let breadcrumbs = &model.view.graph().breadcrumbs;
+        let breadcrumbs = &model.view.graph().model.breadcrumbs;
         frp::extend! {network
             eval breadcrumbs.frp.outputs.project_name((name) {
                 model.rename_project(name);
@@ -357,7 +357,7 @@ impl GraphEditorIntegratedWithControllerModel {
     fn rename_project(&self, name:impl Str) {
         if self.project.name() != name.as_ref() {
             let project     = self.project.clone_ref();
-            let breadcrumbs = self.view.graph().breadcrumbs.clone_ref();
+            let breadcrumbs = self.view.graph().model.breadcrumbs.clone_ref();
             let logger      = self.logger.clone_ref();
             let name        = name.into();
             executor::global::spawn(async move {
@@ -584,7 +584,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let call       = local_call.call;
         let local_call = graph_editor::LocalCall{definition,call};
         self.view.graph().frp.deselect_all_nodes.emit_event(&());
-        self.view.graph().breadcrumbs.frp.push_breadcrumb.emit(&Some(local_call));
+        self.view.graph().model.breadcrumbs.frp.push_breadcrumb.emit(&Some(local_call));
         self.request_detaching_all_visualizations();
         self.refresh_graph_view()
     }
@@ -594,7 +594,7 @@ impl GraphEditorIntegratedWithControllerModel {
         self.view.graph().frp.deselect_all_nodes.emit_event(&());
         self.request_detaching_all_visualizations();
         self.refresh_graph_view()?;
-        self.view.graph().breadcrumbs.frp.pop_breadcrumb.emit(());
+        self.view.graph().model.breadcrumbs.frp.pop_breadcrumb.emit(());
         let id = self.get_displayed_node_id(id)?;
         self.view.graph().frp.select_node.emit_event(&id);
         Ok(())
@@ -738,7 +738,7 @@ impl GraphEditorIntegratedWithControllerModel {
                     },
                     Err(other) => return Err(other.into()),
                 };
-                let selected_nodes = this.view.graph().selected_nodes().iter().filter_map(|id| {
+                let selected_nodes = this.view.graph().model.selected_nodes().iter().filter_map(|id| {
                     this.get_controller_node_id(*id).ok()
                 }).collect_vec();
                 let controller = this.controller.clone_ref();
@@ -795,7 +795,7 @@ impl GraphEditorIntegratedWithControllerModel {
     }
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
-        let displayed = self.view.graph().edges.get_cloned(&edge_id).ok_or(GraphEditorInconsistency)?;
+        let displayed = self.view.graph().model.edges.get_cloned(&edge_id).ok_or(GraphEditorInconsistency)?;
         let con       = self.controller_connection_from_displayed(&displayed)?;
         let inserting = self.connection_views.borrow_mut().insert(con.clone(), *edge_id);
         if inserting.did_overwrite() {
@@ -1036,7 +1036,7 @@ impl NodeEditor {
         let identifiers  = self.visualization.list_visualizations().await;
         let identifiers  = identifiers.unwrap_or_default();
         let project_name = self.graph.model.project.name().to_string();
-        graph_editor.breadcrumbs.frp.project_name.emit(project_name);
+        graph_editor.model.breadcrumbs.frp.project_name.emit(project_name);
         for identifier in identifiers {
             let visualization = self.visualization.load_visualization(&identifier).await;
             let visualization = visualization.map(|visualization| {
@@ -1053,7 +1053,7 @@ impl NodeEditor {
     /// They shall be ordered by the order of the selecting. Node selected as first shall be at
     /// the beginning.
     pub fn selected_nodes(&self) -> FallibleResult<Vec<ast::Id>> {
-        let node_view_ids = self.graph.model.view.graph().selected_nodes().into_iter();
+        let node_view_ids = self.graph.model.view.graph().model.selected_nodes().into_iter();
         let node_ids      = node_view_ids.map(|id| self.graph.model.get_controller_node_id(id));
         let node_ids : Result<Vec<_>,_> = node_ids.collect();
         node_ids.map_err(Into::into)
