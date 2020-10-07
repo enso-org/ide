@@ -257,7 +257,7 @@ impl Integration {
             // Notifications from graph controller
             let handle_text_notification = FencedAction::fence(&network,
                 f!((notification:&Option<controller::text::Notification>)
-                    model.handle_text_notification(notification);
+                    model.handle_text_notification(*notification);
             ));
 
             // Changes in Graph Editor
@@ -710,7 +710,7 @@ impl Model {
     }
 
     /// Handle notification received from Text Controller.
-    pub fn handle_text_notification(&self, notification:&Option<controller::text::Notification>) {
+    pub fn handle_text_notification(&self, notification:Option<controller::text::Notification>) {
         use controller::text::Notification;
 
         debug!(self.logger, "Received notification {notification:?}");
@@ -766,9 +766,10 @@ impl Model {
 // === Passing UI Actions To Controllers ===
 
 // These functions are called with FRP event values as arguments. The FRP values are always provided
-// by reference, even those "trivially-copy" types, To keep code cleaner we take all parameters
-// by reference as well.
+// by reference, including "trivially-copy" types and Vecs, To keep code cleaner we take
+// all parameters by reference.
 #[allow(clippy::trivially_copy_pass_by_ref)]
+#[allow(clippy::ptr_arg)]
 impl Model {
     fn node_removed_in_ui(&self, node:&graph_editor::NodeId) -> FallibleResult<()> {
         let id = self.get_controller_node_id(*node)?;

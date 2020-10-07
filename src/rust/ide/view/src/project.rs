@@ -15,7 +15,6 @@ use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
 use ensogl::gui::component::Animation;
-use ensogl_text as text;
 
 
 

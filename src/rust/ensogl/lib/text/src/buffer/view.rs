@@ -410,13 +410,17 @@ pub struct HistoryData {
 // === Changes ===
 // ===============
 
+/// A single change done to the text content.
 #[derive(Clone,Debug,Default)]
 pub struct Change<T=Bytes> {
+    /// Range of old text being replaced.
     pub range : buffer::Range<T>,
+    /// The text inserted in place of `range`.
     pub text  : Text,
 }
 
-
+/// The summary of single text modification, usually returned by `modify`-like functions in
+/// `ViewBuffer`.
 #[derive(Clone,Debug,Default)]
 struct Modification<T=Bytes> {
     changes       : Vec<Change<T>>,

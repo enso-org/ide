@@ -637,7 +637,8 @@ impl Area {
 
             // === Insert ===
 
-            key_to_insert <= keyboard.frp.down.map(f!((key) m.key_to_string(key)));
+            key_inserted  <- keyboard.frp.down.gate_not(&keyboard.frp.is_modifier_down);
+            key_to_insert <= key_inserted.map(f!((key) m.key_to_string(key)));
             str_to_insert <- any(&input.insert,&key_to_insert);
             eval str_to_insert ((s) m.buffer.frp.insert(s));
             eval input.set_content ([input,cmd](s) {
@@ -663,6 +664,27 @@ impl Area {
         }
         self
     }
+
+    /// Add the text area to a specific view. The mouse event positions will be mapped to this view
+    /// regardless the previous views this component could be added to.
+    //TODO[ao] it will not move selection, see todo in `symbols` function.
+    pub fn add_to_view(&self, view:&display::scene::View) {
+        for symbol in self.symbols() { view.add(&symbol); }
+        self.data.camera.set(view.camera.clone_ref());
+    }
+
+    /// Remove this component from view.
+    pub fn remove_from_view(&self, view:&display::scene::View) {
+        for symbol in self.symbols() { view.remove(&symbol); }
+    }
+
+    fn symbols(&self) -> SmallVec<[display::Symbol;1]> {
+        let text_symbol       = self.data.glyph_system.sprite_system().symbol.clone_ref();
+        let selection_system  = self.data.scene.shapes.shape_system(PhantomData::<selection::Shape>);
+        let _selection_symbol = selection_system.shape_system.symbol.clone_ref();
+        //TODO[ao] we cannot move selection symbol, as it is global for all the text areas.
+        SmallVec::from_buf([text_symbol,/*selection_symbol*/])
+    }
 }
 
 
@@ -675,6 +697,7 @@ impl Area {
 #[derive(Clone,CloneRef,Debug)]
 pub struct AreaData {
     scene          : Scene,
+    camera         : Rc<CloneRefCell<display::camera::Camera2d>>,
     logger         : Logger,
     frp_endpoints  : FrpEndpoints,
     buffer         : buffer::View,
@@ -710,19 +733,16 @@ impl AreaData {
         let lines          = default();
         let frp_inputs     = FrpInputs::new(network);
         let frp_endpoints  = FrpEndpoints::new(&network,frp_inputs.clone_ref());
+        let camera         = Rc::new(CloneRefCell::new(scene.camera().clone_ref()));
 
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
         // initialization of the shape system, not for every area creation. To be improved during
         // refactoring of the architecture some day.
         let shape_system = scene.shapes.shape_system(PhantomData::<selection::Shape>);
-        let symbol       = &shape_system.shape_system.sprite_system.symbol;
         shape_system.shape_system.set_pointer_events(false);
 
-        // FIXME[WD]: This is temporary sorting utility, which places the cursor in front of mouse
-        // pointer. Should be refactored when proper sorting mechanisms are in place.
-        scene.views.main.remove(symbol);
-        scene.views.label.add(symbol);
-        Self {scene,logger,frp_endpoints,display_object,glyph_system,buffer,lines,selection_map}.init()
+        Self {scene,logger,frp_endpoints,display_object,glyph_system,buffer,lines,selection_map
+            ,camera}.init()
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
@@ -791,8 +811,9 @@ impl AreaData {
 
     /// Transforms screen position to the object (display object) coordinate system.
     fn to_object_space(&self, screen_pos:Vector2) -> Vector2 {
+        let camera             = self.camera.get();
         let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
-        let origin_clip_space  = self.scene.camera().view_projection_matrix() * origin_world_space;
+        let origin_clip_space  = camera.view_projection_matrix() * origin_world_space;
         let inv_object_matrix  = self.transform_matrix().try_inverse().unwrap();
 
         let shape        = self.scene.frp.shape.value();
@@ -800,7 +821,7 @@ impl AreaData {
         let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
         let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
         let clip_space   = Vector4(clip_space_x,clip_space_y,clip_space_z,origin_clip_space.w);
-        let world_space  = self.scene.camera().inversed_view_projection_matrix() * clip_space;
+        let world_space  = camera.inversed_view_projection_matrix() * clip_space;
         (inv_object_matrix * world_space).xy()
     }
 
