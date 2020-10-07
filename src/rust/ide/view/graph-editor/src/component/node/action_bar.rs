@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use crate::component::node;
 
-
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
@@ -19,14 +18,10 @@ use ensogl_shape_utils::compound_shape;
 use ensogl_shape_utils::constants::HOVER_COLOR;
 
 
-use ensogl::display::object::ObjectOps;
-
-
 
 // ===============
 // === Shapes  ===
 // ===============
-
 
 /// Invisible rectangular area that can be hovered.
 mod hover_rect {
@@ -191,7 +186,6 @@ pub struct ActionBar {
 }
 
 impl ActionBar {
-
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let model = Rc::new(Model::new(app));

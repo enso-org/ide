@@ -344,7 +344,6 @@ impl Node {
             model.frp.source.freeze <+ actions.action_freeze;
 
 
-
             // === Color Handling ===
 
             eval background_color.frp.color ((color) {
@@ -359,6 +358,7 @@ impl Node {
                    background_color.frp.set_state(dynamic_color::State::Base);
                  }
             });
+
 
             // === Action Bar ===
 
