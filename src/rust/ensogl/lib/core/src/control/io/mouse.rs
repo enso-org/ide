@@ -119,8 +119,10 @@ macro_rules! define_bindings {
                     }));
                     let js_closure = $name.as_ref().unchecked_ref();
                     let js_name    = stringify!($js_name);
-                    let result     = target.add_event_listener_with_callback_and_bool
-                        (js_name,js_closure,true);
+                    let options    = event_listener_options();
+                    let result     =
+                        target.add_event_listener_with_callback_and_add_event_listener_options
+                        (js_name,js_closure,&options);
                     if let Err(e)  = result { panic!("Cannot add event listener. {:?}",e) }
                 )*
                 let closures = Rc::new(MouseManagerClosures {target,$($name),*});
@@ -128,6 +130,12 @@ macro_rules! define_bindings {
             }
         }
     };
+}
+
+fn event_listener_options() -> web_sys::AddEventListenerOptions {
+    let mut options = web_sys::AddEventListenerOptions::new();
+    options.capture(true).passive(false);
+    options
 }
 
 define_bindings! {
