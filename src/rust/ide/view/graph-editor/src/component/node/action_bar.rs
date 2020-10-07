@@ -133,7 +133,9 @@ impl Model {
 
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
-        self.hover_area.shape.size.set(size);
+
+        let hover_ara_size = Vector2::new(size.x,size.y*2.0);
+        self.hover_area.shape.size.set(hover_ara_size);
 
         self.icons.set_position_x(-size.x/2.0);
 

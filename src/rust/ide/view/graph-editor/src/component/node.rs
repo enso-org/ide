@@ -295,9 +295,11 @@ impl NodeModel {
         self.output_ports.mod_position(|t| t.x = width/2.0);
         self.output_ports.mod_position(|t| t.y = height/2.0);
 
-        self.action_bar.mod_position(|t| t.x = width/2.0 + CORNER_RADIUS);
-        self.action_bar.mod_position(|t| t.y = 1.0 * height + ACTION_BAR_HEIGHT);
-        self.action_bar.frp.set_size(Vector2::new(width, ACTION_BAR_HEIGHT));
+        self.action_bar.mod_position(|t| {
+            t.x = width/2.0 + CORNER_RADIUS;
+            t.y = height + ACTION_BAR_HEIGHT;
+        });
+        self.action_bar.frp.set_size(Vector2::new(width,ACTION_BAR_HEIGHT));
     }
 
     pub fn visualization(&self) -> &visualization::Container {
@@ -356,6 +358,19 @@ impl Node {
                  } else {
                    background_color.frp.set_state(dynamic_color::State::Base);
                  }
+            });
+
+            // === Action Bar ===
+
+            eval_ model.main_area.events.mouse_over  ( actions.show_icons() );
+            eval_ model.main_area.events.mouse_out   ( actions.hide_icons() );
+            eval_ model.drag_area.events.mouse_over  ( actions.show_icons() );
+            eval_ model.drag_area.events.mouse_out   ( actions.hide_icons() );
+            eval model.ports.frp.hover ([actions](item) {
+                match *item {
+                    Some(_) => actions.show_icons(),
+                    None    => actions.hide_icons(),
+                }
             });
         }
 
