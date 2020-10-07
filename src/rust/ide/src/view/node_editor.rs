@@ -186,7 +186,7 @@ impl GraphEditorIntegratedWithController {
     , project    : model::Project) -> Self {
         let model = GraphEditorIntegratedWithControllerModel::new(logger,app,controller,project);
         let model        = Rc::new(model);
-        let editor_outs  = &model.view.graph().frp.outputs;
+        let editor_outs  = &model.view.graph().frp.output;
         let searcher_frp = &model.view.searcher().frp;
         let project_frp  = &model.view.frp;
         frp::new_network! {network
@@ -412,7 +412,7 @@ impl GraphEditorIntegratedWithControllerModel {
             filtered.map(|(k,v)| (*k,*v)).collect_vec()
         };
         for (id,displayed_id) in to_remove {
-            self.view.graph().frp.inputs.remove_node.emit_event(&displayed_id);
+            self.view.graph().frp.input.remove_node.emit_event(&displayed_id);
             self.node_views.borrow_mut().remove_by_left(&id);
         }
     }
@@ -424,7 +424,7 @@ impl GraphEditorIntegratedWithControllerModel {
         self.refresh_node_view(displayed_id, info, trees);
         // If position wasn't present in metadata, we must initialize it.
         if info.metadata.as_ref().and_then(|md| md.position).is_none() {
-            self.view.graph().frp.inputs.set_node_position.emit_event(&(displayed_id, default_pos));
+            self.view.graph().frp.input.set_node_position.emit_event(&(displayed_id, default_pos));
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
     }
@@ -464,7 +464,7 @@ impl GraphEditorIntegratedWithControllerModel {
     (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
         let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
-            self.view.graph().frp.inputs.set_node_position.emit_event(&(id, position.vector));
+            self.view.graph().frp.input.set_node_position.emit_event(&(id, position.vector));
         }
         let expression = node.info.expression().repr();
 
@@ -478,7 +478,7 @@ impl GraphEditorIntegratedWithControllerModel {
             input_span_tree  : trees.inputs,
             output_span_tree : trees.outputs.unwrap_or_else(default)
         };
-        self.view.graph().frp.inputs.set_node_expression.emit_event(&(id, code_and_trees));
+        self.view.graph().frp.input.set_node_expression.emit_event(&(id, code_and_trees));
         self.expression_views.borrow_mut().insert(id, expression);
 
         // Set initially available type information on ports (identifiable expression's sub-parts).
@@ -523,13 +523,13 @@ impl GraphEditorIntegratedWithControllerModel {
     /// Set given type (or lack of such) on the given sub-expression.
     fn set_type(&self, node_id:graph_editor::NodeId, id:ExpressionId, typename:Option<graph_editor::Type>) {
         let event = (node_id,id,typename);
-        self.view.graph().frp.inputs.set_expression_type.emit_event(&event);
+        self.view.graph().frp.input.set_expression_type.emit_event(&event);
     }
 
     /// Set given method pointer (or lack of such) on the given sub-expression.
     fn set_method_pointer(&self, id:ExpressionId, method:Option<graph_editor::MethodPointer>) {
         let event = (id,method);
-        self.view.graph().frp.inputs.set_method_pointer.emit_event(&event);
+        self.view.graph().frp.input.set_method_pointer.emit_event(&event);
     }
 
     fn refresh_connection_views
@@ -538,8 +538,8 @@ impl GraphEditorIntegratedWithControllerModel {
         for con in connections {
             if !self.connection_views.borrow().contains_left(&con) {
                 let targets = self.edge_targets_from_controller_connection(con.clone())?;
-                self.view.graph().frp.inputs.connect_nodes.emit_event(&targets);
-                let edge_id = self.view.graph().frp.outputs.edge_added.value();
+                self.view.graph().frp.input.connect_nodes.emit_event(&targets);
+                let edge_id = self.view.graph().frp.output.edge_added.value();
                 self.connection_views.borrow_mut().insert(con, edge_id);
             }
         }
@@ -563,7 +563,7 @@ impl GraphEditorIntegratedWithControllerModel {
             filtered.map(|(_,edge_id)| *edge_id).collect_vec()
         };
         for edge_id in to_remove {
-            self.view.graph().frp.inputs.remove_edge.emit_event(&edge_id);
+            self.view.graph().frp.input.remove_edge.emit_event(&edge_id);
             self.connection_views.borrow_mut().remove_by_right(&edge_id);
         }
     }
@@ -765,14 +765,14 @@ impl GraphEditorIntegratedWithControllerModel {
             let error          = || MissingSearcherController;
             let searcher       = self.searcher_controller.borrow().clone().ok_or_else(error)?;
             let error          = || GraphEditorInconsistency;
-            let edited_node    = graph_frp.outputs.edited_node.value().ok_or_else(error)?;
+            let edited_node    = graph_frp.output.edited_node.value().ok_or_else(error)?;
             let new_code       = searcher.pick_completion_by_index(*entry)?;
             let code_and_trees = graph_editor::component::node::port::Expression {
                 code             : new_code,
                 input_span_tree  : default(),
                 output_span_tree : default(),
             };
-            graph_frp.inputs.set_node_expression.emit_event(&(edited_node,code_and_trees));
+            graph_frp.input.set_node_expression.emit_event(&(edited_node,code_and_trees));
         }
         Ok(())
     }
@@ -846,7 +846,7 @@ impl GraphEditorIntegratedWithControllerModel {
         let id             = visualization.id;
         let node_id        = *node_id;
         let controller     = self.controller.clone();
-        let endpoint       = self.view.graph().frp.inputs.set_visualization_data.clone_ref();
+        let endpoint       = self.view.graph().frp.input.set_visualization_data.clone_ref();
         let update_handler = self.visualization_update_handler(endpoint,node_id);
         let logger         = self.logger.clone_ref();
         let visualizations = self.visualizations.clone_ref();

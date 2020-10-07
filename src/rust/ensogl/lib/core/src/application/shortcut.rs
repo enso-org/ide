@@ -98,7 +98,7 @@ pub struct Action {
 impl Action {
     /// Constructor. Version without condition checker.
     pub fn new(target:impl Into<String>, command:impl Into<Command>) -> Self {
-        Self::new_when(target,command,Condition::Simple("is_active".into()))
+        Self::new_when(target,command,Condition::Always)
     }
 
     /// Constructor.

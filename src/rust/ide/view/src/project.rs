@@ -79,9 +79,9 @@ impl Model {
     }
 
     fn add_node_and_edit(&self) {
-        let graph_editor_inputs = &self.graph_editor.frp.inputs;
+        let graph_editor_inputs = &self.graph_editor.frp.input;
         graph_editor_inputs.add_node_at_cursor.emit(());
-        let created_node_id = self.graph_editor.frp.outputs.node_added.value();
+        let created_node_id = self.graph_editor.frp.output.node_added.value();
         graph_editor_inputs.set_node_expression.emit(&(created_node_id,Expression::default()));
         graph_editor_inputs.edit_node.emit(&created_node_id);
     }
@@ -186,8 +186,8 @@ impl View {
             editing_aborted <+ frp.abort_node_editing.constant(true);
             should_finish_editing <-
                 any(frp.abort_node_editing,searcher.editing_committed,frp.add_new_node);
-            eval should_finish_editing ((()) graph.inputs.stop_editing.emit(()));
-            _eval <- graph.outputs.edited_node.map2(&searcher.is_visible,
+            eval should_finish_editing ((()) graph.input.stop_editing.emit(()));
+            _eval <- graph.output.edited_node.map2(&searcher.is_visible,
                 f!([model,searcher_left_top_position](edited_node_id,is_visible) {
                     model.update_searcher_view(*edited_node_id,&searcher_left_top_position);
                     if !is_visible {
@@ -196,7 +196,7 @@ impl View {
                     }
                 })
             );
-            _eval <- graph.outputs.node_position_set.map2(&graph.outputs.edited_node,
+            _eval <- graph.output.node_position_set.map2(&graph.output.edited_node,
                 f!([searcher_left_top_position]((node_id,position),edited_node_id) {
                     if edited_node_id.contains(node_id) {
                         let new = Model::searcher_left_top_position_when_under_node_at(*position);
@@ -205,10 +205,10 @@ impl View {
                 })
             );
             editing_not_aborted          <- editing_aborted.map(|b| !b);
-            let editing_finished         =  graph.outputs.node_editing_finished.clone_ref();
+            let editing_finished         =  graph.output.node_editing_finished.clone_ref();
             frp.source.editing_committed <+ editing_finished.gate(&editing_not_aborted);
             frp.source.editing_aborted   <+ editing_finished.gate(&editing_aborted);
-            editing_aborted              <+ graph.outputs.edited_node.constant(false);
+            editing_aborted              <+ graph.output.edited_node.constant(false);
 
 
             // === Adding New Node ===
