@@ -18,8 +18,10 @@ use ensogl::gui::cursor;
 use ensogl_shape_utils::dynamic_color::DynamicColor;
 use ensogl_shape_utils::dynamic_color;
 use ensogl_text as text;
+use ensogl_text::buffer;
 use ensogl_theme as theme;
 use span_tree::SpanTree;
+use text::Bytes;
 use text::Text;
 
 use super::super::node;
@@ -155,7 +157,7 @@ impl Manager {
         label.remove_from_view(&scene.views.main);
         label.add_to_view(&scene.views.label);
 
-        frp::new_network! { network
+        frp::new_network! { TRACE_ALL network
             cursor_style_source <- any_mut::<cursor::Style>();
             press_source        <- source::<span_tree::Crumbs>();
             hover_source        <- source::<Option<span_tree::Crumbs>>();
@@ -181,9 +183,11 @@ impl Manager {
 
             // === Color Handling ===
 
-            eval text_color.frp.color ((color) {
-                // FIXME: This does not seem to update existing text.
-                label.set_default_color(*color);
+            eval text_color.frp.color ([label](color) {
+                println!("COLOR {:?}", color);
+                // TODO: Make const once all the components can be made const.
+                let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
+                label.set_color_bytes(all_bytes,*color);
             });
 
             eval set_dimmed ([text_color](should_dim) {
@@ -209,8 +213,9 @@ impl Manager {
         label.set_cursor(&default());
         label.insert("HELLO\nHELLO2\nHELLO3\nHELLO4".to_string());
 
-        let text_color_path    = theme::vars::graph_editor::node::text::color.into();
-        let text_dynamic_color = dynamic_color::Source::Theme{path:text_color_path};
+        let text_color_path    = theme::vars::graph_editor::node::text::color;
+        let text_color_path    = display::style::Path::from(text_color_path);
+        let text_dynamic_color = dynamic_color::Source::from(text_color_path);
         text_color.frp.set_source(text_dynamic_color);
 
         label.set_default_text_size(text::Size(12.0));

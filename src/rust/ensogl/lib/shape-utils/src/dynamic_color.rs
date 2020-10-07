@@ -195,15 +195,17 @@ impl Model {
         color.into()
     }
 
-    /// Return the dimmed version of the base color.
-    fn get_color_dimmed(&self, dimmnes:f32) -> color::Rgba {
+    /// Return the modified version of the base color.
+    fn get_parametrized_color(&self, dimmnes:f32, alpha:f32) -> color::Rgba {
         let base_color = self.get_base_color();
         // Check whether there is a version defined in the theme, otherwise we create our own.
         let dimmed_color = match self.try_get_color_variant_from_theme(THEME_KEY_DIMMED) {
             None        => self.make_dimmed_color(base_color),
             Some(color) => color,
         };
-        mix(base_color,dimmed_color,dimmnes).into()
+        let mut color = mix(base_color,dimmed_color,dimmnes);
+        color.data.alpha *= alpha;
+        color.into()
     }
 }
 
@@ -240,8 +242,11 @@ impl DynamicColor {
         let dimmnes          = Animation::<f32>::new(&network);
         let alpha            = Animation::<f32>::new(&network);
 
+        alpha.simulator.set_value(1.0);
+        dimmnes.simulator.set_value(0.0);
+
         frp::extend! { network
-            eval frp.set_state([dimmnes] (state) {
+            eval frp.set_state([dimmnes,alpha] (state) {
                 match *state {
                     State::Base => {
                         dimmnes.set_target_value(0.0);
@@ -260,13 +265,16 @@ impl DynamicColor {
                 }
             });
 
-            color_parameters <- all(frp.set_source,dimmnes.value);
-            color <- color_parameters.map(f!([model]((source,value)){
+            color_parameters <- all(frp.set_source,dimmnes.value,alpha.value);
+            color <- color_parameters.map(f!([model]((source,value,alpha)){
                   model.set_source(source.clone());
-                  model.get_color_dimmed(*value)
+                  model.get_parametrized_color(*value,*alpha)
             }));
             frp.source.color <+ color;
         }
+
+        frp.set_state(State::Base);
+
         self
     }
 }

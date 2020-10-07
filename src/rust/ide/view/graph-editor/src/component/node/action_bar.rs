@@ -147,12 +147,18 @@ impl Model {
         self.icon_visibility.set_scale_xy(Vector2::new(1.2,1.2));
     }
 
+    fn set_icon_visibility(&self, visible:bool) {
+        self.icon_freeze.frp.set_visibility(visible);
+        self.icon_skip.frp.set_visibility(visible);
+        self.icon_visibility.frp.set_visibility(visible);
+    }
+
     fn show(&self) {
-        self.add_child(&self.icons);
+        self.set_icon_visibility(true);
     }
 
     fn hide(&self) {
-        self.icons.unset_parent();
+        self.set_icon_visibility(false);
     }
 }
 

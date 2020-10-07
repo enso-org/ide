@@ -100,12 +100,6 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
             eval frp.set_size ((size) {
                 model.icon.shape.sprites().iter().for_each(|sprite| sprite.size.set(*size))
             });
-            // TODO consider interactions with dimness
-            eval frp.set_visibility ([color_frp](size){
-                if   *size { color_frp.set_state(dynamic_color::State::Base) }
-                else       {  color_frp.set_state(dynamic_color::State::Transparent) }
-            });
-
 
              // === Mouse Interactions ===
 
@@ -121,8 +115,22 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
 
             // === Color ===
 
-            dim_shape <- icon.mouse_out.gate_not(&frp.output.toggle_state);
-            eval_ dim_shape ( color_frp.set_state(dynamic_color::State::Dim) );
+            invisible <- frp.set_visibility.gate_not(&frp.set_visibility);
+            eval_ invisible (color_frp.set_state(dynamic_color::State::Transparent ));
+
+            visible    <- frp.set_visibility.gate(&frp.set_visibility);
+            is_hovered <- bool(&icon.mouse_out,&icon.mouse_over);
+
+            button_state <- all3(&visible,&is_hovered,&frp.toggle_state);
+
+            eval button_state ([color_frp]((visible,hovered,toggle_state)) {
+                match(*visible,*hovered,*toggle_state) {
+                    (false,_,_)        => color_frp.set_state(dynamic_color::State::Transparent ),
+                    (true,true,_)      => color_frp.set_state(dynamic_color::State::Base ),
+                    (true,false,true)  => color_frp.set_state(dynamic_color::State::Base ),
+                    (true,false,false) => color_frp.set_state(dynamic_color::State::Dim ),
+                }
+            });
 
             eval color_frp.color ((color) model.icon.shape.set_color(color.into()));
         }
