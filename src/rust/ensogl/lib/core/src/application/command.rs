@@ -4,11 +4,46 @@
 use crate::prelude::*;
 use crate::frp;
 
+use super::shortcut;
+use super::shortcut::Shortcut;
+use super::Application;
+
 
 
 // ================
 // === Provider ===
 // ================
+
+/// A visual component of an application.
+pub trait View : FrpNetworkProvider + CommandApi2 {
+    /// Identifier of the command provider class.
+    fn label() -> &'static str;
+    /// Constructor.
+    fn new(app:&Application) -> Self;
+
+    /// Set of default shortcuts.
+    fn default_shortcuts() -> Vec<Shortcut> {
+        default()
+    }
+
+    // /// Helper for defining shortcut targeting this object.
+    // fn self_shortcut_when
+    // (action:impl Into<shortcut::Rule>, command:impl Into<shortcut::Command>, condition:shortcut::Condition) -> Shortcut {
+    //     Shortcut::new_when(action,Self::label(),command,condition)
+    // }
+
+    /// Add a new shortcut targeting the self object.
+    fn self_shortcut
+    (action_type:shortcut::ActionType, pattern:impl Into<String>, command:impl Into<shortcut::Command>) -> Shortcut {
+        Shortcut::new(shortcut::Rule::new(action_type,pattern),Self::label(),command)
+    }
+
+    /// Add a new shortcut targeting the self object.
+    fn self_shortcut_when
+    (action_type:shortcut::ActionType, pattern:impl Into<String>, command:impl Into<shortcut::Command>, condition:impl Into<shortcut::Condition>) -> Shortcut {
+        Shortcut::new_when(shortcut::Rule::new(action_type,pattern),Self::label(),command,condition)
+    }
+}
 
 /// A class of components which expose commands. A command is a labeled action represented as a
 /// no argument FRP endpoint (`frp::Source`). Useful when implementing actions which can be altered
@@ -21,9 +56,9 @@ use crate::frp;
 /// the available commands. This information may be useful even before the first instance of a
 /// particular provider is created, for example in order to provide user with hints about possible
 /// API endpoints when defining keyboard shortcuts.
-pub trait Provider : FrpNetworkProvider + CommandApi + StatusApi {
-    /// Identifier of the command provider class.
-    fn label() -> &'static str;
+pub trait Provider : FrpNetworkProvider + CommandApi2 { //+ CommandApi + StatusApi {
+    // /// Identifier of the command provider class.
+    // fn label() -> &'static str;
 }
 
 /// FRP endpoint for `Command`.
@@ -54,6 +89,18 @@ pub trait CommandApi : Sized {
     fn command_api(&self) -> Vec<CommandEndpoint> { default() }
 }
 
+#[allow(missing_docs)]
+pub trait CommandApi2 : Sized {
+    //fn command_api_docs() -> Vec<EndpointDocs>    { default() }
+    fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> { default() }
+    fn status_api(&self) -> Rc<RefCell<HashMap<String,frp::Sampler<bool>>>> { default() }
+}
+
+// default impl<T> CommandApi2 for T {
+//     fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> { default() }
+// }
+
+
 /// Status API, a set of labeled status endpoints and labeled status docs. Both functions
 /// should return the same set of labels. Although it could be designed in a safer way, it would
 /// be much more trickier to use. You should not define it by hand. Instead use the provided
@@ -81,8 +128,9 @@ impl<T:Sized> StatusApi for T {
 #[allow(missing_docs)]
 pub struct ProviderInstance {
     pub network     : frp::WeakNetwork,
-    pub command_map : HashMap<String,Command>,
-    pub status_map  : HashMap<String,Status>,
+    pub command_map : Rc<RefCell<HashMap<String,frp::Source<()>>>>,
+    pub status_map : Rc<RefCell<HashMap<String,frp::Sampler<bool>>>>,
+    // pub status_map  : HashMap<String,Status>,
 }
 
 impl ProviderInstance {
@@ -178,7 +226,7 @@ impl Registry {
     }
 
     /// Registers the command `Provider`.
-    pub fn register<V:Provider>(&self) {
+    pub fn register<V:View>(&self) {
         let label  = V::label();
         let exists = self.instances.borrow().get(label).is_some();
         if exists {
@@ -188,30 +236,35 @@ impl Registry {
         }
     }
 
+    // fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> { default() }
+
     /// Registers the command `ProviderInstance`.
-    pub fn register_instance<T:Provider>(&self, target:&T) {
+    pub fn register_instance<T:View>(&self, target:&T) {
         let label   = T::label();
         let network = T::network(target).downgrade();
-        let command_doc_map : HashMap<String,String> = T::command_api_docs().into_iter().map(|t| {
-            (t.label,t.caption)
-        }).collect();
-        let command_map = T::command_api(target).into_iter().map(|t| {
-            let caption = command_doc_map.get(&t.label).unwrap().clone(); // fixme unwrap
-            let frp     = t.frp;
-            let endpoint = FrpEndpoint {caption,frp};
-            (t.label,endpoint)
-        }).collect();
+        // let command_doc_map : HashMap<String,String> = T::command_api_docs().into_iter().map(|t| {
+        //     (t.label,t.caption)
+        // }).collect();
+        // let command_map = T::command_api(target).into_iter().map(|t| {
+        //     let caption = command_doc_map.get(&t.label).unwrap().clone(); // fixme unwrap
+        //     let frp     = t.frp;
+        //     let endpoint = FrpEndpoint {caption,frp};
+        //     (t.label,endpoint)
+        // }).collect();
+        //
+        // let status_doc_map : HashMap<String,String> = T::status_api_docs().into_iter().map(|t| {
+        //     (t.label,t.caption)
+        // }).collect();
+        // let status_map = T::status_api(target).into_iter().map(|t| {
+        //     let caption = status_doc_map.get(&t.label).unwrap().clone(); // fixme unwrap
+        //     let frp     = t.frp;
+        //     let endpoint = FrpEndpoint {caption,frp};
+        //     (t.label,endpoint)
+        // }).collect();
 
-        let status_doc_map : HashMap<String,String> = T::status_api_docs().into_iter().map(|t| {
-            (t.label,t.caption)
-        }).collect();
-        let status_map = T::status_api(target).into_iter().map(|t| {
-            let caption = status_doc_map.get(&t.label).unwrap().clone(); // fixme unwrap
-            let frp     = t.frp;
-            let endpoint = FrpEndpoint {caption,frp};
-            (t.label,endpoint)
-        }).collect();
-
+        // let instance = ProviderInstance {network,command_map,status_map};
+        let command_map = target.command_api();
+        let status_map = target.status_api();
         let instance = ProviderInstance {network,command_map,status_map};
         let was_registered = self.instances.borrow().get(label).is_some();
         if !was_registered {

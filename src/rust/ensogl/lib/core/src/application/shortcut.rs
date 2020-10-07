@@ -73,6 +73,12 @@ pub enum Condition {
     // And (Box<Condition>, Box<Condition>),
 }
 
+impl From<&str> for Condition {
+    fn from(input:&str) -> Self {
+        if input.is_empty() { Self::Always } else { Self::Simple(input.into()) }
+    }
+}
+
 
 
 // ==============
@@ -84,9 +90,9 @@ pub enum Condition {
 /// to be executed.
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Action {
-    target  : String,
-    command : Command,
-    when    : Condition,
+    target    : String,
+    command   : Command,
+    condition : Condition,
 }
 
 impl Action {
@@ -96,11 +102,12 @@ impl Action {
     }
 
     /// Constructor.
-    pub fn new_when<T,C>(target:T, command:C, when:Condition) -> Self
-        where T:Into<String>, C:Into<Command> {
-        let target  = target.into();
-        let command = command.into();
-        Self {target,when,command}
+    pub fn new_when
+    (target:impl Into<String>, command:impl Into<Command>, condition:impl Into<Condition>) -> Self {
+        let target    = target.into();
+        let condition = condition.into();
+        let command   = command.into();
+        Self {target,condition,command}
     }
 }
 
@@ -120,16 +127,23 @@ pub struct Shortcut {
 
 impl Shortcut {
     /// Constructor. Version without condition checker.
-    pub fn new<A,T,C>(rule:A, target:T, command:C) -> Self
-    where A:Into<Rule>, T:Into<String>, C:Into<Command> {
+    pub fn new
+    ( rule    : impl Into<Rule>
+    , target  : impl Into<String>
+    , command : impl Into<Command>
+    ) -> Self {
         let action = Action::new(target,command);
         let rule   = rule.into();
         Self {action,rule}
     }
 
     /// Constructor.
-    pub fn new_when<A,T,C>(rule:A, target:T, command:C, condition:Condition) -> Self
-        where A:Into<Rule>, T:Into<String>, C:Into<Command> {
+    pub fn new_when
+    ( rule      : impl Into<Rule>
+    , target    : impl Into<String>
+    , command   : impl Into<Command>
+    , condition : impl Into<Condition>
+    ) -> Self {
         let action = Action::new_when(target,command,condition);
         let rule   = rule.into();
         Self {action,rule}
@@ -216,12 +230,12 @@ impl RegistryModel {
             let borrowed_command_map = self.command_registry.instances.borrow();
             for rule in rules {
                 let target = &rule.action.target;
-                borrowed_command_map.get(target).for_each(|commands| {
-                    for command in commands {
-                        if Self::condition_checker(&rule.when,&command.status_map) {
+                borrowed_command_map.get(target).for_each(|instances| {
+                    for instance in instances {
+                        if Self::condition_checker(&rule.condition,&instance.status_map) {
                             let command_name = &rule.command.name;
-                            match command.command_map.get(command_name){
-                                Some(t) => targets.push(t.frp.clone_ref()),
+                            match instance.command_map.borrow().get(command_name){
+                                Some(t) => targets.push(t.clone_ref()),
                                 None    => warning!(&self.logger,
                                         "Command {command_name} was not found on {target}."),
                             }
@@ -236,10 +250,10 @@ impl RegistryModel {
     }
 
     fn condition_checker
-    (condition:&Condition, status_map:&HashMap<String,command::Status>) -> bool {
+    (condition:&Condition, status_map:&Rc<RefCell<HashMap<String,frp::Sampler<bool>>>>) -> bool {
         match condition {
             Condition::Always       => true,
-            Condition::Simple(name) => status_map.get(name).map(|t| t.frp.value()).unwrap_or(false)
+            Condition::Simple(name) => status_map.borrow().get(name).map(|t| t.value()).unwrap_or(false)
         }
     }
 }
@@ -257,22 +271,22 @@ impl Add<Shortcut> for &Registry {
 // === DefaultShortcutProvider ===
 // ===============================
 
-/// Trait allowing providing default set of shortcuts exposed by an object.
-pub trait DefaultShortcutProvider : command::Provider {
-    /// Set of default shortcuts.
-    fn default_shortcuts() -> Vec<Shortcut> {
-        default()
-    }
-
-    /// Helper for defining shortcut targeting this object.
-    fn self_shortcut_when
-    (action:impl Into<Rule>, command:impl Into<Command>, condition:Condition) -> Shortcut {
-        Shortcut::new_when(action,Self::label(),command,condition)
-    }
-
-    /// Add a new shortcut targetting the self object.
-    fn self_shortcut
-    (action_type:ActionType, pattern:impl Into<String>, command:impl Into<Command>) -> Shortcut {
-        Shortcut::new(Rule::new(action_type,pattern),Self::label(),command)
-    }
-}
+// /// Trait allowing providing default set of shortcuts exposed by an object.
+// pub trait DefaultShortcutProvider : command::View {
+//     /// Set of default shortcuts.
+//     fn default_shortcuts() -> Vec<Shortcut> {
+//         default()
+//     }
+//
+//     /// Helper for defining shortcut targeting this object.
+//     fn self_shortcut_when
+//     (action:impl Into<Rule>, command:impl Into<Command>, condition:Condition) -> Shortcut {
+//         Shortcut::new_when(action,Self::label(),command,condition)
+//     }
+//
+//     /// Add a new shortcut targetting the self object.
+//     fn self_shortcut
+//     (action_type:ActionType, pattern:impl Into<String>, command:impl Into<Command>) -> Shortcut {
+//         Shortcut::new(Rule::new(action_type,pattern),Self::label(),command)
+//     }
+// }

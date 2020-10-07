@@ -1592,12 +1592,22 @@ impl GraphEditor {
 }
 
 impl application::command::Provider for GraphEditor {
+
+}
+
+impl application::command::CommandApi2 for GraphEditor {}
+
+
+
+impl application::View for GraphEditor {
     fn label() -> &'static str {
         "GraphEditor"
     }
-}
 
-impl application::shortcut::DefaultShortcutProvider for GraphEditor {
+    fn new(app:&Application) -> Self {
+        new_graph_editor(app)
+    }
+
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use shortcut::ActionType::*;
         (&[ (Press       , "ctrl shift enter" , "debug_push_breadcrumb")
@@ -1625,14 +1635,8 @@ impl application::shortcut::DefaultShortcutProvider for GraphEditor {
           , (Release     , "enter"            , "stop_editing")
           // FIXME[WD] We need to add something like that to debug shapes.
           , // (Press       , "ctrl n"           , "add_node_at_cursor")
-          ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
+        ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
 
-    }
-}
-
-impl application::View for GraphEditor {
-    fn new(app:&Application) -> Self {
-        new_graph_editor(app)
     }
 }
 

@@ -437,14 +437,17 @@ impl application::command::FrpNetworkProvider for ListView {
 }
 
 impl application::command::Provider for ListView {
-    fn label() -> &'static str { "ListView" }
+    // fn label() -> &'static str { "ListView" }
+}
+
+impl application::command::CommandApi2 for ListView {
 }
 
 impl application::View for ListView {
-    fn new(app:&Application) -> Self { ListView::new(app) }
-}
+    fn label() -> &'static str { "ListView" }
 
-impl application::shortcut::DefaultShortcutProvider for ListView {
+    fn new(app:&Application) -> Self { ListView::new(app) }
+
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use shortcut::ActionType::*;
         (&[ (Press, "up"        , "move_selection_up")

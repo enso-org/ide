@@ -259,14 +259,14 @@ impl application::command::CommandApi for View {
 }
 
 impl application::command::Provider for View {
-    fn label() -> &'static str { "Searcher" }
 }
+
+impl application::command::CommandApi2 for View {}
 
 impl application::View for View {
-    fn new(app: &Application) -> Self { Self::new(app) }
-}
+    fn label() -> &'static str { "Searcher" }
 
-impl application::shortcut::DefaultShortcutProvider for View {
+    fn new(app: &Application) -> Self { Self::new(app) }
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use shortcut::ActionType::*;
         (&[ (Press , "tab" , "pick_suggestion"),

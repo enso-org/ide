@@ -248,14 +248,15 @@ impl application::command::FrpNetworkProvider for View {
 }
 
 impl application::command::Provider for View {
-    fn label() -> &'static str { "ProjectView" }
 }
+
+impl application::command::CommandApi2 for View {}
 
 impl application::View for View {
-    fn new(app:&Application) -> Self { View::new(app) }
-}
+    fn label() -> &'static str { "ProjectView" }
 
-impl application::shortcut::DefaultShortcutProvider for View {
+    fn new(app:&Application) -> Self { View::new(app) }
+
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use shortcut::ActionType::*;
         (&[ (Press   , "shift tab"    , "add_new_node")
