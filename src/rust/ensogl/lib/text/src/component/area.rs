@@ -340,7 +340,7 @@ impl Lines {
 // === FRP ===
 // ===========
 
-ensogl_core::define_endpoints2! {
+ensogl_core::define_endpoints! {
     Input {
         /// Insert character of the last pressed key at every cursor.
         insert_char_of_last_pressed_key(),

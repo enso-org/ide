@@ -127,19 +127,16 @@ impl Model {
 // === FRP ===
 // ===========
 
-ensogl::def_command_api!( Commands
-    /// Pick the selected suggestion and add it to the current input.
-    pick_suggestion,
-);
-
-ensogl_text::define_endpoints! {
-    Commands { Commands }
+ensogl::define_endpoints! {
     Input {
+        /// Pick the selected suggestion and add it to the current input.
+        pick_suggestion   (),
         set_suggestions   (entry::AnyModelProvider,AnyDocumentationProvider),
         select_suggestion (entry::Id),
         show              (),
         hide              (),
     }
+
     Output {
         selected_entry    (Option<entry::Id>),
         picked_entry      (Option<entry::Id>),
@@ -247,18 +244,6 @@ impl application::command::FrpNetworkProvider for View {
         &self.frp.network
     }
 }
-
-impl application::command::CommandApi for View {
-    fn command_api_docs() -> Vec<application::command::EndpointDocs> {
-        Commands::command_api_docs()
-    }
-
-    fn command_api(&self) -> Vec<application::command::CommandEndpoint> {
-        self.frp.input.command.command_api()
-    }
-}
-
-impl application::command::CommandApi2 for Frp {}
 
 impl application::View for View {
     fn label() -> &'static str { "Searcher" }

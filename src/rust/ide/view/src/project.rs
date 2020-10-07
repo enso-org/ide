@@ -91,29 +91,16 @@ impl Model {
 // === FRP ===
 // ===========
 
-ensogl::def_command_api! { Commands
-    /// Add new node and start editing it's expression.
-    add_new_node,
-    /// Abort currently node edit. If it was added node, it will be removed, if the existing node was edited, its old expression will be restored.
-    abort_node_editing,
-    /// Simulates a style toggle press event.
-    toggle_style,
-}
-
-impl application::command::CommandApi for View {
-    fn command_api_docs() -> Vec<application::command::EndpointDocs> {
-        Commands::command_api_docs()
-    }
-
-    fn command_api(&self) -> Vec<application::command::CommandEndpoint> {
-        self.frp.input.command.command_api()
-    }
-}
-
-ensogl_text::define_endpoints! {
-    Commands { Commands }
+ensogl::define_endpoints! {
     Input {
+        /// Add new node and start editing it's expression.
+        add_new_node(),
+        /// Abort currently node edit. If it was added node, it will be removed, if the existing node was edited, its old expression will be restored.
+        abort_node_editing(),
+        /// Simulates a style toggle press event.
+        toggle_style(),
     }
+
     Output {
         adding_new_node               (bool),
         edited_node                   (Option<NodeId>),
@@ -253,8 +240,6 @@ impl display::Object for View {
 impl application::command::FrpNetworkProvider for View {
     fn network(&self) -> &frp::Network { &self.frp.network }
 }
-
-impl application::command::CommandApi2 for Frp {}
 
 impl application::View for View {
     fn label() -> &'static str { "ProjectView" }

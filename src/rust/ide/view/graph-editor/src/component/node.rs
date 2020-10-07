@@ -134,7 +134,7 @@ pub mod drag_area {
 // === Frp ===
 // ===========
 
-ensogl_text::define_endpoints! {
+ensogl::define_endpoints! {
     Input {
         select              (),
         deselect            (),

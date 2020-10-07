@@ -55,7 +55,7 @@ use ensogl::system::web;
 use ensogl_theme;
 
 pub use ensogl::prelude;
-use ensogl::application::command::FrpEndpoint;
+
 
 
 // =================
@@ -275,7 +275,7 @@ impl<K,V,S> SharedHashMap<K,V,S> {
 // === FrpInputs ===
 // =================
 
-ensogl::define_endpoints2! {
+ensogl::define_endpoints! {
     Input {
         /// Push a hardcoded breadcrumb without notifying the controller.
         debug_push_breadcrumb(),

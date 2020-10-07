@@ -192,45 +192,32 @@ impl Model {
 // === FRP ===
 // ===========
 
-ensogl_core::def_command_api! { Commands
-    /// Move selection one position up.
-    move_selection_up,
-    /// Move selection page up (jump over all visible entries).
-    move_selection_page_up,
-    /// Move selection to the first argument.
-    move_selection_to_first,
-    /// Move selection one position down.
-    move_selection_down,
-    /// Move selection page down (jump over all visible entries).
-    move_selection_page_down,
-    /// Move selection to the last argument.
-    move_selection_to_last,
-    /// Chose the currently selected entry.
-    chose_selected_entry,
-    /// Deselect all entries.
-    deselect_entries,
-}
-
-impl application::command::CommandApi for ListView {
-    fn command_api_docs() -> Vec<application::command::EndpointDocs> {
-        Commands::command_api_docs()
-    }
-
-    fn command_api(&self) -> Vec<application::command::CommandEndpoint> {
-        self.frp.input.command.command_api()
-    }
-}
-
-ensogl_text::define_endpoints! {
-    Commands { Commands }
+ensogl_core::define_endpoints! {
     Input {
+        /// Move selection one position up.
+        move_selection_up(),
+        /// Move selection page up (jump over all visible entries).
+        move_selection_page_up(),
+        /// Move selection to the first argument.
+        move_selection_to_first(),
+        /// Move selection one position down.
+        move_selection_down(),
+        /// Move selection page down (jump over all visible entries).
+        move_selection_page_down(),
+        /// Move selection to the last argument.
+        move_selection_to_last(),
+        /// Chose the currently selected entry.
+        chose_selected_entry(),
+        /// Deselect all entries.
+        deselect_entries(),
+
         resize           (Vector2<f32>),
         scroll_jump      (f32),
         set_entries      (entry::AnyModelProvider),
         select_entry     (entry::Id),
         chose_entry      (entry::Id),
-        deselect_entries (),
     }
+
     Output {
         selected_entry  (Option<entry::Id>),
         chosen_entry    (Option<entry::Id>),
@@ -434,9 +421,6 @@ impl display::Object for ListView {
 
 impl application::command::FrpNetworkProvider for ListView {
     fn network(&self) -> &frp::Network { &self.frp.network }
-}
-
-impl application::command::CommandApi2 for Frp {
 }
 
 impl application::View for ListView {
