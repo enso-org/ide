@@ -383,7 +383,7 @@ macro_rules! define_endpoints_emit_alias {
 // =================
 
 /// Default visible line count in a new buffer view.
-const DEFAULT_LINE_COUNT : usize = 10;
+const DEFAULT_LINE_COUNT : usize = 40;
 
 
 

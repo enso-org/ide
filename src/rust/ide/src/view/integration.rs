@@ -159,17 +159,18 @@ impl Integration {
 
 #[derive(Debug)]
 struct Model {
-    logger           : Logger,
-    view             : ide_view::project::View,
-    graph            : controller::ExecutedGraph,
-    text             : controller::Text,
-    searcher         : RefCell<Option<controller::Searcher>>,
-    project          : model::Project,
-    visualization    : controller::Visualization,
-    node_views       : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
-    expression_views : RefCell<HashMap<graph_editor::NodeId,String>>,
-    connection_views : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
-    visualizations   : SharedHashMap<graph_editor::NodeId,VisualizationId>,
+    logger             : Logger,
+    view               : ide_view::project::View,
+    graph              : controller::ExecutedGraph,
+    text               : controller::Text,
+    searcher           : RefCell<Option<controller::Searcher>>,
+    project            : model::Project,
+    visualization      : controller::Visualization,
+    node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
+    expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
+    connection_views   : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
+    code_view          : CloneRefCell<ensogl_text::Text>,
+    visualizations     : SharedHashMap<graph_editor::NodeId,VisualizationId>,
 }
 
 
@@ -227,7 +228,7 @@ impl Integration {
 
 
         // === UI Actions ===
-        
+
         let inv                    = &invalidate.trigger;
         let node_editing_in_ui     = Model::node_editing_in_ui(Rc::downgrade(&model));
         let code_changed           = Self::ui_action(&model,Model::code_changed_in_ui          ,inv);
@@ -245,6 +246,8 @@ impl Integration {
         let visualization_enabled  = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
         let visualization_disabled = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
         frp::extend! {network
+            eval code_editor.content ((content) model.code_view.set(content.clone_ref()));
+
             // Notifications from graph controller
             let handle_graph_notification = FencedAction::fence(&network,
                 f!((notification:&Option<controller::graph::executed::Notification>)
@@ -350,10 +353,11 @@ impl Model {
         let node_views       = default();
         let connection_views = default();
         let expression_views = default();
+        let code_view        = default();
         let visualizations   = default();
         let searcher         = default();
         let this             = Model
-            {view,graph,text,searcher,node_views,expression_views,connection_views,logger
+            {view,graph,text,searcher,node_views,expression_views,connection_views,code_view,logger
             ,visualization,visualizations,project};
 
         this.init_project_name();
@@ -420,8 +424,14 @@ impl Model {
 impl Model {
     /// Refresh displayed code to be up to date with module state.
     pub fn refresh_code_editor(&self) -> FallibleResult<()> {
-        let new_code = self.graph.graph().module.ast().repr();
-        self.view.code_editor().text_area().set_content(new_code);
+        let current_code = self.code_view.get().to_string();
+        let new_code     = self.graph.graph().module.ast().repr();
+        iprintln!("\"{current_code}\" - \"{new_code}\"");
+        if new_code != current_code {
+            println!("Resetting...");
+            self.code_view.set(new_code.as_str().into());
+            self.view.code_editor().text_area().set_content(new_code);
+        }
         Ok(())
     }
 
@@ -1013,7 +1023,7 @@ impl Model {
         executor::global::spawn(exit_node_action);
         Ok(())
     }
-    
+
     fn code_changed_in_ui(&self, changes:&Vec<ensogl_text::Change>) -> FallibleResult<()> {
         for change in changes {
             let range_start = data::text::Index::new(change.range.start.value as usize);

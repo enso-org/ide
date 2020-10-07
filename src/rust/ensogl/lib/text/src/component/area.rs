@@ -727,60 +727,64 @@ impl AreaData {
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
         {
-        let mut selection_map     = self.selection_map.borrow_mut();
-        let mut new_selection_map = SelectionMap::default();
-        for sel in selections {
-            let sel        = self.buffer.snap_selection(*sel);
-            let id         = sel.id;
-            let start_line = sel.start.line.as_usize();
-            let end_line   = sel.end.line.as_usize();
-            let min_pos_x  = self.lines.rc.borrow()[start_line].div_by_column(sel.start.column);
-            let max_pos_x  = self.lines.rc.borrow()[end_line].div_by_column(sel.end.column);
-            let logger     = Logger::sub(&self.logger,"cursor");
-            let min_pos_y  = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line as f32;
-            let pos        = Vector2(min_pos_x,min_pos_y);
-            let width      = max_pos_x - min_pos_x;
-            let selection  = match selection_map.id_map.remove(&id) {
-                Some(selection) => {
-                    let select_left  = selection.width.simulator.target_value() < 0.0;
-                    let select_right = selection.width.simulator.target_value() > 0.0;
-                    let tgt_pos_x    = selection.position.simulator.target_value().x;
-                    let tgt_width    = selection.width.simulator.target_value();
-                    let mid_point    = tgt_pos_x + tgt_width / 2.0;
-                    let go_left      = pos.x < mid_point;
-                    let go_right     = pos.x > mid_point;
-                    let need_flip    = (select_left && go_left) || (select_right && go_right);
-                    if width == 0.0 && need_flip { selection.flip_sides() }
-                    selection.position.set_target_value(pos);
-                    selection
-                }
-                None => {
-                    let selection = Selection::new(&logger,&self.scene,do_edit);
-                    selection.shape.letter_width.set(7.0); // FIXME hardcoded values
-                    self.add_child(&selection);
-                    selection.position.set_target_value(pos);
-                    selection.position.skip();
-                    let selection_network = &selection.network;
-                    // FIXME[wd]: memory leak. To be fixed with the below note as a part of
-                    //            https://github.com/enso-org/ide/issues/670 . Once fixed, delete
-                    //            code removing all cursors on Area drop.
-                    let model = self.clone_ref();
-                    frp::extend! { selection_network
-                        // FIXME[WD]: This is ultra-slow. Redrawing all glyphs on each
-                        //            animation frame. Multiple times, once per cursor.
-                        eval_ selection.position.value (model.redraw());
+            let mut selection_map     = self.selection_map.borrow_mut();
+            let mut new_selection_map = SelectionMap::default();
+            for sel in selections {
+                let sel        = self.buffer.snap_selection(*sel);
+                let id         = sel.id;
+                let start_line = sel.start.line.as_usize();
+                let end_line   = sel.end.line.as_usize();
+                let pos_x      = |line:usize, column:Column| if line >= self.lines.count() {
+                    self.lines.rc.borrow().last().and_then(|l| l.divs.last().cloned()).unwrap_or(0.0)
+                } else {
+                    self.lines.rc.borrow()[line].div_by_column(column)
+                };
+                let min_pos_x  = pos_x(start_line,sel.start.column);
+                let max_pos_x  = pos_x(end_line  ,sel.end  .column);
+                let logger     = Logger::sub(&self.logger,"cursor");
+                let min_pos_y  = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line as f32;
+                let pos        = Vector2(min_pos_x,min_pos_y);
+                let width      = max_pos_x - min_pos_x;
+                let selection  = match selection_map.id_map.remove(&id) {
+                    Some(selection) => {
+                        let select_left  = selection.width.simulator.target_value() < 0.0;
+                        let select_right = selection.width.simulator.target_value() > 0.0;
+                        let tgt_pos_x    = selection.position.simulator.target_value().x;
+                        let tgt_width    = selection.width.simulator.target_value();
+                        let mid_point    = tgt_pos_x + tgt_width / 2.0;
+                        let go_left      = pos.x < mid_point;
+                        let go_right     = pos.x > mid_point;
+                        let need_flip    = (select_left && go_left) || (select_right && go_right);
+                        if width == 0.0 && need_flip { selection.flip_sides() }
+                        selection.position.set_target_value(pos);
+                        selection
                     }
-                    selection
-                }
-            };
-
-            selection.width.set_target_value(width);
-            selection.edit_mode.set(do_edit);
-            selection.shape.start_time.set(time);
-            new_selection_map.id_map.insert(id,selection);
-            new_selection_map.location_map.entry(start_line).or_default().insert(sel.start.column,id);
-        }
-        *selection_map = new_selection_map;
+                    None => {
+                        let selection = Selection::new(&logger,&self.scene,do_edit);
+                        selection.shape.letter_width.set(7.0); // FIXME hardcoded values
+                        self.add_child(&selection);
+                        selection.position.set_target_value(pos);
+                        selection.position.skip();
+                        let selection_network = &selection.network;
+                        // FIXME[wd]: memory leak. To be fixed with the below note as a part of
+                        //            https://github.com/enso-org/ide/issues/670 . Once fixed,
+                        //            delete code removing all cursors on Area drop.
+                        let model = self.clone_ref();
+                        frp::extend! { selection_network
+                            // FIXME[WD]: This is ultra-slow. Redrawing all glyphs on each
+                            //            animation frame. Multiple times, once per cursor.
+                            eval_ selection.position.value (model.redraw());
+                        }
+                        selection
+                    }
+                };
+                selection.width.set_target_value(width);
+                selection.edit_mode.set(do_edit);
+                selection.shape.start_time.set(time);
+                new_selection_map.id_map.insert(id,selection);
+                new_selection_map.location_map.entry(start_line).or_default().insert(sel.start.column,id);
+            }
+            *selection_map = new_selection_map;
         }
         self.redraw()
     }
