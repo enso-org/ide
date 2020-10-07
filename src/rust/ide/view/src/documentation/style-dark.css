@@ -6,7 +6,7 @@
  *      connected with the Theme manager to enable dark mode for documentation.
 */
 
-body {
+docVis {
     -webkit-font-smoothing: antialiased;
     font-style: normal;
     word-wrap: break-word;
@@ -15,13 +15,12 @@ body {
     font-weight: 400;
     letter-spacing: -0.021em;
     font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-    background-color: #2F2F29;
     color: #FAFAFA;
     margin: 0;
     padding: 0;
 }
 
-body p {
+docVis p {
     display: block;
     margin-block-start: 1em;
     margin-block-end: 1em;
@@ -29,12 +28,12 @@ body p {
     margin-inline-end: 0;
 }
 
-body a:hover {
+docVis a:hover {
     color: #438ac4 !important;
     text-decoration: inherit;
 }
 
-body a {
+docVis a {
     color: #FAFAFA;
     background-color: transparent;
     text-decoration: inherit;
@@ -42,11 +41,11 @@ body a {
     transition: all 0.3s ease;
 }
 
-body img {
+docVis img {
     display: block;
 }
 
-body code {
+docVis code {
     color: #438ac4;
     background-color: transparent;
     font-size: inherit;
@@ -56,7 +55,7 @@ body code {
     white-space: pre-wrap;
 }
 
-body button {
+docVis button {
     display: inline-block;
     padding: 8px 30px;
     margin: 10px 0;
@@ -70,23 +69,23 @@ body button {
     transition: all 0.3s ease;
 }
 
-body button:hover {
+docVis button:hover {
     background-color: #e5e5e5;
     color: #333333;
 }
 
-body b {
+docVis b {
     font-weight: 600;
 }
 
-body h1 {
+docVis h1 {
     font-size: 30px;
     line-height: 1.08824;
     font-weight: 500;
     letter-spacing: 0.01em;
 }
 
-body h2 {
+docVis h2 {
     font-size: 22px;
     line-height: 1.1073;
     font-weight: 500;
@@ -97,7 +96,7 @@ body h2 {
     margin: 0.65rem 0 0;
 }
 
-body li {
+docVis li {
     padding-left: 10px;
 }
 
