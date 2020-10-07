@@ -260,7 +260,6 @@ impl DynamicColor {
                     }
                     State::Transparent => {
                         alpha.set_target_value(0.0);
-                        dimmnes.set_target_value(0.0);
                     }
                 }
             });
