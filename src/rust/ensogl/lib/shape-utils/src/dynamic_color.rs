@@ -1,21 +1,22 @@
-/// `DynamicColor` is a FRP based wrapper around colors that can change their state. Updates and
-/// transitions of the color are emitted as FRP events nd make it easy to show animations of color
-/// transitions. `DynamicColor` works both for static colors, as well as colors derived from a
-/// theme.
+//! `DynamicColor` is a FRP based wrapper around colors that can change their state. Updates and
+//! transitions of the color are emitted as FRP events nd make it easy to show animations of color
+//! transitions. `DynamicColor` works both for static colors, as well as colors derived from a
+//! theme.
+
 use crate::prelude::*;
 
 use enso_frp as frp;
 use enso_frp;
 
-use ensogl::application::Application;
-use ensogl::data::color;
-use ensogl::display::shape::*;
-use ensogl::display::style::path::Path;
 
+use ensogl_core::application::Application;
+use ensogl_core::data::color;
+use ensogl_core::display::shape::*;
+use ensogl_core::display::style::data::DataMatch;
+use ensogl_core::display::style::path::Path;
+use ensogl_core::gui::component::Animation;
 use ensogl_text;
-use ensogl::gui::component::Animation;
 use ensogl_theme as theme;
-use ensogl::display::style::data::DataMatch;
 
 
 
@@ -60,8 +61,12 @@ fn mix<T1:Into<color::Lcha>,T2:Into<color::Lcha>>(color_a:T1,color_b:T2,mix_valu
 /// A `Source` contains the information required to get a color either from a theme, or statically
 /// through a constant.
 #[derive(Clone,Debug)]
+#[allow(missing_docs)]
 pub enum Source {
+    /// A constant color value.
     Static { color : color::Rgba},
+    /// A color derived from the current theme.
+    /// Should update automatically once #795 is resolved.
     Theme  { path  : Path}
 }
 
@@ -94,8 +99,12 @@ impl From<Path> for Source {
 /// Note: ca be extended with new states in the future, for example, "Highlight" or "Achromatic"
 #[derive(Clone,Copy,Debug)]
 pub enum State {
+    /// The default color state.
     Base,
+    /// A dimmed, muted version of the color. Used to indicate inactivity.
     Dim,
+    /// Invisible color with alpha set to 0.
+    Transparent,
 }
 
 impl Default for State {
@@ -129,9 +138,9 @@ ensogl_text::define_endpoints! {
 
 #[derive(Clone,Debug)]
 struct Model {
-    color_source: RefCell<Source>,
+    color_source:  RefCell<Source>,
     // FIXME : Replace style watch when #795 is resolved with whatever replaces it.
-    styles      : StyleWatch
+    styles       : StyleWatch
 }
 
 impl Model {
@@ -208,6 +217,7 @@ impl Model {
 /// transitions between different states (e.g, dim or not dim) that are emitted like an animation.
 #[derive(Clone,CloneRef,Debug)]
 pub struct DynamicColor {
+    /// Public FRP api.
     pub frp   : Frp,
         model : Rc<Model>,
 }
@@ -215,6 +225,7 @@ pub struct DynamicColor {
 
 impl DynamicColor {
 
+    /// Constructor.
     pub fn new(app:&Application) -> Self {
         let frp   = Frp::new_network();
         let model = Rc::new(Model::new(app));
@@ -227,15 +238,24 @@ impl DynamicColor {
         let model   = &self.model;
 
         let dimmnes          = Animation::<f32>::new(&network);
+        let alpha            = Animation::<f32>::new(&network);
 
         frp::extend! { network
             eval frp.set_state([dimmnes] (state) {
                 match *state {
                     State::Base => {
                         dimmnes.set_target_value(0.0);
+                        alpha.set_target_value(1.0);
+
                     },
                     State::Dim => {
                         dimmnes.set_target_value(1.0);
+                        alpha.set_target_value(1.0);
+
+                    }
+                    State::Transparent => {
+                        alpha.set_target_value(0.0);
+                        dimmnes.set_target_value(0.0);
                     }
                 }
             });

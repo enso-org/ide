@@ -3,21 +3,23 @@
 use crate::prelude::*;
 
 use crate::component::node;
-use crate::dynamic_color::DynamicColor;
-use crate::dynamic_color;
-use crate::shape_helper::HOVER_COLOR;
-use crate::shape_helper::compound_shape;
+
 
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
-use ensogl::display::shape::*;
 use ensogl::display::style;
-use ensogl::display::traits::*;
+use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl_theme as theme;
+use ensogl_gui_components::toggle_button::ToggleButton;
+use ensogl_shape_utils::dynamic_color;
+use ensogl_shape_utils::compound_shape;
+use ensogl_shape_utils::constants::HOVER_COLOR;
 
+
+use ensogl::display::object::ObjectOps;
 
 
 
@@ -74,9 +76,9 @@ struct Model {
     hover_area            : component::ShapeView<hover_rect::Shape>,
 
     icons                 : display::object::Instance,
-    icon_freeze           : component::ShapeView<node::icon::action::freeze::Shape>,
-    icon_visibility       : component::ShapeView<node::icon::action::visibility::Shape>,
-    icon_skip             : component::ShapeView<node::icon::action::skip::Shape>,
+    icon_freeze           : ToggleButton<node::icon::action::freeze::Shape>,
+    icon_visibility       : ToggleButton<node::icon::action::visibility::Shape>,
+    icon_skip             : ToggleButton<node::icon::action::skip::Shape>,
 
     display_object        : display::object::Instance,
     size                  : Rc<Cell<Vector2>>,
@@ -90,15 +92,15 @@ impl Model {
         let scene                 = app.display.scene();
         let logger                = Logger::new("ActionBarModel");
         let hover_area            = component::ShapeView::new(&logger,scene);
-        let icon_freeze           = component::ShapeView::new(&logger,scene);
-        let icon_visibility       = component::ShapeView::new(&logger,scene);
-        let icon_skip             = component::ShapeView::new(&logger,scene);
+        let icon_freeze           = ToggleButton::new(&app);
+        let icon_visibility       = ToggleButton::new(&app);
+        let icon_skip             = ToggleButton::new(&app);
         let all_shapes            = compound_shape::Events::default();
 
         all_shapes.add_sub_shape(&hover_area);
-        all_shapes.add_sub_shape(&icon_freeze);
-        all_shapes.add_sub_shape(&icon_visibility);
-        all_shapes.add_sub_shape(&icon_skip);
+        all_shapes.add_sub_shape(&icon_freeze.view());
+        all_shapes.add_sub_shape(&icon_visibility.view());
+        all_shapes.add_sub_shape(&icon_skip.view());
 
         let display_object        = display::object::Instance::new(&logger);
         let icons                 = display::object::Instance::new(&logger);
@@ -122,22 +124,25 @@ impl Model {
         self
     }
 
+    fn place_button_in_slot<T>(&self, button:&ToggleButton<T>, index:usize) {
+        let icon_size = Vector2::new(self.size.get().y, self.size.get().y);
+        let index     = index as f32;
+        button.mod_position(|p| p.x = (1.5 * index + 0.5) * icon_size.x);
+        button.frp.set_size(icon_size);
+    }
+
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
         self.hover_area.shape.size.set(size);
 
         self.icons.set_position_x(-size.x/2.0);
-        let icon_size = Vector2::new(size.y, size.y);
 
-        self.icon_skip.shape.size.set(icon_size);
-        self.icon_skip.mod_position(|p| p.x = 0.5 * icon_size.x);
+        self.place_button_in_slot(&self.icon_visibility, 0);
+        self.place_button_in_slot(&self.icon_skip, 1);
+        self.place_button_in_slot(&self.icon_freeze, 2);
 
-        self.icon_visibility.shape.size.set(icon_size);
-        self.icon_visibility.mod_position(|p| p.x  = 2.0 * icon_size.x);
-
-        self.icon_freeze.shape.size.set(icon_size);
-        self.icon_freeze.mod_position(|p| p.x  = 3.5 * icon_size.x);
-
+        // The appears smaller than the other ones, so this is an aesthetic adjustment.
+        self.icon_visibility.set_scale_xy(Vector2::new(1.2,1.2));
     }
 
     fn show(&self) {
@@ -183,19 +188,15 @@ impl ActionBar {
     pub fn new(app:&Application) -> Self {
         let model = Rc::new(Model::new(app));
         let frp   = Frp::new_network();
-        ActionBar {model,frp}.init_frp(app)
+        ActionBar {model,frp}.init_frp()
     }
 
-    fn init_frp(self, app:&Application) -> Self {
+    fn init_frp(self) -> Self {
         let network = &self.frp.network;
         let frp     = &self.frp;
         let model   = &self.model;
 
         let compound_shape = &model.all_shapes.frp;
-
-        let icon_freeze_color     = DynamicColor::new(&app);
-        let icon_skip_color       = DynamicColor::new(&app);
-        let icon_visibility_color = DynamicColor::new(&app);
 
         frp::extend! { network
 
@@ -212,51 +213,18 @@ impl ActionBar {
             eval_ compound_shape.mouse_over (model.show());
             eval_ compound_shape.mouse_out (model.hide());
 
-
-            eval_ model.icon_skip.events.mouse_over ({
-                icon_skip_color.frp.set_state(dynamic_color::State::Base)
-            });
-
-            eval_ model.icon_freeze.events.mouse_over ({
-                icon_freeze_color.frp.set_state(dynamic_color::State::Base)
-            });
-
-            eval_ model.icon_visibility.events.mouse_over ({
-                icon_visibility_color.frp.set_state(dynamic_color::State::Base)
-            });
-
-
             // === Icon Actions ===
 
-            frp.source.action_skip      <+ model.icon_skip.events.mouse_down.toggle();
-            frp.source.action_freeze    <+ model.icon_freeze.events.mouse_down.toggle();
-            frp.source.action_visbility <+ model.icon_visibility.events.mouse_down.toggle();
-
-
-            // === Colors ===
-
-            dim_skip_icon <- model.icon_skip.events.mouse_out.gate_not(&frp.output.action_skip);
-            dim_freeze_icon <- model.icon_freeze.events.mouse_out.gate_not(&frp.output.action_freeze );
-            dim_visibility_icon <- model.icon_visibility.events.mouse_out.gate_not(&frp.output.action_visbility);
-
-            eval_ dim_skip_icon ( icon_skip_color.frp.set_state(dynamic_color::State::Dim) );
-            eval_ dim_freeze_icon ( icon_freeze_color.frp.set_state(dynamic_color::State::Dim) );
-            eval_ dim_visibility_icon ( icon_visibility_color.frp.set_state(dynamic_color::State::Dim) );
-
-            eval icon_freeze_color.frp.color ((color) model.icon_freeze.shape.color_rgba.set(color.into()));
-            eval icon_skip_color.frp.color ((color) model.icon_skip.shape.color_rgba.set(color.into()));
-            eval icon_visibility_color.frp.color ((color) model.icon_visibility.shape.color_rgba.set(color.into()));
+            frp.source.action_skip      <+ model.icon_skip.frp.toggle_state;
+            frp.source.action_freeze    <+ model.icon_freeze.frp.toggle_state;
+            frp.source.action_visbility <+ model.icon_visibility.frp.toggle_state;
         }
 
         let icon_path:style::Path = theme::vars::graph_editor::node::actions::icon::color.into();
         let icon_color_source     = dynamic_color::Source::from(icon_path);
-        icon_freeze_color.frp.set_source(icon_color_source.clone());
-        icon_skip_color.frp.set_source(icon_color_source.clone());
-        icon_visibility_color.frp.set_source(icon_color_source);
-
-        icon_freeze_color.frp.set_state(dynamic_color::State::Dim);
-        icon_skip_color.frp.set_state(dynamic_color::State::Dim);
-        icon_visibility_color.frp.set_state(dynamic_color::State::Dim);
+        model.icon_freeze.frp.set_base_color(icon_color_source.clone());
+        model.icon_skip.frp.set_base_color(icon_color_source.clone());
+        model.icon_visibility.frp.set_base_color(icon_color_source);
 
         frp.hide_icons.emit(());
 

@@ -32,8 +32,6 @@ pub mod component;
 
 pub mod builtin;
 pub mod data;
-pub mod shape_helper;
-pub mod dynamic_color;
 
 use crate::component::node;
 use crate::component::visualization;

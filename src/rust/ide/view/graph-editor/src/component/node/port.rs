@@ -15,17 +15,19 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl::gui::cursor;
+use ensogl_shape_utils::dynamic_color::DynamicColor;
+use ensogl_shape_utils::dynamic_color;
+use ensogl_text as text;
 use ensogl_theme as theme;
 use span_tree::SpanTree;
-use ensogl_text as text;
 use text::Text;
 
 use super::super::node;
 
 use crate::Type;
 use crate::component::type_coloring::TypeColorMap;
-use crate::dynamic_color::DynamicColor;
-use crate::dynamic_color;
+
+
 
 
 // ============

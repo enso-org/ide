@@ -736,6 +736,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ensogl-gui-components"
+version = "0.1.0"
+dependencies = [
+ "enso-frp 0.1.0",
+ "enso-logger 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enso-prelude 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enso-shapely 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enso-types 0.1.0",
+ "ensogl-core 0.1.0",
+ "ensogl-shape-utils 0.1.0",
+ "ensogl-text 0.1.0",
+ "ensogl-theme 0.1.0",
+ "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ensogl-gui-drop-down-menu"
 version = "0.1.0"
 dependencies = [
@@ -753,6 +769,21 @@ dependencies = [
 
 [[package]]
 name = "ensogl-gui-list-view"
+version = "0.1.0"
+dependencies = [
+ "enso-frp 0.1.0",
+ "enso-logger 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enso-prelude 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enso-shapely 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enso-types 0.1.0",
+ "ensogl-core 0.1.0",
+ "ensogl-text 0.1.0",
+ "ensogl-theme 0.1.0",
+ "wasm-bindgen-test 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ensogl-shape-utils"
 version = "0.1.0"
 dependencies = [
  "enso-frp 0.1.0",
@@ -1309,8 +1340,10 @@ dependencies = [
  "enso-protocol 0.1.0",
  "enso-shapely 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ensogl 0.1.0",
+ "ensogl-gui-components 0.1.0",
  "ensogl-gui-drop-down-menu 0.1.0",
  "ensogl-gui-list-view 0.1.0",
+ "ensogl-shape-utils 0.1.0",
  "ensogl-text 0.1.0",
  "ensogl-text-msdf-sys 0.1.0",
  "ensogl-theme 0.1.0",

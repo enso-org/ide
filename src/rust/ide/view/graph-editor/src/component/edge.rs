@@ -14,11 +14,11 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewEvents;
 use ensogl::gui::component;
+use ensogl_shape_utils::dynamic_color::DynamicColor;
+use ensogl_shape_utils::dynamic_color;
 use ensogl_theme as theme;
 
 use crate::component::node::NODE_HEIGHT;
-use crate::dynamic_color::DynamicColor;
-use crate::dynamic_color;
 use super::node;
 
 

@@ -2,8 +2,9 @@ use crate::prelude::*;
 
 use ensogl::data::color;
 use ensogl::display::shape::*;
+use ensogl_gui_components::toggle_button::ColorableShape;
+use ensogl_shape_utils::constants::HOVER_COLOR;
 
-use crate::shape_helper::HOVER_COLOR;
 
 
 pub mod visibility {
@@ -41,6 +42,12 @@ pub mod visibility {
             (eye_colored+hover_area).into()
         }
     }
+
+    impl ColorableShape for Shape {
+        fn set_color(&self, color:color::Rgba) {
+            self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+        }
+    }
 }
 
 
@@ -71,6 +78,12 @@ pub mod visibility2 {
             let icon         = icon.fill(fill_color);
 
             (icon+hover_area).into()
+        }
+    }
+
+    impl ColorableShape for Shape {
+        fn set_color(&self, color:color::Rgba) {
+            self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
         }
     }
 }
@@ -118,6 +131,12 @@ pub mod freeze {
             (icon+hover_area).pixel_snap().into()
         }
     }
+
+    impl ColorableShape for Shape {
+        fn set_color(&self, color:color::Rgba) {
+            self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+        }
+    }
 }
 
 
@@ -156,6 +175,12 @@ pub mod skip {
             let icon         = icon.fill(fill_color);
 
             (icon+hover_area).into()
+        }
+    }
+
+    impl ColorableShape for Shape {
+        fn set_color(&self, color:color::Rgba) {
+            self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
         }
     }
 }
