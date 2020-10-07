@@ -136,7 +136,10 @@ define_theme! { dark
             }
             actions {
                 icon {
-                    color = color::Lcha::new(1.0,0.0,0.0,0.7)
+                    color = color::Lcha::new(1.0,0.0,0.0,0.7);
+                    variant {
+                        dimmed = color::Lcha::new(0.4,0.00,0.0,1.0)
+                    }
                 }
             }
         }
@@ -277,7 +280,7 @@ define_default_theme! { light
             text {
                 color = color::Lcha::new(0.0,0.0,0.0,0.7);
                 variant {
-                    dimmed = color::Lcha::new(0.4,0.0,0.0,0.7)
+                    dimmed = color::Lcha::new(0.7,0.0,0.0,0.7)
                 }
                 selection {
                     color = color::Lcha::new(0.7,0.0,0.125,0.7)
@@ -287,7 +290,7 @@ define_default_theme! { light
                 icon {
                     color = color::Lcha::new(0.0,0.0,0.0,0.7);
                     variant {
-                        dimmed = color::Lcha::new(0.5,0.0,0.0,0.7)
+                        dimmed = color::Lcha::new(0.7,0.0,0.0,0.7)
                     }
                 }
             }
