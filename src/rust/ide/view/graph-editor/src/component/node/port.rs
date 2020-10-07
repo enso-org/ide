@@ -157,7 +157,7 @@ impl Manager {
         label.remove_from_view(&scene.views.main);
         label.add_to_view(&scene.views.label);
 
-        frp::new_network! { TRACE_ALL network
+        frp::new_network! { network
             cursor_style_source <- any_mut::<cursor::Style>();
             press_source        <- source::<span_tree::Crumbs>();
             hover_source        <- source::<Option<span_tree::Crumbs>>();
@@ -184,7 +184,6 @@ impl Manager {
             // === Color Handling ===
 
             eval text_color.frp.color ([label](color) {
-                println!("COLOR {:?}", color);
                 // TODO: Make const once all the components can be made const.
                 let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
                 label.set_color_bytes(all_bytes,*color);
