@@ -86,6 +86,10 @@ impl TextFieldSprites {
         let glyph_system      = GlyphSystem::new(scene,font.clone_ref());
         scene.views.main.remove(&glyph_system.sprite_system().symbol);
         scene.views.breadcrumbs.add(&glyph_system.sprite_system().symbol);
+        scene.views.main.remove(&selection_system.sprite_system.symbol);
+        scene.views.breadcrumbs.add(&selection_system.sprite_system.symbol);
+        scene.views.main.remove(&cursor_system.sprite_system.symbol);
+        scene.views.breadcrumbs.add(&cursor_system.sprite_system.symbol);
         let display_object    = display::object::Instance::new(Logger::new("RenderedContent"));
         display_object.add_child(&selection_system);
         display_object.add_child(&glyph_system);
