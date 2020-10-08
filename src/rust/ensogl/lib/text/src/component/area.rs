@@ -697,6 +697,8 @@ impl Area {
 #[derive(Clone,CloneRef,Debug)]
 pub struct AreaData {
     scene          : Scene,
+    // FIXME[ao]: this is a temporary solution to handle properly areas in different views. Should
+    //            be replaced with proper object management.
     camera         : Rc<CloneRefCell<display::camera::Camera2d>>,
     logger         : Logger,
     frp_endpoints  : FrpEndpoints,
