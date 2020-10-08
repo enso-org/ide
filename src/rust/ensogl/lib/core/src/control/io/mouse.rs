@@ -132,9 +132,15 @@ macro_rules! define_bindings {
     };
 }
 
+/// Retrun options for addEventListener function. See also
+/// https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
 fn event_listener_options() -> web_sys::AddEventListenerOptions {
     let mut options = web_sys::AddEventListenerOptions::new();
-    options.capture(true).passive(false);
+    // We listen for events in capture phase, so we can decide ourself if it should be passed
+    // further.
+    options.capture(true);
+    // We want to prevent default action on wheel events, thus listener cannot be passive.
+    options.passive(false);
     options
 }
 
