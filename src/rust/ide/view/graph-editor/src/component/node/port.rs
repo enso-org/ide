@@ -153,12 +153,12 @@ impl Manager {
             editing             <- label.active.sampler();
 
             eval_ start_edit_mode ([label] {
-                label.set_active_on();
+                label.set_active(true);
                 label.set_cursor_at_mouse_position();
             });
 
             eval_ stop_edit_mode ([label] {
-                label.set_active_off();
+                label.set_active(false);
                 label.remove_all_cursors();
             });
 

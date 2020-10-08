@@ -149,8 +149,48 @@
 #[macro_export]
 macro_rules! define_endpoints {
     (
-        $(Input  { $($(#[doc=$($in_doc :tt)*])* $in_field  : ident ($($in_field_type  : tt)*)),* $(,)? })?
-        $(Output { $($(#[doc=$($out_doc:tt)*])* $out_field : ident ($($out_field_type : tt)*)),* $(,)? })?
+        $(Input  {
+            $($(#[doc=$($in_doc :tt)*])*
+            $in_field : ident ($($in_field_type : tt)*)),* $(,)?
+        })?
+
+        $(Output {
+            $($(#[doc=$($out_doc:tt)*])*
+            $out_field : ident ($($out_field_type : tt)*)),* $(,)?
+        })?
+    ) => {
+        $crate::define_endpoints! {
+            NORMALIZED
+
+            Input  {
+                /// Active state setter. You should not need to call it directly. It is meant to be
+                /// controlled by the focus manager.
+                set_active(bool),
+                $($($(#[doc=$($in_doc )*])*
+                $in_field ($($in_field_type )*)),*)?
+            }
+
+            Output {
+                /// Active state checker.
+                active(bool),
+                $($($(#[doc=$($out_doc)*])*
+                $out_field ($($out_field_type)*)),*)?
+            }
+        }
+    };
+
+    (
+        NORMALIZED
+
+        Input  {
+            $($(#[doc=$($in_doc :tt)*])*
+            $in_field : ident ($($in_field_type : tt)*)),* $(,)?
+        }
+
+        Output {
+            $($(#[doc=$($out_doc:tt)*])*
+            $out_field : ident ($($out_field_type : tt)*)),* $(,)?
+        }
     ) => {
         use enso_frp::IntoParam;
 
@@ -189,20 +229,20 @@ macro_rules! define_endpoints {
         #[allow(missing_docs)]
         #[allow(unused_parens)]
         pub struct FrpInputs {
-            $($($(#[doc=$($in_doc)*])* pub $in_field : frp::Source<($($in_field_type)*)>),*)?
+            $( $(#[doc=$($in_doc)*])* pub $in_field : frp::Source<($($in_field_type)*)>),*
         }
 
         #[allow(unused_parens)]
         impl FrpInputs {
             /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
-                frp::extend! { TRACE_ALL network
-                    $($($in_field <- source();)*)?
+                frp::extend! { network
+                    $($in_field <- source();)*
                 }
-                Self { $($($in_field),*)? }
+                Self { $($in_field),* }
             }
 
-            $($($crate::define_endpoints_emit_alias!{$in_field ($($in_field_type)*)})*)?
+            $($crate::define_endpoints_emit_alias!{$in_field ($($in_field_type)*)})*
         }
 
         /// Frp outputs.
@@ -213,7 +253,7 @@ macro_rules! define_endpoints {
             pub(crate) source : FrpOutputsSource,
             pub status_map    : Rc<RefCell<HashMap<String,frp::Sampler<bool>>>>,
             pub command_map   : Rc<RefCell<HashMap<String,frp::Source<()>>>>,
-            $($($(#[doc=$($out_doc)*])* pub $out_field  : frp::Sampler<$($out_field_type)*>),*)?
+            $($(#[doc=$($out_doc)*])* pub $out_field  : frp::Sampler<$($out_field_type)*>),*
         }
 
         impl Deref for FrpEndpoints {
@@ -229,31 +269,32 @@ macro_rules! define_endpoints {
                 let source = FrpOutputsSource::new(network);
                 let mut status_map  : HashMap<String,frp::Sampler<bool>> = default();
                 let mut command_map : HashMap<String,frp::Source<()>> = default();
-                frp::extend! { TRACE_ALL network
-                    $($($out_field <- source.$out_field.sampler();)*)?
+                frp::extend! { network
+                    $($out_field <- source.$out_field.sampler();)*
+                    source.active <+ input.set_active;
                 }
                 //$(let $out_field : frp::Stream<$($out_field_type)*> = source.$out_field.clone_ref().into();)*
-                $($($crate::build_status_map!{status_map $out_field ($($out_field_type)*) $out_field })*)?
-                $($($crate::build_command_map!{command_map $in_field ($($in_field_type)*) input.$in_field })*)?
+                $($crate::build_status_map!{status_map $out_field ($($out_field_type)*) $out_field })*
+                $($crate::build_command_map!{command_map $in_field ($($in_field_type)*) input.$in_field })*
                 let status_map = Rc::new(RefCell::new(status_map));
                 let command_map = Rc::new(RefCell::new(command_map));
-                Self {source,input,status_map,command_map,$($($out_field),*)?}
+                Self {source,input,status_map,command_map,$($out_field),*}
             }
         }
 
         /// Frp output setters.
         #[derive(Debug,Clone,CloneRef)]
         pub(crate) struct FrpOutputsSource {
-            $($($out_field : frp::Any<$($out_field_type)*>),*)?
+            $($out_field : frp::Any<$($out_field_type)*>),*
         }
 
         impl FrpOutputsSource {
             /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
                 frp::extend! { network
-                    $($($out_field <- any(...);)*)?
+                    $($out_field <- any(...);)*
                 }
-                Self {$($($out_field),*)?}
+                Self {$($out_field),*}
             }
         }
 

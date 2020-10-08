@@ -426,12 +426,6 @@ ensogl_core::define_endpoints! {
         copy(),
         /// Paste selected text from clipboard.
         paste(),
-        /// Set the text area in active state. You should rather not need to control it manually,
-        /// as it is automatically managed by the active state manager.
-        set_active_on(),
-        /// Set the text area in non-active state. You should rather not need to control it
-        /// manually, as it is automatically managed by the active state manager.
-        set_active_off(),
 
         set_cursor            (Location),
         add_cursor            (Location),
@@ -444,7 +438,6 @@ ensogl_core::define_endpoints! {
     }
     Output {
         mouse_cursor_style (gui::cursor::Style),
-        active             (bool),
         width              (f32),
         changed            (Text),
     }
@@ -505,20 +498,13 @@ impl Area {
             // self.frp.source.mouse_cursor_style <+ mouse_cursor;
 
 
-            // === Active State Management ===
-
-            // FIXME[WD]: Connect the active state to active state management when its ready.
-            // Should be removed as part of https://github.com/enso-org/ide/issues/670
-            active <- bool(&input.set_active_off,&input.set_active_on);
-            self.frp.source.active <+ active;
-
             // === Set / Add cursor ===
 
             // FIXME[WD]: These frp nodes are simulating active state management. To be removed
             // as part of https://github.com/enso-org/ide/issues/670
-            set_cursor_at_mouse_position <- input.set_cursor_at_mouse_position.gate(&active);
-            set_cursor_at_end            <- input.set_cursor_at_end           .gate(&active);
-            add_cursor_at_mouse_position <- input.add_cursor_at_mouse_position.gate(&active);
+            set_cursor_at_mouse_position <- input.set_cursor_at_mouse_position.gate(&input.set_active);
+            set_cursor_at_end            <- input.set_cursor_at_end           .gate(&input.set_active);
+            add_cursor_at_mouse_position <- input.add_cursor_at_mouse_position.gate(&input.set_active);
 
             mouse_on_set_cursor      <- mouse.position.sample(&set_cursor_at_mouse_position);
             mouse_on_add_cursor      <- mouse.position.sample(&add_cursor_at_mouse_position);
