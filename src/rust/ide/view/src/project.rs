@@ -266,7 +266,7 @@ impl application::shortcut::DefaultShortcutProvider for View {
           , (Press   , "escape"       , "abort_node_editing")
           , (Press   , "ctrl shift s" , "toggle_style")
           , (Release , "ctrl shift s" , "toggle_style")
-          , (Press   , "ctrl s"       , "save_module")
+          , (Press   , "cmd s"        , "save_module")
           ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
     }
 }
