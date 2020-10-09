@@ -5,9 +5,20 @@ function loadScript(url) {
     document.head.appendChild(script);
 }
 
-loadScript('https://d3js.org/d3.v4.min.js');
+function loadStyle(url) {
+    let style   = document.createElement("link");
+    style.href  = url;
+    style.rel   = "stylesheet";
+    style.media = "screen";
+    style.type  = "text/css";
 
-const label_style = "font-family: dejavuSansMono; font-size: 11px;";
+    document.head.appendChild(style);
+}
+
+loadScript('https://d3js.org/d3.v4.min.js');
+loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
+
+const label_style = "font-family: DejaVuSansMono; font-size: 11px;";
 
 /**
  * A d3.js ScatterPlot visualization.
@@ -184,7 +195,7 @@ class ScatterPlot extends Visualization {
                 .enter()
                 .append("text")
                 .text(d => d.label)
-                .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
+                .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + 5 + "," + scaleAndAxis.yScale(d.y) + ")")
                 .attr("style", label_style)
                 .attr("fill", "black");
         }
